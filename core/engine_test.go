@@ -29,7 +29,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-go-core/mock"
+	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/stretchr/testify/assert"
 )
 
