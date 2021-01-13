@@ -15,9 +15,9 @@ Distributed registry for storing and querying health care providers their vendor
     :target: https://codecov.io/gh/nuts-foundation/nuts-node
     :alt: Code coverage
 
-.. image:: https://api.codeclimate.com/v1/badges/69f77bd34f3ac253cae0/test_coverage
-   :target: https://codeclimate.com/github/nuts-foundation/nuts-node/test_coverage
-   :alt: Test Coverage
+.. image:: https://api.codeclimate.com/v1/badges/69f77bd34f3ac253cae0/maintainability
+   :target: https://codeclimate.com/github/nuts-foundation/nuts-node/maintainability
+   :alt: Maintainability
 
 Dependencies
 ************
