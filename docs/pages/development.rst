@@ -60,4 +60,14 @@ The documentation can be build by running
 
     /docs $ make html
 
-The resulting html will be available from ``docs/_build/html/index.html``
+Requirements for running sphinx
+===============================
+
+  - install python3
+  - install pip3 (if it doesn't install automatically)
+  - ``pip3 install sphinx``
+  - ``pip3 install recommonmark``
+  - ``pip3 install sphinx_rtd_theme``
+  - ``pip3 install rst_include``
+  - ``pip3 install sphinx-jsonschema``
+  - ``pip3 install sphinxcontrib-httpdomain``
