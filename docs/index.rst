@@ -18,6 +18,7 @@ Nuts documentation
 
     pages/development.rst
     pages/api.rst
+    pages/configuration/configuration.rst
     pages/contribute.rst
     pages/release_notes.rst
 
@@ -26,7 +27,7 @@ Nuts documentation
     :caption: Node & Network:
     :glob:
 
-    todo
+    pages/monitoring.rst
 
 .. toctree::
     :maxdepth: 1
