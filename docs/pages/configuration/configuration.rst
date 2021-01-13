@@ -1,7 +1,7 @@
 .. _nuts-go-config:
 
-Nuts service config
-###################
+Nuts node config
+################
 
 .. marker-for-readme
 
