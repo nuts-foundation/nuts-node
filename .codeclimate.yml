@@ -1,0 +1,24 @@
+version: "2"
+checks:
+  # Go returns 'error's rather than throwing exceptions, so the safer the code the more errors are returned.
+  # To avoid deeply nested if-statements we generally use guard clauses as recommended by Martin Fowler.
+  # Guard statements are if-statements that, as early as possible, check conditions and return if failed. They improve readability
+  # over nested if-statements. This however leads to many return statements which can't be avoided, so we'll disable the max. exit points check.
+  return-statements:
+    enabled: false
+exclude_patterns:
+  - "docs/"
+  - "**/*_test.go"
+  - '**/test.go'
+  - "test/*"
+  - "**/mock.go"
+  - "**/generated.go"
+  - "mock/*"
+
+plugins:
+  gofmt:
+    enabled: true
+  golint:
+    enabled: true
+  govet:
+    enabled: true

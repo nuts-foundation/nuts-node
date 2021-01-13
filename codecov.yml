@@ -1,0 +1,7 @@
+ignore:
+  - "**/generated.go"
+  - "test/*"
+  - '**/test.go'
+  - "mock/*"
+  - "**/mock.go"
+  - "docs/*"
