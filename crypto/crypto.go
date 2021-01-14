@@ -23,41 +23,21 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
-
-// MinRSAKeySize defines the minimum RSA key size
-const MinRSAKeySize = 2048
-
-// MinECKeySize defines the minimum EC key size
-const MinECKeySize = 256
-
-// ErrInvalidKeySize is returned when the keySize for new keys is too short
-var ErrInvalidKeySize = errors.New(fmt.Sprintf("invalid keySize, needs to be at least %d bits for RSA and %d bits for EC", MinRSAKeySize, MinECKeySize))
-
-// ErrInvalidKeyIdentifier is returned when the provided key identifier isn't valid
-var ErrInvalidKeyIdentifier = errors.New("invalid key identifier")
-
-// ErrInvalidAlgorithm indicates an invalid public key was used
-var ErrInvalidAlgorithm = errors.New("invalid algorithm for public key")
-
-// ErrKeyAlreadyExists indicates that the key already exists.
-var ErrKeyAlreadyExists = errors.New("key already exists")
 
 // CryptoConfig holds the values for the crypto engine
 type CryptoConfig struct {
 	Mode          string
 	Address       string
 	ClientTimeout int
-	Keysize       int
 	Storage       string
 	Fspath        string
 }
@@ -74,7 +54,6 @@ func DefaultCryptoConfig() CryptoConfig {
 	return CryptoConfig{
 		Address:       "localhost:1323",
 		ClientTimeout: 10,
-		Keysize:       2048,
 		Storage:       "fs",
 		Fspath:        "./",
 	}
@@ -151,9 +130,6 @@ func (client *Crypto) Configure() error {
 }
 
 func (client *Crypto) doConfigure() error {
-	if err := client.verifyKeySize(client.Config.Keysize); err != nil {
-		return err
-	}
 	if client.Config.Storage != "fs" && client.Config.Storage != "" {
 		return errors.New("only fs backend available for now")
 	}
@@ -170,7 +146,8 @@ func (client *Crypto) GenerateKeyPair() (crypto.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return util.PrivateKeyToPublicKey(privateKey)
+
+	return jwk.PublicKeyOf(privateKey)
 }
 
 func (client *Crypto) generateAndStoreKeyPair() (crypto.PrivateKey, error) {
@@ -179,17 +156,16 @@ func (client *Crypto) generateAndStoreKeyPair() (crypto.PrivateKey, error) {
 		return nil, err
 	}
 
-	kid := util.Fingerprint(keyPair.PublicKey)
+	kid, err := util.Fingerprint(keyPair.PublicKey)
+	if err != nil {
+		return nil, err
+	}
 
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
 		return nil, err
 	}
 
 	return keyPair, nil
-}
-
-func (client *Crypto) generateKeyPair() (*rsa.PrivateKey, error) {
-	return rsa.GenerateKey(rand.Reader, client.Config.Keysize)
 }
 
 func generateECKeyPair() (*ecdsa.PrivateKey, error) {
@@ -202,19 +178,6 @@ func (client *Crypto) PrivateKeyExists(kid string) bool {
 }
 
 // PublicKeyInPEM loads the key from storage and returns it as PEM encoded. Only supports RSA style keys
-func (client *Crypto) GetPublicKeyAsPEM(kid string) (string, error) {
-	pubKey, err := client.Storage.GetPublicKey(kid)
-
-	if err != nil {
-		return "", err
-	}
-
-	return util.PublicKeyToPem(pubKey)
-}
-
-func (client *Crypto) verifyKeySize(keySize int) error {
-	if keySize < MinRSAKeySize && core.NutsConfig().InStrictMode() {
-		return ErrInvalidKeySize
-	}
-	return nil
+func (client *Crypto) GetPublicKey(kid string) (crypto.PublicKey, error) {
+	return client.Storage.GetPublicKey(kid)
 }

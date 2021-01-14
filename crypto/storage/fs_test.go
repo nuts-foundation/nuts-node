@@ -29,8 +29,10 @@ func Test_fs_GetPublicKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 		pk := test.GenerateECKey()
-		kid := util.Fingerprint(pk.PublicKey)
+		kid, _ := util.Fingerprint(pk)
+
 		err := storage.SavePublicKey(kid, pk)
+
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -46,35 +48,40 @@ func Test_fs_GetPublicKey(t *testing.T) {
 func Test_fs_GetPrivateKey(t *testing.T) {
 	t.Run("non-existing entry", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
+
 		key, err := storage.GetPrivateKey("unknown")
+
 		assert.Contains(t, err.Error(), "could not open entry unknown with filename")
 		assert.Nil(t, key)
 	})
 	t.Run("private key invalid", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 		pk := test.GenerateECKey()
-		kid := util.Fingerprint(pk.PublicKey)
-
+		kid, _ := util.Fingerprint(pk.PublicKey)
 		path := storage.getEntryPath(kid, privateKeyEntry)
 		file, _ := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
 		_, err := file.WriteString("hello world")
 		if !assert.NoError(t, err) {
 			return
 		}
+
 		key, err := storage.GetPrivateKey(kid)
+
 		assert.Nil(t, key)
 		assert.Error(t, err)
 	})
 	t.Run("ok", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 		pk := test.GenerateECKey()
-		kid := util.Fingerprint(pk.PublicKey)
+		kid, _ := util.Fingerprint(pk)
 
 		err := storage.SavePrivateKey(kid, pk)
 		if !assert.NoError(t, err) {
 			return
 		}
+
 		key, err := storage.GetPrivateKey(kid)
+
 		assert.NoError(t, err)
 		if !assert.NotNil(t, key) {
 			return
@@ -91,7 +98,7 @@ func Test_fs_KeyExistsFor(t *testing.T) {
 	t.Run("existing entry", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 		pk := test.GenerateECKey()
-		kid := util.Fingerprint(pk.PublicKey)
+		kid, _ := util.Fingerprint(pk)
 		storage.SavePrivateKey(kid, pk)
 		assert.True(t, storage.PrivateKeyExists(kid))
 	})

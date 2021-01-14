@@ -29,6 +29,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/pkg/errors"
@@ -109,18 +110,21 @@ func TestCrypto_PublicKeyInJWK(t *testing.T) {
 	createCrypto(t)
 
 	publicKey, _ := client.GenerateKeyPair()
-	kid := util.Fingerprint(*publicKey.(*ecdsa.PublicKey))
+	kid, _ := util.Fingerprint(publicKey)
 
 	t.Run("Public key is returned from storage", func(t *testing.T) {
-		pub, err := client.GetPublicKeyAsJWK(kid)
+		pub, err := client.GetPublicKey(kid)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, pub)
-		assert.Equal(t, jwa.EC, pub.KeyType())
+
+		jwkKey, _ := jwk.New(pub)
+
+		assert.Equal(t, jwa.EC, jwkKey.KeyType())
 	})
 
 	t.Run("Public key for unknown entity returns error", func(t *testing.T) {
-		_, err := client.GetPublicKeyAsJWK("unknown")
+		_, err := client.GetPublicKey("unknown")
 
 		if assert.Error(t, err) {
 			assert.True(t, errors.Is(err, storage.ErrNotFound))
@@ -133,7 +137,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	createCrypto(t)
 
 	publicKey, _ := client.GenerateKeyPair()
-	kid := util.Fingerprint(*publicKey.(*ecdsa.PublicKey))
+	kid, _ := util.Fingerprint(publicKey)
 
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, kid)

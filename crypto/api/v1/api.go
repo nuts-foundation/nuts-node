@@ -109,13 +109,19 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 func (w *Wrapper) PublicKey(ctx echo.Context, kid string) error {
 	acceptHeader := ctx.Request().Header.Get("Accept")
 
+	pubKey, err := w.C.GetPublicKey(kid)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return ctx.NoContent(404)
+		}
+		log.Logger().Error(err.Error())
+		return err
+	}
+
 	// starts with so we can ignore any +
 	if ct, _, _ := mime.ParseMediaType(acceptHeader); ct == "application/json" {
-		jwk, err := w.C.GetPublicKeyAsJWK(kid)
+		jwk, err := jwk.New(pubKey)
 		if err != nil {
-			if errors.Is(err, storage.ErrNotFound) {
-				return ctx.NoContent(404)
-			}
 			log.Logger().Error(err.Error())
 			return err
 		}
@@ -124,11 +130,8 @@ func (w *Wrapper) PublicKey(ctx echo.Context, kid string) error {
 	}
 
 	// backwards compatible PEM format is the default
-	pub, err := w.C.GetPublicKeyAsPEM(kid)
+	pub, err := util.PublicKeyToPem(pubKey)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			return ctx.NoContent(404)
-		}
 		log.Logger().Error(err.Error())
 		return err
 	}

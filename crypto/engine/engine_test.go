@@ -21,7 +21,6 @@ package engine
 import (
 	"bytes"
 	"io/ioutil"
-	"os"
 	"strings"
 	"testing"
 
@@ -64,8 +63,6 @@ func TestNewCryptoEngine_Routes(t *testing.T) {
 }
 
 func TestNewCryptoEngine_Cmd(t *testing.T) {
-	os.Setenv("NUTS_IDENTITY", "urn:oid:1.3.6.1.4.1.54851.4:4")
-	defer os.Unsetenv("NUTS_IDENTITY")
 	core.NutsConfig().Load(&cobra.Command{})
 
 	createCmd := func(t *testing.T) (*cobra.Command, *crypto.Crypto) {

@@ -19,10 +19,6 @@
 package util
 
 import (
-	"crypto"
-	"crypto/ecdsa"
-	"crypto/ed25519"
-	"crypto/rsa"
 	"errors"
 )
 
@@ -34,19 +30,3 @@ var ErrWrongPrivateKey = errors.New("failed to decode PEM block containing priva
 
 // ErrRsaPubKeyConversion indicates a public key could not be converted to an RSA public key
 var ErrRsaPubKeyConversion = errors.New("Unable to convert public key to RSA public key")
-
-
-func PrivateKeyToPublicKey(privateKey crypto.PrivateKey) (publicKey crypto.PublicKey, err error) {
-	switch privateKey.(type) {
-	case *rsa.PrivateKey:
-		publicKey = privateKey.(*rsa.PrivateKey).Public()
-	case *ecdsa.PrivateKey:
-		publicKey = privateKey.(*ecdsa.PrivateKey).Public()
-	case ed25519.PrivateKey:
-		publicKey = privateKey.(ed25519.PrivateKey).Public()
-	default:
-		err = errors.New("unsupported private key type")
-	}
-
-	return
-}

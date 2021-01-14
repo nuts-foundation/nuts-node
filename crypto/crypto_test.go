@@ -22,7 +22,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"errors"
-	"os"
 	"reflect"
 	"testing"
 
@@ -47,36 +46,21 @@ func TestCryptoBackend(t *testing.T) {
 	})
 }
 
-func TestDefaultCryptoBackend_GenerateKeyPair(t *testing.T) {
-	createCrypto(t)
-
+func TestCrypto_PublicKey(t *testing.T) {
 	client := createCrypto(t)
-
-	t.Run("A new key pair is stored at config location", func(t *testing.T) {
-		_, err := client.GenerateKeyPair()
-
-		if err != nil {
-			t.Errorf("Expected no error, Got %s", err.Error())
-		}
-	})
-}
-
-func TestCrypto_PublicKeyInPem(t *testing.T) {
-	client := createCrypto(t)
-	createCrypto(t)
 
 	publicKey, _ := client.GenerateKeyPair()
-	kid := util.Fingerprint(*publicKey.(*ecdsa.PublicKey))
+	kid, _ := util.Fingerprint(publicKey)
 
 	t.Run("Public key is returned from storage", func(t *testing.T) {
-		pub, err := client.GetPublicKeyAsPEM(kid)
+		pub, err := client.GetPublicKey(kid)
 
 		assert.Nil(t, err)
 		assert.NotEmpty(t, pub)
 	})
 
 	t.Run("Public key for unknown entity returns error", func(t *testing.T) {
-		_, err := client.GetPublicKeyAsPEM("unknown")
+		_, err := client.GetPublicKey("unknown")
 
 		if assert.Error(t, err) {
 			assert.True(t, errors.Is(err, storage.ErrNotFound))
@@ -86,7 +70,6 @@ func TestCrypto_PublicKeyInPem(t *testing.T) {
 
 func TestCrypto_GetPrivateKey(t *testing.T) {
 	client := createCrypto(t)
-	createCrypto(t)
 
 	t.Run("private key not found", func(t *testing.T) {
 		pk, err := client.GetPrivateKey("unknown")
@@ -95,7 +78,7 @@ func TestCrypto_GetPrivateKey(t *testing.T) {
 	})
 	t.Run("get private key, assert non-exportable", func(t *testing.T) {
 		publicKey, _ := client.GenerateKeyPair()
-		kid := util.Fingerprint(*publicKey.(*ecdsa.PublicKey))
+		kid, _ := util.Fingerprint(publicKey)
 
 		pk, err := client.GetPrivateKey(kid)
 		if !assert.NoError(t, err) {
@@ -115,23 +98,21 @@ func TestCrypto_GetPrivateKey(t *testing.T) {
 
 func TestCrypto_KeyExistsFor(t *testing.T) {
 	client := createCrypto(t)
-	createCrypto(t)
 
 	pub, _ := client.GenerateKeyPair()
-	kid := util.Fingerprint(*(pub.(*ecdsa.PublicKey)))
+	kid, _ := util.Fingerprint(pub)
 
 	t.Run("returns true for existing key", func(t *testing.T) {
-		assert.True(t, client.PrivateKeyExists(string(kid)))
+		assert.True(t, client.PrivateKeyExists(kid))
 	})
 
 	t.Run("returns false for non-existing key", func(t *testing.T) {
-		assert.False(t, client.PrivateKeyExists("does_not_exists"))
+		assert.False(t, client.PrivateKeyExists("unknown"))
 	})
 }
 
 func TestCrypto_GenerateKeyPair(t *testing.T) {
 	client := createCrypto(t)
-	createCrypto(t)
 
 	t.Run("ok", func(t *testing.T) {
 		publicKey, err := client.GenerateKeyPair()
@@ -161,17 +142,6 @@ func TestCrypto_doConfigure(t *testing.T) {
 		err := client.doConfigure()
 		assert.EqualErrorf(t, err, "only fs backend available for now", "expected error")
 	})
-	t.Run("error - keySize is too small", func(t *testing.T) {
-		// Switch to strict mode just for this test
-		os.Setenv("NUTS_STRICTMODE", "true")
-		core.NutsConfig().Load(&cobra.Command{})
-		defer core.NutsConfig().Load(&cobra.Command{})
-		defer os.Unsetenv("NUTS_STRICTMODE")
-		e := createCrypto(t)
-		e.Config.Keysize = 2047
-		err := e.doConfigure()
-		assert.EqualError(t, err, ErrInvalidKeySize.Error())
-	})
 }
 
 func TestCrypto_Configure(t *testing.T) {
@@ -193,7 +163,6 @@ func TestCrypto_Configure(t *testing.T) {
 	})
 	t.Run("ok - server mode", func(t *testing.T) {
 		e := createCrypto(t)
-		e.Config.Keysize = 4096
 		err := e.Configure()
 		assert.NoError(t, err)
 	})
@@ -232,7 +201,6 @@ func createCrypto(t *testing.T) *Crypto {
 		Storage:    backend,
 		Config:     TestCryptoConfig(dir),
 	}
-	crypto.Config.Keysize = 1024
 
 	return &crypto
 }

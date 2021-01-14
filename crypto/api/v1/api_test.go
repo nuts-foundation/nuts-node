@@ -20,9 +20,7 @@ package v1
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -33,7 +31,6 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-go-test/io"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/stretchr/testify/assert"
@@ -96,7 +93,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 	client := apiWrapper(t)
 
 	publicKey, _ := client.C.GenerateKeyPair()
-	kid := util.Fingerprint(*publicKey.(*ecdsa.PublicKey))
+	kid, _ := util.Fingerprint(publicKey)
 
 	t.Run("Missing claims returns 400", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -185,7 +182,7 @@ func TestWrapper_PublicKey(t *testing.T) {
 	client := apiWrapper(t)
 
 	publicKey, _ := client.C.GenerateKeyPair()
-	kid := util.Fingerprint(*publicKey.(*ecdsa.PublicKey))
+	kid, _ := util.Fingerprint(publicKey)
 
 	t.Run("PublicKey API call returns 200", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -233,22 +230,7 @@ func TestWrapper_PublicKey(t *testing.T) {
 }
 
 func apiWrapper(t *testing.T) *Wrapper {
-	backend, _ := storage.NewFileSystemBackend(io.TestDirectory(t))
-	crypto := crypto.Crypto{
-		Storage: backend,
-		Config:  crypto.DefaultCryptoConfig(),
-	}
-	crypto.Config.Keysize = 1024
+	crypto := crypto.NewTestCryptoInstance(io.TestDirectory(t))
 
-	return &Wrapper{C: &crypto}
-}
-
-type errorCloser struct{}
-
-func (errorCloser) Read([]byte) (n int, err error) {
-	return 0, errors.New("error")
-}
-
-func (errorCloser) Close() error {
-	return errors.New("error")
+	return &Wrapper{C: crypto}
 }

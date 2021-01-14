@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
@@ -147,7 +148,7 @@ func (fsc *fileSystemBackend) SavePublicKey(kid string, key crypto.PrivateKey) e
 		return err
 	}
 
-	publicKey, err := util.PrivateKeyToPublicKey(key)
+	publicKey, err := jwk.PublicKeyOf(key)
 
 	defer outFile.Close()
 

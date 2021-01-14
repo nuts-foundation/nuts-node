@@ -16,19 +16,24 @@
 package util
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/sha256"
+	"crypto"
+	"encoding/base64"
 
-	"github.com/mr-tron/base58"
+	"github.com/lestrrat-go/jwx/jwk"
 )
 
-// Fingerprint calculates the key fingerprint which is used as kid
-// todo use jwk lib for fingerprint
-func Fingerprint(publicKey ecdsa.PublicKey) string {
-	// calculate kid as BASE-58(SHA-256(raw-public-key-bytes))
-	keyBytes := elliptic.Marshal(publicKey.Curve, publicKey.X, publicKey.Y)
-	sha := sha256.Sum256(keyBytes)
+// Thumbprint returns the JWK thumbprint using the indicated
+// hashing algorithm, according to RFC 7638
+func Fingerprint(key interface{}) (string, error) {
+	k, err := jwk.New(key)
+	if err != nil {
+		return "", err
+	}
 
-	return base58.Encode(sha[:])
+	tp, err := k.Thumbprint(crypto.SHA256)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.URLEncoding.EncodeToString(tp), nil
 }

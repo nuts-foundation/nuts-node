@@ -25,26 +25,10 @@ import (
 	"errors"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
 )
 
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
 var ErrUnsupportedSigningKey = errors.New("signing key algorithm not supported")
-
-// jwsAlgorithm holds the supported (required) JWS signing algorithm
-const jwsAlgorithm = jwa.RS256
-
-// PublicKeyInJWK loads the key from storage and wraps it in a Key format. Supports RSA, ECDSA and Symmetric style keys
-func (client *Crypto) GetPublicKeyAsJWK(kid string) (jwk.Key, error) {
-	pubKey, err := client.Storage.GetPublicKey(kid)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return jwk.New(pubKey)
-}
 
 // SignJwtFor creates a signed JWT given a legalEntity and map of claims
 func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token string, err error) {

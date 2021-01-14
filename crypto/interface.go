@@ -20,19 +20,16 @@ package crypto
 
 import (
 	"crypto"
-
-	"github.com/lestrrat-go/jwx/jwk"
 )
 
 // Client defines the functions than can be called by a Cmd, Direct or via rest call.
 type Client interface {
+	// GenerateKeyPair generates a keypair, stores the private key and returns the public key.
 	GenerateKeyPair() (crypto.PublicKey, error)
 	// GetPrivateKey returns the specified private key (for e.g. signing) in non-exportable form.
 	GetPrivateKey(kid string) (crypto.Signer, error)
-	// GetPublicKeyAsPEM returns the PEM encoded PublicKey
-	GetPublicKeyAsPEM(kid string) (string, error)
-	// GetPublicKeyAsJWK returns the JWK encoded PublicKey for a given legal entity
-	GetPublicKeyAsJWK(kid string) (jwk.Key, error)
+	// GetPublicKey returns the PublicKey
+	GetPublicKey(kid string) (crypto.PublicKey, error)
 	// SignJWT creates a signed JWT using the given key and map of claims (private key must be present).
 	SignJWT(claims map[string]interface{}, kid string) (string, error)
 	// PrivateKeyExists returns if the specified private key exists.

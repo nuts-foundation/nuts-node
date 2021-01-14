@@ -20,7 +20,6 @@
 package v1
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"errors"
@@ -76,7 +75,7 @@ func (hb HttpClient) GenerateKeyPair() (crypto.PublicKey, error) {
 	return jwkSet.Keys[0], nil
 }
 
-func (hb HttpClient) GetPublicKeyAsJWK(kid string) (jwk.Key, error) {
+func (hb HttpClient) GetPublicKey(kid string) (crypto.PublicKey, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
 	defer cancel()
 	httpClient := hb.clientWithRequestEditor(func(ctx context.Context, req *http.Request) error {
@@ -97,45 +96,16 @@ func (hb HttpClient) GetPublicKeyAsJWK(kid string) (jwk.Key, error) {
 	return jwkSet.Keys[0], nil
 }
 
-func (hb HttpClient) GetPrivateKey(kid string) (crypto.Signer, error) {
+func (hb HttpClient) GetPrivateKey(string) (crypto.Signer, error) {
 	panic(ErrNotImplemented)
 }
 
-func (hb HttpClient) GetPublicKeyAsPEM(kid string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
-	defer cancel()
-	httpClient := hb.clientWithRequestEditor(func(ctx context.Context, req *http.Request) error {
-		req.Header.Add("Accept", "text/plain")
-		return nil
-	})
-	response, err := httpClient.PublicKey(ctx, kid)
-	if err != nil {
-		return "", err
-	}
-	if err := testResponseCode(http.StatusOK, response); err != nil {
-		return "", err
-	}
-	pemBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(pemBytes), nil
-}
-
-func (hb HttpClient) SignJWT(claims map[string]interface{}, kid string) (string, error) {
+func (hb HttpClient) SignJWT(map[string]interface{}, string) (string, error) {
 	panic(ErrNotImplemented)
 }
 
-func (hb HttpClient) PrivateKeyExists(key string) bool {
+func (hb HttpClient) PrivateKeyExists(string) bool {
 	panic(ErrNotImplemented)
-}
-
-func readResponse(response *http.Response) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	if _, err := buf.ReadFrom(response.Body); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
 
 func testResponseCode(expectedStatusCode int, response *http.Response) error {

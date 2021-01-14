@@ -76,11 +76,11 @@ func TestHttpClient_GenerateKeyPair(t *testing.T) {
 	})
 }
 
-func TestHttpClient_GetPublicKeyAsJWK(t *testing.T) {
+func TestHttpClient_GetPublicKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
 		c := HttpClient{ServerAddress: s.URL, Timeout: time.Second}
-		res, err := c.GetPublicKeyAsJWK("kid")
+		res, err := c.GetPublicKey("kid")
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -90,14 +90,14 @@ func TestHttpClient_GetPublicKeyAsJWK(t *testing.T) {
 		csrBytes, _ := ioutil.ReadFile("../test/broken.pem")
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: csrBytes})
 		c := HttpClient{ServerAddress: s.URL, Timeout: time.Second}
-		res, err := c.GetPublicKeyAsJWK("kid")
+		res, err := c.GetPublicKey("kid")
 		assert.Contains(t, err.Error(), "failed to unmarshal JWK:")
 		assert.Nil(t, res)
 	})
 	t.Run("error - response not HTTP OK", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusInternalServerError, responseData: genericError})
 		c := HttpClient{ServerAddress: s.URL, Timeout: time.Second}
-		res, err := c.GetPublicKeyAsJWK("kid")
+		res, err := c.GetPublicKey("kid")
 		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: failed")
 		assert.Nil(t, res)
 	})
@@ -105,7 +105,7 @@ func TestHttpClient_GetPublicKeyAsJWK(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusOK})
 		s.Close()
 		c := HttpClient{ServerAddress: s.URL, Timeout: time.Second}
-		res, err := c.GetPublicKeyAsJWK("kid")
+		res, err := c.GetPublicKey("kid")
 		assert.Contains(t, err.Error(), "connection refused")
 		assert.Nil(t, res)
 	})
@@ -116,13 +116,13 @@ func TestHttpClient_NonImplemented(t *testing.T) {
 
 	funcs := map[string]func(){
 		"GetPrivateKey": func() {
-			c.GetPrivateKey("")
+			c.GetPrivateKey("kid")
 		},
 		"SignJWT": func() {
-			c.SignJWT(nil, "")
+			c.SignJWT(nil, "kid")
 		},
 		"PrivateKeyExists": func() {
-			c.PrivateKeyExists("")
+			c.PrivateKeyExists("kid")
 		},
 	}
 	for fnName, fn := range funcs {

@@ -22,6 +22,5 @@ func NewTestCryptoInstance(testDirectory string) *Crypto {
 func TestCryptoConfig(testDirectory string) CryptoConfig {
 	config := DefaultCryptoConfig()
 	config.Fspath = path.Join(testDirectory, "crypto")
-	config.Keysize = 1024
 	return config
 }

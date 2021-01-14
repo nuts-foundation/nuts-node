@@ -22,9 +22,6 @@ package types
 // --mode config flag
 const ConfigMode string = "mode"
 
-// --address config flag
-const ConfigAddress string = "address"
-
 // --clientTimeout config flag
 const ConfigClientTimeout string = "clientTimeout"
 
@@ -33,6 +30,3 @@ const ConfigStorage string = "storage"
 
 // --fspath config flagclient.getStoragePath()
 const ConfigFSPath string = "fspath"
-
-// --keysize config flag
-const ConfigKeySize string = "keysize"
