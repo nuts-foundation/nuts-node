@@ -24,6 +24,7 @@ import (
 )
 
 // Fingerprint calculates the key fingerprint which is used as kid
+// todo use jwk lib for fingerprint
 func Fingerprint(publicKey ecdsa.PublicKey) string {
 	// calculate kid as BASE-58(SHA-256(raw-public-key-bytes))
 	keyBytes := elliptic.Marshal(publicKey.Curve, publicKey.X, publicKey.Y)
