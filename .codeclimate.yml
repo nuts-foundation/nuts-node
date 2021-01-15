@@ -11,7 +11,7 @@ exclude_patterns:
   - "**/*_test.go"
   - '**/test.go'
   - "test/*"
-  - "**/mock.go"
+  - "**/*_mock.go"
   - "**/generated.go"
   - "mock/*"
 
