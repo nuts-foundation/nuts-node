@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto/test"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/stretchr/testify/assert"
@@ -29,7 +28,7 @@ func Test_fs_GetPublicKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 		pk := test.GenerateECKey()
-		kid, _ := util.Fingerprint(pk)
+		kid := "kid"
 
 		err := storage.SavePublicKey(kid, pk)
 
@@ -56,8 +55,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 	})
 	t.Run("private key invalid", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
-		pk := test.GenerateECKey()
-		kid, _ := util.Fingerprint(pk.PublicKey)
+		kid := "kid"
 		path := storage.getEntryPath(kid, privateKeyEntry)
 		file, _ := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
 		_, err := file.WriteString("hello world")
@@ -73,7 +71,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 		pk := test.GenerateECKey()
-		kid, _ := util.Fingerprint(pk)
+		kid := "kid"
 
 		err := storage.SavePrivateKey(kid, pk)
 		if !assert.NoError(t, err) {
@@ -98,7 +96,7 @@ func Test_fs_KeyExistsFor(t *testing.T) {
 	t.Run("existing entry", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 		pk := test.GenerateECKey()
-		kid, _ := util.Fingerprint(pk)
+		kid := "kid"
 		storage.SavePrivateKey(kid, pk)
 		assert.True(t, storage.PrivateKeyExists(kid))
 	})
