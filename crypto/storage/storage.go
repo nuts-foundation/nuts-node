@@ -16,8 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The backend package contains the various options for storing the actual private keys.
-// Currently only a file backend is supported
 package storage
 
 import (
