@@ -57,33 +57,33 @@ func TestSignJWT(t *testing.T) {
 	})
 
 	t.Run("creates valid JWT using ec keys", func(t *testing.T) {
-	   p256, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	   p384, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
-	   p521, _ := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+		p256, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		p384, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+		p521, _ := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 
-	   keys := []*ecdsa.PrivateKey{p256, p384, p521}
+		keys := []*ecdsa.PrivateKey{p256, p384, p521}
 
-	   for _, ecKey := range keys {
-		   name := fmt.Sprintf("using %s", ecKey.Params().Name)
-		   t.Run(name, func(t *testing.T) {
-			   key, _ := jwkKey(ecKey)
-			   tokenString, err := SignJWT(key, claims, nil)
+		for _, ecKey := range keys {
+			name := fmt.Sprintf("using %s", ecKey.Params().Name)
+			t.Run(name, func(t *testing.T) {
+				key, _ := jwkKey(ecKey)
+				tokenString, err := SignJWT(key, claims, nil)
 
-			   if !assert.NoError(t, err) {
-			   	return
-			   }
+				if !assert.NoError(t, err) {
+					return
+				}
 
-			   token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
-				   return ecKey.Public(), nil
-			   })
+				token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
+					return ecKey.Public(), nil
+				})
 
-			   if !assert.NoError(t, err) {
-				   return
-			   }
-			   assert.Equal(t, "nuts", token.Issuer())
-		   })
-	   }
-    })
+				if !assert.NoError(t, err) {
+					return
+				}
+				assert.Equal(t, "nuts", token.Issuer())
+			})
+		}
+	})
 
 	t.Run("sets correct headers", func(t *testing.T) {
 		ecKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -91,7 +91,7 @@ func TestSignJWT(t *testing.T) {
 		tokenString, err := SignJWT(key, claims, nil)
 
 		if !assert.NoError(t, err) {
-return
+			return
 		}
 
 		msg, err := jws.ParseString(tokenString)

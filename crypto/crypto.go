@@ -35,8 +35,8 @@ import (
 
 // CryptoConfig holds the values for the crypto engine
 type CryptoConfig struct {
-	Storage       string
-	Fspath        string
+	Storage string
+	Fspath  string
 }
 
 func (cc CryptoConfig) getFSPath() string {
@@ -49,17 +49,17 @@ func (cc CryptoConfig) getFSPath() string {
 
 func DefaultCryptoConfig() CryptoConfig {
 	return CryptoConfig{
-		Storage:       "fs",
-		Fspath:        "./",
+		Storage: "fs",
+		Fspath:  "./",
 	}
 }
 
 // default implementation for Instance
 type Crypto struct {
-	Storage      storage.Storage
-	Config       CryptoConfig
-	configOnce   sync.Once
-	configDone   bool
+	Storage    storage.Storage
+	Config     CryptoConfig
+	configOnce sync.Once
+	configDone bool
 }
 
 type opaquePrivateKey struct {

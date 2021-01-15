@@ -109,7 +109,7 @@ func JWTKidAlg(tokenString string) (string, jwa.SignatureAlgorithm, error) {
 type PublicKeyFunc func(kid string) (crypto.PublicKey, error)
 
 // ParseJWT parses a token, validates and verifies it.
-func ParseJWT(tokenString string, f PublicKeyFunc) (jwt.Token, error){
+func ParseJWT(tokenString string, f PublicKeyFunc) (jwt.Token, error) {
 	kid, alg, err := JWTKidAlg(tokenString)
 	if err != nil {
 		return nil, err

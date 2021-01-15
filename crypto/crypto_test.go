@@ -170,8 +170,8 @@ func createCrypto(t *testing.T) *Crypto {
 	dir := io.TestDirectory(t)
 	backend, _ := storage.NewFileSystemBackend(dir)
 	crypto := Crypto{
-		Storage:    backend,
-		Config:     TestCryptoConfig(dir),
+		Storage: backend,
+		Config:  TestCryptoConfig(dir),
 	}
 
 	return &crypto

@@ -33,7 +33,7 @@ import (
 type entryType string
 
 const (
-	privateKeyEntry  entryType = "private.pem"
+	privateKeyEntry entryType = "private.pem"
 	publicKeyEntry  entryType = "public.pem"
 )
 

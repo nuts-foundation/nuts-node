@@ -15,7 +15,7 @@ func GenerateRSAKey() *rsa.PrivateKey {
 	return privateKey
 }
 
-func GenerateECKey() (*ecdsa.PrivateKey) {
+func GenerateECKey() *ecdsa.PrivateKey {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return key
 }

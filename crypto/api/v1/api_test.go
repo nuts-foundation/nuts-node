@@ -96,8 +96,8 @@ func TestWrapper_SignJwt(t *testing.T) {
 		echo := mock.NewMockContext(ctrl)
 
 		jsonRequest := SignJwtRequest{
-			Kid: kid,
-			Claims:      map[string]interface{}{"iss": "nuts"},
+			Kid:    kid,
+			Claims: map[string]interface{}{"iss": "nuts"},
 		}
 
 		json, _ := json.Marshal(jsonRequest)
