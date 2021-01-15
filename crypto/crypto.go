@@ -54,7 +54,7 @@ func DefaultCryptoConfig() Config {
 	}
 }
 
-// default implementation for Instance
+// Crypto holds references to storage and needed config
 type Crypto struct {
 	Storage    storage.Storage
 	Config     Config
@@ -133,7 +133,7 @@ func (client *Crypto) doConfigure() error {
 	return nil
 }
 
-// GenerateKeyPair generates a new key pair. If a key pair with the same identifier already exists, it is overwritten.
+// New generates a new key pair. If a key pair with the same identifier already exists, it is overwritten.
 func (client *Crypto) New(namingFunc KidNamingFunc) (crypto.PublicKey, error) {
 	keyPair, err := generateECKeyPair()
 	if err != nil {
