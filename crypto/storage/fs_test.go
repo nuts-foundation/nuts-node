@@ -30,7 +30,7 @@ func Test_fs_GetPublicKey(t *testing.T) {
 		pk := test.GenerateECKey()
 		kid := "kid"
 
-		err := storage.SavePublicKey(kid, pk)
+		err := storage.(*fileSystemBackend).SavePublicKey(kid, pk)
 
 		if !assert.NoError(t, err) {
 			return
@@ -56,7 +56,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 	t.Run("private key invalid", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 		kid := "kid"
-		path := storage.getEntryPath(kid, privateKeyEntry)
+		path := storage.(*fileSystemBackend).getEntryPath(kid, privateKeyEntry)
 		file, _ := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
 		_, err := file.WriteString("hello world")
 		if !assert.NoError(t, err) {

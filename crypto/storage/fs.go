@@ -62,7 +62,7 @@ type fileSystemBackend struct {
 
 // NewFileSystemBackend creates a new filesystem backend, all directories will be created for the given path
 // Using a filesystem backend in production is not recommended!
-func NewFileSystemBackend(fspath string) (*fileSystemBackend, error) {
+func NewFileSystemBackend(fspath string) (Storage, error) {
 	if fspath == "" {
 		return nil, errors.New("filesystem path is empty")
 	}

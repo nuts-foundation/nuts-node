@@ -33,7 +33,7 @@ import (
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
 var ErrUnsupportedSigningKey = errors.New("signing key algorithm not supported")
 
-// SignJwtFor creates a signed JWT given a legalEntity and map of claims
+// SignJWT creates a signed JWT given a legalEntity and map of claims
 func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token string, err error) {
 	privateKey, err := client.Storage.GetPrivateKey(kid)
 
