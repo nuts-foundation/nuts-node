@@ -131,7 +131,6 @@ func (ngc NutsGlobalConfig) Mode() string {
 	return ngc.v.GetString(modeFlag)
 }
 
-
 // GetEngineMode configures an engine mode if not already configured. If the application is started in 'cli' mode,
 // its engines are configured to run in 'client' mode. This function returns the proper mode for the engine in and should be used as follows:
 // engineConfig.Mode = GetEngineMode(engineConfig.Mode)

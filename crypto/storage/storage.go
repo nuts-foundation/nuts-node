@@ -1,5 +1,5 @@
 /*
- * Nuts go core
+ * Nuts crypto
  * Copyright (C) 2019 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -14,16 +14,22 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package core
+package storage
 
-// NutsOID is the officially registered OID: http://oid-info.com/get/1.3.6.1.4.1.54851
-const NutsOID = "1.3.6.1.4.1.54851"
+import (
+	"crypto"
+	"errors"
+)
 
-// NutsConsentClassesOID is the sub-OID used for consent classification
-const NutsConsentClassesOID = NutsOID + ".1"
+// ErrNotFound indicates that the specified crypto storage entry couldn't be found.
+var ErrNotFound = errors.New("entry not found")
 
-// NutsVendorOID is the sub-OID used for vendor identifiers
-const NutsVendorOID = NutsOID + ".4"
+// Storage interface containing functions for storing and retrieving keys
+type Storage interface {
+	GetPrivateKey(kid string) (crypto.Signer, error)
+	GetPublicKey(kid string) (crypto.PublicKey, error)
+	PrivateKeyExists(kid string) bool
+	SavePrivateKey(kid string, key crypto.PrivateKey) error
+}

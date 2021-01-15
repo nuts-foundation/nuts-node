@@ -1,6 +1,6 @@
 /*
- * Nuts go core
- * Copyright (C) 2019 Nuts community
+ * Nuts crypto
+ * Copyright (C) 2019. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,16 +14,19 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package core
+package util
 
-// NutsOID is the officially registered OID: http://oid-info.com/get/1.3.6.1.4.1.54851
-const NutsOID = "1.3.6.1.4.1.54851"
+import (
+	"errors"
+)
 
-// NutsConsentClassesOID is the sub-OID used for consent classification
-const NutsConsentClassesOID = NutsOID + ".1"
+// ErrWrongPublicKey indicates a wrong public key format
+var ErrWrongPublicKey = errors.New("failed to decode PEM block containing public key, key is of the wrong type")
 
-// NutsVendorOID is the sub-OID used for vendor identifiers
-const NutsVendorOID = NutsOID + ".4"
+// ErrWrongPrivateKey indicates a wrong private key format
+var ErrWrongPrivateKey = errors.New("failed to decode PEM block containing private key")
+
+// ErrRsaPubKeyConversion indicates a public key could not be converted to an RSA public key
+var ErrRsaPubKeyConversion = errors.New("Unable to convert public key to RSA public key")

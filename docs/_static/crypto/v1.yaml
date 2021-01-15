@@ -1,0 +1,88 @@
+openapi: "3.0.0"
+info:
+  title: Crypto
+  description: API specification for crypto services available within nuts node
+  version: 1.0.0
+  license:
+    name: GPLv3
+paths:
+  /internal/crypto/v1/public_key/{kid}:
+    get:
+      summary: "get the public key for a given kid. It returns the key in PEM or JWK format. This depends on the accept header used (text/plain vs application/json)"
+      operationId: publicKey
+      tags:
+        - crypto
+      parameters:
+        - name: kid
+          in: path
+          schema:
+            type: string
+          description: "key identifier in did form"
+          example: "did:nuts:e3cacd5c2d931295a64f6c3bb3f6ea58c3a9b253b990e32c5abce43c2f94c564#_TKzHv2jFIyvdTGF1Dsgwngfdg3SH6TpDv0Ta1aOEkw"
+          required: true
+      responses:
+        '200':
+          description: "OK response, body holds public key in PEM/JWK format"
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/PublicKey'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JWK'
+        '404':
+          description: "not found"
+          content:
+            text/plain:
+              example:
+                "key not found"
+
+  /internal/crypto/v1/sign_jwt:
+    post:
+      summary: "sign a JWT payload with the private key of the given kid"
+      operationId: signJwt
+      tags:
+        - crypto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignJwtRequest'
+      responses:
+        '200':
+          description: "OK response, body holds JWT"
+          content:
+            text/plain:
+              schema:
+                example: "aa==.bb==.cc=="
+        '400':
+          description: "incorrect data"
+          content:
+            text/plain:
+              example:
+                "unknown kid"
+components:
+  schemas:
+    SignJwtRequest:
+      required:
+        - claims
+        - kid
+      properties:
+        kid:
+          type: string
+        claims:
+          type: object
+    PublicKey:
+      type: string
+      description: "PEM encoded public key"
+      example: "-----BEGIN PUBLIC KEY----- .... -----END PUBLIC KEY-----"
+    JWK:
+      type: object
+      description: as described by https://tools.ietf.org/html/rfc7517. Modelled as object so libraries can parse the tokens themselves.
+      example: { "kty": "EC",
+                 "crv": "P-256",
+                 "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+                 "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0",
+                 "kid": "Public key used in JWS spec Appendix A.3 example"
+      }

@@ -1,6 +1,5 @@
 /*
- * Nuts go core
- * Copyright (C) 2019 Nuts community
+ * Copyright (C) 2020. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,13 +16,15 @@
  *
  */
 
-package core
+package log
 
-// NutsOID is the officially registered OID: http://oid-info.com/get/1.3.6.1.4.1.54851
-const NutsOID = "1.3.6.1.4.1.54851"
+import (
+	"github.com/sirupsen/logrus"
+)
 
-// NutsConsentClassesOID is the sub-OID used for consent classification
-const NutsConsentClassesOID = NutsOID + ".1"
+var _logger = logrus.StandardLogger().WithField("module", "Crypto")
 
-// NutsVendorOID is the sub-OID used for vendor identifiers
-const NutsVendorOID = NutsOID + ".4"
+// Logger returns a logger with the module field set to 'Crypto'
+func Logger() *logrus.Entry {
+	return _logger
+}
