@@ -97,7 +97,7 @@ func JWTKidAlg(tokenString string) (string, jwa.SignatureAlgorithm, error) {
 	}
 
 	if len(j.Signatures()) != 1 {
-		return "", "", errors.New("incorrect amount of signatures in JWT")
+		return "", "", errors.New("incorrect number of signatures in JWT")
 	}
 
 	sig := j.Signatures()[0]
