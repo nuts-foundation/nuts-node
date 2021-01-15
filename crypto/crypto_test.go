@@ -129,9 +129,10 @@ func TestCrypto_New(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		kid := "kid"
-		publicKey, err := client.New(StringNamingFunc(kid))
+		publicKey, returnKid, err := client.New(StringNamingFunc(kid))
 		assert.NoError(t, err)
 		assert.NotNil(t, publicKey)
+		assert.Equal(t, kid, returnKid)
 	})
 }
 

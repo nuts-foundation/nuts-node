@@ -134,18 +134,22 @@ func (client *Crypto) doConfigure() error {
 }
 
 // New generates a new key pair. If a key pair with the same identifier already exists, it is overwritten.
-func (client *Crypto) New(namingFunc KidNamingFunc) (crypto.PublicKey, error) {
+func (client *Crypto) New(namingFunc KidNamingFunc) (crypto.PublicKey, string, error) {
 	keyPair, err := generateECKeyPair()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	kid := namingFunc(keyPair.Public())
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return jwk.PublicKeyOf(keyPair)
+	pkey, err := jwk.PublicKeyOf(keyPair)
+	if err != nil {
+		return nil, "", err
+	}
+	return pkey, kid, nil
 }
 
 func generateECKeyPair() (*ecdsa.PrivateKey, error) {

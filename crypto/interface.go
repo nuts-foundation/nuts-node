@@ -29,7 +29,7 @@ type KidNamingFunc func(key crypto.PublicKey) string
 type KeyStore interface {
 	// New generates a keypair and returns the public key.
 	// the KidNamingFunc will provide the kid. priv/pub keys are appended with a postfix and stored
-	New(namingFunc KidNamingFunc) (crypto.PublicKey, error)
+	New(namingFunc KidNamingFunc) (crypto.PublicKey, string, error)
 	// GetPrivateKey returns the specified private key (for e.g. signing) in non-exportable form.
 	GetPrivateKey(kid string) (crypto.Signer, error)
 	// GetPublicKey returns the PublicKey
