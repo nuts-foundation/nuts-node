@@ -22,7 +22,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 )
 
-// Thumbprint returns the JWK thumbprint using the indicated
+// Fingerprint returns the JWK thumbprint using the indicated
 // hashing algorithm, according to RFC 7638
 func Fingerprint(key interface{}) (string, error) {
 	k, err := jwk.New(key)

@@ -19,14 +19,8 @@
 // types and interfaces used by all other packages
 package types
 
-// --mode config flag
-const ConfigMode string = "mode"
-
-// --clientTimeout config flag
-const ConfigClientTimeout string = "clientTimeout"
-
-// --storage config flag
+// ConfigStorage is used as --storage config flag
 const ConfigStorage string = "storage"
 
-// --fspath config flagclient.getStoragePath()
+// ConfigFSPath is used as --fspath config flagclient.getStoragePath()
 const ConfigFSPath string = "fspath"

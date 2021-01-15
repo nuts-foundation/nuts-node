@@ -55,7 +55,7 @@ func PublicKeyToPem(pub crypto.PublicKey) (string, error) {
 	return string(pubBytes), err
 }
 
-// PublicKeyToPem converts an public key to PEM encoding
+// PrivateKeyToPem converts an public key to PEM encoding
 func PrivateKeyToPem(pub crypto.PrivateKey) (string, error) {
 	pubASN1, err := x509.MarshalPKCS8PrivateKey(pub)
 
