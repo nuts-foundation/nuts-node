@@ -161,34 +161,6 @@ func TestCrypto_Configure(t *testing.T) {
 		}
 		assert.True(t, e.configDone)
 	})
-	t.Run("ok - server mode", func(t *testing.T) {
-		e := createCrypto(t)
-		err := e.Configure()
-		assert.NoError(t, err)
-	})
-	t.Run("ok - client mode", func(t *testing.T) {
-		e := createCrypto(t)
-		e.Storage = nil
-		e.Config.Mode = core.ClientEngineMode
-		err := e.Configure()
-		assert.NoError(t, err)
-		// Assert server-mode services aren't initialized in client mode
-		assert.Nil(t, e.Storage)
-	})
-	t.Run("error - keySize is too small", func(t *testing.T) {
-		e := createCrypto(t)
-		assert.False(t, e.configDone)
-		err := e.Configure()
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.True(t, e.configDone)
-		err = e.Configure()
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.True(t, e.configDone)
-	})
 }
 
 func createCrypto(t *testing.T) *Crypto {

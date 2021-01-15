@@ -58,23 +58,6 @@ func (hb HttpClient) client() ClientInterface {
 	return hb.clientWithRequestEditor(nil)
 }
 
-func (hb HttpClient) GenerateKeyPair() (crypto.PublicKey, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
-	defer cancel()
-	response, err := hb.client().GenerateKeyPair(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if err := testResponseCode(http.StatusOK, response); err != nil {
-		return nil, err
-	}
-	jwkSet, err := jwk.Parse(response.Body)
-	if err != nil {
-		return nil, err
-	}
-	return jwkSet.Keys[0], nil
-}
-
 func (hb HttpClient) GetPublicKey(kid string) (crypto.PublicKey, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
 	defer cancel()
@@ -94,18 +77,6 @@ func (hb HttpClient) GetPublicKey(kid string) (crypto.PublicKey, error) {
 		return nil, err
 	}
 	return jwkSet.Keys[0], nil
-}
-
-func (hb HttpClient) GetPrivateKey(string) (crypto.Signer, error) {
-	panic(ErrNotImplemented)
-}
-
-func (hb HttpClient) SignJWT(map[string]interface{}, string) (string, error) {
-	panic(ErrNotImplemented)
-}
-
-func (hb HttpClient) PrivateKeyExists(string) bool {
-	panic(ErrNotImplemented)
 }
 
 func testResponseCode(expectedStatusCode int, response *http.Response) error {

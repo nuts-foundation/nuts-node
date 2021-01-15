@@ -54,7 +54,6 @@ func TestNewCryptoEngine_Routes(t *testing.T) {
 		defer ctrl.Finish()
 		echo := mock.NewMockEchoRouter(ctrl)
 
-		echo.EXPECT().POST("/internal/crypto/v1/generate", gomock.Any())
 		echo.EXPECT().POST("/internal/crypto/v1/sign_jwt", gomock.Any())
 		echo.EXPECT().GET("/internal/crypto/v1/public_key/:kid", gomock.Any())
 
@@ -70,20 +69,6 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 		instance := crypto.NewTestCryptoInstance(testDirectory)
 		return NewCryptoEngine().Cmd, instance
 	}
-
-	t.Run("generateKeyPair", func(t *testing.T) {
-		t.Run("ok", func(t *testing.T) {
-			cmd, _ := createCmd(t)
-			buf := new(bytes.Buffer)
-			cmd.SetArgs([]string{"generateKeyPair"})
-			cmd.SetOut(buf)
-			err := cmd.Execute()
-
-			if assert.NoError(t, err) {
-				assert.Contains(t, buf.String(), "KeyPair generated")
-			}
-		})
-	})
 
 	t.Run("publicKey", func(t *testing.T) {
 		t.Run("error - too few arguments", func(t *testing.T) {

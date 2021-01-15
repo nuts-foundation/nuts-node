@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -29,7 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	api "github.com/nuts-foundation/nuts-node/crypto/api/v1"
-	"github.com/nuts-foundation/nuts-node/crypto/client"
 	"github.com/nuts-foundation/nuts-node/crypto/types"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/sirupsen/logrus"
@@ -60,8 +60,6 @@ func flagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("crypto", pflag.ContinueOnError)
 
 	defs := crypto2.DefaultCryptoConfig()
-	flags.String(types.ConfigMode, defs.Mode, fmt.Sprintf("Server or client, when client it uses the HttpClient, default: %s", defs.Mode))
-	flags.Int(types.ConfigClientTimeout, defs.ClientTimeout, fmt.Sprintf("Time-out for the client in seconds (e.g. when using the CLI), default: %d", defs.ClientTimeout))
 	flags.String(types.ConfigStorage, defs.Storage, fmt.Sprintf("Storage to use, 'fs' for file system, default: %s", defs.Storage))
 	flags.String(types.ConfigFSPath, defs.Fspath, fmt.Sprintf("When file system is used as storage, this configures the path where key material and the truststore are persisted, default: %v", defs.Fspath))
 
@@ -91,20 +89,6 @@ func cmd() *cobra.Command {
 	})
 
 	cmd.AddCommand(&cobra.Command{
-		Use:   "generateKeyPair",
-		Short: "generate a new keyPair",
-		Args: cobra.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			cc := client.NewCryptoClient()
-			if _, err := cc.GenerateKeyPair(); err != nil {
-				cmd.Printf("Error generating keyPair: %v\n", err)
-			} else {
-				cmd.Println("KeyPair generated")
-			}
-		},
-	})
-
-	cmd.AddCommand(&cobra.Command{
 		Use:   "publicKey [kid]",
 		Short: "views the publicKey for a given kid",
 		Long:  "views the publicKey for a given kid. It'll output a JWK encoded public key and a PEM encoded public key.",
@@ -117,7 +101,7 @@ func cmd() *cobra.Command {
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			cc := client.NewCryptoClient()
+			cc := newCryptoClient(cmd)
 			kid := args[0]
 
 			pubKey, err := cc.GetPublicKey(kid)
@@ -153,4 +137,15 @@ func cmd() *cobra.Command {
 	})
 
 	return cmd
+}
+
+// newCryptoClient creates a remote client
+func newCryptoClient(cmd *cobra.Command) api.HttpClient {
+	cfg := core.NutsConfig()
+	cfg.Load(cmd)
+
+	return api.HttpClient{
+		ServerAddress: cfg.ServerAddress(),
+		Timeout:       10 * time.Second,
+	}
 }

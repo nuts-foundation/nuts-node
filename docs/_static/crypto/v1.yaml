@@ -6,22 +6,6 @@ info:
   license:
     name: GPLv3
 paths:
-  /internal/crypto/v1/generate:
-    post:
-      summary: "Generate a new keypair and store the private key"
-      operationId: generateKeyPair
-      tags:
-        - crypto
-      responses:
-        '200':
-          description: "OK response, body holds public key in PEM format when accept format is text/plain and JWK format if accept equals application/json"
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/PublicKey'
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/JWK'
   /internal/crypto/v1/public_key/{kid}:
     get:
       summary: "get the public key for a given kid. It returns the key in PEM or JWK format. This depends on the accept header used (text/plain vs application/json)"

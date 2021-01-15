@@ -109,9 +109,6 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// GenerateKeyPair request
-	GenerateKeyPair(ctx context.Context) (*http.Response, error)
-
 	// PublicKey request
 	PublicKey(ctx context.Context, kid string) (*http.Response, error)
 
@@ -119,21 +116,6 @@ type ClientInterface interface {
 	SignJwtWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error)
 
 	SignJwt(ctx context.Context, body SignJwtJSONRequestBody) (*http.Response, error)
-}
-
-func (c *Client) GenerateKeyPair(ctx context.Context) (*http.Response, error) {
-	req, err := NewGenerateKeyPairRequest(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if c.RequestEditor != nil {
-		err = c.RequestEditor(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return c.Client.Do(req)
 }
 
 func (c *Client) PublicKey(ctx context.Context, kid string) (*http.Response, error) {
@@ -179,33 +161,6 @@ func (c *Client) SignJwt(ctx context.Context, body SignJwtJSONRequestBody) (*htt
 		}
 	}
 	return c.Client.Do(req)
-}
-
-// NewGenerateKeyPairRequest generates requests for GenerateKeyPair
-func NewGenerateKeyPairRequest(server string) (*http.Request, error) {
-	var err error
-
-	queryUrl, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	basePath := fmt.Sprintf("/internal/crypto/v1/generate")
-	if basePath[0] == '/' {
-		basePath = basePath[1:]
-	}
-
-	queryUrl, err = queryUrl.Parse(basePath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryUrl.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
 }
 
 // NewPublicKeyRequest generates requests for PublicKey
@@ -310,9 +265,6 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// GenerateKeyPair request
-	GenerateKeyPairWithResponse(ctx context.Context) (*GenerateKeyPairResponse, error)
-
 	// PublicKey request
 	PublicKeyWithResponse(ctx context.Context, kid string) (*PublicKeyResponse, error)
 
@@ -320,27 +272,6 @@ type ClientWithResponsesInterface interface {
 	SignJwtWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*SignJwtResponse, error)
 
 	SignJwtWithResponse(ctx context.Context, body SignJwtJSONRequestBody) (*SignJwtResponse, error)
-}
-
-type GenerateKeyPairResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-}
-
-// Status returns HTTPResponse.Status
-func (r GenerateKeyPairResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r GenerateKeyPairResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
 }
 
 type PublicKeyResponse struct {
@@ -386,15 +317,6 @@ func (r SignJwtResponse) StatusCode() int {
 	return 0
 }
 
-// GenerateKeyPairWithResponse request returning *GenerateKeyPairResponse
-func (c *ClientWithResponses) GenerateKeyPairWithResponse(ctx context.Context) (*GenerateKeyPairResponse, error) {
-	rsp, err := c.GenerateKeyPair(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return ParseGenerateKeyPairResponse(rsp)
-}
-
 // PublicKeyWithResponse request returning *PublicKeyResponse
 func (c *ClientWithResponses) PublicKeyWithResponse(ctx context.Context, kid string) (*PublicKeyResponse, error) {
 	rsp, err := c.PublicKey(ctx, kid)
@@ -419,25 +341,6 @@ func (c *ClientWithResponses) SignJwtWithResponse(ctx context.Context, body Sign
 		return nil, err
 	}
 	return ParseSignJwtResponse(rsp)
-}
-
-// ParseGenerateKeyPairResponse parses an HTTP response from a GenerateKeyPairWithResponse call
-func ParseGenerateKeyPairResponse(rsp *http.Response) (*GenerateKeyPairResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &GenerateKeyPairResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	}
-
-	return response, nil
 }
 
 // ParsePublicKeyResponse parses an HTTP response from a PublicKeyWithResponse call
@@ -490,9 +393,6 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Generate a new keypair and store the private key
-	// (POST /internal/crypto/v1/generate)
-	GenerateKeyPair(ctx echo.Context) error
 	// get the public key for a given kid. It returns the key in PEM or JWK format. This depends on the accept header used (text/plain vs application/json)
 	// (GET /internal/crypto/v1/public_key/{kid})
 	PublicKey(ctx echo.Context, kid string) error
@@ -504,15 +404,6 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
-}
-
-// GenerateKeyPair converts echo context to params.
-func (w *ServerInterfaceWrapper) GenerateKeyPair(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GenerateKeyPair(ctx)
-	return err
 }
 
 // PublicKey converts echo context to params.
@@ -568,7 +459,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.POST(baseURL+"/internal/crypto/v1/generate", wrapper.GenerateKeyPair)
 	router.GET(baseURL+"/internal/crypto/v1/public_key/:kid", wrapper.PublicKey)
 	router.POST(baseURL+"/internal/crypto/v1/sign_jwt", wrapper.SignJwt)
 

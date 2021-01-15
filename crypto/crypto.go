@@ -35,9 +35,6 @@ import (
 
 // CryptoConfig holds the values for the crypto engine
 type CryptoConfig struct {
-	Mode          string
-	Address       string
-	ClientTimeout int
 	Storage       string
 	Fspath        string
 }
@@ -52,8 +49,6 @@ func (cc CryptoConfig) getFSPath() string {
 
 func DefaultCryptoConfig() CryptoConfig {
 	return CryptoConfig{
-		Address:       "localhost:1323",
-		ClientTimeout: 10,
 		Storage:       "fs",
 		Fspath:        "./",
 	}
@@ -119,7 +114,7 @@ func NewInstance(config CryptoConfig) *Crypto {
 func (client *Crypto) Configure() error {
 	var err error
 	client.configOnce.Do(func() {
-		if core.NutsConfig().GetEngineMode(client.Config.Mode) != core.ServerEngineMode {
+		if core.NutsConfig().Mode() != core.ServerEngineMode {
 			return
 		}
 		if err = client.doConfigure(); err == nil {

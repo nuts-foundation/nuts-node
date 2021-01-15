@@ -20,9 +20,7 @@ package v1
 
 import (
 	"errors"
-	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -81,54 +79,12 @@ func TestServerInterfaceWrapper_SignJwt(t *testing.T) {
 	}
 }
 
-func TestServerInterfaceWrapper_GenerateKeyPair(t *testing.T) {
-	t.Run("GenerateKeyPairAPI call returns no error", func(t *testing.T) {
-		// given
-		siw := serverInterfaceWrapper(nil)
-		q := make(url.Values)
-		q.Set("legalEntity", "le")
-		req := httptest.NewRequest(echo.POST, "/?"+q.Encode(), nil)
-		rec := httptest.NewRecorder()
-		c := echo.New().NewContext(req, rec)
-
-		// then
-		if err := siw.GenerateKeyPair(c); err != nil {
-			t.Errorf("Got err during call: %s", err.Error())
-		}
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("Got status=%d, want %d", rec.Code, http.StatusOK)
-		}
-	})
-
-	t.Run("Server error is returned", func(t *testing.T) {
-		// given
-		siw := serverInterfaceWrapper(errors.New("Server error"))
-		q := make(url.Values)
-		q.Set("legalEntity", "le")
-		req := httptest.NewRequest(echo.POST, "/?"+q.Encode(), nil)
-		rec := httptest.NewRecorder()
-		c := echo.New().NewContext(req, rec)
-
-		// then
-		if err := siw.GenerateKeyPair(c); err != nil {
-			expected := "Server error"
-			if err.Error() != expected {
-				t.Errorf("Expected error [%s], got [%s]", expected, err.Error())
-			}
-		} else {
-			t.Errorf("Expected error for bad request")
-		}
-	})
-}
-
 func TestRegisterHandlers(t *testing.T) {
 	t.Run("Registers routes for crypto module", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		echo := mock.NewMockEchoRouter(ctrl)
 
-		echo.EXPECT().POST("/internal/crypto/v1/generate", gomock.Any())
 		echo.EXPECT().POST("/internal/crypto/v1/sign_jwt", gomock.Any())
 		echo.EXPECT().GET("/internal/crypto/v1/public_key/:kid", gomock.Any())
 

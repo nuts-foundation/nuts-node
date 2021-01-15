@@ -23,73 +23,24 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"os"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-go-test/io"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
-type pubKeyMatcher struct {
-}
-
-func (p pubKeyMatcher) Matches(x interface{}) bool {
-	s := x.(string)
-
-	return strings.Contains(s, "-----BEGIN PUBLIC KEY-----")
-}
-
-func (p pubKeyMatcher) String() string {
-	return "Public Key Matcher"
-}
-
-type jwkMatcher struct {
-}
-
-func (p jwkMatcher) Matches(x interface{}) bool {
-	key := x.(jwk.Key)
-
-	return key.KeyType() == jwa.EC
-}
-
-func (p jwkMatcher) String() string {
-	return "JWK Matcher"
-}
-
-func TestWrapper_GenerateKeyPair(t *testing.T) {
-
-	t.Run("GenerateKeyPairAPI call returns 200 with pub in PEM format", func(t *testing.T) {
-		se := apiWrapper(t)
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		echo := mock.NewMockContext(ctrl)
-
-		echo.EXPECT().Request().Return(&http.Request{})
-		echo.EXPECT().String(http.StatusOK, pubKeyMatcher{})
-
-		se.GenerateKeyPair(echo)
-	})
-
-	t.Run("GenerateKeyPairAPI call returns 200 with pub in JWK format", func(t *testing.T) {
-		se := apiWrapper(t)
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		echo := mock.NewMockContext(ctrl)
-
-		echo.EXPECT().Request().Return(&http.Request{Header: http.Header{"Accept": []string{"application/json"}}})
-		echo.EXPECT().JSON(http.StatusOK, jwkMatcher{})
-
-		se.GenerateKeyPair(echo)
-	})
-}
-
 func TestWrapper_SignJwt(t *testing.T) {
+	os.Setenv("NUTS_MODE", "server")
+	defer os.Unsetenv("NUTS_MODE")
+	core.NutsConfig().Load(&cobra.Command{})
+
 	client := apiWrapper(t)
 
 	publicKey, _ := client.C.GenerateKeyPair()
