@@ -132,3 +132,13 @@ func TestCrypto_SignJWT(t *testing.T) {
 		assert.True(t, errors.Is(err, storage.ErrNotFound))
 	})
 }
+
+func TestCrypto_convertHeaders(t *testing.T) {
+	rawHeaders := map[string]interface{} {
+		"key": "value",
+	}
+
+	jwtHeader := convertHeaders(rawHeaders)
+	v, _ := jwtHeader.Get("key")
+	assert.Equal(t, "value", v)
+}
