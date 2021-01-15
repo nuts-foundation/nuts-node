@@ -21,7 +21,6 @@ package v1
 
 import (
 	"context"
-	"crypto"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -59,7 +58,7 @@ func (hb HTTPClient) client() ClientInterface {
 }
 
 // GetPublicKey returns a PrivateKey from the server given a kid
-func (hb HTTPClient) GetPublicKey(kid string) (crypto.PublicKey, error) {
+func (hb HTTPClient) GetPublicKey(kid string) (jwk.Key, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
 	defer cancel()
 	httpClient := hb.clientWithRequestEditor(func(ctx context.Context, req *http.Request) error {

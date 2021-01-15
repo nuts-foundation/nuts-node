@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"crypto"
 	"path"
 
 	"github.com/sirupsen/logrus"
@@ -25,4 +26,11 @@ func TestCryptoConfig(testDirectory string) Config {
 	config := DefaultCryptoConfig()
 	config.Fspath = path.Join(testDirectory, "crypto")
 	return config
+}
+
+// StringNamingFunc can be used to give a key a simple string name
+func StringNamingFunc(name string) KidNamingFunc {
+	return func(key crypto.PublicKey) string {
+		return name
+	}
 }

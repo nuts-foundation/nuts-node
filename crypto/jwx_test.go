@@ -105,7 +105,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	client.New(stringNamingFunc(kid))
+	client.New(StringNamingFunc(kid))
 
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, kid)

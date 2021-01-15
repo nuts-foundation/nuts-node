@@ -19,7 +19,6 @@
 package crypto
 
 import (
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"errors"
@@ -50,7 +49,7 @@ func TestCrypto_PublicKey(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	client.New(stringNamingFunc(kid))
+	client.New(StringNamingFunc(kid))
 
 	t.Run("Public key is returned from storage", func(t *testing.T) {
 		pub, err := client.GetPublicKey(kid)
@@ -78,7 +77,7 @@ func TestCrypto_GetPrivateKey(t *testing.T) {
 	})
 	t.Run("get private key, assert non-exportable", func(t *testing.T) {
 		kid := "kid"
-		client.New(stringNamingFunc(kid))
+		client.New(StringNamingFunc(kid))
 
 		pk, err := client.GetPrivateKey(kid)
 		if !assert.NoError(t, err) {
@@ -97,7 +96,7 @@ func TestCrypto_GetPrivateKey(t *testing.T) {
 
 	t.Run("get private key, assert parts", func(t *testing.T) {
 		kid := "kid2"
-		client.New(stringNamingFunc(kid))
+		client.New(StringNamingFunc(kid))
 
 		pk, _ := client.GetPrivateKey(kid)
 		if !assert.NotNil(t, pk) {
@@ -114,7 +113,7 @@ func TestCrypto_KeyExistsFor(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	client.New(stringNamingFunc(kid))
+	client.New(StringNamingFunc(kid))
 
 	t.Run("returns true for existing key", func(t *testing.T) {
 		assert.True(t, client.PrivateKeyExists(kid))
@@ -130,7 +129,7 @@ func TestCrypto_New(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		kid := "kid"
-		publicKey, err := client.New(stringNamingFunc(kid))
+		publicKey, err := client.New(StringNamingFunc(kid))
 		assert.NoError(t, err)
 		assert.NotNil(t, publicKey)
 	})
@@ -176,12 +175,6 @@ func TestCrypto_Configure(t *testing.T) {
 		}
 		assert.True(t, e.configDone)
 	})
-}
-
-func stringNamingFunc(name string) KidNamingFunc {
-	return func(key crypto.PublicKey) string {
-		return name
-	}
 }
 
 func createCrypto(t *testing.T) *Crypto {

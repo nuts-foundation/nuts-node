@@ -19,19 +19,16 @@
 package engine
 
 import (
+	"crypto"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	api "github.com/nuts-foundation/nuts-node/crypto/api/v1"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -79,20 +76,6 @@ func cmd() *cobra.Command {
 		Use:   "crypto",
 		Short: "crypto commands",
 	}
-
-	cmd.AddCommand(&cobra.Command{
-		Use:   "server",
-		Short: "Run standalone crypto server",
-		Run: func(cmd *cobra.Command, args []string) {
-			cryptoEngine := crypto2.Instance()
-			echoServer := echo.New()
-			echoServer.HideBanner = true
-			echoServer.Use(middleware.Logger())
-			api.RegisterHandlers(echoServer, &api.Wrapper{C: cryptoEngine})
-			logrus.Fatal(echoServer.Start(":1324"))
-		},
-	})
-
 	cmd.AddCommand(&cobra.Command{
 		Use:   "publicKey [kid]",
 		Short: "views the publicKey for a given kid",
@@ -109,19 +92,18 @@ func cmd() *cobra.Command {
 			cc := newCryptoClient(cmd)
 			kid := args[0]
 
-			pubKey, err := cc.GetPublicKey(kid)
+			jwkKey, err := cc.GetPublicKey(kid)
 			if err != nil {
 				cmd.Printf("Error printing publicKey: %v", err)
 				return
 			}
 
 			// printout in JWK
-			jwk, err := jwk.New(pubKey)
 			if err != nil {
 				cmd.Printf("Error printing publicKey: %v", err)
 				return
 			}
-			asJSON, err := json.MarshalIndent(jwk, "", "  ")
+			asJSON, err := json.MarshalIndent(jwkKey, "", "  ")
 			if err != nil {
 				cmd.Printf("Error printing publicKey: %v\n", err)
 				return
@@ -131,7 +113,14 @@ func cmd() *cobra.Command {
 			cmd.Println("")
 
 			// printout in PEM
-			publicKeyAsPEM, err := util.PublicKeyToPem(pubKey)
+			var target interface{}
+			err = jwkKey.Raw(&target)
+			if err != nil {
+				cmd.Printf("Error printing publicKey: %v\n", err)
+				return
+			}
+
+			publicKeyAsPEM, err := util.PublicKeyToPem(target.(crypto.PublicKey))
 			if err != nil {
 				cmd.Printf("Error printing publicKey: %v\n", err)
 				return
