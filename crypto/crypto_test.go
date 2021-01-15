@@ -177,6 +177,15 @@ func TestCrypto_Configure(t *testing.T) {
 	})
 }
 
+func TestCryptoConfig_getFsPath(t *testing.T) {
+	t.Run("no path configured returns defaultPath", func(t *testing.T) {
+		c := Config{
+			Fspath: "",
+		}
+		assert.Equal(t, "./", c.getFSPath())
+	})
+}
+
 func createCrypto(t *testing.T) *Crypto {
 	if err := core.NutsConfig().Load(&cobra.Command{}); err != nil {
 		panic(err)
