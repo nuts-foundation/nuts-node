@@ -57,7 +57,7 @@ func (hb HTTPClient) client() ClientInterface {
 	return hb.clientWithRequestEditor(nil)
 }
 
-// GetPublicKey returns a PrivateKey from the server given a kid
+// GetPublicKey returns a PublicKey from the server given a kid
 func (hb HTTPClient) GetPublicKey(kid string) (jwk.Key, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
 	defer cancel()

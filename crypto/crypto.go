@@ -133,7 +133,8 @@ func (client *Crypto) doConfigure() error {
 	return nil
 }
 
-// New generates a new key pair. If a key pair with the same identifier already exists, it is overwritten.
+// New generates a new key pair. If a key is overwritten is handled by the storage implementation.
+// it's considered bad practise to reuse a kid for different keys.
 func (client *Crypto) New(namingFunc KidNamingFunc) (crypto.PublicKey, string, error) {
 	keyPair, err := generateECKeyPair()
 	if err != nil {
@@ -161,7 +162,7 @@ func (client *Crypto) PrivateKeyExists(kid string) bool {
 	return client.Storage.PrivateKeyExists(kid)
 }
 
-// GetPublicKey loads the key from storage and returns it as PEM encoded. Only supports RSA style keys
+// GetPublicKey loads the key from storage
 func (client *Crypto) GetPublicKey(kid string) (crypto.PublicKey, error) {
 	return client.Storage.GetPublicKey(kid)
 }

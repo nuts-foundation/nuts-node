@@ -43,9 +43,6 @@ type fileOpenError struct {
 	err      error
 }
 
-// ErrNotFound indicates that the specified crypto storage entry couldn't be found.
-var ErrNotFound = errors.New("entry not found")
-
 // Error returns the string representation
 func (f *fileOpenError) Error() string {
 	return fmt.Sprintf("could not open entry %s with filename %s: %v", f.kid, f.filePath, f.err)

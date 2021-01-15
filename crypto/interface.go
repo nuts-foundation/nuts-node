@@ -31,11 +31,14 @@ type KeyStore interface {
 	// the KidNamingFunc will provide the kid. priv/pub keys are appended with a postfix and stored
 	New(namingFunc KidNamingFunc) (crypto.PublicKey, string, error)
 	// GetPrivateKey returns the specified private key (for e.g. signing) in non-exportable form.
+	// If a key is missing, a Storage.ErrNotFound is returned
 	GetPrivateKey(kid string) (crypto.Signer, error)
 	// GetPublicKey returns the PublicKey
+	// If a key is missing, a Storage.ErrNotFound is returned
 	GetPublicKey(kid string) (crypto.PublicKey, error)
 	// SignJWT creates a signed JWT using the given key and map of claims (private key must be present).
 	SignJWT(claims map[string]interface{}, kid string) (string, error)
 	// PrivateKeyExists returns if the specified private key exists.
-	PrivateKeyExists(key string) bool
+	// If an error occurs, false is also returned
+	PrivateKeyExists(kid string) bool
 }

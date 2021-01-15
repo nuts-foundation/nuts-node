@@ -37,6 +37,18 @@ type Wrapper struct {
 	C crypto.KeyStore
 }
 
+func (signRequest SignJwtRequest) validate() error {
+	if len(signRequest.Kid) == 0 {
+		return errors.New("missing kid")
+	}
+
+	if len(signRequest.Claims) == 0 {
+		return errors.New("missing claims")
+	}
+
+	return nil
+}
+
 // SignJwt handles api calls for signing a Jwt
 func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	var signRequest = &SignJwtRequest{}
@@ -46,12 +58,8 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	if len(signRequest.Kid) == 0 {
-		return echo.NewHTTPError(http.StatusBadRequest, "missing kid")
-	}
-
-	if len(signRequest.Claims) == 0 {
-		return echo.NewHTTPError(http.StatusBadRequest, "missing claims")
+	if err := signRequest.validate(); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 
 	sig, err := w.C.SignJWT(signRequest.Claims, signRequest.Kid)
@@ -64,7 +72,7 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, sig)
 }
 
-// PublicKey returns a public key for the given urn. The urn represents a legal entity. The api returns the public key either in PEM or JWK format.
+// PublicKey returns a public key for the given kid. The urn represents a legal entity. The api returns the public key either in PEM or JWK format.
 // It uses the accept header to determine this. Default is PEM (text/plain), only when application/json is requested will it return JWK.
 func (w *Wrapper) PublicKey(ctx echo.Context, kid string) error {
 	acceptHeader := ctx.Request().Header.Get("Accept")

@@ -20,7 +20,11 @@ package storage
 
 import (
 	"crypto"
+	"errors"
 )
+
+// ErrNotFound indicates that the specified crypto storage entry couldn't be found.
+var ErrNotFound = errors.New("entry not found")
 
 // Storage interface containing functions for storing and retrieving keys
 type Storage interface {

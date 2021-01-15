@@ -54,18 +54,14 @@ func TestCrypto_pemToPublicKey(t *testing.T) {
 	t.Run("wrong PEM block gives error", func(t *testing.T) {
 		_, err := PemToPublicKey([]byte{})
 
-		if err == nil {
-			t.Errorf("Expected error, Got nothing")
+		if !assert.Error(t, err) {
 			return
 		}
 
-		expected := "failed to decode PEM block containing public key, key is of the wrong type"
-		if err.Error() != expected {
-			t.Errorf("Expected error [%s], got [%s]", expected, err.Error())
-		}
+		assert.Equal(t, ErrWrongPublicKey, err)
 	})
 
-	t.Run("converts EC public key", func(t *testing.T) {
+	t.Run("converts public key", func(t *testing.T) {
 		pem := "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEny33KMxU+mtPxSBMIztm69lehhNo\nCQD632dFAYSzDGh2LqemmYx9EKFzuzvCqbw87BD3spzbakjj5R315qV0gw==\n-----END PUBLIC KEY-----"
 
 		pk, err := PemToPublicKey([]byte(pem))
@@ -74,6 +70,17 @@ func TestCrypto_pemToPublicKey(t *testing.T) {
 		}
 
 		assert.IsType(t, &ecdsa.PublicKey{}, pk)
+	})
+
+	t.Run("converts RSA public key", func(t *testing.T) {
+		pem := "-----BEGIN RSA PUBLIC KEY-----\nMIGJAoGBAMXC7V5p/LRULNuRWNBBcizjCrMPIV57LjNG6RCpkJsFtTfw5Ra+aGFJ\nmoEjlSrOsJ1aRO2krR4UTCijOrv1JNFjCvv81urSK9xSUAXzQcPdogf051ZDt1Ct\nEv4ETZQkXDMibzlbmgXq1V+oib4FXDCk0Emu6SAfOGmov/V9eShNAgMBAAE=\n-----END RSA PUBLIC KEY-----"
+
+		pk, err := PemToPublicKey([]byte(pem))
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.IsType(t, &rsa.PublicKey{}, pk)
 	})
 }
 

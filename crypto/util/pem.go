@@ -26,17 +26,20 @@ import (
 
 // PemToPublicKey converts a PEM encoded public key to a crypto.PublicKey
 func PemToPublicKey(pub []byte) (crypto.PublicKey, error) {
+
 	block, _ := pem.Decode(pub)
-	if block == nil || block.Type != "PUBLIC KEY" {
+	if block == nil {
 		return nil, ErrWrongPublicKey
 	}
 
-	b := block.Bytes
-	key, err := x509.ParsePKIXPublicKey(b)
-	if err != nil {
-		return nil, err
+	switch block.Type {
+	case "PUBLIC KEY":
+		return x509.ParsePKIXPublicKey(block.Bytes)
+	case "RSA PUBLIC KEY":
+		return x509.ParsePKCS1PublicKey(block.Bytes)
+	default:
+		return nil, ErrWrongPublicKey
 	}
-	return key, nil
 }
 
 // PublicKeyToPem converts an public key to PEM encoding
