@@ -11,9 +11,9 @@ exclude_patterns:
   - "**/*_test.go"
   - '**/test.go'
   - "test/*"
-  - "**/*_mock.go"
+  - "**/mock.go"
   - "**/generated.go"
-  - "mock/*"
+  - "**/mock/*"
 
 plugins:
   gofmt:
