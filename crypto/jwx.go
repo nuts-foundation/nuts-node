@@ -24,7 +24,10 @@ import (
 	"crypto/rsa"
 	"errors"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/jws"
+	"github.com/lestrrat-go/jwx/jwt"
 )
 
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
@@ -37,61 +40,108 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 	if err != nil {
 		return "", err
 	}
-	additionalHeaders := map[string]interface{}{
-		"kid": kid,
+	key, err := jwkKey(privateKey)
+	if err != nil {
+		return "", err
 	}
 
-	token, err = SignJWT(privateKey, claims, additionalHeaders)
+	if err = jwk.AssignKeyID(key); err != nil {
+		return "", err
+	}
+
+	token, err = SignJWT(key, claims, nil)
+	return
+}
+
+func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
+	key, err = jwk.New(signer)
+	if err != nil {
+		return nil, err
+	}
+
+	switch signer.(type) {
+	case *rsa.PrivateKey:
+		key.Set(jwk.AlgorithmKey, jwa.PS256)
+	case *ecdsa.PrivateKey:
+		ecKey := signer.(*ecdsa.PrivateKey)
+		var alg jwa.SignatureAlgorithm
+		alg, err = ecAlg(ecKey)
+		key.Set(jwk.AlgorithmKey, alg)
+	default:
+		err = errors.New("unsupported signing private key")
+	}
 	return
 }
 
 // SignJWT signs claims with the signer and returns the compacted token. The headers param can be used to add additional headers
-func SignJWT(signer crypto.Signer, claims map[string]interface{}, headers map[string]interface{}) (sig string, err error) {
-	c := jwt.MapClaims{}
-	for k, v := range claims {
-		c[k] = v
-	}
+func SignJWT(key jwk.Key, claims map[string]interface{}, headers map[string]interface{}) (token string, err error) {
+	var sig []byte
+	t := jwt.New()
 
-	// the current version of the used JWT lib doesn't support the crypto.Signer interface. The 4.0.0 version will.
-	switch signer.(type) {
-	case *rsa.PrivateKey:
-		token := jwt.NewWithClaims(jwt.SigningMethodPS256, c)
-		addHeaders(token, headers)
-		sig, err = token.SignedString(signer.(*rsa.PrivateKey))
-	case *ecdsa.PrivateKey:
-		key := signer.(*ecdsa.PrivateKey)
-		var method *jwt.SigningMethodECDSA
-		if method, err = ecSigningMethod(key); err != nil {
-			return
-		}
-		token := jwt.NewWithClaims(method, c)
-		addHeaders(token, headers)
-		sig, err = token.SignedString(signer.(*ecdsa.PrivateKey))
-	default:
-		err = errors.New("unsupported signing private key")
+	for k, v := range claims {
+		t.Set(k, v)
 	}
+	hdr := convertHeaders(headers)
+
+	sig, err = jwt.Sign(t, jwa.SignatureAlgorithm(key.Algorithm()), key, jws.WithHeaders(hdr))
+	token = string(sig)
 
 	return
 }
 
-func addHeaders(token *jwt.Token, headers map[string]interface{}) {
-	if headers == nil {
-		return
+// JWTAlg parses a JWT, does not validate it and returns the 'kid' and 'alg' headers
+func JWTKidAlg(tokenString string) (string, jwa.SignatureAlgorithm, error) {
+	j, err := jws.ParseString(tokenString)
+	if err != nil {
+		return "", "", err
 	}
 
-	for k, v := range headers {
-		token.Header[k] = v
+	if len(j.Signatures()) != 1 {
+		return "", "", errors.New("incorrect amount of signatures in JWT")
 	}
+
+	sig := j.Signatures()[0]
+	hdrs := sig.ProtectedHeaders()
+	return hdrs.KeyID(), hdrs.Algorithm(), nil
 }
 
-func ecSigningMethod(key *ecdsa.PrivateKey) (method *jwt.SigningMethodECDSA, err error) {
+// PublicKeyFunc defines a function that resolves a public key based on a kid
+type PublicKeyFunc func(kid string) (crypto.PublicKey, error)
+
+// ParseJWT parses a token, validates and verifies it.
+func ParseJWT(tokenString string, f PublicKeyFunc) (jwt.Token, error){
+	kid, alg, err := JWTKidAlg(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := f(kid)
+	if err != nil {
+		return nil, err
+	}
+
+	return jwt.ParseString(tokenString, jwt.WithVerify(alg, key), jwt.WithValidate(true))
+}
+
+func convertHeaders(headers map[string]interface{}) (hdr jws.Headers) {
+	hdr = jws.NewHeaders()
+
+	if headers != nil {
+		for k, v := range headers {
+			hdr.Set(k, v)
+		}
+	}
+	return
+}
+
+func ecAlg(key *ecdsa.PrivateKey) (alg jwa.SignatureAlgorithm, err error) {
 	switch key.Params().BitSize {
 	case 256:
-		method = jwt.SigningMethodES256
+		alg = jwa.ES256
 	case 384:
-		method = jwt.SigningMethodES384
+		alg = jwa.ES384
 	case 521:
-		method = jwt.SigningMethodES512
+		alg = jwa.ES512
 	default:
 		err = ErrUnsupportedSigningKey
 	}

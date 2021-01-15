@@ -19,9 +19,7 @@
 package storage
 
 import (
-	"bytes"
 	"crypto"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -193,9 +191,5 @@ func (fsc *fileSystemBackend) createDirs() error {
 }
 
 func getEntryFileName(kid string, entryType entryType) string {
-	buffer := new(bytes.Buffer)
-	encoder := base64.NewEncoder(base64.StdEncoding, buffer)
-	encoder.Write([]byte(kid))
-	encoder.Close()
-	return fmt.Sprintf("%s_%s", buffer.String(), entryType)
+	return fmt.Sprintf("%s_%s", kid, entryType)
 }

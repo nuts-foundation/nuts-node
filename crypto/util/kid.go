@@ -35,5 +35,6 @@ func Fingerprint(key interface{}) (string, error) {
 		return "", err
 	}
 
-	return base64.URLEncoding.EncodeToString(tp), nil
+	// trailing '=' not allowed in kid
+	return base64.RawURLEncoding.EncodeToString(tp), nil
 }
