@@ -35,6 +35,12 @@ type EngineControl struct {
 
 var EngineCtl EngineControl
 
+// EchoServer implements both the EchoRouter interface and Start function to aid testing.
+type EchoServer interface {
+	EchoRouter
+	Start(address string) error
+}
+
 // EchoRouter is the interface the generated server API's will require as the Routes func argument
 type EchoRouter interface {
 	CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route

@@ -38,13 +38,13 @@ import (
 
 func TestNewCryptoEngine(t *testing.T) {
 	t.Run("New returns an engine with Cmd and Routes", func(t *testing.T) {
-		client := NewCryptoEngine()
+		engine, _ := NewCryptoEngine()
 
-		if client.Cmd == nil {
+		if engine.Cmd == nil {
 			t.Errorf("Expected Engine to have Cmd")
 		}
 
-		if client.Routes == nil {
+		if engine.Routes == nil {
 			t.Errorf("Expected Engine to have Routes")
 		}
 	})
@@ -52,7 +52,7 @@ func TestNewCryptoEngine(t *testing.T) {
 
 func TestNewCryptoEngine_Routes(t *testing.T) {
 	t.Run("Registers the available routes", func(t *testing.T) {
-		ce := NewCryptoEngine()
+		ce, _ := NewCryptoEngine()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		echo := mock.NewMockEchoRouter(ctrl)
@@ -88,7 +88,8 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 	createCmd := func(t *testing.T) (*cobra.Command, *crypto.Crypto) {
 		testDirectory := io.TestDirectory(t)
 		instance := crypto.NewTestCryptoInstance(testDirectory)
-		return NewCryptoEngine().Cmd, instance
+		engine, _ := NewCryptoEngine()
+		return engine.Cmd, instance
 	}
 
 	t.Run("publicKey", func(t *testing.T) {
@@ -137,7 +138,7 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 
 func TestNewCryptoEngine_FlagSet(t *testing.T) {
 	t.Run("Cobra help should list flags", func(t *testing.T) {
-		e := NewCryptoEngine()
+		e, _ := NewCryptoEngine()
 		cmd := newRootCommand()
 		cmd.Flags().AddFlagSet(e.FlagSet)
 		cmd.SetArgs([]string{"--help"})

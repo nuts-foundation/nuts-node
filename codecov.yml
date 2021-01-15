@@ -1,9 +1,14 @@
 ignore:
   - "**/generated.go"
-  - "test/*"
-  - '**/test.go'
-  - "mock/*"
+  - "**/test/"
+  - "**/test.go"
+  - "**/*_test.go"
+  - "mock/**/*.go"
   - "**/mock.go"
-  - "docs/*"
+  - "docs/**/*.go"
+  - "**/*.pb.go"
+  # Until network protocol implementation has been spec and optionally replace, ignore those sources
+  - "network/p2p/"
+  - "network/proto/"
 github_checks:
   annotations: false

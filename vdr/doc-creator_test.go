@@ -19,7 +19,7 @@ import (
 type mockKeyCreator struct {
 	// jwkStr hold the predefined key in a json web key string
 	jwkStr string
-	t *testing.T
+	t      *testing.T
 }
 
 // New uses a predefined ECDSA key and calls the namingFunc to get the kid
@@ -40,7 +40,7 @@ var jwkString = `{"crv":"P-256","kid":"did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBD
 func TestDocCreator_Create(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		kc := &mockKeyCreator{
-			t: t,
+			t:      t,
 			jwkStr: jwkString,
 		}
 		sut := NutsDocCreator{keyCreator: kc}

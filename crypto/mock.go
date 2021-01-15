@@ -133,6 +133,21 @@ func (mr *MockKeyStoreMockRecorder) SignJWT(claims, kid interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWT", reflect.TypeOf((*MockKeyStore)(nil).SignJWT), claims, kid)
 }
 
+// SignJWS mocks base method
+func (m *MockKeyStore) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SignJWS", payload, protectedHeaders, kid)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SignJWS indicates an expected call of SignJWS
+func (mr *MockKeyStoreMockRecorder) SignJWS(payload, protectedHeaders, kid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWS", reflect.TypeOf((*MockKeyStore)(nil).SignJWS), payload, protectedHeaders, kid)
+}
+
 // PrivateKeyExists mocks base method
 func (m *MockKeyStore) PrivateKeyExists(kid string) bool {
 	m.ctrl.T.Helper()

@@ -24,6 +24,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/network"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -38,20 +40,19 @@ import (
 )
 
 // NewVDREngine returns the core definition for the VDR
-func NewVDREngine() *core.Engine {
-	r := vdr.Instance()
-
+func NewVDREngine(keyStore crypto.KeyStore, networkInstance network.Network) *core.Engine {
+	instance := vdr.NewVDR(vdr.DefaultConfig(), keyStore, networkInstance)
 	return &core.Engine{
 		Cmd:          cmd(),
-		Runnable:     r,
-		Configurable: r,
-		Diagnosable:  r,
-		Config:       &r.Config,
+		Runnable:     instance,
+		Configurable: instance,
+		Diagnosable:  instance,
+		Config:       &instance.Config,
 		ConfigKey:    "vdr",
 		FlagSet:      flagSet(),
 		Name:         vdr.ModuleName,
 		Routes: func(router core.EchoRouter) {
-			api.RegisterHandlers(router, &api.Wrapper{VDR: r})
+			api.RegisterHandlers(router, &api.Wrapper{VDR: instance})
 		},
 	}
 }

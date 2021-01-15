@@ -24,10 +24,19 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
 	crypto "github.com/nuts-foundation/nuts-node/crypto/engine"
+	"github.com/nuts-foundation/nuts-node/network/engine"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/engine"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+// Allows overriding Echo server implementation to aid testing
+var echoCreator = func() core.EchoServer {
+	echo := echo.New()
+	echo.HideBanner = true
+	echo.Use(middleware.Logger())
+	return echo
+}
 
 func createRootCommand() *cobra.Command {
 	return &cobra.Command{
@@ -41,10 +50,7 @@ func createRootCommand() *cobra.Command {
 				return
 			}
 			// start interfaces
-			echo := echo.New()
-			echo.HideBanner = true
-			echo.Use(middleware.Logger())
-
+			echo := echoCreator()
 			for _, engine := range core.EngineCtl.Engines {
 				if engine.Routes != nil {
 					engine.Routes(echo)
@@ -52,7 +58,9 @@ func createRootCommand() *cobra.Command {
 			}
 
 			defer shutdownEngines()
-			logrus.Fatal(echo.Start(cfg.ServerAddress()))
+			if err := echo.Start(cfg.ServerAddress()); err != nil {
+				logrus.Fatal(err)
+			}
 		},
 	}
 }
@@ -104,9 +112,11 @@ func registerEngines() {
 	core.RegisterEngine(core.NewStatusEngine())
 	core.RegisterEngine(core.NewLoggerEngine())
 	core.RegisterEngine(core.NewMetricsEngine())
-	core.RegisterEngine(crypto.NewCryptoEngine())
-	core.RegisterEngine(vdr.NewVDREngine())
-
+	cryptoEngine, keyStore := crypto.NewCryptoEngine()
+	core.RegisterEngine(cryptoEngine)
+	networkEngine, networkInstance := engine.NewNetworkEngine(keyStore)
+	core.RegisterEngine(networkEngine)
+	core.RegisterEngine(vdr.NewVDREngine(keyStore, networkInstance))
 }
 
 func injectConfig(cfg *core.NutsGlobalConfig) {

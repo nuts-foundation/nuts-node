@@ -1,1 +1,1 @@
-rst_include include -s README_template.rst -t README.rst
+rst_include include README_template.rst README.rst

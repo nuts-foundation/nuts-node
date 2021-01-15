@@ -1,0 +1,72 @@
+openapi: "3.0.0"
+info:
+  title: Nuts network API spec
+  description: API specification for RPC services available at the nuts-network
+  version: 0.1.0
+  license:
+    name: GPLv3
+paths:
+  /api/document:
+    get:
+      summary: "Lists the documents on the DAG"
+      description: >
+        Lists all documents on the DAG. Since this call returns all documents on the DAG, care should be taken when there
+        are many of them.
+        TODO: By then we'd need a more elaborate querying interface (ranging over timestamps/hashes, pagination, filtering, etc).
+      operationId: "listDocuments"
+      tags:
+        - documents
+      responses:
+        "200":
+          description: "Successfully listed the documents"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /api/document/{ref}:
+    parameters:
+      - name: ref
+        in: path
+        description: "Reference of the document"
+        required: true
+        example: "4960afbdf21280ef248081e6e52317735bbb929a204351291b773c252afeebf4"
+        schema:
+          type: string
+    get:
+      summary: "Retrieves a document"
+      operationId: "getDocument"
+      tags:
+        - documents
+      responses:
+        "200":
+          description: "Document is known in the document log"
+          content:
+            application/jose:
+              schema:
+                type: string
+        "404":
+          description: "Document wasn't found in the document log"
+  /api/document/{ref}/payload:
+    parameters:
+      - name: ref
+        in: path
+        description: "Reference of the document"
+        required: true
+        example: "4960afbdf21280ef248081e6e52317735bbb929a204351291b773c252afeebf4"
+        schema:
+          type: string
+    get:
+      summary: "Gets the document payload"
+      operationId: "getDocumentPayload"
+      tags:
+        - documents
+      responses:
+        "200":
+          description: "Document found (with payload) and returned."
+          content:
+            application/octet-stream:
+              example:
+        "404":
+          description: "Document (or payload) wasn't found"

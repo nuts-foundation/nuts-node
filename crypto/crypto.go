@@ -24,12 +24,11 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"io"
-	"sync"
-
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"io"
+	"sync"
 )
 
 // Config holds the values for the crypto engine
