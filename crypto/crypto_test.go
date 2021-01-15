@@ -94,6 +94,20 @@ func TestCrypto_GetPrivateKey(t *testing.T) {
 		_, ok = pk.(*ecdsa.PrivateKey)
 		assert.False(t, ok)
 	})
+
+	t.Run("get private key, assert parts", func(t *testing.T) {
+		publicKey, _ := client.GenerateKeyPair()
+		kid, _ := util.Fingerprint(publicKey)
+
+		pk, _ := client.GetPrivateKey(kid)
+		if !assert.NotNil(t, pk) {
+			return
+		}
+
+		ok := pk.(opaquePrivateKey)
+		assert.NotNil(t, ok.publicKey)
+		assert.NotNil(t, ok.signFn)
+	})
 }
 
 func TestCrypto_KeyExistsFor(t *testing.T) {
