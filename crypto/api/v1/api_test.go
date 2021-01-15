@@ -27,11 +27,11 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-go-test/io"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )

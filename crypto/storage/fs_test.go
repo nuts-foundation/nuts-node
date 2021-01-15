@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-go-test/io"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/stretchr/testify/assert"
 )

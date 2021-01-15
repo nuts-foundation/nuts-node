@@ -25,8 +25,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-go-test/io"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/spf13/cobra"

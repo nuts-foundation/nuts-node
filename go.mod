@@ -9,8 +9,6 @@ require (
 	github.com/labstack/echo/v4 v4.1.17
 	github.com/lestrrat-go/jwx v1.0.7
 	github.com/magiconair/properties v1.8.4
-	github.com/mr-tron/base58 v1.2.0
-	github.com/nuts-foundation/nuts-go-test v0.16.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
 	github.com/sirupsen/logrus v1.7.0
