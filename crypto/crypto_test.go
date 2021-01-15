@@ -19,7 +19,9 @@
 package crypto
 
 import (
+	"crypto"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/rsa"
 	"errors"
 	"reflect"
@@ -104,8 +106,10 @@ func TestCrypto_GetPrivateKey(t *testing.T) {
 		}
 
 		ok := pk.(opaquePrivateKey)
-		assert.NotNil(t, ok.publicKey)
-		assert.NotNil(t, ok.signFn)
+		assert.NotNil(t, ok.Public())
+
+		_, err := ok.Sign(rand.Reader, []byte("hi"), crypto.SHA256)
+		assert.NoError(t, err)
 	})
 }
 
