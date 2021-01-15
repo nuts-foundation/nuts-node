@@ -7,35 +7,34 @@ package mock
 import (
 	crypto "crypto"
 	gomock "github.com/golang/mock/gomock"
-	jwk "github.com/lestrrat-go/jwx/jwk"
 	reflect "reflect"
 )
 
-// MockClient is a mock of Client interface
-type MockClient struct {
+// MockKeyStore is a mock of KeyStore interface
+type MockKeyStore struct {
 	ctrl     *gomock.Controller
-	recorder *MockClientMockRecorder
+	recorder *MockKeyStoreMockRecorder
 }
 
-// MockClientMockRecorder is the mock recorder for MockClient
-type MockClientMockRecorder struct {
-	mock *MockClient
+// MockKeyStoreMockRecorder is the mock recorder for MockKeyStore
+type MockKeyStoreMockRecorder struct {
+	mock *MockKeyStore
 }
 
-// NewMockClient creates a new mock instance
-func NewMockClient(ctrl *gomock.Controller) *MockClient {
-	mock := &MockClient{ctrl: ctrl}
-	mock.recorder = &MockClientMockRecorder{mock}
+// NewMockKeyStore creates a new mock instance
+func NewMockKeyStore(ctrl *gomock.Controller) *MockKeyStore {
+	mock := &MockKeyStore{ctrl: ctrl}
+	mock.recorder = &MockKeyStoreMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockClient) EXPECT() *MockClientMockRecorder {
+func (m *MockKeyStore) EXPECT() *MockKeyStoreMockRecorder {
 	return m.recorder
 }
 
 // GenerateKeyPair mocks base method
-func (m *MockClient) GenerateKeyPair() (crypto.PublicKey, error) {
+func (m *MockKeyStore) GenerateKeyPair() (crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GenerateKeyPair")
 	ret0, _ := ret[0].(crypto.PublicKey)
@@ -44,13 +43,13 @@ func (m *MockClient) GenerateKeyPair() (crypto.PublicKey, error) {
 }
 
 // GenerateKeyPair indicates an expected call of GenerateKeyPair
-func (mr *MockClientMockRecorder) GenerateKeyPair() *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) GenerateKeyPair() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateKeyPair", reflect.TypeOf((*MockClient)(nil).GenerateKeyPair))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateKeyPair", reflect.TypeOf((*MockKeyStore)(nil).GenerateKeyPair))
 }
 
 // GetPrivateKey mocks base method
-func (m *MockClient) GetPrivateKey(kid string) (crypto.Signer, error) {
+func (m *MockKeyStore) GetPrivateKey(kid string) (crypto.Signer, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPrivateKey", kid)
 	ret0, _ := ret[0].(crypto.Signer)
@@ -59,43 +58,28 @@ func (m *MockClient) GetPrivateKey(kid string) (crypto.Signer, error) {
 }
 
 // GetPrivateKey indicates an expected call of GetPrivateKey
-func (mr *MockClientMockRecorder) GetPrivateKey(kid interface{}) *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) GetPrivateKey(kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivateKey", reflect.TypeOf((*MockClient)(nil).GetPrivateKey), kid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivateKey", reflect.TypeOf((*MockKeyStore)(nil).GetPrivateKey), kid)
 }
 
-// GetPublicKeyAsPEM mocks base method
-func (m *MockClient) GetPublicKeyAsPEM(kid string) (string, error) {
+// GetPublicKey mocks base method
+func (m *MockKeyStore) GetPublicKey(kid string) (crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPublicKeyAsPEM", kid)
-	ret0, _ := ret[0].(string)
+	ret := m.ctrl.Call(m, "GetPublicKey", kid)
+	ret0, _ := ret[0].(crypto.PublicKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPublicKeyAsPEM indicates an expected call of GetPublicKeyAsPEM
-func (mr *MockClientMockRecorder) GetPublicKeyAsPEM(kid interface{}) *gomock.Call {
+// GetPublicKey indicates an expected call of GetPublicKey
+func (mr *MockKeyStoreMockRecorder) GetPublicKey(kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPublicKeyAsPEM", reflect.TypeOf((*MockClient)(nil).GetPublicKeyAsPEM), kid)
-}
-
-// GetPublicKeyAsJWK mocks base method
-func (m *MockClient) GetPublicKeyAsJWK(kid string) (jwk.Key, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPublicKeyAsJWK", kid)
-	ret0, _ := ret[0].(jwk.Key)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetPublicKeyAsJWK indicates an expected call of GetPublicKeyAsJWK
-func (mr *MockClientMockRecorder) GetPublicKeyAsJWK(kid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPublicKeyAsJWK", reflect.TypeOf((*MockClient)(nil).GetPublicKeyAsJWK), kid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPublicKey", reflect.TypeOf((*MockKeyStore)(nil).GetPublicKey), kid)
 }
 
 // SignJWT mocks base method
-func (m *MockClient) SignJWT(claims map[string]interface{}, kid string) (string, error) {
+func (m *MockKeyStore) SignJWT(claims map[string]interface{}, kid string) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SignJWT", claims, kid)
 	ret0, _ := ret[0].(string)
@@ -104,13 +88,13 @@ func (m *MockClient) SignJWT(claims map[string]interface{}, kid string) (string,
 }
 
 // SignJWT indicates an expected call of SignJWT
-func (mr *MockClientMockRecorder) SignJWT(claims, kid interface{}) *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) SignJWT(claims, kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWT", reflect.TypeOf((*MockClient)(nil).SignJWT), claims, kid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWT", reflect.TypeOf((*MockKeyStore)(nil).SignJWT), claims, kid)
 }
 
 // PrivateKeyExists mocks base method
-func (m *MockClient) PrivateKeyExists(key string) bool {
+func (m *MockKeyStore) PrivateKeyExists(key string) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PrivateKeyExists", key)
 	ret0, _ := ret[0].(bool)
@@ -118,7 +102,7 @@ func (m *MockClient) PrivateKeyExists(key string) bool {
 }
 
 // PrivateKeyExists indicates an expected call of PrivateKeyExists
-func (mr *MockClientMockRecorder) PrivateKeyExists(key interface{}) *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) PrivateKeyExists(key interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrivateKeyExists", reflect.TypeOf((*MockClient)(nil).PrivateKeyExists), key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrivateKeyExists", reflect.TypeOf((*MockKeyStore)(nil).PrivateKeyExists), key)
 }

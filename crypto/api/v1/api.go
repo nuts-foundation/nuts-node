@@ -38,7 +38,7 @@ import (
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
-	C crypto.Client
+	C crypto.KeyStore
 }
 
 // GenerateKeyPair is the implementation of the REST service call POST /crypto/generate

@@ -22,8 +22,8 @@ import (
 	"crypto"
 )
 
-// Client defines the functions than can be called by a Cmd, Direct or via rest call.
-type Client interface {
+// KeyStore defines the functions than can be called by a Cmd, Direct or via rest call.
+type KeyStore interface {
 	// GenerateKeyPair generates a keypair, stores the private key and returns the public key.
 	GenerateKeyPair() (crypto.PublicKey, error)
 	// GetPrivateKey returns the specified private key (for e.g. signing) in non-exportable form.
