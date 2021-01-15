@@ -140,11 +140,11 @@ func cmd() *cobra.Command {
 }
 
 // newCryptoClient creates a remote client
-func newCryptoClient(cmd *cobra.Command) api.HttpClient {
+func newCryptoClient(cmd *cobra.Command) api.HTTPClient {
 	cfg := core.NutsConfig()
 	cfg.Load(cmd)
 
-	return api.HttpClient{
+	return api.HTTPClient{
 		ServerAddress: cfg.ServerAddress(),
 		Timeout:       10 * time.Second,
 	}

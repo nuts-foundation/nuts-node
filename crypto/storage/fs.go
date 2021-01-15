@@ -37,7 +37,7 @@ const (
 	publicKeyEntry  entryType = "public.pem"
 )
 
-type FileOpenError struct {
+type fileOpenError struct {
 	filePath string
 	kid      string
 	err      error
@@ -46,16 +46,13 @@ type FileOpenError struct {
 // ErrNotFound indicates that the specified crypto storage entry couldn't be found.
 var ErrNotFound = errors.New("entry not found")
 
-// ErrInvalidDuration is given when a period duration is 0 or negative
-var ErrInvalidDuration = errors.New("given time period is invalid")
-
 // Error returns the string representation
-func (f *FileOpenError) Error() string {
+func (f *fileOpenError) Error() string {
 	return fmt.Sprintf("could not open entry %s with filename %s: %v", f.kid, f.filePath, f.err)
 }
 
-// UnWrap is needed for FileOpenError to be UnWrapped
-func (f *FileOpenError) Unwrap() error {
+// Unwrap is needed for fileOpenError to be UnWrapped
+func (f *fileOpenError) Unwrap() error {
 	return f.err
 }
 
@@ -63,7 +60,7 @@ type fileSystemBackend struct {
 	fspath string
 }
 
-// Create a new filesystem backend, all directories will be created for the given path
+// NewFileSystemBackend creates a new filesystem backend, all directories will be created for the given path
 // Using a filesystem backend in production is not recommended!
 func NewFileSystemBackend(fspath string) (*fileSystemBackend, error) {
 	if fspath == "" {
@@ -165,9 +162,9 @@ func (fsc fileSystemBackend) readEntry(kid string, entryType entryType) ([]byte,
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, &FileOpenError{kid: kid, filePath: filePath, err: ErrNotFound}
+			return nil, &fileOpenError{kid: kid, filePath: filePath, err: ErrNotFound}
 		}
-		return nil, &FileOpenError{kid: kid, filePath: filePath, err: err}
+		return nil, &fileOpenError{kid: kid, filePath: filePath, err: err}
 	}
 	return data, nil
 }

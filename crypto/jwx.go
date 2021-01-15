@@ -89,7 +89,7 @@ func SignJWT(key jwk.Key, claims map[string]interface{}, headers map[string]inte
 	return
 }
 
-// JWTAlg parses a JWT, does not validate it and returns the 'kid' and 'alg' headers
+// JWTKidAlg parses a JWT, does not validate it and returns the 'kid' and 'alg' headers
 func JWTKidAlg(tokenString string) (string, jwa.SignatureAlgorithm, error) {
 	j, err := jws.ParseString(tokenString)
 	if err != nil {

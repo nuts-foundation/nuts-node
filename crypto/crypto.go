@@ -33,13 +33,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
-// CryptoConfig holds the values for the crypto engine
-type CryptoConfig struct {
+// Config holds the values for the crypto engine
+type Config struct {
 	Storage string
 	Fspath  string
 }
 
-func (cc CryptoConfig) getFSPath() string {
+func (cc Config) getFSPath() string {
 	if cc.Fspath == "" {
 		return DefaultCryptoConfig().Fspath
 	}
@@ -47,8 +47,9 @@ func (cc CryptoConfig) getFSPath() string {
 	return cc.Fspath
 }
 
-func DefaultCryptoConfig() CryptoConfig {
-	return CryptoConfig{
+// DefaultCryptoConfig returns a Config with sane defaults
+func DefaultCryptoConfig() Config {
+	return Config{
 		Storage: "fs",
 		Fspath:  "./",
 	}
@@ -57,7 +58,7 @@ func DefaultCryptoConfig() CryptoConfig {
 // default implementation for Instance
 type Crypto struct {
 	Storage    storage.Storage
-	Config     CryptoConfig
+	Config     Config
 	configOnce sync.Once
 	configDone bool
 }
@@ -67,10 +68,12 @@ type opaquePrivateKey struct {
 	signFn    func(io.Reader, []byte, crypto.SignerOpts) ([]byte, error)
 }
 
+// Public returns the public key
 func (k opaquePrivateKey) Public() crypto.PublicKey {
 	return k.publicKey
 }
 
+// Sign signs some data with the signer
 func (k opaquePrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
 	return k.signFn(rand, digest, opts)
 }
@@ -99,15 +102,11 @@ func Instance() *Crypto {
 		return instance
 	}
 	oneBackend.Do(func() {
-		instance = NewInstance(DefaultCryptoConfig())
+		instance = &Crypto{
+			Config: DefaultCryptoConfig(),
+		}
 	})
 	return instance
-}
-
-func NewInstance(config CryptoConfig) *Crypto {
-	return &Crypto{
-		Config: config,
-	}
 }
 
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
@@ -172,7 +171,7 @@ func (client *Crypto) PrivateKeyExists(kid string) bool {
 	return client.Storage.PrivateKeyExists(kid)
 }
 
-// PublicKeyInPEM loads the key from storage and returns it as PEM encoded. Only supports RSA style keys
+// GetPublicKey loads the key from storage and returns it as PEM encoded. Only supports RSA style keys
 func (client *Crypto) GetPublicKey(kid string) (crypto.PublicKey, error) {
 	return client.Storage.GetPublicKey(kid)
 }

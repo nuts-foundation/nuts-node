@@ -24,6 +24,7 @@ import (
 
 var _logger = logrus.StandardLogger().WithField("module", "Crypto")
 
+// Logger returns a logger with the module field set to 'Crypto'
 func Logger() *logrus.Entry {
 	return _logger
 }

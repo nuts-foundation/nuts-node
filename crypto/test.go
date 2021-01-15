@@ -10,7 +10,9 @@ import (
 // specified test directory.
 func NewTestCryptoInstance(testDirectory string) *Crypto {
 	config := TestCryptoConfig(testDirectory)
-	newInstance := NewInstance(config)
+	newInstance := &Crypto{
+		Config: config,
+	}
 	if err := newInstance.Configure(); err != nil {
 		logrus.Fatal(err)
 	}
@@ -18,8 +20,8 @@ func NewTestCryptoInstance(testDirectory string) *Crypto {
 	return newInstance
 }
 
-// TestCryptoConfig returns CryptoConfig to be used in integration/unit tests.
-func TestCryptoConfig(testDirectory string) CryptoConfig {
+// TestCryptoConfig returns Config to be used in integration/unit tests.
+func TestCryptoConfig(testDirectory string) Config {
 	config := DefaultCryptoConfig()
 	config.Fspath = path.Join(testDirectory, "crypto")
 	return config

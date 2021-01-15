@@ -35,13 +35,13 @@ import (
 // ErrNotImplemented indicates that this client API call is not implemented.
 var ErrNotImplemented = errors.New("operation not implemented")
 
-// HttpClient holds the server address and other basic settings for the http client
-type HttpClient struct {
+// HTTPClient holds the server address and other basic settings for the http client
+type HTTPClient struct {
 	ServerAddress string
 	Timeout       time.Duration
 }
 
-func (hb HttpClient) clientWithRequestEditor(fn RequestEditorFn) ClientInterface {
+func (hb HTTPClient) clientWithRequestEditor(fn RequestEditorFn) ClientInterface {
 	url := hb.ServerAddress
 	if !strings.Contains(url, "http") {
 		url = fmt.Sprintf("http://%v", hb.ServerAddress)
@@ -54,11 +54,12 @@ func (hb HttpClient) clientWithRequestEditor(fn RequestEditorFn) ClientInterface
 	return response
 }
 
-func (hb HttpClient) client() ClientInterface {
+func (hb HTTPClient) client() ClientInterface {
 	return hb.clientWithRequestEditor(nil)
 }
 
-func (hb HttpClient) GetPublicKey(kid string) (crypto.PublicKey, error) {
+// GetPublicKey returns a PrivateKey from the server given a kid
+func (hb HTTPClient) GetPublicKey(kid string) (crypto.PublicKey, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
 	defer cancel()
 	httpClient := hb.clientWithRequestEditor(func(ctx context.Context, req *http.Request) error {

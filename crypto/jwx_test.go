@@ -23,7 +23,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"fmt"
 	"testing"
 
@@ -31,6 +30,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +39,7 @@ import (
 func TestSignJWT(t *testing.T) {
 	claims := map[string]interface{}{"iss": "nuts"}
 	t.Run("creates valid JWT using rsa keys", func(t *testing.T) {
-		rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+		rsaKey := test.GenerateRSAKey()
 		key, _ := jwkKey(rsaKey)
 		tokenString, err := SignJWT(key, claims, nil)
 

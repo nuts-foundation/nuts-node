@@ -72,6 +72,7 @@ func (w *Wrapper) GenerateKeyPair(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, pub)
 }
 
+// SignJwt handles api calls for signing a Jwt
 func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	buf, err := readBody(ctx)
 	if err != nil {

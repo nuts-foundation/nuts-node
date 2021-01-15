@@ -52,7 +52,7 @@ var jwkAsBytes = []byte(jwkAsString)
 func TestHttpClient_GetPublicKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
-		c := HttpClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		res, err := c.GetPublicKey("kid")
 		if !assert.NoError(t, err) {
 			return
@@ -62,14 +62,14 @@ func TestHttpClient_GetPublicKey(t *testing.T) {
 	t.Run("error - server returned non-JWK", func(t *testing.T) {
 		csrBytes, _ := ioutil.ReadFile("../test/broken.pem")
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: csrBytes})
-		c := HttpClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		res, err := c.GetPublicKey("kid")
 		assert.Contains(t, err.Error(), "failed to unmarshal JWK:")
 		assert.Nil(t, res)
 	})
 	t.Run("error - response not HTTP OK", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusInternalServerError, responseData: genericError})
-		c := HttpClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		res, err := c.GetPublicKey("kid")
 		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: failed")
 		assert.Nil(t, res)
@@ -77,7 +77,7 @@ func TestHttpClient_GetPublicKey(t *testing.T) {
 	t.Run("error - server not running", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusOK})
 		s.Close()
-		c := HttpClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		res, err := c.GetPublicKey("kid")
 		assert.Contains(t, err.Error(), "connection refused")
 		assert.Nil(t, res)
