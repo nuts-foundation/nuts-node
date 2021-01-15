@@ -134,11 +134,18 @@ func TestCrypto_SignJWT(t *testing.T) {
 }
 
 func TestCrypto_convertHeaders(t *testing.T) {
-	rawHeaders := map[string]interface{} {
-		"key": "value",
-	}
+	t.Run("nil headers", func(t *testing.T) {
+		jwtHeader := convertHeaders(nil)
+		assert.Len(t, jwtHeader.PrivateParams(), 0)
+	})
 
-	jwtHeader := convertHeaders(rawHeaders)
-	v, _ := jwtHeader.Get("key")
-	assert.Equal(t, "value", v)
+	t.Run("ok", func(t *testing.T) {
+		rawHeaders := map[string]interface{} {
+			"key": "value",
+		}
+
+		jwtHeader := convertHeaders(rawHeaders)
+		v, _ := jwtHeader.Get("key")
+		assert.Equal(t, "value", v)
+	})
 }
