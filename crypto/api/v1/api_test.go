@@ -19,110 +19,107 @@
 package v1
 
 import (
-	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"errors"
 	"net/http"
-	"os"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestWrapper_SignJwt(t *testing.T) {
-	os.Setenv("NUTS_MODE", "server")
-	defer os.Unsetenv("NUTS_MODE")
-	core.NutsConfig().Load(&cobra.Command{})
-
-	client := apiWrapper(t)
-
-	publicKey, _ := client.C.GenerateKeyPair()
-	kid, _ := util.Fingerprint(publicKey)
-
 	t.Run("Missing claims returns 400", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		echo := mock.NewMockContext(ctrl)
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
 
 		jsonRequest := SignJwtRequest{
-			Kid: kid,
+			Kid: "kid",
 		}
+		jsonData, _ := json.Marshal(jsonRequest)
 
-		json, _ := json.Marshal(jsonRequest)
-		request := &http.Request{
-			Body: ioutil.NopCloser(bytes.NewReader(json)),
-		}
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal(jsonData, f)
+		})
 
-		echo.EXPECT().Request().Return(request)
-
-		err := client.SignJwt(echo)
+		err := ctx.client.SignJwt(ctx.echo)
 
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "code=400, message=missing claims")
 	})
 
 	t.Run("Missing kid returns 400", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		echo := mock.NewMockContext(ctrl)
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
 
 		jsonRequest := SignJwtRequest{
 			Claims: map[string]interface{}{"iss": "nuts"},
 		}
+		jsonData, _ := json.Marshal(jsonRequest)
 
-		json, _ := json.Marshal(jsonRequest)
-		request := &http.Request{
-			Body: ioutil.NopCloser(bytes.NewReader(json)),
-		}
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal(jsonData, f)
+		})
 
-		echo.EXPECT().Request().Return(request)
-
-		err := client.SignJwt(echo)
+		err := ctx.client.SignJwt(ctx.echo)
 
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "code=400, message=missing kid")
 	})
 
-	t.Run("All OK returns 200", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		echo := mock.NewMockContext(ctrl)
+	t.Run("Sign error returns 400", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
 
 		jsonRequest := SignJwtRequest{
-			Kid:    kid,
+			Kid:    "unknown",
+			Claims: map[string]interface{}{"iss": "nuts"},
+		}
+		jsonData, _ := json.Marshal(jsonRequest)
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal(jsonData, f)
+		})
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), "unknown").Return("", errors.New("b00m!"))
+
+		err := ctx.client.SignJwt(ctx.echo)
+
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "code=400, message=b00m!")
+	})
+
+	t.Run("All OK returns 200", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		jsonRequest := SignJwtRequest{
+			Kid:    "kid",
 			Claims: map[string]interface{}{"iss": "nuts"},
 		}
 
-		json, _ := json.Marshal(jsonRequest)
-		request := &http.Request{
-			Body: ioutil.NopCloser(bytes.NewReader(json)),
-		}
+		jsonData, _ := json.Marshal(jsonRequest)
 
-		echo.EXPECT().Request().Return(request)
-		echo.EXPECT().String(http.StatusOK, gomock.Any())
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal(jsonData, f)
+		})
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), "kid").Return("token", nil)
+		ctx.echo.EXPECT().String(http.StatusOK, "token")
 
-		err := client.SignJwt(echo)
+		err := ctx.client.SignJwt(ctx.echo)
 
 		assert.Nil(t, err)
 	})
 
 	t.Run("Missing body gives 400", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		echo := mock.NewMockContext(ctrl)
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
 
-		request := &http.Request{}
+		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("missing body in request"))
 
-		echo.EXPECT().Request().Return(request)
-
-		err := client.SignJwt(echo)
+		err := ctx.client.SignJwt(ctx.echo)
 
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "code=400, message=missing body in request")
@@ -130,58 +127,71 @@ func TestWrapper_SignJwt(t *testing.T) {
 }
 
 func TestWrapper_PublicKey(t *testing.T) {
-	client := apiWrapper(t)
-
-	publicKey, _ := client.C.GenerateKeyPair()
-	kid, _ := util.Fingerprint(publicKey)
-
 	t.Run("PublicKey API call returns 200", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		echo := mock.NewMockContext(ctrl)
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
 
-		echo.EXPECT().Request().Return(&http.Request{})
-		echo.EXPECT().String(http.StatusOK, gomock.Any())
+		key := test.GenerateECKey()
 
-		_ = client.PublicKey(echo, kid)
+		ctx.echo.EXPECT().Request().Return(&http.Request{})
+		ctx.keyStore.EXPECT().GetPublicKey("kid").Return(key.Public(), nil)
+		ctx.echo.EXPECT().String(http.StatusOK, gomock.Any())
+
+		_ = ctx.client.PublicKey(ctx.echo, "kid")
 	})
 
 	t.Run("PublicKey API call returns JWK", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		echo := mock.NewMockContext(ctrl)
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
 
-		echo.EXPECT().Request().Return(&http.Request{Header: http.Header{"Accept": []string{"application/json"}}})
-		echo.EXPECT().JSON(http.StatusOK, gomock.Any())
+		key := test.GenerateECKey()
 
-		_ = client.PublicKey(echo, kid)
+		ctx.echo.EXPECT().Request().Return(&http.Request{Header: http.Header{"Accept": []string{"application/json"}}})
+		ctx.keyStore.EXPECT().GetPublicKey("kid").Return(key.Public(), nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
+
+		_ = ctx.client.PublicKey(ctx.echo, "kid")
 	})
 
 	t.Run("PublicKey API call returns 404 for unknown", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		echo := mock.NewMockContext(ctrl)
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
 
-		echo.EXPECT().Request().Return(&http.Request{})
-		echo.EXPECT().NoContent(http.StatusNotFound)
+		ctx.echo.EXPECT().Request().Return(&http.Request{})
+		ctx.keyStore.EXPECT().GetPublicKey("kid").Return(nil, storage.ErrNotFound)
+		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
 
-		_ = client.PublicKey(echo, "not")
+		_ = ctx.client.PublicKey(ctx.echo, "kid")
 	})
 
-	t.Run("PublicKey API call returns 404 for unknown, JWK requested", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		echo := mock.NewMockContext(ctrl)
+	t.Run("PublicKey API call returns 500 for other error", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
 
-		echo.EXPECT().Request().Return(&http.Request{Header: http.Header{"Accept": []string{"application/json"}}})
-		echo.EXPECT().NoContent(http.StatusNotFound)
+		ctx.echo.EXPECT().Request().Return(&http.Request{Header: http.Header{"Accept": []string{"application/json"}}})
+		ctx.keyStore.EXPECT().GetPublicKey("kid").Return(nil, errors.New("b00m!"))
 
-		_ = client.PublicKey(echo, "not")
+		err := ctx.client.PublicKey(ctx.echo, "kid")
+		assert.Error(t, err)
 	})
 }
 
-func apiWrapper(t *testing.T) *Wrapper {
-	crypto := crypto.NewTestCryptoInstance(io.TestDirectory(t))
+type mockContext struct {
+	ctrl *gomock.Controller
+	echo *mock.MockContext
+	keyStore *mock.MockKeyStore
+	client *Wrapper
+}
 
-	return &Wrapper{C: crypto}
+func newMockContext(t *testing.T) mockContext {
+	ctrl := gomock.NewController(t)
+	keyStore := mock.NewMockKeyStore(ctrl)
+	client := &Wrapper{C: keyStore}
+
+	return mockContext{
+		ctrl: ctrl,
+		echo: mock.NewMockContext(ctrl),
+		keyStore: keyStore,
+		client: client,
+	}
 }

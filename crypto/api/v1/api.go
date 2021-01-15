@@ -19,11 +19,7 @@
 package v1
 
 import (
-	crypto2 "crypto"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io/ioutil"
 	"mime"
 	"net/http"
 
@@ -41,47 +37,10 @@ type Wrapper struct {
 	C crypto.KeyStore
 }
 
-// GenerateKeyPair is the implementation of the REST service call POST /crypto/generate
-// It returns the public key for the given legal entity in either PEM or JWK format depending on the accept-header. Default is PEM (backwards compatibility)
-func (w *Wrapper) GenerateKeyPair(ctx echo.Context) error {
-	var publicKey crypto2.PublicKey
-	var err error
-
-	if publicKey, err = w.C.GenerateKeyPair(); err != nil {
-		return err
-	}
-
-	acceptHeader := ctx.Request().Header.Get("Accept")
-
-	if ct, _, _ := mime.ParseMediaType(acceptHeader); ct == "application/json" {
-		var j jwk.Key
-		var err error
-		if j, err = jwk.New(publicKey); err != nil {
-			return err
-		}
-
-		return ctx.JSON(http.StatusOK, j)
-	}
-
-	// backwards compatible PEM format is the default
-	pub, err := util.PublicKeyToPem(publicKey)
-	if err != nil {
-		return err
-	}
-
-	return ctx.String(http.StatusOK, pub)
-}
-
 // SignJwt handles api calls for signing a Jwt
 func (w *Wrapper) SignJwt(ctx echo.Context) error {
-	buf, err := readBody(ctx)
-	if err != nil {
-		return err
-	}
-
 	var signRequest = &SignJwtRequest{}
-	err = json.Unmarshal(buf, signRequest)
-
+	err := ctx.Bind(signRequest)
 	if err != nil {
 		log.Logger().Error(err.Error())
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
@@ -138,22 +97,4 @@ func (w *Wrapper) PublicKey(ctx echo.Context, kid string) error {
 	}
 
 	return ctx.String(http.StatusOK, pub)
-}
-
-func readBody(ctx echo.Context) ([]byte, error) {
-	req := ctx.Request()
-	if req.Body == nil {
-		msg := "missing body in request"
-		log.Logger().Error(msg)
-		return nil, echo.NewHTTPError(http.StatusBadRequest, msg)
-	}
-
-	buf, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		msg := fmt.Sprintf("error reading request: %v", err)
-		log.Logger().Error(msg)
-		return nil, echo.NewHTTPError(http.StatusBadRequest, msg)
-	}
-
-	return buf, nil
 }
