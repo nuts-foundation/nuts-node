@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	mock2 "github.com/nuts-foundation/nuts-node/crypto/mock"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/mock"
@@ -177,21 +178,21 @@ func TestWrapper_PublicKey(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl *gomock.Controller
-	echo *mock.MockContext
-	keyStore *mock.MockKeyStore
-	client *Wrapper
+	ctrl     *gomock.Controller
+	echo     *mock.MockContext
+	keyStore *mock2.MockKeyStore
+	client   *Wrapper
 }
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
-	keyStore := mock.NewMockKeyStore(ctrl)
+	keyStore := mock2.NewMockKeyStore(ctrl)
 	client := &Wrapper{C: keyStore}
 
 	return mockContext{
-		ctrl: ctrl,
-		echo: mock.NewMockContext(ctrl),
+		ctrl:     ctrl,
+		echo:     mock.NewMockContext(ctrl),
 		keyStore: keyStore,
-		client: client,
+		client:   client,
 	}
 }

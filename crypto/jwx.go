@@ -45,7 +45,7 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 		return "", err
 	}
 
-	if err = jwk.AssignKeyID(key); err != nil {
+	if err = key.Set(jwk.KeyIDKey, kid); err != nil {
 		return "", err
 	}
 

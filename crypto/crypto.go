@@ -30,7 +30,6 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
 // Config holds the values for the crypto engine
@@ -135,31 +134,18 @@ func (client *Crypto) doConfigure() error {
 }
 
 // GenerateKeyPair generates a new key pair. If a key pair with the same identifier already exists, it is overwritten.
-func (client *Crypto) GenerateKeyPair() (crypto.PublicKey, error) {
-	privateKey, err := client.generateAndStoreKeyPair()
-	if err != nil {
-		return nil, err
-	}
-
-	return jwk.PublicKeyOf(privateKey)
-}
-
-func (client *Crypto) generateAndStoreKeyPair() (crypto.PrivateKey, error) {
+func (client *Crypto) New(namingFunc KidNamingFunc) (crypto.PublicKey, error) {
 	keyPair, err := generateECKeyPair()
 	if err != nil {
 		return nil, err
 	}
 
-	kid, err := util.Fingerprint(keyPair.PublicKey)
-	if err != nil {
-		return nil, err
-	}
-
+	kid := namingFunc(keyPair.Public())
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
 		return nil, err
 	}
 
-	return keyPair, nil
+	return jwk.PublicKeyOf(keyPair)
 }
 
 func generateECKeyPair() (*ecdsa.PrivateKey, error) {

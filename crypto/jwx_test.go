@@ -31,7 +31,6 @@ import (
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -105,8 +104,8 @@ func TestSignJWT(t *testing.T) {
 func TestCrypto_SignJWT(t *testing.T) {
 	client := createCrypto(t)
 
-	publicKey, _ := client.GenerateKeyPair()
-	kid, _ := util.Fingerprint(publicKey)
+	kid := "kid"
+	client.New(stringNamingFunc(kid))
 
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, kid)
