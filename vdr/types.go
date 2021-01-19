@@ -15,17 +15,22 @@ var ErrInvalidDID = errors.New("invalid did syntax")
 var ErrNotFound = errors.New("unable to find the did document")
 // ErrDeactivated The DID supplied to the DID resolution function has been deactivated.
 var ErrDeactivated = errors.New("the document has been deactivated")
+var ErrDIDAlreadyExists = errors.New("did document already exists")
 
 // DocReader is the interface that groups all the DID Document read methods
 // Get returns the DID document using on the given DID or ErrNotFound if not found.
+// If metadata is provided the the result is filtered or scoped on that meta data
+// If metadata is provided the latest version is returned
 // If something goes wrong an error is returned.
-type DocReader interface {
-	Get(DID did.DID) (*did.Document, *DocumentMetadata, error)
+type DocResolver interface {
+	Resolve(DID did.DID, metadata *ResolveMetaData) (*did.Document, *DocumentMetadata, error)
 }
 
 // DocWriter is the interface that groups al the DID Document write methods
 type DocWriter interface {
-	// Create creates a new DID document and returns it. If something goes wrong an error is returned.
+	// Create creates a new DID document and returns it.
+	// If the DID already exists, an ErrDIDAlreadyExists gets returned
+	// If something goes wrong an error is returned.
 	Create() (*did.Document, error)
 
 	// Update replaces the DID document identified by DID with the nextVersion
@@ -38,7 +43,7 @@ type DocWriter interface {
 
 // Store is the interface that groups all operations on DID documents.
 type Store interface {
-	DocReader
+	DocResolver
 	DocWriter
 }
 
@@ -52,6 +57,13 @@ type DocumentMetadata struct {
 	OriginJWSHash model.Hash `json:"originJwsHash"`
 	// Hash of DID document bytes. Is equal to payloadHash in network layer.
 	Hash string `json:"hash"`
-	// Tags of the DID document.
-	Tags []string `json:"tags,omitempty"`
+}
+
+type ResolveMetaData struct {
+	// Resolve the version which is valid at this time
+	ResolveTime *time.Time
+	// if provided, use the version which matches this exact hash
+	Hash []byte
+	// Allow DIDs which are deactivated
+	AllowDeactivated bool
 }
