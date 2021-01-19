@@ -17,93 +17,31 @@
  *
  */
 
-package did
+// Package registry provides primitives for storing and working with Nuts DID based identities.
+// It provides an easy to work with web api and a command line interface.
+// It provides underlying storage back ends to store, update and search for Nuts identities.
+package registry
 
 import (
 	"sync"
 	"time"
 
 	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-network/pkg/model"
-	"github.com/nuts-foundation/nuts-node/did/logging"
 	"github.com/sirupsen/logrus"
 
-	"github.com/nuts-foundation/nuts-network/pkg"
-	"github.com/nuts-foundation/nuts-node/did/network"
+	"github.com/nuts-foundation/nuts-node/registry/logging"
 
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-network/pkg"
+
+	"github.com/nuts-foundation/nuts-node/registry/network"
+
 	networkClient "github.com/nuts-foundation/nuts-network/client"
 	networkPkg "github.com/nuts-foundation/nuts-network/pkg"
+
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 )
 
-// ConfDataDir is the config name for specifiying the data location of the requiredFiles
-const ConfDataDir = "datadir"
-
-// ConfMode is the config name for the engine mode, server or client
-const ConfMode = "mode"
-
-// ConfAddress is the config name for the http server/client address
-const ConfAddress = "address"
-
-// ConfSyncMode is the config name for the used SyncMode
-const ConfSyncMode = "syncMode"
-
-// ConfSyncAddress is the config name for the remote address used to fetch updated registry files
-const ConfSyncAddress = "syncAddress"
-
-// ConfSyncInterval is the config name for the interval in minutes to look for new registry files online
-const ConfSyncInterval = "syncInterval"
-
-// ConfOrganisationCertificateValidity is the config name for the number of days organisation certificates are valid
-const ConfOrganisationCertificateValidity = "organisationCertificateValidity"
-
-// ConfVendorCACertificateValidity is the config name for the number of days vendor CA certificates are valid
-const ConfVendorCACertificateValidity = "vendorCACertificateValidity"
-
-// ConfClientTimeout is the time-out for the client in seconds (e.g. when using the CLI).
-const ConfClientTimeout = "clientTimeout"
-
-// ModuleName == Registry
-const ModuleName = "Registry"
-
-// ReloadRegistryIdleTimeout defines the cooling down period after receiving a file watcher notification, before
-// the registry is reloaded (from disk).
-var ReloadRegistryIdleTimeout time.Duration
-
-// Store is the interface for the low level DID operations.
-type Store interface {
-	// Search searches for DID documents that match the given conditions;
-	// - onlyOwn: only return documents which contain a verificationMethod which' private key is present in this node.
-	// - tags: only return documents that match ALL of the given tags.
-	// If something goes wrong an error is returned.
-	Search(onlyOwn bool, tags []string) ([]did.Document, error)
-	// Create creates a new DID document and returns it. If something goes wrong an error is returned.
-	Create() (*did.Document, error)
-	// Get returns the DID document using on the given DID or nil if not found. If something goes wrong an error is returned.
-	Get(DID did.DID) (*did.Document, *DocumentMetadata, error)
-	// GetByTag gets a DID document using the given tag or nil if not found. If multiple documents match the given tag
-	// or something else goes wrong, an error is returned.
-	GetByTag(tag string) (*did.Document, *DocumentMetadata, error)
-	// Update replaces the DID document identified by DID with the nextVersion if the given hash matches the current valid DID document hash.
-	Update(DID did.DID, hash []byte, nextVersion did.Document) (*did.Document, error)
-	// Tag replaces all tags on a DID document given the DID.
-	Tag(DID did.DID, tags []string) error
-}
-
-// DocumentMetadata holds the metadata of a DID document
-type DocumentMetadata struct {
-	Created time.Time `json:"created"`
-	Updated time.Time `json:"updated,omitempty"`
-	// Version contains the semantic version of the DID document.
-	Version int `json:"version"`
-	// OriginJWSHash contains the hash of the JWS envelope of the first version of the DID document.
-	OriginJWSHash model.Hash `json:"originJwsHash"`
-	// Hash of DID document bytes. Is equal to payloadHash in network layer.
-	Hash string `json:"hash"`
-	// Tags of the DID document.
-	Tags []string `json:"tags,omitempty"`
-}
 
 //type StoreWrapper struct {
 //	networkClient networkPkg.NetworkClient
@@ -113,22 +51,6 @@ type DocumentMetadata struct {
 //func wrap(store DIDStore) DIDStore {
 //	return &StoreWrapper(store: store)
 //}
-
-// Config holds the config
-type Config struct {
-	Mode          string
-	Datadir       string
-	Address       string
-	ClientTimeout int
-}
-
-func DefaultRegistryConfig() Config {
-	return Config{
-		Datadir:       "./data",
-		Address:       "localhost:1323",
-		ClientTimeout: 10,
-	}
-}
 
 // Registry holds the config and Db reference
 type Registry struct {
@@ -145,6 +67,10 @@ type Registry struct {
 
 var instance *Registry
 var oneRegistry sync.Once
+
+// ReloadRegistryIdleTimeout defines the cooling down period after receiving a file watcher notification, before
+// the registry is reloaded (from disk).
+var ReloadRegistryIdleTimeout time.Duration
 
 func init() {
 	ReloadRegistryIdleTimeout = 3 * time.Second
