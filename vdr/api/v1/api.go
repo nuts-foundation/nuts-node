@@ -21,12 +21,12 @@ package v1
 
 import (
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/registry"
+	"github.com/nuts-foundation/nuts-node/vdr"
 )
 
 // ApiWrapper is needed to connect the implementation to the echo ServiceWrapper
 type ApiWrapper struct {
-	R registry.Store
+	R vdr.Store
 }
 
 func (a ApiWrapper) SearchDID(ctx echo.Context, params SearchDIDParams) error {

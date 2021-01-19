@@ -24,7 +24,7 @@ import (
 	network "github.com/nuts-foundation/nuts-network/pkg"
 	"github.com/nuts-foundation/nuts-network/pkg/model"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/registry/logging"
+	"github.com/nuts-foundation/nuts-node/vdr/logging"
 )
 
 const documentType = "nuts.registry-event"

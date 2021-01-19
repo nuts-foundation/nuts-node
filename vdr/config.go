@@ -1,4 +1,4 @@
-package registry
+package vdr
 
 // ConfDataDir is the config name for specifiying the data location of the requiredFiles
 const ConfDataDir = "datadir"

@@ -23,21 +23,21 @@ import (
 	"fmt"
 
 	"github.com/nuts-foundation/nuts-network/pkg"
-	"github.com/nuts-foundation/nuts-node/registry/logging"
+	"github.com/nuts-foundation/nuts-node/vdr/logging"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/registry"
-	api "github.com/nuts-foundation/nuts-node/registry/api/v1"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
 // registryClientCreator is a variable to aid testability
-var registryClientCreator = registry.RegistryInstance()
+var registryClientCreator = vdr.RegistryInstance()
 
 // NewRegistryEngine returns the core definition for the registry
 func NewRegistryEngine() *core.Engine {
-	r := registry.RegistryInstance()
+	r := vdr.RegistryInstance()
 
 	return &core.Engine{
 		Cmd:       cmd(),
@@ -58,11 +58,11 @@ func NewRegistryEngine() *core.Engine {
 func flagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("registry", pflag.ContinueOnError)
 
-	defs := registry.DefaultRegistryConfig()
-	flagSet.String(registry.ConfDataDir, defs.Datadir, fmt.Sprintf("Location of data files, default: %s", defs.Datadir))
-	flagSet.String(registry.ConfMode, defs.Mode, fmt.Sprintf("server or client, when client it uses the HttpClient, default: %s", defs.Mode))
-	flagSet.String(registry.ConfAddress, defs.Address, fmt.Sprintf("Interface and port for http server to bind to, default: %s", defs.Address))
-	flagSet.Int(registry.ConfClientTimeout, defs.ClientTimeout, fmt.Sprintf("Time-out for the client in seconds (e.g. when using the CLI), default: %d", defs.ClientTimeout))
+	defs := vdr.DefaultRegistryConfig()
+	flagSet.String(vdr.ConfDataDir, defs.Datadir, fmt.Sprintf("Location of data files, default: %s", defs.Datadir))
+	flagSet.String(vdr.ConfMode, defs.Mode, fmt.Sprintf("server or client, when client it uses the HttpClient, default: %s", defs.Mode))
+	flagSet.String(vdr.ConfAddress, defs.Address, fmt.Sprintf("Interface and port for http server to bind to, default: %s", defs.Address))
+	flagSet.Int(vdr.ConfClientTimeout, defs.ClientTimeout, fmt.Sprintf("Time-out for the client in seconds (e.g. when using the CLI), default: %d", defs.ClientTimeout))
 
 	return flagSet
 }

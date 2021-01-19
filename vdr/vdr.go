@@ -17,10 +17,11 @@
  *
  */
 
-// Package registry provides primitives for storing and working with Nuts DID based identities.
+// Package vdr contains a verifiable data registry to the w3c specification
+// and provides primitives for storing and working with Nuts DID based identities.
 // It provides an easy to work with web api and a command line interface.
 // It provides underlying storage back ends to store, update and search for Nuts identities.
-package registry
+package vdr
 
 import (
 	"sync"
@@ -29,11 +30,11 @@ import (
 	"github.com/nuts-foundation/go-did"
 	"github.com/sirupsen/logrus"
 
-	"github.com/nuts-foundation/nuts-node/registry/logging"
+	"github.com/nuts-foundation/nuts-node/vdr/logging"
 
 	"github.com/nuts-foundation/nuts-network/pkg"
 
-	"github.com/nuts-foundation/nuts-node/registry/network"
+	"github.com/nuts-foundation/nuts-node/vdr/network"
 
 	networkClient "github.com/nuts-foundation/nuts-network/client"
 	networkPkg "github.com/nuts-foundation/nuts-network/pkg"
