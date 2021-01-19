@@ -66,15 +66,15 @@ func (hb HttpClient) Create() (*did.Document, error) {
 	}
 }
 
-func (hb HttpClient) Get(DID did.DID) (*did.Document, *pkg.DIDDocumentMetadata, error) {
+func (hb HttpClient) Get(DID did.DID) (*did.Document, *did.DocumentMetadata, error) {
 	return hb.get(DID.String())
 }
 
-func (hb HttpClient) GetByTag(tag string) (*did.Document, *pkg.DIDDocumentMetadata, error) {
+func (hb HttpClient) GetByTag(tag string) (*did.Document, *did.DocumentMetadata, error) {
 	return hb.get("tag:" + tag)
 }
 
-func (hb HttpClient) get(identifier string) (*did.Document, *pkg.DIDDocumentMetadata, error) {
+func (hb HttpClient) get(identifier string) (*did.Document, *did.DocumentMetadata, error) {
 	response, err := hb.client().GetDID(context.Background(), identifier)
 	if err != nil {
 		return nil, nil, err

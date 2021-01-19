@@ -19,9 +19,33 @@
 
 package v1
 
-import "github.com/nuts-foundation/nuts-node/did"
+import (
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/did"
+)
 
 // ApiWrapper is needed to connect the implementation to the echo ServiceWrapper
 type ApiWrapper struct {
 	R did.Store
 }
+
+func (a ApiWrapper) SearchDID(ctx echo.Context, params SearchDIDParams) error {
+	panic("implement me")
+}
+
+func (a ApiWrapper) CreateDID(ctx echo.Context) error {
+	panic("implement me")
+}
+
+func (a ApiWrapper) GetDID(ctx echo.Context, didOrTag string) error {
+	panic("implement me")
+}
+
+func (a ApiWrapper) UpdateDID(ctx echo.Context, didOrTag string) error {
+	panic("implement me")
+}
+
+func (a ApiWrapper) UpdateDIDTags(ctx echo.Context, didOrTag string) error {
+	panic("implement me")
+}
+

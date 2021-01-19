@@ -17,7 +17,7 @@
  *
  */
 
-package pkg
+package did
 
 import (
 	"sync"
@@ -25,18 +25,16 @@ import (
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-network/pkg/model"
-	core2 "github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/did/logging"
 	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-network/pkg"
 	"github.com/nuts-foundation/nuts-node/did/network"
 
-	"github.com/nuts-foundation/nuts-crypto/client"
-	crypto "github.com/nuts-foundation/nuts-crypto/pkg"
-	core "github.com/nuts-foundation/nuts-go-core"
+	"github.com/nuts-foundation/nuts-node/core"
 	networkClient "github.com/nuts-foundation/nuts-network/client"
 	networkPkg "github.com/nuts-foundation/nuts-network/pkg"
+	"github.com/nuts-foundation/nuts-node/crypto"
 )
 
 // ConfDataDir is the config name for specifiying the data location of the requiredFiles
@@ -137,7 +135,7 @@ type Registry struct {
 	Config            Config
 	//Db                db.Db
 	network           networkPkg.NetworkClient
-	crypto            crypto.Client
+	crypto            crypto.KeyStore
 	OnChange          func(registry *Registry)
 	networkAmbassador network.Ambassador
 	configOnce        sync.Once
@@ -158,13 +156,13 @@ func RegistryInstance() *Registry {
 		return instance
 	}
 	oneRegistry.Do(func() {
-		instance = NewRegistryInstance(DefaultRegistryConfig(), client.NewCryptoClient(), networkClient.NewNetworkClient())
+		instance = NewRegistryInstance(DefaultRegistryConfig(), crypto.Instance(), networkClient.NewNetworkClient())
 	})
 
 	return instance
 }
 
-func NewRegistryInstance(config Config, cryptoClient crypto.Client, networkClient pkg.NetworkClient) *Registry {
+func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkClient pkg.NetworkClient) *Registry {
 	return &Registry{
 		Config:  config,
 		crypto:  cryptoClient,
@@ -210,10 +208,34 @@ func (r *Registry) Shutdown() error {
 	return nil
 }
 
-func (r *Registry) Diagnostics() []core2.DiagnosticResult {
-	return []core2.DiagnosticResult{}
+func (r *Registry) Diagnostics() []core.DiagnosticResult {
+	return []core.DiagnosticResult{}
 }
 
 func (r *Registry) getEventsDir() string {
 	return r.Config.Datadir + "/events"
+}
+
+func (r *Registry) Search(onlyOwn bool, tags []string) ([]did.Document, error) {
+	panic("implement me")
+}
+
+func (r *Registry) Create() (*did.Document, error) {
+	panic("implement me")
+}
+
+func (r *Registry) Get(DID did.DID) (*did.Document, *DocumentMetadata, error) {
+	panic("implement me")
+}
+
+func (r *Registry) GetByTag(tag string) (*did.Document, *DocumentMetadata, error) {
+	panic("implement me")
+}
+
+func (r *Registry) Update(DID did.DID, hash []byte, nextVersion did.Document) (*did.Document, error) {
+	panic("implement me")
+}
+
+func (r *Registry) Tag(DID did.DID, tags []string) error {
+	panic("implement me")
 }

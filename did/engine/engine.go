@@ -26,7 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/did/logging"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	did "github.com/nuts-foundation/nuts-node/did"
+	"github.com/nuts-foundation/nuts-node/did"
 	api "github.com/nuts-foundation/nuts-node/did/api/v1"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
