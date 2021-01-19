@@ -38,7 +38,7 @@ These mocks are used by other modules
 
 .. code-block:: shell
 
-    mockgen -destination=crypto/mock/mock_crypto.go -package=mock -source=crypto/interface.go KeyStore
+    mockgen -destination=crypto/mock.go -package=crypto -source=crypto/interface.go KeyStore
 
 README
 ******
