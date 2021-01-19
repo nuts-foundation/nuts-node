@@ -15,29 +15,40 @@ var ErrInvalidDID = errors.New("invalid did syntax")
 var ErrNotFound = errors.New("unable to find the did document")
 // ErrDeactivated The DID supplied to the DID resolution function has been deactivated.
 var ErrDeactivated = errors.New("the document has been deactivated")
-var ErrDIDAlreadyExists = errors.New("did document already exists")
+// ErrDIDAlreadyExists
+var ErrDIDAlreadyExists = errors.New("did document already exists in the store")
 
 // DocReader is the interface that groups all the DID Document read methods
 // Get returns the DID document using on the given DID or ErrNotFound if not found.
 // If metadata is provided the the result is filtered or scoped on that meta data
-// If metadata is provided the latest version is returned
+// If metadata is not provided the latest version is returned
 // If something goes wrong an error is returned.
 type DocResolver interface {
 	Resolve(DID did.DID, metadata *ResolveMetaData) (*did.Document, *DocumentMetadata, error)
 }
 
+// Create creates a new DID document and returns it.
+// The ID in the provided DID document will be ignored and a new one will be generated
+// If something goes wrong an error is returned.
+// Implementors should generate private key and store it in a secure backend
+type DocCreator interface {
+	Create() (*did.Document, error)
+}
+
 // DocWriter is the interface that groups al the DID Document write methods
 type DocWriter interface {
-	// Create creates a new DID document and returns it.
-	// If the DID already exists, an ErrDIDAlreadyExists gets returned
-	// If something goes wrong an error is returned.
-	Create() (*did.Document, error)
+	// Write writes new DID Document.
+	// Returns ErrDIDAlreadyExists when DID already exists
+	// When a document already exists, the Update should be used instead
+	Write(DID did.Document) error
+}
 
-	// Update replaces the DID document identified by DID with the nextVersion
-	// To prevent updating state data a hash of the current version should be provided.
-	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
-	// If the DID Document is not found or not local a ErrNotFound is returned
-	// If the DID Document is not active a ErrDeactivated is returned
+// Update replaces the DID document identified by DID with the nextVersion
+// To prevent updating state data a hash of the current version should be provided.
+// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
+// If the DID Document is not found or not local a ErrNotFound is returned
+// If the DID Document is not active a ErrDeactivated is returned
+type DocUpdater interface {
 	Update(DID did.DID, hash []byte, nextVersion did.Document) (*did.Document, error)
 }
 
@@ -45,6 +56,8 @@ type DocWriter interface {
 type Store interface {
 	DocResolver
 	DocWriter
+	DocCreator
+	DocUpdater
 }
 
 // DocumentMetadata holds the metadata of a DID document
