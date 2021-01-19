@@ -1,6 +1,6 @@
 /*
- * Nuts registry
- * Copyright (C) 2020. Nuts community
+ * Nuts node
+ * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
@@ -57,6 +58,7 @@ import (
 type Registry struct {
 	Config            Config
 	//Db                db.Db
+	store			  types.Store
 	network           networkPkg.NetworkClient
 	crypto            crypto.KeyStore
 	OnChange          func(registry *Registry)
@@ -95,6 +97,7 @@ func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkCli
 		crypto:  cryptoClient,
 		network: networkClient,
 		_logger: logging.Log(),
+		store: store.NewMemoryStore(),
 	}
 }
 
@@ -141,28 +144,4 @@ func (r *Registry) Diagnostics() []core.DiagnosticResult {
 
 func (r *Registry) getEventsDir() string {
 	return r.Config.Datadir + "/events"
-}
-
-func (r *Registry) Search(onlyOwn bool, tags []string) ([]did.Document, error) {
-	panic("implement me")
-}
-
-func (r *Registry) Create() (*did.Document, error) {
-	panic("implement me")
-}
-
-func (r *Registry) Get(DID did.DID) (*did.Document, *DocumentMetadata, error) {
-	panic("implement me")
-}
-
-func (r *Registry) GetByTag(tag string) (*did.Document, *DocumentMetadata, error) {
-	panic("implement me")
-}
-
-func (r *Registry) Update(DID did.DID, hash []byte, nextVersion did.Document) (*did.Document, error) {
-	panic("implement me")
-}
-
-func (r *Registry) Tag(DID did.DID, tags []string) error {
-	panic("implement me")
 }

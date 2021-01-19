@@ -1,6 +1,6 @@
 /*
- * Nuts registry
- * Copyright (C) 2020. Nuts community
+ * Nuts node
+ * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,12 +21,12 @@ package v1
 
 import (
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // ApiWrapper is needed to connect the implementation to the echo ServiceWrapper
 type ApiWrapper struct {
-	R vdr.VDR
+	R types.VDR
 }
 
 func (a ApiWrapper) SearchDID(ctx echo.Context, params SearchDIDParams) error {
