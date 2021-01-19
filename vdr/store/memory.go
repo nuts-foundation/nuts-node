@@ -16,6 +16,8 @@
 package store
 
 import (
+	"sync"
+
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-network/pkg/model"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -25,6 +27,7 @@ import (
 func NewMemoryStore() types.Store {
 	return &memory{
 		store: map[string]versionedEntryList{},
+		mutex: sync.Mutex{},
 	}
 }
 
@@ -52,6 +55,7 @@ func (list versionedEntryList) last() (*memoryEntry, error) {
 
 type memory struct {
 	store map[string]versionedEntryList
+	mutex sync.Mutex
 }
 
 type memoryEntry struct {
@@ -68,6 +72,9 @@ func (me memoryEntry) isDeactivated() bool {
 }
 
 func (m *memory) Resolve(DID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
 	entries, ok := m.store[DID.String()]
 	if !ok {
 		return nil, nil, types.ErrNotFound
@@ -128,6 +135,9 @@ func timeSelectionFilter(metadata types.ResolveMetaData) filterFunc {
 }
 
 func (m *memory) Write(DIDDocument did.Document, metadata types.DocumentMetadata) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
 	if _, ok := m.store[DIDDocument.ID.String()]; ok {
 		return types.ErrDIDAlreadyExists
 	}
@@ -144,6 +154,9 @@ func (m *memory) Write(DIDDocument did.Document, metadata types.DocumentMetadata
 
 // Update also updates the Updated field of the latest version
 func (m *memory) Update(DID did.DID, hash model.Hash, next did.Document, metadata types.DocumentMetadata) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
 	entries, ok := m.store[DID.String()]
 	if !ok {
 		return types.ErrNotFound
