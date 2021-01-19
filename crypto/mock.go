@@ -2,12 +2,11 @@
 // Source: crypto/interface.go
 
 // Package mock is a generated GoMock package.
-package mock
+package crypto
 
 import (
 	crypto "crypto"
 	gomock "github.com/golang/mock/gomock"
-	crypto0 "github.com/nuts-foundation/nuts-node/crypto"
 	reflect "reflect"
 )
 
@@ -35,7 +34,7 @@ func (m *MockKeyStore) EXPECT() *MockKeyStoreMockRecorder {
 }
 
 // New mocks base method
-func (m *MockKeyStore) New(namingFunc crypto0.KidNamingFunc) (crypto.PublicKey, string, error) {
+func (m *MockKeyStore) New(namingFunc KidNamingFunc) (crypto.PublicKey, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "New", namingFunc)
 	ret0, _ := ret[0].(crypto.PublicKey)
