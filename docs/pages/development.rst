@@ -28,7 +28,8 @@ The server and client API is generated from the open-api spec:
 
 .. code-block:: shell
 
-    oapi-codegen -generate types,server,client -package v1 docs/_static/crypto/v1.yaml > api/crypto/v1/generated.go
+    oapi-codegen -generate types,server,client -package v1 docs/_static/crypto/v1.yaml > crypto/api/v1/generated.go
+    oapi-codegen -generate types,server,client -package v1 docs/_static/did/v1.yaml > did/api/v1/generated.go
 
 Generating Mocks
 ****************
