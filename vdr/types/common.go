@@ -36,7 +36,7 @@ var ErrDIDAlreadyExists = errors.New("did document already exists in the store")
 // DocumentMetadata holds the metadata of a DID document
 type DocumentMetadata struct {
 	Created time.Time `json:"created"`
-	Updated time.Time `json:"updated,omitempty"`
+	Updated *time.Time `json:"updated,omitempty"`
 	// Version contains the semantic version of the DID document.
 	Version int `json:"version"`
 	// OriginJWSHash contains the hash of the JWS envelope of the first version of the DID document.

@@ -28,7 +28,27 @@ func NewMemoryStore() types.Store {
 	}
 }
 
-type versionedEntryList []memoryEntry
+type versionedEntryList []*memoryEntry
+
+// filterFunc returns true if value must be kept
+type filterFunc func(e memoryEntry) bool
+
+func (list versionedEntryList) filter(f filterFunc) versionedEntryList {
+	var vel versionedEntryList
+	for _, entry := range list {
+		if f(*entry) {
+			vel = append(vel, entry)
+		}
+	}
+	return vel
+}
+
+func (list versionedEntryList) last() (*memoryEntry, error) {
+	if len(list) == 0 {
+		return nil, types.ErrNotFound
+	}
+	return list[len(list)-1], nil
+}
 
 type memory struct {
 	store map[string]versionedEntryList
@@ -37,6 +57,14 @@ type memory struct {
 type memoryEntry struct {
 	document   did.Document
 	metadata   types.DocumentMetadata
+	next 	   *memoryEntry
+}
+
+func (me memoryEntry) isDeactivated() bool {
+	if len(me.document.Controller) == 0 && len(me.document.Authentication) == 0 {
+		return true
+	}
+	return false
 }
 
 func (m *memory) Resolve(DID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {
@@ -45,14 +73,86 @@ func (m *memory) Resolve(DID did.DID, metadata *types.ResolveMetaData) (*did.Doc
 		return nil, nil, types.ErrNotFound
 	}
 
-	// filter on hash
-	if !hash.Equals(entry.metadata.Hash) {
-		return types.ErrUpdateOnOutdatedData
+	if metadata != nil {
+		// filter on hash
+		if metadata.Hash != nil {
+			entries = entries.filter(func (e memoryEntry) bool{
+				return metadata.Hash.Equals(e.metadata.Hash)
+			})
+		}
+
+		// filter on isDeactivated
+		if !metadata.AllowDeactivated {
+			entries = entries.filter(func (e memoryEntry) bool{
+				return !e.isDeactivated()
+			})
+		}
+
+		// filter on time
+		if metadata.ResolveTime != nil {
+			entries = entries.filter(timeSelectionFilter(*metadata))
+		}
 	}
 
-	// check deactivated which according to RFC006 is the case when no controllers and authenticationMethods exist
-	doc := entry.document
-	if len(doc.Controller) == 0 && len(doc.Authentication) == 0 {
+	entry, err := entries.last()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &entry.document, &entry.metadata, nil
+}
+
+// timeSelectionFilter checks if an entry is after the created, after the updated field if present but before the updated field of the next entry
+func timeSelectionFilter(metadata types.ResolveMetaData) filterFunc {
+	return func(e memoryEntry) bool {
+		if e.metadata.Created.After(*metadata.ResolveTime) {
+			return false
+		}
+
+		if e.metadata.Updated != nil {
+			if e.metadata.Updated.After(*metadata.ResolveTime) {
+				// this specific version is created later
+				return false
+			}
+		}
+
+		if e.next != nil {
+			// a next must always have an updated field
+			// the next version is created later, indicating this version is valid
+			return e.next.metadata.Updated.After(*metadata.ResolveTime)
+		}
+
+		// last record in line
+		return true
+	}
+}
+
+func (m *memory) Write(DIDDocument did.Document, metadata types.DocumentMetadata) error {
+	if _, ok := m.store[DIDDocument.ID.String()]; ok {
+		return types.ErrDIDAlreadyExists
+	}
+
+	m.store[DIDDocument.ID.String()] = versionedEntryList{
+		&memoryEntry{
+			document: DIDDocument,
+			metadata: metadata,
+		},
+	}
+
+	return nil
+}
+
+// Update also updates the Updated field of the latest version
+func (m *memory) Update(DID did.DID, hash model.Hash, next did.Document, metadata types.DocumentMetadata) error {
+	entries, ok := m.store[DID.String()]
+	if !ok {
+		return types.ErrNotFound
+	}
+
+	// latest version is to be updated
+	entry, _ := entries.last()
+
+	if entry.isDeactivated() {
 		return types.ErrDeactivated
 	}
 
@@ -61,35 +161,15 @@ func (m *memory) Resolve(DID did.DID, metadata *types.ResolveMetaData) (*did.Doc
 		return types.ErrUpdateOnOutdatedData
 	}
 
-	return &entry.document, &entry.metadata, nil
-}
-
-func (m *memory) Write(DIDDocument did.Document, metadata types.DocumentMetadata) error {
-	if _, ok := m.store[DIDDocument.ID.String()]; ok {
-		return types.ErrDIDAlreadyExists
-	}
-
-	m.store[DIDDocument.ID.String()] = memoryEntry{
-		document: DIDDocument,
-		metadata: metadata,
-	}
-	return nil
-}
-
-func (m *memory) Update(DID did.DID, hash model.Hash, next did.Document, metadata types.DocumentMetadata) error {
-	rmd := &types.ResolveMetaData{
-		Hash: &hash,
-	}
-
-	// resolve will handle all the checks for us
-	if _, _, err := m.Resolve(DID, rmd); err != nil {
-		return err
-	}
-
-	m.store[DID.ID] = memoryEntry{
+	newEntry := &memoryEntry{
 		document: next,
 		metadata: metadata,
 	}
+
+	// update next in last document
+	entry.next = newEntry
+
+	m.store[DID.String()] = append(entries, newEntry)
 
 	return nil
 }
