@@ -23,7 +23,7 @@ import (
 )
 
 // KidNamingFunc is a function passed to New() which generates the kid for the pub/priv key
-type KidNamingFunc func(key crypto.PublicKey) string
+type KidNamingFunc func(key crypto.PublicKey) (string, error)
 
 // KeyStore defines the functions than can be called by a Cmd, Direct or via rest call.
 type KeyStore interface {

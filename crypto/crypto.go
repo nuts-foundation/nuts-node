@@ -1,6 +1,6 @@
 /*
  * Nuts crypto
- * Copyright (C) 2019. Nuts community
+ * Copyright (C) 2020. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -141,7 +141,10 @@ func (client *Crypto) New(namingFunc KidNamingFunc) (crypto.PublicKey, string, e
 		return nil, "", err
 	}
 
-	kid := namingFunc(keyPair.Public())
+	kid, err := namingFunc(keyPair.Public())
+	if err != nil {
+		return nil, "", err
+	}
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
 		return nil, "", err
 	}
