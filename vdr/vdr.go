@@ -27,9 +27,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nuts-foundation/go-did"
+	"github.com/sirupsen/logrus"
+
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
 
@@ -66,6 +68,10 @@ type Registry struct {
 	configOnce        sync.Once
 	_logger           *logrus.Entry
 	closers           []chan struct{}
+}
+
+type VDR struct {
+	didDocCreator DocCreator
 }
 
 var instance *Registry
@@ -145,3 +151,10 @@ func (r *Registry) Diagnostics() []core.DiagnosticResult {
 func (r *Registry) getEventsDir() string {
 	return r.Config.Datadir + "/events"
 }
+
+func (v VDR) Create() (*did.Document, error) {
+	return v.didDocCreator.Create()
+}
+
+
+
