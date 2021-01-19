@@ -52,7 +52,6 @@ type DocUpdater interface {
 	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
 	// If the DID Document is not found or not local a ErrNotFound is returned
 	// If the DID Document is not active a ErrDeactivated is returned
-	// todo check the hash in VDR?
 	Update(DID did.DID, hash model.Hash, next did.Document, metadata DocumentMetadata) error
 }
 

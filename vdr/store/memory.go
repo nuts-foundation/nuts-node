@@ -24,6 +24,7 @@ import (
 )
 
 // NewMemoryStore initializes a new in-memory store
+// All actions on the store are thread safe.
 func NewMemoryStore() types.Store {
 	return &memory{
 		store: map[string]versionedEntryList{},
@@ -152,7 +153,8 @@ func (m *memory) Write(DIDDocument did.Document, metadata types.DocumentMetadata
 	return nil
 }
 
-// Update also updates the Updated field of the latest version
+// Update does not check if the timestamp in the metadata make sense or if the metadata.hash matches the hash
+// of the next version. The version field is also not checked.
 func (m *memory) Update(DID did.DID, hash model.Hash, next did.Document, metadata types.DocumentMetadata) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
