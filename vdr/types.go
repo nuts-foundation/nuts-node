@@ -52,10 +52,16 @@ type DocUpdater interface {
 	Update(DID did.DID, hash []byte, nextVersion did.Document) (*did.Document, error)
 }
 
-// Store is the interface that groups all operations on DID documents.
-type Store interface {
+// Store is the interface that groups all low level VDR DID storage operations.
+type store interface {
 	DocResolver
 	DocWriter
+	DocUpdater
+}
+
+// VDR defines the public end facing methods for the Verifiable Data Registry.
+type VDR interface {
+	DocResolver
 	DocCreator
 	DocUpdater
 }
@@ -72,6 +78,7 @@ type DocumentMetadata struct {
 	Hash string `json:"hash"`
 }
 
+// ResolveMetaData contains metadata for the resolver.
 type ResolveMetaData struct {
 	// Resolve the version which is valid at this time
 	ResolveTime *time.Time

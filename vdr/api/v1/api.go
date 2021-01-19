@@ -26,7 +26,7 @@ import (
 
 // ApiWrapper is needed to connect the implementation to the echo ServiceWrapper
 type ApiWrapper struct {
-	R vdr.Store
+	R vdr.VDR
 }
 
 func (a ApiWrapper) SearchDID(ctx echo.Context, params SearchDIDParams) error {
