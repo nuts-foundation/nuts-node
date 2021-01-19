@@ -25,11 +25,16 @@ import (
 // KidNamingFunc is a function passed to New() which generates the kid for the pub/priv key
 type KidNamingFunc func(key crypto.PublicKey) (string, error)
 
-// KeyStore defines the functions than can be called by a Cmd, Direct or via rest call.
-type KeyStore interface {
+type KeyCreator interface {
 	// New generates a keypair and returns the public key.
 	// the KidNamingFunc will provide the kid. priv/pub keys are appended with a postfix and stored
 	New(namingFunc KidNamingFunc) (crypto.PublicKey, string, error)
+}
+
+// KeyStore defines the functions than can be called by a Cmd, Direct or via rest call.
+type KeyStore interface {
+	KeyCreator
+
 	// GetPrivateKey returns the specified private key (for e.g. signing) in non-exportable form.
 	// If a key is missing, a Storage.ErrNotFound is returned
 	GetPrivateKey(kid string) (crypto.Signer, error)
