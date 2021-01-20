@@ -172,10 +172,10 @@ func (r Registry) Create() (*did.Document, error) {
 	return doc, nil
 }
 
-func (r Registry) Resolve(DID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {
-	panic("implement me")
+func (r Registry) Resolve(dID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {
+	return r.store.Resolve(dID, metadata)
 }
 
-func (r Registry) Update(DID did.DID, hash model.Hash, next did.Document, metadata types.DocumentMetadata) error {
-	panic("implement me")
+func (r Registry) Update(dID did.DID, hash model.Hash, next did.Document, metadata types.DocumentMetadata) error {
+	return r.store.Update(dID, hash, next, metadata)
 }
