@@ -69,7 +69,7 @@ type Registry struct {
 	configOnce        sync.Once
 	_logger           *logrus.Entry
 	closers           []chan struct{}
-	didDocCreator     DocCreator
+	didDocCreator     types.DocCreator
 }
 
 type VDR struct {
@@ -100,11 +100,12 @@ func RegistryInstance() *Registry {
 
 func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkClient pkg.NetworkClient) *Registry {
 	return &Registry{
-		Config:  config,
-		crypto:  cryptoClient,
-		network: networkClient,
-		_logger: logging.Log(),
-		store:   store.NewMemoryStore(),
+		Config:        config,
+		crypto:        cryptoClient,
+		network:       networkClient,
+		_logger:       logging.Log(),
+		store:         store.NewMemoryStore(),
+		didDocCreator: NutsDocCreator{keyCreator: cryptoClient},
 	}
 }
 

@@ -20,7 +20,9 @@ import (
 
 const NutsDIDMethodName = "nuts"
 
-type DocCreator struct {
+// NutsDocCreator implements the DocCreator interface and can create Nuts DID Documents.
+type NutsDocCreator struct {
+	// keyCreator is used for getting a fresh key and use it to generate the Nuts DID
 	keyCreator nutsCrypto.KeyCreator
 }
 
@@ -31,6 +33,7 @@ func didKidNamingFunc(pKey crypto.PublicKey) (string, error) {
 	}
 
 	// according to RFC006:
+	// --------------------
 
 	// generate idString
 	pkBytes := elliptic.Marshal(ecPKey.Curve, ecPKey.X, ecPKey.Y)
@@ -56,9 +59,9 @@ func didKidNamingFunc(pKey crypto.PublicKey) (string, error) {
 	return kid.String(), nil
 }
 
-// Create creates a DID Document with a valid DID id based on a freshly generated keypair.
+// Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
-func (n DocCreator) Create() (*did.Document, error) {
+func (n NutsDocCreator) Create() (*did.Document, error) {
 	// First, generate a new keyPair with the correct kid
 	key, keyID, err := n.keyCreator.New(didKidNamingFunc)
 	if err != nil {

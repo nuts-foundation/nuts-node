@@ -40,7 +40,7 @@ func TestDocCreator_Create(t *testing.T) {
 		kc := &mockKeyCreator{
 			`{"crv":"P-256","kid":"did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`,
 		}
-		sut := DocCreator{keyCreator: kc}
+		sut := NutsDocCreator{keyCreator: kc}
 		t.Run("ok", func(t *testing.T) {
 			doc, err := sut.Create()
 			assert.NoError(t, err)
