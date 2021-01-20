@@ -24,10 +24,12 @@
 package vdr
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-network/pkg/model"
 	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-node/vdr/store"
@@ -46,7 +48,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 )
 
-
 //type StoreWrapper struct {
 //	networkClient networkPkg.NetworkClient
 //	store         DIDStore
@@ -58,9 +59,9 @@ import (
 
 // Registry holds the config and Db reference
 type Registry struct {
-	Config            Config
+	Config Config
 	//Db                db.Db
-	store			  types.Store
+	store             types.Store
 	network           networkPkg.NetworkClient
 	crypto            crypto.KeyStore
 	OnChange          func(registry *Registry)
@@ -68,10 +69,10 @@ type Registry struct {
 	configOnce        sync.Once
 	_logger           *logrus.Entry
 	closers           []chan struct{}
+	didDocCreator     DocCreator
 }
 
 type VDR struct {
-	didDocCreator DocCreator
 }
 
 var instance *Registry
@@ -103,7 +104,7 @@ func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkCli
 		crypto:  cryptoClient,
 		network: networkClient,
 		_logger: logging.Log(),
-		store: store.NewMemoryStore(),
+		store:   store.NewMemoryStore(),
 	}
 }
 
@@ -152,9 +153,28 @@ func (r *Registry) getEventsDir() string {
 	return r.Config.Datadir + "/events"
 }
 
-func (v VDR) Create() (*did.Document, error) {
-	return v.didDocCreator.Create()
+func (r Registry) Create() (*did.Document, error) {
+	doc, err := r.didDocCreator.Create()
+	if err != nil {
+		return nil, fmt.Errorf("could not create did document: %w", err)
+	}
+
+	// Fixme: The doc should not be stored but send to the network.
+	metaData := types.DocumentMetadata{
+		Created: time.Now(),
+		Version: 0,
+	}
+	err = r.store.Write(*doc, metaData)
+	if err != nil {
+		return nil, fmt.Errorf("could not store created did document: %w", err)
+	}
+	return doc, nil
 }
 
+func (r Registry) Resolve(DID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {
+	panic("implement me")
+}
 
-
+func (r Registry) Update(DID did.DID, hash model.Hash, next did.Document, metadata types.DocumentMetadata) error {
+	panic("implement me")
+}
