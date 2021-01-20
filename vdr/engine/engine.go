@@ -22,7 +22,9 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-network/pkg"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -77,13 +79,7 @@ func cmd() *cobra.Command {
 		Short: "Registers a new DID",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			core.NutsConfig().ServerAddress()
-
-			// client
-			client := api.HTTPClient{
-				ServerAddress: core.NutsConfig().ServerAddress(),
-				Timeout:       5,
-			}
+			client := httpClient()
 
 			doc, err := client.Create()
 			if err != nil {
@@ -93,7 +89,7 @@ func cmd() *cobra.Command {
 
 			bytes, err := json.MarshalIndent(doc, "", "  ")
 			if err != nil {
-				fmt.Printf("Failed to display DID document:\n%s\nRaw: %v", err.Error(), *doc)
+				fmt.Printf("Failed to display DID document: %s\n", err.Error())
 				return nil
 			}
 
@@ -103,12 +99,33 @@ func cmd() *cobra.Command {
 	})
 
 	cmd.AddCommand(&cobra.Command{
-		Use:   "get [DID or tag]",
-		Short: "Find a DID document based on its DID or tag",
+		Use:   "resolve [DID]",
+		Short: "Resolve a DID document based on its DID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			client := httpClient()
 
-			// call Get or GetByTag
+			did, err := did.ParseDID(args[0])
+			if err != nil {
+				fmt.Printf("Failed to parse DID: %s\n", err.Error())
+				return nil
+			}
+
+			doc, meta, err := client.Get(*did)
+			if err != nil {
+				fmt.Printf("Failed to resolve DID document: %s\n", err.Error())
+				return nil
+			}
+
+			for _, o := range []interface{}{doc, meta} {
+				bytes, err := json.MarshalIndent(o, "", "  ")
+				if err != nil {
+					fmt.Printf("Failed to display object: %s\n", err.Error())
+					return nil
+				}
+				fmt.Printf("%s\n", string(bytes))
+			}
+
 			return nil
 		},
 	})
@@ -127,4 +144,13 @@ func cmd() *cobra.Command {
 	})
 
 	return cmd
+}
+
+func httpClient() api.HTTPClient {
+	core.NutsConfig().ServerAddress()
+
+	return api.HTTPClient{
+		ServerAddress: core.NutsConfig().ServerAddress(),
+		Timeout:       5 * time.Second,
+	}
 }
