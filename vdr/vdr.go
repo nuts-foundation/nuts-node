@@ -72,9 +72,6 @@ type Registry struct {
 	didDocCreator     types.DocCreator
 }
 
-type VDR struct {
-}
-
 var instance *Registry
 var oneRegistry sync.Once
 
@@ -179,3 +176,8 @@ func (r Registry) Resolve(dID did.DID, metadata *types.ResolveMetaData) (*did.Do
 func (r Registry) Update(dID did.DID, hash model.Hash, next did.Document, metadata types.DocumentMetadata) error {
 	return r.store.Update(dID, hash, next, metadata)
 }
+
+func (r *Registry) Deactivate(DID did.DID, hash model.Hash) {
+	panic("implement me")
+}
+

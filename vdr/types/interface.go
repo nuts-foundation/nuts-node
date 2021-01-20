@@ -48,11 +48,21 @@ type DocWriter interface {
 // DocUpdater is the interface that defines functions that alter the state of a DID document
 type DocUpdater interface {
 	// Update replaces the DID document identified by DID with the nextVersion
-	// To prevent updating state data a hash of the current version should be provided.
+	// To prevent updating stale data a hash of the current version should be provided.
 	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
 	// If the DID Document is not found or not local a ErrNotFound is returned
 	// If the DID Document is not active a ErrDeactivated is returned
 	Update(DID did.DID, hash model.Hash, next did.Document, metadata DocumentMetadata) error
+}
+
+// DocDeactivator is the interface that defines functions to deactivate DID Docs
+// Deactivation will be done in such a way that a DID doc cannot be used / activated anymore.
+type DocDeactivator interface {
+	// To prevent updating stale data a hash of the current version should be provided.
+	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
+	// If the DID Document is not found or not local a ErrNotFound is returned
+	// If the DID Document is not active a ErrDeactivated is returned
+	Deactivate(DID did.DID, hash model.Hash)
 }
 
 // Store is the interface that groups all low level VDR DID storage operations.
@@ -67,4 +77,5 @@ type VDR interface {
 	DocResolver
 	DocCreator
 	DocUpdater
+	DocDeactivator
 }
