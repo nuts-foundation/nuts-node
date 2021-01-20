@@ -55,7 +55,10 @@ func (hb HTTPClient) client() ClientInterface {
 }
 
 func (hb HTTPClient) Create() (*did.Document, error) {
-	if response, err := hb.client().CreateDID(context.Background()); err != nil {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
+	if response, err := hb.client().CreateDID(ctx); err != nil {
 		return nil, err
 	} else if err := testResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
@@ -65,7 +68,10 @@ func (hb HTTPClient) Create() (*did.Document, error) {
 }
 
 func (hb HTTPClient) Get(DID did.DID) (*did.Document, *types.DocumentMetadata, error) {
-	response, err := hb.client().GetDID(context.Background(), DID.String())
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
+	response, err := hb.client().GetDID(ctx, DID.String())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -81,12 +87,15 @@ func (hb HTTPClient) Get(DID did.DID) (*did.Document, *types.DocumentMetadata, e
 }
 
 func (hb HTTPClient) Update(DID did.DID, hash model.Hash, next did.Document, meta types.DocumentMetadata) (*did.Document, error) {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
 	requestBody := UpdateDIDJSONRequestBody{
 		"document":         next,
 		"documentMetadata": meta,
 		"currentHash":      hash.String(),
 	}
-	response, err := hb.client().UpdateDID(context.Background(), DID.String(), requestBody)
+	response, err := hb.client().UpdateDID(ctx, DID.String(), requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +104,10 @@ func (hb HTTPClient) Update(DID did.DID, hash model.Hash, next did.Document, met
 	} else {
 		return readDIDDocument(response.Body)
 	}
+}
+
+func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), hb.Timeout)
 }
 
 func testResponseCode(expectedStatusCode int, response *http.Response) error {
