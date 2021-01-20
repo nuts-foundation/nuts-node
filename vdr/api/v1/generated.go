@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/labstack/echo/v4"
@@ -22,61 +21,11 @@ import (
 // DIDDocument defines model for DIDDocument.
 type DIDDocument map[string]interface{}
 
-// DIDDocumentMetadata defines model for DIDDocumentMetadata.
-type DIDDocumentMetadata struct {
-
-	// Date/time at which the document was originally created.
-	Created *time.Time `json:"created,omitempty"`
-
-	// Hash (SHA-256, hex-encoded) of DID document bytes. Is equal to payloadHash in network layer.
-	Hash *string `json:"hash,omitempty"`
-
-	// Hash (SHA-256, hex-encoded) of the JWS envelope of the first version of the DID document.
-	OriginJwsHash *string `json:"originJwsHash,omitempty"`
-
-	// Date/time at which the document (or this version) was updated.
-	Updated *time.Time `json:"updated,omitempty"`
-
-	// Semantic version of the DID document.
-	Version *int `json:"version,omitempty"`
-}
-
-// DIDResolutionResult defines model for DIDResolutionResult.
-type DIDResolutionResult struct {
-
-	// The actual DID Document in JSON representation.
-	Document         *DIDDocument         `json:"document,omitempty"`
-	DocumentMetadata *DIDDocumentMetadata `json:"documentMetadata,omitempty"`
-
-	// Metadata collected during DID Document (a.k.a. DID Resolution Metadata).
-	ResolutionMetadata *map[string]interface{} `json:"resolutionMetadata,omitempty"`
-}
-
-// SearchDIDParams defines parameters for SearchDID.
-type SearchDIDParams struct {
-
-	// URL encoded DID or tag. When given a tag it must resolve to exactly one DID.
-	Tags string `json:"tags"`
-}
-
 // UpdateDIDJSONBody defines parameters for UpdateDID.
-type UpdateDIDJSONBody struct {
-
-	// SHA-256 hash of the last version of the DID Document
-	CurrentHash *string `json:"currentHash,omitempty"`
-
-	// The actual DID Document in JSON representation.
-	Document *DIDDocument `json:"document,omitempty"`
-}
-
-// UpdateDIDTagsJSONBody defines parameters for UpdateDIDTags.
-type UpdateDIDTagsJSONBody []string
+type UpdateDIDJSONBody map[string]interface{}
 
 // UpdateDIDRequestBody defines body for UpdateDID for application/json ContentType.
 type UpdateDIDJSONRequestBody UpdateDIDJSONBody
-
-// UpdateDIDTagsRequestBody defines body for UpdateDIDTags for application/json ContentType.
-type UpdateDIDTagsJSONRequestBody UpdateDIDTagsJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -151,39 +100,16 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// SearchDID request
-	SearchDID(ctx context.Context, params *SearchDIDParams) (*http.Response, error)
-
 	// CreateDID request
 	CreateDID(ctx context.Context) (*http.Response, error)
 
 	// GetDID request
-	GetDID(ctx context.Context, didOrTag string) (*http.Response, error)
+	GetDID(ctx context.Context, did string) (*http.Response, error)
 
 	// UpdateDID request  with any body
-	UpdateDIDWithBody(ctx context.Context, didOrTag string, contentType string, body io.Reader) (*http.Response, error)
+	UpdateDIDWithBody(ctx context.Context, did string, contentType string, body io.Reader) (*http.Response, error)
 
-	UpdateDID(ctx context.Context, didOrTag string, body UpdateDIDJSONRequestBody) (*http.Response, error)
-
-	// UpdateDIDTags request  with any body
-	UpdateDIDTagsWithBody(ctx context.Context, didOrTag string, contentType string, body io.Reader) (*http.Response, error)
-
-	UpdateDIDTags(ctx context.Context, didOrTag string, body UpdateDIDTagsJSONRequestBody) (*http.Response, error)
-}
-
-func (c *Client) SearchDID(ctx context.Context, params *SearchDIDParams) (*http.Response, error) {
-	req, err := NewSearchDIDRequest(c.Server, params)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if c.RequestEditor != nil {
-		err = c.RequestEditor(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return c.Client.Do(req)
+	UpdateDID(ctx context.Context, did string, body UpdateDIDJSONRequestBody) (*http.Response, error)
 }
 
 func (c *Client) CreateDID(ctx context.Context) (*http.Response, error) {
@@ -201,8 +127,8 @@ func (c *Client) CreateDID(ctx context.Context) (*http.Response, error) {
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetDID(ctx context.Context, didOrTag string) (*http.Response, error) {
-	req, err := NewGetDIDRequest(c.Server, didOrTag)
+func (c *Client) GetDID(ctx context.Context, did string) (*http.Response, error) {
+	req, err := NewGetDIDRequest(c.Server, did)
 	if err != nil {
 		return nil, err
 	}
@@ -216,8 +142,8 @@ func (c *Client) GetDID(ctx context.Context, didOrTag string) (*http.Response, e
 	return c.Client.Do(req)
 }
 
-func (c *Client) UpdateDIDWithBody(ctx context.Context, didOrTag string, contentType string, body io.Reader) (*http.Response, error) {
-	req, err := NewUpdateDIDRequestWithBody(c.Server, didOrTag, contentType, body)
+func (c *Client) UpdateDIDWithBody(ctx context.Context, did string, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := NewUpdateDIDRequestWithBody(c.Server, did, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -231,8 +157,8 @@ func (c *Client) UpdateDIDWithBody(ctx context.Context, didOrTag string, content
 	return c.Client.Do(req)
 }
 
-func (c *Client) UpdateDID(ctx context.Context, didOrTag string, body UpdateDIDJSONRequestBody) (*http.Response, error) {
-	req, err := NewUpdateDIDRequest(c.Server, didOrTag, body)
+func (c *Client) UpdateDID(ctx context.Context, did string, body UpdateDIDJSONRequestBody) (*http.Response, error) {
+	req, err := NewUpdateDIDRequest(c.Server, did, body)
 	if err != nil {
 		return nil, err
 	}
@@ -244,79 +170,6 @@ func (c *Client) UpdateDID(ctx context.Context, didOrTag string, body UpdateDIDJ
 		}
 	}
 	return c.Client.Do(req)
-}
-
-func (c *Client) UpdateDIDTagsWithBody(ctx context.Context, didOrTag string, contentType string, body io.Reader) (*http.Response, error) {
-	req, err := NewUpdateDIDTagsRequestWithBody(c.Server, didOrTag, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if c.RequestEditor != nil {
-		err = c.RequestEditor(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) UpdateDIDTags(ctx context.Context, didOrTag string, body UpdateDIDTagsJSONRequestBody) (*http.Response, error) {
-	req, err := NewUpdateDIDTagsRequest(c.Server, didOrTag, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if c.RequestEditor != nil {
-		err = c.RequestEditor(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return c.Client.Do(req)
-}
-
-// NewSearchDIDRequest generates requests for SearchDID
-func NewSearchDIDRequest(server string, params *SearchDIDParams) (*http.Request, error) {
-	var err error
-
-	queryUrl, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	basePath := fmt.Sprintf("/internal/registry/v1/did")
-	if basePath[0] == '/' {
-		basePath = basePath[1:]
-	}
-
-	queryUrl, err = queryUrl.Parse(basePath)
-	if err != nil {
-		return nil, err
-	}
-
-	queryValues := queryUrl.Query()
-
-	if queryFrag, err := runtime.StyleParam("form", true, "tags", params.Tags); err != nil {
-		return nil, err
-	} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-		return nil, err
-	} else {
-		for k, v := range parsed {
-			for _, v2 := range v {
-				queryValues.Add(k, v2)
-			}
-		}
-	}
-
-	queryUrl.RawQuery = queryValues.Encode()
-
-	req, err := http.NewRequest("GET", queryUrl.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
 }
 
 // NewCreateDIDRequest generates requests for CreateDID
@@ -328,7 +181,7 @@ func NewCreateDIDRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/internal/registry/v1/did")
+	basePath := fmt.Sprintf("/internal/vdr/v1/did")
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -347,12 +200,12 @@ func NewCreateDIDRequest(server string) (*http.Request, error) {
 }
 
 // NewGetDIDRequest generates requests for GetDID
-func NewGetDIDRequest(server string, didOrTag string) (*http.Request, error) {
+func NewGetDIDRequest(server string, did string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParam("simple", false, "didOrTag", didOrTag)
+	pathParam0, err = runtime.StyleParam("simple", false, "did", did)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +215,7 @@ func NewGetDIDRequest(server string, didOrTag string) (*http.Request, error) {
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/internal/registry/v1/did/%s", pathParam0)
+	basePath := fmt.Sprintf("/internal/vdr/v1/did/%s", pathParam0)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -381,23 +234,23 @@ func NewGetDIDRequest(server string, didOrTag string) (*http.Request, error) {
 }
 
 // NewUpdateDIDRequest calls the generic UpdateDID builder with application/json body
-func NewUpdateDIDRequest(server string, didOrTag string, body UpdateDIDJSONRequestBody) (*http.Request, error) {
+func NewUpdateDIDRequest(server string, did string, body UpdateDIDJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewUpdateDIDRequestWithBody(server, didOrTag, "application/json", bodyReader)
+	return NewUpdateDIDRequestWithBody(server, did, "application/json", bodyReader)
 }
 
 // NewUpdateDIDRequestWithBody generates requests for UpdateDID with any type of body
-func NewUpdateDIDRequestWithBody(server string, didOrTag string, contentType string, body io.Reader) (*http.Request, error) {
+func NewUpdateDIDRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParam("simple", false, "didOrTag", didOrTag)
+	pathParam0, err = runtime.StyleParam("simple", false, "did", did)
 	if err != nil {
 		return nil, err
 	}
@@ -407,7 +260,7 @@ func NewUpdateDIDRequestWithBody(server string, didOrTag string, contentType str
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/internal/registry/v1/did/%s", pathParam0)
+	basePath := fmt.Sprintf("/internal/vdr/v1/did/%s", pathParam0)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -418,52 +271,6 @@ func NewUpdateDIDRequestWithBody(server string, didOrTag string, contentType str
 	}
 
 	req, err := http.NewRequest("PUT", queryUrl.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-	return req, nil
-}
-
-// NewUpdateDIDTagsRequest calls the generic UpdateDIDTags builder with application/json body
-func NewUpdateDIDTagsRequest(server string, didOrTag string, body UpdateDIDTagsJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewUpdateDIDTagsRequestWithBody(server, didOrTag, "application/json", bodyReader)
-}
-
-// NewUpdateDIDTagsRequestWithBody generates requests for UpdateDIDTags with any type of body
-func NewUpdateDIDTagsRequestWithBody(server string, didOrTag string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParam("simple", false, "didOrTag", didOrTag)
-	if err != nil {
-		return nil, err
-	}
-
-	queryUrl, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	basePath := fmt.Sprintf("/internal/registry/v1/did/%s/tag", pathParam0)
-	if basePath[0] == '/' {
-		basePath = basePath[1:]
-	}
-
-	queryUrl, err = queryUrl.Parse(basePath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryUrl.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -501,46 +308,16 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// SearchDID request
-	SearchDIDWithResponse(ctx context.Context, params *SearchDIDParams) (*SearchDIDResponse, error)
-
 	// CreateDID request
 	CreateDIDWithResponse(ctx context.Context) (*CreateDIDResponse, error)
 
 	// GetDID request
-	GetDIDWithResponse(ctx context.Context, didOrTag string) (*GetDIDResponse, error)
+	GetDIDWithResponse(ctx context.Context, did string) (*GetDIDResponse, error)
 
 	// UpdateDID request  with any body
-	UpdateDIDWithBodyWithResponse(ctx context.Context, didOrTag string, contentType string, body io.Reader) (*UpdateDIDResponse, error)
+	UpdateDIDWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader) (*UpdateDIDResponse, error)
 
-	UpdateDIDWithResponse(ctx context.Context, didOrTag string, body UpdateDIDJSONRequestBody) (*UpdateDIDResponse, error)
-
-	// UpdateDIDTags request  with any body
-	UpdateDIDTagsWithBodyWithResponse(ctx context.Context, didOrTag string, contentType string, body io.Reader) (*UpdateDIDTagsResponse, error)
-
-	UpdateDIDTagsWithResponse(ctx context.Context, didOrTag string, body UpdateDIDTagsJSONRequestBody) (*UpdateDIDTagsResponse, error)
-}
-
-type SearchDIDResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *[]string
-}
-
-// Status returns HTTPResponse.Status
-func (r SearchDIDResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r SearchDIDResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
+	UpdateDIDWithResponse(ctx context.Context, did string, body UpdateDIDJSONRequestBody) (*UpdateDIDResponse, error)
 }
 
 type CreateDIDResponse struct {
@@ -567,7 +344,7 @@ func (r CreateDIDResponse) StatusCode() int {
 type GetDIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *DIDResolutionResult
+	JSON200      *map[string]interface{}
 }
 
 // Status returns HTTPResponse.Status
@@ -607,36 +384,6 @@ func (r UpdateDIDResponse) StatusCode() int {
 	return 0
 }
 
-type UpdateDIDTagsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-}
-
-// Status returns HTTPResponse.Status
-func (r UpdateDIDTagsResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r UpdateDIDTagsResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// SearchDIDWithResponse request returning *SearchDIDResponse
-func (c *ClientWithResponses) SearchDIDWithResponse(ctx context.Context, params *SearchDIDParams) (*SearchDIDResponse, error) {
-	rsp, err := c.SearchDID(ctx, params)
-	if err != nil {
-		return nil, err
-	}
-	return ParseSearchDIDResponse(rsp)
-}
-
 // CreateDIDWithResponse request returning *CreateDIDResponse
 func (c *ClientWithResponses) CreateDIDWithResponse(ctx context.Context) (*CreateDIDResponse, error) {
 	rsp, err := c.CreateDID(ctx)
@@ -647,8 +394,8 @@ func (c *ClientWithResponses) CreateDIDWithResponse(ctx context.Context) (*Creat
 }
 
 // GetDIDWithResponse request returning *GetDIDResponse
-func (c *ClientWithResponses) GetDIDWithResponse(ctx context.Context, didOrTag string) (*GetDIDResponse, error) {
-	rsp, err := c.GetDID(ctx, didOrTag)
+func (c *ClientWithResponses) GetDIDWithResponse(ctx context.Context, did string) (*GetDIDResponse, error) {
+	rsp, err := c.GetDID(ctx, did)
 	if err != nil {
 		return nil, err
 	}
@@ -656,63 +403,20 @@ func (c *ClientWithResponses) GetDIDWithResponse(ctx context.Context, didOrTag s
 }
 
 // UpdateDIDWithBodyWithResponse request with arbitrary body returning *UpdateDIDResponse
-func (c *ClientWithResponses) UpdateDIDWithBodyWithResponse(ctx context.Context, didOrTag string, contentType string, body io.Reader) (*UpdateDIDResponse, error) {
-	rsp, err := c.UpdateDIDWithBody(ctx, didOrTag, contentType, body)
+func (c *ClientWithResponses) UpdateDIDWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader) (*UpdateDIDResponse, error) {
+	rsp, err := c.UpdateDIDWithBody(ctx, did, contentType, body)
 	if err != nil {
 		return nil, err
 	}
 	return ParseUpdateDIDResponse(rsp)
 }
 
-func (c *ClientWithResponses) UpdateDIDWithResponse(ctx context.Context, didOrTag string, body UpdateDIDJSONRequestBody) (*UpdateDIDResponse, error) {
-	rsp, err := c.UpdateDID(ctx, didOrTag, body)
+func (c *ClientWithResponses) UpdateDIDWithResponse(ctx context.Context, did string, body UpdateDIDJSONRequestBody) (*UpdateDIDResponse, error) {
+	rsp, err := c.UpdateDID(ctx, did, body)
 	if err != nil {
 		return nil, err
 	}
 	return ParseUpdateDIDResponse(rsp)
-}
-
-// UpdateDIDTagsWithBodyWithResponse request with arbitrary body returning *UpdateDIDTagsResponse
-func (c *ClientWithResponses) UpdateDIDTagsWithBodyWithResponse(ctx context.Context, didOrTag string, contentType string, body io.Reader) (*UpdateDIDTagsResponse, error) {
-	rsp, err := c.UpdateDIDTagsWithBody(ctx, didOrTag, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	return ParseUpdateDIDTagsResponse(rsp)
-}
-
-func (c *ClientWithResponses) UpdateDIDTagsWithResponse(ctx context.Context, didOrTag string, body UpdateDIDTagsJSONRequestBody) (*UpdateDIDTagsResponse, error) {
-	rsp, err := c.UpdateDIDTags(ctx, didOrTag, body)
-	if err != nil {
-		return nil, err
-	}
-	return ParseUpdateDIDTagsResponse(rsp)
-}
-
-// ParseSearchDIDResponse parses an HTTP response from a SearchDIDWithResponse call
-func ParseSearchDIDResponse(rsp *http.Response) (*SearchDIDResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &SearchDIDResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []string
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	}
-
-	return response, nil
 }
 
 // ParseCreateDIDResponse parses an HTTP response from a CreateDIDWithResponse call
@@ -749,7 +453,7 @@ func ParseGetDIDResponse(rsp *http.Response) (*GetDIDResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest DIDResolutionResult
+		var dest map[string]interface{}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -779,65 +483,22 @@ func ParseUpdateDIDResponse(rsp *http.Response) (*UpdateDIDResponse, error) {
 	return response, nil
 }
 
-// ParseUpdateDIDTagsResponse parses an HTTP response from a UpdateDIDTagsWithResponse call
-func ParseUpdateDIDTagsResponse(rsp *http.Response) (*UpdateDIDTagsResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &UpdateDIDTagsResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	}
-
-	return response, nil
-}
-
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Searches for Nuts DIDs
-	// (GET /internal/registry/v1/did)
-	SearchDID(ctx echo.Context, params SearchDIDParams) error
 	// Creates a new Nuts DID
-	// (POST /internal/registry/v1/did)
+	// (POST /internal/vdr/v1/did)
 	CreateDID(ctx echo.Context) error
 	// Resolves a Nuts DID Document
-	// (GET /internal/registry/v1/did/{didOrTag})
-	GetDID(ctx echo.Context, didOrTag string) error
+	// (GET /internal/vdr/v1/did/{did})
+	GetDID(ctx echo.Context, did string) error
 	// Updates a Nuts DID Document
-	// (PUT /internal/registry/v1/did/{didOrTag})
-	UpdateDID(ctx echo.Context, didOrTag string) error
-	// Replaces the tags of the DID Document.
-	// (POST /internal/registry/v1/did/{didOrTag}/tag)
-	UpdateDIDTags(ctx echo.Context, didOrTag string) error
+	// (PUT /internal/vdr/v1/did/{did})
+	UpdateDID(ctx echo.Context, did string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
-}
-
-// SearchDID converts echo context to params.
-func (w *ServerInterfaceWrapper) SearchDID(ctx echo.Context) error {
-	var err error
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params SearchDIDParams
-	// ------------- Required query parameter "tags" -------------
-
-	err = runtime.BindQueryParameter("form", true, true, "tags", ctx.QueryParams(), &params.Tags)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter tags: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.SearchDID(ctx, params)
-	return err
 }
 
 // CreateDID converts echo context to params.
@@ -852,48 +513,32 @@ func (w *ServerInterfaceWrapper) CreateDID(ctx echo.Context) error {
 // GetDID converts echo context to params.
 func (w *ServerInterfaceWrapper) GetDID(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "didOrTag" -------------
-	var didOrTag string
+	// ------------- Path parameter "did" -------------
+	var did string
 
-	err = runtime.BindStyledParameter("simple", false, "didOrTag", ctx.Param("didOrTag"), &didOrTag)
+	err = runtime.BindStyledParameter("simple", false, "did", ctx.Param("did"), &did)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter didOrTag: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetDID(ctx, didOrTag)
+	err = w.Handler.GetDID(ctx, did)
 	return err
 }
 
 // UpdateDID converts echo context to params.
 func (w *ServerInterfaceWrapper) UpdateDID(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "didOrTag" -------------
-	var didOrTag string
+	// ------------- Path parameter "did" -------------
+	var did string
 
-	err = runtime.BindStyledParameter("simple", false, "didOrTag", ctx.Param("didOrTag"), &didOrTag)
+	err = runtime.BindStyledParameter("simple", false, "did", ctx.Param("did"), &did)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter didOrTag: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.UpdateDID(ctx, didOrTag)
-	return err
-}
-
-// UpdateDIDTags converts echo context to params.
-func (w *ServerInterfaceWrapper) UpdateDIDTags(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "didOrTag" -------------
-	var didOrTag string
-
-	err = runtime.BindStyledParameter("simple", false, "didOrTag", ctx.Param("didOrTag"), &didOrTag)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter didOrTag: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.UpdateDIDTags(ctx, didOrTag)
+	err = w.Handler.UpdateDID(ctx, did)
 	return err
 }
 
@@ -925,11 +570,9 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/internal/registry/v1/did", wrapper.SearchDID)
-	router.POST(baseURL+"/internal/registry/v1/did", wrapper.CreateDID)
-	router.GET(baseURL+"/internal/registry/v1/did/:didOrTag", wrapper.GetDID)
-	router.PUT(baseURL+"/internal/registry/v1/did/:didOrTag", wrapper.UpdateDID)
-	router.POST(baseURL+"/internal/registry/v1/did/:didOrTag/tag", wrapper.UpdateDIDTags)
+	router.POST(baseURL+"/internal/vdr/v1/did", wrapper.CreateDID)
+	router.GET(baseURL+"/internal/vdr/v1/did/:did", wrapper.GetDID)
+	router.PUT(baseURL+"/internal/vdr/v1/did/:did", wrapper.UpdateDID)
 
 }
 

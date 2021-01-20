@@ -52,7 +52,7 @@ func TestMemory_Resolve(t *testing.T) {
 	store := NewMemoryStore()
 	did1, _ := did.ParseDID("did:nuts:1")
 	doc := did.Document{
-		ID: *did1,
+		ID:         *did1,
 		Controller: []did.DID{*did1},
 	}
 
@@ -60,7 +60,7 @@ func TestMemory_Resolve(t *testing.T) {
 	h, _ := model.ParseHash("0000000000000000000000000000000000000000")
 	meta := types.DocumentMetadata{
 		Created: time.Now().Add(time.Hour * -24),
-		Hash: h,
+		Hash:    h,
 	}
 
 	_ = store.Write(doc, meta)
@@ -171,7 +171,7 @@ func TestMemory_Update(t *testing.T) {
 	store := NewMemoryStore()
 	did1, _ := did.ParseDID("did:nuts:1")
 	doc := did.Document{
-		ID: *did1,
+		ID:         *did1,
 		Controller: []did.DID{*did1},
 	}
 	h, _ := model.ParseHash("0000000000000000000000000000000000000000")
@@ -189,7 +189,7 @@ func TestMemory_Update(t *testing.T) {
 	t.Run("updates the previous record", func(t *testing.T) {
 		later := time.Now().Add(time.Hour * 24)
 		meta = types.DocumentMetadata{
-			Hash: h,
+			Hash:    h,
 			Created: time.Now(),
 			Updated: &later,
 		}
@@ -218,7 +218,7 @@ func TestMemory_Update(t *testing.T) {
 			ID: *did1,
 		}
 		err := store.Write(doc, meta)
-		if ! assert.NoError(t, err) {
+		if !assert.NoError(t, err) {
 			return
 		}
 

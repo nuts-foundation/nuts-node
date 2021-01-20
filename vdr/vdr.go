@@ -180,4 +180,3 @@ func (r Registry) Update(dID did.DID, hash model.Hash, next did.Document, metada
 func (r *Registry) Deactivate(DID did.DID, hash model.Hash) {
 	panic("implement me")
 }
-

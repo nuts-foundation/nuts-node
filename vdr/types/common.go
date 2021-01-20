@@ -23,19 +23,22 @@ import (
 )
 
 var ErrUpdateOnOutdatedData = errors.New("could not update outdated document")
+
 // ErrInvalidDID The DID supplied to the DID resolution function does not conform to valid syntax.0
 var ErrInvalidDID = errors.New("invalid did syntax")
+
 // ErrNotFound The DID resolver was unable to find the DID document resulting from this resolution request.
 var ErrNotFound = errors.New("unable to find the did document")
+
 // ErrDeactivated The DID supplied to the DID resolution function has been deactivated.
 var ErrDeactivated = errors.New("the document has been deactivated")
+
 // ErrDIDAlreadyExists
 var ErrDIDAlreadyExists = errors.New("did document already exists in the store")
 
-
 // DocumentMetadata holds the metadata of a DID document
 type DocumentMetadata struct {
-	Created time.Time `json:"created"`
+	Created time.Time  `json:"created"`
 	Updated *time.Time `json:"updated,omitempty"`
 	// Version contains the semantic version of the DID document.
 	Version int `json:"version"`

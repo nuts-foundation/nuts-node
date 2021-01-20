@@ -60,9 +60,9 @@ type memory struct {
 }
 
 type memoryEntry struct {
-	document   did.Document
-	metadata   types.DocumentMetadata
-	next 	   *memoryEntry
+	document did.Document
+	metadata types.DocumentMetadata
+	next     *memoryEntry
 }
 
 func (me memoryEntry) isDeactivated() bool {
@@ -84,14 +84,14 @@ func (m *memory) Resolve(DID did.DID, metadata *types.ResolveMetaData) (*did.Doc
 	if metadata != nil {
 		// filter on hash
 		if metadata.Hash != nil {
-			entries = entries.filter(func (e memoryEntry) bool{
+			entries = entries.filter(func(e memoryEntry) bool {
 				return metadata.Hash.Equals(e.metadata.Hash)
 			})
 		}
 
 		// filter on isDeactivated
 		if !metadata.AllowDeactivated {
-			entries = entries.filter(func (e memoryEntry) bool{
+			entries = entries.filter(func(e memoryEntry) bool {
 				return !e.isDeactivated()
 			})
 		}

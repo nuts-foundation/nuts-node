@@ -73,6 +73,7 @@ func (h handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	writer.WriteHeader(h.statusCode)
 	writer.Write(h.responseData)
 }
+
 var jwkAsString = `
 {
   "kty" : "RSA",

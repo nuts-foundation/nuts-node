@@ -26,6 +26,8 @@ import (
 	"io"
 
 	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-network/pkg/model"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"io/ioutil"
 	"net/http"
@@ -33,13 +35,13 @@ import (
 	"time"
 )
 
-// HttpClient holds the server address and other basic settings for the http client
-type HttpClient struct {
+// HTTPClient holds the server address and other basic settings for the http client
+type HTTPClient struct {
 	ServerAddress string
 	Timeout       time.Duration
 }
 
-func (hb HttpClient) client() ClientInterface {
+func (hb HTTPClient) client() ClientInterface {
 	url := hb.ServerAddress
 	if !strings.Contains(url, "http") {
 		url = fmt.Sprintf("http://%v", hb.ServerAddress)
@@ -52,47 +54,47 @@ func (hb HttpClient) client() ClientInterface {
 	return response
 }
 
-func (hb HttpClient) Search(onlyOwn bool, tags []string) ([]did.Document, error) {
-	panic("implement me")
-}
-
-func (hb HttpClient) Create() (*did.Document, error) {
+func (hb HTTPClient) Create() (*did.Document, error) {
 	if response, err := hb.client().CreateDID(context.Background()); err != nil {
 		return nil, err
-	} else if err := testResponseCode(http.StatusCreated, response); err != nil {
+	} else if err := testResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	} else {
 		return readDIDDocument(response.Body)
 	}
 }
 
-func (hb HttpClient) Get(DID did.DID) (*did.Document, *did.DocumentMetadata, error) {
-	return hb.get(DID.String())
-}
-
-func (hb HttpClient) GetByTag(tag string) (*did.Document, *did.DocumentMetadata, error) {
-	return hb.get("tag:" + tag)
-}
-
-func (hb HttpClient) get(identifier string) (*did.Document, *did.DocumentMetadata, error) {
-	response, err := hb.client().GetDID(context.Background(), identifier)
+func (hb HTTPClient) Get(DID did.DID) (*did.Document, *types.DocumentMetadata, error) {
+	response, err := hb.client().GetDID(context.Background(), DID.String())
 	if err != nil {
 		return nil, nil, err
 	}
 	if err := testResponseCode(http.StatusOK, response); err != nil {
 		return nil, nil, err
+	}
+
+	if resolutionResult, err := readDIDResolutionResult(response.Body); err != nil {
+		return nil, nil, err
 	} else {
-		// TODO: Parse response
-		return nil, nil, nil
+		return resolutionResult.Document, resolutionResult.DocumentMetadata, nil
 	}
 }
 
-func (hb HttpClient) Update(DID did.DID, hash []byte, nextVersion did.Document) (*did.Document, error) {
-	panic("implement me")
-}
-
-func (hb HttpClient) Tag(DID did.DID, tags []string) error {
-	panic("implement me")
+func (hb HTTPClient) Update(DID did.DID, hash model.Hash, next did.Document, meta types.DocumentMetadata) (*did.Document, error) {
+	requestBody := UpdateDIDJSONRequestBody{
+		"document": next,
+		"documentMetadata": meta,
+		"currentHash": hash.String(),
+	}
+	response, err := hb.client().UpdateDID(context.Background(), DID.String(), requestBody)
+	if err != nil {
+		return nil, err
+	}
+	if err := testResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	} else {
+		return readDIDDocument(response.Body)
+	}
 }
 
 func testResponseCode(expectedStatusCode int, response *http.Response) error {
@@ -113,5 +115,17 @@ func readDIDDocument(reader io.Reader) (*did.Document, error) {
 			return nil, fmt.Errorf("unable to unmarshal DID Document response: %w", err)
 		}
 		return &document, nil
+	}
+}
+
+func readDIDResolutionResult(reader io.Reader) (*DIDResolutionResult, error) {
+	if data, err := ioutil.ReadAll(reader); err != nil {
+		return nil, fmt.Errorf("unable to read DID Resolve response: %w", err)
+	} else {
+		resolutionResult := DIDResolutionResult{}
+		if err := json.Unmarshal(data, &resolutionResult); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal DID Resolve response: %w", err)
+		}
+		return &resolutionResult, nil
 	}
 }

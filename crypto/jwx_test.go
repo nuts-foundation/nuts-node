@@ -140,7 +140,7 @@ func TestCrypto_convertHeaders(t *testing.T) {
 	})
 
 	t.Run("ok", func(t *testing.T) {
-		rawHeaders := map[string]interface{} {
+		rawHeaders := map[string]interface{}{
 			"key": "value",
 		}
 

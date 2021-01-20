@@ -46,4 +46,3 @@ func DefaultRegistryConfig() Config {
 		ClientTimeout: 10,
 	}
 }
-

@@ -47,7 +47,7 @@ func NewRegistryEngine() *core.Engine {
 		FlagSet:   flagSet(),
 		Name:      pkg.ModuleName,
 		Routes: func(router core.EchoRouter) {
-			api.RegisterHandlers(router, &api.ApiWrapper{R: r})
+			api.RegisterHandlers(router, &api.Wrapper{VDR: r})
 		},
 		Start:       r.Start,
 		Shutdown:    r.Shutdown,
@@ -60,7 +60,7 @@ func flagSet() *pflag.FlagSet {
 
 	defs := vdr.DefaultRegistryConfig()
 	flagSet.String(vdr.ConfDataDir, defs.Datadir, fmt.Sprintf("Location of data files, default: %s", defs.Datadir))
-	flagSet.String(vdr.ConfMode, defs.Mode, fmt.Sprintf("server or client, when client it uses the HttpClient, default: %s", defs.Mode))
+	flagSet.String(vdr.ConfMode, defs.Mode, fmt.Sprintf("server or client, when client it uses the HTTPClient, default: %s", defs.Mode))
 	flagSet.String(vdr.ConfAddress, defs.Address, fmt.Sprintf("Interface and port for http server to bind to, default: %s", defs.Address))
 	flagSet.Int(vdr.ConfClientTimeout, defs.ClientTimeout, fmt.Sprintf("Time-out for the client in seconds (e.g. when using the CLI), default: %d", defs.ClientTimeout))
 

@@ -1,0 +1,113 @@
+openapi: "3.0.0"
+info:
+  title: Nuts verifiable dataa registry API spec
+  description: API specification for RPC services available at the nuts-registry
+  version: 1.0.0
+  license:
+    name: GPLv3
+paths:
+  /internal/vdr/v1/did:
+    post:
+      summary: "Creates a new Nuts DID"
+      operationId: "createDID"
+      tags:
+        - DID
+      responses:
+        "201":
+          description: "New DID has been created successfully. Returns the DID Document."
+          content:
+            application/json+did-document:
+              schema:
+                $ref: '#/components/schemas/DIDDocument'
+        "500":
+          description: "An error occurred while processing the request."
+          content:
+            text/plain:
+              schema:
+                type: string
+  /internal/vdr/v1/did/{did}:
+    parameters:
+      - name: did
+        in: path
+        description: "URL encoded DID."
+        required: true
+        example:
+          - "did:nuts:1234"
+        schema:
+          type: string
+    get:
+      summary: "Resolves a Nuts DID Document"
+      operationId: "getDID"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: "DID has been found and returned."
+          content:
+            application/json:
+              schema:
+                type: object
+                description: A DIDResolutionResult is returned.
+        "400":
+          description: "given DID is incorrect."
+          content:
+            text/plain:
+              schema:
+                type: string
+        "404":
+          description: "DID couldn't be found."
+          content:
+            text/plain:
+              schema:
+                type: string
+        "500":
+          description: "An error occurred while processing the request."
+          content:
+            text/plain:
+              schema:
+                type: string
+    put:
+      summary: "Updates a Nuts DID Document"
+      operationId: "updateDID"
+      tags:
+        - DID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: JSON object with document, documentMetadata and currentHash
+      responses:
+        "200":
+          description: "DID Document has been updated."
+          content:
+            application/json+did-document:
+              schema:
+                 $ref: '#/components/schemas/DIDDocument'
+        "400":
+          description: "DID couldn't be updated because the input conflicts."
+          content:
+            text/plain:
+              schema:
+                type: string
+        "404":
+          description: "DID couldn't be found."
+          content:
+            text/plain:
+              schema:
+                type: string
+        "500":
+          description: "An error occurred while processing the request."
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    DIDDocument:
+      type: object
+      description: The actual DID Document in JSON representation.
+    DIDResolutionResult:
+      type: object

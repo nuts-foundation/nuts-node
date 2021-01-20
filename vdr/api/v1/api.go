@@ -20,32 +20,78 @@
 package v1
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
+	did2 "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-network/pkg/model"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// ApiWrapper is needed to connect the implementation to the echo ServiceWrapper
-type ApiWrapper struct {
-	R types.VDR
+// Wrapper is needed to connect the implementation to the echo ServiceWrapper
+type Wrapper struct {
+	VDR types.VDR
 }
 
-func (a ApiWrapper) SearchDID(ctx echo.Context, params SearchDIDParams) error {
-	panic("implement me")
+func (a Wrapper) CreateDID(ctx echo.Context) error {
+	doc, err := a.VDR.Create()
+	// if this operation leads to an error, it may return a 500
+	if err != nil {
+		return err
+	}
+
+	// this API returns a DIDDocument according to spec so it may return the business object
+	return ctx.JSON(http.StatusOK, *doc)
 }
 
-func (a ApiWrapper) CreateDID(ctx echo.Context) error {
-	panic("implement me")
+func (a Wrapper) GetDID(ctx echo.Context, did string) error {
+	d, err := did2.ParseDID(did)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+	}
+
+	// no params in the API for now
+	doc, meta, err := a.VDR.Resolve(*d, nil)
+	if err != nil {
+		if errors.Is(err, types.ErrNotFound) {
+			return ctx.NoContent(http.StatusNotFound)
+		}
+		return err
+	}
+
+	resolutionResult := DIDResolutionResult{
+		Document:         doc,
+		DocumentMetadata: meta,
+	}
+
+	return ctx.JSON(http.StatusOK, resolutionResult)
 }
 
-func (a ApiWrapper) GetDID(ctx echo.Context, didOrTag string) error {
-	panic("implement me")
-}
+func (a Wrapper) UpdateDID(ctx echo.Context, did string) error {
+	d, err := did2.ParseDID(did)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+	}
 
-func (a ApiWrapper) UpdateDID(ctx echo.Context, didOrTag string) error {
-	panic("implement me")
-}
+	req := DIDUpdateRequest{}
+	if err := ctx.Bind(&req); err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given update request could not be parsed: %s", err.Error()))
+	}
 
-func (a ApiWrapper) UpdateDIDTags(ctx echo.Context, didOrTag string) error {
-	panic("implement me")
-}
+	h, err := model.ParseHash(req.CurrentHash)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given hash is not valid: %s", err.Error()))
+	}
 
+	if err := a.VDR.Update(*d, h, req.Document, req.DocumentMetadata); err != nil {
+		// for middleware maybe
+		if errors.Is(err, types.ErrNotFound) {
+			return ctx.NoContent(http.StatusNotFound)
+		}
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("couldn't update DID document: %s", err.Error()))
+	}
+
+	return ctx.JSON(http.StatusOK, req.Document)
+}
