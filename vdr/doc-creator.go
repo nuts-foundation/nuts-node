@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -24,10 +25,19 @@ type DocCreator struct {
 }
 
 func didKidNamingFunc(pKey crypto.PublicKey) (string, error) {
-	ecPKey := pKey.(*ecdsa.PublicKey)
+	ecPKey, ok := pKey.(*ecdsa.PublicKey)
+	if !ok {
+		return "", errors.New("could not generate kid: invalid key type")
+	}
+
+	// according to RFC006:
+
+	// generate idString
 	pkBytes := elliptic.Marshal(ecPKey.Curve, ecPKey.X, ecPKey.Y)
 	pkHash := sha256.Sum256(pkBytes)
+	idString := base58.Encode(pkHash[:], base58.BitcoinAlphabet)
 
+	// generate kid fragment
 	jwKey, err := jwk.New(pKey)
 	if err != nil {
 		return "", err
@@ -37,39 +47,29 @@ func didKidNamingFunc(pKey crypto.PublicKey) (string, error) {
 		return "", err
 	}
 
-	idString := base58.Encode(pkHash[:], base58.BitcoinAlphabet)
+	// assemble
 	kid := &did.DID{}
-	kid.ID = idString
 	kid.Method = NutsDIDMethodName
+	kid.ID = idString
 	kid.Fragment = jwKey.KeyID()
 
 	return kid.String(), nil
 }
 
-//BuildDID
+// Create creates a DID Document with a valid DID id based on a freshly generated keypair.
+// The key is added to the verificationMethod list and referred to from the Authentication list
 func (n DocCreator) Create() (*did.Document, error) {
-	key, kidIDStr, err := n.keyCreator.New(didKidNamingFunc)
+	// First, generate a new keyPair with the correct kid
+	key, keyID, err := n.keyCreator.New(didKidNamingFunc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to build did: %w", err)
 	}
-	didID, err := did.ParseDID(kidIDStr)
+
+	// The Document DID can be generated from the keyID without the fragment:
+	didID, err := did.ParseDID(keyID)
 	didID.Fragment = ""
 
-	publicKeyJWK, err := jwk.New(key)
-	if err != nil {
-		return nil, err
-	}
-	err = publicKeyJWK.Set(jwk.KeyIDKey, kidIDStr)
-	if err != nil {
-		return nil, err
-	}
-
-	jwk.AssignKeyID(publicKeyJWK)
-	if err != nil {
-		return nil, err
-	}
-
-	verificationMethod, err := jwkToVerificationMethod(publicKeyJWK)
+	verificationMethod, err := keyToVerificationMethod(key, keyID)
 
 	doc := &did.Document{
 		Context:            []did.URI{did.DIDContextV1URI()},
@@ -80,12 +80,22 @@ func (n DocCreator) Create() (*did.Document, error) {
 	return doc, nil
 }
 
-func jwkToVerificationMethod(key jwk.Key) (*did.VerificationMethod, error) {
-	publicKeyAsJWKAsMap, err := key.AsMap(context.Background())
+// jwkToVerificationMethod takes a jwk.Key and converts it to a DID VerificationMethod
+func keyToVerificationMethod(key crypto.PublicKey, keyID string) (*did.VerificationMethod, error) {
+	// make use of the jwk helper functions
+	publicKeyJWK, err := jwk.New(key)
 	if err != nil {
 		return nil, err
 	}
-	kid, err := url.Parse(key.KeyID())
+	err = publicKeyJWK.Set(jwk.KeyIDKey, keyID)
+	if err != nil {
+		return nil, err
+	}
+	publicKeyAsJWKAsMap, err := publicKeyJWK.AsMap(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	kid, err := url.Parse(publicKeyJWK.KeyID())
 	if err != nil {
 		return nil, err
 	}
