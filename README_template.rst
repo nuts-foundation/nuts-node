@@ -25,5 +25,5 @@ Distributed registry for storing and querying health care providers their vendor
 Configuration
 *************
 
-.. include:: docs/pages/configuration.rst
+.. include:: docs/pages/configuration/configuration.rst
     :start-after: .. marker-for-readme
