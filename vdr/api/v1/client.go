@@ -82,9 +82,9 @@ func (hb HTTPClient) Get(DID did.DID) (*did.Document, *types.DocumentMetadata, e
 
 func (hb HTTPClient) Update(DID did.DID, hash model.Hash, next did.Document, meta types.DocumentMetadata) (*did.Document, error) {
 	requestBody := UpdateDIDJSONRequestBody{
-		"document": next,
+		"document":         next,
 		"documentMetadata": meta,
-		"currentHash": hash.String(),
+		"currentHash":      hash.String(),
 	}
 	response, err := hb.client().UpdateDID(context.Background(), DID.String(), requestBody)
 	if err != nil {

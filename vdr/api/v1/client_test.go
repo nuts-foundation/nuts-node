@@ -71,7 +71,7 @@ func TestHttpClient_Get(t *testing.T) {
 	meta := &types.DocumentMetadata{}
 
 	t.Run("ok", func(t *testing.T) {
-		resolutionResult := DIDResolutionResult {
+		resolutionResult := DIDResolutionResult{
 			Document:         didDoc,
 			DocumentMetadata: meta,
 		}

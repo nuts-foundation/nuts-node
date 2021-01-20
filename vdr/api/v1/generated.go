@@ -575,4 +575,3 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.PUT(baseURL+"/internal/vdr/v1/did/:did", wrapper.UpdateDID)
 
 }
-
