@@ -30,14 +30,6 @@ func TestSearchOrg(t *testing.T) {
 	// Register test instance singleton
 }
 
-func TestPrintVersion(t *testing.T) {
-	// Register test instance singleton
-	command := cmd()
-	command.SetArgs([]string{"version"})
-	err := command.Execute()
-	assert.NoError(t, err)
-}
-
 func Test_flagSet(t *testing.T) {
 	assert.NotNil(t, flagSet())
 }

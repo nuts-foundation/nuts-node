@@ -23,6 +23,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
+	crypto "github.com/nuts-foundation/nuts-node/crypto/engine"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/engine"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -102,6 +104,9 @@ func registerEngines() {
 	core.RegisterEngine(core.NewStatusEngine())
 	core.RegisterEngine(core.NewLoggerEngine())
 	core.RegisterEngine(core.NewMetricsEngine())
+	core.RegisterEngine(crypto.NewCryptoEngine())
+	core.RegisterEngine(vdr.NewRegistryEngine())
+
 }
 
 func injectConfig(cfg *core.NutsGlobalConfig) {

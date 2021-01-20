@@ -73,6 +73,7 @@ func (n NutsDocCreator) Create() (*did.Document, error) {
 	didID.Fragment = ""
 
 	verificationMethod, err := keyToVerificationMethod(key, keyID)
+	verificationMethod.Controller = *didID
 
 	doc := &did.Document{
 		Context:            []did.URI{did.DIDContextV1URI()},

@@ -20,11 +20,10 @@
 package engine
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/nuts-foundation/nuts-network/pkg"
-	"github.com/nuts-foundation/nuts-node/vdr/logging"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
@@ -43,7 +42,7 @@ func NewRegistryEngine() *core.Engine {
 		Cmd:       cmd(),
 		Configure: r.Configure,
 		Config:    &r.Config,
-		ConfigKey: "registry",
+		ConfigKey: "vdr",
 		FlagSet:   flagSet(),
 		Name:      pkg.ModuleName,
 		Routes: func(router core.EchoRouter) {
@@ -69,38 +68,36 @@ func flagSet() *pflag.FlagSet {
 
 func cmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "registry",
-		Short: "registry commands",
+		Use:   "vdr",
+		Short: "Verifiable Data Registry commands",
 	}
-
-	cmd.AddCommand(&cobra.Command{
-		Use:   "version",
-		Short: "Print the version number of the Nuts registry",
-		Run: func(cmd *cobra.Command, args []string) {
-			logging.Log().Errorf("version 0.0.0")
-		},
-	})
-
-	cmd.AddCommand(&cobra.Command{
-		Use:   "search [tags]",
-		Short: "Find DIDs within the registry that have the given tags (comma-separated)",
-		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			// split tags on comma and call Search
-
-			//logging.Log().Errorf("Found %d organizations\n", len(os))
-		},
-	})
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "create-did",
 		Short: "Registers a new DID",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			core.NutsConfig().ServerAddress()
 
-			// call Create
+			// client
+			client := api.HTTPClient{
+				ServerAddress: core.NutsConfig().ServerAddress(),
+				Timeout:       5,
+			}
 
-			//logging.Log().Info("DID registered.")
+			doc, err := client.Create()
+			if err != nil {
+				fmt.Printf("Failed to create DID: %s\n", err.Error())
+				return nil
+			}
+
+			bytes, err := json.MarshalIndent(doc, "", "  ")
+			if err != nil {
+				fmt.Printf("Failed to display DID document:\n%s\nRaw: %v", err.Error(), *doc)
+				return nil
+			}
+
+			fmt.Printf("Created DID document: %v\n", string(bytes))
 			return nil
 		},
 	})
@@ -112,17 +109,6 @@ func cmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// call Get or GetByTag
-			return nil
-		},
-	})
-
-	cmd.AddCommand(&cobra.Command{
-		Use:   "tag DID [tags]",
-		Short: "Replace the tags of the given DID document with the given tags (comma-separated)",
-		Args:  cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-
-			// call Tag
 			return nil
 		},
 	})

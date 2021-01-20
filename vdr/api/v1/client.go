@@ -112,7 +112,7 @@ func readDIDDocument(reader io.Reader) (*did.Document, error) {
 	} else {
 		document := did.Document{}
 		if err := json.Unmarshal(data, &document); err != nil {
-			return nil, fmt.Errorf("unable to unmarshal DID Document response: %w", err)
+			return nil, fmt.Errorf("unable to unmarshal DID Document response: %w, %s", err, string(data))
 		}
 		return &document, nil
 	}
