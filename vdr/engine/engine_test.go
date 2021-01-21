@@ -19,16 +19,20 @@
 package engine
 
 import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/nuts-foundation/go-did"
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	core "github.com/nuts-foundation/nuts-node/core"
 )
-
-func TestSearchOrg(t *testing.T) {
-	// Register test instance singleton
-}
 
 func Test_flagSet(t *testing.T) {
 	assert.NotNil(t, flagSet())
@@ -45,5 +49,161 @@ func TestNewRegistryEngine(t *testing.T) {
 		cfg := core.NutsConfig()
 		cfg.RegisterFlags(e.Cmd, e)
 		assert.NoError(t, cfg.InjectIntoEngine(e))
+	})
+}
+
+func TestEngine_Command(t *testing.T) {
+	core.NutsConfig().Load(&cobra.Command{})
+
+	createCmd := func(t *testing.T) *cobra.Command {
+		return NewRegistryEngine().Cmd
+	}
+
+	exampleID, _ := did.ParseDID("did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
+	exampleDIDDocument := did.Document{
+		ID: *exampleID,
+		Controller: []did.DID{*exampleID},
+	}
+
+	exampleDIDRsolution := v1.DIDResolutionResult{
+		Document:         exampleDIDDocument,
+		DocumentMetadata: v1.DIDDocumentMetadata{},
+	}
+
+	t.Run("create-did", func(t *testing.T) {
+		t.Run("ok - write to stdout", func(t *testing.T) {
+			cmd := createCmd(t)
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			core.NutsConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"create-did"})
+			cmd.SetOut(buf)
+			err := cmd.Execute()
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Contains(t, buf.String(), "Created DID document")
+			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
+		})
+
+		t.Run("error - server error", func(t *testing.T) {
+			cmd := createCmd(t)
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "b00m!"})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			core.NutsConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"create-did"})
+			cmd.SetOut(buf)
+			err := cmd.Execute()
+
+			if !assert.Error(t, err) {
+				return
+			}
+			assert.Contains(t, buf.String(), "unable to create new DID")
+			assert.Contains(t, buf.String(), "b00m!")
+		})
+	})
+
+	t.Run("resolve", func(t *testing.T) {
+		t.Run("ok - write to stdout", func(t *testing.T) {
+			cmd := createCmd(t)
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			core.NutsConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"resolve", "did"})
+			cmd.SetOut(buf)
+			err := cmd.Execute()
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
+			assert.Contains(t, buf.String(), "version")
+		})
+
+		t.Run("error - not found", func(t *testing.T) {
+			cmd := createCmd(t)
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			core.NutsConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"resolve", "did"})
+			cmd.SetOut(buf)
+			err := cmd.Execute()
+
+			if !assert.Error(t, err) {
+				return
+			}
+			assert.Contains(t, buf.String(), "failed to resolve DID document")
+			assert.Contains(t, buf.String(), "not found")
+		})
+	})
+
+	t.Run("update", func(t *testing.T) {
+		t.Run("ok - write to stdout", func(t *testing.T) {
+			cmd := createCmd(t)
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			core.NutsConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
+			cmd.SetOut(buf)
+			err := cmd.Execute()
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Contains(t, buf.String(), "DID document updated")
+		})
+
+		t.Run("error - incorrect input", func(t *testing.T) {
+			cmd := createCmd(t)
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			core.NutsConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"update", "did", "hash", "../test/syntax_error.json"})
+			cmd.SetOut(buf)
+			err := cmd.Execute()
+
+			if !assert.Error(t, err) {
+				return
+			}
+			assert.Contains(t, buf.String(), "failed to parse DID document")
+		})
+
+		t.Run("error - server error", func(t *testing.T) {
+			cmd := createCmd(t)
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "invalid"})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			core.NutsConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
+			cmd.SetOut(buf)
+			err := cmd.Execute()
+
+			if !assert.Error(t, err) {
+				return
+			}
+			assert.Contains(t, buf.String(), "failed to update DID document")
+			assert.Contains(t, buf.String(), "invalid")
+		})
 	})
 }

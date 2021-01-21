@@ -65,11 +65,11 @@ func (hb HTTPClient) Create() (*did.Document, error) {
 	}
 }
 
-func (hb HTTPClient) Get(DID did.DID) (*DIDDocument, *DIDDocumentMetadata, error) {
+func (hb HTTPClient) Get(DID string) (*DIDDocument, *DIDDocumentMetadata, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
 
-	response, err := hb.client().GetDID(ctx, DID.String())
+	response, err := hb.client().GetDID(ctx, DID)
 	if err != nil {
 		return nil, nil, err
 	}

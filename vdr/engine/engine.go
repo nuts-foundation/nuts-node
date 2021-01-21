@@ -90,10 +90,7 @@ func cmd() *cobra.Command {
 				return fmt.Errorf("unable to create new DID: %v", err)
 			}
 
-			bytes, err := json.MarshalIndent(doc, "", "  ")
-			if err != nil {
-				return fmt.Errorf("failed to display created DID document: %v", err)
-			}
+			bytes, _ := json.MarshalIndent(doc, "", "  ")
 
 			cmd.Printf("Created DID document: %v\n", string(bytes))
 			return nil
@@ -107,22 +104,14 @@ func cmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := httpClient()
 
-			did, err := did.ParseDID(args[0])
-			if err != nil {
-				return fmt.Errorf("failed to parse DID: %v\n", err)
-			}
-
-			doc, meta, err := client.Get(*did)
+			doc, meta, err := client.Get(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to resolve DID document: %v\n", err)
 			}
 
 			for _, o := range []interface{}{doc, meta} {
-				bytes, err := json.MarshalIndent(o, "", "  ")
-				if err != nil {
-					return fmt.Errorf("failed to display object: %v\n", err)
-				}
-				fmt.Printf("%s\n", string(bytes))
+				bytes, _ := json.MarshalIndent(o, "", "  ")
+				cmd.Printf("%s\n", string(bytes))
 			}
 
 			return nil
@@ -166,6 +155,7 @@ func cmd() *cobra.Command {
 				return fmt.Errorf("failed to update DID document: %s\n", err)
 			}
 
+			cmd.Println("DID document updated")
 			return nil
 		},
 	})

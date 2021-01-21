@@ -16,27 +16,16 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	did2 "github.com/nuts-foundation/go-did"
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
-
-type handler struct {
-	statusCode   int
-	responseData interface{}
-}
-
-func (h handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
-	writer.WriteHeader(h.statusCode)
-	bytes, _ := json.Marshal(h.responseData)
-	writer.Write(bytes)
-}
 
 func TestHTTPClient_Create(t *testing.T) {
 	did, _ := did2.ParseDID("did:nuts:1")
@@ -45,7 +34,7 @@ func TestHTTPClient_Create(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: didDoc})
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		doc, err := c.Create()
 		if !assert.NoError(t, err) {
@@ -55,7 +44,7 @@ func TestHTTPClient_Create(t *testing.T) {
 	})
 
 	t.Run("error - other", func(t *testing.T) {
-		s := httptest.NewServer(handler{statusCode: http.StatusInternalServerError, responseData: ""})
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		_, err := c.Create()
 		assert.Error(t, err)
@@ -63,7 +52,8 @@ func TestHTTPClient_Create(t *testing.T) {
 }
 
 func TestHttpClient_Get(t *testing.T) {
-	did, _ := did2.ParseDID("did:nuts:1")
+	didString := "did:nuts:1"
+	did, _ := did2.ParseDID(didString)
 	didDoc := did2.Document{
 		ID: *did,
 	}
@@ -74,9 +64,9 @@ func TestHttpClient_Get(t *testing.T) {
 			Document:         didDoc,
 			DocumentMetadata: meta,
 		}
-		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: resolutionResult})
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: resolutionResult})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		doc, meta, err := c.Get(*did)
+		doc, meta, err := c.Get(didString)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -85,19 +75,19 @@ func TestHttpClient_Get(t *testing.T) {
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		s := httptest.NewServer(handler{statusCode: http.StatusNotFound, responseData: ""})
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 
-		_, _, err := c.Get(*did)
+		_, _, err := c.Get(didString)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("error - invalid response", func(t *testing.T) {
-		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: "}"})
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 
-		_, _, err := c.Get(*did)
+		_, _, err := c.Get(didString)
 
 		assert.Error(t, err)
 	})
@@ -112,7 +102,7 @@ func TestHTTPClient_Update(t *testing.T) {
 	hash := "0000000000000000000000000000000000000000"
 
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: didDoc})
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		doc, err := c.Update(didString, hash, didDoc)
 		if !assert.NoError(t, err) {
@@ -122,7 +112,7 @@ func TestHTTPClient_Update(t *testing.T) {
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		s := httptest.NewServer(handler{statusCode: http.StatusNotFound, responseData: ""})
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 
 		_, err := c.Update(didString, hash, didDoc)
@@ -131,7 +121,7 @@ func TestHTTPClient_Update(t *testing.T) {
 	})
 
 	t.Run("error - invalid response", func(t *testing.T) {
-		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: "}"})
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 
 		_, err := c.Update(didString, hash, didDoc)
