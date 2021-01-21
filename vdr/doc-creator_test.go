@@ -2,6 +2,10 @@ package vdr
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -49,5 +53,32 @@ func TestDocCreator_Create(t *testing.T) {
 			assert.Len(t, doc.VerificationMethod, 1)
 			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", doc.VerificationMethod[0].ID.String())
 		})
+	})
+}
+
+func Test_didKidNamingFunc(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if assert.NoError(t, err){
+			return
+		}
+
+		keyID, err := didKidNamingFunc(privateKey.PublicKey)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.NotEmpty(t, keyID)
+		assert.Contains(t, keyID, "did:nuts")
+	})
+
+	t.Run("nok - wrong key type", func(t *testing.T) {
+		privateKey := rsa.PrivateKey{}
+		keyID, err := didKidNamingFunc(privateKey.PublicKey)
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Equal(t, "could not generate kid: invalid key type", err.Error())
+		assert.Empty(t, keyID)
+
 	})
 }
