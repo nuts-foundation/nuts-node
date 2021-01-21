@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-network/pkg/model"
 	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-node/vdr/store"
@@ -46,6 +45,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
 //type StoreWrapper struct {
@@ -173,10 +173,10 @@ func (r Registry) Resolve(dID did.DID, metadata *types.ResolveMetaData) (*did.Do
 	return r.store.Resolve(dID, metadata)
 }
 
-func (r Registry) Update(dID did.DID, hash model.Hash, next did.Document, metadata types.DocumentMetadata) error {
-	return r.store.Update(dID, hash, next, metadata)
+func (r Registry) Update(dID did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
+	return r.store.Update(dID, current, next, metadata)
 }
 
-func (r *Registry) Deactivate(DID did.DID, hash model.Hash) {
+func (r *Registry) Deactivate(DID did.DID, current hash.SHA256Hash) {
 	panic("implement me")
 }

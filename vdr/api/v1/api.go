@@ -26,7 +26,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	did2 "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-network/pkg/model"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -80,12 +80,12 @@ func (a Wrapper) UpdateDID(ctx echo.Context, did string) error {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given update request could not be parsed: %s", err.Error()))
 	}
 
-	h, err := model.ParseHash(req.CurrentHash)
+	h, err := hash.ParseHex(req.CurrentHash)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given hash is not valid: %s", err.Error()))
 	}
 
-	if err := a.VDR.Update(*d, h, req.Document, req.DocumentMetadata); err != nil {
+	if err := a.VDR.Update(*d, h, req.Document, nil); err != nil {
 		// for middleware maybe
 		if errors.Is(err, types.ErrNotFound) {
 			return ctx.NoContent(http.StatusNotFound)

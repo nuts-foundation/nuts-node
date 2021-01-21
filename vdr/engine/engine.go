@@ -20,13 +20,18 @@
 package engine
 
 import (
+	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-network/pkg"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/spf13/cobra"
@@ -131,19 +136,73 @@ func cmd() *cobra.Command {
 	})
 
 	cmd.AddCommand(&cobra.Command{
-		Use:   "update DID [file]",
-		Short: "Update a DID with the given DID document, this replaces the DID document. If no file is given, stdin is used",
-		Args:  cobra.RangeArgs(1, 2),
+		Use:   "update [DID] [hash] [file]",
+		Short: "Update a DID with the given DID document, this replaces the DID document. " +
+			"If no file is given, a pipe is assumed. The hash is needed to prevent concurrent updates.",
+		Args:  cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			client := httpClient()
 
-			// read from file or stdin
+			// DID
+			d, err := did.ParseDID(args[0])
+			if err != nil {
+				fmt.Printf("Failed to parse DID: %s\n", err.Error())
+				return nil
+			}
 
-			// call Update
+			// Hash
+			h, err := hash.ParseHex(args[1])
+			if err != nil {
+				fmt.Printf("Failed to parse hash: %s\n", err.Error())
+				return nil
+			}
+
+			var bytes []byte
+			if len(args) == 3 {
+				// read from file
+				bytes, err = ioutil.ReadFile(args[2])
+				if err != nil {
+					fmt.Printf("Failed to read file %s: %s\n", args[2], err.Error())
+					return nil
+				}
+			} else {
+				// read from stdin
+				bytes, err = readFromStdin()
+				if err != nil {
+					fmt.Printf("Failed to read from pipe: %s\n", err.Error())
+					return nil
+				}
+			}
+
+			// parse
+			var didDoc did.Document
+			if err = json.Unmarshal(bytes, &didDoc); err != nil {
+				fmt.Printf("Failed to parse DID document: %s\n", err.Error())
+				return nil
+			}
+
+			if _, err = client.Update(*d, h, didDoc); err != nil {
+				fmt.Printf("Failed to update DID document: %s\n", err.Error())
+				return nil
+			}
+
 			return nil
 		},
 	})
 
 	return cmd
+}
+
+func readFromStdin() ([]byte, error) {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if fi.Mode() & os.ModeNamedPipe == 0 {
+		return nil, errors.New("expected piped input")
+	} else {
+		return ioutil.ReadAll(bufio.NewReader(os.Stdin))
+	}
 }
 
 func httpClient() api.HTTPClient {

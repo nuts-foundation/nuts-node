@@ -26,7 +26,7 @@ import (
 	"io"
 
 	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-network/pkg/model"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"io/ioutil"
@@ -86,14 +86,13 @@ func (hb HTTPClient) Get(DID did.DID) (*did.Document, *types.DocumentMetadata, e
 	}
 }
 
-func (hb HTTPClient) Update(DID did.DID, hash model.Hash, next did.Document, meta types.DocumentMetadata) (*did.Document, error) {
+func (hb HTTPClient) Update(DID did.DID, current hash.SHA256Hash, next did.Document) (*did.Document, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
 
 	requestBody := UpdateDIDJSONRequestBody{
 		"document":         next,
-		"documentMetadata": meta,
-		"currentHash":      hash.String(),
+		"currentHash":      current.String(),
 	}
 	response, err := hb.client().UpdateDID(ctx, DID.String(), requestBody)
 	if err != nil {

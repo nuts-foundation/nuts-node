@@ -126,8 +126,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 	}
 	didUpdate := DIDUpdateRequest{
 		Document:         *didDoc,
-		DocumentMetadata: types.DocumentMetadata{},
-		CurrentHash:      "0000000000000000000000000000000000000000",
+		CurrentHash:      "452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620",
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -201,7 +200,6 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 		didUpdate := DIDUpdateRequest{
 			Document:         *didDoc,
-			DocumentMetadata: types.DocumentMetadata{},
 			CurrentHash:      "0",
 		}
 

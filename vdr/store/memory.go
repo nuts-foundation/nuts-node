@@ -19,7 +19,7 @@ import (
 	"sync"
 
 	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-network/pkg/model"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -155,7 +155,7 @@ func (m *memory) Write(DIDDocument did.Document, metadata types.DocumentMetadata
 
 // Update does not check if the timestamp in the metadata make sense or if the metadata.hash matches the hash
 // of the next version. The version field is also not checked.
-func (m *memory) Update(DID did.DID, hash model.Hash, next did.Document, metadata types.DocumentMetadata) error {
+func (m *memory) Update(DID did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -172,13 +172,13 @@ func (m *memory) Update(DID did.DID, hash model.Hash, next did.Document, metadat
 	}
 
 	// hashes must match
-	if !hash.Equals(entry.metadata.Hash) {
+	if !current.Equals(entry.metadata.Hash) {
 		return types.ErrUpdateOnOutdatedData
 	}
 
 	newEntry := &memoryEntry{
 		document: next,
-		metadata: metadata,
+		metadata: *metadata,
 	}
 
 	// update next in last document

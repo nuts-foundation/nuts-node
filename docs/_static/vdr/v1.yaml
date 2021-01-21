@@ -77,7 +77,7 @@ paths:
           application/json:
             schema:
               type: object
-              description: JSON object with document, documentMetadata and currentHash
+              description: JSON object with document and currentHash
       responses:
         "200":
           description: "DID Document has been updated."

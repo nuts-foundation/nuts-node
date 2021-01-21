@@ -29,6 +29,5 @@ type DIDResolutionResult struct {
 // DIDUpdateRequest is a convenience type for updating a DID
 type DIDUpdateRequest struct {
 	Document         did.Document           `json: "document"`
-	DocumentMetadata types.DocumentMetadata `json: "documentMetadata,omitempty"`
 	CurrentHash      string                 `json: "currentHash"`
 }

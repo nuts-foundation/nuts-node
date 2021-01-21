@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-network/pkg/model"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -57,7 +57,7 @@ func TestMemory_Resolve(t *testing.T) {
 	}
 
 	//upd := time.Now().Add(time.Hour * 24)
-	h, _ := model.ParseHash("0000000000000000000000000000000000000000")
+	h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 	meta := types.DocumentMetadata{
 		Created: time.Now().Add(time.Hour * -24),
 		Hash:    h,
@@ -174,7 +174,7 @@ func TestMemory_Update(t *testing.T) {
 		ID:         *did1,
 		Controller: []did.DID{*did1},
 	}
-	h, _ := model.ParseHash("0000000000000000000000000000000000000000")
+	h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 	meta := types.DocumentMetadata{
 		Hash: h,
 	}
@@ -182,7 +182,7 @@ func TestMemory_Update(t *testing.T) {
 	_ = store.Write(doc, meta)
 
 	t.Run("returns no error on success", func(t *testing.T) {
-		err := store.Update(*did1, h, doc, meta)
+		err := store.Update(*did1, h, doc, &meta)
 		assert.NoError(t, err)
 	})
 
@@ -193,7 +193,7 @@ func TestMemory_Update(t *testing.T) {
 			Created: time.Now(),
 			Updated: &later,
 		}
-		err := store.Update(*did1, h, doc, meta)
+		err := store.Update(*did1, h, doc, &meta)
 		assert.NoError(t, err)
 
 		s := store.(*memory)
@@ -202,13 +202,13 @@ func TestMemory_Update(t *testing.T) {
 
 	t.Run("returns error when DID document doesn't exist", func(t *testing.T) {
 		did1, _ := did.ParseDID("did:nuts:2")
-		err := store.Update(*did1, h, doc, meta)
+		err := store.Update(*did1, h, doc, &meta)
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 
 	t.Run("returns error when hashes don't match", func(t *testing.T) {
-		h, _ := model.ParseHash("0000000000000000000000000000000000000001")
-		err := store.Update(*did1, h, doc, meta)
+		h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4621")
+		err := store.Update(*did1, h, doc, &meta)
 		assert.Equal(t, types.ErrUpdateOnOutdatedData, err)
 	})
 
@@ -222,7 +222,7 @@ func TestMemory_Update(t *testing.T) {
 			return
 		}
 
-		err = store.Update(*did1, h, doc, meta)
+		err = store.Update(*did1, h, doc, &meta)
 		assert.Equal(t, types.ErrDeactivated, err)
 	})
 }

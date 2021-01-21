@@ -19,7 +19,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nuts-foundation/nuts-network/pkg/model"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
 var ErrUpdateOnOutdatedData = errors.New("could not update outdated document")
@@ -43,9 +43,9 @@ type DocumentMetadata struct {
 	// Version contains the semantic version of the DID document.
 	Version int `json:"version"`
 	// OriginJWSHash contains the hash of the JWS envelope of the first version of the DID document.
-	OriginJWSHash model.Hash `json:"originJwsHash"`
+	OriginJWSHash hash.SHA256Hash `json:"originJwsHash"`
 	// Hash of DID document bytes. Is equal to payloadHash in network layer.
-	Hash model.Hash `json:"hash"`
+	Hash hash.SHA256Hash `json:"hash"`
 }
 
 // ResolveMetaData contains metadata for the resolver.
@@ -53,7 +53,7 @@ type ResolveMetaData struct {
 	// Resolve the version which is valid at this time
 	ResolveTime *time.Time
 	// if provided, use the version which matches this exact hash
-	Hash *model.Hash
+	Hash *hash.SHA256Hash
 	// Allow DIDs which are deactivated
 	AllowDeactivated bool
 }

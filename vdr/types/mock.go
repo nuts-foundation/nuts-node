@@ -7,7 +7,7 @@ package types
 import (
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
-	model "github.com/nuts-foundation/nuts-network/pkg/model"
+	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	reflect "reflect"
 )
 
@@ -149,17 +149,17 @@ func (m *MockDocUpdater) EXPECT() *MockDocUpdaterMockRecorder {
 }
 
 // Update mocks base method
-func (m *MockDocUpdater) Update(DID go_did.DID, hash model.Hash, next go_did.Document, metadata DocumentMetadata) error {
+func (m *MockDocUpdater) Update(DID go_did.DID, current hash.SHA256Hash, next go_did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", DID, hash, next, metadata)
+	ret := m.ctrl.Call(m, "Update", DID, current, next, metadata)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update
-func (mr *MockDocUpdaterMockRecorder) Update(DID, hash, next, metadata interface{}) *gomock.Call {
+func (mr *MockDocUpdaterMockRecorder) Update(DID, current, next, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockDocUpdater)(nil).Update), DID, hash, next, metadata)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockDocUpdater)(nil).Update), DID, current, next, metadata)
 }
 
 // MockDocDeactivator is a mock of DocDeactivator interface
@@ -186,15 +186,15 @@ func (m *MockDocDeactivator) EXPECT() *MockDocDeactivatorMockRecorder {
 }
 
 // Deactivate mocks base method
-func (m *MockDocDeactivator) Deactivate(DID go_did.DID, hash model.Hash) {
+func (m *MockDocDeactivator) Deactivate(DID go_did.DID, current hash.SHA256Hash) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Deactivate", DID, hash)
+	m.ctrl.Call(m, "Deactivate", DID, current)
 }
 
 // Deactivate indicates an expected call of Deactivate
-func (mr *MockDocDeactivatorMockRecorder) Deactivate(DID, hash interface{}) *gomock.Call {
+func (mr *MockDocDeactivatorMockRecorder) Deactivate(DID, current interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocDeactivator)(nil).Deactivate), DID, hash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocDeactivator)(nil).Deactivate), DID, current)
 }
 
 // MockStore is a mock of Store interface
@@ -251,17 +251,17 @@ func (mr *MockStoreMockRecorder) Write(DIDDocument, metadata interface{}) *gomoc
 }
 
 // Update mocks base method
-func (m *MockStore) Update(DID go_did.DID, hash model.Hash, next go_did.Document, metadata DocumentMetadata) error {
+func (m *MockStore) Update(DID go_did.DID, current hash.SHA256Hash, next go_did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", DID, hash, next, metadata)
+	ret := m.ctrl.Call(m, "Update", DID, current, next, metadata)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update
-func (mr *MockStoreMockRecorder) Update(DID, hash, next, metadata interface{}) *gomock.Call {
+func (mr *MockStoreMockRecorder) Update(DID, current, next, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockStore)(nil).Update), DID, hash, next, metadata)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockStore)(nil).Update), DID, current, next, metadata)
 }
 
 // MockVDR is a mock of VDR interface
@@ -319,27 +319,27 @@ func (mr *MockVDRMockRecorder) Create() *gomock.Call {
 }
 
 // Update mocks base method
-func (m *MockVDR) Update(DID go_did.DID, hash model.Hash, next go_did.Document, metadata DocumentMetadata) error {
+func (m *MockVDR) Update(DID go_did.DID, current hash.SHA256Hash, next go_did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", DID, hash, next, metadata)
+	ret := m.ctrl.Call(m, "Update", DID, current, next, metadata)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update
-func (mr *MockVDRMockRecorder) Update(DID, hash, next, metadata interface{}) *gomock.Call {
+func (mr *MockVDRMockRecorder) Update(DID, current, next, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockVDR)(nil).Update), DID, hash, next, metadata)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockVDR)(nil).Update), DID, current, next, metadata)
 }
 
 // Deactivate mocks base method
-func (m *MockVDR) Deactivate(DID go_did.DID, hash model.Hash) {
+func (m *MockVDR) Deactivate(DID go_did.DID, current hash.SHA256Hash) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Deactivate", DID, hash)
+	m.ctrl.Call(m, "Deactivate", DID, current)
 }
 
 // Deactivate indicates an expected call of Deactivate
-func (mr *MockVDRMockRecorder) Deactivate(DID, hash interface{}) *gomock.Call {
+func (mr *MockVDRMockRecorder) Deactivate(DID, current interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockVDR)(nil).Deactivate), DID, hash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockVDR)(nil).Deactivate), DID, current)
 }

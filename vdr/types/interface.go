@@ -17,7 +17,7 @@ package types
 
 import (
 	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-network/pkg/model"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
 // DocResolver is the interface that groups all the DID Document read methods
@@ -52,7 +52,7 @@ type DocUpdater interface {
 	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
 	// If the DID Document is not found or not local a ErrNotFound is returned
 	// If the DID Document is not active a ErrDeactivated is returned
-	Update(DID did.DID, hash model.Hash, next did.Document, metadata DocumentMetadata) error
+	Update(DID did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error
 }
 
 // DocDeactivator is the interface that defines functions to deactivate DID Docs
@@ -62,7 +62,7 @@ type DocDeactivator interface {
 	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
 	// If the DID Document is not found or not local a ErrNotFound is returned
 	// If the DID Document is not active a ErrDeactivated is returned
-	Deactivate(DID did.DID, hash model.Hash)
+	Deactivate(DID did.DID, current hash.SHA256Hash)
 }
 
 // Store is the interface that groups all low level VDR DID storage operations.

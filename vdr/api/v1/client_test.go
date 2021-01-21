@@ -23,7 +23,7 @@ import (
 	"time"
 
 	did2 "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-network/pkg/model"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -109,13 +109,12 @@ func TestHTTPClient_Update(t *testing.T) {
 	didDoc := did2.Document{
 		ID: *did,
 	}
-	meta := types.DocumentMetadata{}
-	hash, _ := model.ParseHash("0000000000000000000000000000000000000000")
+	hash, _ := hash.ParseHex("0000000000000000000000000000000000000000")
 
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: didDoc})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		doc, err := c.Update(*did, hash, didDoc, meta)
+		doc, err := c.Update(*did, hash, didDoc)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -126,7 +125,7 @@ func TestHTTPClient_Update(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusNotFound, responseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 
-		_, err := c.Update(*did, hash, didDoc, meta)
+		_, err := c.Update(*did, hash, didDoc)
 
 		assert.Error(t, err)
 	})
@@ -135,7 +134,7 @@ func TestHTTPClient_Update(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: "}"})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 
-		_, err := c.Update(*did, hash, didDoc, meta)
+		_, err := c.Update(*did, hash, didDoc)
 
 		assert.Error(t, err)
 	})
