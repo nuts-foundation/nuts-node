@@ -11,7 +11,7 @@ gen-mocks:
 
 gen-api:
 	oapi-codegen -generate types,server,client -package v1 docs/_static/crypto/v1.yaml > crypto/api/v1/generated.go
-	oapi-codegen -generate types,server,client,skip-prune -package v1 -exclude-schemas DIDDocument,DIDDocumentMetadata docs/_static/vdr/v1.yaml > vdr/api/v1/generated.go
+	oapi-codegen -generate types,server,client,skip-prune -package v1 -exclude-schemas DIDDocument,DIDDocumentMetadata,Service,VerificationMethod docs/_static/vdr/v1.yaml > vdr/api/v1/generated.go
 
 gen-docs:
 	go run ./docs

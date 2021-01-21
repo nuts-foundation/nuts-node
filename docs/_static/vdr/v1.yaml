@@ -105,10 +105,68 @@ components:
   schemas:
     DIDDocument:
       type: object
-      description: The actual DID Document.
+      description: The actual DID Document according to the w3c spec.
+      required:
+        - id
+      properties:
+        assertionMethod:
+          description: List of KIDs that may sign JWTs, JWSs and VCs
+          type: array
+          items:
+            type: string
+        authentication:
+          description: List of KIDs that may alter DID documents that they control
+          type: array
+          items:
+            type: string
+        context:
+          description: Array of URIs
+          type: array
+          items:
+            type: string
+        controller:
+          description: Array of DIDs that have control over the DID Document
+          type: array
+          items:
+            type: string
+        id:
+          description: DID according to Nuts specification
+          example: "did:nuts:1"
+          type: string
+        service:
+          description: list of supported services by the DID subject
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+        verificationMethod:
+          description: list of keys
+          type: array
+          items:
+            $ref: '#/components/schemas/VerificationMethod'
     DIDDocumentMetadata:
       type: object
       description: The DID Document metadata.
+      required:
+        - created
+        - hash
+        - originJWSHash
+        - version
+      properties:
+        created:
+          description: time when DID Document was created in rfc3339 form.
+          type: string
+        hash:
+          description: sha256 in hex form of the DID document contents
+          type: string
+        originJWSHash:
+          description: sha256 in hex form of the transaction in which the DID Document was published
+          type: string
+        updated:
+          description: time when DID Document was updated in rfc3339 form.
+          type: string
+        version:
+          description: version of the DID Document, starting at 1
+          type: string
     DIDResolutionResult:
       required:
         - document
@@ -118,6 +176,25 @@ components:
           $ref: '#/components/schemas/DIDDocument'
         documentMetadata:
           $ref: '#/components/schemas/DIDDocumentMetadata'
+    Service:
+      type: object
+      description: A service supported by a DID subject.
+      required:
+        - id
+        - type
+        - serviceEndpoint
+      properties:
+        id:
+          description: ID of the service
+          type: string
+        type:
+          description: the type of the endpoint
+          type: string
+        serviceEndpoint:
+          description: either a URI or a complex object
+          oneOf:
+            - type: string
+            - type: object
     DIDUpdateRequest:
       required:
         - document
@@ -128,4 +205,27 @@ components:
         currentHash:
           type: string
           description: "hex encoded hash"
+    VerificationMethod:
+      description: A public key in Jwk form
+      required:
+        - id
+        - type
+        - controller
+        - publicKeyJwk
+      properties:
+        controller:
+          description: the DID subject this key belongs to
+          example: "did:nuts:1"
+          type: string
+        id:
+          description: the ID of the key, used as KID in various JWX technologies.
+          type: string
+        publicKeyJwk:
+          description: the public key as defined in rfc7517
+          type: object
+        type:
+          description: the type of the key
+          example: "JsonWebKey2020"
+          type: string
+
 

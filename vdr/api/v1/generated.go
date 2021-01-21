@@ -21,7 +21,7 @@ import (
 // DIDResolutionResult defines model for DIDResolutionResult.
 type DIDResolutionResult struct {
 
-	// The actual DID Document.
+	// The actual DID Document according to the w3c spec.
 	Document DIDDocument `json:"document"`
 
 	// The DID Document metadata.
@@ -34,7 +34,7 @@ type DIDUpdateRequest struct {
 	// hex encoded hash
 	CurrentHash string `json:"currentHash"`
 
-	// The actual DID Document.
+	// The actual DID Document according to the w3c spec.
 	Document DIDDocument `json:"document"`
 }
 
