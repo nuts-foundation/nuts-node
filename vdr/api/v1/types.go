@@ -20,14 +20,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// DIDResolutionResult is a convenience type for marshalling/unmarshalling
-type DIDResolutionResult struct {
-	Document         *did.Document           `json: "document,omitempty"`
-	DocumentMetadata *types.DocumentMetadata `json: "documentMetadata,omitempty"`
-}
+// DIDDocument is an alias
+type DIDDocument = did.Document
 
-// DIDUpdateRequest is a convenience type for updating a DID
-type DIDUpdateRequest struct {
-	Document         did.Document           `json: "document"`
-	CurrentHash      string                 `json: "currentHash"`
-}
+// DIDDocumentMetadata is an alias
+type DIDDocumentMetadata = types.DocumentMetadata

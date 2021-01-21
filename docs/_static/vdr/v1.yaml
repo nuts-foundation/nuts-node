@@ -45,9 +45,7 @@ paths:
           description: "DID has been found and returned."
           content:
             application/json:
-              schema:
-                type: object
-                description: A DIDResolutionResult is returned.
+              $ref: '#/components/schemas/DIDResolutionResult'
         "400":
           description: "given DID is incorrect."
           content:
@@ -76,8 +74,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              description: JSON object with document and currentHash
+              $ref: '#/components/schemas/DIDUpdateRequest'
       responses:
         "200":
           description: "DID Document has been updated."
@@ -108,6 +105,27 @@ components:
   schemas:
     DIDDocument:
       type: object
-      description: The actual DID Document in JSON representation.
-    DIDResolutionResult:
+      description: The actual DID Document.
+    DIDDocumentMetadata:
       type: object
+      description: The DID Document metadata.
+    DIDResolutionResult:
+      required:
+        - document
+        - documentMetadata
+      properties:
+        document:
+          $ref: '#/components/schemas/DIDDocument'
+        documentMetadata:
+          $ref: '#/components/schemas/DIDDocumentMetadata'
+    DIDUpdateRequest:
+      required:
+        - document
+        - currentHash
+      properties:
+        document:
+          $ref: '#/components/schemas/DIDDocument'
+        currentHash:
+          type: string
+          description: "hex encoded hash"
+

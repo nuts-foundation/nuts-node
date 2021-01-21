@@ -31,7 +31,6 @@ import (
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-network/pkg"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/spf13/cobra"
@@ -88,17 +87,15 @@ func cmd() *cobra.Command {
 
 			doc, err := client.Create()
 			if err != nil {
-				fmt.Printf("Failed to create DID: %s\n", err.Error())
-				return nil
+				return fmt.Errorf("unable to create new DID: %v", err)
 			}
 
 			bytes, err := json.MarshalIndent(doc, "", "  ")
 			if err != nil {
-				fmt.Printf("Failed to display DID document: %s\n", err.Error())
-				return nil
+				return fmt.Errorf("failed to display created DID document: %v", err)
 			}
 
-			fmt.Printf("Created DID document: %v\n", string(bytes))
+			cmd.Printf("Created DID document: %v\n", string(bytes))
 			return nil
 		},
 	})
@@ -112,21 +109,18 @@ func cmd() *cobra.Command {
 
 			did, err := did.ParseDID(args[0])
 			if err != nil {
-				fmt.Printf("Failed to parse DID: %s\n", err.Error())
-				return nil
+				return fmt.Errorf("failed to parse DID: %v\n", err)
 			}
 
 			doc, meta, err := client.Get(*did)
 			if err != nil {
-				fmt.Printf("Failed to resolve DID document: %s\n", err.Error())
-				return nil
+				return fmt.Errorf("failed to resolve DID document: %v\n", err)
 			}
 
 			for _, o := range []interface{}{doc, meta} {
 				bytes, err := json.MarshalIndent(o, "", "  ")
 				if err != nil {
-					fmt.Printf("Failed to display object: %s\n", err.Error())
-					return nil
+					return fmt.Errorf("failed to display object: %v\n", err)
 				}
 				fmt.Printf("%s\n", string(bytes))
 			}
@@ -143,47 +137,33 @@ func cmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := httpClient()
 
-			// DID
-			d, err := did.ParseDID(args[0])
-			if err != nil {
-				fmt.Printf("Failed to parse DID: %s\n", err.Error())
-				return nil
-			}
-
-			// Hash
-			h, err := hash.ParseHex(args[1])
-			if err != nil {
-				fmt.Printf("Failed to parse hash: %s\n", err.Error())
-				return nil
-			}
+			d := args[0]
+			h := args[1]
 
 			var bytes []byte
+			var err error
 			if len(args) == 3 {
 				// read from file
 				bytes, err = ioutil.ReadFile(args[2])
 				if err != nil {
-					fmt.Printf("Failed to read file %s: %s\n", args[2], err.Error())
-					return nil
+					return fmt.Errorf("failed to read file %s: %s\n", args[2], err)
 				}
 			} else {
 				// read from stdin
 				bytes, err = readFromStdin()
 				if err != nil {
-					fmt.Printf("Failed to read from pipe: %s\n", err.Error())
-					return nil
+					return fmt.Errorf("failed to read from pipe: %s\n", err)
 				}
 			}
 
 			// parse
 			var didDoc did.Document
 			if err = json.Unmarshal(bytes, &didDoc); err != nil {
-				fmt.Printf("Failed to parse DID document: %s\n", err.Error())
-				return nil
+				return fmt.Errorf("failed to parse DID document: %s\n", err)
 			}
 
-			if _, err = client.Update(*d, h, didDoc); err != nil {
-				fmt.Printf("Failed to update DID document: %s\n", err.Error())
-				return nil
+			if _, err = client.Update(d, h, didDoc); err != nil {
+				return fmt.Errorf("failed to update DID document: %s\n", err)
 			}
 
 			return nil

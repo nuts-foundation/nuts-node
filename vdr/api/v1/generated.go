@@ -18,11 +18,28 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// DIDDocument defines model for DIDDocument.
-type DIDDocument map[string]interface{}
+// DIDResolutionResult defines model for DIDResolutionResult.
+type DIDResolutionResult struct {
+
+	// The actual DID Document.
+	Document DIDDocument `json:"document"`
+
+	// The DID Document metadata.
+	DocumentMetadata DIDDocumentMetadata `json:"documentMetadata"`
+}
+
+// DIDUpdateRequest defines model for DIDUpdateRequest.
+type DIDUpdateRequest struct {
+
+	// hex encoded hash
+	CurrentHash string `json:"currentHash"`
+
+	// The actual DID Document.
+	Document DIDDocument `json:"document"`
+}
 
 // UpdateDIDJSONBody defines parameters for UpdateDID.
-type UpdateDIDJSONBody map[string]interface{}
+type UpdateDIDJSONBody DIDUpdateRequest
 
 // UpdateDIDRequestBody defines body for UpdateDID for application/json ContentType.
 type UpdateDIDJSONRequestBody UpdateDIDJSONBody
@@ -344,7 +361,6 @@ func (r CreateDIDResponse) StatusCode() int {
 type GetDIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *map[string]interface{}
 }
 
 // Status returns HTTPResponse.Status
@@ -452,13 +468,6 @@ func ParseGetDIDResponse(rsp *http.Response) (*GetDIDResponse, error) {
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest map[string]interface{}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
 	}
 
 	return response, nil

@@ -62,8 +62,8 @@ func (a Wrapper) GetDID(ctx echo.Context, did string) error {
 	}
 
 	resolutionResult := DIDResolutionResult{
-		Document:         doc,
-		DocumentMetadata: meta,
+		Document:         *doc,
+		DocumentMetadata: *meta,
 	}
 
 	return ctx.JSON(http.StatusOK, resolutionResult)

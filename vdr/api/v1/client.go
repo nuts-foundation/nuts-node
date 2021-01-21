@@ -26,8 +26,6 @@ import (
 	"io"
 
 	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"io/ioutil"
 	"net/http"
@@ -67,7 +65,7 @@ func (hb HTTPClient) Create() (*did.Document, error) {
 	}
 }
 
-func (hb HTTPClient) Get(DID did.DID) (*did.Document, *types.DocumentMetadata, error) {
+func (hb HTTPClient) Get(DID did.DID) (*DIDDocument, *DIDDocumentMetadata, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
 
@@ -82,19 +80,19 @@ func (hb HTTPClient) Get(DID did.DID) (*did.Document, *types.DocumentMetadata, e
 	if resolutionResult, err := readDIDResolutionResult(response.Body); err != nil {
 		return nil, nil, err
 	} else {
-		return resolutionResult.Document, resolutionResult.DocumentMetadata, nil
+		return &resolutionResult.Document, &resolutionResult.DocumentMetadata, nil
 	}
 }
 
-func (hb HTTPClient) Update(DID did.DID, current hash.SHA256Hash, next did.Document) (*did.Document, error) {
+func (hb HTTPClient) Update(DID string, current string, next did.Document) (*did.Document, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
 
 	requestBody := UpdateDIDJSONRequestBody{
-		"document":         next,
-		"currentHash":      current.String(),
+		Document: next,
+		CurrentHash: current,
 	}
-	response, err := hb.client().UpdateDID(ctx, DID.String(), requestBody)
+	response, err := hb.client().UpdateDID(ctx, DID, requestBody)
 	if err != nil {
 		return nil, err
 	}

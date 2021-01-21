@@ -67,6 +67,7 @@ func TestWrapper_GetDID(t *testing.T) {
 	didDoc := &did2.Document{
 		ID: *did,
 	}
+	meta := &types.DocumentMetadata{}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -78,7 +79,7 @@ func TestWrapper_GetDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.vdr.EXPECT().Resolve(*did, nil).Return(didDoc, nil, nil)
+		ctx.vdr.EXPECT().Resolve(*did, nil).Return(didDoc, meta, nil)
 		err := ctx.client.GetDID(ctx.echo, did.String())
 
 		if !assert.NoError(t, err) {
