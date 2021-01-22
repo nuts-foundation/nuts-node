@@ -79,11 +79,11 @@ func (hb HTTPClient) Get(DID string) (*DIDDocument, *DIDDocumentMetadata, error)
 		return nil, nil, err
 	}
 
-	if resolutionResult, err := readDIDResolutionResult(response.Body); err != nil {
+	var resolutionResult *DIDResolutionResult
+	if resolutionResult, err = readDIDResolutionResult(response.Body); err != nil {
 		return nil, nil, err
-	} else {
-		return &resolutionResult.Document, &resolutionResult.DocumentMetadata, nil
 	}
+	return &resolutionResult.Document, &resolutionResult.DocumentMetadata, nil
 }
 
 // Update a DID Document given a DID and its current hash.
