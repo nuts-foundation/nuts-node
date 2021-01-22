@@ -31,7 +31,7 @@ const NutsMetricsPrefix = "nuts_"
 // Metrics are exposed on /metrics, by default the GoCollector and ProcessCollector are enabled.
 func NewMetricsEngine() *Engine {
 	return &Engine{
-		Name:      "Metrics",
+		Name:         "Metrics",
 		Configurable: metricsEngine{},
 		Routes: func(router EchoRouter) {
 			router.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
@@ -39,7 +39,7 @@ func NewMetricsEngine() *Engine {
 	}
 }
 
-type metricsEngine struct {}
+type metricsEngine struct{}
 
 func (metricsEngine) Configure() error {
 	collectors := []prometheus.Collector{

@@ -163,7 +163,7 @@ func TestReadDIDResolutionResult(t *testing.T) {
 	})
 }
 
-type errReader struct {}
+type errReader struct{}
 
 func (e errReader) Read(_ []byte) (n int, err error) {
 	return 0, errors.New("b00m!")

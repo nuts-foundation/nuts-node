@@ -61,7 +61,7 @@ func TestEngine_Command(t *testing.T) {
 
 	exampleID, _ := did.ParseDID("did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 	exampleDIDDocument := did.Document{
-		ID: *exampleID,
+		ID:         *exampleID,
 		Controller: []did.DID{*exampleID},
 	}
 

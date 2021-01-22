@@ -126,8 +126,8 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		ID: *did,
 	}
 	didUpdate := DIDUpdateRequest{
-		Document:         *didDoc,
-		CurrentHash:      "452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620",
+		Document:    *didDoc,
+		CurrentHash: "452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620",
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -200,8 +200,8 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		didUpdate := DIDUpdateRequest{
-			Document:         *didDoc,
-			CurrentHash:      "0",
+			Document:    *didDoc,
+			CurrentHash: "0",
 		}
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {

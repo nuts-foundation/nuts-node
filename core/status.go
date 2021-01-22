@@ -51,7 +51,6 @@ func diagnosticsOverview(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, diagnosticsSummaryAsText())
 }
 
-
 func diagnosticsSummaryAsText() string {
 	var lines []string
 	for _, e := range EngineCtl.Engines {
@@ -67,7 +66,8 @@ func diagnosticsSummaryAsText() string {
 	return strings.Join(lines, "\n")
 }
 
-type status struct {}
+type status struct{}
+
 func (status) Diagnostics() []DiagnosticResult {
 	return []DiagnosticResult{&GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(listAllEngines(), ",")}}
 }

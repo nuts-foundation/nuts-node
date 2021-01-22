@@ -463,4 +463,3 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/internal/crypto/v1/sign_jwt", wrapper.SignJwt)
 
 }
-

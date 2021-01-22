@@ -44,12 +44,12 @@ func NewCryptoEngine() *core.Engine {
 	cb := crypto2.Instance()
 
 	return &core.Engine{
-		Cmd:       cmd(),
-		Config:    &cb.Config,
-		ConfigKey: "crypto",
+		Cmd:          cmd(),
+		Config:       &cb.Config,
+		ConfigKey:    "crypto",
 		Configurable: cb,
-		FlagSet:   flagSet(),
-		Name:      "Crypto",
+		FlagSet:      flagSet(),
+		Name:         "Crypto",
 		Routes: func(router core.EchoRouter) {
 			api.RegisterHandlers(router, &api.Wrapper{C: cb})
 		},

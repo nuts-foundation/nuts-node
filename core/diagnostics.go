@@ -19,8 +19,9 @@
 
 package core
 
+// Diagnosable allows the implementer, mostly engines, to return diagnostics.
 type Diagnosable interface {
-	Diagnostics() [] DiagnosticResult
+	Diagnostics() []DiagnosticResult
 }
 
 // DiagnosticResult are the result of different checks giving information on how well the system is doing

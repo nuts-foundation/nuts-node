@@ -88,7 +88,7 @@ func RegistryInstance() *VDR {
 
 // NewRegistryInstance creates a new instance
 func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkClient pkg.NetworkClient) *VDR {
-		return &VDR{
+	return &VDR{
 		Config:        config,
 		network:       networkClient,
 		_logger:       logging.Log(),

@@ -59,7 +59,7 @@ func TestDocCreator_Create(t *testing.T) {
 func Test_didKidNamingFunc(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		if assert.NoError(t, err){
+		if assert.NoError(t, err) {
 			return
 		}
 

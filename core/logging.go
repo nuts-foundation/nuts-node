@@ -54,4 +54,3 @@ func (l loggerEngine) Diagnostics() []DiagnosticResult {
 	dr := &GenericDiagnosticResult{Title: "verbosity", Outcome: l.config.verbosity}
 	return []DiagnosticResult{dr}
 }
-
