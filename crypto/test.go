@@ -29,7 +29,7 @@ func TestCryptoConfig(testDirectory string) Config {
 }
 
 // StringNamingFunc can be used to give a key a simple string name
-func StringNamingFunc(name string) KidNamingFunc {
+func StringNamingFunc(name string) KIDNamingFunc {
 	return func(key crypto.PublicKey) (string, error) {
 		return name, nil
 	}

@@ -34,7 +34,7 @@ func (m *MockKeyCreator) EXPECT() *MockKeyCreatorMockRecorder {
 }
 
 // New mocks base method
-func (m *MockKeyCreator) New(namingFunc KidNamingFunc) (crypto.PublicKey, string, error) {
+func (m *MockKeyCreator) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "New", namingFunc)
 	ret0, _ := ret[0].(crypto.PublicKey)
@@ -73,7 +73,7 @@ func (m *MockKeyStore) EXPECT() *MockKeyStoreMockRecorder {
 }
 
 // New mocks base method
-func (m *MockKeyStore) New(namingFunc KidNamingFunc) (crypto.PublicKey, string, error) {
+func (m *MockKeyStore) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "New", namingFunc)
 	ret0, _ := ret[0].(crypto.PublicKey)

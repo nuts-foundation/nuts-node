@@ -141,7 +141,7 @@ func (client *Crypto) doConfigure() error {
 
 // New generates a new key pair. If a key is overwritten is handled by the storage implementation.
 // it's considered bad practise to reuse a kid for different keys.
-func (client *Crypto) New(namingFunc KidNamingFunc) (crypto.PublicKey, string, error) {
+func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error) {
 	keyPair, err := generateECKeyPair()
 	if err != nil {
 		return nil, "", err

@@ -27,7 +27,7 @@ type NutsDocCreator struct {
 	keyCreator nutsCrypto.KeyCreator
 }
 
-func didKidNamingFunc(pKey crypto.PublicKey) (string, error) {
+func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
 	ecPKey, ok := pKey.(*ecdsa.PublicKey)
 	if !ok {
 		return "", errors.New("could not generate kid: invalid key type")
@@ -68,7 +68,7 @@ func didKidNamingFunc(pKey crypto.PublicKey) (string, error) {
 // The key is added to the verificationMethod list and referred to from the Authentication list
 func (n NutsDocCreator) Create() (*did.Document, error) {
 	// First, generate a new keyPair with the correct kid
-	key, keyID, err := n.keyCreator.New(didKidNamingFunc)
+	key, keyID, err := n.keyCreator.New(didKIDNamingFunc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to build did: %w", err)
 	}

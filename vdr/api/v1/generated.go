@@ -31,7 +31,7 @@ type DIDResolutionResult struct {
 // DIDUpdateRequest defines model for DIDUpdateRequest.
 type DIDUpdateRequest struct {
 
-	// hex encoded hash
+	// The hash of the document in hex format.
 	CurrentHash string `json:"currentHash"`
 
 	// The actual DID Document according to the w3c spec.
@@ -500,7 +500,7 @@ type ServerInterface interface {
 	// Resolves a Nuts DID Document
 	// (GET /internal/vdr/v1/did/{did})
 	GetDID(ctx echo.Context, did string) error
-	// Updates a Nuts DID Document
+	// Updates a Nuts DID Document.
 	// (PUT /internal/vdr/v1/did/{did})
 	UpdateDID(ctx echo.Context, did string) error
 }
@@ -584,3 +584,4 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.PUT(baseURL+"/internal/vdr/v1/did/:did", wrapper.UpdateDID)
 
 }
+

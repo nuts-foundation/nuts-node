@@ -23,7 +23,7 @@ type mockKeyCreator struct {
 }
 
 // New uses a predefined ECDSA key and calls the namingFunc to get the kid
-func (m *mockKeyCreator) New(namingFunc nutsCrypto.KidNamingFunc) (crypto.PublicKey, string, error) {
+func (m *mockKeyCreator) New(namingFunc nutsCrypto.KIDNamingFunc) (crypto.PublicKey, string, error) {
 	rawKey, err := jwkToPublicKey(m.t, m.jwkStr)
 	if err != nil {
 		return nil, "", err
@@ -72,7 +72,7 @@ func Test_didKidNamingFunc(t *testing.T) {
 			return
 		}
 
-		keyID, err := didKidNamingFunc(privateKey.PublicKey)
+		keyID, err := didKIDNamingFunc(privateKey.PublicKey)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -82,7 +82,7 @@ func Test_didKidNamingFunc(t *testing.T) {
 
 	t.Run("nok - wrong key type", func(t *testing.T) {
 		privateKey := rsa.PrivateKey{}
-		keyID, err := didKidNamingFunc(privateKey.PublicKey)
+		keyID, err := didKIDNamingFunc(privateKey.PublicKey)
 		if !assert.Error(t, err) {
 			return
 		}
@@ -93,7 +93,7 @@ func Test_didKidNamingFunc(t *testing.T) {
 
 	t.Run("nok - empty key", func(t *testing.T) {
 		pubKey := &ecdsa.PublicKey{}
-		keyID, err := didKidNamingFunc(pubKey)
+		keyID, err := didKIDNamingFunc(pubKey)
 		assert.Error(t, err)
 		assert.Equal(t, "could not generate kid: empty key curve", err.Error())
 		assert.Empty(t, keyID)

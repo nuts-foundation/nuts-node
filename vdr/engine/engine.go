@@ -95,7 +95,7 @@ func createCmd() *cobra.Command {
 
 			bytes, _ := json.MarshalIndent(doc, "", "  ")
 
-			cmd.Printf("Created DID document: %v\n", string(bytes))
+			cmd.Printf("Created DID document: %s\n", string(bytes))
 			return nil
 		},
 	}
@@ -180,8 +180,6 @@ func readFromStdin() ([]byte, error) {
 }
 
 func httpClient() api.HTTPClient {
-	core.NutsConfig().ServerAddress()
-
 	return api.HTTPClient{
 		ServerAddress: core.NutsConfig().ServerAddress(),
 		Timeout:       5 * time.Second,

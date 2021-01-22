@@ -23,7 +23,7 @@ import (
 // DocResolver is the interface that groups all the DID Document read methods
 type DocResolver interface {
 	// Resolve returns the DID document using on the given DID or ErrNotFound if not found.
-	// If metadata is provided then the result is filtered or scoped on that meta data
+	// If metadata is provided then the result is filtered or scoped on that metadata
 	// If metadata is not provided the latest version is returned
 	// If something goes wrong an error is returned.
 	Resolve(DID did.DID, metadata *ResolveMetaData) (*did.Document, *DocumentMetadata, error)

@@ -1,14 +1,14 @@
 openapi: "3.0.0"
 info:
-  title: Nuts verifiable dataa registry API spec
-  description: API specification for RPC services available at the nuts-registry
+  title: Nuts Verifiable Data Registry API spec
+  description: API specification for the Verifiable Data Registry
   version: 1.0.0
   license:
     name: GPLv3
 paths:
   /internal/vdr/v1/did:
     post:
-      summary: "Creates a new Nuts DID"
+      summary: Creates a new Nuts DID
       operationId: "createDID"
       tags:
         - DID
@@ -20,7 +20,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DIDDocument'
         "500":
-          description: "An error occurred while processing the request."
+          description: An error occurred while processing the request.
           content:
             text/plain:
               schema:
@@ -29,7 +29,7 @@ paths:
     parameters:
       - name: did
         in: path
-        description: "URL encoded DID."
+        description: URL encoded DID.
         required: true
         example:
           - "did:nuts:1234"
@@ -42,30 +42,30 @@ paths:
         - DID
       responses:
         "200":
-          description: "DID has been found and returned."
+          description: DID has been found and returned.
           content:
             application/json:
               $ref: '#/components/schemas/DIDResolutionResult'
         "400":
-          description: "given DID is incorrect."
+          description: Returned in case of malformed DID.
           content:
             text/plain:
               schema:
                 type: string
         "404":
-          description: "DID couldn't be found."
+          description: Corresponding DID document could not be found.
           content:
             text/plain:
               schema:
                 type: string
         "500":
-          description: "An error occurred while processing the request."
+          description: An error occurred while processing the request.
           content:
             text/plain:
               schema:
                 type: string
     put:
-      summary: "Updates a Nuts DID Document"
+      summary: Updates a Nuts DID Document.
       operationId: "updateDID"
       tags:
         - DID
@@ -77,25 +77,25 @@ paths:
               $ref: '#/components/schemas/DIDUpdateRequest'
       responses:
         "200":
-          description: "DID Document has been updated."
+          description: DID Document has been updated.
           content:
             application/json+did-document:
               schema:
                  $ref: '#/components/schemas/DIDDocument'
         "400":
-          description: "DID couldn't be updated because the input conflicts."
+          description: DID couldn't be updated because the input conflicts or is malformed.
           content:
             text/plain:
               schema:
                 type: string
         "404":
-          description: "DID couldn't be found."
+          description: Corresponding DID document could not be found.
           content:
             text/plain:
               schema:
                 type: string
         "500":
-          description: "An error occurred while processing the request."
+          description: An error occurred while processing the request.
           content:
             text/plain:
               schema:
@@ -120,12 +120,12 @@ components:
           items:
             type: string
         context:
-          description: Array of URIs
+          description: List of URIs
           type: array
           items:
             type: string
         controller:
-          description: Array of DIDs that have control over the DID Document
+          description: List of DIDs that have control over the DID Document
           type: array
           items:
             type: string
@@ -134,7 +134,7 @@ components:
           example: "did:nuts:1"
           type: string
         service:
-          description: list of supported services by the DID subject
+          description: List of supported services by the DID subject
           type: array
           items:
             $ref: '#/components/schemas/Service'
@@ -153,20 +153,20 @@ components:
         - version
       properties:
         created:
-          description: time when DID Document was created in rfc3339 form.
+          description: Time when DID Document was created in rfc3339 form.
           type: string
         hash:
-          description: sha256 in hex form of the DID document contents
+          description: Sha256 in hex form of the DID document contents.
           type: string
         originJWSHash:
-          description: sha256 in hex form of the transaction in which the DID Document was published
+          description: Sha256 in hex form of the transaction in which the DID Document was published.
           type: string
         updated:
-          description: time when DID Document was updated in rfc3339 form.
+          description: Time when DID Document was updated in rfc3339 form.
           type: string
         version:
-          description: version of the DID Document, starting at 1
-          type: string
+          description: Version of the DID Document, starting at 1.
+          type: integer
     DIDResolutionResult:
       required:
         - document
@@ -185,13 +185,13 @@ components:
         - serviceEndpoint
       properties:
         id:
-          description: ID of the service
+          description: ID of the service.
           type: string
         type:
-          description: the type of the endpoint
+          description: The type of the endpoint.
           type: string
         serviceEndpoint:
-          description: either a URI or a complex object
+          description: Either a URI or a complex object.
           oneOf:
             - type: string
             - type: object
@@ -204,9 +204,9 @@ components:
           $ref: '#/components/schemas/DIDDocument'
         currentHash:
           type: string
-          description: "hex encoded hash"
+          description: The hash of the document in hex format.
     VerificationMethod:
-      description: A public key in Jwk form
+      description: A public key in JWK form.
       required:
         - id
         - type
@@ -214,18 +214,16 @@ components:
         - publicKeyJwk
       properties:
         controller:
-          description: the DID subject this key belongs to
+          description: The DID subject this key belongs to.
           example: "did:nuts:1"
           type: string
         id:
-          description: the ID of the key, used as KID in various JWX technologies.
+          description: The ID of the key, used as KID in various JWX technologies.
           type: string
         publicKeyJwk:
-          description: the public key as defined in rfc7517
+          description: The public key formatted according rfc7517.
           type: object
         type:
-          description: the type of the key
+          description: The type of the key.
           example: "JsonWebKey2020"
           type: string
-
-
