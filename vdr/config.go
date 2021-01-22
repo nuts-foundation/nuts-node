@@ -3,12 +3,6 @@ package vdr
 // ConfDataDir is the config name for specifiying the data location of the requiredFiles
 const ConfDataDir = "datadir"
 
-// ConfMode is the config name for the engine mode, server or client
-const ConfMode = "mode"
-
-// ConfAddress is the config name for the http server/client address
-const ConfAddress = "address"
-
 // ConfClientTimeout is the time-out for the client in seconds (e.g. when using the CLI).
 const ConfClientTimeout = "clientTimeout"
 
