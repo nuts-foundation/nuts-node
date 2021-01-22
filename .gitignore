@@ -22,3 +22,4 @@ data
 
 # MacOS
 .DS_Store
+*.pem
