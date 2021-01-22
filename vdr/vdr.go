@@ -59,7 +59,6 @@ type VDR struct {
 	networkAmbassador network.Ambassador
 	configOnce        sync.Once
 	_logger           *logrus.Entry
-	closers           []chan struct{}
 	didDocCreator     types.DocCreator
 }
 
@@ -106,21 +105,11 @@ func (r *VDR) Configure() error {
 
 // Start initiates the routines for auto-updating the data
 func (r *VDR) Start() error {
-	if core.NutsConfig().Mode() == core.ServerEngineMode {
-		r.networkAmbassador.Start()
-	}
 	return nil
 }
 
 // Shutdown cleans up any leftover go routines
 func (r *VDR) Shutdown() error {
-	if core.NutsConfig().Mode() == core.ServerEngineMode {
-		logging.Log().Debug("Sending close signal to all routines")
-		for _, ch := range r.closers {
-			ch <- struct{}{}
-		}
-		logging.Log().Info("All routines closed")
-	}
 	return nil
 }
 

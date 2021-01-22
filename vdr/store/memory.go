@@ -66,10 +66,7 @@ type memoryEntry struct {
 }
 
 func (me memoryEntry) isDeactivated() bool {
-	if len(me.document.Controller) == 0 && len(me.document.Authentication) == 0 {
-		return true
-	}
-	return false
+	return len(me.document.Controller) == 0 && len(me.document.Authentication) == 0
 }
 
 func (m *memory) Resolve(DID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {

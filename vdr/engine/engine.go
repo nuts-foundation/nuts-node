@@ -110,8 +110,8 @@ func updateCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := httpClient()
 
-			d := args[0]
-			h := args[1]
+			dID := args[0]
+			hash := args[1]
 
 			var bytes []byte
 			var err error
@@ -119,24 +119,24 @@ func updateCmd() *cobra.Command {
 				// read from file
 				bytes, err = ioutil.ReadFile(args[2])
 				if err != nil {
-					return fmt.Errorf("failed to read file %s: %s", args[2], err)
+					return fmt.Errorf("failed to read file %s: %w", args[2], err)
 				}
 			} else {
 				// read from stdin
 				bytes, err = readFromStdin()
 				if err != nil {
-					return fmt.Errorf("failed to read from pipe: %s", err)
+					return fmt.Errorf("failed to read from pipe: %w", err)
 				}
 			}
 
 			// parse
 			var didDoc did.Document
 			if err = json.Unmarshal(bytes, &didDoc); err != nil {
-				return fmt.Errorf("failed to parse DID document: %s", err)
+				return fmt.Errorf("failed to parse DID document: %w", err)
 			}
 
-			if _, err = client.Update(d, h, didDoc); err != nil {
-				return fmt.Errorf("failed to update DID document: %s", err)
+			if _, err = client.Update(dID, hash, didDoc); err != nil {
+				return fmt.Errorf("failed to update DID document: %w", err)
 			}
 
 			cmd.Println("DID document updated")
