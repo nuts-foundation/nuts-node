@@ -138,6 +138,14 @@ func TestCrypto_New(t *testing.T) {
 		assert.NotNil(t, publicKey)
 		assert.Equal(t, kid, returnKid)
 	})
+
+	t.Run("error - NamingFunction returns err", func(t *testing.T) {
+		errorNamingFunc := func(key crypto.PublicKey) (string, error) {
+			return "", errors.New("b00m!")
+		}
+		_, _, err := client.New(errorNamingFunc)
+		assert.Error(t, err)
+	})
 }
 
 func TestCrypto_doConfigure(t *testing.T) {

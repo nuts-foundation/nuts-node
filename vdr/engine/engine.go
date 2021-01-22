@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-network/pkg"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
@@ -50,7 +49,7 @@ func NewRegistryEngine() *core.Engine {
 		Config:    &r.Config,
 		ConfigKey: "vdr",
 		FlagSet:   flagSet(),
-		Name:      pkg.ModuleName,
+		Name:      vdr.ModuleName,
 		Routes: func(router core.EchoRouter) {
 			api.RegisterHandlers(router, &api.Wrapper{VDR: r})
 		},
@@ -65,8 +64,6 @@ func flagSet() *pflag.FlagSet {
 
 	defs := vdr.DefaultRegistryConfig()
 	flagSet.String(vdr.ConfDataDir, defs.Datadir, fmt.Sprintf("Location of data files, default: %s", defs.Datadir))
-	flagSet.String(vdr.ConfMode, defs.Mode, fmt.Sprintf("server or client, when client it uses the HTTPClient, default: %s", defs.Mode))
-	flagSet.String(vdr.ConfAddress, defs.Address, fmt.Sprintf("Interface and port for http server to bind to, default: %s", defs.Address))
 	flagSet.Int(vdr.ConfClientTimeout, defs.ClientTimeout, fmt.Sprintf("Time-out for the client in seconds (e.g. when using the CLI), default: %d", defs.ClientTimeout))
 
 	return flagSet

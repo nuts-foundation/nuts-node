@@ -113,9 +113,7 @@ func (r *Registry) Configure() error {
 
 	r.configOnce.Do(func() {
 		cfg := core.NutsConfig()
-		r.Config.Mode = cfg.GetEngineMode(r.Config.Mode)
-		if r.Config.Mode == core.ServerEngineMode {
-			//r.Db = db.New()
+		if cfg.Mode() == core.ServerEngineMode {
 			if r.networkAmbassador == nil {
 				r.networkAmbassador = network.NewAmbassador(r.network, r.crypto)
 			}
@@ -126,7 +124,7 @@ func (r *Registry) Configure() error {
 
 // Start initiates the routines for auto-updating the data
 func (r *Registry) Start() error {
-	if r.Config.Mode == core.ServerEngineMode {
+	if core.NutsConfig().Mode() == core.ServerEngineMode {
 		r.networkAmbassador.Start()
 	}
 	return nil
@@ -134,7 +132,7 @@ func (r *Registry) Start() error {
 
 // Shutdown cleans up any leftover go routines
 func (r *Registry) Shutdown() error {
-	if r.Config.Mode == core.ServerEngineMode {
+	if core.NutsConfig().Mode() == core.ServerEngineMode {
 		logging.Log().Debug("Sending close signal to all routines")
 		for _, ch := range r.closers {
 			ch <- struct{}{}
