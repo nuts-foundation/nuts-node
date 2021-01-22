@@ -23,7 +23,7 @@ import (
 
 	network "github.com/nuts-foundation/nuts-network/pkg"
 	"github.com/nuts-foundation/nuts-network/pkg/model"
-	"github.com/nuts-foundation/nuts-node/crypto"
+
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
 )
 
@@ -38,14 +38,12 @@ type Ambassador interface {
 
 type ambassador struct {
 	networkClient network.NetworkClient
-	cryptoClient  crypto.KeyStore
 }
 
 // NewAmbassador creates a new Ambassador. Don't forget to call RegisterEventHandlers afterwards.
-func NewAmbassador(networkClient network.NetworkClient, cryptoClient crypto.KeyStore) Ambassador {
+func NewAmbassador(networkClient network.NetworkClient) Ambassador {
 	instance := &ambassador{
 		networkClient: networkClient,
-		cryptoClient:  cryptoClient,
 	}
 	return instance
 }

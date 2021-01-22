@@ -55,8 +55,7 @@ type VDR struct {
 	Config            Config
 	store             types.Store
 	network           networkPkg.NetworkClient
-	crypto            crypto.KeyStore
-	OnChange          func(registry *Registry)
+	OnChange          func(registry *VDR)
 	networkAmbassador network.Ambassador
 	configOnce        sync.Once
 	_logger           *logrus.Entry
@@ -90,7 +89,6 @@ func RegistryInstance() *VDR {
 func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkClient pkg.NetworkClient) *VDR {
 	return &VDR{
 		Config:        config,
-		crypto:        cryptoClient,
 		network:       networkClient,
 		_logger:       logging.Log(),
 		store:         store.NewMemoryStore(),
@@ -107,7 +105,7 @@ func (r *VDR) Configure() error {
 		r.Config.Mode = cfg.GetEngineMode(r.Config.Mode)
 		if r.Config.Mode == core.ServerEngineMode {
 			if r.networkAmbassador == nil {
-				r.networkAmbassador = network.NewAmbassador(r.network, r.crypto)
+				r.networkAmbassador = network.NewAmbassador(r.network)
 			}
 		}
 	})
