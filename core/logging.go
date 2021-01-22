@@ -42,9 +42,16 @@ func NewLoggerEngine() *Engine {
 				log.Infof("Verbosity is set to %s\n", lc.verbosity)
 			},
 		},
-		Diagnostics: func() []DiagnosticResult {
-			dr := &GenericDiagnosticResult{Title: "verbosity", Outcome: lc.verbosity}
-			return []DiagnosticResult{dr}
-		},
+		Diagnosable: loggerEngine{config: &lc},
 	}
 }
+
+type loggerEngine struct {
+	config *loggerConfig
+}
+
+func (l loggerEngine) Diagnostics() []DiagnosticResult {
+	dr := &GenericDiagnosticResult{Title: "verbosity", Outcome: l.config.verbosity}
+	return []DiagnosticResult{dr}
+}
+

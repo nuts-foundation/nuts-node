@@ -47,13 +47,13 @@ func NewCryptoEngine() *core.Engine {
 		Cmd:       cmd(),
 		Config:    &cb.Config,
 		ConfigKey: "crypto",
-		Configure: cb.Configure,
+		Configurable: cb,
 		FlagSet:   flagSet(),
 		Name:      "Crypto",
 		Routes: func(router core.EchoRouter) {
 			api.RegisterHandlers(router, &api.Wrapper{C: cb})
 		},
-		Shutdown: cb.Shutdown,
+		Runnable: cb,
 	}
 }
 

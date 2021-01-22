@@ -45,18 +45,17 @@ func NewVDREngine() *core.Engine {
 	r := vdr.RegistryInstance()
 
 	return &core.Engine{
-		Cmd:       cmd(),
-		Configure: r.Configure,
-		Config:    &r.Config,
-		ConfigKey: "vdr",
-		FlagSet:   flagSet(),
-		Name:      pkg.ModuleName,
+		Cmd:          cmd(),
+		Runnable:     r,
+		Configurable: r,
+		Diagnosable:  r,
+		Config:       &r.Config,
+		ConfigKey:    "vdr",
+		FlagSet:      flagSet(),
+		Name:         pkg.ModuleName,
 		Routes: func(router core.EchoRouter) {
 			api.RegisterHandlers(router, &api.Wrapper{VDR: r})
 		},
-		Start:       r.Start,
-		Shutdown:    r.Shutdown,
-		Diagnostics: r.Diagnostics,
 	}
 }
 

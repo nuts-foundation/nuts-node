@@ -32,14 +32,16 @@ const NutsMetricsPrefix = "nuts_"
 func NewMetricsEngine() *Engine {
 	return &Engine{
 		Name:      "Metrics",
-		Configure: configure,
+		Configurable: metricsEngine{},
 		Routes: func(router EchoRouter) {
 			router.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 		},
 	}
 }
 
-func configure() error {
+type metricsEngine struct {}
+
+func (metricsEngine) Configure() error {
 	collectors := []prometheus.Collector{
 		prometheus.NewGoCollector(),
 		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),

@@ -39,9 +39,7 @@ func NewStatusEngine() *Engine {
 				diagnosticsSummaryAsText()
 			},
 		},
-		Diagnostics: func() []DiagnosticResult {
-			return []DiagnosticResult{diagnostics()}
-		},
+		Diagnosable: status{},
 		Routes: func(router EchoRouter) {
 			router.GET("/status/diagnostics", diagnosticsOverview)
 			router.GET("/status", StatusOK)
@@ -53,10 +51,11 @@ func diagnosticsOverview(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, diagnosticsSummaryAsText())
 }
 
+
 func diagnosticsSummaryAsText() string {
 	var lines []string
 	for _, e := range EngineCtl.Engines {
-		if e.Diagnostics != nil {
+		if e.Diagnosable != nil {
 			lines = append(lines, e.Name)
 			diagnostics := e.Diagnostics()
 			for _, d := range diagnostics {
@@ -68,8 +67,9 @@ func diagnosticsSummaryAsText() string {
 	return strings.Join(lines, "\n")
 }
 
-func diagnostics() DiagnosticResult {
-	return &GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(listAllEngines(), ",")}
+type status struct {}
+func (status) Diagnostics() []DiagnosticResult {
+	return []DiagnosticResult{&GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(listAllEngines(), ",")}}
 }
 
 // StatusOK returns 200 OK with a "OK" body

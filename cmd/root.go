@@ -121,7 +121,7 @@ func injectConfig(cfg *core.NutsGlobalConfig) {
 func configureEngines() {
 	for _, e := range core.EngineCtl.Engines {
 		// only if Engine is dynamically configurable
-		if e.Configure != nil {
+		if e.Configurable != nil {
 			if err := e.Configure(); err != nil {
 				logrus.Fatal(err)
 			}
@@ -137,7 +137,7 @@ func addFlagSets(cmd *cobra.Command, cfg *core.NutsGlobalConfig) {
 
 func startEngines() {
 	for _, e := range core.EngineCtl.Engines {
-		if e.Start != nil {
+		if e.Runnable != nil {
 			if err := e.Start(); err != nil {
 				logrus.Fatal(err)
 			}
@@ -147,7 +147,7 @@ func startEngines() {
 
 func shutdownEngines() {
 	for _, e := range core.EngineCtl.Engines {
-		if e.Shutdown != nil {
+		if e.Runnable != nil {
 			if err := e.Shutdown(); err != nil {
 				logrus.Error(err)
 			}

@@ -19,6 +19,10 @@
 
 package core
 
+type Diagnosable interface {
+	Diagnostics() [] DiagnosticResult
+}
+
 // DiagnosticResult are the result of different checks giving information on how well the system is doing
 type DiagnosticResult interface {
 	// Name returns a simple and understandable name of the check

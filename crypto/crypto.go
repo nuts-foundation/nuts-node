@@ -82,6 +82,10 @@ func (client *Crypto) Shutdown() error {
 	return nil
 }
 
+func (client *Crypto) Start() error {
+	return nil
+}
+
 // GetPrivateKey returns the specified private key. It can be used for signing, but cannot be exported.
 func (client *Crypto) GetPrivateKey(kid string) (crypto.Signer, error) {
 	priv, err := client.Storage.GetPrivateKey(kid)
