@@ -29,7 +29,6 @@ import (
 
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -41,9 +40,6 @@ type HTTPClient struct {
 
 func (hb HTTPClient) client() ClientInterface {
 	url := hb.ServerAddress
-	if !strings.Contains(url, "http") {
-		url = fmt.Sprintf("http://%v", hb.ServerAddress)
-	}
 
 	response, err := NewClientWithResponses(url)
 	if err != nil {

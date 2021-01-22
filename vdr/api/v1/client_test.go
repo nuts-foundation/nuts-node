@@ -16,6 +16,7 @@
 package v1
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -43,9 +44,15 @@ func TestHTTPClient_Create(t *testing.T) {
 		assert.NotNil(t, doc)
 	})
 
-	t.Run("error - other", func(t *testing.T) {
+	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		_, err := c.Create()
+		assert.Error(t, err)
+	})
+
+	t.Run("error - wrong address", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
 		_, err := c.Create()
 		assert.Error(t, err)
 	})
@@ -91,6 +98,12 @@ func TestHttpClient_Get(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+
+	t.Run("error - wrong address", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		_, _, err := c.Get(didString)
+		assert.Error(t, err)
+	})
 }
 
 func TestHTTPClient_Update(t *testing.T) {
@@ -128,4 +141,30 @@ func TestHTTPClient_Update(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+
+	t.Run("error - wrong address", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		_, err := c.Update(didString, hash, didDoc)
+		assert.Error(t, err)
+	})
+}
+
+func TestReadDIDDocument(t *testing.T) {
+	t.Run("error - faulty stream", func(t *testing.T) {
+		_, err := readDIDDocument(errReader{})
+		assert.Error(t, err)
+	})
+}
+
+func TestReadDIDResolutionResult(t *testing.T) {
+	t.Run("error - faulty stream", func(t *testing.T) {
+		_, err := readDIDResolutionResult(errReader{})
+		assert.Error(t, err)
+	})
+}
+
+type errReader struct {}
+
+func (e errReader) Read(_ []byte) (n int, err error) {
+	return 0, errors.New("b00m!")
 }
