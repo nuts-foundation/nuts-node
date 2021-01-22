@@ -36,12 +36,9 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// registryClientCreator is a variable to aid testability
-var registryClientCreator = vdr.RegistryInstance()
-
 // NewVDREngine returns the core definition for the registry
 func NewVDREngine() *core.Engine {
-	r := vdr.RegistryInstance()
+	r := vdr.Instance()
 
 	return &core.Engine{
 		Cmd:          cmd(),
@@ -61,7 +58,7 @@ func NewVDREngine() *core.Engine {
 func flagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("registry", pflag.ContinueOnError)
 
-	defs := vdr.DefaultRegistryConfig()
+	defs := vdr.DefaultConfig()
 	flagSet.String(vdr.ConfDataDir, defs.Datadir, fmt.Sprintf("Location of data files, default: %s", defs.Datadir))
 	flagSet.Int(vdr.ConfClientTimeout, defs.ClientTimeout, fmt.Sprintf("Time-out for the client in seconds (e.g. when using the CLI), default: %d", defs.ClientTimeout))
 

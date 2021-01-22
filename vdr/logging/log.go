@@ -22,7 +22,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var _logger = logrus.StandardLogger().WithField("module", "DID Store")
+var _logger = logrus.StandardLogger().WithField("module", "VDR")
 
 // Log returns a logger which should be used for logging in this engine. It adds fields so
 // log entries from this engine can be recognized as such.

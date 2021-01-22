@@ -50,6 +50,7 @@ type loggerEngine struct {
 	config *loggerConfig
 }
 
+// Diagnostics returns the diagnostics of the LoggerEngine.
 func (l loggerEngine) Diagnostics() []DiagnosticResult {
 	dr := &GenericDiagnosticResult{Title: "verbosity", Outcome: l.config.verbosity}
 	return []DiagnosticResult{dr}

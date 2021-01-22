@@ -25,8 +25,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const NutsMetricsPrefix = "nuts_"
-
 // NewMetricsEngine creates a new Engine for exposing prometheus metrics via http.
 // Metrics are exposed on /metrics, by default the GoCollector and ProcessCollector are enabled.
 func NewMetricsEngine() *Engine {
@@ -41,6 +39,8 @@ func NewMetricsEngine() *Engine {
 
 type metricsEngine struct{}
 
+// Configure configures the MetricsEngine.
+// It configures and registers the prometheus collector
 func (metricsEngine) Configure() error {
 	collectors := []prometheus.Collector{
 		prometheus.NewGoCollector(),

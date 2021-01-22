@@ -52,6 +52,7 @@ type EchoRouter interface {
 
 // Runnable is the interface that groups the Start and Shutdown methods.
 // When an engine implements these they will be called on startup and shutdown.
+// Start and Shutdown should not be called more than once
 type Runnable interface {
 	Start() error
 	Shutdown() error
@@ -59,6 +60,7 @@ type Runnable interface {
 
 // Configurable is the interface that contains the Configure method.
 // When an engine implements the Configurable interface, it will be called before startup.
+// Configure should only be called once per engine instance
 type Configurable interface {
 	Configure() error
 }

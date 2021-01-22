@@ -68,6 +68,8 @@ func diagnosticsSummaryAsText() string {
 
 type status struct{}
 
+// Diagnostics returns list of DiagnosticResult for the StatusEngine.
+// The results are a list of all registered engines
 func (status) Diagnostics() []DiagnosticResult {
 	return []DiagnosticResult{&GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(listAllEngines(), ",")}}
 }

@@ -10,6 +10,6 @@ func TestLog(t *testing.T) {
 		Log().Info("Works")
 	})
 	t.Run("has correct module field", func(t *testing.T) {
-		assert.Equal(t, Log().Data["module"], "DID Store")
+		assert.Equal(t, Log().Data["module"], "VDR")
 	})
 }

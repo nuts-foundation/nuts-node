@@ -22,18 +22,19 @@ import (
 
 // DocResolver is the interface that groups all the DID Document read methods
 type DocResolver interface {
-	// Get returns the DID document using on the given DID or ErrNotFound if not found.
+	// Resolve returns the DID document using on the given DID or ErrNotFound if not found.
 	// If metadata is provided then the result is filtered or scoped on that meta data
 	// If metadata is not provided the latest version is returned
 	// If something goes wrong an error is returned.
 	Resolve(DID did.DID, metadata *ResolveMetaData) (*did.Document, *DocumentMetadata, error)
 }
 
-// DocCreator creates a new DID document and returns it.
-// The ID in the provided DID document will be ignored and a new one will be generated
-// If something goes wrong an error is returned.
-// Implementors should generate private key and store it in a secure backend
+// DocCreator is the interface that wraps the Create method
 type DocCreator interface {
+	// Create creates a new DID document and returns it.
+	// The ID in the provided DID document will be ignored and a new one will be generated
+	// If something goes wrong an error is returned.
+	// Implementors should generate private key and store it in a secure backend
 	Create() (*did.Document, error)
 }
 

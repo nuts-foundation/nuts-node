@@ -50,7 +50,7 @@ import (
 
 // VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
 // It connects the Resolve, Create and Update DID methods to the Network, and receives events back from the network which are processed in the store.
-// It is also an engine which can be started providing an http API server and client and a
+// It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type VDR struct {
 	Config            Config
 	store             types.Store
@@ -64,30 +64,22 @@ type VDR struct {
 }
 
 var instance *VDR
-var oneRegistry sync.Once
+var oneVDR sync.Once
 
-// ReloadRegistryIdleTimeout defines the cooling down period after receiving a file watcher notification, before
-// the registry is reloaded (from disk).
-var ReloadRegistryIdleTimeout time.Duration
-
-func init() {
-	ReloadRegistryIdleTimeout = 3 * time.Second
-}
-
-// RegistryInstance returns the singleton VDR
-func RegistryInstance() *VDR {
+// Instance returns the singleton VDR
+func Instance() *VDR {
 	if instance != nil {
 		return instance
 	}
-	oneRegistry.Do(func() {
-		instance = NewRegistryInstance(DefaultRegistryConfig(), crypto.Instance(), networkClient.NewNetworkClient())
+	oneVDR.Do(func() {
+		instance = NewVDR(DefaultConfig(), crypto.Instance(), networkClient.NewNetworkClient())
 	})
 
 	return instance
 }
 
-// NewRegistryInstance creates a new instance
-func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkClient pkg.NetworkClient) *VDR {
+// NewVDR creates a new VDR with provided params
+func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient pkg.NetworkClient) *VDR {
 	return &VDR{
 		Config:        config,
 		network:       networkClient,

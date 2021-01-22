@@ -12,7 +12,7 @@ const ConfAddress = "address"
 // ConfClientTimeout is the time-out for the client in seconds (e.g. when using the CLI).
 const ConfClientTimeout = "clientTimeout"
 
-// ModuleName == VDR
+// ModuleName contains the name of this module
 const ModuleName = "Verifiable Data Registry"
 
 // Config holds the config for the VDR engine
@@ -21,8 +21,8 @@ type Config struct {
 	ClientTimeout int
 }
 
-// DefaultRegistryConfig returns a fresh Config filled with default values
-func DefaultRegistryConfig() Config {
+// DefaultConfig returns a fresh Config filled with default values
+func DefaultConfig() Config {
 	return Config{
 		Datadir:       "./data",
 		ClientTimeout: 10,

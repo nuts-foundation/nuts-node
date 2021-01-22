@@ -33,6 +33,10 @@ func didKidNamingFunc(pKey crypto.PublicKey) (string, error) {
 		return "", errors.New("could not generate kid: invalid key type")
 	}
 
+	if ecPKey.Curve == nil {
+		return "", errors.New("could not generate kid: empty key curve")
+	}
+
 	// according to RFC006:
 	// --------------------
 
@@ -79,6 +83,7 @@ func (n NutsDocCreator) Create() (*did.Document, error) {
 	doc := &did.Document{
 		Context:            []did.URI{did.DIDContextV1URI()},
 		ID:                 *didID,
+		Controller:         []did.DID{*didID},
 		VerificationMethod: []did.VerificationMethod{*verificationMethod},
 		Authentication:     []did.VerificationRelationship{{VerificationMethod: verificationMethod}},
 	}
