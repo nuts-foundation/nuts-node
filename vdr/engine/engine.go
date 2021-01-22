@@ -40,8 +40,8 @@ import (
 // registryClientCreator is a variable to aid testability
 var registryClientCreator = vdr.RegistryInstance()
 
-// NewRegistryEngine returns the core definition for the registry
-func NewRegistryEngine() *core.Engine {
+// NewVDREngine returns the core definition for the registry
+func NewVDREngine() *core.Engine {
 	r := vdr.RegistryInstance()
 
 	return &core.Engine{
@@ -75,7 +75,7 @@ func flagSet() *pflag.FlagSet {
 func cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "vdr",
-		Short: "Verifiable Data Registry commands",
+		Short: "Verifiable Data VDR commands",
 	}
 
 	cmd.AddCommand(&cobra.Command{
@@ -119,10 +119,10 @@ func cmd() *cobra.Command {
 	})
 
 	cmd.AddCommand(&cobra.Command{
-		Use:   "update [DID] [hash] [file]",
+		Use: "update [DID] [hash] [file]",
 		Short: "Update a DID with the given DID document, this replaces the DID document. " +
 			"If no file is given, a pipe is assumed. The hash is needed to prevent concurrent updates.",
-		Args:  cobra.RangeArgs(2, 3),
+		Args: cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := httpClient()
 
@@ -168,7 +168,7 @@ func readFromStdin() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if fi.Mode() & os.ModeNamedPipe == 0 {
+	if fi.Mode()&os.ModeNamedPipe == 0 {
 		return nil, errors.New("expected piped input")
 	} else {
 		return ioutil.ReadAll(bufio.NewReader(os.Stdin))

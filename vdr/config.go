@@ -27,10 +27,10 @@ const ConfVendorCACertificateValidity = "vendorCACertificateValidity"
 // ConfClientTimeout is the time-out for the client in seconds (e.g. when using the CLI).
 const ConfClientTimeout = "clientTimeout"
 
-// ModuleName == Registry
-const ModuleName = "Registry"
+// ModuleName == VDR
+const ModuleName = "VDR"
 
-// Config holds the config for the Registry engine
+// Config holds the config for the VDR engine
 type Config struct {
 	Mode          string
 	Datadir       string

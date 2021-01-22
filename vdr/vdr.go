@@ -48,19 +48,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
-//type StoreWrapper struct {
-//	networkClient networkPkg.NetworkClient
-//	store         DIDStore
-//}
-//
-//func wrap(store DIDStore) DIDStore {
-//	return &StoreWrapper(store: store)
-//}
-
-// Registry holds the config and Db reference
-type Registry struct {
-	Config Config
-	//Db                db.Db
+// VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
+// It connects the Resolve, Create and Update DID methods to the Network, and receives events back from the network which are processed in the store.
+// It is also an engine which can be started providing an http API server and client and a
+type VDR struct {
+	Config            Config
 	store             types.Store
 	network           networkPkg.NetworkClient
 	crypto            crypto.KeyStore
@@ -72,7 +64,7 @@ type Registry struct {
 	didDocCreator     types.DocCreator
 }
 
-var instance *Registry
+var instance *VDR
 var oneRegistry sync.Once
 
 // ReloadRegistryIdleTimeout defines the cooling down period after receiving a file watcher notification, before
@@ -83,8 +75,8 @@ func init() {
 	ReloadRegistryIdleTimeout = 3 * time.Second
 }
 
-// RegistryInstance returns the singleton Registry
-func RegistryInstance() *Registry {
+// RegistryInstance returns the singleton VDR
+func RegistryInstance() *VDR {
 	if instance != nil {
 		return instance
 	}
@@ -95,8 +87,8 @@ func RegistryInstance() *Registry {
 	return instance
 }
 
-func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkClient pkg.NetworkClient) *Registry {
-	return &Registry{
+func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkClient pkg.NetworkClient) *VDR {
+	return &VDR{
 		Config:        config,
 		crypto:        cryptoClient,
 		network:       networkClient,
@@ -107,14 +99,13 @@ func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkCli
 }
 
 // Configure initializes the db, but only when in server mode
-func (r *Registry) Configure() error {
+func (r *VDR) Configure() error {
 	var err error
 
 	r.configOnce.Do(func() {
 		cfg := core.NutsConfig()
 		r.Config.Mode = cfg.GetEngineMode(r.Config.Mode)
 		if r.Config.Mode == core.ServerEngineMode {
-			//r.Db = db.New()
 			if r.networkAmbassador == nil {
 				r.networkAmbassador = network.NewAmbassador(r.network, r.crypto)
 			}
@@ -124,7 +115,7 @@ func (r *Registry) Configure() error {
 }
 
 // Start initiates the routines for auto-updating the data
-func (r *Registry) Start() error {
+func (r *VDR) Start() error {
 	if r.Config.Mode == core.ServerEngineMode {
 		r.networkAmbassador.Start()
 	}
@@ -132,7 +123,7 @@ func (r *Registry) Start() error {
 }
 
 // Shutdown cleans up any leftover go routines
-func (r *Registry) Shutdown() error {
+func (r *VDR) Shutdown() error {
 	if r.Config.Mode == core.ServerEngineMode {
 		logging.Log().Debug("Sending close signal to all routines")
 		for _, ch := range r.closers {
@@ -143,15 +134,15 @@ func (r *Registry) Shutdown() error {
 	return nil
 }
 
-func (r *Registry) Diagnostics() []core.DiagnosticResult {
+func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{}
 }
 
-func (r *Registry) getEventsDir() string {
+func (r *VDR) getEventsDir() string {
 	return r.Config.Datadir + "/events"
 }
 
-func (r Registry) Create() (*did.Document, error) {
+func (r VDR) Create() (*did.Document, error) {
 	doc, err := r.didDocCreator.Create()
 	if err != nil {
 		return nil, fmt.Errorf("could not create did document: %w", err)
@@ -169,14 +160,14 @@ func (r Registry) Create() (*did.Document, error) {
 	return doc, nil
 }
 
-func (r Registry) Resolve(dID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {
+func (r VDR) Resolve(dID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {
 	return r.store.Resolve(dID, metadata)
 }
 
-func (r Registry) Update(dID did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
+func (r VDR) Update(dID did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
 	return r.store.Update(dID, current, next, metadata)
 }
 
-func (r *Registry) Deactivate(DID did.DID, current hash.SHA256Hash) {
+func (r *VDR) Deactivate(DID did.DID, current hash.SHA256Hash) {
 	panic("implement me")
 }

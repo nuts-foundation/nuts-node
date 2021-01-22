@@ -41,11 +41,11 @@ func Test_flagSet(t *testing.T) {
 func TestNewRegistryEngine(t *testing.T) {
 	// Register test instance singleton
 	t.Run("instance", func(t *testing.T) {
-		assert.NotNil(t, NewRegistryEngine())
+		assert.NotNil(t, NewVDREngine())
 	})
 
 	t.Run("configuration", func(t *testing.T) {
-		e := NewRegistryEngine()
+		e := NewVDREngine()
 		cfg := core.NutsConfig()
 		cfg.RegisterFlags(e.Cmd, e)
 		assert.NoError(t, cfg.InjectIntoEngine(e))
@@ -56,7 +56,7 @@ func TestEngine_Command(t *testing.T) {
 	core.NutsConfig().Load(&cobra.Command{})
 
 	createCmd := func(t *testing.T) *cobra.Command {
-		return NewRegistryEngine().Cmd
+		return NewVDREngine().Cmd
 	}
 
 	exampleID, _ := did.ParseDID("did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")

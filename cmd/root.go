@@ -105,7 +105,7 @@ func registerEngines() {
 	core.RegisterEngine(core.NewLoggerEngine())
 	core.RegisterEngine(core.NewMetricsEngine())
 	core.RegisterEngine(crypto.NewCryptoEngine())
-	core.RegisterEngine(vdr.NewRegistryEngine())
+	core.RegisterEngine(vdr.NewVDREngine())
 
 }
 
