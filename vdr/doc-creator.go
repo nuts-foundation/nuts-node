@@ -18,6 +18,7 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
 
+// NutsDIDMethodName is the DID method name used by Nuts
 const NutsDIDMethodName = "nuts"
 
 // NutsDocCreator implements the DocCreator interface and can create Nuts DID Documents.

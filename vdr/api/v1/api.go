@@ -35,6 +35,7 @@ type Wrapper struct {
 	VDR types.VDR
 }
 
+// CreateDID creates a new DID Document and returns it.
 func (a Wrapper) CreateDID(ctx echo.Context) error {
 	doc, err := a.VDR.Create()
 	// if this operation leads to an error, it may return a 500
@@ -46,6 +47,7 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, *doc)
 }
 
+// GetDID returns a DID document and DID document metadata based on a DID.
 func (a Wrapper) GetDID(ctx echo.Context, did string) error {
 	d, err := did2.ParseDID(did)
 	if err != nil {
@@ -69,6 +71,7 @@ func (a Wrapper) GetDID(ctx echo.Context, did string) error {
 	return ctx.JSON(http.StatusOK, resolutionResult)
 }
 
+// UpdateDID updates a DID Document given a DID and DID Document body. It returns the updated DID Document.
 func (a Wrapper) UpdateDID(ctx echo.Context, did string) error {
 	d, err := did2.ParseDID(did)
 	if err != nil {

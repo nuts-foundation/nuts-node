@@ -86,8 +86,9 @@ func RegistryInstance() *VDR {
 	return instance
 }
 
+// NewRegistryInstance creates a new instance
 func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkClient pkg.NetworkClient) *VDR {
-	return &VDR{
+		return &VDR{
 		Config:        config,
 		network:       networkClient,
 		_logger:       logging.Log(),
@@ -102,8 +103,7 @@ func (r *VDR) Configure() error {
 
 	r.configOnce.Do(func() {
 		cfg := core.NutsConfig()
-		r.Config.Mode = cfg.GetEngineMode(r.Config.Mode)
-		if r.Config.Mode == core.ServerEngineMode {
+		if cfg.Mode() == core.ServerEngineMode {
 			if r.networkAmbassador == nil {
 				r.networkAmbassador = network.NewAmbassador(r.network)
 			}
@@ -114,7 +114,7 @@ func (r *VDR) Configure() error {
 
 // Start initiates the routines for auto-updating the data
 func (r *VDR) Start() error {
-	if r.Config.Mode == core.ServerEngineMode {
+	if core.NutsConfig().Mode() == core.ServerEngineMode {
 		r.networkAmbassador.Start()
 	}
 	return nil
@@ -122,7 +122,7 @@ func (r *VDR) Start() error {
 
 // Shutdown cleans up any leftover go routines
 func (r *VDR) Shutdown() error {
-	if r.Config.Mode == core.ServerEngineMode {
+	if core.NutsConfig().Mode() == core.ServerEngineMode {
 		logging.Log().Debug("Sending close signal to all routines")
 		for _, ch := range r.closers {
 			ch <- struct{}{}
@@ -132,6 +132,7 @@ func (r *VDR) Shutdown() error {
 	return nil
 }
 
+// Diagnostics returns the diagnostics for this engine
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{}
 }
@@ -140,6 +141,7 @@ func (r *VDR) getEventsDir() string {
 	return r.Config.Datadir + "/events"
 }
 
+// Create generates a new DID Document
 func (r VDR) Create() (*did.Document, error) {
 	doc, err := r.didDocCreator.Create()
 	if err != nil {
@@ -158,14 +160,17 @@ func (r VDR) Create() (*did.Document, error) {
 	return doc, nil
 }
 
+// Resolve resolves a DID Document based on the DID.
 func (r VDR) Resolve(dID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {
 	return r.store.Resolve(dID, metadata)
 }
 
+// Update updates a DID Document based on the DID and current hash
 func (r VDR) Update(dID did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
 	return r.store.Update(dID, current, next, metadata)
 }
 
+// Deactivate updates the DID Document so it can no longer be updated
 func (r *VDR) Deactivate(DID did.DID, current hash.SHA256Hash) {
 	panic("implement me")
 }

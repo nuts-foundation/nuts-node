@@ -29,7 +29,6 @@ import (
 
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -41,9 +40,6 @@ type HTTPClient struct {
 
 func (hb HTTPClient) client() ClientInterface {
 	url := hb.ServerAddress
-	if !strings.Contains(url, "http") {
-		url = fmt.Sprintf("http://%v", hb.ServerAddress)
-	}
 
 	response, err := NewClientWithResponses(url)
 	if err != nil {
@@ -52,6 +48,7 @@ func (hb HTTPClient) client() ClientInterface {
 	return response
 }
 
+// Create calls the server and creates a new DID Document
 func (hb HTTPClient) Create() (*did.Document, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
@@ -65,6 +62,7 @@ func (hb HTTPClient) Create() (*did.Document, error) {
 	}
 }
 
+// Get returns a DID document and metadata based on a DID
 func (hb HTTPClient) Get(DID string) (*DIDDocument, *DIDDocumentMetadata, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
@@ -77,19 +75,20 @@ func (hb HTTPClient) Get(DID string) (*DIDDocument, *DIDDocumentMetadata, error)
 		return nil, nil, err
 	}
 
-	if resolutionResult, err := readDIDResolutionResult(response.Body); err != nil {
+	var resolutionResult *DIDResolutionResult
+	if resolutionResult, err = readDIDResolutionResult(response.Body); err != nil {
 		return nil, nil, err
-	} else {
-		return &resolutionResult.Document, &resolutionResult.DocumentMetadata, nil
 	}
+	return &resolutionResult.Document, &resolutionResult.DocumentMetadata, nil
 }
 
+// Update a DID Document given a DID and its current hash.
 func (hb HTTPClient) Update(DID string, current string, next did.Document) (*did.Document, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
 
 	requestBody := UpdateDIDJSONRequestBody{
-		Document: next,
+		Document:    next,
 		CurrentHash: current,
 	}
 	response, err := hb.client().UpdateDID(ctx, DID, requestBody)
@@ -98,9 +97,9 @@ func (hb HTTPClient) Update(DID string, current string, next did.Document) (*did
 	}
 	if err := testResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
-	} else {
-		return readDIDDocument(response.Body)
 	}
+
+	return readDIDDocument(response.Body)
 }
 
 func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
@@ -117,25 +116,29 @@ func testResponseCode(expectedStatusCode int, response *http.Response) error {
 }
 
 func readDIDDocument(reader io.Reader) (*did.Document, error) {
-	if data, err := ioutil.ReadAll(reader); err != nil {
+	var data []byte
+	var err error
+
+	if data, err = ioutil.ReadAll(reader); err != nil {
 		return nil, fmt.Errorf("unable to read DID Document response: %w", err)
-	} else {
-		document := did.Document{}
-		if err := json.Unmarshal(data, &document); err != nil {
-			return nil, fmt.Errorf("unable to unmarshal DID Document response: %w, %s", err, string(data))
-		}
-		return &document, nil
 	}
+	document := did.Document{}
+	if err = json.Unmarshal(data, &document); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal DID Document response: %w, %s", err, string(data))
+	}
+	return &document, nil
 }
 
 func readDIDResolutionResult(reader io.Reader) (*DIDResolutionResult, error) {
-	if data, err := ioutil.ReadAll(reader); err != nil {
+	var data []byte
+	var err error
+
+	if data, err = ioutil.ReadAll(reader); err != nil {
 		return nil, fmt.Errorf("unable to read DID Resolve response: %w", err)
-	} else {
-		resolutionResult := DIDResolutionResult{}
-		if err := json.Unmarshal(data, &resolutionResult); err != nil {
-			return nil, fmt.Errorf("unable to unmarshal DID Resolve response: %w", err)
-		}
-		return &resolutionResult, nil
 	}
+	resolutionResult := DIDResolutionResult{}
+	if err = json.Unmarshal(data, &resolutionResult); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal DID Resolve response: %w", err)
+	}
+	return &resolutionResult, nil
 }

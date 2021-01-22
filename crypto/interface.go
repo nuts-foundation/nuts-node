@@ -25,6 +25,7 @@ import (
 // KidNamingFunc is a function passed to New() which generates the kid for the pub/priv key
 type KidNamingFunc func(key crypto.PublicKey) (string, error)
 
+// KeyCreator is the interface for creating key pairs.
 type KeyCreator interface {
 	// New generates a keypair and returns the public key.
 	// the KidNamingFunc will provide the kid. priv/pub keys are appended with a postfix and stored

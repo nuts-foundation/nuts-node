@@ -101,6 +101,21 @@ func TestParseHex(t *testing.T) {
 	})
 }
 
+func TestSHA256Hash(t *testing.T) {
+	s := "hi"
+	h := SHA256Sum([]byte(s))
+
+	assert.Equal(t, "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4", h.String())
+}
+
+func TestSHA256Hash_Clone(t *testing.T) {
+	s := "hi"
+	h := SHA256Sum([]byte(s))
+	c := h.Clone()
+
+	assert.Equal(t, "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4", c.String())
+}
+
 func TestSHA256Hash_MarshalJSON(t *testing.T) {
 	s := "452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620"
 	h, _ := ParseHex(s)
@@ -125,6 +140,13 @@ func TestSHA256Hash_UnmarshalJSON(t *testing.T) {
 			return
 		}
 		assert.Equal(t, s, h.String())
+	})
+
+	t.Run("error - wrong hex", func(t *testing.T) {
+		h := EmptyHash()
+		err := json.Unmarshal([]byte(""), &h)
+
+		assert.Error(t, err)
 	})
 }
 
