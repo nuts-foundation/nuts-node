@@ -22,9 +22,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
+// ErrUpdateOnOutdatedData is returned when a concurrent update is done on a DID document.
 var ErrUpdateOnOutdatedData = errors.New("could not update outdated document")
 
-// ErrInvalidDID The DID supplied to the DID resolution function does not conform to valid syntax.0
+// ErrInvalidDID The DID supplied to the DID resolution function does not conform to valid syntax.
 var ErrInvalidDID = errors.New("invalid did syntax")
 
 // ErrNotFound The DID resolver was unable to find the DID document resulting from this resolution request.
@@ -33,7 +34,7 @@ var ErrNotFound = errors.New("unable to find the did document")
 // ErrDeactivated The DID supplied to the DID resolution function has been deactivated.
 var ErrDeactivated = errors.New("the document has been deactivated")
 
-// ErrDIDAlreadyExists
+// ErrDIDAlreadyExists is returned when a DID already exists.
 var ErrDIDAlreadyExists = errors.New("did document already exists in the store")
 
 // DocumentMetadata holds the metadata of a DID document

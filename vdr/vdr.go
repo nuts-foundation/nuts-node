@@ -95,6 +95,7 @@ func RegistryInstance() *Registry {
 	return instance
 }
 
+// NewRegistryInstance creates a new instance
 func NewRegistryInstance(config Config, cryptoClient crypto.KeyStore, networkClient pkg.NetworkClient) *Registry {
 	return &Registry{
 		Config:        config,
@@ -143,6 +144,7 @@ func (r *Registry) Shutdown() error {
 	return nil
 }
 
+// Diagnostics returns the diagnostics for this engine
 func (r *Registry) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{}
 }
@@ -151,6 +153,7 @@ func (r *Registry) getEventsDir() string {
 	return r.Config.Datadir + "/events"
 }
 
+// Create generates a new DID Document
 func (r Registry) Create() (*did.Document, error) {
 	doc, err := r.didDocCreator.Create()
 	if err != nil {
@@ -169,14 +172,17 @@ func (r Registry) Create() (*did.Document, error) {
 	return doc, nil
 }
 
+// Resolve resolves a DID Document based on the DID.
 func (r Registry) Resolve(dID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {
 	return r.store.Resolve(dID, metadata)
 }
 
+// Update updates a DID Document based on the DID and current hash
 func (r Registry) Update(dID did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
 	return r.store.Update(dID, current, next, metadata)
 }
 
+// Deactivate updates the DID Document so it can no longer be updated
 func (r *Registry) Deactivate(DID did.DID, current hash.SHA256Hash) {
 	panic("implement me")
 }

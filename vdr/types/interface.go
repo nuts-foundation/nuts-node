@@ -29,7 +29,7 @@ type DocResolver interface {
 	Resolve(DID did.DID, metadata *ResolveMetaData) (*did.Document, *DocumentMetadata, error)
 }
 
-// Create creates a new DID document and returns it.
+// DocCreator creates a new DID document and returns it.
 // The ID in the provided DID document will be ignored and a new one will be generated
 // If something goes wrong an error is returned.
 // Implementors should generate private key and store it in a secure backend

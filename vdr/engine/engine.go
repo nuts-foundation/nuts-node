@@ -78,7 +78,17 @@ func cmd() *cobra.Command {
 		Short: "Verifiable Data Registry commands",
 	}
 
-	cmd.AddCommand(&cobra.Command{
+	cmd.AddCommand(createCmd())
+
+	cmd.AddCommand(resolveCmd())
+
+	cmd.AddCommand(updateCmd())
+
+	return cmd
+}
+
+func createCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "create-did",
 		Short: "Registers a new DID",
 		Args:  cobra.ExactArgs(0),
@@ -95,34 +105,15 @@ func cmd() *cobra.Command {
 			cmd.Printf("Created DID document: %v\n", string(bytes))
 			return nil
 		},
-	})
+	}
+}
 
-	cmd.AddCommand(&cobra.Command{
-		Use:   "resolve [DID]",
-		Short: "Resolve a DID document based on its DID",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			client := httpClient()
-
-			doc, meta, err := client.Get(args[0])
-			if err != nil {
-				return fmt.Errorf("failed to resolve DID document: %v\n", err)
-			}
-
-			for _, o := range []interface{}{doc, meta} {
-				bytes, _ := json.MarshalIndent(o, "", "  ")
-				cmd.Printf("%s\n", string(bytes))
-			}
-
-			return nil
-		},
-	})
-
-	cmd.AddCommand(&cobra.Command{
-		Use:   "update [DID] [hash] [file]",
+func updateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use: "update [DID] [hash] [file]",
 		Short: "Update a DID with the given DID document, this replaces the DID document. " +
 			"If no file is given, a pipe is assumed. The hash is needed to prevent concurrent updates.",
-		Args:  cobra.RangeArgs(2, 3),
+		Args: cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := httpClient()
 
@@ -135,32 +126,53 @@ func cmd() *cobra.Command {
 				// read from file
 				bytes, err = ioutil.ReadFile(args[2])
 				if err != nil {
-					return fmt.Errorf("failed to read file %s: %s\n", args[2], err)
+					return fmt.Errorf("failed to read file %s: %s", args[2], err)
 				}
 			} else {
 				// read from stdin
 				bytes, err = readFromStdin()
 				if err != nil {
-					return fmt.Errorf("failed to read from pipe: %s\n", err)
+					return fmt.Errorf("failed to read from pipe: %s", err)
 				}
 			}
 
 			// parse
 			var didDoc did.Document
 			if err = json.Unmarshal(bytes, &didDoc); err != nil {
-				return fmt.Errorf("failed to parse DID document: %s\n", err)
+				return fmt.Errorf("failed to parse DID document: %s", err)
 			}
 
 			if _, err = client.Update(d, h, didDoc); err != nil {
-				return fmt.Errorf("failed to update DID document: %s\n", err)
+				return fmt.Errorf("failed to update DID document: %s", err)
 			}
 
 			cmd.Println("DID document updated")
 			return nil
 		},
-	})
+	}
+}
 
-	return cmd
+func resolveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "resolve [DID]",
+		Short: "Resolve a DID document based on its DID",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client := httpClient()
+
+			doc, meta, err := client.Get(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to resolve DID document: %v", err)
+			}
+
+			for _, o := range []interface{}{doc, meta} {
+				bytes, _ := json.MarshalIndent(o, "", "  ")
+				cmd.Printf("%s\n", string(bytes))
+			}
+
+			return nil
+		},
+	}
 }
 
 func readFromStdin() ([]byte, error) {
@@ -168,11 +180,10 @@ func readFromStdin() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if fi.Mode() & os.ModeNamedPipe == 0 {
+	if fi.Mode()&os.ModeNamedPipe == 0 {
 		return nil, errors.New("expected piped input")
-	} else {
-		return ioutil.ReadAll(bufio.NewReader(os.Stdin))
 	}
+	return ioutil.ReadAll(bufio.NewReader(os.Stdin))
 }
 
 func httpClient() api.HTTPClient {
