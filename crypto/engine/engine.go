@@ -1,6 +1,6 @@
 /*
- * Nuts crypto
- * Copyright (C) 2019. Nuts community
+ * Nuts node
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,16 +44,16 @@ func NewCryptoEngine() *core.Engine {
 	cb := crypto2.Instance()
 
 	return &core.Engine{
-		Cmd:       cmd(),
-		Config:    &cb.Config,
-		ConfigKey: "crypto",
-		Configure: cb.Configure,
-		FlagSet:   flagSet(),
-		Name:      "Crypto",
+		Cmd:          cmd(),
+		Config:       &cb.Config,
+		ConfigKey:    "crypto",
+		Configurable: cb,
+		FlagSet:      flagSet(),
+		Name:         "Crypto",
 		Routes: func(router core.EchoRouter) {
 			api.RegisterHandlers(router, &api.Wrapper{C: cb})
 		},
-		Shutdown: cb.Shutdown,
+		Runnable: cb,
 	}
 }
 

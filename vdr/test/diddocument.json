@@ -1,0 +1,19 @@
+{
+  "authentication": ["did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7#aQgahRFAhdStcQyD6R25fFYslo4JZXuqYUySTtXB_Lo"],
+  "context": "https://www.w3.org/ns/did/v1",
+  "id": "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7",
+  "verificationMethod": [
+    {
+      "controller": "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7",
+      "id": "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7#aQgahRFAhdStcQyD6R25fFYslo4JZXuqYUySTtXB_Lo",
+      "publicKeyJwk": {
+        "crv": "P-256",
+        "kid": "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7#aQgahRFAhdStcQyD6R25fFYslo4JZXuqYUySTtXB_Lo",
+        "kty": "EC",
+        "x": "iCpv6AGDpdYVZjniwklkL8A4DGNhBK/DngbpdDjjBlo=",
+        "y": "27/qwElvfxhXtG2TDSO5LwReuFRwR+qydBdpQqu6H5M="
+      },
+      "type": "JsonWebKey2020"
+    }
+  ]
+}

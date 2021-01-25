@@ -1,6 +1,6 @@
 /*
- * Nuts go
- * Copyright (C) 2019 Nuts community
+ * Nuts node
+ * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,9 +42,16 @@ func NewLoggerEngine() *Engine {
 				log.Infof("Verbosity is set to %s\n", lc.verbosity)
 			},
 		},
-		Diagnostics: func() []DiagnosticResult {
-			dr := &GenericDiagnosticResult{Title: "verbosity", Outcome: lc.verbosity}
-			return []DiagnosticResult{dr}
-		},
+		Diagnosable: loggerEngine{config: &lc},
 	}
+}
+
+type loggerEngine struct {
+	config *loggerConfig
+}
+
+// Diagnostics returns the diagnostics of the LoggerEngine.
+func (l loggerEngine) Diagnostics() []DiagnosticResult {
+	dr := &GenericDiagnosticResult{Title: "verbosity", Outcome: l.config.verbosity}
+	return []DiagnosticResult{dr}
 }

@@ -1,6 +1,6 @@
 /*
- * Nuts crypto
- * Copyright (C) 2019. Nuts community
+ * Nuts node
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,14 +22,20 @@ import (
 	"crypto"
 )
 
-// KidNamingFunc is a function passed to New() which generates the kid for the pub/priv key
-type KidNamingFunc func(key crypto.PublicKey) string
+// KIDNamingFunc is a function passed to New() which generates the kid for the pub/priv key
+type KIDNamingFunc func(key crypto.PublicKey) (string, error)
 
-// KeyStore defines the functions than can be called by a Cmd, Direct or via rest call.
-type KeyStore interface {
+// KeyCreator is the interface for creating key pairs.
+type KeyCreator interface {
 	// New generates a keypair and returns the public key.
-	// the KidNamingFunc will provide the kid. priv/pub keys are appended with a postfix and stored
-	New(namingFunc KidNamingFunc) (crypto.PublicKey, string, error)
+	// the KIDNamingFunc will provide the kid. priv/pub keys are appended with a postfix and stored
+	New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error)
+}
+
+// KeyStore defines the functions that can be called by a Cmd, Direct or via rest call.
+type KeyStore interface {
+	KeyCreator
+
 	// GetPrivateKey returns the specified private key (for e.g. signing) in non-exportable form.
 	// If a key is missing, a Storage.ErrNotFound is returned
 	GetPrivateKey(kid string) (crypto.Signer, error)

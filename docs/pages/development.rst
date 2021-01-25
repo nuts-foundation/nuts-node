@@ -28,7 +28,7 @@ The server and client API is generated from the open-api spec:
 
 .. code-block:: shell
 
-    oapi-codegen -generate types,server,client -package v1 docs/_static/crypto/v1.yaml > api/crypto/v1/generated.go
+    make gen-api
 
 Generating Mocks
 ****************
@@ -37,8 +37,7 @@ These mocks are used by other modules
 
 .. code-block:: shell
 
-    mockgen -destination=crypto/mock/mock_crypto.go -package=mock -source=crypto/interface.go KeyStore
-
+	make gen-mocks
 README
 ******
 
@@ -46,7 +45,7 @@ The readme is auto-generated from a template and uses the documentation to fill 
 
 .. code-block:: shell
 
-    ./generate_readme.sh
+    make gen-readme
 
 This script uses ``rst_include`` which is installed as part of the dependencies for generating the documentation.
 

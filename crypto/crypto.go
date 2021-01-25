@@ -1,6 +1,6 @@
 /*
- * Nuts crypto
- * Copyright (C) 2019. Nuts community
+ * Nuts node
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,6 +82,12 @@ func (client *Crypto) Shutdown() error {
 	return nil
 }
 
+// Start starts the crypto engine.
+func (client *Crypto) Start() error {
+	// currently empty but here to make crypto implement the Runnable interface.
+	return nil
+}
+
 // GetPrivateKey returns the specified private key. It can be used for signing, but cannot be exported.
 func (client *Crypto) GetPrivateKey(kid string) (crypto.Signer, error) {
 	priv, err := client.Storage.GetPrivateKey(kid)
@@ -135,13 +141,16 @@ func (client *Crypto) doConfigure() error {
 
 // New generates a new key pair. If a key is overwritten is handled by the storage implementation.
 // it's considered bad practise to reuse a kid for different keys.
-func (client *Crypto) New(namingFunc KidNamingFunc) (crypto.PublicKey, string, error) {
+func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error) {
 	keyPair, err := generateECKeyPair()
 	if err != nil {
 		return nil, "", err
 	}
 
-	kid := namingFunc(keyPair.Public())
+	kid, err := namingFunc(keyPair.Public())
+	if err != nil {
+		return nil, "", err
+	}
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
 		return nil, "", err
 	}

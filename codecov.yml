@@ -5,3 +5,5 @@ ignore:
   - "mock/*"
   - "**/mock.go"
   - "docs/*"
+github_checks:
+  annotations: false

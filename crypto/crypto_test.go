@@ -1,6 +1,6 @@
 /*
- * Nuts crypto
- * Copyright (C) 2019. Nuts community
+ * Nuts node
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -137,6 +137,14 @@ func TestCrypto_New(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, publicKey)
 		assert.Equal(t, kid, returnKid)
+	})
+
+	t.Run("error - NamingFunction returns err", func(t *testing.T) {
+		errorNamingFunc := func(key crypto.PublicKey) (string, error) {
+			return "", errors.New("b00m!")
+		}
+		_, _, err := client.New(errorNamingFunc)
+		assert.Error(t, err)
 	})
 }
 

@@ -1,6 +1,6 @@
 /*
- * Nuts go core
- * Copyright (C) 2020 Nuts community
+ * Nuts node
+ * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,21 +25,23 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const NutsMetricsPrefix = "nuts_"
-
 // NewMetricsEngine creates a new Engine for exposing prometheus metrics via http.
 // Metrics are exposed on /metrics, by default the GoCollector and ProcessCollector are enabled.
 func NewMetricsEngine() *Engine {
 	return &Engine{
-		Name:      "Metrics",
-		Configure: configure,
+		Name:         "Metrics",
+		Configurable: metricsEngine{},
 		Routes: func(router EchoRouter) {
 			router.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 		},
 	}
 }
 
-func configure() error {
+type metricsEngine struct{}
+
+// Configure configures the MetricsEngine.
+// It configures and registers the prometheus collector
+func (metricsEngine) Configure() error {
 	collectors := []prometheus.Collector{
 		prometheus.NewGoCollector(),
 		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),

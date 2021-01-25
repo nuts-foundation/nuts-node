@@ -1,6 +1,6 @@
 /*
- * Nuts go
- * Copyright (C) 2019 Nuts community
+ * Nuts node
+ * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
+	crypto "github.com/nuts-foundation/nuts-node/crypto/engine"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/engine"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -102,6 +104,9 @@ func registerEngines() {
 	core.RegisterEngine(core.NewStatusEngine())
 	core.RegisterEngine(core.NewLoggerEngine())
 	core.RegisterEngine(core.NewMetricsEngine())
+	core.RegisterEngine(crypto.NewCryptoEngine())
+	core.RegisterEngine(vdr.NewVDREngine())
+
 }
 
 func injectConfig(cfg *core.NutsGlobalConfig) {
@@ -116,7 +121,7 @@ func injectConfig(cfg *core.NutsGlobalConfig) {
 func configureEngines() {
 	for _, e := range core.EngineCtl.Engines {
 		// only if Engine is dynamically configurable
-		if e.Configure != nil {
+		if e.Configurable != nil {
 			if err := e.Configure(); err != nil {
 				logrus.Fatal(err)
 			}
@@ -132,7 +137,7 @@ func addFlagSets(cmd *cobra.Command, cfg *core.NutsGlobalConfig) {
 
 func startEngines() {
 	for _, e := range core.EngineCtl.Engines {
-		if e.Start != nil {
+		if e.Runnable != nil {
 			if err := e.Start(); err != nil {
 				logrus.Fatal(err)
 			}
@@ -142,7 +147,7 @@ func startEngines() {
 
 func shutdownEngines() {
 	for _, e := range core.EngineCtl.Engines {
-		if e.Shutdown != nil {
+		if e.Runnable != nil {
 			if err := e.Shutdown(); err != nil {
 				logrus.Error(err)
 			}

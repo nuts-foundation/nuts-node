@@ -1,6 +1,6 @@
 /*
- * Nuts crypto
- * Copyright (C) 2020. Nuts community
+ * Nuts node
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -140,7 +140,7 @@ func TestCrypto_convertHeaders(t *testing.T) {
 	})
 
 	t.Run("ok", func(t *testing.T) {
-		rawHeaders := map[string]interface{} {
+		rawHeaders := map[string]interface{}{
 			"key": "value",
 		}
 

@@ -1,6 +1,6 @@
 /*
- * Nuts go core
- * Copyright (C) 2019 Nuts community
+ * Nuts node
+ * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,11 @@
  */
 
 package core
+
+// Diagnosable allows the implementer, mostly engines, to return diagnostics.
+type Diagnosable interface {
+	Diagnostics() []DiagnosticResult
+}
 
 // DiagnosticResult are the result of different checks giving information on how well the system is doing
 type DiagnosticResult interface {

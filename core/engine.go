@@ -1,6 +1,6 @@
 /*
- * Nuts go
- * Copyright (C) 2019 Nuts community
+ * Nuts node
+ * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,6 +50,21 @@ type EchoRouter interface {
 
 // START_DOC_ENGINE_1
 
+// Runnable is the interface that groups the Start and Shutdown methods.
+// When an engine implements these they will be called on startup and shutdown.
+// Start and Shutdown should not be called more than once
+type Runnable interface {
+	Start() error
+	Shutdown() error
+}
+
+// Configurable is the interface that contains the Configure method.
+// When an engine implements the Configurable interface, it will be called before startup.
+// Configure should only be called once per engine instance
+type Configurable interface {
+	Configure() error
+}
+
 // Engine contains all the configuration options and callbacks needed by the executable to configure, start, monitor and shutdown the engines
 type Engine struct {
 	// Name holds the human readable name of the engine
@@ -70,23 +85,15 @@ type Engine struct {
 	// Config is the pointer to a config struct. The config will be unmarshalled using the ConfigKey.
 	Config interface{}
 
-	// Configure checks if the combination of config parameters is allowed
-	Configure func() error
-
-	// Diagnostics returns a slice of DiagnosticResult
-	Diagnostics func() []DiagnosticResult
+	Diagnosable
+	Runnable
+	Configurable
 
 	// FlasSet contains all engine-local configuration possibilities so they can be displayed through the help command
 	FlagSet *pflag.FlagSet
 
 	// Routes passes the Echo router to the specific engine for it to register their routes.
 	Routes func(router EchoRouter)
-
-	// Shutdown the engine
-	Shutdown func() error
-
-	// Start the engine, this will spawn any clients, background tasks or active processes.
-	Start func() error
 }
 
 // END_DOC_ENGINE_1

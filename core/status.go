@@ -1,6 +1,6 @@
 /*
- * Nuts go
- * Copyright (C) 2019 Nuts community
+ * Nuts node
+ * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,9 +39,7 @@ func NewStatusEngine() *Engine {
 				diagnosticsSummaryAsText()
 			},
 		},
-		Diagnostics: func() []DiagnosticResult {
-			return []DiagnosticResult{diagnostics()}
-		},
+		Diagnosable: status{},
 		Routes: func(router EchoRouter) {
 			router.GET("/status/diagnostics", diagnosticsOverview)
 			router.GET("/status", StatusOK)
@@ -56,7 +54,7 @@ func diagnosticsOverview(ctx echo.Context) error {
 func diagnosticsSummaryAsText() string {
 	var lines []string
 	for _, e := range EngineCtl.Engines {
-		if e.Diagnostics != nil {
+		if e.Diagnosable != nil {
 			lines = append(lines, e.Name)
 			diagnostics := e.Diagnostics()
 			for _, d := range diagnostics {
@@ -68,8 +66,12 @@ func diagnosticsSummaryAsText() string {
 	return strings.Join(lines, "\n")
 }
 
-func diagnostics() DiagnosticResult {
-	return &GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(listAllEngines(), ",")}
+type status struct{}
+
+// Diagnostics returns list of DiagnosticResult for the StatusEngine.
+// The results are a list of all registered engines
+func (status) Diagnostics() []DiagnosticResult {
+	return []DiagnosticResult{&GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(listAllEngines(), ",")}}
 }
 
 // StatusOK returns 200 OK with a "OK" body

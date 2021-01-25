@@ -1,6 +1,6 @@
 /*
- * Nuts crypto
- * Copyright (C) 2019. Nuts community
+ * Nuts node
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	mock2 "github.com/nuts-foundation/nuts-node/crypto/mock"
+	mock2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/mock"

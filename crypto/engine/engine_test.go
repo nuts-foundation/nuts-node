@@ -1,6 +1,6 @@
 /*
- * Nuts crypto
- * Copyright (C) 2019. Nuts community
+ * Nuts node
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,6 +73,7 @@ func (h handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	writer.WriteHeader(h.statusCode)
 	writer.Write(h.responseData)
 }
+
 var jwkAsString = `
 {
   "kty" : "RSA",

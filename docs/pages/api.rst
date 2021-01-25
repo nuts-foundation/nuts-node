@@ -14,7 +14,8 @@ Nuts APIs
             const ui = SwaggerUIBundle({
                 "dom_id": "#swagger-ui",
                 urls: [
-                    {url: "../../_static/nuts-example.yaml", name: "example"},
+                    {url: "../_static/crypto/v1.yaml", name: "Crypto"},
+                    {url: "../_static/vdr/v1.yaml", name: "Verifiable Data Registry"},
                     ],
                 presets: [
                     SwaggerUIBundle.presets.apis,
