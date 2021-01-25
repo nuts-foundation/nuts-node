@@ -22,17 +22,17 @@ import (
 
 // DocResolver is the interface that groups all the DID Document read methods
 type DocResolver interface {
-	// Resolve returns the DID document using on the given DID or ErrNotFound if not found.
-	// If metadata is provided then the result is filtered or scoped on that metadata
-	// If metadata is not provided the latest version is returned
-	// If something goes wrong an error is returned.
-	Resolve(DID did.DID, metadata *ResolveMetaData) (*did.Document, *DocumentMetadata, error)
+	// Resolve returns a DID Document for the provided DID.
+	// If metadata is not provided the latest version is returned.
+	// If metadata is provided then the result is filtered or scoped on that metadata.
+	// It returns ErrNotFound if there are corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata
+	Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error)
 }
 
 // DocCreator is the interface that wraps the Create method
 type DocCreator interface {
 	// Create creates a new DID document and returns it.
-	// The ID in the provided DID document will be ignored and a new one will be generated
+	// The ID in the provided DID document will be ignored and a new one will be generated.
 	// If something goes wrong an error is returned.
 	// Implementors should generate private key and store it in a secure backend
 	Create() (*did.Document, error)
@@ -43,7 +43,7 @@ type DocWriter interface {
 	// Write writes a DID Document.
 	// Returns ErrDIDAlreadyExists when DID already exists
 	// When a document already exists, the Update should be used instead
-	Write(DIDDocument did.Document, metadata DocumentMetadata) error
+	Write(document did.Document, metadata DocumentMetadata) error
 }
 
 // DocUpdater is the interface that defines functions that alter the state of a DID document
@@ -53,7 +53,7 @@ type DocUpdater interface {
 	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
 	// If the DID Document is not found or not local a ErrNotFound is returned
 	// If the DID Document is not active a ErrDeactivated is returned
-	Update(DID did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error
+	Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error
 }
 
 // DocDeactivator is the interface that defines functions to deactivate DID Docs
@@ -63,7 +63,7 @@ type DocDeactivator interface {
 	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
 	// If the DID Document is not found or not local a ErrNotFound is returned
 	// If the DID Document is not active a ErrDeactivated is returned
-	Deactivate(DID did.DID, current hash.SHA256Hash)
+	Deactivate(id did.DID, current hash.SHA256Hash)
 }
 
 // Store is the interface that groups all low level VDR DID storage operations.

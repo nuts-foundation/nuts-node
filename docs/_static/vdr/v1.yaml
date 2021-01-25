@@ -105,7 +105,7 @@ components:
   schemas:
     DIDDocument:
       type: object
-      description: The actual DID Document according to the w3c spec.
+      description: A DID Document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
       required:
         - id
       properties:

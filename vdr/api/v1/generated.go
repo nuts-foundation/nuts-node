@@ -21,7 +21,7 @@ import (
 // DIDResolutionResult defines model for DIDResolutionResult.
 type DIDResolutionResult struct {
 
-	// The actual DID Document according to the w3c spec.
+	// A DID Document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
 	Document DIDDocument `json:"document"`
 
 	// The DID Document metadata.
@@ -34,7 +34,7 @@ type DIDUpdateRequest struct {
 	// The hash of the document in hex format.
 	CurrentHash string `json:"currentHash"`
 
-	// The actual DID Document according to the w3c spec.
+	// A DID Document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
 	Document DIDDocument `json:"document"`
 }
 

@@ -16,9 +16,11 @@
 package store
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/nuts-foundation/go-did"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -69,11 +71,13 @@ func (me memoryEntry) isDeactivated() bool {
 	return len(me.document.Controller) == 0 && len(me.document.Authentication) == 0
 }
 
-func (m *memory) Resolve(DID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {
+// Resolve implements the DocResolver.
+// Resolves a DID document and returns a deep copy of the data in memory.
+func (m *memory) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	entries, ok := m.store[DID.String()]
+	entries, ok := m.store[id.String()]
 	if !ok {
 		return nil, nil, types.ErrNotFound
 	}
@@ -104,11 +108,31 @@ func (m *memory) Resolve(DID did.DID, metadata *types.ResolveMetaData) (*did.Doc
 		return nil, nil, err
 	}
 
-	return &entry.document, &entry.metadata, nil
+	// return a deep copy
+	doc := &did.Document{}
+	docMetadata := &types.DocumentMetadata{}
+
+	docJson, err := json.Marshal(entry.document)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err = json.Unmarshal(docJson, doc); err != nil {
+		return nil, nil, err
+	}
+
+	metadataJson, err := json.Marshal(entry.metadata)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err = json.Unmarshal(metadataJson, docMetadata); err != nil {
+		return nil, nil, err
+	}
+
+	return doc, docMetadata, nil
 }
 
 // timeSelectionFilter checks if an entry is after the created, after the updated field if present but before the updated field of the next entry
-func timeSelectionFilter(metadata types.ResolveMetaData) filterFunc {
+func timeSelectionFilter(metadata types.ResolveMetadata) filterFunc {
 	return func(e memoryEntry) bool {
 		if e.metadata.Created.After(*metadata.ResolveTime) {
 			return false
@@ -132,17 +156,18 @@ func timeSelectionFilter(metadata types.ResolveMetaData) filterFunc {
 	}
 }
 
-func (m *memory) Write(DIDDocument did.Document, metadata types.DocumentMetadata) error {
+// Write implements the DocWriteWriter interface and writes a DIDDocument with the provided metadata to the memory store.
+func (m *memory) Write(document did.Document, metadata types.DocumentMetadata) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	if _, ok := m.store[DIDDocument.ID.String()]; ok {
+	if _, ok := m.store[document.ID.String()]; ok {
 		return types.ErrDIDAlreadyExists
 	}
 
-	m.store[DIDDocument.ID.String()] = versionedEntryList{
+	m.store[document.ID.String()] = versionedEntryList{
 		&memoryEntry{
-			document: DIDDocument,
+			document: document,
 			metadata: metadata,
 		},
 	}
@@ -150,13 +175,15 @@ func (m *memory) Write(DIDDocument did.Document, metadata types.DocumentMetadata
 	return nil
 }
 
-// Update does not check if the timestamp in the metadata make sense or if the metadata.hash matches the hash
+// Update implements the DocUpdater interface.
+// It updates existing DIDDocument in the memory store with provided document and metadata.
+// It does not check if the timestamp in the metadata make sense or if the metadata.hash matches the hash
 // of the next version. The version field is also not checked.
-func (m *memory) Update(DID did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
+func (m *memory) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	entries, ok := m.store[DID.String()]
+	entries, ok := m.store[id.String()]
 	if !ok {
 		return types.ErrNotFound
 	}
@@ -181,7 +208,7 @@ func (m *memory) Update(DID did.DID, current hash.SHA256Hash, next did.Document,
 	// update next in last document
 	entry.next = newEntry
 
-	m.store[DID.String()] = append(entries, newEntry)
+	m.store[id.String()] = append(entries, newEntry)
 
 	return nil
 }

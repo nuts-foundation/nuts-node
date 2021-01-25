@@ -82,7 +82,7 @@ func TestMemory_Resolve(t *testing.T) {
 
 	t.Run("returns document with resolve metadata - selection on date", func(t *testing.T) {
 		now := time.Now()
-		d, m, err := store.Resolve(*did1, &types.ResolveMetaData{
+		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
 			ResolveTime: &now,
 		})
 		if !assert.NoError(t, err) {
@@ -94,14 +94,14 @@ func TestMemory_Resolve(t *testing.T) {
 
 	t.Run("returns no document with resolve metadata - selection on date", func(t *testing.T) {
 		before := time.Now().Add(time.Hour * -48)
-		_, _, err := store.Resolve(*did1, &types.ResolveMetaData{
+		_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
 			ResolveTime: &before,
 		})
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 
 	t.Run("returns document with resolve metadata - selection on hash", func(t *testing.T) {
-		d, m, err := store.Resolve(*did1, &types.ResolveMetaData{
+		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
 			Hash: &h,
 		})
 		if !assert.NoError(t, err) {
@@ -117,7 +117,7 @@ func TestTimeSelectionFilter(t *testing.T) {
 	now := time.Now()
 	later := time.Now().Add(time.Hour * 24)
 
-	metadata := types.ResolveMetaData{
+	metadata := types.ResolveMetadata{
 		ResolveTime: &now,
 	}
 	f := timeSelectionFilter(metadata)

@@ -22,4 +22,6 @@ data
 
 # MacOS
 .DS_Store
-*.pem
+
+# ignore generated pem files from running the nuts-node executable.
+/*.pem

@@ -142,13 +142,13 @@ func (r VDR) Create() (*did.Document, error) {
 }
 
 // Resolve resolves a DID Document based on the DID.
-func (r VDR) Resolve(dID did.DID, metadata *types.ResolveMetaData) (*did.Document, *types.DocumentMetadata, error) {
-	return r.store.Resolve(dID, metadata)
+func (r VDR) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
+	return r.store.Resolve(id, metadata)
 }
 
 // Update updates a DID Document based on the DID and current hash
-func (r VDR) Update(dID did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
-	return r.store.Update(dID, current, next, metadata)
+func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
+	return r.store.Update(id, current, next, metadata)
 }
 
 // Deactivate updates the DID Document so it can no longer be updated

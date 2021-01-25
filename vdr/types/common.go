@@ -53,8 +53,8 @@ type DocumentMetadata struct {
 	Hash hash.SHA256Hash `json:"hash"`
 }
 
-// ResolveMetaData contains metadata for the resolver.
-type ResolveMetaData struct {
+// ResolveMetadata contains metadata for the resolver.
+type ResolveMetadata struct {
 	// Resolve the version which is valid at this time
 	ResolveTime *time.Time
 	// if provided, use the version which matches this exact hash

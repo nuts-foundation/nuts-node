@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did"
@@ -36,7 +37,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// NewVDREngine returns the core definition for the registry
+// NewVDREngine returns the core definition for the VDR
 func NewVDREngine() *core.Engine {
 	r := vdr.Instance()
 
@@ -56,7 +57,7 @@ func NewVDREngine() *core.Engine {
 }
 
 func flagSet() *pflag.FlagSet {
-	flagSet := pflag.NewFlagSet("registry", pflag.ContinueOnError)
+	flagSet := pflag.NewFlagSet("vdr", pflag.ContinueOnError)
 
 	defs := vdr.DefaultConfig()
 	flagSet.String(vdr.ConfDataDir, defs.Datadir, fmt.Sprintf("Location of data files, default: %s", defs.Datadir))
@@ -110,7 +111,7 @@ func updateCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := httpClient()
 
-			dID := args[0]
+			id := args[0]
 			hash := args[1]
 
 			var bytes []byte
@@ -135,7 +136,7 @@ func updateCmd() *cobra.Command {
 				return fmt.Errorf("failed to parse DID document: %w", err)
 			}
 
-			if _, err = client.Update(dID, hash, didDoc); err != nil {
+			if _, err = client.Update(id, hash, didDoc); err != nil {
 				return fmt.Errorf("failed to update DID document: %w", err)
 			}
 
@@ -180,8 +181,13 @@ func readFromStdin() ([]byte, error) {
 }
 
 func httpClient() api.HTTPClient {
+	// TODO: allow for https
+	addr := core.NutsConfig().ServerAddress()
+	if !strings.HasPrefix(addr, "http") {
+		addr = "http://" + addr
+	}
 	return api.HTTPClient{
-		ServerAddress: core.NutsConfig().ServerAddress(),
+		ServerAddress: addr,
 		Timeout:       5 * time.Second,
 	}
 }
