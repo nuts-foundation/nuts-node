@@ -112,19 +112,19 @@ func (m *memory) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Docu
 	doc := &did.Document{}
 	docMetadata := &types.DocumentMetadata{}
 
-	docJson, err := json.Marshal(entry.document)
+	docJSON, err := json.Marshal(entry.document)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err = json.Unmarshal(docJson, doc); err != nil {
+	if err = json.Unmarshal(docJSON, doc); err != nil {
 		return nil, nil, err
 	}
 
-	metadataJson, err := json.Marshal(entry.metadata)
+	metadataJSON, err := json.Marshal(entry.metadata)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err = json.Unmarshal(metadataJson, docMetadata); err != nil {
+	if err = json.Unmarshal(metadataJSON, docMetadata); err != nil {
 		return nil, nil, err
 	}
 

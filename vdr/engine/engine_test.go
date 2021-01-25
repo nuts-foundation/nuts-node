@@ -26,10 +26,11 @@ import (
 	"testing"
 
 	"github.com/nuts-foundation/go-did"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 
 	core "github.com/nuts-foundation/nuts-node/core"
 )
@@ -205,5 +206,20 @@ func TestEngine_Command(t *testing.T) {
 			assert.Contains(t, buf.String(), "failed to update DID document")
 			assert.Contains(t, buf.String(), "invalid")
 		})
+	})
+}
+
+func Test_httpClient(t *testing.T) {
+	t.Run("address has http prefix", func(t *testing.T) {
+		os.Setenv("NUTS_ADDRESS", "https://localhost")
+		core.NutsConfig().Load(&cobra.Command{})
+		client := httpClient()
+		assert.Equal(t, "https://localhost", client.ServerAddress)
+	})
+	t.Run("address has no http prefix", func(t *testing.T) {
+		os.Setenv("NUTS_ADDRESS", "localhost")
+		core.NutsConfig().Load(&cobra.Command{})
+		client := httpClient()
+		assert.Equal(t, "http://localhost", client.ServerAddress)
 	})
 }
