@@ -40,7 +40,7 @@ const ConfigStorage string = "storage"
 const ConfigFSPath string = "fspath"
 
 // NewCryptoEngine the engine configuration for nuts-go.
-func NewCryptoEngine() *core.Engine {
+func NewCryptoEngine() (*core.Engine, crypto2.KeyStore) {
 	cb := crypto2.Instance()
 
 	return &core.Engine{
@@ -54,7 +54,7 @@ func NewCryptoEngine() *core.Engine {
 			api.RegisterHandlers(router, &api.Wrapper{C: cb})
 		},
 		Runnable: cb,
-	}
+	}, cb
 }
 
 // FlagSet returns the configuration flags for crypto

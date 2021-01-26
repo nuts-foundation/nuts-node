@@ -24,6 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/jwa"
@@ -130,6 +131,40 @@ func TestCrypto_SignJWT(t *testing.T) {
 		_, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, "unknown")
 
 		assert.True(t, errors.Is(err, storage.ErrNotFound))
+	})
+}
+
+func TestCrypto_SignJWS(t *testing.T) {
+	client := createCrypto(t)
+	kid := "kid"
+	client.New(StringNamingFunc(kid))
+
+	t.Run("ok", func(t *testing.T) {
+		payload := []byte{1, 2, 3}
+		signature, err := client.SignJWS(payload, map[string]interface{}{"foo": "bar"}, kid)
+		if !assert.NoError(t, err) {
+			return
+		}
+		message, err := jws.Parse(strings.NewReader(signature))
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, payload, message.Payload())
+		assert.Len(t, message.Signatures(), 1)
+		value, _ := message.Signatures()[0].ProtectedHeaders().Get("foo")
+		assert.Equal(t, "bar", value.(string))
+	})
+	t.Run("invalid header", func(t *testing.T) {
+		payload := []byte{1, 2, 3}
+		signature, err := client.SignJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, kid)
+		assert.EqualError(t, err, "unable to set header jwk: invalid value for jwk key: string")
+		assert.Empty(t, signature)
+	})
+	t.Run("unknown key", func(t *testing.T) {
+		payload := []byte{1, 2, 3}
+		signature, err := client.SignJWS(payload, map[string]interface{}{}, "unknown")
+		assert.Contains(t, err.Error(), "error while signing JWS, can't get private key")
+		assert.Empty(t, signature)
 	})
 }
 

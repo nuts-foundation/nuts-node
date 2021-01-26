@@ -25,6 +25,7 @@ package vdr
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network"
 	"sync"
 	"time"
 
@@ -35,13 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
-
-	"github.com/nuts-foundation/nuts-network/pkg"
-
-	"github.com/nuts-foundation/nuts-node/vdr/network"
-
-	networkClient "github.com/nuts-foundation/nuts-network/client"
-	networkPkg "github.com/nuts-foundation/nuts-network/pkg"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -54,9 +48,9 @@ import (
 type VDR struct {
 	Config            Config
 	store             types.Store
-	network           networkPkg.NetworkClient
+	network           network.Network
 	OnChange          func(registry *VDR)
-	networkAmbassador network.Ambassador
+	networkAmbassador Ambassador
 	configOnce        sync.Once
 	_logger           *logrus.Entry
 	didDocCreator     types.DocCreator
@@ -65,20 +59,8 @@ type VDR struct {
 var instance *VDR
 var oneVDR sync.Once
 
-// Instance returns the singleton VDR
-func Instance() *VDR {
-	if instance != nil {
-		return instance
-	}
-	oneVDR.Do(func() {
-		instance = NewVDR(DefaultConfig(), crypto.Instance(), networkClient.NewNetworkClient())
-	})
-
-	return instance
-}
-
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient pkg.NetworkClient) *VDR {
+func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Network) *VDR {
 	return &VDR{
 		Config:        config,
 		network:       networkClient,
@@ -96,7 +78,7 @@ func (r *VDR) Configure() error {
 		cfg := core.NutsConfig()
 		if cfg.Mode() == core.ServerEngineMode {
 			if r.networkAmbassador == nil {
-				r.networkAmbassador = network.NewAmbassador(r.network)
+				r.networkAmbassador = NewAmbassador(r.network)
 			}
 		}
 	})

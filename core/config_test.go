@@ -304,8 +304,6 @@ func TestNutsGlobalConfig_LoadConfigFile(t *testing.T) {
 
 func TestNutsGlobalConfig_LoadAndUnmarshal(t *testing.T) {
 	cfg := NewNutsGlobalConfig()
-	os.Setenv("NUTS_IDENTITY", "urn:oid:1.3.6.1.4.1.54851.4:4")
-	defer os.Unsetenv("NUTS_IDENTITY")
 	cfg.Load(&cobra.Command{})
 
 	type mandatory struct {

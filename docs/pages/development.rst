@@ -8,7 +8,7 @@ Nuts node development
 Dependencies
 ************
 
-This projects is using go modules, so version > 1.12 is recommended. 1.10 would be a minimum.
+Go >= 1.15 is required.
 
 Running tests
 *************
@@ -24,20 +24,22 @@ Building
 
 Just use ``go build``.
 
-The server and client API is generated from the open-api spec:
+Code Generation
+***************
+
+Code generation is used for generating mocks, OpenAPI client- and servers and gRPC services. To regenerate the code
+run the `run-generators` target from the Makefile:
 
 .. code-block:: shell
 
-    make gen-api
+    make run-generators
 
-Generating Mocks
-****************
-
-These mocks are used by other modules
+The peer-to-peer API uses gRPC. To generate Go code from the protobuf specs you need the `protoc-gen-go` package:
 
 .. code-block:: shell
 
-	make gen-mocks
+    go get -u github.com/golang/protobuf/protoc-gen-go
+
 README
 ******
 

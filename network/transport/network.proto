@@ -1,0 +1,73 @@
+/*
+ * Copyright (C) 2021. Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+syntax = "proto3";
+
+option go_package = "github.com/nuts-foundation/nuts-node/network/transport";
+
+package transport;
+
+service Network {
+    rpc Connect (stream NetworkMessage) returns (stream NetworkMessage) {
+    }
+}
+
+// We multiplex all of our messages over a single super-message type, because we're using streams. If we did not do that,
+// we'd need to open a stream per operation, which would make the number of required streams explode (since we're
+// building a full mesh network).
+message NetworkMessage {
+    Header header = 1;
+    AdvertHashes advertHashes = 100;
+    DocumentListQuery DocumentListQuery = 101;
+    DocumentList DocumentList = 102;
+    DocumentPayloadQuery documentPayloadQuery = 103;
+    DocumentPayload documentPayload = 104;
+}
+
+// Metadata types
+message Header {
+    uint32 version = 1;
+}
+
+// Actual messages go here
+message AdvertHashes {
+   repeated bytes hashes = 1;
+}
+
+// Message to ask for a peer's hash list
+message DocumentListQuery {
+}
+
+// Message to inform a peer of our hash list
+message DocumentList {
+    repeated Document documents = 1;
+}
+
+message Document {
+    bytes hash = 1;
+    bytes data = 2;
+}
+
+// Message to ask for a peer for a specific document
+message DocumentPayloadQuery {
+    bytes payloadHash = 1;
+}
+
+message DocumentPayload {
+    bytes payloadHash = 1;
+    bytes data = 10;
+}

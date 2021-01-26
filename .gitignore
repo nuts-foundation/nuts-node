@@ -25,3 +25,5 @@ data
 
 # ignore generated pem files from running the nuts-node executable.
 /*.pem
+
+/nuts-node
