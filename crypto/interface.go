@@ -35,7 +35,7 @@ type KeyCreator interface {
 	New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error)
 }
 
-// fill from diff
+// KeyResolver defines the functions for retrieving keys.
 type KeyResolver interface {
 	// GetPublicKey returns the PublicKey if it was valid on the given validationTime
 	// If a key is missing, a Storage.ErrNotFound is returned.
