@@ -23,6 +23,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	mock2 "github.com/nuts-foundation/nuts-node/crypto"
@@ -128,6 +129,12 @@ func TestWrapper_SignJwt(t *testing.T) {
 }
 
 func TestWrapper_PublicKey(t *testing.T) {
+	at := time.Date(2020, 1, 1, 12, 30, 0, 0, time.UTC)
+	timeString := at.Format(time.RFC3339)
+	params := PublicKeyParams{
+		At: &timeString,
+	}
+
 	t.Run("PublicKey API call returns 200", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
@@ -135,10 +142,10 @@ func TestWrapper_PublicKey(t *testing.T) {
 		key := test.GenerateECKey()
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{})
-		ctx.keyStore.EXPECT().GetPublicKey("kid", gomock.Any()).Return(key.Public(), nil)
+		ctx.keyStore.EXPECT().GetPublicKey("kid", at).Return(key.Public(), nil)
 		ctx.echo.EXPECT().String(http.StatusOK, gomock.Any())
 
-		_ = ctx.client.PublicKey(ctx.echo, "kid")
+		_ = ctx.client.PublicKey(ctx.echo, "kid", params)
 	})
 
 	t.Run("PublicKey API call returns JWK", func(t *testing.T) {
@@ -148,10 +155,10 @@ func TestWrapper_PublicKey(t *testing.T) {
 		key := test.GenerateECKey()
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{Header: http.Header{"Accept": []string{"application/json"}}})
-		ctx.keyStore.EXPECT().GetPublicKey("kid", gomock.Any()).Return(key.Public(), nil)
+		ctx.keyStore.EXPECT().GetPublicKey("kid", at).Return(key.Public(), nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
 
-		_ = ctx.client.PublicKey(ctx.echo, "kid")
+		_ = ctx.client.PublicKey(ctx.echo, "kid", params)
 	})
 
 	t.Run("PublicKey API call returns 404 for unknown", func(t *testing.T) {
@@ -159,10 +166,10 @@ func TestWrapper_PublicKey(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{})
-		ctx.keyStore.EXPECT().GetPublicKey("kid", gomock.Any()).Return(nil, storage.ErrNotFound)
+		ctx.keyStore.EXPECT().GetPublicKey("kid", at).Return(nil, storage.ErrNotFound)
 		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
 
-		_ = ctx.client.PublicKey(ctx.echo, "kid")
+		_ = ctx.client.PublicKey(ctx.echo, "kid", params)
 	})
 
 	t.Run("PublicKey API call returns 500 for other error", func(t *testing.T) {
@@ -170,10 +177,21 @@ func TestWrapper_PublicKey(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{Header: http.Header{"Accept": []string{"application/json"}}})
-		ctx.keyStore.EXPECT().GetPublicKey("kid", gomock.Any()).Return(nil, errors.New("b00m!"))
+		ctx.keyStore.EXPECT().GetPublicKey("kid", at).Return(nil, errors.New("b00m!"))
 
-		err := ctx.client.PublicKey(ctx.echo, "kid")
+		err := ctx.client.PublicKey(ctx.echo, "kid", params)
 		assert.Error(t, err)
+	})
+
+	t.Run("error - 400 for incorrect time format", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Request().Return(&http.Request{})
+		ctx.echo.EXPECT().String(http.StatusBadRequest, "cannot parse 'b00m!' as RFC3339 time format")
+		notAt := "b00m!"
+
+		_ = ctx.client.PublicKey(ctx.echo, "kid", PublicKeyParams{At: &notAt})
 	})
 }
 

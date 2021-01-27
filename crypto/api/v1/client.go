@@ -65,7 +65,7 @@ func (hb HTTPClient) GetPublicKey(kid string) (jwk.Key, error) {
 		req.Header.Add("Accept", "application/json")
 		return nil
 	})
-	response, err := httpClient.PublicKey(ctx, kid)
+	response, err := httpClient.PublicKey(ctx, kid, nil)
 	if err != nil {
 		return nil, err
 	}

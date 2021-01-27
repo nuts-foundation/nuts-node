@@ -33,12 +33,12 @@ func (p Period) Contains(when time.Time) bool {
 	return !(p.ValidTo != nil && when.After(*p.ValidTo))
 }
 
-// RFC3339Time is a time that marshals as RFC3337
+// RFC3339Time is a time that marshals as RFC3339
 type RFC3339Time struct {
 	time.Time
 }
 
-// MarshalText marshals the time in RFC3337 format
+// MarshalText marshals the time in RFC3339 format
 func (j RFC3339Time) MarshalText() ([]byte, error) {
 	return []byte(j.Format(time.RFC3339)), nil
 }

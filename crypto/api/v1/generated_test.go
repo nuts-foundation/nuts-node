@@ -33,15 +33,15 @@ type testServerInterface struct {
 	err error
 }
 
-func (t *testServerInterface) GenerateKeyPair(ctx echo.Context) error {
+func (t *testServerInterface) GenerateKeyPair(_ echo.Context) error {
 	return t.err
 }
 
-func (t *testServerInterface) PublicKey(ctx echo.Context, urn string) error {
+func (t *testServerInterface) PublicKey(_ echo.Context, _ string, _ PublicKeyParams) error {
 	return t.err
 }
 
-func (t *testServerInterface) SignJwt(ctx echo.Context) error {
+func (t *testServerInterface) SignJwt(_ echo.Context) error {
 	return t.err
 }
 
