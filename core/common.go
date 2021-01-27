@@ -38,10 +38,12 @@ type RFC3339Time struct {
 	time.Time
 }
 
+// MarshalText marshals the time in RFC3337 format
 func (j RFC3339Time) MarshalText() ([]byte, error) {
 	return []byte(j.Format(time.RFC3339)), nil
 }
 
+// UnmarshalJSON parses the time string using RFC3339 format
 func (j *RFC3339Time) UnmarshalJSON(bytes []byte) error {
 	t, err := time.Parse(time.RFC3339, string(bytes))
 	if err != nil {
