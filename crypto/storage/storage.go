@@ -58,6 +58,7 @@ func (pke *PublicKeyEntry) FromJWK(key jwk.Key) (err error) {
 	return
 }
 
+// UnmarshalJSON parses the json
 func (pke *PublicKeyEntry) UnmarshalJSON(bytes []byte) error {
 	type Alias PublicKeyEntry
 	tmp := Alias{}
@@ -78,6 +79,6 @@ func (pke *PublicKeyEntry) UnmarshalJSON(bytes []byte) error {
 }
 
 // JWK returns the key as JSON Web Key.
-func (v PublicKeyEntry) JWK() jwk.Key {
-	return v.parsedJWK
+func (pke PublicKeyEntry) JWK() jwk.Key {
+	return pke.parsedJWK
 }
