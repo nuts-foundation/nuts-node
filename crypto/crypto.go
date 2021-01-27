@@ -152,7 +152,7 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, e
 	}
 
 	// also save the public key for all time use, otherwise it can't be attached to a published doc
-	if err := client.SavePublicKey(kid, pkey, core.Period{ValidFrom: time.Unix(0, 0)}); err != nil {
+	if err := client.SavePublicKey(kid, pkey, core.Period{ValidFrom: time.Time{}}); err != nil {
 		return nil, "", err
 	}
 

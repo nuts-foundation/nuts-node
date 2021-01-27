@@ -53,7 +53,8 @@ func TestCrypto_PublicKey(t *testing.T) {
 	ec := test.GenerateECKey()
 
 	now := time.Now()
-	client.SavePublicKey(kid, ec.Public(), core.Period{ValidFrom: now})
+	period := core.Period{ValidFrom: now}
+	client.SavePublicKey(kid, ec.Public(), period)
 
 	t.Run("Public key is returned from storage", func(t *testing.T) {
 		pub, err := client.GetPublicKey(kid, now)
@@ -76,6 +77,11 @@ func TestCrypto_PublicKey(t *testing.T) {
 		if assert.Error(t, err) {
 			assert.True(t, errors.Is(err, storage.ErrNotFound))
 		}
+	})
+
+	t.Run("error - saving an empty key", func(t *testing.T) {
+		err := client.SavePublicKey(kid, nil, period)
+		assert.Error(t, err)
 	})
 }
 
