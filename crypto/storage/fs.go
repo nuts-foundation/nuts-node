@@ -34,7 +34,7 @@ type entryType string
 
 const (
 	privateKeyEntry entryType = "private.pem"
-	publicKeyEntry  entryType = "public.pem"
+	publicKeyEntry  entryType = "public.json"
 )
 
 type fileOpenError struct {
