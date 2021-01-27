@@ -78,7 +78,7 @@ func cmd() *cobra.Command {
 	cmd.AddCommand(&cobra.Command{
 		Use:   "publicKey [kid] [valid_at]",
 		Short: "views the publicKey for a given kid",
-		Long:  "views the publicKey for a given kid. It'll output a JWK encoded public key and a PEM encoded public key. " +
+		Long: "views the publicKey for a given kid. It'll output a JWK encoded public key and a PEM encoded public key. " +
 			"The valid_at argument is optional, when given it must be a RFC3339 compliant string. If not given, now() is used.",
 
 		Args: cobra.RangeArgs(1, 2),

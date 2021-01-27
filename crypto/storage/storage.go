@@ -46,7 +46,7 @@ type Storage interface {
 
 // PublicKeyEntry is a public key entry also containing the period it's valid for.
 type PublicKeyEntry struct {
-	Period       core.Period            `json:"period"`
+	Period       core.Period `json:"period"`
 	parsedJWK    jwk.Key
 	PublicKeyJwk map[string]interface{} `json:"publicKeyJwk,omitempty"`
 }

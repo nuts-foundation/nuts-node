@@ -74,7 +74,7 @@ func PrivateKeyToPem(pub crypto.PrivateKey) (string, error) {
 	return string(pubBytes), err
 }
 
-// PemToPrivateKey converts a PEM encoded private key to a DocSigner interface. It supports EC, RSA and PKIX PEM encoded strings
+// PemToPrivateKey converts a PEM encoded private key to a Signer interface. It supports EC, RSA and PKIX PEM encoded strings
 func PemToPrivateKey(bytes []byte) (signer crypto.Signer, err error) {
 	block, _ := pem.Decode(bytes)
 	if block == nil {

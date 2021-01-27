@@ -20,8 +20,8 @@ import "time"
 
 // Period is a convenience type for valid from and valid to dateTime.
 type Period struct {
-	ValidFrom time.Time `json:"validFrom"`
-	ValidTo *time.Time  `json:"validTo,omitempty"`
+	ValidFrom time.Time  `json:"validFrom"`
+	ValidTo   *time.Time `json:"validTo,omitempty"`
 }
 
 // Contains checks if the given time falls within this period

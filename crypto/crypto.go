@@ -195,7 +195,7 @@ func (client *Crypto) SavePublicKey(kid string, publicKey crypto.PublicKey, peri
 	}
 
 	publicKeyEntry := storage.PublicKeyEntry{
-		Period:       period,
+		Period: period,
 	}
 	if err := publicKeyEntry.FromJWK(key); err != nil {
 		return err
@@ -203,4 +203,3 @@ func (client *Crypto) SavePublicKey(kid string, publicKey crypto.PublicKey, peri
 
 	return client.Storage.SavePublicKey(kid, publicKeyEntry)
 }
-
