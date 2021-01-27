@@ -21,7 +21,6 @@ package engine
 import (
 	"crypto"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -77,22 +76,22 @@ func cmd() *cobra.Command {
 		Short: "crypto commands",
 	}
 	cmd.AddCommand(&cobra.Command{
-		Use:   "publicKey [kid]",
+		Use:   "publicKey [kid] [valid_at]",
 		Short: "views the publicKey for a given kid",
-		Long:  "views the publicKey for a given kid. It'll output a JWK encoded public key and a PEM encoded public key.",
+		Long:  "views the publicKey for a given kid. It'll output a JWK encoded public key and a PEM encoded public key. " +
+			"The valid_at argument is optional, when given it must be a RFC3339 compliant string. If not given, now() is used.",
 
-		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return errors.New("requires a kid argument")
-			}
-
-			return nil
-		},
+		Args: cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
 			cc := newCryptoClient(cmd)
 			kid := args[0]
+			var validAt *string
 
-			jwkKey, err := cc.GetPublicKey(kid)
+			if len(args) == 2 {
+				validAt = &args[1]
+			}
+
+			jwkKey, err := cc.GetPublicKey(kid, validAt)
 			if err != nil {
 				cmd.Printf("Error printing publicKey: %v", err)
 				return

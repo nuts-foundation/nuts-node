@@ -100,7 +100,7 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 			err := cmd.Execute()
 
 			if assert.Error(t, err) {
-				assert.Equal(t, "requires a kid argument", err.Error())
+				assert.Equal(t, "accepts between 1 and 2 arg(s), received 0", err.Error())
 			}
 		})
 
@@ -132,6 +132,21 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 			}
 			assert.Contains(t, buf.String(), "Public key in JWK")
 			assert.Contains(t, buf.String(), "Public key in PEM")
+		})
+
+		t.Run("ok - with valid_at", func(t *testing.T) {
+			cmd, _ := createCmd(t)
+			s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			core.NutsConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"publicKey", "kid", "2020-01-01T12:30:00Z"})
+			cmd.SetOut(buf)
+			err := cmd.Execute()
+
+			assert.NoError(t, err)
 		})
 	})
 }
