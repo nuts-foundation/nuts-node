@@ -77,7 +77,7 @@ func (r *VDR) Configure(_ core.NutsConfig) error {
 
 	r.configOnce.Do(func() {
 		if r.networkAmbassador == nil {
-			r.networkAmbassador = NewAmbassador(r.network, r.store)
+			r.networkAmbassador = NewAmbassador(r.network, r.store, crypto.Instance())
 		}
 	})
 	return err
@@ -112,7 +112,7 @@ func (r VDR) Create() (*did.Document, error) {
 	}
 
 	keyID := doc.Authentication[0].ID.String()
-	_, err = r.network.CreateDocument(DIDDocumentType, payload, keyID, false, time.Now())
+	_, err = r.network.CreateDocument(DIDDocumentType, payload, keyID, true, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("could not store did document in network: %w", err)
 	}
