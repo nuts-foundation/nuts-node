@@ -3,7 +3,10 @@ package storage
 import (
 	"os"
 	"testing"
+	"time"
 
+	jwk "github.com/lestrrat-go/jwx/jwk"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 
@@ -21,26 +24,30 @@ func Test_NewFileSystemBackend(t *testing.T) {
 func Test_fs_GetPublicKey(t *testing.T) {
 	t.Run("non-existing entry", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
-		key, err := storage.GetPublicKey("unknown")
+		_, err := storage.GetPublicKey("unknown")
 		assert.Contains(t, err.Error(), "could not open entry unknown with filename")
-		assert.Nil(t, key)
 	})
 	t.Run("ok", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
-		pk := test.GenerateECKey()
+		ec := test.GenerateECKey()
 		kid := "kid"
+		now := time.Now()
+		pke := &PublicKeyEntry{Period: core.Period{ValidFrom: now}}
+		key, _ := jwk.New(ec.Public())
+		pke.FromJWK(key)
 
-		err := storage.(*fileSystemBackend).SavePublicKey(kid, pk)
-
+		err := storage.SavePublicKey(kid, *pke)
 		if !assert.NoError(t, err) {
 			return
 		}
-		key, err := storage.GetPublicKey(kid)
-		assert.NoError(t, err)
-		if !assert.NotNil(t, key) {
+
+		entry, err := storage.GetPublicKey(kid)
+		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, &pk.PublicKey, key)
+
+		assert.Equal(t, key, entry.JWK())
+		assert.Equal(t, time.Duration(0), now.Sub(entry.Period.ValidFrom))
 	})
 }
 

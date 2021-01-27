@@ -135,7 +135,7 @@ func TestWrapper_PublicKey(t *testing.T) {
 		key := test.GenerateECKey()
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{})
-		ctx.keyStore.EXPECT().GetPublicKey("kid").Return(key.Public(), nil)
+		ctx.keyStore.EXPECT().GetPublicKey("kid", gomock.Any()).Return(key.Public(), nil)
 		ctx.echo.EXPECT().String(http.StatusOK, gomock.Any())
 
 		_ = ctx.client.PublicKey(ctx.echo, "kid")
@@ -148,7 +148,7 @@ func TestWrapper_PublicKey(t *testing.T) {
 		key := test.GenerateECKey()
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{Header: http.Header{"Accept": []string{"application/json"}}})
-		ctx.keyStore.EXPECT().GetPublicKey("kid").Return(key.Public(), nil)
+		ctx.keyStore.EXPECT().GetPublicKey("kid", gomock.Any()).Return(key.Public(), nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
 
 		_ = ctx.client.PublicKey(ctx.echo, "kid")
@@ -159,7 +159,7 @@ func TestWrapper_PublicKey(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{})
-		ctx.keyStore.EXPECT().GetPublicKey("kid").Return(nil, storage.ErrNotFound)
+		ctx.keyStore.EXPECT().GetPublicKey("kid", gomock.Any()).Return(nil, storage.ErrNotFound)
 		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
 
 		_ = ctx.client.PublicKey(ctx.echo, "kid")
@@ -170,7 +170,7 @@ func TestWrapper_PublicKey(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{Header: http.Header{"Accept": []string{"application/json"}}})
-		ctx.keyStore.EXPECT().GetPublicKey("kid").Return(nil, errors.New("b00m!"))
+		ctx.keyStore.EXPECT().GetPublicKey("kid", gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.PublicKey(ctx.echo, "kid")
 		assert.Error(t, err)

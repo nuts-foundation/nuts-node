@@ -26,10 +26,12 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/pkg/errors"
@@ -106,7 +108,9 @@ func TestCrypto_SignJWT(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	client.New(StringNamingFunc(kid))
+	pub, _, _ := client.New(StringNamingFunc(kid))
+	now := time.Now()
+	client.SavePublicKey(kid, pub, core.Period{ValidFrom: now})
 
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, kid)
@@ -117,7 +121,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		}
 
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
-			return client.GetPublicKey(kid)
+			return client.GetPublicKey(kid, now)
 		})
 
 		if !assert.NoError(t, err) {

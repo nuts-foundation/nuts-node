@@ -22,6 +22,7 @@ import (
 	"errors"
 	"mime"
 	"net/http"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
@@ -77,7 +78,7 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 func (w *Wrapper) PublicKey(ctx echo.Context, kid string) error {
 	acceptHeader := ctx.Request().Header.Get("Accept")
 
-	pubKey, err := w.C.GetPublicKey(kid)
+	pubKey, err := w.C.GetPublicKey(kid, time.Now())
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return ctx.NoContent(404)
