@@ -24,6 +24,7 @@
 package vdr
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network"
 	"sync"
@@ -76,7 +77,7 @@ func (r *VDR) Configure(_ core.NutsConfig) error {
 
 	r.configOnce.Do(func() {
 		if r.networkAmbassador == nil {
-			r.networkAmbassador = NewAmbassador(r.network)
+			r.networkAmbassador = NewAmbassador(r.network, r.store)
 		}
 	})
 	return err
@@ -84,6 +85,7 @@ func (r *VDR) Configure(_ core.NutsConfig) error {
 
 // Start initiates the routines for auto-updating the data
 func (r *VDR) Start() error {
+	r.networkAmbassador.Start()
 	return nil
 }
 
@@ -104,15 +106,26 @@ func (r VDR) Create() (*did.Document, error) {
 		return nil, fmt.Errorf("could not create did document: %w", err)
 	}
 
-	// Fixme: The doc should not be stored but send to the network.
-	metaData := types.DocumentMetadata{
-		Created: time.Now(),
-		Version: 0,
-	}
-	err = r.store.Write(*doc, metaData)
+	payload, err := json.Marshal(doc)
 	if err != nil {
-		return nil, fmt.Errorf("could not store created did document: %w", err)
+		return nil, err
 	}
+
+	keyID := doc.Authentication[0].ID.String()
+	_, err = r.network.CreateDocument(DIDDocumentType, payload, keyID, false, time.Now())
+	if err != nil {
+		return nil, fmt.Errorf("could not store did document in network: %w", err)
+	}
+
+	//// Fixme: The doc should not be stored but send to the network.
+	//metaData := types.DocumentMetadata{
+	//	Created: dagDoc.,
+	//	Version: 0,
+	//}
+	//err = r.store.Write(*doc, metaData)
+	//if err != nil {
+	//	return nil, fmt.Errorf("could not store created did document: %w", err)
+	//}
 	return doc, nil
 }
 
