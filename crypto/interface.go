@@ -55,21 +55,21 @@ type PublicKeyStore interface {
 type KeyStore interface {
 	KeyCreator
 	PublicKeyStore
-	DocSigner
-	AuthSigner
+	JWSSigner
+	JWTSigner
 	// PrivateKeyExists returns if the specified private key exists.
 	// If an error occurs, false is also returned
 	PrivateKeyExists(kid string) bool
 }
 
-// DocSigner defines the functions for signing JSON Web Signatures.
-type DocSigner interface {
+// JWSSigner defines the functions for signing JSON Web Signatures.
+type JWSSigner interface {
 	// SignJWS creates a signed JWS (in compact form using) the given key (private key must be present), protected headers and payload.
 	SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error)
 }
 
-// AuthSigner is the interface used to sign authorization tokens
-type AuthSigner interface {
+// JWTSigner is the interface used to sign authorization tokens
+type JWTSigner interface {
 	// SignJWT creates a signed JWT using the given key and map of claims (private key must be present).
 	SignJWT(claims map[string]interface{}, kid string) (string, error)
 }

@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jwk"
 )
 
@@ -63,7 +64,7 @@ func (hb HTTPClient) GetPublicKey(kid string, validAt *string) (jwk.Key, error) 
 	defer cancel()
 
 	httpClient := hb.clientWithRequestEditor(func(ctx context.Context, req *http.Request) error {
-		req.Header.Add("Accept", "application/json")
+		req.Header.Add(echo.HeaderAccept, "application/json")
 		return nil
 	})
 

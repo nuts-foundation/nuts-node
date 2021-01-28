@@ -18,19 +18,19 @@ package core
 
 import "time"
 
-// Period is a convenience type for valid from and valid to dateTime.
+// Period is a convenience type for a dateTime range.
 type Period struct {
-	ValidFrom time.Time  `json:"validFrom"`
-	ValidTo   *time.Time `json:"validTo,omitempty"`
+	Begin time.Time  `json:"begin"`
+	End   *time.Time `json:"end,omitempty"`
 }
 
-// Contains checks if the given time falls within this period
+// Contains checks if the given time falls within this period. The bounds are inclusive.
 func (p Period) Contains(when time.Time) bool {
-	if when.Before(p.ValidFrom) {
+	if when.Before(p.Begin) {
 		return false
 	}
 
-	return !(p.ValidTo != nil && when.After(*p.ValidTo))
+	return !(p.End != nil && when.After(*p.End))
 }
 
 // RFC3339Time is a time that marshals as RFC3339

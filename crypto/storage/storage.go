@@ -46,15 +46,15 @@ type Storage interface {
 
 // PublicKeyEntry is a public key entry also containing the period it's valid for.
 type PublicKeyEntry struct {
-	Period       core.Period `json:"period"`
-	parsedJWK    jwk.Key
-	PublicKeyJwk map[string]interface{} `json:"publicKeyJwk,omitempty"`
+	Period    core.Period `json:"period"`
+	parsedJWK jwk.Key
+	Key       map[string]interface{} `json:"publicKeyJwk,omitempty"`
 }
 
 // FromJWK fills the publicKeyEntry with key material from the given key
 func (pke *PublicKeyEntry) FromJWK(key jwk.Key) (err error) {
 	pke.parsedJWK = key
-	pke.PublicKeyJwk, err = util.JwkToMap(key)
+	pke.Key, err = util.JwkToMap(key)
 	return
 }
 
@@ -67,8 +67,8 @@ func (pke *PublicKeyEntry) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 	*pke = (PublicKeyEntry)(tmp)
-	if pke.PublicKeyJwk != nil {
-		jwkAsJSON, _ := json.Marshal(pke.PublicKeyJwk)
+	if pke.Key != nil {
+		jwkAsJSON, _ := json.Marshal(pke.Key)
 		key, err := jwk.ParseKey(jwkAsJSON)
 		if err != nil {
 			return fmt.Errorf("could not parse publicKeyEntry: invalid publickeyJwk: %w", err)

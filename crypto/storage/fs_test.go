@@ -32,7 +32,7 @@ func Test_fs_GetPublicKey(t *testing.T) {
 		ec := test.GenerateECKey()
 		kid := "kid"
 		now := time.Now()
-		pke := &PublicKeyEntry{Period: core.Period{ValidFrom: now}}
+		pke := &PublicKeyEntry{Period: core.Period{Begin: now}}
 		key, _ := jwk.New(ec.Public())
 		pke.FromJWK(key)
 
@@ -47,7 +47,7 @@ func Test_fs_GetPublicKey(t *testing.T) {
 		}
 
 		assert.Equal(t, key, entry.JWK())
-		assert.Equal(t, time.Duration(0), now.Sub(entry.Period.ValidFrom))
+		assert.Equal(t, time.Duration(0), now.Sub(entry.Period.Begin))
 	})
 }
 

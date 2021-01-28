@@ -53,7 +53,7 @@ func TestCrypto_PublicKey(t *testing.T) {
 	ec := test.GenerateECKey()
 
 	now := time.Now()
-	period := core.Period{ValidFrom: now}
+	period := core.Period{Begin: now}
 	client.SavePublicKey(kid, ec.Public(), period)
 
 	t.Run("Public key is returned from storage", func(t *testing.T) {

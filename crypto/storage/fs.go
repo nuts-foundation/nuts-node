@@ -129,7 +129,7 @@ func (fsc *fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) 
 	return err
 }
 
-// Save the private key for the given key to disk. Files are  postfixed with '_private.pem'. Keys are stored in pem format. It also store the public key
+// Save the public key for the given key to disk. Files are  postfixed with '_public.json'. Keys are stored in JWK format.
 func (fsc *fileSystemBackend) SavePublicKey(kid string, entry PublicKeyEntry) error {
 	filenamePath := fsc.getEntryPath(kid, publicKeyEntry)
 	outFile, err := os.Create(filenamePath)

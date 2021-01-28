@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/labstack/echo/v4"
 	mock2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
@@ -154,7 +155,7 @@ func TestWrapper_PublicKey(t *testing.T) {
 
 		key := test.GenerateECKey()
 
-		ctx.echo.EXPECT().Request().Return(&http.Request{Header: http.Header{"Accept": []string{"application/json"}}})
+		ctx.echo.EXPECT().Request().Return(&http.Request{Header: http.Header{echo.HeaderAccept: []string{"application/json"}}})
 		ctx.keyStore.EXPECT().GetPublicKey("kid", at).Return(key.Public(), nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
 
@@ -176,7 +177,7 @@ func TestWrapper_PublicKey(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.echo.EXPECT().Request().Return(&http.Request{Header: http.Header{"Accept": []string{"application/json"}}})
+		ctx.echo.EXPECT().Request().Return(&http.Request{Header: http.Header{echo.HeaderAccept: []string{"application/json"}}})
 		ctx.keyStore.EXPECT().GetPublicKey("kid", at).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.PublicKey(ctx.echo, "kid", params)

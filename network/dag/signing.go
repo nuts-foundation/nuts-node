@@ -20,7 +20,7 @@ type DocumentSigner interface {
 // NewAttachedJWKDocumentSigner creates a DocumentSigner that signs the document using the given key.
 // The public key (identified by `kid`) is added to the signed document as `jwk` header. The public key is resolved
 // using the given resolver and the `kid` parameter.
-func NewAttachedJWKDocumentSigner(jwsSigner crypto.DocSigner, kid string, keyResolver crypto.PublicKeyStore) DocumentSigner {
+func NewAttachedJWKDocumentSigner(jwsSigner crypto.JWSSigner, kid string, keyResolver crypto.PublicKeyStore) DocumentSigner {
 	return &documentSigner{
 		signer:   jwsSigner,
 		kid:      kid,
@@ -32,7 +32,7 @@ func NewAttachedJWKDocumentSigner(jwsSigner crypto.DocSigner, kid string, keyRes
 // NewDocumentSigner creates a DocumentSigner that signs the document using the given key.
 // The public key is not included in the signed document, instead the `kid` header is added which must refer to the ID
 // of the used key.
-func NewDocumentSigner(jwsSigner crypto.DocSigner, kid string) DocumentSigner {
+func NewDocumentSigner(jwsSigner crypto.JWSSigner, kid string) DocumentSigner {
 	return &documentSigner{
 		signer: jwsSigner,
 		kid:    kid,
@@ -43,7 +43,7 @@ func NewDocumentSigner(jwsSigner crypto.DocSigner, kid string) DocumentSigner {
 type documentSigner struct {
 	attach   bool
 	kid      string
-	signer   crypto.DocSigner
+	signer   crypto.JWSSigner
 	resolver crypto.PublicKeyStore
 }
 

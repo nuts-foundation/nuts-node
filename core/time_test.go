@@ -51,11 +51,11 @@ func TestPeriod_Contains(t *testing.T) {
 	t20 := time.Unix(20, 0)
 
 	open := Period{
-		ValidFrom: t10,
+		Begin: t10,
 	}
 	closed := Period{
-		ValidFrom: t5,
-		ValidTo:   &t15,
+		Begin: t5,
+		End:   &t15,
 	}
 
 	t.Run("false for before", func(t *testing.T) {

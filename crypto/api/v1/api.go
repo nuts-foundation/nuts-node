@@ -77,7 +77,7 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 // PublicKey returns a public key for the given kid. The urn represents a legal entity. The api returns the public key either in PEM or JWK format.
 // It uses the accept header to determine this. Default is PEM (text/plain), only when application/json is requested will it return JWK.
 func (w *Wrapper) PublicKey(ctx echo.Context, kid string, params PublicKeyParams) error {
-	acceptHeader := ctx.Request().Header.Get("Accept")
+	acceptHeader := ctx.Request().Header.Get(echo.HeaderAccept)
 
 	at := time.Now()
 	var err error

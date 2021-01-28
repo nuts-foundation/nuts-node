@@ -253,7 +253,7 @@ func (mr *MockKeyStoreMockRecorder) PrivateKeyExists(kid interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrivateKeyExists", reflect.TypeOf((*MockKeyStore)(nil).PrivateKeyExists), kid)
 }
 
-// MockDocSigner is a mock of DocSigner interface
+// MockDocSigner is a mock of JWSSigner interface
 type MockDocSigner struct {
 	ctrl     *gomock.Controller
 	recorder *MockDocSignerMockRecorder
@@ -291,7 +291,7 @@ func (mr *MockDocSignerMockRecorder) SignJWS(payload, protectedHeaders, kid inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWS", reflect.TypeOf((*MockDocSigner)(nil).SignJWS), payload, protectedHeaders, kid)
 }
 
-// MockAuthSigner is a mock of AuthSigner interface
+// MockAuthSigner is a mock of JWTSigner interface
 type MockAuthSigner struct {
 	ctrl     *gomock.Controller
 	recorder *MockAuthSignerMockRecorder
