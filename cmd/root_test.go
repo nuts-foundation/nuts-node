@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -11,6 +12,18 @@ import (
 )
 
 func Test_rootCmd(t *testing.T) {
+	t.Run("no args prints help", func(t *testing.T) {
+		oldStdout := stdOutWriter
+		buf := new(bytes.Buffer)
+		stdOutWriter = buf
+		defer func() {
+			stdOutWriter = oldStdout
+		}()
+		os.Args = []string{"nuts"}
+		Execute()
+		actual := buf.String()
+		assert.Contains(t, actual, "Available Commands")
+	})
 	t.Run("start in server mode", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		echoServer := core.NewMockEchoServer(ctrl)
@@ -27,12 +40,8 @@ func Test_rootCmd(t *testing.T) {
 		os.Setenv("NUTS_VDR_DATADIR", path.Join(testDirectory, "vdr"))
 		defer os.Unsetenv("NUTS_VDR_DATADIR")
 		os.Setenv("NUTS_CRYPTO_FSPATH", path.Join(testDirectory, "crypto"))
-		os.Args = []string{"nuts"}
+		defer os.Unsetenv("NUTS_CRYPTO_FSPATH")
+		os.Args = []string{"nuts", "server"}
 		Execute()
-	})
-	t.Run("start in CLI mode", func(t *testing.T) {
-		os.Setenv("NUTS_MODE", core.GlobalCLIMode)
-		defer os.Unsetenv("NUTS_MODE")
-		assert.NoError(t, createCommand(core.NewSystem()).Execute())
 	})
 }

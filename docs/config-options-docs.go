@@ -11,21 +11,22 @@ import (
 
 func main() {
 	flags := make(map[string]*pflag.FlagSet)
-	command := cmd.CreateCommand()
+	system := cmd.CreateSystem()
+	command := cmd.CreateCommand(system)
 	core.NutsConfig().Load(command)
 	globalFlags := command.PersistentFlags()
 	flags[""] = globalFlags
 	// Make sure engines are registered
-	for _, engine := range core.EngineCtl.Engines {
+	system.VisitEngines(func(engine *core.Engine) {
 		if engine.ConfigKey == "" {
 			// go-core engine contains global flags and has no config key
-			continue
+			return
 		}
 		flagsForEngine := extractFlagsForEngine(engine.ConfigKey, globalFlags)
 		if flagsForEngine.HasAvailableFlags() {
 			flags[engine.Name] = flagsForEngine
 		}
-	}
+	})
 	generatePartitionedConfigOptionsDocs("docs/pages/configuration/options.rst", flags)
 }
 
