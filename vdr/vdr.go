@@ -27,6 +27,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+
 	"sync"
 	"time"
 
@@ -117,15 +119,6 @@ func (r VDR) Create() (*did.Document, error) {
 		return nil, fmt.Errorf("could not store did document in network: %w", err)
 	}
 
-	//// Fixme: The doc should not be stored but send to the network.
-	//metaData := types.DocumentMetadata{
-	//	Created: dagDoc.,
-	//	Version: 0,
-	//}
-	//err = r.store.Write(*doc, metaData)
-	//if err != nil {
-	//	return nil, fmt.Errorf("could not store created did document: %w", err)
-	//}
 	return doc, nil
 }
 
@@ -136,7 +129,22 @@ func (r VDR) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document
 
 // Update updates a DID Document based on the DID and current hash
 func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
-	return r.store.Update(id, current, next, metadata)
+	resolverMetada := &types.ResolveMetadata{
+		Hash:             &current,
+		AllowDeactivated: false,
+	}
+	_, meta, err := r.store.Resolve(id, resolverMetada)
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(next)
+	if err != nil {
+		return err
+	}
+	// TODO: look into the controller of the did for a signing key
+	keyID := next.Authentication[0].ID.String()
+	_, err = r.network.CreateDocument(DIDDocumentType, payload, keyID, false, time.Now(), dag.TimelineIDField(meta.Hash), dag.TimelineVersionField(meta.Version+1))
+	return err
 }
 
 // Deactivate updates the DID Document so it can no longer be updated
