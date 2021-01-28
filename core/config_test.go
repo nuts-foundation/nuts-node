@@ -171,16 +171,13 @@ func TestNutsGlobalConfig_PrintConfig(t *testing.T) {
 	cfg := NewNutsGlobalConfig()
 	fs := pflag.FlagSet{}
 	fs.String("camelCaseKey", "value", "description")
-	EngineCtl.registerEngine(&Engine{FlagSet: &fs})
+	system := NewSystem()
+	system.RegisterEngine(&Engine{FlagSet: &fs})
 	logger := logrus.New()
 	buf := new(bytes.Buffer)
 	logger.Out = buf
-	cfg.PrintConfig(logger)
+	cfg.PrintConfig(system, logger)
 	bs := buf.String()
-
-	defer func() {
-		EngineCtl.Engines = EngineCtl.Engines[:len(EngineCtl.Engines)-1]
-	}()
 
 	t.Run("output contains key", func(t *testing.T) {
 		if strings.Index(bs, "camelCaseKey") == -1 {

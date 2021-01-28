@@ -28,61 +28,65 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type status struct {
+	system *System
+}
+
 //NewStatusEngine creates a new Engine for viewing all engines
-func NewStatusEngine() *Engine {
+func NewStatusEngine(system *System) *Engine {
+	instance := status{
+		system: system,
+	}
 	return &Engine{
 		Name: "Status",
 		Cmd: &cobra.Command{
 			Use:   "diagnostics",
 			Short: "show engine diagnostics",
 			Run: func(cmd *cobra.Command, args []string) {
-				diagnosticsSummaryAsText()
+				instance.diagnosticsSummaryAsText()
 			},
 		},
-		Diagnosable: status{},
+		Diagnosable: instance,
 		Routes: func(router EchoRouter) {
-			router.GET("/status/diagnostics", diagnosticsOverview)
-			router.GET("/status", StatusOK)
+			router.GET("/status/diagnostics", instance.diagnosticsOverview)
+			router.GET("/status", statusOK)
 		},
 	}
 }
 
-func diagnosticsOverview(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, diagnosticsSummaryAsText())
+func (s status) diagnosticsOverview(ctx echo.Context) error {
+	return ctx.String(http.StatusOK, s.diagnosticsSummaryAsText())
 }
 
-func diagnosticsSummaryAsText() string {
+func (s status) diagnosticsSummaryAsText() string {
 	var lines []string
-	for _, e := range EngineCtl.Engines {
-		if e.Diagnosable != nil {
-			lines = append(lines, e.Name)
-			diagnostics := e.Diagnostics()
+	s.system.VisitEngines(func(engine *Engine) {
+		if engine.Diagnosable != nil {
+			lines = append(lines, engine.Name)
+			diagnostics := engine.Diagnostics()
 			for _, d := range diagnostics {
 				lines = append(lines, fmt.Sprintf("\t%s: %s", d.Name(), d.String()))
 			}
 		}
-	}
-
+	})
 	return strings.Join(lines, "\n")
 }
 
-type status struct{}
-
 // Diagnostics returns list of DiagnosticResult for the StatusEngine.
 // The results are a list of all registered engines
-func (status) Diagnostics() []DiagnosticResult {
-	return []DiagnosticResult{&GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(listAllEngines(), ",")}}
+func (s status) Diagnostics() []DiagnosticResult {
+	return []DiagnosticResult{&GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(s.listAllEngines(), ",")}}
 }
 
-// StatusOK returns 200 OK with a "OK" body
-func StatusOK(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, "OK")
-}
-
-func listAllEngines() []string {
+func (s status) listAllEngines() []string {
 	var names []string
-	for _, e := range EngineCtl.Engines {
-		names = append(names, e.Name)
-	}
+	s.system.VisitEngines(func(engine *Engine) {
+		names = append(names, engine.Name)
+	})
 	return names
+}
+
+// statusOK returns 200 OK with a "OK" body
+func statusOK(ctx echo.Context) error {
+	return ctx.String(http.StatusOK, "OK")
 }
