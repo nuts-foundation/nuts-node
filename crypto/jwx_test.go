@@ -140,30 +140,41 @@ func TestCrypto_SignJWS(t *testing.T) {
 	kid := "kid"
 	client.New(StringNamingFunc(kid))
 
+	publicKey, _ := client.GetPublicKey(kid, time.Now())
+
 	t.Run("ok", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
-		signature, err := client.SignJWS(payload, map[string]interface{}{"foo": "bar"}, kid)
+		hdrs := map[string]interface{}{"foo": "bar"}
+		signature, algo, err := client.SignJWS(payload, hdrs, kid)
 		if !assert.NoError(t, err) {
 			return
 		}
+		assert.Equal(t, jwa.ES256, algo)
 		message, err := jws.Parse(strings.NewReader(signature))
 		if !assert.NoError(t, err) {
 			return
 		}
 		assert.Equal(t, payload, message.Payload())
-		assert.Len(t, message.Signatures(), 1)
-		value, _ := message.Signatures()[0].ProtectedHeaders().Get("foo")
-		assert.Equal(t, "bar", value.(string))
+		sig := message.Signatures()
+		assert.Len(t, sig, 1)
+		fooValue, _ := sig[0].ProtectedHeaders().Get("foo")
+		assert.Equal(t, "bar", fooValue.(string))
+		// Sanity check: verify signature
+		actualPayload, err := jws.Verify([]byte(signature), sig[0].ProtectedHeaders().Algorithm(), publicKey)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, payload, actualPayload)
 	})
 	t.Run("invalid header", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
-		signature, err := client.SignJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, kid)
+		signature, _, err := client.SignJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, kid)
 		assert.EqualError(t, err, "unable to set header jwk: invalid value for jwk key: string")
 		assert.Empty(t, signature)
 	})
 	t.Run("unknown key", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
-		signature, err := client.SignJWS(payload, map[string]interface{}{}, "unknown")
+		signature, _, err := client.SignJWS(payload, map[string]interface{}{}, "unknown")
 		assert.Contains(t, err.Error(), "error while signing JWS, can't get private key")
 		assert.Empty(t, signature)
 	})

@@ -1,14 +1,20 @@
 package dag
 
 import (
-	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha1"
 	"encoding/base32"
+	"errors"
+	"github.com/golang/mock/gomock"
+	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,7 +36,7 @@ func TestDocumentSigner(t *testing.T) {
 		}
 
 		signer := &trackingJWSSigner{}
-		signedDoc, err := NewAttachedJWKDocumentSigner(signer, kid, &simpleKeyResolver{key: key}).Sign(doc, moment)
+		signedDoc, err := NewAttachedJWKDocumentSigner(signer, kid, &crypto.StaticKeyResolver{Key: key}).Sign(doc, moment)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -64,18 +70,66 @@ func TestDocumentSigner(t *testing.T) {
 		assert.Nil(t, signer.headers[jws.JWKKey])
 		assert.Equal(t, "fine JWS", string(signedDoc.Data()))
 	})
+	t.Run("resolver returns public key", func(t *testing.T) {
+		doc, _ := NewDocument(payloadHash, contentType, expectedPrevs)
+		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		signer := &trackingJWSSigner{}
+		_, err := NewAttachedJWKDocumentSigner(signer, kid, crypto.StaticKeyResolver{Key: privateKey}).Sign(doc, moment)
+		assert.NoError(t, err)
+		assert.IsType(t, jwk.NewECDSAPublicKey(), signer.headers[jws.JWKKey])
+	})
 }
 
-type simpleKeyResolver struct {
-	key crypto.PublicKey
-}
-
-func (s simpleKeyResolver) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
-	return s.key, nil
-}
-
-func (s simpleKeyResolver) SavePublicKey(kid string, publicKey crypto.PublicKey, period core.Period) error {
-	panic("implement me")
+func TestDocumentSignatureVerifier(t *testing.T) {
+	t.Run("embedded JWK, sign -> verify", func(t *testing.T) {
+		err := NewDocumentSignatureVerifier(nil).Verify(CreateTestDocumentWithJWK(1))
+		assert.NoError(t, err)
+	})
+	t.Run("embedded JWK, sign -> marshal -> unmarshal -> verify", func(t *testing.T) {
+		expected, _ := ParseDocument(CreateTestDocumentWithJWK(1).Data())
+		err := NewDocumentSignatureVerifier(nil).Verify(expected)
+		assert.NoError(t, err)
+	})
+	t.Run("referral with key ID", func(t *testing.T) {
+		document, _, publicKey := CreateTestDocument(1)
+		expected, _ := ParseDocument(document.Data())
+		err := NewDocumentSignatureVerifier(&crypto.StaticKeyResolver{Key: publicKey}).Verify(expected)
+		assert.NoError(t, err)
+	})
+	t.Run("wrong key", func(t *testing.T) {
+		attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		document, _, _ := CreateTestDocument(1)
+		expected, _ := ParseDocument(document.Data())
+		err := NewDocumentSignatureVerifier(&crypto.StaticKeyResolver{Key: attackerKey.Public()}).Verify(expected)
+		assert.EqualError(t, err, "failed to verify message: failed to verify signature using ecdsa")
+	})
+	t.Run("unsupported input", func(t *testing.T) {
+		err := NewDocumentSignatureVerifier(nil).Verify(nil)
+		assert.EqualError(t, err, "unsupported document")
+	})
+	t.Run("key type is incorrect", func(t *testing.T) {
+		d, _, _ := CreateTestDocument(1)
+		document := d.(*document)
+		document.signingKey = jwk.NewSymmetricKey()
+		err := NewDocumentSignatureVerifier(nil).Verify(document)
+		assert.EqualError(t, err, "failed to verify message: invalid key type []uint8. *ecdsa.PublicKey is required")
+	})
+	t.Run("unable to derive key from JWK", func(t *testing.T) {
+		d, _, _ := CreateTestDocument(1)
+		document := d.(*document)
+		document.signingKey = jwk.NewOKPPublicKey()
+		err := NewDocumentSignatureVerifier(nil).Verify(document)
+		assert.EqualError(t, err, "failed to build public key: invalid curve algorithm P-invalid")
+	})
+	t.Run("unable to resolve key", func(t *testing.T) {
+		d, _, _ := CreateTestDocument(1)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		keyResolver := crypto.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().GetPublicKey(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
+		err := NewDocumentSignatureVerifier(keyResolver).Verify(d)
+		assert.Contains(t, err.Error(), "failed")
+	})
 }
 
 type trackingJWSSigner struct {
@@ -84,9 +138,9 @@ type trackingJWSSigner struct {
 	kid     string
 }
 
-func (t *trackingJWSSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
+func (t *trackingJWSSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, jwa.SignatureAlgorithm, error) {
 	t.payload = payload
 	t.headers = protectedHeaders
 	t.kid = kid
-	return "fine JWS", nil
+	return "fine JWS", jwa.ES256, nil
 }

@@ -46,7 +46,7 @@ func TestFlagSet(t *testing.T) {
 
 func TestCmd_List(t *testing.T) {
 	cmd := createCmd(t)
-	response := []interface{}{string(dag.CreateTestDocument(1).Data()), string(dag.CreateTestDocument(2).Data())}
+	response := []interface{}{string(dag.CreateTestDocumentWithJWK(1).Data()), string(dag.CreateTestDocumentWithJWK(2).Data())}
 	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
 	os.Setenv("NUTS_ADDRESS", s.URL)
 	core.NutsConfig().Load(cmd)
@@ -59,7 +59,7 @@ func TestCmd_List(t *testing.T) {
 
 func TestCmd_Get(t *testing.T) {
 	cmd := createCmd(t)
-	response := dag.CreateTestDocument(1)
+	response := dag.CreateTestDocumentWithJWK(1)
 	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
 	s := httptest.NewServer(handler)
 	os.Setenv("NUTS_ADDRESS", s.URL)

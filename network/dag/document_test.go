@@ -90,7 +90,7 @@ func Test_document_Getters(t *testing.T) {
 }
 
 func Test_document_MarshalJSON(t *testing.T) {
-	expected := CreateTestDocument(1)
+	expected := CreateTestDocumentWithJWK(1)
 	data, err := json.Marshal(expected)
 	if !assert.NoError(t, err) {
 		return

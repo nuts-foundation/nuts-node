@@ -128,15 +128,16 @@ func ValidatePayloadType(payloadType string) bool {
 }
 
 type document struct {
-	prevs           []hash.SHA256Hash
-	payload         hash.SHA256Hash
-	payloadType     string
-	signingKey      jwk.Key
-	signingKeyID    string
-	signingTime     time.Time
-	version         Version
-	timelineID      hash.SHA256Hash
-	timelineVersion int
+	prevs            []hash.SHA256Hash
+	payload          hash.SHA256Hash
+	payloadType      string
+	signingKey       jwk.Key
+	signingKeyID     string
+	signingTime      time.Time
+	signingAlgorithm jwa.SignatureAlgorithm
+	version          Version
+	timelineID       hash.SHA256Hash
+	timelineVersion  int
 
 	data []byte
 	ref  hash.SHA256Hash

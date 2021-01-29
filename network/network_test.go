@@ -50,7 +50,7 @@ func TestNetwork_ListDocuments(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		cxt.graph.EXPECT().All().Return([]dag.Document{dag.CreateTestDocument(1)}, nil)
+		cxt.graph.EXPECT().All().Return([]dag.Document{dag.CreateTestDocumentWithJWK(1)}, nil)
 		docs, err := cxt.network.ListDocuments()
 		assert.Len(t, docs, 1)
 		assert.NoError(t, err)
@@ -72,7 +72,7 @@ func TestNetwork_GetDocumentContents(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		document := dag.CreateTestDocument(1)
+		document := dag.CreateTestDocumentWithJWK(1)
 		cxt.graph.EXPECT().Get(document.Ref()).Return(document, nil)
 		cxt.payload.EXPECT().ReadPayload(document.Payload())
 		cxt.network.GetDocumentPayload(document.Ref())
@@ -106,7 +106,7 @@ func TestNetwork_Configure(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.p2pNetwork.EXPECT().Configure(gomock.Any())
 		err := cxt.network.Configure()
 		if !assert.NoError(t, err) {

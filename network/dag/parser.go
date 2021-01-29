@@ -46,7 +46,10 @@ func ParseDocument(input []byte) (Document, error) {
 	}
 	if len(message.Signatures()) == 0 {
 		return nil, documentValidationError("JWS does not contain any signature")
+	} else if len(message.Signatures()) > 1 {
+		return nil, documentValidationError("JWS contains multiple signature")
 	}
+
 	signature := message.Signatures()[0]
 	headers := signature.ProtectedHeaders()
 
@@ -54,7 +57,7 @@ func ParseDocument(input []byte) (Document, error) {
 		parseSigningAlgorithm,
 		parsePayload,
 		parseContentType,
-		parseSigningKey,
+		parseSignatureParams,
 		parseSigningTime,
 		parseVersion,
 		parsePrevious,
@@ -108,15 +111,18 @@ func parseContentType(document *document, headers jws.Headers, _ *jws.Message) e
 	return nil
 }
 
-// parseSigningKey parses, validates and sets the document signing key (`jwk`) or key ID (`kid`).
-func parseSigningKey(document *document, headers jws.Headers, _ *jws.Message) error {
+// parseSignatureParams parses, validates and sets the document signing key (`jwk`) or key ID (`kid`).
+func parseSignatureParams(document *document, headers jws.Headers, _ *jws.Message) error {
 	if key, ok := headers.Get(jws.JWKKey); ok {
 		document.signingKey = key.(jwk.Key)
-	} else if kid, ok := headers.Get(jws.KeyIDKey); ok {
-		document.signingKeyID = kid.(string)
-	} else {
-		return documentValidationError("either `kid` or `jwk` header must be present")
 	}
+	if kid, ok := headers.Get(jws.KeyIDKey); ok {
+		document.signingKeyID = kid.(string)
+	}
+	if (document.signingKey != nil && document.signingKeyID != "") || (document.signingKey == nil && document.signingKeyID == "") {
+		return documentValidationError("either `kid` or `jwk` header must be present (but not both)")
+	}
+	document.signingAlgorithm = headers.Algorithm()
 	return nil
 }
 

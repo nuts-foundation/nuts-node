@@ -3,6 +3,7 @@ package crypto
 import (
 	"crypto"
 	"path"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -33,4 +34,12 @@ func StringNamingFunc(name string) KIDNamingFunc {
 	return func(key crypto.PublicKey) (string, error) {
 		return name, nil
 	}
+}
+
+type StaticKeyResolver struct {
+	Key crypto.PublicKey
+}
+
+func (s StaticKeyResolver) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
+	return s.Key, nil
 }

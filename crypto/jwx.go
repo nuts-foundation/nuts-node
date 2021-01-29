@@ -54,28 +54,27 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 }
 
 // SignJWS creates a signed JWS (in compact form using) the given key (private key must be present), protected headers and payload.
-func (client *Crypto) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
+func (client *Crypto) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, jwa.SignatureAlgorithm, error) {
 	headers := jws.NewHeaders()
 	for key, value := range protectedHeaders {
 		if err := headers.Set(key, value); err != nil {
-			return "", fmt.Errorf("unable to set header %s: %w", key, err)
+			return "", "", fmt.Errorf("unable to set header %s: %w", key, err)
 		}
 	}
 	privateKey, err := client.Storage.GetPrivateKey(kid)
 	if err != nil {
-		return "", fmt.Errorf("error while signing JWS, can't get private key: %w", err)
+		return "", "", fmt.Errorf("error while signing JWS, can't get private key: %w", err)
 	}
 	privateKeyAsJWK, err := jwkKey(privateKey)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	algo := jwa.SignatureAlgorithm(privateKeyAsJWK.Algorithm())
-	protectedHeaders[jws.AlgorithmKey] = algo
 	data, err := jws.Sign(payload, algo, privateKey, jws.WithHeaders(headers))
 	if err != nil {
-		return "", fmt.Errorf("unable to sign JWS %w", err)
+		return "", "", fmt.Errorf("unable to sign JWS %w", err)
 	}
-	return string(data), nil
+	return string(data), algo, nil
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {

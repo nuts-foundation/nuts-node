@@ -7,6 +7,7 @@ package crypto
 import (
 	crypto "crypto"
 	gomock "github.com/golang/mock/gomock"
+	jwa "github.com/lestrrat-go/jwx/jwa"
 	core "github.com/nuts-foundation/nuts-node/core"
 	reflect "reflect"
 	time "time"
@@ -210,12 +211,13 @@ func (mr *MockKeyStoreMockRecorder) SavePublicKey(kid, publicKey, period interfa
 }
 
 // SignJWS mocks base method
-func (m *MockKeyStore) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
+func (m *MockKeyStore) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, jwa.SignatureAlgorithm, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SignJWS", payload, protectedHeaders, kid)
 	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(jwa.SignatureAlgorithm)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // SignJWS indicates an expected call of SignJWS
@@ -277,12 +279,13 @@ func (m *MockJWSSigner) EXPECT() *MockJWSSignerMockRecorder {
 }
 
 // SignJWS mocks base method
-func (m *MockJWSSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
+func (m *MockJWSSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, jwa.SignatureAlgorithm, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SignJWS", payload, protectedHeaders, kid)
 	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(jwa.SignatureAlgorithm)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // SignJWS indicates an expected call of SignJWS
