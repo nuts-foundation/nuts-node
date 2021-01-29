@@ -152,3 +152,10 @@ vdr.clientTimeout             10              Time-out for the client in seconds
 vdr.datadir                   ./data          Location of data files, default: ./data
 ============================  ==============  =================================================================================================================================================================================
 
+This table is automatically generated using the configuration flags in the core and engines. When they're changed
+the options table must be regenerated using the Makefile:
+
+.. code-block:: shell
+
+    $ make update-docs
+
