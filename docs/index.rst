@@ -28,6 +28,8 @@ Nuts documentation
     :glob:
 
     pages/monitoring.rst
+    pages/running-a-node.rst
+    pages/administering-your-node.rst
 
 .. toctree::
     :maxdepth: 1

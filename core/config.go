@@ -43,7 +43,6 @@ const addressFlag = "address"
 const defaultLogLevel = "info"
 const defaultAddress = "localhost:1323"
 const strictModeFlag = "strictmode"
-const modeFlag = "mode"
 const identityFlag = "identity"
 
 var defaultIgnoredPrefixes = []string{"root"}
@@ -72,24 +71,7 @@ type NutsGlobalConfig struct {
 type NutsConfigValues interface {
 	ServerAddress() string
 	InStrictMode() bool
-	Mode() string
-	GetEngineMode(engineMode string) string
 }
-
-const (
-	// ServerEngineMode is used for starting a node's engine in server mode
-	ServerEngineMode string = "server"
-	// ClientEngineMode is used for starting a node's engine in client mode
-	ClientEngineMode string = "client"
-)
-
-const (
-	// GlobalServerMode is used for starting the application in server mode, running as Nuts node.
-	GlobalServerMode string = "server"
-	// GlobalCLIMode is used for starting the application in CLI mode, meaning it's used as CLI client administering
-	// for a remote Nuts node. Engines will start in client mode when this mode is specified.
-	GlobalCLIMode string = "cli"
-)
 
 // NewNutsGlobalConfig creates a NutsGlobalConfig with the following defaults
 // * Prefix: NUTS
@@ -126,26 +108,6 @@ func (ngc NutsGlobalConfig) InStrictMode() bool {
 	return ngc.v.GetBool(strictModeFlag)
 }
 
-// Mode returns the configured mode (client/server).
-func (ngc NutsGlobalConfig) Mode() string {
-	return ngc.v.GetString(modeFlag)
-}
-
-// GetEngineMode configures an engine mode if not already configured. If the application is started in 'cli' mode,
-// its engines are configured to run in 'client' mode. This function returns the proper mode for the engine in and should be used as follows:
-// engineConfig.Mode = GetEngineMode(engineConfig.Mode)
-func (ngc NutsGlobalConfig) GetEngineMode(engineMode string) string {
-	if engineMode == "" {
-		switch ngc.Mode() {
-		case GlobalCLIMode:
-			return ClientEngineMode
-		default:
-			return ServerEngineMode
-		}
-	}
-	return engineMode
-}
-
 // Load sets some initial config in order to be able for commands to load the right parameters and to add the configFile Flag.
 // This is mainly spf13/viper related stuff
 func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) error {
@@ -157,7 +119,6 @@ func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) error {
 	flagSet.String(loggerLevelFlag, defaultLogLevel, "Log level (trace, debug, info, warn, error)")
 	flagSet.String(addressFlag, defaultAddress, "Address and port the server will be listening to")
 	flagSet.Bool(strictModeFlag, false, "When set, insecure settings are forbidden.")
-	flagSet.String(modeFlag, "server", "Mode the application will run in. When 'cli' it can be used to administer a remote Nuts node. When 'server' it will start a Nuts node. Defaults to 'server'.")
 	flagSet.String(identityFlag, "", "Vendor identity for the node, mandatory when running in server mode. Must be in the format: urn:oid:"+NutsVendorOID+":<number>")
 	cmd.PersistentFlags().AddFlagSet(flagSet)
 
@@ -167,7 +128,6 @@ func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) error {
 	ngc.bindFlag(flagSet, loggerLevelFlag)
 	ngc.bindFlag(flagSet, addressFlag)
 	ngc.bindFlag(flagSet, strictModeFlag)
-	ngc.bindFlag(flagSet, modeFlag)
 	ngc.bindFlag(flagSet, identityFlag)
 
 	// load flags into viper
@@ -190,10 +150,6 @@ func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) error {
 		return err
 	}
 	log.SetLevel(level)
-
-	if ngc.Mode() != GlobalCLIMode && ngc.Mode() != GlobalServerMode {
-		return fmt.Errorf("unsupported global mode: %s, supported modes: %s", ngc.Mode(), strings.Join([]string{GlobalCLIMode, GlobalServerMode}, ", "))
-	}
 
 	return nil
 }
@@ -242,7 +198,6 @@ func (ngc *NutsGlobalConfig) PrintConfig(system *System, logger log.FieldLogger)
 	logger.Infof(f, configFileFlag, ngc.v.Get(configFileFlag))
 	logger.Infof(f, loggerLevelFlag, ngc.v.Get(loggerLevelFlag))
 	logger.Infof(f, strictModeFlag, ngc.InStrictMode())
-	logger.Infof(f, modeFlag, ngc.Mode())
 	system.VisitEngines(func(engine *Engine) {
 		if engine.FlagSet != nil {
 			engine.FlagSet.VisitAll(func(flag *pflag.Flag) {
@@ -363,7 +318,7 @@ func (ngc *NutsGlobalConfig) injectIntoStruct(s interface{}) error {
 
 	for _, configName := range ngc.v.AllKeys() {
 		// ignore global flags
-		if configName == configFileFlag || configName == loggerLevelFlag || configName == addressFlag || configName == strictModeFlag || configName == modeFlag {
+		if configName == configFileFlag || configName == loggerLevelFlag || configName == addressFlag || configName == strictModeFlag {
 			continue
 		}
 

@@ -75,11 +75,8 @@ func (r *VDR) Configure() error {
 	var err error
 
 	r.configOnce.Do(func() {
-		cfg := core.NutsConfig()
-		if cfg.Mode() == core.ServerEngineMode {
-			if r.networkAmbassador == nil {
-				r.networkAmbassador = NewAmbassador(r.network)
-			}
+		if r.networkAmbassador == nil {
+			r.networkAmbassador = NewAmbassador(r.network)
 		}
 	})
 	return err

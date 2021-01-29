@@ -42,17 +42,21 @@ var echoCreator = func() core.EchoServer {
 	return echo
 }
 
-func createRootCommand(system *core.System) *cobra.Command {
+func createRootCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "nuts",
-		Short: "The Nuts service executable",
+		Short: "Nuts executable which can be used to run the Nuts server or administer the remote Nuts server.",
 		Run: func(cmd *cobra.Command, args []string) {
-			cfg := core.NutsConfig()
-			if cfg.Mode() != core.GlobalServerMode {
-				logrus.Error("Please specify a sub command when running in CLI mode")
-				_ = cmd.Help()
-				return
-			}
+			cmd.HelpFunc()(cmd, args)
+		},
+	}
+}
+
+func createServerCommand(system *core.System) *cobra.Command {
+	return &cobra.Command{
+		Use:   "server",
+		Short: "Starts the Nuts server",
+		Run: func(cmd *cobra.Command, args []string) {
 			// check config on all engines
 			if err := system.Configure(); err != nil {
 				logrus.Fatal(err)
@@ -63,6 +67,7 @@ func createRootCommand(system *core.System) *cobra.Command {
 				logrus.Fatal(err)
 			}
 
+			cfg := core.NutsConfig()
 			// start interfaces
 			echoServer := echoCreator()
 			system.VisitEngines(func(engine *core.Engine) {
@@ -83,15 +88,17 @@ func createRootCommand(system *core.System) *cobra.Command {
 	}
 }
 
-func createCommand(system *core.System) *cobra.Command {
-	command := createRootCommand(system)
+// CreateCommand creates the command with all subcommands to run the system.
+func CreateCommand(system *core.System) *cobra.Command {
+	command := createRootCommand()
 	command.SetOut(stdOutWriter)
 	addSubCommands(system, command)
 	addFlagSets(system, command, core.NutsConfig())
 	return command
 }
 
-func createSystem() *core.System {
+// CreateSystem creates the system and registers all default engines.
+func CreateSystem() *core.System {
 	system := core.NewSystem()
 	// Register default engines
 	system.RegisterEngine(core.NewStatusEngine(system))
@@ -106,8 +113,8 @@ func createSystem() *core.System {
 }
 
 func Execute() {
-	system := createSystem()
-	command := createCommand(system)
+	system := CreateSystem()
+	command := CreateCommand(system)
 	command.SetOut(stdOutWriter)
 
 	// Load global Nuts config
@@ -132,6 +139,7 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 			root.AddCommand(engine.Cmd)
 		}
 	})
+	root.AddCommand(createServerCommand(system))
 }
 
 func injectConfig(system *core.System, cfg *core.NutsGlobalConfig) {

@@ -35,3 +35,4 @@ HEALTHCHECK --start-period=30s --timeout=5s --interval=10s \
 
 EXPOSE 1323 4222 5555
 ENTRYPOINT ["/usr/bin/nuts"]
+CMD ["server"]

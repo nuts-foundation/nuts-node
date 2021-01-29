@@ -131,7 +131,6 @@ Key                           Default         Description
 address                       localhost:1323  Address and port the server will be listening to
 configfile                    nuts.yaml       Nuts config file
 identity                                      Vendor identity for the node, mandatory when running in server mode. Must be in the format: urn:oid:1.3.6.1.4.1.54851.4:<number>
-mode                          server          Mode the application will run in. When 'cli' it can be used to administer a remote Nuts node. When 'server' it will start a Nuts node. Defaults to 'server'.
 strictmode                    false           When set, insecure settings are forbidden.
 verbosity                     info            Log level (trace, debug, info, warn, error)
 **Crypto**

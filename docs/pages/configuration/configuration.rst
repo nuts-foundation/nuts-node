@@ -1,4 +1,4 @@
-.. _nuts-go-config:
+.. _nuts-node-config:
 
 Nuts node config
 ################

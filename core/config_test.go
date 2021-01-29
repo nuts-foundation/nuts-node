@@ -156,15 +156,6 @@ func TestNutsGlobalConfig_Load2(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, cfg.InStrictMode())
 	})
-
-	t.Run("Unsupported mode", func(t *testing.T) {
-		os.Setenv("NUTS_MODE", "foobar")
-		defer func() {
-			os.Unsetenv("NUTS_MODE")
-		}()
-		err := NewNutsGlobalConfig().Load(&cobra.Command{})
-		assert.Error(t, err)
-	})
 }
 
 func TestNutsGlobalConfig_PrintConfig(t *testing.T) {
@@ -640,21 +631,5 @@ func TestNutsGlobalConfig_InjectIntoEngine(t *testing.T) {
 		if err.Error() != expected {
 			t.Errorf("Expected error [%s], got [%v]", expected, err.Error())
 		}
-	})
-}
-
-func TestNutsGlobalConfig_GetEngineMode(t *testing.T) {
-	c := NewNutsGlobalConfig()
-	t.Run("engine mode = empty, global mode = cli", func(t *testing.T) {
-		c.v.Set(modeFlag, GlobalCLIMode)
-		assert.Equal(t, ClientEngineMode, c.GetEngineMode(""))
-	})
-	t.Run("engine mode = empty, global mode = server", func(t *testing.T) {
-		c.v.Set(modeFlag, GlobalServerMode)
-		assert.Equal(t, ServerEngineMode, c.GetEngineMode(""))
-	})
-	t.Run("engine mode = not empty", func(t *testing.T) {
-		c.v.Set(modeFlag, GlobalCLIMode)
-		assert.Equal(t, ServerEngineMode, c.GetEngineMode(ServerEngineMode))
 	})
 }

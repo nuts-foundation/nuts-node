@@ -109,9 +109,6 @@ func Instance() *Crypto {
 func (client *Crypto) Configure() error {
 	var err error
 	client.configOnce.Do(func() {
-		if core.NutsConfig().Mode() != core.ServerEngineMode {
-			return
-		}
 		if err = client.doConfigure(); err == nil {
 			client.configDone = true
 		}
