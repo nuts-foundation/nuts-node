@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"io"
 	"sync"
+	"time"
 )
 
 // Config holds the values for the crypto engine
@@ -85,15 +86,6 @@ func (client *Crypto) Shutdown() error {
 func (client *Crypto) Start() error {
 	// currently empty but here to make crypto implement the Runnable interface.
 	return nil
-}
-
-// GetPrivateKey returns the specified private key. It can be used for signing, but cannot be exported.
-func (client *Crypto) GetPrivateKey(kid string) (crypto.Signer, error) {
-	priv, err := client.Storage.GetPrivateKey(kid)
-	if err != nil {
-		return nil, err
-	}
-	return opaquePrivateKey{publicKey: priv.Public(), signFn: priv.Sign}, nil
 }
 
 var instance *Crypto
@@ -158,6 +150,12 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, e
 	if err != nil {
 		return nil, "", err
 	}
+
+	// also save the public key for all time use, otherwise it can't be attached to a published doc
+	if err := client.SavePublicKey(kid, pkey, core.Period{Begin: time.Time{}}); err != nil {
+		return nil, "", err
+	}
+
 	return pkey, kid, nil
 }
 
@@ -171,6 +169,37 @@ func (client *Crypto) PrivateKeyExists(kid string) bool {
 }
 
 // GetPublicKey loads the key from storage
-func (client *Crypto) GetPublicKey(kid string) (crypto.PublicKey, error) {
-	return client.Storage.GetPublicKey(kid)
+func (client *Crypto) GetPublicKey(kid string, validationTime time.Time) (crypto.PublicKey, error) {
+	pke, err := client.Storage.GetPublicKey(kid)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !pke.Period.Contains(validationTime) {
+		return nil, storage.ErrNotFound
+	}
+
+	var unknown interface{}
+	if err := pke.JWK().Raw(&unknown); err != nil {
+		return nil, err
+	}
+	return unknown.(crypto.PublicKey), nil
+}
+
+// SavePublicKey save the public key to storage
+func (client *Crypto) SavePublicKey(kid string, publicKey crypto.PublicKey, period core.Period) error {
+	key, err := jwk.New(publicKey)
+	if err != nil {
+		return err
+	}
+
+	publicKeyEntry := storage.PublicKeyEntry{
+		Period: period,
+	}
+	if err := publicKeyEntry.FromJWK(key); err != nil {
+		return err
+	}
+
+	return client.Storage.SavePublicKey(kid, publicKeyEntry)
 }

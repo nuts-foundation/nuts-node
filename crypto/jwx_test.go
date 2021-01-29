@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -117,7 +118,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		}
 
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
-			return client.GetPublicKey(kid)
+			return client.GetPublicKey(kid, time.Now())
 		})
 
 		if !assert.NoError(t, err) {

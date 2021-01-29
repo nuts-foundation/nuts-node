@@ -20,13 +20,12 @@ package crypto
 
 import (
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/rand"
-	"crypto/rsa"
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 
+	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -51,65 +50,38 @@ func TestCrypto_PublicKey(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	client.New(StringNamingFunc(kid))
+	ec := test.GenerateECKey()
+
+	now := time.Now()
+	period := core.Period{Begin: now}
+	client.SavePublicKey(kid, ec.Public(), period)
 
 	t.Run("Public key is returned from storage", func(t *testing.T) {
-		pub, err := client.GetPublicKey(kid)
+		pub, err := client.GetPublicKey(kid, now)
 
 		assert.Nil(t, err)
 		assert.NotEmpty(t, pub)
 	})
 
-	t.Run("Public key for unknown entity returns error", func(t *testing.T) {
-		_, err := client.GetPublicKey("unknown")
+	t.Run("error - unknown", func(t *testing.T) {
+		_, err := client.GetPublicKey("unknown", now)
 
 		if assert.Error(t, err) {
 			assert.True(t, errors.Is(err, storage.ErrNotFound))
 		}
 	})
-}
 
-func TestCrypto_GetPrivateKey(t *testing.T) {
-	client := createCrypto(t)
+	t.Run("error - kid not valid at time", func(t *testing.T) {
+		_, err := client.GetPublicKey(kid, now.Add(-1))
 
-	t.Run("private key not found", func(t *testing.T) {
-		pk, err := client.GetPrivateKey("unknown")
-		assert.Nil(t, pk)
+		if assert.Error(t, err) {
+			assert.True(t, errors.Is(err, storage.ErrNotFound))
+		}
+	})
+
+	t.Run("error - saving an empty key", func(t *testing.T) {
+		err := client.SavePublicKey(kid, nil, period)
 		assert.Error(t, err)
-	})
-	t.Run("get private key, assert non-exportable", func(t *testing.T) {
-		kid := "kid"
-		client.New(StringNamingFunc(kid))
-
-		pk, err := client.GetPrivateKey(kid)
-		if !assert.NoError(t, err) {
-			return
-		}
-		if !assert.NotNil(t, pk) {
-			return
-		}
-		// Assert that we don't accidentally return the actual RSA/ECDSA key, because they should stay in the storage
-		// and be non-exportable.
-		_, ok := pk.(*rsa.PrivateKey)
-		assert.False(t, ok)
-		_, ok = pk.(*ecdsa.PrivateKey)
-		assert.False(t, ok)
-	})
-
-	t.Run("get private key, assert parts", func(t *testing.T) {
-		kid := "kid2"
-		client.New(StringNamingFunc(kid))
-
-		pk, _ := client.GetPrivateKey(kid)
-		if !assert.NotNil(t, pk) {
-			return
-		}
-
-		ok := pk.(opaquePrivateKey)
-		assert.NotNil(t, ok.Public())
-
-		_, err := ok.Sign(rand.Reader, []byte("hi"), crypto.SHA256)
-		assert.NoError(t, err)
 	})
 }
 

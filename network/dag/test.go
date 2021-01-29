@@ -45,7 +45,6 @@ func CreateTestDocument(num uint32, prevs ...hash.SHA256Hash) Document {
 }
 
 type testSigner struct {
-
 }
 
 func (t testSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, _ string) (string, error) {
@@ -59,4 +58,3 @@ func (t testSigner) SignJWS(payload []byte, protectedHeaders map[string]interfac
 	sig, _ := jws.Sign(payload, jwa.ES256, privateKey, jws.WithHeaders(hdrs))
 	return string(sig), nil
 }
-

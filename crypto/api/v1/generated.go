@@ -30,6 +30,13 @@ type SignJwtRequest struct {
 	Kid    string                 `json:"kid"`
 }
 
+// PublicKeyParams defines parameters for PublicKey.
+type PublicKeyParams struct {
+
+	// time when the public key must be valid. In RFC3339 format (https://tools.ietf.org/html/rfc3339)
+	At *string `json:"at,omitempty"`
+}
+
 // SignJwtJSONBody defines parameters for SignJwt.
 type SignJwtJSONBody SignJwtRequest
 
@@ -110,7 +117,7 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 	// PublicKey request
-	PublicKey(ctx context.Context, kid string) (*http.Response, error)
+	PublicKey(ctx context.Context, kid string, params *PublicKeyParams) (*http.Response, error)
 
 	// SignJwt request  with any body
 	SignJwtWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error)
@@ -118,8 +125,8 @@ type ClientInterface interface {
 	SignJwt(ctx context.Context, body SignJwtJSONRequestBody) (*http.Response, error)
 }
 
-func (c *Client) PublicKey(ctx context.Context, kid string) (*http.Response, error) {
-	req, err := NewPublicKeyRequest(c.Server, kid)
+func (c *Client) PublicKey(ctx context.Context, kid string, params *PublicKeyParams) (*http.Response, error) {
+	req, err := NewPublicKeyRequest(c.Server, kid, params)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +171,7 @@ func (c *Client) SignJwt(ctx context.Context, body SignJwtJSONRequestBody) (*htt
 }
 
 // NewPublicKeyRequest generates requests for PublicKey
-func NewPublicKeyRequest(server string, kid string) (*http.Request, error) {
+func NewPublicKeyRequest(server string, kid string, params *PublicKeyParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -188,6 +195,26 @@ func NewPublicKeyRequest(server string, kid string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	queryValues := queryUrl.Query()
+
+	if params.At != nil {
+
+		if queryFrag, err := runtime.StyleParam("form", true, "at", *params.At); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryUrl.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryUrl.String(), nil)
 	if err != nil {
@@ -266,7 +293,7 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 	// PublicKey request
-	PublicKeyWithResponse(ctx context.Context, kid string) (*PublicKeyResponse, error)
+	PublicKeyWithResponse(ctx context.Context, kid string, params *PublicKeyParams) (*PublicKeyResponse, error)
 
 	// SignJwt request  with any body
 	SignJwtWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*SignJwtResponse, error)
@@ -318,8 +345,8 @@ func (r SignJwtResponse) StatusCode() int {
 }
 
 // PublicKeyWithResponse request returning *PublicKeyResponse
-func (c *ClientWithResponses) PublicKeyWithResponse(ctx context.Context, kid string) (*PublicKeyResponse, error) {
-	rsp, err := c.PublicKey(ctx, kid)
+func (c *ClientWithResponses) PublicKeyWithResponse(ctx context.Context, kid string, params *PublicKeyParams) (*PublicKeyResponse, error) {
+	rsp, err := c.PublicKey(ctx, kid, params)
 	if err != nil {
 		return nil, err
 	}
@@ -393,9 +420,9 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// get the public key for a given kid. It returns the key in PEM or JWK format. This depends on the accept header used (text/plain vs application/json)
+	// get the public key for a given kid. It returns the key in PEM or JWK format. This depends on the accept header used (text/plain vs application/json). If no 'at' parameter is given it'll validate if the public key is valid at the time of the request.
 	// (GET /internal/crypto/v1/public_key/{kid})
-	PublicKey(ctx echo.Context, kid string) error
+	PublicKey(ctx echo.Context, kid string, params PublicKeyParams) error
 	// sign a JWT payload with the private key of the given kid
 	// (POST /internal/crypto/v1/sign_jwt)
 	SignJwt(ctx echo.Context) error
@@ -417,8 +444,17 @@ func (w *ServerInterfaceWrapper) PublicKey(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter kid: %s", err))
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PublicKeyParams
+	// ------------- Optional query parameter "at" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "at", ctx.QueryParams(), &params.At)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter at: %s", err))
+	}
+
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.PublicKey(ctx, kid)
+	err = w.Handler.PublicKey(ctx, kid, params)
 	return err
 }
 
@@ -463,4 +499,3 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/internal/crypto/v1/sign_jwt", wrapper.SignJwt)
 
 }
-

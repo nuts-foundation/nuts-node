@@ -20,11 +20,12 @@ package proto
 
 import (
 	"errors"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
-	"time"
 )
 
 // Version holds the number of the version of this protocol implementation.

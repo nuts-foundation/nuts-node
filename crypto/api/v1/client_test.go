@@ -53,7 +53,17 @@ func TestHttpClient_GetPublicKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		res, err := c.GetPublicKey("kid")
+		res, err := c.GetPublicKey("kid", nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.NotNil(t, res)
+	})
+	t.Run("ok with validAt", func(t *testing.T) {
+		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		at := "2020-01-01T12:30:00Z"
+		res, err := c.GetPublicKey("kid", &at)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -63,14 +73,14 @@ func TestHttpClient_GetPublicKey(t *testing.T) {
 		csrBytes, _ := ioutil.ReadFile("../test/broken.pem")
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: csrBytes})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		res, err := c.GetPublicKey("kid")
+		res, err := c.GetPublicKey("kid", nil)
 		assert.Contains(t, err.Error(), "failed to unmarshal JWK:")
 		assert.Nil(t, res)
 	})
 	t.Run("error - response not HTTP OK", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusInternalServerError, responseData: genericError})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		res, err := c.GetPublicKey("kid")
+		res, err := c.GetPublicKey("kid", nil)
 		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: failed")
 		assert.Nil(t, res)
 	})
@@ -78,7 +88,7 @@ func TestHttpClient_GetPublicKey(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusOK})
 		s.Close()
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		res, err := c.GetPublicKey("kid")
+		res, err := c.GetPublicKey("kid", nil)
 		assert.Contains(t, err.Error(), "connection refused")
 		assert.Nil(t, res)
 	})

@@ -20,8 +20,10 @@ package v1
 
 import (
 	"errors"
+	"fmt"
 	"mime"
 	"net/http"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
@@ -74,13 +76,22 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 
 // PublicKey returns a public key for the given kid. The urn represents a legal entity. The api returns the public key either in PEM or JWK format.
 // It uses the accept header to determine this. Default is PEM (text/plain), only when application/json is requested will it return JWK.
-func (w *Wrapper) PublicKey(ctx echo.Context, kid string) error {
-	acceptHeader := ctx.Request().Header.Get("Accept")
+func (w *Wrapper) PublicKey(ctx echo.Context, kid string, params PublicKeyParams) error {
+	acceptHeader := ctx.Request().Header.Get(echo.HeaderAccept)
 
-	pubKey, err := w.C.GetPublicKey(kid)
+	at := time.Now()
+	var err error
+	if params.At != nil {
+		at, err = time.Parse(time.RFC3339, *params.At)
+		if err != nil {
+			return ctx.String(http.StatusBadRequest, fmt.Sprintf("cannot parse '%s' as RFC3339 time format", *params.At))
+		}
+	}
+
+	pubKey, err := w.C.GetPublicKey(kid, at)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return ctx.NoContent(404)
+			return ctx.NoContent(http.StatusNotFound)
 		}
 		log.Logger().Error(err.Error())
 		return err

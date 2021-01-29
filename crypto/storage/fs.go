@@ -20,13 +20,13 @@ package storage
 
 import (
 	"crypto"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
@@ -34,7 +34,7 @@ type entryType string
 
 const (
 	privateKeyEntry entryType = "private.pem"
-	publicKeyEntry  entryType = "public.pem"
+	publicKeyEntry  entryType = "public.json"
 )
 
 type fileOpenError struct {
@@ -95,16 +95,17 @@ func (fsc *fileSystemBackend) GetPrivateKey(kid string) (crypto.Signer, error) {
 }
 
 // Load the public key from disk, it load the private key and extract the public key from it.
-func (fsc *fileSystemBackend) GetPublicKey(kid string) (crypto.PublicKey, error) {
+func (fsc *fileSystemBackend) GetPublicKey(kid string) (PublicKeyEntry, error) {
 	data, err := fsc.readEntry(kid, publicKeyEntry)
+	publicKeyEntry := PublicKeyEntry{}
+
 	if err != nil {
-		return nil, err
+		return publicKeyEntry, err
 	}
-	publicKey, err := util.PemToPublicKey(data)
-	if err != nil {
-		return nil, err
-	}
-	return publicKey, nil
+
+	err = json.Unmarshal(data, &publicKeyEntry)
+
+	return publicKeyEntry, err
 }
 
 // Save the private key for the given key to disk. Files are  postfixed with '_private.pem'. Keys are stored in pem format. It also store the public key
@@ -124,32 +125,26 @@ func (fsc *fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) 
 	}
 
 	_, err = outFile.Write([]byte(pem))
-	if err != nil {
-		return err
-	}
 
-	return fsc.SavePublicKey(kid, key)
+	return err
 }
 
-// Save the private key for the given key to disk. Files are  postfixed with '_private.pem'. Keys are stored in pem format. It also store the public key
-func (fsc *fileSystemBackend) SavePublicKey(kid string, key crypto.PrivateKey) error {
+// Save the public key for the given key to disk. Files are  postfixed with '_public.json'. Keys are stored in JWK format.
+func (fsc *fileSystemBackend) SavePublicKey(kid string, entry PublicKeyEntry) error {
 	filenamePath := fsc.getEntryPath(kid, publicKeyEntry)
 	outFile, err := os.Create(filenamePath)
 
 	if err != nil {
 		return err
 	}
-
-	publicKey, err := jwk.PublicKeyOf(key)
-
 	defer outFile.Close()
 
-	pem, err := util.PublicKeyToPem(publicKey)
+	bytes, err := json.Marshal(entry)
 	if err != nil {
 		return err
 	}
 
-	_, err = outFile.Write([]byte(pem))
+	_, err = outFile.Write(bytes)
 
 	return err
 }

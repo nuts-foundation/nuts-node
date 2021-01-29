@@ -4,11 +4,13 @@ import (
 	"crypto"
 	"crypto/sha1"
 	"encoding/base32"
-	"github.com/lestrrat-go/jwx/jws"
-	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/lestrrat-go/jwx/jws"
+	"github.com/nuts-foundation/nuts-node/core"
+	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDocumentSigner(t *testing.T) {
@@ -68,8 +70,12 @@ type simpleKeyResolver struct {
 	key crypto.PublicKey
 }
 
-func (s simpleKeyResolver) GetPublicKey(_ string) (crypto.PublicKey, error) {
+func (s simpleKeyResolver) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
 	return s.key, nil
+}
+
+func (s simpleKeyResolver) SavePublicKey(kid string, publicKey crypto.PublicKey, period core.Period) error {
+	panic("implement me")
 }
 
 type trackingJWSSigner struct {

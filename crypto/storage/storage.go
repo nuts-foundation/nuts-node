@@ -20,16 +20,65 @@ package storage
 
 import (
 	"crypto"
+	"encoding/json"
 	"errors"
+	"fmt"
+
+	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
 // ErrNotFound indicates that the specified crypto storage entry couldn't be found.
 var ErrNotFound = errors.New("entry not found")
 
-// Storage interface containing functions for storing and retrieving keys
+// Storage interface containing functions for storing and retrieving keys.
 type Storage interface {
 	GetPrivateKey(kid string) (crypto.Signer, error)
-	GetPublicKey(kid string) (crypto.PublicKey, error)
 	PrivateKeyExists(kid string) bool
 	SavePrivateKey(kid string, key crypto.PrivateKey) error
+
+	// GetPublicKey returns the public key and the period it is valid in.
+	GetPublicKey(kid string) (PublicKeyEntry, error)
+	// SavePublicKey stores a public key entry under the given kid
+	SavePublicKey(kid string, entry PublicKeyEntry) error
+}
+
+// PublicKeyEntry is a public key entry also containing the period it's valid for.
+type PublicKeyEntry struct {
+	Period    core.Period `json:"period"`
+	parsedJWK jwk.Key
+	Key       map[string]interface{} `json:"publicKeyJwk,omitempty"`
+}
+
+// FromJWK fills the publicKeyEntry with key material from the given key
+func (pke *PublicKeyEntry) FromJWK(key jwk.Key) (err error) {
+	pke.parsedJWK = key
+	pke.Key, err = util.JwkToMap(key)
+	return
+}
+
+// UnmarshalJSON parses the json
+func (pke *PublicKeyEntry) UnmarshalJSON(bytes []byte) error {
+	type Alias PublicKeyEntry
+	tmp := Alias{}
+	err := json.Unmarshal(bytes, &tmp)
+	if err != nil {
+		return err
+	}
+	*pke = (PublicKeyEntry)(tmp)
+	if pke.Key != nil {
+		jwkAsJSON, _ := json.Marshal(pke.Key)
+		key, err := jwk.ParseKey(jwkAsJSON)
+		if err != nil {
+			return fmt.Errorf("could not parse publicKeyEntry: invalid publickeyJwk: %w", err)
+		}
+		pke.parsedJWK = key
+	}
+	return nil
+}
+
+// JWK returns the key as JSON Web Key.
+func (pke PublicKeyEntry) JWK() jwk.Key {
+	return pke.parsedJWK
 }

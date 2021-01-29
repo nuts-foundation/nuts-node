@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jwk"
 )
 
@@ -58,14 +59,21 @@ func (hb HTTPClient) client() ClientInterface {
 }
 
 // GetPublicKey returns a PublicKey from the server given a kid
-func (hb HTTPClient) GetPublicKey(kid string) (jwk.Key, error) {
+func (hb HTTPClient) GetPublicKey(kid string, validAt *string) (jwk.Key, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
 	defer cancel()
+
 	httpClient := hb.clientWithRequestEditor(func(ctx context.Context, req *http.Request) error {
-		req.Header.Add("Accept", "application/json")
+		req.Header.Add(echo.HeaderAccept, "application/json")
 		return nil
 	})
-	response, err := httpClient.PublicKey(ctx, kid)
+
+	params := &PublicKeyParams{
+		At: validAt,
+	}
+
+	response, err := httpClient.PublicKey(ctx, kid, params)
+
 	if err != nil {
 		return nil, err
 	}
