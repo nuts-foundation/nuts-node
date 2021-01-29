@@ -27,13 +27,85 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// EngineCtl is the control structure where engines are registered. All registered engines are referenced by the EngineCtl
-type EngineControl struct {
-	// Engines is the slice of all registered engines
-	Engines []*Engine
+// NewSystem creates a new, empty System.
+func NewSystem() *System {
+	return &System{engines: []*Engine{}}
 }
 
-var EngineCtl EngineControl
+// System is the control structure where engines are registered.
+type System struct {
+	// engines is the slice of all registered engines
+	engines []*Engine
+}
+
+// Diagnostics returns the compound diagnostics for all engines.
+func (system *System) Diagnostics() []DiagnosticResult {
+	result := make([]DiagnosticResult, 0)
+	system.VisitEngines(func(engine *Engine) {
+		if engine.Diagnosable != nil {
+			result = append(result, engine.Diagnostics()...)
+		}
+	})
+	return result
+}
+
+// Start starts all engines in the system.
+func (system *System) Start() error {
+	var err error
+	return system.VisitEnginesE(func(engine *Engine) error {
+		if engine.Runnable != nil {
+			err = engine.Start()
+		}
+		return err
+	})
+}
+
+// Shutdown shuts down all engines in the system.
+func (system *System) Shutdown() error {
+	var err error
+	return system.VisitEnginesE(func(engine *Engine) error {
+		if engine.Runnable != nil {
+			err = engine.Shutdown()
+		}
+		return err
+	})
+}
+
+// Configure configures all engines in the system.
+func (system *System) Configure() error {
+	var err error
+	return system.VisitEnginesE(func(engine *Engine) error {
+		// only if Engine is dynamically configurable
+		if engine.Configurable != nil {
+			err = engine.Configure()
+		}
+		return err
+	})
+}
+
+// VisitEngines applies the given function on all engines in the system.
+func (system *System) VisitEngines(visitor func(engine *Engine)) {
+	_ = system.VisitEnginesE(func(engine *Engine) error {
+		visitor(engine)
+		return nil
+	})
+}
+
+// VisitEnginesE applies the given function on all engines in the system, stopping when an error is returned. The error
+// is passed through.
+func (system *System) VisitEnginesE(visitor func(engine *Engine) error) error {
+	for _, e := range system.engines {
+		if err := visitor(e); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// RegisterEngine is a helper func to add an engine to the list of engines from a different lib/pkg
+func (system *System) RegisterEngine(engine *Engine) {
+	system.engines = append(system.engines, engine)
+}
 
 // EchoServer implements both the EchoRouter interface and Start function to aid testing.
 type EchoServer interface {
@@ -69,6 +141,11 @@ type Runnable interface {
 // Configure should only be called once per engine instance
 type Configurable interface {
 	Configure() error
+}
+
+// Diagnosable allows the implementer, mostly engines, to return diagnostics.
+type Diagnosable interface {
+	Diagnostics() []DiagnosticResult
 }
 
 // Engine contains all the configuration options and callbacks needed by the executable to configure, start, monitor and shutdown the engines
@@ -120,17 +197,4 @@ func DecodeURIPath(next echo.HandlerFunc) echo.HandlerFunc {
 		c.SetParamValues(newValues...)
 		return next(c)
 	}
-}
-
-// RegisterEngine is a helper func to add an engine to the list of engines from a different lib/pkg
-func RegisterEngine(engine *Engine) {
-	EngineCtl.registerEngine(engine)
-}
-
-func (ec *EngineControl) registerEngine(engine *Engine) {
-	ec.Engines = append(ec.Engines, engine)
-}
-
-func init() {
-	EngineCtl = EngineControl{}
 }

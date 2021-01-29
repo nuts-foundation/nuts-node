@@ -28,7 +28,11 @@ import (
 	vdr "github.com/nuts-foundation/nuts-node/vdr/engine"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"io"
+	"os"
 )
+
+var stdOutWriter io.Writer = os.Stdout
 
 // Allows overriding Echo server implementation to aid testing
 var echoCreator = func() core.EchoServer {
@@ -38,7 +42,7 @@ var echoCreator = func() core.EchoServer {
 	return echo
 }
 
-func createRootCommand() *cobra.Command {
+func createRootCommand(system *core.System) *cobra.Command {
 	return &cobra.Command{
 		Use:   "nuts",
 		Short: "The Nuts service executable",
@@ -49,34 +53,62 @@ func createRootCommand() *cobra.Command {
 				_ = cmd.Help()
 				return
 			}
-			// start interfaces
-			echo := echoCreator()
-			for _, engine := range core.EngineCtl.Engines {
-				if engine.Routes != nil {
-					engine.Routes(echo)
-				}
+			// check config on all engines
+			if err := system.Configure(); err != nil {
+				logrus.Fatal(err)
 			}
 
-			defer shutdownEngines()
-			if err := echo.Start(cfg.ServerAddress()); err != nil {
+			// start engines
+			if err := system.Start(); err != nil {
+				logrus.Fatal(err)
+			}
+
+			// start interfaces
+			echoServer := echoCreator()
+			system.VisitEngines(func(engine *core.Engine) {
+				if engine.Routes != nil {
+					engine.Routes(echoServer)
+				}
+			})
+
+			defer func() {
+				if err := system.Shutdown(); err != nil {
+					logrus.Fatal(err)
+				}
+			}()
+			if err := echoServer.Start(cfg.ServerAddress()); err != nil {
 				logrus.Fatal(err)
 			}
 		},
 	}
 }
 
-func CreateCommand() *cobra.Command {
-	if core.EngineCtl.Engines == nil {
-		registerEngines()
-	}
-	command := createRootCommand()
-	addSubCommands(command)
-	addFlagSets(command, core.NutsConfig())
+func createCommand(system *core.System) *cobra.Command {
+	command := createRootCommand(system)
+	command.SetOut(stdOutWriter)
+	addSubCommands(system, command)
+	addFlagSets(system, command, core.NutsConfig())
 	return command
 }
 
+func createSystem() *core.System {
+	system := core.NewSystem()
+	// Register default engines
+	system.RegisterEngine(core.NewStatusEngine(system))
+	system.RegisterEngine(core.NewLoggerEngine())
+	system.RegisterEngine(core.NewMetricsEngine())
+	cryptoEngine, keyStore := crypto.NewCryptoEngine()
+	system.RegisterEngine(cryptoEngine)
+	networkEngine, networkInstance := engine.NewNetworkEngine(keyStore)
+	system.RegisterEngine(networkEngine)
+	system.RegisterEngine(vdr.NewVDREngine(keyStore, networkInstance))
+	return system
+}
+
 func Execute() {
-	command := CreateCommand()
+	system := createSystem()
+	command := createCommand(system)
+	command.SetOut(stdOutWriter)
 
 	// Load global Nuts config
 	cfg := core.NutsConfig()
@@ -87,80 +119,31 @@ func Execute() {
 	}
 
 	// Load config into engines
-	injectConfig(cfg)
-	cfg.PrintConfig(logrus.StandardLogger())
-
-	// check config on all engines
-	configureEngines()
-
-	// start engines
-	startEngines()
+	injectConfig(system, cfg)
+	cfg.PrintConfig(system, logrus.StandardLogger())
 
 	// blocking main call
 	command.Execute()
 }
 
-func addSubCommands(root *cobra.Command) {
-	for _, e := range core.EngineCtl.Engines {
-		if e.Cmd != nil {
-			root.AddCommand(e.Cmd)
+func addSubCommands(system *core.System, root *cobra.Command) {
+	system.VisitEngines(func(engine *core.Engine) {
+		if engine.Cmd != nil {
+			root.AddCommand(engine.Cmd)
 		}
+	})
+}
+
+func injectConfig(system *core.System, cfg *core.NutsGlobalConfig) {
+	if err := system.VisitEnginesE(func(engine *core.Engine) error {
+		return cfg.InjectIntoEngine(engine)
+	}); err != nil {
+		logrus.Fatal(err)
 	}
 }
 
-func registerEngines() {
-	core.RegisterEngine(core.NewStatusEngine())
-	core.RegisterEngine(core.NewLoggerEngine())
-	core.RegisterEngine(core.NewMetricsEngine())
-	cryptoEngine, keyStore := crypto.NewCryptoEngine()
-	core.RegisterEngine(cryptoEngine)
-	networkEngine, networkInstance := engine.NewNetworkEngine(keyStore)
-	core.RegisterEngine(networkEngine)
-	core.RegisterEngine(vdr.NewVDREngine(keyStore, networkInstance))
-}
-
-func injectConfig(cfg *core.NutsGlobalConfig) {
-	// loop through configs and call viper.Get prepended with engine ConfigKey, inject value into struct
-	for _, e := range core.EngineCtl.Engines {
-		if err := cfg.InjectIntoEngine(e); err != nil {
-			logrus.Fatal(err)
-		}
-	}
-}
-
-func configureEngines() {
-	for _, e := range core.EngineCtl.Engines {
-		// only if Engine is dynamically configurable
-		if e.Configurable != nil {
-			if err := e.Configure(); err != nil {
-				logrus.Fatal(err)
-			}
-		}
-	}
-}
-
-func addFlagSets(cmd *cobra.Command, cfg *core.NutsGlobalConfig) {
-	for _, e := range core.EngineCtl.Engines {
-		cfg.RegisterFlags(cmd, e)
-	}
-}
-
-func startEngines() {
-	for _, e := range core.EngineCtl.Engines {
-		if e.Runnable != nil {
-			if err := e.Start(); err != nil {
-				logrus.Fatal(err)
-			}
-		}
-	}
-}
-
-func shutdownEngines() {
-	for _, e := range core.EngineCtl.Engines {
-		if e.Runnable != nil {
-			if err := e.Shutdown(); err != nil {
-				logrus.Error(err)
-			}
-		}
-	}
+func addFlagSets(system *core.System, cmd *cobra.Command, cfg *core.NutsGlobalConfig) {
+	system.VisitEngines(func(engine *core.Engine) {
+		cfg.RegisterFlags(cmd, engine)
+	})
 }
