@@ -40,3 +40,10 @@ The following options can be configured:
 .. marker-for-config-options
 
 .. include:: options.rst
+
+This table is automatically generated using the configuration flags in the core and engines. When they're changed
+the options table must be regenerated using the Makefile:
+
+.. code-block:: shell
+
+    $ make update-docs
