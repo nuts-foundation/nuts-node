@@ -84,7 +84,7 @@ func (p *protocol) handleDocumentPayload(peer p2p.PeerID, contents *transport.Do
 		log.Logger().Errorf("Error while looking up document to write payload (payloadHash=%s): %v", payloadHash, err)
 	} else if document == nil {
 		log.Logger().Warnf("Received document payload for document we don't have (payloadHash=%s)", payloadHash)
-	} else if hasPayload, err := p.payloadStore.IsPayloadPresent(payloadHash); err != nil {
+	} else if hasPayload, err := p.payloadStore.IsPresent(payloadHash); err != nil {
 		log.Logger().Errorf("Error while checking whether we already have payload (payloadHash=%s): %v", payloadHash, err)
 	} else if hasPayload {
 		log.Logger().Debugf("Received payload we already have (payloadHash=%s)", payloadHash)
@@ -151,7 +151,7 @@ func (p *protocol) checkDocumentOnLocalNode(peer p2p.PeerID, documentRef hash.SH
 			return fmt.Errorf("unable to add received document to DAG: %w", err)
 		}
 		queryContents = true
-	} else if payloadPresent, err := p.payloadStore.IsPayloadPresent(document.Payload()); err != nil {
+	} else if payloadPresent, err := p.payloadStore.IsPresent(document.Payload()); err != nil {
 		return err
 	} else {
 		queryContents = !payloadPresent

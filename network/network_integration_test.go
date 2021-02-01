@@ -122,7 +122,7 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 	// Start node 1 and node 2. Node 1 adds 3 documents:
 	// 1. first document is OK, must be received
 	// 2. second document has an invalid signature, must be rejected
-	// 3. third document is OK, must be received (to deal with timing issues)
+	// 3. third document is OK, must be  received (to deal with timing issues)
 	node1, err := startNode("node1", path.Join(testDirectory, "node1"))
 	if !assert.NoError(t, err) {
 		return
@@ -149,11 +149,12 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 	node1.payloadStore.WritePayload(hash.SHA256Sum(payload), payload)
 	_ = node1.documentGraph.Add(craftedDocument)
 	// Send third OK document
-	if !addDocumentAndWaitForItToArrive(t, "third document", node1, "node2") {
+	if !addDocumentAndWaitForItToArrive(t, "third document", node2, "node1") {
 		return
 	}
-	// Assert node2 only processed the first and last document
+	// Assert node2 only processed the first and last document, node1 all 3
 	assert.Len(t, receivedDocuments["node2"], 2)
+	assert.Len(t, receivedDocuments["node1"], 3)
 	for _, d := range receivedDocuments["node2"] {
 		if d.Ref().Equals(craftedDocument.Ref()) {
 			t.Error("Node 2 processed the crafted document.")
@@ -223,7 +224,7 @@ func startNode(name string, directory string) (*NetworkEngine, error) {
 	instance.Subscribe(documentType, func(document dag.Document, payload []byte) error {
 		mutex.Lock()
 		defer mutex.Unlock()
-		println("document", string(payload), "arrived at", name)
+		log.Logger().Infof("document %s arrived at %s", string(payload), name)
 		receivedDocuments[name] = append(receivedDocuments[name], document)
 		return nil
 	})

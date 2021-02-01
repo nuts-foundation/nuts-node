@@ -19,12 +19,28 @@
 package dag
 
 import (
-	"errors"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
+	"go.etcd.io/bbolt"
+	"path"
+	"sort"
 	"strings"
 	"testing"
 )
+
+func createBBoltDB(testDirectory string) *bbolt.DB {
+	db, err := bbolt.Open(path.Join(testDirectory, "dag.db"), 0600, bbolt.DefaultOptions)
+	if err != nil {
+		panic(err)
+	}
+	return db
+}
+
+func createDAG(t *testing.T) DAG {
+	testDirectory := io.TestDirectory(t)
+	return NewBBoltDAG(createBBoltDB(testDirectory))
+}
 
 // trackingVisitor just keeps track of which nodes were visited in what order.
 type trackingVisitor struct {
@@ -48,9 +64,9 @@ func (n trackingVisitor) JoinRefsAsString() string {
 	return strings.Join(contents, ", ")
 }
 
-func DAGTest_All(creator func(t *testing.T) DAG, t *testing.T) {
+func TestBBoltDAG_All(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		doc := CreateTestDocumentWithJWK(1)
 
 		err := graph.Add(doc)
@@ -68,9 +84,9 @@ func DAGTest_All(creator func(t *testing.T) DAG, t *testing.T) {
 	})
 }
 
-func DAGTest_Get(creator func(t *testing.T) DAG, t *testing.T) {
+func TestBBoltDAG_Get(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		document := CreateTestDocumentWithJWK(1)
 		_ = graph.Add(document)
 		actual, err := graph.Get(document.Ref())
@@ -80,16 +96,16 @@ func DAGTest_Get(creator func(t *testing.T) DAG, t *testing.T) {
 		assert.Equal(t, document, actual)
 	})
 	t.Run("not found", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		actual, err := graph.Get(hash.SHA256Sum([]byte{1, 2, 3}))
 		assert.NoError(t, err)
 		assert.Nil(t, actual)
 	})
 }
 
-func DAGTest_Add(creator func(t *testing.T) DAG, t *testing.T) {
+func TestBBoltDAG_Add(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		doc := CreateTestDocumentWithJWK(0)
 
 		err := graph.Add(doc)
@@ -97,7 +113,7 @@ func DAGTest_Add(creator func(t *testing.T) DAG, t *testing.T) {
 		assert.NoError(t, err)
 		visitor := trackingVisitor{}
 		root, _ := graph.Root()
-		err = graph.Walk(&BFSWalker{}, visitor.Accept, root)
+		err = graph.Walk(NewBFSWalkerAlgorithm(), visitor.Accept, root)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -107,7 +123,7 @@ func DAGTest_Add(creator func(t *testing.T) DAG, t *testing.T) {
 		assert.True(t, present)
 	})
 	t.Run("duplicate", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		doc := CreateTestDocumentWithJWK(0)
 
 		_ = graph.Add(doc)
@@ -117,7 +133,7 @@ func DAGTest_Add(creator func(t *testing.T) DAG, t *testing.T) {
 		assert.Len(t, actual, 1)
 	})
 	t.Run("second root", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		root1 := CreateTestDocumentWithJWK(1)
 		root2 := CreateTestDocumentWithJWK(2)
 
@@ -128,8 +144,8 @@ func DAGTest_Add(creator func(t *testing.T) DAG, t *testing.T) {
 		assert.Len(t, actual, 1)
 	})
 	t.Run("ok - out of order", func(t *testing.T) {
-		_, documents := graphF(creator, t)
-		graph := creator(t)
+		graph := createDAG(t)
+		documents := graphF()
 
 		for i := len(documents) - 1; i >= 0; i-- {
 			err := graph.Add(documents[i])
@@ -140,7 +156,7 @@ func DAGTest_Add(creator func(t *testing.T) DAG, t *testing.T) {
 
 		visitor := trackingVisitor{}
 		root, _ := graph.Root()
-		err := graph.Walk(&BFSWalker{}, visitor.Accept, root)
+		err := graph.Walk(NewBFSWalkerAlgorithm(), visitor.Accept, root)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -154,19 +170,19 @@ func DAGTest_Add(creator func(t *testing.T) DAG, t *testing.T) {
 		C := CreateTestDocumentWithJWK(2, B.Ref())
 		B.prevs = append(B.prevs, C.Ref())
 
-		graph := creator(t)
+		graph := createDAG(t)
 		err := graph.Add(A, B, C)
 		assert.EqualError(t, err, "")
 	})
 }
 
-func DAGTest_Walk(creator func(t *testing.T) DAG, t *testing.T) {
+func TestBBoltDAG_Walk(t *testing.T) {
 	t.Run("ok - empty graph", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		visitor := trackingVisitor{}
 
 		root, _ := graph.Root()
-		err := graph.Walk(&BFSWalker{}, visitor.Accept, root)
+		err := graph.Walk(NewBFSWalkerAlgorithm(), visitor.Accept, root)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -175,21 +191,21 @@ func DAGTest_Walk(creator func(t *testing.T) DAG, t *testing.T) {
 	})
 }
 
-func DAGTest_MissingDocuments(creator func(t *testing.T) DAG, t *testing.T) {
+func TestBBoltDAG_MissingDocuments(t *testing.T) {
 	A := CreateTestDocumentWithJWK(0)
 	B := CreateTestDocumentWithJWK(1, A.Ref())
 	C := CreateTestDocumentWithJWK(2, B.Ref())
 	t.Run("no missing documents (empty graph)", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		assert.Empty(t, graph.MissingDocuments())
 	})
 	t.Run("no missing documents (non-empty graph)", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		graph.Add(A, B, C)
 		assert.Empty(t, graph.MissingDocuments())
 	})
 	t.Run("missing documents (non-empty graph)", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		graph.Add(A, C)
 		assert.Len(t, graph.MissingDocuments(), 1)
 		// Now add missing document B and assert there are no more missing documents
@@ -197,75 +213,21 @@ func DAGTest_MissingDocuments(creator func(t *testing.T) DAG, t *testing.T) {
 		assert.Empty(t, graph.MissingDocuments())
 	})
 }
-
-func DAGTest_Subscribe(creator func(t *testing.T) DAG, t *testing.T) {
-	t.Run("no subscribers", func(t *testing.T) {
-		graph := creator(t)
-		document := CreateTestDocumentWithJWK(1)
-		_ = graph.Add(document)
-		err := graph.(PayloadStore).WritePayload(document.Payload(), []byte("foobar"))
-		assert.NoError(t, err)
+func TestBBoltDAG_Observe(t *testing.T) {
+	graph := createDAG(t)
+	var actual interface{}
+	graph.RegisterObserver(func(subject interface{}) {
+		actual = subject
 	})
-	t.Run("single subscriber", func(t *testing.T) {
-		graph := creator(t)
-		document := CreateTestDocumentWithJWK(1)
-		received := false
-		graph.Subscribe(document.PayloadType(), func(actualDocument Document, actualPayload []byte) error {
-			assert.Equal(t, document, actualDocument)
-			assert.Equal(t, []byte("foobar"), actualPayload)
-			received = true
-			return nil
-		})
-		_ = graph.Add(document)
-		err := graph.(PayloadStore).WritePayload(document.Payload(), []byte("foobar"))
-		assert.NoError(t, err)
-		assert.True(t, received)
-	})
-	t.Run("multiple subscribers", func(t *testing.T) {
-		graph := creator(t)
-		document := CreateTestDocumentWithJWK(1)
-		calls := 0
-		receiver := func(actualDocument Document, actualPayload []byte) error {
-			calls++
-			return nil
-		}
-		graph.Subscribe(document.PayloadType(), receiver)
-		graph.Subscribe(document.PayloadType(), receiver)
-		_ = graph.Add(document)
-		err := graph.(PayloadStore).WritePayload(document.Payload(), []byte("foobar"))
-		assert.NoError(t, err)
-		assert.Equal(t, 2, calls)
-	})
-	t.Run("multiple subscribers, first fails", func(t *testing.T) {
-		graph := creator(t)
-		document := CreateTestDocumentWithJWK(1)
-		calls := 0
-		receiver := func(actualDocument Document, actualPayload []byte) error {
-			calls++
-			return errors.New("failed")
-		}
-		graph.Subscribe(document.PayloadType(), receiver)
-		graph.Subscribe(document.PayloadType(), receiver)
-		_ = graph.Add(document)
-		err := graph.(PayloadStore).WritePayload(document.Payload(), []byte("foobar"))
-		assert.NoError(t, err)
-		assert.Equal(t, 1, calls)
-	})
-	t.Run("subscriber error", func(t *testing.T) {
-		graph := creator(t)
-		document := CreateTestDocumentWithJWK(1)
-		graph.Subscribe(document.PayloadType(), func(actualDocument Document, actualPayload []byte) error {
-			return errors.New("failed")
-		})
-		_ = graph.Add(document)
-		err := graph.(PayloadStore).WritePayload(document.Payload(), []byte("foobar"))
-		assert.NoError(t, err)
-	})
+	expected := CreateTestDocumentWithJWK(1)
+	err := graph.Add(expected)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
 }
 
-func DAGTest_GetByPayloadHash(creator func(t *testing.T) DAG, t *testing.T) {
+func TestBBoltDAG_GetByPayloadHash(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		document := CreateTestDocumentWithJWK(1)
 		_ = graph.Add(document)
 		actual, err := graph.GetByPayloadHash(document.Payload())
@@ -274,59 +236,57 @@ func DAGTest_GetByPayloadHash(creator func(t *testing.T) DAG, t *testing.T) {
 		assert.Equal(t, document, actual[0])
 	})
 	t.Run("not found", func(t *testing.T) {
-		graph := creator(t)
+		graph := createDAG(t)
 		actual, err := graph.GetByPayloadHash(hash.SHA256Sum([]byte{1, 2, 3}))
 		assert.NoError(t, err)
 		assert.Empty(t, actual)
 	})
 }
 
-func PayloadStoreTest(creator func(t *testing.T) PayloadStore, t *testing.T) {
-	t.Run("roundtrip", func(t *testing.T) {
-		payload := []byte("Hello, World!")
-		hash := hash.SHA256Sum(payload)
-		payloadStore := creator(t)
-		// Before, payload should not be present
-		present, err := payloadStore.IsPayloadPresent(hash)
-		if !assert.NoError(t, err) || !assert.False(t, present) {
-			return
-		}
-		// Add payload
-		err = payloadStore.WritePayload(hash, payload)
-		if !assert.NoError(t, err) {
-			return
-		}
-		// Now it should be present
-		present, err = payloadStore.IsPayloadPresent(hash)
-		if !assert.NoError(t, err) || !assert.True(t, present, "payload should be present") {
-			return
-		}
-		// Read payload
-		data, err := payloadStore.ReadPayload(hash)
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, payload, data)
-	})
+func TestBBoltDAG_Diagnostics(t *testing.T) {
+	dag := createDAG(t).(*bboltDAG)
+	doc1 := CreateTestDocumentWithJWK(2)
+	dag.Add(doc1)
+	diagnostics := dag.Diagnostics()
+	assert.Len(t, diagnostics, 3)
+	// Assert actual diagnostics
+	lines := make([]string, 0)
+	for _, diagnostic := range diagnostics {
+		lines = append(lines, diagnostic.Name()+": "+diagnostic.String())
+	}
+	sort.Strings(lines)
+	actual := strings.Join(lines, "\n")
+	assert.Equal(t, `[DAG] Heads: [`+doc1.Ref().String()+`]
+[DAG] Number of documents: 2
+[DAG] Stored document size (bytes): 0`, actual)
 }
 
-// graphF creates the following graph:
-//..................A
-//................/  \
-//...............B    C
-//...............\   / \
-//.................D    E
-//.......................\
-//........................F
-func graphF(creator func(t *testing.T) DAG, t *testing.T) (DAG, []Document) {
-	graph := creator(t)
-	A := CreateTestDocumentWithJWK(0)
-	B := CreateTestDocumentWithJWK(1, A.Ref())
-	C := CreateTestDocumentWithJWK(2, A.Ref())
-	D := CreateTestDocumentWithJWK(3, B.Ref(), C.Ref())
-	E := CreateTestDocumentWithJWK(4, C.Ref())
-	F := CreateTestDocumentWithJWK(5, E.Ref())
-	docs := []Document{A, B, C, D, E, F}
-	graph.Add(docs...)
-	return graph, docs
+func Test_parseHashList(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		assert.Empty(t, parseHashList([]byte{}))
+	})
+	t.Run("1 entry", func(t *testing.T) {
+		h1 := hash.SHA256Sum([]byte("Hello, World!"))
+		actual := parseHashList(h1[:])
+		assert.Len(t, actual, 1)
+		assert.Equal(t, hash.FromSlice(h1[:]), actual[0])
+	})
+	t.Run("2 entries", func(t *testing.T) {
+		h1 := hash.SHA256Sum([]byte("Hello, World!"))
+		h2 := hash.SHA256Sum([]byte("Hello, All!"))
+		actual := parseHashList(append(h1[:], h2[:]...))
+		assert.Len(t, actual, 2)
+		assert.Equal(t, hash.FromSlice(h1[:]), actual[0])
+		assert.Equal(t, hash.FromSlice(h2[:]), actual[1])
+	})
+	t.Run("2 entries, dangling bytes", func(t *testing.T) {
+		h1 := hash.SHA256Sum([]byte("Hello, World!"))
+		h2 := hash.SHA256Sum([]byte("Hello, All!"))
+		input := append(h1[:], h2[:]...)
+		input = append(input, 1, 2, 3) // Add some dangling bytes
+		actual := parseHashList(input)
+		assert.Len(t, actual, 2)
+		assert.Equal(t, hash.FromSlice(h1[:]), actual[0])
+		assert.Equal(t, hash.FromSlice(h2[:]), actual[1])
+	})
 }

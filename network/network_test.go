@@ -43,6 +43,7 @@ type networkTestContext struct {
 	graph      *dag.MockDAG
 	payload    *dag.MockPayloadStore
 	keyStore   *crypto.MockKeyStore
+	publisher  *dag.MockPublisher
 }
 
 func TestNetwork_ListDocuments(t *testing.T) {
@@ -84,7 +85,7 @@ func TestNetwork_Subscribe(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		cxt.graph.EXPECT().Subscribe("some-type", nil)
+		cxt.publisher.EXPECT().Subscribe("some-type", nil)
 		cxt.network.Subscribe("some-type", nil)
 	})
 }
@@ -132,6 +133,7 @@ func TestNetwork_CreateDocument(t *testing.T) {
 		cxt.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Eq("signing-key")).DoAndReturn(func(payload []byte, protectedHeaders map[string]interface{}, kid interface{}) (string, error) {
 			return crypto.NewTestSigner().SignJWS(payload, protectedHeaders, "")
 		})
+		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
@@ -153,6 +155,7 @@ func TestNetwork_CreateDocument(t *testing.T) {
 		cxt.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Eq("signing-key")).DoAndReturn(func(payload []byte, protectedHeaders map[string]interface{}, kid interface{}) (string, error) {
 			return crypto.NewTestSigner().SignJWS(payload, protectedHeaders, "")
 		})
+		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
@@ -170,6 +173,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.p2pNetwork.EXPECT().Start()
 		cxt.p2pNetwork.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
+		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
@@ -179,6 +183,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		cxt.p2pNetwork.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
+		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
@@ -254,6 +259,7 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller) *networkTestContext {
 	protocol := proto.NewMockProtocol(ctrl)
 	graph := dag.NewMockDAG(ctrl)
 	payload := dag.NewMockPayloadStore(ctrl)
+	publisher := dag.NewMockPublisher(ctrl)
 	testDirectory := io.TestDirectory(t)
 	networkConfig := TestNetworkConfig(testDirectory)
 	networkConfig.TrustStoreFile = "test/truststore.pem"
@@ -266,12 +272,14 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller) *networkTestContext {
 	network.protocol = protocol
 	network.documentGraph = graph
 	network.payloadStore = payload
+	network.publisher = publisher
 	return &networkTestContext{
 		network:    network,
 		p2pNetwork: p2pNetwork,
 		protocol:   protocol,
 		graph:      graph,
 		payload:    payload,
+		publisher:  publisher,
 		keyStore:   keyStore,
 	}
 }
