@@ -7,8 +7,8 @@ Nuts APIs
 
     <div id="swagger-ui"></div>
 
-    <script src='../../_static/js/swagger-ui-bundle-3.18.3.js' type='text/javascript'></script>
-    <script src='../../_static/js/swagger-ui-standalone-preset-3.18.3.js' type='text/javascript'></script>
+    <script src='../_static/js/swagger-ui-bundle-3.18.3.js' type='text/javascript'></script>
+    <script src='../_static/js/swagger-ui-standalone-preset-3.18.3.js' type='text/javascript'></script>
     <script>
         window.onload = function() {
             const ui = SwaggerUIBundle({
@@ -16,6 +16,7 @@ Nuts APIs
                 urls: [
                     {url: "../_static/crypto/v1.yaml", name: "Crypto"},
                     {url: "../_static/vdr/v1.yaml", name: "Verifiable Data Registry"},
+                    {url: "../_static/network/v1.yaml", name: "Network"},
                     ],
                 presets: [
                     SwaggerUIBundle.presets.apis,

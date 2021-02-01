@@ -9,7 +9,7 @@ Nuts documentation
     :caption: Technology:
     :glob:
 
-    todo
+
 
 .. toctree::
     :maxdepth: 1

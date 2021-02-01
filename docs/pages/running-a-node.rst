@@ -26,7 +26,8 @@ First you need to configure your Nuts node;
 2. Configure TLS using `network.certFile`, `network.certKeyFile` and `network.trustStoreFile`.
 3. Configure the public address of your node using `network.publicAddr`.
 
-See nuts-node-config_ for a detailed explanation on how to exactly configure the Nuts node.
+See :ref:`configuration <nuts-node-config>` for a detailed explanation on how to exactly configure the Nuts node.
+
 
 .. note::
 
