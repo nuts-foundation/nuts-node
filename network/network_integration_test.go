@@ -145,7 +145,7 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 	attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	payload := []byte("second document")
 	unsignedDocument, _ := dag.NewDocument(hash.SHA256Sum(payload), documentType, []hash.SHA256Hash{receivedDocuments["node2"][0].Ref()})
-	craftedDocument, _ := dag.NewAttachedJWKDocumentSigner(nutsCrypto.Instance(), "key", nutsCrypto.StaticKeyResolver{Key: attackerKey}).Sign(unsignedDocument, time.Now())
+	craftedDocument, _ := dag.NewAttachedJWKDocumentSigner(nutsCrypto.Instance(), "key", nutsCrypto.StaticKeyResolver{Key: attackerKey.Public()}).Sign(unsignedDocument, time.Now())
 	node1.payloadStore.WritePayload(hash.SHA256Sum(payload), payload)
 	_ = node1.documentGraph.Add(craftedDocument)
 	// Send third OK document

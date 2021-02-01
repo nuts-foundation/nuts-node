@@ -20,7 +20,6 @@ package crypto
 
 import (
 	"crypto"
-	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/nuts-foundation/nuts-node/core"
 	"time"
 )
@@ -65,7 +64,7 @@ type KeyStore interface {
 // JWSSigner defines the functions for signing JSON Web Signatures.
 type JWSSigner interface {
 	// SignJWS creates a signed JWS (in compact form using) the given key (private key must be present), protected headers and payload.
-	SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, jwa.SignatureAlgorithm, error)
+	SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error)
 }
 
 // JWTSigner is the interface used to sign authorization tokens

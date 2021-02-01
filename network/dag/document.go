@@ -19,7 +19,6 @@
 package dag
 
 import (
-	"crypto"
 	"encoding/json"
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -69,6 +68,7 @@ type UnsignedDocument interface {
 // Document defines a signed distributed document as described by RFC004 - Distributed Document Format.
 type Document interface {
 	UnsignedDocument
+	json.Marshaler
 	// SigningKey returns the key that was used to sign the document as JWK. If this field is not set SigningKeyID
 	// must be used to resolve the signing key.
 	SigningKey() jwk.Key
@@ -76,15 +76,12 @@ type Document interface {
 	SigningKeyID() string
 	// SigningTime returns the time that the document was signed.
 	SigningTime() time.Time
+	// SigningAlgorithm returns the name of the JOSE signing algorithm that was used to sign the document.
+	SigningAlgorithm() string
 	// Ref returns the reference to this document.
 	Ref() hash.SHA256Hash
 	// Data returns the byte representation of this document which can be used for transport.
 	Data() []byte
-	// VerifySignature verifies that the signature is correct. A function has to be supplied to look up the signing key
-	// using the signing key ID, when the signing key is specified as `kid` header than than being included as `jwk`.
-	// An error is returned if verification fails or something else goes wrong.
-	VerifySignature(func(string) crypto.PublicKey) error
-	json.Marshaler
 }
 
 // NewDocument creates a new unsigned document. Parameters payload and payloadType can't be empty, but prevs is optional.
@@ -163,6 +160,10 @@ func (d document) SigningTime() time.Time {
 	return d.signingTime
 }
 
+func (d document) SigningAlgorithm() string {
+	return d.signingAlgorithm.String()
+}
+
 func (d document) PayloadType() string {
 	return d.payloadType
 }
@@ -189,10 +190,6 @@ func (d document) TimelineID() hash.SHA256Hash {
 
 func (d document) TimelineVersion() int {
 	return d.timelineVersion
-}
-
-func (d document) VerifySignature(_ func(string) crypto.PublicKey) error {
-	return errors.New("not implemented")
 }
 
 func (d *document) setData(data []byte) {

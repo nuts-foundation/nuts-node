@@ -102,13 +102,6 @@ func Test_document_MarshalJSON(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func Test_document_VerifySignature(t *testing.T) {
-	t.Run("not implemented yet", func(t *testing.T) {
-		err := document{}.VerifySignature(nil)
-		assert.EqualError(t, err, "not implemented")
-	})
-}
-
 func generateKey() *ecdsa.PrivateKey {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return key

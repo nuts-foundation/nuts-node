@@ -54,27 +54,12 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 }
 
 // SignJWS creates a signed JWS (in compact form using) the given key (private key must be present), protected headers and payload.
-func (client *Crypto) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, jwa.SignatureAlgorithm, error) {
-	headers := jws.NewHeaders()
-	for key, value := range protectedHeaders {
-		if err := headers.Set(key, value); err != nil {
-			return "", "", fmt.Errorf("unable to set header %s: %w", key, err)
-		}
-	}
+func (client *Crypto) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
 	privateKey, err := client.Storage.GetPrivateKey(kid)
 	if err != nil {
-		return "", "", fmt.Errorf("error while signing JWS, can't get private key: %w", err)
+		return "", fmt.Errorf("error while signing JWS, can't get private key: %w", err)
 	}
-	privateKeyAsJWK, err := jwkKey(privateKey)
-	if err != nil {
-		return "", "", err
-	}
-	algo := jwa.SignatureAlgorithm(privateKeyAsJWK.Algorithm())
-	data, err := jws.Sign(payload, algo, privateKey, jws.WithHeaders(headers))
-	if err != nil {
-		return "", "", fmt.Errorf("unable to sign JWS %w", err)
-	}
-	return string(data), algo, nil
+	return signJWS(payload, protectedHeaders, privateKey)
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
@@ -145,6 +130,36 @@ func ParseJWT(tokenString string, f PublicKeyFunc) (jwt.Token, error) {
 	}
 
 	return jwt.ParseString(tokenString, jwt.WithVerify(alg, key), jwt.WithValidate(true))
+}
+
+func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer) (string, error) {
+	headers := jws.NewHeaders()
+	for key, value := range protectedHeaders {
+		if err := headers.Set(key, value); err != nil {
+			return "", fmt.Errorf("unable to set header %s: %w", key, err)
+		}
+	}
+	privateKeyAsJWK, err := jwkKey(privateKey)
+	if err != nil {
+		return "", err
+	}
+	// The JWX library is fine with creating a JWK for a private key (including the private exponents), so
+	// we want to make sure the `jwk` header (if present) does not (accidentally) contain a private key.
+	// That would lead to the node leaking its private key material in the resulting JWS which would be very, very bad.
+	if headers.JWK() != nil {
+		var jwkAsPrivateKey crypto.Signer
+		if err := headers.JWK().Raw(&jwkAsPrivateKey); err == nil {
+			// `err != nil` is good in this case, because that means the key is not assignable to crypto.Signer,
+			// which is the interface implemented by all private key types.
+			return "", errors.New("refusing to sign JWS with private key in JWK header")
+		}
+	}
+	algo := jwa.SignatureAlgorithm(privateKeyAsJWK.Algorithm())
+	data, err := jws.Sign(payload, algo, privateKey, jws.WithHeaders(headers))
+	if err != nil {
+		return "", fmt.Errorf("unable to sign JWS %w", err)
+	}
+	return string(data), nil
 }
 
 func convertHeaders(headers map[string]interface{}) (hdr jws.Headers) {

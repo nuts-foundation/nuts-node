@@ -20,14 +20,9 @@ package dag
 
 import (
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"encoding/binary"
 	"fmt"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/core"
+	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"time"
 )
@@ -39,7 +34,7 @@ func CreateTestDocumentWithJWK(num uint32, prevs ...hash.SHA256Hash) Document {
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
 	unsignedDocument, _ := NewDocument(payloadHash, "foo/bar", prevs)
-	signer := newTestSigner()
+	signer := crypto2.NewTestSignerRandomKey()
 	signedDocument, err := NewAttachedJWKDocumentSigner(signer, fmt.Sprintf("%d", num), signer).Sign(unsignedDocument, time.Now())
 	if err != nil {
 		panic(err)
@@ -52,39 +47,12 @@ func CreateTestDocument(num uint32, prevs ...hash.SHA256Hash) (Document, string,
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
 	unsignedDocument, _ := NewDocument(payloadHash, "foo/bar", prevs)
-	signer := newTestSigner()
+	signer := crypto2.NewTestSignerRandomKey()
 	kid := fmt.Sprintf("%d", num)
 	signedDocument, err := NewDocumentSigner(signer, kid).Sign(unsignedDocument, time.Now())
 	if err != nil {
 		panic(err)
 	}
-	return signedDocument, kid, signer.key.Public()
+	return signedDocument, kid, signer.Key.Public()
 }
 
-func newTestSigner() *testSigner {
-	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	return &testSigner{key: key}
-}
-
-type testSigner struct {
-	key crypto.Signer
-}
-
-func (t testSigner) SavePublicKey(_ string, _ crypto.PublicKey, _ core.Period) error {
-	panic("implement me")
-}
-
-func (t testSigner) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
-	return t.key.Public(), nil
-}
-
-func (t *testSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, _ string) (string, jwa.SignatureAlgorithm, error) {
-	hdrs := jws.NewHeaders()
-	for k, v := range protectedHeaders {
-		if err := hdrs.Set(k, v); err != nil {
-			return "", "", err
-		}
-	}
-	sig, _ := jws.Sign(payload, jwa.ES256, t.key, jws.WithHeaders(hdrs))
-	return string(sig), jwa.ES256, nil
-}

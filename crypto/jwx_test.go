@@ -145,11 +145,10 @@ func TestCrypto_SignJWS(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
 		hdrs := map[string]interface{}{"foo": "bar"}
-		signature, algo, err := client.SignJWS(payload, hdrs, kid)
+		signature, err := client.SignJWS(payload, hdrs, kid)
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, jwa.ES256, algo)
 		message, err := jws.Parse(strings.NewReader(signature))
 		if !assert.NoError(t, err) {
 			return
@@ -166,15 +165,34 @@ func TestCrypto_SignJWS(t *testing.T) {
 		}
 		assert.Equal(t, payload, actualPayload)
 	})
+	t.Run("public key as JWK", func(t *testing.T) {
+		payload := []byte{1, 2, 3}
+
+		publicKeyAsJWK, _ := jwk.New(publicKey)
+		hdrs := map[string]interface{}{"jwk": publicKeyAsJWK}
+		signature, err := client.SignJWS(payload, hdrs, kid)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, signature)
+	})
+	t.Run("private key as JWK (disallowed)", func(t *testing.T) {
+		payload := []byte{1, 2, 3}
+
+		privateKey, _ := client.Storage.GetPrivateKey(kid)
+		privateKeyAsJWK, _ := jwk.New(privateKey)
+		hdrs := map[string]interface{}{"jwk": privateKeyAsJWK}
+		signature, err := client.SignJWS(payload, hdrs, kid)
+		assert.EqualError(t, err, "refusing to sign JWS with private key in JWK header")
+		assert.Empty(t, signature)
+	})
 	t.Run("invalid header", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
-		signature, _, err := client.SignJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, kid)
+		signature, err := client.SignJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, kid)
 		assert.EqualError(t, err, "unable to set header jwk: invalid value for jwk key: string")
 		assert.Empty(t, signature)
 	})
 	t.Run("unknown key", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
-		signature, _, err := client.SignJWS(payload, map[string]interface{}{}, "unknown")
+		signature, err := client.SignJWS(payload, map[string]interface{}{}, "unknown")
 		assert.Contains(t, err.Error(), "error while signing JWS, can't get private key")
 		assert.Empty(t, signature)
 	})

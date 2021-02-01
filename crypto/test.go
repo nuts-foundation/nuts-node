@@ -2,6 +2,9 @@ package crypto
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"path"
 	"time"
 
@@ -42,4 +45,25 @@ type StaticKeyResolver struct {
 
 func (s StaticKeyResolver) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
 	return s.Key, nil
+}
+
+func NewTestSignerRandomKey() *TestSigner {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	return NewTestSigner(key)
+}
+
+func NewTestSigner(privateKey crypto.Signer) *TestSigner {
+	return &TestSigner{Key: privateKey}
+}
+
+type TestSigner struct {
+	Key crypto.Signer
+}
+
+func (t TestSigner) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
+	return t.Key.Public(), nil
+}
+
+func (t *TestSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, _ string) (string, error) {
+	return signJWS(payload, protectedHeaders, t.Key)
 }

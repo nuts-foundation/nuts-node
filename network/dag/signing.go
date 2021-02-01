@@ -1,7 +1,6 @@
 package dag
 
 import (
-	crypto2 "crypto"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -16,11 +15,6 @@ const errSigningDocumentFmt = "error while signing document: %w"
 type DocumentSigner interface {
 	// Sign signs the unsigned document, including the signingTime parameter as header.
 	Sign(input UnsignedDocument, signingTime time.Time) (Document, error)
-}
-
-// DocumentSignatureVerifier defines functions to verify document signatures.
-type DocumentSignatureVerifier interface {
-	Verify(input Document) error
 }
 
 // NewAttachedJWKDocumentSigner creates a DocumentSigner that signs the document using the given key.
@@ -72,13 +66,6 @@ func (d documentSigner) Sign(input UnsignedDocument, signingTime time.Time) (Doc
 		if err != nil {
 			return nil, fmt.Errorf(errSigningDocumentFmt, err)
 		}
-		// The JWX library is fine with creating a JWK for a private key (including the private exponents), so
-		// we want to make sure the resolver didn't accidentally return a private key which just conforms to the
-		// crypto.PublicKey interface. Since that would lead to the node leaking its private key material in the
-		// resulting JWS which would be very, very bad.
-		if asSigner, ok := keyAsPublicKey.(crypto2.Signer); ok {
-			keyAsPublicKey = asSigner.Public()
-		}
 		key, err = jwk.New(keyAsPublicKey)
 		if err != nil {
 			return nil, fmt.Errorf(errSigningDocumentFmt, err)
@@ -112,50 +99,13 @@ func (d documentSigner) Sign(input UnsignedDocument, signingTime time.Time) (Doc
 		}
 	}
 
-	data, algo, err := d.signer.SignJWS([]byte(doc.payload.String()), headerMap, d.kid)
+	data, err := d.signer.SignJWS([]byte(doc.payload.String()), headerMap, d.kid)
 	if err != nil {
 		return nil, fmt.Errorf(errSigningDocumentFmt, err)
 	}
-	doc.setData([]byte(data))
-	doc.signingTime = time.Unix(normalizedMoment.Unix(), 0).UTC()
-	if d.attach {
-		doc.signingKey = key
-	} else {
-		doc.signingKeyID = d.kid
+	signedDocument, err := ParseDocument([]byte(data))
+	if err != nil {
+		return nil, fmt.Errorf(errSigningDocumentFmt, err)
 	}
-	doc.signingAlgorithm = algo
-	return doc, nil
-}
-
-// NewDocumentSignatureVerifier creates a DocumentSignatureVerifier that uses the given KeyResolver to resolves
-// keys that aren't embedded in the document.
-func NewDocumentSignatureVerifier(resolver crypto.KeyResolver) DocumentSignatureVerifier {
-	return &documentVerifier{resolver: resolver}
-}
-
-type documentVerifier struct {
-	resolver crypto.KeyResolver
-}
-
-func (d documentVerifier) Verify(input Document) error {
-	doc, ok := input.(*document)
-	if !ok {
-		return errors.New("unsupported document")
-	}
-	var signingKey crypto2.PublicKey
-	if doc.signingKey != nil {
-		if err := doc.signingKey.Raw(&signingKey); err != nil {
-			return err
-		}
-	} else {
-		pk, err := d.resolver.GetPublicKey(doc.signingKeyID, input.SigningTime())
-		if err != nil {
-			return fmt.Errorf("unable to verify document signature, can't resolve key (kid=%s): %w", doc.signingKeyID, err)
-		}
-		signingKey = pk
-	}
-	// TODO: jws.Verify parses the JWS again, which we already did when parsing the document. If we want to optimize
-	// this we need to implement a custom verifier.
-	_, err := jws.Verify(doc.data, doc.signingAlgorithm, signingKey)
-	return err
+	return signedDocument, nil
 }
