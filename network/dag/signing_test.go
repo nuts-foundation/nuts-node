@@ -27,7 +27,7 @@ func TestDocumentSigner(t *testing.T) {
 			return
 		}
 
-		signer := crypto.NewTestSignerRandomKey()
+		signer := crypto.NewTestSigner()
 		signedDoc, err := NewAttachedJWKDocumentSigner(signer, kid, &crypto.StaticKeyResolver{Key: key.Public()}).Sign(doc, moment)
 		if !assert.NoError(t, err) {
 			return
@@ -53,7 +53,7 @@ func TestDocumentSigner(t *testing.T) {
 			return
 		}
 
-		signer := crypto.NewTestSignerRandomKey()
+		signer := crypto.NewTestSigner()
 		signedDoc, err := NewDocumentSigner(signer, kid).Sign(doc, moment)
 		if !assert.NoError(t, err) {
 			return

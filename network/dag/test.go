@@ -34,7 +34,7 @@ func CreateTestDocumentWithJWK(num uint32, prevs ...hash.SHA256Hash) Document {
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
 	unsignedDocument, _ := NewDocument(payloadHash, "foo/bar", prevs)
-	signer := crypto2.NewTestSignerRandomKey()
+	signer := crypto2.NewTestSigner()
 	signedDocument, err := NewAttachedJWKDocumentSigner(signer, fmt.Sprintf("%d", num), signer).Sign(unsignedDocument, time.Now())
 	if err != nil {
 		panic(err)
@@ -47,7 +47,7 @@ func CreateTestDocument(num uint32, prevs ...hash.SHA256Hash) (Document, string,
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
 	unsignedDocument, _ := NewDocument(payloadHash, "foo/bar", prevs)
-	signer := crypto2.NewTestSignerRandomKey()
+	signer := crypto2.NewTestSigner()
 	kid := fmt.Sprintf("%d", num)
 	signedDocument, err := NewDocumentSigner(signer, kid).Sign(unsignedDocument, time.Now())
 	if err != nil {

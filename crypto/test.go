@@ -47,13 +47,9 @@ func (s StaticKeyResolver) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey
 	return s.Key, nil
 }
 
-func NewTestSignerRandomKey() *TestSigner {
+func NewTestSigner() *TestSigner {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	return NewTestSigner(key)
-}
-
-func NewTestSigner(privateKey crypto.Signer) *TestSigner {
-	return &TestSigner{Key: privateKey}
+	return &TestSigner{Key: key}
 }
 
 type TestSigner struct {
