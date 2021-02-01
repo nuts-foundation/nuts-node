@@ -48,15 +48,11 @@ type documentSigner struct {
 }
 
 func (d documentSigner) Sign(input UnsignedDocument, signingTime time.Time) (Document, error) {
-	doc, ok := input.(*document)
-	if !ok {
-		return nil, errors.New("unsupported document")
-	}
 	// Preliminary sanity checks
 	if signingTime.IsZero() {
 		return nil, errors.New("signing time is zero")
 	}
-	if !doc.signingTime.IsZero() {
+	if doc, ok := input.(Document); ok && !doc.SigningTime().IsZero() {
 		return nil, errors.New("document is already signed")
 	}
 
@@ -72,17 +68,17 @@ func (d documentSigner) Sign(input UnsignedDocument, signingTime time.Time) (Doc
 		}
 	}
 
-	prevsAsString := make([]string, len(doc.prevs))
-	for i, prev := range doc.prevs {
+	prevsAsString := make([]string, len(input.Previous()))
+	for i, prev := range input.Previous() {
 		prevsAsString[i] = prev.String()
 	}
 	normalizedMoment := signingTime.UTC()
 	headerMap := map[string]interface{}{
-		jws.ContentTypeKey: doc.payloadType,
+		jws.ContentTypeKey: input.PayloadType(),
 		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader},
 		signingTimeHeader:  normalizedMoment.Unix(),
 		previousHeader:     prevsAsString,
-		versionHeader:      doc.Version(),
+		versionHeader:      input.Version(),
 	}
 	if d.attach {
 		headerMap[jws.CriticalKey] = append(headerMap[jws.CriticalKey].([]string), jws.JWKKey)
@@ -92,14 +88,14 @@ func (d documentSigner) Sign(input UnsignedDocument, signingTime time.Time) (Doc
 		headerMap[jws.KeyIDKey] = d.kid
 	}
 
-	if !doc.timelineID.Empty() {
-		headerMap[timelineIDHeader] = doc.timelineID
-		if doc.timelineVersion > 0 {
-			headerMap[timelineVersionHeader] = doc.timelineVersion
+	if !input.TimelineID().Empty() {
+		headerMap[timelineIDHeader] = input.TimelineID()
+		if input.TimelineVersion() > 0 {
+			headerMap[timelineVersionHeader] = input.TimelineVersion()
 		}
 	}
 
-	data, err := d.signer.SignJWS([]byte(doc.payload.String()), headerMap, d.kid)
+	data, err := d.signer.SignJWS([]byte(input.Payload().String()), headerMap, d.kid)
 	if err != nil {
 		return nil, fmt.Errorf(errSigningDocumentFmt, err)
 	}

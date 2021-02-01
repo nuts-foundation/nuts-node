@@ -62,4 +62,18 @@ func TestDocumentSigner(t *testing.T) {
 		assert.Nil(t, signedDoc.SigningKey())
 		assert.NotEmpty(t, signedDoc.Data())
 	})
+	t.Run("signing time is zero", func(t *testing.T) {
+		doc, _ := NewDocument(payloadHash, contentType, expectedPrevs)
+		signedDocument, err := NewDocumentSigner(crypto.NewTestSigner(), kid).Sign(doc, time.Time{})
+		assert.Empty(t, signedDocument)
+		assert.EqualError(t, err, "signing time is zero")
+	})
+	t.Run("already signed", func(t *testing.T) {
+		doc, _ := NewDocument(payloadHash, contentType, expectedPrevs)
+		signer := NewDocumentSigner(crypto.NewTestSigner(), kid)
+		signedDocument, _ := signer.Sign(doc, time.Now())
+		signedDocument2, err := signer.Sign(signedDocument, time.Now())
+		assert.Nil(t, signedDocument2)
+		assert.EqualError(t, err, "document is already signed")
+	})
 }
