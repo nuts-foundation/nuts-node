@@ -361,7 +361,7 @@ func (n p2pNetwork) isRunning() bool {
 
 func (n p2pNetwork) Connect(stream transport.Network_ConnectServer) error {
 	peerCtx, _ := grpcPeer.FromContext(stream.Context())
-	log.Logger().Infof("New peer connected from %s", peerCtx.Addr)
+	log.Logger().Tracef("New peer connected from %s", peerCtx.Addr)
 	md, ok := metadata.FromIncomingContext(stream.Context())
 	if !ok {
 		return errors.New("unable to get metadata")
@@ -370,6 +370,7 @@ func (n p2pNetwork) Connect(stream transport.Network_ConnectServer) error {
 	if err != nil {
 		return err
 	}
+	log.Logger().Infof("New peer connected (add=%s, id=%s)", peerCtx.Addr, peerID)
 	// We received our peer's PeerID, now send our own.
 	if err := stream.SendHeader(constructMetadata(n.config.PeerID)); err != nil {
 		return errors2.Wrap(err, "unable to send headers")
