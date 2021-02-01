@@ -1,0 +1,13 @@
+# Ignore everything that starts with a dot
+.*
+# Readme files and docs
+README.rst
+README_template.rst
+generate_readme.sh
+docs
+COPYING
+# Build file
+Dockerfile*
+makefile
+nuts-node
+development
