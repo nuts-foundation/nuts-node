@@ -95,7 +95,7 @@ func Test_document_MarshalJSON(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	actual, err := UnmarshalJSON(data)
+	actual, err := ParseDocument(data)
 	if !assert.NoError(t, err) {
 		return
 	}
