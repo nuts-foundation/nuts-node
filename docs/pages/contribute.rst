@@ -12,9 +12,6 @@ Documentation is written in Restructured Text. A CheatSheet can be found `here <
 
 You can test your documentation by installing the required components.
 
-.. include:: ../README.rst
-    :start-after: .. inclusion-marker-for-contribution
-
 ****************************
 Documentation initialisation
 ****************************
