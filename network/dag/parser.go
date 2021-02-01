@@ -20,7 +20,6 @@ package dag
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -28,15 +27,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"time"
 )
-
-// UnmarshalJSON unmarshals a document in compact serialization format from JSON.
-func UnmarshalJSON(input []byte) (Document, error) {
-	str := ""
-	if err := json.Unmarshal(input, &str); err != nil {
-		return nil, err
-	}
-	return ParseDocument([]byte(str))
-}
 
 // ParseDocument parses the input as Nuts Network Document according to RFC004.
 func ParseDocument(input []byte) (Document, error) {
