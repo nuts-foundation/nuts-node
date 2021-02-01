@@ -20,9 +20,8 @@ package crypto
 
 import (
 	"crypto"
-	"time"
-
 	"github.com/nuts-foundation/nuts-node/core"
+	"time"
 )
 
 // KIDNamingFunc is a function passed to New() which generates the kid for the pub/priv key

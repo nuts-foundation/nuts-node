@@ -20,9 +20,13 @@ package network
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
@@ -43,10 +47,11 @@ const defaultTimeout = 2 * time.Second
 const documentType = "test/document"
 
 var mutex = sync.Mutex{}
-var receivedDocuments = make(map[string][]dag.Document, 0)
+var receivedDocuments map[string][]dag.Document
 
-func TestNetwork(t *testing.T) {
+func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
+	resetIntegrationTest(testDirectory)
 	expectedDocLogSize := 0
 
 	// Start 3 nodes: bootstrap, node1 and node2. Node 1 and 2 connect to the bootstrap node and should discover
@@ -65,30 +70,27 @@ func TestNetwork(t *testing.T) {
 		return
 	}
 	node2.p2pNetwork.ConnectToPeer(nameToAddress("bootstrap"))
-	stop := func() {
+	defer func() {
 		node2.Shutdown()
 		node1.Shutdown()
 		bootstrap.Shutdown()
-	}
+	}()
 
 	// Wait until nodes are connected
 	if !waitFor(t, func() (bool, error) {
 		return len(node1.p2pNetwork.Peers()) == 1 && len(node2.p2pNetwork.Peers()) == 1, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to have 2 peers") {
-		stop()
 		return
 	}
 
 	// Publish first document on node1 and we expect in to come out on node2 and bootstrap
 	if !addDocumentAndWaitForItToArrive(t, "doc1", node1, "node2", "bootstrap") {
-		stop()
 		return
 	}
 	expectedDocLogSize++
 
 	// Now the graph has a root, and node2 can publish a document
 	if !addDocumentAndWaitForItToArrive(t, "doc2", node2, "node1", "bootstrap") {
-		stop()
 		return
 	}
 	expectedDocLogSize++
@@ -111,6 +113,60 @@ func TestNetwork(t *testing.T) {
 	fmt.Printf("%v\n", bootstrap.Diagnostics())
 	fmt.Printf("%v\n", node1.Diagnostics())
 	fmt.Printf("%v\n", node2.Diagnostics())
+}
+
+func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
+	testDirectory := io.TestDirectory(t)
+	resetIntegrationTest(testDirectory)
+
+	// Start node 1 and node 2. Node 1 adds 3 documents:
+	// 1. first document is OK, must be received
+	// 2. second document has an invalid signature, must be rejected
+	// 3. third document is OK, must be received (to deal with timing issues)
+	node1, err := startNode("node1", path.Join(testDirectory, "node1"))
+	if !assert.NoError(t, err) {
+		return
+	}
+	node2, err := startNode("node2", path.Join(testDirectory, "node2"))
+	if !assert.NoError(t, err) {
+		return
+	}
+	node2.p2pNetwork.ConnectToPeer(nameToAddress("node1"))
+	defer func() {
+		node2.Shutdown()
+		node1.Shutdown()
+	}()
+	// Send first OK document and wait for it to be received
+	if !addDocumentAndWaitForItToArrive(t, "first document", node1, "node2") {
+		return
+	}
+
+	// Send second document which has an invalid signature (included JWK is incorrect), should be rejected
+	attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	payload := []byte("second document")
+	unsignedDocument, _ := dag.NewDocument(hash.SHA256Sum(payload), documentType, []hash.SHA256Hash{receivedDocuments["node2"][0].Ref()})
+	craftedDocument, _ := dag.NewAttachedJWKDocumentSigner(nutsCrypto.Instance(), "key", nutsCrypto.StaticKeyResolver{Key: attackerKey.Public()}).Sign(unsignedDocument, time.Now())
+	node1.payloadStore.WritePayload(hash.SHA256Sum(payload), payload)
+	_ = node1.documentGraph.Add(craftedDocument)
+	// Send third OK document
+	if !addDocumentAndWaitForItToArrive(t, "third document", node1, "node2") {
+		return
+	}
+	// Assert node2 only processed the first and last document
+	assert.Len(t, receivedDocuments["node2"], 2)
+	for _, d := range receivedDocuments["node2"] {
+		if d.Ref().Equals(craftedDocument.Ref()) {
+			t.Error("Node 2 processed the crafted document.")
+		}
+	}
+}
+
+func resetIntegrationTest(testDirectory string) {
+	receivedDocuments = make(map[string][]dag.Document, 0)
+	cryptoInstance := nutsCrypto.NewTestCryptoInstance(testDirectory)
+	cryptoInstance.New(func(key crypto.PublicKey) (string, error) {
+		return "key", nil
+	})
 }
 
 func addDocumentAndWaitForItToArrive(t *testing.T, payload string, sender *NetworkEngine, receivers ...string) bool {
@@ -142,20 +198,11 @@ func startNode(name string, directory string) (*NetworkEngine, error) {
 	core.NutsConfig().Load(&cobra.Command{})
 	mutex.Lock()
 	mutex.Unlock()
-	// Initialize crypto instance
-	cryptoInstance := nutsCrypto.Instance()
-	cryptoInstance.Config = nutsCrypto.Config{Fspath: directory}
-	if err := cryptoInstance.Configure(); err != nil {
-		return nil, err
-	}
-	nutsCrypto.Instance().New(func(key crypto.PublicKey) (string, error) {
-		return "key", nil
-	})
 	// Create NetworkEngine instance
 	instance := &NetworkEngine{
 		p2pNetwork: p2p.NewP2PNetwork(),
 		protocol:   proto.NewProtocol(),
-		keyStore:   cryptoInstance,
+		keyStore:   nutsCrypto.Instance(),
 		Config: Config{
 			GrpcAddr:             fmt.Sprintf(":%d", nameToPort(name)),
 			DatabaseFile:         path.Join(directory, "network.db"),

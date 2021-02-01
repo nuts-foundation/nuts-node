@@ -73,7 +73,7 @@ func TestBBoltDAG_Subscribe(t *testing.T) {
 
 func TestBBoltDAG_Diagnostics(t *testing.T) {
 	dag := bboltDAGCreator(t).(*bboltDAG)
-	doc1 := CreateTestDocument(2)
+	doc1 := CreateTestDocumentWithJWK(2)
 	dag.Add(doc1)
 	diagnostics := dag.Diagnostics()
 	assert.Len(t, diagnostics, 3)

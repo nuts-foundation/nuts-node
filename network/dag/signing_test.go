@@ -1,14 +1,12 @@
 package dag
 
 import (
-	"crypto"
 	"crypto/sha1"
 	"encoding/base32"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
 )
@@ -29,23 +27,23 @@ func TestDocumentSigner(t *testing.T) {
 			return
 		}
 
-		signer := &trackingJWSSigner{}
-		signedDoc, err := NewAttachedJWKDocumentSigner(signer, kid, &simpleKeyResolver{key: key}).Sign(doc, moment)
+		signer := crypto.NewTestSigner()
+		signedDoc, err := NewAttachedJWKDocumentSigner(signer, kid, &crypto.StaticKeyResolver{Key: key.Public()}).Sign(doc, moment)
 		if !assert.NoError(t, err) {
 			return
 		}
 		// JWS headers
-		assert.Equal(t, contentType, signer.headers[jws.ContentTypeKey])
-		assert.Empty(t, signer.headers[jws.KeyIDKey])
+		assert.Equal(t, contentType, signedDoc.PayloadType())
+		assert.Empty(t, signedDoc.SigningKeyID())
 		// Custom headers
-		assert.Equal(t, int64(1603457999), signer.headers[signingTimeHeader].(int64))
-		assert.Equal(t, 1, int(signer.headers[versionHeader].(Version)))
-		prevs := signer.headers[previousHeader]
+		assert.Equal(t, "2020-10-23 12:59:59 +0000 UTC", signedDoc.SigningTime().String())
+		assert.Equal(t, Version(1), signedDoc.Version())
+		prevs := signedDoc.Previous()
 		assert.Len(t, prevs, 2, "expected 2 prevs")
-		assert.Equal(t, prev1.String(), prevs.([]string)[0])
-		assert.Equal(t, prev2.String(), prevs.([]string)[1])
+		assert.Equal(t, prev1, prevs[0])
+		assert.Equal(t, prev2, prevs[1])
 		// Resulting doc
-		assert.Equal(t, "fine JWS", string(signedDoc.Data()))
+		assert.NotEmpty(t, signedDoc.Data())
 		assert.False(t, signedDoc.Ref().Empty())
 		assert.Equal(t, time.UTC, signedDoc.SigningTime().Location())
 	})
@@ -55,38 +53,36 @@ func TestDocumentSigner(t *testing.T) {
 			return
 		}
 
-		signer := &trackingJWSSigner{}
+		signer := crypto.NewTestSigner()
 		signedDoc, err := NewDocumentSigner(signer, kid).Sign(doc, moment)
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, kid, signer.headers[jws.KeyIDKey])
-		assert.Nil(t, signer.headers[jws.JWKKey])
-		assert.Equal(t, "fine JWS", string(signedDoc.Data()))
+		assert.Equal(t, kid, signedDoc.SigningKeyID())
+		assert.Nil(t, signedDoc.SigningKey())
+		assert.NotEmpty(t, signedDoc.Data())
 	})
-}
-
-type simpleKeyResolver struct {
-	key crypto.PublicKey
-}
-
-func (s simpleKeyResolver) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
-	return s.key, nil
-}
-
-func (s simpleKeyResolver) SavePublicKey(kid string, publicKey crypto.PublicKey, period core.Period) error {
-	panic("implement me")
-}
-
-type trackingJWSSigner struct {
-	headers map[string]interface{}
-	payload []byte
-	kid     string
-}
-
-func (t *trackingJWSSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
-	t.payload = payload
-	t.headers = protectedHeaders
-	t.kid = kid
-	return "fine JWS", nil
+	t.Run("signing time is zero", func(t *testing.T) {
+		doc, _ := NewDocument(payloadHash, contentType, expectedPrevs)
+		signedDocument, err := NewDocumentSigner(crypto.NewTestSigner(), kid).Sign(doc, time.Time{})
+		assert.Empty(t, signedDocument)
+		assert.EqualError(t, err, "signing time is zero")
+	})
+	t.Run("already signed", func(t *testing.T) {
+		doc, _ := NewDocument(payloadHash, contentType, expectedPrevs)
+		signer := NewDocumentSigner(crypto.NewTestSigner(), kid)
+		signedDocument, _ := signer.Sign(doc, time.Now())
+		signedDocument2, err := signer.Sign(signedDocument, time.Now())
+		assert.Nil(t, signedDocument2)
+		assert.EqualError(t, err, "document is already signed")
+	})
+	t.Run("tid en tiv set", func(t *testing.T) {
+		tid := hash2.SHA256Sum([]byte("!!!"))
+		tiv := 2
+		doc, _ := NewDocument(payloadHash, contentType, expectedPrevs, TimelineIDField(tid), TimelineVersionField(tiv))
+		signedDocument, err := NewDocumentSigner(crypto.NewTestSigner(), kid).Sign(doc, time.Now())
+		assert.NoError(t, err)
+		assert.Equal(t, tid, signedDocument.TimelineID())
+		assert.Equal(t, tiv, signedDocument.TimelineVersion())
+	})
 }

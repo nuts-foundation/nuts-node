@@ -2,7 +2,11 @@ package crypto
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"path"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -33,4 +37,29 @@ func StringNamingFunc(name string) KIDNamingFunc {
 	return func(key crypto.PublicKey) (string, error) {
 		return name, nil
 	}
+}
+
+type StaticKeyResolver struct {
+	Key crypto.PublicKey
+}
+
+func (s StaticKeyResolver) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
+	return s.Key, nil
+}
+
+func NewTestSigner() *TestSigner {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	return &TestSigner{Key: key}
+}
+
+type TestSigner struct {
+	Key crypto.Signer
+}
+
+func (t TestSigner) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
+	return t.Key.Public(), nil
+}
+
+func (t *TestSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, _ string) (string, error) {
+	return signJWS(payload, protectedHeaders, t.Key)
 }

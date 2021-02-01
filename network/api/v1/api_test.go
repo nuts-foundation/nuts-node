@@ -35,7 +35,7 @@ var payload = []byte("Hello, World!")
 func TestApiWrapper_GetDocument(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	document := dag.CreateTestDocument(1)
+	document := dag.CreateTestDocumentWithJWK(1)
 	path := "/document/:ref"
 
 	t.Run("ok", func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestApiWrapper_GetDocument(t *testing.T) {
 func TestApiWrapper_GetDocumentPayload(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	document := dag.CreateTestDocument(1)
+	document := dag.CreateTestDocumentWithJWK(1)
 	path := "/document/:ref/payload"
 
 	t.Run("ok", func(t *testing.T) {
@@ -152,7 +152,7 @@ func TestApiWrapper_GetDocumentPayload(t *testing.T) {
 func TestApiWrapper_ListDocuments(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	document := dag.CreateTestDocument(1)
+	document := dag.CreateTestDocumentWithJWK(1)
 
 	t.Run("list documents", func(t *testing.T) {
 		t.Run("200", func(t *testing.T) {

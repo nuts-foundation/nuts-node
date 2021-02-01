@@ -50,7 +50,7 @@ func TestNetwork_ListDocuments(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		cxt.graph.EXPECT().All().Return([]dag.Document{dag.CreateTestDocument(1)}, nil)
+		cxt.graph.EXPECT().All().Return([]dag.Document{dag.CreateTestDocumentWithJWK(1)}, nil)
 		docs, err := cxt.network.ListDocuments()
 		assert.Len(t, docs, 1)
 		assert.NoError(t, err)
@@ -72,7 +72,7 @@ func TestNetwork_GetDocumentContents(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		document := dag.CreateTestDocument(1)
+		document := dag.CreateTestDocumentWithJWK(1)
 		cxt.graph.EXPECT().Get(document.Ref()).Return(document, nil)
 		cxt.payload.EXPECT().ReadPayload(document.Payload())
 		cxt.network.GetDocumentPayload(document.Ref())
@@ -106,7 +106,7 @@ func TestNetwork_Configure(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.p2pNetwork.EXPECT().Configure(gomock.Any())
 		err := cxt.network.Configure()
 		if !assert.NoError(t, err) {
@@ -129,7 +129,9 @@ func TestNetwork_CreateDocument(t *testing.T) {
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
 		cxt.keyStore.EXPECT().GetPublicKey("signing-key", gomock.Any()).Return(privateKey.PublicKey, nil)
-		cxt.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Eq("signing-key"))
+		cxt.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Eq("signing-key")).DoAndReturn(func(payload []byte, protectedHeaders map[string]interface{}, kid interface{}) (string, error) {
+			return crypto.NewTestSigner().SignJWS(payload, protectedHeaders, "")
+		})
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
@@ -148,7 +150,9 @@ func TestNetwork_CreateDocument(t *testing.T) {
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
-		cxt.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Eq("signing-key"))
+		cxt.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Eq("signing-key")).DoAndReturn(func(payload []byte, protectedHeaders map[string]interface{}, kid interface{}) (string, error) {
+			return crypto.NewTestSigner().SignJWS(payload, protectedHeaders, "")
+		})
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return

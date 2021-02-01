@@ -19,7 +19,6 @@
 package dag
 
 import (
-	"crypto"
 	"encoding/json"
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -69,6 +68,7 @@ type UnsignedDocument interface {
 // Document defines a signed distributed document as described by RFC004 - Distributed Document Format.
 type Document interface {
 	UnsignedDocument
+	json.Marshaler
 	// SigningKey returns the key that was used to sign the document as JWK. If this field is not set SigningKeyID
 	// must be used to resolve the signing key.
 	SigningKey() jwk.Key
@@ -76,15 +76,12 @@ type Document interface {
 	SigningKeyID() string
 	// SigningTime returns the time that the document was signed.
 	SigningTime() time.Time
+	// SigningAlgorithm returns the name of the JOSE signing algorithm that was used to sign the document.
+	SigningAlgorithm() string
 	// Ref returns the reference to this document.
 	Ref() hash.SHA256Hash
 	// Data returns the byte representation of this document which can be used for transport.
 	Data() []byte
-	// VerifySignature verifies that the signature is correct. A function has to be supplied to look up the signing key
-	// using the signing key ID, when the signing key is specified as `kid` header than than being included as `jwk`.
-	// An error is returned if verification fails or something else goes wrong.
-	VerifySignature(func(string) crypto.PublicKey) error
-	json.Marshaler
 }
 
 // NewDocument creates a new unsigned document. Parameters payload and payloadType can't be empty, but prevs is optional.
@@ -122,21 +119,29 @@ func TimelineVersionField(version int) FieldOpt {
 	}
 }
 
+// TimelineIDField adds the timeline ID field to a document.
+func TimelineIDField(id hash.SHA256Hash) FieldOpt {
+	return func(target *document) {
+		target.timelineID = id
+	}
+}
+
 // ValidatePayloadType checks whether the payload type is valid according to RFC004.
 func ValidatePayloadType(payloadType string) bool {
 	return strings.Contains(payloadType, "/")
 }
 
 type document struct {
-	prevs           []hash.SHA256Hash
-	payload         hash.SHA256Hash
-	payloadType     string
-	signingKey      jwk.Key
-	signingKeyID    string
-	signingTime     time.Time
-	version         Version
-	timelineID      hash.SHA256Hash
-	timelineVersion int
+	prevs            []hash.SHA256Hash
+	payload          hash.SHA256Hash
+	payloadType      string
+	signingKey       jwk.Key
+	signingKeyID     string
+	signingTime      time.Time
+	signingAlgorithm jwa.SignatureAlgorithm
+	version          Version
+	timelineID       hash.SHA256Hash
+	timelineVersion  int
 
 	data []byte
 	ref  hash.SHA256Hash
@@ -160,6 +165,10 @@ func (d document) SigningKeyID() string {
 
 func (d document) SigningTime() time.Time {
 	return d.signingTime
+}
+
+func (d document) SigningAlgorithm() string {
+	return d.signingAlgorithm.String()
 }
 
 func (d document) PayloadType() string {
@@ -188,10 +197,6 @@ func (d document) TimelineID() hash.SHA256Hash {
 
 func (d document) TimelineVersion() int {
 	return d.timelineVersion
-}
-
-func (d document) VerifySignature(_ func(string) crypto.PublicKey) error {
-	return errors.New("not implemented")
 }
 
 func (d *document) setData(data []byte) {

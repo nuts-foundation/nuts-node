@@ -68,7 +68,7 @@ func (n *NetworkEngine) Configure() error {
 			return
 		}
 		peerID := p2p.PeerID(uuid.New().String())
-		n.protocol.Configure(n.p2pNetwork, n.documentGraph, n.payloadStore, time.Duration(n.Config.AdvertHashesInterval)*time.Millisecond, peerID)
+		n.protocol.Configure(n.p2pNetwork, n.documentGraph, n.payloadStore, dag.NewDocumentSignatureVerifier(n.keyStore), time.Duration(n.Config.AdvertHashesInterval)*time.Millisecond, peerID)
 		networkConfig, p2pErr := n.buildP2PConfig(peerID)
 		if p2pErr != nil {
 			log.Logger().Warnf("Unable to build P2P layer config, NetworkEngine will be offline (reason: %v)", p2pErr)

@@ -30,9 +30,10 @@ import (
 
 // protocol is thread-safe when callers use the Protocol interface
 type protocol struct {
-	p2pNetwork   p2p.P2PNetwork
-	graph        dag.DAG
-	payloadStore dag.PayloadStore
+	p2pNetwork        p2p.P2PNetwork
+	graph             dag.DAG
+	payloadStore      dag.PayloadStore
+	signatureVerifier dag.DocumentSignatureVerifier
 	// TODO: What if no-one is actually listening to this queue? Maybe we should create it when someone asks for it (lazy initialization)?
 	receivedPeerHashes     *chanPeerHashQueue
 	receivedDocumentHashes *chanPeerHashQueue
@@ -62,11 +63,12 @@ func NewProtocol() Protocol {
 	return p
 }
 
-func (p *protocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, payloadStore dag.PayloadStore, advertHashesInterval time.Duration, peerID p2p.PeerID) {
+func (p *protocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, payloadStore dag.PayloadStore, verifier dag.DocumentSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
 	p.p2pNetwork = p2pNetwork
 	p.graph = graph
 	p.payloadStore = payloadStore
 	p.advertHashesInterval = advertHashesInterval
+	p.signatureVerifier = verifier
 	p.peerID = peerID
 }
 

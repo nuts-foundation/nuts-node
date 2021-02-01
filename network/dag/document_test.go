@@ -79,7 +79,7 @@ func Test_document_Getters(t *testing.T) {
 	doc.setData([]byte{1, 2, 3})
 
 	assert.Equal(t, doc.prevs, doc.Previous())
-	assert.Equal(t, hash2.SHA256Hash(doc.payload), doc.Payload())
+	assert.Equal(t, doc.payload, doc.Payload())
 	assert.Equal(t, doc.payloadType, doc.PayloadType())
 	assert.Equal(t, doc.signingTime, doc.SigningTime())
 	assert.Equal(t, doc.version, doc.Version())
@@ -90,23 +90,10 @@ func Test_document_Getters(t *testing.T) {
 }
 
 func Test_document_MarshalJSON(t *testing.T) {
-	expected := CreateTestDocument(1)
+	expected, _, _ := CreateTestDocument(1)
 	data, err := json.Marshal(expected)
-	if !assert.NoError(t, err) {
-		return
-	}
-	actual, err := UnmarshalJSON(data)
-	if !assert.NoError(t, err) {
-		return
-	}
-	assert.Equal(t, expected, actual)
-}
-
-func Test_document_VerifySignature(t *testing.T) {
-	t.Run("not implemented yet", func(t *testing.T) {
-		err := document{}.VerifySignature(nil)
-		assert.EqualError(t, err, "not implemented")
-	})
+	assert.NoError(t, err)
+	assert.Equal(t, `"`+string(expected.Data())+`"`, string(data))
 }
 
 func generateKey() *ecdsa.PrivateKey {

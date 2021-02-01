@@ -19,42 +19,40 @@
 package dag
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
+	"crypto"
 	"encoding/binary"
 	"fmt"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jws"
+	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"time"
 )
 
-var privateKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
-// CreateTestDocument creates a document witth the given num as payload hash and signs it with a random EC key.
-func CreateTestDocument(num uint32, prevs ...hash.SHA256Hash) Document {
+// CreateTestDocumentWithJWK creates a document with the given num as payload hash and signs it with a random EC key.
+// The JWK is attached, rather than referred to using the kid.
+func CreateTestDocumentWithJWK(num uint32, prevs ...hash.SHA256Hash) Document {
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
 	unsignedDocument, _ := NewDocument(payloadHash, "foo/bar", prevs)
-	signedDocument, err := NewDocumentSigner(&testSigner{}, fmt.Sprintf("%d", num)).Sign(unsignedDocument, time.Now())
+	signer := crypto2.NewTestSigner()
+	signedDocument, err := NewAttachedJWKDocumentSigner(signer, fmt.Sprintf("%d", num), signer).Sign(unsignedDocument, time.Now())
 	if err != nil {
 		panic(err)
 	}
 	return signedDocument
 }
 
-type testSigner struct {
+// CreateTestDocument creates a document with the given num as payload hash and signs it with a random EC key.
+func CreateTestDocument(num uint32, prevs ...hash.SHA256Hash) (Document, string, crypto.PublicKey) {
+	payloadHash := hash.SHA256Hash{}
+	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
+	unsignedDocument, _ := NewDocument(payloadHash, "foo/bar", prevs)
+	signer := crypto2.NewTestSigner()
+	kid := fmt.Sprintf("%d", num)
+	signedDocument, err := NewDocumentSigner(signer, kid).Sign(unsignedDocument, time.Now())
+	if err != nil {
+		panic(err)
+	}
+	return signedDocument, kid, signer.Key.Public()
 }
 
-func (t testSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, _ string) (string, error) {
-	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	hdrs := jws.NewHeaders()
-	for k, v := range protectedHeaders {
-		if err := hdrs.Set(k, v); err != nil {
-			return "", err
-		}
-	}
-	sig, _ := jws.Sign(payload, jwa.ES256, privateKey, jws.WithHeaders(hdrs))
-	return string(sig), nil
-}

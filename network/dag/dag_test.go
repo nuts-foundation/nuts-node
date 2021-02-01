@@ -49,7 +49,7 @@ func TestBFSWalker(t *testing.T) {
 		//.....................G
 		visitor := trackingVisitor{}
 		graph, docs := graphF(bboltDAGCreator, t)
-		G := CreateTestDocument(6, docs[3].Ref(), docs[5].Ref())
+		G := CreateTestDocumentWithJWK(6, docs[3].Ref(), docs[5].Ref())
 		graph.Add(G)
 
 		root, _ := graph.Root()
@@ -92,7 +92,7 @@ func TestBFSWalker(t *testing.T) {
 
 	t.Run("ok - document added twice", func(t *testing.T) {
 		graph := bboltDAGCreator(t)
-		d := CreateTestDocument(0)
+		d := CreateTestDocumentWithJWK(0)
 		graph.Add(d)
 		graph.Add(d)
 		visitor := trackingVisitor{}
@@ -105,8 +105,8 @@ func TestBFSWalker(t *testing.T) {
 
 	t.Run("error - second root document", func(t *testing.T) {
 		graph := bboltDAGCreator(t)
-		d1 := CreateTestDocument(0)
-		d2 := CreateTestDocument(1)
+		d1 := CreateTestDocumentWithJWK(0)
+		d2 := CreateTestDocumentWithJWK(1)
 		err := graph.Add(d1)
 
 		err = graph.Add(d2)

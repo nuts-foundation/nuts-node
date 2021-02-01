@@ -144,6 +144,9 @@ func (p *protocol) checkDocumentOnLocalNode(peer p2p.PeerID, documentRef hash.SH
 	if present, err := p.graph.IsPresent(documentRef); err != nil {
 		return err
 	} else if !present {
+		if err := p.signatureVerifier.Verify(document); err != nil {
+			return fmt.Errorf("not adding received document to DAG, invalid signature (ref=%s): %w", document.Ref(), err)
+		}
 		if err := p.graph.Add(document); err != nil {
 			return fmt.Errorf("unable to add received document to DAG: %w", err)
 		}

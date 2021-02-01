@@ -51,7 +51,7 @@ func (n trackingVisitor) JoinRefsAsString() string {
 func DAGTest_All(creator func(t *testing.T) DAG, t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		graph := creator(t)
-		doc := CreateTestDocument(1)
+		doc := CreateTestDocumentWithJWK(1)
 
 		err := graph.Add(doc)
 
@@ -71,7 +71,7 @@ func DAGTest_All(creator func(t *testing.T) DAG, t *testing.T) {
 func DAGTest_Get(creator func(t *testing.T) DAG, t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		graph := creator(t)
-		document := CreateTestDocument(1)
+		document := CreateTestDocumentWithJWK(1)
 		_ = graph.Add(document)
 		actual, err := graph.Get(document.Ref())
 		if !assert.NoError(t, err) {
@@ -90,7 +90,7 @@ func DAGTest_Get(creator func(t *testing.T) DAG, t *testing.T) {
 func DAGTest_Add(creator func(t *testing.T) DAG, t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		graph := creator(t)
-		doc := CreateTestDocument(0)
+		doc := CreateTestDocumentWithJWK(0)
 
 		err := graph.Add(doc)
 
@@ -108,7 +108,7 @@ func DAGTest_Add(creator func(t *testing.T) DAG, t *testing.T) {
 	})
 	t.Run("duplicate", func(t *testing.T) {
 		graph := creator(t)
-		doc := CreateTestDocument(0)
+		doc := CreateTestDocumentWithJWK(0)
 
 		_ = graph.Add(doc)
 		err := graph.Add(doc)
@@ -118,8 +118,8 @@ func DAGTest_Add(creator func(t *testing.T) DAG, t *testing.T) {
 	})
 	t.Run("second root", func(t *testing.T) {
 		graph := creator(t)
-		root1 := CreateTestDocument(1)
-		root2 := CreateTestDocument(2)
+		root1 := CreateTestDocumentWithJWK(1)
+		root2 := CreateTestDocumentWithJWK(2)
 
 		_ = graph.Add(root1)
 		err := graph.Add(root2)
@@ -149,9 +149,9 @@ func DAGTest_Add(creator func(t *testing.T) DAG, t *testing.T) {
 	t.Run("error - cyclic graph", func(t *testing.T) {
 		t.Skip("Algorithm for detecting cycles is not yet decided on")
 		// A -> B -> C -> B
-		A := CreateTestDocument(0)
-		B := CreateTestDocument(1, A.Ref()).(*document)
-		C := CreateTestDocument(2, B.Ref())
+		A := CreateTestDocumentWithJWK(0)
+		B := CreateTestDocumentWithJWK(1, A.Ref()).(*document)
+		C := CreateTestDocumentWithJWK(2, B.Ref())
 		B.prevs = append(B.prevs, C.Ref())
 
 		graph := creator(t)
@@ -176,9 +176,9 @@ func DAGTest_Walk(creator func(t *testing.T) DAG, t *testing.T) {
 }
 
 func DAGTest_MissingDocuments(creator func(t *testing.T) DAG, t *testing.T) {
-	A := CreateTestDocument(0)
-	B := CreateTestDocument(1, A.Ref())
-	C := CreateTestDocument(2, B.Ref())
+	A := CreateTestDocumentWithJWK(0)
+	B := CreateTestDocumentWithJWK(1, A.Ref())
+	C := CreateTestDocumentWithJWK(2, B.Ref())
 	t.Run("no missing documents (empty graph)", func(t *testing.T) {
 		graph := creator(t)
 		assert.Empty(t, graph.MissingDocuments())
@@ -201,14 +201,14 @@ func DAGTest_MissingDocuments(creator func(t *testing.T) DAG, t *testing.T) {
 func DAGTest_Subscribe(creator func(t *testing.T) DAG, t *testing.T) {
 	t.Run("no subscribers", func(t *testing.T) {
 		graph := creator(t)
-		document := CreateTestDocument(1)
+		document := CreateTestDocumentWithJWK(1)
 		_ = graph.Add(document)
 		err := graph.(PayloadStore).WritePayload(document.Payload(), []byte("foobar"))
 		assert.NoError(t, err)
 	})
 	t.Run("single subscriber", func(t *testing.T) {
 		graph := creator(t)
-		document := CreateTestDocument(1)
+		document := CreateTestDocumentWithJWK(1)
 		received := false
 		graph.Subscribe(document.PayloadType(), func(actualDocument Document, actualPayload []byte) error {
 			assert.Equal(t, document, actualDocument)
@@ -223,7 +223,7 @@ func DAGTest_Subscribe(creator func(t *testing.T) DAG, t *testing.T) {
 	})
 	t.Run("multiple subscribers", func(t *testing.T) {
 		graph := creator(t)
-		document := CreateTestDocument(1)
+		document := CreateTestDocumentWithJWK(1)
 		calls := 0
 		receiver := func(actualDocument Document, actualPayload []byte) error {
 			calls++
@@ -238,7 +238,7 @@ func DAGTest_Subscribe(creator func(t *testing.T) DAG, t *testing.T) {
 	})
 	t.Run("multiple subscribers, first fails", func(t *testing.T) {
 		graph := creator(t)
-		document := CreateTestDocument(1)
+		document := CreateTestDocumentWithJWK(1)
 		calls := 0
 		receiver := func(actualDocument Document, actualPayload []byte) error {
 			calls++
@@ -253,7 +253,7 @@ func DAGTest_Subscribe(creator func(t *testing.T) DAG, t *testing.T) {
 	})
 	t.Run("subscriber error", func(t *testing.T) {
 		graph := creator(t)
-		document := CreateTestDocument(1)
+		document := CreateTestDocumentWithJWK(1)
 		graph.Subscribe(document.PayloadType(), func(actualDocument Document, actualPayload []byte) error {
 			return errors.New("failed")
 		})
@@ -266,7 +266,7 @@ func DAGTest_Subscribe(creator func(t *testing.T) DAG, t *testing.T) {
 func DAGTest_GetByPayloadHash(creator func(t *testing.T) DAG, t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		graph := creator(t)
-		document := CreateTestDocument(1)
+		document := CreateTestDocumentWithJWK(1)
 		_ = graph.Add(document)
 		actual, err := graph.GetByPayloadHash(document.Payload())
 		assert.Len(t, actual, 1)
@@ -320,12 +320,12 @@ func PayloadStoreTest(creator func(t *testing.T) PayloadStore, t *testing.T) {
 //........................F
 func graphF(creator func(t *testing.T) DAG, t *testing.T) (DAG, []Document) {
 	graph := creator(t)
-	A := CreateTestDocument(0)
-	B := CreateTestDocument(1, A.Ref())
-	C := CreateTestDocument(2, A.Ref())
-	D := CreateTestDocument(3, B.Ref(), C.Ref())
-	E := CreateTestDocument(4, C.Ref())
-	F := CreateTestDocument(5, E.Ref())
+	A := CreateTestDocumentWithJWK(0)
+	B := CreateTestDocumentWithJWK(1, A.Ref())
+	C := CreateTestDocumentWithJWK(2, A.Ref())
+	D := CreateTestDocumentWithJWK(3, B.Ref(), C.Ref())
+	E := CreateTestDocumentWithJWK(4, C.Ref())
+	F := CreateTestDocumentWithJWK(5, E.Ref())
 	docs := []Document{A, B, C, D, E, F}
 	graph.Add(docs...)
 	return graph, docs

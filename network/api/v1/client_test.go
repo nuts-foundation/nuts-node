@@ -41,7 +41,7 @@ func (h handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 
 func TestHttpClient_ListDocuments(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
-		expected := dag.CreateTestDocument(1)
+		expected := dag.CreateTestDocumentWithJWK(1)
 		data, _ := json.Marshal([]string{string(expected.Data())})
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: data})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
@@ -58,7 +58,7 @@ func TestHttpClient_ListDocuments(t *testing.T) {
 
 func TestHttpClient_GetDocument(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
-		expected := dag.CreateTestDocument(1)
+		expected := dag.CreateTestDocumentWithJWK(1)
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: expected.Data()})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		actual, err := httpClient.GetDocument(expected.Ref())
