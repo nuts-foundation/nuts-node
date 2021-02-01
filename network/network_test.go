@@ -75,7 +75,7 @@ func TestNetwork_GetDocumentContents(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		document := dag.CreateTestDocumentWithJWK(1)
 		cxt.graph.EXPECT().Get(document.Ref()).Return(document, nil)
-		cxt.payload.EXPECT().ReadPayload(document.Payload())
+		cxt.payload.EXPECT().ReadPayload(document.PayloadHash())
 		cxt.network.GetDocumentPayload(document.Ref())
 	})
 }

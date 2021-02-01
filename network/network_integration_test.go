@@ -46,7 +46,7 @@ const defaultTimeout = 2 * time.Second
 const documentType = "test/document"
 
 var mutex = sync.Mutex{}
-var receivedDocuments map[string][]dag.Document
+var receivedDocuments = make(map[string][]dag.SubscriberDocument, 0)
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
@@ -162,7 +162,7 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 }
 
 func resetIntegrationTest(testDirectory string) {
-	receivedDocuments = make(map[string][]dag.Document, 0)
+	receivedDocuments = make(map[string][]dag.SubscriberDocument, 0)
 	cryptoInstance := nutsCrypto.NewTestCryptoInstance(testDirectory)
 	cryptoInstance.New(func(key crypto.PublicKey) (string, error) {
 		return "key", nil
@@ -218,7 +218,7 @@ func startNode(name string, directory string) (*NetworkEngine, error) {
 	if err := instance.Start(); err != nil {
 		return nil, err
 	}
-	instance.Subscribe(documentType, func(document dag.Document, payload []byte) error {
+	instance.Subscribe(documentType, func(document dag.SubscriberDocument, payload []byte) error {
 		mutex.Lock()
 		defer mutex.Unlock()
 		log.Logger().Infof("document %s arrived at %s", string(payload), name)

@@ -111,3 +111,17 @@ func (mr *MockNetworkMockRecorder) ListDocuments() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListDocuments", reflect.TypeOf((*MockNetwork)(nil).ListDocuments))
 }
+
+// Walk mocks base method
+func (m *MockNetwork) Walk(walker dag.Walker, visitor dag.Visitor, startAt hash.SHA256Hash) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Walk", walker, visitor, startAt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Walk indicates an expected call of Walk
+func (mr *MockNetworkMockRecorder) Walk(walker, visitor, startAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockNetwork)(nil).Walk), walker, visitor, startAt)
+}

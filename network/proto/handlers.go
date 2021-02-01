@@ -151,7 +151,7 @@ func (p *protocol) checkDocumentOnLocalNode(peer p2p.PeerID, documentRef hash.SH
 			return fmt.Errorf("unable to add received document to DAG: %w", err)
 		}
 		queryContents = true
-	} else if payloadPresent, err := p.payloadStore.IsPresent(document.Payload()); err != nil {
+	} else if payloadPresent, err := p.payloadStore.IsPresent(document.PayloadHash()); err != nil {
 		return err
 	} else {
 		queryContents = !payloadPresent
@@ -161,7 +161,7 @@ func (p *protocol) checkDocumentOnLocalNode(peer p2p.PeerID, documentRef hash.SH
 		//   document contents. We need a smarter way to get it from a peer who does.
 		log.Logger().Infof("Received document hash from peer that we don't have yet or we're missing its contents, will query it (peer=%s,hash=%s)", peer, documentRef)
 		responseMsg := createMessage()
-		responseMsg.DocumentPayloadQuery = &transport.DocumentPayloadQuery{PayloadHash: document.Payload().Slice()}
+		responseMsg.DocumentPayloadQuery = &transport.DocumentPayloadQuery{PayloadHash: document.PayloadHash().Slice()}
 		return p.p2pNetwork.Send(peer, &responseMsg)
 	}
 	return nil

@@ -95,7 +95,7 @@ func (d documentSigner) Sign(input UnsignedDocument, signingTime time.Time) (Doc
 		}
 	}
 
-	data, err := d.signer.SignJWS([]byte(input.Payload().String()), headerMap, d.kid)
+	data, err := d.signer.SignJWS([]byte(input.PayloadHash().String()), headerMap, d.kid)
 	if err != nil {
 		return nil, fmt.Errorf(errSigningDocumentFmt, err)
 	}

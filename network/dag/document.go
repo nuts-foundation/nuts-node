@@ -49,15 +49,30 @@ var invalidHeaderErrFmt = "invalid %s header"
 
 // UnsignedDocument holds the base properties of a document which can be signed to create a Document.
 type UnsignedDocument interface {
+	NetworkHeader
 	// PayloadType returns the MIME-formatted type of the payload. It must contain the context and specific type of the
 	// payload, e.g. 'registry/endpoint'.
 	PayloadType() string
-	// Payload returns the hash of the payload of the document.
-	Payload() hash.SHA256Hash
+	// PayloadHash returns the hash of the payload of the document.
+	PayloadHash() hash.SHA256Hash
+	Timeline
+}
+
+type NetworkHeader interface {
 	// Previous returns the references of the previous documents this document points to.
 	Previous() []hash.SHA256Hash
 	// Version returns the version number of the distributed document format.
 	Version() Version
+}
+
+type SubscriberDocument interface {
+	Signable
+	Referenceable
+	Timeline
+	PayloadHash() hash.SHA256Hash
+}
+
+type Timeline interface {
 	// TimelineID returns the timeline ID of the document.
 	TimelineID() hash.SHA256Hash
 	// TimelineVersion returns the timeline version of the document. If the returned version is < 1 the timeline version
@@ -65,10 +80,7 @@ type UnsignedDocument interface {
 	TimelineVersion() int
 }
 
-// Document defines a signed distributed document as described by RFC004 - Distributed Document Format.
-type Document interface {
-	UnsignedDocument
-	json.Marshaler
+type Signable interface {
 	// SigningKey returns the key that was used to sign the document as JWK. If this field is not set SigningKeyID
 	// must be used to resolve the signing key.
 	SigningKey() jwk.Key
@@ -78,8 +90,20 @@ type Document interface {
 	SigningTime() time.Time
 	// SigningAlgorithm returns the name of the JOSE signing algorithm that was used to sign the document.
 	SigningAlgorithm() string
+}
+
+type Referenceable interface {
 	// Ref returns the reference to this document.
 	Ref() hash.SHA256Hash
+}
+
+// Document defines a signed distributed document as described by RFC004 - Distributed Document Format.
+type Document interface {
+	UnsignedDocument
+	Signable
+	Referenceable
+	json.Marshaler
+
 	// Data returns the byte representation of this document which can be used for transport.
 	Data() []byte
 }
@@ -175,7 +199,7 @@ func (d document) PayloadType() string {
 	return d.payloadType
 }
 
-func (d document) Payload() hash.SHA256Hash {
+func (d document) PayloadHash() hash.SHA256Hash {
 	return d.payload
 }
 

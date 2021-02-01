@@ -62,7 +62,7 @@ type Publisher interface {
 }
 
 // Receiver defines a function for processing documents when walking the DAG.
-type Receiver func(document Document, payload []byte) error
+type Receiver func(document SubscriberDocument, payload []byte) error
 
 // WalkerAlgorithm defines the interface for a type that can walk the DAG.
 type WalkerAlgorithm interface {

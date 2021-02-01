@@ -306,8 +306,8 @@ func (dag *bboltDAG) add(document Document) error {
 			}
 		}
 		// Store reverse reference from payload hash to document
-		newPayloadIndexValue := appendHashList(payloadIndex.Get(document.Payload().Slice()), ref)
-		if err = payloadIndex.Put(document.Payload().Slice(), newPayloadIndexValue); err != nil {
+		newPayloadIndexValue := appendHashList(payloadIndex.Get(document.PayloadHash().Slice()), ref)
+		if err = payloadIndex.Put(document.PayloadHash().Slice(), newPayloadIndexValue); err != nil {
 			return fmt.Errorf("unable to update payload index for document %s: %w", ref, err)
 		}
 		// Remove marker if this document was previously missing
