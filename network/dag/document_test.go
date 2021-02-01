@@ -79,7 +79,7 @@ func Test_document_Getters(t *testing.T) {
 	doc.setData([]byte{1, 2, 3})
 
 	assert.Equal(t, doc.prevs, doc.Previous())
-	assert.Equal(t, hash2.SHA256Hash(doc.payload), doc.Payload())
+	assert.Equal(t, doc.payload, doc.Payload())
 	assert.Equal(t, doc.payloadType, doc.PayloadType())
 	assert.Equal(t, doc.signingTime, doc.SigningTime())
 	assert.Equal(t, doc.version, doc.Version())

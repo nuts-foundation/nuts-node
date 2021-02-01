@@ -76,4 +76,13 @@ func TestDocumentSigner(t *testing.T) {
 		assert.Nil(t, signedDocument2)
 		assert.EqualError(t, err, "document is already signed")
 	})
+	t.Run("tid en tiv set", func(t *testing.T) {
+		tid := hash2.SHA256Sum([]byte("!!!"))
+		tiv := 2
+		doc, _ := NewDocument(payloadHash, contentType, expectedPrevs, TimelineIDField(tid), TimelineVersionField(tiv))
+		signedDocument, err := NewDocumentSigner(crypto.NewTestSigner(), kid).Sign(doc, time.Now())
+		assert.NoError(t, err)
+		assert.Equal(t, tid, signedDocument.TimelineID())
+		assert.Equal(t, tiv, signedDocument.TimelineVersion())
+	})
 }

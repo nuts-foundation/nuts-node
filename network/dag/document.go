@@ -119,6 +119,13 @@ func TimelineVersionField(version int) FieldOpt {
 	}
 }
 
+// TimelineIDField adds the timeline ID field to a document.
+func TimelineIDField(id hash.SHA256Hash) FieldOpt {
+	return func(target *document) {
+		target.timelineID = id
+	}
+}
+
 // ValidatePayloadType checks whether the payload type is valid according to RFC004.
 func ValidatePayloadType(payloadType string) bool {
 	return strings.Contains(payloadType, "/")
