@@ -90,16 +90,10 @@ func Test_document_Getters(t *testing.T) {
 }
 
 func Test_document_MarshalJSON(t *testing.T) {
-	expected := CreateTestDocumentWithJWK(1)
+	expected, _, _ := CreateTestDocument(1)
 	data, err := json.Marshal(expected)
-	if !assert.NoError(t, err) {
-		return
-	}
-	actual, err := ParseDocument(data)
-	if !assert.NoError(t, err) {
-		return
-	}
-	assert.Equal(t, expected, actual)
+	assert.NoError(t, err)
+	assert.Equal(t, `"`+string(expected.Data())+`"`, string(data))
 }
 
 func generateKey() *ecdsa.PrivateKey {
