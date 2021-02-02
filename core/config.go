@@ -91,7 +91,6 @@ func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) (err error) {
 	// errors can't occur for this provider
 	_ = ngc.configMap.Load(posflag.Provider(cmd.PersistentFlags(), defaultDelimiter, ngc.configMap), nil)
 
-
 	// load into struct
 	if err = ngc.configMap.Unmarshal("", ngc); err != nil {
 		return

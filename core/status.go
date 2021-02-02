@@ -37,7 +37,7 @@ func NewStatusEngine(system *System) *Engine {
 		system: system,
 	}
 	return &Engine{
-		Name: "Status",
+		Name:        "Status",
 		Diagnosable: instance,
 		Routes: func(router EchoRouter) {
 			router.GET("/status/diagnostics", instance.diagnosticsOverview)
