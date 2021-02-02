@@ -50,12 +50,18 @@ var invalidHeaderErrFmt = "invalid %s header"
 // UnsignedDocument holds the base properties of a document which can be signed to create a Document.
 type UnsignedDocument interface {
 	NetworkHeader
+	Timeline
+	PayloadReferencer
+}
+// PayloadReferencer allows implementers to reference to a payload.
+// It provides an uniform interface to payload properties such as the type and the hash.
+type PayloadReferencer interface {
+	// PayloadHash returns the hash of the payload of the document.
+	PayloadHash() hash.SHA256Hash
+
 	// PayloadType returns the MIME-formatted type of the payload. It must contain the context and specific type of the
 	// payload, e.g. 'registry/endpoint'.
 	PayloadType() string
-	// PayloadHash returns the hash of the payload of the document.
-	PayloadHash() hash.SHA256Hash
-	Timeline
 }
 
 type NetworkHeader interface {
@@ -69,7 +75,7 @@ type SubscriberDocument interface {
 	Signable
 	Referenceable
 	Timeline
-	PayloadHash() hash.SHA256Hash
+	PayloadReferencer
 }
 
 type Timeline interface {
@@ -92,8 +98,9 @@ type Signable interface {
 	SigningAlgorithm() string
 }
 
+// Referenceable contains the Ref function which allows implementors to return a unique reference
 type Referenceable interface {
-	// Ref returns the reference to this document.
+	// A Ref is the hash of the JWS envelope
 	Ref() hash.SHA256Hash
 }
 
@@ -103,7 +110,6 @@ type Document interface {
 	Signable
 	Referenceable
 	json.Marshaler
-
 	// Data returns the byte representation of this document which can be used for transport.
 	Data() []byte
 }

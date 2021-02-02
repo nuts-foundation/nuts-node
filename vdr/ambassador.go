@@ -24,6 +24,7 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did"
@@ -68,31 +69,61 @@ func (n *ambassador) Start() {
 	n.networkClient.Subscribe(DIDDocumentType, n.callback)
 }
 
+// thumbprintAlg is used for creating public key thumbprints
+var thumbprintAlg = crypto.SHA256
+
+// callback gets called when new DIDDocuments are received by the network. All checks on the signature are already performed.
+// This method will check the integrity of the DID document related to the public key used to sign the network document.
+// The rules are based on the Nuts RFC006
+// payload should be a json encoded did.document
 func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) error {
 	logging.Log().Info("Processing DID documents received from Nuts Network.", DIDDocumentType, document.Ref())
 
-	// Unmarshal the next proposed version of the DID Document
-	var nextDIDDocument did.Document
-	if err := json.Unmarshal(payload, &nextDIDDocument); err != nil {
-		return err
+	// Integrity checks for the network document:
+	// ----------------------------------------
+
+	// check the payload type:
+	if document.PayloadType() != DIDDocumentType {
+		return fmt.Errorf("wrong payload type for this subscriber. Can handle: %s, got: %s", DIDDocumentType, document.PayloadType())
 	}
 
-	hashAlg := crypto.SHA256
+	// PayloadHash must be set
+	if document.PayloadHash().Empty() {
+		return fmt.Errorf("payloadHash must be provider")
+	}
+
+	// Signing time should be set and lay in the past:
+	// allow for 2 seconds clock skew
+	if document.SigningTime().IsZero() || document.SigningTime().After(time.Now().Add(2*time.Second)) {
+		fmt.Errorf("signing time must be set and in the past")
+	}
+
+	// Unmarshal the next/new proposed version of the DID Document
+	var nextDIDDocument did.Document
+	if err := json.Unmarshal(payload, &nextDIDDocument); err != nil {
+		return fmt.Errorf("unable to unmarshall did document from network payload: %w", err)
+	}
+
+	// Based on the timeline version of the network document, decide if this is a create or update:
 
 	// Create:
 	// -------
 	if document.TimelineVersion() == NewDocumentVersion {
-		// Take key from network document header
-		// Check if the key used to sign the network document is embedded in the DID Documents authenticationMethod
-		// 	by comparing both keys thumbprints
+		// For a new document TimelineID must be nil
+		if !document.TimelineID().Empty() {
+			return fmt.Errorf("timelineID for new documents must be absent")
+		}
 
-		// Find header key which for new did documents is provided
+		// First check if the network document was signed by the same key embedded in the DID Document`s authenticationMethod:
+
+		// For new DID Documents the key should be embedded in the network document
+		// Take key from network document header
 		headerKey := document.SigningKey()
 		if headerKey == nil {
 			return fmt.Errorf("new documents should have key embedded")
 		}
-		// Create thumbprint
-		headerKeyThumbprint, err := headerKey.Thumbprint(hashAlg)
+		// Create key thumbprint
+		headerKeyThumbprint, err := headerKey.Thumbprint(thumbprintAlg)
 		if err != nil {
 			return fmt.Errorf("unable to generate network document signing key thumbprint: %w", err)
 		}
@@ -101,22 +132,28 @@ func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) e
 		didDocumentAuthKeys := nextDIDDocument.Authentication
 		if documentKey, err := n.findKeyByThumbprint(headerKeyThumbprint, didDocumentAuthKeys); documentKey == nil || err != nil {
 			if documentKey == nil {
-				return fmt.Errorf("key used to sign Network document must be be part DID Document authentication")
+				return fmt.Errorf("key used to sign Network document must be be part of DID Document authentication")
 			}
 			return err
 		}
 
 		documentMetadata := types.DocumentMetadata{
-			Created:       document.SigningTime(),
-			Updated:       nil,
-			Version:       NewDocumentVersion,
-			OriginJWSHash: document.TimelineID(),
-			Hash:          document.PayloadHash(),
+			Created:    document.SigningTime(),
+			Updated:    nil,
+			Version:    NewDocumentVersion,
+			TimelineID: document.Ref(),
+			Hash:       document.PayloadHash(),
 		}
 		return n.didStore.Write(nextDIDDocument, documentMetadata)
 	} else {
 		// Update:
 		// -------
+
+		// TimelineID must be set
+		if document.TimelineID().Empty() {
+			return fmt.Errorf("timelineID must be set for updates")
+		}
+
 		// Resolve current version of DID Document
 		resolverMetadata := &types.ResolveMetadata{
 			AllowDeactivated: false,
@@ -128,6 +165,9 @@ func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) e
 		// Check if the new document is actual newer by comparing timeline versions
 		if currentDIDMeta.Version >= document.TimelineVersion() {
 			return fmt.Errorf("unable to update did document: timeline version of current document is greater or equal to the new version")
+		}
+		if currentDIDMeta.TimelineID != document.TimelineID() {
+			return fmt.Errorf("timelineIDs of new and current DID documents must match")
 		}
 
 		// Resolve controllers of current version (could be the same document)
@@ -152,7 +192,7 @@ func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) e
 		}
 
 		// Create thumbprint
-		headerKeyThumbprint, err := headerKey.Thumbprint(hashAlg)
+		headerKeyThumbprint, err := headerKey.Thumbprint(thumbprintAlg)
 		if err != nil {
 			return fmt.Errorf("unable to generate network document signing key thumbprint")
 		}
@@ -177,11 +217,11 @@ func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) e
 		//		check if it is known.
 		updatedAt := document.SigningTime()
 		documentMetadata := types.DocumentMetadata{
-			Created:       currentDIDMeta.Created,
-			Updated:       &updatedAt,
-			Version:       document.TimelineVersion(),
-			OriginJWSHash: document.TimelineID(),
-			Hash:          document.PayloadHash(),
+			Created:    currentDIDMeta.Created,
+			Updated:    &updatedAt,
+			Version:    document.TimelineVersion(),
+			TimelineID: document.TimelineID(),
+			Hash:       document.PayloadHash(),
 		}
 		return n.didStore.Update(nextDIDDocument.ID, currentDIDMeta.Hash, nextDIDDocument, &documentMetadata)
 	}
