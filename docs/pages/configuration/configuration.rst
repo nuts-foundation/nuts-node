@@ -5,9 +5,7 @@ Nuts node config
 
 .. marker-for-readme
 
-The Nuts-go library contains some configuration logic which allows for usage of configFiles, Environment variables and commandLine params transparently.
-If a Nuts engine is added as Engine it'll automatically work for the given engine. It is also possible for an engine to add the capabilities on a standalone basis.
-This allows for testing from within a repo.
+The Nuts library contains some configuration logic which allows for usage of configFiles, Environment variables and commandLine params transparently.
 
 The parameters follow the following convention:
 ``$ nuts --parameter X`` is equal to ``$ NUTS_PARAMETER=X nuts`` is equal to ``parameter: X`` in a yaml file.
@@ -31,6 +29,12 @@ Config parameters for engines are prepended by the ``engine.ConfigKey`` by defau
 
 is equal to ``$ nuts --engine.nested.parameter X`` is equal to ``$ NUTS_ENGINE_NESTED_PARAMETER=X nuts``
 
+
+Ordering
+********
+
+Command line parameters have the highest priority, then environment variables, then parameters from the configfile and lastly defaults.
+The location of the configfile is determined by the environment variable ``NUTS_CONFIGFILE`` or the commandline parameter ``--configfile``. If both are missing the default location ``./nuts.yaml`` is used.
 
 Options
 *******
