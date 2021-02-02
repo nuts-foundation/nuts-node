@@ -60,3 +60,9 @@ func Test_rootCmd(t *testing.T) {
 		Execute()
 	})
 }
+
+func Test_echoCreator(t *testing.T) {
+	t.Run("creates an echo server", func(t *testing.T) {
+		assert.NotNil(t, echoCreator())
+	})
+}
