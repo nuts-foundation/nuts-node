@@ -90,9 +90,7 @@ Requirements for running sphinx
 Configuration
 *************
 
-The Nuts-go library contains some configuration logic which allows for usage of configFiles, Environment variables and commandLine params transparently.
-If a Nuts engine is added as Engine it'll automatically work for the given engine. It is also possible for an engine to add the capabilities on a standalone basis.
-This allows for testing from within a repo.
+The Nuts library contains some configuration logic which allows for usage of configFiles, Environment variables and commandLine params transparently.
 
 The parameters follow the following convention:
 ``$ nuts --parameter X`` is equal to ``$ NUTS_PARAMETER=X nuts`` is equal to ``parameter: X`` in a yaml file.
@@ -117,6 +115,12 @@ Config parameters for engines are prepended by the ``engine.ConfigKey`` by defau
 is equal to ``$ nuts --engine.nested.parameter X`` is equal to ``$ NUTS_ENGINE_NESTED_PARAMETER=X nuts``
 
 
+Ordering
+********
+
+Command line parameters have the highest priority, then environment variables, then parameters from the configfile and lastly defaults.
+The location of the configfile is determined by the environment variable ``NUTS_CONFIGFILE`` or the commandline parameter ``--configfile``. If both are missing the default location ``./nuts.yaml`` is used.
+
 Options
 *******
 
@@ -129,8 +133,7 @@ Key                           Default         Description
 ============================  ==============  =================================================================================================================================================================================
 ****
 address                       localhost:1323  Address and port the server will be listening to
-configfile                    nuts.yaml       Nuts config file
-identity                                      Vendor identity for the node, mandatory when running in server mode. Must be in the format: urn:oid:1.3.6.1.4.1.54851.4:<number>
+configfile                                    Nuts config file
 strictmode                    false           When set, insecure settings are forbidden.
 verbosity                     info            Log level (trace, debug, info, warn, error)
 **Crypto**
@@ -140,7 +143,7 @@ crypto.storage                fs              Storage to use, 'fs' for file syst
 network.advertHashesInterval  2000            Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.
 network.bootstrapNodes                        Space-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.
 network.certFile                              PEM file containing the server certificate for the gRPC server. Required when `enableTLS` is `true`.
-network.certKeyFile                           PEM file containing the private key of the server certificate. Required when `enableTLS` is `true`.
+network.certKeyFile                           PEM file containing the private key of the server certificate. Required when `network.enableTLS` is `true`.
 network.databaseFile          network.db      File path to the network database.
 network.enableTLS             true            Whether to enable TLS for inbound gRPC connections. If set to `true` (which is default) `certFile` and `certKeyFile` MUST be configured.
 network.grpcAddr              \:5555           Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made).
