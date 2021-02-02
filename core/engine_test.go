@@ -115,7 +115,7 @@ func TestSystem_Load(t *testing.T) {
 	}
 	ctl := System{
 		engines: []*Engine{e},
-		Config: NewNutsConfig(),
+		Config:  NewNutsConfig(),
 	}
 	e.FlagSet.String("key", "", "")
 	os.Args = []string{"command", "--key", "value"}
