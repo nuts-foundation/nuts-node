@@ -52,6 +52,7 @@ type NutsGlobalConfig struct {
 	configMap  *koanf.Koanf
 }
 
+// NewNutsConfig creates a new config with some defaults
 func NewNutsConfig() *NutsGlobalConfig {
 	return &NutsGlobalConfig{
 		configMap:  koanf.New(defaultDelimiter),
@@ -61,7 +62,7 @@ func NewNutsConfig() *NutsGlobalConfig {
 	}
 }
 
-// load follows the load order of configfile, env vars and then commandline param
+// Load follows the load order of configfile, env vars and then commandline param
 func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) (err error) {
 	cmd.PersistentFlags().AddFlagSet(ngc.flagSet())
 
@@ -146,7 +147,7 @@ func (ngc *NutsGlobalConfig) PrintConfig() string {
 	return ngc.configMap.Sprint()
 }
 
-// InjectIntoEngine
+// InjectIntoEngine takes the loaded config and sets the engine's config struct
 func (ngc *NutsGlobalConfig) InjectIntoEngine(e *Engine) error {
 	// ignore if no target for injection
 	if e.Config != nil {
