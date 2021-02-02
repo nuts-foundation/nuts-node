@@ -52,14 +52,14 @@ func TestNewRegistryEngine(t *testing.T) {
 
 	t.Run("configuration", func(t *testing.T) {
 		e := NewVDREngine(cryptoInstance, networkInstance)
-		cfg := core.NutsConfig()
+		cfg := core.NewNutsConfig()
 		cfg.RegisterFlags(e.Cmd, e)
 		assert.NoError(t, cfg.InjectIntoEngine(e))
 	})
 }
 
 func TestEngine_Command(t *testing.T) {
-	core.NutsConfig().Load(&cobra.Command{})
+	core.NewNutsConfig().Load(&cobra.Command{})
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
 	networkInstance := network.NewTestNetworkInstance(testDirectory)
@@ -83,7 +83,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := createCmd(t)
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NutsConfig().Load(cmd)
+			core.NewNutsConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -102,7 +102,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := createCmd(t)
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "b00m!"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NutsConfig().Load(cmd)
+			core.NewNutsConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -123,7 +123,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := createCmd(t)
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NutsConfig().Load(cmd)
+			core.NewNutsConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -142,7 +142,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := createCmd(t)
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NutsConfig().Load(cmd)
+			core.NewNutsConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -163,7 +163,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := createCmd(t)
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NutsConfig().Load(cmd)
+			core.NewNutsConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -181,7 +181,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := createCmd(t)
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NutsConfig().Load(cmd)
+			core.NewNutsConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -199,7 +199,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := createCmd(t)
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "invalid"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NutsConfig().Load(cmd)
+			core.NewNutsConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -219,14 +219,16 @@ func TestEngine_Command(t *testing.T) {
 func Test_httpClient(t *testing.T) {
 	t.Run("address has http prefix", func(t *testing.T) {
 		os.Setenv("NUTS_ADDRESS", "https://localhost")
-		core.NutsConfig().Load(&cobra.Command{})
-		client := httpClient()
+		cmd := &cobra.Command{}
+		core.NewNutsConfig().Load(cmd)
+		client := httpClient(cmd)
 		assert.Equal(t, "https://localhost", client.ServerAddress)
 	})
 	t.Run("address has no http prefix", func(t *testing.T) {
 		os.Setenv("NUTS_ADDRESS", "localhost")
-		core.NutsConfig().Load(&cobra.Command{})
-		client := httpClient()
+		cmd := &cobra.Command{}
+		core.NewNutsConfig().Load(cmd)
+		client := httpClient(cmd)
 		assert.Equal(t, "http://localhost", client.ServerAddress)
 	})
 }

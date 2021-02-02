@@ -83,8 +83,6 @@ var jwkAsString = `
 var jwkAsBytes = []byte(jwkAsString)
 
 func TestNewCryptoEngine_Cmd(t *testing.T) {
-	core.NutsConfig().Load(&cobra.Command{})
-
 	createCmd := func(t *testing.T) (*cobra.Command, *crypto.Crypto) {
 		testDirectory := io.TestDirectory(t)
 		instance := crypto.NewTestCryptoInstance(testDirectory)
@@ -119,7 +117,7 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 			cmd, _ := createCmd(t)
 			s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NutsConfig().Load(cmd)
+			core.NewNutsConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -138,7 +136,7 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 			cmd, _ := createCmd(t)
 			s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NutsConfig().Load(cmd)
+			core.NewNutsConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -169,11 +167,11 @@ func TestNewCryptoEngine_FlagSet(t *testing.T) {
 
 		result := buf.String()
 
-		if !strings.Contains(result, "--storage") {
+		if !strings.Contains(result, "--crypto.storage") {
 			t.Errorf("Expected --storage to be command line flag")
 		}
 
-		if !strings.Contains(result, "--fspath") {
+		if !strings.Contains(result, "--crypto.fspath") {
 			t.Errorf("Expected --fspath to be command line flag")
 		}
 

@@ -27,7 +27,6 @@ import (
 	"time"
 )
 
-
 // CreateTestDocumentWithJWK creates a document with the given num as payload hash and signs it with a random EC key.
 // The JWK is attached, rather than referred to using the kid.
 func CreateTestDocumentWithJWK(num uint32, prevs ...hash.SHA256Hash) Document {
@@ -55,4 +54,3 @@ func CreateTestDocument(num uint32, prevs ...hash.SHA256Hash) (Document, string,
 	}
 	return signedDocument, kid, signer.Key.Public()
 }
-

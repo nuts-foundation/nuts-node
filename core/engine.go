@@ -29,13 +29,18 @@ import (
 
 // NewSystem creates a new, empty System.
 func NewSystem() *System {
-	return &System{engines: []*Engine{}}
+	return &System{
+		engines: []*Engine{},
+		Config:  NewNutsConfig(),
+	}
 }
 
 // System is the control structure where engines are registered.
 type System struct {
 	// engines is the slice of all registered engines
 	engines []*Engine
+	// Config holds the global and raw config
+	Config *NutsGlobalConfig
 }
 
 // Diagnostics returns the compound diagnostics for all engines.

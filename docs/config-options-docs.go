@@ -13,7 +13,7 @@ func main() {
 	flags := make(map[string]*pflag.FlagSet)
 	system := cmd.CreateSystem()
 	command := cmd.CreateCommand(system)
-	core.NutsConfig().Load(command)
+	core.NewNutsConfig().Load(command)
 	globalFlags := command.PersistentFlags()
 	flags[""] = globalFlags
 	// Make sure engines are registered
@@ -33,7 +33,7 @@ func main() {
 func extractFlagsForEngine(configKey string, flagSet *pflag.FlagSet) *pflag.FlagSet {
 	result := pflag.FlagSet{}
 	flagSet.VisitAll(func(current *pflag.Flag) {
-		if strings.HasPrefix(current.Name, configKey + ".") {
+		if strings.HasPrefix(current.Name, configKey+".") {
 			// This flag belongs to this engine, so copy it and hide it in the input flag set
 			flagCopy := *current
 			current.Hidden = true

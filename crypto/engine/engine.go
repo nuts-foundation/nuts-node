@@ -32,11 +32,11 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// ConfigStorage is used as --storage config flag
-const ConfigStorage string = "storage"
+// ConfigStorage is used as --crypto.storage config flag
+const ConfigStorage string = "crypto.storage"
 
-// ConfigFSPath is used as --fspath config flagclient.getStoragePath()
-const ConfigFSPath string = "fspath"
+// ConfigFSPath is used as --crypto.fspath config flagclient.getStoragePath()
+const ConfigFSPath string = "crypto.fspath"
 
 // NewCryptoEngine the engine configuration for nuts-go.
 func NewCryptoEngine() (*core.Engine, crypto2.KeyStore) {
@@ -134,11 +134,11 @@ func cmd() *cobra.Command {
 
 // newCryptoClient creates a remote client
 func newCryptoClient(cmd *cobra.Command) api.HTTPClient {
-	cfg := core.NutsConfig()
+	cfg := core.NewNutsConfig()
 	cfg.Load(cmd)
 
 	return api.HTTPClient{
-		ServerAddress: cfg.ServerAddress(),
+		ServerAddress: cfg.Address,
 		Timeout:       10 * time.Second,
 	}
 }
