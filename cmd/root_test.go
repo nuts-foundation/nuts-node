@@ -24,6 +24,21 @@ func Test_rootCmd(t *testing.T) {
 		actual := buf.String()
 		assert.Contains(t, actual, "Available Commands")
 	})
+
+	t.Run("config cmd prints config", func(t *testing.T) {
+		oldStdout := stdOutWriter
+		buf := new(bytes.Buffer)
+		stdOutWriter = buf
+		defer func() {
+			stdOutWriter = oldStdout
+		}()
+		os.Args = []string{"nuts", "config"}
+		Execute()
+		actual := buf.String()
+		assert.Contains(t, actual, "Current system config")
+		assert.Contains(t, actual, "address")
+	})
+
 	t.Run("start in server mode", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		echoServer := core.NewMockEchoServer(ctrl)

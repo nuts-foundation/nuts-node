@@ -57,6 +57,7 @@ func createPrintConfigCommand(system *core.System) *cobra.Command {
 		Use:   "config",
 		Short: "Prints the current config",
 		Run: func(cmd *cobra.Command, args []string) {
+			cmd.Println("Current system config")
 			cmd.Println(system.Config.PrintConfig())
 		},
 	}
@@ -68,7 +69,7 @@ func createServerCommand(system *core.System) *cobra.Command {
 		Short: "Starts the Nuts server",
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Info("Starting server with config:")
-			logrus.Println(system.Config.PrintConfig())
+			logrus.Info(system.Config.PrintConfig())
 
 			// check config on all engines
 			if err := system.Configure(); err != nil {
