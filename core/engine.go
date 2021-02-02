@@ -53,12 +53,9 @@ func (system *System) Load(cmd *cobra.Command) error {
 }
 
 func (system *System) injectConfig() error {
-	if err := system.VisitEnginesE(func(engine *Engine) error {
+	return system.VisitEnginesE(func(engine *Engine) error {
 		return system.Config.InjectIntoEngine(engine)
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 // Diagnostics returns the compound diagnostics for all engines.
