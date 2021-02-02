@@ -43,6 +43,7 @@ const addressFlag = "address"
 const defaultLogLevel = "info"
 const defaultAddress = "localhost:1323"
 const strictModeFlag = "strictmode"
+const defaultStrictMode = false
 
 // NutsGlobalConfig has global settings.
 type NutsGlobalConfig struct {
@@ -58,7 +59,7 @@ func NewNutsConfig() *NutsGlobalConfig {
 		configMap:  koanf.New(defaultDelimiter),
 		Address:    defaultAddress,
 		Verbosity:  defaultLogLevel,
-		Strictmode: false,
+		Strictmode: defaultStrictMode,
 	}
 }
 
@@ -135,10 +136,10 @@ func (ngc *NutsGlobalConfig) getConfigfile(cmd *cobra.Command) string {
 
 func (ngc *NutsGlobalConfig) flagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("config", pflag.ContinueOnError)
-	flagSet.String(configFileFlag, "", "Nuts config file")
+	flagSet.String(configFileFlag, defaultConfigFile, "Nuts config file")
 	flagSet.String(loggerLevelFlag, defaultLogLevel, "Log level (trace, debug, info, warn, error)")
 	flagSet.String(addressFlag, defaultAddress, "Address and port the server will be listening to")
-	flagSet.Bool(strictModeFlag, false, "When set, insecure settings are forbidden.")
+	flagSet.Bool(strictModeFlag, defaultStrictMode, "When set, insecure settings are forbidden.")
 	return flagSet
 }
 

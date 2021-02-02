@@ -45,7 +45,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 
 		assert.Equal(t, defaultAddress, cfg.Address)
 		assert.Equal(t, defaultLogLevel, cfg.Verbosity)
-		assert.Equal(t, false, cfg.Strictmode)
+		assert.Equal(t, defaultStrictMode, cfg.Strictmode)
 	})
 
 	t.Run("Sets global Env prefix", func(t *testing.T) {
