@@ -29,7 +29,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNutsGlobalConfig_Load(t *testing.T) {
+var reset = func() {
+	os.Args = []string{"command"}
+	os.Args = []string{}
+}
+
+func TestNewNutsConfig_Load(t *testing.T) {
 	t.Run("sets defaults", func(t *testing.T) {
 		cfg := NewNutsConfig()
 
@@ -46,6 +51,7 @@ func TestNutsGlobalConfig_Load(t *testing.T) {
 	t.Run("Sets global Env prefix", func(t *testing.T) {
 		cfg := NewNutsConfig()
 		os.Setenv("NUTS_KEY", "value")
+		defer os.Unsetenv("NUTS_KEY")
 
 		err := cfg.Load(&cobra.Command{})
 		if !assert.NoError(t, err) {
@@ -60,6 +66,7 @@ func TestNutsGlobalConfig_Load(t *testing.T) {
 	t.Run("Sets correct key replacer", func(t *testing.T) {
 		cfg := NewNutsConfig()
 		os.Setenv("NUTS_SUB_KEY", "value")
+		defer os.Unsetenv("NUTS_SUB_KEY")
 
 		cfg.Load(&cobra.Command{})
 
@@ -67,14 +74,9 @@ func TestNutsGlobalConfig_Load(t *testing.T) {
 			t.Errorf("Expected sub.key to have [value], got [%v]", value)
 		}
 	})
-}
-
-func TestNutsGlobalConfig_Load2(t *testing.T) {
-	defer func() {
-		os.Args = []string{"command"}
-	}()
 
 	t.Run("Ignores unknown flags when parsing", func(t *testing.T) {
+		defer reset()
 		os.Args = []string{"executable", "command", "--unknown", "value"}
 		cfg := NewNutsConfig()
 
@@ -83,16 +85,8 @@ func TestNutsGlobalConfig_Load2(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("Ignores --help as incorrect argument", func(t *testing.T) {
-		os.Args = []string{"command", "--help"}
-		cfg := NewNutsConfig()
-
-		if err := cfg.Load(&cobra.Command{}); err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
-	})
-
 	t.Run("Returns error for incorrect verbosity", func(t *testing.T) {
+		defer reset()
 		os.Args = []string{"command", "--verbosity", "hell"}
 		cfg := NewNutsConfig()
 
@@ -102,6 +96,7 @@ func TestNutsGlobalConfig_Load2(t *testing.T) {
 	})
 
 	t.Run("Strict-mode is off by default", func(t *testing.T) {
+		defer reset()
 		os.Args = []string{"command"}
 		cfg := NewNutsConfig()
 		err := cfg.Load(&cobra.Command{})
@@ -110,6 +105,7 @@ func TestNutsGlobalConfig_Load2(t *testing.T) {
 	})
 
 	t.Run("Strict-mode can be turned on", func(t *testing.T) {
+		defer reset()
 		os.Args = []string{"command", "--strictmode"}
 		cfg := NewNutsConfig()
 
@@ -118,9 +114,21 @@ func TestNutsGlobalConfig_Load2(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, cfg.Strictmode)
 	})
+
+	t.Run("error - incorrect yaml", func(t *testing.T) {
+		defer reset()
+		os.Args = []string{"command", "--configfile", "test/config/corrupt.yaml"}
+		cfg := NewNutsConfig()
+
+		err := cfg.Load(&cobra.Command{})
+
+		if !assert.Error(t, err) {
+			return
+		}
+	})
 }
 
-func TestNutsGlobalConfig_PrintConfig(t *testing.T) {
+func TestNewNutsConfig_PrintConfig(t *testing.T) {
 	cfg := NewNutsConfig()
 	fs := pflag.FlagSet{}
 	fs.String("camelCaseKey", "value", "description")
@@ -132,12 +140,12 @@ func TestNutsGlobalConfig_PrintConfig(t *testing.T) {
 
 	t.Run("output contains key", func(t *testing.T) {
 		if strings.Index(bs, "camelCaseKey") == -1 {
-			t.Error("Expected key to be in output")
+			t.Error("Expected camelCaseKey to be in output")
 		}
 	})
 }
 
-func TestNutsGlobalConfig_RegisterFlags(t *testing.T) {
+func TestNewNutsConfig_RegisterFlags(t *testing.T) {
 	t.Run("adds flags", func(t *testing.T) {
 		e := &Engine{
 			Cmd:     &cobra.Command{},
@@ -154,10 +162,8 @@ func TestNutsGlobalConfig_RegisterFlags(t *testing.T) {
 	})
 }
 
-func TestNutsGlobalConfig_InjectIntoEngine(t *testing.T) {
-	defer func() {
-		os.Args = []string{"command"}
-	}()
+func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
+	defer reset()
 
 	os.Args = []string{"command", "--key", "value"}
 	cfg := NewNutsConfig()
@@ -178,5 +184,34 @@ func TestNutsGlobalConfig_InjectIntoEngine(t *testing.T) {
 		cfg.InjectIntoEngine(e)
 
 		assert.Equal(t, "value", c.Key)
+	})
+}
+
+func TestNewNutsConfig_getConfigFile(t *testing.T) {
+	t.Run("uses configfile from cmd line param", func(t *testing.T) {
+		defer reset()
+
+		os.Args = []string{"executable", "command", "--configfile", "from_file.yaml"}
+		cmd := &cobra.Command{}
+		cfg := NewNutsConfig()
+		cfg.Load(cmd)
+
+		file := cfg.getConfigfile(cmd)
+
+		assert.Equal(t, "from_file.yaml", file)
+	})
+
+	t.Run("uses configfile from env variable", func(t *testing.T) {
+		defer reset()
+
+		os.Setenv("NUTS_CONFIGFILE", "from_env.yaml")
+		defer os.Unsetenv("NUTS_CONFIGFILE")
+		cmd := &cobra.Command{}
+		cfg := NewNutsConfig()
+		cfg.Load(cmd)
+
+		file := cfg.getConfigfile(cmd)
+
+		assert.Equal(t, "from_env.yaml", file)
 	})
 }

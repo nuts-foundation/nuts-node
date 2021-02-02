@@ -23,14 +23,12 @@ import (
 	"errors"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
-	errors2 "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -45,7 +43,6 @@ const addressFlag = "address"
 const defaultLogLevel = "info"
 const defaultAddress = "localhost:1323"
 const strictModeFlag = "strictmode"
-const defaultStrictmode = "false"
 
 // NutsGlobalConfig has global settings.
 type NutsGlobalConfig struct {
@@ -53,13 +50,11 @@ type NutsGlobalConfig struct {
 	Verbosity  string `koanf:"verbosity"`
 	Strictmode bool   `koanf:"strictmode"`
 	configMap  *koanf.Koanf
-	once       sync.Once
 }
 
 func NewNutsConfig() *NutsGlobalConfig {
 	return &NutsGlobalConfig{
 		configMap:  koanf.New(defaultDelimiter),
-		once:       sync.Once{},
 		Address:    defaultAddress,
 		Verbosity:  defaultLogLevel,
 		Strictmode: false,
@@ -67,66 +62,61 @@ func NewNutsConfig() *NutsGlobalConfig {
 }
 
 // load follows the load order of configfile, env vars and then commandline param
-// it only loads once
 func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) (err error) {
-	ngc.once.Do(func() {
-		cmd.PersistentFlags().AddFlagSet(ngc.flagSet())
+	cmd.PersistentFlags().AddFlagSet(ngc.flagSet())
 
-		ngc.configMap = koanf.New(defaultDelimiter)
-		var f string
+	ngc.configMap = koanf.New(defaultDelimiter)
+	f := ngc.getConfigfile(cmd)
 
-		f, err = ngc.getConfigfile(cmd)
-		if err != nil {
+	// load file
+	p := file.Provider(f)
+	if err = ngc.configMap.Load(p, yaml.Parser()); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
 			return
 		}
+	}
 
-		// load file
-		p := file.Provider(f)
-		if err = ngc.configMap.Load(p, yaml.Parser()); err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
-				return
-			}
-		}
-
-		// load env
-		e := env.Provider(defaultPrefix, defaultDelimiter, func(s string) string {
-			return strings.Replace(strings.ToLower(
-				strings.TrimPrefix(s, defaultPrefix)), "_", defaultDelimiter, -1)
-		})
-		if err = ngc.configMap.Load(e, nil); err != nil {
-			return
-		}
-
-		// load cmd params
-		cmd.PersistentFlags().Parse(os.Args[1:])
-		if err = ngc.configMap.Load(posflag.Provider(cmd.PersistentFlags(), defaultDelimiter, ngc.configMap), nil); err != nil {
-			return
-		}
-
-		// load into struct
-		if err = ngc.configMap.Unmarshal("", ngc); err != nil {
-			return
-		}
-
-		// initialize logger, verbosity flag needs to be available
-		if _, err = log.ParseLevel(ngc.Verbosity); err != nil {
-			return
-		}
-
+	// load env
+	e := env.Provider(defaultPrefix, defaultDelimiter, func(s string) string {
+		return strings.Replace(strings.ToLower(
+			strings.TrimPrefix(s, defaultPrefix)), "_", defaultDelimiter, -1)
 	})
+	// errors can't occur for this provider
+	_ = ngc.configMap.Load(e, nil)
+
+	// load cmd params
+	if len(os.Args) > 1 {
+		_ = cmd.PersistentFlags().Parse(os.Args[1:])
+	}
+	// errors can't occur for this provider
+	_ = ngc.configMap.Load(posflag.Provider(cmd.PersistentFlags(), defaultDelimiter, ngc.configMap), nil)
+
+
+	// load into struct
+	if err = ngc.configMap.Unmarshal("", ngc); err != nil {
+		return
+	}
+
+	// initialize logger, verbosity flag needs to be available
+	if _, err = log.ParseLevel(ngc.Verbosity); err != nil {
+		return
+	}
+
 	return
 }
 
 // getConfigfile returns the configfile path in the following order: commandline param, env variable, default path
-func (ngc *NutsGlobalConfig) getConfigfile(cmd *cobra.Command) (string, error) {
+func (ngc *NutsGlobalConfig) getConfigfile(cmd *cobra.Command) string {
 	k := koanf.New(defaultDelimiter)
 
-	// load cmd flags
-	if err := k.Load(posflag.Provider(cmd.Flags(), defaultDelimiter, k), nil); err != nil {
-		return "", errors2.Wrap(err, "error loading cmd flags")
+	if len(os.Args) > 1 {
+		_ = cmd.PersistentFlags().Parse(os.Args[1:])
 	}
+
+	// load cmd flags, without a parser, no error can be returned
+	_ = k.Load(posflag.Provider(cmd.PersistentFlags(), defaultDelimiter, k), nil)
 	if f := k.String(configFileFlag); f != "" {
-		return f, nil
+		return f
 	}
 
 	// load env flags
@@ -134,14 +124,13 @@ func (ngc *NutsGlobalConfig) getConfigfile(cmd *cobra.Command) (string, error) {
 		return strings.Replace(strings.ToLower(
 			strings.TrimPrefix(s, defaultPrefix)), "_", defaultDelimiter, -1)
 	})
-	if err := k.Load(e, nil); err != nil {
-		return "", errors2.Wrap(err, "error loading env flags")
-	}
+	// can't return error
+	_ = k.Load(e, nil)
 	if f := k.String(configFileFlag); f != "" {
-		return f, nil
+		return f
 	}
 
-	return defaultConfigFile, nil
+	return defaultConfigFile
 }
 
 func (ngc *NutsGlobalConfig) flagSet() *pflag.FlagSet {
