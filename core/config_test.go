@@ -294,12 +294,8 @@ func TestNutsGlobalConfig_LoadAndUnmarshal(t *testing.T) {
 	cfg := NewNutsGlobalConfig()
 	cfg.Load(&cobra.Command{})
 
-	type mandatory struct {
-		Identity string
-	}
-
 	t.Run("Adds configFile flag to Cmd", func(t *testing.T) {
-		err := cfg.LoadAndUnmarshal(&cobra.Command{}, &struct{ mandatory }{})
+		err := cfg.LoadAndUnmarshal(&cobra.Command{}, &struct{ }{})
 		if assert.NoError(t, err) {
 			assert.NotEmpty(t, cfg.v.GetString(configFileFlag))
 		}
@@ -307,7 +303,6 @@ func TestNutsGlobalConfig_LoadAndUnmarshal(t *testing.T) {
 
 	t.Run("Injects custom config into struct", func(t *testing.T) {
 		s := struct {
-			mandatory
 			Key string
 		}{
 			Key: "",
@@ -323,22 +318,9 @@ func TestNutsGlobalConfig_LoadAndUnmarshal(t *testing.T) {
 		}
 	})
 
-	t.Run("returns error on incorrect struct argument", func(t *testing.T) {
-		cfg := NewNutsGlobalConfig()
-		s := struct{ mandatory }{}
-		err := cfg.LoadAndUnmarshal(&cobra.Command{}, s)
-		if err == nil {
-			t.Errorf("Expected error, got nothing")
-			return
-		}
-
-		assert.Contains(t, err.Error(), "only struct pointers are supported to be a config target")
-	})
-
 	t.Run("returns error on map argument", func(t *testing.T) {
 		cfg := NewNutsGlobalConfig()
 		s := struct {
-			mandatory
 			Key map[string]string
 		}{
 			Key: make(map[string]string),
@@ -357,7 +339,7 @@ func TestNutsGlobalConfig_LoadAndUnmarshal(t *testing.T) {
 	})
 
 	t.Run("returns error on unknown value", func(t *testing.T) {
-		s := struct{ mandatory }{}
+		s := struct{ }{}
 		cfg.v.Set("key", "value")
 		err := cfg.LoadAndUnmarshal(&cobra.Command{}, &s)
 
@@ -371,7 +353,6 @@ func TestNutsGlobalConfig_LoadAndUnmarshal(t *testing.T) {
 
 	t.Run("returns error on inaccessible value", func(t *testing.T) {
 		s := struct {
-			mandatory
 			key string
 		}{
 			key: "",

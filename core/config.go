@@ -43,7 +43,6 @@ const addressFlag = "address"
 const defaultLogLevel = "info"
 const defaultAddress = "localhost:1323"
 const strictModeFlag = "strictmode"
-const identityFlag = "identity"
 
 var defaultIgnoredPrefixes = []string{"root"}
 
@@ -119,7 +118,6 @@ func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) error {
 	flagSet.String(loggerLevelFlag, defaultLogLevel, "Log level (trace, debug, info, warn, error)")
 	flagSet.String(addressFlag, defaultAddress, "Address and port the server will be listening to")
 	flagSet.Bool(strictModeFlag, false, "When set, insecure settings are forbidden.")
-	flagSet.String(identityFlag, "", "Vendor identity for the node, mandatory when running in server mode. Must be in the format: urn:oid:"+NutsVendorOID+":<number>")
 	cmd.PersistentFlags().AddFlagSet(flagSet)
 
 	// Bind config flag
@@ -128,7 +126,6 @@ func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) error {
 	ngc.bindFlag(flagSet, loggerLevelFlag)
 	ngc.bindFlag(flagSet, addressFlag)
 	ngc.bindFlag(flagSet, strictModeFlag)
-	ngc.bindFlag(flagSet, identityFlag)
 
 	// load flags into viper
 	pfs := cmd.PersistentFlags()
