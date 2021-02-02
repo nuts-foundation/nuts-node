@@ -48,14 +48,13 @@ func TestNewStatusEngine_Cmd(t *testing.T) {
 func TestNewStatusEngine_Diagnostics(t *testing.T) {
 	system := NewSystem()
 	system.RegisterEngine(NewStatusEngine(system))
-	system.RegisterEngine(NewLoggerEngine())
 	system.RegisterEngine(NewMetricsEngine())
 
 	t.Run("diagnostics() returns engine list", func(t *testing.T) {
 		ds := NewStatusEngine(system).Diagnostics()
 		assert.Len(t, ds, 1)
 		assert.Equal(t, "Registered engines", ds[0].Name())
-		assert.Equal(t, "Status,Logging,Metrics", ds[0].String())
+		assert.Equal(t, "Status,Metrics", ds[0].String())
 	})
 
 	t.Run("diagnosticsOverview() renders text output of diagnostics", func(t *testing.T) {
@@ -63,7 +62,7 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 		defer ctrl.Finish()
 		echo := mock.NewMockContext(ctrl)
 
-		echo.EXPECT().String(http.StatusOK, "Status\n\tRegistered engines: Status,Logging,Metrics\nLogging\n\tverbosity: ")
+		echo.EXPECT().String(http.StatusOK, "Status\n\tRegistered engines: Status,Metrics")
 
 		(&status{system}).diagnosticsOverview(echo)
 	})

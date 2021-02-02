@@ -102,7 +102,6 @@ func CreateSystem() *core.System {
 	system := core.NewSystem()
 	// Register default engines
 	system.RegisterEngine(core.NewStatusEngine(system))
-	system.RegisterEngine(core.NewLoggerEngine())
 	system.RegisterEngine(core.NewMetricsEngine())
 	cryptoEngine, keyStore := crypto.NewCryptoEngine()
 	system.RegisterEngine(cryptoEngine)
