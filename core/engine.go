@@ -43,6 +43,24 @@ type System struct {
 	Config *NutsGlobalConfig
 }
 
+// Load loads the config and injects config values into engines
+func (system *System) Load(cmd *cobra.Command) error {
+	if err := system.Config.Load(cmd); err != nil {
+		return err
+	}
+
+	return system.injectConfig()
+}
+
+func (system *System) injectConfig() error {
+	if err := system.VisitEnginesE(func(engine *Engine) error {
+		return system.Config.InjectIntoEngine(engine)
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Diagnostics returns the compound diagnostics for all engines.
 func (system *System) Diagnostics() []DiagnosticResult {
 	result := make([]DiagnosticResult, 0)

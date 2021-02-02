@@ -135,9 +135,6 @@ func Execute() {
 		panic(err)
 	}
 
-	// Load config into engines
-	injectConfig(system)
-
 	// blocking main call
 	command.Execute()
 }
@@ -150,14 +147,6 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 	})
 	root.AddCommand(createServerCommand(system))
 	root.AddCommand(createPrintConfigCommand(system))
-}
-
-func injectConfig(system *core.System) {
-	if err := system.VisitEnginesE(func(engine *core.Engine) error {
-		return system.Config.InjectIntoEngine(engine)
-	}); err != nil {
-		logrus.Fatal(err)
-	}
 }
 
 func addFlagSets(system *core.System, cmd *cobra.Command) {
