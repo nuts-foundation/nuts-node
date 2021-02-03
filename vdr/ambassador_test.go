@@ -211,7 +211,7 @@ func Test_ambassador_callback(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t, "new documents should have key embedded", err.Error())
+		assert.Equal(t, "callback could not process new DID Document: signingKey for new DID Documents must be set", err.Error())
 	})
 
 	t.Run("create nok - fails when signing key is missing from authenticationMethods", func(t *testing.T) {
@@ -312,7 +312,7 @@ func Test_ambassador_callback(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.EqualError(t, err, "timelineID must be set for updates")
+		assert.EqualError(t, err, "callback could not process new DID Document: timelineVersion for new documents must be absent or equal to 0")
 	})
 
 	t.Run("nok - update of unknown DID Document", func(t *testing.T) {

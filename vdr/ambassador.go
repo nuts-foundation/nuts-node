@@ -78,10 +78,129 @@ var thumbprintAlg = crypto.SHA256
 // payload should be a json encoded did.document
 func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) error {
 	logging.Log().Info("Processing DID documents received from Nuts Network.", DIDDocumentType, document.Ref())
+	if err := checkSubscriberDocumentIntegrity(document); err != nil {
+		return fmt.Errorf("callback could not process new DID Document: %w", err)
+	}
 
-	// Integrity checks for the network document:
-	// ----------------------------------------
+	// Unmarshal the next/new proposed version of the DID Document
+	var nextDIDDocument did.Document
+	if err := json.Unmarshal(payload, &nextDIDDocument); err != nil {
+		return fmt.Errorf("unable to unmarshall did document from network payload: %w", err)
+	}
 
+	if isUpdate(document) {
+		return n.updateDIDDocument(document, nextDIDDocument)
+	}
+	return n.createDIDDocument(document, nextDIDDocument)
+}
+
+func (n *ambassador) createDIDDocument(document dag.SubscriberDocument, nextDIDDocument did.Document) error {
+	// First, check if the network document was signed by the same key as is embedded in the DID Document`s authenticationMethod:
+
+	// Take signing key from network document header
+	headerKey := document.SigningKey()
+	// Create key thumbprint
+	headerKeyThumbprint, err := headerKey.Thumbprint(thumbprintAlg)
+	if err != nil {
+		return fmt.Errorf("unable to generate network document signing key thumbprint: %w", err)
+	}
+
+	// Check if headerKey is one of the keys embedded in the authenticationMethod
+	didDocumentAuthKeys := nextDIDDocument.Authentication
+	if documentKey, err := n.findKeyByThumbprint(headerKeyThumbprint, didDocumentAuthKeys); documentKey == nil || err != nil {
+		if documentKey == nil {
+			return fmt.Errorf("key used to sign Network document must be be part of DID Document authentication")
+		}
+		return err
+	}
+
+	documentMetadata := types.DocumentMetadata{
+		Created:    document.SigningTime(),
+		Updated:    nil,
+		Version:    NewDocumentVersion,
+		TimelineID: document.Ref(),
+		Hash:       document.PayloadHash(),
+	}
+	return n.didStore.Write(nextDIDDocument, documentMetadata)
+}
+
+func (n *ambassador) updateDIDDocument(document dag.SubscriberDocument, nextDIDDocument did.Document) error {
+	// Resolve current version of DID Document
+	resolverMetadata := &types.ResolveMetadata{
+		AllowDeactivated: false,
+	}
+	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(nextDIDDocument.ID, resolverMetadata)
+	if err != nil {
+		return fmt.Errorf("unable to update did document: %s", err)
+	}
+	// Check if the new document is actual newer by comparing timeline versions
+	if currentDIDMeta.Version >= document.TimelineVersion() {
+		return fmt.Errorf("unable to update did document: timeline version of current document is greater or equal to the new version")
+	}
+	if currentDIDMeta.TimelineID != document.TimelineID() {
+		return fmt.Errorf("timelineIDs of new and current DID documents must match")
+	}
+
+	// Resolve controllers of current version (could be the same document)
+	didControllers, err := n.resolveDIDControllers(currentDIDDocument)
+	logging.Log().Debug(didControllers)
+
+	var controllerVerificationRelationships = []did.VerificationRelationship{}
+	for _, didCtrl := range didControllers {
+		for _, auth := range didCtrl.Authentication {
+			controllerVerificationRelationships = append(controllerVerificationRelationships, auth)
+		}
+	}
+
+	// In an update, only the keyID is provided in te network document. Resolve the key from the key store
+	pKey, err := n.keyResolver.GetPublicKey(document.SigningKeyID(), document.SigningTime())
+	if err != nil {
+		return fmt.Errorf("unable to resolve signingkey %w", err)
+	}
+	headerKey, err := jwk.New(pKey)
+	if err != nil {
+		return fmt.Errorf("could not parse public key into jwk %w", err)
+	}
+
+	// Create thumbprint
+	headerKeyThumbprint, err := headerKey.Thumbprint(thumbprintAlg)
+	if err != nil {
+		return fmt.Errorf("unable to generate network document signing key thumbprint")
+	}
+	// Check if the signingKey is listed as a valid authenticationMethod in one of the controllers
+	keyToSign, err := n.findKeyByThumbprint(headerKeyThumbprint, controllerVerificationRelationships)
+	if keyToSign == nil {
+		return fmt.Errorf("network document not signed by one of its controllers")
+	}
+
+	// TODO: perform all these tests:
+	// Take authenticationMethod keys from the controllers
+	// Check if network header keyID is one of authenticationMethods of the controller
+	//
+	// For each verificationMethod in the next version document
+	// 		check if the provided key thumbprint matches the corresponding thumbprint in the key store
+	// Take diff of verificationMethods between next and current versions:
+	// if new verificationMethod is added:
+	// 		Add public key to key store
+	// if verificationMethod is removed:
+	//		Mark keyID as expired since the updatedAt time from new DID document
+
+	// make a diff of the controllers
+	// 	if controller is added
+	//		check if it is known.
+	updatedAt := document.SigningTime()
+	documentMetadata := types.DocumentMetadata{
+		Created:    currentDIDMeta.Created,
+		Updated:    &updatedAt,
+		Version:    document.TimelineVersion(),
+		TimelineID: document.TimelineID(),
+		Hash:       document.PayloadHash(),
+	}
+	return n.didStore.Update(nextDIDDocument.ID, currentDIDMeta.Hash, nextDIDDocument, &documentMetadata)
+}
+
+// checkSubscriberDocumentIntegrity performs basic integrity checks on the SubscriberDocument fields:
+func checkSubscriberDocumentIntegrity(document dag.SubscriberDocument) error {
 	// check the payload type:
 	if document.PayloadType() != DIDDocumentType {
 		return fmt.Errorf("wrong payload type for this subscriber. Can handle: %s, got: %s", DIDDocumentType, document.PayloadType())
@@ -95,137 +214,39 @@ func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) e
 	// Signing time should be set and lay in the past:
 	// allow for 2 seconds clock skew
 	if document.SigningTime().IsZero() || document.SigningTime().After(time.Now().Add(2*time.Second)) {
-		fmt.Errorf("signing time must be set and in the past")
+		fmt.Errorf("signingTime must be set and in the past")
 	}
 
-	// Unmarshal the next/new proposed version of the DID Document
-	var nextDIDDocument did.Document
-	if err := json.Unmarshal(payload, &nextDIDDocument); err != nil {
-		return fmt.Errorf("unable to unmarshall did document from network payload: %w", err)
-	}
-
-	// Based on the timeline version of the network document, decide if this is a create or update:
-
-	// Create:
-	// -------
-	if document.TimelineVersion() == NewDocumentVersion {
-		// For a new document TimelineID must be nil
-		if !document.TimelineID().Empty() {
-			return fmt.Errorf("timelineID for new documents must be absent")
-		}
-
-		// First check if the network document was signed by the same key embedded in the DID Document`s authenticationMethod:
-
-		// For new DID Documents the key should be embedded in the network document
-		// Take key from network document header
-		headerKey := document.SigningKey()
-		if headerKey == nil {
-			return fmt.Errorf("new documents should have key embedded")
-		}
-		// Create key thumbprint
-		headerKeyThumbprint, err := headerKey.Thumbprint(thumbprintAlg)
-		if err != nil {
-			return fmt.Errorf("unable to generate network document signing key thumbprint: %w", err)
-		}
-
-		// Check if key is part of the authenticationMethod
-		didDocumentAuthKeys := nextDIDDocument.Authentication
-		if documentKey, err := n.findKeyByThumbprint(headerKeyThumbprint, didDocumentAuthKeys); documentKey == nil || err != nil {
-			if documentKey == nil {
-				return fmt.Errorf("key used to sign Network document must be be part of DID Document authentication")
-			}
-			return err
-		}
-
-		documentMetadata := types.DocumentMetadata{
-			Created:    document.SigningTime(),
-			Updated:    nil,
-			Version:    NewDocumentVersion,
-			TimelineID: document.Ref(),
-			Hash:       document.PayloadHash(),
-		}
-		return n.didStore.Write(nextDIDDocument, documentMetadata)
-	} else {
-		// Update:
-		// -------
-
-		// TimelineID must be set
+	if isUpdate(document) {
+		// For a DID Document update TimelineID must be set
 		if document.TimelineID().Empty() {
 			return fmt.Errorf("timelineID must be set for updates")
 		}
 
-		// Resolve current version of DID Document
-		resolverMetadata := &types.ResolveMetadata{
-			AllowDeactivated: false,
+		if document.TimelineVersion() <= NewDocumentVersion {
+			return fmt.Errorf("timelineVersion for updates must be greater than %d", NewDocumentVersion)
 		}
-		currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(nextDIDDocument.ID, resolverMetadata)
-		if err != nil {
-			return fmt.Errorf("unable to update did document: %s", err)
-		}
-		// Check if the new document is actual newer by comparing timeline versions
-		if currentDIDMeta.Version >= document.TimelineVersion() {
-			return fmt.Errorf("unable to update did document: timeline version of current document is greater or equal to the new version")
-		}
-		if currentDIDMeta.TimelineID != document.TimelineID() {
-			return fmt.Errorf("timelineIDs of new and current DID documents must match")
+	} else {
+		// For a new DID Document TimelineID must be nil
+		if !document.TimelineID().Empty() {
+			return fmt.Errorf("timelineID for new documents must be absent")
 		}
 
-		// Resolve controllers of current version (could be the same document)
-		didControllers, err := n.resolveDIDControllers(currentDIDDocument)
-		logging.Log().Debug(didControllers)
-
-		var controllerVerificationRelationships = []did.VerificationRelationship{}
-		for _, didCtrl := range didControllers {
-			for _, auth := range didCtrl.Authentication {
-				controllerVerificationRelationships = append(controllerVerificationRelationships, auth)
-			}
+		if document.TimelineVersion() != NewDocumentVersion {
+			return fmt.Errorf("timelineVersion for new documents must be absent or equal to %d", NewDocumentVersion)
 		}
 
-		// In an update, only the keyID is provided in te network document. Resolve the key from the key store
-		pKey, err := n.keyResolver.GetPublicKey(document.SigningKeyID(), document.SigningTime())
-		if err != nil {
-			return fmt.Errorf("unable to resolve signingkey %w", err)
+		// For new DID Documents the signing key must be embedded in the network document
+		if document.SigningKey() == nil {
+			return fmt.Errorf("signingKey for new DID Documents must be set")
 		}
-		headerKey, err := jwk.New(pKey)
-		if err != nil {
-			return fmt.Errorf("could not parse public key into jwk %w", err)
-		}
-
-		// Create thumbprint
-		headerKeyThumbprint, err := headerKey.Thumbprint(thumbprintAlg)
-		if err != nil {
-			return fmt.Errorf("unable to generate network document signing key thumbprint")
-		}
-		keyToSign, err := n.findKeyByThumbprint(headerKeyThumbprint, controllerVerificationRelationships)
-		if keyToSign == nil {
-			return fmt.Errorf("network document not signed by one of its controllers")
-		}
-
-		// Take authenticationMethod keys from the controllers
-		// Check if network header keyID is one of authenticationMethods of the controller
-		//
-		// For each verificationMethod in the next version document
-		// 		check if the provided key thumbprint matches the corresponding thumbprint in the key store
-		// Take diff of verificationMethods between next and current versions:
-		// if new verificationMethod is added:
-		// 		Add public key to key store
-		// if verificationMethod is removed:
-		//		Mark keyID as expired since the updatedAt time from new DID document
-
-		// make a diff of the controllers
-		// 	if controller is added
-		//		check if it is known.
-		updatedAt := document.SigningTime()
-		documentMetadata := types.DocumentMetadata{
-			Created:    currentDIDMeta.Created,
-			Updated:    &updatedAt,
-			Version:    document.TimelineVersion(),
-			TimelineID: document.TimelineID(),
-			Hash:       document.PayloadHash(),
-		}
-		return n.didStore.Update(nextDIDDocument.ID, currentDIDMeta.Hash, nextDIDDocument, &documentMetadata)
 	}
+
 	return nil
+}
+
+func isUpdate(document dag.SubscriberDocument) bool {
+	return !document.TimelineID().Empty()
 }
 
 // resolveDIDControllers tries to resolve the controllers for a given DID Document
