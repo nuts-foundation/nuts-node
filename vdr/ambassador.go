@@ -154,6 +154,7 @@ func (n *ambassador) updateDIDDocument(document dag.SubscriberDocument, nextDIDD
 	}
 
 	// In an update, only the keyID is provided in te network document. Resolve the key from the key store
+	// This should succeed since the signature of the network document has already been verified.
 	pKey, err := n.keyResolver.GetPublicKey(document.SigningKeyID(), document.SigningTime())
 	if err != nil {
 		return fmt.Errorf("unable to resolve signingkey %w", err)
@@ -162,12 +163,12 @@ func (n *ambassador) updateDIDDocument(document dag.SubscriberDocument, nextDIDD
 	if err != nil {
 		return fmt.Errorf("could not parse public key into jwk %w", err)
 	}
-
 	// Create thumbprint
 	headerKeyThumbprint, err := headerKey.Thumbprint(thumbprintAlg)
 	if err != nil {
 		return fmt.Errorf("unable to generate network document signing key thumbprint")
 	}
+
 	// Check if the signingKey is listed as a valid authenticationMethod in one of the controllers
 	keyToSign, err := n.findKeyByThumbprint(headerKeyThumbprint, controllerVerificationRelationships)
 	if keyToSign == nil {

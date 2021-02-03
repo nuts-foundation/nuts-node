@@ -1,6 +1,7 @@
 package vdr
 
 import (
+	crypto2 "crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -250,16 +251,7 @@ func Test_ambassador_callback(t *testing.T) {
 			didStore:    didStoreMock,
 			keyResolver: keyStore,
 		}
-		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		signingKey, _ := jwk.New(pair.PublicKey)
-		keyStr, _ := json.Marshal(signingKey)
-
-		kc := &mockKeyCreator{
-			t:      t,
-			jwkStr: string(keyStr),
-		}
-		docCreator := NutsDocCreator{keyCreator: kc}
-		didDocument, err := docCreator.Create()
+		didDocument, signingKey, err := newDidDoc()
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -295,9 +287,11 @@ func Test_ambassador_callback(t *testing.T) {
 			TimelineID: timelineID,
 			Hash:       payloadHash,
 		}
+		var pKey crypto2.PublicKey
+		signingKey.Raw(&pKey)
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{}).Times(2).Return(&expectedDocument, currentMetadata, nil)
-		keyStore.EXPECT().GetPublicKey(didDocument.Authentication[0].ID.String(), subDoc.signingTime).Return(pair.Public(), nil)
+		keyStore.EXPECT().GetPublicKey(didDocument.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
 		err = am.callback(subDoc, didDocPayload)
@@ -363,7 +357,7 @@ func Test_ambassador_callback(t *testing.T) {
 		// This is the metadata of the current version of the document which will be returned by the resolver
 		currentMetadata := &types.DocumentMetadata{
 			TimelineID: timelineID,
-			Version: subDoc.timelineVersion + 1,
+			Version:    subDoc.timelineVersion + 1,
 		}
 		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
 
@@ -409,8 +403,170 @@ func Test_ambassador_callback(t *testing.T) {
 
 	})
 
-	t.Run("nok - update of document with a existing key that is not part of the controller", func(t *testing.T) {
+	t.Run("ok - update of document which is controlled by another did document", func(t *testing.T) {
+		// setup mocks:
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 
+		didStoreMock := types.NewMockStore(ctrl)
+		keyStore := crypto.NewMockKeyResolver(ctrl)
+
+		// initiate the ambassador with the mocks
+		am := ambassador{
+			didStore:    didStoreMock,
+			keyResolver: keyStore,
+		}
+
+		// Create a fresh DID Document
+		didDocument, _, err := newDidDoc()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// Create the DID docs controller
+		didDocumentController, controllerSigningKey, err := newDidDoc()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		var pKey crypto2.PublicKey
+		controllerSigningKey.Raw(&pKey)
+
+		// set the didDocument`s controller to the controller
+		didDocument.Controller = []did.DID{didDocumentController.ID}
+
+		// remove any authentication methods from the did document
+		didDocument.Authentication = nil
+
+		didDocPayload, _ := json.Marshal(didDocument)
+		didDocControllerPayload, _ := json.Marshal(didDocumentController)
+		payloadHash := hash.SHA256Sum(didDocPayload)
+
+		subDoc := newSubscriberDoc()
+		subDoc.signingKeyID = didDocumentController.Authentication[0].ID.String()
+		subDoc.timelineVersion = 1
+		subDoc.timelineID = timelineID
+		subDoc.payloadHash = payloadHash
+
+		// Convert back into a fresh doc because that will set the references correct
+		expectedDocument := did.Document{}
+		json.Unmarshal(didDocPayload, &expectedDocument)
+
+		// Convert back into a fresh doc because that will set the references correct
+		expectedController := did.Document{}
+		json.Unmarshal(didDocControllerPayload, &expectedController)
+
+		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
+
+		// This is the metadata of the current version of the document which will be returned by the resolver
+		currentMetadata := &types.DocumentMetadata{
+			Created:    createdAt,
+			Updated:    nil,
+			Version:    0,
+			TimelineID: timelineID,
+			Hash:       currentPayloadHash,
+		}
+
+		// This is the metadata that will be written during the update
+		expectedNextMetadata := types.DocumentMetadata{
+			Created:    createdAt,
+			Updated:    &signingTime,
+			Version:    1,
+			TimelineID: timelineID,
+			Hash:       payloadHash,
+		}
+
+		// expect a resolve for previous versions of the did document
+		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedDocument, currentMetadata, nil)
+		// expect a resolve for the did documents controller
+		didStoreMock.EXPECT().Resolve(didDocumentController.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedController, nil, nil)
+
+		keyStore.EXPECT().GetPublicKey(didDocumentController.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
+		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
+
+		err = am.callback(subDoc, didDocPayload)
+		assert.NoError(t, err)
+	})
+
+	t.Run("nok - update of document which is controlled by another did document which does not have the authentication key", func(t *testing.T) {
+		// This test checks if the correct authentication method is used for validating the updated did document.
+		// It uses a did document with a controller but uses a different key, the one of the did document itself in this case.
+
+		// setup mocks:
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		didStoreMock := types.NewMockStore(ctrl)
+		keyStore := crypto.NewMockKeyResolver(ctrl)
+
+		// initiate the ambassador with the mocks
+		am := ambassador{
+			didStore:    didStoreMock,
+			keyResolver: keyStore,
+		}
+
+		// Create a fresh DID Document
+		didDocument, documentSigningKey, err := newDidDoc()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// Create the DID docs controller
+		didDocumentController, _, err := newDidDoc()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// We still use the document signing key, not the one from the controller
+		var pKey crypto2.PublicKey
+		documentSigningKey.Raw(&pKey)
+
+		// set the didDocument`s controller to the controller
+		didDocument.Controller = []did.DID{didDocumentController.ID}
+
+		keyID := didDocument.Authentication[0].ID.String()
+
+		// remove any authentication methods from the did document
+		didDocument.Authentication = nil
+
+		didDocPayload, _ := json.Marshal(didDocument)
+		didDocControllerPayload, _ := json.Marshal(didDocumentController)
+		payloadHash := hash.SHA256Sum(didDocPayload)
+
+		subDoc := newSubscriberDoc()
+		subDoc.signingKeyID = keyID
+		subDoc.timelineVersion = 1
+		subDoc.timelineID = timelineID
+		subDoc.payloadHash = payloadHash
+
+		// Convert back into a fresh doc because that will set the references correct
+		expectedDocument := did.Document{}
+		json.Unmarshal(didDocPayload, &expectedDocument)
+
+		// Convert back into a fresh doc because that will set the references correct
+		expectedController := did.Document{}
+		json.Unmarshal(didDocControllerPayload, &expectedController)
+
+		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
+
+		// This is the metadata of the current version of the document which will be returned by the resolver
+		currentMetadata := &types.DocumentMetadata{
+			Created:    createdAt,
+			Updated:    nil,
+			Version:    0,
+			TimelineID: timelineID,
+			Hash:       currentPayloadHash,
+		}
+
+		// expect a resolve for previous versions of the did document
+		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedDocument, currentMetadata, nil)
+		// expect a resolve for the did documents controller
+		didStoreMock.EXPECT().Resolve(didDocumentController.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedController, nil, nil)
+
+		keyStore.EXPECT().GetPublicKey(keyID, subDoc.signingTime).Return(pKey, nil)
+
+		err = am.callback(subDoc, didDocPayload)
+		assert.EqualError(t, err, "network document not signed by one of its controllers")
 	})
 
 	t.Run("nok - create where keyID of authentication key matches but thumbprints not", func(t *testing.T) {
