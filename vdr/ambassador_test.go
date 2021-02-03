@@ -197,6 +197,15 @@ func Test_ambassador_callback(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("nok - invalid payload", func(t *testing.T) {
+		subDoc := newSubscriberDoc()
+		subDoc.timelineID = timelineID
+		subDoc.timelineVersion = 1
+		am := ambassador{}
+		err := am.callback(subDoc, []byte("}"))
+		assert.EqualError(t, err, "unable to unmarshall did document from network payload: invalid character '}' looking for beginning of value")
+	})
+
 	t.Run("create nok - fails without embedded key", func(t *testing.T) {
 		am := ambassador{}
 
@@ -353,6 +362,41 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
 		currentMetadata := &types.DocumentMetadata{
+			TimelineID: timelineID,
+			Version: subDoc.timelineVersion + 1,
+		}
+		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
+
+		err = am.callback(subDoc, didDocPayload)
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "unable to update did document: timeline version of current document is greater or equal to the new version")
+	})
+
+	t.Run("nok - update of document with outdated version", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		didStoreMock := types.NewMockStore(ctrl)
+		am := ambassador{
+			didStore: didStoreMock,
+		}
+
+		subDoc := newSubscriberDoc()
+		subDoc.timelineVersion = 5
+		subDoc.timelineID = timelineID
+
+		// The current DID Document which will be resolved
+		currentDIDDocument := did.Document{}
+
+		newDIDDocument, _, err := newDidDoc()
+		if !assert.NoError(t, err) {
+			return
+		}
+		didDocPayload, _ := json.Marshal(newDIDDocument)
+
+		// This is the metadata of the current version of the document which will be returned by the resolver
+		currentMetadata := &types.DocumentMetadata{
 			TimelineID: hash.SHA256Sum([]byte("wrong timeline")),
 		}
 		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
@@ -362,6 +406,7 @@ func Test_ambassador_callback(t *testing.T) {
 			return
 		}
 		assert.EqualError(t, err, "timelineIDs of new and current DID documents must match")
+
 	})
 
 	t.Run("nok - update of document with a existing key that is not part of the controller", func(t *testing.T) {
