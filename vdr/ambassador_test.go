@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -119,7 +121,6 @@ func (s subscriberDocument) TimelineVersion() int {
 func (s subscriberDocument) PayloadHash() hash.SHA256Hash {
 	return s.payloadHash
 }
-
 
 func (s subscriberDocument) PayloadType() string {
 	return s.payloadType
@@ -320,7 +321,7 @@ func Test_ambassador_callback(t *testing.T) {
 		subDoc.timelineVersion = 5
 		subDoc.timelineID = timelineID
 		am := ambassador{
-			didStore: didStoreMock{ err: types.ErrNotFound },
+			didStore: didStoreMock{err: types.ErrNotFound},
 		}
 		err := am.callback(subDoc, []byte("{}"))
 		if !assert.Error(t, err) {
@@ -334,7 +335,7 @@ func Test_ambassador_callback(t *testing.T) {
 		defer ctrl.Finish()
 		didStoreMock := types.NewMockStore(ctrl)
 		am := ambassador{
-			didStore:    didStoreMock,
+			didStore: didStoreMock,
 		}
 
 		subDoc := newSubscriberDoc()
@@ -370,4 +371,145 @@ func Test_ambassador_callback(t *testing.T) {
 	t.Run("nok - create where keyID of authentication key matches but thumbprints not", func(t *testing.T) {
 
 	})
+}
+
+func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
+	signingTime := time.Now()
+	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	signingKey, _ := jwk.New(pair.PublicKey)
+	payloadHash := hash.SHA256Sum([]byte("payload"))
+	timelineID := hash.SHA256Sum([]byte("timeline"))
+	ref := hash.SHA256Sum([]byte("ref"))
+
+	tests := []struct {
+		name      string
+		args      dag.SubscriberDocument
+		wantedErr error
+	}{
+		{"ok - valid create document",
+			subscriberDocument{
+				signingKeyID:    "",
+				signingTime:     signingTime,
+				signingKey:      signingKey,
+				ref:             ref,
+				timelineVersion: 0,
+				payloadHash:     payloadHash,
+				payloadType:     DIDDocumentType,
+			},
+			nil,
+		},
+		{"ok - valid update document",
+			subscriberDocument{
+				signingKeyID:    "",
+				signingTime:     signingTime,
+				ref:             ref,
+				timelineVersion: 1,
+				timelineID:      timelineID,
+				payloadHash:     payloadHash,
+				payloadType:     DIDDocumentType,
+			},
+			nil,
+		},
+		{"nok - payload rejects invalid payload type",
+			subscriberDocument{
+				signingKeyID:    "",
+				signingTime:     signingTime,
+				ref:             ref,
+				timelineVersion: 0,
+				payloadHash:     payloadHash,
+				payloadType:     "application/xml",
+			},
+			errors.New("wrong payload type for this subscriber. Can handle: application/json+did-document, got: application/xml"),
+		},
+		{"nok - missing payload hash",
+			subscriberDocument{
+				signingKeyID:    "",
+				signingTime:     signingTime,
+				ref:             ref,
+				timelineVersion: 0,
+				payloadType:     DIDDocumentType,
+			},
+			errors.New("payloadHash must be provider"),
+		},
+		{"nok - missing signingTime",
+			subscriberDocument{
+				signingKeyID:    "",
+				signingKey:      signingKey,
+				ref:             ref,
+				timelineVersion: 0,
+				payloadHash:     payloadHash,
+				payloadType:     DIDDocumentType,
+			},
+			errors.New("signingTime must be set and in the past"),
+		},
+		{"nok - signingTime in the future",
+			subscriberDocument{
+				signingKeyID:    "",
+				signingTime:     signingTime.Add(10 * time.Minute),
+				signingKey:      signingKey,
+				ref:             ref,
+				timelineVersion: 0,
+				payloadHash:     payloadHash,
+				payloadType:     DIDDocumentType,
+			},
+			errors.New("signingTime must be set and in the past"),
+		},
+		{
+			"nok - create with timelineVersion != 0",
+			subscriberDocument{
+				signingKeyID:    "",
+				signingTime:     signingTime,
+				signingKey:      signingKey,
+				ref:             ref,
+				timelineVersion: 1,
+				payloadHash:     payloadHash,
+				payloadType:     DIDDocumentType,
+			},
+			errors.New("timelineVersion for new documents must be absent or equal to 0"),
+		},
+		{
+			"nok - create without embedded signingKey",
+			subscriberDocument{
+				signingKeyID:    "",
+				signingTime:     signingTime,
+				ref:             ref,
+				timelineVersion: 0,
+				payloadHash:     payloadHash,
+				payloadType:     DIDDocumentType,
+			},
+			errors.New("signingKey for new DID Documents must be set"),
+		},
+		{
+			"nok - update with timelineVersion == 0",
+			subscriberDocument{
+				signingKeyID:    "",
+				signingTime:     signingTime,
+				ref:             ref,
+				timelineVersion: 0,
+				timelineID:      timelineID,
+				payloadHash:     payloadHash,
+				payloadType:     DIDDocumentType,
+			},
+			errors.New("timelineVersion for updates must be greater than 0"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := checkSubscriberDocumentIntegrity(tt.args); err != nil || tt.wantedErr != nil {
+
+				if err == nil {
+					if tt.wantedErr != nil {
+						t.Error("expected an error, got nothing")
+
+					} else {
+						t.Errorf("unexpected error: %v", err)
+					}
+				} else {
+					if tt.wantedErr.Error() != err.Error() {
+						t.Errorf("wrong error\ngot:  %v\nwant: %v", err, tt.wantedErr)
+					}
+				}
+			}
+		})
+	}
 }

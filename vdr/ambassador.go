@@ -214,7 +214,7 @@ func checkSubscriberDocumentIntegrity(document dag.SubscriberDocument) error {
 	// Signing time should be set and lay in the past:
 	// allow for 2 seconds clock skew
 	if document.SigningTime().IsZero() || document.SigningTime().After(time.Now().Add(2*time.Second)) {
-		fmt.Errorf("signingTime must be set and in the past")
+		return fmt.Errorf("signingTime must be set and in the past")
 	}
 
 	if isUpdate(document) {
