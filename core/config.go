@@ -110,16 +110,6 @@ func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) (err error) {
 func (ngc *NutsGlobalConfig) getConfigfile(cmd *cobra.Command) string {
 	k := koanf.New(defaultDelimiter)
 
-	if len(os.Args) > 1 {
-		_ = cmd.PersistentFlags().Parse(os.Args[1:])
-	}
-
-	// load cmd flags, without a parser, no error can be returned
-	_ = k.Load(posflag.Provider(cmd.PersistentFlags(), defaultDelimiter, k), nil)
-	if f := k.String(configFileFlag); f != "" {
-		return f
-	}
-
 	// load env flags
 	e := env.Provider(defaultPrefix, defaultDelimiter, func(s string) string {
 		return strings.Replace(strings.ToLower(
@@ -127,11 +117,16 @@ func (ngc *NutsGlobalConfig) getConfigfile(cmd *cobra.Command) string {
 	})
 	// can't return error
 	_ = k.Load(e, nil)
-	if f := k.String(configFileFlag); f != "" {
-		return f
+
+	if len(os.Args) > 1 {
+		_ = cmd.PersistentFlags().Parse(os.Args[1:])
 	}
 
-	return defaultConfigFile
+	// load cmd flags, without a parser, no error can be returned
+	// this also loads the default flag value of nuts.yaml. So we need a way to know if it's overiden.
+	_ = k.Load(posflag.Provider(cmd.PersistentFlags(), defaultDelimiter, k), nil)
+
+	return k.String(configFileFlag)
 }
 
 func (ngc *NutsGlobalConfig) flagSet() *pflag.FlagSet {

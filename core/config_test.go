@@ -126,6 +126,22 @@ func TestNewNutsConfig_Load(t *testing.T) {
 			return
 		}
 	})
+
+	t.Run("ok - env overrides default flag", func(t *testing.T) {
+		defer reset()
+		os.Args = []string{"command", "some", "args"}
+		os.Setenv("NUTS_VERBOSITY", "warn")
+		defer os.Unsetenv("NUTS_VERBOSITY")
+		cfg := NewNutsConfig()
+
+		err := cfg.Load(&cobra.Command{})
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, "warn", cfg.Verbosity)
+	})
 }
 
 func TestNewNutsConfig_PrintConfig(t *testing.T) {
