@@ -26,4 +26,7 @@ data
 # ignore generated pem files from running the nuts-node executable.
 /*.pem
 
+# ignore generated database files
+/*.db
+
 /nuts-node
