@@ -65,3 +65,10 @@ func TestVDR_Create(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, didDoc)
 }
+
+func TestNewVDR(t *testing.T) {
+	cfg := Config{}
+	vdr := NewVDR(cfg, nil, nil)
+	assert.IsType(t, &VDR{}, vdr)
+	assert.Equal(t, vdr.Config, cfg)
+}
