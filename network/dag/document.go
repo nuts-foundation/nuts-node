@@ -1,4 +1,5 @@
 /*
+ * Nuts node
  * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -53,6 +54,7 @@ type UnsignedDocument interface {
 	Timeline
 	PayloadReferencer
 }
+
 // PayloadReferencer allows implementers to reference to a payload.
 // It provides an uniform interface to payload properties such as the type and the hash.
 type PayloadReferencer interface {
@@ -64,6 +66,7 @@ type PayloadReferencer interface {
 	PayloadType() string
 }
 
+// NetworkHeader groups methods for working with a network document header.
 type NetworkHeader interface {
 	// Previous returns the references of the previous documents this document points to.
 	Previous() []hash.SHA256Hash
@@ -71,6 +74,7 @@ type NetworkHeader interface {
 	Version() Version
 }
 
+// SubscriberDocument contains a subset of the Document methods which are only relevant to subscribers.
 type SubscriberDocument interface {
 	Signable
 	Referenceable
@@ -78,17 +82,19 @@ type SubscriberDocument interface {
 	PayloadReferencer
 }
 
+// Timeline contains a set of methods to work with network document timeline information
 type Timeline interface {
 	// TimelineID returns the timeline ID of the document.
 	TimelineID() hash.SHA256Hash
-	// TimelineVersion returns the timeline version of the document. If the returned version is < 1 the timeline version
-	// is not set.
+	// TimelineVersion returns the timeline version of the document.
+	// If the returned version is < 1 the timeline version is not set.
 	TimelineVersion() int
 }
 
+// Signable groups a set of functions to access information about a implementors signature.
 type Signable interface {
-	// SigningKey returns the key that was used to sign the document as JWK. If this field is not set SigningKeyID
-	// must be used to resolve the signing key.
+	// SigningKey returns the key that was used to sign the document as JWK.
+	// If this field is not set SigningKeyID must be used to resolve the signing key.
 	SigningKey() jwk.Key
 	// SigningKeyID returns the ID of the key that was used to sign the document. It can be used to look up the key.
 	SigningKeyID() string

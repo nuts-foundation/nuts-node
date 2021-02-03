@@ -37,6 +37,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
 )
 
+// DIDDocumentType contains network document mime-type to identify a DID Document in the network.
 const DIDDocumentType = "application/json+did-document"
 
 // Ambassador acts as integration point between VDR and network by sending DID Documents network and process

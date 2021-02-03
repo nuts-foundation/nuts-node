@@ -113,7 +113,7 @@ func (mr *MockNetworkMockRecorder) ListDocuments() *gomock.Call {
 }
 
 // Walk mocks base method
-func (m *MockNetwork) Walk(walker dag.Walker, visitor dag.Visitor, startAt hash.SHA256Hash) error {
+func (m *MockNetwork) Walk(walker dag.WalkerAlgorithm, visitor dag.Visitor, startAt hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Walk", walker, visitor, startAt)
 	ret0, _ := ret[0].(error)
