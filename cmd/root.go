@@ -124,13 +124,13 @@ func CreateSystem() *core.System {
 	return system
 }
 
-func Execute() {
-	system := CreateSystem()
+// Execute registers all engines into the system and executes the root command.
+func Execute(system *core.System) {
 	command := CreateCommand(system)
 	command.SetOut(stdOutWriter)
 
 	// Load all config and add generic options
-	if err := system.Config.Load(command); err != nil {
+	if err := system.Load(command); err != nil {
 		panic(err)
 	}
 

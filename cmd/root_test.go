@@ -20,7 +20,7 @@ func Test_rootCmd(t *testing.T) {
 			stdOutWriter = oldStdout
 		}()
 		os.Args = []string{"nuts"}
-		Execute()
+		Execute(core.NewSystem())
 		actual := buf.String()
 		assert.Contains(t, actual, "Available Commands")
 	})
@@ -33,7 +33,7 @@ func Test_rootCmd(t *testing.T) {
 			stdOutWriter = oldStdout
 		}()
 		os.Args = []string{"nuts", "config"}
-		Execute()
+		Execute(core.NewSystem())
 		actual := buf.String()
 		assert.Contains(t, actual, "Current system config")
 		assert.Contains(t, actual, "address")
@@ -49,15 +49,38 @@ func Test_rootCmd(t *testing.T) {
 		echoCreator = func() core.EchoServer {
 			return echoServer
 		}
+
+		expectedAddress := "some-other-address:1323"
+
 		testDirectory := io.TestDirectory(t)
+		os.Setenv("NUTS_ADDRESS", expectedAddress)
+		defer os.Unsetenv("NUTS_ADDRESS")
 		os.Setenv("NUTS_NETWORK_DATABASEFILE", path.Join(testDirectory, "network.db"))
 		defer os.Unsetenv("NUTS_NETWORK_DATABASEFILE")
 		os.Setenv("NUTS_VDR_DATADIR", path.Join(testDirectory, "vdr"))
 		defer os.Unsetenv("NUTS_VDR_DATADIR")
 		os.Setenv("NUTS_CRYPTO_FSPATH", path.Join(testDirectory, "crypto"))
 		defer os.Unsetenv("NUTS_CRYPTO_FSPATH")
+
 		os.Args = []string{"nuts", "server"}
-		Execute()
+
+		type Cfg struct {
+			Address string
+		}
+		var engineCfg = &Cfg{}
+		engine := &core.Engine{
+			Name:   "Status",
+			Config: engineCfg,
+		}
+
+		system := core.NewSystem()
+		system.RegisterEngine(engine)
+
+		Execute(system)
+		// Assert global config contains overridden property
+		assert.Equal(t, expectedAddress, system.Config.Address)
+		// Assert engine config is injected
+		assert.Equal(t, expectedAddress, engineCfg.Address)
 	})
 }
 
