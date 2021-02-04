@@ -114,6 +114,13 @@ func TestNetwork_Configure(t *testing.T) {
 			return
 		}
 	})
+	t.Run("unable to create datadir", func(t *testing.T) {
+		cxt := createNetwork(t, ctrl)
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.p2pNetwork.EXPECT().Configure(gomock.Any())
+		err := cxt.network.Configure(core.NutsConfig{Datadir:  "network_test.go"})
+		assert.Error(t, err, "")
+	})
 }
 
 func TestNetwork_CreateDocument(t *testing.T) {
