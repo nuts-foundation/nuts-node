@@ -104,6 +104,7 @@ func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) (err error) {
 		return
 	}
 
+	// todo, see #40
 	log.SetLevel(lvl)
 
 	return
