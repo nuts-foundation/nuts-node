@@ -26,9 +26,10 @@ func TestVDR_Update(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
 	keyID, _ := url.Parse(id.String() + "#key-1")
-	nextDIDDocument := did.Document{
+	currentDIDDocument := did.Document{
 		Authentication: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: did.URI{*keyID}}}},
 	}
+	nextDIDDocument := did.Document{ }
 	expectedResolverMetada := &types.ResolveMetadata{
 		Hash:             &currentHash,
 		AllowDeactivated: false,
@@ -38,7 +39,7 @@ func TestVDR_Update(t *testing.T) {
 		Version:    1,
 	}
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
-	didStoreMock.EXPECT().Resolve(*id, expectedResolverMetada).Return(nil, &resolvedMetadata, nil)
+	didStoreMock.EXPECT().Resolve(*id, expectedResolverMetada).Return(&currentDIDDocument, &resolvedMetadata, nil)
 	networkMock.EXPECT().CreateDocument(didDocumentType, expectedPayload, keyID.String(), false, gomock.Any(), gomock.Any(), gomock.Any())
 	err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
 	assert.NoError(t, err)

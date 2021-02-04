@@ -128,12 +128,12 @@ func (r VDR) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document
 }
 
 // Update updates a DID Document based on the DID and current hash
-func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
+func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
 	resolverMetada := &types.ResolveMetadata{
 		Hash:             &current,
 		AllowDeactivated: false,
 	}
-	_, meta, err := r.store.Resolve(id, resolverMetada)
+	currentDIDdocument, meta, err := r.store.Resolve(id, resolverMetada)
 	if err != nil {
 		return err
 	}
@@ -141,8 +141,9 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, meta
 	if err != nil {
 		return err
 	}
+
 	// TODO: look into the controller of the did for a signing key
-	keyID := next.Authentication[0].ID.String()
+	keyID := currentDIDdocument.Authentication[0].ID.String()
 	_, err = r.network.CreateDocument(didDocumentType, payload, keyID, false, time.Now(), dag.TimelineIDField(meta.TimelineID), dag.TimelineVersionField(meta.Version+1))
 	return err
 }

@@ -90,94 +90,93 @@ func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) e
 	}
 
 	if isUpdate(document) {
-		return n.updateDIDDocument(document, nextDIDDocument)
+		return n.handleUpdateDIDDocument(document, nextDIDDocument)
 	}
-	return n.createDIDDocument(document, nextDIDDocument)
+	return n.handleCreateDIDDocument(document, nextDIDDocument)
 }
 
-func (n *ambassador) createDIDDocument(document dag.SubscriberDocument, nextDIDDocument did.Document) error {
-	// First, check if the network document was signed by the same key as is embedded in the DID Document`s authenticationMethod:
+func (n *ambassador) handleCreateDIDDocument(document dag.SubscriberDocument, proposedDIDDocument did.Document) error {
+	// Check if the network document was signed by the same key as is embedded in the DID Document`s authenticationMethod:
 
-	// Take signing key from network document header
-	headerKey := document.SigningKey()
-	// Create key thumbprint
-	headerKeyThumbprint, err := headerKey.Thumbprint(thumbprintAlg)
+	// Create key thumbprint from the network documents signingKey embedded in the header
+	signingKeyThumbprint, err := document.SigningKey().Thumbprint(thumbprintAlg)
 	if err != nil {
 		return fmt.Errorf("unable to generate network document signing key thumbprint: %w", err)
 	}
 
-	// Check if headerKey is one of the keys embedded in the authenticationMethod
-	didDocumentAuthKeys := nextDIDDocument.Authentication
-	if documentKey, err := n.findKeyByThumbprint(headerKeyThumbprint, didDocumentAuthKeys); documentKey == nil || err != nil {
-		if documentKey == nil {
-			return fmt.Errorf("key used to sign Network document must be be part of DID Document authentication")
+	// Check if signingKey is one of the keys embedded in the authenticationMethod
+	didDocumentAuthKeys := proposedDIDDocument.Authentication
+	if documentKey, err := n.findKeyByThumbprint(signingKeyThumbprint, didDocumentAuthKeys); documentKey == nil || err != nil {
+		if err != nil {
+			return err
 		}
-		return err
+		return fmt.Errorf("key used to sign Network document must be be part of DID Document authentication")
 	}
 
 	documentMetadata := types.DocumentMetadata{
 		Created:    document.SigningTime(),
-		Updated:    nil,
 		Version:    newDocumentVersion,
 		TimelineID: document.Ref(),
 		Hash:       document.PayloadHash(),
 	}
-	return n.didStore.Write(nextDIDDocument, documentMetadata)
+	return n.didStore.Write(proposedDIDDocument, documentMetadata)
 }
 
-func (n *ambassador) updateDIDDocument(document dag.SubscriberDocument, nextDIDDocument did.Document) error {
+func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberDocument, proposedDIDDocument did.Document) error {
 	// Resolve current version of DID Document
 	resolverMetadata := &types.ResolveMetadata{
 		AllowDeactivated: false,
 	}
-	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(nextDIDDocument.ID, resolverMetadata)
+	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, resolverMetadata)
 	if err != nil {
-		return fmt.Errorf("unable to update did document: %s", err)
+		return fmt.Errorf("unable to update did document: %w", err)
 	}
 	// Check if the new document is actual newer by comparing timeline versions
 	if currentDIDMeta.Version >= document.TimelineVersion() {
 		return fmt.Errorf("unable to update did document: timeline version of current document is greater or equal to the new version")
 	}
-	if currentDIDMeta.TimelineID != document.TimelineID() {
+	if !currentDIDMeta.TimelineID.Equals(document.TimelineID()) {
 		return fmt.Errorf("timelineIDs of new and current DID documents must match")
 	}
 
 	// Resolve controllers of current version (could be the same document)
 	didControllers, err := n.resolveDIDControllers(currentDIDDocument)
-	logging.Log().Debug(didControllers)
 
-	var controllerVerificationRelationships = []did.VerificationRelationship{}
+	var controllerVerificationRelationships []did.VerificationRelationship
 	for _, didCtrl := range didControllers {
 		for _, auth := range didCtrl.Authentication {
 			controllerVerificationRelationships = append(controllerVerificationRelationships, auth)
 		}
 	}
 
-	// In an update, only the keyID is provided in te network document. Resolve the key from the key store
+	// In an update, only the keyID is provided in the network document. Resolve the key from the key store
 	// This should succeed since the signature of the network document has already been verified.
 	pKey, err := n.keyResolver.GetPublicKey(document.SigningKeyID(), document.SigningTime())
 	if err != nil {
-		return fmt.Errorf("unable to resolve signingkey %w", err)
+		return fmt.Errorf("unable to resolve signingkey: %w", err)
 	}
-	headerKey, err := jwk.New(pKey)
+	signingKey, err := jwk.New(pKey)
 	if err != nil {
-		return fmt.Errorf("could not parse public key into jwk %w", err)
+		return fmt.Errorf("could not parse public key into jwk: %w", err)
 	}
 	// Create thumbprint
-	headerKeyThumbprint, err := headerKey.Thumbprint(thumbprintAlg)
+	signingKeyThumbprint, err := signingKey.Thumbprint(thumbprintAlg)
 	if err != nil {
-		return fmt.Errorf("unable to generate network document signing key thumbprint")
+		return fmt.Errorf("unable to generate network document signing key thumbprint: %w", err)
 	}
 
 	// Check if the signingKey is listed as a valid authenticationMethod in one of the controllers
-	keyToSign, err := n.findKeyByThumbprint(headerKeyThumbprint, controllerVerificationRelationships)
+	keyToSign, err := n.findKeyByThumbprint(signingKeyThumbprint, controllerVerificationRelationships)
+	if err != nil {
+		return fmt.Errorf("unable to find signingKey by thumprint in controllers: %w",err)
+	}
 	if keyToSign == nil {
 		return fmt.Errorf("network document not signed by one of its controllers")
 	}
 
 	// TODO: perform all these tests:
 	// Take authenticationMethod keys from the controllers
-	// Check if network header keyID is one of authenticationMethods of the controller
+	// Check if network signingKeyID is one of authenticationMethods of the controller
 	//
 	// For each verificationMethod in the next version document
 	// 		check if the provided key thumbprint matches the corresponding thumbprint in the key store
@@ -198,7 +197,7 @@ func (n *ambassador) updateDIDDocument(document dag.SubscriberDocument, nextDIDD
 		TimelineID: document.TimelineID(),
 		Hash:       document.PayloadHash(),
 	}
-	return n.didStore.Update(nextDIDDocument.ID, currentDIDMeta.Hash, nextDIDDocument, &documentMetadata)
+	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 }
 
 // checkSubscriberDocumentIntegrity performs basic integrity checks on the SubscriberDocument fields:
@@ -274,18 +273,17 @@ func (n ambassador) resolveDIDControllers(didDocument *did.Document) ([]*did.Doc
 // findKeyByThumbprint accepts a SHA256 generated thumbprint and tries to find it in a provided list of did.VerificationRelationship s.
 // Returns an error if it could not generate a thumbprint of one of the VerificationRelationship keys
 func (n ambassador) findKeyByThumbprint(thumbPrint []byte, didDocumentAuthKeys []did.VerificationRelationship) (jwk.Key, error) {
-	hashAlg := crypto.SHA256
-
 	var documentKey jwk.Key
 	for _, key := range didDocumentAuthKeys {
 		// Create thumbprint
-		documentThumbprint, err := key.JWK().Thumbprint(hashAlg)
+		keyAsJWK := key.JWK()
+		documentThumbprint, err := keyAsJWK.Thumbprint(thumbprintAlg)
 		if err != nil {
-			return nil, fmt.Errorf("unable to generate did document signing key thumbprint")
+			return nil, fmt.Errorf("unable to generate did document signing key thumbprint: %w", err)
 		}
 		// Compare thumbprints
 		if bytes.Equal(thumbPrint, documentThumbprint) {
-			documentKey = key.JWK()
+			documentKey = keyAsJWK
 			break
 		}
 	}
