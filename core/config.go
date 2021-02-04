@@ -98,10 +98,13 @@ func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) (err error) {
 		return
 	}
 
+	var lvl log.Level
 	// initialize logger, verbosity flag needs to be available
-	if _, err = log.ParseLevel(ngc.Verbosity); err != nil {
+	if lvl, err = log.ParseLevel(ngc.Verbosity); err != nil {
 		return
 	}
+
+	log.SetLevel(lvl)
 
 	return
 }
