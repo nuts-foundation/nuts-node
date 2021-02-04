@@ -1,13 +1,12 @@
 package core
 
 import (
+	"net/http"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"testing"
 )
 
 func TestNewStatusEngine_Routes(t *testing.T) {
@@ -20,28 +19,6 @@ func TestNewStatusEngine_Routes(t *testing.T) {
 		echo.EXPECT().GET("/status", gomock.Any())
 
 		NewStatusEngine(NewSystem()).Routes(echo)
-	})
-}
-
-func TestNewStatusEngine_Cmd(t *testing.T) {
-	system := NewSystem()
-	t.Run("Cmd returns a cobra command", func(t *testing.T) {
-		e := NewStatusEngine(system).Cmd
-		assert.Equal(t, "diagnostics", e.Name())
-	})
-
-	t.Run("Executed Cmd writes diagnostics to prompt", func(t *testing.T) {
-		rescueStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		NewStatusEngine(system).Cmd.Execute()
-
-		w.Close()
-		out, _ := ioutil.ReadAll(r)
-		os.Stdout = rescueStdout
-
-		assert.Equal(t, "", string(out))
 	})
 }
 

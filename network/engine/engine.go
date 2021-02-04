@@ -31,9 +31,12 @@ import (
 	"time"
 )
 
-var clientCreator = func() *v1.HTTPClient {
+var clientCreator = func(cmd *cobra.Command) *v1.HTTPClient {
+	cfg := core.NewNutsConfig()
+	cfg.Load(cmd)
+
 	return &v1.HTTPClient{
-		ServerAddress: core.NutsConfig().ServerAddress(),
+		ServerAddress: cfg.Address,
 		Timeout:       30 * time.Second,
 	}
 }
@@ -60,20 +63,20 @@ func NewNetworkEngine(keyStore crypto.KeyStore) (*core.Engine, network.Network) 
 func flagSet() *pflag.FlagSet {
 	defs := network.DefaultConfig()
 	flagSet := pflag.NewFlagSet("network", pflag.ContinueOnError)
-	flagSet.String("grpcAddr", defs.GrpcAddr, "Local address for gRPC to listen on. "+
+	flagSet.String("network.grpcAddr", defs.GrpcAddr, "Local address for gRPC to listen on. "+
 		"If empty the gRPC server won't be started and other nodes will not be able to connect to this node "+
 		"(outbound connections can still be made).")
-	flagSet.String("publicAddr", defs.PublicAddr, "Public address (of this node) other nodes can use to connect to it. If set, it is registered on the nodelist.")
-	flagSet.String("bootstrapNodes", defs.BootstrapNodes, "Space-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
-	flagSet.Bool("enableTLS", defs.EnableTLS, "Whether to enable TLS for inbound gRPC connections. "+
+	flagSet.String("network.publicAddr", defs.PublicAddr, "Public address (of this node) other nodes can use to connect to it. If set, it is registered on the nodelist.")
+	flagSet.String("network.bootstrapNodes", defs.BootstrapNodes, "Space-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
+	flagSet.Bool("network.enableTLS", defs.EnableTLS, "Whether to enable TLS for inbound gRPC connections. "+
 		"If set to `true` (which is default) `certFile` and `certKeyFile` MUST be configured.")
-	flagSet.String("certFile", defs.CertFile, "PEM file containing the server certificate for the gRPC server. "+
+	flagSet.String("network.certFile", defs.CertFile, "PEM file containing the server certificate for the gRPC server. "+
 		"Required when `enableTLS` is `true`.")
-	flagSet.String("certKeyFile", defs.CertKeyFile, "PEM file containing the private key of the server certificate. "+
-		"Required when `enableTLS` is `true`.")
-	flagSet.String("databaseFile", defs.DatabaseFile, "File path to the network database.")
-	flagSet.String("trustStoreFile", defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
-	flagSet.Int("advertHashesInterval", defs.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
+	flagSet.String("network.certKeyFile", defs.CertKeyFile, "PEM file containing the private key of the server certificate. "+
+		"Required when `network.enableTLS` is `true`.")
+	flagSet.String("network.databaseFile", defs.DatabaseFile, "File path to the network database.")
+	flagSet.String("network.trustStoreFile", defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
+	flagSet.Int("network.advertHashesInterval", defs.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
 	return flagSet
 }
 
@@ -98,7 +101,7 @@ func payloadCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			data, err := clientCreator().GetDocumentPayload(hash)
+			data, err := clientCreator(cmd).GetDocumentPayload(hash)
 			if err != nil {
 				return err
 			}
@@ -122,7 +125,7 @@ func getCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			document, err := clientCreator().GetDocument(hash)
+			document, err := clientCreator(cmd).GetDocument(hash)
 			if err != nil {
 				return err
 			}
@@ -141,7 +144,7 @@ func listCommand() *cobra.Command {
 		Use:   "list",
 		Short: "Lists the documents on the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			documents, err := clientCreator().ListDocuments()
+			documents, err := clientCreator(cmd).ListDocuments()
 			if err != nil {
 				return err
 			}

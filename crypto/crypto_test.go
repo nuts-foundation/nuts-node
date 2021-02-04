@@ -29,8 +29,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/spf13/cobra"
-
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -172,9 +170,6 @@ func TestCryptoConfig_getFsPath(t *testing.T) {
 }
 
 func createCrypto(t *testing.T) *Crypto {
-	if err := core.NutsConfig().Load(&cobra.Command{}); err != nil {
-		panic(err)
-	}
 	dir := io.TestDirectory(t)
 	backend, _ := storage.NewFileSystemBackend(dir)
 	crypto := Crypto{

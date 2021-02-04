@@ -52,11 +52,25 @@ func createRootCommand() *cobra.Command {
 	}
 }
 
+func createPrintConfigCommand(system *core.System) *cobra.Command {
+	return &cobra.Command{
+		Use:   "config",
+		Short: "Prints the current config",
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.Println("Current system config")
+			cmd.Println(system.Config.PrintConfig())
+		},
+	}
+}
+
 func createServerCommand(system *core.System) *cobra.Command {
 	return &cobra.Command{
 		Use:   "server",
 		Short: "Starts the Nuts server",
 		Run: func(cmd *cobra.Command, args []string) {
+			logrus.Info("Starting server with config:")
+			logrus.Info(system.Config.PrintConfig())
+
 			// check config on all engines
 			if err := system.Configure(); err != nil {
 				logrus.Fatal(err)
@@ -67,7 +81,6 @@ func createServerCommand(system *core.System) *cobra.Command {
 				logrus.Fatal(err)
 			}
 
-			cfg := core.NutsConfig()
 			// start interfaces
 			echoServer := echoCreator()
 			system.VisitEngines(func(engine *core.Engine) {
@@ -81,7 +94,7 @@ func createServerCommand(system *core.System) *cobra.Command {
 					logrus.Fatal(err)
 				}
 			}()
-			if err := echoServer.Start(cfg.ServerAddress()); err != nil {
+			if err := echoServer.Start(system.Config.Address); err != nil {
 				logrus.Fatal(err)
 			}
 		},
@@ -93,7 +106,7 @@ func CreateCommand(system *core.System) *cobra.Command {
 	command := createRootCommand()
 	command.SetOut(stdOutWriter)
 	addSubCommands(system, command)
-	addFlagSets(system, command, core.NutsConfig())
+	addFlagSets(system, command)
 	return command
 }
 
@@ -116,17 +129,10 @@ func Execute() {
 	command := CreateCommand(system)
 	command.SetOut(stdOutWriter)
 
-	// Load global Nuts config
-	cfg := core.NutsConfig()
-
 	// Load all config and add generic options
-	if err := cfg.Load(command); err != nil {
+	if err := system.Config.Load(command); err != nil {
 		panic(err)
 	}
-
-	// Load config into engines
-	injectConfig(system, cfg)
-	cfg.PrintConfig(system, logrus.StandardLogger())
 
 	// blocking main call
 	command.Execute()
@@ -139,18 +145,11 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		}
 	})
 	root.AddCommand(createServerCommand(system))
+	root.AddCommand(createPrintConfigCommand(system))
 }
 
-func injectConfig(system *core.System, cfg *core.NutsGlobalConfig) {
-	if err := system.VisitEnginesE(func(engine *core.Engine) error {
-		return cfg.InjectIntoEngine(engine)
-	}); err != nil {
-		logrus.Fatal(err)
-	}
-}
-
-func addFlagSets(system *core.System, cmd *cobra.Command, cfg *core.NutsGlobalConfig) {
+func addFlagSets(system *core.System, cmd *cobra.Command) {
 	system.VisitEngines(func(engine *core.Engine) {
-		cfg.RegisterFlags(cmd, engine)
+		system.Config.RegisterFlags(cmd, engine)
 	})
 }

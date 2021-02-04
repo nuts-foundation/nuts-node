@@ -195,7 +195,7 @@ func startNode(name string, directory string) (*NetworkEngine, error) {
 	log.Logger().Infof("Starting node: %s", name)
 	os.MkdirAll(directory, os.ModePerm)
 	logrus.SetLevel(logrus.DebugLevel)
-	core.NutsConfig().Load(&cobra.Command{})
+	core.NewNutsConfig().Load(&cobra.Command{})
 	mutex.Lock()
 	mutex.Unlock()
 	// Create NetworkEngine instance

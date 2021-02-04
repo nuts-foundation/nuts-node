@@ -24,6 +24,21 @@ func Test_rootCmd(t *testing.T) {
 		actual := buf.String()
 		assert.Contains(t, actual, "Available Commands")
 	})
+
+	t.Run("config cmd prints config", func(t *testing.T) {
+		oldStdout := stdOutWriter
+		buf := new(bytes.Buffer)
+		stdOutWriter = buf
+		defer func() {
+			stdOutWriter = oldStdout
+		}()
+		os.Args = []string{"nuts", "config"}
+		Execute()
+		actual := buf.String()
+		assert.Contains(t, actual, "Current system config")
+		assert.Contains(t, actual, "address")
+	})
+
 	t.Run("start in server mode", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		echoServer := core.NewMockEchoServer(ctrl)
@@ -43,5 +58,11 @@ func Test_rootCmd(t *testing.T) {
 		defer os.Unsetenv("NUTS_CRYPTO_FSPATH")
 		os.Args = []string{"nuts", "server"}
 		Execute()
+	})
+}
+
+func Test_echoCreator(t *testing.T) {
+	t.Run("creates an echo server", func(t *testing.T) {
+		assert.NotNil(t, echoCreator())
 	})
 }

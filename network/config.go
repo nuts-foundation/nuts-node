@@ -10,16 +10,16 @@ import (
 // Config holds the config for Network
 type Config struct {
 	// Socket address for gRPC to listen on
-	GrpcAddr     string
-	DatabaseFile string
+	GrpcAddr     string `koanf:"grpcAddr"`
+	DatabaseFile string `koanf:"databaseFile"`
 	// EnableTLS specifies whether to enable TLS for incoming connections.
-	EnableTLS bool
+	EnableTLS bool `koanf:"enableTLS"`
 	// Public address of this nodes other nodes can use to connect to this node.
-	PublicAddr     string
-	BootstrapNodes string
-	CertFile       string
-	CertKeyFile    string
-	TrustStoreFile string
+	PublicAddr     string `koanf:"publicAddr"`
+	BootstrapNodes string `koanf:"bootstrapNodes"`
+	CertFile       string `koanf:"certFile"`
+	CertKeyFile    string `koanf:"certKeyFile"`
+	TrustStoreFile string `koanf:"trustStoreFile"`
 
 	// AdvertHashesInterval specifies how often (in milliseconds) the node should broadcasts its last hashes so
 	// other nodes can compare and synchronize.

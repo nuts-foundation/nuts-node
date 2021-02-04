@@ -49,7 +49,7 @@ func TestCmd_List(t *testing.T) {
 	response := []interface{}{string(dag.CreateTestDocumentWithJWK(1).Data()), string(dag.CreateTestDocumentWithJWK(2).Data())}
 	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
 	os.Setenv("NUTS_ADDRESS", s.URL)
-	core.NutsConfig().Load(cmd)
+	core.NewNutsConfig().Load(cmd)
 	defer s.Close()
 
 	cmd.SetArgs([]string{"list"})
@@ -63,7 +63,7 @@ func TestCmd_Get(t *testing.T) {
 	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
 	s := httptest.NewServer(handler)
 	os.Setenv("NUTS_ADDRESS", s.URL)
-	core.NutsConfig().Load(cmd)
+	core.NewNutsConfig().Load(cmd)
 	defer s.Close()
 
 	t.Run("ok", func(t *testing.T) {
@@ -85,7 +85,7 @@ func TestCmd_Payload(t *testing.T) {
 	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: []byte("Hello, World!")}
 	s := httptest.NewServer(handler)
 	os.Setenv("NUTS_ADDRESS", s.URL)
-	core.NutsConfig().Load(cmd)
+	core.NewNutsConfig().Load(cmd)
 	defer s.Close()
 
 	t.Run("ok", func(t *testing.T) {
@@ -103,7 +103,7 @@ func TestCmd_Payload(t *testing.T) {
 }
 
 func createCmd(t *testing.T) *cobra.Command {
-	core.NutsConfig().Load(&cobra.Command{})
+	core.NewNutsConfig().Load(&cobra.Command{})
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
 	engine, _ := NewNetworkEngine(cryptoInstance)

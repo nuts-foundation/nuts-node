@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	"github.com/spf13/cobra"
 )
 
 type status struct {
@@ -38,14 +37,7 @@ func NewStatusEngine(system *System) *Engine {
 		system: system,
 	}
 	return &Engine{
-		Name: "Status",
-		Cmd: &cobra.Command{
-			Use:   "diagnostics",
-			Short: "show engine diagnostics",
-			Run: func(cmd *cobra.Command, args []string) {
-				instance.diagnosticsSummaryAsText()
-			},
-		},
+		Name:        "Status",
 		Diagnosable: instance,
 		Routes: func(router EchoRouter) {
 			router.GET("/status/diagnostics", instance.diagnosticsOverview)

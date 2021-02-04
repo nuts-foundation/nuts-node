@@ -23,10 +23,13 @@ import (
 	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 )
 
@@ -98,6 +101,33 @@ func TestSystem_RegisterEngine(t *testing.T) {
 		if len(ctl.engines) != 1 {
 			t.Errorf("Expected 1 registered engine, Got %d", len(ctl.engines))
 		}
+	})
+}
+
+func TestSystem_Load(t *testing.T) {
+	c := struct {
+		Key string `koanf:"key"`
+	}{}
+	e := &Engine{
+		Cmd:     &cobra.Command{},
+		Config:  &c,
+		FlagSet: &pflag.FlagSet{},
+	}
+	ctl := System{
+		engines: []*Engine{e},
+		Config:  NewNutsConfig(),
+	}
+	e.FlagSet.String("key", "", "")
+	os.Args = []string{"command", "--key", "value"}
+	ctl.Config.RegisterFlags(e.Cmd, e)
+
+	t.Run("loads config without error", func(t *testing.T) {
+		assert.NoError(t, ctl.Load(e.Cmd))
+	})
+
+	t.Run("calls inject into engine", func(t *testing.T) {
+		ctl.Load(e.Cmd)
+		assert.Equal(t, "value", c.Key)
 	})
 }
 

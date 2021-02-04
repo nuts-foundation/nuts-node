@@ -29,13 +29,33 @@ import (
 
 // NewSystem creates a new, empty System.
 func NewSystem() *System {
-	return &System{engines: []*Engine{}}
+	return &System{
+		engines: []*Engine{},
+		Config:  NewNutsConfig(),
+	}
 }
 
 // System is the control structure where engines are registered.
 type System struct {
 	// engines is the slice of all registered engines
 	engines []*Engine
+	// Config holds the global and raw config
+	Config *NutsGlobalConfig
+}
+
+// Load loads the config and injects config values into engines
+func (system *System) Load(cmd *cobra.Command) error {
+	if err := system.Config.Load(cmd); err != nil {
+		return err
+	}
+
+	return system.injectConfig()
+}
+
+func (system *System) injectConfig() error {
+	return system.VisitEnginesE(func(engine *Engine) error {
+		return system.Config.InjectIntoEngine(engine)
+	})
 }
 
 // Diagnostics returns the compound diagnostics for all engines.

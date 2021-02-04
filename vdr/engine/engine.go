@@ -88,7 +88,7 @@ func createCmd() *cobra.Command {
 		Short: "Registers a new DID",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client := httpClient()
+			client := httpClient(cmd)
 
 			doc, err := client.Create()
 			if err != nil {
@@ -110,7 +110,7 @@ func updateCmd() *cobra.Command {
 			"If no file is given, a pipe is assumed. The hash is needed to prevent concurrent updates.",
 		Args: cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client := httpClient()
+			client := httpClient(cmd)
 
 			id := args[0]
 			hash := args[1]
@@ -153,7 +153,7 @@ func resolveCmd() *cobra.Command {
 		Short: "Resolve a DID document based on its DID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client := httpClient()
+			client := httpClient(cmd)
 
 			doc, meta, err := client.Get(args[0])
 			if err != nil {
@@ -181,9 +181,12 @@ func readFromStdin() ([]byte, error) {
 	return ioutil.ReadAll(bufio.NewReader(os.Stdin))
 }
 
-func httpClient() api.HTTPClient {
+func httpClient(cmd *cobra.Command) api.HTTPClient {
+	cfg := core.NewNutsConfig()
+	cfg.Load(cmd)
+
 	// TODO: allow for https
-	addr := core.NutsConfig().ServerAddress()
+	addr := cfg.Address
 	if !strings.HasPrefix(addr, "http") {
 		addr = "http://" + addr
 	}
