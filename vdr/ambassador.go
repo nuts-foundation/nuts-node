@@ -62,8 +62,8 @@ func NewAmbassador(networkClient network.Network, didStore types.Store, keyResol
 	}
 }
 
-// NewDocumentVersion contains the version number that a new Network Documents have.
-const NewDocumentVersion = 0
+// newDocumentVersion contains the version number that a new Network Documents have.
+const newDocumentVersion = 0
 
 // Start instructs the ambassador to start receiving DID Documents from the network.
 func (n *ambassador) Start() {
@@ -118,7 +118,7 @@ func (n *ambassador) createDIDDocument(document dag.SubscriberDocument, nextDIDD
 	documentMetadata := types.DocumentMetadata{
 		Created:    document.SigningTime(),
 		Updated:    nil,
-		Version:    NewDocumentVersion,
+		Version:    newDocumentVersion,
 		TimelineID: document.Ref(),
 		Hash:       document.PayloadHash(),
 	}
@@ -225,8 +225,8 @@ func checkSubscriberDocumentIntegrity(document dag.SubscriberDocument) error {
 			return fmt.Errorf("timelineID must be set for updates")
 		}
 
-		if document.TimelineVersion() <= NewDocumentVersion {
-			return fmt.Errorf("timelineVersion for updates must be greater than %d", NewDocumentVersion)
+		if document.TimelineVersion() <= newDocumentVersion {
+			return fmt.Errorf("timelineVersion for updates must be greater than %d", newDocumentVersion)
 		}
 	} else {
 		// For a new DID Document TimelineID must be nil
@@ -234,8 +234,8 @@ func checkSubscriberDocumentIntegrity(document dag.SubscriberDocument) error {
 			return fmt.Errorf("timelineID for new documents must be absent")
 		}
 
-		if document.TimelineVersion() != NewDocumentVersion {
-			return fmt.Errorf("timelineVersion for new documents must be absent or equal to %d", NewDocumentVersion)
+		if document.TimelineVersion() != newDocumentVersion {
+			return fmt.Errorf("timelineVersion for new documents must be absent or equal to %d", newDocumentVersion)
 		}
 
 		// For new DID Documents the signing key must be embedded in the network document
