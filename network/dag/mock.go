@@ -251,17 +251,17 @@ func (m *MockWalkerAlgorithm) EXPECT() *MockWalkerAlgorithmMockRecorder {
 }
 
 // walk mocks base method
-func (m *MockWalkerAlgorithm) walk(visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Document, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error), numberOfNodes int) error {
+func (m *MockWalkerAlgorithm) walk(visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Document, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "walk", visitor, startAt, getFn, nextsFn, numberOfNodes)
+	ret := m.ctrl.Call(m, "walk", visitor, startAt, getFn, nextsFn)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // walk indicates an expected call of walk
-func (mr *MockWalkerAlgorithmMockRecorder) walk(visitor, startAt, getFn, nextsFn, numberOfNodes interface{}) *gomock.Call {
+func (mr *MockWalkerAlgorithmMockRecorder) walk(visitor, startAt, getFn, nextsFn interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "walk", reflect.TypeOf((*MockWalkerAlgorithm)(nil).walk), visitor, startAt, getFn, nextsFn, numberOfNodes)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "walk", reflect.TypeOf((*MockWalkerAlgorithm)(nil).walk), visitor, startAt, getFn, nextsFn)
 }
 
 // MockPayloadStore is a mock of PayloadStore interface

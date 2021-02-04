@@ -103,9 +103,9 @@ func TestNetwork_Diagnostics(t *testing.T) {
 }
 
 func TestNetwork_Configure(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
 		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.p2pNetwork.EXPECT().Configure(gomock.Any())
@@ -115,11 +115,11 @@ func TestNetwork_Configure(t *testing.T) {
 		}
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
-		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
-		cxt.p2pNetwork.EXPECT().Configure(gomock.Any())
 		err := cxt.network.Configure(core.NutsConfig{Datadir:  "network_test.go"})
-		assert.Error(t, err, "")
+		assert.Error(t, err)
 	})
 }
 
