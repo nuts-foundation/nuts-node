@@ -106,7 +106,7 @@ type Signable interface {
 
 // Referenceable contains the Ref function which allows implementors to return a unique reference
 type Referenceable interface {
-	// A Ref is the hash of the JWS envelope
+	// Ref returns a unique sha256 hash of the implementing object.
 	Ref() hash.SHA256Hash
 }
 

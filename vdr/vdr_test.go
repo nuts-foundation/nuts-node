@@ -39,7 +39,7 @@ func TestVDR_Update(t *testing.T) {
 	}
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
 	didStoreMock.EXPECT().Resolve(*id, expectedResolverMetada).Return(nil, &resolvedMetadata, nil)
-	networkMock.EXPECT().CreateDocument(DIDDocumentType, expectedPayload, keyID.String(), false, gomock.Any(), gomock.Any(), gomock.Any())
+	networkMock.EXPECT().CreateDocument(didDocumentType, expectedPayload, keyID.String(), false, gomock.Any(), gomock.Any(), gomock.Any())
 	err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
 	assert.NoError(t, err)
 }
@@ -60,7 +60,7 @@ func TestVDR_Create(t *testing.T) {
 	}
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
 	didCreator.EXPECT().Create().Return(&nextDIDDocument, nil)
-	networkMock.EXPECT().CreateDocument(DIDDocumentType, expectedPayload, keyID.String(), true, gomock.Any())
+	networkMock.EXPECT().CreateDocument(didDocumentType, expectedPayload, keyID.String(), true, gomock.Any())
 	didDoc, err := vdr.Create()
 	assert.NoError(t, err)
 	assert.NotNil(t, didDoc)

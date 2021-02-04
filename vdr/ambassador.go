@@ -37,8 +37,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
 )
 
-// DIDDocumentType contains network document mime-type to identify a DID Document in the network.
-const DIDDocumentType = "application/json+did-document"
+// didDocumentType contains network document mime-type to identify a DID Document in the network.
+const didDocumentType = "application/json+did-document"
 
 // Ambassador acts as integration point between VDR and network by sending DID Documents network and process
 // DID Documents received through the network.
@@ -67,7 +67,7 @@ const NewDocumentVersion = 0
 
 // Start instructs the ambassador to start receiving DID Documents from the network.
 func (n *ambassador) Start() {
-	n.networkClient.Subscribe(DIDDocumentType, n.callback)
+	n.networkClient.Subscribe(didDocumentType, n.callback)
 }
 
 // thumbprintAlg is used for creating public key thumbprints
@@ -78,7 +78,7 @@ var thumbprintAlg = crypto.SHA256
 // The rules are based on the Nuts RFC006
 // payload should be a json encoded did.document
 func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) error {
-	logging.Log().Info("Processing DID documents received from Nuts Network.", DIDDocumentType, document.Ref())
+	logging.Log().Info("Processing DID documents received from Nuts Network.", didDocumentType, document.Ref())
 	if err := checkSubscriberDocumentIntegrity(document); err != nil {
 		return fmt.Errorf("callback could not process new DID Document: %w", err)
 	}
@@ -204,8 +204,8 @@ func (n *ambassador) updateDIDDocument(document dag.SubscriberDocument, nextDIDD
 // checkSubscriberDocumentIntegrity performs basic integrity checks on the SubscriberDocument fields:
 func checkSubscriberDocumentIntegrity(document dag.SubscriberDocument) error {
 	// check the payload type:
-	if document.PayloadType() != DIDDocumentType {
-		return fmt.Errorf("wrong payload type for this subscriber. Can handle: %s, got: %s", DIDDocumentType, document.PayloadType())
+	if document.PayloadType() != didDocumentType {
+		return fmt.Errorf("wrong payload type for this subscriber. Can handle: %s, got: %s", didDocumentType, document.PayloadType())
 	}
 
 	// PayloadHash must be set
