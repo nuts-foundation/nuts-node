@@ -12,7 +12,7 @@ gen-mocks:
 	mockgen -destination=network/proto/mock.go -package=proto -source=network/proto/interface.go Protocol
 	mockgen -destination=network/p2p/mock.go -package=p2p -source=network/p2p/interface.go P2PNetwork
 	mockgen -destination=network/mock.go -package=network -source=network/interface.go
-	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/dag.go DAG PayloadStore
+	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go DAG PayloadStore
 
 gen-api:
 	oapi-codegen -generate types,server,client -package v1 docs/_static/crypto/v1.yaml > crypto/api/v1/generated.go

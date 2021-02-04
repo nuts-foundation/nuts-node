@@ -30,9 +30,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/proto"
 	"github.com/pkg/errors"
+	"go.etcd.io/bbolt"
 	"sync"
 	"time"
 )
+
+// boltDBFileMode holds the Unix file mode the created BBolt database files will have.
+const boltDBFileMode = 0600
 
 // ModuleName defines the name of this module
 const ModuleName = "Network"
@@ -45,6 +49,7 @@ type NetworkEngine struct {
 	p2pNetwork    p2p.P2PNetwork
 	protocol      proto.Protocol
 	documentGraph dag.DAG
+	publisher     dag.Publisher
 	payloadStore  dag.PayloadStore
 	keyStore      crypto.KeyStore
 }
@@ -64,9 +69,14 @@ func NewNetworkInstance(config Config, keyStore crypto.KeyStore) *NetworkEngine 
 func (n *NetworkEngine) Configure() error {
 	var err error
 	n.configOnce.Do(func() {
-		if n.documentGraph, n.payloadStore, err = dag.NewBBoltDAG(n.Config.DatabaseFile); err != nil {
+		db, bboltErr := bbolt.Open(n.Config.DatabaseFile, boltDBFileMode, bbolt.DefaultOptions)
+		if bboltErr != nil {
+			err = fmt.Errorf("unable to create bbolt database: %w", err)
 			return
 		}
+		n.documentGraph = dag.NewBBoltDAG(db)
+		n.payloadStore = dag.NewBBoltPayloadStore(db)
+		n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.documentGraph)
 		peerID := p2p.PeerID(uuid.New().String())
 		n.protocol.Configure(n.p2pNetwork, n.documentGraph, n.payloadStore, dag.NewDocumentSignatureVerifier(n.keyStore), time.Duration(n.Config.AdvertHashesInterval)*time.Millisecond, peerID)
 		networkConfig, p2pErr := n.buildP2PConfig(peerID)
@@ -92,13 +102,14 @@ func (n *NetworkEngine) Start() error {
 		log.Logger().Warn("NetworkEngine is in offline mode (P2P layer not configured).")
 	}
 	n.protocol.Start()
+	n.publisher.Start()
 	return nil
 }
 
 // Subscribe makes a subscription for the specified document type. The receiver is called when a document
 // is received for the specified type.
 func (n *NetworkEngine) Subscribe(documentType string, receiver dag.Receiver) {
-	n.documentGraph.Subscribe(documentType, receiver)
+	n.publisher.Subscribe(documentType, receiver)
 }
 
 // GetDocument retrieves the document for the given reference. If the document is not known, an error is returned.

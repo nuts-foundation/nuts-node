@@ -54,3 +54,38 @@ func CreateTestDocument(num uint32, prevs ...hash.SHA256Hash) (Document, string,
 	}
 	return signedDocument, kid, signer.Key.Public()
 }
+
+// graphF creates the following graph:
+//..................A
+//................/  \
+//...............B    C
+//...............\   / \
+//.................D    E
+//.......................\
+//........................F
+func graphF() []Document {
+	A := CreateTestDocumentWithJWK(0)
+	B := CreateTestDocumentWithJWK(1, A.Ref())
+	C := CreateTestDocumentWithJWK(2, A.Ref())
+	D := CreateTestDocumentWithJWK(3, B.Ref(), C.Ref())
+	E := CreateTestDocumentWithJWK(4, C.Ref())
+	F := CreateTestDocumentWithJWK(5, E.Ref())
+	return []Document{A, B, C, D, E, F}
+}
+
+// graphG creates the following graph:
+//..................A
+//................/  \
+//...............B    C
+//...............\   / \
+//.................D    E
+//.................\.....\
+//..................\.....F
+//...................\.../
+//.....................G
+func graphG() []Document {
+	docs := graphF()
+	g := CreateTestDocumentWithJWK(6, docs[3].Ref(), docs[5].Ref())
+	docs = append(docs, g)
+	return docs
+}

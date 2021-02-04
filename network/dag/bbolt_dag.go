@@ -27,9 +27,6 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-// payloadsBucket is the name of the Bolt bucket that holds the payloads of the documents.
-const payloadsBucket = "payloads"
-
 // documentsBucket is the name of the Bolt bucket that holds the actual documents as JSON.
 const documentsBucket = "documents"
 
@@ -52,12 +49,9 @@ const rootsDocumentKey = "roots"
 // headsBucket contains the name of the bucket the holds the heads.
 const headsBucket = "heads"
 
-// boltDBFileMode holds the Unix file mode the created BBolt database files will have.
-const boltDBFileMode = 0600
-
 type bboltDAG struct {
-	db          *bbolt.DB
-	subscribers map[string]Receiver
+	db        *bbolt.DB
+	observers []Observer
 }
 
 type headsStatistic struct {
@@ -97,19 +91,13 @@ func (d dataSizeStatistic) String() string {
 	return fmt.Sprintf("%d", d.sizeInBytes)
 }
 
-// NewBBoltDAG creates a etcd/bbolt backed DAG using the given database file path. If the file doesn't exist, it's created.
-// The parent directory of the path must exist, otherwise an error could be returned. If the file can't be created or
-// read, an error is returned as well.
-func NewBBoltDAG(path string) (DAG, PayloadStore, error) {
-	db, err := bbolt.Open(path, boltDBFileMode, bbolt.DefaultOptions)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to create bbolt DAG: %w", err)
-	}
-	instance := &bboltDAG{
-		db:          db,
-		subscribers: map[string]Receiver{},
-	}
-	return instance, instance, nil
+// NewBBoltDAG creates a etcd/bbolt backed DAG using the given database.
+func NewBBoltDAG(db *bbolt.DB) DAG {
+	return &bboltDAG{db: db}
+}
+
+func (dag *bboltDAG) RegisterObserver(observer Observer) {
+	dag.observers = append(dag.observers, observer)
 }
 
 func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
@@ -126,47 +114,6 @@ func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 	// TODO: https://github.com/nuts-foundation/nuts-node/issues/11
 	result = append(result, dataSizeStatistic{sizeInBytes: 0})
 	return result
-}
-
-func (dag *bboltDAG) Subscribe(documentType string, receiver Receiver) {
-	oldSubscriber := dag.subscribers[documentType]
-	dag.subscribers[documentType] = func(document Document, payload []byte) error {
-		// Chain subscribers in case there's more than 1
-		if oldSubscriber != nil {
-			if err := oldSubscriber(document, payload); err != nil {
-				return err
-			}
-		}
-		return receiver(document, payload)
-	}
-}
-
-func (dag bboltDAG) ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error) {
-	var result []byte
-	err := dag.db.View(func(tx *bbolt.Tx) error {
-		if payloads := tx.Bucket([]byte(payloadsBucket)); payloads != nil {
-			result = payloads.Get(payloadHash.Slice())
-		}
-		return nil
-	})
-	return result, err
-}
-
-func (dag bboltDAG) WritePayload(payloadHash hash.SHA256Hash, data []byte) error {
-	err := dag.db.Update(func(tx *bbolt.Tx) error {
-		payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucket))
-		if err != nil {
-			return err
-		}
-		if err := payloads.Put(payloadHash.Slice(), data); err != nil {
-			return err
-		}
-		return nil
-	})
-	if err == nil {
-		dag.payloadReceived(payloadHash, data)
-	}
-	return err
 }
 
 func (dag bboltDAG) Get(ref hash.SHA256Hash) (Document, error) {
@@ -242,11 +189,7 @@ func (dag bboltDAG) All() ([]Document, error) {
 }
 
 func (dag bboltDAG) IsPresent(ref hash.SHA256Hash) (bool, error) {
-	return dag.isPresent(documentsBucket, ref.Slice())
-}
-
-func (dag bboltDAG) IsPayloadPresent(payloadHash hash.SHA256Hash) (bool, error) {
-	return dag.isPresent(payloadsBucket, payloadHash.Slice())
+	return isPresent(dag.db, documentsBucket, ref.Slice())
 }
 
 func (dag bboltDAG) MissingDocuments() []hash.SHA256Hash {
@@ -276,7 +219,7 @@ func (dag *bboltDAG) Add(documents ...Document) error {
 	return nil
 }
 
-func (dag bboltDAG) Walk(walker Walker, visitor Visitor, startAt hash.SHA256Hash) error {
+func (dag bboltDAG) Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error {
 	return dag.db.View(func(tx *bbolt.Tx) error {
 		documents := tx.Bucket([]byte(documentsBucket))
 		nexts := tx.Bucket([]byte(nextsBucket))
@@ -284,11 +227,11 @@ func (dag bboltDAG) Walk(walker Walker, visitor Visitor, startAt hash.SHA256Hash
 			// DAG is empty
 			return nil
 		}
-		return walker.walk(visitor, startAt, func(hash hash.SHA256Hash) (Document, error) {
+		return algo.walk(visitor, startAt, func(hash hash.SHA256Hash) (Document, error) {
 			return getDocument(hash, documents)
 		}, func(hash hash.SHA256Hash) ([]hash.SHA256Hash, error) {
 			return parseHashList(nexts.Get(hash.Slice())), nil
-		}, documents.Stats().KeyN) // TODO Optimization: should we cache this number of keys?
+		})
 	})
 }
 
@@ -304,10 +247,10 @@ func (dag bboltDAG) Root() (hash hash.SHA256Hash, err error) {
 	return
 }
 
-func (dag bboltDAG) isPresent(bucketName string, key []byte) (bool, error) {
+func isPresent(db *bbolt.DB, bucketName string, key []byte) (bool, error) {
 	var result bool
 	var err error
-	err = dag.db.View(func(tx *bbolt.Tx) error {
+	err = db.View(func(tx *bbolt.Tx) error {
 		if payloads := tx.Bucket([]byte(bucketName)); payloads != nil {
 			data := payloads.Get(key)
 			result = len(data) > 0
@@ -320,8 +263,8 @@ func (dag bboltDAG) isPresent(bucketName string, key []byte) (bool, error) {
 func (dag *bboltDAG) add(document Document) error {
 	ref := document.Ref()
 	refSlice := ref.Slice()
-	return dag.db.Update(func(tx *bbolt.Tx) error {
-		documents, nexts, missingDocuments, payloadIndex, _, heads, err := getBuckets(tx)
+	err := dag.db.Update(func(tx *bbolt.Tx) error {
+		documents, nexts, missingDocuments, payloadIndex, heads, err := getBuckets(tx)
 		if err != nil {
 			return err
 		}
@@ -370,9 +313,13 @@ func (dag *bboltDAG) add(document Document) error {
 		// Remove marker if this document was previously missing
 		return missingDocuments.Delete(refSlice)
 	})
+	if err == nil {
+		notifyObservers(dag.observers, document)
+	}
+	return err
 }
 
-func getBuckets(tx *bbolt.Tx) (documents, nexts, missingDocuments, payloadIndex, payloads, heads *bbolt.Bucket, err error) {
+func getBuckets(tx *bbolt.Tx) (documents, nexts, missingDocuments, payloadIndex, heads *bbolt.Bucket, err error) {
 	if documents, err = tx.CreateBucketIfNotExists([]byte(documentsBucket)); err != nil {
 		return
 	}
@@ -383,9 +330,6 @@ func getBuckets(tx *bbolt.Tx) (documents, nexts, missingDocuments, payloadIndex,
 		return
 	}
 	if payloadIndex, err = tx.CreateBucketIfNotExists([]byte(payloadIndexBucket)); err != nil {
-		return
-	}
-	if payloads, err = tx.CreateBucketIfNotExists([]byte(payloadsBucket)); err != nil {
 		return
 	}
 	if heads, err = tx.CreateBucketIfNotExists([]byte(headsBucket)); err != nil {
@@ -414,32 +358,6 @@ func (dag *bboltDAG) registerNextRef(nextsBucket *bbolt.Bucket, prev hash.SHA256
 	}
 	// Existing entry for this prev so add this one to it
 	return nextsBucket.Put(prevSlice, appendHashList(value, next))
-}
-
-func (dag *bboltDAG) payloadReceived(payloadHash hash.SHA256Hash, payload []byte) {
-	// TODO: This is a stupid implementation that doesn't retry failed subscribers or publish documents in-order
-	// (since documents and payload may arrive out-of-order). Should be changed to something more intelligent.
-	err := dag.db.View(func(tx *bbolt.Tx) error {
-		documents := tx.Bucket([]byte(documentsBucket))
-		payloadsIndex := tx.Bucket([]byte(payloadIndexBucket))
-		if documents == nil || payloadsIndex == nil {
-			return nil
-		}
-		for _, documentRef := range parseHashList(payloadsIndex.Get(payloadHash.Slice())) {
-			if document, err := getDocument(documentRef, documents); err != nil {
-				return err
-			} else if receiver := dag.subscribers[document.PayloadType()]; receiver == nil {
-				continue
-			} else if err := receiver(document, payload); err != nil {
-				// TODO: Should this be done in a goroutine to make sure applications don't block network processes?
-				log.Logger().Errorf("Document subscriber returned an error (document=%s,type=%s): %v", document.Ref(), document.PayloadType(), err)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		log.Logger().Errorf("Unable to publish document (payload=%s): %v", payloadHash, err)
-	}
 }
 
 func getDocument(hash hash.SHA256Hash, documents *bbolt.Bucket) (Document, error) {
@@ -477,4 +395,10 @@ func appendHashList(list []byte, h hash.SHA256Hash) []byte {
 	newList = append(newList, list...)
 	newList = append(newList, h.Slice()...)
 	return newList
+}
+
+func notifyObservers(observers []Observer, subject interface{}) {
+	for _, observer := range observers {
+		observer(subject)
+	}
 }
