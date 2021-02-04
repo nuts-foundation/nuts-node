@@ -20,7 +20,9 @@
 package core
 
 import (
+	"fmt"
 	"net/url"
+	"os"
 
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/cobra"
@@ -40,7 +42,7 @@ type System struct {
 	// engines is the slice of all registered engines
 	engines []*Engine
 	// Config holds the global and raw config
-	Config *NutsGlobalConfig
+	Config *NutsConfig
 }
 
 // Load loads the config and injects config values into engines
@@ -94,10 +96,13 @@ func (system *System) Shutdown() error {
 // Configure configures all engines in the system.
 func (system *System) Configure() error {
 	var err error
+	if err = os.MkdirAll(system.Config.Datadir, os.ModePerm); err != nil {
+		return fmt.Errorf("unable to create datadir (dir=%s): %w", system.Config.Datadir, err)
+	}
 	return system.VisitEnginesE(func(engine *Engine) error {
 		// only if Engine is dynamically configurable
 		if engine.Configurable != nil {
-			err = engine.Configure()
+			err = engine.Configure(*system.Config)
 		}
 		return err
 	})
@@ -160,7 +165,7 @@ type Runnable interface {
 // When an engine implements the Configurable interface, it will be called before startup.
 // Configure should only be called once per engine instance
 type Configurable interface {
-	Configure() error
+	Configure(config NutsConfig) error
 }
 
 // Diagnosable allows the implementer, mostly engines, to return diagnostics.

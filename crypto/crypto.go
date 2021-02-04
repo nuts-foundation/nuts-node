@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"io"
+	"path"
 	"sync"
 	"time"
 )
@@ -35,22 +36,12 @@ import (
 // Config holds the values for the crypto engine
 type Config struct {
 	Storage string
-	Fspath  string
-}
-
-func (cc Config) getFSPath() string {
-	if cc.Fspath == "" {
-		return DefaultCryptoConfig().Fspath
-	}
-
-	return cc.Fspath
 }
 
 // DefaultCryptoConfig returns a Config with sane defaults
 func DefaultCryptoConfig() Config {
 	return Config{
 		Storage: "fs",
-		Fspath:  "./",
 	}
 }
 
@@ -106,22 +97,23 @@ func Instance() *Crypto {
 }
 
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
-func (client *Crypto) Configure() error {
+func (client *Crypto) Configure(config core.NutsConfig) error {
 	var err error
 	client.configOnce.Do(func() {
-		if err = client.doConfigure(); err == nil {
+		if err = client.doConfigure(config); err == nil {
 			client.configDone = true
 		}
 	})
 	return err
 }
 
-func (client *Crypto) doConfigure() error {
+func (client *Crypto) doConfigure(config core.NutsConfig) error {
 	if client.Config.Storage != "fs" && client.Config.Storage != "" {
 		return errors.New("only fs backend available for now")
 	}
 	var err error
-	if client.Storage, err = storage.NewFileSystemBackend(client.Config.getFSPath()); err != nil {
+	fsPath := path.Join(config.Datadir, "crypto")
+	if client.Storage, err = storage.NewFileSystemBackend(fsPath); err != nil {
 		return err
 	}
 	return nil

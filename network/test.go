@@ -19,16 +19,16 @@
 package network
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/sirupsen/logrus"
-	"path"
 )
 
 // NewTestNetworkInstance creates a new Network instance that writes it data to a test directory.
 func NewTestNetworkInstance(testDirectory string) *NetworkEngine {
 	config := TestNetworkConfig(testDirectory)
 	newInstance := NewNetworkInstance(config, crypto.NewTestCryptoInstance(testDirectory))
-	if err := newInstance.Configure(); err != nil {
+	if err := newInstance.Configure(core.NutsConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)
 	}
 	return newInstance
@@ -37,7 +37,6 @@ func NewTestNetworkInstance(testDirectory string) *NetworkEngine {
 // NewTestNetworkInstance creates new network config with a test directory as data path.
 func TestNetworkConfig(testDirectory string) Config {
 	config := DefaultConfig()
-	config.DatabaseFile = path.Join(testDirectory, "network.db")
 	config.GrpcAddr = ":5555"
 	config.EnableTLS = false
 	config.PublicAddr = "test:5555"

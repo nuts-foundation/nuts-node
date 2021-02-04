@@ -35,9 +35,6 @@ import (
 // ConfigStorage is used as --crypto.storage config flag
 const ConfigStorage string = "crypto.storage"
 
-// ConfigFSPath is used as --crypto.fspath config flagclient.getStoragePath()
-const ConfigFSPath string = "crypto.fspath"
-
 // NewCryptoEngine the engine configuration for nuts-go.
 func NewCryptoEngine() (*core.Engine, crypto2.KeyStore) {
 	cb := crypto2.Instance()
@@ -62,7 +59,6 @@ func flagSet() *pflag.FlagSet {
 
 	defs := crypto2.DefaultCryptoConfig()
 	flags.String(ConfigStorage, defs.Storage, fmt.Sprintf("Storage to use, 'fs' for file system, default: %s", defs.Storage))
-	flags.String(ConfigFSPath, defs.Fspath, fmt.Sprintf("When file system is used as storage, this configures the path where key material and the truststore are persisted, default: %v", defs.Fspath))
 
 	return flags
 }

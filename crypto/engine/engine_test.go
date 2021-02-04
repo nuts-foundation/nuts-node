@@ -171,10 +171,6 @@ func TestNewCryptoEngine_FlagSet(t *testing.T) {
 			t.Errorf("Expected --storage to be command line flag")
 		}
 
-		if !strings.Contains(result, "--crypto.fspath") {
-			t.Errorf("Expected --fspath to be command line flag")
-		}
-
 	})
 }
 

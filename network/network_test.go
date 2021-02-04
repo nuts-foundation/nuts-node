@@ -109,7 +109,7 @@ func TestNetwork_Configure(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.p2pNetwork.EXPECT().Configure(gomock.Any())
-		err := cxt.network.Configure()
+		err := cxt.network.Configure(core.NutsConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
 		}

@@ -71,7 +71,7 @@ func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.N
 }
 
 // Configure initializes the db, but only when in server mode
-func (r *VDR) Configure() error {
+func (r *VDR) Configure(_ core.NutsConfig) error {
 	var err error
 
 	r.configOnce.Do(func() {
@@ -95,10 +95,6 @@ func (r *VDR) Shutdown() error {
 // Diagnostics returns the diagnostics for this engine
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{}
-}
-
-func (r *VDR) getEventsDir() string {
-	return r.Config.Datadir + "/events"
 }
 
 // Create generates a new DID Document

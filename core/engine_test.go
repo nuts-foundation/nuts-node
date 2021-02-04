@@ -70,7 +70,7 @@ func TestSystem_Configure(t *testing.T) {
 	defer ctrl.Finish()
 
 	r := NewMockConfigurable(ctrl)
-	r.EXPECT().Configure()
+	r.EXPECT().Configure(gomock.Any())
 
 	system := NewSystem()
 	system.RegisterEngine(&Engine{})

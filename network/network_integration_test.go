@@ -36,7 +36,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"hash/crc32"
-	"os"
 	"path"
 	"sync"
 	"testing"
@@ -194,7 +193,6 @@ func addDocumentAndWaitForItToArrive(t *testing.T, payload string, sender *Netwo
 
 func startNode(name string, directory string) (*NetworkEngine, error) {
 	log.Logger().Infof("Starting node: %s", name)
-	os.MkdirAll(directory, os.ModePerm)
 	logrus.SetLevel(logrus.DebugLevel)
 	core.NewNutsConfig().Load(&cobra.Command{})
 	mutex.Lock()
@@ -206,7 +204,6 @@ func startNode(name string, directory string) (*NetworkEngine, error) {
 		keyStore:   nutsCrypto.Instance(),
 		Config: Config{
 			GrpcAddr:             fmt.Sprintf(":%d", nameToPort(name)),
-			DatabaseFile:         path.Join(directory, "network.db"),
 			PublicAddr:           fmt.Sprintf("localhost:%d", nameToPort(name)),
 			CertFile:             "test/certificate-and-key.pem",
 			CertKeyFile:          "test/certificate-and-key.pem",
@@ -215,7 +212,7 @@ func startNode(name string, directory string) (*NetworkEngine, error) {
 			AdvertHashesInterval: 500,
 		},
 	}
-	if err := instance.Configure(); err != nil {
+	if err := instance.Configure(core.NutsConfig{Datadir: directory}); err != nil {
 		return nil, err
 	}
 	if err := instance.Start(); err != nil {

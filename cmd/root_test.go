@@ -7,7 +7,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"os"
-	"path"
 	"testing"
 )
 
@@ -50,22 +49,13 @@ func Test_rootCmd(t *testing.T) {
 			return echoServer
 		}
 
-		expectedAddress := "some-other-address:1323"
-
 		testDirectory := io.TestDirectory(t)
-		os.Setenv("NUTS_ADDRESS", expectedAddress)
-		defer os.Unsetenv("NUTS_ADDRESS")
-		os.Setenv("NUTS_NETWORK_DATABASEFILE", path.Join(testDirectory, "network.db"))
-		defer os.Unsetenv("NUTS_NETWORK_DATABASEFILE")
-		os.Setenv("NUTS_VDR_DATADIR", path.Join(testDirectory, "vdr"))
-		defer os.Unsetenv("NUTS_VDR_DATADIR")
-		os.Setenv("NUTS_CRYPTO_FSPATH", path.Join(testDirectory, "crypto"))
-		defer os.Unsetenv("NUTS_CRYPTO_FSPATH")
-
+		os.Setenv("NUTS_DATADIR", testDirectory)
+		defer os.Unsetenv("NUTS_DATADIR")
 		os.Args = []string{"nuts", "server"}
 
 		type Cfg struct {
-			Address string
+			Datadir string
 		}
 		var engineCfg = &Cfg{}
 		engine := &core.Engine{
@@ -78,9 +68,9 @@ func Test_rootCmd(t *testing.T) {
 
 		Execute(system)
 		// Assert global config contains overridden property
-		assert.Equal(t, expectedAddress, system.Config.Address)
+		assert.Equal(t, testDirectory, system.Config.Datadir)
 		// Assert engine config is injected
-		assert.Equal(t, expectedAddress, engineCfg.Address)
+		assert.Equal(t, testDirectory, engineCfg.Datadir)
 	})
 }
 

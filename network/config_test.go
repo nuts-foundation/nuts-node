@@ -8,7 +8,6 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	defs := DefaultConfig()
 	assert.True(t, defs.EnableTLS)
-	assert.Equal(t, "network.db", defs.DatabaseFile)
 	assert.Equal(t, 2000, defs.AdvertHashesInterval)
 	assert.Equal(t, ":5555", defs.GrpcAddr)
 }

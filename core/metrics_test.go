@@ -33,7 +33,7 @@ import (
 
 func TestNewMetricsEngine(t *testing.T) {
 	mEngine := NewMetricsEngine()
-	_ = mEngine.Configure()
+	_ = mEngine.Configure(NutsConfig{})
 	e := echo.New()
 	mEngine.Routes(e)
 
@@ -56,7 +56,7 @@ func TestNewMetricsEngine(t *testing.T) {
 	})
 
 	t.Run("calling configure twice is ok", func(t *testing.T) {
-		err := mEngine.Configure()
+		err := mEngine.Configure(NutsConfig{})
 
 		assert.NoError(t, err)
 	})
