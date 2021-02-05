@@ -4,7 +4,7 @@ Configuring for Production
 ##########################
 
 Running a Nuts node in a production environment has to other requirements than a development or test environment.
-This page will instruct how to configure your node for running in production and what to consider.
+This page will instruct how to :ref:`configure <nuts-node-config>` your node for running in production and what to consider.
 
 Persistence
 ***********
