@@ -21,9 +21,8 @@ package main
 
 import (
 	"github.com/nuts-foundation/nuts-node/cmd"
-	"github.com/nuts-foundation/nuts-node/core"
 )
 
 func main() {
-	cmd.Execute(core.NewSystem())
+	cmd.Execute(cmd.CreateSystem())
 }
