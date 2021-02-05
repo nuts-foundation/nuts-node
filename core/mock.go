@@ -487,17 +487,17 @@ func (m *MockConfigurable) EXPECT() *MockConfigurableMockRecorder {
 }
 
 // Configure mocks base method
-func (m *MockConfigurable) Configure() error {
+func (m *MockConfigurable) Configure(config NutsConfig) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Configure")
+	ret := m.ctrl.Call(m, "Configure", config)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Configure indicates an expected call of Configure
-func (mr *MockConfigurableMockRecorder) Configure() *gomock.Call {
+func (mr *MockConfigurableMockRecorder) Configure(config interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockConfigurable)(nil).Configure))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockConfigurable)(nil).Configure), config)
 }
 
 // MockDiagnosable is a mock of Diagnosable interface

@@ -1,0 +1,23 @@
+.. _prodruction-configuration:
+
+Configuring for Production
+##########################
+
+Running a Nuts node in a production environment has additional requirements regarding security and data integrity
+compared to development or test environments. This page instructs how to :ref:`configure <nuts-node-config>`
+your node for running in a production environment and what to consider.
+
+Persistence
+***********
+
+All data the node produces is stored on disk in the configured data directory (`datadir`). It is recommended to backup
+everything in that directory. However, there are certain directories that absolutely should be part of the backup:
+
+* `crypto`, because it contains your node's private keys
+
+Strict mode
+***********
+
+By default the node runs in a mode which allows the operator run configure the node in such a way that it is less secure.
+For production it is recommended to enable `strictmode` which blocks some of the unsafe configuration options
+(e.g. using the IRMA demo scheme).

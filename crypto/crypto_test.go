@@ -119,14 +119,16 @@ func TestCrypto_New(t *testing.T) {
 }
 
 func TestCrypto_doConfigure(t *testing.T) {
+	directory := io.TestDirectory(t)
+	cfg := core.NutsConfig{Datadir: directory}
 	t.Run("ok", func(t *testing.T) {
 		e := createCrypto(t)
-		err := e.doConfigure()
+		err := e.doConfigure(cfg)
 		assert.NoError(t, err)
 	})
 	t.Run("ok - default = fs backend", func(t *testing.T) {
 		client := createCrypto(t)
-		err := client.doConfigure()
+		err := client.doConfigure(cfg)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -136,7 +138,7 @@ func TestCrypto_doConfigure(t *testing.T) {
 	t.Run("error - unknown backend", func(t *testing.T) {
 		client := createCrypto(t)
 		client.Config.Storage = "unknown"
-		err := client.doConfigure()
+		err := client.doConfigure(cfg)
 		assert.EqualErrorf(t, err, "only fs backend available for now", "expected error")
 	})
 }
@@ -145,27 +147,19 @@ func TestCrypto_Configure(t *testing.T) {
 	createCrypto(t)
 
 	t.Run("ok - configOnce", func(t *testing.T) {
+		directory := io.TestDirectory(t)
 		e := createCrypto(t)
 		assert.False(t, e.configDone)
-		err := e.Configure()
+		err := e.Configure(core.NutsConfig{Datadir: directory})
 		if !assert.NoError(t, err) {
 			return
 		}
 		assert.True(t, e.configDone)
-		err = e.Configure()
+		err = e.Configure(core.NutsConfig{Datadir: directory})
 		if !assert.NoError(t, err) {
 			return
 		}
 		assert.True(t, e.configDone)
-	})
-}
-
-func TestCryptoConfig_getFsPath(t *testing.T) {
-	t.Run("no path configured returns defaultPath", func(t *testing.T) {
-		c := Config{
-			Fspath: "",
-		}
-		assert.Equal(t, "./", c.getFSPath())
 	})
 }
 
@@ -174,7 +168,6 @@ func createCrypto(t *testing.T) *Crypto {
 	backend, _ := storage.NewFileSystemBackend(dir)
 	crypto := Crypto{
 		Storage: backend,
-		Config:  TestCryptoConfig(dir),
 	}
 
 	return &crypto

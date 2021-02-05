@@ -41,7 +41,7 @@ type metricsEngine struct{}
 
 // Configure configures the MetricsEngine.
 // It configures and registers the prometheus collector
-func (metricsEngine) Configure() error {
+func (metricsEngine) Configure(_ NutsConfig) error {
 	collectors := []prometheus.Collector{
 		prometheus.NewGoCollector(),
 		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),

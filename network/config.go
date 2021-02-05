@@ -10,8 +10,7 @@ import (
 // Config holds the config for Network
 type Config struct {
 	// Socket address for gRPC to listen on
-	GrpcAddr     string `koanf:"grpcAddr"`
-	DatabaseFile string `koanf:"databaseFile"`
+	GrpcAddr string `koanf:"grpcAddr"`
 	// EnableTLS specifies whether to enable TLS for incoming connections.
 	EnableTLS bool `koanf:"enableTLS"`
 	// Public address of this nodes other nodes can use to connect to this node.
@@ -30,7 +29,6 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		GrpcAddr:             ":5555",
-		DatabaseFile:         "network.db",
 		EnableTLS:            true,
 		AdvertHashesInterval: 2000,
 	}

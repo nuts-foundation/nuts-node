@@ -31,6 +31,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/proto"
 	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
+	"os"
+	"path"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -66,13 +69,16 @@ func NewNetworkInstance(config Config, keyStore crypto.KeyStore) *NetworkEngine 
 }
 
 // Configure configures the NetworkEngine subsystem
-func (n *NetworkEngine) Configure() error {
+func (n *NetworkEngine) Configure(config core.NutsConfig) error {
 	var err error
 	n.configOnce.Do(func() {
-		db, bboltErr := bbolt.Open(n.Config.DatabaseFile, boltDBFileMode, bbolt.DefaultOptions)
+		dbFile := path.Join(config.Datadir, "network", "data.db")
+		if err = os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
+			return
+		}
+		db, bboltErr := bbolt.Open(dbFile, boltDBFileMode, bbolt.DefaultOptions)
 		if bboltErr != nil {
 			err = fmt.Errorf("unable to create bbolt database: %w", err)
-			return
 		}
 		n.documentGraph = dag.NewBBoltDAG(db)
 		n.payloadStore = dag.NewBBoltPayloadStore(db)

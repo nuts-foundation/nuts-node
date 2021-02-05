@@ -40,31 +40,35 @@ const defaultConfigFile = "nuts.yaml"
 const configFileFlag = "configfile"
 const loggerLevelFlag = "verbosity"
 const addressFlag = "address"
+const datadirFlag = "datadir"
 const defaultLogLevel = "info"
 const defaultAddress = "localhost:1323"
 const strictModeFlag = "strictmode"
 const defaultStrictMode = false
+const defaultDatadir = "./data"
 
-// NutsGlobalConfig has global settings.
-type NutsGlobalConfig struct {
+// NutsConfig has global settings.
+type NutsConfig struct {
 	Address    string `koanf:"address"`
 	Verbosity  string `koanf:"verbosity"`
 	Strictmode bool   `koanf:"strictmode"`
+	Datadir    string `koanf:"datadir"`
 	configMap  *koanf.Koanf
 }
 
 // NewNutsConfig creates a new config with some defaults
-func NewNutsConfig() *NutsGlobalConfig {
-	return &NutsGlobalConfig{
+func NewNutsConfig() *NutsConfig {
+	return &NutsConfig{
 		configMap:  koanf.New(defaultDelimiter),
 		Address:    defaultAddress,
 		Verbosity:  defaultLogLevel,
 		Strictmode: defaultStrictMode,
+		Datadir:    defaultDatadir,
 	}
 }
 
 // Load follows the load order of configfile, env vars and then commandline param
-func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) (err error) {
+func (ngc *NutsConfig) Load(cmd *cobra.Command) (err error) {
 	cmd.PersistentFlags().AddFlagSet(ngc.flagSet())
 
 	ngc.configMap = koanf.New(defaultDelimiter)
@@ -111,7 +115,7 @@ func (ngc *NutsGlobalConfig) Load(cmd *cobra.Command) (err error) {
 }
 
 // getConfigfile returns the configfile path in the following order: commandline param, env variable, default path
-func (ngc *NutsGlobalConfig) getConfigfile(cmd *cobra.Command) string {
+func (ngc *NutsConfig) getConfigfile(cmd *cobra.Command) string {
 	k := koanf.New(defaultDelimiter)
 
 	// load env flags
@@ -133,22 +137,23 @@ func (ngc *NutsGlobalConfig) getConfigfile(cmd *cobra.Command) string {
 	return k.String(configFileFlag)
 }
 
-func (ngc *NutsGlobalConfig) flagSet() *pflag.FlagSet {
+func (ngc *NutsConfig) flagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("config", pflag.ContinueOnError)
 	flagSet.String(configFileFlag, defaultConfigFile, "Nuts config file")
 	flagSet.String(loggerLevelFlag, defaultLogLevel, "Log level (trace, debug, info, warn, error)")
 	flagSet.String(addressFlag, defaultAddress, "Address and port the server will be listening to")
 	flagSet.Bool(strictModeFlag, defaultStrictMode, "When set, insecure settings are forbidden.")
+	flagSet.String(datadirFlag, defaultDatadir, "Directory where the node stores its files.")
 	return flagSet
 }
 
 // PrintConfig return the current config in string form
-func (ngc *NutsGlobalConfig) PrintConfig() string {
+func (ngc *NutsConfig) PrintConfig() string {
 	return ngc.configMap.Sprint()
 }
 
 // InjectIntoEngine takes the loaded config and sets the engine's config struct
-func (ngc *NutsGlobalConfig) InjectIntoEngine(e *Engine) error {
+func (ngc *NutsConfig) InjectIntoEngine(e *Engine) error {
 	// ignore if no target for injection
 	if e.Config != nil {
 		return ngc.configMap.Unmarshal(e.ConfigKey, e.Config)
@@ -159,7 +164,7 @@ func (ngc *NutsGlobalConfig) InjectIntoEngine(e *Engine) error {
 
 // RegisterFlags adds the flagSet of an engine to the commandline, flag names are prefixed if needed
 // The passed command must be the root command not the engine.Cmd (unless they are the same)
-func (ngc *NutsGlobalConfig) RegisterFlags(cmd *cobra.Command, e *Engine) {
+func (ngc *NutsConfig) RegisterFlags(cmd *cobra.Command, e *Engine) {
 	if e.FlagSet != nil {
 		cmd.PersistentFlags().AddFlagSet(e.FlagSet)
 	}

@@ -74,7 +74,6 @@ func flagSet() *pflag.FlagSet {
 		"Required when `enableTLS` is `true`.")
 	flagSet.String("network.certKeyFile", defs.CertKeyFile, "PEM file containing the private key of the server certificate. "+
 		"Required when `network.enableTLS` is `true`.")
-	flagSet.String("network.databaseFile", defs.DatabaseFile, "File path to the network database.")
 	flagSet.String("network.trustStoreFile", defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.Int("network.advertHashesInterval", defs.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
 	return flagSet

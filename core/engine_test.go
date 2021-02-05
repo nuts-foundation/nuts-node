@@ -66,16 +66,23 @@ func TestSystem_Shutdown(t *testing.T) {
 }
 
 func TestSystem_Configure(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 
-	r := NewMockConfigurable(ctrl)
-	r.EXPECT().Configure()
+		r := NewMockConfigurable(ctrl)
+		r.EXPECT().Configure(gomock.Any())
 
-	system := NewSystem()
-	system.RegisterEngine(&Engine{})
-	system.RegisterEngine(&Engine{Configurable: r})
-	assert.Nil(t, system.Configure())
+		system := NewSystem()
+		system.RegisterEngine(&Engine{})
+		system.RegisterEngine(&Engine{Configurable: r})
+		assert.Nil(t, system.Configure())
+	})
+	t.Run("unable to create datadir", func(t *testing.T) {
+		system := NewSystem()
+		system.Config = &NutsConfig{Datadir: "engine_test.go"}
+		assert.Error(t, system.Configure())
+	})
 }
 
 func TestSystem_Diagnostics(t *testing.T) {

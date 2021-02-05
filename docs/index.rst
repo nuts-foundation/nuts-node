@@ -30,6 +30,7 @@ Nuts documentation
     pages/monitoring.rst
     pages/running-a-node.rst
     pages/administering-your-node.rst
+    pages/production-configuration.rst
 
 .. toctree::
     :maxdepth: 1

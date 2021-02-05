@@ -5,7 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"path"
+	"github.com/nuts-foundation/nuts-node/core"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -14,22 +14,14 @@ import (
 // NewTestCryptoInstance returns a new Crypto instance to be used for integration tests. Any data is stored in the
 // specified test directory.
 func NewTestCryptoInstance(testDirectory string) *Crypto {
-	config := TestCryptoConfig(testDirectory)
 	newInstance := &Crypto{
-		Config: config,
+		Config: DefaultCryptoConfig(),
 	}
-	if err := newInstance.Configure(); err != nil {
+	if err := newInstance.Configure(core.NutsConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)
 	}
 	instance = newInstance
 	return newInstance
-}
-
-// TestCryptoConfig returns Config to be used in integration/unit tests.
-func TestCryptoConfig(testDirectory string) Config {
-	config := DefaultCryptoConfig()
-	config.Fspath = path.Join(testDirectory, "crypto")
-	return config
 }
 
 // StringNamingFunc can be used to give a key a simple string name
