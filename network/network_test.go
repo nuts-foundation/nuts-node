@@ -118,7 +118,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
-		err := cxt.network.Configure(core.NutsConfig{Datadir:  "network_test.go"})
+		err := cxt.network.Configure(core.NutsConfig{Datadir: "network_test.go"})
 		assert.Error(t, err)
 	})
 }

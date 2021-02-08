@@ -43,13 +43,13 @@ import (
 func NewVDREngine(keyStore crypto.KeyStore, networkInstance network.Network) *core.Engine {
 	instance := vdr.NewVDR(vdr.DefaultConfig(), keyStore, networkInstance)
 	return &core.Engine{
-		Cmd:          cmd(),
-		Runnable:     instance,
-		Diagnosable:  instance,
-		Config:       &instance.Config,
-		ConfigKey:    "vdr",
-		FlagSet:      flagSet(),
-		Name:         vdr.ModuleName,
+		Cmd:         cmd(),
+		Runnable:    instance,
+		Diagnosable: instance,
+		Config:      &instance.Config,
+		ConfigKey:   "vdr",
+		FlagSet:     flagSet(),
+		Name:        vdr.ModuleName,
 		Routes: func(router core.EchoRouter) {
 			api.RegisterHandlers(router, &api.Wrapper{VDR: instance})
 		},
