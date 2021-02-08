@@ -56,7 +56,7 @@ func (system *System) Load(cmd *cobra.Command) error {
 
 func (system *System) injectConfig() error {
 	var err error
-	return system.VisitEngineE(func(engine Engine) error {
+	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Injectable); ok {
 			err = system.Config.InjectIntoEngine(m)
 		}
@@ -78,7 +78,7 @@ func (system *System) Diagnostics() []DiagnosticResult {
 // Start starts all engines in the system.
 func (system *System) Start() error {
 	var err error
-	return system.VisitEngineE(func(engine Engine) error {
+	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
 			err = m.Start()
 		}
@@ -89,7 +89,7 @@ func (system *System) Start() error {
 // Shutdown shuts down all engines in the system.
 func (system *System) Shutdown() error {
 	var err error
-	return system.VisitEngineE(func(engine Engine) error {
+	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
 			err = m.Shutdown()
 		}
@@ -103,7 +103,7 @@ func (system *System) Configure() error {
 	if err = os.MkdirAll(system.Config.Datadir, os.ModePerm); err != nil {
 		return fmt.Errorf("unable to create datadir (dir=%s): %w", system.Config.Datadir, err)
 	}
-	return system.VisitEngineE(func(engine Engine) error {
+	return system.VisitEnginesE(func(engine Engine) error {
 		// only if Engine is dynamically configurable
 		if m, ok := engine.(Configurable); ok {
 			err = m.Configure(*system.Config)
@@ -114,15 +114,15 @@ func (system *System) Configure() error {
 
 // VisitEngines applies the given function on all engines in the system.
 func (system *System) VisitEngines(visitor func(engine Engine)) {
-	_ = system.VisitEngineE(func(engine Engine) error {
+	_ = system.VisitEnginesE(func(engine Engine) error {
 		visitor(engine)
 		return nil
 	})
 }
 
-// VisitEngineE applies the given function on all engines in the system, stopping when an error is returned. The error
+// VisitEnginesE applies the given function on all engines in the system, stopping when an error is returned. The error
 // is passed through.
-func (system *System) VisitEngineE(visitor func(engine Engine) error) error {
+func (system *System) VisitEnginesE(visitor func(engine Engine) error) error {
 	for _, e := range system.engines {
 		if err := visitor(e); err != nil {
 			return err

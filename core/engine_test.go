@@ -121,7 +121,7 @@ func TestSystem_VisitEnginesE(t *testing.T) {
 	ctl.RegisterEngine(&TestEngine{})
 	expectedErr := errors.New("function should stop because an error occurred")
 	timesCalled := 0
-	actualErr := ctl.VisitEngineE(func(engine Engine) error {
+	actualErr := ctl.VisitEnginesE(func(engine Engine) error {
 		timesCalled++
 		return expectedErr
 	})
