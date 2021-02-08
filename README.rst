@@ -90,7 +90,7 @@ Requirements for running sphinx
 Configuration
 *************
 
-The Nuts library contains some configuration logic which allows for usage of configFiles, Environment variables and commandLine params transparently.
+The Nuts node can be configured using a YAML configuration file, environment variables and commandline params.
 
 The parameters follow the following convention:
 ``$ nuts --parameter X`` is equal to ``$ NUTS_PARAMETER=X nuts`` is equal to ``parameter: X`` in a yaml file.

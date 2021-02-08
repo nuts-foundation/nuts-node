@@ -24,8 +24,8 @@ import (
 	"time"
 )
 
-// Network is the interface to be implemented by any remote or local client
-type Network interface {
+// Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
+type Transactions interface {
 	// Subscribe makes a subscription for the specified document type. The receiver is called when a document
 	// is received for the specified type.
 	Subscribe(documentType string, receiver dag.Receiver)
@@ -37,6 +37,6 @@ type Network interface {
 	// CreateDocument creates a new document with the specified payload, and signs it using the specified key.
 	// If the key should be inside the document (instead of being referred to) `attachKey` should be true.
 	CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey bool, timestamp time.Time, fieldsOpts ...dag.FieldOpt) (dag.Document, error)
-	// ListDocuments returns all documents known to this NetworkEngine instance.
+	// ListDocuments returns all documents known to this Network instance.
 	ListDocuments() ([]dag.Document, error)
 }

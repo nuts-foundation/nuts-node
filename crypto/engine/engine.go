@@ -36,21 +36,18 @@ import (
 const ConfigStorage string = "crypto.storage"
 
 // NewCryptoEngine the engine configuration for nuts-go.
-func NewCryptoEngine() (*core.Engine, crypto2.KeyStore) {
-	cb := crypto2.Instance()
-
+func NewCryptoEngine(instance *crypto2.Crypto) *core.Engine {
 	return &core.Engine{
 		Cmd:          cmd(),
-		Config:       &cb.Config,
+		Config:       &instance.Config,
 		ConfigKey:    "crypto",
-		Configurable: cb,
+		Configurable: instance,
 		FlagSet:      flagSet(),
 		Name:         "Crypto",
 		Routes: func(router core.EchoRouter) {
-			api.RegisterHandlers(router, &api.Wrapper{C: cb})
+			api.RegisterHandlers(router, &api.Wrapper{C: instance})
 		},
-		Runnable: cb,
-	}, cb
+	}
 }
 
 // FlagSet returns the configuration flags for crypto

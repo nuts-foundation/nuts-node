@@ -49,13 +49,13 @@ type Ambassador interface {
 }
 
 type ambassador struct {
-	networkClient network.Network
+	networkClient network.Transactions
 	didStore      types.Store
 	keyResolver   crypto2.KeyResolver
 }
 
 // NewAmbassador creates a new Ambassador,
-func NewAmbassador(networkClient network.Network, didStore types.Store, keyResolver crypto2.KeyResolver) Ambassador {
+func NewAmbassador(networkClient network.Transactions, didStore types.Store, keyResolver crypto2.KeyResolver) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,

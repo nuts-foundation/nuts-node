@@ -39,7 +39,7 @@ func TestApiWrapper_GetDocument(t *testing.T) {
 	path := "/document/:ref"
 
 	t.Run("ok", func(t *testing.T) {
-		var networkClient = network.NewMockNetwork(mockCtrl)
+		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
 		networkClient.EXPECT().GetDocument(hash.EqHash(document.Ref())).Return(document, nil)
 
@@ -57,7 +57,7 @@ func TestApiWrapper_GetDocument(t *testing.T) {
 		assert.Equal(t, string(document.Data()), rec.Body.String())
 	})
 	t.Run("invalid hash", func(t *testing.T) {
-		var networkClient = network.NewMockNetwork(mockCtrl)
+		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
@@ -73,7 +73,7 @@ func TestApiWrapper_GetDocument(t *testing.T) {
 		assert.Equal(t, "incorrect hash length (2)", rec.Body.String())
 	})
 	t.Run("not found", func(t *testing.T) {
-		var networkClient = network.NewMockNetwork(mockCtrl)
+		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
 		networkClient.EXPECT().GetDocument(gomock.Any()).Return(nil, nil)
 
@@ -98,7 +98,7 @@ func TestApiWrapper_GetDocumentPayload(t *testing.T) {
 	path := "/document/:ref/payload"
 
 	t.Run("ok", func(t *testing.T) {
-		var networkClient = network.NewMockNetwork(mockCtrl)
+		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
 		networkClient.EXPECT().GetDocumentPayload(hash.EqHash(document.Ref())).Return(payload, nil)
 
@@ -115,7 +115,7 @@ func TestApiWrapper_GetDocumentPayload(t *testing.T) {
 		assert.Equal(t, string(payload), rec.Body.String())
 	})
 	t.Run("not found", func(t *testing.T) {
-		var networkClient = network.NewMockNetwork(mockCtrl)
+		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
 		networkClient.EXPECT().GetDocumentPayload(gomock.Any()).Return(nil, nil)
 
@@ -132,7 +132,7 @@ func TestApiWrapper_GetDocumentPayload(t *testing.T) {
 		assert.Equal(t, "document or contents not found", rec.Body.String())
 	})
 	t.Run("invalid hash", func(t *testing.T) {
-		var networkClient = network.NewMockNetwork(mockCtrl)
+		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
@@ -156,7 +156,7 @@ func TestApiWrapper_ListDocuments(t *testing.T) {
 
 	t.Run("list documents", func(t *testing.T) {
 		t.Run("200", func(t *testing.T) {
-			var networkClient = network.NewMockNetwork(mockCtrl)
+			var networkClient = network.NewMockTransactions(mockCtrl)
 			e, wrapper := initMockEcho(networkClient)
 			networkClient.EXPECT().ListDocuments().Return([]dag.Document{document}, nil)
 
@@ -173,7 +173,7 @@ func TestApiWrapper_ListDocuments(t *testing.T) {
 	})
 }
 
-func initMockEcho(networkClient *network.MockNetwork) (*echo.Echo, *ServerInterfaceWrapper) {
+func initMockEcho(networkClient *network.MockTransactions) (*echo.Echo, *ServerInterfaceWrapper) {
 	e := echo.New()
 	stub := wrapper{Service: networkClient}
 	wrapper := &ServerInterfaceWrapper{

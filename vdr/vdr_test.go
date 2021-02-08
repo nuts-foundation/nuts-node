@@ -18,7 +18,7 @@ func TestVDR_Update(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	didStoreMock := types.NewMockStore(ctrl)
-	networkMock := network.NewMockNetwork(ctrl)
+	networkMock := network.NewMockTransactions(ctrl)
 	vdr := VDR{
 		store:   didStoreMock,
 		network: networkMock,
@@ -47,7 +47,7 @@ func TestVDR_Update(t *testing.T) {
 func TestVDR_Create(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	networkMock := network.NewMockNetwork(ctrl)
+	networkMock := network.NewMockTransactions(ctrl)
 	didCreator := types.NewMockDocCreator(ctrl)
 
 	vdr := VDR{

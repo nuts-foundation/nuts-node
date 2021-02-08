@@ -27,12 +27,12 @@ import (
 )
 
 // ServerImplementation returns a server API implementation that uses the given network.
-func ServerImplementation(network network.Network) ServerInterface {
+func ServerImplementation(network network.Transactions) ServerInterface {
 	return &wrapper{Service: network}
 }
 
 type wrapper struct {
-	Service network.Network
+	Service network.Transactions
 }
 
 // ListDocuments lists all documents

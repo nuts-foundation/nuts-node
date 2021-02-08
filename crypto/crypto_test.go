@@ -33,17 +33,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCryptoBackend(t *testing.T) {
-	t.Run("Instance always returns same instance", func(t *testing.T) {
-		client := Instance()
-		client2 := Instance()
-
-		if client != client2 {
-			t.Error("Expected instances to be the same")
-		}
-	})
-}
-
 func TestCrypto_PublicKey(t *testing.T) {
 	client := createCrypto(t)
 
@@ -118,17 +107,17 @@ func TestCrypto_New(t *testing.T) {
 	})
 }
 
-func TestCrypto_doConfigure(t *testing.T) {
+func TestCrypto_Configure(t *testing.T) {
 	directory := io.TestDirectory(t)
 	cfg := core.NutsConfig{Datadir: directory}
 	t.Run("ok", func(t *testing.T) {
 		e := createCrypto(t)
-		err := e.doConfigure(cfg)
+		err := e.Configure(cfg)
 		assert.NoError(t, err)
 	})
 	t.Run("ok - default = fs backend", func(t *testing.T) {
 		client := createCrypto(t)
-		err := client.doConfigure(cfg)
+		err := client.Configure(cfg)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -138,37 +127,21 @@ func TestCrypto_doConfigure(t *testing.T) {
 	t.Run("error - unknown backend", func(t *testing.T) {
 		client := createCrypto(t)
 		client.Config.Storage = "unknown"
-		err := client.doConfigure(cfg)
+		err := client.Configure(cfg)
 		assert.EqualErrorf(t, err, "only fs backend available for now", "expected error")
 	})
 }
 
-func TestCrypto_Configure(t *testing.T) {
-	createCrypto(t)
-
-	t.Run("ok - configOnce", func(t *testing.T) {
-		directory := io.TestDirectory(t)
-		e := createCrypto(t)
-		assert.False(t, e.configDone)
-		err := e.Configure(core.NutsConfig{Datadir: directory})
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.True(t, e.configDone)
-		err = e.Configure(core.NutsConfig{Datadir: directory})
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.True(t, e.configDone)
-	})
+func TestNewCryptoInstance(t *testing.T) {
+	instance := NewCryptoInstance()
+	assert.NotNil(t, instance)
 }
 
 func createCrypto(t *testing.T) *Crypto {
 	dir := io.TestDirectory(t)
 	backend, _ := storage.NewFileSystemBackend(dir)
-	crypto := Crypto{
+	c := Crypto{
 		Storage: backend,
 	}
-
-	return &crypto
+	return &c
 }

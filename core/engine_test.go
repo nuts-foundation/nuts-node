@@ -20,6 +20,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
@@ -109,6 +110,22 @@ func TestSystem_RegisterEngine(t *testing.T) {
 			t.Errorf("Expected 1 registered engine, Got %d", len(ctl.engines))
 		}
 	})
+}
+
+func TestSystem_VisitEnginesE(t *testing.T) {
+	ctl := System{
+		engines: []*Engine{},
+	}
+	ctl.RegisterEngine(&Engine{})
+	ctl.RegisterEngine(&Engine{})
+	expectedErr := errors.New("function should stop because an error occurred")
+	timesCalled := 0
+	actualErr := ctl.VisitEnginesE(func(engine *Engine) error {
+		timesCalled++
+		return expectedErr
+	})
+	assert.Equal(t, 1, timesCalled)
+	assert.Equal(t, expectedErr, actualErr)
 }
 
 func TestSystem_Load(t *testing.T) {

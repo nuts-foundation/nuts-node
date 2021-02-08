@@ -21,7 +21,6 @@ package engine
 import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/api/v1"
@@ -42,9 +41,7 @@ var clientCreator = func(cmd *cobra.Command) *v1.HTTPClient {
 }
 
 // NewNetworkEngine returns the core definition for the network
-func NewNetworkEngine(keyStore crypto.KeyStore) (*core.Engine, network.Network) {
-	config := network.DefaultConfig()
-	instance := network.NewNetworkInstance(config, keyStore)
+func NewNetworkEngine(instance *network.Network) *core.Engine {
 	return &core.Engine{
 		Cmd:          cmd(),
 		Configurable: instance,
@@ -57,7 +54,7 @@ func NewNetworkEngine(keyStore crypto.KeyStore) (*core.Engine, network.Network) 
 			v1.RegisterHandlers(router, v1.ServerImplementation(instance))
 		},
 		Name: network.ModuleName,
-	}, instance
+	}
 }
 
 func flagSet() *pflag.FlagSet {

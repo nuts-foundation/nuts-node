@@ -23,9 +23,12 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
-	crypto "github.com/nuts-foundation/nuts-node/crypto/engine"
-	"github.com/nuts-foundation/nuts-node/network/engine"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/engine"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto/engine"
+	"github.com/nuts-foundation/nuts-node/network"
+	networkEngine "github.com/nuts-foundation/nuts-node/network/engine"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	vdrEngine "github.com/nuts-foundation/nuts-node/vdr/engine"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"io"
@@ -113,14 +116,17 @@ func CreateCommand(system *core.System) *cobra.Command {
 // CreateSystem creates the system and registers all default engines.
 func CreateSystem() *core.System {
 	system := core.NewSystem()
-	// Register default engines
+	// Create instances
+	cryptoInstance := crypto.NewCryptoInstance()
+	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), cryptoInstance)
+	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
+
+	// Register engines
 	system.RegisterEngine(core.NewStatusEngine(system))
 	system.RegisterEngine(core.NewMetricsEngine())
-	cryptoEngine, keyStore := crypto.NewCryptoEngine()
-	system.RegisterEngine(cryptoEngine)
-	networkEngine, networkInstance := engine.NewNetworkEngine(keyStore)
-	system.RegisterEngine(networkEngine)
-	system.RegisterEngine(vdr.NewVDREngine(keyStore, networkInstance))
+	system.RegisterEngine(cryptoEngine.NewCryptoEngine(cryptoInstance))
+	system.RegisterEngine(networkEngine.NewNetworkEngine(networkInstance))
+	system.RegisterEngine(vdrEngine.NewVDREngine(vdrInstance))
 	return system
 }
 
