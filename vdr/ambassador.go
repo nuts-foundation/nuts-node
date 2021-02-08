@@ -24,6 +24,7 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -78,7 +79,7 @@ var thumbprintAlg = crypto.SHA256
 // The rules are based on the Nuts RFC006
 // payload should be a json encoded did.document
 func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) error {
-	logging.Log().Info("Processing DID documents received from Nuts Network.", didDocumentType, document.Ref())
+	logging.Log().Debugf("Processing DID documents received from Nuts Network: ref=%s", document.Ref())
 	if err := checkSubscriberDocumentIntegrity(document); err != nil {
 		return fmt.Errorf("callback could not process new DID Document: %w", err)
 	}
@@ -87,6 +88,10 @@ func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) e
 	var nextDIDDocument did.Document
 	if err := json.Unmarshal(payload, &nextDIDDocument); err != nil {
 		return fmt.Errorf("unable to unmarshall did document from network payload: %w", err)
+	}
+
+	if err := checkDIDDocumentIntegrity(nextDIDDocument); err != nil {
+		return fmt.Errorf("callback could not process new DID Document, DID Document integrity check failed: %w", err)
 	}
 
 	if isUpdate(document) {
@@ -200,7 +205,9 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberDocument, pr
 	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 }
 
-// checkSubscriberDocumentIntegrity performs basic integrity checks on the SubscriberDocument fields:
+// checkSubscriberDocumentIntegrity performs basic integrity checks on the SubscriberDocument fields
+// Some checks may look redundant because they are performed in the callers, this method has the sole
+// responsibility to ensure integrity, while the other may have not.
 func checkSubscriberDocumentIntegrity(document dag.SubscriberDocument) error {
 	// check the payload type:
 	if document.PayloadType() != didDocumentType {
@@ -209,7 +216,7 @@ func checkSubscriberDocumentIntegrity(document dag.SubscriberDocument) error {
 
 	// PayloadHash must be set
 	if document.PayloadHash().Empty() {
-		return fmt.Errorf("payloadHash must be provider")
+		return fmt.Errorf("payloadHash must be provided")
 	}
 
 	// Signing time should be set and lay in the past:
@@ -246,6 +253,33 @@ func checkSubscriberDocumentIntegrity(document dag.SubscriberDocument) error {
 	return nil
 }
 
+// checkDIDDocumentIntegrity checks for inconsistencies in the the DID Document:
+// Currently it only checks validationMethods for the following conditions:
+// - every validationMethod id must have a fragment
+// - every validationMethod id should have the DID prefix
+// - every validationMethod id must be unique
+func checkDIDDocumentIntegrity(doc did.Document) error {
+	var knownKeyIds []string
+	for _, method := range doc.VerificationMethod {
+		// Check the verification method id has a fragment
+		if len(method.ID.Fragment) == 0 {
+			return fmt.Errorf("verification method must have a fragment")
+		}
+		// Check if this id was part of a previous verification method
+		for _, knownKeyID := range knownKeyIds {
+			if method.ID.String() == knownKeyID {
+				return fmt.Errorf("verification method ID must be unique")
+			}
+		}
+		// Check if the method has the same prefix as the DID Document, e.g.: did:nuts:123 and did:nuts:123#key-1
+		if !strings.HasPrefix(method.ID.String(), doc.ID.String()) {
+			return fmt.Errorf("verification method must have document prefix")
+		}
+		knownKeyIds = append(knownKeyIds, method.ID.String())
+	}
+	return nil
+}
+
 func isUpdate(document dag.SubscriberDocument) bool {
 	return !document.TimelineID().Empty()
 }
@@ -254,7 +288,7 @@ func isUpdate(document dag.SubscriberDocument) bool {
 // If no controllers are present, the current version of the document will be resolved
 // If a controller could not be found, it will return an error
 func (n ambassador) resolveDIDControllers(didDocument *did.Document) ([]*did.Document, error) {
-	var didControllers = []*did.Document{}
+	var didControllers []*did.Document
 	docsToResolve := didDocument.Controller
 	if len(docsToResolve) == 0 {
 		docsToResolve = append(docsToResolve, didDocument.ID)

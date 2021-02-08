@@ -630,7 +630,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 				timelineVersion: 0,
 				payloadType:     didDocumentType,
 			},
-			errors.New("payloadHash must be provider"),
+			errors.New("payloadHash must be provided"),
 		},
 		{"nok - missing signingTime",
 			subscriberDocument{
@@ -697,17 +697,89 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := checkSubscriberDocumentIntegrity(tt.args); err != nil || tt.wantedErr != nil {
-
 				if err == nil {
 					if tt.wantedErr != nil {
 						t.Error("expected an error, got nothing")
 
-					} else {
-						t.Errorf("unexpected error: %v", err)
 					}
 				} else {
-					if tt.wantedErr.Error() != err.Error() {
-						t.Errorf("wrong error\ngot:  %v\nwant: %v", err, tt.wantedErr)
+					if tt.wantedErr == nil {
+
+						t.Errorf("unexpected error: %v", err)
+					} else {
+						if tt.wantedErr.Error() != err.Error() {
+							t.Errorf("wrong error\ngot:  %v\nwant: %v", err, tt.wantedErr)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+func newDidDoc(t *testing.T)( did.Document, jwk.Key, error) {
+	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	signingKey, _ := jwk.New(pair.PublicKey)
+	keyStr, _ := json.Marshal(signingKey)
+
+	kc := &mockKeyCreator{
+		t:      t,
+		jwkStr: string(keyStr),
+	}
+	docCreator := NutsDocCreator{keyCreator: kc}
+	didDocument, err := docCreator.Create()
+	return *didDocument, signingKey, err
+}
+
+func Test_checkDIDDocumentIntegrity(t *testing.T) {
+
+	type args struct {
+		doc did.Document
+	}
+	tests := []struct {
+		name      string
+		beforeFn func(t *testing.T, a *args)
+		wantedErr error
+	}{
+		{"ok - valid document", func(t *testing.T, a*args) {
+			didDoc, _, _ := newDidDoc(t)
+			a.doc = didDoc
+		}, nil },
+		{"nok - validation method has no fragment", func(t *testing.T, a *args) {
+			didDoc, _, _ := newDidDoc(t)
+			didDoc.VerificationMethod[0].ID.Fragment = ""
+			a.doc = didDoc
+		}, errors.New("verification method must have a fragment") },
+		{"nok - validation has wrong prefix", func(t *testing.T, a *args) {
+			didDoc, _, _ := newDidDoc(t)
+			didDoc.VerificationMethod[0].ID.Opaque = "foo:123"
+			a.doc = didDoc
+		}, errors.New("verification method must have document prefix") },
+		{"nok - validation method with duplicate id", func(t *testing.T, a *args) {
+			didDoc, _, _ := newDidDoc(t)
+			method := didDoc.VerificationMethod[0]
+			didDoc.VerificationMethod = append(didDoc.VerificationMethod, method)
+			a.doc = didDoc
+		}, errors.New("verification method ID must be unique") },
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := args{}
+			tt.beforeFn(t, &a)
+			if err := checkDIDDocumentIntegrity(a.doc); err != nil || tt.wantedErr != nil {
+				if err == nil {
+					if tt.wantedErr != nil {
+						t.Error("expected an error, got nothing")
+
+					}
+				} else {
+					if tt.wantedErr == nil {
+
+						t.Errorf("unexpected error: %v", err)
+					} else {
+						if tt.wantedErr.Error() != err.Error() {
+							t.Errorf("wrong error\ngot:  %v\nwant: %v", err, tt.wantedErr)
+						}
 					}
 				}
 			}
