@@ -6,6 +6,7 @@ ignore:
   - "**/*_test.go"
   - "mock/**/*.go"
   - "**/mock.go"
+  - "**/*_mock.go"
   - "docs/**/*.go"
   - "**/*.pb.go"
   # Until network protocol implementation has been spec and optionally replace, ignore those sources

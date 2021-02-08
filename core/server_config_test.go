@@ -43,9 +43,10 @@ func TestNewNutsConfig_Load(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, defaultAddress, cfg.Address)
 		assert.Equal(t, defaultLogLevel, cfg.Verbosity)
 		assert.Equal(t, defaultStrictMode, cfg.Strictmode)
+		assert.Equal(t, defaultAddress, cfg.HTTP.Address)
+		assert.Empty(t, cfg.HTTP.AltBinds)
 	})
 
 	t.Run("Sets global Env prefix", func(t *testing.T) {
@@ -113,6 +114,20 @@ func TestNewNutsConfig_Load(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.True(t, cfg.Strictmode)
+	})
+
+	t.Run("alt http configuration", func(t *testing.T) {
+		defer reset()
+		os.Args = []string{"command", "--configfile", "test/config/http.yaml"}
+		cfg := NewServerConfig()
+
+		err := cfg.Load(&cobra.Command{})
+		assert.Equal(t, cfg.HTTP.Address, "alternative:1323")
+		assert.Len(t, cfg.HTTP.AltBinds, 2)
+		assert.Equal(t, cfg.HTTP.AltBinds["internal"].Address, "localhost:1111")
+		assert.Equal(t, cfg.HTTP.AltBinds["admin"].Address, "localhost:2222")
+
+		assert.NoError(t, err)
 	})
 
 	t.Run("error - incorrect yaml", func(t *testing.T) {

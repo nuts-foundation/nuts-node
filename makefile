@@ -6,7 +6,8 @@ gen-readme:
 	./generate_readme.sh
 
 gen-mocks:
-	mockgen -destination=core/mock.go -package=core -source=core/engine.go -imports echo=github.com/labstack/echo/v4
+	mockgen -destination=core/engine_mock.go -package=core -source=core/engine.go -imports echo=github.com/labstack/echo/v4
+	mockgen -destination=core/echo_mock.go -package=core -source core/echo.go -imports echo=github.com/labstack/echo/v4
 	mockgen -destination=crypto/mock.go -package=crypto -source=crypto/interface.go
 	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did
 	mockgen -destination=network/proto/mock.go -package=proto -source=network/proto/interface.go Protocol
