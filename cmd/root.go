@@ -84,8 +84,8 @@ func createServerCommand(system *core.System) *cobra.Command {
 
 			// start interfaces
 			echoServer := echoCreator()
-			system.VisitModules(func(module core.Module) {
-				if m, ok := module.(core.Routable); ok {
+			system.VisitEngines(func(engine core.Engine) {
+				if m, ok := engine.(core.Routable); ok {
 					m.Routes(echoServer)
 				}
 			})
@@ -120,11 +120,11 @@ func CreateSystem() *core.System {
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
 
 	// Register engines
-	system.RegisterModule(core.NewStatusModule(system))
-	system.RegisterModule(core.NewMetricsModule())
-	system.RegisterModule(cryptoInstance)
-	system.RegisterModule(networkInstance)
-	system.RegisterModule(vdrInstance)
+	system.RegisterEngine(core.NewStatusEngine(system))
+	system.RegisterEngine(core.NewMetricsEngine())
+	system.RegisterEngine(cryptoInstance)
+	system.RegisterEngine(networkInstance)
+	system.RegisterEngine(vdrInstance)
 	return system
 }
 
@@ -143,8 +143,8 @@ func Execute(system *core.System) {
 }
 
 func addSubCommands(system *core.System, root *cobra.Command) {
-	system.VisitModules(func(module core.Module) {
-		if m, ok := module.(core.Executable); ok {
+	system.VisitEngines(func(engine core.Engine) {
+		if m, ok := engine.(core.Executable); ok {
 			root.AddCommand(m.Cmd())
 		}
 	})
@@ -153,8 +153,8 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 }
 
 func addFlagSets(system *core.System, cmd *cobra.Command) {
-	system.VisitModules(func(module core.Module) {
-		if m, ok := module.(core.Injectable); ok {
+	system.VisitEngines(func(engine core.Engine) {
+		if m, ok := engine.(core.Injectable); ok {
 			system.Config.RegisterFlags(cmd, m)
 		}
 	})

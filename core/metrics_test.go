@@ -32,7 +32,7 @@ import (
 )
 
 func TestNewMetricsEngine(t *testing.T) {
-	mEngine := NewMetricsModule().(*metrics)
+	mEngine := NewMetricsEngine().(*metrics)
 	_ = mEngine.Configure(NutsConfig{})
 	e := echo.New()
 	mEngine.Routes(e)

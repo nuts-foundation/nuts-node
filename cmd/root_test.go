@@ -55,10 +55,10 @@ func Test_rootCmd(t *testing.T) {
 		defer os.Unsetenv("NUTS_DATADIR")
 		os.Args = []string{"nuts", "server"}
 
-		m := &core.TestModule{}
+		m := &core.TestEngine{}
 
 		system := core.NewSystem()
-		system.RegisterModule(m)
+		system.RegisterEngine(m)
 
 		Execute(system)
 		// Assert global config contains overridden property
@@ -78,7 +78,7 @@ func Test_CreateSystem(t *testing.T) {
 	system := CreateSystem()
 	assert.NotNil(t, system)
 	numEngines := 0
-	system.VisitModules(func(engine core.Module) {
+	system.VisitEngines(func(engine core.Engine) {
 		numEngines++
 	})
 	assert.Equal(t, 5, numEngines)

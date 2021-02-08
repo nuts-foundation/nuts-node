@@ -38,7 +38,7 @@ import (
 func TestNewSystem(t *testing.T) {
 	system := NewSystem()
 	assert.NotNil(t, system)
-	assert.Empty(t, system.modules)
+	assert.Empty(t, system.engines)
 }
 
 func TestSystem_Start(t *testing.T) {
@@ -49,8 +49,8 @@ func TestSystem_Start(t *testing.T) {
 	r.EXPECT().Start()
 
 	system := NewSystem()
-	system.RegisterModule(TestModule{})
-	system.RegisterModule(r)
+	system.RegisterEngine(TestEngine{})
+	system.RegisterEngine(r)
 	assert.NoError(t, system.Start())
 }
 
@@ -62,8 +62,8 @@ func TestSystem_Shutdown(t *testing.T) {
 	r.EXPECT().Shutdown()
 
 	system := NewSystem()
-	system.RegisterModule(TestModule{})
-	system.RegisterModule(r)
+	system.RegisterEngine(TestEngine{})
+	system.RegisterEngine(r)
 	assert.Nil(t, system.Shutdown())
 }
 
@@ -76,8 +76,8 @@ func TestSystem_Configure(t *testing.T) {
 		r.EXPECT().Configure(gomock.Any())
 
 		system := NewSystem()
-		system.RegisterModule(TestModule{})
-		system.RegisterModule(r)
+		system.RegisterEngine(TestEngine{})
+		system.RegisterEngine(r)
 		assert.Nil(t, system.Configure())
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
@@ -95,33 +95,33 @@ func TestSystem_Diagnostics(t *testing.T) {
 	r.EXPECT().Diagnostics().Return([]DiagnosticResult{&GenericDiagnosticResult{Title: "Result"}})
 
 	system := NewSystem()
-	system.RegisterModule(TestModule{})
-	system.RegisterModule(r)
+	system.RegisterEngine(TestEngine{})
+	system.RegisterEngine(r)
 	assert.Len(t, system.Diagnostics(), 1)
 }
 
-func TestSystem_RegisterModule(t *testing.T) {
-	t.Run("adds a module to the list", func(t *testing.T) {
+func TestSystem_RegisterEngine(t *testing.T) {
+	t.Run("adds an engine to the list", func(t *testing.T) {
 		ctl := System{
-			modules: []Module{},
+			engines: []Engine{},
 		}
-		ctl.RegisterModule(TestModule{})
+		ctl.RegisterEngine(TestEngine{})
 
-		if len(ctl.modules) != 1 {
-			t.Errorf("Expected 1 registered module, Got %d", len(ctl.modules))
+		if len(ctl.engines) != 1 {
+			t.Errorf("Expected 1 registered engine, Got %d", len(ctl.engines))
 		}
 	})
 }
 
 func TestSystem_VisitEnginesE(t *testing.T) {
 	ctl := System{
-		modules: []Module{},
+		engines: []Engine{},
 	}
-	ctl.RegisterModule(&TestModule{})
-	ctl.RegisterModule(&TestModule{})
+	ctl.RegisterEngine(&TestEngine{})
+	ctl.RegisterEngine(&TestEngine{})
 	expectedErr := errors.New("function should stop because an error occurred")
 	timesCalled := 0
-	actualErr := ctl.VisitModuleE(func(engine Module) error {
+	actualErr := ctl.VisitEngineE(func(engine Engine) error {
 		timesCalled++
 		return expectedErr
 	})
@@ -131,12 +131,12 @@ func TestSystem_VisitEnginesE(t *testing.T) {
 
 func TestSystem_Load(t *testing.T) {
 	cmd := &cobra.Command{}
-	e := &TestModule{
+	e := &TestEngine{
 		flagSet:    &pflag.FlagSet{},
-		TestConfig: TestModuleConfig{},
+		TestConfig: TestEngineConfig{},
 	}
 	ctl := System{
-		modules: []Module{e},
+		engines: []Engine{e},
 		Config:  NewNutsConfig(),
 	}
 	e.FlagSet().String("key", "", "")

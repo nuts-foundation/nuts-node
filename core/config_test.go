@@ -165,7 +165,7 @@ func TestNewNutsConfig_RegisterFlags(t *testing.T) {
 	cmd := &cobra.Command{}
 	flagSet := pflag.NewFlagSet("dummy", pflag.ContinueOnError)
 	flagSet.String("key", "", "")
-	in := &TestModule{flagSet: flagSet}
+	in := &TestEngine{flagSet: flagSet}
 
 	t.Run("adds flags", func(t *testing.T) {
 		assert.False(t, cmd.PersistentFlags().HasAvailableFlags())
@@ -177,7 +177,7 @@ func TestNewNutsConfig_RegisterFlags(t *testing.T) {
 	})
 }
 
-func TestNewNutsConfig_InjectIntoModule(t *testing.T) {
+func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 	defer reset()
 
 	os.Args = []string{"command", "--key", "value"}
@@ -186,9 +186,9 @@ func TestNewNutsConfig_InjectIntoModule(t *testing.T) {
 	cmd := &cobra.Command{}
 	flagSet := pflag.NewFlagSet("dummy", pflag.ContinueOnError)
 	flagSet.String("key", "", "")
-	in := &TestModule{
+	in := &TestEngine{
 		flagSet:    flagSet,
-		TestConfig: TestModuleConfig{},
+		TestConfig: TestEngineConfig{},
 	}
 
 	t.Run("param is injected", func(t *testing.T) {

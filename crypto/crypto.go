@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	moduleName = "Crypto"
+	engineName = "Crypto"
 	configKey  = "crypto"
 )
 
@@ -58,7 +58,7 @@ type Crypto struct {
 	config  Config
 }
 
-// NewCryptoInstance creates a new instance of the crypto module.
+// NewCryptoInstance creates a new instance of the crypto engine.
 func NewCryptoInstance() *Crypto {
 	return &Crypto{
 		config: DefaultCryptoConfig(),
@@ -66,7 +66,7 @@ func NewCryptoInstance() *Crypto {
 }
 
 func (client *Crypto) Name() string {
-	return moduleName
+	return engineName
 }
 
 func (client *Crypto) Routes(router core.EchoRouter) {

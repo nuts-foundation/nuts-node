@@ -25,18 +25,18 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const metricsModule = "Metrics"
+const metricsEngine = "Metrics"
 
-// NewMetricsModule creates a new Engine for exposing prometheus metrics via http.
+// NewMetricsEngine creates a new Engine for exposing prometheus metrics via http.
 // Metrics are exposed on /metrics, by default the GoCollector and ProcessCollector are enabled.
-func NewMetricsModule() Module {
+func NewMetricsEngine() Engine {
 	return &metrics{}
 }
 
 type metrics struct{}
 
 func (e *metrics) Name() string {
-	return metricsModule
+	return metricsEngine
 }
 
 func (e *metrics) Routes(router EchoRouter) {

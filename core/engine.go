@@ -32,20 +32,20 @@ import (
 // NewSystem creates a new, empty System.
 func NewSystem() *System {
 	return &System{
-		modules: []Module{},
+		engines: []Engine{},
 		Config:  NewNutsConfig(),
 	}
 }
 
-// System is the control structure where modules are registered.
+// System is the control structure where engines are registered.
 type System struct {
-	// modules is the slice of all registered modules
-	modules []Module
+	// engines is the slice of all registered engines
+	engines []Engine
 	// Config holds the global and raw config
 	Config *NutsConfig
 }
 
-// Load loads the config and injects config values into modules
+// Load loads the config and injects config values into engines
 func (system *System) Load(cmd *cobra.Command) error {
 	if err := system.Config.Load(cmd); err != nil {
 		return err
@@ -56,74 +56,74 @@ func (system *System) Load(cmd *cobra.Command) error {
 
 func (system *System) injectConfig() error {
 	var err error
-	return system.VisitModuleE(func(module Module) error {
-		if m, ok := module.(Injectable); ok {
+	return system.VisitEngineE(func(engine Engine) error {
+		if m, ok := engine.(Injectable); ok {
 			err = system.Config.InjectIntoEngine(m)
 		}
 		return err
 	})
 }
 
-// Diagnostics returns the compound diagnostics for all modules.
+// Diagnostics returns the compound diagnostics for all engines.
 func (system *System) Diagnostics() []DiagnosticResult {
 	result := make([]DiagnosticResult, 0)
-	system.VisitModules(func(module Module) {
-		if m, ok := module.(Diagnosable); ok {
+	system.VisitEngines(func(engine Engine) {
+		if m, ok := engine.(Diagnosable); ok {
 			result = append(result, m.Diagnostics()...)
 		}
 	})
 	return result
 }
 
-// Start starts all modules in the system.
+// Start starts all engines in the system.
 func (system *System) Start() error {
 	var err error
-	return system.VisitModuleE(func(module Module) error {
-		if m, ok := module.(Runnable); ok {
+	return system.VisitEngineE(func(engine Engine) error {
+		if m, ok := engine.(Runnable); ok {
 			err = m.Start()
 		}
 		return err
 	})
 }
 
-// Shutdown shuts down all modules in the system.
+// Shutdown shuts down all engines in the system.
 func (system *System) Shutdown() error {
 	var err error
-	return system.VisitModuleE(func(module Module) error {
-		if m, ok := module.(Runnable); ok {
+	return system.VisitEngineE(func(engine Engine) error {
+		if m, ok := engine.(Runnable); ok {
 			err = m.Shutdown()
 		}
 		return err
 	})
 }
 
-// Configure configures all modules in the system.
+// Configure configures all engines in the system.
 func (system *System) Configure() error {
 	var err error
 	if err = os.MkdirAll(system.Config.Datadir, os.ModePerm); err != nil {
 		return fmt.Errorf("unable to create datadir (dir=%s): %w", system.Config.Datadir, err)
 	}
-	return system.VisitModuleE(func(module Module) error {
+	return system.VisitEngineE(func(engine Engine) error {
 		// only if Engine is dynamically configurable
-		if m, ok := module.(Configurable); ok {
+		if m, ok := engine.(Configurable); ok {
 			err = m.Configure(*system.Config)
 		}
 		return err
 	})
 }
 
-// VisitModules applies the given function on all modules in the system.
-func (system *System) VisitModules(visitor func(module Module)) {
-	_ = system.VisitModuleE(func(module Module) error {
-		visitor(module)
+// VisitEngines applies the given function on all engines in the system.
+func (system *System) VisitEngines(visitor func(engine Engine)) {
+	_ = system.VisitEngineE(func(engine Engine) error {
+		visitor(engine)
 		return nil
 	})
 }
 
-// VisitModuleE applies the given function on all modules in the system, stopping when an error is returned. The error
+// VisitEngineE applies the given function on all engines in the system, stopping when an error is returned. The error
 // is passed through.
-func (system *System) VisitModuleE(visitor func(module Module) error) error {
-	for _, e := range system.modules {
+func (system *System) VisitEngineE(visitor func(engine Engine) error) error {
+	for _, e := range system.engines {
 		if err := visitor(e); err != nil {
 			return err
 		}
@@ -131,9 +131,9 @@ func (system *System) VisitModuleE(visitor func(module Module) error) error {
 	return nil
 }
 
-// RegisterModule is a helper func to add an engine to the list of modules from a different lib/pkg
-func (system *System) RegisterModule(module Module) {
-	system.modules = append(system.modules, module)
+// RegisterEngine is a helper func to add an engine to the list of engines from a different lib/pkg
+func (system *System) RegisterEngine(engine Engine) {
+	system.engines = append(system.engines, engine)
 }
 
 // EchoServer implements both the EchoRouter interface and Start function to aid testing.
@@ -170,13 +170,13 @@ type Configurable interface {
 	Configure(config NutsConfig) error
 }
 
-// ViewableDiagnostics is used for modules that display diagnostics in an interface
+// ViewableDiagnostics is used for engines that display diagnostics in an interface
 type ViewableDiagnostics interface {
 	Named
 	Diagnosable
 }
 
-// Diagnosable allows the implementer, mostly modules, to return diagnostics.
+// Diagnosable allows the implementer, mostly engines, to return diagnostics.
 type Diagnosable interface {
 	Diagnostics() []DiagnosticResult
 }
@@ -187,12 +187,12 @@ type Routable interface {
 	Routes(router EchoRouter)
 }
 
-// Module is the base interface for a modular design
-type Module interface{}
+// Engine is the base interface for a modular design
+type Engine interface{}
 
-// Named is the interface for all modules that have a name
+// Named is the interface for all engines that have a name
 type Named interface {
-	// Name returns the name of the module
+	// Name returns the name of the engine
 	Name() string
 }
 
@@ -202,10 +202,10 @@ type Executable interface {
 	Cmd() *cobra.Command
 }
 
-// Injectable marks a module capable of Config injection
+// Injectable marks a engine capable of Config injection
 type Injectable interface {
 	Named
-	// ConfigKey returns the logical Config key used in the Config file for this module.
+	// ConfigKey returns the logical Config key used in the Config file for this engine.
 	ConfigKey() string
 	// Config returns a pointer to the struct that holds the Config.
 	Config() interface{}

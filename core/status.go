@@ -27,21 +27,21 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-const moduleName = "Status"
+const engineName = "Status"
 
 type status struct {
 	system *System
 }
 
-//NewStatusEngine creates a new Module for viewing all modules
-func NewStatusModule(system *System) Module {
+//NewStatusEngine creates a new Engine for viewing all engines
+func NewStatusEngine(system *System) Engine {
 	return &status{
 		system: system,
 	}
 }
 
 func (s *status) Name() string {
-	return moduleName
+	return engineName
 }
 
 func (s *status) Routes(router EchoRouter) {
@@ -55,8 +55,8 @@ func (s *status) diagnosticsOverview(ctx echo.Context) error {
 
 func (s *status) diagnosticsSummaryAsText() string {
 	var lines []string
-	s.system.VisitModules(func(module Module) {
-		if m, ok := module.(ViewableDiagnostics); ok {
+	s.system.VisitEngines(func(engine Engine) {
+		if m, ok := engine.(ViewableDiagnostics); ok {
 			lines = append(lines, m.Name())
 			diagnostics := m.Diagnostics()
 			for _, d := range diagnostics {
@@ -68,15 +68,15 @@ func (s *status) diagnosticsSummaryAsText() string {
 }
 
 // Diagnostics returns list of DiagnosticResult for the StatusEngine.
-// The results are a list of all registered modules
+// The results are a list of all registered engines
 func (s *status) Diagnostics() []DiagnosticResult {
-	return []DiagnosticResult{&GenericDiagnosticResult{Title: "Registered modules", Outcome: strings.Join(s.listAllEngines(), ",")}}
+	return []DiagnosticResult{&GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(s.listAllEngines(), ",")}}
 }
 
 func (s *status) listAllEngines() []string {
 	var names []string
-	s.system.VisitModules(func(module Module) {
-		if m, ok := module.(Named); ok {
+	s.system.VisitEngines(func(engine Engine) {
+		if m, ok := engine.(Named); ok {
 			names = append(names, m.Name())
 		}
 	})

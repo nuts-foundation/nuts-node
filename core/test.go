@@ -18,28 +18,28 @@ package core
 
 import "github.com/spf13/pflag"
 
-type TestModuleConfig struct {
+type TestEngineConfig struct {
 	Key     string `koanf:"key"`
 	Datadir string `koanf:"datadir"`
 }
 
-type TestModule struct {
-	TestConfig TestModuleConfig
+type TestEngine struct {
+	TestConfig TestEngineConfig
 	flagSet    *pflag.FlagSet
 }
 
-func (i *TestModule) ConfigKey() string {
+func (i *TestEngine) ConfigKey() string {
 	return ""
 }
 
-func (i *TestModule) Config() interface{} {
+func (i *TestEngine) Config() interface{} {
 	return &i.TestConfig
 }
 
-func (i *TestModule) FlagSet() *pflag.FlagSet {
+func (i *TestEngine) FlagSet() *pflag.FlagSet {
 	return i.flagSet
 }
 
-func (i *TestModule) Name() string {
+func (i *TestEngine) Name() string {
 	return "test"
 }

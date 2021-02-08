@@ -4,7 +4,7 @@ package vdr
 const ConfClientTimeout = "vdr.clientTimeout"
 
 const (
-	moduleName = "Verifiable Data Registry"
+	engineName = "Verifiable Data Registry"
 	configKey  = "vdr"
 )
 

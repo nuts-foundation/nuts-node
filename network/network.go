@@ -43,7 +43,7 @@ import (
 const boltDBFileMode = 0600
 
 const (
-	moduleName = "Transactions"
+	engineName = "Transactions"
 	configKey  = "network"
 )
 
@@ -93,7 +93,7 @@ func (n *Network) Configure(config core.NutsConfig) error {
 }
 
 func (n *Network) Name() string {
-	return moduleName
+	return engineName
 }
 
 func (n *Network) ConfigKey() string {

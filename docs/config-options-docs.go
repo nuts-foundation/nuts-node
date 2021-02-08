@@ -18,8 +18,8 @@ func main() {
 	globalFlags := command.PersistentFlags()
 	flags[""] = globalFlags
 	// Make sure engines are registered
-	system.VisitModules(func(module core.Module) {
-		if m, ok := module.(core.Injectable); ok {
+	system.VisitEngines(func(engine core.Engine) {
+		if m, ok := engine.(core.Injectable); ok {
 			flagsForEngine := extractFlagsForEngine(m.ConfigKey(), globalFlags)
 			if flagsForEngine.HasAvailableFlags() {
 				flags[m.Name()] = flagsForEngine

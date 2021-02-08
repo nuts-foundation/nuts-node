@@ -72,7 +72,7 @@ func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient networkTy
 }
 
 func (r *VDR) Name() string {
-	return moduleName
+	return engineName
 }
 
 func (r *VDR) ConfigKey() string {
