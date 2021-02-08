@@ -22,12 +22,11 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
-	"time"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	api "github.com/nuts-foundation/nuts-node/crypto/api/v1"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -61,7 +60,6 @@ func Cmd() *cobra.Command {
 
 		Args: cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
-			cc := newCryptoClient(cmd)
 			kid := args[0]
 			var validAt *string
 
@@ -69,7 +67,7 @@ func Cmd() *cobra.Command {
 				validAt = &args[1]
 			}
 
-			jwkKey, err := cc.GetPublicKey(kid, validAt)
+			jwkKey, err := httpClient().GetPublicKey(kid, validAt)
 			if err != nil {
 				cmd.Printf("Error printing publicKey: %v", err)
 				return
@@ -106,17 +104,18 @@ func Cmd() *cobra.Command {
 			cmd.Println(publicKeyAsPEM)
 		},
 	})
-
+	cmd.PersistentFlags().AddFlagSet(core.NewClientConfig().FlagSet())
 	return cmd
 }
 
-// newCryptoClient creates a remote client
-func newCryptoClient(cmd *cobra.Command) api.HTTPClient {
-	cfg := core.NewNutsConfig()
-	cfg.Load(cmd)
-
+// httpClient creates a remote client
+func httpClient() api.HTTPClient {
+	config := core.NewClientConfig()
+	if err := config.Load(); err != nil {
+		logrus.Fatal(err)
+	}
 	return api.HTTPClient{
-		ServerAddress: cfg.Address,
-		Timeout:       10 * time.Second,
+		ServerAddress: config.Address,
+		Timeout:       config.Timeout,
 	}
 }

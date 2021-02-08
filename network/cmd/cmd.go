@@ -20,24 +20,24 @@ package cmd
 
 import (
 	"fmt"
-	"time"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-var clientCreator = func(cmd *cobra.Command) *v1.HTTPClient {
-	cfg := core.NewNutsConfig()
-	cfg.Load(cmd)
-
-	return &v1.HTTPClient{
-		ServerAddress: cfg.Address,
-		Timeout:       30 * time.Second,
+var clientCreator = func() v1.HTTPClient {
+	config := core.NewClientConfig()
+	if err := config.Load(); err != nil {
+		logrus.Fatal(err)
+	}
+	return v1.HTTPClient{
+		ServerAddress: config.GetAddress(),
+		Timeout:       config.Timeout,
 	}
 }
 
@@ -83,7 +83,7 @@ func payloadCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			data, err := clientCreator(cmd).GetDocumentPayload(hash)
+			data, err := clientCreator().GetDocumentPayload(hash)
 			if err != nil {
 				return err
 			}
@@ -107,7 +107,7 @@ func getCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			document, err := clientCreator(cmd).GetDocument(hash)
+			document, err := clientCreator().GetDocument(hash)
 			if err != nil {
 				return err
 			}
@@ -126,7 +126,7 @@ func listCommand() *cobra.Command {
 		Use:   "list",
 		Short: "Lists the documents on the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			documents, err := clientCreator(cmd).ListDocuments()
+			documents, err := clientCreator().ListDocuments()
 			if err != nil {
 				return err
 			}

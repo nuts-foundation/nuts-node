@@ -82,9 +82,14 @@ func TestSystem_Configure(t *testing.T) {
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
 		system := NewSystem()
-		system.Config = &NutsConfig{Datadir: "config_test.go"}
+		system.Config = &ServerConfig{Datadir: "engine_test.go"}
 		assert.Error(t, system.Configure())
 	})
+}
+
+func TestSystem_DefaultEchoServer(t *testing.T) {
+	system := NewSystem()
+	assert.NotNil(t, system.EchoCreator())
 }
 
 func TestSystem_Diagnostics(t *testing.T) {
@@ -137,7 +142,7 @@ func TestSystem_Load(t *testing.T) {
 	}
 	ctl := System{
 		engines: []Engine{e},
-		Config:  NewNutsConfig(),
+		Config:  NewServerConfig(),
 	}
 	e.FlagSet().String("key", "", "")
 	os.Args = []string{"command", "--key", "value"}

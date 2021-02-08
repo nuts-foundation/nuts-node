@@ -522,7 +522,7 @@ func (m *MockConfigurable) EXPECT() *MockConfigurableMockRecorder {
 }
 
 // Configure mocks base method
-func (m *MockConfigurable) Configure(config NutsConfig) error {
+func (m *MockConfigurable) Configure(config ServerConfig) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Configure", config)
 	ret0, _ := ret[0].(error)

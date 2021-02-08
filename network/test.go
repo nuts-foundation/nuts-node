@@ -28,7 +28,7 @@ import (
 func NewTestNetworkInstance(testDirectory string) *Network {
 	config := TestNetworkConfig()
 	newInstance := NewNetworkInstance(config, crypto.NewTestCryptoInstance(testDirectory))
-	if err := newInstance.Configure(core.NutsConfig{Datadir: testDirectory}); err != nil {
+	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)
 	}
 	return newInstance

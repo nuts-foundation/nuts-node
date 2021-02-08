@@ -36,14 +36,14 @@ Ordering
 Command line parameters have the highest priority, then environment variables, then parameters from the configfile and lastly defaults.
 The location of the configfile is determined by the environment variable ``NUTS_CONFIGFILE`` or the commandline parameter ``--configfile``. If both are missing the default location ``./nuts.yaml`` is used.
 
-Options
-*******
+Server options
+**************
 
-The following options can be configured:
+The following options can be configured on the server:
 
 .. marker-for-config-options
 
-.. include:: options.rst
+.. include:: server_options.rst
 
 This table is automatically generated using the configuration flags in the core and engines. When they're changed
 the options table must be regenerated using the Makefile:

@@ -45,7 +45,7 @@ func (e *metrics) Routes(router EchoRouter) {
 
 // Configure configures the MetricsEngine.
 // It configures and registers the prometheus collector
-func (*metrics) Configure(_ NutsConfig) error {
+func (*metrics) Configure(_ ServerConfig) error {
 	collectors := []prometheus.Collector{
 		prometheus.NewGoCollector(),
 		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),

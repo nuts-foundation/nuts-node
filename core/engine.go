@@ -21,6 +21,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/labstack/echo/v4/middleware"
 	"net/url"
 	"os"
 
@@ -38,8 +39,14 @@ type Routable interface {
 func NewSystem() *System {
 	return &System{
 		engines: []Engine{},
-		Config:  NewNutsConfig(),
+		Config:  NewServerConfig(),
 		Routers: []Routable{},
+		EchoCreator: func() EchoServer {
+			echoServer := echo.New()
+			echoServer.HideBanner = true
+			echoServer.Use(middleware.Logger())
+			return echoServer
+		},
 	}
 }
 
@@ -48,9 +55,11 @@ type System struct {
 	// engines is the slice of all registered engines
 	engines []Engine
 	// Config holds the global and raw config
-	Config *NutsConfig
+	Config *ServerConfig
 	// Routers is used to connect API handlers to the echo server
 	Routers []Routable
+	// EchoCreator is the function that's used to create the echo server/
+	EchoCreator func() EchoServer
 }
 
 // Load loads the config and injects config values into engines
@@ -180,7 +189,7 @@ type Runnable interface {
 // When an engine implements the Configurable interface, it will be called before startup.
 // Configure should only be called once per engine instance
 type Configurable interface {
-	Configure(config NutsConfig) error
+	Configure(config ServerConfig) error
 }
 
 // ViewableDiagnostics is used for engines that display diagnostics in an interface
