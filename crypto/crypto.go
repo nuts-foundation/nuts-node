@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	engineName = "Crypto"
+	moduleName = "Crypto"
 	configKey  = "crypto"
 )
 
@@ -66,7 +66,7 @@ func NewCryptoInstance() *Crypto {
 }
 
 func (client *Crypto) Name() string {
-	return engineName
+	return moduleName
 }
 
 func (client *Crypto) Routes(router core.EchoRouter) {

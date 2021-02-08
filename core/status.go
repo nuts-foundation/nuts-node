@@ -27,7 +27,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-const engineName = "Status"
+const moduleName = "Status"
 
 type status struct {
 	system *System
@@ -41,7 +41,7 @@ func NewStatusEngine(system *System) Engine {
 }
 
 func (s *status) Name() string {
-	return engineName
+	return moduleName
 }
 
 func (s *status) Routes(router EchoRouter) {

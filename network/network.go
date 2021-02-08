@@ -43,11 +43,11 @@ import (
 const boltDBFileMode = 0600
 
 const (
-	engineName = "Transactions"
+	moduleName = "Transactions"
 	configKey  = "network"
 )
 
-// NetworkEngine implements Network interface and Engine functions.
+// Network implements Transactions interface and Engine functions.
 type Network struct {
 	config        Config
 	p2pNetwork    p2p.P2PNetwork
@@ -58,7 +58,7 @@ type Network struct {
 	keyStore      crypto.KeyStore
 }
 
-// NewNetworkInstance creates a new NetworkEngine engine instance.
+// NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(config Config, keyStore crypto.KeyStore) *Network {
 	result := &Network{
 		config:     config,
@@ -93,7 +93,7 @@ func (n *Network) Configure(config core.NutsConfig) error {
 }
 
 func (n *Network) Name() string {
-	return engineName
+	return moduleName
 }
 
 func (n *Network) ConfigKey() string {
