@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	did "github.com/nuts-foundation/go-did"
-	types2 "github.com/nuts-foundation/nuts-node/network/types"
+	"github.com/nuts-foundation/go-did"
+	networkTypes "github.com/nuts-foundation/nuts-node/network/types"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -18,7 +18,7 @@ func TestVDR_Update(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	didStoreMock := types.NewMockStore(ctrl)
-	networkMock := types2.NewMockTransactions(ctrl)
+	networkMock := networkTypes.NewMockTransactions(ctrl)
 	vdr := VDR{
 		store:   didStoreMock,
 		network: networkMock,
@@ -47,7 +47,7 @@ func TestVDR_Update(t *testing.T) {
 func TestVDR_Create(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	networkMock := types2.NewMockTransactions(ctrl)
+	networkMock := networkTypes.NewMockTransactions(ctrl)
 	didCreator := types.NewMockDocCreator(ctrl)
 
 	vdr := VDR{

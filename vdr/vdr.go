@@ -29,8 +29,8 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	types2 "github.com/nuts-foundation/nuts-node/network/types"
-	store "github.com/nuts-foundation/nuts-node/vdr/store"
+	networkTypes "github.com/nuts-foundation/nuts-node/network/types"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/sirupsen/logrus"
@@ -51,7 +51,7 @@ import (
 type VDR struct {
 	config            Config
 	store             types.Store
-	network           types2.Transactions
+	network           networkTypes.Transactions
 	OnChange          func(registry *VDR)
 	networkAmbassador Ambassador
 	_logger           *logrus.Entry
@@ -59,7 +59,7 @@ type VDR struct {
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient types2.Transactions) *VDR {
+func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient networkTypes.Transactions) *VDR {
 	store := store.NewMemoryStore()
 	return &VDR{
 		config:            config,

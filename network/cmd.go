@@ -40,7 +40,6 @@ var clientCreator = func(cmd *cobra.Command) *v1.HTTPClient {
 	}
 }
 
-
 func (n *Network) FlagSet() *pflag.FlagSet {
 	defs := DefaultConfig()
 	flagSet := pflag.NewFlagSet("network", pflag.ContinueOnError)

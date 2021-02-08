@@ -35,7 +35,6 @@ import (
 	"github.com/spf13/pflag"
 )
 
-
 func (r *VDR) FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("vdr", pflag.ContinueOnError)
 

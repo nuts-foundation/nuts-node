@@ -81,19 +81,6 @@ func (client *Crypto) Config() interface{} {
 	return &client.config
 }
 
-// Shutdown stops the certificate monitors
-func (client *Crypto) Shutdown() error {
-	return nil
-}
-
-// Start starts the crypto engine.
-func (client *Crypto) Start() error {
-	// currently empty but here to make crypto implement the Runnable interface.
-	return nil
-}
-
-var instance *Crypto
-
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
 func (client *Crypto) Configure(config core.NutsConfig) error {
 	if client.config.Storage != "fs" && client.config.Storage != "" {

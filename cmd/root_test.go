@@ -81,5 +81,5 @@ func Test_CreateSystem(t *testing.T) {
 	system.VisitModules(func(engine core.Module) {
 		numEngines++
 	})
-	assert.Equal(t,5, numEngines)
+	assert.Equal(t, 5, numEngines)
 }
