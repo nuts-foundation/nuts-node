@@ -78,7 +78,7 @@ func Test_CreateSystem(t *testing.T) {
 	system := CreateSystem()
 	assert.NotNil(t, system)
 	numEngines := 0
-	system.VisitEngines(func(engine *core.Engine) {
+	system.VisitModules(func(engine core.Module) {
 		numEngines++
 	})
 	assert.Equal(t,5, numEngines)

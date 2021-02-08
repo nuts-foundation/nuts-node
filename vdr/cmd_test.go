@@ -58,7 +58,6 @@ func TestEngine_Command(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
 	networkInstance := network.NewTestNetworkInstance(testDirectory)
-	vdrInstance := NewVDR(DefaultConfig(), cryptoInstance, networkInstance)
 	createCmd := func(t *testing.T) *cobra.Command {
 		return NewVDR(DefaultConfig(), cryptoInstance, networkInstance).Cmd()
 	}

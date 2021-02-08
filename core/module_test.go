@@ -115,13 +115,13 @@ func TestSystem_RegisterModule(t *testing.T) {
 
 func TestSystem_VisitEnginesE(t *testing.T) {
 	ctl := System{
-		engines: []*Engine{},
+		modules: []Module{},
 	}
-	ctl.RegisterEngine(&Engine{})
-	ctl.RegisterEngine(&Engine{})
+	ctl.RegisterModule(&TestModule{})
+	ctl.RegisterModule(&TestModule{})
 	expectedErr := errors.New("function should stop because an error occurred")
 	timesCalled := 0
-	actualErr := ctl.VisitEnginesE(func(engine *Engine) error {
+	actualErr := ctl.VisitModuleE(func(engine Module) error {
 		timesCalled++
 		return expectedErr
 	})
