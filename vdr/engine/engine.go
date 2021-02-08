@@ -45,7 +45,6 @@ func NewVDREngine(keyStore crypto.KeyStore, networkInstance network.Network) *co
 	return &core.Engine{
 		Cmd:          cmd(),
 		Runnable:     instance,
-		Configurable: instance,
 		Diagnosable:  instance,
 		Config:       &instance.Config,
 		ConfigKey:    "vdr",

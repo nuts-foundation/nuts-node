@@ -717,7 +717,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	}
 }
 
-func newDidDoc(t *testing.T)( did.Document, jwk.Key, error) {
+func newDidDoc(t *testing.T) (did.Document, jwk.Key, error) {
 	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	signingKey, _ := jwk.New(pair.PublicKey)
 	keyStr, _ := json.Marshal(signingKey)
@@ -738,29 +738,29 @@ func Test_checkDIDDocumentIntegrity(t *testing.T) {
 	}
 	tests := []struct {
 		name      string
-		beforeFn func(t *testing.T, a *args)
+		beforeFn  func(t *testing.T, a *args)
 		wantedErr error
 	}{
-		{"ok - valid document", func(t *testing.T, a*args) {
+		{"ok - valid document", func(t *testing.T, a *args) {
 			didDoc, _, _ := newDidDoc(t)
 			a.doc = didDoc
-		}, nil },
+		}, nil},
 		{"nok - validation method has no fragment", func(t *testing.T, a *args) {
 			didDoc, _, _ := newDidDoc(t)
 			didDoc.VerificationMethod[0].ID.Fragment = ""
 			a.doc = didDoc
-		}, errors.New("verification method must have a fragment") },
+		}, errors.New("verification method must have a fragment")},
 		{"nok - validation has wrong prefix", func(t *testing.T, a *args) {
 			didDoc, _, _ := newDidDoc(t)
 			didDoc.VerificationMethod[0].ID.Opaque = "foo:123"
 			a.doc = didDoc
-		}, errors.New("verification method must have document prefix") },
+		}, errors.New("verification method must have document prefix")},
 		{"nok - validation method with duplicate id", func(t *testing.T, a *args) {
 			didDoc, _, _ := newDidDoc(t)
 			method := didDoc.VerificationMethod[0]
 			didDoc.VerificationMethod = append(didDoc.VerificationMethod, method)
 			a.doc = didDoc
-		}, errors.New("verification method ID must be unique") },
+		}, errors.New("verification method ID must be unique")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -64,25 +64,15 @@ var oneVDR sync.Once
 
 // NewVDR creates a new VDR with provided params
 func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Network) *VDR {
+	store := store.NewMemoryStore()
 	return &VDR{
-		Config:        config,
-		network:       networkClient,
-		_logger:       logging.Log(),
-		store:         store.NewMemoryStore(),
-		didDocCreator: NutsDocCreator{keyCreator: cryptoClient},
+		Config:            config,
+		network:           networkClient,
+		_logger:           logging.Log(),
+		store:             store,
+		didDocCreator:     NutsDocCreator{keyCreator: cryptoClient},
+		networkAmbassador: NewAmbassador(networkClient, store, cryptoClient),
 	}
-}
-
-// Configure initializes the db, but only when in server mode
-func (r *VDR) Configure(_ core.NutsConfig) error {
-	var err error
-
-	r.configOnce.Do(func() {
-		if r.networkAmbassador == nil {
-			r.networkAmbassador = NewAmbassador(r.network, r.store, crypto.Instance())
-		}
-	})
-	return err
 }
 
 // Start initiates the routines for auto-updating the data
@@ -129,6 +119,7 @@ func (r VDR) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document
 
 // Update updates a DID Document based on the DID and current hash
 func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
+	// TODO: check the integrity / validity of the proposed DID Document.
 	resolverMetada := &types.ResolveMetadata{
 		Hash:             &current,
 		AllowDeactivated: false,

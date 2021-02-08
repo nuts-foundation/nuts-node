@@ -29,7 +29,7 @@ func TestVDR_Update(t *testing.T) {
 	currentDIDDocument := did.Document{
 		Authentication: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: did.URI{*keyID}}}},
 	}
-	nextDIDDocument := did.Document{ }
+	nextDIDDocument := did.Document{}
 	expectedResolverMetada := &types.ResolveMetadata{
 		Hash:             &currentHash,
 		AllowDeactivated: false,

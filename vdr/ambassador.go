@@ -173,7 +173,7 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberDocument, pr
 	// Check if the signingKey is listed as a valid authenticationMethod in one of the controllers
 	keyToSign, err := n.findKeyByThumbprint(signingKeyThumbprint, controllerVerificationRelationships)
 	if err != nil {
-		return fmt.Errorf("unable to find signingKey by thumprint in controllers: %w",err)
+		return fmt.Errorf("unable to find signingKey by thumprint in controllers: %w", err)
 	}
 	if keyToSign == nil {
 		return fmt.Errorf("network document not signed by one of its controllers")
