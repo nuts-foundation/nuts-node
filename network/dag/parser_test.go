@@ -53,7 +53,7 @@ func TestParseDocument(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, payload, document.Payload())
+		assert.Equal(t, payload, document.PayloadHash())
 		assert.Equal(t, key.PublicKey, actualKey)
 		assert.Equal(t, 1, int(document.Version()))
 		assert.Equal(t, "foo/bar", document.PayloadType())

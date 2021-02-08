@@ -75,7 +75,7 @@ func TestNetwork_GetDocumentContents(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		document := dag.CreateTestDocumentWithJWK(1)
 		cxt.graph.EXPECT().Get(document.Ref()).Return(document, nil)
-		cxt.payload.EXPECT().ReadPayload(document.Payload())
+		cxt.payload.EXPECT().ReadPayload(document.PayloadHash())
 		cxt.network.GetDocumentPayload(document.Ref())
 	})
 }
@@ -118,7 +118,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
-		err := cxt.network.Configure(core.NutsConfig{Datadir:  "network_test.go"})
+		err := cxt.network.Configure(core.NutsConfig{Datadir: "network_test.go"})
 		assert.Error(t, err)
 	})
 }

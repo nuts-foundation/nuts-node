@@ -17,7 +17,7 @@ func TestReplayingPublisher(t *testing.T) {
 		publisher := NewReplayingDAGPublisher(payloadStore, dag).(*replayingDAGPublisher)
 		received := false
 		document := CreateTestDocumentWithJWK(1)
-		publisher.Subscribe(document.PayloadType(), func(actualDocument Document, actualPayload []byte) error {
+		publisher.Subscribe(document.PayloadType(), func(actualDocument SubscriberDocument, actualPayload []byte) error {
 			assert.Equal(t, document, actualDocument)
 			received = true
 			return nil
@@ -26,7 +26,7 @@ func TestReplayingPublisher(t *testing.T) {
 
 		// Now add document and write payload to trigger the observers
 		dag.Add(document)
-		payloadStore.WritePayload(document.Payload(), []byte{1, 2, 3})
+		payloadStore.WritePayload(document.PayloadHash(), []byte{1, 2, 3})
 
 		assert.True(t, received)
 	})
@@ -40,14 +40,14 @@ func TestReplayingPublisher(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		err = payloadStore.WritePayload(document.Payload(), []byte{1, 2, 3})
+		err = payloadStore.WritePayload(document.PayloadHash(), []byte{1, 2, 3})
 		if !assert.NoError(t, err) {
 			return
 		}
 
 		publisher := NewReplayingDAGPublisher(payloadStore, dag).(*replayingDAGPublisher)
 		received := false
-		publisher.Subscribe(document.PayloadType(), func(actualDocument Document, actualPayload []byte) error {
+		publisher.Subscribe(document.PayloadType(), func(actualDocument SubscriberDocument, actualPayload []byte) error {
 			assert.Equal(t, document, actualDocument)
 			received = true
 			return nil
@@ -70,10 +70,10 @@ func TestReplayingPublisher_publishDocument(t *testing.T) {
 		defer ctrl.Finish()
 
 		document := CreateTestDocumentWithJWK(1)
-		store.EXPECT().ReadPayload(document.Payload()).Return([]byte{1, 2, 3}, nil)
+		store.EXPECT().ReadPayload(document.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 
 		received := false
-		publisher.Subscribe(document.PayloadType(), func(actualDocument Document, actualPayload []byte) error {
+		publisher.Subscribe(document.PayloadType(), func(actualDocument SubscriberDocument, actualPayload []byte) error {
 			assert.Equal(t, document, actualDocument)
 			received = true
 			return nil
@@ -86,10 +86,10 @@ func TestReplayingPublisher_publishDocument(t *testing.T) {
 		defer ctrl.Finish()
 
 		document := CreateTestDocumentWithJWK(1)
-		store.EXPECT().ReadPayload(document.Payload()).Return(nil, nil)
+		store.EXPECT().ReadPayload(document.PayloadHash()).Return(nil, nil)
 
 		received := false
-		publisher.Subscribe(document.PayloadType(), func(actualDocument Document, actualPayload []byte) error {
+		publisher.Subscribe(document.PayloadType(), func(actualDocument SubscriberDocument, actualPayload []byte) error {
 			assert.Equal(t, document, actualDocument)
 			received = true
 			return nil
@@ -98,7 +98,7 @@ func TestReplayingPublisher_publishDocument(t *testing.T) {
 		assert.False(t, received)
 
 		// Now add the payload and trigger observer func
-		store.EXPECT().ReadPayload(document.Payload()).Return([]byte{1, 2, 3}, nil)
+		store.EXPECT().ReadPayload(document.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 		publisher.publishDocument(document)
 
 		assert.True(t, received)
@@ -108,10 +108,10 @@ func TestReplayingPublisher_publishDocument(t *testing.T) {
 		defer ctrl.Finish()
 
 		document := CreateTestDocumentWithJWK(1)
-		store.EXPECT().ReadPayload(document.Payload()).Return(nil, errors.New("failed"))
+		store.EXPECT().ReadPayload(document.PayloadHash()).Return(nil, errors.New("failed"))
 
 		received := false
-		publisher.Subscribe(document.PayloadType(), func(actualDocument Document, actualPayload []byte) error {
+		publisher.Subscribe(document.PayloadType(), func(actualDocument SubscriberDocument, actualPayload []byte) error {
 			received = true
 			return nil
 		})
@@ -123,10 +123,10 @@ func TestReplayingPublisher_publishDocument(t *testing.T) {
 		defer ctrl.Finish()
 
 		document := CreateTestDocumentWithJWK(1)
-		store.EXPECT().ReadPayload(document.Payload()).Return([]byte{1, 2, 3}, nil)
+		store.EXPECT().ReadPayload(document.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 
 		calls := 0
-		receiver := func(actualDocument Document, actualPayload []byte) error {
+		receiver := func(actualDocument SubscriberDocument, actualPayload []byte) error {
 			calls++
 			return nil
 		}
@@ -141,9 +141,9 @@ func TestReplayingPublisher_publishDocument(t *testing.T) {
 		defer ctrl.Finish()
 
 		document := CreateTestDocumentWithJWK(1)
-		store.EXPECT().ReadPayload(document.Payload()).Return([]byte{1, 2, 3}, nil)
+		store.EXPECT().ReadPayload(document.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 		calls := 0
-		receiver := func(actualDocument Document, actualPayload []byte) error {
+		receiver := func(actualDocument SubscriberDocument, actualPayload []byte) error {
 			calls++
 			return errors.New("failed")
 		}

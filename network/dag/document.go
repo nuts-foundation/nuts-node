@@ -1,4 +1,5 @@
 /*
+ * Nuts node
  * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -49,28 +50,51 @@ var invalidHeaderErrFmt = "invalid %s header"
 
 // UnsignedDocument holds the base properties of a document which can be signed to create a Document.
 type UnsignedDocument interface {
+	NetworkHeader
+	Timeline
+	PayloadReferencer
+}
+
+// PayloadReferencer allows implementers to reference to a payload.
+// It provides an uniform interface to payload properties such as the type and the hash.
+type PayloadReferencer interface {
+	// PayloadHash returns the hash of the payload of the document.
+	PayloadHash() hash.SHA256Hash
+
 	// PayloadType returns the MIME-formatted type of the payload. It must contain the context and specific type of the
 	// payload, e.g. 'registry/endpoint'.
 	PayloadType() string
-	// Payload returns the hash of the payload of the document.
-	Payload() hash.SHA256Hash
+}
+
+// NetworkHeader groups methods for working with a network document header.
+type NetworkHeader interface {
 	// Previous returns the references of the previous documents this document points to.
 	Previous() []hash.SHA256Hash
 	// Version returns the version number of the distributed document format.
 	Version() Version
+}
+
+// SubscriberDocument contains a subset of the Document methods which are only relevant to subscribers.
+type SubscriberDocument interface {
+	Signable
+	Referenceable
+	Timeline
+	PayloadReferencer
+}
+
+// Timeline contains a set of methods to work with network document timeline information
+type Timeline interface {
 	// TimelineID returns the timeline ID of the document.
 	TimelineID() hash.SHA256Hash
-	// TimelineVersion returns the timeline version of the document. If the returned version is < 1 the timeline version
-	// is not set.
+	// TimelineVersion returns the timeline version of the document.
+	// If the returned version is < 1 the timeline version is not set.
 	TimelineVersion() int
 }
 
-// Document defines a signed distributed document as described by RFC004 - Distributed Document Format.
-type Document interface {
-	UnsignedDocument
-	json.Marshaler
-	// SigningKey returns the key that was used to sign the document as JWK. If this field is not set SigningKeyID
-	// must be used to resolve the signing key.
+// Signable groups a set of functions to access information about a implementors signature.
+type Signable interface {
+	// SigningKey returns the key that was used to sign the document as JWK.
+	// If this field is not set SigningKeyID must be used to resolve the signing key.
 	SigningKey() jwk.Key
 	// SigningKeyID returns the ID of the key that was used to sign the document. It can be used to look up the key.
 	SigningKeyID() string
@@ -78,8 +102,20 @@ type Document interface {
 	SigningTime() time.Time
 	// SigningAlgorithm returns the name of the JOSE signing algorithm that was used to sign the document.
 	SigningAlgorithm() string
-	// Ref returns the reference to this document.
+}
+
+// Referenceable contains the Ref function which allows implementors to return a unique reference
+type Referenceable interface {
+	// Ref returns a unique sha256 hash of the implementing object.
 	Ref() hash.SHA256Hash
+}
+
+// Document defines a signed distributed document as described by RFC004 - Distributed Document Format.
+type Document interface {
+	UnsignedDocument
+	Signable
+	Referenceable
+	json.Marshaler
 	// Data returns the byte representation of this document which can be used for transport.
 	Data() []byte
 }
@@ -175,7 +211,7 @@ func (d document) PayloadType() string {
 	return d.payloadType
 }
 
-func (d document) Payload() hash.SHA256Hash {
+func (d document) PayloadHash() hash.SHA256Hash {
 	return d.payload
 }
 

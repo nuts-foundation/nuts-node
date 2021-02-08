@@ -130,7 +130,7 @@ func (n *NetworkEngine) GetDocumentPayload(documentRef hash.SHA256Hash) ([]byte,
 	if err != nil {
 		return nil, err
 	}
-	return n.payloadStore.ReadPayload(document.Payload())
+	return n.payloadStore.ReadPayload(document.PayloadHash())
 }
 
 // ListDocuments returns all documents known to this NetworkEngine instance.

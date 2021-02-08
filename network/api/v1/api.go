@@ -26,7 +26,7 @@ import (
 	"net/http"
 )
 
-// ServerImplementation returns a erver API implementation that uses the given network.
+// ServerImplementation returns a server API implementation that uses the given network.
 func ServerImplementation(network network.Network) ServerInterface {
 	return &wrapper{Service: network}
 }

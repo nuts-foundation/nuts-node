@@ -47,8 +47,8 @@ type DocumentMetadata struct {
 	Updated *time.Time `json:"updated,omitempty"`
 	// Version contains the semantic version of the DID document.
 	Version int `json:"version"`
-	// OriginJWSHash contains the hash of the JWS envelope of the first version of the DID document.
-	OriginJWSHash hash.SHA256Hash `json:"originJwsHash"`
+	// TimelineID contains the hash of the JWS envelope of the first version of the DID document.
+	TimelineID hash.SHA256Hash `json:"timelineID"`
 	// Hash of DID document bytes. Is equal to payloadHash in network layer.
 	Hash hash.SHA256Hash `json:"hash"`
 }

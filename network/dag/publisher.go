@@ -39,7 +39,7 @@ func (s *replayingDAGPublisher) DocumentAdded(document interface{}) {
 
 func (s *replayingDAGPublisher) Subscribe(documentType string, receiver Receiver) {
 	oldSubscriber := s.subscribers[documentType]
-	s.subscribers[documentType] = func(document Document, payload []byte) error {
+	s.subscribers[documentType] = func(document SubscriberDocument, payload []byte) error {
 		// Chain subscribers in case there's more than 1
 		if oldSubscriber != nil {
 			if err := oldSubscriber(document, payload); err != nil {
@@ -73,7 +73,7 @@ func (s *replayingDAGPublisher) publishDocument(document Document) bool {
 	if receiver == nil {
 		return true
 	}
-	payload, err := s.payloadStore.ReadPayload(document.Payload())
+	payload, err := s.payloadStore.ReadPayload(document.PayloadHash())
 	if err != nil {
 		log.Logger().Errorf("Unable to read payload to publish DAG: (ref=%s) %v", document.Ref(), err)
 		return false

@@ -55,7 +55,7 @@ func (n *trackingVisitor) Accept(document Document) bool {
 func (n trackingVisitor) JoinRefsAsString() string {
 	var contents []string
 	for _, document := range n.documents {
-		val := strings.TrimLeft(document.Payload().String(), "0")
+		val := strings.TrimLeft(document.PayloadHash().String(), "0")
 		if val == "" {
 			val = "0"
 		}
@@ -230,7 +230,7 @@ func TestBBoltDAG_GetByPayloadHash(t *testing.T) {
 		graph := createDAG(t)
 		document := CreateTestDocumentWithJWK(1)
 		_ = graph.Add(document)
-		actual, err := graph.GetByPayloadHash(document.Payload())
+		actual, err := graph.GetByPayloadHash(document.PayloadHash())
 		assert.Len(t, actual, 1)
 		assert.NoError(t, err)
 		assert.Equal(t, document, actual[0])
