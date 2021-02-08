@@ -21,6 +21,7 @@ package p2p
 import (
 	"crypto/tls"
 	"crypto/x509"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )

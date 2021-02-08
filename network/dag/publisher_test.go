@@ -2,10 +2,11 @@ package dag
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestReplayingPublisher(t *testing.T) {

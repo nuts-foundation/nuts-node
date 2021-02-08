@@ -22,9 +22,10 @@ import (
 	"crypto"
 	"encoding/binary"
 	"fmt"
+	"time"
+
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"time"
 )
 
 // CreateTestDocumentWithJWK creates a document with the given num as payload hash and signs it with a random EC key.

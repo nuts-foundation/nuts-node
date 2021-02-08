@@ -24,11 +24,20 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"path"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
+
+	"github.com/lestrrat-go/jwx/jwk"
+	api "github.com/nuts-foundation/nuts-node/crypto/api/v1"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/types"
+)
+
+const (
+	moduleName = "Crypto"
+	configKey  = "crypto"
 )
 
 // Config holds the values for the crypto engine
@@ -46,19 +55,48 @@ func DefaultCryptoConfig() Config {
 // Crypto holds references to storage and needed config
 type Crypto struct {
 	Storage storage.Storage
-	Config  Config
+	config  Config
 }
 
 // NewCryptoInstance creates a new instance of the crypto module.
 func NewCryptoInstance() *Crypto {
 	return &Crypto{
-		Config: DefaultCryptoConfig(),
+		config: DefaultCryptoConfig(),
 	}
 }
 
+func (client *Crypto) Name() string {
+	return moduleName
+}
+
+func (client *Crypto) Routes(router core.EchoRouter) {
+	api.RegisterHandlers(router, &api.Wrapper{C: client})
+}
+
+func (client *Crypto) ConfigKey() string {
+	return configKey
+}
+
+func (client *Crypto) Config() interface{} {
+	return &client.config
+}
+
+// Shutdown stops the certificate monitors
+func (client *Crypto) Shutdown() error {
+	return nil
+}
+
+// Start starts the crypto engine.
+func (client *Crypto) Start() error {
+	// currently empty but here to make crypto implement the Runnable interface.
+	return nil
+}
+
+var instance *Crypto
+
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
 func (client *Crypto) Configure(config core.NutsConfig) error {
-	if client.Config.Storage != "fs" && client.Config.Storage != "" {
+	if client.config.Storage != "fs" && client.config.Storage != "" {
 		return errors.New("only fs backend available for now")
 	}
 	var err error
@@ -71,7 +109,7 @@ func (client *Crypto) Configure(config core.NutsConfig) error {
 
 // New generates a new key pair. If a key is overwritten is handled by the storage implementation.
 // it's considered bad practise to reuse a kid for different keys.
-func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error) {
+func (client *Crypto) New(namingFunc types.KIDNamingFunc) (crypto.PublicKey, string, error) {
 	keyPair, err := generateECKeyPair()
 	if err != nil {
 		return nil, "", err

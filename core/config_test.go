@@ -162,44 +162,44 @@ func TestNewNutsConfig_PrintConfig(t *testing.T) {
 }
 
 func TestNewNutsConfig_RegisterFlags(t *testing.T) {
-	t.Run("adds flags", func(t *testing.T) {
-		e := &Engine{
-			Cmd:     &cobra.Command{},
-			FlagSet: pflag.NewFlagSet("dummy", pflag.ContinueOnError),
-		}
-		e.FlagSet.String("key", "", "")
+	cmd := &cobra.Command{}
+	flagSet := pflag.NewFlagSet("dummy", pflag.ContinueOnError)
+	flagSet.String("key", "", "")
+	in := &TestModule{flagSet: flagSet}
 
-		assert.False(t, e.Cmd.PersistentFlags().HasAvailableFlags())
+	t.Run("adds flags", func(t *testing.T) {
+		assert.False(t, cmd.PersistentFlags().HasAvailableFlags())
 
 		cfg := NewNutsConfig()
-		cfg.RegisterFlags(e.Cmd, e)
+		cfg.RegisterFlags(cmd, in)
 
-		assert.True(t, e.Cmd.PersistentFlags().HasAvailableFlags())
+		assert.True(t, cmd.PersistentFlags().HasAvailableFlags())
 	})
 }
 
-func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
+func TestNewNutsConfig_InjectIntoModule(t *testing.T) {
 	defer reset()
 
 	os.Args = []string{"command", "--key", "value"}
 	cfg := NewNutsConfig()
 
+	cmd := &cobra.Command{}
+	flagSet := pflag.NewFlagSet("dummy", pflag.ContinueOnError)
+	flagSet.String("key", "", "")
+	in := &TestModule{
+		flagSet:    flagSet,
+		TestConfig: TestModuleConfig{},
+	}
+
 	t.Run("param is injected", func(t *testing.T) {
-		c := struct {
-			Key string `koanf:"key"`
-		}{}
-		e := &Engine{
-			Config:  &c,
-			Cmd:     &cobra.Command{},
-			FlagSet: pflag.NewFlagSet("dummy", pflag.ContinueOnError),
+		cfg.RegisterFlags(cmd, in)
+		cfg.Load(cmd)
+		err := cfg.InjectIntoEngine(in)
+		if !assert.NoError(t, err) {
+			return
 		}
-		e.FlagSet.String("key", "", "test")
 
-		cfg.RegisterFlags(e.Cmd, e)
-		cfg.Load(e.Cmd)
-		cfg.InjectIntoEngine(e)
-
-		assert.Equal(t, "value", c.Key)
+		assert.Equal(t, "value", in.TestConfig.Key)
 	})
 }
 

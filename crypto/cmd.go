@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package engine
+package crypto
 
 import (
 	"crypto"
@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	api "github.com/nuts-foundation/nuts-node/crypto/api/v1"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/spf13/cobra"
@@ -35,26 +34,11 @@ import (
 // ConfigStorage is used as --crypto.storage config flag
 const ConfigStorage string = "crypto.storage"
 
-// NewCryptoEngine the engine configuration for nuts-go.
-func NewCryptoEngine(instance *crypto2.Crypto) *core.Engine {
-	return &core.Engine{
-		Cmd:          cmd(),
-		Config:       &instance.Config,
-		ConfigKey:    "crypto",
-		Configurable: instance,
-		FlagSet:      flagSet(),
-		Name:         "Crypto",
-		Routes: func(router core.EchoRouter) {
-			api.RegisterHandlers(router, &api.Wrapper{C: instance})
-		},
-	}
-}
-
 // FlagSet returns the configuration flags for crypto
-func flagSet() *pflag.FlagSet {
+func (client *Crypto) FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("crypto", pflag.ContinueOnError)
 
-	defs := crypto2.DefaultCryptoConfig()
+	defs := DefaultCryptoConfig()
 	flags.String(ConfigStorage, defs.Storage, fmt.Sprintf("Storage to use, 'fs' for file system, default: %s", defs.Storage))
 
 	return flags
@@ -63,7 +47,7 @@ func flagSet() *pflag.FlagSet {
 // Cmd gives the sub-commands made available through crypto:
 // * generateKeyPair: generate a new keyPair for a given legalEntity
 // * publicKey: retrieve the keyPair for a given legalEntity
-func cmd() *cobra.Command {
+func (client *Crypto) Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "crypto",
 		Short: "crypto commands",

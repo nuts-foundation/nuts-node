@@ -22,22 +22,23 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/golang/mock/gomock"
-	"github.com/labstack/echo/v4"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/labstack/echo/v4"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewSystem(t *testing.T) {
 	system := NewSystem()
 	assert.NotNil(t, system)
-	assert.Empty(t, system.engines)
+	assert.Empty(t, system.modules)
 }
 
 func TestSystem_Start(t *testing.T) {
@@ -48,9 +49,9 @@ func TestSystem_Start(t *testing.T) {
 	r.EXPECT().Start()
 
 	system := NewSystem()
-	system.RegisterEngine(&Engine{})
-	system.RegisterEngine(&Engine{Runnable: r})
-	assert.Nil(t, system.Start())
+	system.RegisterModule(TestModule{})
+	system.RegisterModule(r)
+	assert.NoError(t, system.Start())
 }
 
 func TestSystem_Shutdown(t *testing.T) {
@@ -61,8 +62,8 @@ func TestSystem_Shutdown(t *testing.T) {
 	r.EXPECT().Shutdown()
 
 	system := NewSystem()
-	system.RegisterEngine(&Engine{})
-	system.RegisterEngine(&Engine{Runnable: r})
+	system.RegisterModule(TestModule{})
+	system.RegisterModule(r)
 	assert.Nil(t, system.Shutdown())
 }
 
@@ -75,13 +76,13 @@ func TestSystem_Configure(t *testing.T) {
 		r.EXPECT().Configure(gomock.Any())
 
 		system := NewSystem()
-		system.RegisterEngine(&Engine{})
-		system.RegisterEngine(&Engine{Configurable: r})
+		system.RegisterModule(TestModule{})
+		system.RegisterModule(r)
 		assert.Nil(t, system.Configure())
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
 		system := NewSystem()
-		system.Config = &NutsConfig{Datadir: "engine_test.go"}
+		system.Config = &NutsConfig{Datadir: "config_test.go"}
 		assert.Error(t, system.Configure())
 	})
 }
@@ -94,20 +95,20 @@ func TestSystem_Diagnostics(t *testing.T) {
 	r.EXPECT().Diagnostics().Return([]DiagnosticResult{&GenericDiagnosticResult{Title: "Result"}})
 
 	system := NewSystem()
-	system.RegisterEngine(&Engine{})
-	system.RegisterEngine(&Engine{Diagnosable: r})
+	system.RegisterModule(TestModule{})
+	system.RegisterModule(r)
 	assert.Len(t, system.Diagnostics(), 1)
 }
 
-func TestSystem_RegisterEngine(t *testing.T) {
-	t.Run("adds an engine to the list", func(t *testing.T) {
+func TestSystem_RegisterModule(t *testing.T) {
+	t.Run("adds a module to the list", func(t *testing.T) {
 		ctl := System{
-			engines: []*Engine{},
+			modules: []Module{},
 		}
-		ctl.RegisterEngine(&Engine{})
+		ctl.RegisterModule(TestModule{})
 
-		if len(ctl.engines) != 1 {
-			t.Errorf("Expected 1 registered engine, Got %d", len(ctl.engines))
+		if len(ctl.modules) != 1 {
+			t.Errorf("Expected 1 registered module, Got %d", len(ctl.modules))
 		}
 	})
 }
@@ -129,29 +130,26 @@ func TestSystem_VisitEnginesE(t *testing.T) {
 }
 
 func TestSystem_Load(t *testing.T) {
-	c := struct {
-		Key string `koanf:"key"`
-	}{}
-	e := &Engine{
-		Cmd:     &cobra.Command{},
-		Config:  &c,
-		FlagSet: &pflag.FlagSet{},
+	cmd := &cobra.Command{}
+	e := &TestModule{
+		flagSet:    &pflag.FlagSet{},
+		TestConfig: TestModuleConfig{},
 	}
 	ctl := System{
-		engines: []*Engine{e},
+		modules: []Module{e},
 		Config:  NewNutsConfig(),
 	}
-	e.FlagSet.String("key", "", "")
+	e.FlagSet().String("key", "", "")
 	os.Args = []string{"command", "--key", "value"}
-	ctl.Config.RegisterFlags(e.Cmd, e)
+	ctl.Config.RegisterFlags(cmd, e)
 
-	t.Run("loads config without error", func(t *testing.T) {
-		assert.NoError(t, ctl.Load(e.Cmd))
+	t.Run("loads Config without error", func(t *testing.T) {
+		assert.NoError(t, ctl.Load(cmd))
 	})
 
 	t.Run("calls inject into engine", func(t *testing.T) {
-		ctl.Load(e.Cmd)
-		assert.Equal(t, "value", c.Key)
+		ctl.Load(cmd)
+		assert.Equal(t, "value", e.TestConfig.Key)
 	})
 }
 

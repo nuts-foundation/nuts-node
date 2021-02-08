@@ -5,13 +5,14 @@
 package mock
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	v4 "github.com/labstack/echo/v4"
 	io "io"
 	multipart "mime/multipart"
 	http "net/http"
 	url "net/url"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
+	v4 "github.com/labstack/echo/v4"
 )
 
 // MockContext is a mock of Context interface

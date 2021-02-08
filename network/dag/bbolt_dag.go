@@ -21,6 +21,7 @@ package dag
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	log "github.com/nuts-foundation/nuts-node/network/log"

@@ -18,16 +18,17 @@
 package v1
 
 import (
-	"github.com/golang/mock/gomock"
-	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	network "github.com/nuts-foundation/nuts-node/network/types"
+	"github.com/stretchr/testify/assert"
 )
 
 var payload = []byte("Hello, World!")

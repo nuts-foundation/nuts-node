@@ -23,17 +23,19 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/crypto/types"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/proto"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 type networkTestContext struct {
@@ -42,7 +44,7 @@ type networkTestContext struct {
 	protocol   *proto.MockProtocol
 	graph      *dag.MockDAG
 	payload    *dag.MockPayloadStore
-	keyStore   *crypto.MockKeyStore
+	keyStore   *types.MockKeyStore
 	publisher  *dag.MockPublisher
 }
 
@@ -119,9 +121,9 @@ func TestNetwork_Configure(t *testing.T) {
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
-		cxt.network.Config.TrustStoreFile = ""
-		cxt.network.Config.CertKeyFile = ""
-		cxt.network.Config.CertFile = ""
+		cxt.network.config.TrustStoreFile = ""
+		cxt.network.config.CertKeyFile = ""
+		cxt.network.config.CertFile = ""
 		err := cxt.network.Configure(core.NutsConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
@@ -233,10 +235,10 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.network.Config.GrpcAddr = ":5555"
-		cxt.network.Config.EnableTLS = true
-		cxt.network.Config.CertFile = "test/certificate-and-key.pem"
-		cxt.network.Config.CertKeyFile = "test/certificate-and-key.pem"
+		cxt.network.config.GrpcAddr = ":5555"
+		cxt.network.config.EnableTLS = true
+		cxt.network.config.CertFile = "test/certificate-and-key.pem"
+		cxt.network.config.CertKeyFile = "test/certificate-and-key.pem"
 		cfg, err := cxt.network.buildP2PConfig("")
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
@@ -245,8 +247,8 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 	})
 	t.Run("ok - TLS disabled", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.network.Config.GrpcAddr = ":5555"
-		cxt.network.Config.EnableTLS = false
+		cxt.network.config.GrpcAddr = ":5555"
+		cxt.network.config.EnableTLS = false
 		cfg, err := cxt.network.buildP2PConfig("")
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
@@ -255,8 +257,8 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 	})
 	t.Run("ok - gRPC server not bound", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.network.Config.GrpcAddr = ""
-		cxt.network.Config.EnableTLS = true
+		cxt.network.config.GrpcAddr = ""
+		cxt.network.config.EnableTLS = true
 		cfg, err := cxt.network.buildP2PConfig("")
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
@@ -265,9 +267,9 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 	})
 	t.Run("error - unable to load key pair from file", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.network.Config.CertFile = "test/non-existent.pem"
-		cxt.network.Config.CertKeyFile = "test/non-existent.pem"
-		cxt.network.Config.EnableTLS = true
+		cxt.network.config.CertFile = "test/non-existent.pem"
+		cxt.network.config.CertKeyFile = "test/non-existent.pem"
+		cxt.network.config.EnableTLS = true
 		cfg, err := cxt.network.buildP2PConfig("")
 		assert.Nil(t, cfg)
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certFile=test/non-existent.pem,certKeyFile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
@@ -285,7 +287,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	networkConfig.CertFile = "test/certificate-and-key.pem"
 	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
 	networkConfig.PublicAddr = "foo:8080"
-	keyStore := crypto.NewMockKeyStore(ctrl)
+	keyStore := types.NewMockKeyStore(ctrl)
 	network := NewNetworkInstance(networkConfig, keyStore)
 	network.p2pNetwork = p2pNetwork
 	network.protocol = protocol

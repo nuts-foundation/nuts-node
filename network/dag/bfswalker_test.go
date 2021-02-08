@@ -1,9 +1,10 @@
 package dag
 
 import (
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestBFSWalkerAlgorithm(t *testing.T) {

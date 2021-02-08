@@ -20,19 +20,17 @@
 package cmd
 
 import (
+	"io"
+	"os"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto/engine"
 	"github.com/nuts-foundation/nuts-node/network"
-	networkEngine "github.com/nuts-foundation/nuts-node/network/engine"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	vdrEngine "github.com/nuts-foundation/nuts-node/vdr/engine"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"io"
-	"os"
 )
 
 var stdOutWriter io.Writer = os.Stdout
@@ -86,9 +84,9 @@ func createServerCommand(system *core.System) *cobra.Command {
 
 			// start interfaces
 			echoServer := echoCreator()
-			system.VisitEngines(func(engine *core.Engine) {
-				if engine.Routes != nil {
-					engine.Routes(echoServer)
+			system.VisitModules(func(module core.Module) {
+				if m, ok := module.(core.Routable); ok {
+					m.Routes(echoServer)
 				}
 			})
 
@@ -122,11 +120,11 @@ func CreateSystem() *core.System {
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
 
 	// Register engines
-	system.RegisterEngine(core.NewStatusEngine(system))
-	system.RegisterEngine(core.NewMetricsEngine())
-	system.RegisterEngine(cryptoEngine.NewCryptoEngine(cryptoInstance))
-	system.RegisterEngine(networkEngine.NewNetworkEngine(networkInstance))
-	system.RegisterEngine(vdrEngine.NewVDREngine(vdrInstance))
+	system.RegisterModule(core.NewStatusModule(system))
+	system.RegisterModule(core.NewMetricsModule())
+	system.RegisterModule(cryptoInstance)
+	system.RegisterModule(networkInstance)
+	system.RegisterModule(vdrInstance)
 	return system
 }
 
@@ -145,9 +143,9 @@ func Execute(system *core.System) {
 }
 
 func addSubCommands(system *core.System, root *cobra.Command) {
-	system.VisitEngines(func(engine *core.Engine) {
-		if engine.Cmd != nil {
-			root.AddCommand(engine.Cmd)
+	system.VisitModules(func(module core.Module) {
+		if m, ok := module.(core.Executable); ok {
+			root.AddCommand(m.Cmd())
 		}
 	})
 	root.AddCommand(createServerCommand(system))
@@ -155,7 +153,9 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 }
 
 func addFlagSets(system *core.System, cmd *cobra.Command) {
-	system.VisitEngines(func(engine *core.Engine) {
-		system.Config.RegisterFlags(cmd, engine)
+	system.VisitModules(func(module core.Module) {
+		if m, ok := module.(core.Injectable); ok {
+			system.Config.RegisterFlags(cmd, m)
+		}
 	})
 }

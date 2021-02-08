@@ -1,6 +1,6 @@
 /*
  * Nuts node
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,10 +14,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package engine
+package vdr
 
 import (
 	"bufio"
@@ -31,38 +30,22 @@ import (
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-// NewVDREngine returns the core definition for the VDR
-func NewVDREngine(instance *vdr.VDR) *core.Engine {
-	return &core.Engine{
-		Cmd:         cmd(),
-		Runnable:    instance,
-		Diagnosable: instance,
-		Config:      &instance.Config,
-		ConfigKey:   "vdr",
-		FlagSet:     flagSet(),
-		Name:        vdr.ModuleName,
-		Routes: func(router core.EchoRouter) {
-			api.RegisterHandlers(router, &api.Wrapper{VDR: instance})
-		},
-	}
-}
 
-func flagSet() *pflag.FlagSet {
+func (r *VDR) FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("vdr", pflag.ContinueOnError)
 
-	defs := vdr.DefaultConfig()
-	flagSet.Int(vdr.ConfClientTimeout, defs.ClientTimeout, fmt.Sprintf("Time-out for the client in seconds (e.g. when using the CLI), default: %d", defs.ClientTimeout))
+	defs := DefaultConfig()
+	flagSet.Int(ConfClientTimeout, defs.ClientTimeout, fmt.Sprintf("Time-out for the client in seconds (e.g. when using the CLI), default: %d", defs.ClientTimeout))
 
 	return flagSet
 }
 
-func cmd() *cobra.Command {
+func (r *VDR) Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "vdr",
 		Short: "Verifiable Data VDR commands",

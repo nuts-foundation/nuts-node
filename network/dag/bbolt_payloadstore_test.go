@@ -1,10 +1,11 @@
 package dag
 
 import (
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestBBoltPayloadStore_ReadWrite(t *testing.T) {

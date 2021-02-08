@@ -12,7 +12,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/stretchr/testify/assert"
 
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/types"
 )
 
 // mockKeyCreator can create new keys based on a predefined key
@@ -23,7 +23,7 @@ type mockKeyCreator struct {
 }
 
 // New uses a predefined ECDSA key and calls the namingFunc to get the kid
-func (m *mockKeyCreator) New(namingFunc nutsCrypto.KIDNamingFunc) (crypto.PublicKey, string, error) {
+func (m *mockKeyCreator) New(namingFunc types.KIDNamingFunc) (crypto.PublicKey, string, error) {
 	rawKey, err := jwkToPublicKey(m.t, m.jwkStr)
 	if err != nil {
 		return nil, "", err

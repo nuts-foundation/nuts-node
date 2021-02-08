@@ -21,11 +21,12 @@ package dag
 import (
 	"bytes"
 	"fmt"
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"time"
 )
 
 // ParseDocument parses the input as Nuts Network Document according to RFC004.

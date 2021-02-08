@@ -21,31 +21,35 @@ package network
 import (
 	"crypto/tls"
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	crypto "github.com/nuts-foundation/nuts-node/crypto/types"
+	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/proto"
 	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
-	"os"
-	"path"
-	"path/filepath"
-	"time"
 )
 
 // boltDBFileMode holds the Unix file mode the created BBolt database files will have.
 const boltDBFileMode = 0600
 
-// ModuleName defines the name of this module
-const ModuleName = "Transactions"
+const (
+	moduleName = "Transactions"
+	configKey  = "network"
+)
 
-// Network implements Transactions interface and Engine functions.
+// NetworkEngine implements Network interface and Engine functions.
 type Network struct {
-	Config        Config
+	config        Config
 	p2pNetwork    p2p.P2PNetwork
 	protocol      proto.Protocol
 	documentGraph dag.DAG
@@ -54,10 +58,10 @@ type Network struct {
 	keyStore      crypto.KeyStore
 }
 
-// NewNetworkInstance creates a new Network engine instance.
+// NewNetworkInstance creates a new NetworkEngine engine instance.
 func NewNetworkInstance(config Config, keyStore crypto.KeyStore) *Network {
 	result := &Network{
-		Config:     config,
+		config:     config,
 		keyStore:   keyStore,
 		p2pNetwork: p2p.NewP2PNetwork(),
 		protocol:   proto.NewProtocol(),
@@ -79,13 +83,29 @@ func (n *Network) Configure(config core.NutsConfig) error {
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.documentGraph)
 	peerID := p2p.PeerID(uuid.New().String())
-	n.protocol.Configure(n.p2pNetwork, n.documentGraph, n.payloadStore, dag.NewDocumentSignatureVerifier(n.keyStore), time.Duration(n.Config.AdvertHashesInterval)*time.Millisecond, peerID)
+	n.protocol.Configure(n.p2pNetwork, n.documentGraph, n.payloadStore, dag.NewDocumentSignatureVerifier(n.keyStore), time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
 	networkConfig, p2pErr := n.buildP2PConfig(peerID)
 	if p2pErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", p2pErr)
 		return nil
 	}
 	return n.p2pNetwork.Configure(*networkConfig)
+}
+
+func (n *Network) Name() string {
+	return moduleName
+}
+
+func (n *Network) ConfigKey() string {
+	return configKey
+}
+
+func (n *Network) Config() interface{} {
+	return &n.config
+}
+
+func (n *Network) Routes(router core.EchoRouter) {
+	v1.RegisterHandlers(router, v1.ServerImplementation(n))
 }
 
 // Start initiates the Network subsystem
@@ -182,22 +202,22 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 
 func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.P2PNetworkConfig, error) {
 	cfg := p2p.P2PNetworkConfig{
-		ListenAddress:  n.Config.GrpcAddr,
-		PublicAddress:  n.Config.PublicAddr,
-		BootstrapNodes: n.Config.parseBootstrapNodes(),
+		ListenAddress:  n.config.GrpcAddr,
+		PublicAddress:  n.config.PublicAddr,
+		BootstrapNodes: n.config.parseBootstrapNodes(),
 		PeerID:         peerID,
 	}
 	var err error
-	if cfg.TrustStore, err = n.Config.loadTrustStore(); err != nil {
+	if cfg.TrustStore, err = n.config.loadTrustStore(); err != nil {
 		return nil, err
 	}
-	clientCertificate, err := tls.LoadX509KeyPair(n.Config.CertFile, n.Config.CertKeyFile)
+	clientCertificate, err := tls.LoadX509KeyPair(n.config.CertFile, n.config.CertKeyFile)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certFile=%s,certKeyFile=%s)", n.Config.CertFile, n.Config.CertKeyFile)
+		return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certFile=%s,certKeyFile=%s)", n.config.CertFile, n.config.CertKeyFile)
 	}
 	cfg.ClientCert = clientCertificate
 	// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
-	if n.Config.GrpcAddr != "" && n.Config.EnableTLS {
+	if n.config.GrpcAddr != "" && n.config.EnableTLS {
 		cfg.ServerCert = cfg.ClientCert
 	}
 	return &cfg, nil

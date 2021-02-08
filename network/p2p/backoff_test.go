@@ -19,9 +19,10 @@
 package p2p
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBackoff(t *testing.T) {

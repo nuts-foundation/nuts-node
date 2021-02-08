@@ -24,6 +24,12 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
+	"hash/crc32"
+	"path"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -35,11 +41,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"hash/crc32"
-	"path"
-	"sync"
-	"testing"
-	"time"
 )
 
 const defaultTimeout = 2 * time.Second
@@ -204,7 +205,7 @@ func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Ne
 		p2pNetwork: p2p.NewP2PNetwork(),
 		protocol:   proto.NewProtocol(),
 		keyStore:   keyStore,
-		Config: Config{
+		config: Config{
 			GrpcAddr:             fmt.Sprintf(":%d", nameToPort(name)),
 			PublicAddr:           fmt.Sprintf("localhost:%d", nameToPort(name)),
 			CertFile:             "test/certificate-and-key.pem",

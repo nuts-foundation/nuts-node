@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewStatusEngine_Routes(t *testing.T) {
-	t.Run("Registers a single route for listing all engines", func(t *testing.T) {
+	t.Run("Registers a single route for listing all modules", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		echo := mock.NewMockEchoRouter(ctrl)
@@ -18,19 +18,19 @@ func TestNewStatusEngine_Routes(t *testing.T) {
 		echo.EXPECT().GET("/status/diagnostics", gomock.Any())
 		echo.EXPECT().GET("/status", gomock.Any())
 
-		NewStatusEngine(NewSystem()).Routes(echo)
+		NewStatusModule(NewSystem()).(*status).Routes(echo)
 	})
 }
 
 func TestNewStatusEngine_Diagnostics(t *testing.T) {
 	system := NewSystem()
-	system.RegisterEngine(NewStatusEngine(system))
-	system.RegisterEngine(NewMetricsEngine())
+	system.RegisterModule(NewStatusModule(system))
+	system.RegisterModule(NewMetricsModule())
 
 	t.Run("diagnostics() returns engine list", func(t *testing.T) {
-		ds := NewStatusEngine(system).Diagnostics()
+		ds := NewStatusModule(system).(*status).Diagnostics()
 		assert.Len(t, ds, 1)
-		assert.Equal(t, "Registered engines", ds[0].Name())
+		assert.Equal(t, "Registered modules", ds[0].Name())
 		assert.Equal(t, "Status,Metrics", ds[0].String())
 	})
 
@@ -39,9 +39,9 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 		defer ctrl.Finish()
 		echo := mock.NewMockContext(ctrl)
 
-		echo.EXPECT().String(http.StatusOK, "Status\n\tRegistered engines: Status,Metrics")
+		echo.EXPECT().String(http.StatusOK, "Status\n\tRegistered modules: Status,Metrics")
 
-		(&status{system}).diagnosticsOverview(echo)
+		(&status{system: system}).diagnosticsOverview(echo)
 	})
 }
 

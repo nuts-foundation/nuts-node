@@ -25,8 +25,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
+	"github.com/nuts-foundation/nuts-node/crypto/types"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 
 	"github.com/labstack/echo/v4"
@@ -36,7 +36,7 @@ import (
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
-	C crypto.KeyStore
+	C types.KeyStore
 }
 
 func (signRequest SignJwtRequest) validate() error {

@@ -19,9 +19,10 @@
 package p2p
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
-	"testing"
 )
 
 func Test_normalizeAddress(t *testing.T) {

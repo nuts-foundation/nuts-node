@@ -21,18 +21,19 @@ package v1
 import (
 	"github.com/labstack/echo/v4"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/types"
+
 	"net/http"
 )
 
 // ServerImplementation returns a server API implementation that uses the given network.
-func ServerImplementation(network network.Transactions) ServerInterface {
+func ServerImplementation(network types.Transactions) ServerInterface {
 	return &wrapper{Service: network}
 }
 
 type wrapper struct {
-	Service network.Transactions
+	Service types.Transactions
 }
 
 // ListDocuments lists all documents

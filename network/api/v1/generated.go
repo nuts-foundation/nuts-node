@@ -525,3 +525,4 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/api/document/:ref/payload", wrapper.GetDocumentPayload)
 
 }
+

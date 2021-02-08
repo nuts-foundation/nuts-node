@@ -3,8 +3,10 @@ package vdr
 // ConfClientTimeout is the time-out for the client in seconds (e.g. when using the CLI).
 const ConfClientTimeout = "vdr.clientTimeout"
 
-// ModuleName contains the name of this module
-const ModuleName = "Verifiable Data Registry"
+const (
+	moduleName = "Verifiable Data Registry"
+	configKey  = "vdr"
+)
 
 // Config holds the config for the VDR engine
 type Config struct {

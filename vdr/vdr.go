@@ -26,11 +26,11 @@ package vdr
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
-
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	types2 "github.com/nuts-foundation/nuts-node/network/types"
+	store "github.com/nuts-foundation/nuts-node/vdr/store"
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/sirupsen/logrus"
@@ -40,17 +40,18 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	crypto "github.com/nuts-foundation/nuts-node/crypto/types"
+	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 )
 
 // VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type VDR struct {
-	Config            Config
+	config            Config
 	store             types.Store
-	network           network.Transactions
+	network           types2.Transactions
 	OnChange          func(registry *VDR)
 	networkAmbassador Ambassador
 	_logger           *logrus.Entry
@@ -58,16 +59,28 @@ type VDR struct {
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions) *VDR {
+func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient types2.Transactions) *VDR {
 	store := store.NewMemoryStore()
 	return &VDR{
-		Config:            config,
+		config:            config,
 		network:           networkClient,
 		_logger:           logging.Log(),
 		store:             store,
 		didDocCreator:     NutsDocCreator{keyCreator: cryptoClient},
 		networkAmbassador: NewAmbassador(networkClient, store, cryptoClient),
 	}
+}
+
+func (r *VDR) Name() string {
+	return moduleName
+}
+
+func (r *VDR) ConfigKey() string {
+	return configKey
+}
+
+func (r *VDR) Config() interface{} {
+	return &r.config
 }
 
 // Start initiates the routines for auto-updating the data
@@ -84,6 +97,10 @@ func (r *VDR) Shutdown() error {
 // Diagnostics returns the diagnostics for this engine
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{}
+}
+
+func (r *VDR) Routes(router core.EchoRouter) {
+	api.RegisterHandlers(router, &api.Wrapper{VDR: r})
 }
 
 // Create generates a new DID Document

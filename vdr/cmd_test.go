@@ -1,6 +1,6 @@
 /*
  * Nuts node
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,49 +14,42 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
-package engine
+
+package vdr
 
 import (
 	"bytes"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/network"
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/nuts-foundation/nuts-node/test/io"
+	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
-
-	core "github.com/nuts-foundation/nuts-node/core"
 )
 
 func Test_flagSet(t *testing.T) {
-	assert.NotNil(t, flagSet())
+	vdr := NewVDR(DefaultConfig(), nil, nil)
+	assert.NotNil(t, vdr.FlagSet())
 }
 
 func TestNewRegistryEngine(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
 	networkInstance := network.NewTestNetworkInstance(testDirectory)
-	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
-	t.Run("instance", func(t *testing.T) {
-		assert.NotNil(t, NewVDREngine(vdrInstance))
-	})
-
 	t.Run("configuration", func(t *testing.T) {
-		e := NewVDREngine(vdrInstance)
+		vdr := NewVDR(DefaultConfig(), cryptoInstance, networkInstance)
 		cfg := core.NewNutsConfig()
-		cfg.RegisterFlags(e.Cmd, e)
-		assert.NoError(t, cfg.InjectIntoEngine(e))
+		cfg.RegisterFlags(vdr.Cmd(), vdr)
+		assert.NoError(t, cfg.InjectIntoEngine(vdr))
 	})
 }
 
@@ -65,9 +58,9 @@ func TestEngine_Command(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
 	networkInstance := network.NewTestNetworkInstance(testDirectory)
-	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
+	vdrInstance := NewVDR(DefaultConfig(), cryptoInstance, networkInstance)
 	createCmd := func(t *testing.T) *cobra.Command {
-		return NewVDREngine(vdrInstance).Cmd
+		return NewVDR(DefaultConfig(), cryptoInstance, networkInstance).Cmd()
 	}
 
 	exampleID, _ := did.ParseDID("did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
@@ -170,7 +163,7 @@ func TestEngine_Command(t *testing.T) {
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
-			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
+			cmd.SetArgs([]string{"update", "did", "hash", "./test/diddocument.json"})
 			cmd.SetOut(buf)
 			err := cmd.Execute()
 
@@ -188,7 +181,7 @@ func TestEngine_Command(t *testing.T) {
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
-			cmd.SetArgs([]string{"update", "did", "hash", "../test/syntax_error.json"})
+			cmd.SetArgs([]string{"update", "did", "hash", "./test/syntax_error.json"})
 			cmd.SetOut(buf)
 			err := cmd.Execute()
 
@@ -206,7 +199,7 @@ func TestEngine_Command(t *testing.T) {
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
-			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
+			cmd.SetArgs([]string{"update", "did", "hash", "./test/diddocument.json"})
 			cmd.SetOut(buf)
 			err := cmd.Execute()
 

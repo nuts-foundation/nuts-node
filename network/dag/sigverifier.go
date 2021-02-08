@@ -3,9 +3,10 @@ package dag
 import (
 	crypto2 "crypto"
 	"fmt"
+
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	crypto "github.com/nuts-foundation/nuts-node/crypto/types"
 )
 
 // DocumentSignatureVerifier defines functions to verify document signatures.

@@ -3,9 +3,11 @@ package dag
 import (
 	"errors"
 	"fmt"
+
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	crypto "github.com/nuts-foundation/nuts-node/crypto/types"
+
 	"time"
 )
 

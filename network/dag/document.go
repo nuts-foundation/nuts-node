@@ -21,12 +21,13 @@ package dag
 
 import (
 	"encoding/json"
+	"strings"
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/pkg/errors"
-	"strings"
-	"time"
 )
 
 // Version defines a type for distributed document format version.

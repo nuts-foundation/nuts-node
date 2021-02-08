@@ -1,4 +1,5 @@
 /*
+ * Nuts node
  * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -13,34 +14,29 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package engine
+package network
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"testing"
 )
 
-func TestNewEngine(t *testing.T) {
-	testDirectory := io.TestDirectory(t)
-	e := NewNetworkEngine(network.NewTestNetworkInstance(testDirectory))
-	assert.NotNil(t, e)
-}
-
 func TestFlagSet(t *testing.T) {
-	assert.NotNil(t, flagSet())
+	instance := NewNetworkInstance(DefaultConfig(), nil)
+	assert.NotNil(t, instance.FlagSet())
 }
 
 func TestCmd_List(t *testing.T) {
@@ -104,6 +100,7 @@ func TestCmd_Payload(t *testing.T) {
 func createCmd(t *testing.T) *cobra.Command {
 	core.NewNutsConfig().Load(&cobra.Command{})
 	testDirectory := io.TestDirectory(t)
-	engine := NewNetworkEngine(network.NewTestNetworkInstance(testDirectory))
-	return engine.Cmd
+	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
+	instance := NewNetworkInstance(DefaultConfig(), cryptoInstance)
+	return instance.Cmd()
 }

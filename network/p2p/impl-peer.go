@@ -20,11 +20,12 @@ package p2p
 
 import (
 	"fmt"
+	"io"
+	"sync"
+
 	log "github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
-	"io"
-	"sync"
 )
 
 type messageGate interface {

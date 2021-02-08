@@ -16,12 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package crypto
+package types
 
 import (
 	"crypto"
-	"github.com/nuts-foundation/nuts-node/core"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // KIDNamingFunc is a function passed to New() which generates the kid for the pub/priv key

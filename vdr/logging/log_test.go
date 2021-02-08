@@ -1,8 +1,9 @@
 package logging
 
 import (
-	"github.com/magiconair/properties/assert"
 	"testing"
+
+	"github.com/magiconair/properties/assert"
 )
 
 func TestLog(t *testing.T) {

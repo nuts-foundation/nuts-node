@@ -126,7 +126,7 @@ func TestCrypto_Configure(t *testing.T) {
 	})
 	t.Run("error - unknown backend", func(t *testing.T) {
 		client := createCrypto(t)
-		client.Config.Storage = "unknown"
+		client.config.Storage = "unknown"
 		err := client.Configure(cfg)
 		assert.EqualErrorf(t, err, "only fs backend available for now", "expected error")
 	})

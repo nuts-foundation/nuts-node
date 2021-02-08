@@ -20,11 +20,12 @@ package proto
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/p2p"
 )
 
 func newPeerConsistencyHashStatistic() peerConsistencyHashStatistic {

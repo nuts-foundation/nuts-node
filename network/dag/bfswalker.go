@@ -2,8 +2,9 @@ package dag
 
 import (
 	"container/list"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"sort"
+
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
 // bfsWalkerAlgorithm walks the DAG using the Breadth-First-Search (BFS) as described by Anany Levitin in "The Design & Analysis of Algorithms".

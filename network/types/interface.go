@@ -16,12 +16,13 @@
  *
  */
 
-package network
+package types
 
 import (
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"time"
 )
 
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
