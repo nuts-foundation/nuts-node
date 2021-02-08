@@ -24,9 +24,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// NewTestNetworkInstance creates a new Network instance that writes it data to a test directory.
-func NewTestNetworkInstance(testDirectory string) *NetworkEngine {
-	config := TestNetworkConfig(testDirectory)
+// NewTestNetworkInstance creates a new Transactions instance that writes it data to a test directory.
+func NewTestNetworkInstance(testDirectory string) *Network {
+	config := TestNetworkConfig()
 	newInstance := NewNetworkInstance(config, crypto.NewTestCryptoInstance(testDirectory))
 	if err := newInstance.Configure(core.NutsConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)
@@ -35,7 +35,7 @@ func NewTestNetworkInstance(testDirectory string) *NetworkEngine {
 }
 
 // NewTestNetworkInstance creates new network config with a test directory as data path.
-func TestNetworkConfig(testDirectory string) Config {
+func TestNetworkConfig() Config {
 	config := DefaultConfig()
 	config.GrpcAddr = ":5555"
 	config.EnableTLS = false

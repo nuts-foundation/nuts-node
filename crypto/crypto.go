@@ -27,9 +27,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
-	"io"
 	"path"
-	"sync"
 	"time"
 )
 
@@ -47,67 +45,19 @@ func DefaultCryptoConfig() Config {
 
 // Crypto holds references to storage and needed config
 type Crypto struct {
-	Storage    storage.Storage
-	Config     Config
-	configOnce sync.Once
-	configDone bool
+	Storage storage.Storage
+	Config  Config
 }
 
-type opaquePrivateKey struct {
-	publicKey crypto.PublicKey
-	signFn    func(io.Reader, []byte, crypto.SignerOpts) ([]byte, error)
-}
-
-// Public returns the public key
-func (k opaquePrivateKey) Public() crypto.PublicKey {
-	return k.publicKey
-}
-
-// Sign signs some data with the signer
-func (k opaquePrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-	return k.signFn(rand, digest, opts)
-}
-
-// Shutdown stops the certificate monitors
-func (client *Crypto) Shutdown() error {
-	return nil
-}
-
-// Start starts the crypto engine.
-func (client *Crypto) Start() error {
-	// currently empty but here to make crypto implement the Runnable interface.
-	return nil
-}
-
-var instance *Crypto
-
-var oneBackend sync.Once
-
-// Instance returns the same instance of Crypto every time
-func Instance() *Crypto {
-	if instance != nil {
-		return instance
+// NewCryptoInstance creates a new instance of the crypto module.
+func NewCryptoInstance() *Crypto {
+	return &Crypto{
+		Config: DefaultCryptoConfig(),
 	}
-	oneBackend.Do(func() {
-		instance = &Crypto{
-			Config: DefaultCryptoConfig(),
-		}
-	})
-	return instance
 }
 
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
 func (client *Crypto) Configure(config core.NutsConfig) error {
-	var err error
-	client.configOnce.Do(func() {
-		if err = client.doConfigure(config); err == nil {
-			client.configDone = true
-		}
-	})
-	return err
-}
-
-func (client *Crypto) doConfigure(config core.NutsConfig) error {
 	if client.Config.Storage != "fs" && client.Config.Storage != "" {
 		return errors.New("only fs backend available for now")
 	}

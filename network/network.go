@@ -34,7 +34,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sync"
 	"time"
 )
 
@@ -42,13 +41,11 @@ import (
 const boltDBFileMode = 0600
 
 // ModuleName defines the name of this module
-const ModuleName = "Network"
+const ModuleName = "Transactions"
 
-// NetworkEngine implements Network interface and Engine functions.
-// TODO: Refactor Engine-structs to something more sane or rename this struct (#18)
-type NetworkEngine struct {
+// Network implements Transactions interface and Engine functions.
+type Network struct {
 	Config        Config
-	configOnce    sync.Once
 	p2pNetwork    p2p.P2PNetwork
 	protocol      proto.Protocol
 	documentGraph dag.DAG
@@ -57,9 +54,9 @@ type NetworkEngine struct {
 	keyStore      crypto.KeyStore
 }
 
-// NewNetworkInstance creates a new NetworkEngine engine instance.
-func NewNetworkInstance(config Config, keyStore crypto.KeyStore) *NetworkEngine {
-	result := &NetworkEngine{
+// NewNetworkInstance creates a new Network engine instance.
+func NewNetworkInstance(config Config, keyStore crypto.KeyStore) *Network {
+	result := &Network{
 		Config:     config,
 		keyStore:   keyStore,
 		p2pNetwork: p2p.NewP2PNetwork(),
@@ -68,44 +65,40 @@ func NewNetworkInstance(config Config, keyStore crypto.KeyStore) *NetworkEngine 
 	return result
 }
 
-// Configure configures the NetworkEngine subsystem
-func (n *NetworkEngine) Configure(config core.NutsConfig) error {
-	var err error
-	n.configOnce.Do(func() {
-		dbFile := path.Join(config.Datadir, "network", "data.db")
-		if err = os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
-			return
-		}
-		db, bboltErr := bbolt.Open(dbFile, boltDBFileMode, bbolt.DefaultOptions)
-		if bboltErr != nil {
-			err = fmt.Errorf("unable to create bbolt database: %w", err)
-		}
-		n.documentGraph = dag.NewBBoltDAG(db)
-		n.payloadStore = dag.NewBBoltPayloadStore(db)
-		n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.documentGraph)
-		peerID := p2p.PeerID(uuid.New().String())
-		n.protocol.Configure(n.p2pNetwork, n.documentGraph, n.payloadStore, dag.NewDocumentSignatureVerifier(n.keyStore), time.Duration(n.Config.AdvertHashesInterval)*time.Millisecond, peerID)
-		networkConfig, p2pErr := n.buildP2PConfig(peerID)
-		if p2pErr != nil {
-			log.Logger().Warnf("Unable to build P2P layer config, NetworkEngine will be offline (reason: %v)", p2pErr)
-			return
-		}
-		err = n.p2pNetwork.Configure(*networkConfig)
-	})
-	return err
+// Configure configures the Network subsystem
+func (n *Network) Configure(config core.NutsConfig) error {
+	dbFile := path.Join(config.Datadir, "network", "data.db")
+	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
+		return err
+	}
+	db, bboltErr := bbolt.Open(dbFile, boltDBFileMode, bbolt.DefaultOptions)
+	if bboltErr != nil {
+		return fmt.Errorf("unable to create BBolt database: %w", bboltErr)
+	}
+	n.documentGraph = dag.NewBBoltDAG(db)
+	n.payloadStore = dag.NewBBoltPayloadStore(db)
+	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.documentGraph)
+	peerID := p2p.PeerID(uuid.New().String())
+	n.protocol.Configure(n.p2pNetwork, n.documentGraph, n.payloadStore, dag.NewDocumentSignatureVerifier(n.keyStore), time.Duration(n.Config.AdvertHashesInterval)*time.Millisecond, peerID)
+	networkConfig, p2pErr := n.buildP2PConfig(peerID)
+	if p2pErr != nil {
+		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", p2pErr)
+		return nil
+	}
+	return n.p2pNetwork.Configure(*networkConfig)
 }
 
-// Start initiates the NetworkEngine subsystem
-func (n *NetworkEngine) Start() error {
+// Start initiates the Network subsystem
+func (n *Network) Start() error {
 	if n.p2pNetwork.Configured() {
 		// It's possible that the Nuts node isn't bootstrapped (e.g. Node CA certificate missing) but that shouldn't
-		// prevent it from starting. In that case the NetworkEngine will be in 'offline mode', meaning it can be read from
+		// prevent it from starting. In that case the network will be in 'offline mode', meaning it can be read from
 		// and written to, but it will not try to connect to other peers.
 		if err := n.p2pNetwork.Start(); err != nil {
 			return err
 		}
 	} else {
-		log.Logger().Warn("NetworkEngine is in offline mode (P2P layer not configured).")
+		log.Logger().Warn("Network engine is in offline mode (P2P layer not configured).")
 	}
 	n.protocol.Start()
 	n.publisher.Start()
@@ -114,18 +107,18 @@ func (n *NetworkEngine) Start() error {
 
 // Subscribe makes a subscription for the specified document type. The receiver is called when a document
 // is received for the specified type.
-func (n *NetworkEngine) Subscribe(documentType string, receiver dag.Receiver) {
+func (n *Network) Subscribe(documentType string, receiver dag.Receiver) {
 	n.publisher.Subscribe(documentType, receiver)
 }
 
 // GetDocument retrieves the document for the given reference. If the document is not known, an error is returned.
-func (n *NetworkEngine) GetDocument(documentRef hash.SHA256Hash) (dag.Document, error) {
+func (n *Network) GetDocument(documentRef hash.SHA256Hash) (dag.Document, error) {
 	return n.documentGraph.Get(documentRef)
 }
 
 // GetDocumentPayload retrieves the document payload for the given document. If the document or payload is not found
 // nil is returned.
-func (n *NetworkEngine) GetDocumentPayload(documentRef hash.SHA256Hash) ([]byte, error) {
+func (n *Network) GetDocumentPayload(documentRef hash.SHA256Hash) ([]byte, error) {
 	document, err := n.documentGraph.Get(documentRef)
 	if err != nil {
 		return nil, err
@@ -133,14 +126,14 @@ func (n *NetworkEngine) GetDocumentPayload(documentRef hash.SHA256Hash) ([]byte,
 	return n.payloadStore.ReadPayload(document.PayloadHash())
 }
 
-// ListDocuments returns all documents known to this NetworkEngine instance.
-func (n *NetworkEngine) ListDocuments() ([]dag.Document, error) {
+// ListDocuments returns all documents known to this Network instance.
+func (n *Network) ListDocuments() ([]dag.Document, error) {
 	return n.documentGraph.All()
 }
 
 // CreateDocument creates a new document with the specified payload, and signs it using the specified key.
 // If the key should be inside the document (instead of being referred to) `attachKey` should be true.
-func (n *NetworkEngine) CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey bool, timestamp time.Time, fieldOpts ...dag.FieldOpt) (dag.Document, error) {
+func (n *Network) CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey bool, timestamp time.Time, fieldOpts ...dag.FieldOpt) (dag.Document, error) {
 	payloadHash := hash.SHA256Sum(payload)
 	log.Logger().Infof("Creating document (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), signingKeyID)
 	// Create document
@@ -172,12 +165,12 @@ func (n *NetworkEngine) CreateDocument(payloadType string, payload []byte, signi
 }
 
 // Shutdown cleans up any leftover go routines
-func (n *NetworkEngine) Shutdown() error {
+func (n *Network) Shutdown() error {
 	return n.p2pNetwork.Stop()
 }
 
-// Diagnostics collects and returns diagnostics for the NetworkEngine engine.
-func (n *NetworkEngine) Diagnostics() []core.DiagnosticResult {
+// Diagnostics collects and returns diagnostics for the Network engine.
+func (n *Network) Diagnostics() []core.DiagnosticResult {
 	var results = make([]core.DiagnosticResult, 0)
 	results = append(results, n.protocol.Diagnostics()...)
 	results = append(results, n.p2pNetwork.Diagnostics()...)
@@ -187,7 +180,7 @@ func (n *NetworkEngine) Diagnostics() []core.DiagnosticResult {
 	return results
 }
 
-func (n *NetworkEngine) buildP2PConfig(peerID p2p.PeerID) (*p2p.P2PNetworkConfig, error) {
+func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.P2PNetworkConfig, error) {
 	cfg := p2p.P2PNetworkConfig{
 		ListenAddress:  n.Config.GrpcAddr,
 		PublicAddress:  n.Config.PublicAddr,

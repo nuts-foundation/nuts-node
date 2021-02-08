@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Config holds the config for Network
+// Config holds the config for Transactions
 type Config struct {
 	// Socket address for gRPC to listen on
 	GrpcAddr string `koanf:"grpcAddr"`

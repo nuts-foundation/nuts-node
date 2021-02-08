@@ -20,8 +20,8 @@ package engine
 
 import (
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -35,9 +35,8 @@ import (
 
 func TestNewEngine(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	e, i := NewNetworkEngine(crypto.NewTestCryptoInstance(testDirectory))
+	e := NewNetworkEngine(network.NewTestNetworkInstance(testDirectory))
 	assert.NotNil(t, e)
-	assert.NotNil(t, i)
 }
 
 func TestFlagSet(t *testing.T) {
@@ -105,7 +104,6 @@ func TestCmd_Payload(t *testing.T) {
 func createCmd(t *testing.T) *cobra.Command {
 	core.NewNutsConfig().Load(&cobra.Command{})
 	testDirectory := io.TestDirectory(t)
-	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
-	engine, _ := NewNetworkEngine(cryptoInstance)
+	engine := NewNetworkEngine(network.NewTestNetworkInstance(testDirectory))
 	return engine.Cmd
 }

@@ -52,19 +52,20 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest(testDirectory)
 	expectedDocLogSize := 0
+	cryptoInstance := nutsCrypto.NewTestCryptoInstance(testDirectory)
 
 	// Start 3 nodes: bootstrap, node1 and node2. Node 1 and 2 connect to the bootstrap node and should discover
 	// each other that way.
-	bootstrap, err := startNode("bootstrap", path.Join(testDirectory, "bootstrap"))
+	bootstrap, err := startNode("bootstrap", path.Join(testDirectory, "bootstrap"), cryptoInstance)
 	if !assert.NoError(t, err) {
 		return
 	}
-	node1, err := startNode("node1", path.Join(testDirectory, "node1"))
+	node1, err := startNode("node1", path.Join(testDirectory, "node1"), cryptoInstance)
 	if !assert.NoError(t, err) {
 		return
 	}
 	node1.p2pNetwork.ConnectToPeer(nameToAddress("bootstrap"))
-	node2, err := startNode("node2", path.Join(testDirectory, "node2"))
+	node2, err := startNode("node2", path.Join(testDirectory, "node2"), cryptoInstance)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -117,16 +118,17 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest(testDirectory)
+	cryptoInstance := nutsCrypto.NewTestCryptoInstance(testDirectory)
 
 	// Start node 1 and node 2. Node 1 adds 3 documents:
 	// 1. first document is OK, must be received
 	// 2. second document has an invalid signature, must be rejected
 	// 3. third document is OK, must be  received (to deal with timing issues)
-	node1, err := startNode("node1", path.Join(testDirectory, "node1"))
+	node1, err := startNode("node1", path.Join(testDirectory, "node1"), cryptoInstance)
 	if !assert.NoError(t, err) {
 		return
 	}
-	node2, err := startNode("node2", path.Join(testDirectory, "node2"))
+	node2, err := startNode("node2", path.Join(testDirectory, "node2"), cryptoInstance)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -144,7 +146,7 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 	attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	payload := []byte("second document")
 	unsignedDocument, _ := dag.NewDocument(hash.SHA256Sum(payload), documentType, []hash.SHA256Hash{receivedDocuments["node2"][0].Ref()})
-	craftedDocument, _ := dag.NewAttachedJWKDocumentSigner(nutsCrypto.Instance(), "key", nutsCrypto.StaticKeyResolver{Key: attackerKey.Public()}).Sign(unsignedDocument, time.Now())
+	craftedDocument, _ := dag.NewAttachedJWKDocumentSigner(cryptoInstance, "key", nutsCrypto.StaticKeyResolver{Key: attackerKey.Public()}).Sign(unsignedDocument, time.Now())
 	node1.payloadStore.WritePayload(hash.SHA256Sum(payload), payload)
 	_ = node1.documentGraph.Add(craftedDocument)
 	// Send third OK document
@@ -169,7 +171,7 @@ func resetIntegrationTest(testDirectory string) {
 	})
 }
 
-func addDocumentAndWaitForItToArrive(t *testing.T, payload string, sender *NetworkEngine, receivers ...string) bool {
+func addDocumentAndWaitForItToArrive(t *testing.T, payload string, sender *Network, receivers ...string) bool {
 	expectedDocument, err := sender.CreateDocument(documentType, []byte(payload), "key", true, time.Now())
 	if !assert.NoError(t, err) {
 		return true
@@ -191,17 +193,17 @@ func addDocumentAndWaitForItToArrive(t *testing.T, payload string, sender *Netwo
 	return true
 }
 
-func startNode(name string, directory string) (*NetworkEngine, error) {
+func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Network, error) {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
 	core.NewNutsConfig().Load(&cobra.Command{})
 	mutex.Lock()
 	mutex.Unlock()
-	// Create NetworkEngine instance
-	instance := &NetworkEngine{
+	// Create Network instance
+	instance := &Network{
 		p2pNetwork: p2p.NewP2PNetwork(),
 		protocol:   proto.NewProtocol(),
-		keyStore:   nutsCrypto.Instance(),
+		keyStore:   keyStore,
 		Config: Config{
 			GrpcAddr:             fmt.Sprintf(":%d", nameToPort(name)),
 			PublicAddr:           fmt.Sprintf("localhost:%d", nameToPort(name)),

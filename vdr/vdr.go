@@ -28,14 +28,13 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 
-	"sync"
 	"time"
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/sirupsen/logrus"
 
-	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
@@ -46,24 +45,20 @@ import (
 )
 
 // VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
-// It connects the Resolve, Create and Update DID methods to the Network, and receives events back from the network which are processed in the store.
+// It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type VDR struct {
 	Config            Config
 	store             types.Store
-	network           network.Network
+	network           network.Transactions
 	OnChange          func(registry *VDR)
 	networkAmbassador Ambassador
-	configOnce        sync.Once
 	_logger           *logrus.Entry
 	didDocCreator     types.DocCreator
 }
 
-var instance *VDR
-var oneVDR sync.Once
-
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Network) *VDR {
+func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions) *VDR {
 	store := store.NewMemoryStore()
 	return &VDR{
 		Config:            config,

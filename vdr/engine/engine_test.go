@@ -23,6 +23,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -46,12 +47,13 @@ func TestNewRegistryEngine(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
 	networkInstance := network.NewTestNetworkInstance(testDirectory)
+	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
 	t.Run("instance", func(t *testing.T) {
-		assert.NotNil(t, NewVDREngine(cryptoInstance, networkInstance))
+		assert.NotNil(t, NewVDREngine(vdrInstance))
 	})
 
 	t.Run("configuration", func(t *testing.T) {
-		e := NewVDREngine(cryptoInstance, networkInstance)
+		e := NewVDREngine(vdrInstance)
 		cfg := core.NewNutsConfig()
 		cfg.RegisterFlags(e.Cmd, e)
 		assert.NoError(t, cfg.InjectIntoEngine(e))
@@ -63,8 +65,9 @@ func TestEngine_Command(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
 	networkInstance := network.NewTestNetworkInstance(testDirectory)
+	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
 	createCmd := func(t *testing.T) *cobra.Command {
-		return NewVDREngine(cryptoInstance, networkInstance).Cmd
+		return NewVDREngine(vdrInstance).Cmd
 	}
 
 	exampleID, _ := did.ParseDID("did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
