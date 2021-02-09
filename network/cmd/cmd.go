@@ -16,7 +16,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package network
+/*
+ * Nuts node
+ * Copyright (C) 2021. Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package cmd
 
 import (
 	"fmt"
@@ -24,6 +42,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network"
 	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/spf13/cobra"
@@ -40,8 +59,8 @@ var clientCreator = func(cmd *cobra.Command) *v1.HTTPClient {
 	}
 }
 
-func (n *Network) FlagSet() *pflag.FlagSet {
-	defs := DefaultConfig()
+func FlagSet() *pflag.FlagSet {
+	defs := network.DefaultConfig()
 	flagSet := pflag.NewFlagSet("network", pflag.ContinueOnError)
 	flagSet.String("network.grpcAddr", defs.GrpcAddr, "Local address for gRPC to listen on. "+
 		"If empty the gRPC server won't be started and other nodes will not be able to connect to this node "+
@@ -59,7 +78,7 @@ func (n *Network) FlagSet() *pflag.FlagSet {
 	return flagSet
 }
 
-func (n *Network) Cmd() *cobra.Command {
+func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "network",
 		Short: "network commands",

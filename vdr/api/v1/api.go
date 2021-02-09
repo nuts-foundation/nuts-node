@@ -26,6 +26,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	did2 "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -33,6 +34,10 @@ import (
 // Wrapper is needed to connect the implementation to the echo ServiceWrapper
 type Wrapper struct {
 	VDR types.VDR
+}
+
+func (a *Wrapper) Routes(router core.EchoRouter) {
+	RegisterHandlers(router, a)
 }
 
 // CreateDID creates a new DID Document and returns it.

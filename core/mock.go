@@ -7,8 +7,6 @@ package core
 import (
 	gomock "github.com/golang/mock/gomock"
 	v4 "github.com/labstack/echo/v4"
-	cobra "github.com/spf13/cobra"
-	pflag "github.com/spf13/pflag"
 	reflect "reflect"
 )
 
@@ -685,43 +683,6 @@ func (mr *MockNamedMockRecorder) Name() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockNamed)(nil).Name))
 }
 
-// MockExecutable is a mock of Executable interface
-type MockExecutable struct {
-	ctrl     *gomock.Controller
-	recorder *MockExecutableMockRecorder
-}
-
-// MockExecutableMockRecorder is the mock recorder for MockExecutable
-type MockExecutableMockRecorder struct {
-	mock *MockExecutable
-}
-
-// NewMockExecutable creates a new mock instance
-func NewMockExecutable(ctrl *gomock.Controller) *MockExecutable {
-	mock := &MockExecutable{ctrl: ctrl}
-	mock.recorder = &MockExecutableMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockExecutable) EXPECT() *MockExecutableMockRecorder {
-	return m.recorder
-}
-
-// Cmd mocks base method
-func (m *MockExecutable) Cmd() *cobra.Command {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Cmd")
-	ret0, _ := ret[0].(*cobra.Command)
-	return ret0
-}
-
-// Cmd indicates an expected call of Cmd
-func (mr *MockExecutableMockRecorder) Cmd() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Cmd", reflect.TypeOf((*MockExecutable)(nil).Cmd))
-}
-
 // MockInjectable is a mock of Injectable interface
 type MockInjectable struct {
 	ctrl     *gomock.Controller
@@ -785,18 +746,4 @@ func (m *MockInjectable) Config() interface{} {
 func (mr *MockInjectableMockRecorder) Config() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Config", reflect.TypeOf((*MockInjectable)(nil).Config))
-}
-
-// FlagSet mocks base method
-func (m *MockInjectable) FlagSet() *pflag.FlagSet {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FlagSet")
-	ret0, _ := ret[0].(*pflag.FlagSet)
-	return ret0
-}
-
-// FlagSet indicates an expected call of FlagSet
-func (mr *MockInjectableMockRecorder) FlagSet() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FlagSet", reflect.TypeOf((*MockInjectable)(nil).FlagSet))
 }

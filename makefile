@@ -11,7 +11,7 @@ gen-mocks:
 	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did
 	mockgen -destination=network/proto/mock.go -package=proto -source=network/proto/interface.go Protocol
 	mockgen -destination=network/p2p/mock.go -package=p2p -source=network/p2p/interface.go P2PNetwork
-	mockgen -destination=network/types/mock.go -package=types -source=network/types/interface.go
+	mockgen -destination=network/mock.go -package=network -source=network/interface.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go DAG PayloadStore
 
 gen-api:

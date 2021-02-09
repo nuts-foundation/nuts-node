@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package network
+package cmd
 
 import (
 	"net/http"
@@ -25,22 +25,18 @@ import (
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFlagSet(t *testing.T) {
-	instance := NewNetworkInstance(DefaultConfig(), nil)
-	assert.NotNil(t, instance.FlagSet())
+	assert.NotNil(t, FlagSet())
 }
 
 func TestCmd_List(t *testing.T) {
-	cmd := createCmd(t)
+	cmd := Cmd()
 	response := []interface{}{string(dag.CreateTestDocumentWithJWK(1).Data()), string(dag.CreateTestDocumentWithJWK(2).Data())}
 	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
 	os.Setenv("NUTS_ADDRESS", s.URL)
@@ -53,7 +49,7 @@ func TestCmd_List(t *testing.T) {
 }
 
 func TestCmd_Get(t *testing.T) {
-	cmd := createCmd(t)
+	cmd := Cmd()
 	response := dag.CreateTestDocumentWithJWK(1)
 	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
 	s := httptest.NewServer(handler)
@@ -76,7 +72,7 @@ func TestCmd_Get(t *testing.T) {
 }
 
 func TestCmd_Payload(t *testing.T) {
-	cmd := createCmd(t)
+	cmd := Cmd()
 	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: []byte("Hello, World!")}
 	s := httptest.NewServer(handler)
 	os.Setenv("NUTS_ADDRESS", s.URL)
@@ -95,12 +91,4 @@ func TestCmd_Payload(t *testing.T) {
 		err := cmd.Execute()
 		assert.NoError(t, err)
 	})
-}
-
-func createCmd(t *testing.T) *cobra.Command {
-	core.NewNutsConfig().Load(&cobra.Command{})
-	testDirectory := io.TestDirectory(t)
-	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
-	instance := NewNetworkInstance(DefaultConfig(), cryptoInstance)
-	return instance.Cmd()
 }

@@ -30,12 +30,10 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	networkTypes "github.com/nuts-foundation/nuts-node/network/types"
-
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
-
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // didDocumentType contains network document mime-type to identify a DID Document in the network.
@@ -49,13 +47,13 @@ type Ambassador interface {
 }
 
 type ambassador struct {
-	networkClient networkTypes.Transactions
+	networkClient network.Transactions
 	didStore      types.Store
 	keyResolver   nutsCrypto.KeyResolver
 }
 
 // NewAmbassador creates a new Ambassador,
-func NewAmbassador(networkClient networkTypes.Transactions, didStore types.Store, keyResolver nutsCrypto.KeyResolver) Ambassador {
+func NewAmbassador(networkClient network.Transactions, didStore types.Store, keyResolver nutsCrypto.KeyResolver) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,

@@ -20,14 +20,14 @@ import (
 	"sync"
 
 	"github.com/nuts-foundation/go-did"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // NewMemoryStore initializes a new in-memory store
 // All actions on the store are thread safe.
-func NewMemoryStore() types.Store {
+func NewMemoryStore() vdr.Store {
 	return &memory{
 		store: map[string]versionedEntryList{},
 		mutex: sync.Mutex{},
@@ -51,7 +51,7 @@ func (list versionedEntryList) filter(f filterFunc) versionedEntryList {
 
 func (list versionedEntryList) last() (*memoryEntry, error) {
 	if len(list) == 0 {
-		return nil, types.ErrNotFound
+		return nil, vdr.ErrNotFound
 	}
 	return list[len(list)-1], nil
 }
@@ -63,7 +63,7 @@ type memory struct {
 
 type memoryEntry struct {
 	document did.Document
-	metadata types.DocumentMetadata
+	metadata vdr.DocumentMetadata
 	next     *memoryEntry
 }
 
@@ -73,13 +73,13 @@ func (me memoryEntry) isDeactivated() bool {
 
 // Resolve implements the DocResolver.
 // Resolves a DID document and returns a deep copy of the data in memory.
-func (m *memory) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
+func (m *memory) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (*did.Document, *vdr.DocumentMetadata, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	entries, ok := m.store[id.String()]
 	if !ok {
-		return nil, nil, types.ErrNotFound
+		return nil, nil, vdr.ErrNotFound
 	}
 
 	if metadata != nil {
@@ -110,7 +110,7 @@ func (m *memory) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Docu
 
 	// return a deep copy
 	doc := &did.Document{}
-	docMetadata := &types.DocumentMetadata{}
+	docMetadata := &vdr.DocumentMetadata{}
 
 	docJSON, err := json.Marshal(entry.document)
 	if err != nil {
@@ -132,7 +132,7 @@ func (m *memory) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Docu
 }
 
 // timeSelectionFilter checks if an entry is after the created, after the updated field if present but before the updated field of the next entry
-func timeSelectionFilter(metadata types.ResolveMetadata) filterFunc {
+func timeSelectionFilter(metadata vdr.ResolveMetadata) filterFunc {
 	return func(e memoryEntry) bool {
 		if e.metadata.Created.After(*metadata.ResolveTime) {
 			return false
@@ -157,12 +157,12 @@ func timeSelectionFilter(metadata types.ResolveMetadata) filterFunc {
 }
 
 // Write implements the DocWriteWriter interface and writes a DIDDocument with the provided metadata to the memory store.
-func (m *memory) Write(document did.Document, metadata types.DocumentMetadata) error {
+func (m *memory) Write(document did.Document, metadata vdr.DocumentMetadata) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	if _, ok := m.store[document.ID.String()]; ok {
-		return types.ErrDIDAlreadyExists
+		return vdr.ErrDIDAlreadyExists
 	}
 
 	m.store[document.ID.String()] = versionedEntryList{
@@ -179,25 +179,25 @@ func (m *memory) Write(document did.Document, metadata types.DocumentMetadata) e
 // It updates existing DIDDocument in the memory store with provided document and metadata.
 // It does not check if the timestamp in the metadata make sense or if the metadata.hash matches the hash
 // of the next version. The version field is also not checked.
-func (m *memory) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
+func (m *memory) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *vdr.DocumentMetadata) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	entries, ok := m.store[id.String()]
 	if !ok {
-		return types.ErrNotFound
+		return vdr.ErrNotFound
 	}
 
 	// latest version is to be updated
 	entry, _ := entries.last()
 
 	if entry.isDeactivated() {
-		return types.ErrDeactivated
+		return vdr.ErrDeactivated
 	}
 
 	// hashes must match
 	if !current.Equals(entry.metadata.Hash) {
-		return types.ErrUpdateOnOutdatedData
+		return vdr.ErrUpdateOnOutdatedData
 	}
 
 	newEntry := &memoryEntry{

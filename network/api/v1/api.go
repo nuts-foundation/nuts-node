@@ -19,25 +19,25 @@
 package v1
 
 import (
-	"github.com/labstack/echo/v4"
-	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/types"
-
 	"net/http"
+
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/core"
+	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
-// ServerImplementation returns a server API implementation that uses the given network.
-func ServerImplementation(network types.Transactions) ServerInterface {
-	return &wrapper{Service: network}
+type Wrapper struct {
+	Service network.Transactions
 }
 
-type wrapper struct {
-	Service types.Transactions
+func (a *Wrapper) Routes(router core.EchoRouter) {
+	RegisterHandlers(router, a)
 }
 
 // ListDocuments lists all documents
-func (a wrapper) ListDocuments(ctx echo.Context) error {
+func (a Wrapper) ListDocuments(ctx echo.Context) error {
 	documents, err := a.Service.ListDocuments()
 	if err != nil {
 		log.Logger().Errorf("Error while listing documents: %v", err)
@@ -51,7 +51,7 @@ func (a wrapper) ListDocuments(ctx echo.Context) error {
 }
 
 // GetDocument returns a specific document
-func (a wrapper) GetDocument(ctx echo.Context, hashAsString string) error {
+func (a Wrapper) GetDocument(ctx echo.Context, hashAsString string) error {
 	hash, err := hash2.ParseHex(hashAsString)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, err.Error())
@@ -71,7 +71,7 @@ func (a wrapper) GetDocument(ctx echo.Context, hashAsString string) error {
 }
 
 // GetDocumentPayload returns the payload of a specific document
-func (a wrapper) GetDocumentPayload(ctx echo.Context, hashAsString string) error {
+func (a Wrapper) GetDocumentPayload(ctx echo.Context, hashAsString string) error {
 	hash, err := hash2.ParseHex(hashAsString)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, err.Error())

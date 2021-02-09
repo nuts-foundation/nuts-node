@@ -29,20 +29,18 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
+	network2 "github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	networkTypes "github.com/nuts-foundation/nuts-node/network/types"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/sirupsen/logrus"
-
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 )
 
 // VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
@@ -51,15 +49,15 @@ import (
 type VDR struct {
 	config            Config
 	store             types.Store
-	network           networkTypes.Transactions
-	OnChange          func(registry *VDR)
+	network           network2.Transactions
+	OnChange          func(registry *types.VDR)
 	networkAmbassador Ambassador
 	_logger           *logrus.Entry
 	didDocCreator     types.DocCreator
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient networkTypes.Transactions) *VDR {
+func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network2.Transactions) *VDR {
 	store := store.NewMemoryStore()
 	return &VDR{
 		config:            config,
@@ -97,10 +95,6 @@ func (r *VDR) Shutdown() error {
 // Diagnostics returns the diagnostics for this engine
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{}
-}
-
-func (r *VDR) Routes(router core.EchoRouter) {
-	api.RegisterHandlers(router, &api.Wrapper{VDR: r})
 }
 
 // Create generates a new DID Document

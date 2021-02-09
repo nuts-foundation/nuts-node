@@ -26,8 +26,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	network "github.com/nuts-foundation/nuts-node/network/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -176,7 +176,7 @@ func TestApiWrapper_ListDocuments(t *testing.T) {
 
 func initMockEcho(networkClient *network.MockTransactions) (*echo.Echo, *ServerInterfaceWrapper) {
 	e := echo.New()
-	stub := wrapper{Service: networkClient}
+	stub := Wrapper{Service: networkClient}
 	wrapper := &ServerInterfaceWrapper{
 		Handler: stub,
 	}

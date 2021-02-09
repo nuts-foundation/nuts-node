@@ -26,7 +26,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 // Routable enables connecting a REST API to the echo server. The API wrappers should implement this interface
@@ -204,12 +203,6 @@ type Named interface {
 	Name() string
 }
 
-// Executable enables CLI commands on the implementer
-type Executable interface {
-	// Cmd that can be called from the CLI
-	Cmd() *cobra.Command
-}
-
 // Injectable marks a engine capable of Config injection
 type Injectable interface {
 	Named
@@ -217,8 +210,6 @@ type Injectable interface {
 	ConfigKey() string
 	// Config returns a pointer to the struct that holds the Config.
 	Config() interface{}
-	// FlagSet containing commandline flags
-	FlagSet() *pflag.FlagSet
 }
 
 // DecodeURIPath is a echo middleware that decodes path parameters

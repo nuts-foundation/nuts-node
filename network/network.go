@@ -30,7 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
@@ -102,10 +101,6 @@ func (n *Network) ConfigKey() string {
 
 func (n *Network) Config() interface{} {
 	return &n.config
-}
-
-func (n *Network) Routes(router core.EchoRouter) {
-	v1.RegisterHandlers(router, v1.ServerImplementation(n))
 }
 
 // Start initiates the Network subsystem
