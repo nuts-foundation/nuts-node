@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
+// Wrapper implements the ServerInterface for the network API.
 type Wrapper struct {
 	Service network.Transactions
 }

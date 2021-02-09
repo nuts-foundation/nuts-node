@@ -36,6 +36,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// FlagSet contains flags relevant for the VDR instance
 func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("vdr", pflag.ContinueOnError)
 
@@ -45,6 +46,7 @@ func FlagSet() *pflag.FlagSet {
 	return flagSet
 }
 
+// Cmd contains sub-commands for the remote client
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "vdr",

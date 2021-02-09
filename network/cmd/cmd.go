@@ -41,6 +41,7 @@ var clientCreator = func(cmd *cobra.Command) *v1.HTTPClient {
 	}
 }
 
+// FlagSet contains flags relevant for the VDR instance
 func FlagSet() *pflag.FlagSet {
 	defs := network.DefaultConfig()
 	flagSet := pflag.NewFlagSet("network", pflag.ContinueOnError)
@@ -60,6 +61,7 @@ func FlagSet() *pflag.FlagSet {
 	return flagSet
 }
 
+// Cmd contains sub-commands for the remote client
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "network",
