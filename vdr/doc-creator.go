@@ -11,7 +11,7 @@ import (
 	"net/url"
 
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/nuts-foundation/nuts-node/crypto/types"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/shengdoushi/base58"
 
 	"github.com/nuts-foundation/go-did"
@@ -23,7 +23,7 @@ const NutsDIDMethodName = "nuts"
 // NutsDocCreator implements the DocCreator interface and can create Nuts DID Documents.
 type NutsDocCreator struct {
 	// keyCreator is used for getting a fresh key and use it to generate the Nuts DID
-	keyCreator types.KeyCreator
+	keyCreator nutsCrypto.KeyCreator
 }
 
 func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {

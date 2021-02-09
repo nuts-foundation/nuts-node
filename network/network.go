@@ -28,8 +28,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	crypto "github.com/nuts-foundation/nuts-node/crypto/types"
 	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"

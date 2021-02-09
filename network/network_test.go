@@ -30,7 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/crypto/types"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/proto"
@@ -44,7 +43,7 @@ type networkTestContext struct {
 	protocol   *proto.MockProtocol
 	graph      *dag.MockDAG
 	payload    *dag.MockPayloadStore
-	keyStore   *types.MockKeyStore
+	keyStore   *crypto.MockKeyStore
 	publisher  *dag.MockPublisher
 }
 
@@ -287,7 +286,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	networkConfig.CertFile = "test/certificate-and-key.pem"
 	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
 	networkConfig.PublicAddr = "foo:8080"
-	keyStore := types.NewMockKeyStore(ctrl)
+	keyStore := crypto.NewMockKeyStore(ctrl)
 	network := NewNetworkInstance(networkConfig, keyStore)
 	network.p2pNetwork = p2pNetwork
 	network.protocol = protocol

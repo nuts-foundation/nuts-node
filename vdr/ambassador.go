@@ -29,9 +29,9 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/types"
 
-	cryptoTypes "github.com/nuts-foundation/nuts-node/crypto/types"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
@@ -51,11 +51,11 @@ type Ambassador interface {
 type ambassador struct {
 	networkClient networkTypes.Transactions
 	didStore      types.Store
-	keyResolver   cryptoTypes.KeyResolver
+	keyResolver   nutsCrypto.KeyResolver
 }
 
 // NewAmbassador creates a new Ambassador,
-func NewAmbassador(networkClient networkTypes.Transactions, didStore types.Store, keyResolver cryptoTypes.KeyResolver) Ambassador {
+func NewAmbassador(networkClient networkTypes.Transactions, didStore types.Store, keyResolver nutsCrypto.KeyResolver) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,

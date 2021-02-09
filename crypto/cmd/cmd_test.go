@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package crypto
+package cmd
 
 import (
 	"bytes"
@@ -28,21 +28,14 @@ import (
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewCryptoEngine_Cmd(t *testing.T) {
-	createCmd := func(t *testing.T) (*cobra.Command, *Crypto) {
-		testDirectory := io.TestDirectory(t)
-		instance := NewTestCryptoInstance(testDirectory)
-		return instance.Cmd(), instance
-	}
-
 	t.Run("publicKey", func(t *testing.T) {
 		t.Run("error - too few arguments", func(t *testing.T) {
-			cmd, _ := createCmd(t)
+			cmd := Cmd()
 			cmd.SetArgs([]string{"publicKey"})
 			cmd.SetOut(ioutil.Discard)
 			err := cmd.Execute()
@@ -53,7 +46,7 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 		})
 
 		t.Run("error - public key does not exist", func(t *testing.T) {
-			cmd, _ := createCmd(t)
+			cmd := Cmd()
 			buf := new(bytes.Buffer)
 			cmd.SetArgs([]string{"publicKey", "unknown"})
 			cmd.SetOut(buf)
@@ -64,7 +57,7 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 		})
 
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd, _ := createCmd(t)
+			cmd := Cmd()
 			s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			core.NewNutsConfig().Load(cmd)
@@ -83,7 +76,7 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 		})
 
 		t.Run("ok - with valid_at", func(t *testing.T) {
-			cmd, _ := createCmd(t)
+			cmd := Cmd()
 			s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			core.NewNutsConfig().Load(cmd)
@@ -101,9 +94,8 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 
 func TestNewCryptoEngine_FlagSet(t *testing.T) {
 	t.Run("Cobra help should list flags", func(t *testing.T) {
-		i := NewCryptoInstance()
 		cmd := newRootCommand()
-		cmd.Flags().AddFlagSet(i.FlagSet())
+		cmd.Flags().AddFlagSet(FlagSet())
 		cmd.SetArgs([]string{"--help"})
 
 		buf := new(bytes.Buffer)

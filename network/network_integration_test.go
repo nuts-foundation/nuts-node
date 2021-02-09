@@ -33,7 +33,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/crypto/types"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
@@ -195,7 +194,7 @@ func addDocumentAndWaitForItToArrive(t *testing.T, payload string, sender *Netwo
 	return true
 }
 
-func startNode(name string, directory string, keyStore types.KeyStore) (*Network, error) {
+func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Network, error) {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
 	core.NewNutsConfig().Load(&cobra.Command{})

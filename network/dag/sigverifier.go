@@ -6,7 +6,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
-	crypto "github.com/nuts-foundation/nuts-node/crypto/types"
+	"github.com/nuts-foundation/nuts-node/crypto"
 )
 
 // DocumentSignatureVerifier defines functions to verify document signatures.

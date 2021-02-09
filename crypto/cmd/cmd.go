@@ -16,7 +16,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package crypto
+/*
+ * Nuts node
+ * Copyright (C) 2021. Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package cmd
 
 import (
 	"crypto"
@@ -25,6 +43,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
+	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	api "github.com/nuts-foundation/nuts-node/crypto/api/v1"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/spf13/cobra"
@@ -35,10 +54,10 @@ import (
 const ConfigStorage string = "crypto.storage"
 
 // FlagSet returns the configuration flags for crypto
-func (client *Crypto) FlagSet() *pflag.FlagSet {
+func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("crypto", pflag.ContinueOnError)
 
-	defs := DefaultCryptoConfig()
+	defs := crypto2.DefaultCryptoConfig()
 	flags.String(ConfigStorage, defs.Storage, fmt.Sprintf("Storage to use, 'fs' for file system, default: %s", defs.Storage))
 
 	return flags
@@ -47,7 +66,7 @@ func (client *Crypto) FlagSet() *pflag.FlagSet {
 // Cmd gives the sub-commands made available through crypto:
 // * generateKeyPair: generate a new keyPair for a given legalEntity
 // * publicKey: retrieve the keyPair for a given legalEntity
-func (client *Crypto) Cmd() *cobra.Command {
+func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "crypto",
 		Short: "crypto commands",

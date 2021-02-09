@@ -6,10 +6,9 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/types"
-
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/sirupsen/logrus"
 )
@@ -25,7 +24,7 @@ func NewTestCryptoInstance(testDirectory string) *Crypto {
 }
 
 // StringNamingFunc can be used to give a key a simple string name
-func StringNamingFunc(name string) types.KIDNamingFunc {
+func StringNamingFunc(name string) KIDNamingFunc {
 	return func(key crypto.PublicKey) (string, error) {
 		return name, nil
 	}

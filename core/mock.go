@@ -12,6 +12,41 @@ import (
 	reflect "reflect"
 )
 
+// MockRoutable is a mock of Routable interface
+type MockRoutable struct {
+	ctrl     *gomock.Controller
+	recorder *MockRoutableMockRecorder
+}
+
+// MockRoutableMockRecorder is the mock recorder for MockRoutable
+type MockRoutableMockRecorder struct {
+	mock *MockRoutable
+}
+
+// NewMockRoutable creates a new mock instance
+func NewMockRoutable(ctrl *gomock.Controller) *MockRoutable {
+	mock := &MockRoutable{ctrl: ctrl}
+	mock.recorder = &MockRoutableMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockRoutable) EXPECT() *MockRoutableMockRecorder {
+	return m.recorder
+}
+
+// Routes mocks base method
+func (m *MockRoutable) Routes(router EchoRouter) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Routes", router)
+}
+
+// Routes indicates an expected call of Routes
+func (mr *MockRoutableMockRecorder) Routes(router interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Routes", reflect.TypeOf((*MockRoutable)(nil).Routes), router)
+}
+
 // MockEchoServer is a mock of EchoServer interface
 type MockEchoServer struct {
 	ctrl     *gomock.Controller
@@ -588,41 +623,6 @@ func (m *MockDiagnosable) Diagnostics() []DiagnosticResult {
 func (mr *MockDiagnosableMockRecorder) Diagnostics() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockDiagnosable)(nil).Diagnostics))
-}
-
-// MockRoutable is a mock of Routable interface
-type MockRoutable struct {
-	ctrl     *gomock.Controller
-	recorder *MockRoutableMockRecorder
-}
-
-// MockRoutableMockRecorder is the mock recorder for MockRoutable
-type MockRoutableMockRecorder struct {
-	mock *MockRoutable
-}
-
-// NewMockRoutable creates a new mock instance
-func NewMockRoutable(ctrl *gomock.Controller) *MockRoutable {
-	mock := &MockRoutable{ctrl: ctrl}
-	mock.recorder = &MockRoutableMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockRoutable) EXPECT() *MockRoutableMockRecorder {
-	return m.recorder
-}
-
-// Routes mocks base method
-func (m *MockRoutable) Routes(router EchoRouter) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Routes", router)
-}
-
-// Routes indicates an expected call of Routes
-func (mr *MockRoutableMockRecorder) Routes(router interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Routes", reflect.TypeOf((*MockRoutable)(nil).Routes), router)
 }
 
 // MockEngine is a mock of Engine interface

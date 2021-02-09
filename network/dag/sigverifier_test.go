@@ -10,7 +10,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,7 +54,7 @@ func TestDocumentSignatureVerifier(t *testing.T) {
 		d, _, _ := CreateTestDocument(1)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		keyResolver := types.NewMockKeyResolver(ctrl)
+		keyResolver := crypto.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().GetPublicKey(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 		err := NewDocumentSignatureVerifier(keyResolver).Verify(d)
 		assert.Contains(t, err.Error(), "failed")

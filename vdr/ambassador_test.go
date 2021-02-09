@@ -15,8 +15,8 @@ import (
 	"github.com/nuts-foundation/go-did"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	crypto "github.com/nuts-foundation/nuts-node/crypto/types"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )

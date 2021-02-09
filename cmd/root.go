@@ -27,6 +27,8 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	api "github.com/nuts-foundation/nuts-node/crypto/api/v1"
+	cryptoCmd "github.com/nuts-foundation/nuts-node/crypto/cmd"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/sirupsen/logrus"
@@ -82,13 +84,17 @@ func createServerCommand(system *core.System) *cobra.Command {
 				logrus.Fatal(err)
 			}
 
-			// start interfaces
+			// add routes
 			echoServer := echoCreator()
 			system.VisitEngines(func(engine core.Engine) {
 				if m, ok := engine.(core.Routable); ok {
 					m.Routes(echoServer)
 				}
 			})
+			// add routes
+			for _, r := range system.Routers {
+				r.Routes(echoServer)
+			}
 
 			defer func() {
 				if err := system.Shutdown(); err != nil {
@@ -119,6 +125,9 @@ func CreateSystem() *core.System {
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), cryptoInstance)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
 
+	// add crypto routes
+	system.RegisterRoutes(&api.Wrapper{C: cryptoInstance})
+
 	// Register engines
 	system.RegisterEngine(core.NewStatusEngine(system))
 	system.RegisterEngine(core.NewMetricsEngine())
@@ -138,6 +147,9 @@ func Execute(system *core.System) {
 		panic(err)
 	}
 
+	// load crypto flags
+	command.PersistentFlags().AddFlagSet(cryptoCmd.FlagSet())
+
 	// blocking main call
 	command.Execute()
 }
@@ -148,6 +160,7 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 			root.AddCommand(m.Cmd())
 		}
 	})
+	root.AddCommand(cryptoCmd.Cmd())
 	root.AddCommand(createServerCommand(system))
 	root.AddCommand(createPrintConfigCommand(system))
 }

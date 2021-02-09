@@ -29,11 +29,18 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// Routable enables connecting a REST API to the echo server. The API wrappers should implement this interface
+type Routable interface {
+	// Routes configures the HTTP routes on the given router
+	Routes(router EchoRouter)
+}
+
 // NewSystem creates a new, empty System.
 func NewSystem() *System {
 	return &System{
 		engines: []Engine{},
 		Config:  NewNutsConfig(),
+		Routers: []Routable{},
 	}
 }
 
@@ -43,6 +50,8 @@ type System struct {
 	engines []Engine
 	// Config holds the global and raw config
 	Config *NutsConfig
+	// Routers is used to connect API handlers to the echo server
+	Routers []Routable
 }
 
 // Load loads the config and injects config values into engines
@@ -136,6 +145,11 @@ func (system *System) RegisterEngine(engine Engine) {
 	system.engines = append(system.engines, engine)
 }
 
+// RegisterRoutes is a helper func to register API routers so they can be linked to the echo server
+func (system *System) RegisterRoutes(router Routable) {
+	system.Routers = append(system.Routers, router)
+}
+
 // EchoServer implements both the EchoRouter interface and Start function to aid testing.
 type EchoServer interface {
 	EchoRouter
@@ -179,12 +193,6 @@ type ViewableDiagnostics interface {
 // Diagnosable allows the implementer, mostly engines, to return diagnostics.
 type Diagnosable interface {
 	Diagnostics() []DiagnosticResult
-}
-
-// Routable enables connecting a REST API to the implementer.
-type Routable interface {
-	// Routes configures the HTTP routes on the given router
-	Routes(router EchoRouter)
 }
 
 // Engine is the base interface for a modular design

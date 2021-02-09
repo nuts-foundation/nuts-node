@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
-	crypto "github.com/nuts-foundation/nuts-node/crypto/types"
-
-	"time"
+	"github.com/nuts-foundation/nuts-node/crypto"
 )
 
 const errSigningDocumentFmt = "error while signing document: %w"

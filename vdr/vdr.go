@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/types"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
@@ -41,7 +42,6 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	crypto "github.com/nuts-foundation/nuts-node/crypto/types"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 )
 

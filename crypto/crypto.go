@@ -30,9 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/lestrrat-go/jwx/jwk"
-	api "github.com/nuts-foundation/nuts-node/crypto/api/v1"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
-	"github.com/nuts-foundation/nuts-node/crypto/types"
 )
 
 const (
@@ -69,10 +67,6 @@ func (client *Crypto) Name() string {
 	return moduleName
 }
 
-func (client *Crypto) Routes(router core.EchoRouter) {
-	api.RegisterHandlers(router, &api.Wrapper{C: client})
-}
-
 func (client *Crypto) ConfigKey() string {
 	return configKey
 }
@@ -96,7 +90,7 @@ func (client *Crypto) Configure(config core.NutsConfig) error {
 
 // New generates a new key pair. If a key is overwritten is handled by the storage implementation.
 // it's considered bad practise to reuse a kid for different keys.
-func (client *Crypto) New(namingFunc types.KIDNamingFunc) (crypto.PublicKey, string, error) {
+func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error) {
 	keyPair, err := generateECKeyPair()
 	if err != nil {
 		return nil, "", err
