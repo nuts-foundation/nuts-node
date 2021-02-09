@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/spf13/cobra"
 	"net/http"
 	"os"
 	"testing"
@@ -44,6 +45,9 @@ func Test_rootCmd(t *testing.T) {
 }
 
 func Test_serverCmd(t *testing.T) {
+	os.Setenv("NUTS_AUTH_CONTRACTVALIDATORS", "dummy")
+	defer os.Unsetenv("NUTS_AUTH_CONTRACTVALIDATORS")
+
 	t.Run("start in server mode", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		echoServer := core.NewMockEchoServer(ctrl)
@@ -79,6 +83,7 @@ func Test_serverCmd(t *testing.T) {
 			echoServers = append(echoServers, s)
 			return s
 		}
+		system.Load(&cobra.Command{})
 		system.Config = core.NewServerConfig()
 		system.Config.Datadir = io.TestDirectory(t)
 		system.Config.HTTP.AltBinds["internal"] = core.HTTPConfig{Address: "localhost:7642"}
@@ -123,5 +128,5 @@ func Test_CreateSystem(t *testing.T) {
 	system.VisitEngines(func(engine core.Engine) {
 		numEngines++
 	})
-	assert.Equal(t, 5, numEngines)
+	assert.Equal(t, 6, numEngines)
 }

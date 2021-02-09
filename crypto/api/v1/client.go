@@ -80,11 +80,12 @@ func (hb HTTPClient) GetPublicKey(kid string, validAt *string) (jwk.Key, error) 
 	if err := testResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	}
-	jwkSet, err := jwk.Parse(response.Body)
+	jwkSet, err := jwk.ParseReader(response.Body)
 	if err != nil {
 		return nil, err
 	}
-	return jwkSet.Keys[0], nil
+	key, _ := jwkSet.Get(0)
+	return key, nil
 }
 
 func testResponseCode(expectedStatusCode int, response *http.Response) error {

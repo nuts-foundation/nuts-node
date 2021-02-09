@@ -41,7 +41,7 @@ func TestDocumentSignatureVerifier(t *testing.T) {
 		document := d.(*document)
 		document.signingKey = jwk.NewSymmetricKey()
 		err := NewDocumentSignatureVerifier(nil).Verify(document)
-		assert.EqualError(t, err, "failed to verify message: invalid key type []uint8. *ecdsa.PublicKey is required")
+		assert.EqualError(t, err, "failed to verify message: failed to retrieve ecdsa.PublicKey out of []uint8: expected ecdsa.PublicKey or *ecdsa.PublicKey, got []uint8")
 	})
 	t.Run("unable to derive key from JWK", func(t *testing.T) {
 		d, _, _ := CreateTestDocument(1)

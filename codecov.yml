@@ -9,6 +9,8 @@ ignore:
   - "**/*_mock.go"
   - "docs/**/*.go"
   - "**/*.pb.go"
+  - "**/bindata.go"
+  - "**/bindata/**.go"
   # Until network protocol implementation has been spec and optionally replace, ignore those sources
   - "network/p2p/"
   - "network/proto/"

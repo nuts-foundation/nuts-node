@@ -19,7 +19,6 @@
 package dag
 
 import (
-	"bytes"
 	"fmt"
 	"time"
 
@@ -31,7 +30,7 @@ import (
 
 // ParseDocument parses the input as Nuts Network Document according to RFC004.
 func ParseDocument(input []byte) (Document, error) {
-	message, err := jws.Parse(bytes.NewReader(input))
+	message, err := jws.Parse(input)
 	if err != nil {
 		return nil, fmt.Errorf(unableToParseDocumentErrFmt, err)
 	}

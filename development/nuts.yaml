@@ -7,3 +7,8 @@ http:
   alt:
     status:
       address: :8080
+auth:
+  irma:
+    directory: /opt/nuts/irma
+    schemeManager: empty
+    autoUpdateSchemas: false

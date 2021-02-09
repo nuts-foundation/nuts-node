@@ -20,8 +20,10 @@ package io
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 )
@@ -46,4 +48,47 @@ func TestDirectory(t *testing.T) string {
 
 func normalizeTestName(t *testing.T) string {
 	return invalidPathCharRegex.ReplaceAllString(t.Name(), "_")
+}
+
+func CopyDir(src string, dst string) error {
+	dir, err := ioutil.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dst, os.ModePerm); err != nil {
+		return err
+	}
+	for _, entry := range dir {
+		sourceFile := filepath.Join(src, entry.Name())
+		targetFile := filepath.Join(dst, entry.Name())
+		if entry.IsDir() {
+			err := CopyDir(sourceFile, targetFile)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		if err := CopyFile(sourceFile, targetFile); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func CopyFile(src string, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	_, err = io.Copy(dstFile, srcFile)
+
+	return err
 }

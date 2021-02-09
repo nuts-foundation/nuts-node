@@ -109,7 +109,7 @@ func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
 func testResponseCode(expectedStatusCode int, response *http.Response) error {
 	if response.StatusCode != expectedStatusCode {
 		responseData, _ := ioutil.ReadAll(response.Body)
-		return fmt.Errorf("registry returned HTTP %d (expected: %d), response: %s",
+		return fmt.Errorf("VDR returned HTTP %d (expected: %d), response: %s",
 			response.StatusCode, expectedStatusCode, string(responseData))
 	}
 	return nil

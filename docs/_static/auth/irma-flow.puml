@@ -1,0 +1,61 @@
+@startuml
+hide footbox
+skinparam roundcorner 5
+skinparam shadowing false
+skinparam sequence {
+   ParticipantBackgroundColor orange
+   ActorBackgroundColor none
+}
+skinparam BoxPadding 15
+
+title IRMA Authentication flow
+autonumber
+
+box User
+actor User order 10
+participant Browser order 20
+participant "IRMA App" as IrmaApp order 30
+endbox
+
+box Service Provider
+participant EPD order 40
+participant "NutsNode" as NutsNode order 50
+participant "Irma Server" as IrmaServer order 60
+endbox
+
+User -> Browser : Visit Login
+Browser -> EPD : GET login.html
+activate EPD
+
+EPD -> NutsNode : GET contract
+activate NutsNode
+return contract
+
+EPD -> IrmaServer : startSignSession(contract)
+activate IrmaServer
+IrmaServer --> EPD : sessionPtr
+loop Status not in (DONE, CANCELLED, TIMEOUT)
+    EPD -> IrmaServer : GET sessionStatus(sessionPtr)
+    IrmaServer --> EPD : status (optionally with signature)
+    alt DONE
+        EPD -> EPD : store(sessionPtr, signature)
+    else CANCELLED or TIMEOUT
+        EPD -> EPD : store(sessionPtr, failure)
+    end
+end
+EPD --> Browser : login.html with sessionPtr
+deactivate EPD
+
+User -> IrmaApp : Scan(sessionPtr)
+activate IrmaApp
+IrmaApp -> IrmaServer : GET signInformation(sessionPtr)
+activate IrmaServer
+return sessionInfo
+User -> IrmaApp : Sign(sessionInfo)
+IrmaApp -> IrmaServer : Sign(sessionPtr)
+activate IrmaServer
+return success
+deactivate IrmaApp
+deactivate IrmaServer
+
+@enduml

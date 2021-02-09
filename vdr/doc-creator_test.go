@@ -128,7 +128,7 @@ func jwkToPublicKey(t *testing.T, jwkStr string) (crypto.PublicKey, error) {
 	if !assert.NoError(t, err) {
 		return nil, err
 	}
-	key := keySet.Keys[0]
+	key, _ := keySet.Get(0)
 	var rawKey crypto.PublicKey
 	if err = key.Raw(&rawKey); err != nil {
 		return nil, err

@@ -85,6 +85,7 @@ func TestEngine_Command(t *testing.T) {
 			buf := new(bytes.Buffer)
 			cmd.SetArgs([]string{"create-did"})
 			cmd.SetOut(buf)
+			cmd.SetErr(buf)
 			err := cmd.Execute()
 
 			if !assert.Error(t, err) {
@@ -167,6 +168,7 @@ func TestEngine_Command(t *testing.T) {
 			buf := new(bytes.Buffer)
 			cmd.SetArgs([]string{"resolve", "did"})
 			cmd.SetOut(buf)
+			cmd.SetErr(buf)
 			err := cmd.Execute()
 
 			if !assert.Error(t, err) {
@@ -208,6 +210,7 @@ func TestEngine_Command(t *testing.T) {
 			buf := new(bytes.Buffer)
 			cmd.SetArgs([]string{"update", "did", "hash", "../test/syntax_error.json"})
 			cmd.SetOut(buf)
+			cmd.SetErr(buf)
 			err := cmd.Execute()
 
 			if !assert.Error(t, err) {
@@ -227,6 +230,7 @@ func TestEngine_Command(t *testing.T) {
 			buf := new(bytes.Buffer)
 			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
 			cmd.SetOut(buf)
+			cmd.SetErr(buf)
 			err := cmd.Execute()
 
 			if !assert.Error(t, err) {

@@ -20,6 +20,11 @@
 package cmd
 
 import (
+	"github.com/nuts-foundation/nuts-node/auth"
+	authExperimentalAPI "github.com/nuts-foundation/nuts-node/auth/api/experimental"
+	authIrmaAPI "github.com/nuts-foundation/nuts-node/auth/api/irma"
+	authV1API "github.com/nuts-foundation/nuts-node/auth/api/v0"
+	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"io"
 	"os"
 
@@ -137,6 +142,7 @@ func CreateSystem() *core.System {
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
 	statusEngine := core.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, cryptoInstance)
 
 	// add engine specific routes
 	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})
@@ -144,6 +150,9 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
+	system.RegisterRoutes(&authV1API.Wrapper{Auth: authInstance})
+	system.RegisterRoutes(&authExperimentalAPI.Wrapper{Auth: authInstance})
+	system.RegisterRoutes(&authIrmaAPI.Wrapper{Auth: authInstance})
 
 	// Register engines
 	system.RegisterEngine(statusEngine)
@@ -151,6 +160,7 @@ func CreateSystem() *core.System {
 	system.RegisterEngine(cryptoInstance)
 	system.RegisterEngine(networkInstance)
 	system.RegisterEngine(vdrInstance)
+	system.RegisterEngine(authInstance)
 	return system
 }
 
@@ -184,4 +194,5 @@ func addFlagSets(cmd *cobra.Command) {
 	cmd.PersistentFlags().AddFlagSet(cryptoCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(networkCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(vdrCmd.FlagSet())
+	cmd.PersistentFlags().AddFlagSet(authCmd.FlagSet())
 }

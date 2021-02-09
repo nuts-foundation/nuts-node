@@ -17,6 +17,8 @@ Nuts APIs
                     {url: "../_static/crypto/v1.yaml", name: "Crypto"},
                     {url: "../_static/vdr/v1.yaml", name: "Verifiable Data Registry"},
                     {url: "../_static/network/v1.yaml", name: "Network"},
+                    {url: "../_static/auth/v1.yaml", name: "Auth"},
+                    {url: "../_static/auth/experimental.yaml", name: "Auth (experimental)"},
                     ],
                 presets: [
                     SwaggerUIBundle.presets.apis,

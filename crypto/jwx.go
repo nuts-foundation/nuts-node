@@ -36,6 +36,17 @@ import (
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
 var ErrUnsupportedSigningKey = errors.New("signing key algorithm not supported")
 
+var supportedAlgorithms = []jwa.SignatureAlgorithm{jwa.PS256, jwa.PS384, jwa.PS512, jwa.ES256, jwa.ES384, jwa.ES512}
+
+func isAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
+	for _, curr := range supportedAlgorithms {
+		if curr == alg {
+			return true
+		}
+	}
+	return false
+}
+
 // SignJWT creates a signed JWT given a legalEntity and map of claims
 func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token string, err error) {
 	privateKey, err := client.Storage.GetPrivateKey(kid)
@@ -94,7 +105,9 @@ func SignJWT(key jwk.Key, claims map[string]interface{}, headers map[string]inte
 	t := jwt.New()
 
 	for k, v := range claims {
-		t.Set(k, v)
+		if err := t.Set(k, v); err != nil {
+			return "", err
+		}
 	}
 	hdr := convertHeaders(headers)
 
@@ -133,6 +146,10 @@ func ParseJWT(tokenString string, f PublicKeyFunc) (jwt.Token, error) {
 	key, err := f(kid)
 	if err != nil {
 		return nil, err
+	}
+
+	if !isAlgorithmSupported(alg) {
+		return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
 	}
 
 	return jwt.ParseString(tokenString, jwt.WithVerify(alg, key), jwt.WithValidate(true))
