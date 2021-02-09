@@ -132,11 +132,11 @@ func (r VDR) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document
 func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
 	logging.Log().Debugf("Updating DID Document: %s", id)
 	// TODO: check the integrity / validity of the proposed DID Document.
-	resolverMetada := &types.ResolveMetadata{
+	resolverMetadata := &types.ResolveMetadata{
 		Hash:             &current,
 		AllowDeactivated: false,
 	}
-	currentDIDdocument, meta, err := r.store.Resolve(id, resolverMetada)
+	currentDIDocument, meta, err := r.store.Resolve(id, resolverMetadata)
 	if err != nil {
 		return err
 	}
@@ -145,10 +145,17 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return err
 	}
 
-	// TODO: look into the controller of the did for a signing key
-	keyID := currentDIDdocument.Authentication[0].ID.String()
-	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now(), dag.TimelineIDField(meta.TimelineID), dag.TimelineVersionField(meta.Version+1))
+	controllers, err := r.resolveControllers(*currentDIDocument)
+	if err != nil {
+		return fmt.Errorf("error while finding controllers for document: %w", err)
+	}
+	if len(controllers) == 0 {
+		return fmt.Errorf("could not find any contollers for document")
+	}
 
+	// TODO: look into the controller of the did for a signing key
+	keyID := controllers[0].Authentication[0].ID.String()
+	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now(), dag.TimelineIDField(meta.TimelineID), dag.TimelineVersionField(meta.Version+1))
 	if err == nil {
 		logging.Log().Infof("DID Document updated: %s", id)
 	}
@@ -160,4 +167,51 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 func (r *VDR) Deactivate(DID did.DID, current hash.SHA256Hash) {
 	logging.Log().Debugf("Deactivating DID Document: %s", DID)
 	panic("implement me")
+}
+
+func (r *VDR) resolveControllers(doc did.Document) ([]did.Document, error) {
+	return r._resolveControllers([]did.Document{doc})
+}
+
+func (r *VDR) _resolveControllers(input []did.Document) ([]did.Document, error) {
+	// end of the chain
+	if len(input) == 0 {
+		return input, nil
+	}
+
+	var leaves []did.Document
+	var refsToResolve []did.DID
+	var nodes []did.Document
+
+	// for each input document, find its controllers or add the doc itself if its controls itself
+	for _, doc := range input {
+		for _, ctrlDID := range doc.Controller {
+			if doc.ID.Equals(ctrlDID) {
+				// doc is its own controller
+				leaves = append(leaves, doc)
+			} else {
+				// add did to be resolved later
+				refsToResolve = append(refsToResolve, ctrlDID)
+			}
+		}
+	}
+	// resolve all unresolved docs
+	// TODO: check for loops or already resolved docs?
+	for _, ref := range refsToResolve {
+		node, _, err := r.store.Resolve(ref, nil)
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, *node)
+	}
+	newLeaves, err := r._resolveControllers(nodes)
+	if err != nil {
+		return nil, err
+	}
+	// Merge local leaves and new found leaves
+	for _, leave := range newLeaves {
+		leaves = append(leaves, leave)
+	}
+
+	return leaves, nil
 }

@@ -33,6 +33,8 @@ func TestVDR_Update(t *testing.T) {
 	keyID, _ := did.ParseDID("did:nuts:123#key-1")
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
 	currentDIDDocument := did.Document{
+		ID: *id,
+		Controller: []did.DID{*id},
 		Authentication: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: *keyID}}},
 	}
 	nextDIDDocument := did.Document{}
