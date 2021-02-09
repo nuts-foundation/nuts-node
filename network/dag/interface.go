@@ -20,6 +20,7 @@ package dag
 
 import (
 	"errors"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 

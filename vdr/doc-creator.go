@@ -11,11 +11,10 @@ import (
 	"net/url"
 
 	"github.com/lestrrat-go/jwx/jwk"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/shengdoushi/base58"
 
 	"github.com/nuts-foundation/go-did"
-
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
 
 // NutsDIDMethodName is the DID method name used by Nuts

@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/nuts-foundation/nuts-node/cmd"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/spf13/pflag"
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/nuts-foundation/nuts-node/cmd"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/spf13/pflag"
 )
 
 func main() {
@@ -17,14 +18,12 @@ func main() {
 	globalFlags := command.PersistentFlags()
 	flags[""] = globalFlags
 	// Make sure engines are registered
-	system.VisitEngines(func(engine *core.Engine) {
-		if engine.ConfigKey == "" {
-			// go-core engine contains global flags and has no config key
-			return
-		}
-		flagsForEngine := extractFlagsForEngine(engine.ConfigKey, globalFlags)
-		if flagsForEngine.HasAvailableFlags() {
-			flags[engine.Name] = flagsForEngine
+	system.VisitEngines(func(engine core.Engine) {
+		if m, ok := engine.(core.Injectable); ok {
+			flagsForEngine := extractFlagsForEngine(m.ConfigKey(), globalFlags)
+			if flagsForEngine.HasAvailableFlags() {
+				flags[m.Name()] = flagsForEngine
+			}
 		}
 	})
 	generatePartitionedConfigOptionsDocs("docs/pages/configuration/options.rst", flags)

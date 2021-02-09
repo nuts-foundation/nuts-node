@@ -24,10 +24,11 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
-	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewDocument(t *testing.T) {

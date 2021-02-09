@@ -3,10 +3,12 @@ package dag
 import (
 	"errors"
 	"fmt"
+
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"time"
 )
 
 const errSigningDocumentFmt = "error while signing document: %w"

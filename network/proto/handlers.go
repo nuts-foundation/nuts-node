@@ -20,6 +20,7 @@ package proto
 
 import (
 	"fmt"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	log "github.com/nuts-foundation/nuts-node/network/log"

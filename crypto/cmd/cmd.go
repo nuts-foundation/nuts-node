@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package engine
+package cmd
 
 import (
 	"crypto"
@@ -35,23 +35,8 @@ import (
 // ConfigStorage is used as --crypto.storage config flag
 const ConfigStorage string = "crypto.storage"
 
-// NewCryptoEngine the engine configuration for nuts-go.
-func NewCryptoEngine(instance *crypto2.Crypto) *core.Engine {
-	return &core.Engine{
-		Cmd:          cmd(),
-		Config:       &instance.Config,
-		ConfigKey:    "crypto",
-		Configurable: instance,
-		FlagSet:      flagSet(),
-		Name:         "Crypto",
-		Routes: func(router core.EchoRouter) {
-			api.RegisterHandlers(router, &api.Wrapper{C: instance})
-		},
-	}
-}
-
 // FlagSet returns the configuration flags for crypto
-func flagSet() *pflag.FlagSet {
+func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("crypto", pflag.ContinueOnError)
 
 	defs := crypto2.DefaultCryptoConfig()
@@ -63,7 +48,7 @@ func flagSet() *pflag.FlagSet {
 // Cmd gives the sub-commands made available through crypto:
 // * generateKeyPair: generate a new keyPair for a given legalEntity
 // * publicKey: retrieve the keyPair for a given legalEntity
-func cmd() *cobra.Command {
+func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "crypto",
 		Short: "crypto commands",

@@ -21,14 +21,15 @@ package dag
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"testing"
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestParseDocument(t *testing.T) {

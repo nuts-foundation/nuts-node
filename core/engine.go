@@ -26,23 +26,31 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
+
+// Routable enables connecting a REST API to the echo server. The API wrappers should implement this interface
+type Routable interface {
+	// Routes configures the HTTP routes on the given router
+	Routes(router EchoRouter)
+}
 
 // NewSystem creates a new, empty System.
 func NewSystem() *System {
 	return &System{
-		engines: []*Engine{},
+		engines: []Engine{},
 		Config:  NewNutsConfig(),
+		Routers: []Routable{},
 	}
 }
 
 // System is the control structure where engines are registered.
 type System struct {
 	// engines is the slice of all registered engines
-	engines []*Engine
+	engines []Engine
 	// Config holds the global and raw config
 	Config *NutsConfig
+	// Routers is used to connect API handlers to the echo server
+	Routers []Routable
 }
 
 // Load loads the config and injects config values into engines
@@ -55,17 +63,21 @@ func (system *System) Load(cmd *cobra.Command) error {
 }
 
 func (system *System) injectConfig() error {
-	return system.VisitEnginesE(func(engine *Engine) error {
-		return system.Config.InjectIntoEngine(engine)
+	var err error
+	return system.VisitEnginesE(func(engine Engine) error {
+		if m, ok := engine.(Injectable); ok {
+			err = system.Config.InjectIntoEngine(m)
+		}
+		return err
 	})
 }
 
 // Diagnostics returns the compound diagnostics for all engines.
 func (system *System) Diagnostics() []DiagnosticResult {
 	result := make([]DiagnosticResult, 0)
-	system.VisitEngines(func(engine *Engine) {
-		if engine.Diagnosable != nil {
-			result = append(result, engine.Diagnostics()...)
+	system.VisitEngines(func(engine Engine) {
+		if m, ok := engine.(Diagnosable); ok {
+			result = append(result, m.Diagnostics()...)
 		}
 	})
 	return result
@@ -74,9 +86,9 @@ func (system *System) Diagnostics() []DiagnosticResult {
 // Start starts all engines in the system.
 func (system *System) Start() error {
 	var err error
-	return system.VisitEnginesE(func(engine *Engine) error {
-		if engine.Runnable != nil {
-			err = engine.Start()
+	return system.VisitEnginesE(func(engine Engine) error {
+		if m, ok := engine.(Runnable); ok {
+			err = m.Start()
 		}
 		return err
 	})
@@ -85,9 +97,9 @@ func (system *System) Start() error {
 // Shutdown shuts down all engines in the system.
 func (system *System) Shutdown() error {
 	var err error
-	return system.VisitEnginesE(func(engine *Engine) error {
-		if engine.Runnable != nil {
-			err = engine.Shutdown()
+	return system.VisitEnginesE(func(engine Engine) error {
+		if m, ok := engine.(Runnable); ok {
+			err = m.Shutdown()
 		}
 		return err
 	})
@@ -99,18 +111,18 @@ func (system *System) Configure() error {
 	if err = os.MkdirAll(system.Config.Datadir, os.ModePerm); err != nil {
 		return fmt.Errorf("unable to create datadir (dir=%s): %w", system.Config.Datadir, err)
 	}
-	return system.VisitEnginesE(func(engine *Engine) error {
+	return system.VisitEnginesE(func(engine Engine) error {
 		// only if Engine is dynamically configurable
-		if engine.Configurable != nil {
-			err = engine.Configure(*system.Config)
+		if m, ok := engine.(Configurable); ok {
+			err = m.Configure(*system.Config)
 		}
 		return err
 	})
 }
 
 // VisitEngines applies the given function on all engines in the system.
-func (system *System) VisitEngines(visitor func(engine *Engine)) {
-	_ = system.VisitEnginesE(func(engine *Engine) error {
+func (system *System) VisitEngines(visitor func(engine Engine)) {
+	_ = system.VisitEnginesE(func(engine Engine) error {
 		visitor(engine)
 		return nil
 	})
@@ -118,7 +130,7 @@ func (system *System) VisitEngines(visitor func(engine *Engine)) {
 
 // VisitEnginesE applies the given function on all engines in the system, stopping when an error is returned. The error
 // is passed through.
-func (system *System) VisitEnginesE(visitor func(engine *Engine) error) error {
+func (system *System) VisitEnginesE(visitor func(engine Engine) error) error {
 	for _, e := range system.engines {
 		if err := visitor(e); err != nil {
 			return err
@@ -128,8 +140,13 @@ func (system *System) VisitEnginesE(visitor func(engine *Engine) error) error {
 }
 
 // RegisterEngine is a helper func to add an engine to the list of engines from a different lib/pkg
-func (system *System) RegisterEngine(engine *Engine) {
+func (system *System) RegisterEngine(engine Engine) {
 	system.engines = append(system.engines, engine)
+}
+
+// RegisterRoutes is a helper func to register API routers so they can be linked to the echo server
+func (system *System) RegisterRoutes(router Routable) {
+	system.Routers = append(system.Routers, router)
 }
 
 // EchoServer implements both the EchoRouter interface and Start function to aid testing.
@@ -151,8 +168,6 @@ type EchoRouter interface {
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
-// START_DOC_ENGINE_1
-
 // Runnable is the interface that groups the Start and Shutdown methods.
 // When an engine implements these they will be called on startup and shutdown.
 // Start and Shutdown should not be called more than once
@@ -168,43 +183,34 @@ type Configurable interface {
 	Configure(config NutsConfig) error
 }
 
+// ViewableDiagnostics is used for engines that display diagnostics in an interface
+type ViewableDiagnostics interface {
+	Named
+	Diagnosable
+}
+
 // Diagnosable allows the implementer, mostly engines, to return diagnostics.
 type Diagnosable interface {
 	Diagnostics() []DiagnosticResult
 }
 
-// Engine contains all the configuration options and callbacks needed by the executable to configure, start, monitor and shutdown the engines
-type Engine struct {
-	// Name holds the human readable name of the engine
-	Name string
+// Engine is the base interface for a modular design
+type Engine interface{}
 
-	// Cmd is the optional sub-command for the engine. An engine can only add one sub-command (but multiple sub-sub-commands for the sub-command)
-	Cmd *cobra.Command
-
-	// ConfigKey is the root yaml key in the config file or ENV sub-key for all keys used to configure an engine
-	// 	status:
-	//	  key:
-	// and
-	// 	NUTS_STATUS_KEY=
-	// and
-	//	--status-key
-	ConfigKey string
-
-	// Config is the pointer to a config struct. The config will be unmarshalled using the ConfigKey.
-	Config interface{}
-
-	Diagnosable
-	Runnable
-	Configurable
-
-	// FlasSet contains all engine-local configuration possibilities so they can be displayed through the help command
-	FlagSet *pflag.FlagSet
-
-	// Routes passes the Echo router to the specific engine for it to register their routes.
-	Routes func(router EchoRouter)
+// Named is the interface for all engines that have a name
+type Named interface {
+	// Name returns the name of the engine
+	Name() string
 }
 
-// END_DOC_ENGINE_1
+// Injectable marks a engine capable of Config injection
+type Injectable interface {
+	Named
+	// ConfigKey returns the logical Config key used in the Config file for this engine.
+	ConfigKey() string
+	// Config returns a pointer to the struct that holds the Config.
+	Config() interface{}
+}
 
 // DecodeURIPath is a echo middleware that decodes path parameters
 func DecodeURIPath(next echo.HandlerFunc) echo.HandlerFunc {

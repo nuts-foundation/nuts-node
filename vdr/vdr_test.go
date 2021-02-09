@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	did "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -71,5 +71,5 @@ func TestNewVDR(t *testing.T) {
 	cfg := Config{}
 	vdr := NewVDR(cfg, nil, nil)
 	assert.IsType(t, &VDR{}, vdr)
-	assert.Equal(t, vdr.Config, cfg)
+	assert.Equal(t, vdr.config, cfg)
 }

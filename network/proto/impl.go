@@ -19,13 +19,14 @@
 package proto
 
 import (
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	log "github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"time"
 )
 
 // protocol is thread-safe when callers use the Protocol interface

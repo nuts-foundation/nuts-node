@@ -20,19 +20,23 @@
 package cmd
 
 import (
+	"io"
+	"os"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto/engine"
+	cryptoApi "github.com/nuts-foundation/nuts-node/crypto/api/v1"
+	cryptoCmd "github.com/nuts-foundation/nuts-node/crypto/cmd"
 	"github.com/nuts-foundation/nuts-node/network"
-	networkEngine "github.com/nuts-foundation/nuts-node/network/engine"
+	networkApi "github.com/nuts-foundation/nuts-node/network/api/v1"
+	networkCmd "github.com/nuts-foundation/nuts-node/network/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	vdrEngine "github.com/nuts-foundation/nuts-node/vdr/engine"
+	vdrApi "github.com/nuts-foundation/nuts-node/vdr/api/v1"
+	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"io"
-	"os"
 )
 
 var stdOutWriter io.Writer = os.Stdout
@@ -84,13 +88,11 @@ func createServerCommand(system *core.System) *cobra.Command {
 				logrus.Fatal(err)
 			}
 
-			// start interfaces
+			// add routes
 			echoServer := echoCreator()
-			system.VisitEngines(func(engine *core.Engine) {
-				if engine.Routes != nil {
-					engine.Routes(echoServer)
-				}
-			})
+			for _, r := range system.Routers {
+				r.Routes(echoServer)
+			}
 
 			defer func() {
 				if err := system.Shutdown(); err != nil {
@@ -109,7 +111,7 @@ func CreateCommand(system *core.System) *cobra.Command {
 	command := createRootCommand()
 	command.SetOut(stdOutWriter)
 	addSubCommands(system, command)
-	addFlagSets(system, command)
+	addFlagSets(command)
 	return command
 }
 
@@ -121,12 +123,17 @@ func CreateSystem() *core.System {
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), cryptoInstance)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
 
+	// add engine specific routes
+	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})
+	system.RegisterRoutes(&networkApi.Wrapper{Service: networkInstance})
+	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance})
+
 	// Register engines
 	system.RegisterEngine(core.NewStatusEngine(system))
 	system.RegisterEngine(core.NewMetricsEngine())
-	system.RegisterEngine(cryptoEngine.NewCryptoEngine(cryptoInstance))
-	system.RegisterEngine(networkEngine.NewNetworkEngine(networkInstance))
-	system.RegisterEngine(vdrEngine.NewVDREngine(vdrInstance))
+	system.RegisterEngine(cryptoInstance)
+	system.RegisterEngine(networkInstance)
+	system.RegisterEngine(vdrInstance)
 	return system
 }
 
@@ -145,17 +152,15 @@ func Execute(system *core.System) {
 }
 
 func addSubCommands(system *core.System, root *cobra.Command) {
-	system.VisitEngines(func(engine *core.Engine) {
-		if engine.Cmd != nil {
-			root.AddCommand(engine.Cmd)
-		}
-	})
+	root.AddCommand(cryptoCmd.Cmd())
+	root.AddCommand(networkCmd.Cmd())
+	root.AddCommand(vdrCmd.Cmd())
 	root.AddCommand(createServerCommand(system))
 	root.AddCommand(createPrintConfigCommand(system))
 }
 
-func addFlagSets(system *core.System, cmd *cobra.Command) {
-	system.VisitEngines(func(engine *core.Engine) {
-		system.Config.RegisterFlags(cmd, engine)
-	})
+func addFlagSets(cmd *cobra.Command) {
+	cmd.PersistentFlags().AddFlagSet(cryptoCmd.FlagSet())
+	cmd.PersistentFlags().AddFlagSet(networkCmd.FlagSet())
+	cmd.PersistentFlags().AddFlagSet(vdrCmd.FlagSet())
 }

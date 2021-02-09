@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2020. Nuts community
+ * Nuts node
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,21 +14,21 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package engine
+package cmd
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/api/v1"
+	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"time"
 )
 
 var clientCreator = func(cmd *cobra.Command) *v1.HTTPClient {
@@ -40,24 +41,8 @@ var clientCreator = func(cmd *cobra.Command) *v1.HTTPClient {
 	}
 }
 
-// NewNetworkEngine returns the core definition for the network
-func NewNetworkEngine(instance *network.Network) *core.Engine {
-	return &core.Engine{
-		Cmd:          cmd(),
-		Configurable: instance,
-		Diagnosable:  instance,
-		Runnable:     instance,
-		Config:       &instance.Config,
-		ConfigKey:    "network",
-		FlagSet:      flagSet(),
-		Routes: func(router core.EchoRouter) {
-			v1.RegisterHandlers(router, v1.ServerImplementation(instance))
-		},
-		Name: network.ModuleName,
-	}
-}
-
-func flagSet() *pflag.FlagSet {
+// FlagSet contains flags relevant for the VDR instance
+func FlagSet() *pflag.FlagSet {
 	defs := network.DefaultConfig()
 	flagSet := pflag.NewFlagSet("network", pflag.ContinueOnError)
 	flagSet.String("network.grpcAddr", defs.GrpcAddr, "Local address for gRPC to listen on. "+
@@ -76,7 +61,8 @@ func flagSet() *pflag.FlagSet {
 	return flagSet
 }
 
-func cmd() *cobra.Command {
+// Cmd contains sub-commands for the remote client
+func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "network",
 		Short: "network commands",

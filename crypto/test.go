@@ -5,8 +5,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"github.com/nuts-foundation/nuts-node/core"
+
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/sirupsen/logrus"
 )

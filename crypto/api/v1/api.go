@@ -25,18 +25,22 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
-
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
 	C crypto.KeyStore
+}
+
+func (w *Wrapper) Routes(router core.EchoRouter) {
+	RegisterHandlers(router, w)
 }
 
 func (signRequest SignJwtRequest) validate() error {

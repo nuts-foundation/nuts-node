@@ -26,21 +26,20 @@ package vdr
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
-
-	"time"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/sirupsen/logrus"
 
-	"github.com/nuts-foundation/nuts-node/vdr/types"
-
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
@@ -48,7 +47,7 @@ import (
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type VDR struct {
-	Config            Config
+	config            Config
 	store             types.Store
 	network           network.Transactions
 	OnChange          func(registry *VDR)
@@ -61,13 +60,25 @@ type VDR struct {
 func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions) *VDR {
 	store := store.NewMemoryStore()
 	return &VDR{
-		Config:            config,
+		config:            config,
 		network:           networkClient,
 		_logger:           logging.Log(),
 		store:             store,
 		didDocCreator:     NutsDocCreator{keyCreator: cryptoClient},
 		networkAmbassador: NewAmbassador(networkClient, store, cryptoClient),
 	}
+}
+
+func (r *VDR) Name() string {
+	return moduleName
+}
+
+func (r *VDR) ConfigKey() string {
+	return configKey
+}
+
+func (r *VDR) Config() interface{} {
+	return &r.config
 }
 
 // Start initiates the routines for auto-updating the data

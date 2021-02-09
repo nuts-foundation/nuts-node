@@ -18,7 +18,7 @@ func TestNewStatusEngine_Routes(t *testing.T) {
 		echo.EXPECT().GET("/status/diagnostics", gomock.Any())
 		echo.EXPECT().GET("/status", gomock.Any())
 
-		NewStatusEngine(NewSystem()).Routes(echo)
+		NewStatusEngine(NewSystem()).(*status).Routes(echo)
 	})
 }
 
@@ -28,7 +28,7 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 	system.RegisterEngine(NewMetricsEngine())
 
 	t.Run("diagnostics() returns engine list", func(t *testing.T) {
-		ds := NewStatusEngine(system).Diagnostics()
+		ds := NewStatusEngine(system).(*status).Diagnostics()
 		assert.Len(t, ds, 1)
 		assert.Equal(t, "Registered engines", ds[0].Name())
 		assert.Equal(t, "Status,Metrics", ds[0].String())
@@ -41,7 +41,7 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 
 		echo.EXPECT().String(http.StatusOK, "Status\n\tRegistered engines: Status,Metrics")
 
-		(&status{system}).diagnosticsOverview(echo)
+		(&status{system: system}).diagnosticsOverview(echo)
 	})
 }
 

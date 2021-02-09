@@ -3,9 +3,10 @@ package dag
 import (
 	"crypto/sha1"
 	"encoding/base32"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crypto"
 
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"

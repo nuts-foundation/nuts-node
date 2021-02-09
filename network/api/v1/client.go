@@ -22,12 +22,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client

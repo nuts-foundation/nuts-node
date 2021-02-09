@@ -1,6 +1,6 @@
 /*
  * Nuts node
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,10 +14,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package engine
+package cmd
 
 import (
 	"bufio"
@@ -37,23 +36,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// NewVDREngine returns the core definition for the VDR
-func NewVDREngine(instance *vdr.VDR) *core.Engine {
-	return &core.Engine{
-		Cmd:         cmd(),
-		Runnable:    instance,
-		Diagnosable: instance,
-		Config:      &instance.Config,
-		ConfigKey:   "vdr",
-		FlagSet:     flagSet(),
-		Name:        vdr.ModuleName,
-		Routes: func(router core.EchoRouter) {
-			api.RegisterHandlers(router, &api.Wrapper{VDR: instance})
-		},
-	}
-}
-
-func flagSet() *pflag.FlagSet {
+// FlagSet contains flags relevant for the VDR instance
+func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("vdr", pflag.ContinueOnError)
 
 	defs := vdr.DefaultConfig()
@@ -62,7 +46,8 @@ func flagSet() *pflag.FlagSet {
 	return flagSet
 }
 
-func cmd() *cobra.Command {
+// Cmd contains sub-commands for the remote client
+func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "vdr",
 		Short: "Verifiable Data VDR commands",

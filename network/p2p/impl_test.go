@@ -21,9 +21,10 @@ package p2p
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_p2pNetwork_Configure(t *testing.T) {

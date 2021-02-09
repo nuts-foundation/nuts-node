@@ -10,9 +10,8 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/stretchr/testify/assert"
-
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/stretchr/testify/assert"
 )
 
 // mockKeyCreator can create new keys based on a predefined key

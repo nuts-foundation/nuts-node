@@ -1,6 +1,6 @@
 /*
  * Nuts node
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,62 +14,30 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
-package engine
+
+package cmd
 
 import (
 	"bytes"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/nuts-foundation/go-did"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
-
+	"github.com/nuts-foundation/nuts-node/core"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
-
-	core "github.com/nuts-foundation/nuts-node/core"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_flagSet(t *testing.T) {
-	assert.NotNil(t, flagSet())
-}
-
-func TestNewRegistryEngine(t *testing.T) {
-	testDirectory := io.TestDirectory(t)
-	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
-	networkInstance := network.NewTestNetworkInstance(testDirectory)
-	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
-	t.Run("instance", func(t *testing.T) {
-		assert.NotNil(t, NewVDREngine(vdrInstance))
-	})
-
-	t.Run("configuration", func(t *testing.T) {
-		e := NewVDREngine(vdrInstance)
-		cfg := core.NewNutsConfig()
-		cfg.RegisterFlags(e.Cmd, e)
-		assert.NoError(t, cfg.InjectIntoEngine(e))
-	})
+	assert.NotNil(t, FlagSet())
 }
 
 func TestEngine_Command(t *testing.T) {
-	core.NewNutsConfig().Load(&cobra.Command{})
-	testDirectory := io.TestDirectory(t)
-	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
-	networkInstance := network.NewTestNetworkInstance(testDirectory)
-	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
-	createCmd := func(t *testing.T) *cobra.Command {
-		return NewVDREngine(vdrInstance).Cmd
-	}
-
 	exampleID, _ := did.ParseDID("did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 	exampleDIDDocument := did.Document{
 		ID:         *exampleID,
@@ -83,7 +51,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("create-did", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd := createCmd(t)
+			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			core.NewNutsConfig().Load(cmd)
@@ -102,7 +70,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - server error", func(t *testing.T) {
-			cmd := createCmd(t)
+			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "b00m!"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			core.NewNutsConfig().Load(cmd)
@@ -123,7 +91,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("resolve", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd := createCmd(t)
+			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			core.NewNutsConfig().Load(cmd)
@@ -142,7 +110,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - not found", func(t *testing.T) {
-			cmd := createCmd(t)
+			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			core.NewNutsConfig().Load(cmd)
@@ -163,7 +131,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("update", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd := createCmd(t)
+			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			core.NewNutsConfig().Load(cmd)
@@ -181,7 +149,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - incorrect input", func(t *testing.T) {
-			cmd := createCmd(t)
+			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			core.NewNutsConfig().Load(cmd)
@@ -199,7 +167,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - server error", func(t *testing.T) {
-			cmd := createCmd(t)
+			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "invalid"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			core.NewNutsConfig().Load(cmd)

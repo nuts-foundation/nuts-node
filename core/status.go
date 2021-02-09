@@ -27,35 +27,38 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const moduleName = "Status"
+
 type status struct {
 	system *System
 }
 
 //NewStatusEngine creates a new Engine for viewing all engines
-func NewStatusEngine(system *System) *Engine {
-	instance := status{
+func NewStatusEngine(system *System) Engine {
+	return &status{
 		system: system,
-	}
-	return &Engine{
-		Name:        "Status",
-		Diagnosable: instance,
-		Routes: func(router EchoRouter) {
-			router.GET("/status/diagnostics", instance.diagnosticsOverview)
-			router.GET("/status", statusOK)
-		},
 	}
 }
 
-func (s status) diagnosticsOverview(ctx echo.Context) error {
+func (s *status) Name() string {
+	return moduleName
+}
+
+func (s *status) Routes(router EchoRouter) {
+	router.GET("/status/diagnostics", s.diagnosticsOverview)
+	router.GET("/status", statusOK)
+}
+
+func (s *status) diagnosticsOverview(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, s.diagnosticsSummaryAsText())
 }
 
-func (s status) diagnosticsSummaryAsText() string {
+func (s *status) diagnosticsSummaryAsText() string {
 	var lines []string
-	s.system.VisitEngines(func(engine *Engine) {
-		if engine.Diagnosable != nil {
-			lines = append(lines, engine.Name)
-			diagnostics := engine.Diagnostics()
+	s.system.VisitEngines(func(engine Engine) {
+		if m, ok := engine.(ViewableDiagnostics); ok {
+			lines = append(lines, m.Name())
+			diagnostics := m.Diagnostics()
 			for _, d := range diagnostics {
 				lines = append(lines, fmt.Sprintf("\t%s: %s", d.Name(), d.String()))
 			}
@@ -66,14 +69,16 @@ func (s status) diagnosticsSummaryAsText() string {
 
 // Diagnostics returns list of DiagnosticResult for the StatusEngine.
 // The results are a list of all registered engines
-func (s status) Diagnostics() []DiagnosticResult {
+func (s *status) Diagnostics() []DiagnosticResult {
 	return []DiagnosticResult{&GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(s.listAllEngines(), ",")}}
 }
 
-func (s status) listAllEngines() []string {
+func (s *status) listAllEngines() []string {
 	var names []string
-	s.system.VisitEngines(func(engine *Engine) {
-		names = append(names, engine.Name)
+	s.system.VisitEngines(func(engine Engine) {
+		if m, ok := engine.(Named); ok {
+			names = append(names, m.Name())
+		}
 	})
 	return names
 }

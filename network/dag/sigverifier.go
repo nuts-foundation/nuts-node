@@ -3,6 +3,7 @@ package dag
 import (
 	crypto2 "crypto"
 	"fmt"
+
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/crypto"

@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"bytes"
+	"os"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
 )
 
 func Test_rootCmd(t *testing.T) {
@@ -54,23 +55,16 @@ func Test_rootCmd(t *testing.T) {
 		defer os.Unsetenv("NUTS_DATADIR")
 		os.Args = []string{"nuts", "server"}
 
-		type Cfg struct {
-			Datadir string
-		}
-		var engineCfg = &Cfg{}
-		engine := &core.Engine{
-			Name:   "Status",
-			Config: engineCfg,
-		}
+		m := &core.TestEngine{}
 
 		system := core.NewSystem()
-		system.RegisterEngine(engine)
+		system.RegisterEngine(m)
 
 		Execute(system)
 		// Assert global config contains overridden property
 		assert.Equal(t, testDirectory, system.Config.Datadir)
 		// Assert engine config is injected
-		assert.Equal(t, testDirectory, engineCfg.Datadir)
+		assert.Equal(t, testDirectory, m.TestConfig.Datadir)
 	})
 }
 
@@ -84,8 +78,8 @@ func Test_CreateSystem(t *testing.T) {
 	system := CreateSystem()
 	assert.NotNil(t, system)
 	numEngines := 0
-	system.VisitEngines(func(engine *core.Engine) {
+	system.VisitEngines(func(engine core.Engine) {
 		numEngines++
 	})
-	assert.Equal(t,5, numEngines)
+	assert.Equal(t, 5, numEngines)
 }

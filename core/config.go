@@ -153,19 +153,6 @@ func (ngc *NutsConfig) PrintConfig() string {
 }
 
 // InjectIntoEngine takes the loaded config and sets the engine's config struct
-func (ngc *NutsConfig) InjectIntoEngine(e *Engine) error {
-	// ignore if no target for injection
-	if e.Config != nil {
-		return ngc.configMap.Unmarshal(e.ConfigKey, e.Config)
-	}
-
-	return nil
-}
-
-// RegisterFlags adds the flagSet of an engine to the commandline, flag names are prefixed if needed
-// The passed command must be the root command not the engine.Cmd (unless they are the same)
-func (ngc *NutsConfig) RegisterFlags(cmd *cobra.Command, e *Engine) {
-	if e.FlagSet != nil {
-		cmd.PersistentFlags().AddFlagSet(e.FlagSet)
-	}
+func (ngc *NutsConfig) InjectIntoEngine(engine Injectable) error {
+	return ngc.configMap.Unmarshal(engine.ConfigKey(), engine.Config())
 }

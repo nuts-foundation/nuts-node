@@ -5,11 +5,12 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestDocumentSignatureVerifier(t *testing.T) {

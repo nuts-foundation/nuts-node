@@ -24,11 +24,18 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"path"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
+
+	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
+)
+
+const (
+	moduleName = "Crypto"
+	configKey  = "crypto"
 )
 
 // Config holds the values for the crypto engine
@@ -46,19 +53,31 @@ func DefaultCryptoConfig() Config {
 // Crypto holds references to storage and needed config
 type Crypto struct {
 	Storage storage.Storage
-	Config  Config
+	config  Config
 }
 
-// NewCryptoInstance creates a new instance of the crypto module.
+// NewCryptoInstance creates a new instance of the crypto engine.
 func NewCryptoInstance() *Crypto {
 	return &Crypto{
-		Config: DefaultCryptoConfig(),
+		config: DefaultCryptoConfig(),
 	}
+}
+
+func (client *Crypto) Name() string {
+	return moduleName
+}
+
+func (client *Crypto) ConfigKey() string {
+	return configKey
+}
+
+func (client *Crypto) Config() interface{} {
+	return &client.config
 }
 
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
 func (client *Crypto) Configure(config core.NutsConfig) error {
-	if client.Config.Storage != "fs" && client.Config.Storage != "" {
+	if client.config.Storage != "fs" && client.config.Storage != "" {
 		return errors.New("only fs backend available for now")
 	}
 	var err error

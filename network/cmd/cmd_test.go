@@ -1,4 +1,5 @@
 /*
+ * Nuts node
  * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -13,38 +14,29 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package engine
+package cmd
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestNewEngine(t *testing.T) {
-	testDirectory := io.TestDirectory(t)
-	e := NewNetworkEngine(network.NewTestNetworkInstance(testDirectory))
-	assert.NotNil(t, e)
-}
-
 func TestFlagSet(t *testing.T) {
-	assert.NotNil(t, flagSet())
+	assert.NotNil(t, FlagSet())
 }
 
 func TestCmd_List(t *testing.T) {
-	cmd := createCmd(t)
+	cmd := Cmd()
 	response := []interface{}{string(dag.CreateTestDocumentWithJWK(1).Data()), string(dag.CreateTestDocumentWithJWK(2).Data())}
 	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
 	os.Setenv("NUTS_ADDRESS", s.URL)
@@ -57,7 +49,7 @@ func TestCmd_List(t *testing.T) {
 }
 
 func TestCmd_Get(t *testing.T) {
-	cmd := createCmd(t)
+	cmd := Cmd()
 	response := dag.CreateTestDocumentWithJWK(1)
 	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
 	s := httptest.NewServer(handler)
@@ -80,7 +72,7 @@ func TestCmd_Get(t *testing.T) {
 }
 
 func TestCmd_Payload(t *testing.T) {
-	cmd := createCmd(t)
+	cmd := Cmd()
 	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: []byte("Hello, World!")}
 	s := httptest.NewServer(handler)
 	os.Setenv("NUTS_ADDRESS", s.URL)
@@ -99,11 +91,4 @@ func TestCmd_Payload(t *testing.T) {
 		err := cmd.Execute()
 		assert.NoError(t, err)
 	})
-}
-
-func createCmd(t *testing.T) *cobra.Command {
-	core.NewNutsConfig().Load(&cobra.Command{})
-	testDirectory := io.TestDirectory(t)
-	engine := NewNetworkEngine(network.NewTestNetworkInstance(testDirectory))
-	return engine.Cmd
 }

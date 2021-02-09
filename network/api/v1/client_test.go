@@ -20,13 +20,14 @@ package v1
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/stretchr/testify/assert"
 )
 
 type handler struct {

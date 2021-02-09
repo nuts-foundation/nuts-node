@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package engine
+package cmd
 
 import (
 	"bytes"
@@ -27,42 +27,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestNewCryptoEngine(t *testing.T) {
-	t.Run("New returns an engine with Cmd and Routes", func(t *testing.T) {
-		engine := NewCryptoEngine(crypto.NewTestCryptoInstance(io.TestDirectory(t)))
-
-		if engine.Cmd == nil {
-			t.Errorf("Expected Engine to have Cmd")
-		}
-
-		if engine.Routes == nil {
-			t.Errorf("Expected Engine to have Routes")
-		}
-	})
-}
-
-func TestNewCryptoEngine_Routes(t *testing.T) {
-	t.Run("Registers the available routes", func(t *testing.T) {
-		ce := NewCryptoEngine(crypto.NewTestCryptoInstance(io.TestDirectory(t)))
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		echo := mock.NewMockEchoRouter(ctrl)
-
-		echo.EXPECT().POST("/internal/crypto/v1/sign_jwt", gomock.Any())
-		echo.EXPECT().GET("/internal/crypto/v1/public_key/:kid", gomock.Any())
-
-		ce.Routes(echo)
-	})
-}
 
 type handler struct {
 	statusCode   int
@@ -83,16 +51,9 @@ var jwkAsString = `
 var jwkAsBytes = []byte(jwkAsString)
 
 func TestNewCryptoEngine_Cmd(t *testing.T) {
-	createCmd := func(t *testing.T) (*cobra.Command, *crypto.Crypto) {
-		testDirectory := io.TestDirectory(t)
-		instance := crypto.NewTestCryptoInstance(testDirectory)
-		engine := NewCryptoEngine(crypto.NewTestCryptoInstance(io.TestDirectory(t)))
-		return engine.Cmd, instance
-	}
-
 	t.Run("publicKey", func(t *testing.T) {
 		t.Run("error - too few arguments", func(t *testing.T) {
-			cmd, _ := createCmd(t)
+			cmd := Cmd()
 			cmd.SetArgs([]string{"publicKey"})
 			cmd.SetOut(ioutil.Discard)
 			err := cmd.Execute()
@@ -103,7 +64,7 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 		})
 
 		t.Run("error - public key does not exist", func(t *testing.T) {
-			cmd, _ := createCmd(t)
+			cmd := Cmd()
 			buf := new(bytes.Buffer)
 			cmd.SetArgs([]string{"publicKey", "unknown"})
 			cmd.SetOut(buf)
@@ -114,7 +75,7 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 		})
 
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd, _ := createCmd(t)
+			cmd := Cmd()
 			s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			core.NewNutsConfig().Load(cmd)
@@ -133,7 +94,7 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 		})
 
 		t.Run("ok - with valid_at", func(t *testing.T) {
-			cmd, _ := createCmd(t)
+			cmd := Cmd()
 			s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			core.NewNutsConfig().Load(cmd)
@@ -151,9 +112,8 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 
 func TestNewCryptoEngine_FlagSet(t *testing.T) {
 	t.Run("Cobra help should list flags", func(t *testing.T) {
-		e := NewCryptoEngine(crypto.NewTestCryptoInstance(io.TestDirectory(t)))
 		cmd := newRootCommand()
-		cmd.Flags().AddFlagSet(e.FlagSet)
+		cmd.Flags().AddFlagSet(FlagSet())
 		cmd.SetArgs([]string{"--help"})
 
 		buf := new(bytes.Buffer)

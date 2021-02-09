@@ -5,9 +5,10 @@
 package mock
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	v4 "github.com/labstack/echo/v4"
-	reflect "reflect"
 )
 
 // MockEchoRouter is a mock of EchoRouter interface

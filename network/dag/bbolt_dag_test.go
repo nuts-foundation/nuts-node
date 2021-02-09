@@ -19,14 +19,15 @@
 package dag
 
 import (
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/stretchr/testify/assert"
-	"go.etcd.io/bbolt"
 	"path"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/stretchr/testify/assert"
+	"go.etcd.io/bbolt"
 )
 
 func createBBoltDB(testDirectory string) *bbolt.DB {

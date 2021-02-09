@@ -20,9 +20,10 @@ package p2p
 
 import (
 	"fmt"
-	"google.golang.org/grpc/metadata"
 	"net"
 	"strings"
+
+	"google.golang.org/grpc/metadata"
 )
 
 func normalizeAddress(addr string) string {

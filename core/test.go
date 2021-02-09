@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2020. Nuts community
+ * Nuts node
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,22 +14,34 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package proto
+package core
 
-import (
-	"sync"
-	"testing"
+import "github.com/spf13/pflag"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
-	"github.com/stretchr/testify/assert"
-)
+type TestEngineConfig struct {
+	Key     string `koanf:"key"`
+	Datadir string `koanf:"datadir"`
+}
 
-func TestPeerConsistencyHashStatistic(t *testing.T) {
-	diagnostic := peerConsistencyHashStatistic{peerHashes: new(map[p2p.PeerID][]hash.SHA256Hash), mux: &sync.Mutex{}}
-	diagnostic.copyFrom(map[p2p.PeerID][]hash.SHA256Hash{"abc": {hash.FromSlice([]byte{1, 2, 3})}})
-	assert.Equal(t, diagnostic.String(), "0102030000000000000000000000000000000000000000000000000000000000={abc}")
+type TestEngine struct {
+	TestConfig TestEngineConfig
+	flagSet    *pflag.FlagSet
+}
+
+func (i *TestEngine) ConfigKey() string {
+	return ""
+}
+
+func (i *TestEngine) Config() interface{} {
+	return &i.TestConfig
+}
+
+func (i *TestEngine) FlagSet() *pflag.FlagSet {
+	return i.flagSet
+}
+
+func (i *TestEngine) Name() string {
+	return "test"
 }
