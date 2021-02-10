@@ -123,15 +123,19 @@ func CreateSystem() *core.System {
 	cryptoInstance := crypto.NewCryptoInstance()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), cryptoInstance)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
+	statusEngine := core.NewStatusEngine(system)
+	metricsEngine := core.NewMetricsEngine()
 
 	// add engine specific routes
 	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})
 	system.RegisterRoutes(&networkApi.Wrapper{Service: networkInstance})
 	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance})
+	system.RegisterRoutes(statusEngine.(core.Routable))
+	system.RegisterRoutes(metricsEngine.(core.Routable))
 
 	// Register engines
-	system.RegisterEngine(core.NewStatusEngine(system))
-	system.RegisterEngine(core.NewMetricsEngine())
+	system.RegisterEngine(statusEngine)
+	system.RegisterEngine(metricsEngine)
 	system.RegisterEngine(cryptoInstance)
 	system.RegisterEngine(networkInstance)
 	system.RegisterEngine(vdrInstance)
