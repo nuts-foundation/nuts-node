@@ -76,10 +76,6 @@ func Cmd() *cobra.Command {
 			}
 
 			// printout in JWK
-			if err != nil {
-				cmd.Printf("Error printing publicKey: %v", err)
-				return
-			}
 			asJSON, err := json.MarshalIndent(jwkKey, "", "  ")
 			if err != nil {
 				cmd.Printf("Error printing publicKey: %v\n", err)
