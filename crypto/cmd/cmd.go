@@ -104,7 +104,6 @@ func Cmd() *cobra.Command {
 			cmd.Println(publicKeyAsPEM)
 		},
 	})
-	cmd.PersistentFlags().AddFlagSet(core.NewClientConfig().FlagSet())
 	return cmd
 }
 

@@ -18,7 +18,7 @@ func main() {
 
 func generateClientOptions(system *core.System) {
 	flags := make(map[string]*pflag.FlagSet)
-	flags[""] = core.NewClientConfig().FlagSet()
+	flags[""] = core.ClientConfigFlags()
 	generatePartitionedConfigOptionsDocs("docs/pages/client_options.rst", flags)
 }
 

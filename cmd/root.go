@@ -154,7 +154,7 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		networkCmd.Cmd(),
 		vdrCmd.Cmd(),
 	}
-	clientFlags := core.NewClientConfig().FlagSet()
+	clientFlags := core.ClientConfigFlags()
 	for _, clientCommand := range clientCommands {
 		clientCommand.PersistentFlags().AddFlagSet(clientFlags)
 	}
