@@ -23,8 +23,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	cryptoApi "github.com/nuts-foundation/nuts-node/crypto/api/v1"
@@ -41,14 +39,6 @@ import (
 
 var stdOutWriter io.Writer = os.Stdout
 
-// Allows overriding Echo server implementation to aid testing
-var echoCreator = func() core.EchoServer {
-	echo := echo.New()
-	echo.HideBanner = true
-	echo.Use(middleware.Logger())
-	return echo
-}
-
 func createRootCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "nuts",
@@ -63,18 +53,28 @@ func createPrintConfigCommand(system *core.System) *cobra.Command {
 	return &cobra.Command{
 		Use:   "config",
 		Short: "Prints the current config",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Load all config and add generic options
+			if err := system.Load(cmd); err != nil {
+				return err
+			}
 			cmd.Println("Current system config")
 			cmd.Println(system.Config.PrintConfig())
+			return nil
 		},
 	}
 }
 
 func createServerCommand(system *core.System) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "server",
 		Short: "Starts the Nuts server",
 		Run: func(cmd *cobra.Command, args []string) {
+			// Load all config and add generic options
+			if err := system.Load(cmd); err != nil {
+				panic(err)
+			}
+
 			logrus.Info("Starting server with config:")
 			logrus.Info(system.Config.PrintConfig())
 
@@ -89,7 +89,7 @@ func createServerCommand(system *core.System) *cobra.Command {
 			}
 
 			// add routes
-			echoServer := echoCreator()
+			echoServer := system.EchoCreator()
 			for _, r := range system.Routers {
 				r.Routes(echoServer)
 			}
@@ -104,6 +104,8 @@ func createServerCommand(system *core.System) *cobra.Command {
 			}
 		},
 	}
+	addFlagSets(cmd)
+	return cmd
 }
 
 // CreateCommand creates the command with all subcommands to run the system.
@@ -111,7 +113,6 @@ func CreateCommand(system *core.System) *cobra.Command {
 	command := createRootCommand()
 	command.SetOut(stdOutWriter)
 	addSubCommands(system, command)
-	addFlagSets(command)
 	return command
 }
 
@@ -142,19 +143,23 @@ func Execute(system *core.System) {
 	command := CreateCommand(system)
 	command.SetOut(stdOutWriter)
 
-	// Load all config and add generic options
-	if err := system.Load(command); err != nil {
-		panic(err)
-	}
-
 	// blocking main call
 	command.Execute()
 }
 
 func addSubCommands(system *core.System, root *cobra.Command) {
-	root.AddCommand(cryptoCmd.Cmd())
-	root.AddCommand(networkCmd.Cmd())
-	root.AddCommand(vdrCmd.Cmd())
+	// Register client commands
+	clientCommands := []*cobra.Command{
+		cryptoCmd.Cmd(),
+		networkCmd.Cmd(),
+		vdrCmd.Cmd(),
+	}
+	clientFlags := core.ClientConfigFlags()
+	for _, clientCommand := range clientCommands {
+		clientCommand.PersistentFlags().AddFlagSet(clientFlags)
+	}
+	root.AddCommand(clientCommands...)
+	// Register server commands
 	root.AddCommand(createServerCommand(system))
 	root.AddCommand(createPrintConfigCommand(system))
 }

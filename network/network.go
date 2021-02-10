@@ -42,7 +42,7 @@ import (
 const boltDBFileMode = 0600
 
 const (
-	moduleName = "Transactions"
+	moduleName = "Network"
 	configKey  = "network"
 )
 
@@ -69,7 +69,7 @@ func NewNetworkInstance(config Config, keyStore crypto.KeyStore) *Network {
 }
 
 // Configure configures the Network subsystem
-func (n *Network) Configure(config core.NutsConfig) error {
+func (n *Network) Configure(config core.ServerConfig) error {
 	dbFile := path.Join(config.Datadir, "network", "data.db")
 	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
 		return err

@@ -78,7 +78,8 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 			cmd := Cmd()
 			s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NewNutsConfig().Load(cmd)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -97,7 +98,8 @@ func TestNewCryptoEngine_Cmd(t *testing.T) {
 			cmd := Cmd()
 			s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: jwkAsBytes})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NewNutsConfig().Load(cmd)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)

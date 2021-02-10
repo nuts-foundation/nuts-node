@@ -197,7 +197,7 @@ func addDocumentAndWaitForItToArrive(t *testing.T, payload string, sender *Netwo
 func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Network, error) {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
-	core.NewNutsConfig().Load(&cobra.Command{})
+	core.NewServerConfig().Load(&cobra.Command{})
 	mutex.Lock()
 	mutex.Unlock()
 	// Create Network instance
@@ -215,7 +215,7 @@ func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Ne
 			AdvertHashesInterval: 500,
 		},
 	}
-	if err := instance.Configure(core.NutsConfig{Datadir: directory}); err != nil {
+	if err := instance.Configure(core.ServerConfig{Datadir: directory}); err != nil {
 		return nil, err
 	}
 	if err := instance.Start(); err != nil {

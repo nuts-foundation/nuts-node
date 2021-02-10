@@ -121,17 +121,16 @@ Ordering
 Command line parameters have the highest priority, then environment variables, then parameters from the configfile and lastly defaults.
 The location of the configfile is determined by the environment variable ``NUTS_CONFIGFILE`` or the commandline parameter ``--configfile``. If both are missing the default location ``./nuts.yaml`` is used.
 
-Options
-*******
+Server options
+**************
 
-The following options can be configured:
+The following options can be configured on the server:
 
 .. marker-for-config-options
 
 ============================  ==============  =================================================================================================================================================================================
 Key                           Default         Description
 ============================  ==============  =================================================================================================================================================================================
-****
 address                       localhost:1323  Address and port the server will be listening to
 configfile                    nuts.yaml       Nuts config file
 datadir                       ./data          Directory where the node stores its files.
@@ -148,8 +147,6 @@ network.enableTLS             true            Whether to enable TLS for inbound 
 network.grpcAddr              \:5555           Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made).
 network.publicAddr                            Public address (of this node) other nodes can use to connect to it. If set, it is registered on the nodelist.
 network.trustStoreFile                        PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
-**Verifiable Data Registry**
-vdr.clientTimeout             10              Time-out for the client in seconds (e.g. when using the CLI), default: 10
 ============================  ==============  =================================================================================================================================================================================
 
 This table is automatically generated using the configuration flags in the core and engines. When they're changed
@@ -158,4 +155,16 @@ the options table must be regenerated using the Makefile:
 .. code-block:: shell
 
     $ make update-docs
+
+CLI options
+***********
+
+The following options can be supplied when running CLI commands:
+
+=======  ==============  =====================================================================================================================================================================
+Key      Default         Description
+=======  ==============  =====================================================================================================================================================================
+address  localhost:1323  Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.
+timeout  10s             Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.
+=======  ==============  =====================================================================================================================================================================
 

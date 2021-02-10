@@ -29,7 +29,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,7 +53,8 @@ func TestEngine_Command(t *testing.T) {
 			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NewNutsConfig().Load(cmd)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -73,7 +73,8 @@ func TestEngine_Command(t *testing.T) {
 			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "b00m!"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NewNutsConfig().Load(cmd)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -94,7 +95,8 @@ func TestEngine_Command(t *testing.T) {
 			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NewNutsConfig().Load(cmd)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -113,7 +115,8 @@ func TestEngine_Command(t *testing.T) {
 			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NewNutsConfig().Load(cmd)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -134,7 +137,8 @@ func TestEngine_Command(t *testing.T) {
 			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NewNutsConfig().Load(cmd)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -152,7 +156,8 @@ func TestEngine_Command(t *testing.T) {
 			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NewNutsConfig().Load(cmd)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -170,7 +175,8 @@ func TestEngine_Command(t *testing.T) {
 			cmd := Cmd()
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "invalid"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
-			core.NewNutsConfig().Load(cmd)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -188,18 +194,12 @@ func TestEngine_Command(t *testing.T) {
 }
 
 func Test_httpClient(t *testing.T) {
-	t.Run("address has http prefix", func(t *testing.T) {
-		os.Setenv("NUTS_ADDRESS", "https://localhost")
-		cmd := &cobra.Command{}
-		core.NewNutsConfig().Load(cmd)
-		client := httpClient(cmd)
-		assert.Equal(t, "https://localhost", client.ServerAddress)
+	t.Run("ok", func(t *testing.T) {
+		client := httpClient()
+		assert.Equal(t, "http://localhost:1323", client.ServerAddress)
 	})
-	t.Run("address has no http prefix", func(t *testing.T) {
-		os.Setenv("NUTS_ADDRESS", "localhost")
-		cmd := &cobra.Command{}
-		core.NewNutsConfig().Load(cmd)
-		client := httpClient(cmd)
-		assert.Equal(t, "http://localhost", client.ServerAddress)
+	t.Run("invalid address", func(t *testing.T) {
+		client := httpClient()
+		assert.Equal(t, "http://localhost:1323", client.ServerAddress)
 	})
 }

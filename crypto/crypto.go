@@ -76,7 +76,7 @@ func (client *Crypto) Config() interface{} {
 }
 
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
-func (client *Crypto) Configure(config core.NutsConfig) error {
+func (client *Crypto) Configure(config core.ServerConfig) error {
 	if client.config.Storage != "fs" && client.config.Storage != "" {
 		return errors.New("only fs backend available for now")
 	}

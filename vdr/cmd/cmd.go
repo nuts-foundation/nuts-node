@@ -23,26 +23,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"strings"
-	"time"
-
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"io/ioutil"
+	"log"
+	"os"
 )
 
 // FlagSet contains flags relevant for the VDR instance
 func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("vdr", pflag.ContinueOnError)
-
-	defs := vdr.DefaultConfig()
-	flagSet.Int(vdr.ConfClientTimeout, defs.ClientTimeout, fmt.Sprintf("Time-out for the client in seconds (e.g. when using the CLI), default: %d", defs.ClientTimeout))
-
 	return flagSet
 }
 
@@ -68,9 +61,7 @@ func createCmd() *cobra.Command {
 		Short: "Registers a new DID",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client := httpClient(cmd)
-
-			doc, err := client.Create()
+			doc, err := httpClient().Create()
 			if err != nil {
 				return fmt.Errorf("unable to create new DID: %v", err)
 			}
@@ -90,8 +81,6 @@ func updateCmd() *cobra.Command {
 			"If no file is given, a pipe is assumed. The hash is needed to prevent concurrent updates.",
 		Args: cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client := httpClient(cmd)
-
 			id := args[0]
 			hash := args[1]
 
@@ -117,7 +106,7 @@ func updateCmd() *cobra.Command {
 				return fmt.Errorf("failed to parse DID document: %w", err)
 			}
 
-			if _, err = client.Update(id, hash, didDoc); err != nil {
+			if _, err = httpClient().Update(id, hash, didDoc); err != nil {
 				return fmt.Errorf("failed to update DID document: %w", err)
 			}
 
@@ -133,9 +122,7 @@ func resolveCmd() *cobra.Command {
 		Short: "Resolve a DID document based on its DID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client := httpClient(cmd)
-
-			doc, meta, err := client.Get(args[0])
+			doc, meta, err := httpClient().Get(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to resolve DID document: %v", err)
 			}
@@ -161,17 +148,13 @@ func readFromStdin() ([]byte, error) {
 	return ioutil.ReadAll(bufio.NewReader(os.Stdin))
 }
 
-func httpClient(cmd *cobra.Command) api.HTTPClient {
-	cfg := core.NewNutsConfig()
-	cfg.Load(cmd)
-
-	// TODO: allow for https
-	addr := cfg.Address
-	if !strings.HasPrefix(addr, "http") {
-		addr = "http://" + addr
+func httpClient() api.HTTPClient {
+	config := core.NewClientConfig()
+	if err := config.Load(); err != nil {
+		log.Fatal(err)
 	}
 	return api.HTTPClient{
-		ServerAddress: addr,
-		Timeout:       5 * time.Second,
+		ServerAddress: config.GetAddress(),
+		Timeout:       config.Timeout,
 	}
 }

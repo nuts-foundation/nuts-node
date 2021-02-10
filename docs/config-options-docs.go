@@ -11,13 +11,30 @@ import (
 )
 
 func main() {
-	flags := make(map[string]*pflag.FlagSet)
 	system := cmd.CreateSystem()
-	command := cmd.CreateCommand(system)
-	core.NewNutsConfig().Load(command)
-	globalFlags := command.PersistentFlags()
+	generateClientOptions(system)
+	generateServerOptions(system)
+}
+
+func generateClientOptions(system *core.System) {
+	flags := make(map[string]*pflag.FlagSet)
+	flags[""] = core.ClientConfigFlags()
+	generatePartitionedConfigOptionsDocs("docs/pages/client_options.rst", flags)
+}
+
+func generateServerOptions(system *core.System) {
+	flags := make(map[string]*pflag.FlagSet)
+	// Resolve root command flags
+	rootCommand := cmd.CreateCommand(system)
+	if err := core.NewServerConfig().Load(rootCommand); err != nil {
+		panic(err)
+	}
+	globalFlags := rootCommand.PersistentFlags()
+	// Resolve server command flags
+	serverCommand, _, _ := cmd.CreateCommand(system).Find([]string{"server"})
+	globalFlags.AddFlagSet(serverCommand.PersistentFlags())
+	// Now index the flags by engine
 	flags[""] = globalFlags
-	// Make sure engines are registered
 	system.VisitEngines(func(engine core.Engine) {
 		if m, ok := engine.(core.Injectable); ok {
 			flagsForEngine := extractFlagsForEngine(m.ConfigKey(), globalFlags)
@@ -26,7 +43,7 @@ func main() {
 			}
 		}
 	})
-	generatePartitionedConfigOptionsDocs("docs/pages/configuration/options.rst", flags)
+	generatePartitionedConfigOptionsDocs("docs/pages/configuration/server_options.rst", flags)
 }
 
 func extractFlagsForEngine(configKey string, flagSet *pflag.FlagSet) *pflag.FlagSet {
@@ -51,10 +68,12 @@ func generatePartitionedConfigOptionsDocs(fileName string, flags map[string]*pfl
 
 	values := make([][]rstValue, 0)
 	for _, key := range sortedKeys {
-		values = append(values, []rstValue{{
-			value: key,
-			bold:  true,
-		}})
+		if key != "" {
+			values = append(values, []rstValue{{
+				value: key,
+				bold:  true,
+			}})
+		}
 		values = append(values, flagsToSortedValues(flags[key])...)
 	}
 	generateRstTable(fileName, values)

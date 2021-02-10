@@ -109,7 +109,7 @@ func TestCrypto_New(t *testing.T) {
 
 func TestCrypto_Configure(t *testing.T) {
 	directory := io.TestDirectory(t)
-	cfg := core.NutsConfig{Datadir: directory}
+	cfg := core.ServerConfig{Datadir: directory}
 	t.Run("ok", func(t *testing.T) {
 		e := createCrypto(t)
 		err := e.Configure(cfg)
@@ -130,6 +130,13 @@ func TestCrypto_Configure(t *testing.T) {
 		err := client.Configure(cfg)
 		assert.EqualErrorf(t, err, "only fs backend available for now", "expected error")
 	})
+}
+
+func Test_CryptoGetters(t *testing.T) {
+	instance := NewCryptoInstance()
+	assert.Equal(t, moduleName, instance.Name())
+	assert.Equal(t, configKey, instance.ConfigKey())
+	assert.Equal(t, &instance.config, instance.Config())
 }
 
 func TestNewCryptoInstance(t *testing.T) {

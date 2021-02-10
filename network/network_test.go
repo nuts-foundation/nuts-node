@@ -110,7 +110,7 @@ func TestNetwork_Configure(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.p2pNetwork.EXPECT().Configure(gomock.Any())
-		err := cxt.network.Configure(core.NutsConfig{Datadir: io.TestDirectory(t)})
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -123,7 +123,7 @@ func TestNetwork_Configure(t *testing.T) {
 		cxt.network.config.TrustStoreFile = ""
 		cxt.network.config.CertKeyFile = ""
 		cxt.network.config.CertFile = ""
-		err := cxt.network.Configure(core.NutsConfig{Datadir: io.TestDirectory(t)})
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -132,7 +132,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		err := cxt.network.Configure(core.NutsConfig{Datadir: "network_test.go"})
+		err := cxt.network.Configure(core.ServerConfig{Datadir: "network_test.go"})
 		assert.Error(t, err)
 	})
 }

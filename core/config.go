@@ -20,139 +20,33 @@
 package core
 
 import (
-	"errors"
+	"github.com/knadh/koanf"
+	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/posflag"
+	"github.com/spf13/pflag"
 	"os"
 	"strings"
-
-	"github.com/knadh/koanf"
-	"github.com/knadh/koanf/parsers/yaml"
-	"github.com/knadh/koanf/providers/env"
-	"github.com/knadh/koanf/providers/file"
-	"github.com/knadh/koanf/providers/posflag"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 const defaultPrefix = "NUTS_"
 const defaultDelimiter = "."
-const defaultConfigFile = "nuts.yaml"
-const configFileFlag = "configfile"
-const loggerLevelFlag = "verbosity"
-const addressFlag = "address"
-const datadirFlag = "datadir"
-const defaultLogLevel = "info"
-const defaultAddress = "localhost:1323"
-const strictModeFlag = "strictmode"
-const defaultStrictMode = false
-const defaultDatadir = "./data"
 
-// NutsConfig has global settings.
-type NutsConfig struct {
-	Address    string `koanf:"address"`
-	Verbosity  string `koanf:"verbosity"`
-	Strictmode bool   `koanf:"strictmode"`
-	Datadir    string `koanf:"datadir"`
-	configMap  *koanf.Koanf
-}
-
-// NewNutsConfig creates a new config with some defaults
-func NewNutsConfig() *NutsConfig {
-	return &NutsConfig{
-		configMap:  koanf.New(defaultDelimiter),
-		Address:    defaultAddress,
-		Verbosity:  defaultLogLevel,
-		Strictmode: defaultStrictMode,
-		Datadir:    defaultDatadir,
-	}
-}
-
-// Load follows the load order of configfile, env vars and then commandline param
-func (ngc *NutsConfig) Load(cmd *cobra.Command) (err error) {
-	cmd.PersistentFlags().AddFlagSet(ngc.flagSet())
-
-	ngc.configMap = koanf.New(defaultDelimiter)
-	f := ngc.getConfigfile(cmd)
-
-	// load file
-	p := file.Provider(f)
-	if err = ngc.configMap.Load(p, yaml.Parser()); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return
-		}
-	}
-
+func loadConfigIntoStruct(flags *pflag.FlagSet, target interface{}, configMap *koanf.Koanf) error {
 	// load env
 	e := env.Provider(defaultPrefix, defaultDelimiter, func(s string) string {
 		return strings.Replace(strings.ToLower(
 			strings.TrimPrefix(s, defaultPrefix)), "_", defaultDelimiter, -1)
 	})
 	// errors can't occur for this provider
-	_ = ngc.configMap.Load(e, nil)
+	_ = configMap.Load(e, nil)
 
 	// load cmd params
 	if len(os.Args) > 1 {
-		_ = cmd.PersistentFlags().Parse(os.Args[1:])
+		_ = flags.Parse(os.Args[1:])
 	}
 	// errors can't occur for this provider
-	_ = ngc.configMap.Load(posflag.Provider(cmd.PersistentFlags(), defaultDelimiter, ngc.configMap), nil)
+	_ = configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
 
 	// load into struct
-	if err = ngc.configMap.Unmarshal("", ngc); err != nil {
-		return
-	}
-
-	var lvl log.Level
-	// initialize logger, verbosity flag needs to be available
-	if lvl, err = log.ParseLevel(ngc.Verbosity); err != nil {
-		return
-	}
-
-	// todo, see #40
-	log.SetLevel(lvl)
-
-	return
-}
-
-// getConfigfile returns the configfile path in the following order: commandline param, env variable, default path
-func (ngc *NutsConfig) getConfigfile(cmd *cobra.Command) string {
-	k := koanf.New(defaultDelimiter)
-
-	// load env flags
-	e := env.Provider(defaultPrefix, defaultDelimiter, func(s string) string {
-		return strings.Replace(strings.ToLower(
-			strings.TrimPrefix(s, defaultPrefix)), "_", defaultDelimiter, -1)
-	})
-	// can't return error
-	_ = k.Load(e, nil)
-
-	if len(os.Args) > 1 {
-		_ = cmd.PersistentFlags().Parse(os.Args[1:])
-	}
-
-	// load cmd flags, without a parser, no error can be returned
-	// this also loads the default flag value of nuts.yaml. So we need a way to know if it's overiden.
-	_ = k.Load(posflag.Provider(cmd.PersistentFlags(), defaultDelimiter, k), nil)
-
-	return k.String(configFileFlag)
-}
-
-func (ngc *NutsConfig) flagSet() *pflag.FlagSet {
-	flagSet := pflag.NewFlagSet("config", pflag.ContinueOnError)
-	flagSet.String(configFileFlag, defaultConfigFile, "Nuts config file")
-	flagSet.String(loggerLevelFlag, defaultLogLevel, "Log level (trace, debug, info, warn, error)")
-	flagSet.String(addressFlag, defaultAddress, "Address and port the server will be listening to")
-	flagSet.Bool(strictModeFlag, defaultStrictMode, "When set, insecure settings are forbidden.")
-	flagSet.String(datadirFlag, defaultDatadir, "Directory where the node stores its files.")
-	return flagSet
-}
-
-// PrintConfig return the current config in string form
-func (ngc *NutsConfig) PrintConfig() string {
-	return ngc.configMap.Sprint()
-}
-
-// InjectIntoEngine takes the loaded config and sets the engine's config struct
-func (ngc *NutsConfig) InjectIntoEngine(engine Injectable) error {
-	return ngc.configMap.Unmarshal(engine.ConfigKey(), engine.Config())
+	return configMap.Unmarshal("", target)
 }

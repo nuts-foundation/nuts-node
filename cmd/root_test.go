@@ -46,9 +46,6 @@ func Test_rootCmd(t *testing.T) {
 		echoServer.EXPECT().POST(gomock.Any(), gomock.Any()).AnyTimes()
 		echoServer.EXPECT().PUT(gomock.Any(), gomock.Any()).AnyTimes()
 		echoServer.EXPECT().Start(gomock.Any())
-		echoCreator = func() core.EchoServer {
-			return echoServer
-		}
 
 		testDirectory := io.TestDirectory(t)
 		os.Setenv("NUTS_DATADIR", testDirectory)
@@ -58,6 +55,9 @@ func Test_rootCmd(t *testing.T) {
 		m := &core.TestEngine{}
 
 		system := core.NewSystem()
+		system.EchoCreator = func() core.EchoServer {
+			return echoServer
+		}
 		system.RegisterEngine(m)
 
 		Execute(system)
@@ -65,12 +65,6 @@ func Test_rootCmd(t *testing.T) {
 		assert.Equal(t, testDirectory, system.Config.Datadir)
 		// Assert engine config is injected
 		assert.Equal(t, testDirectory, m.TestConfig.Datadir)
-	})
-}
-
-func Test_echoCreator(t *testing.T) {
-	t.Run("creates an echo server", func(t *testing.T) {
-		assert.NotNil(t, echoCreator())
 	})
 }
 
