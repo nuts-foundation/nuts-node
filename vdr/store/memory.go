@@ -109,26 +109,41 @@ func (m *memory) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (*did.Docume
 	}
 
 	// return a deep copy
-	doc := &did.Document{}
-	docMetadata := &vdr.DocumentMetadata{}
+	copyEntry, err := deepCopy(entry)
+	if err != nil {
+		return nil, nil, err
+	}
 
+	return &copyEntry.document, &copyEntry.metadata, nil
+}
+
+// deepCopy returns a deep copy of a memoryEntry
+func deepCopy(entry *memoryEntry) (*memoryEntry, error) {
+	docCopy := did.Document{}
+	metadataCopy := vdr.DocumentMetadata{}
+
+	// deep copy document
 	docJSON, err := json.Marshal(entry.document)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	if err = json.Unmarshal(docJSON, doc); err != nil {
-		return nil, nil, err
+	if err = json.Unmarshal(docJSON, &docCopy); err != nil {
+		return nil, err
 	}
 
+	// deep copy metadata
 	metadataJSON, err := json.Marshal(entry.metadata)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	if err = json.Unmarshal(metadataJSON, docMetadata); err != nil {
-		return nil, nil, err
+	if err = json.Unmarshal(metadataJSON, &metadataCopy); err != nil {
+		return nil, err
 	}
 
-	return doc, docMetadata, nil
+	return &memoryEntry{
+		document: docCopy,
+		metadata: metadataCopy,
+	}, nil
 }
 
 // timeSelectionFilter checks if an entry is after the created, after the updated field if present but before the updated field of the next entry
