@@ -74,38 +74,45 @@ func TestVDRIntegration_Test(t *testing.T) {
 	})
 
 	err = vdr.Update(docA.ID, metadata.Hash, *docA, nil)
-	if !assert.NoError(t, err, "unable to update docA with a new service") {
+	if !assert.NoError(t, err,
+		"unable to update docA with a new service") {
 		return
 	}
 
 
 	resolvedDoc, metadata, err = vdr.Resolve(docA.ID, nil)
-	if !assert.NoError(t, err, "unable to resolve updated document"){
+	if !assert.NoError(t, err,
+		"unable to resolve updated document"){
 		return
 	}
 
-	assert.Equal(t, docA.Service[0], resolvedDoc.Service[0], "expected updated docA to have a service")
+	assert.Equal(t, docA.Service[0], resolvedDoc.Service[0],
+		"expected updated docA to have a service")
 
 	// Create a new DID Document named DocumentB
 	docB, err := vdr.Create()
 	if !assert.NoError(t, err) {
 		return
 	}
-	assert.NotNil(t, docB)
+	assert.NotNil(t, docB,
+		"a new document should have been created")
 
 	// Update documentA with documentB as its new Controller
 	docA.Controller = []did.DID{docB.ID}
 	err = vdr.Update(docA.ID, metadata.Hash, *docA, nil)
-	if !assert.NoError(t, err, "unable to update docA with a new controller") {
+	if !assert.NoError(t, err,
+		"unable to update docA with a new controller") {
 		return
 	}
 
 	resolvedDoc, metadata, err = vdr.Resolve(docA.ID, nil)
-	if !assert.NoError(t, err, "unable to resolve updated document A"){
+	if !assert.NoError(t, err,
+		"unable to resolve updated document A"){
 		return
 	}
 
-	assert.Equal(t, []did.DID{docB.ID}, resolvedDoc.Controller, "expected updated docA to have document B as its controller")
+	assert.Equal(t, []did.DID{docB.ID}, resolvedDoc.Controller,
+	"expected updated docA to have document B as its controller")
 
 	// Update and check DocumentA with a new service:
 	serviceID, _ = url.Parse(docA.ID.String() + "#service-2")
@@ -115,16 +122,20 @@ func TestVDRIntegration_Test(t *testing.T) {
 		ServiceEndpoint: []interface{}{"http://example.com/service2"},
 	})
 	err = vdr.Update(docA.ID, metadata.Hash, *docA, nil)
-	if !assert.NoError(t, err, "unable to update docA with a new service") {
+	if !assert.NoError(t, err,
+		"unable to update docA with a new service") {
 		return
 	}
 	resolvedDoc, metadata, err = vdr.Resolve(docA.ID, nil)
-	if !assert.NoError(t, err, "unable to resolve updated document A"){
+	if !assert.NoError(t, err,
+		"unable to resolve updated document A"){
 		return
 	}
 
-	if !assert.Len(t, resolvedDoc.Service, 2, "expected document A to have 2 services after the update") {
+	if !assert.Len(t, resolvedDoc.Service, 2,
+		"expected document A to have 2 services after the update") {
 		return
 	}
-	assert.Equal(t, docA.Service[1], resolvedDoc.Service[1], "news service of document a does not contain expected values")
+	assert.Equal(t, docA.Service[1], resolvedDoc.Service[1],
+		"news service of document a does not contain expected values")
 }

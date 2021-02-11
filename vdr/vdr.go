@@ -136,7 +136,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		Hash:             &current,
 		AllowDeactivated: false,
 	}
-	currentDIDocument, meta, err := r.store.Resolve(id, resolverMetadata)
+	currentDIDDocument, meta, err := r.store.Resolve(id, resolverMetadata)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return err
 	}
 
-	controllers, err := r.resolveControllers(*currentDIDocument)
+	controllers, err := r.resolveControllers(*currentDIDDocument)
 	if err != nil {
 		return fmt.Errorf("error while finding controllers for document: %w", err)
 	}

@@ -328,7 +328,7 @@ func (n ambassador) findKeyByThumbprint(thumbPrint []byte, didDocumentAuthKeys [
 		// Create thumbprint
 		keyAsJWK, err := key.JWK()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to generate JWK from verificationMethod: %w", err)
 		}
 		documentThumbprint, err := keyAsJWK.Thumbprint(thumbprintAlg)
 		if err != nil {
