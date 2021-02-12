@@ -5,6 +5,10 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       NUTS_NETWORK_PUBLICADDR: bootstrap:5555
+    ports:
+      - 8080:8080
+    healthcheck:
+      test: "curl -f http://localhost:8080/status || exit 1"
     volumes:
       - "./nuts.yaml:/opt/nuts/nuts.yaml"
       - "./truststore.pem:/opt/nuts/truststore.pem"
@@ -13,6 +17,8 @@ services:
     image: nutsfoundation/nuts:latest
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    healthcheck:
+      test: "curl -f http://localhost:8080/status || exit 1"
     volumes:
       - "./nuts.yaml:/opt/nuts/nuts.yaml"
       - "./truststore.pem:/opt/nuts/truststore.pem"
@@ -21,6 +27,8 @@ services:
     image: nutsfoundation/nuts:latest
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    healthcheck:
+      test: "curl -f http://localhost:8080/status || exit 1"
     volumes:
       - "./nuts.yaml:/opt/nuts/nuts.yaml"
       - "./truststore.pem:/opt/nuts/truststore.pem"

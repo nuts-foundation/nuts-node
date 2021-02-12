@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"strings"
+	"sync"
 )
 
 // EchoServer implements both the EchoRouter interface and Start function to aid testing.
@@ -67,12 +68,26 @@ func (c *MultiEcho) Bind(group string, interfaceConfig HTTPConfig) error {
 
 // Start starts all Echo servers.
 func (c MultiEcho) Start() error {
+	wg := &sync.WaitGroup{}
+	wg.Add(len(c.interfaces))
+	errChan := make(chan error, len(c.interfaces))
 	for address, echoServer := range c.interfaces {
-		if err := echoServer.Start(address); err != nil {
-			return err
-		}
+		c.start(address, echoServer, wg, errChan)
+	}
+	wg.Wait()
+	if len(errChan) > 0 {
+		return <-errChan
 	}
 	return nil
+}
+
+func (c *MultiEcho) start(address string, server EchoServer, wg *sync.WaitGroup, errChan chan error) {
+	go func() {
+		if err := server.Start(address); err != nil {
+			errChan <- err
+		}
+		wg.Done()
+	}()
 }
 
 func getGroup(path string) string {

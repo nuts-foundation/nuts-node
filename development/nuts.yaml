@@ -3,3 +3,7 @@ network:
   certFile: /opt/nuts/certificate.pem
   certKeyFile: /opt/nuts/certificate.pem
   bootstrapNodes: bootstrap:5555
+http:
+  alt:
+    status:
+      address: :8080
