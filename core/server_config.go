@@ -66,7 +66,7 @@ type GlobalHTTPConfig struct {
 // HTTPConfig contains configuration for an HTTP interface, e.g. address.
 // It will probably contain security related properties in the future (TLS configuration, user/pwd requirements).
 type HTTPConfig struct {
-	// Address holds the interface address the HTTP service must be bound to, in the format of `host:port` (e.g. localhost:5555).
+	// Address holds the interface address the HTTP service must be bound to, in the format of `interface:port` (e.g. localhost:5555).
 	Address string `koanf:"address"`
 }
 

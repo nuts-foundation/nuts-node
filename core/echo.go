@@ -14,15 +14,7 @@ type EchoServer interface {
 
 // EchoRouter is the interface the generated server API's will require as the Routes func argument
 type EchoRouter interface {
-	CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+	Add(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route
 }
 
 const defaultEchoGroup = ""
@@ -46,6 +38,18 @@ type MultiEcho struct {
 	creatorFn  func() EchoServer
 }
 
+func (c *MultiEcho) Add(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route {
+	group := getGroup(path)
+	groupAddress := c.groups[group]
+	var iface EchoServer
+	if groupAddress != "" {
+		iface = c.interfaces[groupAddress]
+	} else {
+		iface = c.interfaces[c.groups[defaultEchoGroup]]
+	}
+	return iface.Add(method, path, handler, middleware...)
+}
+
 // Bind binds the given group (first part of the URL) to the given HTTP interface. Calling Bind for the same group twice
 // results in an error being returned.
 func (c *MultiEcho) Bind(group string, interfaceConfig HTTPConfig) error {
@@ -67,79 +71,6 @@ func (c MultiEcho) Start() error {
 			return err
 		}
 	}
-	return nil
-}
-
-func (c *MultiEcho) register(path string, registerFn func(router EchoRouter) *echo.Route) {
-	group := getGroup(path)
-	groupAddress := c.groups[group]
-	if groupAddress != "" {
-		registerFn(c.interfaces[groupAddress])
-	} else {
-		registerFn(c.interfaces[c.groups[defaultEchoGroup]])
-	}
-}
-
-func (c MultiEcho) CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
-	c.register(path, func(router EchoRouter) *echo.Route {
-		return router.CONNECT(path, h, m...)
-	})
-	return nil
-}
-
-func (c MultiEcho) DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
-	c.register(path, func(router EchoRouter) *echo.Route {
-		return router.DELETE(path, h, m...)
-	})
-	return nil
-}
-
-func (c MultiEcho) GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
-	c.register(path, func(router EchoRouter) *echo.Route {
-		return router.GET(path, h, m...)
-	})
-	return nil
-}
-
-func (c MultiEcho) HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
-	c.register(path, func(router EchoRouter) *echo.Route {
-		return router.HEAD(path, h, m...)
-	})
-	return nil
-}
-
-func (c MultiEcho) OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
-	c.register(path, func(router EchoRouter) *echo.Route {
-		return router.OPTIONS(path, h, m...)
-	})
-	return nil
-}
-
-func (c MultiEcho) PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
-	c.register(path, func(router EchoRouter) *echo.Route {
-		return router.PATCH(path, h, m...)
-	})
-	return nil
-}
-
-func (c MultiEcho) POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
-	c.register(path, func(router EchoRouter) *echo.Route {
-		return router.POST(path, h, m...)
-	})
-	return nil
-}
-
-func (c MultiEcho) PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
-	c.register(path, func(router EchoRouter) *echo.Route {
-		return router.PUT(path, h, m...)
-	})
-	return nil
-}
-
-func (c MultiEcho) TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
-	c.register(path, func(router EchoRouter) *echo.Route {
-		return router.TRACE(path, h, m...)
-	})
 	return nil
 }
 

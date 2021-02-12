@@ -23,6 +23,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
 )
 
 const metricsEngine = "Metrics"
@@ -40,7 +41,7 @@ func (e *metrics) Name() string {
 }
 
 func (e *metrics) Routes(router EchoRouter) {
-	router.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
+	router.Add(http.MethodGet, "/metrics", echo.WrapHandler(promhttp.Handler()))
 }
 
 // Configure configures the MetricsEngine.
