@@ -68,6 +68,12 @@ type GlobalHTTPConfig struct {
 type HTTPConfig struct {
 	// Address holds the interface address the HTTP service must be bound to, in the format of `interface:port` (e.g. localhost:5555).
 	Address string `koanf:"address"`
+	// EnableTLS specifies whether or not TLS should be enabled for this interface.
+	EnableTLS   bool   `koanf:"tls"`
+	// TLSCertFile specifies the file which holds the TLS certificate.
+	TLSCertFile string `koanf:"tlsCertFile"`
+	// TLSCertFile specifies the file which holds the key of the TLS certificate.
+	TLSKeyFile  string `koanf:"tlsKeyFile"`
 }
 
 // NewServerConfig creates a new config with some defaults

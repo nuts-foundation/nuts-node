@@ -7,3 +7,4 @@ http:
   alt:
     status:
       address: :8080
+      tls: true
