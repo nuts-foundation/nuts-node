@@ -14,6 +14,7 @@ type EchoServer interface {
 
 // EchoRouter is the interface the generated server API's will require as the Routes func argument
 type EchoRouter interface {
+	// Add adds a route to the echo server.
 	Add(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route
 }
 
