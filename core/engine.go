@@ -158,25 +158,6 @@ func (system *System) RegisterRoutes(router Routable) {
 	system.Routers = append(system.Routers, router)
 }
 
-// EchoServer implements both the EchoRouter interface and Start function to aid testing.
-type EchoServer interface {
-	EchoRouter
-	Start(address string) error
-}
-
-// EchoRouter is the interface the generated server API's will require as the Routes func argument
-type EchoRouter interface {
-	CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
-}
-
 // Runnable is the interface that groups the Start and Shutdown methods.
 // When an engine implements these they will be called on startup and shutdown.
 // Start and Shutdown should not be called more than once

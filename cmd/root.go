@@ -72,40 +72,52 @@ func createServerCommand(system *core.System) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			// Load all config and add generic options
 			if err := system.Load(cmd); err != nil {
-				panic(err)
-			}
-
-			logrus.Info("Starting server with config:")
-			logrus.Info(system.Config.PrintConfig())
-
-			// check config on all engines
-			if err := system.Configure(); err != nil {
 				logrus.Fatal(err)
 			}
-
-			// start engines
-			if err := system.Start(); err != nil {
-				logrus.Fatal(err)
-			}
-
-			// add routes
-			echoServer := system.EchoCreator()
-			for _, r := range system.Routers {
-				r.Routes(echoServer)
-			}
-
-			defer func() {
-				if err := system.Shutdown(); err != nil {
-					logrus.Fatal(err)
-				}
-			}()
-			if err := echoServer.Start(system.Config.Address); err != nil {
+			if err := startServer(system); err != nil {
 				logrus.Fatal(err)
 			}
 		},
 	}
 	addFlagSets(cmd)
 	return cmd
+}
+
+func startServer(system *core.System) error {
+	logrus.Info("Starting server with config:")
+	logrus.Info(system.Config.PrintConfig())
+
+	// check config on all engines
+	if err := system.Configure(); err != nil {
+		return err
+	}
+
+	// start engines
+	if err := system.Start(); err != nil {
+		return err
+	}
+
+	// init HTTP interfaces and routes
+	echoServer := core.NewMultiEcho(system.EchoCreator, system.Config.HTTP.HTTPConfig)
+	for httpGroup, httpConfig := range system.Config.HTTP.AltBinds {
+		logrus.Infof("Binding /%s -> %s", httpGroup, httpConfig.Address)
+		if err := echoServer.Bind(httpGroup, httpConfig); err != nil {
+			return err
+		}
+	}
+	for _, r := range system.Routers {
+		r.Routes(echoServer)
+	}
+
+	defer func() {
+		if err := system.Shutdown(); err != nil {
+			logrus.Fatal(err)
+		}
+	}()
+	if err := echoServer.Start(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // CreateCommand creates the command with all subcommands to run the system.
