@@ -31,10 +31,10 @@ import (
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
-	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/nuts-foundation/nuts-node/crypto/test"
 )
 
 func TestSignJWT(t *testing.T) {
@@ -131,7 +131,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	t.Run("returns error for not found", func(t *testing.T) {
 		_, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, "unknown")
 
-		assert.True(t, errors.Is(err, storage.ErrNotFound))
+		assert.True(t, errors.Is(err, ErrKeyNotFound))
 	})
 }
 

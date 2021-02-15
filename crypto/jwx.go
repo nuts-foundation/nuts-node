@@ -29,6 +29,8 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
+
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
@@ -39,6 +41,9 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 	privateKey, err := client.Storage.GetPrivateKey(kid)
 
 	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return "", ErrKeyNotFound
+		}
 		return "", err
 	}
 	key, err := jwkKey(privateKey)

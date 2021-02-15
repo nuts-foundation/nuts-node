@@ -24,6 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"path"
 	"time"
 
@@ -110,7 +111,7 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, e
 	}
 
 	// also save the public key for all time use, otherwise it can't be attached to a published doc
-	if err := client.SavePublicKey(kid, pkey, core.Period{Begin: time.Time{}}); err != nil {
+	if err := client.AddPublicKey(kid, pkey, time.Now()); err != nil {
 		return nil, "", err
 	}
 
@@ -129,13 +130,15 @@ func (client *Crypto) PrivateKeyExists(kid string) bool {
 // GetPublicKey loads the key from storage
 func (client *Crypto) GetPublicKey(kid string, validationTime time.Time) (crypto.PublicKey, error) {
 	pke, err := client.Storage.GetPublicKey(kid)
-
 	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, ErrKeyNotFound
+		}
 		return nil, err
 	}
 
 	if !pke.Period.Contains(validationTime) {
-		return nil, storage.ErrNotFound
+		return nil, ErrKeyNotFound
 	}
 
 	var unknown interface{}
@@ -146,18 +149,43 @@ func (client *Crypto) GetPublicKey(kid string, validationTime time.Time) (crypto
 }
 
 // SavePublicKey save the public key to storage
-func (client *Crypto) SavePublicKey(kid string, publicKey crypto.PublicKey, period core.Period) error {
+func (client *Crypto) AddPublicKey(kid string, publicKey crypto.PublicKey, validFrom time.Time) error {
 	key, err := jwk.New(publicKey)
 	if err != nil {
 		return err
 	}
+	// check if key already exists
+	pkeyEntry, err := client.Storage.GetPublicKey(kid)
+	if err != nil {
+		if !errors.Is(err, storage.ErrNotFound) {
+			return fmt.Errorf("unable to check key existance: %w", err)
+		}
+	}
+	if pkeyEntry.Key != nil {
+		return ErrKeyAlreadyExists
+	}
 
 	publicKeyEntry := storage.PublicKeyEntry{
-		Period: period,
+		Period: core.Period{Begin: validFrom},
 	}
 	if err := publicKeyEntry.FromJWK(key); err != nil {
 		return err
 	}
 
 	return client.Storage.SavePublicKey(kid, publicKeyEntry)
+}
+
+func (client *Crypto) RevokePublicKey(kid string, validTo time.Time) error {
+	pkeyEntry, err := client.Storage.GetPublicKey(kid)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return ErrKeyNotFound
+		}
+		return err
+	}
+	if pkeyEntry.Period.End != nil {
+		return ErrKeyRevoked
+	}
+	pkeyEntry.Period.End = &validTo
+	return client.Storage.SavePublicKey(kid, pkeyEntry)
 }
