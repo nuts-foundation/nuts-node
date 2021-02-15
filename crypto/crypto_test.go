@@ -111,6 +111,16 @@ func TestCrypto_PublicKey(t *testing.T) {
 		err := client.RevokePublicKey(kid, now)
 		assert.True(t, errors.Is(err, ErrKeyRevoked))
 	})
+
+	t.Run("error - revoke unknown key", func(t *testing.T) {
+		kid := "kid of unknown key"
+		err := client.RevokePublicKey(kid, now)
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.True(t, errors.Is(err, ErrKeyNotFound), "it should return a ErrKeyNotFound")
+
+	})
 }
 
 func TestCrypto_KeyExistsFor(t *testing.T) {
