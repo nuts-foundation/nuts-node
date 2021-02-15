@@ -138,4 +138,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 	assert.Equal(t, docA.Service[1], resolvedDoc.Service[1],
 		"news service of document a does not contain expected values")
+
+	// Update document B with a new authentication key which replaces the first one:
+	// TODO
 }

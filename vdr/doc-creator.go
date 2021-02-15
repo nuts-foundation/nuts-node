@@ -25,6 +25,7 @@ type NutsDocCreator struct {
 	keyCreator nutsCrypto.KeyCreator
 }
 
+// didKIDNamingFunc is a function used to name a key used in newly generated DID Documents
 func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
 	ecPKey, ok := pKey.(*ecdsa.PublicKey)
 	if !ok {
