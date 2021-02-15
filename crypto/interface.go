@@ -26,8 +26,10 @@ import (
 
 // ErrKeyNotFound is returned when the key should not exists but does
 var ErrKeyNotFound = errors.New("key not found")
+
 // ErrKeyRevoked is returned in situations that operations require an active key
 var ErrKeyRevoked = errors.New("key is revoked")
+
 // ErrKeyAlreadyExists is return in situations where a key should not exists but does
 var ErrKeyAlreadyExists = errors.New("key already exists")
 

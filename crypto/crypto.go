@@ -128,6 +128,8 @@ func (client *Crypto) PrivateKeyExists(kid string) bool {
 }
 
 // GetPublicKey loads the key from storage
+// It returns ErrKeyNotFound when the key could not be found in storage
+// It returns ErrKeyNotFound when the key is not valid on the provided validationTime
 func (client *Crypto) GetPublicKey(kid string, validationTime time.Time) (crypto.PublicKey, error) {
 	pke, err := client.Storage.GetPublicKey(kid)
 	if err != nil {
@@ -148,7 +150,10 @@ func (client *Crypto) GetPublicKey(kid string, validationTime time.Time) (crypto
 	return unknown.(crypto.PublicKey), nil
 }
 
-// SavePublicKey save the public key to storage
+// AddPublicKey save the public key to storage
+// For validity the provided validFrom time is used.
+// The key is valid until the end time which can be set using the RevokePublicKey method.
+// It returns ErrKeyAlreadyExists when the key already exists
 func (client *Crypto) AddPublicKey(kid string, publicKey crypto.PublicKey, validFrom time.Time) error {
 	key, err := jwk.New(publicKey)
 	if err != nil {
@@ -175,6 +180,9 @@ func (client *Crypto) AddPublicKey(kid string, publicKey crypto.PublicKey, valid
 	return client.Storage.SavePublicKey(kid, publicKeyEntry)
 }
 
+// RevokePublicKey revokes the key indicated by the kid from the given time by setting the end time on the PublicKeyEntry
+// Returns ErrKeyNotFound when the indicated key is not present in the storage
+// Returns ErrKeyRevoked when the end time on the PublicKeyEntry is already set
 func (client *Crypto) RevokePublicKey(kid string, validTo time.Time) error {
 	pkeyEntry, err := client.Storage.GetPublicKey(kid)
 	if err != nil {
