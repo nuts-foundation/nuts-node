@@ -46,3 +46,6 @@ secure subnets. This is done through the `http` configuration:
         # The following binds all endpoints starting with `/public` to `nuts.vendor.nl:443`
         public:
           address: nuts.vendor.nl:443
+        # The following binds all endpoints starting with `/status` to all interfaces on `:80`
+        status:
+          address: :80

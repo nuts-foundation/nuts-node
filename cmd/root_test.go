@@ -102,7 +102,7 @@ func Test_serverCmd(t *testing.T) {
 		defer ctrl.Finish()
 
 		echoServer := core.NewMockEchoServer(ctrl)
-		echoServer.EXPECT().Start(gomock.Any()).Return(errors.New("unable to start"))
+		echoServer.EXPECT().Start(gomock.Any()).Return(errors.New("unable to start")).Times(2)
 
 		system := core.NewSystem()
 		system.EchoCreator = func() core.EchoServer {

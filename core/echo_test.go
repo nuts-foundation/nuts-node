@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -18,6 +19,24 @@ func Test_MultiEcho_Bind(t *testing.T) {
 		}, cfg)
 		err := m.Bind("", cfg)
 		assert.EqualError(t, err, "http bind group already exists: ")
+	})
+}
+
+
+func Test_MultiEcho_Start(t *testing.T) {
+	t.Run("error while starting returns first error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		cfg := NewServerConfig().HTTP.HTTPConfig
+		m := NewMultiEcho(func() EchoServer {
+			server := NewMockEchoServer(ctrl)
+			server.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("unable to start"))
+			return server
+		}, cfg)
+		m.Bind("group2", HTTPConfig{Address: ":8080"})
+		err := m.Start()
+		assert.EqualError(t, err, "unable to start")
 	})
 }
 
