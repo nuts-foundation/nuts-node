@@ -47,5 +47,5 @@ secure subnets. This is done through the `http` configuration:
         public:
           address: nuts.vendor.nl:443
         # The following binds all endpoints starting with `/status` to all interfaces on `:80`
-        public:
+        status:
           address: :80
