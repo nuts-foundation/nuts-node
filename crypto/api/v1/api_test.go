@@ -27,11 +27,11 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestWrapper_SignJwt(t *testing.T) {
@@ -167,7 +167,7 @@ func TestWrapper_PublicKey(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{})
-		ctx.keyStore.EXPECT().GetPublicKey("kid", at).Return(nil, storage.ErrNotFound)
+		ctx.keyStore.EXPECT().GetPublicKey("kid", at).Return(nil, crypto.ErrKeyNotFound)
 		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
 
 		_ = ctx.client.PublicKey(ctx.echo, "kid", params)

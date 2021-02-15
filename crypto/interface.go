@@ -20,10 +20,18 @@ package crypto
 
 import (
 	"crypto"
+	"errors"
 	"time"
-
-	"github.com/nuts-foundation/nuts-node/core"
 )
+
+// ErrKeyNotFound is returned when the key should not exists but does
+var ErrKeyNotFound = errors.New("key not found")
+
+// ErrKeyRevoked is returned in situations that operations require an active key
+var ErrKeyRevoked = errors.New("key is revoked")
+
+// ErrKeyAlreadyExists is return in situations where a key should not exists but does
+var ErrKeyAlreadyExists = errors.New("key already exists")
 
 // KIDNamingFunc is a function passed to New() which generates the kid for the pub/priv key
 type KIDNamingFunc func(key crypto.PublicKey) (string, error)
@@ -38,7 +46,7 @@ type KeyCreator interface {
 // KeyResolver defines the functions for retrieving keys.
 type KeyResolver interface {
 	// GetPublicKey returns the PublicKey if it was valid on the given validationTime
-	// If a key is missing, a Storage.ErrNotFound is returned.
+	// If a key is missing, a ErrKeyNotFound is returned.
 	GetPublicKey(kid string, validationTime time.Time) (crypto.PublicKey, error)
 }
 
@@ -46,9 +54,16 @@ type KeyResolver interface {
 type PublicKeyStore interface {
 	KeyResolver
 
-	// SavePublicKey stores or overwrites a public key with a given kid.
-	// The validity period defines when the given key is valid.
-	SavePublicKey(kid string, publicKey crypto.PublicKey, period core.Period) error
+	// AddPublicKey stores a public key with a given kid and valid from date
+	// The valid from determines the start of the period this key is valid
+	// It returns an ErrKeyAlreadyExists if the key already exists
+	AddPublicKey(kid string, publicKey crypto.PublicKey, validFrom time.Time) error
+
+	// RevokePublicKey revokes a public key.
+	// The validTo time determines end of the period the key was valid
+	// It returns an ErrKeyNotFound when the key could not be found
+	// It returns an ErrKeyRevoked error when the key was already revoked
+	RevokePublicKey(kid string, validTo time.Time) error
 }
 
 // KeyStore defines the functions that can be called by a Cmd, Direct or via rest call.

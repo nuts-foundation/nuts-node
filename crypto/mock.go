@@ -7,7 +7,6 @@ package crypto
 import (
 	crypto "crypto"
 	gomock "github.com/golang/mock/gomock"
-	core "github.com/nuts-foundation/nuts-node/core"
 	reflect "reflect"
 	time "time"
 )
@@ -127,18 +126,32 @@ func (mr *MockPublicKeyStoreMockRecorder) GetPublicKey(kid, validationTime inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPublicKey", reflect.TypeOf((*MockPublicKeyStore)(nil).GetPublicKey), kid, validationTime)
 }
 
-// SavePublicKey mocks base method
-func (m *MockPublicKeyStore) SavePublicKey(kid string, publicKey crypto.PublicKey, period core.Period) error {
+// AddPublicKey mocks base method
+func (m *MockPublicKeyStore) AddPublicKey(kid string, publicKey crypto.PublicKey, validFrom time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SavePublicKey", kid, publicKey, period)
+	ret := m.ctrl.Call(m, "AddPublicKey", kid, publicKey, validFrom)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SavePublicKey indicates an expected call of SavePublicKey
-func (mr *MockPublicKeyStoreMockRecorder) SavePublicKey(kid, publicKey, period interface{}) *gomock.Call {
+// AddPublicKey indicates an expected call of AddPublicKey
+func (mr *MockPublicKeyStoreMockRecorder) AddPublicKey(kid, publicKey, validFrom interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SavePublicKey", reflect.TypeOf((*MockPublicKeyStore)(nil).SavePublicKey), kid, publicKey, period)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPublicKey", reflect.TypeOf((*MockPublicKeyStore)(nil).AddPublicKey), kid, publicKey, validFrom)
+}
+
+// RevokePublicKey mocks base method
+func (m *MockPublicKeyStore) RevokePublicKey(kid string, validTo time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokePublicKey", kid, validTo)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RevokePublicKey indicates an expected call of RevokePublicKey
+func (mr *MockPublicKeyStoreMockRecorder) RevokePublicKey(kid, validTo interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokePublicKey", reflect.TypeOf((*MockPublicKeyStore)(nil).RevokePublicKey), kid, validTo)
 }
 
 // MockKeyStore is a mock of KeyStore interface
@@ -195,18 +208,32 @@ func (mr *MockKeyStoreMockRecorder) GetPublicKey(kid, validationTime interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPublicKey", reflect.TypeOf((*MockKeyStore)(nil).GetPublicKey), kid, validationTime)
 }
 
-// SavePublicKey mocks base method
-func (m *MockKeyStore) SavePublicKey(kid string, publicKey crypto.PublicKey, period core.Period) error {
+// AddPublicKey mocks base method
+func (m *MockKeyStore) AddPublicKey(kid string, publicKey crypto.PublicKey, validFrom time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SavePublicKey", kid, publicKey, period)
+	ret := m.ctrl.Call(m, "AddPublicKey", kid, publicKey, validFrom)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SavePublicKey indicates an expected call of SavePublicKey
-func (mr *MockKeyStoreMockRecorder) SavePublicKey(kid, publicKey, period interface{}) *gomock.Call {
+// AddPublicKey indicates an expected call of AddPublicKey
+func (mr *MockKeyStoreMockRecorder) AddPublicKey(kid, publicKey, validFrom interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SavePublicKey", reflect.TypeOf((*MockKeyStore)(nil).SavePublicKey), kid, publicKey, period)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPublicKey", reflect.TypeOf((*MockKeyStore)(nil).AddPublicKey), kid, publicKey, validFrom)
+}
+
+// RevokePublicKey mocks base method
+func (m *MockKeyStore) RevokePublicKey(kid string, validTo time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokePublicKey", kid, validTo)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RevokePublicKey indicates an expected call of RevokePublicKey
+func (mr *MockKeyStoreMockRecorder) RevokePublicKey(kid, validTo interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokePublicKey", reflect.TypeOf((*MockKeyStore)(nil).RevokePublicKey), kid, validTo)
 }
 
 // SignJWS mocks base method
