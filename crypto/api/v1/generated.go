@@ -467,6 +467,8 @@ func (w *ServerInterfaceWrapper) SignJwt(ctx echo.Context) error {
 	return err
 }
 
+// PATCH: This template file was taken from pkg/codegen/templates/register.tmpl
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -491,3 +493,4 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/internal/crypto/v1/sign_jwt", wrapper.SignJwt)
 
 }
+
