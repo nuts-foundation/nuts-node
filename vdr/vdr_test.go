@@ -74,7 +74,7 @@ func TestVDR_Create(t *testing.T) {
 
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
 	didCreator.EXPECT().Create().Return(&nextDIDDocument, nil)
-	networkMock.EXPECT().CreateDocument(expectedDocumentType, expectedPayload, keyID.String(), privateKey.PublicKey, gomock.Any())
+	networkMock.EXPECT().CreateDocument(expectedDocumentType, expectedPayload, keyID.String(), &privateKey.PublicKey, gomock.Any())
 	didDoc, err := vdr.Create()
 	assert.NoError(t, err)
 	assert.NotNil(t, didDoc)
