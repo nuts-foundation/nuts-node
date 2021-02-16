@@ -37,7 +37,7 @@ import (
 )
 
 // didDocumentType contains network document mime-type to identify a DID Document in the network.
-const didDocumentType = "application/json+did-document"
+const didDocumentType = "application/did+json"
 
 // Ambassador acts as integration point between VDR and network by sending DID Documents network and process
 // DID Documents received through the network.

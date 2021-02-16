@@ -620,7 +620,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 				payloadHash:     payloadHash,
 				payloadType:     "application/xml",
 			},
-			errors.New("wrong payload type for this subscriber. Can handle: application/json+did-document, got: application/xml"),
+			errors.New("wrong payload type for this subscriber. Can handle: application/did+json, got: application/xml"),
 		},
 		{"nok - missing payload hash",
 			subscriberDocument{
