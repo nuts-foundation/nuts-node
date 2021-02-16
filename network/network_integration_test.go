@@ -54,6 +54,9 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	resetIntegrationTest(testDirectory)
 	expectedDocLogSize := 0
 	cryptoInstance := nutsCrypto.NewTestCryptoInstance(testDirectory)
+	key, _, _ := cryptoInstance.New(func(key crypto.PublicKey) (string, error) {
+		return "key", nil
+	})
 
 	// Start 3 nodes: bootstrap, node1 and node2. Node 1 and 2 connect to the bootstrap node and should discover
 	// each other that way.
@@ -85,13 +88,13 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	}
 
 	// Publish first document on node1 and we expect in to come out on node2 and bootstrap
-	if !addDocumentAndWaitForItToArrive(t, "doc1", node1, "node2", "bootstrap") {
+	if !addDocumentAndWaitForItToArrive(t, "doc1", key, node1, "node2", "bootstrap") {
 		return
 	}
 	expectedDocLogSize++
 
 	// Now the graph has a root, and node2 can publish a document
-	if !addDocumentAndWaitForItToArrive(t, "doc2", node2, "node1", "bootstrap") {
+	if !addDocumentAndWaitForItToArrive(t, "doc2", key, node2, "node1", "bootstrap") {
 		return
 	}
 	expectedDocLogSize++
@@ -120,6 +123,9 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest(testDirectory)
 	cryptoInstance := nutsCrypto.NewTestCryptoInstance(testDirectory)
+	key, _, _ := cryptoInstance.New(func(key crypto.PublicKey) (string, error) {
+		return "key", nil
+	})
 
 	// Start node 1 and node 2. Node 1 adds 3 documents:
 	// 1. first document is OK, must be received
@@ -139,7 +145,7 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 		node1.Shutdown()
 	}()
 	// Send first OK document and wait for it to be received
-	if !addDocumentAndWaitForItToArrive(t, "first document", node1, "node2") {
+	if !addDocumentAndWaitForItToArrive(t, "first document", key, node1, "node2") {
 		return
 	}
 
@@ -147,11 +153,11 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 	attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	payload := []byte("second document")
 	unsignedDocument, _ := dag.NewDocument(hash.SHA256Sum(payload), documentType, []hash.SHA256Hash{receivedDocuments["node2"][0].Ref()})
-	craftedDocument, _ := dag.NewAttachedJWKDocumentSigner(cryptoInstance, "key", nutsCrypto.StaticKeyResolver{Key: attackerKey.Public()}).Sign(unsignedDocument, time.Now())
+	craftedDocument, _ := dag.NewAttachedJWKDocumentSigner(cryptoInstance, "key", attackerKey.PublicKey).Sign(unsignedDocument, time.Now())
 	node1.payloadStore.WritePayload(hash.SHA256Sum(payload), payload)
 	_ = node1.documentGraph.Add(craftedDocument)
 	// Send third OK document
-	if !addDocumentAndWaitForItToArrive(t, "third document", node2, "node1") {
+	if !addDocumentAndWaitForItToArrive(t, "third document", key, node2, "node1") {
 		return
 	}
 	// Assert node2 only processed the first and last document, node1 all 3
@@ -166,14 +172,10 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 
 func resetIntegrationTest(testDirectory string) {
 	receivedDocuments = make(map[string][]dag.SubscriberDocument, 0)
-	cryptoInstance := nutsCrypto.NewTestCryptoInstance(testDirectory)
-	cryptoInstance.New(func(key crypto.PublicKey) (string, error) {
-		return "key", nil
-	})
 }
 
-func addDocumentAndWaitForItToArrive(t *testing.T, payload string, sender *Network, receivers ...string) bool {
-	expectedDocument, err := sender.CreateDocument(documentType, []byte(payload), "key", true, time.Now())
+func addDocumentAndWaitForItToArrive(t *testing.T, payload string, key crypto.PublicKey, sender *Network, receivers ...string) bool {
+	expectedDocument, err := sender.CreateDocument(documentType, []byte(payload), "key", key, time.Now())
 	if !assert.NoError(t, err) {
 		return true
 	}
