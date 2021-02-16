@@ -492,6 +492,8 @@ func (w *ServerInterfaceWrapper) GetDocumentPayload(ctx echo.Context) error {
 	return err
 }
 
+// PATCH: This template file was taken from pkg/codegen/templates/register.tmpl
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -517,3 +519,4 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodGet, baseURL+"/api/document/:ref/payload", wrapper.GetDocumentPayload)
 
 }
+

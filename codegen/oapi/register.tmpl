@@ -4,7 +4,6 @@
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
 type EchoRouter interface {
-    // PATCH: All default methods (GET, POST, DELETE, etc) were removed, the one below was added to allow simpler wrapping:
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
@@ -21,8 +20,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
         Handler: si,
     }
 {{end}}
-// PATCH: Line below is replaced with the `Add()` call to allow simpler wrapping:
-// {{range .}}router.{{.Method}}(baseURL + "{{.Path | swaggerUriToEchoUri}}", wrapper.{{.OperationId}})
 {{range .}}router.Add(http.Method{{.Method | lower | ucFirst}}, baseURL + "{{.Path | swaggerUriToEchoUri}}", wrapper.{{.OperationId}})
 {{end}}
 }
