@@ -123,6 +123,12 @@ func TestCrypto_PublicKey(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrKeyNotFound), "it should return a ErrKeyNotFound")
 
 	})
+
+	t.Run("error - kid should be set", func(t *testing.T) {
+		err := client.AddPublicKey("", ec.Public(), now)
+		assert.Error(t, err, "it should return an error")
+		assert.Equal(t, "could not add public key: kid cannot be empty", err.Error())
+	})
 }
 
 func TestCrypto_KeyExistsFor(t *testing.T) {
