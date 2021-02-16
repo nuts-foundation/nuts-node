@@ -308,7 +308,10 @@ func (n ambassador) findKeyByThumbprint(thumbPrint []byte, didDocumentAuthKeys [
 	var documentKey jwk.Key
 	for _, key := range didDocumentAuthKeys {
 		// Create thumbprint
-		keyAsJWK := key.JWK()
+		keyAsJWK, err := key.JWK()
+		if err != nil {
+			return nil, err
+		}
 		documentThumbprint, err := keyAsJWK.Thumbprint(thumbprintAlg)
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate did document signing key thumbprint: %w", err)
