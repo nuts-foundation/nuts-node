@@ -138,5 +138,4 @@ func Test_keyToVerificationMethod(t *testing.T) {
 		assert.Equal(t, did.JsonWebKey2020, vm.Type)
 		assert.Equal(t, jwa.EllipticCurveAlgorithm("P-256"), vm.PublicKeyJwk["crv"])
 	})
-
 }

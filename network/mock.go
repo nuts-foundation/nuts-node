@@ -5,6 +5,7 @@
 package network
 
 import (
+	crypto "crypto"
 	gomock "github.com/golang/mock/gomock"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
@@ -78,7 +79,7 @@ func (mr *MockTransactionsMockRecorder) GetDocument(documentRef interface{}) *go
 }
 
 // CreateDocument mocks base method
-func (m *MockTransactions) CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey bool, timestamp time.Time, fieldsOpts ...dag.FieldOpt) (dag.Document, error) {
+func (m *MockTransactions) CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey crypto.PublicKey, timestamp time.Time, fieldsOpts ...dag.FieldOpt) (dag.Document, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{payloadType, payload, signingKeyID, attachKey, timestamp}
 	for _, a := range fieldsOpts {

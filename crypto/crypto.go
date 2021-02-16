@@ -89,8 +89,10 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-// New generates a new key pair. If a key is overwritten is handled by the storage implementation.
-// it's considered bad practise to reuse a kid for different keys.
+// New generates a new key pair.
+// Stores the private key, returns the public key
+// If a key is overwritten is handled by the storage implementation.
+// (it's considered bad practise to reuse a kid for different keys)
 func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error) {
 	keyPair, err := generateECKeyPair()
 	if err != nil {
@@ -104,18 +106,7 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, e
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
 		return nil, "", err
 	}
-
-	pkey, err := jwk.PublicKeyOf(keyPair)
-	if err != nil {
-		return nil, "", err
-	}
-
-	// also save the public key for all time use, otherwise it can't be attached to a published doc
-	if err := client.AddPublicKey(kid, pkey, time.Now()); err != nil {
-		return nil, "", err
-	}
-
-	return pkey, kid, nil
+	return keyPair.PublicKey, kid, nil
 }
 
 func generateECKeyPair() (*ecdsa.PrivateKey, error) {
@@ -155,6 +146,9 @@ func (client *Crypto) GetPublicKey(kid string, validationTime time.Time) (crypto
 // The key is valid until the end time which can be set using the RevokePublicKey method.
 // It returns ErrKeyAlreadyExists when the key already exists
 func (client *Crypto) AddPublicKey(kid string, publicKey crypto.PublicKey, validFrom time.Time) error {
+	if kid == "" {
+		return fmt.Errorf("could not add public key: kid cannot be empty")
+	}
 	key, err := jwk.New(publicKey)
 	if err != nil {
 		return err
@@ -163,7 +157,7 @@ func (client *Crypto) AddPublicKey(kid string, publicKey crypto.PublicKey, valid
 	pkeyEntry, err := client.Storage.GetPublicKey(kid)
 	if err != nil {
 		if !errors.Is(err, storage.ErrNotFound) {
-			return fmt.Errorf("unable to check key existance: %w", err)
+			return fmt.Errorf("could not add public key: unable to check key existance: %w", err)
 		}
 	}
 	if pkeyEntry.Key != nil {
