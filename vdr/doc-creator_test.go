@@ -6,6 +6,8 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"github.com/golang/mock/gomock"
+
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/nuts-foundation/go-did"
 	"testing"
@@ -62,6 +64,26 @@ func TestDocCreator_Create(t *testing.T) {
 
 			assert.Empty(t, doc.AssertionMethod)
 		})
+	})
+	t.Run("invalid key ID", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		creator := nutsCrypto.NewMockKeyCreator(ctrl)
+		creator.EXPECT().New(gomock.Any()).Return(nil, "foobar", nil)
+		sut := NutsDocCreator{keyCreator: creator}
+		doc, err := sut.Create()
+		assert.EqualError(t, err, "input length is less than 7")
+		assert.Nil(t, doc)
+	})
+	t.Run("invalid verification method", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		creator := nutsCrypto.NewMockKeyCreator(ctrl)
+		creator.EXPECT().New(gomock.Any()).Return("asdasdsad", "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", nil)
+		sut := NutsDocCreator{keyCreator: creator}
+		doc, err := sut.Create()
+		assert.EqualError(t, err, "invalid key type 'string' for jwk.New")
+		assert.Nil(t, doc)
 	})
 }
 
