@@ -124,6 +124,15 @@ func TestParseDocument(t *testing.T) {
 		assert.Nil(t, document)
 		assert.EqualError(t, err, "document validation failed: either `kid` or `jwk` header must be present (but not both)")
 	})
+	t.Run("error - jwk without keyid", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "", true)
+		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+
+		document, err := ParseDocument(signature)
+
+		assert.Nil(t, document)
+		assert.EqualError(t, err, "document validation failed: when present, the `jwk` must contain a valid `kid`")
+	})
 	t.Run("error - prevs header is missing", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		delete(headers.PrivateParams(), previousHeader)
