@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 
@@ -155,6 +157,20 @@ func TestCrypto_New(t *testing.T) {
 		}
 		_, _, err := client.New(errorNamingFunc)
 		assert.Error(t, err)
+	})
+
+	t.Run("error - save public key returns an error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		storageMock := storage.NewMockStorage(ctrl)
+		storageMock.EXPECT().SavePrivateKey(gomock.Any(), gomock.Any()).Return(errors.New("foo"))
+
+		client := &Crypto{Storage: storageMock}
+		key, name, err := client.New(StringNamingFunc("123"))
+		assert.Nil(t, key)
+		assert.Empty(t, name)
+		assert.Error(t, err)
+		assert.Equal(t, "could not create new keypair: could not save private key: foo", err.Error())
 	})
 }
 

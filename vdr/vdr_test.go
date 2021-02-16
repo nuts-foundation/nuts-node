@@ -63,7 +63,7 @@ func TestVDR_Create(t *testing.T) {
 	keyID, _ := did.ParseDID(id.String() + "#key-1")
 	nextDIDDocument := did.Document{ ID: *id }
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if assert.NoError(t, err) {
+	if !assert.NoError(t, err) {
 		return
 	}
 	vm, err := did.NewVerificationMethod(*keyID, did.JsonWebKey2020, did.DID{}, privateKey.PublicKey)

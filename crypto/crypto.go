@@ -104,7 +104,7 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, e
 		return nil, "", err
 	}
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
 	return keyPair.PublicKey, kid, nil
 }
