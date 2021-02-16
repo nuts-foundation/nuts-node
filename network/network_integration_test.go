@@ -30,6 +30,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -38,9 +42,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/proto"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
 )
 
 const defaultTimeout = 2 * time.Second
@@ -52,11 +53,11 @@ var receivedTransactions = make(map[string][]dag.SubscriberTransaction, 0)
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest(testDirectory)
-	expectedDocLogSize := 0
 	cryptoInstance := nutsCrypto.NewTestCryptoInstance(testDirectory)
 	key, _, _ := cryptoInstance.New(func(key crypto.PublicKey) (string, error) {
 		return "key", nil
 	})
+	expectedDocLogSize := 0
 
 	// Start 3 nodes: bootstrap, node1 and node2. Node 1 and 2 connect to the bootstrap node and should discover
 	// each other that way.
@@ -122,6 +123,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest(testDirectory)
+
 	cryptoInstance := nutsCrypto.NewTestCryptoInstance(testDirectory)
 	key, _, _ := cryptoInstance.New(func(key crypto.PublicKey) (string, error) {
 		return "key", nil
