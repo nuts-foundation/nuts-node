@@ -233,16 +233,6 @@ func checkSubscriberDocumentIntegrity(document dag.SubscriberDocument) error {
 		return fmt.Errorf("signingTime must be set and in the past")
 	}
 
-	// either a signingKey or a keyID must be set, not both, at least one.
-	if (document.SigningKeyID() == "" && document.SigningKey() == nil) || (document.SigningKeyID() != "" && document.SigningKey() != nil) {
-		return fmt.Errorf("either signingKey or keyID must be set")
-	}
-
-	// if the signingKey is set, it must contain a valid keyID
-	if document.SigningKey() != nil && document.SigningKey().KeyID() == "" {
-		return fmt.Errorf("the signingKey must contain a valid keyID")
-	}
-
 	if isUpdate(document) {
 		// For a DID Document update TimelineID must be set
 		if document.TimelineID().Empty() {

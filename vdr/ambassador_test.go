@@ -588,7 +588,6 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	signingKey, _ := jwk.New(pair.PublicKey)
 	signingKey.Set(jwk.KeyIDKey, "kid123")
-	signingKeyWithoutKID, _ := jwk.New(pair.PublicKey)
 	payloadHash := hash.SHA256Sum([]byte("payload"))
 	timelineID := hash.SHA256Sum([]byte("timeline"))
 	ref := hash.SHA256Sum([]byte("ref"))
@@ -692,18 +691,6 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 			errors.New("signingKey for new DID Documents must be set"),
 		},
 		{
-			"nok - create without keyid and signing key",
-			subscriberDocument{
-				signingKeyID:    "",
-				signingTime:     signingTime,
-				ref:             ref,
-				timelineVersion: 0,
-				payloadHash:     payloadHash,
-				payloadType:     didDocumentType,
-			},
-			errors.New("either signingKey or keyID must be set"),
-		},
-		{
 			"nok - update with timelineVersion == 0",
 			subscriberDocument{
 				signingKeyID:    "kid123",
@@ -715,19 +702,6 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 				payloadType:     didDocumentType,
 			},
 			errors.New("timelineVersion for updates must be greater than 0"),
-		},
-		{
-			"nok - if signingkey is set, it must have a valid signingKeyID",
-			subscriberDocument{
-				signingKey:      signingKeyWithoutKID,
-				signingTime:     signingTime,
-				ref:             ref,
-				timelineVersion: 0,
-				timelineID:      timelineID,
-				payloadHash:     payloadHash,
-				payloadType:     didDocumentType,
-			},
-			errors.New("the signingKey must contain a valid keyID"),
 		},
 	}
 	for _, tt := range tests {
