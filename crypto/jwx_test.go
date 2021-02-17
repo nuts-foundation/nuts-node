@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -107,7 +106,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	client.New(StringNamingFunc(kid))
+	key, _, _ := client.New(StringNamingFunc(kid))
 
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, kid)
@@ -118,7 +117,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		}
 
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
-			return client.GetPublicKey(kid, time.Now())
+			return key, nil
 		})
 
 		if !assert.NoError(t, err) {
@@ -138,9 +137,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 func TestCrypto_SignJWS(t *testing.T) {
 	client := createCrypto(t)
 	kid := "kid"
-	client.New(StringNamingFunc(kid))
-
-	publicKey, _ := client.GetPublicKey(kid, time.Now())
+	publicKey, _, _ :=client.New(StringNamingFunc(kid))
 
 	t.Run("ok", func(t *testing.T) {
 		payload := []byte{1, 2, 3}

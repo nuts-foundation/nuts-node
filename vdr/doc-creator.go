@@ -9,8 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/jwk"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/shengdoushi/base58"
+
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 
 	"github.com/nuts-foundation/go-did"
 )
@@ -102,7 +103,7 @@ func keyToVerificationMethod(key crypto.PublicKey, keyID string) (*did.Verificat
 	if err != nil {
 		return nil, err
 	}
-	id, err := did.ParseDID(keyID)
+	id, err := did.ParseDID(publicKeyJWK.KeyID())
 	if err != nil {
 		return nil, err
 	}

@@ -139,7 +139,7 @@ func Test_ambassador_callback(t *testing.T) {
 
 	newSubscriberDoc := func() subscriberDocument {
 		return subscriberDocument{
-			signingKeyID:    "",
+			signingKeyID:    "validKeyID123",
 			signingTime:     signingTime,
 			ref:             ref,
 			timelineVersion: 0,
@@ -159,6 +159,7 @@ func Test_ambassador_callback(t *testing.T) {
 		}
 		docCreator := NutsDocCreator{keyCreator: kc}
 		didDocument, err := docCreator.Create()
+		signingKey.Set(jwk.KeyIDKey, didDocument.Authentication[0].ID.String())
 		return *didDocument, signingKey, err
 	}
 
@@ -167,9 +168,11 @@ func Test_ambassador_callback(t *testing.T) {
 		defer ctrl.Finish()
 
 		didStoreMock := types.NewMockStore(ctrl)
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
 
 		am := ambassador{
 			didStore: didStoreMock,
+			keyStore: keyStoreMock,
 		}
 
 		didDocument, signingKey, err := newDidDoc()
@@ -179,6 +182,7 @@ func Test_ambassador_callback(t *testing.T) {
 
 		subDoc := newSubscriberDoc()
 		subDoc.signingKey = signingKey
+		subDoc.signingKeyID = ""
 
 		didDocPayload, _ := json.Marshal(didDocument)
 		expectedDocument := did.Document{}
@@ -191,7 +195,10 @@ func Test_ambassador_callback(t *testing.T) {
 			TimelineID: ref,
 			Hash:       payloadHash,
 		}
+		var rawKey crypto2.PublicKey
+		signingKey.Raw(&rawKey)
 
+		keyStoreMock.EXPECT().AddPublicKey(signingKey.KeyID(), rawKey, subDoc.signingTime)
 		didStoreMock.EXPECT().Write(expectedDocument, expectedMetadata)
 
 		err = am.callback(subDoc, didDocPayload)
@@ -211,7 +218,7 @@ func Test_ambassador_callback(t *testing.T) {
 		am := ambassador{}
 
 		subDoc := subscriberDocument{
-			signingKeyID:    "",
+			signingKeyID:    "key-1",
 			signingTime:     signingTime,
 			ref:             ref,
 			timelineVersion: 0,
@@ -230,7 +237,9 @@ func Test_ambassador_callback(t *testing.T) {
 
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		signingKey, _ := jwk.New(pair.PublicKey)
+		signingKey.Set(jwk.KeyIDKey, "kid123")
 		subDoc := newSubscriberDoc()
+		subDoc.signingKeyID = ""
 		subDoc.signingKey = signingKey
 
 		err := am.callback(subDoc, []byte("{}"))
@@ -245,11 +254,11 @@ func Test_ambassador_callback(t *testing.T) {
 		defer ctrl.Finish()
 
 		didStoreMock := types.NewMockStore(ctrl)
-		keyStore := crypto.NewMockKeyResolver(ctrl)
+		keyStore := crypto.NewMockPublicKeyStore(ctrl)
 
 		am := ambassador{
-			didStore:    didStoreMock,
-			keyResolver: keyStore,
+			didStore: didStoreMock,
+			keyStore: keyStore,
 		}
 		didDocument, signingKey, err := newDidDoc()
 		if !assert.NoError(t, err) {
@@ -409,12 +418,12 @@ func Test_ambassador_callback(t *testing.T) {
 		defer ctrl.Finish()
 
 		didStoreMock := types.NewMockStore(ctrl)
-		keyStore := crypto.NewMockKeyResolver(ctrl)
+		keyStore := crypto.NewMockPublicKeyStore(ctrl)
 
 		// initiate the ambassador with the mocks
 		am := ambassador{
-			didStore:    didStoreMock,
-			keyResolver: keyStore,
+			didStore: didStoreMock,
+			keyStore: keyStore,
 		}
 
 		// Create a fresh DID Document
@@ -497,12 +506,12 @@ func Test_ambassador_callback(t *testing.T) {
 		defer ctrl.Finish()
 
 		didStoreMock := types.NewMockStore(ctrl)
-		keyStore := crypto.NewMockKeyResolver(ctrl)
+		keyStore := crypto.NewMockPublicKeyStore(ctrl)
 
 		// initiate the ambassador with the mocks
 		am := ambassador{
-			didStore:    didStoreMock,
-			keyResolver: keyStore,
+			didStore: didStoreMock,
+			keyStore: keyStore,
 		}
 
 		// Create a fresh DID Document
@@ -578,6 +587,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	signingTime := time.Now()
 	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	signingKey, _ := jwk.New(pair.PublicKey)
+	signingKey.Set(jwk.KeyIDKey, "kid123")
 	payloadHash := hash.SHA256Sum([]byte("payload"))
 	timelineID := hash.SHA256Sum([]byte("timeline"))
 	ref := hash.SHA256Sum([]byte("ref"))
@@ -601,7 +611,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 		},
 		{"ok - valid update document",
 			subscriberDocument{
-				signingKeyID:    "",
+				signingKeyID:    "kid123",
 				signingTime:     signingTime,
 				ref:             ref,
 				timelineVersion: 1,
@@ -669,9 +679,9 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 			errors.New("timelineVersion for new documents must be absent or equal to 0"),
 		},
 		{
-			"nok - create without embedded signingKey",
+			"nok - create with keyid instead of embedded signingKey",
 			subscriberDocument{
-				signingKeyID:    "",
+				signingKeyID:    "kid123",
 				signingTime:     signingTime,
 				ref:             ref,
 				timelineVersion: 0,
@@ -683,7 +693,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 		{
 			"nok - update with timelineVersion == 0",
 			subscriberDocument{
-				signingKeyID:    "",
+				signingKeyID:    "kid123",
 				signingTime:     signingTime,
 				ref:             ref,
 				timelineVersion: 0,

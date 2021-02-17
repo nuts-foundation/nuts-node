@@ -1,6 +1,7 @@
 package dag
 
 import (
+	crypto2 "crypto"
 	"errors"
 	"fmt"
 
@@ -22,12 +23,12 @@ type DocumentSigner interface {
 // NewAttachedJWKDocumentSigner creates a DocumentSigner that signs the document using the given key.
 // The public key (identified by `kid`) is added to the signed document as `jwk` header. The public key is resolved
 // using the given resolver and the `kid` parameter.
-func NewAttachedJWKDocumentSigner(jwsSigner crypto.JWSSigner, kid string, keyResolver crypto.KeyResolver) DocumentSigner {
+func NewAttachedJWKDocumentSigner(jwsSigner crypto.JWSSigner, kid string, key crypto2.PublicKey) DocumentSigner {
 	return &documentSigner{
-		signer:   jwsSigner,
-		kid:      kid,
-		attach:   true,
-		resolver: keyResolver,
+		signer: jwsSigner,
+		kid:    kid,
+		attach: true,
+		key:    key,
 	}
 }
 
@@ -43,10 +44,10 @@ func NewDocumentSigner(jwsSigner crypto.JWSSigner, kid string) DocumentSigner {
 }
 
 type documentSigner struct {
-	attach   bool
-	kid      string
-	signer   crypto.JWSSigner
-	resolver crypto.KeyResolver
+	attach bool
+	kid    string
+	signer crypto.JWSSigner
+	key    crypto2.PublicKey
 }
 
 func (d documentSigner) Sign(input UnsignedDocument, signingTime time.Time) (Document, error) {
@@ -59,15 +60,13 @@ func (d documentSigner) Sign(input UnsignedDocument, signingTime time.Time) (Doc
 	}
 
 	var key jwk.Key
+	var err error
 	if d.attach {
-		keyAsPublicKey, err := d.resolver.GetPublicKey(d.kid, signingTime)
+		key, err = jwk.New(d.key)
 		if err != nil {
 			return nil, fmt.Errorf(errSigningDocumentFmt, err)
 		}
-		key, err = jwk.New(keyAsPublicKey)
-		if err != nil {
-			return nil, fmt.Errorf(errSigningDocumentFmt, err)
-		}
+		key.Set(jwk.KeyIDKey, d.kid)
 	}
 
 	prevsAsString := make([]string, len(input.Previous()))

@@ -19,6 +19,7 @@
 package network
 
 import (
+	crypto2 "crypto"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -37,7 +38,7 @@ type Transactions interface {
 	GetDocument(documentRef hash.SHA256Hash) (dag.Document, error)
 	// CreateDocument creates a new document with the specified payload, and signs it using the specified key.
 	// If the key should be inside the document (instead of being referred to) `attachKey` should be true.
-	CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey bool, timestamp time.Time, fieldsOpts ...dag.FieldOpt) (dag.Document, error)
+	CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, fieldsOpts ...dag.FieldOpt) (dag.Document, error)
 	// ListDocuments returns all documents known to this Network instance.
 	ListDocuments() ([]dag.Document, error)
 }
