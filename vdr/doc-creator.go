@@ -8,8 +8,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"net/url"
-
 	"github.com/lestrrat-go/jwx/jwk"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/shengdoushi/base58"
@@ -83,7 +81,7 @@ func (n NutsDocCreator) Create() (*did.Document, error) {
 		Context:            []did.URI{did.DIDContextV1URI()},
 		ID:                 *didID,
 		Controller:         []did.DID{*didID},
-		VerificationMethod: []did.VerificationMethod{*verificationMethod},
+		VerificationMethod: []*did.VerificationMethod{verificationMethod},
 		Authentication:     []did.VerificationRelationship{{VerificationMethod: verificationMethod}},
 	}
 	return doc, nil
@@ -104,12 +102,12 @@ func keyToVerificationMethod(key crypto.PublicKey, keyID string) (*did.Verificat
 	if err != nil {
 		return nil, err
 	}
-	kid, err := url.Parse(publicKeyJWK.KeyID())
+	id, err := did.ParseDID(keyID)
 	if err != nil {
 		return nil, err
 	}
 	return &did.VerificationMethod{
-		ID:           did.URI{URL: *kid},
+		ID:           *id,
 		Type:         did.JsonWebKey2020,
 		PublicKeyJwk: publicKeyAsJWKAsMap,
 	}, nil

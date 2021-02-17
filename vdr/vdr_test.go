@@ -2,7 +2,6 @@ package vdr
 
 import (
 	"encoding/json"
-	"net/url"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -25,11 +24,10 @@ func TestVDR_Update(t *testing.T) {
 		store:   didStoreMock,
 		network: networkMock,
 	}
-	id, _ := did.ParseDID("did:nuts:123")
+	keyID, _ := did.ParseDID("did:nuts:123#key-1")
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
-	keyID, _ := url.Parse(id.String() + "#key-1")
 	currentDIDDocument := did.Document{
-		Authentication: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: did.URI{*keyID}}}},
+		Authentication: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: *keyID}}},
 	}
 	nextDIDDocument := did.Document{}
 	expectedResolverMetada := &types.ResolveMetadata{
@@ -41,9 +39,9 @@ func TestVDR_Update(t *testing.T) {
 		Version:    1,
 	}
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
-	didStoreMock.EXPECT().Resolve(*id, expectedResolverMetada).Return(&currentDIDDocument, &resolvedMetadata, nil)
+	didStoreMock.EXPECT().Resolve(*keyID, expectedResolverMetada).Return(&currentDIDDocument, &resolvedMetadata, nil)
 	networkMock.EXPECT().CreateDocument(expectedDocumentType, expectedPayload, keyID.String(), false, gomock.Any(), gomock.Any(), gomock.Any())
-	err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
+	err := vdr.Update(*keyID, currentHash, nextDIDDocument, nil)
 	assert.NoError(t, err)
 }
 func TestVDR_Create(t *testing.T) {
@@ -56,10 +54,9 @@ func TestVDR_Create(t *testing.T) {
 		network:       networkMock,
 		didDocCreator: didCreator,
 	}
-	id, _ := did.ParseDID("did:nuts:123")
-	keyID, _ := url.Parse(id.String() + "#key-1")
+	keyID, _ := did.ParseDID("did:nuts:123#key-1")
 	nextDIDDocument := did.Document{
-		Authentication: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: did.URI{*keyID}}}},
+		Authentication: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: *keyID}}},
 	}
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
 	didCreator.EXPECT().Create().Return(&nextDIDDocument, nil)

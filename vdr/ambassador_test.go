@@ -752,7 +752,7 @@ func Test_checkDIDDocumentIntegrity(t *testing.T) {
 		}, errors.New("verification method must have a fragment")},
 		{"nok - validation has wrong prefix", func(t *testing.T, a *args) {
 			didDoc, _, _ := newDidDoc(t)
-			didDoc.VerificationMethod[0].ID.Opaque = "foo:123"
+			didDoc.VerificationMethod[0].ID.ID = "foo:123"
 			a.doc = didDoc
 		}, errors.New("verification method must have document prefix")},
 		{"nok - validation method with duplicate id", func(t *testing.T, a *args) {
