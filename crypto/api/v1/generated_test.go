@@ -20,13 +20,14 @@ package v1
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
 	"github.com/magiconair/properties/assert"
-	"github.com/nuts-foundation/nuts-node/mock"
 )
 
 type testServerInterface struct {
@@ -83,10 +84,10 @@ func TestRegisterHandlers(t *testing.T) {
 	t.Run("Registers routes for crypto module", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		echo := mock.NewMockEchoRouter(ctrl)
+		echo := core.NewMockEchoRouter(ctrl)
 
-		echo.EXPECT().POST("/internal/crypto/v1/sign_jwt", gomock.Any())
-		echo.EXPECT().GET("/internal/crypto/v1/public_key/:kid", gomock.Any())
+		echo.EXPECT().Add(http.MethodPost, "/internal/crypto/v1/sign_jwt", gomock.Any())
+		echo.EXPECT().Add(http.MethodGet, "/internal/crypto/v1/public_key/:kid", gomock.Any())
 
 		RegisterHandlers(echo, &testServerInterface{})
 	})

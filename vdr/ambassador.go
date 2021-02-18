@@ -37,7 +37,7 @@ import (
 )
 
 // didDocumentType contains network document mime-type to identify a DID Document in the network.
-const didDocumentType = "application/json+did-document"
+const didDocumentType = "application/did+json"
 
 // Ambassador acts as integration point between VDR and network by sending DID Documents network and process
 // DID Documents received through the network.
@@ -49,15 +49,15 @@ type Ambassador interface {
 type ambassador struct {
 	networkClient network.Transactions
 	didStore      types.Store
-	keyResolver   nutsCrypto.KeyResolver
+	keyStore      nutsCrypto.PublicKeyStore
 }
 
 // NewAmbassador creates a new Ambassador,
-func NewAmbassador(networkClient network.Transactions, didStore types.Store, keyResolver nutsCrypto.KeyResolver) Ambassador {
+func NewAmbassador(networkClient network.Transactions, didStore types.Store, publicKeyStore nutsCrypto.PublicKeyStore) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,
-		keyResolver:   keyResolver,
+		keyStore:      publicKeyStore,
 	}
 }
 
@@ -116,6 +116,16 @@ func (n *ambassador) handleCreateDIDDocument(document dag.SubscriberDocument, pr
 		return fmt.Errorf("key used to sign Network document must be be part of DID Document authentication")
 	}
 
+	var rawKey crypto.PublicKey
+	err = document.SigningKey().Raw(&rawKey)
+	if err != nil {
+		return err
+	}
+	err = n.keyStore.AddPublicKey(document.SigningKey().KeyID(), rawKey, document.SigningTime())
+	if err != nil {
+		return err
+	}
+
 	documentMetadata := types.DocumentMetadata{
 		Created:    document.SigningTime(),
 		Version:    newDocumentVersion,
@@ -154,7 +164,7 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberDocument, pr
 
 	// In an update, only the keyID is provided in the network document. Resolve the key from the key store
 	// This should succeed since the signature of the network document has already been verified.
-	pKey, err := n.keyResolver.GetPublicKey(document.SigningKeyID(), document.SigningTime())
+	pKey, err := n.keyStore.GetPublicKey(document.SigningKeyID(), document.SigningTime())
 	if err != nil {
 		return fmt.Errorf("unable to resolve signingkey: %w", err)
 	}
@@ -232,6 +242,7 @@ func checkSubscriberDocumentIntegrity(document dag.SubscriberDocument) error {
 		if document.TimelineVersion() <= newDocumentVersion {
 			return fmt.Errorf("timelineVersion for updates must be greater than %d", newDocumentVersion)
 		}
+
 	} else {
 		// For a new DID Document TimelineID must be nil
 		if !document.TimelineID().Empty() {
@@ -308,7 +319,10 @@ func (n ambassador) findKeyByThumbprint(thumbPrint []byte, didDocumentAuthKeys [
 	var documentKey jwk.Key
 	for _, key := range didDocumentAuthKeys {
 		// Create thumbprint
-		keyAsJWK := key.JWK()
+		keyAsJWK, err := key.JWK()
+		if err != nil {
+			return nil, err
+		}
 		documentThumbprint, err := keyAsJWK.Thumbprint(thumbprintAlg)
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate did document signing key thumbprint: %w", err)

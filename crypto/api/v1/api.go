@@ -27,10 +27,10 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jwk"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
@@ -94,7 +94,7 @@ func (w *Wrapper) PublicKey(ctx echo.Context, kid string, params PublicKeyParams
 
 	pubKey, err := w.C.GetPublicKey(kid, at)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
+		if errors.Is(err, crypto.ErrKeyNotFound) {
 			return ctx.NoContent(http.StatusNotFound)
 		}
 		log.Logger().Error(err.Error())

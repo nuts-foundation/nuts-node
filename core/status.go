@@ -45,8 +45,8 @@ func (s *status) Name() string {
 }
 
 func (s *status) Routes(router EchoRouter) {
-	router.GET("/status/diagnostics", s.diagnosticsOverview)
-	router.GET("/status", statusOK)
+	router.Add(http.MethodGet, "/status/diagnostics", s.diagnosticsOverview)
+	router.Add(http.MethodGet, "/status", statusOK)
 }
 
 func (s *status) diagnosticsOverview(ctx echo.Context) error {

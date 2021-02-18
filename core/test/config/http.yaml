@@ -1,0 +1,8 @@
+http:
+  default:
+    address: alternative:1323
+  alt:
+    internal:
+      address: localhost:1111
+    admin:
+      address: localhost:2222

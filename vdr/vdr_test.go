@@ -1,18 +1,23 @@
 package vdr
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
-	"net/url"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/nuts-foundation/nuts-node/network"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
+
+const expectedDocumentType = "application/did+json"
 
 func TestVDR_Update(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -24,13 +29,13 @@ func TestVDR_Update(t *testing.T) {
 		network: networkMock,
 	}
 	id, _ := did.ParseDID("did:nuts:123")
+	keyID, _ := did.ParseDID("did:nuts:123#key-1")
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
-	keyID, _ := url.Parse(id.String() + "#key-1")
 	currentDIDDocument := did.Document{
-		Authentication: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: did.URI{*keyID}}}},
+		Authentication: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: *keyID}}},
 	}
 	nextDIDDocument := did.Document{}
-	expectedResolverMetada := &types.ResolveMetadata{
+	expectedResolverMetadata := &types.ResolveMetadata{
 		Hash:             &currentHash,
 		AllowDeactivated: false,
 	}
@@ -39,8 +44,8 @@ func TestVDR_Update(t *testing.T) {
 		Version:    1,
 	}
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
-	didStoreMock.EXPECT().Resolve(*id, expectedResolverMetada).Return(&currentDIDDocument, &resolvedMetadata, nil)
-	networkMock.EXPECT().CreateDocument(didDocumentType, expectedPayload, keyID.String(), false, gomock.Any(), gomock.Any(), gomock.Any())
+	didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
+	networkMock.EXPECT().CreateDocument(expectedDocumentType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any(), gomock.Any())
 	err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
 	assert.NoError(t, err)
 }
@@ -55,13 +60,21 @@ func TestVDR_Create(t *testing.T) {
 		didDocCreator: didCreator,
 	}
 	id, _ := did.ParseDID("did:nuts:123")
-	keyID, _ := url.Parse(id.String() + "#key-1")
-	nextDIDDocument := did.Document{
-		Authentication: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: did.URI{*keyID}}}},
+	keyID, _ := did.ParseDID(id.String() + "#key-1")
+	nextDIDDocument := did.Document{ ID: *id }
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if !assert.NoError(t, err) {
+		return
 	}
+	vm, err := did.NewVerificationMethod(*keyID, did.JsonWebKey2020, did.DID{}, privateKey.PublicKey)
+	if !assert.NoError(t, err) {
+		return
+	}
+	nextDIDDocument.AddAuthenticationMethod(vm)
+
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
 	didCreator.EXPECT().Create().Return(&nextDIDDocument, nil)
-	networkMock.EXPECT().CreateDocument(didDocumentType, expectedPayload, keyID.String(), true, gomock.Any())
+	networkMock.EXPECT().CreateDocument(expectedDocumentType, expectedPayload, keyID.String(), &privateKey.PublicKey, gomock.Any())
 	didDoc, err := vdr.Create()
 	assert.NoError(t, err)
 	assert.NotNil(t, didDoc)

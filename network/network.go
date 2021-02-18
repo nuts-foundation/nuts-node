@@ -19,6 +19,7 @@
 package network
 
 import (
+	crypto2 "crypto"
 	"crypto/tls"
 	"fmt"
 	"os"
@@ -148,7 +149,7 @@ func (n *Network) ListDocuments() ([]dag.Document, error) {
 
 // CreateDocument creates a new document with the specified payload, and signs it using the specified key.
 // If the key should be inside the document (instead of being referred to) `attachKey` should be true.
-func (n *Network) CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey bool, timestamp time.Time, fieldOpts ...dag.FieldOpt) (dag.Document, error) {
+func (n *Network) CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, fieldOpts ...dag.FieldOpt) (dag.Document, error) {
 	payloadHash := hash.SHA256Sum(payload)
 	log.Logger().Infof("Creating document (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), signingKeyID)
 	// Create document
@@ -160,8 +161,8 @@ func (n *Network) CreateDocument(payloadType string, payload []byte, signingKeyI
 	// Sign it
 	var document dag.Document
 	var signer dag.DocumentSigner
-	if attachKey {
-		signer = dag.NewAttachedJWKDocumentSigner(n.keyStore, signingKeyID, n.keyStore)
+	if attachKey != nil {
+		signer = dag.NewAttachedJWKDocumentSigner(n.keyStore, signingKeyID, attachKey)
 	} else {
 		signer = dag.NewDocumentSigner(n.keyStore, signingKeyID)
 	}

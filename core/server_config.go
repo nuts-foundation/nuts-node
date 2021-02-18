@@ -47,21 +47,40 @@ const loggerLevelFlag = "verbosity"
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
-	Address    string `koanf:"address"`
-	Verbosity  string `koanf:"verbosity"`
-	Strictmode bool   `koanf:"strictmode"`
-	Datadir    string `koanf:"datadir"`
+	Verbosity  string           `koanf:"verbosity"`
+	Strictmode bool             `koanf:"strictmode"`
+	Datadir    string           `koanf:"datadir"`
+	HTTP       GlobalHTTPConfig `koanf:"http"`
 	configMap  *koanf.Koanf
+}
+
+// GlobalHTTPConfig is the top-level config struct for HTTP interfaces.
+type GlobalHTTPConfig struct {
+	// HTTPConfig contains the config for the default HTTP interface.
+	HTTPConfig `koanf:"default"`
+	// AltBinds contains binds for alternative HTTP interfaces. The key of the map is the first part of the path
+	// of the URL (e.g. `/internal/some-api` -> `internal`), the value is the HTTP interface it must be bound to.
+	AltBinds map[string]HTTPConfig `koanf:"alt"`
+}
+
+// HTTPConfig contains configuration for an HTTP interface, e.g. address.
+// It will probably contain security related properties in the future (TLS configuration, user/pwd requirements).
+type HTTPConfig struct {
+	// Address holds the interface address the HTTP service must be bound to, in the format of `interface:port` (e.g. localhost:5555).
+	Address string `koanf:"address"`
 }
 
 // NewServerConfig creates a new config with some defaults
 func NewServerConfig() *ServerConfig {
 	return &ServerConfig{
 		configMap:  koanf.New(defaultDelimiter),
-		Address:    defaultAddress,
 		Verbosity:  defaultLogLevel,
 		Strictmode: defaultStrictMode,
 		Datadir:    defaultDatadir,
+		HTTP: GlobalHTTPConfig{
+			HTTPConfig: HTTPConfig{Address: defaultAddress},
+			AltBinds:   map[string]HTTPConfig{},
+		},
 	}
 }
 

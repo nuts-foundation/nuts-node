@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 
@@ -40,8 +42,9 @@ func TestCrypto_PublicKey(t *testing.T) {
 	ec := test.GenerateECKey()
 
 	now := time.Now()
-	period := core.Period{Begin: now}
-	client.SavePublicKey(kid, ec.Public(), period)
+	if !assert.NoError(t, client.AddPublicKey(kid, ec.Public(), now)) {
+		return
+	}
 
 	t.Run("Public key is returned from storage", func(t *testing.T) {
 		pub, err := client.GetPublicKey(kid, now)
@@ -54,21 +57,77 @@ func TestCrypto_PublicKey(t *testing.T) {
 		_, err := client.GetPublicKey("unknown", now)
 
 		if assert.Error(t, err) {
-			assert.True(t, errors.Is(err, storage.ErrNotFound))
+			assert.True(t, errors.Is(err, ErrKeyNotFound))
 		}
+	})
+
+	t.Run("error - key exists", func(t *testing.T) {
+		err := client.AddPublicKey(kid, ec.Public(), now)
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.True(t, errors.Is(err, ErrKeyAlreadyExists))
 	})
 
 	t.Run("error - kid not valid at time", func(t *testing.T) {
 		_, err := client.GetPublicKey(kid, now.Add(-1))
 
 		if assert.Error(t, err) {
-			assert.True(t, errors.Is(err, storage.ErrNotFound))
+			assert.True(t, errors.Is(err, ErrKeyNotFound))
 		}
 	})
 
 	t.Run("error - saving an empty key", func(t *testing.T) {
-		err := client.SavePublicKey(kid, nil, period)
+		err := client.AddPublicKey(kid, nil, now)
 		assert.Error(t, err)
+	})
+
+	t.Run("revoke a key", func(t *testing.T) {
+		// Create a fresh key to prevent revocation of the shared test key
+		kid := "kid revoke a key"
+		if !assert.NoError(t, client.AddPublicKey(kid, ec.Public(), now)) {
+			return
+		}
+		if !assert.NoError(t, client.RevokePublicKey(kid, now)) {
+			return
+		}
+		key, err := client.GetPublicKey(kid, now.Add(10*time.Second))
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.True(t, errors.Is(err, ErrKeyNotFound), "GetPublicKey should return ErrNotFound after revocation")
+		assert.Nil(t, key)
+	})
+
+	t.Run("error - revoke an already revoked key", func(t *testing.T) {
+		// Create a fresh key to prevent revocation of the shared test key
+		kid := "kid revoke a revoked key"
+		if !assert.NoError(t, client.AddPublicKey(kid, ec.Public(), now)) {
+			return
+		}
+
+		if !assert.NoError(t, client.RevokePublicKey(kid, now)) {
+			return
+		}
+
+		err := client.RevokePublicKey(kid, now)
+		assert.True(t, errors.Is(err, ErrKeyRevoked))
+	})
+
+	t.Run("error - revoke unknown key", func(t *testing.T) {
+		kid := "kid of unknown key"
+		err := client.RevokePublicKey(kid, now)
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.True(t, errors.Is(err, ErrKeyNotFound), "it should return a ErrKeyNotFound")
+
+	})
+
+	t.Run("error - kid should be set", func(t *testing.T) {
+		err := client.AddPublicKey("", ec.Public(), now)
+		assert.Error(t, err, "it should return an error")
+		assert.Equal(t, "could not add public key: kid cannot be empty", err.Error())
 	})
 }
 
@@ -104,6 +163,20 @@ func TestCrypto_New(t *testing.T) {
 		}
 		_, _, err := client.New(errorNamingFunc)
 		assert.Error(t, err)
+	})
+
+	t.Run("error - save public key returns an error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		storageMock := storage.NewMockStorage(ctrl)
+		storageMock.EXPECT().SavePrivateKey(gomock.Any(), gomock.Any()).Return(errors.New("foo"))
+
+		client := &Crypto{Storage: storageMock}
+		key, name, err := client.New(StringNamingFunc("123"))
+		assert.Nil(t, key)
+		assert.Empty(t, name)
+		assert.Error(t, err)
+		assert.Equal(t, "could not create new keypair: could not save private key: foo", err.Error())
 	})
 }
 

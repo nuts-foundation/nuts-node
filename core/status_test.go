@@ -13,10 +13,10 @@ func TestNewStatusEngine_Routes(t *testing.T) {
 	t.Run("Registers a single route for listing all engines", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		echo := mock.NewMockEchoRouter(ctrl)
+		echo := NewMockEchoRouter(ctrl)
 
-		echo.EXPECT().GET("/status/diagnostics", gomock.Any())
-		echo.EXPECT().GET("/status", gomock.Any())
+		echo.EXPECT().Add(http.MethodGet, "/status/diagnostics", gomock.Any())
+		echo.EXPECT().Add(http.MethodGet, "/status", gomock.Any())
 
 		NewStatusEngine(NewSystem()).(*status).Routes(echo)
 	})

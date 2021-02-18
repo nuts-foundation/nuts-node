@@ -26,15 +26,14 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
-	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/nuts-foundation/nuts-node/crypto/test"
 )
 
 func TestSignJWT(t *testing.T) {
@@ -107,7 +106,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	client.New(StringNamingFunc(kid))
+	key, _, _ := client.New(StringNamingFunc(kid))
 
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, kid)
@@ -118,7 +117,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		}
 
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
-			return client.GetPublicKey(kid, time.Now())
+			return key, nil
 		})
 
 		if !assert.NoError(t, err) {
@@ -131,16 +130,14 @@ func TestCrypto_SignJWT(t *testing.T) {
 	t.Run("returns error for not found", func(t *testing.T) {
 		_, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, "unknown")
 
-		assert.True(t, errors.Is(err, storage.ErrNotFound))
+		assert.True(t, errors.Is(err, ErrKeyNotFound))
 	})
 }
 
 func TestCrypto_SignJWS(t *testing.T) {
 	client := createCrypto(t)
 	kid := "kid"
-	client.New(StringNamingFunc(kid))
-
-	publicKey, _ := client.GetPublicKey(kid, time.Now())
+	publicKey, _, _ :=client.New(StringNamingFunc(kid))
 
 	t.Run("ok", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
