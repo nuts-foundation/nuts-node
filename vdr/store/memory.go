@@ -119,10 +119,9 @@ func (m *memory) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (*did.Docume
 
 // deepCopy returns a deep copy of a memoryEntry
 func deepCopy(entry *memoryEntry) (*memoryEntry, error) {
-	docCopy := did.Document{}
-	metadataCopy := vdr.DocumentMetadata{}
-
 	// deep copy document
+	// see https://github.com/nuts-foundation/go-did/issues/15
+	docCopy := did.Document{}
 	docJSON, err := json.Marshal(entry.document)
 	if err != nil {
 		return nil, err
@@ -132,13 +131,7 @@ func deepCopy(entry *memoryEntry) (*memoryEntry, error) {
 	}
 
 	// deep copy metadata
-	metadataJSON, err := json.Marshal(entry.metadata)
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(metadataJSON, &metadataCopy); err != nil {
-		return nil, err
-	}
+	metadataCopy := entry.metadata.Copy()
 
 	return &memoryEntry{
 		document: docCopy,

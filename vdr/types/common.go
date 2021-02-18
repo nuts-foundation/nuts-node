@@ -52,6 +52,15 @@ type DocumentMetadata struct {
 	Hash hash.SHA256Hash `json:"hash"`
 }
 
+// Copy creates a deep copy of DocumentMetadata
+func (m DocumentMetadata) Copy() DocumentMetadata {
+	if m.Updated != nil {
+		updated := *m.Updated
+		m.Updated = &updated
+	}
+	return m
+}
+
 // ResolveMetadata contains metadata for the resolver.
 type ResolveMetadata struct {
 	// Resolve the version which is valid at this time
