@@ -106,11 +106,6 @@ func parseContentType(document *document, headers jws.Headers, _ *jws.Message) e
 func parseSignatureParams(document *document, headers jws.Headers, _ *jws.Message) error {
 	if key, ok := headers.Get(jws.JWKKey); ok {
 		jwkKey := key.(jwk.Key)
-		// Check RFC004 3.1 kid constraints
-		// A embedded jwk must have a keyID
-		if jwkKey.KeyID() == "" {
-			return documentValidationError("when present, the `jwk` must contain a valid `kid`")
-		}
 		document.signingKey = jwkKey
 	}
 	// Get the keyID from the header (not to be confused with the keyID from the embedded key)
