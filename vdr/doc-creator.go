@@ -73,9 +73,15 @@ func (n NutsDocCreator) Create() (*did.Document, error) {
 
 	// The Document DID can be generated from the keyID without the fragment:
 	didID, err := did.ParseDID(keyID)
+	if err != nil {
+		return nil, err
+	}
 	didID.Fragment = ""
 
 	verificationMethod, err := keyToVerificationMethod(key, keyID)
+	if err != nil {
+		return nil, err
+	}
 	verificationMethod.Controller = *didID
 
 	doc := &did.Document{
