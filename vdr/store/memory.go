@@ -109,26 +109,34 @@ func (m *memory) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (*did.Docume
 	}
 
 	// return a deep copy
-	doc := &did.Document{}
-	docMetadata := &vdr.DocumentMetadata{}
+	copyEntry, err := deepCopy(entry)
+	if err != nil {
+		return nil, nil, err
+	}
 
+	return &copyEntry.document, &copyEntry.metadata, nil
+}
+
+// deepCopy returns a deep copy of a memoryEntry
+func deepCopy(entry *memoryEntry) (*memoryEntry, error) {
+	// deep copy document
+	// see https://github.com/nuts-foundation/go-did/issues/15
+	docCopy := did.Document{}
 	docJSON, err := json.Marshal(entry.document)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	if err = json.Unmarshal(docJSON, doc); err != nil {
-		return nil, nil, err
-	}
-
-	metadataJSON, err := json.Marshal(entry.metadata)
-	if err != nil {
-		return nil, nil, err
-	}
-	if err = json.Unmarshal(metadataJSON, docMetadata); err != nil {
-		return nil, nil, err
+	if err = json.Unmarshal(docJSON, &docCopy); err != nil {
+		return nil, err
 	}
 
-	return doc, docMetadata, nil
+	// deep copy metadata
+	metadataCopy := entry.metadata.Copy()
+
+	return &memoryEntry{
+		document: docCopy,
+		metadata: metadataCopy,
+	}, nil
 }
 
 // timeSelectionFilter checks if an entry is after the created, after the updated field if present but before the updated field of the next entry
