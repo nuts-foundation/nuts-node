@@ -49,7 +49,7 @@ func FlagSet() *pflag.FlagSet {
 		"If empty the gRPC server won't be started and other nodes will not be able to connect to this node "+
 		"(outbound connections can still be made).")
 	flagSet.String("network.publicAddr", defs.PublicAddr, "Public address (of this node) other nodes can use to connect to it. If set, it is registered on the nodelist.")
-	flagSet.String("network.bootstrapNodes", defs.BootstrapNodes, "Space-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
+	flagSet.StringSlice("network.bootstrapNodes", defs.BootstrapNodes, "Comma-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
 	flagSet.Bool("network.enableTLS", defs.EnableTLS, "Whether to enable TLS for inbound gRPC connections. "+
 		"If set to `true` (which is default) `certFile` and `certKeyFile` MUST be configured.")
 	flagSet.String("network.certFile", defs.CertFile, "PEM file containing the server certificate for the gRPC server. "+
