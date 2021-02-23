@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"testing"
 
@@ -28,10 +29,15 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 	system.RegisterEngine(NewMetricsEngine())
 
 	t.Run("diagnostics() returns engine list", func(t *testing.T) {
-		ds := NewStatusEngine(system).(*status).Diagnostics()
-		assert.Len(t, ds, 1)
+		system := NewStatusEngine(system)
+		ds := system.(*status).Diagnostics()
+		assert.Len(t, ds, 2)
+		// Registered engines
 		assert.Equal(t, "Registered engines", ds[0].Name())
 		assert.Equal(t, "Status,Metrics", ds[0].String())
+		// Uptime
+		assert.Equal(t, "Uptime", ds[1].Name())
+		assert.NotEmpty(t, ds[1].String())
 	})
 
 	t.Run("diagnosticsOverview() renders text output of diagnostics", func(t *testing.T) {
@@ -39,7 +45,7 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 		defer ctrl.Finish()
 		echo := mock.NewMockContext(ctrl)
 
-		echo.EXPECT().String(http.StatusOK, "Status\n\tRegistered engines: Status,Metrics")
+		echo.EXPECT().String(http.StatusOK, test.Contains("Registered engines: Status,Metrics"))
 
 		(&status{system: system}).diagnosticsOverview(echo)
 	})

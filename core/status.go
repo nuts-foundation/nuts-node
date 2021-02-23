@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -30,13 +31,15 @@ import (
 const moduleName = "Status"
 
 type status struct {
-	system *System
+	system    *System
+	startTime time.Time
 }
 
 //NewStatusEngine creates a new Engine for viewing all engines
 func NewStatusEngine(system *System) Engine {
 	return &status{
-		system: system,
+		system:    system,
+		startTime: time.Now(),
 	}
 }
 
@@ -70,7 +73,10 @@ func (s *status) diagnosticsSummaryAsText() string {
 // Diagnostics returns list of DiagnosticResult for the StatusEngine.
 // The results are a list of all registered engines
 func (s *status) Diagnostics() []DiagnosticResult {
-	return []DiagnosticResult{&GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(s.listAllEngines(), ",")}}
+	return []DiagnosticResult{
+		&GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(s.listAllEngines(), ",")},
+		&GenericDiagnosticResult{Title: "Uptime", Outcome: time.Now().Sub(s.startTime).String()},
+	}
 }
 
 func (s *status) listAllEngines() []string {
