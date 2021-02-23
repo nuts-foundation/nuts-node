@@ -1,4 +1,4 @@
-.. _prodruction-configuration:
+.. _production-configuration:
 
 Configuring for Production
 ##########################
@@ -49,3 +49,48 @@ secure subnets. This is done through the `http` configuration:
         # The following binds all endpoints starting with `/status` to all interfaces on `:80`
         status:
           address: :80
+
+Nuts Network SSL/TLS Deployment Layouts
+***************************************
+
+This section describes which deployment layouts are supported regarding SSL/TLS. In all layouts there should be
+X.509 server and client certificates issued by a Certificate Authority trusted by the network, if the node operator wants
+other Nuts nodes to be able to connect to the node and vice versa.
+
+Direct WAN Connection
+---------------------
+
+This is the simplest layout where the Nuts node is directly accessible from the internet:
+
+.. raw:: html
+    :file: ../../_static/images/network_layouts_directwan.svg
+
+This layout has the following requirements:
+
+* X.509 server certificate and private key must be configured on the Nuts node.
+* SSL/TLS terminator must use the trust anchors as specified by the network as root CA trust bundle.
+
+SSL/TLS Offloading
+------------------
+
+In this layout incoming TLS traffic is decrypted on a SSL/TLS terminator and then being forwarded to the Nuts node.
+This is layout is typically used to provide layer 7 load balancing and/or securing traffic "at the gates":
+
+.. raw:: html
+    :file: ../../_static/images/network_layouts_tlsoffloading.svg
+
+This layout has the following requirements:
+
+* X.509 server certificate and private key must be present on the SSL/TLS terminator.
+* X.509 client certificate must be configured on the Nuts node.
+* SSL/TLS terminator must use the trust anchors as specified by the network as root CA trust bundle.
+
+SSL/TLS Pass-through
+--------------------
+
+In this layout incoming TLS traffic is forwarded to the Nuts node without being decrypted:
+
+.. raw:: html
+    :file: ../../_static/images/network_layouts_tlspassthrough.svg
+
+Requirements are the same as for the Direct WAN Connection layout.
