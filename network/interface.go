@@ -28,17 +28,17 @@ import (
 
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
 type Transactions interface {
-	// Subscribe makes a subscription for the specified document type. The receiver is called when a document
+	// Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
 	// is received for the specified type.
-	Subscribe(documentType string, receiver dag.Receiver)
-	// GetDocumentPayload retrieves the document payload for the given document. If the document or payload is not found
+	Subscribe(payloadType string, receiver dag.Receiver)
+	// GetTransactionPayload retrieves the transaction payload for the given transaction. If the transaction or payload is not found
 	// nil is returned.
-	GetDocumentPayload(documentRef hash.SHA256Hash) ([]byte, error)
-	// GetDocument retrieves the document for the given reference. If the document is not known, an error is returned.
-	GetDocument(documentRef hash.SHA256Hash) (dag.Document, error)
-	// CreateDocument creates a new document with the specified payload, and signs it using the specified key.
-	// If the key should be inside the document (instead of being referred to) `attachKey` should be true.
-	CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, fieldsOpts ...dag.FieldOpt) (dag.Document, error)
-	// ListDocuments returns all documents known to this Network instance.
-	ListDocuments() ([]dag.Document, error)
+	GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error)
+	// GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
+	GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error)
+	// CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
+	// If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
+	CreateTransaction(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, fieldsOpts ...dag.FieldOpt) (dag.Transaction, error)
+	// ListTransactions returns all transactions known to this Network instance.
+	ListTransactions() ([]dag.Transaction, error)
 }

@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"errors"
 	"path"
 	"sort"
 	"strings"
@@ -45,18 +46,18 @@ func createDAG(t *testing.T) DAG {
 
 // trackingVisitor just keeps track of which nodes were visited in what order.
 type trackingVisitor struct {
-	documents []Document
+	transactions []Transaction
 }
 
-func (n *trackingVisitor) Accept(document Document) bool {
-	n.documents = append(n.documents, document)
+func (n *trackingVisitor) Accept(transaction Transaction) bool {
+	n.transactions = append(n.transactions, transaction)
 	return true
 }
 
 func (n trackingVisitor) JoinRefsAsString() string {
 	var contents []string
-	for _, document := range n.documents {
-		val := strings.TrimLeft(document.PayloadHash().String(), "0")
+	for _, transaction := range n.transactions {
+		val := strings.TrimLeft(transaction.PayloadHash().String(), "0")
 		if val == "" {
 			val = "0"
 		}
@@ -68,9 +69,9 @@ func (n trackingVisitor) JoinRefsAsString() string {
 func TestBBoltDAG_All(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		graph := createDAG(t)
-		doc := CreateTestDocumentWithJWK(1)
+		tx := CreateTestTransactionWithJWK(1)
 
-		err := graph.Add(doc)
+		err := graph.Add(tx)
 
 		if !assert.NoError(t, err) {
 			return
@@ -81,20 +82,65 @@ func TestBBoltDAG_All(t *testing.T) {
 			return
 		}
 		assert.Len(t, actual, 1)
-		assert.Equal(t, doc, actual[0])
+		assert.Equal(t, tx, actual[0])
 	})
+}
+
+func TestBBoltDAG_Migrate(t *testing.T) {
+	t.Run("documents -> transactions", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		graph := NewBBoltDAG(createBBoltDB(testDirectory)).(*bboltDAG)
+
+		// Make sure there's data in the graph, then copy it to the old bucket
+		tx1, _, _ := CreateTestTransaction(1)
+		tx2, _, _ := CreateTestTransaction(2, hash.SHA256Sum([]byte{1, 2, 3}))
+		graph.Add(tx1, tx2)
+		err := graph.db.Update(func(tx *bbolt.Tx) error {
+			moveBucket(tx, tx, []byte(transactionsBucket), []byte("documents"))
+			moveBucket(tx, tx, []byte(missingTransactionsBucket), []byte("missingdocuments"))
+			return nil
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+		// Assert the new buckets are gone
+		err = graph.db.View(func(tx *bbolt.Tx) error {
+			if tx.Bucket([]byte(transactionsBucket)) != nil {
+				return errors.New("tx bucket exists")
+			}
+			if tx.Bucket([]byte(missingTransactionsBucket)) != nil {
+				return errors.New("missing tx bucket exists")
+			}
+			return nil
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// Now recreate the graph, which should migrate the data to the new buckets
+		err = graph.db.Close()
+		if !assert.NoError(t, err) {
+			return
+		}
+		graph = NewBBoltDAG(createBBoltDB(testDirectory)).(*bboltDAG)
+		actualTx1, _ := graph.Get(tx1.Ref())
+		actualTx2, _ := graph.Get(tx2.Ref())
+		assert.Equal(t, tx1, actualTx1)
+		assert.Equal(t, tx2, actualTx2)
+	})
+
 }
 
 func TestBBoltDAG_Get(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		graph := createDAG(t)
-		document := CreateTestDocumentWithJWK(1)
-		_ = graph.Add(document)
-		actual, err := graph.Get(document.Ref())
+		transaction := CreateTestTransactionWithJWK(1)
+		_ = graph.Add(transaction)
+		actual, err := graph.Get(transaction.Ref())
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, document, actual)
+		assert.Equal(t, transaction, actual)
 	})
 	t.Run("not found", func(t *testing.T) {
 		graph := createDAG(t)
@@ -107,9 +153,9 @@ func TestBBoltDAG_Get(t *testing.T) {
 func TestBBoltDAG_Add(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		graph := createDAG(t)
-		doc := CreateTestDocumentWithJWK(0)
+		tx := CreateTestTransactionWithJWK(0)
 
-		err := graph.Add(doc)
+		err := graph.Add(tx)
 
 		assert.NoError(t, err)
 		visitor := trackingVisitor{}
@@ -118,38 +164,38 @@ func TestBBoltDAG_Add(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Len(t, visitor.documents, 1)
-		assert.Equal(t, doc.Ref(), visitor.documents[0].Ref())
-		present, _ := graph.IsPresent(doc.Ref())
+		assert.Len(t, visitor.transactions, 1)
+		assert.Equal(t, tx.Ref(), visitor.transactions[0].Ref())
+		present, _ := graph.IsPresent(tx.Ref())
 		assert.True(t, present)
 	})
 	t.Run("duplicate", func(t *testing.T) {
 		graph := createDAG(t)
-		doc := CreateTestDocumentWithJWK(0)
+		tx := CreateTestTransactionWithJWK(0)
 
-		_ = graph.Add(doc)
-		err := graph.Add(doc)
+		_ = graph.Add(tx)
+		err := graph.Add(tx)
 		assert.NoError(t, err)
 		actual, _ := graph.All()
 		assert.Len(t, actual, 1)
 	})
 	t.Run("second root", func(t *testing.T) {
 		graph := createDAG(t)
-		root1 := CreateTestDocumentWithJWK(1)
-		root2 := CreateTestDocumentWithJWK(2)
+		root1 := CreateTestTransactionWithJWK(1)
+		root2 := CreateTestTransactionWithJWK(2)
 
 		_ = graph.Add(root1)
 		err := graph.Add(root2)
-		assert.EqualError(t, err, "root document already exists")
+		assert.EqualError(t, err, "root transaction already exists")
 		actual, _ := graph.All()
 		assert.Len(t, actual, 1)
 	})
 	t.Run("ok - out of order", func(t *testing.T) {
 		graph := createDAG(t)
-		documents := graphF()
+		transactions := graphF()
 
-		for i := len(documents) - 1; i >= 0; i-- {
-			err := graph.Add(documents[i])
+		for i := len(transactions) - 1; i >= 0; i-- {
+			err := graph.Add(transactions[i])
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -166,9 +212,9 @@ func TestBBoltDAG_Add(t *testing.T) {
 	t.Run("error - cyclic graph", func(t *testing.T) {
 		t.Skip("Algorithm for detecting cycles is not yet decided on")
 		// A -> B -> C -> B
-		A := CreateTestDocumentWithJWK(0)
-		B := CreateTestDocumentWithJWK(1, A.Ref()).(*document)
-		C := CreateTestDocumentWithJWK(2, B.Ref())
+		A := CreateTestTransactionWithJWK(0)
+		B := CreateTestTransactionWithJWK(1, A.Ref()).(*transaction)
+		C := CreateTestTransactionWithJWK(2, B.Ref())
 		B.prevs = append(B.prevs, C.Ref())
 
 		graph := createDAG(t)
@@ -188,30 +234,30 @@ func TestBBoltDAG_Walk(t *testing.T) {
 			return
 		}
 
-		assert.Empty(t, visitor.documents)
+		assert.Empty(t, visitor.transactions)
 	})
 }
 
-func TestBBoltDAG_MissingDocuments(t *testing.T) {
-	A := CreateTestDocumentWithJWK(0)
-	B := CreateTestDocumentWithJWK(1, A.Ref())
-	C := CreateTestDocumentWithJWK(2, B.Ref())
-	t.Run("no missing documents (empty graph)", func(t *testing.T) {
+func TestBBoltDAG_MissingTransactions(t *testing.T) {
+	A := CreateTestTransactionWithJWK(0)
+	B := CreateTestTransactionWithJWK(1, A.Ref())
+	C := CreateTestTransactionWithJWK(2, B.Ref())
+	t.Run("no missing transactions (empty graph)", func(t *testing.T) {
 		graph := createDAG(t)
-		assert.Empty(t, graph.MissingDocuments())
+		assert.Empty(t, graph.MissingTransactions())
 	})
-	t.Run("no missing documents (non-empty graph)", func(t *testing.T) {
+	t.Run("no missing transactions (non-empty graph)", func(t *testing.T) {
 		graph := createDAG(t)
 		graph.Add(A, B, C)
-		assert.Empty(t, graph.MissingDocuments())
+		assert.Empty(t, graph.MissingTransactions())
 	})
-	t.Run("missing documents (non-empty graph)", func(t *testing.T) {
+	t.Run("missing transactions (non-empty graph)", func(t *testing.T) {
 		graph := createDAG(t)
 		graph.Add(A, C)
-		assert.Len(t, graph.MissingDocuments(), 1)
-		// Now add missing document B and assert there are no more missing documents
+		assert.Len(t, graph.MissingTransactions(), 1)
+		// Now add missing transaction B and assert there are no more missing transactions
 		graph.Add(B)
-		assert.Empty(t, graph.MissingDocuments())
+		assert.Empty(t, graph.MissingTransactions())
 	})
 }
 func TestBBoltDAG_Observe(t *testing.T) {
@@ -220,7 +266,7 @@ func TestBBoltDAG_Observe(t *testing.T) {
 	graph.RegisterObserver(func(subject interface{}) {
 		actual = subject
 	})
-	expected := CreateTestDocumentWithJWK(1)
+	expected := CreateTestTransactionWithJWK(1)
 	err := graph.Add(expected)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
@@ -229,12 +275,12 @@ func TestBBoltDAG_Observe(t *testing.T) {
 func TestBBoltDAG_GetByPayloadHash(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		graph := createDAG(t)
-		document := CreateTestDocumentWithJWK(1)
-		_ = graph.Add(document)
-		actual, err := graph.GetByPayloadHash(document.PayloadHash())
+		transaction := CreateTestTransactionWithJWK(1)
+		_ = graph.Add(transaction)
+		actual, err := graph.GetByPayloadHash(transaction.PayloadHash())
 		assert.Len(t, actual, 1)
 		assert.NoError(t, err)
-		assert.Equal(t, document, actual[0])
+		assert.Equal(t, transaction, actual[0])
 	})
 	t.Run("not found", func(t *testing.T) {
 		graph := createDAG(t)
@@ -246,7 +292,7 @@ func TestBBoltDAG_GetByPayloadHash(t *testing.T) {
 
 func TestBBoltDAG_Diagnostics(t *testing.T) {
 	dag := createDAG(t).(*bboltDAG)
-	doc1 := CreateTestDocumentWithJWK(2)
+	doc1 := CreateTestTransactionWithJWK(2)
 	dag.Add(doc1)
 	diagnostics := dag.Diagnostics()
 	assert.Len(t, diagnostics, 3)
@@ -258,8 +304,8 @@ func TestBBoltDAG_Diagnostics(t *testing.T) {
 	sort.Strings(lines)
 	actual := strings.Join(lines, "\n")
 	assert.Equal(t, `[DAG] Heads: [`+doc1.Ref().String()+`]
-[DAG] Number of documents: 2
-[DAG] Stored document size (bytes): 0`, actual)
+[DAG] Number of transactions: 2
+[DAG] Stored transaction size (bytes): 0`, actual)
 }
 
 func Test_parseHashList(t *testing.T) {

@@ -13,7 +13,7 @@ func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
 		payloadStore: payloadStore,
 		dag:          dag,
 	}
-	dag.RegisterObserver(publisher.DocumentAdded)
+	dag.RegisterObserver(publisher.TransactionAdded)
 	payloadStore.RegisterObserver(publisher.PayloadWritten)
 	return publisher
 }
@@ -29,24 +29,24 @@ func (s *replayingDAGPublisher) PayloadWritten(_ interface{}) {
 	s.publish(hash.EmptyHash())
 }
 
-func (s *replayingDAGPublisher) DocumentAdded(document interface{}) {
-	doc := document.(Document)
-	// Received new document, add it to the subscription walker resume list so it resumes from this document
+func (s *replayingDAGPublisher) TransactionAdded(transaction interface{}) {
+	tx := transaction.(Transaction)
+	// Received new transaction, add it to the subscription walker resume list so it resumes from this transaction
 	// when the payload is received.
-	s.algo.resumeAt.PushBack(doc.Ref())
-	s.publish(doc.Ref())
+	s.algo.resumeAt.PushBack(tx.Ref())
+	s.publish(tx.Ref())
 }
 
-func (s *replayingDAGPublisher) Subscribe(documentType string, receiver Receiver) {
-	oldSubscriber := s.subscribers[documentType]
-	s.subscribers[documentType] = func(document SubscriberDocument, payload []byte) error {
+func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver) {
+	oldSubscriber := s.subscribers[payloadType]
+	s.subscribers[payloadType] = func(transaction SubscriberTransaction, payload []byte) error {
 		// Chain subscribers in case there's more than 1
 		if oldSubscriber != nil {
-			if err := oldSubscriber(document, payload); err != nil {
+			if err := oldSubscriber(transaction, payload); err != nil {
 				return err
 			}
 		}
-		return receiver(document, payload)
+		return receiver(transaction, payload)
 	}
 }
 
@@ -62,28 +62,28 @@ func (s replayingDAGPublisher) Start() {
 }
 
 func (s *replayingDAGPublisher) publish(startAt hash.SHA256Hash) {
-	err := s.dag.Walk(s.algo, s.publishDocument, startAt)
+	err := s.dag.Walk(s.algo, s.publishTransaction, startAt)
 	if err != nil {
 		log.Logger().Errorf("Unable to publish DAG: %v", err)
 	}
 }
 
-func (s *replayingDAGPublisher) publishDocument(document Document) bool {
-	receiver := s.subscribers[document.PayloadType()]
+func (s *replayingDAGPublisher) publishTransaction(transaction Transaction) bool {
+	receiver := s.subscribers[transaction.PayloadType()]
 	if receiver == nil {
 		return true
 	}
-	payload, err := s.payloadStore.ReadPayload(document.PayloadHash())
+	payload, err := s.payloadStore.ReadPayload(transaction.PayloadHash())
 	if err != nil {
-		log.Logger().Errorf("Unable to read payload to publish DAG: (ref=%s) %v", document.Ref(), err)
+		log.Logger().Errorf("Unable to read payload to publish DAG: (ref=%s) %v", transaction.Ref(), err)
 		return false
 	}
 	if payload == nil {
 		// We haven't got the payload, break of processing for this branch
 		return false
 	}
-	if err := receiver(document, payload); err != nil {
-		log.Logger().Errorf("Document subscriber returned an error (ref=%s,type=%s): %v", document.Ref(), document.PayloadType(), err)
+	if err := receiver(transaction, payload); err != nil {
+		log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
 	}
 	return true
 }

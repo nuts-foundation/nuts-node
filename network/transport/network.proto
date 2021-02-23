@@ -32,10 +32,10 @@ service Network {
 message NetworkMessage {
     Header header = 1;
     AdvertHashes advertHashes = 100;
-    DocumentListQuery DocumentListQuery = 101;
-    DocumentList DocumentList = 102;
-    DocumentPayloadQuery documentPayloadQuery = 103;
-    DocumentPayload documentPayload = 104;
+    TransactionListQuery TransactionListQuery = 101;
+    TransactionList TransactionList = 102;
+    TransactionPayloadQuery transactionPayloadQuery = 103;
+    TransactionPayload transactionPayload = 104;
 }
 
 // Metadata types
@@ -49,25 +49,25 @@ message AdvertHashes {
 }
 
 // Message to ask for a peer's hash list
-message DocumentListQuery {
+message TransactionListQuery {
 }
 
 // Message to inform a peer of our hash list
-message DocumentList {
-    repeated Document documents = 1;
+message TransactionList {
+    repeated Transaction transactions = 1;
 }
 
-message Document {
+message Transaction {
     bytes hash = 1;
     bytes data = 2;
 }
 
-// Message to ask for a peer for a specific document
-message DocumentPayloadQuery {
+// Message to ask for a peer for a specific transaction
+message TransactionPayloadQuery {
     bytes payloadHash = 1;
 }
 
-message DocumentPayload {
+message TransactionPayload {
     bytes payloadHash = 1;
     bytes data = 10;
 }

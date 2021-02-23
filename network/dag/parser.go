@@ -28,22 +28,22 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
-// ParseDocument parses the input as Nuts Network Document according to RFC004.
-func ParseDocument(input []byte) (Document, error) {
+// ParseTransaction parses the input as Nuts Network Transaction according to RFC004.
+func ParseTransaction(input []byte) (Transaction, error) {
 	message, err := jws.Parse(input)
 	if err != nil {
-		return nil, fmt.Errorf(unableToParseDocumentErrFmt, err)
+		return nil, fmt.Errorf(unableToParseTransactionErrFmt, err)
 	}
 	if len(message.Signatures()) == 0 {
-		return nil, documentValidationError("JWS does not contain any signature")
+		return nil, transactionValidationError("JWS does not contain any signature")
 	} else if len(message.Signatures()) > 1 {
-		return nil, documentValidationError("JWS contains multiple signature")
+		return nil, transactionValidationError("JWS contains multiple signature")
 	}
 
 	signature := message.Signatures()[0]
 	headers := signature.ProtectedHeaders()
 
-	var steps = []documentParseStep{
+	var steps = []transactionParseStep{
 		parseSigningAlgorithm,
 		parsePayload,
 		parseContentType,
@@ -55,7 +55,7 @@ func ParseDocument(input []byte) (Document, error) {
 		parseTimelineVersion,
 	}
 
-	result := &document{}
+	result := &transaction{}
 	result.setData(input)
 	for _, step := range steps {
 		if err := step(result, headers, message); err != nil {
@@ -65,138 +65,138 @@ func ParseDocument(input []byte) (Document, error) {
 	return result, nil
 }
 
-func documentValidationError(format string, args ...interface{}) error {
-	return fmt.Errorf(documentNotValidErrFmt, fmt.Errorf(format, args...))
+func transactionValidationError(format string, args ...interface{}) error {
+	return fmt.Errorf(transactionNotValidErrFmt, fmt.Errorf(format, args...))
 }
 
-// documentParseStep defines a function that parses a part of a JWS, building the internal representation of a document.
+// transactionParseStep defines a function that parses a part of a JWS, building the internal representation of a transaction.
 // If an error occurs during parsing or validation it should be returned.
-type documentParseStep func(document *document, headers jws.Headers, message *jws.Message) error
+type transactionParseStep func(transaction *transaction, headers jws.Headers, message *jws.Message) error
 
 // parseSigningAlgorithm validates whether the signing algorithm is allowed
-func parseSigningAlgorithm(_ *document, headers jws.Headers, _ *jws.Message) error {
+func parseSigningAlgorithm(_ *transaction, headers jws.Headers, _ *jws.Message) error {
 	if !isAlgoAllowed(headers.Algorithm()) {
-		return documentValidationError("signing algorithm not allowed: %s", headers.Algorithm())
+		return transactionValidationError("signing algorithm not allowed: %s", headers.Algorithm())
 	}
 	return nil
 }
 
-// parsePayload parses the document payload (contents) and sets it
-func parsePayload(document *document, _ jws.Headers, message *jws.Message) error {
+// parsePayload parses the transaction payload (contents) and sets it
+func parsePayload(transaction *transaction, _ jws.Headers, message *jws.Message) error {
 	payload, err := hash.ParseHex(string(message.Payload()))
 	if err != nil {
-		return documentValidationError("invalid payload: %w", err)
+		return transactionValidationError("invalid payload: %w", err)
 	}
-	document.payload = payload
+	transaction.payload = payload
 	return nil
 }
 
-// parseContentType parses, validates and sets the document payload content type.
-func parseContentType(document *document, headers jws.Headers, _ *jws.Message) error {
+// parseContentType parses, validates and sets the transaction payload content type.
+func parseContentType(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	contentType := headers.ContentType()
 	if !ValidatePayloadType(contentType) {
-		return documentValidationError(errInvalidPayloadType.Error())
+		return transactionValidationError(errInvalidPayloadType.Error())
 	}
-	document.payloadType = contentType
+	transaction.payloadType = contentType
 	return nil
 }
 
-// parseSignatureParams parses, validates and sets the document signing key (`jwk`) or key ID (`kid`).
-func parseSignatureParams(document *document, headers jws.Headers, _ *jws.Message) error {
+// parseSignatureParams parses, validates and sets the transaction signing key (`jwk`) or key ID (`kid`).
+func parseSignatureParams(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	if key, ok := headers.Get(jws.JWKKey); ok {
 		jwkKey := key.(jwk.Key)
-		document.signingKey = jwkKey
+		transaction.signingKey = jwkKey
 	}
 	// Get the keyID from the header (not to be confused with the keyID from the embedded key)
 	if kid, ok := headers.Get(jws.KeyIDKey); ok {
-		document.signingKeyID = kid.(string)
+		transaction.signingKeyID = kid.(string)
 	}
 	// Check RFC004 3.1 kid and jwk constraints
-	if (document.signingKey != nil && document.signingKeyID != "") || (document.signingKey == nil && document.signingKeyID == "") {
-		return documentValidationError("either `kid` or `jwk` header must be present (but not both)")
+	if (transaction.signingKey != nil && transaction.signingKeyID != "") || (transaction.signingKey == nil && transaction.signingKeyID == "") {
+		return transactionValidationError("either `kid` or `jwk` header must be present (but not both)")
 	}
-	document.signingAlgorithm = headers.Algorithm()
+	transaction.signingAlgorithm = headers.Algorithm()
 	return nil
 }
 
-// parseSigningTime parses, validates and sets the document signing time.
-func parseSigningTime(document *document, headers jws.Headers, _ *jws.Message) error {
+// parseSigningTime parses, validates and sets the transaction signing time.
+func parseSigningTime(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	if timeAsInterf, ok := headers.Get(signingTimeHeader); !ok {
-		return documentValidationError(missingHeaderErrFmt, signingTimeHeader)
+		return transactionValidationError(missingHeaderErrFmt, signingTimeHeader)
 	} else if timeAsFloat64, ok := timeAsInterf.(float64); !ok {
-		return documentValidationError(invalidHeaderErrFmt, signingTimeHeader)
+		return transactionValidationError(invalidHeaderErrFmt, signingTimeHeader)
 	} else {
-		document.signingTime = time.Unix(int64(timeAsFloat64), 0).UTC()
+		transaction.signingTime = time.Unix(int64(timeAsFloat64), 0).UTC()
 		return nil
 	}
 }
 
-// parseVersion parses, validates and sets the document format version.
-func parseVersion(document *document, headers jws.Headers, _ *jws.Message) error {
+// parseVersion parses, validates and sets the transaction format version.
+func parseVersion(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	var version Version
 	if versionAsInterf, ok := headers.Get(versionHeader); !ok {
-		return documentValidationError(missingHeaderErrFmt, versionHeader)
+		return transactionValidationError(missingHeaderErrFmt, versionHeader)
 	} else if versionAsFloat64, ok := versionAsInterf.(float64); !ok {
-		return documentValidationError(invalidHeaderErrFmt, versionHeader)
+		return transactionValidationError(invalidHeaderErrFmt, versionHeader)
 	} else if version = Version(versionAsFloat64); version != currentVersion {
-		return documentValidationError("unsupported version: %d", version)
+		return transactionValidationError("unsupported version: %d", version)
 	} else {
-		document.version = version
+		transaction.version = version
 		return nil
 	}
 }
 
-// parsePrevious parses, validates and sets the document prevs fields.
-func parsePrevious(document *document, headers jws.Headers, _ *jws.Message) error {
+// parsePrevious parses, validates and sets the transaction prevs fields.
+func parsePrevious(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	if prevsAsInterf, ok := headers.Get(previousHeader); !ok {
-		return documentValidationError(missingHeaderErrFmt, previousHeader)
+		return transactionValidationError(missingHeaderErrFmt, previousHeader)
 	} else if prevsAsSlice, ok := prevsAsInterf.([]interface{}); !ok {
-		return documentValidationError(invalidHeaderErrFmt, previousHeader)
+		return transactionValidationError(invalidHeaderErrFmt, previousHeader)
 	} else {
 		for _, prevAsInterf := range prevsAsSlice {
 			if prevAsString, ok := prevAsInterf.(string); !ok {
-				return documentValidationError(invalidHeaderErrFmt, previousHeader)
+				return transactionValidationError(invalidHeaderErrFmt, previousHeader)
 			} else if prev, err := hash.ParseHex(prevAsString); err != nil {
-				return documentValidationError(invalidHeaderErrFmt, previousHeader)
+				return transactionValidationError(invalidHeaderErrFmt, previousHeader)
 			} else {
-				document.prevs = append(document.prevs, prev)
+				transaction.prevs = append(transaction.prevs, prev)
 			}
 		}
 		return nil
 	}
 }
 
-// parseTimelineID parses, validates and sets the document timeline ID field.
-func parseTimelineID(document *document, headers jws.Headers, _ *jws.Message) error {
+// parseTimelineID parses, validates and sets the transaction timeline ID field.
+func parseTimelineID(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	if tidAsInterf, _ := headers.Get(timelineIDHeader); tidAsInterf != nil {
 		if tidAsString, ok := tidAsInterf.(string); !ok {
-			return documentValidationError(invalidHeaderErrFmt, timelineIDHeader)
+			return transactionValidationError(invalidHeaderErrFmt, timelineIDHeader)
 		} else if timelineID, err := hash.ParseHex(tidAsString); err != nil {
-			return documentValidationError(invalidHeaderErrFmt+": %w", timelineIDHeader, err)
+			return transactionValidationError(invalidHeaderErrFmt+": %w", timelineIDHeader, err)
 		} else {
-			document.timelineID = timelineID
+			transaction.timelineID = timelineID
 		}
 	}
 	return nil
 }
 
-// parseTimelineVersion parses, validates and sets the document timeline version field. Timeline ID must be present when
+// parseTimelineVersion parses, validates and sets the transaction timeline version field. Timeline ID must be present when
 // timeline version is present.
-func parseTimelineVersion(document *document, headers jws.Headers, _ *jws.Message) error {
+func parseTimelineVersion(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	tivAsInterf, _ := headers.Get(timelineVersionHeader)
 	if tivAsInterf == nil {
 		return nil
 	}
 	if tiv, ok := tivAsInterf.(float64); !ok {
-		return documentValidationError(invalidHeaderErrFmt, timelineVersionHeader)
+		return transactionValidationError(invalidHeaderErrFmt, timelineVersionHeader)
 	} else if tiv < 0 {
-		return documentValidationError(invalidHeaderErrFmt, timelineVersionHeader)
-	} else if document.timelineID.Empty() {
-		return documentValidationError("%s specified without %s header", timelineVersionHeader, timelineIDHeader)
+		return transactionValidationError(invalidHeaderErrFmt, timelineVersionHeader)
+	} else if transaction.timelineID.Empty() {
+		return transactionValidationError("%s specified without %s header", timelineVersionHeader, timelineIDHeader)
 	} else if tiv != float64(int(tiv)) {
-		return documentValidationError(invalidHeaderErrFmt, timelineVersionHeader)
+		return transactionValidationError(invalidHeaderErrFmt, timelineVersionHeader)
 	} else {
-		document.timelineVersion = int(tiv)
+		transaction.timelineVersion = int(tiv)
 		return nil
 	}
 }

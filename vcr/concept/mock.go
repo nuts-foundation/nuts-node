@@ -5,49 +5,36 @@
 package concept
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
-	reflect "reflect"
 )
 
-// MockRegistry is a mock of Registry interface
+// MockRegistry is a mock of Registry interface.
 type MockRegistry struct {
 	ctrl     *gomock.Controller
 	recorder *MockRegistryMockRecorder
 }
 
-// MockRegistryMockRecorder is the mock recorder for MockRegistry
+// MockRegistryMockRecorder is the mock recorder for MockRegistry.
 type MockRegistryMockRecorder struct {
 	mock *MockRegistry
 }
 
-// NewMockRegistry creates a new mock instance
+// NewMockRegistry creates a new mock instance.
 func NewMockRegistry(ctrl *gomock.Controller) *MockRegistry {
 	mock := &MockRegistry{ctrl: ctrl}
 	mock.recorder = &MockRegistryMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRegistry) EXPECT() *MockRegistryMockRecorder {
 	return m.recorder
 }
 
-// ConceptTemplates mocks base method
-func (m *MockRegistry) ConceptTemplates() map[string][]*Template {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ConceptTemplates")
-	ret0, _ := ret[0].(map[string][]*Template)
-	return ret0
-}
-
-// ConceptTemplates indicates an expected call of ConceptTemplates
-func (mr *MockRegistryMockRecorder) ConceptTemplates() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConceptTemplates", reflect.TypeOf((*MockRegistry)(nil).ConceptTemplates))
-}
-
-// Add mocks base method
+// Add mocks base method.
 func (m *MockRegistry) Add(conceptTemplate *Template) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Add", conceptTemplate)
@@ -55,13 +42,27 @@ func (m *MockRegistry) Add(conceptTemplate *Template) error {
 	return ret0
 }
 
-// Add indicates an expected call of Add
+// Add indicates an expected call of Add.
 func (mr *MockRegistryMockRecorder) Add(conceptTemplate interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockRegistry)(nil).Add), conceptTemplate)
 }
 
-// QueryFor mocks base method
+// ConceptTemplates mocks base method.
+func (m *MockRegistry) ConceptTemplates() map[string][]*Template {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConceptTemplates")
+	ret0, _ := ret[0].(map[string][]*Template)
+	return ret0
+}
+
+// ConceptTemplates indicates an expected call of ConceptTemplates.
+func (mr *MockRegistryMockRecorder) ConceptTemplates() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConceptTemplates", reflect.TypeOf((*MockRegistry)(nil).ConceptTemplates))
+}
+
+// QueryFor mocks base method.
 func (m *MockRegistry) QueryFor(concept string) (Query, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryFor", concept)
@@ -70,13 +71,13 @@ func (m *MockRegistry) QueryFor(concept string) (Query, error) {
 	return ret0, ret1
 }
 
-// QueryFor indicates an expected call of QueryFor
+// QueryFor indicates an expected call of QueryFor.
 func (mr *MockRegistryMockRecorder) QueryFor(concept interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryFor", reflect.TypeOf((*MockRegistry)(nil).QueryFor), concept)
 }
 
-// Transform mocks base method
+// Transform mocks base method.
 func (m *MockRegistry) Transform(concept string, VC go_did.VerifiableCredential) (Concept, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Transform", concept, VC)
@@ -85,7 +86,7 @@ func (m *MockRegistry) Transform(concept string, VC go_did.VerifiableCredential)
 	return ret0, ret1
 }
 
-// Transform indicates an expected call of Transform
+// Transform indicates an expected call of Transform.
 func (mr *MockRegistryMockRecorder) Transform(concept, VC interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transform", reflect.TypeOf((*MockRegistry)(nil).Transform), concept, VC)

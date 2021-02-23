@@ -17,17 +17,17 @@ func TestReplayingPublisher(t *testing.T) {
 		payloadStore := NewBBoltPayloadStore(db)
 		publisher := NewReplayingDAGPublisher(payloadStore, dag).(*replayingDAGPublisher)
 		received := false
-		document := CreateTestDocumentWithJWK(1)
-		publisher.Subscribe(document.PayloadType(), func(actualDocument SubscriberDocument, actualPayload []byte) error {
-			assert.Equal(t, document, actualDocument)
+		transaction := CreateTestTransactionWithJWK(1)
+		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
+			assert.Equal(t, transaction, actualTransaction)
 			received = true
 			return nil
 		})
 		publisher.Start()
 
-		// Now add document and write payload to trigger the observers
-		dag.Add(document)
-		payloadStore.WritePayload(document.PayloadHash(), []byte{1, 2, 3})
+		// Now add transaction and write payload to trigger the observers
+		dag.Add(transaction)
+		payloadStore.WritePayload(transaction.PayloadHash(), []byte{1, 2, 3})
 
 		assert.True(t, received)
 	})
@@ -36,20 +36,20 @@ func TestReplayingPublisher(t *testing.T) {
 		db := createBBoltDB(testDirectory)
 		dag := NewBBoltDAG(db)
 		payloadStore := NewBBoltPayloadStore(db)
-		document := CreateTestDocumentWithJWK(1)
-		err := dag.Add(document)
+		transaction := CreateTestTransactionWithJWK(1)
+		err := dag.Add(transaction)
 		if !assert.NoError(t, err) {
 			return
 		}
-		err = payloadStore.WritePayload(document.PayloadHash(), []byte{1, 2, 3})
+		err = payloadStore.WritePayload(transaction.PayloadHash(), []byte{1, 2, 3})
 		if !assert.NoError(t, err) {
 			return
 		}
 
 		publisher := NewReplayingDAGPublisher(payloadStore, dag).(*replayingDAGPublisher)
 		received := false
-		publisher.Subscribe(document.PayloadType(), func(actualDocument SubscriberDocument, actualPayload []byte) error {
-			assert.Equal(t, document, actualDocument)
+		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
+			assert.Equal(t, transaction, actualTransaction)
 			received = true
 			return nil
 		})
@@ -59,48 +59,48 @@ func TestReplayingPublisher(t *testing.T) {
 	})
 }
 
-func TestReplayingPublisher_publishDocument(t *testing.T) {
+func TestReplayingPublisher_publishTransaction(t *testing.T) {
 	t.Run("no subscribers", func(t *testing.T) {
 		publisher, ctrl, _ := createPublisher(t)
 		defer ctrl.Finish()
 
-		publisher.publishDocument(CreateTestDocumentWithJWK(1))
+		publisher.publishTransaction(CreateTestTransactionWithJWK(1))
 	})
 	t.Run("single subscriber", func(t *testing.T) {
 		publisher, ctrl, store := createPublisher(t)
 		defer ctrl.Finish()
 
-		document := CreateTestDocumentWithJWK(1)
-		store.EXPECT().ReadPayload(document.PayloadHash()).Return([]byte{1, 2, 3}, nil)
+		transaction := CreateTestTransactionWithJWK(1)
+		store.EXPECT().ReadPayload(transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 
 		received := false
-		publisher.Subscribe(document.PayloadType(), func(actualDocument SubscriberDocument, actualPayload []byte) error {
-			assert.Equal(t, document, actualDocument)
+		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
+			assert.Equal(t, transaction, actualTransaction)
 			received = true
 			return nil
 		})
-		publisher.publishDocument(document)
+		publisher.publishTransaction(transaction)
 		assert.True(t, received)
 	})
 	t.Run("payload not present (but present later)", func(t *testing.T) {
 		publisher, ctrl, store := createPublisher(t)
 		defer ctrl.Finish()
 
-		document := CreateTestDocumentWithJWK(1)
-		store.EXPECT().ReadPayload(document.PayloadHash()).Return(nil, nil)
+		transaction := CreateTestTransactionWithJWK(1)
+		store.EXPECT().ReadPayload(transaction.PayloadHash()).Return(nil, nil)
 
 		received := false
-		publisher.Subscribe(document.PayloadType(), func(actualDocument SubscriberDocument, actualPayload []byte) error {
-			assert.Equal(t, document, actualDocument)
+		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
+			assert.Equal(t, transaction, actualTransaction)
 			received = true
 			return nil
 		})
-		publisher.publishDocument(document)
+		publisher.publishTransaction(transaction)
 		assert.False(t, received)
 
 		// Now add the payload and trigger observer func
-		store.EXPECT().ReadPayload(document.PayloadHash()).Return([]byte{1, 2, 3}, nil)
-		publisher.publishDocument(document)
+		store.EXPECT().ReadPayload(transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
+		publisher.publishTransaction(transaction)
 
 		assert.True(t, received)
 	})
@@ -108,49 +108,49 @@ func TestReplayingPublisher_publishDocument(t *testing.T) {
 		publisher, ctrl, store := createPublisher(t)
 		defer ctrl.Finish()
 
-		document := CreateTestDocumentWithJWK(1)
-		store.EXPECT().ReadPayload(document.PayloadHash()).Return(nil, errors.New("failed"))
+		transaction := CreateTestTransactionWithJWK(1)
+		store.EXPECT().ReadPayload(transaction.PayloadHash()).Return(nil, errors.New("failed"))
 
 		received := false
-		publisher.Subscribe(document.PayloadType(), func(actualDocument SubscriberDocument, actualPayload []byte) error {
+		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
 			received = true
 			return nil
 		})
-		publisher.publishDocument(document)
+		publisher.publishTransaction(transaction)
 		assert.False(t, received)
 	})
 	t.Run("multiple subscribers", func(t *testing.T) {
 		publisher, ctrl, store := createPublisher(t)
 		defer ctrl.Finish()
 
-		document := CreateTestDocumentWithJWK(1)
-		store.EXPECT().ReadPayload(document.PayloadHash()).Return([]byte{1, 2, 3}, nil)
+		transaction := CreateTestTransactionWithJWK(1)
+		store.EXPECT().ReadPayload(transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 
 		calls := 0
-		receiver := func(actualDocument SubscriberDocument, actualPayload []byte) error {
+		receiver := func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
 			calls++
 			return nil
 		}
-		publisher.Subscribe(document.PayloadType(), receiver)
-		publisher.Subscribe(document.PayloadType(), receiver)
+		publisher.Subscribe(transaction.PayloadType(), receiver)
+		publisher.Subscribe(transaction.PayloadType(), receiver)
 
-		publisher.publishDocument(document)
+		publisher.publishTransaction(transaction)
 		assert.Equal(t, 2, calls)
 	})
 	t.Run("multiple subscribers, first fails", func(t *testing.T) {
 		publisher, ctrl, store := createPublisher(t)
 		defer ctrl.Finish()
 
-		document := CreateTestDocumentWithJWK(1)
-		store.EXPECT().ReadPayload(document.PayloadHash()).Return([]byte{1, 2, 3}, nil)
+		transaction := CreateTestTransactionWithJWK(1)
+		store.EXPECT().ReadPayload(transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 		calls := 0
-		receiver := func(actualDocument SubscriberDocument, actualPayload []byte) error {
+		receiver := func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
 			calls++
 			return errors.New("failed")
 		}
-		publisher.Subscribe(document.PayloadType(), receiver)
-		publisher.Subscribe(document.PayloadType(), receiver)
-		publisher.publishDocument(document)
+		publisher.Subscribe(transaction.PayloadType(), receiver)
+		publisher.Subscribe(transaction.PayloadType(), receiver)
+		publisher.publishTransaction(transaction)
 		assert.Equal(t, 1, calls)
 	})
 }

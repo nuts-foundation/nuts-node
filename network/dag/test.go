@@ -28,32 +28,32 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
-// CreateTestDocumentWithJWK creates a document with the given num as payload hash and signs it with a random EC key.
+// CreateTestTransactionWithJWK creates a transaction with the given num as payload hash and signs it with a random EC key.
 // The JWK is attached, rather than referred to using the kid.
-func CreateTestDocumentWithJWK(num uint32, prevs ...hash.SHA256Hash) Document {
+func CreateTestTransactionWithJWK(num uint32, prevs ...hash.SHA256Hash) Transaction {
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
-	unsignedDocument, _ := NewDocument(payloadHash, "foo/bar", prevs)
+	unsignedTransaction, _ := NewTransaction(payloadHash, "foo/bar", prevs)
 	signer := crypto2.NewTestSigner()
-	signedDocument, err := NewAttachedJWKDocumentSigner(signer, fmt.Sprintf("%d", num), signer.Key.Public()).Sign(unsignedDocument, time.Now())
+	signedTransaction, err := NewAttachedJWKTransactionSigner(signer, fmt.Sprintf("%d", num), signer.Key.Public()).Sign(unsignedTransaction, time.Now())
 	if err != nil {
 		panic(err)
 	}
-	return signedDocument
+	return signedTransaction
 }
 
-// CreateTestDocument creates a document with the given num as payload hash and signs it with a random EC key.
-func CreateTestDocument(num uint32, prevs ...hash.SHA256Hash) (Document, string, crypto.PublicKey) {
+// CreateTestTransaction creates a transaction with the given num as payload hash and signs it with a random EC key.
+func CreateTestTransaction(num uint32, prevs ...hash.SHA256Hash) (Transaction, string, crypto.PublicKey) {
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
-	unsignedDocument, _ := NewDocument(payloadHash, "foo/bar", prevs)
+	unsignedTransaction, _ := NewTransaction(payloadHash, "foo/bar", prevs)
 	signer := crypto2.NewTestSigner()
 	kid := fmt.Sprintf("%d", num)
-	signedDocument, err := NewDocumentSigner(signer, kid).Sign(unsignedDocument, time.Now())
+	signedTransaction, err := NewTransactionSigner(signer, kid).Sign(unsignedTransaction, time.Now())
 	if err != nil {
 		panic(err)
 	}
-	return signedDocument, kid, signer.Key.Public()
+	return signedTransaction, kid, signer.Key.Public()
 }
 
 // graphF creates the following graph:
@@ -64,14 +64,14 @@ func CreateTestDocument(num uint32, prevs ...hash.SHA256Hash) (Document, string,
 //.................D    E
 //.......................\
 //........................F
-func graphF() []Document {
-	A := CreateTestDocumentWithJWK(0)
-	B := CreateTestDocumentWithJWK(1, A.Ref())
-	C := CreateTestDocumentWithJWK(2, A.Ref())
-	D := CreateTestDocumentWithJWK(3, B.Ref(), C.Ref())
-	E := CreateTestDocumentWithJWK(4, C.Ref())
-	F := CreateTestDocumentWithJWK(5, E.Ref())
-	return []Document{A, B, C, D, E, F}
+func graphF() []Transaction {
+	A := CreateTestTransactionWithJWK(0)
+	B := CreateTestTransactionWithJWK(1, A.Ref())
+	C := CreateTestTransactionWithJWK(2, A.Ref())
+	D := CreateTestTransactionWithJWK(3, B.Ref(), C.Ref())
+	E := CreateTestTransactionWithJWK(4, C.Ref())
+	F := CreateTestTransactionWithJWK(5, E.Ref())
+	return []Transaction{A, B, C, D, E, F}
 }
 
 // graphG creates the following graph:
@@ -84,9 +84,9 @@ func graphF() []Document {
 //..................\.....F
 //...................\.../
 //.....................G
-func graphG() []Document {
+func graphG() []Transaction {
 	docs := graphF()
-	g := CreateTestDocumentWithJWK(6, docs[3].Ref(), docs[5].Ref())
+	g := CreateTestTransactionWithJWK(6, docs[3].Ref(), docs[5].Ref())
 	docs = append(docs, g)
 	return docs
 }

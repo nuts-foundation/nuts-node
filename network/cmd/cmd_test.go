@@ -37,7 +37,7 @@ func TestFlagSet(t *testing.T) {
 
 func TestCmd_List(t *testing.T) {
 	cmd := Cmd()
-	response := []interface{}{string(dag.CreateTestDocumentWithJWK(1).Data()), string(dag.CreateTestDocumentWithJWK(2).Data())}
+	response := []interface{}{string(dag.CreateTestTransactionWithJWK(1).Data()), string(dag.CreateTestTransactionWithJWK(2).Data())}
 	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
 	os.Setenv("NUTS_ADDRESS", s.URL)
 	defer os.Unsetenv("NUTS_ADDRESS")
@@ -51,7 +51,7 @@ func TestCmd_List(t *testing.T) {
 
 func TestCmd_Get(t *testing.T) {
 	cmd := Cmd()
-	response := dag.CreateTestDocumentWithJWK(1)
+	response := dag.CreateTestTransactionWithJWK(1)
 	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
 	s := httptest.NewServer(handler)
 	os.Setenv("NUTS_ADDRESS", s.URL)

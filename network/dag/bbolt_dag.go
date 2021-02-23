@@ -28,24 +28,24 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-// documentsBucket is the name of the Bolt bucket that holds the actual documents as JSON.
-const documentsBucket = "documents"
+// transactionsBucket is the name of the Bolt bucket that holds the actual transactions as JSON.
+const transactionsBucket = "transactions"
 
-// missingDocumentsBucket is the name of the Bolt bucket that holds the references of the documents we're having prevs
+// missingTransactionsBucket is the name of the Bolt bucket that holds the references of the transactions we're having prevs
 // to, but are missing (and will be added later, hopefully).
-const missingDocumentsBucket = "missingdocuments"
+const missingTransactionsBucket = "missingtransactions"
 
-// payloadIndexBucket is the name of the Bolt bucket that holds the a reverse reference from payload hash back to documents.
-// The value ([]byte) should be split in chunks of HashSize where each entry is a document reference that refers to
+// payloadIndexBucket is the name of the Bolt bucket that holds the a reverse reference from payload hash back to transactions.
+// The value ([]byte) should be split in chunks of HashSize where each entry is a transaction reference that refers to
 // the payload.
 const payloadIndexBucket = "payloadIndex"
 
-// nextsBucket is the name of the Bolt bucket that holds the forward document references (a.k.a. "nexts") as document
+// nextsBucket is the name of the Bolt bucket that holds the forward transaction references (a.k.a. "nexts") as transaction
 // refs. The value ([]byte) should be split in chunks of HashSize where each entry is a forward reference (next).
 const nextsBucket = "nexts"
 
-// rootDocumentKey is the name of the bucket entry that holds the refs of the root documents.
-const rootsDocumentKey = "roots"
+// rootsTransactionKey is the name of the bucket entry that holds the refs of the root transactions.
+const rootsTransactionKey = "roots"
 
 // headsBucket contains the name of the bucket the holds the heads.
 const headsBucket = "heads"
@@ -68,16 +68,16 @@ func (d headsStatistic) String() string {
 	return fmt.Sprintf("%v", d.heads)
 }
 
-type numberOfDocumentsStatistic struct {
-	numberOfDocuments int
+type numberOfTransactionsStatistic struct {
+	numberOfTransactions int
 }
 
-func (d numberOfDocumentsStatistic) Name() string {
-	return "[DAG] Number of documents"
+func (d numberOfTransactionsStatistic) Name() string {
+	return "[DAG] Number of transactions"
 }
 
-func (d numberOfDocumentsStatistic) String() string {
-	return fmt.Sprintf("%d", d.numberOfDocuments)
+func (d numberOfTransactionsStatistic) String() string {
+	return fmt.Sprintf("%d", d.numberOfTransactions)
 }
 
 type dataSizeStatistic struct {
@@ -85,7 +85,7 @@ type dataSizeStatistic struct {
 }
 
 func (d dataSizeStatistic) Name() string {
-	return "[DAG] Stored document size (bytes)"
+	return "[DAG] Stored transaction size (bytes)"
 }
 
 func (d dataSizeStatistic) String() string {
@@ -94,7 +94,11 @@ func (d dataSizeStatistic) String() string {
 
 // NewBBoltDAG creates a etcd/bbolt backed DAG using the given database.
 func NewBBoltDAG(db *bbolt.DB) DAG {
-	return &bboltDAG{db: db}
+	result := &bboltDAG{db: db}
+	if err := result.migrate(); err != nil {
+		panic(err)
+	}
+	return result
 }
 
 func (dag *bboltDAG) RegisterObserver(observer Observer) {
@@ -104,25 +108,25 @@ func (dag *bboltDAG) RegisterObserver(observer Observer) {
 func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 	result := make([]core.DiagnosticResult, 0)
 	result = append(result, headsStatistic{heads: dag.Heads()})
-	documentNum := 0
+	transactionNum := 0
 	_ = dag.db.View(func(tx *bbolt.Tx) error {
-		if bucket := tx.Bucket([]byte(documentsBucket)); bucket != nil {
-			documentNum = bucket.Stats().KeyN
+		if bucket := tx.Bucket([]byte(transactionsBucket)); bucket != nil {
+			transactionNum = bucket.Stats().KeyN
 		}
 		return nil
 	})
-	result = append(result, numberOfDocumentsStatistic{numberOfDocuments: documentNum})
+	result = append(result, numberOfTransactionsStatistic{numberOfTransactions: transactionNum})
 	// TODO: https://github.com/nuts-foundation/nuts-node/issues/11
 	result = append(result, dataSizeStatistic{sizeInBytes: 0})
 	return result
 }
 
-func (dag bboltDAG) Get(ref hash.SHA256Hash) (Document, error) {
-	var result Document
+func (dag bboltDAG) Get(ref hash.SHA256Hash) (Transaction, error) {
+	var result Transaction
 	var err error
 	err = dag.db.View(func(tx *bbolt.Tx) error {
-		if documents := tx.Bucket([]byte(documentsBucket)); documents != nil {
-			result, err = getDocument(ref, documents)
+		if transactions := tx.Bucket([]byte(transactionsBucket)); transactions != nil {
+			result, err = getTransaction(ref, transactions)
 			return err
 		}
 		return nil
@@ -130,21 +134,21 @@ func (dag bboltDAG) Get(ref hash.SHA256Hash) (Document, error) {
 	return result, err
 }
 
-func (dag bboltDAG) GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Document, error) {
-	result := make([]Document, 0)
+func (dag bboltDAG) GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Transaction, error) {
+	result := make([]Transaction, 0)
 	err := dag.db.View(func(tx *bbolt.Tx) error {
-		documents := tx.Bucket([]byte(documentsBucket))
+		transactions := tx.Bucket([]byte(transactionsBucket))
 		payloadIndex := tx.Bucket([]byte(payloadIndexBucket))
-		if documents == nil || payloadIndex == nil {
+		if transactions == nil || payloadIndex == nil {
 			return nil
 		}
-		documentHashes := parseHashList(payloadIndex.Get(payloadHash.Slice()))
-		for _, documentHash := range documentHashes {
-			document, err := getDocument(documentHash, documents)
+		transactionHashes := parseHashList(payloadIndex.Get(payloadHash.Slice()))
+		for _, transactionHash := range transactionHashes {
+			transaction, err := getTransaction(transactionHash, transactions)
 			if err != nil {
 				return err
 			}
-			result = append(result, document)
+			result = append(result, transaction)
 		}
 		return nil
 	})
@@ -167,20 +171,20 @@ func (dag bboltDAG) Heads() []hash.SHA256Hash {
 	return result
 }
 
-func (dag bboltDAG) All() ([]Document, error) {
-	result := make([]Document, 0)
+func (dag bboltDAG) All() ([]Transaction, error) {
+	result := make([]Transaction, 0)
 	err := dag.db.View(func(tx *bbolt.Tx) error {
-		if documents := tx.Bucket([]byte(documentsBucket)); documents != nil {
-			cursor := documents.Cursor()
-			for ref, documentBytes := cursor.First(); documentBytes != nil; ref, documentBytes = cursor.Next() {
-				if bytes.Equal(ref, []byte(rootsDocumentKey)) {
+		if transactions := tx.Bucket([]byte(transactionsBucket)); transactions != nil {
+			cursor := transactions.Cursor()
+			for ref, transactionBytes := cursor.First(); transactionBytes != nil; ref, transactionBytes = cursor.Next() {
+				if bytes.Equal(ref, []byte(rootsTransactionKey)) {
 					continue
 				}
-				document, err := ParseDocument(documentBytes)
+				transaction, err := ParseTransaction(transactionBytes)
 				if err != nil {
-					return fmt.Errorf("unable to parse document %s: %w", ref, err)
+					return fmt.Errorf("unable to parse transaction %s: %w", ref, err)
 				}
-				result = append(result, document)
+				result = append(result, transaction)
 			}
 			return nil
 		}
@@ -190,13 +194,13 @@ func (dag bboltDAG) All() ([]Document, error) {
 }
 
 func (dag bboltDAG) IsPresent(ref hash.SHA256Hash) (bool, error) {
-	return isPresent(dag.db, documentsBucket, ref.Slice())
+	return isPresent(dag.db, transactionsBucket, ref.Slice())
 }
 
-func (dag bboltDAG) MissingDocuments() []hash.SHA256Hash {
+func (dag bboltDAG) MissingTransactions() []hash.SHA256Hash {
 	result := make([]hash.SHA256Hash, 0)
 	if err := dag.db.View(func(tx *bbolt.Tx) error {
-		if bucket := tx.Bucket([]byte(missingDocumentsBucket)); bucket != nil {
+		if bucket := tx.Bucket([]byte(missingTransactionsBucket)); bucket != nil {
 			cursor := bucket.Cursor()
 			for ref, _ := cursor.First(); ref != nil; ref, _ = cursor.Next() {
 				result = append(result, hash.FromSlice(ref))
@@ -204,15 +208,15 @@ func (dag bboltDAG) MissingDocuments() []hash.SHA256Hash {
 		}
 		return nil
 	}); err != nil {
-		log.Logger().Errorf("Unable to fetch missing documents: %v", err)
+		log.Logger().Errorf("Unable to fetch missing transactions: %v", err)
 	}
 	return result
 }
 
-func (dag *bboltDAG) Add(documents ...Document) error {
-	for _, document := range documents {
-		if document != nil {
-			if err := dag.add(document); err != nil {
+func (dag *bboltDAG) Add(transactions ...Transaction) error {
+	for _, transaction := range transactions {
+		if transaction != nil {
+			if err := dag.add(transaction); err != nil {
 				return err
 			}
 		}
@@ -222,14 +226,14 @@ func (dag *bboltDAG) Add(documents ...Document) error {
 
 func (dag bboltDAG) Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error {
 	return dag.db.View(func(tx *bbolt.Tx) error {
-		documents := tx.Bucket([]byte(documentsBucket))
+		transactions := tx.Bucket([]byte(transactionsBucket))
 		nexts := tx.Bucket([]byte(nextsBucket))
-		if documents == nil || nexts == nil {
+		if transactions == nil || nexts == nil {
 			// DAG is empty
 			return nil
 		}
-		return algo.walk(visitor, startAt, func(hash hash.SHA256Hash) (Document, error) {
-			return getDocument(hash, documents)
+		return algo.walk(visitor, startAt, func(hash hash.SHA256Hash) (Transaction, error) {
+			return getTransaction(hash, transactions)
 		}, func(hash hash.SHA256Hash) ([]hash.SHA256Hash, error) {
 			return parseHashList(nexts.Get(hash.Slice())), nil
 		})
@@ -238,8 +242,8 @@ func (dag bboltDAG) Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA
 
 func (dag bboltDAG) Root() (hash hash.SHA256Hash, err error) {
 	err = dag.db.View(func(tx *bbolt.Tx) error {
-		if documents := tx.Bucket([]byte(documentsBucket)); documents != nil {
-			if roots := getRoots(documents); len(roots) >= 1 {
+		if transactions := tx.Bucket([]byte(transactionsBucket)); transactions != nil {
+			if roots := getRoots(transactions); len(roots) >= 1 {
 				hash = roots[0]
 			}
 		}
@@ -261,38 +265,38 @@ func isPresent(db *bbolt.DB, bucketName string, key []byte) (bool, error) {
 	return result, err
 }
 
-func (dag *bboltDAG) add(document Document) error {
-	ref := document.Ref()
+func (dag *bboltDAG) add(transaction Transaction) error {
+	ref := transaction.Ref()
 	refSlice := ref.Slice()
 	err := dag.db.Update(func(tx *bbolt.Tx) error {
-		documents, nexts, missingDocuments, payloadIndex, heads, err := getBuckets(tx)
+		transactions, nexts, missingTransactions, payloadIndex, heads, err := getBuckets(tx)
 		if err != nil {
 			return err
 		}
-		if exists(documents, ref) {
-			log.Logger().Tracef("Document %s already exists, not adding it again.", ref)
+		if exists(transactions, ref) {
+			log.Logger().Tracef("Transaction %s already exists, not adding it again.", ref)
 			return nil
 		}
-		if len(document.Previous()) == 0 {
-			if getRoots(documents) != nil {
+		if len(transaction.Previous()) == 0 {
+			if getRoots(transactions) != nil {
 				return errRootAlreadyExists
 			}
-			if err := addRoot(documents, ref); err != nil {
+			if err := addRoot(transactions, ref); err != nil {
 				return fmt.Errorf("unable to register root %s: %w", ref, err)
 			}
 		}
-		if err := documents.Put(refSlice, document.Data()); err != nil {
+		if err := transactions.Put(refSlice, transaction.Data()); err != nil {
 			return err
 		}
 		// Store forward references ([C -> prev A, B] is stored as [A -> C, B -> C])
-		for _, prev := range document.Previous() {
+		for _, prev := range transaction.Previous() {
 			if err := dag.registerNextRef(nexts, prev, ref); err != nil {
 				return fmt.Errorf("unable to store forward reference %s->%s: %w", prev, ref, err)
 			}
-			if !exists(documents, prev) {
-				log.Logger().Debugf("Document %s is referring to missing prev %s, marking it as missing", ref, prev)
-				if err = missingDocuments.Put(prev.Slice(), []byte{1}); err != nil {
-					return fmt.Errorf("unable to register missing document %s: %w", prev, err)
+			if !exists(transactions, prev) {
+				log.Logger().Debugf("Transaction %s is referring to missing prev %s, marking it as missing", ref, prev)
+				if err = missingTransactions.Put(prev.Slice(), []byte{1}); err != nil {
+					return fmt.Errorf("unable to register missing transaction %s: %w", prev, err)
 				}
 			}
 			if err := heads.Delete(prev.Slice()); err != nil {
@@ -300,34 +304,34 @@ func (dag *bboltDAG) add(document Document) error {
 			}
 		}
 		// See if this is a head
-		if len(missingDocuments.Get(refSlice)) == 0 {
-			// This is not a previously missing document, so it is a head (for now)
+		if len(missingTransactions.Get(refSlice)) == 0 {
+			// This is not a previously missing transaction, so it is a head (for now)
 			if err := heads.Put(refSlice, []byte{1}); err != nil {
-				return fmt.Errorf("unable to mark document as head (ref=%s): %w", ref, err)
+				return fmt.Errorf("unable to mark transaction as head (ref=%s): %w", ref, err)
 			}
 		}
-		// Store reverse reference from payload hash to document
-		newPayloadIndexValue := appendHashList(payloadIndex.Get(document.PayloadHash().Slice()), ref)
-		if err = payloadIndex.Put(document.PayloadHash().Slice(), newPayloadIndexValue); err != nil {
-			return fmt.Errorf("unable to update payload index for document %s: %w", ref, err)
+		// Store reverse reference from payload hash to transaction
+		newPayloadIndexValue := appendHashList(payloadIndex.Get(transaction.PayloadHash().Slice()), ref)
+		if err = payloadIndex.Put(transaction.PayloadHash().Slice(), newPayloadIndexValue); err != nil {
+			return fmt.Errorf("unable to update payload index for transaction %s: %w", ref, err)
 		}
-		// Remove marker if this document was previously missing
-		return missingDocuments.Delete(refSlice)
+		// Remove marker if this transaction was previously missing
+		return missingTransactions.Delete(refSlice)
 	})
 	if err == nil {
-		notifyObservers(dag.observers, document)
+		notifyObservers(dag.observers, transaction)
 	}
 	return err
 }
 
-func getBuckets(tx *bbolt.Tx) (documents, nexts, missingDocuments, payloadIndex, heads *bbolt.Bucket, err error) {
-	if documents, err = tx.CreateBucketIfNotExists([]byte(documentsBucket)); err != nil {
+func getBuckets(tx *bbolt.Tx) (transactions, nexts, missingTransactions, payloadIndex, heads *bbolt.Bucket, err error) {
+	if transactions, err = tx.CreateBucketIfNotExists([]byte(transactionsBucket)); err != nil {
 		return
 	}
 	if nexts, err = tx.CreateBucketIfNotExists([]byte(nextsBucket)); err != nil {
 		return
 	}
-	if missingDocuments, err = tx.CreateBucketIfNotExists([]byte(missingDocumentsBucket)); err != nil {
+	if missingTransactions, err = tx.CreateBucketIfNotExists([]byte(missingTransactionsBucket)); err != nil {
 		return
 	}
 	if payloadIndex, err = tx.CreateBucketIfNotExists([]byte(payloadIndexBucket)); err != nil {
@@ -339,17 +343,17 @@ func getBuckets(tx *bbolt.Tx) (documents, nexts, missingDocuments, payloadIndex,
 	return
 }
 
-func getRoots(documentsBucket *bbolt.Bucket) []hash.SHA256Hash {
-	return parseHashList(documentsBucket.Get([]byte(rootsDocumentKey)))
+func getRoots(transactionsBucket *bbolt.Bucket) []hash.SHA256Hash {
+	return parseHashList(transactionsBucket.Get([]byte(rootsTransactionKey)))
 }
 
-func addRoot(documentsBucket *bbolt.Bucket, ref hash.SHA256Hash) error {
-	roots := appendHashList(documentsBucket.Get([]byte(rootsDocumentKey)), ref)
-	return documentsBucket.Put([]byte(rootsDocumentKey), roots)
+func addRoot(transactionsBucket *bbolt.Bucket, ref hash.SHA256Hash) error {
+	roots := appendHashList(transactionsBucket.Get([]byte(rootsTransactionKey)), ref)
+	return transactionsBucket.Put([]byte(rootsTransactionKey), roots)
 }
 
 // registerNextRef registers a forward reference a.k.a. "next", in contrary to "prev(s)" which is the inverse of the relation.
-// It takes the nexts bucket, the prev and the next. Given document A and B where B prevs A, prev = A, next = B.
+// It takes the nexts bucket, the prev and the next. Given transaction A and B where B prevs A, prev = A, next = B.
 func (dag *bboltDAG) registerNextRef(nextsBucket *bbolt.Bucket, prev hash.SHA256Hash, next hash.SHA256Hash) error {
 	prevSlice := prev.Slice()
 	value := nextsBucket.Get(prevSlice)
@@ -361,21 +365,41 @@ func (dag *bboltDAG) registerNextRef(nextsBucket *bbolt.Bucket, prev hash.SHA256
 	return nextsBucket.Put(prevSlice, appendHashList(value, next))
 }
 
-func getDocument(hash hash.SHA256Hash, documents *bbolt.Bucket) (Document, error) {
-	documentBytes := documents.Get(hash.Slice())
-	if documentBytes == nil {
-		return nil, nil
-	}
-	document, err := ParseDocument(documentBytes)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse document %s: %w", hash, err)
-	}
-	return document, nil
+func (dag *bboltDAG) migrate() error {
+	return dag.db.Update(func(tx *bbolt.Tx) error {
+		oldTransactionsBucket := []byte("documents")
+		docs := tx.Bucket(oldTransactionsBucket)
+		if docs != nil {
+			if err := moveBucket(tx, tx, oldTransactionsBucket, []byte(transactionsBucket)); err != nil {
+				return err
+			}
+		}
+		oldMissingTransactionsBucket := []byte("missingdocuments")
+		missingDocs := tx.Bucket(oldMissingTransactionsBucket)
+		if missingDocs != nil {
+			if err := moveBucket(tx, tx, oldMissingTransactionsBucket, []byte(missingTransactionsBucket)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
-// exists checks whether the document with the given ref exists.
-func exists(documents *bbolt.Bucket, ref hash.SHA256Hash) bool {
-	return documents.Get(ref.Slice()) != nil
+func getTransaction(hash hash.SHA256Hash, transactions *bbolt.Bucket) (Transaction, error) {
+	transactionBytes := transactions.Get(hash.Slice())
+	if transactionBytes == nil {
+		return nil, nil
+	}
+	transaction, err := ParseTransaction(transactionBytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse transaction %s: %w", hash, err)
+	}
+	return transaction, nil
+}
+
+// exists checks whether the transaction with the given ref exists.
+func exists(transactions *bbolt.Bucket, ref hash.SHA256Hash) bool {
+	return transactions.Get(ref.Slice()) != nil
 }
 
 // parseHashList splits a list of concatenated hashes into separate hashes.
@@ -402,4 +426,37 @@ func notifyObservers(observers []Observer, subject interface{}) {
 	for _, observer := range observers {
 		observer(subject)
 	}
+}
+
+// moveBucket moves the inner bucket with key 'oldkey' to a new bucket with key 'newkey'
+// must be used within an Update-transaction
+func moveBucket(oldParent, newParent bucketeer, oldkey, newkey []byte) error {
+	log.Logger().Infof("Renaming BBolt bucket '%s' to '%s'", string(oldkey), string(newkey))
+	oldBuck := oldParent.Bucket(oldkey)
+	newBuck, err := newParent.CreateBucket(newkey)
+	if err != nil {
+		return err
+	}
+
+	err = oldBuck.ForEach(func(k, v []byte) error {
+		if v == nil {
+			// Nested bucket
+			return moveBucket(oldBuck, newBuck, k, k)
+		}
+		// Regular value
+		return newBuck.Put(k, v)
+	})
+	if err != nil {
+		return err
+	}
+
+	return oldParent.DeleteBucket(oldkey)
+}
+
+// bucketeer defines bucket operations that are implemented by both bbolt.Bucket and bbolt.DB so they can both be passed
+// into moveBucket.
+type bucketeer interface {
+	Bucket(name []byte) *bbolt.Bucket
+	CreateBucket(key []byte) (*bbolt.Bucket, error)
+	DeleteBucket(key []byte) error
 }

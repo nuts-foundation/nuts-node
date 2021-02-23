@@ -24,66 +24,66 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
-var errRootAlreadyExists = errors.New("root document already exists")
+var errRootAlreadyExists = errors.New("root transaction already exists")
 
-// DAG is a directed acyclic graph consisting of nodes (documents) referring to preceding nodes.
+// DAG is a directed acyclic graph consisting of nodes (transactions) referring to preceding nodes.
 type DAG interface {
-	// Observable allows observers to be notified when a document is added to the DAG.
+	// Observable allows observers to be notified when a transaction is added to the DAG.
 	Observable
-	// Add adds one or more documents to the DAG. If it can't be added an error is returned. Nil entries are ignored.
-	Add(documents ...Document) error
-	// MissingDocuments returns the hashes of the documents we know we are missing and should still be resolved.
-	MissingDocuments() []hash.SHA256Hash
+	// Add adds one or more transactions to the DAG. If it can't be added an error is returned. Nil entries are ignored.
+	Add(transactions ...Transaction) error
+	// MissingTransactions returns the hashes of the transactions we know we are missing and should still be resolved.
+	MissingTransactions() []hash.SHA256Hash
 	// Walk visits every node of the DAG, starting at the given hash working its way down each level until every leaf is visited.
 	// when startAt is an empty hash, the walker starts at the root node.
 	Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error
 	// Root returns the root hash of the DAG. If there's no root an empty hash is returned. If an error occurs, it is returned.
 	Root() (hash.SHA256Hash, error)
-	// Get retrieves a specific document from the DAG. If it isn't found, nil is returned.
-	Get(ref hash.SHA256Hash) (Document, error)
-	// GetByPayloadHash retrieves all documents that refer to the specified payload.
-	GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Document, error)
-	// All retrieves all documents from the DAG.
+	// Get retrieves a specific transaction from the DAG. If it isn't found, nil is returned.
+	Get(ref hash.SHA256Hash) (Transaction, error)
+	// GetByPayloadHash retrieves all transactions that refer to the specified payload.
+	GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Transaction, error)
+	// All retrieves all transactions from the DAG.
 	// TODO: This should go when there's a more optimized network protocol
-	All() ([]Document, error)
-	// IsPresent checks whether the specified document exists on the DAG.
+	All() ([]Transaction, error)
+	// IsPresent checks whether the specified transaction exists on the DAG.
 	IsPresent(ref hash.SHA256Hash) (bool, error)
-	// Heads returns all unmerged heads, which are documents where no other documents point to as `prev`. To be used
-	// as `prevs` parameter when adding a new document.
+	// Heads returns all unmerged heads, which are transactions where no other transactions point to as `prev`. To be used
+	// as `prevs` parameter when adding a new transaction.
 	Heads() []hash.SHA256Hash
 }
 
-// Publisher defines the interface for types that publish Nuts Network documents.
+// Publisher defines the interface for types that publish Nuts Network transactions.
 type Publisher interface {
-	// Subscribe lets an application subscribe to a specific type of document. When a new document is received
+	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
 	//the `receiver` function is called.
-	Subscribe(documentType string, receiver Receiver)
+	Subscribe(payloadType string, receiver Receiver)
 	// Start starts the publisher.
 	Start()
 }
 
-// Receiver defines a function for processing documents when walking the DAG.
-type Receiver func(document SubscriberDocument, payload []byte) error
+// Receiver defines a function for processing transactions when walking the DAG.
+type Receiver func(transaction SubscriberTransaction, payload []byte) error
 
 // WalkerAlgorithm defines the interface for a type that can walk the DAG.
 type WalkerAlgorithm interface {
 	// walk visits every node of the DAG, starting at the given start node and working down each level until every leaf is visited.
 	// numberOfNodes is an indicative number of nodes that's expected to be visited. It's used for optimizing memory usage.
-	// getFn is a function for reading a document from the DAG using the given ref hash. If not found nil must be returned.
-	// nextsFn is a function for reading a document's nexts using the given ref hash. If not found nil must be returned.
-	walk(visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Document, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error
+	// getFn is a function for reading a transaction from the DAG using the given ref hash. If not found nil must be returned.
+	// nextsFn is a function for reading a transaction's nexts using the given ref hash. If not found nil must be returned.
+	walk(visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error
 }
 
 // Visitor defines the contract for a function that visits the DAG. If the function returns `false` it stops walking the DAG.
-type Visitor func(document Document) bool
+type Visitor func(transaction Transaction) bool
 
-// PayloadStore defines the interface for types that store and read document payloads.
+// PayloadStore defines the interface for types that store and read transaction payloads.
 type PayloadStore interface {
 	// Observable allows observers to be notified when payload is written to the store.
 	Observable
 	PayloadWriter
 
-	// IsPayloadPresent checks whether the contents for the given document are present.
+	// IsPayloadPresent checks whether the contents for the given transaction are present.
 	IsPresent(payloadHash hash.SHA256Hash) (bool, error)
 
 	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
@@ -91,7 +91,7 @@ type PayloadStore interface {
 	ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error)
 }
 
-// PayloadWriter defines the interface for types that store document payloads.
+// PayloadWriter defines the interface for types that store transaction payloads.
 type PayloadWriter interface {
 	// WritePayload writes contents for the specified payload, identified by the given hash. Implementations must make
 	// sure the hash matches the given contents.

@@ -76,19 +76,19 @@ func Cmd() *cobra.Command {
 func payloadCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "payload [ref]",
-		Short: "Retrieves the payload of a document from the network",
+		Short: "Retrieves the payload of a transaction from the network",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			hash, err := hash2.ParseHex(args[0])
 			if err != nil {
 				return err
 			}
-			data, err := clientCreator().GetDocumentPayload(hash)
+			data, err := clientCreator().GetTransactionPayload(hash)
 			if err != nil {
 				return err
 			}
 			if data == nil {
-				log.Logger().Warnf("Document or contents not found: %s", hash)
+				log.Logger().Warnf("Transaction or contents not found: %s", hash)
 				return nil
 			}
 			println(string(data))
@@ -100,22 +100,22 @@ func payloadCommand() *cobra.Command {
 func getCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get [ref]",
-		Short: "Gets a document from the network",
+		Short: "Gets a transaction from the network",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			hash, err := hash2.ParseHex(args[0])
 			if err != nil {
 				return err
 			}
-			document, err := clientCreator().GetDocument(hash)
+			transaction, err := clientCreator().GetTransaction(hash)
 			if err != nil {
 				return err
 			}
-			if document == nil {
-				log.Logger().Warnf("Document not found: %s", hash)
+			if transaction == nil {
+				log.Logger().Warnf("Transaction not found: %s", hash)
 				return nil
 			}
-			fmt.Printf("Document %s:\n  Type: %s\n  Timestamp: %s\n", document.Ref(), document.PayloadType(), document.SigningTime())
+			fmt.Printf("Transaction %s:\n  Type: %s\n  Timestamp: %s\n", transaction.Ref(), transaction.PayloadType(), transaction.SigningTime())
 			return nil
 		},
 	}
@@ -124,16 +124,16 @@ func getCommand() *cobra.Command {
 func listCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
-		Short: "Lists the documents on the network",
+		Short: "Lists the transactions on the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			documents, err := clientCreator().ListDocuments()
+			transactions, err := clientCreator().ListTransactions()
 			if err != nil {
 				return err
 			}
 			const format = "%-65s %-40s %-20s\n"
 			fmt.Printf(format, "Hashes", "Timestamp", "Type")
-			for _, document := range documents {
-				fmt.Printf(format, document.Ref(), document.SigningTime(), document.PayloadType())
+			for _, transaction := range transactions {
+				fmt.Printf(format, transaction.Ref(), transaction.SigningTime(), transaction.PayloadType())
 			}
 			return nil
 		},
