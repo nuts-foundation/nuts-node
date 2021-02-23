@@ -65,10 +65,8 @@ func createCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to create new DID: %v", err)
 			}
-
 			bytes, _ := json.MarshalIndent(doc, "", "  ")
-
-			cmd.Printf("Created DID document: %s\n", string(bytes))
+			cmd.Println(string(bytes))
 			return nil
 		},
 	}
@@ -117,7 +115,9 @@ func updateCmd() *cobra.Command {
 }
 
 func resolveCmd() *cobra.Command {
-	return &cobra.Command{
+	var printMetadata bool
+	var printDocument bool
+	result := &cobra.Command{
 		Use:   "resolve [DID]",
 		Short: "Resolve a DID document based on its DID",
 		Args:  cobra.ExactArgs(1),
@@ -127,7 +127,18 @@ func resolveCmd() *cobra.Command {
 				return fmt.Errorf("failed to resolve DID document: %v", err)
 			}
 
-			for _, o := range []interface{}{doc, meta} {
+			var toPrint []interface{}
+			if !printMetadata && !printDocument {
+				toPrint = append(toPrint, doc, meta)
+			} else {
+				if printDocument {
+					toPrint = append(toPrint, doc)
+				}
+				if printMetadata {
+					toPrint = append(toPrint, meta)
+				}
+			}
+			for _, o := range toPrint {
 				bytes, _ := json.MarshalIndent(o, "", "  ")
 				cmd.Printf("%s\n", string(bytes))
 			}
@@ -135,6 +146,9 @@ func resolveCmd() *cobra.Command {
 			return nil
 		},
 	}
+	result.Flags().BoolVar(&printMetadata, "metadata", false, "Pass 'true' to print the metadata.")
+	result.Flags().BoolVar(&printDocument, "document", false, "Pass 'true' to print the document.")
+	return result
 }
 
 func readFromStdin() ([]byte, error) {

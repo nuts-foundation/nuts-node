@@ -99,6 +99,7 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 
 // Create generates a new DID Document
 func (r VDR) Create() (*did.Document, error) {
+	logging.Log().Debug("Creating new DID Document.")
 	doc, err := r.didDocCreator.Create()
 	if err != nil {
 		return nil, fmt.Errorf("could not create did document: %w", err)
@@ -119,6 +120,8 @@ func (r VDR) Create() (*did.Document, error) {
 		return nil, fmt.Errorf("could not store did document in network: %w", err)
 	}
 
+	logging.Log().Infof("New DID Document created: %s", doc.ID)
+
 	return doc, nil
 }
 
@@ -129,6 +132,7 @@ func (r VDR) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document
 
 // Update updates a DID Document based on the DID and current hash
 func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
+	logging.Log().Debugf("Updating DID Document: %s", id)
 	// TODO: check the integrity / validity of the proposed DID Document.
 	resolverMetada := &types.ResolveMetadata{
 		Hash:             &current,
@@ -146,10 +150,16 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	// TODO: look into the controller of the did for a signing key
 	keyID := currentDIDdocument.Authentication[0].ID.String()
 	_, err = r.network.CreateDocument(didDocumentType, payload, keyID, nil, time.Now(), dag.TimelineIDField(meta.TimelineID), dag.TimelineVersionField(meta.Version+1))
+
+	if err == nil {
+		logging.Log().Infof("DID Document updated: %s", id)
+	}
+
 	return err
 }
 
 // Deactivate updates the DID Document so it can no longer be updated
 func (r *VDR) Deactivate(DID did.DID, current hash.SHA256Hash) {
+	logging.Log().Debugf("Deactivating DID Document: %s", DID)
 	panic("implement me")
 }

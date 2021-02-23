@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -65,8 +66,12 @@ func TestEngine_Command(t *testing.T) {
 			if !assert.NoError(t, err) {
 				return
 			}
-			assert.Contains(t, buf.String(), "Created DID document")
-			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
+			if !assert.Contains(t, buf.String(), "did:nuts:") {
+				return
+			}
+			document := did.Document{}
+			err = json.Unmarshal(buf.Bytes(), &document)
+			assert.NoError(t, err)
 		})
 
 		t.Run("error - server error", func(t *testing.T) {
@@ -109,6 +114,46 @@ func TestEngine_Command(t *testing.T) {
 			}
 			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 			assert.Contains(t, buf.String(), "version")
+		})
+
+		t.Run("ok - print metadata only", func(t *testing.T) {
+			cmd := Cmd()
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"resolve", "did", "--metadata"})
+			cmd.SetOut(buf)
+			err := cmd.Execute()
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.NotContains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
+			assert.Contains(t, buf.String(), "version")
+		})
+
+		t.Run("ok - print document only", func(t *testing.T) {
+			cmd := Cmd()
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"resolve", "did", "--document"})
+			cmd.SetOut(buf)
+			err := cmd.Execute()
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
+			assert.NotContains(t, buf.String(), "version")
 		})
 
 		t.Run("error - not found", func(t *testing.T) {
