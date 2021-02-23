@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   bootstrap:
-    image: nutsfoundation/nuts:latest
+    image: &image nutsfoundation/nuts-node:latest
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       NUTS_NETWORK_PUBLICADDR: bootstrap:5555
@@ -14,7 +14,7 @@ services:
       - "./truststore.pem:/opt/nuts/truststore.pem"
       - "./bootstrap/certificate.pem:/opt/nuts/certificate.pem"
   node1:
-    image: nutsfoundation/nuts:latest
+    image: *image
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     healthcheck:
@@ -24,7 +24,7 @@ services:
       - "./truststore.pem:/opt/nuts/truststore.pem"
       - "./node1/certificate.pem:/opt/nuts/certificate.pem"
   node2:
-    image: nutsfoundation/nuts:latest
+    image: *image
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     healthcheck:
