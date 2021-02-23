@@ -195,9 +195,6 @@ func (n *p2pNetwork) Configure(config P2PNetworkConfig) error {
 	if config.PeerID == "" {
 		return errors.New("PeerID is empty")
 	}
-	if config.TrustStore == nil {
-		return errors.New("TrustStore is nil")
-	}
 	n.config = config
 	n.configured = true
 	for _, bootstrapNode := range n.config.BootstrapNodes {

@@ -128,6 +128,19 @@ func TestNetwork_Configure(t *testing.T) {
 			return
 		}
 	})
+	t.Run("disable TLS for incoming connections (SSL offloading)", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl)
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.p2pNetwork.EXPECT().Configure(gomock.Any())
+		cxt.network.config.TrustStoreFile = ""
+		cxt.network.config.EnableTLS = false
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
 	t.Run("unable to create datadir", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
