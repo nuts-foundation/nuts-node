@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"strings"
 )
 
 // Config holds the config for Transactions
@@ -14,11 +13,11 @@ type Config struct {
 	// EnableTLS specifies whether to enable TLS for incoming connections.
 	EnableTLS bool `koanf:"enableTLS"`
 	// Public address of this nodes other nodes can use to connect to this node.
-	PublicAddr     string `koanf:"publicAddr"`
-	BootstrapNodes string `koanf:"bootstrapNodes"`
-	CertFile       string `koanf:"certFile"`
-	CertKeyFile    string `koanf:"certKeyFile"`
-	TrustStoreFile string `koanf:"trustStoreFile"`
+	PublicAddr     string   `koanf:"publicAddr"`
+	BootstrapNodes []string `koanf:"bootstrapNodes"`
+	CertFile       string   `koanf:"certFile"`
+	CertKeyFile    string   `koanf:"certKeyFile"`
+	TrustStoreFile string   `koanf:"trustStoreFile"`
 
 	// AdvertHashesInterval specifies how often (in milliseconds) the node should broadcasts its last hashes so
 	// other nodes can compare and synchronize.
@@ -32,17 +31,6 @@ func DefaultConfig() Config {
 		EnableTLS:            true,
 		AdvertHashesInterval: 2000,
 	}
-}
-
-func (c Config) parseBootstrapNodes() []string {
-	var result []string
-	for _, addr := range strings.Split(c.BootstrapNodes, " ") {
-		trimmedAddr := strings.TrimSpace(addr)
-		if trimmedAddr != "" {
-			result = append(result, trimmedAddr)
-		}
-	}
-	return result
 }
 
 func (c Config) loadTrustStore() (*x509.CertPool, error) {

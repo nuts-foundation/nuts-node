@@ -200,7 +200,7 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.P2PNetworkConfig, erro
 	cfg := p2p.P2PNetworkConfig{
 		ListenAddress:  n.config.GrpcAddr,
 		PublicAddress:  n.config.PublicAddr,
-		BootstrapNodes: n.config.parseBootstrapNodes(),
+		BootstrapNodes: n.config.BootstrapNodes,
 		PeerID:         peerID,
 	}
 	var err error
