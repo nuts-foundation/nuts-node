@@ -32,7 +32,6 @@ gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/network.proto
 	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/network.proto
 
-
 gen-docs:
 	go run ./docs
 
