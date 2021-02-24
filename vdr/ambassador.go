@@ -194,6 +194,23 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 		return fmt.Errorf("network document not signed by one of its controllers")
 	}
 
+	newVMs, removedVMs := getVerificationMethodDiff(*currentDIDDocument, proposedDIDDocument)
+	for _, vm := range newVMs {
+		pKey, err := vm.PublicKey()
+		if err != nil {
+			return fmt.Errorf("could not parse public key from verificationMethod: %w", err)
+		}
+		if err := n.keyStore.AddPublicKey(vm.ID.String(), pKey, document.SigningTime()); err != nil {
+			return fmt.Errorf("unable to add new public key: %w", err)
+		}
+
+	}
+	for _, vm := range removedVMs {
+		if err := n.keyStore.RevokePublicKey(vm.ID.String(), document.SigningTime()); err != nil {
+			return fmt.Errorf("unable to revoke public key: %w", err)
+		}
+	}
+
 	// TODO: perform all these tests:
 	// Take authenticationMethod keys from the controllers
 	// Check if network signingKeyID is one of authenticationMethods of the controller

@@ -3,8 +3,8 @@ package vdr
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"encoding/base64"
 	"errors"
-	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did"
@@ -40,13 +40,13 @@ func newNamingFnForExistingDID(existingDID did.DID) nutsCrypto.KIDNamingFunc {
 			return "", err
 		}
 
-		existingDID.Fragment = string(thumbprint)
+		existingDID.Fragment = base64.RawURLEncoding.EncodeToString(thumbprint)
 
 		return existingDID.String(), nil
 	}
 }
 
-// AddNewAuthenticationMethodToDIDDocument creates a new VerificationMethod of type JsonWebKey2020 with a freshly generated
+// AddNewAuthenticationMethodToDIDDocument creates a new VerificationMethod of type JsonWebKey2020 with a freshly generated key
 func (u NutsDocUpdater) AddNewAuthenticationMethodToDIDDocument(doc *did.Document) error {
 	key, keyIDStr, err := u.keyCreator.New(newNamingFnForExistingDID(doc.ID))
 	if err != nil {
@@ -64,8 +64,8 @@ func (u NutsDocUpdater) AddNewAuthenticationMethodToDIDDocument(doc *did.Documen
 	return nil
 }
 
-// getVerificationmethodDiff makes a diff of verificationMethods and returns a list with new and removed verificationMethods
-func (u NutsDocUpdater) getVerificationMethodDiff(currentDocument,  proposedDocument *did.Document) (new, removed []*did.VerificationMethod) {
+// getVerificationMethodDiff makes a diff of verificationMethods and returns a list with new and removed verificationMethods
+func getVerificationMethodDiff(currentDocument,  proposedDocument did.Document) (new, removed []*did.VerificationMethod) {
 	for _, vmp := range proposedDocument.VerificationMethod {
 		found := false
 		for _, mpc := range currentDocument.VerificationMethod {
@@ -94,19 +94,31 @@ func (u NutsDocUpdater) getVerificationMethodDiff(currentDocument,  proposedDocu
 }
 
 
-func (u NutsDocUpdater) RemoveVerificationMethod(keyID did.DID, document *did.Document, updateTime time.Time) error {
+func (u NutsDocUpdater) RemoveVerificationMethod(keyID did.DID, document *did.Document) error {
 	var newVerificationMethods []*did.VerificationMethod
-	var keysToRemove []*did.VerificationMethod
 	for _, vm := range document.VerificationMethod {
-		if vm.ID.Equals(keyID) {
-			keysToRemove = append(keysToRemove, vm)
-		} else {
+		if !vm.ID.Equals(keyID) {
 			newVerificationMethods = append(newVerificationMethods, vm)
 		}
 	}
-	for _, vm := range keysToRemove {
-		u.keyStore.RevokePublicKey(vm.ID.String(), updateTime)
-	}
 	document.VerificationMethod = newVerificationMethods
+
+	var vmsToKeep []did.VerificationRelationship
+	for _, vm := range document.Authentication {
+		if !vm.ID.Equals(keyID) {
+			vmsToKeep = append(vmsToKeep, vm)
+		}
+
+	}
+	document.Authentication = vmsToKeep
+
+	vmsToKeep = []did.VerificationRelationship{}
+	for _, vm := range document.AssertionMethod {
+		if !vm.ID.Equals(keyID) {
+			vmsToKeep = append(vmsToKeep, vm)
+		}
+	}
+	document.AssertionMethod = vmsToKeep
+
 	return nil
 }
