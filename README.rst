@@ -46,8 +46,8 @@ Make sure that ``GOPATH/bin`` is available on ``PATH`` and that the dependencies
 
 Install ``protoc``:
 
-| MacOS: ``brew install protobuf``
-| Linux: ``apt install -y protobuf-compiler``
+  | MacOS: ``brew install protobuf``
+  | Linux: ``apt install -y protobuf-compiler``
 
 Install Go tools:
 
@@ -59,14 +59,14 @@ Generating code:
 
 To regenerate all code run the ``run-generators`` target from the makefile or use one of the following for a specific group
 
-======== =======================
-Group    Command
-======== =======================
-Mocks    ``make gen-mocks``
-OpenApi  ``make gen-api``
-gRCP     ``make gen-protobuf``
-All      ``make run-generators``
-======== =======================
+================ =======================
+Group            Command
+================ =======================
+Mocks            ``make gen-mocks``
+OpenApi          ``make gen-api``
+Protobuf + gRCP  ``make gen-protobuf``
+All              ``make run-generators``
+================ =======================
 
 Docs Generation
 ***************
