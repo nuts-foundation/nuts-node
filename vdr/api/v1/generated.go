@@ -41,7 +41,7 @@ type DIDUpdateRequest struct {
 // UpdateDIDJSONBody defines parameters for UpdateDID.
 type UpdateDIDJSONBody DIDUpdateRequest
 
-// UpdateDIDJSONRequestBody defines body for UpdateDID for application/json ContentType.
+// UpdateDIDRequestBody defines body for UpdateDID for application/json ContentType.
 type UpdateDIDJSONRequestBody UpdateDIDJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
@@ -66,9 +66,9 @@ type Client struct {
 	// customized settings, such as certificate chains.
 	Client HttpRequestDoer
 
-	// A list of callbacks for modifying requests which are generated before sending over
+	// A callback for modifying requests which are generated before sending over
 	// the network.
-	RequestEditors []RequestEditorFn
+	RequestEditor RequestEditorFn
 }
 
 // ClientOption allows setting custom parameters during construction
@@ -110,7 +110,7 @@ func WithHTTPClient(doer HttpRequestDoer) ClientOption {
 // called right before sending the request. This can be used to mutate the request.
 func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 	return func(c *Client) error {
-		c.RequestEditors = append(c.RequestEditors, fn)
+		c.RequestEditor = fn
 		return nil
 	}
 }
@@ -118,57 +118,73 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 	// CreateDID request
-	CreateDID(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateDID(ctx context.Context) (*http.Response, error)
 
 	// GetDID request
-	GetDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetDID(ctx context.Context, did string) (*http.Response, error)
 
 	// UpdateDID request  with any body
-	UpdateDIDWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	UpdateDIDWithBody(ctx context.Context, did string, contentType string, body io.Reader) (*http.Response, error)
 
-	UpdateDID(ctx context.Context, did string, body UpdateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	UpdateDID(ctx context.Context, did string, body UpdateDIDJSONRequestBody) (*http.Response, error)
 }
 
-func (c *Client) CreateDID(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) CreateDID(ctx context.Context) (*http.Response, error) {
 	req, err := NewCreateDIDRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetDID(ctx context.Context, did string) (*http.Response, error) {
 	req, err := NewGetDIDRequest(c.Server, did)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
 
-func (c *Client) UpdateDIDWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) UpdateDIDWithBody(ctx context.Context, did string, contentType string, body io.Reader) (*http.Response, error) {
 	req, err := NewUpdateDIDRequestWithBody(c.Server, did, contentType, body)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
 
-func (c *Client) UpdateDID(ctx context.Context, did string, body UpdateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) UpdateDID(ctx context.Context, did string, body UpdateDIDJSONRequestBody) (*http.Response, error) {
 	req, err := NewUpdateDIDRequest(c.Server, did, body)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
@@ -277,23 +293,7 @@ func NewUpdateDIDRequestWithBody(server string, did string, contentType string, 
 	}
 
 	req.Header.Add("Content-Type", contentType)
-
 	return req, nil
-}
-
-func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
-	req = req.WithContext(ctx)
-	for _, r := range c.RequestEditors {
-		if err := r(ctx, req); err != nil {
-			return err
-		}
-	}
-	for _, r := range additionalEditors {
-		if err := r(ctx, req); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // ClientWithResponses builds on ClientInterface to offer response payloads

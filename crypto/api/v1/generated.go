@@ -40,7 +40,7 @@ type PublicKeyParams struct {
 // SignJwtJSONBody defines parameters for SignJwt.
 type SignJwtJSONBody SignJwtRequest
 
-// SignJwtJSONRequestBody defines body for SignJwt for application/json ContentType.
+// SignJwtRequestBody defines body for SignJwt for application/json ContentType.
 type SignJwtJSONRequestBody SignJwtJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
@@ -65,9 +65,9 @@ type Client struct {
 	// customized settings, such as certificate chains.
 	Client HttpRequestDoer
 
-	// A list of callbacks for modifying requests which are generated before sending over
+	// A callback for modifying requests which are generated before sending over
 	// the network.
-	RequestEditors []RequestEditorFn
+	RequestEditor RequestEditorFn
 }
 
 // ClientOption allows setting custom parameters during construction
@@ -109,7 +109,7 @@ func WithHTTPClient(doer HttpRequestDoer) ClientOption {
 // called right before sending the request. This can be used to mutate the request.
 func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 	return func(c *Client) error {
-		c.RequestEditors = append(c.RequestEditors, fn)
+		c.RequestEditor = fn
 		return nil
 	}
 }
@@ -117,43 +117,55 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 	// PublicKey request
-	PublicKey(ctx context.Context, kid string, params *PublicKeyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PublicKey(ctx context.Context, kid string, params *PublicKeyParams) (*http.Response, error)
 
 	// SignJwt request  with any body
-	SignJwtWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	SignJwtWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error)
 
-	SignJwt(ctx context.Context, body SignJwtJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	SignJwt(ctx context.Context, body SignJwtJSONRequestBody) (*http.Response, error)
 }
 
-func (c *Client) PublicKey(ctx context.Context, kid string, params *PublicKeyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) PublicKey(ctx context.Context, kid string, params *PublicKeyParams) (*http.Response, error) {
 	req, err := NewPublicKeyRequest(c.Server, kid, params)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
 
-func (c *Client) SignJwtWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) SignJwtWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error) {
 	req, err := NewSignJwtRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
 
-func (c *Client) SignJwt(ctx context.Context, body SignJwtJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) SignJwt(ctx context.Context, body SignJwtJSONRequestBody) (*http.Response, error) {
 	req, err := NewSignJwtRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
@@ -248,23 +260,7 @@ func NewSignJwtRequestWithBody(server string, contentType string, body io.Reader
 	}
 
 	req.Header.Add("Content-Type", contentType)
-
 	return req, nil
-}
-
-func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
-	req = req.WithContext(ctx)
-	for _, r := range c.RequestEditors {
-		if err := r(ctx, req); err != nil {
-			return err
-		}
-	}
-	for _, r := range additionalEditors {
-		if err := r(ctx, req); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // ClientWithResponses builds on ClientInterface to offer response payloads

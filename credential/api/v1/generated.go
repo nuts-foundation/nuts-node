@@ -52,7 +52,7 @@ type VerificationOutcome struct {
 // SearchJSONBody defines parameters for Search.
 type SearchJSONBody SearchRequest
 
-// SearchJSONRequestBody defines body for Search for application/json ContentType.
+// SearchRequestBody defines body for Search for application/json ContentType.
 type SearchJSONRequestBody SearchJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
@@ -77,9 +77,9 @@ type Client struct {
 	// customized settings, such as certificate chains.
 	Client HttpRequestDoer
 
-	// A list of callbacks for modifying requests which are generated before sending over
+	// A callback for modifying requests which are generated before sending over
 	// the network.
-	RequestEditors []RequestEditorFn
+	RequestEditor RequestEditorFn
 }
 
 // ClientOption allows setting custom parameters during construction
@@ -121,7 +121,7 @@ func WithHTTPClient(doer HttpRequestDoer) ClientOption {
 // called right before sending the request. This can be used to mutate the request.
 func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 	return func(c *Client) error {
-		c.RequestEditors = append(c.RequestEditors, fn)
+		c.RequestEditor = fn
 		return nil
 	}
 }
@@ -129,71 +129,91 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 	// Revoke request
-	Revoke(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	Revoke(ctx context.Context, id string) (*http.Response, error)
 
 	// Create request
-	Create(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	Create(ctx context.Context) (*http.Response, error)
 
 	// Resolve request
-	Resolve(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	Resolve(ctx context.Context, id string) (*http.Response, error)
 
 	// Search request  with any body
-	SearchWithBody(ctx context.Context, concept string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	SearchWithBody(ctx context.Context, concept string, contentType string, body io.Reader) (*http.Response, error)
 
-	Search(ctx context.Context, concept string, body SearchJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	Search(ctx context.Context, concept string, body SearchJSONRequestBody) (*http.Response, error)
 }
 
-func (c *Client) Revoke(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) Revoke(ctx context.Context, id string) (*http.Response, error) {
 	req, err := NewRevokeRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
 
-func (c *Client) Create(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) Create(ctx context.Context) (*http.Response, error) {
 	req, err := NewCreateRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
 
-func (c *Client) Resolve(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) Resolve(ctx context.Context, id string) (*http.Response, error) {
 	req, err := NewResolveRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
 
-func (c *Client) SearchWithBody(ctx context.Context, concept string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) SearchWithBody(ctx context.Context, concept string, contentType string, body io.Reader) (*http.Response, error) {
 	req, err := NewSearchRequestWithBody(c.Server, concept, contentType, body)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
 
-func (c *Client) Search(ctx context.Context, concept string, body SearchJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) Search(ctx context.Context, concept string, body SearchJSONRequestBody) (*http.Response, error) {
 	req, err := NewSearchRequest(c.Server, concept, body)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
@@ -336,23 +356,7 @@ func NewSearchRequestWithBody(server string, concept string, contentType string,
 	}
 
 	req.Header.Add("Content-Type", contentType)
-
 	return req, nil
-}
-
-func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
-	req = req.WithContext(ctx)
-	for _, r := range c.RequestEditors {
-		if err := r(ctx, req); err != nil {
-			return err
-		}
-	}
-	for _, r := range additionalEditors {
-		if err := r(ctx, req); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // ClientWithResponses builds on ClientInterface to offer response payloads
@@ -725,3 +729,4 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/internal/credential/v1/:concept", wrapper.Search)
 
 }
+

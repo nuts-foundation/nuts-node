@@ -38,9 +38,9 @@ type Client struct {
 	// customized settings, such as certificate chains.
 	Client HttpRequestDoer
 
-	// A list of callbacks for modifying requests which are generated before sending over
+	// A callback for modifying requests which are generated before sending over
 	// the network.
-	RequestEditors []RequestEditorFn
+	RequestEditor RequestEditorFn
 }
 
 // ClientOption allows setting custom parameters during construction
@@ -82,7 +82,7 @@ func WithHTTPClient(doer HttpRequestDoer) ClientOption {
 // called right before sending the request. This can be used to mutate the request.
 func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 	return func(c *Client) error {
-		c.RequestEditors = append(c.RequestEditors, fn)
+		c.RequestEditor = fn
 		return nil
 	}
 }
@@ -90,44 +90,56 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 	// ListDocuments request
-	ListDocuments(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListDocuments(ctx context.Context) (*http.Response, error)
 
 	// GetDocument request
-	GetDocument(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetDocument(ctx context.Context, ref string) (*http.Response, error)
 
 	// GetDocumentPayload request
-	GetDocumentPayload(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetDocumentPayload(ctx context.Context, ref string) (*http.Response, error)
 }
 
-func (c *Client) ListDocuments(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) ListDocuments(ctx context.Context) (*http.Response, error) {
 	req, err := NewListDocumentsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetDocument(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetDocument(ctx context.Context, ref string) (*http.Response, error) {
 	req, err := NewGetDocumentRequest(c.Server, ref)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetDocumentPayload(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetDocumentPayload(ctx context.Context, ref string) (*http.Response, error) {
 	req, err := NewGetDocumentPayloadRequest(c.Server, ref)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.Client.Do(req)
 }
@@ -225,21 +237,6 @@ func NewGetDocumentPayloadRequest(server string, ref string) (*http.Request, err
 	}
 
 	return req, nil
-}
-
-func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
-	req = req.WithContext(ctx)
-	for _, r := range c.RequestEditors {
-		if err := r(ctx, req); err != nil {
-			return err
-		}
-	}
-	for _, r := range additionalEditors {
-		if err := r(ctx, req); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // ClientWithResponses builds on ClientInterface to offer response payloads
