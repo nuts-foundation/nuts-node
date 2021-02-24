@@ -24,16 +24,11 @@
 package transport
 
 import (
-	context "context"
-	reflect "reflect"
-	sync "sync"
-
 	proto "github.com/golang/protobuf/proto"
-	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	reflect "reflect"
+	sync "sync"
 )
 
 const (
@@ -704,116 +699,4 @@ func file_transport_network_proto_init() {
 	file_transport_network_proto_rawDesc = nil
 	file_transport_network_proto_goTypes = nil
 	file_transport_network_proto_depIdxs = nil
-}
-
-// Reference imports to suppress errors if they are not otherwise used.
-var _ context.Context
-var _ grpc.ClientConnInterface
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
-
-// NetworkClient is the client API for Network service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type NetworkClient interface {
-	Connect(ctx context.Context, opts ...grpc.CallOption) (Network_ConnectClient, error)
-}
-
-type networkClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewNetworkClient(cc grpc.ClientConnInterface) NetworkClient {
-	return &networkClient{cc}
-}
-
-func (c *networkClient) Connect(ctx context.Context, opts ...grpc.CallOption) (Network_ConnectClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Network_serviceDesc.Streams[0], "/transport.Network/Connect", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &networkConnectClient{stream}
-	return x, nil
-}
-
-type Network_ConnectClient interface {
-	Send(*NetworkMessage) error
-	Recv() (*NetworkMessage, error)
-	grpc.ClientStream
-}
-
-type networkConnectClient struct {
-	grpc.ClientStream
-}
-
-func (x *networkConnectClient) Send(m *NetworkMessage) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *networkConnectClient) Recv() (*NetworkMessage, error) {
-	m := new(NetworkMessage)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-// NetworkServer is the server API for Network service.
-type NetworkServer interface {
-	Connect(Network_ConnectServer) error
-}
-
-// UnimplementedNetworkServer can be embedded to have forward compatible implementations.
-type UnimplementedNetworkServer struct {
-}
-
-func (*UnimplementedNetworkServer) Connect(Network_ConnectServer) error {
-	return status.Errorf(codes.Unimplemented, "method Connect not implemented")
-}
-
-func RegisterNetworkServer(s *grpc.Server, srv NetworkServer) {
-	s.RegisterService(&_Network_serviceDesc, srv)
-}
-
-func _Network_Connect_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(NetworkServer).Connect(&networkConnectServer{stream})
-}
-
-type Network_ConnectServer interface {
-	Send(*NetworkMessage) error
-	Recv() (*NetworkMessage, error)
-	grpc.ServerStream
-}
-
-type networkConnectServer struct {
-	grpc.ServerStream
-}
-
-func (x *networkConnectServer) Send(m *NetworkMessage) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *networkConnectServer) Recv() (*NetworkMessage, error) {
-	m := new(NetworkMessage)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-var _Network_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "transport.Network",
-	HandlerType: (*NetworkServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "Connect",
-			Handler:       _Network_Connect_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-	},
-	Metadata: "transport/network.proto",
 }

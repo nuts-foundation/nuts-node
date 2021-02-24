@@ -11,7 +11,7 @@ Distributed registry for storing and querying health care providers their vendor
     :target: https://nuts-documentation.readthedocs.io/projects/nuts--node/en/latest/?badge=latest
     :alt: Documentation Status
 
-.. image:: https://codecov.io/gh/nuts-foundation/nuts-node/branch/master/graph/badge.svg
+.. image:: https://codecov.io/gh/nuts-foundation/nuts-node/branch/master/graph/badge.svg?style=svg
     :target: https://codecov.io/gh/nuts-foundation/nuts-node
     :alt: Code coverage
 
@@ -41,21 +41,46 @@ Just use ``go build``.
 Code Generation
 ***************
 
-Code generation is used for generating mocks, OpenAPI client- and servers and gRPC services. To regenerate the code
-run the `run-generators` target from the Makefile:
+Code generation is used for generating mocks, OpenAPI client- and servers, and gRPC services.
+Make sure that ``GOPATH/bin`` is available on ``PATH`` and that the dependencies are installed
+
+Install ``protoc``:
+
+| MacOS: ``brew install protobuf``
+| Linux: ``apt install -y protobuf-compiler``
+
+Install Go tools:
 
 .. code-block:: shell
 
-    make run-generators
+  make install-tools
 
-The peer-to-peer API uses gRPC. To generate Go code from the protobuf specs you need the `protoc-gen-go` package:
+Generating code:
+
+To regenerate all code run the ``run-generators`` target from the makefile or use one of the following for a specific group
+
+======== =======================
+Group    Command
+======== =======================
+Mocks    ``make gen-mocks``
+OpenApi  ``make gen-api``
+gRCP     ``make gen-protobuf``
+All      ``make run-generators``
+======== =======================
+
+Docs Generation
+***************
+
+To generate the documentation, you'll need ``python3``, ``sphinx`` and a bunch of other stuff.
+After you have installed ``python3`` (and ``pip3`` if this not already installed) run
 
 .. code-block:: shell
 
-    go get -u github.com/golang/protobuf/protoc-gen-go
+    pip3 install -r docs/requirements.txt
+
 
 README
-******
+======
 
 The readme is auto-generated from a template and uses the documentation to fill in the blanks.
 
@@ -63,29 +88,14 @@ The readme is auto-generated from a template and uses the documentation to fill 
 
     make gen-readme
 
-This script uses ``rst_include`` which is installed as part of the dependencies for generating the documentation.
-
 Documentation
-*************
+=============
 
-To generate the documentation, you'll need python3, sphinx and a bunch of other stuff.
 The documentation can be build by running
 
 .. code-block:: shell
 
     /docs $ make html
-
-Requirements for running sphinx
-===============================
-
-  - install python3
-  - install pip3 (if it doesn't install automatically)
-  - ``pip3 install sphinx``
-  - ``pip3 install recommonmark``
-  - ``pip3 install sphinx_rtd_theme``
-  - ``pip3 install rst_include``
-  - ``pip3 install sphinx-jsonschema``
-  - ``pip3 install sphinxcontrib-httpdomain``
 
 Configuration
 *************

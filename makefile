@@ -2,6 +2,13 @@
 
 run-generators: gen-readme gen-mocks gen-api gen-protobuf
 
+install-tools:
+	export GO111MODULE=on  # default in Go >= 1.16
+	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen
+	go install github.com/golang/mock/mockgen
+	go install google.golang.org/protobuf/cmd/protoc-gen-go
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+
 gen-readme:
 	./generate_readme.sh
 
@@ -22,7 +29,9 @@ gen-api:
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 docs/_static/network/v1.yaml > network/api/v1/generated.go
 
 gen-protobuf:
-	protoc -I network network/transport/network.proto --go_out=plugins=grpc,paths=source_relative:network
+	protoc --go_out=paths=source_relative:network -I network network/transport/network.proto
+	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/network.proto
+
 
 gen-docs:
 	go run ./docs
