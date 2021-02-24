@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/shengdoushi/base58"
 
