@@ -786,7 +786,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := checkSubscriberDocumentIntegrity(tt.args); err != nil || tt.wantedErr != nil {
+			if err := checkSubscriberTransactionIntegrity(tt.args); err != nil || tt.wantedErr != nil {
 				if err == nil {
 					if tt.wantedErr != nil {
 						t.Error("expected an error, got nothing")

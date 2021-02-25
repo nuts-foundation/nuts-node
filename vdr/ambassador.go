@@ -79,7 +79,7 @@ var thumbprintAlg = crypto.SHA256
 // payload should be a json encoded did.document
 func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) error {
 	logging.Log().Debugf("Processing DID documents received from Nuts Network: ref=%s", tx.Ref())
-	if err := checkSubscriberDocumentIntegrity(tx); err != nil {
+	if err := checkSubscriberTransactionIntegrity(tx); err != nil {
 		return fmt.Errorf("callback could not process new DID Document: %w", err)
 	}
 
@@ -194,21 +194,8 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 		return fmt.Errorf("network document not signed by one of its controllers")
 	}
 
-	newVMs, removedVMs := getVerificationMethodDiff(*currentDIDDocument, proposedDIDDocument)
-	for _, vm := range newVMs {
-		pKey, err := vm.PublicKey()
-		if err != nil {
-			return fmt.Errorf("could not parse public key from verificationMethod: %w", err)
-		}
-		if err := n.keyStore.AddPublicKey(vm.ID.String(), pKey, document.SigningTime()); err != nil {
-			return fmt.Errorf("unable to add new public key: %w", err)
-		}
-
-	}
-	for _, vm := range removedVMs {
-		if err := n.keyStore.RevokePublicKey(vm.ID.String(), document.SigningTime()); err != nil {
-			return fmt.Errorf("unable to revoke public key: %w", err)
-		}
+	if err := n.updateKeysInStore(*currentDIDDocument, proposedDIDDocument, document.SigningTime()); err != nil {
+		return err
 	}
 
 	// TODO: perform all these tests:
@@ -237,48 +224,71 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 }
 
-// checkSubscriberDocumentIntegrity performs basic integrity checks on the SubscriberTransaction fields
+// updateKeysInStore is a helper function for updating keys in the keystore.
+// It creates a diff of the verificationMethods of the current and proposed document.
+// It Revokes missing keys and adds new ones.
+func (n ambassador) updateKeysInStore(currentDIDDocument, proposedDIDDocument did.Document, signingTime time.Time) error {
+	newVMs, removedVMs := getVerificationMethodDiff(currentDIDDocument, proposedDIDDocument)
+	for _, vm := range newVMs {
+		pKey, err := vm.PublicKey()
+		if err != nil {
+			return fmt.Errorf("could not parse public key from verificationMethod: %w", err)
+		}
+		if err := n.keyStore.AddPublicKey(vm.ID.String(), pKey, signingTime); err != nil {
+			return fmt.Errorf("unable to add new public key: %w", err)
+		}
+
+	}
+	for _, vm := range removedVMs {
+		if err := n.keyStore.RevokePublicKey(vm.ID.String(), signingTime); err != nil {
+			return fmt.Errorf("unable to revoke public key: %w", err)
+		}
+	}
+	return nil
+}
+
+// checkSubscriberTransactionIntegrity performs basic integrity checks on the SubscriberTransaction fields
 // Some checks may look redundant because they are performed in the callers, this method has the sole
 // responsibility to ensure integrity, while the other may have not.
-func checkSubscriberDocumentIntegrity(document dag.SubscriberTransaction) error {
+func checkSubscriberTransactionIntegrity(transaction dag.SubscriberTransaction) error {
 	// check the payload type:
-	if document.PayloadType() != didDocumentType {
-		return fmt.Errorf("wrong payload type for this subscriber. Can handle: %s, got: %s", didDocumentType, document.PayloadType())
+	if transaction.PayloadType() != didDocumentType {
+		return fmt.Errorf("wrong payload type for this subscriber. Can handle: %s, got: %s", didDocumentType, transaction.PayloadType())
 	}
 
 	// PayloadHash must be set
-	if document.PayloadHash().Empty() {
+	if transaction.PayloadHash().Empty() {
 		return fmt.Errorf("payloadHash must be provided")
 	}
 
 	// Signing time should be set and lay in the past:
 	// allow for 2 seconds clock skew
-	if document.SigningTime().IsZero() || document.SigningTime().After(time.Now().Add(2*time.Second)) {
+	if transaction.SigningTime().IsZero() || transaction.SigningTime().After(time.Now().Add(2*time.Second)) {
 		return fmt.Errorf("signingTime must be set and in the past")
 	}
 
-	if isUpdate(document) {
+	if isUpdate(transaction) {
 		// For a DID Document update TimelineID must be set
-		if document.TimelineID().Empty() {
+		if transaction.TimelineID().Empty() {
 			return fmt.Errorf("timelineID must be set for updates")
 		}
 
-		if document.TimelineVersion() <= newDocumentVersion {
+		if transaction.TimelineVersion() <= newDocumentVersion {
 			return fmt.Errorf("timelineVersion for updates must be greater than %d", newDocumentVersion)
 		}
 
 	} else {
 		// For a new DID Document TimelineID must be nil
-		if !document.TimelineID().Empty() {
+		if !transaction.TimelineID().Empty() {
 			return fmt.Errorf("timelineID for new documents must be absent")
 		}
 
-		if document.TimelineVersion() != newDocumentVersion {
+		if transaction.TimelineVersion() != newDocumentVersion {
 			return fmt.Errorf("timelineVersion for new documents must be absent or equal to %d", newDocumentVersion)
 		}
 
-		// For new DID Documents the signing key must be embedded in the network document
-		if document.SigningKey() == nil {
+		// For new DID Documents the signing key must be embedded in the network transaction
+		if transaction.SigningKey() == nil {
 			return fmt.Errorf("signingKey for new DID Documents must be set")
 		}
 	}
