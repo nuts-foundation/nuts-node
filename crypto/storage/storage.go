@@ -19,6 +19,7 @@
 package storage
 
 import (
+	"context"
 	"crypto"
 	"encoding/json"
 	"errors"
@@ -26,7 +27,6 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
 // ErrNotFound indicates that the specified crypto storage entry couldn't be found.
@@ -52,10 +52,14 @@ type PublicKeyEntry struct {
 }
 
 // FromJWK fills the publicKeyEntry with key material from the given key
-func (pke *PublicKeyEntry) FromJWK(key jwk.Key) (err error) {
+func (pke *PublicKeyEntry) FromJWK(key jwk.Key) error {
+	asMap, err := key.AsMap(context.Background())
+	if err != nil {
+		return err
+	}
+	pke.Key = asMap
 	pke.parsedJWK = key
-	pke.Key, err = util.JwkToMap(key)
-	return
+	return nil
 }
 
 // UnmarshalJSON parses the json
