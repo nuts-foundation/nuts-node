@@ -146,8 +146,8 @@ func resolveCmd() *cobra.Command {
 			return nil
 		},
 	}
-	result.Flags().BoolVar(&printMetadata, "metadata", false, "Pass 'true' to print the metadata.")
-	result.Flags().BoolVar(&printDocument, "document", false, "Pass 'true' to print the document.")
+	result.Flags().BoolVar(&printMetadata, "metadata", false, "Pass 'true' to only print the metadata (unless other flags are provided as well).")
+	result.Flags().BoolVar(&printDocument, "document", false, "Pass 'true' to only print the document (unless other flags are provided as well).")
 	return result
 }
 
