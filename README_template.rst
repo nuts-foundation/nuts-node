@@ -11,7 +11,7 @@ Distributed registry for storing and querying health care providers their vendor
     :target: https://nuts-documentation.readthedocs.io/projects/nuts--node/en/latest/?badge=latest
     :alt: Documentation Status
 
-.. image:: https://codecov.io/gh/nuts-foundation/nuts-node/branch/master/graph/badge.svg
+.. image:: https://codecov.io/gh/nuts-foundation/nuts-node/branch/master/graph/badge.svg?style=svg
     :target: https://codecov.io/gh/nuts-foundation/nuts-node
     :alt: Code coverage
 

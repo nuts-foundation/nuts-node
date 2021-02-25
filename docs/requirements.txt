@@ -1,0 +1,7 @@
+# python3 requirements
+sphinx==3.5.0
+sphinxcontrib-httpdomain==1.7.0
+sphinx-jsonschema==1.16.7
+recommonmark==0.7.1
+sphinx_rtd_theme==0.5.1
+rst_include==2.1.1
