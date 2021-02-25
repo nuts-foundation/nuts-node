@@ -177,13 +177,12 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 
 	// Resolve and check
-	resolvedDoc, metadataDocB, err = vdr.Resolve(docB.ID,nil)
+	resolvedDoc, metadataDocB, err = vdr.Resolve(docB.ID, nil)
 	assert.NoError(t, err,
 		"expected DocumentB to be resolved without error")
 
 	assert.Len(t, resolvedDoc.Authentication, 1)
 	assert.NotEqual(t, oldAuthKeyDocB, resolvedDoc.Authentication[0].ID)
-
 
 	// Check if the key has been removed from the keyStore
 	key, err = nutsCrypto.GetPublicKey(oldAuthKeyDocB.String(), time.Now())

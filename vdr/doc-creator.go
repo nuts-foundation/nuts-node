@@ -90,13 +90,12 @@ func (n NutsDocCreator) Create() (*did.Document, error) {
 	}
 	// Create the Document with itself as the controller
 	doc := &did.Document{
-		Context:            []did.URI{did.DIDContextV1URI()},
-		ID:                 *didID,
-		Controller:         []did.DID{*didID},
+		Context:    []did.URI{did.DIDContextV1URI()},
+		ID:         *didID,
+		Controller: []did.DID{*didID},
 	}
 
 	doc.AddAuthenticationMethod(verificationMethod)
 
 	return doc, nil
 }
-

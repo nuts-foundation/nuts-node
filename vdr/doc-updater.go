@@ -12,15 +12,16 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
 
-// NutsDocCreator implements the DocCreator interface and can create Nuts DID Documents.
+// NutsDocUpdater contains helper methods to update a nuts document.
 type NutsDocUpdater struct {
 	// keyCreator is used for getting a fresh key and use it to generate the Nuts DID
 	keyCreator nutsCrypto.KeyCreator
-	keyStore   nutsCrypto.PublicKeyStore
 }
 
+// newNamingFnForExistingDID returns a KIDNamingFunc that can be used as param in the keyCreator.New function.
+// It wraps the KIDNamingFunc with the context of the DID of the document.
+// It returns a keyID in the form of the documents DID with the new keys thumbprint as fragment.
 func newNamingFnForExistingDID(existingDID did.DID) nutsCrypto.KIDNamingFunc {
-
 	return func(pKey crypto.PublicKey) (string, error) {
 		ecPKey, ok := pKey.(*ecdsa.PublicKey)
 		if !ok {
@@ -64,8 +65,9 @@ func (u NutsDocUpdater) AddNewAuthenticationMethodToDIDDocument(doc *did.Documen
 	return nil
 }
 
-// getVerificationMethodDiff makes a diff of verificationMethods and returns a list with new and removed verificationMethods
-func getVerificationMethodDiff(currentDocument,  proposedDocument did.Document) (new, removed []*did.VerificationMethod) {
+// getVerificationMethodDiff is a helper function that makes a diff of verificationMethods between
+// a provided current and a proposedDocument. It returns a list with new and removed verificationMethods
+func getVerificationMethodDiff(currentDocument, proposedDocument did.Document) (new, removed []*did.VerificationMethod) {
 	for _, vmp := range proposedDocument.VerificationMethod {
 		found := false
 		for _, mpc := range currentDocument.VerificationMethod {
@@ -93,7 +95,8 @@ func getVerificationMethodDiff(currentDocument,  proposedDocument did.Document) 
 	return
 }
 
-
+// RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
+// When the verificationMethod is used in an assertion or authentication method, it is also removed there.
 func (u NutsDocUpdater) RemoveVerificationMethod(keyID did.DID, document *did.Document) error {
 	var newVerificationMethods []*did.VerificationMethod
 	for _, vm := range document.VerificationMethod {
@@ -101,8 +104,13 @@ func (u NutsDocUpdater) RemoveVerificationMethod(keyID did.DID, document *did.Do
 			newVerificationMethods = append(newVerificationMethods, vm)
 		}
 	}
+	// Check if it is actually found and removed:
+	if len(newVerificationMethods) == len(document.VerificationMethod) {
+		return errors.New("verificationMethod not found in document")
+	}
 	document.VerificationMethod = newVerificationMethods
 
+	// Remove it from the authentication methods
 	var vmsToKeep []did.VerificationRelationship
 	for _, vm := range document.Authentication {
 		if !vm.ID.Equals(keyID) {
@@ -112,6 +120,7 @@ func (u NutsDocUpdater) RemoveVerificationMethod(keyID did.DID, document *did.Do
 	}
 	document.Authentication = vmsToKeep
 
+	// Remove it from the assertion methods
 	vmsToKeep = []did.VerificationRelationship{}
 	for _, vm := range document.AssertionMethod {
 		if !vm.ID.Equals(keyID) {

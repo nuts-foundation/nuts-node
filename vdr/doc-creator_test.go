@@ -144,4 +144,3 @@ func jwkToPublicKey(t *testing.T, jwkStr string) (crypto.PublicKey, error) {
 	}
 	return rawKey, nil
 }
-

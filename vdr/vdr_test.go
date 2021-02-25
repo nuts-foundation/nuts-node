@@ -37,7 +37,7 @@ func TestVDR_Update(t *testing.T) {
 
 	nextDIDDocument := did.Document{}
 	expectedResolverMetadata := &types.ResolveMetadata{
-		Hash:             &currentHash,
+		Hash: &currentHash,
 	}
 	resolvedMetadata := types.DocumentMetadata{
 		TimelineID: hash.SHA256Sum([]byte("timeline")),
