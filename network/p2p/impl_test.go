@@ -41,6 +41,18 @@ func Test_p2pNetwork_Configure(t *testing.T) {
 		}
 		assert.Len(t, network.(*p2pNetwork).connectorAddChannel, 2)
 	})
+	t.Run("ok - ssl offloading", func(t *testing.T) {
+		network := NewP2PNetwork()
+		err := network.Configure(P2PNetworkConfig{
+			PeerID:         "foo",
+			ListenAddress:  "0.0.0.0:555",
+			BootstrapNodes: []string{"foo:555", "bar:5554"},
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Len(t, network.(*p2pNetwork).connectorAddChannel, 2)
+	})
 }
 
 func Test_p2pNetwork_Start(t *testing.T) {

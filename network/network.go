@@ -22,6 +22,7 @@ import (
 	crypto2 "crypto"
 	"crypto/tls"
 	"fmt"
+	"github.com/pkg/errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -35,7 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/proto"
-	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
 )
 
@@ -92,14 +92,17 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	return n.p2pNetwork.Configure(*networkConfig)
 }
 
+// Name returns the module name.
 func (n *Network) Name() string {
 	return moduleName
 }
 
+// ConfigKey returns the config key for the module.
 func (n *Network) ConfigKey() string {
 	return configKey
 }
 
+// Config returns a pointer to the actual config of the module.
 func (n *Network) Config() interface{} {
 	return &n.config
 }
@@ -203,18 +206,19 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.P2PNetworkConfig, erro
 		BootstrapNodes: n.config.BootstrapNodes,
 		PeerID:         peerID,
 	}
-	var err error
-	if cfg.TrustStore, err = n.config.loadTrustStore(); err != nil {
-		return nil, err
-	}
 	clientCertificate, err := tls.LoadX509KeyPair(n.config.CertFile, n.config.CertKeyFile)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certFile=%s,certKeyFile=%s)", n.config.CertFile, n.config.CertKeyFile)
 	}
 	cfg.ClientCert = clientCertificate
-	// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
-	if n.config.GrpcAddr != "" && n.config.EnableTLS {
-		cfg.ServerCert = cfg.ClientCert
+	if n.config.EnableTLS {
+		if cfg.TrustStore, err = n.config.loadTrustStore(); err != nil {
+			return nil, err
+		}
+		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
+		if n.config.GrpcAddr != "" {
+			cfg.ServerCert = cfg.ClientCert
+		}
 	}
 	return &cfg, nil
 }

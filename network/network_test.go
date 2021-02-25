@@ -59,6 +59,20 @@ func TestNetwork_ListDocuments(t *testing.T) {
 	})
 }
 
+
+func TestNetwork_Name(t *testing.T) {
+	assert.Equal(t, "Network", (&Network{}).Name())
+}
+
+func TestNetwork_ConfigKey(t *testing.T) {
+	assert.Equal(t, "network", (&Network{}).ConfigKey())
+}
+
+func TestNetwork_Config(t *testing.T) {
+	n := &Network{}
+	assert.Same(t, &n.config, n.Config())
+}
+
 func TestNetwork_GetDocument(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -115,14 +129,37 @@ func TestNetwork_Configure(t *testing.T) {
 			return
 		}
 	})
-	t.Run("offline mode", func(t *testing.T) {
+	t.Run("certs not configured (offline mode)", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl)
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.network.config.CertKeyFile = ""
+		cxt.network.config.CertFile = ""
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+	t.Run("truststore not configured (offline mode)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.network.config.TrustStoreFile = ""
-		cxt.network.config.CertKeyFile = ""
-		cxt.network.config.CertFile = ""
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+	t.Run("disable TLS for incoming connections (SSL offloading)", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl)
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.p2pNetwork.EXPECT().Configure(gomock.Any())
+		cxt.network.config.TrustStoreFile = ""
+		cxt.network.config.EnableTLS = false
 		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
@@ -285,6 +322,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	networkConfig.CertFile = "test/certificate-and-key.pem"
 	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
 	networkConfig.PublicAddr = "foo:8080"
+	networkConfig.EnableTLS = true
 	keyStore := crypto.NewMockKeyStore(ctrl)
 	network := NewNetworkInstance(networkConfig, keyStore)
 	network.p2pNetwork = p2pNetwork
