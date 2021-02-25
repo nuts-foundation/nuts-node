@@ -21,34 +21,79 @@ import (
 const expectedPayloadType = "application/did+json"
 
 func TestVDR_Update(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	didStoreMock := types.NewMockStore(ctrl)
-	networkMock := network.NewMockTransactions(ctrl)
-	vdr := VDR{
-		store:   didStoreMock,
-		network: networkMock,
-	}
 	id, _ := did.ParseDID("did:nuts:123")
 	keyID, _ := did.ParseDID("did:nuts:123#key-1")
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
-	currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
-	currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
 
-	nextDIDDocument := did.Document{}
-	expectedResolverMetadata := &types.ResolveMetadata{
-		Hash: &currentHash,
-	}
-	resolvedMetadata := types.DocumentMetadata{
-		TimelineID: hash.SHA256Sum([]byte("timeline")),
-		Version:    1,
-	}
-	expectedPayload, _ := json.Marshal(nextDIDDocument)
-	didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any(), gomock.Any())
-	err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
-	assert.NoError(t, err)
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		didStoreMock := types.NewMockStore(ctrl)
+		networkMock := network.NewMockTransactions(ctrl)
+		vdr := VDR{
+			store:   didStoreMock,
+			network: networkMock,
+		}
+		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
+		currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
+
+		nextDIDDocument := did.Document{}
+		expectedResolverMetadata := &types.ResolveMetadata{
+			Hash: &currentHash,
+		}
+		resolvedMetadata := types.DocumentMetadata{
+			TimelineID: hash.SHA256Sum([]byte("timeline")),
+			Version:    1,
+		}
+		expectedPayload, _ := json.Marshal(nextDIDDocument)
+		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
+		networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any(), gomock.Any())
+		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - no controller for document", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		didStoreMock := types.NewMockStore(ctrl)
+		networkMock := network.NewMockTransactions(ctrl)
+		vdr := VDR{
+			store:   didStoreMock,
+			network: networkMock,
+		}
+		currentDIDDocument := did.Document{ID: *id}
+
+		nextDIDDocument := did.Document{}
+		expectedResolverMetadata := &types.ResolveMetadata{
+			Hash: &currentHash,
+		}
+		resolvedMetadata := types.DocumentMetadata{
+			TimelineID: hash.SHA256Sum([]byte("timeline")),
+			Version:    1,
+		}
+		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
+		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		assert.EqualError(t, err, "could not find any contollers for document")
+	})
+	t.Run("error - could not resolve current document", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		didStoreMock := types.NewMockStore(ctrl)
+		networkMock := network.NewMockTransactions(ctrl)
+		vdr := VDR{
+			store:   didStoreMock,
+			network: networkMock,
+		}
+		nextDIDDocument := did.Document{}
+		expectedResolverMetadata := &types.ResolveMetadata{
+			Hash: &currentHash,
+		}
+		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
+		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		assert.EqualError(t, err, "unable to find the did document")
+	})
 }
+
 func TestVDR_Create(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
