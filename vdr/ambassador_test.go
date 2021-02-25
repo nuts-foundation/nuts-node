@@ -876,3 +876,124 @@ func Test_checkDIDDocumentIntegrity(t *testing.T) {
 		})
 	}
 }
+
+func Test_ambassador_updateKeysInStore(t *testing.T) {
+	t.Run("ok - empty documents", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		sut := ambassador{keyStore: keyStoreMock}
+
+		current := did.Document{}
+		proposed := did.Document{}
+
+		err := sut.updateKeysInStore(current, proposed, time.Now())
+		assert.NoError(t, err,
+			"expected no error when providing two empty documents")
+	})
+
+	t.Run("ok - one new key", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		sut := ambassador{keyStore: keyStoreMock}
+
+		current := did.Document{}
+		proposed := did.Document{}
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		timeNow := time.Now()
+		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		if !assert.NoError(t, err,
+			"unexpected error while generating a new verificationMethod") {
+			return
+		}
+		proposed.AddAuthenticationMethod(vm)
+
+		keyStoreMock.EXPECT().AddPublicKey(vm.ID.String(), &pair.PublicKey, timeNow).Return(nil)
+
+		err = sut.updateKeysInStore(current, proposed, timeNow)
+		assert.NoError(t, err,
+			"expected no error when adding one key")
+
+	})
+
+	t.Run("ok - one old key", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		sut := ambassador{keyStore: keyStoreMock}
+
+		current := did.Document{}
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		timeNow := time.Now()
+		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		if !assert.NoError(t, err,
+			"unexpected error while generating a new verificationMethod") {
+			return
+		}
+		current.AddAuthenticationMethod(vm)
+
+		proposed := did.Document{}
+		keyStoreMock.EXPECT().RevokePublicKey(vm.ID.String(), timeNow)
+
+		err = sut.updateKeysInStore(current, proposed, timeNow)
+		assert.NoError(t, err,
+			"expected no error when removing one key")
+	})
+
+	t.Run("error - adding key failed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		sut := ambassador{keyStore: keyStoreMock}
+
+		current := did.Document{}
+		proposed := did.Document{}
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		timeNow := time.Now()
+		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		if !assert.NoError(t, err,
+			"unexpected error while generating a new verificationMethod") {
+			return
+		}
+		proposed.AddAuthenticationMethod(vm)
+
+		keyStoreMock.EXPECT().AddPublicKey(vm.ID.String(), &pair.PublicKey, timeNow).Return(crypto.ErrKeyAlreadyExists)
+
+		err = sut.updateKeysInStore(current, proposed, timeNow)
+		assert.EqualError(t, err, "unable to add new public key: key already exists")
+	})
+
+	t.Run("error - revoking key failed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		sut := ambassador{keyStore: keyStoreMock}
+
+		current := did.Document{}
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		timeNow := time.Now()
+		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		if !assert.NoError(t, err,
+			"unexpected error while generating a new verificationMethod") {
+			return
+		}
+		current.AddAuthenticationMethod(vm)
+
+		proposed := did.Document{}
+		keyStoreMock.EXPECT().RevokePublicKey(vm.ID.String(), timeNow).Return(crypto.ErrKeyRevoked)
+
+		err = sut.updateKeysInStore(current, proposed, timeNow)
+		assert.EqualError(t, err, "unable to revoke public key: key is revoked")
+	})
+}
