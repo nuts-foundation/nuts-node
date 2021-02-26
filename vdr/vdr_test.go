@@ -61,7 +61,7 @@ func TestVDR_Create(t *testing.T) {
 	}
 	id, _ := did.ParseDID("did:nuts:123")
 	keyID, _ := did.ParseDID(id.String() + "#key-1")
-	nextDIDDocument := did.Document{ ID: *id }
+	nextDIDDocument := did.Document{ID: *id}
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if !assert.NoError(t, err) {
 		return

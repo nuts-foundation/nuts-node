@@ -5,91 +5,36 @@
 package p2p
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	core "github.com/nuts-foundation/nuts-node/core"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	reflect "reflect"
 )
 
-// MockP2PNetwork is a mock of P2PNetwork interface.
+// MockP2PNetwork is a mock of P2PNetwork interface
 type MockP2PNetwork struct {
 	ctrl     *gomock.Controller
 	recorder *MockP2PNetworkMockRecorder
 }
 
-// MockP2PNetworkMockRecorder is the mock recorder for MockP2PNetwork.
+// MockP2PNetworkMockRecorder is the mock recorder for MockP2PNetwork
 type MockP2PNetworkMockRecorder struct {
 	mock *MockP2PNetwork
 }
 
-// NewMockP2PNetwork creates a new mock instance.
+// NewMockP2PNetwork creates a new mock instance
 func NewMockP2PNetwork(ctrl *gomock.Controller) *MockP2PNetwork {
 	mock := &MockP2PNetwork{ctrl: ctrl}
 	mock.recorder = &MockP2PNetworkMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockP2PNetwork) EXPECT() *MockP2PNetworkMockRecorder {
 	return m.recorder
 }
 
-// Broadcast mocks base method.
-func (m *MockP2PNetwork) Broadcast(message *transport.NetworkMessage) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Broadcast", message)
-}
-
-// Broadcast indicates an expected call of Broadcast.
-func (mr *MockP2PNetworkMockRecorder) Broadcast(message interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Broadcast", reflect.TypeOf((*MockP2PNetwork)(nil).Broadcast), message)
-}
-
-// Configure mocks base method.
-func (m *MockP2PNetwork) Configure(config P2PNetworkConfig) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Configure", config)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Configure indicates an expected call of Configure.
-func (mr *MockP2PNetworkMockRecorder) Configure(config interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockP2PNetwork)(nil).Configure), config)
-}
-
-// Configured mocks base method.
-func (m *MockP2PNetwork) Configured() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Configured")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// Configured indicates an expected call of Configured.
-func (mr *MockP2PNetworkMockRecorder) Configured() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configured", reflect.TypeOf((*MockP2PNetwork)(nil).Configured))
-}
-
-// ConnectToPeer mocks base method.
-func (m *MockP2PNetwork) ConnectToPeer(address string) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ConnectToPeer", address)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// ConnectToPeer indicates an expected call of ConnectToPeer.
-func (mr *MockP2PNetworkMockRecorder) ConnectToPeer(address interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectToPeer", reflect.TypeOf((*MockP2PNetwork)(nil).ConnectToPeer), address)
-}
-
-// Diagnostics mocks base method.
+// Diagnostics mocks base method
 func (m *MockP2PNetwork) Diagnostics() []core.DiagnosticResult {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Diagnostics")
@@ -97,55 +42,41 @@ func (m *MockP2PNetwork) Diagnostics() []core.DiagnosticResult {
 	return ret0
 }
 
-// Diagnostics indicates an expected call of Diagnostics.
+// Diagnostics indicates an expected call of Diagnostics
 func (mr *MockP2PNetworkMockRecorder) Diagnostics() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockP2PNetwork)(nil).Diagnostics))
 }
 
-// Peers mocks base method.
-func (m *MockP2PNetwork) Peers() []PeerID {
+// Configure mocks base method
+func (m *MockP2PNetwork) Configure(config P2PNetworkConfig) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Peers")
-	ret0, _ := ret[0].([]PeerID)
-	return ret0
-}
-
-// Peers indicates an expected call of Peers.
-func (mr *MockP2PNetworkMockRecorder) Peers() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peers", reflect.TypeOf((*MockP2PNetwork)(nil).Peers))
-}
-
-// ReceivedMessages mocks base method.
-func (m *MockP2PNetwork) ReceivedMessages() MessageQueue {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReceivedMessages")
-	ret0, _ := ret[0].(MessageQueue)
-	return ret0
-}
-
-// ReceivedMessages indicates an expected call of ReceivedMessages.
-func (mr *MockP2PNetworkMockRecorder) ReceivedMessages() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceivedMessages", reflect.TypeOf((*MockP2PNetwork)(nil).ReceivedMessages))
-}
-
-// Send mocks base method.
-func (m *MockP2PNetwork) Send(peer PeerID, message *transport.NetworkMessage) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Send", peer, message)
+	ret := m.ctrl.Call(m, "Configure", config)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Send indicates an expected call of Send.
-func (mr *MockP2PNetworkMockRecorder) Send(peer, message interface{}) *gomock.Call {
+// Configure indicates an expected call of Configure
+func (mr *MockP2PNetworkMockRecorder) Configure(config interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockP2PNetwork)(nil).Send), peer, message)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockP2PNetwork)(nil).Configure), config)
 }
 
-// Start mocks base method.
+// Configured mocks base method
+func (m *MockP2PNetwork) Configured() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Configured")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Configured indicates an expected call of Configured
+func (mr *MockP2PNetworkMockRecorder) Configured() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configured", reflect.TypeOf((*MockP2PNetwork)(nil).Configured))
+}
+
+// Start mocks base method
 func (m *MockP2PNetwork) Start() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Start")
@@ -153,13 +84,13 @@ func (m *MockP2PNetwork) Start() error {
 	return ret0
 }
 
-// Start indicates an expected call of Start.
+// Start indicates an expected call of Start
 func (mr *MockP2PNetworkMockRecorder) Start() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockP2PNetwork)(nil).Start))
 }
 
-// Stop mocks base method.
+// Stop mocks base method
 func (m *MockP2PNetwork) Stop() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Stop")
@@ -167,36 +98,104 @@ func (m *MockP2PNetwork) Stop() error {
 	return ret0
 }
 
-// Stop indicates an expected call of Stop.
+// Stop indicates an expected call of Stop
 func (mr *MockP2PNetworkMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockP2PNetwork)(nil).Stop))
 }
 
-// MockMessageQueue is a mock of MessageQueue interface.
+// ConnectToPeer mocks base method
+func (m *MockP2PNetwork) ConnectToPeer(address string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConnectToPeer", address)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// ConnectToPeer indicates an expected call of ConnectToPeer
+func (mr *MockP2PNetworkMockRecorder) ConnectToPeer(address interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectToPeer", reflect.TypeOf((*MockP2PNetwork)(nil).ConnectToPeer), address)
+}
+
+// ReceivedMessages mocks base method
+func (m *MockP2PNetwork) ReceivedMessages() MessageQueue {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReceivedMessages")
+	ret0, _ := ret[0].(MessageQueue)
+	return ret0
+}
+
+// ReceivedMessages indicates an expected call of ReceivedMessages
+func (mr *MockP2PNetworkMockRecorder) ReceivedMessages() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceivedMessages", reflect.TypeOf((*MockP2PNetwork)(nil).ReceivedMessages))
+}
+
+// Send mocks base method
+func (m *MockP2PNetwork) Send(peer PeerID, message *transport.NetworkMessage) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Send", peer, message)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Send indicates an expected call of Send
+func (mr *MockP2PNetworkMockRecorder) Send(peer, message interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockP2PNetwork)(nil).Send), peer, message)
+}
+
+// Broadcast mocks base method
+func (m *MockP2PNetwork) Broadcast(message *transport.NetworkMessage) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Broadcast", message)
+}
+
+// Broadcast indicates an expected call of Broadcast
+func (mr *MockP2PNetworkMockRecorder) Broadcast(message interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Broadcast", reflect.TypeOf((*MockP2PNetwork)(nil).Broadcast), message)
+}
+
+// Peers mocks base method
+func (m *MockP2PNetwork) Peers() []PeerID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Peers")
+	ret0, _ := ret[0].([]PeerID)
+	return ret0
+}
+
+// Peers indicates an expected call of Peers
+func (mr *MockP2PNetworkMockRecorder) Peers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peers", reflect.TypeOf((*MockP2PNetwork)(nil).Peers))
+}
+
+// MockMessageQueue is a mock of MessageQueue interface
 type MockMessageQueue struct {
 	ctrl     *gomock.Controller
 	recorder *MockMessageQueueMockRecorder
 }
 
-// MockMessageQueueMockRecorder is the mock recorder for MockMessageQueue.
+// MockMessageQueueMockRecorder is the mock recorder for MockMessageQueue
 type MockMessageQueueMockRecorder struct {
 	mock *MockMessageQueue
 }
 
-// NewMockMessageQueue creates a new mock instance.
+// NewMockMessageQueue creates a new mock instance
 func NewMockMessageQueue(ctrl *gomock.Controller) *MockMessageQueue {
 	mock := &MockMessageQueue{ctrl: ctrl}
 	mock.recorder = &MockMessageQueueMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockMessageQueue) EXPECT() *MockMessageQueueMockRecorder {
 	return m.recorder
 }
 
-// Get mocks base method.
+// Get mocks base method
 func (m *MockMessageQueue) Get() PeerMessage {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get")
@@ -204,7 +203,7 @@ func (m *MockMessageQueue) Get() PeerMessage {
 	return ret0
 }
 
-// Get indicates an expected call of Get.
+// Get indicates an expected call of Get
 func (mr *MockMessageQueueMockRecorder) Get() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockMessageQueue)(nil).Get))
