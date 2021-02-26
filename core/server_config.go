@@ -131,6 +131,7 @@ func resolveConfigFile(flags *pflag.FlagSet) string {
 	return k.String(configFileFlag)
 }
 
+// FlagSet returns the default server flags
 func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("server", pflag.ContinueOnError)
 	flagSet.String(configFileFlag, defaultConfigFile, "Nuts config file")
