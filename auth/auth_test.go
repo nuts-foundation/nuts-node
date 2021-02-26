@@ -35,10 +35,40 @@ func TestAuth_Configure(t *testing.T) {
 			return
 		}
 	})
+
+	t.Run("error - IRMA scheme manager not set", func(t *testing.T) {
+		authCfg := TestConfig()
+		authCfg.Irma.SchemeManager = ""
+		i := testInstance(t, authCfg)
+		err := i.Configure(*core.NewServerConfig())
+		assert.EqualError(t, err, "IRMA SchemeManager must be set")
+	})
+
+	t.Run("error - only 'pbdf' IRMA scheme manager allow in strict mode", func(t *testing.T) {
+		authCfg := TestConfig()
+		authCfg.Irma.SchemeManager = "demo"
+		i := testInstance(t, authCfg)
+		serverConfig := core.NewServerConfig()
+		serverConfig.Strictmode = true
+		err := i.Configure(*serverConfig)
+		assert.EqualError(t, err, "in strictmode the only valid irma-scheme-manager is 'pbdf'")
+	})
 }
 
 func testInstance(t *testing.T, cfg Config) *Auth {
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
 	return NewAuthInstance(cfg, vdr.NewTestVDRInstance(testDirectory), cryptoInstance)
+}
+
+func TestAuth_Name(t *testing.T) {
+	assert.Equal(t, "Auth", (&Auth{}).Name())
+}
+
+func TestAuth_ConfigKey(t *testing.T) {
+	assert.Equal(t, "auth", (&Auth{}).ConfigKey())
+}
+
+func TestAuth_Config(t *testing.T) {
+	assert.Equal(t, Config{}, *(&Auth{}).Config().(*Config))
 }

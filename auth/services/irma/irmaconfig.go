@@ -35,7 +35,6 @@ func GetIrmaConfig(config ValidatorConfig) (irmaConfig *irma.Configuration, err 
 		if err != nil {
 			return
 		}
-		logging.Log().Infof("Using irma config dir: %s", configDir)
 
 		options := irma.ConfigurationOptions{}
 		irmaConfig, err = irma.NewConfiguration(configDir, options)
@@ -43,7 +42,7 @@ func GetIrmaConfig(config ValidatorConfig) (irmaConfig *irma.Configuration, err 
 			return
 		}
 
-		logging.Log().Info("Loading irma schemas.")
+		logging.Log().Info("Loading IRMA schemas...")
 		if err = irmaConfig.ParseFolder(); err != nil {
 			return
 		}
@@ -78,8 +77,7 @@ func GetIrmaServer(config ValidatorConfig) (irmaServer *irmaserver.Server, err e
 			DisableSchemesUpdate: !config.AutoUpdateIrmaSchemas,
 		}
 
-		logging.Log().Info("Initializing IRMA library...")
-		logging.Log().Infof("irma baseurl: %s", config.URL)
+		logging.Log().Infof("Initializing IRMA library (baseURL=%s)...", config.URL)
 
 		irmaServer, err = irmaserver.New(config)
 		if err != nil {
