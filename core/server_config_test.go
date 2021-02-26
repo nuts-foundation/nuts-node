@@ -188,12 +188,12 @@ func TestNewNutsConfig_PrintConfig(t *testing.T) {
 func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 	defer reset()
 
-	os.Args = []string{"command", "--key", "value"}
 	cfg := NewServerConfig()
 
 	cmd := testCommand()
 	flagSet := pflag.NewFlagSet("dummy", pflag.ContinueOnError)
 	flagSet.String("key", "", "")
+	flagSet.Parse([]string{"--key", "value"})
 	cmd.PersistentFlags().AddFlagSet(flagSet)
 	in := &TestEngine{
 		TestConfig: TestEngineConfig{},
@@ -241,6 +241,11 @@ func TestNewNutsConfig_resolveConfigFile(t *testing.T) {
 
 func testCommand() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.PersistentFlags().AddFlagSet(FlagSet())
+	fs := FlagSet()
+
+	// this is done by the cobra command and may only be done once
+	fs.Parse(os.Args)
+
+	cmd.PersistentFlags().AddFlagSet(fs)
 	return cmd
 }

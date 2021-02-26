@@ -124,10 +124,6 @@ func resolveConfigFile(flags *pflag.FlagSet) string {
 	// can't return error
 	_ = k.Load(e, nil)
 
-	if len(os.Args) > 1 {
-		_ = flags.Parse(os.Args[1:])
-	}
-
 	// load cmd flags, without a parser, no error can be returned
 	// this also loads the default flag value of nuts.yaml. So we need a way to know if it's overiden.
 	_ = k.Load(posflag.Provider(flags, defaultDelimiter, k), nil)

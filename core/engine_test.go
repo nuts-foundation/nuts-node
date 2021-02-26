@@ -25,10 +25,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/knadh/koanf"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -135,7 +135,7 @@ func TestSystem_VisitEnginesE(t *testing.T) {
 }
 
 func TestSystem_Load(t *testing.T) {
-	cmd := &cobra.Command{}
+	cmd := testCommand()
 	e := &TestEngine{
 		flagSet:    &pflag.FlagSet{},
 		TestConfig: TestEngineConfig{},
@@ -145,9 +145,8 @@ func TestSystem_Load(t *testing.T) {
 		Config:  NewServerConfig(),
 	}
 	e.FlagSet().String("key", "", "")
-	os.Args = []string{"command", "--key", "value"}
 	cmd.PersistentFlags().AddFlagSet(e.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(FlagSet())
+	e.FlagSet().Parse([]string{"--key", "value"})
 
 	t.Run("loads Config without error", func(t *testing.T) {
 		assert.NoError(t, ctl.Load(cmd))
@@ -156,6 +155,26 @@ func TestSystem_Load(t *testing.T) {
 	t.Run("calls inject into engine", func(t *testing.T) {
 		ctl.Load(cmd)
 		assert.Equal(t, "value", e.TestConfig.Key)
+	})
+
+	t.Run("slice flags are loaded once", func(t *testing.T) {
+		flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		flagSet.StringSlice("f", []string{}, "")
+		type Target struct {
+			F []string `koanf:"f"`
+		}
+		cmd := &cobra.Command{}
+		cmd.PersistentFlags().AddFlagSet(flagSet)
+		var target Target
+
+		flagSet.Parse([]string{"command", "--f", "once"})
+		ctl.Load(cmd)
+		err := loadConfigIntoStruct(flagSet, &target, koanf.New(defaultDelimiter))
+
+		assert.NoError(t, err)
+		if !assert.Len(t, target.F, 1) {
+			assert.Equal(t, "once", target.F[0])
+		}
 	})
 }
 
