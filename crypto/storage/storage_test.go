@@ -17,6 +17,10 @@
 package storage
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"github.com/lestrrat-go/jwx/jwk"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,4 +42,17 @@ func TestPublicKeyEntry_UnmarshalJSON(t *testing.T) {
 		}
 		assert.Equal(t, "could not parse publicKeyEntry: invalid publickeyJwk: invalid key type from JSON ()", err.Error())
 	})
+}
+
+func TestPublicKeyEntry_FromJWK(t *testing.T) {
+	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	pk, _ := jwk.New(privateKey)
+
+	entry := PublicKeyEntry{}
+	err := entry.FromJWK(pk)
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.NotEmpty(t, entry.Key)
+	assert.Same(t, pk, entry.parsedJWK)
 }
