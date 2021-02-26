@@ -20,7 +20,7 @@ require (
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/nuts-foundation/go-did v0.0.0-20210223070344-61d177b1beb9
-	github.com/nuts-foundation/go-leia v0.0.0-20210224102808-cfff1b24c542
+	github.com/nuts-foundation/go-leia v0.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/privacybydesign/irmago v0.6.0
 	github.com/prometheus/client_golang v1.7.1
@@ -33,9 +33,7 @@ require (
 	github.com/spf13/viper v1.7.1 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.6.1
-	github.com/thedevsaddam/gojsonq/v2 v2.5.2
 	go.etcd.io/bbolt v1.3.5
 	google.golang.org/grpc v1.33.1
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0 // indirect
 	google.golang.org/protobuf v1.25.0
 )

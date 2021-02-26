@@ -29,7 +29,6 @@ import (
 
 	"github.com/nuts-foundation/go-did"
 	errors2 "github.com/pkg/errors"
-	"github.com/thedevsaddam/gojsonq/v2"
 )
 
 // TypeField defines the concept/VC JSON joinPath to a VC type
@@ -207,27 +206,30 @@ func (ct *Template) transform(VC did.VerifiableCredential) (Concept, error) {
 
 	vcJSON, err := json.Marshal(VC)
 	if err != nil {
-		return nil, err
+		return nil, errors2.Wrap(err, "failed to marshal credential into json")
 	}
 
 	// json parsing
-	jq := gojsonq.New()
-	jq.FromString(string(vcJSON))
+	var val = make(map[string]interface{})
+	if err = json.Unmarshal(vcJSON, &val); err != nil {
+		return nil, errors2.Wrap(err, "failed to parse json")
+	}
 
 	// result target
 	c := Concept{
 		TypeField: ct.fixedValues[TypeField],
 	}
-	err = ct.transR(jq, "", c)
+	err = ct.transformRecursive(val, "", c)
 
 	return c, err
 }
 
-func (ct *Template) transR(jq *gojsonq.JSONQ, currentPath string, c Concept) error {
-	val := jq.Get()
+func (ct *Template) transformRecursive(val interface{}, currentPath string, c Concept) error {
 
-	if jq.Error() != nil {
-		return jq.Error()
+	if s, ok := val.(string); ok {
+		if m, ok := ct.reverseIndexMapping[currentPath]; ok {
+			c.SetValue(m, s)
+		}
 	}
 
 	// we do not support mapped values within lists
@@ -243,15 +245,8 @@ func (ct *Template) transR(jq *gojsonq.JSONQ, currentPath string, c Concept) err
 				continue
 			}
 
-			if sv, ok := v.(string); ok {
-				if m, ok := ct.reverseIndexMapping[nextPath]; ok {
-					c.SetValue(m, sv)
-				}
-			} else {
-				gjs := gojsonq.New().FromInterface(v)
-				if err := ct.transR(gjs, nextPath, c); err != nil {
-					return err
-				}
+			if err := ct.transformRecursive(v, nextPath, c); err != nil {
+				return err
 			}
 		}
 	}
