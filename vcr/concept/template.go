@@ -67,6 +67,8 @@ func (ct Template) ToVCPath(conceptPath string) string {
 	return ct.conceptIndexMapping[conceptPath]
 }
 
+// Indices returns the required indices parsed from the template.
+// It returns a slice of compound indices.
 func (ct Template) Indices() [][]string {
 	return ct.indices
 }
@@ -76,7 +78,7 @@ func (ct Template) VCType() string {
 	return ct.fixedValues[TypeField]
 }
 
-// find paths to concepts
+// ParseTemplate parses a concept template
 func ParseTemplate(raw string) (*Template, error) {
 	ct := &Template{
 		raw: raw,
