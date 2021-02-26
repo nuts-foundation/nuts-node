@@ -31,7 +31,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCredential_Configure(t *testing.T) {
+func TestVCR_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		instance := NewVCRInstance().(*vcr)
@@ -54,9 +54,9 @@ func TestCredential_Configure(t *testing.T) {
 	})
 }
 
-func TestCredential_Search(t *testing.T) {
+func TestVCR_Search(t *testing.T) {
 	testDir := io.TestDirectory(t)
-	instance := NewTestCredentialInstance(testDir)
+	instance := NewTestVCRInstance(testDir)
 
 	ct, err := concept.ParseTemplate(concept.ExampleTemplate)
 	if !assert.NoError(t, err) {
@@ -86,7 +86,7 @@ func TestCredential_Search(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	q.AddCriteria(concept.Eq("company.name", "Because we care BV"))
+	q.AddClause(concept.Eq("company.name", "Because we care BV"))
 
 	creds, err := instance.Search(q)
 	if !assert.NoError(t, err) {

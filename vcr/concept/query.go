@@ -27,8 +27,8 @@ type Query interface {
 	Concept() string
 	// Parts returns the different TemplateQuery
 	Parts() []*TemplateQuery
-	// AddCriteria adds a criteria to the query.
-	AddCriteria(criteria Criteria)
+	// AddClause adds a clause to the query.
+	AddClause(clause Clause)
 }
 
 type query struct {
@@ -52,7 +52,7 @@ func (q *query) addTemplate(template *Template) {
 
 	// add all hardcoded values
 	for k, v := range template.fixedValues {
-		tq.Criteria = append(tq.Criteria, eq{
+		tq.Clauses = append(tq.Clauses, eq{
 			key:   k,
 			value: v,
 		})
@@ -61,17 +61,17 @@ func (q *query) addTemplate(template *Template) {
 	q.parts = append(q.parts, &tq)
 }
 
-// Add a Criteria. The Criteria is added to each TemplateQuery
-func (q *query) AddCriteria(criteria Criteria) {
+// Add a Clause. The clause is added to each TemplateQuery
+func (q *query) AddClause(clause Clause) {
 	for _, tq := range q.parts {
-		tq.Criteria = append(tq.Criteria, criteria)
+		tq.Clauses = append(tq.Clauses, clause)
 	}
 }
 
 // TemplateQuery represents a query/template combination
 type TemplateQuery struct {
 	template *Template
-	Criteria []Criteria
+	Clauses  []Clause
 }
 
 // Template returns the underlying template
@@ -84,20 +84,20 @@ func (tq *TemplateQuery) VCType() string {
 	return tq.template.VCType()
 }
 
-// Criteria abstracts different equality clauses, comparable to '=', '!=', 'between' and 'abc%' in SQL.
+// Clause abstracts different equality clauses, comparable to '=', '!=', 'between' and 'abc%' in SQL.
 // note: it currently only supports a key/value store with a binary tree index.
 // When other DB's need to be supported, it could be the case that we will have to add 'dialects' for queries.
-type Criteria interface {
+type Clause interface {
 	// Key returns the key to match against.
 	Key() string
-	// Seek returns the first matching value for this Criteria or "" if not applicable.
+	// Seek returns the first matching value for this Clause or "" if not applicable.
 	Seek() string
 	// Match returns the string that should match each subsequent test when using a cursor or something equal.
 	Match() string
 }
 
-// Eq creates an equal Criteria
-func Eq(key string, value string) Criteria {
+// Eq creates an equal Clause
+func Eq(key string, value string) Clause {
 	return eq{key, value}
 }
 

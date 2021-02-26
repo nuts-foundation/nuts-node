@@ -115,7 +115,7 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 			vc := did.VerifiableCredential{}
 			err = json.Unmarshal(doc, &vc)
 			if err != nil {
-				return nil, errors.Wrap(err, "unable to parse vcr from db")
+				return nil, errors.Wrap(err, "unable to parse credential from db")
 			}
 			VCs = append(VCs, vc)
 		}
@@ -132,16 +132,16 @@ func (c *vcr) Verify(vc did.VerifiableCredential, credentialSubject interface{},
 	panic("implement me")
 }
 
-// convert returns a map of vcr type to query
-// vcr type is then used as collection input
+// convert returns a map of credential type to query
+// credential type is then used as collection input
 func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	var qs = make(map[string]leia.Query, 0)
 
 	for _, tq := range query.Parts() {
 		var q leia.Query
-		for _, criteria := range tq.Criteria {
+		for _, clause := range tq.Clauses {
 			// todo this should map better
-			qp := leia.Range(criteria.Key(), criteria.Seek(), criteria.Match())
+			qp := leia.Range(clause.Key(), clause.Seek(), clause.Match())
 			if q == nil {
 				q = leia.New(qp)
 			} else {

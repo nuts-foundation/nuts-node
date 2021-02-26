@@ -27,14 +27,14 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 )
 
-// ErrInvalidIssuer is returned when a vcr is issued by a DID that is unknown or when the private key is missing.
-var ErrInvalidIssuer = errors.New("invalid vcr issuer")
+// ErrInvalidIssuer is returned when a credential is issued by a DID that is unknown or when the private key is missing.
+var ErrInvalidIssuer = errors.New("invalid credential issuer")
 
-// ErrInvalidSubject is returned when a vcr is issued to a DID that is unknown or revoked.
-var ErrInvalidSubject = errors.New("invalid vcr subject")
+// ErrInvalidSubject is returned when a credential is issued to a DID that is unknown or revoked.
+var ErrInvalidSubject = errors.New("invalid credential subject")
 
-// ErrNotFound is returned when a vcr can not be found based on its ID.
-var ErrNotFound = errors.New("vcr not found")
+// ErrNotFound is returned when a credential can not be found based on its ID.
+var ErrNotFound = errors.New("credential not found")
 
 // Issuer can issue credentials for DIDs to DIDs.
 type Issuer interface {
@@ -54,10 +54,10 @@ type Writer interface {
 type VCR interface {
 	// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
 	Search(query concept.Query) ([]did.VerifiableCredential, error)
-	// Resolve returns a vcr based on its ID. Returns an error when not found.
+	// Resolve returns a credential based on its ID. Returns an error when not found.
 	// todo: not implemented yet and subject to change
 	Resolve(ID string) (did.VerifiableCredential, error)
-	// Verify checks if a vcr is valid and trusted at the given time.
+	// Verify checks if a credential is valid and trusted at the given time.
 	// todo: not implemented yet and subject to change
 	Verify(vc did.VerifiableCredential, credentialSubject interface{}, at time.Time) (bool, error)
 	// Registry returns the concept registry

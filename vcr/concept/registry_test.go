@@ -186,10 +186,10 @@ func TestRegistry_QueryFor(t *testing.T) {
 			return
 		}
 
-		if !assert.Len(t, q.Parts()[0].Criteria, 1) {
+		if !assert.Len(t, q.Parts()[0].Clauses, 1) {
 			return
 		}
-		crit := q.Parts()[0].Criteria[0]
+		crit := q.Parts()[0].Clauses[0]
 
 		assert.Equal(t, "type", crit.Key())
 		assert.Equal(t, ExampleType, crit.Seek())
