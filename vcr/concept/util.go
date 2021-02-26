@@ -28,7 +28,7 @@ func max(x int, y int) int {
 	return y
 }
 
-func path(currentPath string, additional string) string {
+func joinPath(currentPath string, additional string) string {
 	if currentPath == "" {
 		return additional
 	}

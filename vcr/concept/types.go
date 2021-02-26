@@ -28,13 +28,13 @@ import (
 var ErrUnknownConcept = errors.New("unknown concept")
 
 // ErrNoType is returned when a template is loaded which doesn't have a type
-var ErrNoType = errors.New("no type found")
+var ErrNoType = errors.New("no template type found")
 
 // Concept is a JSON format for querying and returning results of queries.
 // It contains the default values of a VC: id, type, issuer and subject as well as custom concept specific data.
 type Concept map[string]interface{}
 
-// SetValue sets the field value. A path supports '.' syntax for nested values.
+// SetValue sets the field value. A joinPath supports '.' syntax for nested values.
 func (c Concept) SetValue(path string, val interface{}) {
 	parts := strings.Split(path, ".")
 

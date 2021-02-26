@@ -29,14 +29,14 @@ import (
 	"os"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/credential"
-	credApi "github.com/nuts-foundation/nuts-node/credential/api/v1"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	cryptoApi "github.com/nuts-foundation/nuts-node/crypto/api/v1"
 	cryptoCmd "github.com/nuts-foundation/nuts-node/crypto/cmd"
 	"github.com/nuts-foundation/nuts-node/network"
 	networkApi "github.com/nuts-foundation/nuts-node/network/api/v1"
 	networkCmd "github.com/nuts-foundation/nuts-node/network/cmd"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	credApi "github.com/nuts-foundation/nuts-node/vcr/api/v1"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrApi "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
@@ -142,7 +142,7 @@ func CreateSystem() *core.System {
 	cryptoInstance := crypto.NewCryptoInstance()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), cryptoInstance)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
-	credentialInstance := credential.NewCredentialInstance()
+	credentialInstance := vcr.NewVCRInstance()
 	statusEngine := core.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, cryptoInstance)
@@ -151,7 +151,7 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})
 	system.RegisterRoutes(&networkApi.Wrapper{Service: networkInstance})
 	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance})
-	system.RegisterRoutes(&credApi.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance.Reader()})
+	system.RegisterRoutes(&credApi.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authV1API.Wrapper{Auth: authInstance})

@@ -55,10 +55,8 @@ func TestTemplateString_isValid(t *testing.T) {
 }
 
 func TestTemplate_parse(t *testing.T) {
-	ct := template{
-		raw: ExampleTemplate,
-	}
-	if !assert.NoError(t, ct.parse()) {
+	ct, err := ParseTemplate(ExampleTemplate)
+	if !assert.NoError(t, err) {
 		return
 	}
 
@@ -88,27 +86,21 @@ func TestTemplate_parse(t *testing.T) {
 	})
 
 	t.Run("error - incorrect syntax", func(t *testing.T) {
-		var errorCred = template{raw: `{"id": "<<id>>@"}`}
-
-		err := errorCred.parse()
+		_, err := ParseTemplate(`{"id": "<<id>>@"}`)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("error - unsupported", func(t *testing.T) {
-		var listCred = template{raw: `{"id": ["id"]}`}
-
-		err := listCred.parse()
+		_, err := ParseTemplate(`{"id": ["id"]}`)
 
 		assert.Error(t, err)
 	})
 }
 
 func TestTemplate_transform(t *testing.T) {
-	ct := template{
-		raw: ExampleTemplate,
-	}
-	if !assert.NoError(t, ct.parse()) {
+	ct, err := ParseTemplate(ExampleTemplate)
+	if !assert.NoError(t, err) {
 		return
 	}
 
@@ -158,10 +150,8 @@ func TestTemplate_transform(t *testing.T) {
 }
 
 func TestTemplate_concepts(t *testing.T) {
-	ct := template{
-		raw: ExampleTemplate,
-	}
-	if !assert.NoError(t, ct.parse()) {
+	ct, err := ParseTemplate(ExampleTemplate)
+	if !assert.NoError(t, err) {
 		return
 	}
 

@@ -17,17 +17,17 @@
  *
  */
 
-package credential
+package vcr
 
 import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 )
 
-// NewTestCredentialInstance returns a new credential instance to be used for integration tests. Any data is stored in the
+// NewTestCredentialInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.
-func NewTestCredentialInstance(testDirectory string) *credential {
-	newInstance := NewCredentialInstance().(*credential)
+func NewTestCredentialInstance(testDirectory string) *vcr {
+	newInstance := NewVCRInstance().(*vcr)
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)
 	}

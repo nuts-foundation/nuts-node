@@ -23,30 +23,30 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/credential"
-	"github.com/nuts-foundation/nuts-node/credential/concept"
 	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 )
 
 type mockContext struct {
 	ctrl     *gomock.Controller
 	echo     *mock.MockContext
 	registry *concept.MockRegistry
-	reader   *credential.MockVCReader
+	reader   *vcr.MockVCR
 	client   *Wrapper
 }
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	registry := concept.NewMockRegistry(ctrl)
-	reader := credential.NewMockVCReader(ctrl)
-	client := &Wrapper{CR: registry, R: reader}
+	credential := vcr.NewMockVCR(ctrl)
+	client := &Wrapper{CR: registry, R: credential}
 
 	return mockContext{
 		ctrl:     ctrl,
 		echo:     mock.NewMockContext(ctrl),
 		registry: registry,
-		reader:   reader,
+		reader:   credential,
 		client:   client,
 	}
 }

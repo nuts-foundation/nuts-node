@@ -44,8 +44,8 @@ func (q query) Parts() []*TemplateQuery {
 	return q.parts
 }
 
-// AddTemplate adds a template to this query. It'll create a new TemplateQuery preconfigured with the template's hard coded values.
-func (q *query) AddTemplate(template *template) {
+// addTemplate adds a template to this query. It'll create a new TemplateQuery preconfigured with the template's hard coded values.
+func (q *query) addTemplate(template *Template) {
 	tq := TemplateQuery{
 		template: template,
 	}
@@ -70,12 +70,12 @@ func (q *query) AddCriteria(criteria Criteria) {
 
 // TemplateQuery represents a query/template combination
 type TemplateQuery struct {
-	template *template
+	template *Template
 	Criteria []Criteria
 }
 
 // Template returns the underlying template
-func (tq *TemplateQuery) Template() Template {
+func (tq *TemplateQuery) Template() *Template {
 	return tq.template
 }
 
@@ -85,6 +85,8 @@ func (tq *TemplateQuery) VCType() string {
 }
 
 // Criteria abstracts different equality clauses, comparable to '=', '!=', 'between' and 'abc%' in SQL.
+// note: it currently only supports a key/value store with a binary tree index.
+// When other DB's need to be supported, it could be the case that we will have to add 'dialects' for queries.
 type Criteria interface {
 	// Key returns the key to match against.
 	Key() string

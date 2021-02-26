@@ -27,21 +27,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRegistry_LoadTemplates(t *testing.T) {
-	r := NewRegistry()
-
-	t.Run("ok - default templates loaded", func(t *testing.T) {
-		err := r.LoadTemplates()
-
-		assert.NoError(t, err)
-	})
-}
-
 func TestRegistry_AddFromString(t *testing.T) {
+	tp, err := ParseTemplate(ExampleTemplate)
+	if !assert.NoError(t, err) {
+		return
+	}
+
 	t.Run("when template is added", func(t *testing.T) {
 		r := NewRegistry().(*registry)
 
-		err := r.AddFromString(ExampleTemplate)
+		err := r.Add(tp)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -77,18 +72,14 @@ func TestRegistry_AddFromString(t *testing.T) {
 		})
 	})
 
-	t.Run("error - parse error", func(t *testing.T) {
-		r := NewRegistry().(*registry)
-
-		err := r.AddFromString("{")
-
-		assert.Error(t, err)
-	})
-
 	t.Run("error - no type error", func(t *testing.T) {
 		r := NewRegistry().(*registry)
+		tp, err := ParseTemplate("{}")
+		if !assert.NoError(t, err) {
+			return
+		}
 
-		err := r.AddFromString("{}")
+		err = r.Add(tp)
 
 		if !assert.Error(t, err) {
 			return
@@ -99,8 +90,12 @@ func TestRegistry_AddFromString(t *testing.T) {
 
 func TestRegistry_Transform(t *testing.T) {
 	r := NewRegistry().(*registry)
+	tp, err := ParseTemplate(ExampleTemplate)
+	if !assert.NoError(t, err) {
+		return
+	}
 
-	err := r.AddFromString(ExampleTemplate)
+	err = r.Add(tp)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -160,8 +155,11 @@ func TestRegistry_Transform(t *testing.T) {
 
 func TestRegistry_QueryFor(t *testing.T) {
 	r := NewRegistry().(*registry)
-
-	err := r.AddFromString(ExampleTemplate)
+	tp, err := ParseTemplate(ExampleTemplate)
+	if !assert.NoError(t, err) {
+		return
+	}
+	err = r.Add(tp)
 	if !assert.NoError(t, err) {
 		return
 	}

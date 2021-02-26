@@ -17,7 +17,7 @@
  *
  */
 
-package credential
+package vcr
 
 import (
 	"encoding/json"
@@ -28,41 +28,33 @@ import (
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/credential/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/pkg/errors"
 )
 
-// NewCredentialInstance creates a new credential instance with default config and empty concept registry
-func NewCredentialInstance() Credential {
-	return &credential{
+// NewVCRInstance creates a new vcr instance with default config and empty concept registry
+func NewVCRInstance() VCR {
+	return &vcr{
 		config:   DefaultConfig(),
 		registry: concept.NewRegistry(),
 	}
 }
 
-type credential struct {
+type vcr struct {
 	registry concept.Registry
 	config   Config
 	store    leia.Store
 }
 
-func (c *credential) Registry() concept.Registry {
+func (c *vcr) Registry() concept.Registry {
 	return c.registry
 }
 
-func (c *credential) Reader() VCReader {
-	return c
-}
-
-func (c *credential) Configure(config core.ServerConfig) error {
+func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
-	fsPath := path.Join(config.Datadir, "credentials", "credentials.db")
+	fsPath := path.Join(config.Datadir, "vcr", "credentials.db")
 
 	if c.store, err = leia.NewStore(fsPath); err != nil {
-		return err
-	}
-
-	// load templates
-	if err = c.registry.LoadTemplates(); err != nil {
 		return err
 	}
 
@@ -74,7 +66,7 @@ func (c *credential) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-func (c *credential) initIndices() error {
+func (c *vcr) initIndices() error {
 	for _, templates := range c.registry.ConceptTemplates() {
 		for _, t := range templates {
 			collection := c.store.Collection(t.VCType())
@@ -97,19 +89,19 @@ func (c *credential) initIndices() error {
 	return nil
 }
 
-func (c *credential) Name() string {
+func (c *vcr) Name() string {
 	return moduleName
 }
 
-func (c *credential) ConfigKey() string {
+func (c *vcr) ConfigKey() string {
 	return configKey
 }
 
-func (c *credential) Config() interface{} {
+func (c *vcr) Config() interface{} {
 	return &c.config
 }
 
-func (c *credential) Search(query concept.Query) ([]did.VerifiableCredential, error) {
+func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 	//transform query to leia query, for each template a query is returned
 	queries := c.convert(query)
 
@@ -123,7 +115,7 @@ func (c *credential) Search(query concept.Query) ([]did.VerifiableCredential, er
 			vc := did.VerifiableCredential{}
 			err = json.Unmarshal(doc, &vc)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "unable to parse vcr from db")
 			}
 			VCs = append(VCs, vc)
 		}
@@ -132,17 +124,17 @@ func (c *credential) Search(query concept.Query) ([]did.VerifiableCredential, er
 	return VCs, nil
 }
 
-func (c *credential) Resolve(ID string) (did.VerifiableCredential, error) {
+func (c *vcr) Resolve(ID string) (did.VerifiableCredential, error) {
 	panic("implement me")
 }
 
-func (c *credential) Verify(vc did.VerifiableCredential, credentialSubject interface{}, at time.Time) (bool, error) {
+func (c *vcr) Verify(vc did.VerifiableCredential, credentialSubject interface{}, at time.Time) (bool, error) {
 	panic("implement me")
 }
 
-// convert returns a map of credential type to query
-// credential type is then used as collection input
-func (c *credential) convert(query concept.Query) map[string]leia.Query {
+// convert returns a map of vcr type to query
+// vcr type is then used as collection input
+func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	var qs = make(map[string]leia.Query, 0)
 
 	for _, tq := range query.Parts() {

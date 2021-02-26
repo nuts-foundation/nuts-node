@@ -21,7 +21,7 @@ import (
 // KeyValuePair defines model for KeyValuePair.
 type KeyValuePair struct {
 
-	// Fields from VCs to search on. Concept specific keys must be prepended with the concept name and a '.'. Default fields: issuer, subject, type
+	// Fields from VCs to search on. Concept specific keys must be prepended with the concept name and a '.'. Default fields like: issuer, subject, type do not require a prefix since they are a mandatory part of each VC.
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
@@ -37,16 +37,6 @@ type SearchRequest struct {
 
 	// key/value pairs
 	Params []KeyValuePair `json:"params"`
-}
-
-// VerificationOutcome defines model for VerificationOutcome.
-type VerificationOutcome struct {
-
-	// if the credential is valid, revoked, untrusted or has some other status.
-	Status bool `json:"status"`
-
-	// if the credential is not valid, the reason is given here.
-	StatusReason *string `json:"statusReason,omitempty"`
 }
 
 // SearchJSONBody defines parameters for Search.
@@ -128,11 +118,11 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// Revoke request
-	Revoke(ctx context.Context, id string) (*http.Response, error)
-
 	// Create request
 	Create(ctx context.Context) (*http.Response, error)
+
+	// Revoke request
+	Revoke(ctx context.Context, id string) (*http.Response, error)
 
 	// Resolve request
 	Resolve(ctx context.Context, id string) (*http.Response, error)
@@ -143,8 +133,8 @@ type ClientInterface interface {
 	Search(ctx context.Context, concept string, body SearchJSONRequestBody) (*http.Response, error)
 }
 
-func (c *Client) Revoke(ctx context.Context, id string) (*http.Response, error) {
-	req, err := NewRevokeRequest(c.Server, id)
+func (c *Client) Create(ctx context.Context) (*http.Response, error) {
+	req, err := NewCreateRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -158,8 +148,8 @@ func (c *Client) Revoke(ctx context.Context, id string) (*http.Response, error) 
 	return c.Client.Do(req)
 }
 
-func (c *Client) Create(ctx context.Context) (*http.Response, error) {
-	req, err := NewCreateRequest(c.Server)
+func (c *Client) Revoke(ctx context.Context, id string) (*http.Response, error) {
+	req, err := NewRevokeRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -218,23 +208,16 @@ func (c *Client) Search(ctx context.Context, concept string, body SearchJSONRequ
 	return c.Client.Do(req)
 }
 
-// NewRevokeRequest generates requests for Revoke
-func NewRevokeRequest(server string, id string) (*http.Request, error) {
+// NewCreateRequest generates requests for Create
+func NewCreateRequest(server string) (*http.Request, error) {
 	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParam("simple", false, "id", id)
-	if err != nil {
-		return nil, err
-	}
 
 	queryUrl, err := url.Parse(server)
 	if err != nil {
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/internal/credential/v1/revoke/%s", pathParam0)
+	basePath := fmt.Sprintf("/internal/vcr/v1/vc")
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -252,16 +235,23 @@ func NewRevokeRequest(server string, id string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewCreateRequest generates requests for Create
-func NewCreateRequest(server string) (*http.Request, error) {
+// NewRevokeRequest generates requests for Revoke
+func NewRevokeRequest(server string, id string) (*http.Request, error) {
 	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParam("simple", false, "id", id)
+	if err != nil {
+		return nil, err
+	}
 
 	queryUrl, err := url.Parse(server)
 	if err != nil {
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/internal/credential/v1/vc")
+	basePath := fmt.Sprintf("/internal/vcr/v1/vc/%s", pathParam0)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -271,7 +261,7 @@ func NewCreateRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryUrl.String(), nil)
+	req, err := http.NewRequest("DELETE", queryUrl.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +285,7 @@ func NewResolveRequest(server string, id string) (*http.Request, error) {
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/internal/credential/v1/vc/%s", pathParam0)
+	basePath := fmt.Sprintf("/internal/vcr/v1/vc/%s", pathParam0)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -340,7 +330,7 @@ func NewSearchRequestWithBody(server string, concept string, contentType string,
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/internal/credential/v1/%s", pathParam0)
+	basePath := fmt.Sprintf("/internal/vcr/v1/%s", pathParam0)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -388,11 +378,11 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// Revoke request
-	RevokeWithResponse(ctx context.Context, id string) (*RevokeResponse, error)
-
 	// Create request
 	CreateWithResponse(ctx context.Context) (*CreateResponse, error)
+
+	// Revoke request
+	RevokeWithResponse(ctx context.Context, id string) (*RevokeResponse, error)
 
 	// Resolve request
 	ResolveWithResponse(ctx context.Context, id string) (*ResolveResponse, error)
@@ -401,28 +391,6 @@ type ClientWithResponsesInterface interface {
 	SearchWithBodyWithResponse(ctx context.Context, concept string, contentType string, body io.Reader) (*SearchResponse, error)
 
 	SearchWithResponse(ctx context.Context, concept string, body SearchJSONRequestBody) (*SearchResponse, error)
-}
-
-type RevokeResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON202      *VerificationOutcome
-}
-
-// Status returns HTTPResponse.Status
-func (r RevokeResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r RevokeResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
 }
 
 type CreateResponse struct {
@@ -440,6 +408,27 @@ func (r CreateResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RevokeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -489,15 +478,6 @@ func (r SearchResponse) StatusCode() int {
 	return 0
 }
 
-// RevokeWithResponse request returning *RevokeResponse
-func (c *ClientWithResponses) RevokeWithResponse(ctx context.Context, id string) (*RevokeResponse, error) {
-	rsp, err := c.Revoke(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return ParseRevokeResponse(rsp)
-}
-
 // CreateWithResponse request returning *CreateResponse
 func (c *ClientWithResponses) CreateWithResponse(ctx context.Context) (*CreateResponse, error) {
 	rsp, err := c.Create(ctx)
@@ -505,6 +485,15 @@ func (c *ClientWithResponses) CreateWithResponse(ctx context.Context) (*CreateRe
 		return nil, err
 	}
 	return ParseCreateResponse(rsp)
+}
+
+// RevokeWithResponse request returning *RevokeResponse
+func (c *ClientWithResponses) RevokeWithResponse(ctx context.Context, id string) (*RevokeResponse, error) {
+	rsp, err := c.Revoke(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeResponse(rsp)
 }
 
 // ResolveWithResponse request returning *ResolveResponse
@@ -533,32 +522,6 @@ func (c *ClientWithResponses) SearchWithResponse(ctx context.Context, concept st
 	return ParseSearchResponse(rsp)
 }
 
-// ParseRevokeResponse parses an HTTP response from a RevokeWithResponse call
-func ParseRevokeResponse(rsp *http.Response) (*RevokeResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &RevokeResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
-		var dest VerificationOutcome
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON202 = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParseCreateResponse parses an HTTP response from a CreateWithResponse call
 func ParseCreateResponse(rsp *http.Response) (*CreateResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
@@ -568,6 +531,25 @@ func ParseCreateResponse(rsp *http.Response) (*CreateResponse, error) {
 	}
 
 	response := &CreateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	}
+
+	return response, nil
+}
+
+// ParseRevokeResponse parses an HTTP response from a RevokeWithResponse call
+func ParseRevokeResponse(rsp *http.Response) (*RevokeResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -625,23 +607,32 @@ func ParseSearchResponse(rsp *http.Response) (*SearchResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Revoke a credential
-	// (POST /internal/credential/v1/revoke/{id})
-	Revoke(ctx echo.Context, id string) error
-	// Creates a new Veryfiable Credential
-	// (POST /internal/credential/v1/vc)
+	// Creates a new Verifiable Credential
+	// (POST /internal/vcr/v1/vc)
 	Create(ctx echo.Context) error
+	// Revoke a credential
+	// (DELETE /internal/vcr/v1/vc/{id})
+	Revoke(ctx echo.Context, id string) error
 	// Resolves a verifiable credential
-	// (GET /internal/credential/v1/vc/{id})
+	// (GET /internal/vcr/v1/vc/{id})
 	Resolve(ctx echo.Context, id string) error
 	// Search for a concept. A concept is backed by 1 or more VCs
-	// (POST /internal/credential/v1/{concept})
+	// (POST /internal/vcr/v1/{concept})
 	Search(ctx echo.Context, concept string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// Create converts echo context to params.
+func (w *ServerInterfaceWrapper) Create(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.Create(ctx)
+	return err
 }
 
 // Revoke converts echo context to params.
@@ -657,15 +648,6 @@ func (w *ServerInterfaceWrapper) Revoke(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.Revoke(ctx, id)
-	return err
-}
-
-// Create converts echo context to params.
-func (w *ServerInterfaceWrapper) Create(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.Create(ctx)
 	return err
 }
 
@@ -723,10 +705,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodPost, baseURL+"/internal/credential/v1/revoke/:id", wrapper.Revoke)
-	router.Add(http.MethodPost, baseURL+"/internal/credential/v1/vc", wrapper.Create)
-	router.Add(http.MethodGet, baseURL+"/internal/credential/v1/vc/:id", wrapper.Resolve)
-	router.Add(http.MethodPost, baseURL+"/internal/credential/v1/:concept", wrapper.Search)
+	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/vc", wrapper.Create)
+	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v1/vc/:id", wrapper.Revoke)
+	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/vc/:id", wrapper.Resolve)
+	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/:concept", wrapper.Search)
 
 }
 

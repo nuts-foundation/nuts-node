@@ -27,11 +27,9 @@ import (
 // to generate queries and transform results.
 type Registry interface {
 	// ConceptTemplates returns a mapping of concept names to parsed templates.
-	ConceptTemplates() map[string][]Template
-	// Load template files from disk and parse them.
-	LoadTemplates() error
-	// Adds a template from a string source
-	AddFromString(concept string) error
+	ConceptTemplates() map[string][]*Template
+	// Add a conceptTemplate to the registry
+	Add(conceptTemplate *Template) error
 	// QueryFor creates a query for the given concept.
 	// The query is preloaded with required fixed values like the type.
 	QueryFor(concept string) (Query, error)
@@ -45,24 +43,29 @@ type Registry interface {
 // Concepts are automatically determined from the ConceptTemplates
 // a concept value of <<company.name>> creates the concept "company"
 type registry struct {
-	conceptTemplates map[string][]*template
-	typedTemplates   map[string]*template
+	conceptTemplates map[string][]*Template
+	typedTemplates   map[string]*Template
 }
 
 // NewRegistry creates a new registry instance with no templates.
 func NewRegistry() Registry {
-	return &registry{
-		conceptTemplates: map[string][]*template{},
-		typedTemplates:   map[string]*template{},
+	r := &registry{
+		conceptTemplates: map[string][]*Template{},
+		typedTemplates:   map[string]*Template{},
 	}
+
+	// todo might have to move to a configure method
+	r.loadTemplates()
+
+	return r
 }
 
-func (r *registry) ConceptTemplates() map[string][]Template {
-	ct := make(map[string][]Template, len(r.conceptTemplates))
+func (r *registry) ConceptTemplates() map[string][]*Template {
+	ct := make(map[string][]*Template, len(r.conceptTemplates))
 
 	// without generics we need to convert the template pointers to Template interface
 	for k, v := range r.conceptTemplates {
-		ts := make([]Template, len(v))
+		ts := make([]*Template, len(v))
 		for i, t := range v {
 			ts[i] = t
 		}
@@ -72,7 +75,7 @@ func (r *registry) ConceptTemplates() map[string][]Template {
 	return ct
 }
 
-func (r *registry) LoadTemplates() error {
+func (r *registry) loadTemplates() error {
 	return nil
 }
 
@@ -95,32 +98,23 @@ func (r *registry) LoadTemplates() error {
 //  		}
 //  	}
 //   }
-func (r *registry) AddFromString(concept string) error {
-	ct := &template{
-		raw: concept,
-	}
-
-	if err := ct.parse(); err != nil {
-		return err
-	}
-
+func (r *registry) Add(conceptTemplate *Template) error {
 	// add to list of templates for same concept name
-	for _, c := range ct.rootConcepts() {
+	for _, c := range conceptTemplate.rootConcepts() {
 		current, ok := r.conceptTemplates[c]
 		if !ok {
-			current = []*template{}
+			current = []*Template{}
 		}
-		current = append(current, ct)
+		current = append(current, conceptTemplate)
 		r.conceptTemplates[c] = current
 	}
 
 	// add to map of specific VC type to template
-	v, ok := ct.fixedValues[TypeField]
+	v, ok := conceptTemplate.fixedValues[TypeField]
 	if !ok || v == "" {
 		return ErrNoType
 	}
-
-	r.typedTemplates[v] = ct
+	r.typedTemplates[v] = conceptTemplate
 
 	return nil
 }
@@ -154,7 +148,7 @@ func (r *registry) QueryFor(concept string) (Query, error) {
 	}
 
 	for _, t := range r.conceptTemplates[concept] {
-		q.AddTemplate(t)
+		q.addTemplate(t)
 	}
 
 	return &q, nil

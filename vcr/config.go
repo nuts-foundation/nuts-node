@@ -17,14 +17,14 @@
  *
  */
 
-package credential
+package vcr
 
 const (
-	moduleName = "Verifiable credential Store"
-	configKey  = "credential"
+	moduleName = "Verifiable Credential Store"
+	configKey  = "vcs"
 )
 
-// Config holds the config for the credential engine
+// Config holds the config for the vcr engine
 type Config struct{}
 
 // DefaultConfig returns a fresh Config filled with default values

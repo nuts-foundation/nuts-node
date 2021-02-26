@@ -22,13 +22,13 @@ package v1
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/credential"
-	"github.com/nuts-foundation/nuts-node/credential/concept"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 )
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
-	R  credential.VCReader
+	R  vcr.VCR
 	CR concept.Registry
 }
 

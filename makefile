@@ -23,8 +23,8 @@ gen-mocks:
 	mockgen -destination=network/p2p/mock.go -package=p2p -source=network/p2p/interface.go P2PNetwork
 	mockgen -destination=network/mock.go -package=network -source=network/interface.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go DAG PayloadStore
-	mockgen -destination=credential/mock.go -package=credential -source=credential/interface.go
-	mockgen -destination=credential/concept/mock.go -package=concept -source=credential/concept/registry.go Registry
+	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
+	mockgen -destination=vcr/concept/mock.go -package=concept -source=vcr/concept/registry.go Registry
 	mockgen -destination=auth/mock.go -package=auth -source=auth/interface.go
 	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go
 	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
@@ -33,7 +33,7 @@ gen-api:
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 docs/_static/crypto/v1.yaml > crypto/api/v1/generated.go
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas DIDDocument,DIDDocumentMetadata,Service,VerificationMethod docs/_static/vdr/v1.yaml > vdr/api/v1/generated.go
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 docs/_static/network/v1.yaml > network/api/v1/generated.go
-	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential,CredentialSubject docs/_static/credential/v1.yaml > credential/api/v1/generated.go
+	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential,CredentialSubject docs/_static/vcr/v1.yaml > vcr/api/v1/generated.go
 	oapi-codegen -generate types,server -templates codegen/oapi/ -package v0 docs/_static/auth/v0.yaml > auth/api/v0/generated.go
 	oapi-codegen -generate types,server -templates codegen/oapi/ -package experimental docs/_static/auth/experimental.yaml > auth/api/experimental/generated.go
 

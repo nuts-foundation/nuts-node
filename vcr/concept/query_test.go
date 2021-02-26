@@ -49,25 +49,23 @@ func TestQuery(t *testing.T) {
 	q := query{
 		concept: "concept",
 	}
-	tp := template{
-		raw: ExampleTemplate,
-	}
-	err := tp.parse()
+
+	tp, err := ParseTemplate(ExampleTemplate)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	q.AddTemplate(&tp)
+	q.addTemplate(tp)
 
 	t.Run("Concept", func(t *testing.T) {
 		assert.Equal(t, "concept", q.Concept())
 	})
 
-	t.Run("AddTemplate - adds template to query", func(t *testing.T) {
+	t.Run("addTemplate - adds template to query", func(t *testing.T) {
 		assert.Len(t, q.Parts(), 1)
 	})
 
-	t.Run("AddTemplate - adds hardcoded values to query criteria", func(t *testing.T) {
+	t.Run("addTemplate - adds hardcoded values to query criteria", func(t *testing.T) {
 		tq := q.parts[0]
 
 		if !assert.Len(t, tq.Criteria, 1) {

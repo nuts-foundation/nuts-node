@@ -28,41 +28,33 @@ import (
 	"strings"
 
 	"github.com/nuts-foundation/go-did"
+	errors2 "github.com/pkg/errors"
 	"github.com/thedevsaddam/gojsonq/v2"
 )
 
-// TypeField defines the concept/VC JSON path to a VC type
+// TypeField defines the concept/VC JSON joinPath to a VC type
 const TypeField = "type"
 
-// IDField defines the concept/VC JSON path to a VC ID
+// IDField defines the concept/VC JSON joinPath to a VC ID
 const IDField = "id"
 
-// IssuerField defines the concept/VC JSON path to a VC issuer
+// IssuerField defines the concept/VC JSON joinPath to a VC issuer
 const IssuerField = "issuer"
 
-// SubjectField defines the concept JSON path to a VC subject
+// SubjectField defines the concept JSON joinPath to a VC subject
 const SubjectField = "subject"
 
-// Template represents a json mapping template. In the template concept to json path mappings are stored.
+// Template represents a json mapping template. In the template concept to json joinPath mappings are stored.
 // Indices that need to be created by a DB are also created by the template.
-type Template interface {
-	// Indices returns a list of compound indices. Each entry contains the concept json path.
-	Indices() [][]string
-	// VCType returns the VC type.
-	VCType() string
-	// ToVCPath returns the mapping of concept path to VC path
-	ToVCPath(conceptPath string) string
-}
-
-type template struct {
+type Template struct {
 	raw string
-	// conceptIndexMapping contains mappings from concept name to VC JSON path
+	// conceptIndexMapping contains mappings from concept name to VC JSON joinPath
 	conceptIndexMapping map[string]string
-	// reverseIndexMapping contains mappings from VC JSON path to concept JSON path
+	// reverseIndexMapping contains mappings from VC JSON joinPath to concept JSON joinPath
 	reverseIndexMapping map[string]string
 	// indices contains a set of compound indices
 	indices [][]string
-	// key: value pairs that always need to be added to the backend query
+	// fixedValues contains key/value pairs that always need to be added to the backend query
 	fixedValues map[string]string
 }
 
@@ -70,37 +62,45 @@ type template struct {
 // it contains several convenience methods for parsing purposes
 type templateString string
 
-// ToVCPath returns the mapping of concept path to VC path
-func (ct *template) ToVCPath(conceptPath string) string {
+// ToVCPath returns the mapping of concept joinPath to VC joinPath
+func (ct Template) ToVCPath(conceptPath string) string {
 	return ct.conceptIndexMapping[conceptPath]
 }
 
-func (ct *template) Indices() [][]string {
+func (ct Template) Indices() [][]string {
 	return ct.indices
 }
 
 // VCType returns the VC type.
-func (ct *template) VCType() string {
+func (ct Template) VCType() string {
 	return ct.fixedValues[TypeField]
 }
 
 // find paths to concepts
-func (ct *template) parse() error {
-	jq := gojsonq.New().FromString(ct.raw)
+func ParseTemplate(raw string) (*Template, error) {
+	ct := &Template{
+		raw: raw,
+	}
 
 	// type is a special pony
 	ct.conceptIndexMapping = map[string]string{TypeField: TypeField}
 	ct.reverseIndexMapping = map[string]string{TypeField: TypeField}
 	ct.fixedValues = map[string]string{}
 
-	if err := ct.mapR(jq, ""); err != nil {
-		return err
+	// parse JSON into map
+	var val = make(map[string]interface{})
+	if err := json.Unmarshal([]byte(ct.raw), &val); err != nil {
+		return ct, errors2.Wrap(err, "unable to parse concept template")
 	}
 
-	return nil
+	if err := ct.parseRecursive(val, ""); err != nil {
+		return ct, err
+	}
+
+	return ct, nil
 }
 
-func (ct *template) concepts() []string {
+func (ct *Template) concepts() []string {
 	var cs = make([]string, 0)
 
 	// standard concepts not needed
@@ -113,7 +113,7 @@ func (ct *template) concepts() []string {
 
 	return cs
 }
-func (ct *template) rootConcepts() []string {
+func (ct *Template) rootConcepts() []string {
 	var cm = make(map[string]bool, 0)
 
 	// all concepts
@@ -130,11 +130,12 @@ func (ct *template) rootConcepts() []string {
 	return cs
 }
 
-func (ct *template) mapR(jq *gojsonq.JSONQ, currentPath string) error {
-	val := jq.Get()
-
-	if jq.Error() != nil {
-		return jq.Error()
+func (ct *Template) parseRecursive(val interface{}, currentPath string) error {
+	// plain value
+	if sv, ok := val.(string); ok {
+		if err := ct.processValue(sv, currentPath); err != nil {
+			return err
+		}
 	}
 
 	// slice
@@ -142,19 +143,12 @@ func (ct *template) mapR(jq *gojsonq.JSONQ, currentPath string) error {
 		return errors.New("json arrays are not supported")
 	}
 
+	// map
 	if m, ok := val.(map[string]interface{}); ok {
 		for k, v := range m {
-			nextPath := path(currentPath, k)
-
-			if sv, ok := v.(string); ok {
-				if err := ct.processValue(sv, nextPath); err != nil {
-					return err
-				}
-			} else {
-				gjs := gojsonq.New().FromInterface(v)
-				if err := ct.mapR(gjs, nextPath); err != nil {
-					return err
-				}
+			nextPath := joinPath(currentPath, k)
+			if err := ct.parseRecursive(v, nextPath); err != nil {
+				return err
 			}
 		}
 	}
@@ -162,14 +156,14 @@ func (ct *template) mapR(jq *gojsonq.JSONQ, currentPath string) error {
 	return nil
 }
 
-func (ct *template) processValue(value string, currentPath string) error {
+func (ct *Template) processValue(value string, currentPath string) error {
 	processValue := templateString(value)
 
 	if !processValue.isValid() {
 		return fmt.Errorf("values has incorrect format at %s: %s", currentPath, value)
 	}
 
-	if processValue.isHardCoded() {
+	if processValue.isFixedValue() {
 		ct.fixedValues[currentPath] = processValue.String()
 	} else {
 		ct.conceptIndexMapping[processValue.String()] = currentPath
@@ -186,7 +180,7 @@ func (ct *template) processValue(value string, currentPath string) error {
 }
 
 // addIndex expects lvl Indices to start at 1
-func (ct *template) addIndex(lvl1 int, lvl2 int, jsonPath string) {
+func (ct *Template) addIndex(lvl1 int, lvl2 int, jsonPath string) {
 	//always replace & copy => less if/else logic
 	lvl1Size := max(len(ct.indices), lvl1)
 	newLvl1 := make([][]string, lvl1Size)
@@ -205,7 +199,7 @@ func (ct *template) addIndex(lvl1 int, lvl2 int, jsonPath string) {
 }
 
 // transform a VC to a concept given the template mapping
-func (ct *template) transform(VC did.VerifiableCredential) (Concept, error) {
+func (ct *Template) transform(VC did.VerifiableCredential) (Concept, error) {
 	// remove type as this will be hardcoded later
 	VC.Type = nil
 
@@ -227,7 +221,7 @@ func (ct *template) transform(VC did.VerifiableCredential) (Concept, error) {
 	return c, err
 }
 
-func (ct *template) transR(jq *gojsonq.JSONQ, currentPath string, c Concept) error {
+func (ct *Template) transR(jq *gojsonq.JSONQ, currentPath string, c Concept) error {
 	val := jq.Get()
 
 	if jq.Error() != nil {
@@ -241,7 +235,7 @@ func (ct *template) transR(jq *gojsonq.JSONQ, currentPath string, c Concept) err
 
 	if m, ok := val.(map[string]interface{}); ok {
 		for k, v := range m {
-			nextPath := path(currentPath, k)
+			nextPath := joinPath(currentPath, k)
 
 			if v == nil {
 				continue
@@ -263,7 +257,7 @@ func (ct *template) transR(jq *gojsonq.JSONQ, currentPath string, c Concept) err
 	return nil
 }
 
-func (cs templateString) isHardCoded() bool {
+func (cs templateString) isFixedValue() bool {
 	return !strings.Contains(string(cs), "<<")
 }
 
@@ -271,10 +265,10 @@ func (cs templateString) hasIndex() bool {
 	return strings.Contains(string(cs), "@")
 }
 
-var regex, _ = regexp.Compile("((<<[a-zA-Z\\.]+>>)|([a-zA-Z\\.]+))(@({[1-9](_[1-9])?})(,{[1-9](_[1-9])?})*)?")
+var templateStringMatcher, _ = regexp.Compile("((<<[a-zA-Z\\.]+>>)|([a-zA-Z\\.]+))(@({[1-9](_[1-9])?})(,{[1-9](_[1-9])?})*)?")
 
 func (cs templateString) isValid() bool {
-	s := regex.ReplaceAllString(string(cs), "")
+	s := templateStringMatcher.ReplaceAllString(string(cs), "")
 	return len(s) == 0
 }
 
