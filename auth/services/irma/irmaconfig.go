@@ -26,26 +26,23 @@ var serverOnce = new(sync.Once)
 
 // GetIrmaConfig creates and returns an IRMA config.
 // The config sets the given irma path or a temporary folder. Then it downloads the schemas.
-func GetIrmaConfig(config ValidatorConfig) (irmaConfig *irma.Configuration, err error) {
+func GetIrmaConfig(validatorConfig ValidatorConfig) (irmaConfig *irma.Configuration, err error) {
 	irmaConfig = _irmaConfig
 
 	configOnce.Do(func() {
-		var configDir string
-		configDir, err = irmaConfigDir(config)
-		if err != nil {
+		if err = os.MkdirAll(validatorConfig.IrmaConfigPath, 0700); err != nil {
+			err = errors.Wrap(err, "could not create IRMA config directory")
 			return
 		}
 
 		options := irma.ConfigurationOptions{}
-		irmaConfig, err = irma.NewConfiguration(configDir, options)
+		irmaConfig, err = irma.NewConfiguration(validatorConfig.IrmaConfigPath, options)
 		if err != nil {
 			return
 		}
 
 		logging.Log().Info("Loading IRMA schemas...")
-		if err = irmaConfig.ParseFolder(); err != nil {
-			return
-		}
+		err = irmaConfig.ParseFolder()
 		_irmaConfig = irmaConfig
 	})
 	return
@@ -53,69 +50,27 @@ func GetIrmaConfig(config ValidatorConfig) (irmaConfig *irma.Configuration, err 
 
 // GetIrmaServer creates and starts the irma server instance.
 // The server can be used by a IRMA client like the app to handle IRMA sessions
-func GetIrmaServer(config ValidatorConfig) (irmaServer *irmaserver.Server, err error) {
+func GetIrmaServer(validatorConfig ValidatorConfig) (irmaServer *irmaserver.Server, err error) {
 	irmaServer = _irmaServer
 
 	serverOnce.Do(func() {
-		baseURL := config.PublicURL
-
-		var configDir string
-		configDir, err = irmaConfigDir(config)
-		if err != nil {
-			return
-		}
-
-		irmaConfig, err := GetIrmaConfig(config)
+		irmaConfig, err := GetIrmaConfig(validatorConfig)
 		if err != nil {
 			return
 		}
 		config := &server.Configuration{
 			IrmaConfiguration:    irmaConfig,
-			URL:                  fmt.Sprintf("%s"+IrmaMountPath, baseURL),
+			URL:                  fmt.Sprintf("%s"+IrmaMountPath, validatorConfig.PublicURL),
 			Logger:               logging.Log().Logger,
-			SchemesPath:          configDir,
-			DisableSchemesUpdate: !config.AutoUpdateIrmaSchemas,
+			SchemesPath:          validatorConfig.IrmaConfigPath,
+			DisableSchemesUpdate: !validatorConfig.AutoUpdateIrmaSchemas,
 		}
 
 		logging.Log().Infof("Initializing IRMA library (baseURL=%s)...", config.URL)
 
 		irmaServer, err = irmaserver.New(config)
-		if err != nil {
-			return
-		}
 		_irmaServer = irmaServer
 	})
 
 	return
-}
-
-func irmaConfigDir(config ValidatorConfig) (string, error) {
-	path := config.IrmaConfigPath
-	if err := ensureDirectoryExists(path); err != nil {
-		return "", errors.Wrap(err, "could not create irma config directory")
-	}
-	return path, nil
-}
-
-// PathExists checks if the specified path exists.
-func pathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return true, err
-}
-
-func ensureDirectoryExists(path string) error {
-	exists, err := pathExists(path)
-	if err != nil {
-		return err
-	}
-	if exists {
-		return nil
-	}
-	return os.MkdirAll(path, 0700)
 }
