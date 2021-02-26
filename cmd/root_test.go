@@ -99,7 +99,8 @@ func Test_serverCmd(t *testing.T) {
 			echoServers = append(echoServers, s)
 			return s
 		}
-		system.Load(&cobra.Command{})
+		cmd := testCommand()
+		system.Load(cmd)
 		system.Config = core.NewServerConfig()
 		system.Config.Datadir = io.TestDirectory(t)
 		system.Config.HTTP.AltBinds["internal"] = core.HTTPConfig{Address: "localhost:7642"}
@@ -145,4 +146,15 @@ func Test_CreateSystem(t *testing.T) {
 		numEngines++
 	})
 	assert.Equal(t, 6, numEngines)
+}
+
+func testCommand() *cobra.Command {
+	cmd := &cobra.Command{}
+	fs := core.FlagSet()
+
+	// this is done by the cobra command and may only be done once
+	fs.Parse(os.Args)
+
+	cmd.PersistentFlags().AddFlagSet(fs)
+	return cmd
 }
