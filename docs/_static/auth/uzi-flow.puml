@@ -1,0 +1,59 @@
+@startuml
+hide footbox
+skinparam roundcorner 5
+skinparam shadowing false
+skinparam sequence {
+   ParticipantBackgroundColor orange
+   ActorBackgroundColor none
+}
+skinparam BoxPadding 15
+
+title UZI Authentication flow
+autonumber
+box User
+actor User order 10
+participant Browser order 20
+participant "ZorgID App" as ZorgIDApp order 30
+endbox
+box Service Provider
+participant EPD order 40
+participant "NutsNode" as NutsNode order 50
+endbox
+
+box VZVZ
+participant "ZorgID Server" as ZorgIDServer order 60
+endbox
+
+'-> User : Start
+User -> Browser : Visit Login
+Browser -> EPD : GET login.html
+activate EPD
+activate EPD
+
+EPD -> NutsNode : GET contract
+activate NutsNode
+return contract
+
+EPD -> ZorgIDServer : StartSignSession(contract)
+activate ZorgIDServer
+ZorgIDServer --> EPD : sesessionPtr
+
+EPD --> Browser : login.html with sessionPtr
+deactivate EPD
+
+Browser -> ZorgIDApp : startSession(sessionPtr)
+activate ZorgIDApp
+ZorgIDApp -> ZorgIDServer : GET sessionInfo(sessionPtr)
+ZorgIDServer --> ZorgIDApp : sessionInfo
+User -> ZorgIDApp : Sign
+ZorgIDApp -> ZorgIDServer : signature
+deactivate ZorgIDApp
+EPD -> ZorgIDServer : sessionStatus(sessionPtr)
+ZorgIDServer --> EPD : signature
+deactivate ZorgIDServer
+deactivate EPD
+
+'Browser -> EPD : GET sessionStatus(sessionPtr)
+'activate EPD
+'return StoreInSession(signature)
+@enduml

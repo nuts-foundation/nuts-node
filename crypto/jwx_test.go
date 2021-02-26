@@ -24,7 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
-	"strings"
+	"github.com/lestrrat-go/jwx/jwt"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/jwa"
@@ -95,10 +95,31 @@ func TestSignJWT(t *testing.T) {
 		}
 
 		msg, err := jws.ParseString(tokenString)
-
+		if !assert.NoError(t, err) {
+			return
+		}
 		hdrs := msg.Signatures()[0].ProtectedHeaders()
 		alg, _ := hdrs.Get(jwk.AlgorithmKey)
 		assert.Equal(t, jwa.ES256, alg)
+	})
+
+	t.Run("invalid claim", func(t *testing.T) {
+		tokenString, err := SignJWT(nil, map[string]interface{}{jwt.IssuedAtKey: "foobar"}, nil)
+		assert.Empty(t, tokenString)
+		assert.EqualError(t, err, "invalid value for iat key: invalid epoch value \"foobar\"")
+	})
+}
+
+func TestParseJWT(t *testing.T) {
+	t.Run("unsupported algorithm", func(t *testing.T) {
+		rsaKey := test.GenerateRSAKey()
+		token := jwt.New()
+		signature, _ := jwt.Sign(token, jwa.RS256, rsaKey)
+		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
+			return rsaKey.Public(), nil
+		})
+		assert.Nil(t, parsedToken)
+		assert.EqualError(t, err, "token signing algorithm is not supported: RS256")
 	})
 }
 
@@ -137,7 +158,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 func TestCrypto_SignJWS(t *testing.T) {
 	client := createCrypto(t)
 	kid := "kid"
-	publicKey, _, _ :=client.New(StringNamingFunc(kid))
+	publicKey, _, _ := client.New(StringNamingFunc(kid))
 
 	t.Run("ok", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
@@ -146,7 +167,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		message, err := jws.Parse(strings.NewReader(signature))
+		message, err := jws.Parse([]byte(signature))
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -210,4 +231,10 @@ func TestCrypto_convertHeaders(t *testing.T) {
 		v, _ := jwtHeader.Get("key")
 		assert.Equal(t, "value", v)
 	})
+}
+
+func Test_isAlgorithmSupported(t *testing.T) {
+	assert.True(t, isAlgorithmSupported(jwa.PS256))
+	assert.False(t, isAlgorithmSupported(jwa.RS256))
+	assert.False(t, isAlgorithmSupported(""))
 }

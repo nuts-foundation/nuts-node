@@ -66,15 +66,21 @@ type PublicKeyStore interface {
 	RevokePublicKey(kid string, validTo time.Time) error
 }
 
-// KeyStore defines the functions that can be called by a Cmd, Direct or via rest call.
-type KeyStore interface {
-	KeyCreator
-	PublicKeyStore
-	JWSSigner
-	JWTSigner
+// PrivateKeyStore defines the functions for working with private keys.
+type PrivateKeyStore interface {
 	// PrivateKeyExists returns if the specified private key exists.
 	// If an error occurs, false is also returned
 	PrivateKeyExists(kid string) bool
+
+	KeyCreator
+	JWSSigner
+	JWTSigner
+}
+
+// KeyStore defines the functions that can be called by a Cmd, Direct or via rest call.
+type KeyStore interface {
+	PublicKeyStore
+	PrivateKeyStore
 }
 
 // JWSSigner defines the functions for signing JSON Web Signatures.

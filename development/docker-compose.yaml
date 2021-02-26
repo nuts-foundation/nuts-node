@@ -13,6 +13,7 @@ services:
       - "./nuts.yaml:/opt/nuts/nuts.yaml"
       - "./truststore.pem:/opt/nuts/truststore.pem"
       - "./bootstrap/certificate.pem:/opt/nuts/certificate.pem"
+      - "./irma:/opt/nuts/irma:ro"
   node1:
     image: *image
     environment:
@@ -23,6 +24,7 @@ services:
       - "./nuts.yaml:/opt/nuts/nuts.yaml"
       - "./truststore.pem:/opt/nuts/truststore.pem"
       - "./node1/certificate.pem:/opt/nuts/certificate.pem"
+      - "./irma:/opt/nuts/irma:ro"
   node2:
     image: *image
     environment:
@@ -33,3 +35,4 @@ services:
       - "./nuts.yaml:/opt/nuts/nuts.yaml"
       - "./truststore.pem:/opt/nuts/truststore.pem"
       - "./node2/certificate.pem:/opt/nuts/certificate.pem"
+      - "./irma:/opt/nuts/irma:ro"

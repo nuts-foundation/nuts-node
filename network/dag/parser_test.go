@@ -68,12 +68,12 @@ func TestParseDocument(t *testing.T) {
 	t.Run("error - input not a JWS (compact serialization format)", func(t *testing.T) {
 		document, err := ParseDocument([]byte("not a JWS"))
 		assert.Nil(t, document)
-		assert.Contains(t, err.Error(), "unable to parse document: failed to parse jws message: invalid compact serialization format")
+		assert.EqualError(t, err, "unable to parse document: invalid compact serialization format: invalid number of segments")
 	})
 	t.Run("error - input not a JWS (JSON serialization format)", func(t *testing.T) {
 		document, err := ParseDocument([]byte("{}"))
 		assert.Nil(t, document)
-		assert.EqualError(t, err, "document validation failed: JWS does not contain any signature")
+		assert.EqualError(t, err, "unable to parse document: failed to unmarshal jws message: \"payload\" must be non-empty")
 	})
 	t.Run("error - sigt header is missing", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)

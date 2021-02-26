@@ -1,0 +1,3 @@
+publicUrl: https://example.org
+irma:
+  directory: ../../development/irma

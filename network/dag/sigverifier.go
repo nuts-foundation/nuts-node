@@ -14,7 +14,7 @@ type DocumentSignatureVerifier interface {
 	Verify(input Document) error
 }
 
-// NewDocumentSignatureVerifier creates a DocumentSignatureVerifier that uses the given KeyResolver to resolves
+// NewDocumentSignatureVerifier creates a DocumentSignatureVerifier that uses the given DIDResolver to resolves
 // keys that aren't embedded in the document.
 func NewDocumentSignatureVerifier(resolver crypto.KeyResolver) DocumentSignatureVerifier {
 	return &documentVerifier{resolver: resolver}

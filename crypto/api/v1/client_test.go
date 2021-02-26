@@ -74,7 +74,7 @@ func TestHttpClient_GetPublicKey(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: csrBytes})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		res, err := c.GetPublicKey("kid", nil)
-		assert.Contains(t, err.Error(), "failed to unmarshal JWK:")
+		assert.Contains(t, err.Error(), "failed to unmarshal JWK set")
 		assert.Nil(t, res)
 	})
 	t.Run("error - response not HTTP OK", func(t *testing.T) {

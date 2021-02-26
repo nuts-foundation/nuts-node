@@ -1,0 +1,40 @@
+@startuml
+hide footbox
+skinparam roundcorner 5
+skinparam shadowing false
+skinparam sequence {
+   ParticipantBackgroundColor orange
+   ActorBackgroundColor none
+}
+skinparam BoxPadding 15
+
+title Nuts OAuth 2.0 JSON Web Token Profile
+autonumber
+
+box Actor
+participant "EPD" as EPD1
+participant "NutsNode 1" as NutsNode1
+endbox
+
+box Custodian
+participant "NutsNode 2" as NutsNode2
+endbox
+
+EPD1 -> NutsNode1 : GET createJwtBearerToken(signature, custodian, subject)
+activate NutsNode1
+return JwtBearerToken
+deactivate NutsNode1
+
+EPD1 -> NutsNode1 : GET endpoint(custodianID, boltName, authType)
+activate NutsNode1
+return endpointURL
+deactivate NutsNode1
+
+EPD1 -> NutsNode2 : POST [endpointURL]
+activate NutsNode2
+NutsNode2 -> NutsNode2 : check jwtBearerToken
+NutsNode2 --> EPD1 : accessToken
+deactivate NutsNode2
+
+
+@enduml
