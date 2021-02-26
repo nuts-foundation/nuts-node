@@ -86,8 +86,6 @@ func NewServerConfig() *ServerConfig {
 
 // Load follows the load order of configfile, env vars and then commandline param
 func (ngc *ServerConfig) Load(cmd *cobra.Command) (err error) {
-	cmd.PersistentFlags().AddFlagSet(ngc.flagSet())
-
 	ngc.configMap = koanf.New(defaultDelimiter)
 	configFile := file.Provider(resolveConfigFile(cmd.PersistentFlags()))
 
@@ -137,7 +135,7 @@ func resolveConfigFile(flags *pflag.FlagSet) string {
 	return k.String(configFileFlag)
 }
 
-func (ngc *ServerConfig) flagSet() *pflag.FlagSet {
+func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("server", pflag.ContinueOnError)
 	flagSet.String(configFileFlag, defaultConfigFile, "Nuts config file")
 	flagSet.String(loggerLevelFlag, defaultLogLevel, "Log level (trace, debug, info, warn, error)")

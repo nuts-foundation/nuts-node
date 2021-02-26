@@ -30,15 +30,15 @@ import (
 )
 
 var reset = func() {
-	os.Args = []string{"command"}
 	os.Args = []string{}
 }
 
 func TestNewNutsConfig_Load(t *testing.T) {
 	t.Run("sets defaults", func(t *testing.T) {
 		cfg := NewServerConfig()
+		cmd := testCommand()
 
-		err := cfg.Load(&cobra.Command{})
+		err := cfg.Load(cmd)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -51,10 +51,11 @@ func TestNewNutsConfig_Load(t *testing.T) {
 
 	t.Run("Sets global Env prefix", func(t *testing.T) {
 		cfg := NewServerConfig()
+		cmd := testCommand()
 		os.Setenv("NUTS_KEY", "value")
 		defer os.Unsetenv("NUTS_KEY")
 
-		err := cfg.Load(&cobra.Command{})
+		err := cfg.Load(cmd)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -66,10 +67,11 @@ func TestNewNutsConfig_Load(t *testing.T) {
 
 	t.Run("Sets correct key replacer", func(t *testing.T) {
 		cfg := NewServerConfig()
+		cmd := testCommand()
 		os.Setenv("NUTS_SUB_KEY", "value")
 		defer os.Unsetenv("NUTS_SUB_KEY")
 
-		cfg.Load(&cobra.Command{})
+		cfg.Load(cmd)
 
 		if value := cfg.configMap.Get("sub.key"); value != "value" {
 			t.Errorf("Expected sub.key to have [value], got [%v]", value)
@@ -80,8 +82,9 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		defer reset()
 		os.Args = []string{"executable", "command", "--unknown", "value"}
 		cfg := NewServerConfig()
+		cmd := testCommand()
 
-		err := cfg.Load(&cobra.Command{})
+		err := cfg.Load(cmd)
 
 		assert.NoError(t, err)
 	})
@@ -90,8 +93,9 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		defer reset()
 		os.Args = []string{"command", "--verbosity", "hell"}
 		cfg := NewServerConfig()
+		cmd := testCommand()
 
-		err := cfg.Load(&cobra.Command{})
+		err := cfg.Load(cmd)
 
 		assert.Error(t, err)
 	})
@@ -100,7 +104,8 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		defer reset()
 		os.Args = []string{"command"}
 		cfg := NewServerConfig()
-		err := cfg.Load(&cobra.Command{})
+		cmd := testCommand()
+		err := cfg.Load(cmd)
 		assert.NoError(t, err)
 		assert.False(t, cfg.Strictmode)
 	})
@@ -109,8 +114,9 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		defer reset()
 		os.Args = []string{"command", "--strictmode"}
 		cfg := NewServerConfig()
+		cmd := testCommand()
 
-		err := cfg.Load(&cobra.Command{})
+		err := cfg.Load(cmd)
 
 		assert.NoError(t, err)
 		assert.True(t, cfg.Strictmode)
@@ -120,8 +126,9 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		defer reset()
 		os.Args = []string{"command", "--configfile", "test/config/http.yaml"}
 		cfg := NewServerConfig()
+		cmd := testCommand()
 
-		err := cfg.Load(&cobra.Command{})
+		err := cfg.Load(cmd)
 		assert.Equal(t, cfg.HTTP.Address, "alternative:1323")
 		assert.Len(t, cfg.HTTP.AltBinds, 2)
 		assert.Equal(t, cfg.HTTP.AltBinds["internal"].Address, "localhost:1111")
@@ -134,8 +141,9 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		defer reset()
 		os.Args = []string{"command", "--configfile", "test/config/corrupt.yaml"}
 		cfg := NewServerConfig()
+		cmd := testCommand()
 
-		err := cfg.Load(&cobra.Command{})
+		err := cfg.Load(cmd)
 
 		if !assert.Error(t, err) {
 			return
@@ -148,8 +156,9 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		os.Setenv("NUTS_VERBOSITY", "warn")
 		defer os.Unsetenv("NUTS_VERBOSITY")
 		cfg := NewServerConfig()
+		cmd := testCommand()
 
-		err := cfg.Load(&cobra.Command{})
+		err := cfg.Load(cmd)
 
 		if !assert.NoError(t, err) {
 			return
@@ -163,7 +172,7 @@ func TestNewNutsConfig_PrintConfig(t *testing.T) {
 	cfg := NewServerConfig()
 	fs := pflag.FlagSet{}
 	fs.String("camelCaseKey", "value", "description")
-	cmd := &cobra.Command{}
+	cmd := testCommand()
 	cmd.PersistentFlags().AddFlagSet(&fs)
 	cfg.Load(cmd)
 
@@ -182,7 +191,7 @@ func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 	os.Args = []string{"command", "--key", "value"}
 	cfg := NewServerConfig()
 
-	cmd := &cobra.Command{}
+	cmd := testCommand()
 	flagSet := pflag.NewFlagSet("dummy", pflag.ContinueOnError)
 	flagSet.String("key", "", "")
 	cmd.PersistentFlags().AddFlagSet(flagSet)
@@ -206,7 +215,7 @@ func TestNewNutsConfig_resolveConfigFile(t *testing.T) {
 		defer reset()
 
 		os.Args = []string{"executable", "command", "--configfile", "from_file.yaml"}
-		cmd := &cobra.Command{}
+		cmd := testCommand()
 		cfg := NewServerConfig()
 		cfg.Load(cmd)
 
@@ -228,4 +237,10 @@ func TestNewNutsConfig_resolveConfigFile(t *testing.T) {
 
 		assert.Equal(t, "from_env.yaml", file)
 	})
+}
+
+func testCommand() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.PersistentFlags().AddFlagSet(FlagSet())
+	return cmd
 }

@@ -147,6 +147,7 @@ func TestSystem_Load(t *testing.T) {
 	e.FlagSet().String("key", "", "")
 	os.Args = []string{"command", "--key", "value"}
 	cmd.PersistentFlags().AddFlagSet(e.FlagSet())
+	cmd.PersistentFlags().AddFlagSet(FlagSet())
 
 	t.Run("loads Config without error", func(t *testing.T) {
 		assert.NoError(t, ctl.Load(cmd))

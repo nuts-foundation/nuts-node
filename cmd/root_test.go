@@ -42,6 +42,22 @@ func Test_rootCmd(t *testing.T) {
 		assert.Contains(t, actual, "Current system config")
 		assert.Contains(t, actual, "address")
 	})
+
+	t.Run("server commands accepts default flags", func(t *testing.T) {
+		oldStdout := stdOutWriter
+		buf := new(bytes.Buffer)
+		stdOutWriter = buf
+		defer func() {
+			stdOutWriter = oldStdout
+		}()
+		os.Args = []string{"nuts", "help", "server"}
+		Execute(core.NewSystem())
+		actual := buf.String()
+		assert.Contains(t, actual, "--configfile string")
+		assert.Contains(t, actual, "--datadir")
+		assert.Contains(t, actual, "--strictmode")
+		assert.Contains(t, actual, "--verbosity")
+	})
 }
 
 func Test_serverCmd(t *testing.T) {
