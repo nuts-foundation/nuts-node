@@ -63,7 +63,7 @@ Direct WAN Connection
 This is the simplest layout where the Nuts node is directly accessible from the internet:
 
 .. raw:: html
-    :file: ../../_static/images/network_layouts_directwan.svg
+    :file: ../_static/images/network_layouts_directwan.svg
 
 This layout has the following requirements:
 
@@ -77,7 +77,7 @@ In this layout incoming TLS traffic is decrypted on a SSL/TLS terminator and the
 This is layout is typically used to provide layer 7 load balancing and/or securing traffic "at the gates":
 
 .. raw:: html
-    :file: ../../_static/images/network_layouts_tlsoffloading.svg
+    :file: ../_static/images/network_layouts_tlsoffloading.svg
 
 This layout has the following requirements:
 
@@ -91,6 +91,6 @@ SSL/TLS Pass-through
 In this layout incoming TLS traffic is forwarded to the Nuts node without being decrypted:
 
 .. raw:: html
-    :file: ../../_static/images/network_layouts_tlspassthrough.svg
+    :file: ../_static/images/network_layouts_tlspassthrough.svg
 
 Requirements are the same as for the Direct WAN Connection layout.

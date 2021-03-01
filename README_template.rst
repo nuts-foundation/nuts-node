@@ -19,7 +19,7 @@ Distributed registry for storing and querying health care providers their vendor
    :target: https://codeclimate.com/github/nuts-foundation/nuts-node/maintainability
    :alt: Maintainability
 
-.. include:: docs/pages/development.rst
+.. include:: docs/pages/development/development.rst
     :start-after: .. marker-for-readme
 
 Configuration
