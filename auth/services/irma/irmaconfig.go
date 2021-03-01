@@ -54,7 +54,8 @@ func GetIrmaServer(validatorConfig ValidatorConfig) (irmaServer *irmaserver.Serv
 	irmaServer = _irmaServer
 
 	serverOnce.Do(func() {
-		irmaConfig, err := GetIrmaConfig(validatorConfig)
+		var irmaConfig *irma.Configuration
+		irmaConfig, err = GetIrmaConfig(validatorConfig)
 		if err != nil {
 			return
 		}
