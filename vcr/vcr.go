@@ -22,6 +22,7 @@ package vcr
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"path"
 	"time"
 
@@ -54,6 +55,12 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
 	fsPath := path.Join(config.Datadir, "vcr", "credentials.db")
 
+	// load VC concept templates
+	if err = c.loadTemplates(); err != nil {
+		return err
+	}
+
+	// setup DB connection
 	if c.store, err = leia.NewStore(fsPath); err != nil {
 		return err
 	}
@@ -61,6 +68,30 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	// init indices
 	if err = c.initIndices(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (c *vcr) loadTemplates() error {
+	list, err := fs.Glob(defaultTemplates, "**/*.json")
+	if err != nil {
+		return err
+	}
+
+	for _, f := range list {
+		bytes, err := defaultTemplates.ReadFile(f)
+		if err != nil {
+			return err
+		}
+		t, err := concept.ParseTemplate(string(bytes))
+		if err != nil {
+			return err
+		}
+
+		if err = c.registry.Add(t); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -32,6 +32,14 @@ import (
 )
 
 func TestVCR_Configure(t *testing.T) {
+
+	t.Run("error - creating db", func(t *testing.T) {
+		instance := NewVCRInstance().(*vcr)
+
+		err := instance.Configure(core.ServerConfig{Datadir: "test"})
+		assert.Error(t, err)
+	})
+
 	t.Run("ok", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		instance := NewVCRInstance().(*vcr)
@@ -41,16 +49,23 @@ func TestVCR_Configure(t *testing.T) {
 			return
 		}
 
-		fsPath := path.Join(testDir, "vcr", "credentials.db")
-		_, err = os.Stat(fsPath)
-		assert.NoError(t, err)
-	})
+		t.Run("loads default templates", func(t *testing.T) {
+			cTemplates := instance.registry.ConceptTemplates()
 
-	t.Run("error - creating db", func(t *testing.T) {
-		instance := NewVCRInstance().(*vcr)
+			if ! assert.Len(t, cTemplates, 1) {
+				return
+			}
 
-		err := instance.Configure(core.ServerConfig{Datadir: "test"})
-		assert.Error(t, err)
+			orgTemplate := cTemplates["organization"]
+
+			assert.NotNil(t, orgTemplate)
+		})
+
+		t.Run("initializes DB", func(t *testing.T) {
+			fsPath := path.Join(testDir, "vcr", "credentials.db")
+			_, err = os.Stat(fsPath)
+			assert.NoError(t, err)
+		})
 	})
 }
 

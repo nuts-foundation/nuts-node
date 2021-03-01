@@ -20,12 +20,16 @@
 package vcr
 
 import (
+	"embed"
 	"errors"
 	"time"
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 )
+
+//go:embed assets/*
+var defaultTemplates embed.FS
 
 // ErrInvalidIssuer is returned when a credential is issued by a DID that is unknown or when the private key is missing.
 var ErrInvalidIssuer = errors.New("invalid credential issuer")

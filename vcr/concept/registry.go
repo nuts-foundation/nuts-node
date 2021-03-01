@@ -54,9 +54,6 @@ func NewRegistry() Registry {
 		typedTemplates:   map[string]*Template{},
 	}
 
-	// todo might have to move to a configure method
-	r.loadTemplates()
-
 	return r
 }
 
@@ -75,29 +72,7 @@ func (r *registry) ConceptTemplates() map[string][]*Template {
 	return ct
 }
 
-func (r *registry) loadTemplates() error {
-	return nil
-}
-
 // AddFromString adds a new template to a concept and parses it.
-// In the example below: id, issuer, subject are generic concept that are common to all VCs
-// The type field is a fixed value and it's added to all queries
-// The @{x,y} indicates a compound index where the first number identifies an index and the (optional) second the location in the index
-// Todo move to docs
-//
-// Example
-//   {
-//  	"id": "<<id>>",
-//  	"issuer": "<<issuer>>",
-//  	"type": "ExampleTemplate@{1_1},{2_1}",
-//  	"credentialSubject": {
-//  		"id": "<<subject>>@{2_2}",
-//  		"company": {
-//  			"name": "<<company.name>>@{1_2}",
-//  			"city": "<<company.city>>"
-//  		}
-//  	}
-//   }
 func (r *registry) Add(conceptTemplate *Template) error {
 	// add to list of templates for same concept name
 	for _, c := range conceptTemplate.rootConcepts() {

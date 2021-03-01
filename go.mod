@@ -1,6 +1,6 @@
 module github.com/nuts-foundation/nuts-node
 
-go 1.15
+go 1.16
 
 require (
 	github.com/cbroglie/mustache v1.2.0

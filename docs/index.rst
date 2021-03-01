@@ -9,6 +9,7 @@ Nuts documentation
     :caption: Technology:
     :glob:
 
+    pages/technology/**
 
 
 .. toctree::
@@ -18,9 +19,11 @@ Nuts documentation
 
     pages/development.rst
     pages/api.rst
+    pages/configuration/concepts.rst
     pages/configuration/configuration.rst
     pages/contribute.rst
     pages/release_notes.rst
+
 
 .. toctree::
     :maxdepth: 1
@@ -31,6 +34,7 @@ Nuts documentation
     pages/running-a-node.rst
     pages/administering-your-node.rst
     pages/production-configuration.rst
+
 
 .. toctree::
     :maxdepth: 1
