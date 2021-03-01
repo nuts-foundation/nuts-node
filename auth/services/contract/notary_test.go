@@ -37,6 +37,7 @@ import (
 )
 
 const orgName = "zorginstelling het hoekje"
+
 var orgID = *vdr.RandomDID
 
 func Test_contractNotaryService_ValidateContract(t *testing.T) {

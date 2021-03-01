@@ -22,7 +22,6 @@ func Test_MultiEcho_Bind(t *testing.T) {
 	})
 }
 
-
 func Test_MultiEcho_Start(t *testing.T) {
 	t.Run("error while starting returns first error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

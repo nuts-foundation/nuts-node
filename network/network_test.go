@@ -59,7 +59,6 @@ func TestNetwork_ListDocuments(t *testing.T) {
 	})
 }
 
-
 func TestNetwork_Name(t *testing.T) {
 	assert.Equal(t, "Network", (&Network{}).Name())
 }
