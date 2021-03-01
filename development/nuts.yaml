@@ -1,3 +1,4 @@
+datadir: /opt/nuts
 network:
   trustStoreFile: /opt/nuts/truststore.pem
   certFile: /opt/nuts/certificate.pem
@@ -9,6 +10,5 @@ http:
       address: :8080
 auth:
   irma:
-    directory: /opt/nuts/irma
     schemeManager: empty
     autoUpdateSchemas: false
