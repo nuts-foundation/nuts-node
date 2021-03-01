@@ -18,11 +18,6 @@
 
 package contract
 
-import "errors"
-
-// ErrUnknownSessionID is returned when the session id is not known
-var ErrUnknownSessionID = errors.New("unknown sessionId")
-
 // Signer is responsible for signing contract signing requests. Signing is done by making use of asynchronous SigningSessions.
 type Signer interface {
 	// SigningSessionStatus returns the current status of the signing session or services.ErrSessionNotFound if not found
