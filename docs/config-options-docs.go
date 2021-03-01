@@ -25,11 +25,7 @@ func generateClientOptions(system *core.System) {
 func generateServerOptions(system *core.System) {
 	flags := make(map[string]*pflag.FlagSet)
 	// Resolve root command flags
-	rootCommand := cmd.CreateCommand(system)
-	if err := core.NewServerConfig().Load(rootCommand); err != nil {
-		panic(err)
-	}
-	globalFlags := rootCommand.PersistentFlags()
+	globalFlags := core.FlagSet()
 	// Resolve server command flags
 	serverCommand, _, _ := cmd.CreateCommand(system).Find([]string{"server"})
 	globalFlags.AddFlagSet(serverCommand.PersistentFlags())

@@ -42,6 +42,22 @@ func Test_rootCmd(t *testing.T) {
 		assert.Contains(t, actual, "Current system config")
 		assert.Contains(t, actual, "address")
 	})
+
+	t.Run("server commands accepts default flags", func(t *testing.T) {
+		oldStdout := stdOutWriter
+		buf := new(bytes.Buffer)
+		stdOutWriter = buf
+		defer func() {
+			stdOutWriter = oldStdout
+		}()
+		os.Args = []string{"nuts", "help", "server"}
+		Execute(core.NewSystem())
+		actual := buf.String()
+		assert.Contains(t, actual, "--configfile string")
+		assert.Contains(t, actual, "--datadir")
+		assert.Contains(t, actual, "--strictmode")
+		assert.Contains(t, actual, "--verbosity")
+	})
 }
 
 func Test_serverCmd(t *testing.T) {
@@ -83,7 +99,8 @@ func Test_serverCmd(t *testing.T) {
 			echoServers = append(echoServers, s)
 			return s
 		}
-		system.Load(&cobra.Command{})
+		cmd := testCommand()
+		system.Load(cmd)
 		system.Config = core.NewServerConfig()
 		system.Config.Datadir = io.TestDirectory(t)
 		system.Config.HTTP.AltBinds["internal"] = core.HTTPConfig{Address: "localhost:7642"}
@@ -129,4 +146,15 @@ func Test_CreateSystem(t *testing.T) {
 		numEngines++
 	})
 	assert.Equal(t, 7, numEngines)
+}
+
+func testCommand() *cobra.Command {
+	cmd := &cobra.Command{}
+	fs := core.FlagSet()
+
+	// this is done by the cobra command and may only be done once
+	fs.Parse(os.Args)
+
+	cmd.PersistentFlags().AddFlagSet(fs)
+	return cmd
 }
