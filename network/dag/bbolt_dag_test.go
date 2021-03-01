@@ -19,7 +19,6 @@
 package dag
 
 import (
-	"errors"
 	"path"
 	"sort"
 	"strings"
@@ -84,51 +83,6 @@ func TestBBoltDAG_All(t *testing.T) {
 		assert.Len(t, actual, 1)
 		assert.Equal(t, tx, actual[0])
 	})
-}
-
-func TestBBoltDAG_Migrate(t *testing.T) {
-	t.Run("documents -> transactions", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		graph := NewBBoltDAG(createBBoltDB(testDirectory)).(*bboltDAG)
-
-		// Make sure there's data in the graph, then copy it to the old bucket
-		tx1, _, _ := CreateTestTransaction(1)
-		tx2, _, _ := CreateTestTransaction(2, hash.SHA256Sum([]byte{1, 2, 3}))
-		graph.Add(tx1, tx2)
-		err := graph.db.Update(func(tx *bbolt.Tx) error {
-			moveBucket(tx, tx, []byte(transactionsBucket), []byte("documents"))
-			moveBucket(tx, tx, []byte(missingTransactionsBucket), []byte("missingdocuments"))
-			return nil
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-		// Assert the new buckets are gone
-		err = graph.db.View(func(tx *bbolt.Tx) error {
-			if tx.Bucket([]byte(transactionsBucket)) != nil {
-				return errors.New("tx bucket exists")
-			}
-			if tx.Bucket([]byte(missingTransactionsBucket)) != nil {
-				return errors.New("missing tx bucket exists")
-			}
-			return nil
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		// Now recreate the graph, which should migrate the data to the new buckets
-		err = graph.db.Close()
-		if !assert.NoError(t, err) {
-			return
-		}
-		graph = NewBBoltDAG(createBBoltDB(testDirectory)).(*bboltDAG)
-		actualTx1, _ := graph.Get(tx1.Ref())
-		actualTx2, _ := graph.Get(tx2.Ref())
-		assert.Equal(t, tx1, actualTx1)
-		assert.Equal(t, tx2, actualTx2)
-	})
-
 }
 
 func TestBBoltDAG_Get(t *testing.T) {

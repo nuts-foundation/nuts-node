@@ -29,11 +29,11 @@ import (
 )
 
 // transactionsBucket is the name of the Bolt bucket that holds the actual transactions as JSON.
-const transactionsBucket = "transactions"
+const transactionsBucket = "documents"
 
 // missingTransactionsBucket is the name of the Bolt bucket that holds the references of the transactions we're having prevs
 // to, but are missing (and will be added later, hopefully).
-const missingTransactionsBucket = "missingtransactions"
+const missingTransactionsBucket = "missingdocuments"
 
 // payloadIndexBucket is the name of the Bolt bucket that holds the a reverse reference from payload hash back to transactions.
 // The value ([]byte) should be split in chunks of HashSize where each entry is a transaction reference that refers to
@@ -94,11 +94,7 @@ func (d dataSizeStatistic) String() string {
 
 // NewBBoltDAG creates a etcd/bbolt backed DAG using the given database.
 func NewBBoltDAG(db *bbolt.DB) DAG {
-	result := &bboltDAG{db: db}
-	if err := result.migrate(); err != nil {
-		panic(err)
-	}
-	return result
+	return &bboltDAG{db: db}
 }
 
 func (dag *bboltDAG) RegisterObserver(observer Observer) {
@@ -365,26 +361,6 @@ func (dag *bboltDAG) registerNextRef(nextsBucket *bbolt.Bucket, prev hash.SHA256
 	return nextsBucket.Put(prevSlice, appendHashList(value, next))
 }
 
-func (dag *bboltDAG) migrate() error {
-	return dag.db.Update(func(tx *bbolt.Tx) error {
-		oldTransactionsBucket := []byte("documents")
-		docs := tx.Bucket(oldTransactionsBucket)
-		if docs != nil {
-			if err := moveBucket(tx, tx, oldTransactionsBucket, []byte(transactionsBucket)); err != nil {
-				return err
-			}
-		}
-		oldMissingTransactionsBucket := []byte("missingdocuments")
-		missingDocs := tx.Bucket(oldMissingTransactionsBucket)
-		if missingDocs != nil {
-			if err := moveBucket(tx, tx, oldMissingTransactionsBucket, []byte(missingTransactionsBucket)); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
-
 func getTransaction(hash hash.SHA256Hash, transactions *bbolt.Bucket) (Transaction, error) {
 	transactionBytes := transactions.Get(hash.Slice())
 	if transactionBytes == nil {
@@ -426,37 +402,4 @@ func notifyObservers(observers []Observer, subject interface{}) {
 	for _, observer := range observers {
 		observer(subject)
 	}
-}
-
-// moveBucket moves the inner bucket with key 'oldkey' to a new bucket with key 'newkey'
-// must be used within an Update-transaction
-func moveBucket(oldParent, newParent bucketeer, oldkey, newkey []byte) error {
-	log.Logger().Infof("Renaming BBolt bucket '%s' to '%s'", string(oldkey), string(newkey))
-	oldBuck := oldParent.Bucket(oldkey)
-	newBuck, err := newParent.CreateBucket(newkey)
-	if err != nil {
-		return err
-	}
-
-	err = oldBuck.ForEach(func(k, v []byte) error {
-		if v == nil {
-			// Nested bucket
-			return moveBucket(oldBuck, newBuck, k, k)
-		}
-		// Regular value
-		return newBuck.Put(k, v)
-	})
-	if err != nil {
-		return err
-	}
-
-	return oldParent.DeleteBucket(oldkey)
-}
-
-// bucketeer defines bucket operations that are implemented by both bbolt.Bucket and bbolt.DB so they can both be passed
-// into moveBucket.
-type bucketeer interface {
-	Bucket(name []byte) *bbolt.Bucket
-	CreateBucket(key []byte) (*bbolt.Bucket, error)
-	DeleteBucket(key []byte) error
 }
