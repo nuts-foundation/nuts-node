@@ -19,6 +19,9 @@
 package types
 
 import (
+	"errors"
+	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
 	"reflect"
@@ -57,5 +60,50 @@ func TestCopy(t *testing.T) {
 		// if this test fails, please make sure the Copy() method is updated as well!
 		assert.Equal(t, numFields, reflect.TypeOf(DocumentMetadata{}).NumField())
 
+	})
+}
+
+func TestDocWriterDecorator(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		doc := did.Document{}
+		md := DocumentMetadata{}
+		writer := NewMockDocWriter(ctrl)
+		writer.EXPECT().Write(doc, md).Return(nil)
+		called := false
+		DocWriterDecorator{
+			Target: writer,
+			Decorator: func(_ did.Document, _ DocumentMetadata) error {
+				called = true
+				return nil
+			},
+		}.Write(doc, md)
+		assert.True(t, called)
+	})
+	t.Run("decorator empty", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		doc := did.Document{}
+		md := DocumentMetadata{}
+		writer := NewMockDocWriter(ctrl)
+		writer.EXPECT().Write(doc, md).Return(nil)
+		DocWriterDecorator{
+			Target: writer,
+		}.Write(doc, md)
+	})
+	t.Run("error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		doc := did.Document{}
+		md := DocumentMetadata{}
+		writer := NewMockDocWriter(ctrl)
+		err := DocWriterDecorator{
+			Target: writer,
+			Decorator: func(_ did.Document, _ DocumentMetadata) error {
+				return errors.New("failed")
+			},
+		}.Write(doc, md)
+		assert.Error(t, err)
 	})
 }

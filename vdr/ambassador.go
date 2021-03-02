@@ -49,16 +49,22 @@ type Ambassador interface {
 type ambassador struct {
 	networkClient network.Transactions
 	didStore      types.Store
+	didWriter     types.DocWriter
 	keyStore      nutsCrypto.PublicKeyStore
 }
 
 // NewAmbassador creates a new Ambassador,
 func NewAmbassador(networkClient network.Transactions, didStore types.Store, publicKeyStore nutsCrypto.PublicKeyStore) Ambassador {
-	return &ambassador{
+	result := &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,
 		keyStore:      publicKeyStore,
 	}
+	result.didWriter = &types.DocWriterDecorator{
+		Target:    result.didStore,
+		Decorator: result.discoverPeers,
+	}
+	return result
 }
 
 // newDocumentVersion contains the version number that a new Network Documents have.
@@ -334,4 +340,21 @@ func (n ambassador) findKeyByThumbprint(thumbPrint []byte, didDocumentAuthKeys [
 		}
 	}
 	return documentKey, nil
+}
+
+// discoverPeers tries to find Nuts Network services in the given DID Document to add them as Nuts Network peers.
+func (n ambassador) discoverPeers(document did.Document, _ types.DocumentMetadata) error {
+	for _, service := range document.Service {
+		if service.Type == "nuts-network-grpc" {
+			var endpointURL string
+			if err := service.UnmarshalServiceEndpoint(&endpointURL); err != nil {
+				logging.Log().Warnf("DID service %s is not a valid Nuts Network document, ignoring: %v", service.ID.String(), err)
+				continue
+			}
+			if n.networkClient.AddPeer(endpointURL) {
+				logging.Log().Infof("Discovered new peer from DID Document (DID=%s,address=%s)", document.ID, endpointURL)
+			}
+		}
+	}
+	return nil
 }

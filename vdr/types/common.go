@@ -20,6 +20,7 @@ package types
 
 import (
 	"errors"
+	"github.com/nuts-foundation/go-did"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -69,4 +70,19 @@ type ResolveMetadata struct {
 	Hash *hash.SHA256Hash
 	// Allow DIDs which are deactivated
 	AllowDeactivated bool
+}
+
+// DocWriterDecorator wraps a DocWriter with a function that's called before the target writer is called.
+type DocWriterDecorator struct {
+	Target DocWriter
+	Decorator func(document did.Document, metadata DocumentMetadata) error
+}
+
+func (d DocWriterDecorator) Write(document did.Document, metadata DocumentMetadata) error {
+	if d.Decorator != nil {
+		if err := d.Decorator(document, metadata); err != nil {
+			return err
+		}
+	}
+	return d.Target.Write(document, metadata)
 }

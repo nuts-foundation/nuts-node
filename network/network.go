@@ -58,6 +58,10 @@ type Network struct {
 	keyStore      crypto.KeyStore
 }
 
+func (n Network) AddPeer(address string) bool {
+	return n.p2pNetwork.ConnectToPeer(address)
+}
+
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(config Config, keyStore crypto.KeyStore) *Network {
 	result := &Network{

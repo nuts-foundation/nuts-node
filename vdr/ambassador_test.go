@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/network"
 	"testing"
 	"time"
 
@@ -795,4 +796,70 @@ func Test_checkDIDDocumentIntegrity(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAmbassador_discoverPeers(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		didStoreMock := types.NewMockStore(ctrl)
+		networkClient := network.NewMockTransactions(ctrl)
+		networkClient.EXPECT().AddPeer("remote-peer:5555").Return(true)
+		am := ambassador{
+			didStore:      didStoreMock,
+			networkClient: networkClient,
+		}
+		doc := did.Document{
+			Service: []did.Service{{Type: "nuts-network-grpc", ServiceEndpoint: "remote-peer:5555"}},
+		}
+		err := am.discoverPeers(doc, types.DocumentMetadata{})
+		assert.NoError(t, err)
+	})
+	t.Run("not connecting", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		didStoreMock := types.NewMockStore(ctrl)
+		networkClient := network.NewMockTransactions(ctrl)
+		networkClient.EXPECT().AddPeer(gomock.Any()).Return(false)
+		am := ambassador{
+			didStore:      didStoreMock,
+			networkClient: networkClient,
+		}
+		doc := did.Document{
+			Service: []did.Service{{Type: "nuts-network-grpc", ServiceEndpoint: "remote-peer:5555"}},
+		}
+		err := am.discoverPeers(doc, types.DocumentMetadata{})
+		assert.NoError(t, err)
+	})
+	t.Run("invalid endpoint", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		didStoreMock := types.NewMockStore(ctrl)
+		networkClient := network.NewMockTransactions(ctrl)
+		am := ambassador{
+			didStore:      didStoreMock,
+			networkClient: networkClient,
+		}
+		doc := did.Document{
+			Service: []did.Service{{Type: "nuts-network-grpc", ServiceEndpoint: false}},
+		}
+		err := am.discoverPeers(doc, types.DocumentMetadata{})
+		assert.NoError(t, err)
+	})
+	t.Run("no matching services", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		didStoreMock := types.NewMockStore(ctrl)
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+		am := ambassador{
+			didStore: didStoreMock,
+			keyStore: keyStoreMock,
+		}
+
+		doc := did.Document{
+			Service: []did.Service{{Type: "some-other-type"}},
+		}
+		err := am.discoverPeers(doc, types.DocumentMetadata{})
+		assert.NoError(t, err)
+	})
 }

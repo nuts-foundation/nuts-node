@@ -41,4 +41,7 @@ type Transactions interface {
 	CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, fieldsOpts ...dag.FieldOpt) (dag.Document, error)
 	// ListDocuments returns all documents known to this Network instance.
 	ListDocuments() ([]dag.Document, error)
+	// AddPeer instructs the P2P layer to try to connect to a new peer on the given address. It's safe to call it
+	// multiple times for the same address. If the P2P layer will attempt to connect to the address it returns `true`.
+	AddPeer(address string) bool
 }
