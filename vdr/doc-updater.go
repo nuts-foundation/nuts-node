@@ -98,36 +98,14 @@ func getVerificationMethodDiff(currentDocument, proposedDocument did.Document) (
 // RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
 // When the verificationMethod is used in an assertion or authentication method, it is also removed there.
 func (u NutsDocUpdater) RemoveVerificationMethod(keyID did.DID, document *did.Document) error {
-	var newVerificationMethods []*did.VerificationMethod
-	for _, vm := range document.VerificationMethod {
-		if !vm.ID.Equals(keyID) {
-			newVerificationMethods = append(newVerificationMethods, vm)
-		}
-	}
+	removedVM := document.VerificationMethod.Remove(keyID)
 	// Check if it is actually found and removed:
-	if len(newVerificationMethods) == len(document.VerificationMethod) {
+	if removedVM == nil {
 		return errors.New("verificationMethod not found in document")
 	}
-	document.VerificationMethod = newVerificationMethods
 
-	// Remove it from the authentication methods
-	var vmsToKeep []did.VerificationRelationship
-	for _, vm := range document.Authentication {
-		if !vm.ID.Equals(keyID) {
-			vmsToKeep = append(vmsToKeep, vm)
-		}
-
-	}
-	document.Authentication = vmsToKeep
-
-	// Remove it from the assertion methods
-	vmsToKeep = []did.VerificationRelationship{}
-	for _, vm := range document.AssertionMethod {
-		if !vm.ID.Equals(keyID) {
-			vmsToKeep = append(vmsToKeep, vm)
-		}
-	}
-	document.AssertionMethod = vmsToKeep
+	document.Authentication.Remove(keyID)
+	document.AssertionMethod.Remove(keyID)
 
 	return nil
 }
