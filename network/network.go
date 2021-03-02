@@ -58,6 +58,8 @@ type Network struct {
 	keyStore      crypto.KeyStore
 }
 
+// AddPeer instructs the P2P layer to try to connect to a new peer on the given address. It's safe to call it
+// multiple times for the same address. If the P2P layer will attempt to connect to the address it returns `true`.
 func (n Network) AddPeer(address string) bool {
 	return n.p2pNetwork.ConnectToPeer(address)
 }

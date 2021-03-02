@@ -74,7 +74,7 @@ type ResolveMetadata struct {
 
 // DocWriterDecorator wraps a DocWriter with a function that's called before the target writer is called.
 type DocWriterDecorator struct {
-	Target DocWriter
+	Target    DocWriter
 	Decorator func(document did.Document, metadata DocumentMetadata) error
 }
 
