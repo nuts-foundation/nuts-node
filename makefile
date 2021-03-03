@@ -1,4 +1,4 @@
-.PHONY: test run-generators update-docs
+.PHONY: test run-generators update-docs fmt
 
 run-generators: gen-mocks gen-api gen-protobuf
 
@@ -48,6 +48,11 @@ gen-docs:
 	go run ./docs
 
 test:
+	gen-mocks
+	gen-api
 	go test ./...
+
+fmt:
+	go fmt ./...
 
 update-docs: gen-docs gen-readme

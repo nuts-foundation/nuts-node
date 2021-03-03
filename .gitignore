@@ -30,3 +30,8 @@ data
 /*.db
 
 /nuts-node
+
+mock.go
+generated.go
+bindata.go
+*.pb.go

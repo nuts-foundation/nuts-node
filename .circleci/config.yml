@@ -23,6 +23,7 @@ jobs:
           paths:
             - "/go/pkg/mod"
 
+      - run: make run-generators
       - run: go test ./... -race
       - run: go test ./... -coverprofile=coverage.txt
 
