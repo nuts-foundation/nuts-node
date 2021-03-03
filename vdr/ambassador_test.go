@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
-	"io"
 	"testing"
 	"time"
 
@@ -199,7 +198,6 @@ func Test_ambassador_callback(t *testing.T) {
 		var rawKey crypto2.PublicKey
 		signingKey.Raw(&rawKey)
 
-		keyStoreMock.EXPECT().GetPublicKey(signingKey.KeyID(), subDoc.signingTime).Return(nil, crypto.ErrKeyNotFound)
 		keyStoreMock.EXPECT().AddPublicKey(signingKey.KeyID(), rawKey, subDoc.signingTime)
 		didStoreMock.EXPECT().Write(expectedDocument, expectedMetadata)
 
@@ -207,7 +205,10 @@ func Test_ambassador_callback(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("nok - error while checking for current public key", func(t *testing.T) {
+	// This test recreates the situation where the node gets restarted and the ambassador handles all the
+	//   documents it is subscribed at. Since the did store is non-persistent but the keystore is,
+	//   many keys will already be in the keyStore. This test checks if the ErrKeyAlreadyExists is handled ok
+	t.Run("ok - adding a key which already exists", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -235,10 +236,19 @@ func Test_ambassador_callback(t *testing.T) {
 		var rawKey crypto2.PublicKey
 		signingKey.Raw(&rawKey)
 
-		keyStoreMock.EXPECT().GetPublicKey(signingKey.KeyID(), subDoc.signingTime).Return(nil, io.EOF)
+		expectedMetadata := types.DocumentMetadata{
+			Created:    signingTime,
+			Updated:    nil,
+			Version:    0,
+			TimelineID: ref,
+			Hash:       payloadHash,
+		}
+
+		keyStoreMock.EXPECT().AddPublicKey(signingKey.KeyID(), rawKey, subDoc.signingTime).Return(crypto.ErrKeyAlreadyExists)
+		didStoreMock.EXPECT().Write(expectedDocument, expectedMetadata)
 
 		err = am.callback(subDoc, didDocPayload)
-		assert.Equal(t, io.EOF, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("nok - invalid payload", func(t *testing.T) {
