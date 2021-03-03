@@ -84,7 +84,7 @@ func (r *VDR) Config() interface{} {
 // Configure configures the VDR engine.
 func (r *VDR) Configure(_ core.ServerConfig) error {
 	// Initiate the routines for auto-updating the data.
-	r.networkAmbassador.Start()
+	r.networkAmbassador.Configure()
 	return nil
 }
 
