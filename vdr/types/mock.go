@@ -198,44 +198,6 @@ func (mr *MockDocDeactivatorMockRecorder) Deactivate(id, current interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocDeactivator)(nil).Deactivate), id, current)
 }
 
-// MockKeyResolver is a mock of KeyResolver interface.
-type MockKeyResolver struct {
-	ctrl     *gomock.Controller
-	recorder *MockKeyResolverMockRecorder
-}
-
-// MockKeyResolverMockRecorder is the mock recorder for MockKeyResolver.
-type MockKeyResolverMockRecorder struct {
-	mock *MockKeyResolver
-}
-
-// NewMockKeyResolver creates a new mock instance.
-func NewMockKeyResolver(ctrl *gomock.Controller) *MockKeyResolver {
-	mock := &MockKeyResolver{ctrl: ctrl}
-	mock.recorder = &MockKeyResolverMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockKeyResolver) EXPECT() *MockKeyResolverMockRecorder {
-	return m.recorder
-}
-
-// ResolveAssertionKey mocks base method.
-func (m *MockKeyResolver) ResolveAssertionKey(id go_did.DID, metadata *ResolveMetadata) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveAssertionKey", id, metadata)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
-func (mr *MockKeyResolverMockRecorder) ResolveAssertionKey(id, metadata interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockKeyResolver)(nil).ResolveAssertionKey), id, metadata)
-}
-
 // MockStore is a mock of Store interface.
 type MockStore struct {
 	ctrl     *gomock.Controller
@@ -367,21 +329,6 @@ func (m *MockVDR) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go_did.Doc
 func (mr *MockVDRMockRecorder) Resolve(id, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVDR)(nil).Resolve), id, metadata)
-}
-
-// ResolveAssertionKey mocks base method.
-func (m *MockVDR) ResolveAssertionKey(id go_did.DID, metadata *ResolveMetadata) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveAssertionKey", id, metadata)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
-func (mr *MockVDRMockRecorder) ResolveAssertionKey(id, metadata interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockVDR)(nil).ResolveAssertionKey), id, metadata)
 }
 
 // Update mocks base method.

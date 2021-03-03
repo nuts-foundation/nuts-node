@@ -243,7 +243,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 		return nil, err
 	}
 
-	_, err = c.network.CreateDocument(createDocumentType(builder.Type()), payload, kid.String(), nil, vc.IssuanceDate)
+	_, err = c.network.CreateTransaction(createDocumentType(builder.Type()), payload, kid.String(), nil, vc.IssuanceDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}

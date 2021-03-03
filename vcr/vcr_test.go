@@ -34,7 +34,7 @@ import (
 func TestVCR_Configure(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
-		instance := NewVCRInstance().(*vcr)
+		instance := NewVCRInstance(nil, nil, nil).(*vcr)
 
 		err := instance.Configure(core.ServerConfig{Datadir: "test"})
 		assert.Error(t, err)
@@ -42,7 +42,7 @@ func TestVCR_Configure(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
-		instance := NewVCRInstance().(*vcr)
+		instance := NewVCRInstance(nil, nil, nil).(*vcr)
 
 		err := instance.Configure(core.ServerConfig{Datadir: testDir})
 		if !assert.NoError(t, err) {
