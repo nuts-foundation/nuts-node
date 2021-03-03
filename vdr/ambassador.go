@@ -122,6 +122,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	if err != nil {
 		return err
 	}
+
 	// Since we use an in-memory DID store, DIDs are re-registered on every startup. However, the keystore is persistent
 	// so we have to check whether we already have the public key to avoiding error conditions.
 	// TODO: this implementation is quite naive since the public key might actually differ or have a different validation

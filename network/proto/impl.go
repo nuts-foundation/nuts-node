@@ -36,9 +36,9 @@ type protocol struct {
 	payloadStore      dag.PayloadStore
 	signatureVerifier dag.TransactionSignatureVerifier
 	// TODO: What if no-one is actually listening to this queue? Maybe we should create it when someone asks for it (lazy initialization)?
-	receivedPeerHashes     *chanPeerHashQueue
+	receivedPeerHashes        *chanPeerHashQueue
 	receivedTransactionHashes *chanPeerHashQueue
-	peerHashes             map[p2p.PeerID][]hash.SHA256Hash
+	peerHashes                map[p2p.PeerID][]hash.SHA256Hash
 
 	// Cache statistics to avoid having to lock precious resources
 	peerConsistencyHashStatistic peerConsistencyHashStatistic
