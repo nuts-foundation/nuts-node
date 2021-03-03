@@ -29,11 +29,11 @@ commands:
 
             unzip -d ${path} ${archive}
 
-            mv "${path}/bin/protoc" /usr/local/bin/protoc
+            sudo mv "${path}/bin/protoc" /usr/local/bin/protoc
 
-            mv "${path}/include/google" /usr/local/include/
+            sudo mv "${path}/include/google" /usr/local/include/
 
-            chmod +x /usr/local/bin/protoc
+            sudo chmod +x /usr/local/bin/protoc
 
             rm -rf ${archive} ${path}
 
