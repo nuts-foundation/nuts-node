@@ -1,41 +1,43 @@
 version: 2.1
 orbs:
   codecov: codecov/codecov@1.0.5
-comands:
+commands:
   install-protoc:
     parameters:
       protoc_release:
-        default: 1.36.0
+        default: "1.36.0"
         type: string
     steps:
-      - run: >
-          if [ -n "<<parameters.protoc_release>>" ]; then
-            protoc_release="<<parameters.protoc_release>>"
-          fi
+      - run:
+          name: Installing protoc
+          command: |
+            if [ -n "<<parameters.protoc_release>>" ]; then
+              protoc_release="<<parameters.protoc_release>>"
+            fi
 
-          protoc_release=${protoc_release:-$(curl -s https://api.github.com/repos/protocolbuffers/protobuf/releases/latest | jq -r '.tag_name')}
-          protoc_version=${protoc_release#v}
+            protoc_release=${protoc_release:-$(curl -s https://api.github.com/repos/protocolbuffers/protobuf/releases/latest | jq -r '.tag_name')}
+            protoc_version=${protoc_release#v}
 
-          echo -e '\033[1;32m' "Installing protoc ${protoc_release} ..." '\033[0m'
+            echo -e '\033[1;32m' "Installing protoc ${protoc_release} ..." '\033[0m'
 
-          os=linux
-          arch=x86_64
-          archive=./protoc.zip
-          path=protoc
+            os=linux
+            arch=x86_64
+            archive=./protoc.zip
+            path=protoc
 
-          curl -fsSL "https://github.com/protocolbuffers/protobuf/releases/download/${protoc_release}/protoc-${protoc_version}-${os}-${arch}.zip" -o ${archive}
+            curl -fsSL "https://github.com/protocolbuffers/protobuf/releases/download/${protoc_release}/protoc-${protoc_version}-${os}-${arch}.zip" -o ${archive}
 
-          unzip -d ${path} ${archive}
+            unzip -d ${path} ${archive}
 
-          mv "${path}/bin/protoc" /usr/local/bin/protoc
+            mv "${path}/bin/protoc" /usr/local/bin/protoc
 
-          mv "${path}/include/google" /usr/local/include/
+            mv "${path}/include/google" /usr/local/include/
 
-          chmod +x /usr/local/bin/protoc
+            chmod +x /usr/local/bin/protoc
 
-          rm -rf ${archive} ${path}
+            rm -rf ${archive} ${path}
 
-          echo -e '\033[1;32m' "protoc ${protoc_release} installed successfully!" '\033[0m'
+            echo -e '\033[1;32m' "protoc ${protoc_release} installed successfully!" '\033[0m'
 
 jobs:
   build:
