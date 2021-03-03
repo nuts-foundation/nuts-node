@@ -5,7 +5,7 @@ commands:
   install-protoc:
     parameters:
       protoc_release:
-        default: "1.36.0"
+        default: "1.14.0"
         type: string
     steps:
       - run:
