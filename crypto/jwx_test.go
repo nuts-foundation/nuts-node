@@ -23,9 +23,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
-	"github.com/lestrrat-go/jwx/jwt"
+	"strings"
 	"testing"
+
+	"github.com/lestrrat-go/jwx/jwt"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -213,6 +217,49 @@ func TestCrypto_SignJWS(t *testing.T) {
 		signature, err := client.SignJWS(payload, map[string]interface{}{}, "unknown")
 		assert.Contains(t, err.Error(), "error while signing JWS, can't get private key")
 		assert.Empty(t, signature)
+	})
+}
+
+func TestCrypto_SignDetachedJWS(t *testing.T) {
+	client := createCrypto(t)
+	kid := "kid"
+	publicKey, _, _ := client.New(StringNamingFunc(kid))
+	payload := []byte{1, 2, 3}
+
+	t.Run("ok", func(t *testing.T) {
+		jwsString, err := client.SignDetachedJWS(payload, kid)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		t.Run("ok - correct headers", func(t *testing.T) {
+			i := strings.Index(jwsString, "..")
+			headers := jwsString[0:i]
+			j, _ := base64.StdEncoding.DecodeString(headers)
+			var m = make(map[string]interface{})
+			json.Unmarshal(j, &m)
+
+			assert.Len(t, m, 3)
+			assert.Equal(t, "ES256", m["alg"])
+			assert.Equal(t, []interface {}{"b64"}, m["crit"])
+			assert.Equal(t, false, m["b64"])
+		})
+
+		t.Run("ok - correct signature", func(t *testing.T) {
+			i := strings.Index(jwsString, "..")
+			sig, _ := base64.StdEncoding.DecodeString(jwsString[i+2:])
+			v, _ := jws.NewVerifier(jwa.ES256)
+
+			err = v.Verify(payload, sig, publicKey)
+
+			assert.NoError(t, err)
+		})
+	})
+
+	t.Run("error - unknown key", func(t *testing.T) {
+		_, err := client.SignDetachedJWS(payload, "kid2")
+
+		assert.Error(t, err)
 	})
 }
 

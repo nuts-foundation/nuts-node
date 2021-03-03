@@ -193,12 +193,15 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 	return string(data), nil
 }
 
-// {"alg":"ES256","b64":false,"crit":["b64"]}
+// jsonWebSignature2020Headers is a bse64 representation of {"alg":"ES256","b64":false,"crit":["b64"]}
 const jsonWebSignature2020Headers = "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19"
 
 // signDetachedJWS as specified by https://w3c-ccg.github.io/lds-jws2020/ and https://w3c-ccg.github.io/ld-proofs/#proof-algorithm
 func signDetachedJWS(payload []byte, privateKey crypto.Signer) (string, error) {
-	sig, err := jws.Sign(payload, jwa.ES256, privateKey)
+	// we assume jwa.ES256 is supported here
+	signer, _ := jws.NewSigner(jwa.ES256)
+
+	sig, err := signer.Sign(payload, privateKey)
 	if err != nil {
 		return "", err
 	}
