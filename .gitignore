@@ -31,7 +31,6 @@ data
 
 /nuts-node
 
-mock.go
+*mock.go
 generated.go
-bindata.go
 *.pb.go

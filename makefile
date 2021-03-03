@@ -1,6 +1,6 @@
 .PHONY: test run-generators update-docs fmt
 
-run-generators: gen-mocks gen-api gen-protobuf gen-bindata
+run-generators: gen-mocks gen-api gen-protobuf
 
 install-tools:
 	export GO111MODULE=on  # default in Go >= 1.16
