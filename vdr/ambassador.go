@@ -124,7 +124,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	}
 
 	// Since we use an in-memory DID store, DIDs are re-registered on every startup. However, the keystore is persistent
-	// so we have to check whether we already have the public key to avoiding error conditions.
+	// so when it's registered again an error is returned. If that happens, we just ignore the error.
 	// TODO: this implementation is quite naive since the public key might actually differ or have a different validation
 	// period, which isn't taken into consideration. Should be fixed as part of https://github.com/nuts-foundation/nuts-node/issues/109
 	// since then we don't need to do this check any more.
