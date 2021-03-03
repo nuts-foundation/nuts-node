@@ -62,7 +62,8 @@ func TestDocCreator_Create(t *testing.T) {
 			assert.Len(t, doc.Authentication, 1)
 			assert.Equal(t, doc.Authentication[0].VerificationMethod, doc.VerificationMethod[0])
 
-			assert.Empty(t, doc.AssertionMethod)
+			assert.Len(t, doc.AssertionMethod, 1)
+			assert.Equal(t, doc.AssertionMethod[0].VerificationMethod, doc.VerificationMethod[0])
 		})
 	})
 	t.Run("invalid key ID", func(t *testing.T) {
