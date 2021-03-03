@@ -20,7 +20,6 @@
 package vcr
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -211,11 +210,13 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 		if err != nil {
 			return err
 		}
-		prHash := hash.SHA256Sum(prJson)
-		vcHash := hash.SHA256Sum(payload)
-		tbs := fmt.Sprintf("%s%s", base64.URLEncoding.EncodeToString(prHash.Slice()) ,base64.URLEncoding.EncodeToString(vcHash.Slice()))
+		prHash := hash.SHA256Sum(prJson).Slice()
+		vcHash := hash.SHA256Sum(payload).Slice()
+		tbs := make([]byte, len(prHash)+len(vcHash))
+		copy(tbs, prHash)
+		copy(tbs[len(prHash):], vcHash)
 
-		sig, err := c.keystore.SignDetachedJWS([]byte(tbs), kid.String())
+		sig, err := c.keystore.SignDetachedJWS(tbs, kid.String())
 		if err != nil {
 			return err
 		}
