@@ -35,9 +35,7 @@ type messageGate interface {
 
 // Peer represents a connected peer
 type peer struct {
-	id PeerID
-	// address holds the remote address of the node we're actually connected to
-	address string
+	Peer
 	// gate is used to send and receive messages
 	gate messageGate
 	// conn and client are only filled for peers where we're the connecting party
@@ -52,7 +50,7 @@ type peer struct {
 }
 
 func (p peer) String() string {
-	return fmt.Sprintf("%s@%s", p.id, p.address)
+	return fmt.Sprintf("%s@%s", p.ID, p.Address)
 }
 
 func (p *peer) close() {
@@ -80,7 +78,7 @@ func (p *peer) send(message *transport.NetworkMessage) {
 func (p peer) sendMessages() {
 	for message := range p.outMessages {
 		if p.gate.Send(message) != nil {
-			log.Logger().Errorf("Unable to broadcast message to peer (peer=%s)", p.id)
+			log.Logger().Errorf("Unable to broadcast message to peer (peer=%s)", p.ID)
 		}
 	}
 }

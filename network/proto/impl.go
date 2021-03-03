@@ -105,7 +105,7 @@ func (p *protocol) updateDiagnostics() {
 			for peerId := range p.peerHashes {
 				var present = false
 				for _, connectedPeer := range connectedPeers {
-					if peerId == connectedPeer {
+					if peerId == connectedPeer.ID {
 						present = true
 					}
 				}

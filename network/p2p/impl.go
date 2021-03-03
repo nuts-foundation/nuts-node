@@ -74,12 +74,12 @@ func (n p2pNetwork) Diagnostics() []core.DiagnosticResult {
 	}
 }
 
-func (n *p2pNetwork) Peers() []PeerID {
-	var result []PeerID
+func (n *p2pNetwork) Peers() []Peer {
+	var result []Peer
 	n.peerMutex.Lock()
 	defer n.peerMutex.Unlock()
 	for _, peer := range n.peers {
-		result = append(result, peer.id)
+		result = append(result, peer.Peer)
 	}
 	return result
 }
@@ -122,9 +122,9 @@ func (c *connector) connect(ownID PeerID, config *tls.Config) (*peer, error) {
 	cxt := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
 	dialContext, _ := context.WithTimeout(cxt, 5*time.Second)
 	conn, err := c.Dialer(dialContext, c.address,
-		grpc.WithBlock(), // Dial should block until connection succeeded (or time-out expired)
+		grpc.WithBlock(),                                          // Dial should block until connection succeeded (or time-out expired)
 		grpc.WithTransportCredentials(credentials.NewTLS(config)), // TLS authentication
-		grpc.WithReturnConnectionError())                          // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
+		grpc.WithReturnConnectionError()) // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
 	if err != nil {
 		return nil, errors2.Wrap(err, "unable to connect")
 	}
@@ -137,10 +137,10 @@ func (c *connector) connect(ownID PeerID, config *tls.Config) (*peer, error) {
 	}
 
 	peer := peer{
+		Peer:       Peer{Address: c.address},
 		conn:       conn,
 		client:     client,
 		gate:       gate,
-		address:    c.address,
 		closeMutex: &sync.Mutex{},
 	}
 	if serverHeader, err := gate.Header(); err != nil {
@@ -157,7 +157,7 @@ func (c *connector) connect(ownID PeerID, config *tls.Config) (*peer, error) {
 			_ = conn.Close()
 			return nil, err
 		} else {
-			peer.id = serverPeerID
+			peer.ID = serverPeerID
 		}
 	}
 
@@ -268,7 +268,7 @@ func (n *p2pNetwork) sendAndReceiveForPeer(peer *peer) {
 	go peer.sendMessages()
 	n.addPeer(peer)
 	// TODO: Check PeerID sent by peer
-	receiveMessages(peer.gate, peer.id, n.receivedMessages)
+	receiveMessages(peer.gate, peer.ID, n.receivedMessages)
 	peer.close()
 	// When we reach this line, receiveMessages has exited which means the connection has been closed.
 	n.removePeer(peer)
@@ -361,15 +361,18 @@ func (n p2pNetwork) Connect(stream transport.Network_ConnectServer) error {
 	if err != nil {
 		return err
 	}
-	log.Logger().Infof("New peer connected (add=%s, id=%s)", peerCtx.Addr, peerID)
+	peerInfo := Peer{
+		ID:      peerID,
+		Address: peerCtx.Addr.String(),
+	}
+	log.Logger().Infof("New peer connected: %s", peerInfo)
 	// We received our peer's PeerID, now send our own.
 	if err := stream.SendHeader(constructMetadata(n.config.PeerID)); err != nil {
 		return errors2.Wrap(err, "unable to send headers")
 	}
 	peer := &peer{
-		id:         peerID,
+		Peer:       peerInfo,
 		gate:       stream,
-		address:    peerCtx.Addr.String(),
 		closeMutex: &sync.Mutex{},
 	}
 	n.sendAndReceiveForPeer(peer)
@@ -380,19 +383,19 @@ func (n *p2pNetwork) addPeer(peer *peer) {
 	n.peerMutex.Lock()
 	defer n.peerMutex.Unlock()
 
-	n.peers[peer.id] = peer
-	n.peersByAddr[normalizeAddress(peer.address)] = peer.id
+	n.peers[peer.ID] = peer
+	n.peersByAddr[normalizeAddress(peer.Address)] = peer.ID
 }
 
 func (n *p2pNetwork) removePeer(peer *peer) {
 	n.peerMutex.Lock()
 	defer n.peerMutex.Unlock()
 
-	peer = n.peers[peer.id]
+	peer = n.peers[peer.ID]
 	if peer == nil {
 		return
 	}
 
-	delete(n.peers, peer.id)
-	delete(n.peersByAddr, normalizeAddress(peer.address))
+	delete(n.peers, peer.ID)
+	delete(n.peersByAddr, normalizeAddress(peer.Address))
 }
