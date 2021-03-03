@@ -176,13 +176,6 @@ func NewP2PNetwork() P2PNetwork {
 	}
 }
 
-func NewP2PNetworkWithOptions(listener net.Listener, dialer Dialer) P2PNetwork {
-	result := NewP2PNetwork().(*p2pNetwork)
-	result.listener = listener
-	result.peerDialer = dialer
-	return result
-}
-
 type messageQueue struct {
 	c chan PeerMessage
 }
