@@ -81,14 +81,10 @@ func (r *VDR) Config() interface{} {
 	return &r.config
 }
 
-// Start initiates the routines for auto-updating the data
-func (r *VDR) Start() error {
-	r.networkAmbassador.Start()
-	return nil
-}
-
-// Shutdown cleans up any leftover go routines
-func (r *VDR) Shutdown() error {
+// Configure configures the VDR engine.
+func (r *VDR) Configure(_ core.ServerConfig) error {
+	// Initiate the routines for auto-updating the data.
+	r.networkAmbassador.Configure()
 	return nil
 }
 

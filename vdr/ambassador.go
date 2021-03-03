@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"crypto"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -42,8 +43,8 @@ const didDocumentType = "application/did+json"
 // Ambassador acts as integration point between VDR and network by sending DID Documents network and process
 // DID Documents received through the network.
 type Ambassador interface {
-	// Start instructs the ambassador to start receiving DID Documents from the network.
-	Start()
+	// Configure instructs the ambassador to start receiving DID Documents from the network.
+	Configure()
 }
 
 type ambassador struct {
@@ -64,8 +65,8 @@ func NewAmbassador(networkClient network.Transactions, didStore types.Store, pub
 // newDocumentVersion contains the version number that a new Network Documents have.
 const newDocumentVersion = 0
 
-// Start instructs the ambassador to start receiving DID Documents from the network.
-func (n *ambassador) Start() {
+// Configure instructs the ambassador to start receiving DID Documents from the network.
+func (n *ambassador) Configure() {
 	n.networkClient.Subscribe(didDocumentType, n.callback)
 }
 
@@ -121,8 +122,14 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	if err != nil {
 		return err
 	}
+
+	// Since we use an in-memory DID store, DIDs are re-registered on every startup. However, the keystore is persistent
+	// so when it's registered again an error is returned. If that happens, we just ignore the error.
+	// TODO: this implementation is quite naive since the public key might actually differ or have a different validation
+	// period, which isn't taken into consideration. Should be fixed as part of https://github.com/nuts-foundation/nuts-node/issues/109
+	// since then we don't need to do this check any more.
 	err = n.keyStore.AddPublicKey(transaction.SigningKey().KeyID(), rawKey, transaction.SigningTime())
-	if err != nil {
+	if err != nil && !errors.Is(err, nutsCrypto.ErrKeyAlreadyExists) {
 		return err
 	}
 
