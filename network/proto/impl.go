@@ -34,11 +34,11 @@ type protocol struct {
 	p2pNetwork        p2p.P2PNetwork
 	graph             dag.DAG
 	payloadStore      dag.PayloadStore
-	signatureVerifier dag.DocumentSignatureVerifier
+	signatureVerifier dag.TransactionSignatureVerifier
 	// TODO: What if no-one is actually listening to this queue? Maybe we should create it when someone asks for it (lazy initialization)?
-	receivedPeerHashes     *chanPeerHashQueue
-	receivedDocumentHashes *chanPeerHashQueue
-	peerHashes             map[p2p.PeerID][]hash.SHA256Hash
+	receivedPeerHashes        *chanPeerHashQueue
+	receivedTransactionHashes *chanPeerHashQueue
+	peerHashes                map[p2p.PeerID][]hash.SHA256Hash
 
 	// Cache statistics to avoid having to lock precious resources
 	peerConsistencyHashStatistic peerConsistencyHashStatistic
@@ -64,7 +64,7 @@ func NewProtocol() Protocol {
 	return p
 }
 
-func (p *protocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, payloadStore dag.PayloadStore, verifier dag.DocumentSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
+func (p *protocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
 	p.p2pNetwork = p2pNetwork
 	p.graph = graph
 	p.payloadStore = payloadStore
@@ -148,23 +148,23 @@ func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
 	if msg.AdvertHashes != nil {
 		p.handleAdvertHashes(peer, msg.AdvertHashes)
 	}
-	if msg.DocumentListQuery != nil {
-		if err := p.handleDocumentListQuery(peer); err != nil {
+	if msg.TransactionListQuery != nil {
+		if err := p.handleTransactionListQuery(peer); err != nil {
 			return err
 		}
 	}
-	if msg.DocumentList != nil {
-		if err := p.handleDocumentList(peer, msg.DocumentList); err != nil {
+	if msg.TransactionList != nil {
+		if err := p.handleTransactionList(peer, msg.TransactionList); err != nil {
 			return err
 		}
 	}
-	if msg.DocumentPayloadQuery != nil && msg.DocumentPayloadQuery.PayloadHash != nil {
-		if err := p.handleDocumentPayloadQuery(peer, msg.DocumentPayloadQuery); err != nil {
+	if msg.TransactionPayloadQuery != nil && msg.TransactionPayloadQuery.PayloadHash != nil {
+		if err := p.handleTransactionPayloadQuery(peer, msg.TransactionPayloadQuery); err != nil {
 			return err
 		}
 	}
-	if msg.DocumentPayload != nil && msg.DocumentPayload.PayloadHash != nil && msg.DocumentPayload.Data != nil {
-		p.handleDocumentPayload(peer, msg.DocumentPayload)
+	if msg.TransactionPayload != nil && msg.TransactionPayload.PayloadHash != nil && msg.TransactionPayload.Data != nil {
+		p.handleTransactionPayload(peer, msg.TransactionPayload)
 	}
 	return nil
 }

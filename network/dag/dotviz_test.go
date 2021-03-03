@@ -24,7 +24,7 @@ import (
 )
 
 // DotGraphVisitor is a graph visitor that outputs the walked path as "dot" diagram.
-// The is currently unused, but can be used to debug the DAG to see how documents relate to each other. The output
+// The is currently unused, but can be used to debug the DAG to see how transactions relate to each other. The output
 // can be viewed using a DOT plugin or when rendering the DOT file to SVG/PNG, etc.
 type DotGraphVisitor struct {
 	output      string
@@ -55,11 +55,11 @@ func NewDotGraphVisitor(labelStyle LabelStyle) *DotGraphVisitor {
 	}
 }
 
-func (d *DotGraphVisitor) Accept(document Document) {
+func (d *DotGraphVisitor) Accept(transaction Transaction) {
 	d.counter++
-	d.nodes = append(d.nodes, fmt.Sprintf("  \"%s\"[label=\"%s (%d)\"]", document.Ref().String(), d.label(document), d.counter))
-	for _, prev := range document.Previous() {
-		d.edges = append(d.edges, fmt.Sprintf("  \"%s\" -> \"%s\"", prev.String(), document.Ref().String()))
+	d.nodes = append(d.nodes, fmt.Sprintf("  \"%s\"[label=\"%s (%d)\"]", transaction.Ref().String(), d.label(transaction), d.counter))
+	for _, prev := range transaction.Previous() {
+		d.edges = append(d.edges, fmt.Sprintf("  \"%s\" -> \"%s\"", prev.String(), transaction.Ref().String()))
 	}
 }
 
@@ -72,19 +72,19 @@ func (d *DotGraphVisitor) Render() string {
 	return strings.Join(lines, "\n")
 }
 
-func (d *DotGraphVisitor) label(document Document) string {
+func (d *DotGraphVisitor) label(transaction Transaction) string {
 	switch d.labelStyle {
 	case ShowAliasLabelStyle:
-		if alias, ok := d.aliases[document.Ref().String()]; ok {
+		if alias, ok := d.aliases[transaction.Ref().String()]; ok {
 			return alias
 		} else {
 			alias = fmt.Sprintf("%d", len(d.aliases)+1)
-			d.aliases[document.Ref().String()] = alias
+			d.aliases[transaction.Ref().String()] = alias
 			return alias
 		}
 	case ShowRefLabelStyle:
 		fallthrough
 	default:
-		return document.Ref().String()
+		return transaction.Ref().String()
 	}
 }

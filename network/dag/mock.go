@@ -35,10 +35,10 @@ func (m *MockDAG) EXPECT() *MockDAGMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockDAG) Add(documents ...Document) error {
+func (m *MockDAG) Add(transactions ...Transaction) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{}
-	for _, a := range documents {
+	for _, a := range transactions {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "Add", varargs...)
@@ -47,16 +47,16 @@ func (m *MockDAG) Add(documents ...Document) error {
 }
 
 // Add indicates an expected call of Add.
-func (mr *MockDAGMockRecorder) Add(documents ...interface{}) *gomock.Call {
+func (mr *MockDAGMockRecorder) Add(transactions ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockDAG)(nil).Add), documents...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockDAG)(nil).Add), transactions...)
 }
 
 // All mocks base method.
-func (m *MockDAG) All() ([]Document, error) {
+func (m *MockDAG) All() ([]Transaction, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "All")
-	ret0, _ := ret[0].([]Document)
+	ret0, _ := ret[0].([]Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -68,10 +68,10 @@ func (mr *MockDAGMockRecorder) All() *gomock.Call {
 }
 
 // Get mocks base method.
-func (m *MockDAG) Get(ref hash.SHA256Hash) (Document, error) {
+func (m *MockDAG) Get(ref hash.SHA256Hash) (Transaction, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ref)
-	ret0, _ := ret[0].(Document)
+	ret0, _ := ret[0].(Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -83,10 +83,10 @@ func (mr *MockDAGMockRecorder) Get(ref interface{}) *gomock.Call {
 }
 
 // GetByPayloadHash mocks base method.
-func (m *MockDAG) GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Document, error) {
+func (m *MockDAG) GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Transaction, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByPayloadHash", payloadHash)
-	ret0, _ := ret[0].([]Document)
+	ret0, _ := ret[0].([]Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -126,18 +126,18 @@ func (mr *MockDAGMockRecorder) IsPresent(ref interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockDAG)(nil).IsPresent), ref)
 }
 
-// MissingDocuments mocks base method.
-func (m *MockDAG) MissingDocuments() []hash.SHA256Hash {
+// MissingTransactions mocks base method.
+func (m *MockDAG) MissingTransactions() []hash.SHA256Hash {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MissingDocuments")
+	ret := m.ctrl.Call(m, "MissingTransactions")
 	ret0, _ := ret[0].([]hash.SHA256Hash)
 	return ret0
 }
 
-// MissingDocuments indicates an expected call of MissingDocuments.
-func (mr *MockDAGMockRecorder) MissingDocuments() *gomock.Call {
+// MissingTransactions indicates an expected call of MissingTransactions.
+func (mr *MockDAGMockRecorder) MissingTransactions() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MissingDocuments", reflect.TypeOf((*MockDAG)(nil).MissingDocuments))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MissingTransactions", reflect.TypeOf((*MockDAG)(nil).MissingTransactions))
 }
 
 // RegisterObserver mocks base method.
@@ -217,15 +217,15 @@ func (mr *MockPublisherMockRecorder) Start() *gomock.Call {
 }
 
 // Subscribe mocks base method.
-func (m *MockPublisher) Subscribe(documentType string, receiver Receiver) {
+func (m *MockPublisher) Subscribe(payloadType string, receiver Receiver) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Subscribe", documentType, receiver)
+	m.ctrl.Call(m, "Subscribe", payloadType, receiver)
 }
 
 // Subscribe indicates an expected call of Subscribe.
-func (mr *MockPublisherMockRecorder) Subscribe(documentType, receiver interface{}) *gomock.Call {
+func (mr *MockPublisherMockRecorder) Subscribe(payloadType, receiver interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockPublisher)(nil).Subscribe), documentType, receiver)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockPublisher)(nil).Subscribe), payloadType, receiver)
 }
 
 // MockWalkerAlgorithm is a mock of WalkerAlgorithm interface.
@@ -252,7 +252,7 @@ func (m *MockWalkerAlgorithm) EXPECT() *MockWalkerAlgorithmMockRecorder {
 }
 
 // walk mocks base method.
-func (m *MockWalkerAlgorithm) walk(visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Document, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error {
+func (m *MockWalkerAlgorithm) walk(visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "walk", visitor, startAt, getFn, nextsFn)
 	ret0, _ := ret[0].(error)

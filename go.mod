@@ -22,7 +22,7 @@ require (
 	github.com/nuts-foundation/go-did v0.0.0-20210223070344-61d177b1beb9
 	github.com/nuts-foundation/go-leia v0.1.0
 	github.com/pkg/errors v0.9.1
-	github.com/privacybydesign/irmago v0.6.0
+	github.com/privacybydesign/irmago v0.6.2-0.20210226102726-35c6768789c6
 	github.com/prometheus/client_golang v1.7.1
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.7.0

@@ -49,13 +49,13 @@ const (
 
 // Network implements Transactions interface and Engine functions.
 type Network struct {
-	config        Config
-	p2pNetwork    p2p.P2PNetwork
-	protocol      proto.Protocol
-	documentGraph dag.DAG
-	publisher     dag.Publisher
-	payloadStore  dag.PayloadStore
-	keyStore      crypto.KeyStore
+	config       Config
+	p2pNetwork   p2p.P2PNetwork
+	protocol     proto.Protocol
+	graph        dag.DAG
+	publisher    dag.Publisher
+	payloadStore dag.PayloadStore
+	keyStore     crypto.KeyStore
 }
 
 // NewNetworkInstance creates a new Network engine instance.
@@ -79,11 +79,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if bboltErr != nil {
 		return fmt.Errorf("unable to create BBolt database: %w", bboltErr)
 	}
-	n.documentGraph = dag.NewBBoltDAG(db)
+	n.graph = dag.NewBBoltDAG(db)
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
-	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.documentGraph)
+	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	peerID := p2p.PeerID(uuid.New().String())
-	n.protocol.Configure(n.p2pNetwork, n.documentGraph, n.payloadStore, dag.NewDocumentSignatureVerifier(n.keyStore), time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
+	n.protocol.Configure(n.p2pNetwork, n.graph, n.payloadStore, dag.NewTransactionSignatureVerifier(n.keyStore), time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
 	networkConfig, p2pErr := n.buildP2PConfig(peerID)
 	if p2pErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", p2pErr)
@@ -124,63 +124,63 @@ func (n *Network) Start() error {
 	return nil
 }
 
-// Subscribe makes a subscription for the specified document type. The receiver is called when a document
+// Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
 // is received for the specified type.
-func (n *Network) Subscribe(documentType string, receiver dag.Receiver) {
-	n.publisher.Subscribe(documentType, receiver)
+func (n *Network) Subscribe(transactionType string, receiver dag.Receiver) {
+	n.publisher.Subscribe(transactionType, receiver)
 }
 
-// GetDocument retrieves the document for the given reference. If the document is not known, an error is returned.
-func (n *Network) GetDocument(documentRef hash.SHA256Hash) (dag.Document, error) {
-	return n.documentGraph.Get(documentRef)
+// GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
+func (n *Network) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
+	return n.graph.Get(transactionRef)
 }
 
-// GetDocumentPayload retrieves the document payload for the given document. If the document or payload is not found
+// GetTransactionPayload retrieves the transaction payload for the given transaction. If the transaction or payload is not found
 // nil is returned.
-func (n *Network) GetDocumentPayload(documentRef hash.SHA256Hash) ([]byte, error) {
-	document, err := n.documentGraph.Get(documentRef)
+func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
+	transaction, err := n.graph.Get(transactionRef)
 	if err != nil {
 		return nil, err
 	}
-	return n.payloadStore.ReadPayload(document.PayloadHash())
+	return n.payloadStore.ReadPayload(transaction.PayloadHash())
 }
 
-// ListDocuments returns all documents known to this Network instance.
-func (n *Network) ListDocuments() ([]dag.Document, error) {
-	return n.documentGraph.All()
+// ListTransactions returns all transactions known to this Network instance.
+func (n *Network) ListTransactions() ([]dag.Transaction, error) {
+	return n.graph.All()
 }
 
-// CreateDocument creates a new document with the specified payload, and signs it using the specified key.
-// If the key should be inside the document (instead of being referred to) `attachKey` should be true.
-func (n *Network) CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, fieldOpts ...dag.FieldOpt) (dag.Document, error) {
+// CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
+// If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
+func (n *Network) CreateTransaction(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, fieldOpts ...dag.FieldOpt) (dag.Transaction, error) {
 	payloadHash := hash.SHA256Sum(payload)
-	log.Logger().Infof("Creating document (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), signingKeyID)
-	// Create document
-	prevs := n.documentGraph.Heads()
-	unsignedDocument, err := dag.NewDocument(payloadHash, payloadType, prevs, fieldOpts...)
+	log.Logger().Infof("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), signingKeyID)
+	// Create transaction
+	prevs := n.graph.Heads()
+	unsignedTransaction, err := dag.NewTransaction(payloadHash, payloadType, prevs, fieldOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new document: %w", err)
+		return nil, fmt.Errorf("unable to create new transaction: %w", err)
 	}
 	// Sign it
-	var document dag.Document
-	var signer dag.DocumentSigner
+	var transaction dag.Transaction
+	var signer dag.TransactionSigner
 	if attachKey != nil {
-		signer = dag.NewAttachedJWKDocumentSigner(n.keyStore, signingKeyID, attachKey)
+		signer = dag.NewAttachedJWKTransactionSigner(n.keyStore, signingKeyID, attachKey)
 	} else {
-		signer = dag.NewDocumentSigner(n.keyStore, signingKeyID)
+		signer = dag.NewTransactionSigner(n.keyStore, signingKeyID)
 	}
-	document, err = signer.Sign(unsignedDocument, timestamp)
+	transaction, err = signer.Sign(unsignedTransaction, timestamp)
 	if err != nil {
-		return nil, fmt.Errorf("unable to sign newly created document: %w", err)
+		return nil, fmt.Errorf("unable to sign newly created transaction: %w", err)
 	}
 	// Store on local DAG and publish it
-	if err = n.documentGraph.Add(document); err != nil {
-		return nil, fmt.Errorf("unable to add newly created document to DAG: %w", err)
+	if err = n.graph.Add(transaction); err != nil {
+		return nil, fmt.Errorf("unable to add newly created transaction to DAG: %w", err)
 	}
 	if err = n.payloadStore.WritePayload(payloadHash, payload); err != nil {
-		return nil, fmt.Errorf("unable to store payload of newly created document: %w", err)
+		return nil, fmt.Errorf("unable to store payload of newly created transaction: %w", err)
 	}
-	return document, nil
+	return transaction, nil
 }
 
 // Shutdown cleans up any leftover go routines
@@ -193,7 +193,7 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 	var results = make([]core.DiagnosticResult, 0)
 	results = append(results, n.protocol.Diagnostics()...)
 	results = append(results, n.p2pNetwork.Diagnostics()...)
-	if graph, ok := n.documentGraph.(core.Diagnosable); ok {
+	if graph, ok := n.graph.(core.Diagnosable); ok {
 		results = append(results, graph.Diagnostics()...)
 	}
 	return results

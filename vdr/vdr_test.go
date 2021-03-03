@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/core"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -17,7 +18,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-const expectedDocumentType = "application/did+json"
+const expectedPayloadType = "application/did+json"
 
 func TestVDR_Update(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -45,7 +46,7 @@ func TestVDR_Update(t *testing.T) {
 	}
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
 	didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-	networkMock.EXPECT().CreateDocument(expectedDocumentType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any(), gomock.Any())
+	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any(), gomock.Any())
 	err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
 	assert.NoError(t, err)
 }
@@ -74,7 +75,7 @@ func TestVDR_Create(t *testing.T) {
 
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
 	didCreator.EXPECT().Create().Return(&nextDIDDocument, nil)
-	networkMock.EXPECT().CreateDocument(expectedDocumentType, expectedPayload, keyID.String(), &privateKey.PublicKey, gomock.Any())
+	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), &privateKey.PublicKey, gomock.Any())
 	didDoc, err := vdr.Create()
 	assert.NoError(t, err)
 	assert.NotNil(t, didDoc)
@@ -85,4 +86,15 @@ func TestNewVDR(t *testing.T) {
 	vdr := NewVDR(cfg, nil, nil)
 	assert.IsType(t, &VDR{}, vdr)
 	assert.Equal(t, vdr.config, cfg)
+}
+
+func TestVDR_Configure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	tx := network.NewMockTransactions(ctrl)
+	// Make sure configuring VDR subscribes to network
+	tx.EXPECT().Subscribe(gomock.Any(), gomock.Any())
+	cfg := Config{}
+	vdr := NewVDR(cfg, nil, tx)
+	err := vdr.Configure(core.ServerConfig{})
+	assert.NoError(t, err)
 }

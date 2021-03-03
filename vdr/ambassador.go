@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"crypto"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -36,14 +37,14 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// didDocumentType contains network document mime-type to identify a DID Document in the network.
+// didDocumentType contains network transaction mime-type to identify a DID Document in the network.
 const didDocumentType = "application/did+json"
 
 // Ambassador acts as integration point between VDR and network by sending DID Documents network and process
 // DID Documents received through the network.
 type Ambassador interface {
-	// Start instructs the ambassador to start receiving DID Documents from the network.
-	Start()
+	// Configure instructs the ambassador to start receiving DID Documents from the network.
+	Configure()
 }
 
 type ambassador struct {
@@ -64,8 +65,8 @@ func NewAmbassador(networkClient network.Transactions, didStore types.Store, pub
 // newDocumentVersion contains the version number that a new Network Documents have.
 const newDocumentVersion = 0
 
-// Start instructs the ambassador to start receiving DID Documents from the network.
-func (n *ambassador) Start() {
+// Configure instructs the ambassador to start receiving DID Documents from the network.
+func (n *ambassador) Configure() {
 	n.networkClient.Subscribe(didDocumentType, n.callback)
 }
 
@@ -73,12 +74,12 @@ func (n *ambassador) Start() {
 var thumbprintAlg = crypto.SHA256
 
 // callback gets called when new DIDDocuments are received by the network. All checks on the signature are already performed.
-// This method will check the integrity of the DID document related to the public key used to sign the network document.
+// This method will check the integrity of the DID document related to the public key used to sign the network tr.
 // The rules are based on the Nuts RFC006
 // payload should be a json encoded did.document
-func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) error {
-	logging.Log().Debugf("Processing DID documents received from Nuts Network: ref=%s", document.Ref())
-	if err := checkSubscriberDocumentIntegrity(document); err != nil {
+func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) error {
+	logging.Log().Debugf("Processing DID documents received from Nuts Network: ref=%s", tx.Ref())
+	if err := checkSubscriberDocumentIntegrity(tx); err != nil {
 		return fmt.Errorf("callback could not process new DID Document: %w", err)
 	}
 
@@ -92,19 +93,19 @@ func (n *ambassador) callback(document dag.SubscriberDocument, payload []byte) e
 		return fmt.Errorf("callback could not process new DID Document, DID Document integrity check failed: %w", err)
 	}
 
-	if isUpdate(document) {
-		return n.handleUpdateDIDDocument(document, nextDIDDocument)
+	if isUpdate(tx) {
+		return n.handleUpdateDIDDocument(tx, nextDIDDocument)
 	}
-	return n.handleCreateDIDDocument(document, nextDIDDocument)
+	return n.handleCreateDIDDocument(tx, nextDIDDocument)
 }
 
-func (n *ambassador) handleCreateDIDDocument(document dag.SubscriberDocument, proposedDIDDocument did.Document) error {
-	// Check if the network document was signed by the same key as is embedded in the DID Document`s authenticationMethod:
+func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
+	// Check if the transaction was signed by the same key as is embedded in the DID Document`s authenticationMethod:
 
-	// Create key thumbprint from the network documents signingKey embedded in the header
-	signingKeyThumbprint, err := document.SigningKey().Thumbprint(thumbprintAlg)
+	// Create key thumbprint from the transactions signingKey embedded in the header
+	signingKeyThumbprint, err := transaction.SigningKey().Thumbprint(thumbprintAlg)
 	if err != nil {
-		return fmt.Errorf("unable to generate network document signing key thumbprint: %w", err)
+		return fmt.Errorf("unable to generate network transaction signing key thumbprint: %w", err)
 	}
 
 	// Check if signingKey is one of the keys embedded in the authenticationMethod
@@ -113,29 +114,35 @@ func (n *ambassador) handleCreateDIDDocument(document dag.SubscriberDocument, pr
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("key used to sign Network document must be be part of DID Document authentication")
+		return fmt.Errorf("key used to sign transaction must be be part of DID Document authentication")
 	}
 
 	var rawKey crypto.PublicKey
-	err = document.SigningKey().Raw(&rawKey)
+	err = transaction.SigningKey().Raw(&rawKey)
 	if err != nil {
 		return err
 	}
-	err = n.keyStore.AddPublicKey(document.SigningKey().KeyID(), rawKey, document.SigningTime())
-	if err != nil {
+
+	// Since we use an in-memory DID store, DIDs are re-registered on every startup. However, the keystore is persistent
+	// so when it's registered again an error is returned. If that happens, we just ignore the error.
+	// TODO: this implementation is quite naive since the public key might actually differ or have a different validation
+	// period, which isn't taken into consideration. Should be fixed as part of https://github.com/nuts-foundation/nuts-node/issues/109
+	// since then we don't need to do this check any more.
+	err = n.keyStore.AddPublicKey(transaction.SigningKey().KeyID(), rawKey, transaction.SigningTime())
+	if err != nil && !errors.Is(err, nutsCrypto.ErrKeyAlreadyExists) {
 		return err
 	}
 
 	documentMetadata := types.DocumentMetadata{
-		Created:    document.SigningTime(),
+		Created:    transaction.SigningTime(),
 		Version:    newDocumentVersion,
-		TimelineID: document.Ref(),
-		Hash:       document.PayloadHash(),
+		TimelineID: transaction.Ref(),
+		Hash:       transaction.PayloadHash(),
 	}
 	return n.didStore.Write(proposedDIDDocument, documentMetadata)
 }
 
-func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberDocument, proposedDIDDocument did.Document) error {
+func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
 	// Resolve current version of DID Document
 	resolverMetadata := &types.ResolveMetadata{
 		AllowDeactivated: false,
@@ -213,10 +220,10 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberDocument, pr
 	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 }
 
-// checkSubscriberDocumentIntegrity performs basic integrity checks on the SubscriberDocument fields
+// checkSubscriberDocumentIntegrity performs basic integrity checks on the SubscriberTransaction fields
 // Some checks may look redundant because they are performed in the callers, this method has the sole
 // responsibility to ensure integrity, while the other may have not.
-func checkSubscriberDocumentIntegrity(document dag.SubscriberDocument) error {
+func checkSubscriberDocumentIntegrity(document dag.SubscriberTransaction) error {
 	// check the payload type:
 	if document.PayloadType() != didDocumentType {
 		return fmt.Errorf("wrong payload type for this subscriber. Can handle: %s, got: %s", didDocumentType, document.PayloadType())
@@ -289,7 +296,7 @@ func checkDIDDocumentIntegrity(doc did.Document) error {
 	return nil
 }
 
-func isUpdate(document dag.SubscriberDocument) bool {
+func isUpdate(document dag.SubscriberTransaction) bool {
 	return !document.TimelineID().Empty()
 }
 

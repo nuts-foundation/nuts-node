@@ -47,13 +47,13 @@ type networkTestContext struct {
 	publisher  *dag.MockPublisher
 }
 
-func TestNetwork_ListDocuments(t *testing.T) {
+func TestNetwork_ListTransactions(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.graph.EXPECT().All().Return([]dag.Document{dag.CreateTestDocumentWithJWK(1)}, nil)
-		docs, err := cxt.network.ListDocuments()
+		cxt.graph.EXPECT().All().Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
+		docs, err := cxt.network.ListTransactions()
 		assert.Len(t, docs, 1)
 		assert.NoError(t, err)
 	})
@@ -72,25 +72,25 @@ func TestNetwork_Config(t *testing.T) {
 	assert.Same(t, &n.config, n.Config())
 }
 
-func TestNetwork_GetDocument(t *testing.T) {
+func TestNetwork_GetTransaction(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.graph.EXPECT().Get(gomock.Any())
-		cxt.network.GetDocument(hash.EmptyHash())
+		cxt.network.GetTransaction(hash.EmptyHash())
 	})
 }
 
-func TestNetwork_GetDocumentContents(t *testing.T) {
+func TestNetwork_GetTransactionContents(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		document := dag.CreateTestDocumentWithJWK(1)
-		cxt.graph.EXPECT().Get(document.Ref()).Return(document, nil)
-		cxt.payload.EXPECT().ReadPayload(document.PayloadHash())
-		cxt.network.GetDocumentPayload(document.Ref())
+		transaction := dag.CreateTestTransactionWithJWK(1)
+		cxt.graph.EXPECT().Get(transaction.Ref()).Return(transaction, nil)
+		cxt.payload.EXPECT().ReadPayload(transaction.PayloadHash())
+		cxt.network.GetTransactionPayload(transaction.Ref())
 	})
 }
 
@@ -173,7 +173,7 @@ func TestNetwork_Configure(t *testing.T) {
 	})
 }
 
-func TestNetwork_CreateDocument(t *testing.T) {
+func TestNetwork_CreateTransaction(t *testing.T) {
 	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	t.Run("attach key", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -194,7 +194,7 @@ func TestNetwork_CreateDocument(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		_, err = cxt.network.CreateDocument(documentType, payload, "signing-key", privateKey.PublicKey, time.Now())
+		_, err = cxt.network.CreateTransaction(payloadType, payload, "signing-key", privateKey.PublicKey, time.Now())
 		assert.NoError(t, err)
 	})
 	t.Run("detached key", func(t *testing.T) {
@@ -216,7 +216,7 @@ func TestNetwork_CreateDocument(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		_, err = cxt.network.CreateDocument(documentType, payload, "signing-key", nil, time.Now())
+		_, err = cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, time.Now())
 		assert.NoError(t, err)
 	})
 }
@@ -326,7 +326,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	network := NewNetworkInstance(networkConfig, keyStore)
 	network.p2pNetwork = p2pNetwork
 	network.protocol = protocol
-	network.documentGraph = graph
+	network.graph = graph
 	network.payloadStore = payload
 	network.publisher = publisher
 	return &networkTestContext{

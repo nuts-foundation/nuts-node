@@ -37,52 +37,52 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, a)
 }
 
-// ListDocuments lists all documents
-func (a Wrapper) ListDocuments(ctx echo.Context) error {
-	documents, err := a.Service.ListDocuments()
+// ListTransactions lists all transactions
+func (a Wrapper) ListTransactions(ctx echo.Context) error {
+	transactions, err := a.Service.ListTransactions()
 	if err != nil {
-		log.Logger().Errorf("Error while listing documents: %v", err)
+		log.Logger().Errorf("Error while listing transactions: %v", err)
 		return ctx.String(http.StatusInternalServerError, err.Error())
 	}
-	results := make([]string, len(documents))
-	for i, document := range documents {
-		results[i] = string(document.Data())
+	results := make([]string, len(transactions))
+	for i, transaction := range transactions {
+		results[i] = string(transaction.Data())
 	}
 	return ctx.JSON(http.StatusOK, results)
 }
 
-// GetDocument returns a specific document
-func (a Wrapper) GetDocument(ctx echo.Context, hashAsString string) error {
+// GetTransaction returns a specific transaction
+func (a Wrapper) GetTransaction(ctx echo.Context, hashAsString string) error {
 	hash, err := hash2.ParseHex(hashAsString)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, err.Error())
 	}
-	document, err := a.Service.GetDocument(hash)
+	transaction, err := a.Service.GetTransaction(hash)
 	if err != nil {
-		log.Logger().Errorf("Error while retrieving document (hash=%s): %v", hash, err)
+		log.Logger().Errorf("Error while retrieving transaction (hash=%s): %v", hash, err)
 		return ctx.String(http.StatusInternalServerError, err.Error())
 	}
-	if document == nil {
-		return ctx.String(http.StatusNotFound, "document not found")
+	if transaction == nil {
+		return ctx.String(http.StatusNotFound, "transaction not found")
 	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "application/jose")
 	ctx.Response().WriteHeader(http.StatusOK)
-	_, err = ctx.Response().Writer.Write(document.Data())
+	_, err = ctx.Response().Writer.Write(transaction.Data())
 	return err
 }
 
-// GetDocumentPayload returns the payload of a specific document
-func (a Wrapper) GetDocumentPayload(ctx echo.Context, hashAsString string) error {
+// GetTransactionPayload returns the payload of a specific transaction
+func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) error {
 	hash, err := hash2.ParseHex(hashAsString)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, err.Error())
 	}
-	data, err := a.Service.GetDocumentPayload(hash)
+	data, err := a.Service.GetTransactionPayload(hash)
 	if err != nil {
 		return ctx.String(http.StatusInternalServerError, err.Error())
 	}
 	if data == nil {
-		return ctx.String(http.StatusNotFound, "document or contents not found")
+		return ctx.String(http.StatusNotFound, "transaction or contents not found")
 	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "application/octet-stream")
 	ctx.Response().WriteHeader(http.StatusOK)

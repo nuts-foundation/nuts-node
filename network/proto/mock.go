@@ -38,7 +38,7 @@ func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 }
 
 // Configure mocks base method.
-func (m *MockProtocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, payloadStore dag.PayloadStore, verifier dag.DocumentSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
+func (m *MockProtocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Configure", p2pNetwork, graph, payloadStore, verifier, advertHashesInterval, peerID)
 }

@@ -12,19 +12,19 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 )
 
-const errSigningDocumentFmt = "error while signing document: %w"
+const errSigningTransactionFmt = "error while signing transaction: %w"
 
-// DocumentSigner defines functions to sign documents.
-type DocumentSigner interface {
-	// Sign signs the unsigned document, including the signingTime parameter as header.
-	Sign(input UnsignedDocument, signingTime time.Time) (Document, error)
+// TransactionSigner defines functions to sign transactions.
+type TransactionSigner interface {
+	// Sign signs the unsigned transaction, including the signingTime parameter as header.
+	Sign(input UnsignedTransaction, signingTime time.Time) (Transaction, error)
 }
 
-// NewAttachedJWKDocumentSigner creates a DocumentSigner that signs the document using the given key.
-// The public key (identified by `kid`) is added to the signed document as `jwk` header. The public key is resolved
+// NewAttachedJWKTransactionSigner creates a TransactionSigner that signs the transaction using the given key.
+// The public key (identified by `kid`) is added to the signed transaction as `jwk` header. The public key is resolved
 // using the given resolver and the `kid` parameter.
-func NewAttachedJWKDocumentSigner(jwsSigner crypto.JWSSigner, kid string, key crypto2.PublicKey) DocumentSigner {
-	return &documentSigner{
+func NewAttachedJWKTransactionSigner(jwsSigner crypto.JWSSigner, kid string, key crypto2.PublicKey) TransactionSigner {
+	return &transactionSigner{
 		signer: jwsSigner,
 		kid:    kid,
 		attach: true,
@@ -32,31 +32,31 @@ func NewAttachedJWKDocumentSigner(jwsSigner crypto.JWSSigner, kid string, key cr
 	}
 }
 
-// NewDocumentSigner creates a DocumentSigner that signs the document using the given key.
-// The public key is not included in the signed document, instead the `kid` header is added which must refer to the ID
+// NewTransactionSigner creates a TransactionSigner that signs the transaction using the given key.
+// The public key is not included in the signed transaction, instead the `kid` header is added which must refer to the ID
 // of the used key.
-func NewDocumentSigner(jwsSigner crypto.JWSSigner, kid string) DocumentSigner {
-	return &documentSigner{
+func NewTransactionSigner(jwsSigner crypto.JWSSigner, kid string) TransactionSigner {
+	return &transactionSigner{
 		signer: jwsSigner,
 		kid:    kid,
 		attach: false,
 	}
 }
 
-type documentSigner struct {
+type transactionSigner struct {
 	attach bool
 	kid    string
 	signer crypto.JWSSigner
 	key    crypto2.PublicKey
 }
 
-func (d documentSigner) Sign(input UnsignedDocument, signingTime time.Time) (Document, error) {
+func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time) (Transaction, error) {
 	// Preliminary sanity checks
 	if signingTime.IsZero() {
 		return nil, errors.New("signing time is zero")
 	}
-	if doc, ok := input.(Document); ok && !doc.SigningTime().IsZero() {
-		return nil, errors.New("document is already signed")
+	if tx, ok := input.(Transaction); ok && !tx.SigningTime().IsZero() {
+		return nil, errors.New("transaction is already signed")
 	}
 
 	var key jwk.Key
@@ -64,7 +64,7 @@ func (d documentSigner) Sign(input UnsignedDocument, signingTime time.Time) (Doc
 	if d.attach {
 		key, err = jwk.New(d.key)
 		if err != nil {
-			return nil, fmt.Errorf(errSigningDocumentFmt, err)
+			return nil, fmt.Errorf(errSigningTransactionFmt, err)
 		}
 		key.Set(jwk.KeyIDKey, d.kid)
 	}
@@ -98,11 +98,11 @@ func (d documentSigner) Sign(input UnsignedDocument, signingTime time.Time) (Doc
 
 	data, err := d.signer.SignJWS([]byte(input.PayloadHash().String()), headerMap, d.kid)
 	if err != nil {
-		return nil, fmt.Errorf(errSigningDocumentFmt, err)
+		return nil, fmt.Errorf(errSigningTransactionFmt, err)
 	}
-	signedDocument, err := ParseDocument([]byte(data))
+	signedTransaction, err := ParseTransaction([]byte(data))
 	if err != nil {
-		return nil, fmt.Errorf(errSigningDocumentFmt, err)
+		return nil, fmt.Errorf(errSigningTransactionFmt, err)
 	}
-	return signedDocument, nil
+	return signedTransaction, nil
 }

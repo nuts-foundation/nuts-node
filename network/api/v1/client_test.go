@@ -40,13 +40,13 @@ func (h handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	writer.Write(h.responseData)
 }
 
-func TestHttpClient_ListDocuments(t *testing.T) {
+func TestHttpClient_ListTransactions(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
-		expected := dag.CreateTestDocumentWithJWK(1)
+		expected := dag.CreateTestTransactionWithJWK(1)
 		data, _ := json.Marshal([]string{string(expected.Data())})
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: data})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.ListDocuments()
+		actual, err := httpClient.ListTransactions()
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -57,51 +57,51 @@ func TestHttpClient_ListDocuments(t *testing.T) {
 	})
 }
 
-func TestHttpClient_GetDocument(t *testing.T) {
+func TestHttpClient_GetTransaction(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
-		expected := dag.CreateTestDocumentWithJWK(1)
+		expected := dag.CreateTestTransactionWithJWK(1)
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: expected.Data()})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetDocument(expected.Ref())
+		actual, err := httpClient.GetTransaction(expected.Ref())
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)
 	})
 	t.Run("not found (404)", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusNotFound})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetDocument(hash.EmptyHash())
+		actual, err := httpClient.GetTransaction(hash.EmptyHash())
 		assert.NoError(t, err)
 		assert.Nil(t, actual)
 	})
 	t.Run("server error (500)", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusInternalServerError})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetDocument(hash.EmptyHash())
+		actual, err := httpClient.GetTransaction(hash.EmptyHash())
 		assert.Error(t, err)
 		assert.Nil(t, actual)
 	})
 }
 
-func TestHttpClient_GetDocumentPayload(t *testing.T) {
+func TestHttpClient_GetTransactionPayload(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
 		expected := []byte{5, 4, 3, 2, 1}
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: expected})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetDocumentPayload(hash.SHA256Sum([]byte{1, 2, 3}))
+		actual, err := httpClient.GetTransactionPayload(hash.SHA256Sum([]byte{1, 2, 3}))
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)
 	})
 	t.Run("not found (404)", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusNotFound})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetDocumentPayload(hash.EmptyHash())
+		actual, err := httpClient.GetTransactionPayload(hash.EmptyHash())
 		assert.NoError(t, err)
 		assert.Nil(t, actual)
 	})
 	t.Run("server error (500)", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusInternalServerError})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetDocumentPayload(hash.EmptyHash())
+		actual, err := httpClient.GetTransactionPayload(hash.EmptyHash())
 		assert.Error(t, err)
 		assert.Nil(t, actual)
 	})

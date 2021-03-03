@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDocumentSigner(t *testing.T) {
+func TestTransactionSigner(t *testing.T) {
 	payloadHash, _ := hash2.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 	key := generateKey()
 	kidAsArray := sha1.Sum(key.X.Bytes())
@@ -23,67 +23,67 @@ func TestDocumentSigner(t *testing.T) {
 	contentType := "foo/bar"
 	moment := time.Date(2020, 10, 23, 13, 0, 0, 0, time.FixedZone("test", 1))
 	t.Run("ok - attach key", func(t *testing.T) {
-		doc, err := NewDocument(payloadHash, contentType, expectedPrevs)
+		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs)
 		if !assert.NoError(t, err) {
 			return
 		}
 
 		signer := crypto.NewTestSigner()
-		signedDoc, err := NewAttachedJWKDocumentSigner(signer, kid, key.Public()).Sign(doc, moment)
+		signedTx, err := NewAttachedJWKTransactionSigner(signer, kid, key.Public()).Sign(tx, moment)
 		if !assert.NoError(t, err) {
 			return
 		}
 		// JWS headers
-		assert.Equal(t, contentType, signedDoc.PayloadType())
-		assert.Empty(t, signedDoc.SigningKeyID())
+		assert.Equal(t, contentType, signedTx.PayloadType())
+		assert.Empty(t, signedTx.SigningKeyID())
 		// Custom headers
-		assert.Equal(t, "2020-10-23 12:59:59 +0000 UTC", signedDoc.SigningTime().String())
-		assert.Equal(t, Version(1), signedDoc.Version())
-		prevs := signedDoc.Previous()
+		assert.Equal(t, "2020-10-23 12:59:59 +0000 UTC", signedTx.SigningTime().String())
+		assert.Equal(t, Version(1), signedTx.Version())
+		prevs := signedTx.Previous()
 		assert.Len(t, prevs, 2, "expected 2 prevs")
 		assert.Equal(t, prev1, prevs[0])
 		assert.Equal(t, prev2, prevs[1])
-		// Resulting doc
-		assert.NotEmpty(t, signedDoc.Data())
-		assert.False(t, signedDoc.Ref().Empty())
-		assert.Equal(t, time.UTC, signedDoc.SigningTime().Location())
+		// Resulting tx
+		assert.NotEmpty(t, signedTx.Data())
+		assert.False(t, signedTx.Ref().Empty())
+		assert.Equal(t, time.UTC, signedTx.SigningTime().Location())
 	})
 	t.Run("ok - with kid", func(t *testing.T) {
-		doc, err := NewDocument(payloadHash, contentType, expectedPrevs)
+		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs)
 		if !assert.NoError(t, err) {
 			return
 		}
 
 		signer := crypto.NewTestSigner()
-		signedDoc, err := NewDocumentSigner(signer, kid).Sign(doc, moment)
+		signedTx, err := NewTransactionSigner(signer, kid).Sign(tx, moment)
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, kid, signedDoc.SigningKeyID())
-		assert.Nil(t, signedDoc.SigningKey())
-		assert.NotEmpty(t, signedDoc.Data())
+		assert.Equal(t, kid, signedTx.SigningKeyID())
+		assert.Nil(t, signedTx.SigningKey())
+		assert.NotEmpty(t, signedTx.Data())
 	})
 	t.Run("signing time is zero", func(t *testing.T) {
-		doc, _ := NewDocument(payloadHash, contentType, expectedPrevs)
-		signedDocument, err := NewDocumentSigner(crypto.NewTestSigner(), kid).Sign(doc, time.Time{})
-		assert.Empty(t, signedDocument)
+		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs)
+		signedTransaction, err := NewTransactionSigner(crypto.NewTestSigner(), kid).Sign(tx, time.Time{})
+		assert.Empty(t, signedTransaction)
 		assert.EqualError(t, err, "signing time is zero")
 	})
 	t.Run("already signed", func(t *testing.T) {
-		doc, _ := NewDocument(payloadHash, contentType, expectedPrevs)
-		signer := NewDocumentSigner(crypto.NewTestSigner(), kid)
-		signedDocument, _ := signer.Sign(doc, time.Now())
-		signedDocument2, err := signer.Sign(signedDocument, time.Now())
-		assert.Nil(t, signedDocument2)
-		assert.EqualError(t, err, "document is already signed")
+		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs)
+		signer := NewTransactionSigner(crypto.NewTestSigner(), kid)
+		signedTransaction, _ := signer.Sign(tx, time.Now())
+		signedTransaction2, err := signer.Sign(signedTransaction, time.Now())
+		assert.Nil(t, signedTransaction2)
+		assert.EqualError(t, err, "transaction is already signed")
 	})
 	t.Run("tid en tiv set", func(t *testing.T) {
 		tid := hash2.SHA256Sum([]byte("!!!"))
 		tiv := 2
-		doc, _ := NewDocument(payloadHash, contentType, expectedPrevs, TimelineIDField(tid), TimelineVersionField(tiv))
-		signedDocument, err := NewDocumentSigner(crypto.NewTestSigner(), kid).Sign(doc, time.Now())
+		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs, TimelineIDField(tid), TimelineVersionField(tiv))
+		signedTransaction, err := NewTransactionSigner(crypto.NewTestSigner(), kid).Sign(tx, time.Now())
 		assert.NoError(t, err)
-		assert.Equal(t, tid, signedDocument.TimelineID())
-		assert.Equal(t, tiv, signedDocument.TimelineVersion())
+		assert.Equal(t, tid, signedTransaction.TimelineID())
+		assert.Equal(t, tiv, signedTransaction.TimelineVersion())
 	})
 }

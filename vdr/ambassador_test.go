@@ -205,6 +205,86 @@ func Test_ambassador_callback(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	// This test recreates the situation where the node gets restarted and the ambassador handles all the
+	//   documents it is subscribed at. Since the did store is non-persistent but the keystore is,
+	//   many keys will already be in the keyStore. This test checks if the ErrKeyAlreadyExists is handled ok
+	t.Run("ok - adding a key which already exists", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		didStoreMock := types.NewMockStore(ctrl)
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		am := ambassador{
+			didStore: didStoreMock,
+			keyStore: keyStoreMock,
+		}
+
+		didDocument, signingKey, err := newDidDoc()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		subDoc := newSubscriberDoc()
+		subDoc.signingKey = signingKey
+		subDoc.signingKeyID = ""
+
+		didDocPayload, _ := json.Marshal(didDocument)
+		expectedDocument := did.Document{}
+		json.Unmarshal(didDocPayload, &expectedDocument)
+
+		var rawKey crypto2.PublicKey
+		signingKey.Raw(&rawKey)
+
+		expectedMetadata := types.DocumentMetadata{
+			Created:    signingTime,
+			Updated:    nil,
+			Version:    0,
+			TimelineID: ref,
+			Hash:       payloadHash,
+		}
+
+		keyStoreMock.EXPECT().AddPublicKey(signingKey.KeyID(), rawKey, subDoc.signingTime).Return(crypto.ErrKeyAlreadyExists)
+		didStoreMock.EXPECT().Write(expectedDocument, expectedMetadata)
+
+		err = am.callback(subDoc, didDocPayload)
+		assert.NoError(t, err)
+	})
+
+	t.Run("nok - error while adding key", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		didStoreMock := types.NewMockStore(ctrl)
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		am := ambassador{
+			didStore: didStoreMock,
+			keyStore: keyStoreMock,
+		}
+
+		didDocument, signingKey, err := newDidDoc()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		subDoc := newSubscriberDoc()
+		subDoc.signingKey = signingKey
+		subDoc.signingKeyID = ""
+
+		didDocPayload, _ := json.Marshal(didDocument)
+		expectedDocument := did.Document{}
+		json.Unmarshal(didDocPayload, &expectedDocument)
+
+		var rawKey crypto2.PublicKey
+		signingKey.Raw(&rawKey)
+
+		keyStoreMock.EXPECT().AddPublicKey(signingKey.KeyID(), rawKey, subDoc.signingTime).Return(errors.New("failed"))
+
+		err = am.callback(subDoc, didDocPayload)
+		assert.Error(t, err)
+	})
+
 	t.Run("nok - invalid payload", func(t *testing.T) {
 		subDoc := newSubscriberDoc()
 		subDoc.timelineID = timelineID
@@ -246,7 +326,7 @@ func Test_ambassador_callback(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t, "key used to sign Network document must be be part of DID Document authentication", err.Error())
+		assert.Equal(t, "key used to sign transaction must be be part of DID Document authentication", err.Error())
 	})
 
 	t.Run("update ok - with the exact same document", func(t *testing.T) {
@@ -328,7 +408,7 @@ func Test_ambassador_callback(t *testing.T) {
 		assert.EqualError(t, err, "callback could not process new DID Document: timelineVersion for new documents must be absent or equal to 0")
 	})
 
-	t.Run("nok - update of unknown DID Document", func(t *testing.T) {
+	t.Run("nok - update of unknown DID Transaction", func(t *testing.T) {
 		subDoc := newSubscriberDoc()
 		subDoc.timelineVersion = 5
 		subDoc.timelineID = timelineID
@@ -594,7 +674,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		args      dag.SubscriberDocument
+		args      dag.SubscriberTransaction
 		wantedErr error
 	}{
 		{"ok - valid create document",

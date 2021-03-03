@@ -89,18 +89,18 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// ListDocuments request
-	ListDocuments(ctx context.Context) (*http.Response, error)
+	// ListTransactions request
+	ListTransactions(ctx context.Context) (*http.Response, error)
 
-	// GetDocument request
-	GetDocument(ctx context.Context, ref string) (*http.Response, error)
+	// GetTransaction request
+	GetTransaction(ctx context.Context, ref string) (*http.Response, error)
 
-	// GetDocumentPayload request
-	GetDocumentPayload(ctx context.Context, ref string) (*http.Response, error)
+	// GetTransactionPayload request
+	GetTransactionPayload(ctx context.Context, ref string) (*http.Response, error)
 }
 
-func (c *Client) ListDocuments(ctx context.Context) (*http.Response, error) {
-	req, err := NewListDocumentsRequest(c.Server)
+func (c *Client) ListTransactions(ctx context.Context) (*http.Response, error) {
+	req, err := NewListTransactionsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +114,8 @@ func (c *Client) ListDocuments(ctx context.Context) (*http.Response, error) {
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetDocument(ctx context.Context, ref string) (*http.Response, error) {
-	req, err := NewGetDocumentRequest(c.Server, ref)
+func (c *Client) GetTransaction(ctx context.Context, ref string) (*http.Response, error) {
+	req, err := NewGetTransactionRequest(c.Server, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -129,8 +129,8 @@ func (c *Client) GetDocument(ctx context.Context, ref string) (*http.Response, e
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetDocumentPayload(ctx context.Context, ref string) (*http.Response, error) {
-	req, err := NewGetDocumentPayloadRequest(c.Server, ref)
+func (c *Client) GetTransactionPayload(ctx context.Context, ref string) (*http.Response, error) {
+	req, err := NewGetTransactionPayloadRequest(c.Server, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -144,8 +144,8 @@ func (c *Client) GetDocumentPayload(ctx context.Context, ref string) (*http.Resp
 	return c.Client.Do(req)
 }
 
-// NewListDocumentsRequest generates requests for ListDocuments
-func NewListDocumentsRequest(server string) (*http.Request, error) {
+// NewListTransactionsRequest generates requests for ListTransactions
+func NewListTransactionsRequest(server string) (*http.Request, error) {
 	var err error
 
 	queryUrl, err := url.Parse(server)
@@ -153,7 +153,7 @@ func NewListDocumentsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/api/document")
+	basePath := fmt.Sprintf("/api/transaction")
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -171,8 +171,8 @@ func NewListDocumentsRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewGetDocumentRequest generates requests for GetDocument
-func NewGetDocumentRequest(server string, ref string) (*http.Request, error) {
+// NewGetTransactionRequest generates requests for GetTransaction
+func NewGetTransactionRequest(server string, ref string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -187,7 +187,7 @@ func NewGetDocumentRequest(server string, ref string) (*http.Request, error) {
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/api/document/%s", pathParam0)
+	basePath := fmt.Sprintf("/api/transaction/%s", pathParam0)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -205,8 +205,8 @@ func NewGetDocumentRequest(server string, ref string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewGetDocumentPayloadRequest generates requests for GetDocumentPayload
-func NewGetDocumentPayloadRequest(server string, ref string) (*http.Request, error) {
+// NewGetTransactionPayloadRequest generates requests for GetTransactionPayload
+func NewGetTransactionPayloadRequest(server string, ref string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -221,7 +221,7 @@ func NewGetDocumentPayloadRequest(server string, ref string) (*http.Request, err
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/api/document/%s/payload", pathParam0)
+	basePath := fmt.Sprintf("/api/transaction/%s/payload", pathParam0)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -268,24 +268,24 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// ListDocuments request
-	ListDocumentsWithResponse(ctx context.Context) (*ListDocumentsResponse, error)
+	// ListTransactions request
+	ListTransactionsWithResponse(ctx context.Context) (*ListTransactionsResponse, error)
 
-	// GetDocument request
-	GetDocumentWithResponse(ctx context.Context, ref string) (*GetDocumentResponse, error)
+	// GetTransaction request
+	GetTransactionWithResponse(ctx context.Context, ref string) (*GetTransactionResponse, error)
 
-	// GetDocumentPayload request
-	GetDocumentPayloadWithResponse(ctx context.Context, ref string) (*GetDocumentPayloadResponse, error)
+	// GetTransactionPayload request
+	GetTransactionPayloadWithResponse(ctx context.Context, ref string) (*GetTransactionPayloadResponse, error)
 }
 
-type ListDocumentsResponse struct {
+type ListTransactionsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *[]string
 }
 
 // Status returns HTTPResponse.Status
-func (r ListDocumentsResponse) Status() string {
+func (r ListTransactionsResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -293,20 +293,20 @@ func (r ListDocumentsResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r ListDocumentsResponse) StatusCode() int {
+func (r ListTransactionsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type GetDocumentResponse struct {
+type GetTransactionResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 }
 
 // Status returns HTTPResponse.Status
-func (r GetDocumentResponse) Status() string {
+func (r GetTransactionResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -314,20 +314,20 @@ func (r GetDocumentResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetDocumentResponse) StatusCode() int {
+func (r GetTransactionResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type GetDocumentPayloadResponse struct {
+type GetTransactionPayloadResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 }
 
 // Status returns HTTPResponse.Status
-func (r GetDocumentPayloadResponse) Status() string {
+func (r GetTransactionPayloadResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -335,49 +335,49 @@ func (r GetDocumentPayloadResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetDocumentPayloadResponse) StatusCode() int {
+func (r GetTransactionPayloadResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-// ListDocumentsWithResponse request returning *ListDocumentsResponse
-func (c *ClientWithResponses) ListDocumentsWithResponse(ctx context.Context) (*ListDocumentsResponse, error) {
-	rsp, err := c.ListDocuments(ctx)
+// ListTransactionsWithResponse request returning *ListTransactionsResponse
+func (c *ClientWithResponses) ListTransactionsWithResponse(ctx context.Context) (*ListTransactionsResponse, error) {
+	rsp, err := c.ListTransactions(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return ParseListDocumentsResponse(rsp)
+	return ParseListTransactionsResponse(rsp)
 }
 
-// GetDocumentWithResponse request returning *GetDocumentResponse
-func (c *ClientWithResponses) GetDocumentWithResponse(ctx context.Context, ref string) (*GetDocumentResponse, error) {
-	rsp, err := c.GetDocument(ctx, ref)
+// GetTransactionWithResponse request returning *GetTransactionResponse
+func (c *ClientWithResponses) GetTransactionWithResponse(ctx context.Context, ref string) (*GetTransactionResponse, error) {
+	rsp, err := c.GetTransaction(ctx, ref)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetDocumentResponse(rsp)
+	return ParseGetTransactionResponse(rsp)
 }
 
-// GetDocumentPayloadWithResponse request returning *GetDocumentPayloadResponse
-func (c *ClientWithResponses) GetDocumentPayloadWithResponse(ctx context.Context, ref string) (*GetDocumentPayloadResponse, error) {
-	rsp, err := c.GetDocumentPayload(ctx, ref)
+// GetTransactionPayloadWithResponse request returning *GetTransactionPayloadResponse
+func (c *ClientWithResponses) GetTransactionPayloadWithResponse(ctx context.Context, ref string) (*GetTransactionPayloadResponse, error) {
+	rsp, err := c.GetTransactionPayload(ctx, ref)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetDocumentPayloadResponse(rsp)
+	return ParseGetTransactionPayloadResponse(rsp)
 }
 
-// ParseListDocumentsResponse parses an HTTP response from a ListDocumentsWithResponse call
-func ParseListDocumentsResponse(rsp *http.Response) (*ListDocumentsResponse, error) {
+// ParseListTransactionsResponse parses an HTTP response from a ListTransactionsWithResponse call
+func ParseListTransactionsResponse(rsp *http.Response) (*ListTransactionsResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &ListDocumentsResponse{
+	response := &ListTransactionsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -395,15 +395,15 @@ func ParseListDocumentsResponse(rsp *http.Response) (*ListDocumentsResponse, err
 	return response, nil
 }
 
-// ParseGetDocumentResponse parses an HTTP response from a GetDocumentWithResponse call
-func ParseGetDocumentResponse(rsp *http.Response) (*GetDocumentResponse, error) {
+// ParseGetTransactionResponse parses an HTTP response from a GetTransactionWithResponse call
+func ParseGetTransactionResponse(rsp *http.Response) (*GetTransactionResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetDocumentResponse{
+	response := &GetTransactionResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -414,15 +414,15 @@ func ParseGetDocumentResponse(rsp *http.Response) (*GetDocumentResponse, error) 
 	return response, nil
 }
 
-// ParseGetDocumentPayloadResponse parses an HTTP response from a GetDocumentPayloadWithResponse call
-func ParseGetDocumentPayloadResponse(rsp *http.Response) (*GetDocumentPayloadResponse, error) {
+// ParseGetTransactionPayloadResponse parses an HTTP response from a GetTransactionPayloadWithResponse call
+func ParseGetTransactionPayloadResponse(rsp *http.Response) (*GetTransactionPayloadResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetDocumentPayloadResponse{
+	response := &GetTransactionPayloadResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -435,15 +435,15 @@ func ParseGetDocumentPayloadResponse(rsp *http.Response) (*GetDocumentPayloadRes
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Lists the documents on the DAG
-	// (GET /api/document)
-	ListDocuments(ctx echo.Context) error
-	// Retrieves a document
-	// (GET /api/document/{ref})
-	GetDocument(ctx echo.Context, ref string) error
-	// Gets the document payload
-	// (GET /api/document/{ref}/payload)
-	GetDocumentPayload(ctx echo.Context, ref string) error
+	// Lists the transactions on the DAG
+	// (GET /api/transaction)
+	ListTransactions(ctx echo.Context) error
+	// Retrieves a transaction
+	// (GET /api/transaction/{ref})
+	GetTransaction(ctx echo.Context, ref string) error
+	// Gets the transaction payload
+	// (GET /api/transaction/{ref}/payload)
+	GetTransactionPayload(ctx echo.Context, ref string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -451,17 +451,17 @@ type ServerInterfaceWrapper struct {
 	Handler ServerInterface
 }
 
-// ListDocuments converts echo context to params.
-func (w *ServerInterfaceWrapper) ListDocuments(ctx echo.Context) error {
+// ListTransactions converts echo context to params.
+func (w *ServerInterfaceWrapper) ListTransactions(ctx echo.Context) error {
 	var err error
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.ListDocuments(ctx)
+	err = w.Handler.ListTransactions(ctx)
 	return err
 }
 
-// GetDocument converts echo context to params.
-func (w *ServerInterfaceWrapper) GetDocument(ctx echo.Context) error {
+// GetTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) GetTransaction(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "ref" -------------
 	var ref string
@@ -472,12 +472,12 @@ func (w *ServerInterfaceWrapper) GetDocument(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetDocument(ctx, ref)
+	err = w.Handler.GetTransaction(ctx, ref)
 	return err
 }
 
-// GetDocumentPayload converts echo context to params.
-func (w *ServerInterfaceWrapper) GetDocumentPayload(ctx echo.Context) error {
+// GetTransactionPayload converts echo context to params.
+func (w *ServerInterfaceWrapper) GetTransactionPayload(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "ref" -------------
 	var ref string
@@ -488,7 +488,7 @@ func (w *ServerInterfaceWrapper) GetDocumentPayload(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetDocumentPayload(ctx, ref)
+	err = w.Handler.GetTransactionPayload(ctx, ref)
 	return err
 }
 
@@ -514,9 +514,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodGet, baseURL+"/api/document", wrapper.ListDocuments)
-	router.Add(http.MethodGet, baseURL+"/api/document/:ref", wrapper.GetDocument)
-	router.Add(http.MethodGet, baseURL+"/api/document/:ref/payload", wrapper.GetDocumentPayload)
+	router.Add(http.MethodGet, baseURL+"/api/transaction", wrapper.ListTransactions)
+	router.Add(http.MethodGet, baseURL+"/api/transaction/:ref", wrapper.GetTransaction)
+	router.Add(http.MethodGet, baseURL+"/api/transaction/:ref/payload", wrapper.GetTransactionPayload)
 
 }
-

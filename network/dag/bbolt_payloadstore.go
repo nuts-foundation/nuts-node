@@ -5,7 +5,7 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-// payloadsBucket is the name of the Bolt bucket that holds the payloads of the documents.
+// payloadsBucket is the name of the Bolt bucket that holds the payloads of the transactions.
 const payloadsBucket = "payloads"
 
 // NewBBoltPayloadStore creates a etcd/bbolt backed payload store using the given database.

@@ -62,6 +62,7 @@ func createPrintConfigCommand(system *core.System) *cobra.Command {
 		Short: "Prints the current config",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Load all config and add generic options
+			cmd.PersistentFlags().AddFlagSet(core.FlagSet())
 			if err := system.Load(cmd); err != nil {
 				return err
 			}
@@ -196,6 +197,7 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 }
 
 func addFlagSets(cmd *cobra.Command) {
+	cmd.PersistentFlags().AddFlagSet(core.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(cryptoCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(networkCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(vdrCmd.FlagSet())
