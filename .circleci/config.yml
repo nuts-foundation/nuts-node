@@ -15,7 +15,8 @@ jobs:
       - restore_cache:
           keys:
             - go-mod-v1-{{ checksum "go.sum" }}
-
+      - run: make install-tools
+      - run: make run-generators
       - run: go get -t -v ./...
 
       - save_cache:
@@ -23,7 +24,6 @@ jobs:
           paths:
             - "/go/pkg/mod"
 
-      - run: make run-generators
       - run: go test ./... -race
       - run: go test ./... -coverprofile=coverage.txt
 
