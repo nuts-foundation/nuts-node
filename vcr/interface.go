@@ -43,9 +43,6 @@ var ErrNotFound = errors.New("credential not found")
 // ErrInvalidCredential is returned when validation failed
 var ErrInvalidCredential = errors.New("invalid credential")
 
-// ErrUnknownCredentialType is used to create an error when the credential type is unknown
-const ErrUnknownCredentialType = "unknown credential type"
-
 var vcDocumentType = "application/vc+json;type=%s"
 
 // Writer is the interface that groups al the VC write methods

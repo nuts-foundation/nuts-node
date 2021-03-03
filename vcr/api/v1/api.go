@@ -22,6 +22,7 @@ package v1
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did"
@@ -85,8 +86,10 @@ func (w *Wrapper) Create(ctx echo.Context) error {
 
 	vcCreated, err := w.R.Issue(vc)
 	if err != nil {
-		// todo error distinction
-		return ctx.String(http.StatusBadRequest, err.Error())
+		if strings.Contains(err.Error(), "validation failed") {
+			return ctx.String(http.StatusBadRequest, err.Error())
+		}
+		return err
 	}
 
 	return ctx.JSON(http.StatusOK, vcCreated)

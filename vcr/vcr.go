@@ -177,19 +177,19 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
 	validator, builder := credential.FindValidatorAndBuilder(vc)
 	if validator == nil || builder == nil {
-		return nil, errors.New(ErrUnknownCredentialType)
+		return nil, errors.New("validation failed: unknown credential type")
 	}
 
 	// find issuer
 	issuer, err := did.ParseDID(vc.Issuer.String())
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse issuer: %w", err)
+		return nil, fmt.Errorf("validation failed: failed to parse issuer: %w", err)
 	}
 
 	// resolve an assertionMethod key for issuer
 	kid, err := c.resolveAssertionKey(*issuer)
 	if err != nil {
-		return nil, fmt.Errorf("invalid issuer: %w", err)
+		return nil, fmt.Errorf("validation failed: invalid issuer: %w", err)
 	}
 
 	// set defaults and sign
@@ -235,7 +235,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 	}
 
 	if err := validator.Validate(vc); err != nil {
-		return nil, fmt.Errorf("invalid credential: %w", err)
+		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
 	payload, err := json.Marshal(vc)
