@@ -21,7 +21,7 @@ Run the executable without command or flags, or with the `help` command to find 
 
     $ nuts
 
-For example, to list all network documents in your node (replace the value of `NUTS_ADDRESS` with the HTTP address of your Nuts node):
+For example, to list all network transactions in your node (replace the value of `NUTS_ADDRESS` with the HTTP address of your Nuts node):
 
     $ NUTS_ADDRESS=my-node:1323 nuts network list
 

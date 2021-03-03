@@ -20,25 +20,25 @@ import (
 //
 // In addition, when the visitor stops the walking (by returning false), it breaks off the walking for that specific branch of the DAG.
 //
-// It is also stateful: it remembers which documents were visited and where to resume walking next time it is invoked.
-// This is useful for subscriptions: the first time the DAG is walked all documents are processed, keeping track of
+// It is also stateful: it remembers which transactions were visited and where to resume walking next time it is invoked.
+// This is useful for subscriptions: the first time the DAG is walked all transactions are processed, keeping track of
 // which branches couldn't be processed (payload might be missing, so it has to be processed layer). Next time the
-// walker is invoked it starts walking at the documents in the `resumeAt` list and ultimately honoring the `startAt`
+// walker is invoked it starts walking at the transactions in the `resumeAt` list and ultimately honoring the `startAt`
 // hash.
 type bfsWalkerAlgorithm struct {
-	resumeAt         *list.List
-	visitedDocuments map[hash.SHA256Hash]bool
+	resumeAt            *list.List
+	visitedTransactions map[hash.SHA256Hash]bool
 }
 
 // NewBFSWalkerAlgorithm creates a new bfsWalkerAlgorithm.
 func NewBFSWalkerAlgorithm() WalkerAlgorithm {
 	return &bfsWalkerAlgorithm{
-		resumeAt:         list.New(),
-		visitedDocuments: map[hash.SHA256Hash]bool{},
+		resumeAt:            list.New(),
+		visitedTransactions: map[hash.SHA256Hash]bool{},
 	}
 }
 
-func (w bfsWalkerAlgorithm) walk(visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Document, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error {
+func (w bfsWalkerAlgorithm) walk(visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error {
 	queue := list.New()
 	queue.PushFrontList(w.resumeAt)
 	if !startAt.Empty() {
@@ -53,25 +53,25 @@ ProcessQueueLoop:
 		currentRef := front.Value.(hash.SHA256Hash)
 
 		// Make sure we haven't already visited this node
-		if _, visited := w.visitedDocuments[currentRef]; visited {
+		if _, visited := w.visitedTransactions[currentRef]; visited {
 			continue
 		}
 
 		// Make sure all prevs have been visited. Otherwise just continue, it will be re-added to the queue when the
 		// unvisited prev node is visited and re-adds this node to the processing queue.
-		currentDocument, err := getFn(currentRef)
+		currentTransaction, err := getFn(currentRef)
 		if err != nil {
 			return err
 		}
 
-		for _, prev := range currentDocument.Previous() {
-			if _, visited := w.visitedDocuments[prev]; !visited {
+		for _, prev := range currentTransaction.Previous() {
+			if _, visited := w.visitedTransactions[prev]; !visited {
 				continue ProcessQueueLoop
 			}
 		}
 
 		// Visit the node
-		if !visitor(currentDocument) {
+		if !visitor(currentTransaction) {
 			// Visitor returned false, so stop processing this branch. Resume at later point.
 			w.resumeAt.PushBack(currentRef)
 			continue
@@ -96,7 +96,7 @@ ProcessQueueLoop:
 		}
 
 		// Mark this node as visited
-		w.visitedDocuments[currentRef] = true
+		w.visitedTransactions[currentRef] = true
 	}
 	return nil
 }

@@ -44,10 +44,10 @@ import (
 )
 
 const defaultTimeout = 2 * time.Second
-const documentType = "test/document"
+const payloadType = "test/transaction"
 
 var mutex = sync.Mutex{}
-var receivedDocuments = make(map[string][]dag.SubscriberDocument, 0)
+var receivedTransactions = make(map[string][]dag.SubscriberTransaction, 0)
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
@@ -87,31 +87,31 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 		return
 	}
 
-	// Publish first document on node1 and we expect in to come out on node2 and bootstrap
-	if !addDocumentAndWaitForItToArrive(t, "doc1", key, node1, "node2", "bootstrap") {
+	// Publish first transaction on node1 and we expect in to come out on node2 and bootstrap
+	if !addTransactionAndWaitForItToArrive(t, "doc1", key, node1, "node2", "bootstrap") {
 		return
 	}
 	expectedDocLogSize++
 
-	// Now the graph has a root, and node2 can publish a document
-	if !addDocumentAndWaitForItToArrive(t, "doc2", key, node2, "node1", "bootstrap") {
+	// Now the graph has a root, and node2 can publish a transaction
+	if !addTransactionAndWaitForItToArrive(t, "doc2", key, node2, "node1", "bootstrap") {
 		return
 	}
 	expectedDocLogSize++
 
-	// Now assert that all nodes have received all documents
-	waitForDocuments := func(node string, graph dag.DAG) bool {
+	// Now assert that all nodes have received all transactions
+	waitForTransactions := func(node string, graph dag.DAG) bool {
 		return waitFor(t, func() (bool, error) {
 			if docs, err := graph.All(); err != nil {
 				return false, err
 			} else {
 				return len(docs) == expectedDocLogSize, nil
 			}
-		}, defaultTimeout, "%s: time-out while waiting for %d documents", node, expectedDocLogSize)
+		}, defaultTimeout, "%s: time-out while waiting for %d transactions", node, expectedDocLogSize)
 	}
-	waitForDocuments("bootstrap", bootstrap.documentGraph)
-	waitForDocuments("node 1", node1.documentGraph)
-	waitForDocuments("node 2", node2.documentGraph)
+	waitForTransactions("bootstrap", bootstrap.graph)
+	waitForTransactions("node 1", node1.graph)
+	waitForTransactions("node 2", node2.graph)
 
 	// Can we request the diagnostics?
 	fmt.Printf("%v\n", bootstrap.Diagnostics())
@@ -127,10 +127,10 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 		return "key", nil
 	})
 
-	// Start node 1 and node 2. Node 1 adds 3 documents:
-	// 1. first document is OK, must be received
-	// 2. second document has an invalid signature, must be rejected
-	// 3. third document is OK, must be  received (to deal with timing issues)
+	// Start node 1 and node 2. Node 1 adds 3 transactions:
+	// 1. first transaction is OK, must be received
+	// 2. second transaction has an invalid signature, must be rejected
+	// 3. third transaction is OK, must be  received (to deal with timing issues)
 	node1, err := startNode("node1", path.Join(testDirectory, "node1"), cryptoInstance)
 	if !assert.NoError(t, err) {
 		return
@@ -144,38 +144,38 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 		node2.Shutdown()
 		node1.Shutdown()
 	}()
-	// Send first OK document and wait for it to be received
-	if !addDocumentAndWaitForItToArrive(t, "first document", key, node1, "node2") {
+	// Send first OK transaction and wait for it to be received
+	if !addTransactionAndWaitForItToArrive(t, "first transaction", key, node1, "node2") {
 		return
 	}
 
-	// Send second document which has an invalid signature (included JWK is incorrect), should be rejected
+	// Send second transaction which has an invalid signature (included JWK is incorrect), should be rejected
 	attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	payload := []byte("second document")
-	unsignedDocument, _ := dag.NewDocument(hash.SHA256Sum(payload), documentType, []hash.SHA256Hash{receivedDocuments["node2"][0].Ref()})
-	craftedDocument, _ := dag.NewAttachedJWKDocumentSigner(cryptoInstance, "key", attackerKey.PublicKey).Sign(unsignedDocument, time.Now())
+	payload := []byte("second transaction")
+	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), payloadType, []hash.SHA256Hash{receivedTransactions["node2"][0].Ref()})
+	craftedTransaction, _ := dag.NewAttachedJWKTransactionSigner(cryptoInstance, "key", attackerKey.PublicKey).Sign(unsignedTransaction, time.Now())
 	node1.payloadStore.WritePayload(hash.SHA256Sum(payload), payload)
-	_ = node1.documentGraph.Add(craftedDocument)
-	// Send third OK document
-	if !addDocumentAndWaitForItToArrive(t, "third document", key, node2, "node1") {
+	_ = node1.graph.Add(craftedTransaction)
+	// Send third OK transaction
+	if !addTransactionAndWaitForItToArrive(t, "third transaction", key, node2, "node1") {
 		return
 	}
-	// Assert node2 only processed the first and last document, node1 all 3
-	assert.Len(t, receivedDocuments["node2"], 2)
-	assert.Len(t, receivedDocuments["node1"], 3)
-	for _, d := range receivedDocuments["node2"] {
-		if d.Ref().Equals(craftedDocument.Ref()) {
-			t.Error("Node 2 processed the crafted document.")
+	// Assert node2 only processed the first and last transaction, node1 all 3
+	assert.Len(t, receivedTransactions["node2"], 2)
+	assert.Len(t, receivedTransactions["node1"], 3)
+	for _, d := range receivedTransactions["node2"] {
+		if d.Ref().Equals(craftedTransaction.Ref()) {
+			t.Error("Node 2 processed the crafted transaction.")
 		}
 	}
 }
 
 func resetIntegrationTest(testDirectory string) {
-	receivedDocuments = make(map[string][]dag.SubscriberDocument, 0)
+	receivedTransactions = make(map[string][]dag.SubscriberTransaction, 0)
 }
 
-func addDocumentAndWaitForItToArrive(t *testing.T, payload string, key crypto.PublicKey, sender *Network, receivers ...string) bool {
-	expectedDocument, err := sender.CreateDocument(documentType, []byte(payload), "key", key, time.Now())
+func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key crypto.PublicKey, sender *Network, receivers ...string) bool {
+	expectedTransaction, err := sender.CreateTransaction(payloadType, []byte(payload), "key", key, time.Now())
 	if !assert.NoError(t, err) {
 		return true
 	}
@@ -183,13 +183,13 @@ func addDocumentAndWaitForItToArrive(t *testing.T, payload string, key crypto.Pu
 		if !waitFor(t, func() (bool, error) {
 			mutex.Lock()
 			defer mutex.Unlock()
-			for _, receivedDoc := range receivedDocuments[receiver] {
-				if expectedDocument.Ref().Equals(receivedDoc.Ref()) {
+			for _, receivedDoc := range receivedTransactions[receiver] {
+				if expectedTransaction.Ref().Equals(receivedDoc.Ref()) {
 					return true, nil
 				}
 			}
 			return false, nil
-		}, 2*time.Second, "time-out while waiting for document to arrive at %s", receiver) {
+		}, 2*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
 			return false
 		}
 	}
@@ -223,11 +223,11 @@ func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Ne
 	if err := instance.Start(); err != nil {
 		return nil, err
 	}
-	instance.Subscribe(documentType, func(document dag.SubscriberDocument, payload []byte) error {
+	instance.Subscribe(payloadType, func(transaction dag.SubscriberTransaction, payload []byte) error {
 		mutex.Lock()
 		defer mutex.Unlock()
-		log.Logger().Infof("document %s arrived at %s", string(payload), name)
-		receivedDocuments[name] = append(receivedDocuments[name], document)
+		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
+		receivedTransactions[name] = append(receivedTransactions[name], transaction)
 		return nil
 	})
 	return instance, nil

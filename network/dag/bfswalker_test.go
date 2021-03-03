@@ -67,11 +67,11 @@ func TestBFSWalkerAlgorithm(t *testing.T) {
 		root, _ := graph.Root()
 		walker := NewBFSWalkerAlgorithm()
 		visitorBeforeResume := trackingVisitor{}
-		graph.Walk(walker, func(document Document) bool {
-			if document.Ref().Equals(docC.Ref()) {
+		graph.Walk(walker, func(transaction Transaction) bool {
+			if transaction.Ref().Equals(docC.Ref()) {
 				return false
 			}
-			return visitorBeforeResume.Accept(document)
+			return visitorBeforeResume.Accept(transaction)
 		}, root)
 
 		// Make sure it breaks at C, having processed A and B
@@ -101,6 +101,6 @@ func TestBFSWalkerAlgorithm(t *testing.T) {
 			return
 		}
 
-		assert.Empty(t, visitor.documents)
+		assert.Empty(t, visitor.transactions)
 	})
 }

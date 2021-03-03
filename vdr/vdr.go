@@ -115,7 +115,7 @@ func (r VDR) Create() (*did.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = r.network.CreateDocument(didDocumentType, payload, keyID, key, time.Now())
+	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, key, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("could not store did document in network: %w", err)
 	}
@@ -149,7 +149,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 
 	// TODO: look into the controller of the did for a signing key
 	keyID := currentDIDdocument.Authentication[0].ID.String()
-	_, err = r.network.CreateDocument(didDocumentType, payload, keyID, nil, time.Now(), dag.TimelineIDField(meta.TimelineID), dag.TimelineVersionField(meta.Version+1))
+	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now(), dag.TimelineIDField(meta.TimelineID), dag.TimelineVersionField(meta.Version+1))
 
 	if err == nil {
 		logging.Log().Infof("DID Document updated: %s", id)

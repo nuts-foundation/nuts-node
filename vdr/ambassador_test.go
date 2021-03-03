@@ -246,7 +246,7 @@ func Test_ambassador_callback(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t, "key used to sign Network document must be be part of DID Document authentication", err.Error())
+		assert.Equal(t, "key used to sign transaction must be be part of DID Document authentication", err.Error())
 	})
 
 	t.Run("update ok - with the exact same document", func(t *testing.T) {
@@ -328,7 +328,7 @@ func Test_ambassador_callback(t *testing.T) {
 		assert.EqualError(t, err, "callback could not process new DID Document: timelineVersion for new documents must be absent or equal to 0")
 	})
 
-	t.Run("nok - update of unknown DID Document", func(t *testing.T) {
+	t.Run("nok - update of unknown DID Transaction", func(t *testing.T) {
 		subDoc := newSubscriberDoc()
 		subDoc.timelineVersion = 5
 		subDoc.timelineID = timelineID
@@ -594,7 +594,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		args      dag.SubscriberDocument
+		args      dag.SubscriberTransaction
 		wantedErr error
 	}{
 		{"ok - valid create document",

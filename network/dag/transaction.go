@@ -30,7 +30,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Version defines a type for distributed document format version.
+// Version defines a type for distributed transaction format version.
 type Version int
 
 const currentVersion = 1
@@ -44,13 +44,13 @@ var allowedAlgos = []jwa.SignatureAlgorithm{jwa.ES256, jwa.ES384, jwa.ES512, jwa
 
 var errInvalidPayloadType = errors.New("payload type must be formatted as MIME type")
 var errInvalidPrevs = errors.New("prevs contains an empty hash")
-var unableToParseDocumentErrFmt = "unable to parse document: %w"
-var documentNotValidErrFmt = "document validation failed: %w"
+var unableToParseTransactionErrFmt = "unable to parse transaction: %w"
+var transactionNotValidErrFmt = "transaction validation failed: %w"
 var missingHeaderErrFmt = "missing %s header"
 var invalidHeaderErrFmt = "invalid %s header"
 
-// UnsignedDocument holds the base properties of a document which can be signed to create a Document.
-type UnsignedDocument interface {
+// UnsignedTransaction holds the base properties of a transaction which can be signed to create a Transaction.
+type UnsignedTransaction interface {
 	NetworkHeader
 	Timeline
 	PayloadReferencer
@@ -59,7 +59,7 @@ type UnsignedDocument interface {
 // PayloadReferencer allows implementers to reference to a payload.
 // It provides an uniform interface to payload properties such as the type and the hash.
 type PayloadReferencer interface {
-	// PayloadHash returns the hash of the payload of the document.
+	// PayloadHash returns the hash of the payload of the transaction.
 	PayloadHash() hash.SHA256Hash
 
 	// PayloadType returns the MIME-formatted type of the payload. It must contain the context and specific type of the
@@ -67,41 +67,41 @@ type PayloadReferencer interface {
 	PayloadType() string
 }
 
-// NetworkHeader groups methods for working with a network document header.
+// NetworkHeader groups methods for working with a transaction header.
 type NetworkHeader interface {
-	// Previous returns the references of the previous documents this document points to.
+	// Previous returns the references of the previous transactions this transaction points to.
 	Previous() []hash.SHA256Hash
-	// Version returns the version number of the distributed document format.
+	// Version returns the version number of the distributed transaction format.
 	Version() Version
 }
 
-// SubscriberDocument contains a subset of the Document methods which are only relevant to subscribers.
-type SubscriberDocument interface {
+// SubscriberTransaction contains a subset of the Transaction methods which are only relevant to subscribers.
+type SubscriberTransaction interface {
 	Signable
 	Referenceable
 	Timeline
 	PayloadReferencer
 }
 
-// Timeline contains a set of methods to work with network document timeline information
+// Timeline contains a set of methods to work with network transaction timeline information
 type Timeline interface {
-	// TimelineID returns the timeline ID of the document.
+	// TimelineID returns the timeline ID of the transaction.
 	TimelineID() hash.SHA256Hash
-	// TimelineVersion returns the timeline version of the document.
+	// TimelineVersion returns the timeline version of the transaction.
 	// If the returned version is < 1 the timeline version is not set.
 	TimelineVersion() int
 }
 
 // Signable groups a set of functions to access information about a implementors signature.
 type Signable interface {
-	// SigningKey returns the key that was used to sign the document as JWK.
+	// SigningKey returns the key that was used to sign the transaction as JWK.
 	// If this field is not set SigningKeyID must be used to resolve the signing key.
 	SigningKey() jwk.Key
-	// SigningKeyID returns the ID of the key that was used to sign the document. It can be used to look up the key.
+	// SigningKeyID returns the ID of the key that was used to sign the transaction. It can be used to look up the key.
 	SigningKeyID() string
-	// SigningTime returns the time that the document was signed.
+	// SigningTime returns the time that the transaction was signed.
 	SigningTime() time.Time
-	// SigningAlgorithm returns the name of the JOSE signing algorithm that was used to sign the document.
+	// SigningAlgorithm returns the name of the JOSE signing algorithm that was used to sign the transaction.
 	SigningAlgorithm() string
 }
 
@@ -111,19 +111,19 @@ type Referenceable interface {
 	Ref() hash.SHA256Hash
 }
 
-// Document defines a signed distributed document as described by RFC004 - Distributed Document Format.
-type Document interface {
-	UnsignedDocument
+// Transaction defines a signed distributed transaction as described by RFC004 - Distributed Transaction Format.
+type Transaction interface {
+	UnsignedTransaction
 	Signable
 	Referenceable
 	json.Marshaler
-	// Data returns the byte representation of this document which can be used for transport.
+	// Data returns the byte representation of this transaction which can be used for transport.
 	Data() []byte
 }
 
-// NewDocument creates a new unsigned document. Parameters payload and payloadType can't be empty, but prevs is optional.
+// NewTransaction creates a new unsigned transaction. Parameters payload and payloadType can't be empty, but prevs is optional.
 // Prevs must not contain empty or invalid hashes.
-func NewDocument(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash, additionalFields ...FieldOpt) (UnsignedDocument, error) {
+func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash, additionalFields ...FieldOpt) (UnsignedTransaction, error) {
 	if !ValidatePayloadType(payloadType) {
 		return nil, errInvalidPayloadType
 	}
@@ -132,7 +132,7 @@ func NewDocument(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA25
 			return nil, errInvalidPrevs
 		}
 	}
-	result := document{
+	result := transaction{
 		payload:     payload,
 		payloadType: payloadType,
 		version:     currentVersion,
@@ -146,19 +146,19 @@ func NewDocument(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA25
 	return &result, nil
 }
 
-// FieldOpt defines a function for specifying fields on a document.
-type FieldOpt func(target *document)
+// FieldOpt defines a function for specifying fields on a transaction.
+type FieldOpt func(target *transaction)
 
-// TimelineVersionField adds the timeline version field to a document.
+// TimelineVersionField adds the timeline version field to a transaction.
 func TimelineVersionField(version int) FieldOpt {
-	return func(target *document) {
+	return func(target *transaction) {
 		target.timelineVersion = version
 	}
 }
 
-// TimelineIDField adds the timeline ID field to a document.
+// TimelineIDField adds the timeline ID field to a transaction.
 func TimelineIDField(id hash.SHA256Hash) FieldOpt {
-	return func(target *document) {
+	return func(target *transaction) {
 		target.timelineID = id
 	}
 }
@@ -168,7 +168,7 @@ func ValidatePayloadType(payloadType string) bool {
 	return strings.Contains(payloadType, "/")
 }
 
-type document struct {
+type transaction struct {
 	prevs            []hash.SHA256Hash
 	payload          hash.SHA256Hash
 	payloadType      string
@@ -184,59 +184,59 @@ type document struct {
 	ref  hash.SHA256Hash
 }
 
-func (d document) MarshalJSON() ([]byte, error) {
+func (d transaction) MarshalJSON() ([]byte, error) {
 	return json.Marshal(string(d.Data()))
 }
 
-func (d document) Data() []byte {
+func (d transaction) Data() []byte {
 	return d.data
 }
 
-func (d document) SigningKey() jwk.Key {
+func (d transaction) SigningKey() jwk.Key {
 	return d.signingKey
 }
 
-func (d document) SigningKeyID() string {
+func (d transaction) SigningKeyID() string {
 	return d.signingKeyID
 }
 
-func (d document) SigningTime() time.Time {
+func (d transaction) SigningTime() time.Time {
 	return d.signingTime
 }
 
-func (d document) SigningAlgorithm() string {
+func (d transaction) SigningAlgorithm() string {
 	return d.signingAlgorithm.String()
 }
 
-func (d document) PayloadType() string {
+func (d transaction) PayloadType() string {
 	return d.payloadType
 }
 
-func (d document) PayloadHash() hash.SHA256Hash {
+func (d transaction) PayloadHash() hash.SHA256Hash {
 	return d.payload
 }
 
-func (d document) Previous() []hash.SHA256Hash {
+func (d transaction) Previous() []hash.SHA256Hash {
 	return append(d.prevs)
 }
 
-func (d document) Ref() hash.SHA256Hash {
+func (d transaction) Ref() hash.SHA256Hash {
 	return d.ref
 }
 
-func (d document) Version() Version {
+func (d transaction) Version() Version {
 	return d.version
 }
 
-func (d document) TimelineID() hash.SHA256Hash {
+func (d transaction) TimelineID() hash.SHA256Hash {
 	return d.timelineID
 }
 
-func (d document) TimelineVersion() int {
+func (d transaction) TimelineVersion() int {
 	return d.timelineVersion
 }
 
-func (d *document) setData(data []byte) {
+func (d *transaction) setData(data []byte) {
 	d.data = data
 	d.ref = hash.SHA256Sum(d.data)
 }

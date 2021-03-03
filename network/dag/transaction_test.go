@@ -31,44 +31,44 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewDocument(t *testing.T) {
+func TestNewTransaction(t *testing.T) {
 	payloadHash, _ := hash2.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 	t.Run("ok", func(t *testing.T) {
 		hash, _ := hash2.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 
-		document, err := NewDocument(payloadHash, "some/type", []hash2.SHA256Hash{hash})
+		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash})
 
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, "some/type", document.PayloadType())
-		assert.Equal(t, document.PayloadHash(), payloadHash)
-		assert.Equal(t, []hash2.SHA256Hash{hash}, document.Previous())
-		assert.Equal(t, Version(1), document.Version())
+		assert.Equal(t, "some/type", transaction.PayloadType())
+		assert.Equal(t, transaction.PayloadHash(), payloadHash)
+		assert.Equal(t, []hash2.SHA256Hash{hash}, transaction.Previous())
+		assert.Equal(t, Version(1), transaction.Version())
 	})
 	t.Run("error - type empty", func(t *testing.T) {
-		document, err := NewDocument(payloadHash, "", nil)
+		transaction, err := NewTransaction(payloadHash, "", nil)
 		assert.EqualError(t, err, errInvalidPayloadType.Error())
-		assert.Nil(t, document)
+		assert.Nil(t, transaction)
 	})
 	t.Run("error - type not a MIME type", func(t *testing.T) {
-		document, err := NewDocument(payloadHash, "foo", nil)
+		transaction, err := NewTransaction(payloadHash, "foo", nil)
 		assert.EqualError(t, err, errInvalidPayloadType.Error())
-		assert.Nil(t, document)
+		assert.Nil(t, transaction)
 	})
 	t.Run("error - invalid prev", func(t *testing.T) {
-		document, err := NewDocument(payloadHash, "foo/bar", []hash2.SHA256Hash{hash2.EmptyHash()})
+		transaction, err := NewTransaction(payloadHash, "foo/bar", []hash2.SHA256Hash{hash2.EmptyHash()})
 		assert.EqualError(t, err, errInvalidPrevs.Error())
-		assert.Nil(t, document)
+		assert.Nil(t, transaction)
 	})
 }
 
-func Test_document_Getters(t *testing.T) {
+func Test_transaction_Getters(t *testing.T) {
 	payload, _ := hash2.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 	timelineID, _ := hash2.ParseHex("f33b5cae968cb88f157999b3551ab0863d2a8f0b")
 	prev1, _ := hash2.ParseHex("3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986")
 	prev2, _ := hash2.ParseHex("b3f2c3c396da1a949d214e4c2fe0fc9fb5f2a68ff1860df4ef10c9835e62e7c1")
-	doc := document{
+	tx := transaction{
 		prevs:           []hash2.SHA256Hash{prev1, prev2},
 		payload:         payload,
 		payloadType:     "foo/bar",
@@ -77,21 +77,21 @@ func Test_document_Getters(t *testing.T) {
 		timelineID:      timelineID,
 		timelineVersion: 10,
 	}
-	doc.setData([]byte{1, 2, 3})
+	tx.setData([]byte{1, 2, 3})
 
-	assert.Equal(t, doc.prevs, doc.Previous())
-	assert.Equal(t, doc.payload, doc.PayloadHash())
-	assert.Equal(t, doc.payloadType, doc.PayloadType())
-	assert.Equal(t, doc.signingTime, doc.SigningTime())
-	assert.Equal(t, doc.version, doc.Version())
-	assert.Equal(t, doc.timelineID, doc.TimelineID())
-	assert.Equal(t, doc.timelineVersion, doc.TimelineVersion())
-	assert.Equal(t, doc.data, doc.Data())
-	assert.False(t, doc.Ref().Empty())
+	assert.Equal(t, tx.prevs, tx.Previous())
+	assert.Equal(t, tx.payload, tx.PayloadHash())
+	assert.Equal(t, tx.payloadType, tx.PayloadType())
+	assert.Equal(t, tx.signingTime, tx.SigningTime())
+	assert.Equal(t, tx.version, tx.Version())
+	assert.Equal(t, tx.timelineID, tx.TimelineID())
+	assert.Equal(t, tx.timelineVersion, tx.TimelineVersion())
+	assert.Equal(t, tx.data, tx.Data())
+	assert.False(t, tx.Ref().Empty())
 }
 
-func Test_document_MarshalJSON(t *testing.T) {
-	expected, _, _ := CreateTestDocument(1)
+func Test_transaction_MarshalJSON(t *testing.T) {
+	expected, _, _ := CreateTestTransaction(1)
 	data, err := json.Marshal(expected)
 	assert.NoError(t, err)
 	assert.Equal(t, `"`+string(expected.Data())+`"`, string(data))

@@ -33,29 +33,29 @@ import (
 
 var payload = []byte("Hello, World!")
 
-func TestApiWrapper_GetDocument(t *testing.T) {
+func TestApiWrapper_GetTransaction(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	document := dag.CreateTestDocumentWithJWK(1)
-	path := "/document/:ref"
+	transaction := dag.CreateTestTransactionWithJWK(1)
+	path := "/transaction/:ref"
 
 	t.Run("ok", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().GetDocument(hash.EqHash(document.Ref())).Return(document, nil)
+		networkClient.EXPECT().GetTransaction(hash.EqHash(transaction.Ref())).Return(transaction, nil)
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.SetPath(path)
 		c.SetParamNames("ref")
-		c.SetParamValues(document.Ref().String())
+		c.SetParamValues(transaction.Ref().String())
 
-		err := wrapper.GetDocument(c)
+		err := wrapper.GetTransaction(c)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, "application/jose", rec.Header().Get("Content-Type"))
-		assert.Equal(t, string(document.Data()), rec.Body.String())
+		assert.Equal(t, string(transaction.Data()), rec.Body.String())
 	})
 	t.Run("invalid hash", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
@@ -68,7 +68,7 @@ func TestApiWrapper_GetDocument(t *testing.T) {
 		c.SetParamNames("ref")
 		c.SetParamValues("1234")
 
-		err := wrapper.GetDocument(c)
+		err := wrapper.GetTransaction(c)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 		assert.Equal(t, "incorrect hash length (2)", rec.Body.String())
@@ -76,41 +76,41 @@ func TestApiWrapper_GetDocument(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().GetDocument(gomock.Any()).Return(nil, nil)
+		networkClient.EXPECT().GetTransaction(gomock.Any()).Return(nil, nil)
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.SetPath(path)
 		c.SetParamNames("ref")
-		c.SetParamValues(document.Ref().String())
+		c.SetParamValues(transaction.Ref().String())
 
-		err := wrapper.GetDocument(c)
+		err := wrapper.GetTransaction(c)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusNotFound, rec.Code)
-		assert.Equal(t, "document not found", rec.Body.String())
+		assert.Equal(t, "transaction not found", rec.Body.String())
 	})
 }
 
-func TestApiWrapper_GetDocumentPayload(t *testing.T) {
+func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	document := dag.CreateTestDocumentWithJWK(1)
-	path := "/document/:ref/payload"
+	transaction := dag.CreateTestTransactionWithJWK(1)
+	path := "/transaction/:ref/payload"
 
 	t.Run("ok", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().GetDocumentPayload(hash.EqHash(document.Ref())).Return(payload, nil)
+		networkClient.EXPECT().GetTransactionPayload(hash.EqHash(transaction.Ref())).Return(payload, nil)
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.SetPath(path)
 		c.SetParamNames("ref")
-		c.SetParamValues(document.Ref().String())
+		c.SetParamValues(transaction.Ref().String())
 
-		err := wrapper.GetDocumentPayload(c)
+		err := wrapper.GetTransactionPayload(c)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, string(payload), rec.Body.String())
@@ -118,19 +118,19 @@ func TestApiWrapper_GetDocumentPayload(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().GetDocumentPayload(gomock.Any()).Return(nil, nil)
+		networkClient.EXPECT().GetTransactionPayload(gomock.Any()).Return(nil, nil)
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.SetPath(path)
 		c.SetParamNames("ref")
-		c.SetParamValues(document.Ref().String())
+		c.SetParamValues(transaction.Ref().String())
 
-		err := wrapper.GetDocumentPayload(c)
+		err := wrapper.GetTransactionPayload(c)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusNotFound, rec.Code)
-		assert.Equal(t, "document or contents not found", rec.Body.String())
+		assert.Equal(t, "transaction or contents not found", rec.Body.String())
 	})
 	t.Run("invalid hash", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
@@ -143,33 +143,33 @@ func TestApiWrapper_GetDocumentPayload(t *testing.T) {
 		c.SetParamNames("ref")
 		c.SetParamValues("1234")
 
-		err := wrapper.GetDocumentPayload(c)
+		err := wrapper.GetTransactionPayload(c)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 		assert.Equal(t, "incorrect hash length (2)", rec.Body.String())
 	})
 }
 
-func TestApiWrapper_ListDocuments(t *testing.T) {
+func TestApiWrapper_ListTransactions(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	document := dag.CreateTestDocumentWithJWK(1)
+	transaction := dag.CreateTestTransactionWithJWK(1)
 
-	t.Run("list documents", func(t *testing.T) {
+	t.Run("list transactions", func(t *testing.T) {
 		t.Run("200", func(t *testing.T) {
 			var networkClient = network.NewMockTransactions(mockCtrl)
 			e, wrapper := initMockEcho(networkClient)
-			networkClient.EXPECT().ListDocuments().Return([]dag.Document{document}, nil)
+			networkClient.EXPECT().ListTransactions().Return([]dag.Transaction{transaction}, nil)
 
 			req := httptest.NewRequest(echo.GET, "/", nil)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
-			c.SetPath("/document")
+			c.SetPath("/transaction")
 
-			err := wrapper.ListDocuments(c)
+			err := wrapper.ListTransactions(c)
 			assert.NoError(t, err)
 			assert.Equal(t, http.StatusOK, rec.Code)
-			assert.Equal(t, `["`+string(document.Data())+`"]`, strings.TrimSpace(rec.Body.String()))
+			assert.Equal(t, `["`+string(transaction.Data())+`"]`, strings.TrimSpace(rec.Body.String()))
 		})
 	})
 }

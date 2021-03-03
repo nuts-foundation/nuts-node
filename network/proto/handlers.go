@@ -50,16 +50,16 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 			}
 		}
 		if !found {
-			log.Logger().Infof("Peer has different heads than us, querying document list (peer=%s)", peer)
-			go p.queryDocumentList(peer)
+			log.Logger().Infof("Peer has different heads than us, querying transaction list (peer=%s)", peer)
+			go p.queryTransactionList(peer)
 			return
 		}
 	}
 }
 
-func (p protocol) queryDocumentList(peer p2p.PeerID) {
+func (p protocol) queryTransactionList(peer p2p.PeerID) {
 	msg := createMessage()
-	msg.DocumentListQuery = &transport.DocumentListQuery{}
+	msg.TransactionListQuery = &transport.TransactionListQuery{}
 	if err := p.p2pNetwork.Send(peer, &msg); err != nil {
 		log.Logger().Errorf("Unable to query peer for hash list (peer=%s): %v", peer, err)
 	}
@@ -77,34 +77,34 @@ func (p protocol) advertHashes() {
 	p.p2pNetwork.Broadcast(&msg)
 }
 
-func (p *protocol) handleDocumentPayload(peer p2p.PeerID, contents *transport.DocumentPayload) {
+func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport.TransactionPayload) {
 	payloadHash := hash.FromSlice(contents.PayloadHash)
-	log.Logger().Infof("Received document payload from peer (peer=%s,payloadHash=%s,len=%d)", peer, payloadHash, len(contents.Data))
-	// TODO: Maybe this should be asynchronous since writing the document contents might be I/O heavy?
-	if document, err := p.graph.GetByPayloadHash(payloadHash); err != nil {
-		log.Logger().Errorf("Error while looking up document to write payload (payloadHash=%s): %v", payloadHash, err)
-	} else if document == nil {
-		log.Logger().Warnf("Received document payload for document we don't have (payloadHash=%s)", payloadHash)
+	log.Logger().Infof("Received transaction payload from peer (peer=%s,payloadHash=%s,len=%d)", peer, payloadHash, len(contents.Data))
+	// TODO: Maybe this should be asynchronous since writing the transaction contents might be I/O heavy?
+	if transaction, err := p.graph.GetByPayloadHash(payloadHash); err != nil {
+		log.Logger().Errorf("Error while looking up transaction to write payload (payloadHash=%s): %v", payloadHash, err)
+	} else if transaction == nil {
+		log.Logger().Warnf("Received transaction payload for transaction we don't have (payloadHash=%s)", payloadHash)
 	} else if hasPayload, err := p.payloadStore.IsPresent(payloadHash); err != nil {
 		log.Logger().Errorf("Error while checking whether we already have payload (payloadHash=%s): %v", payloadHash, err)
 	} else if hasPayload {
 		log.Logger().Debugf("Received payload we already have (payloadHash=%s)", payloadHash)
 	} else if err := p.payloadStore.WritePayload(payloadHash, contents.Data); err != nil {
-		log.Logger().Errorf("Error while writing payload for document (hash=%s): %v", payloadHash, err)
+		log.Logger().Errorf("Error while writing payload for transaction (hash=%s): %v", payloadHash, err)
 	} else {
 		// TODO: Publish change to subscribers
 	}
 }
 
-func (p *protocol) handleDocumentPayloadQuery(peer p2p.PeerID, query *transport.DocumentPayloadQuery) error {
+func (p *protocol) handleTransactionPayloadQuery(peer p2p.PeerID, query *transport.TransactionPayloadQuery) error {
 	payloadHash := hash.FromSlice(query.PayloadHash)
-	log.Logger().Tracef("Received document payload query from peer (peer=%s, payloadHash=%s)", peer, payloadHash)
-	// TODO: Maybe this should be asynchronous since loading document contents might be I/O heavy?
+	log.Logger().Tracef("Received transaction payload query from peer (peer=%s, payloadHash=%s)", peer, payloadHash)
+	// TODO: Maybe this should be asynchronous since loading transaction contents might be I/O heavy?
 	if data, err := p.payloadStore.ReadPayload(payloadHash); err != nil {
 		return err
 	} else if data != nil {
 		responseMsg := createMessage()
-		responseMsg.DocumentPayload = &transport.DocumentPayload{
+		responseMsg.TransactionPayload = &transport.TransactionPayload{
 			PayloadHash: payloadHash.Slice(),
 			Data:        data,
 		}
@@ -112,76 +112,76 @@ func (p *protocol) handleDocumentPayloadQuery(peer p2p.PeerID, query *transport.
 			return err
 		}
 	} else {
-		log.Logger().Warnf("Peer queried us for document payload, but seems like we don't have it (peer=%s,payloadHash=%s)", peer, payloadHash)
+		log.Logger().Warnf("Peer queried us for transaction payload, but seems like we don't have it (peer=%s,payloadHash=%s)", peer, payloadHash)
 	}
 	return nil
 }
 
-func (p *protocol) handleDocumentList(peer p2p.PeerID, documentList *transport.DocumentList) error {
-	log.Logger().Tracef("Received document list from peer (peer=%s)", peer)
-	for _, current := range documentList.Documents {
-		documentRef := hash.FromSlice(current.Hash)
-		if !documentRef.Equals(hash.SHA256Sum(current.Data)) {
-			log.Logger().Warn("Received document hash doesn't match document bytes, skipping.")
+func (p *protocol) handleTransactionList(peer p2p.PeerID, transactionList *transport.TransactionList) error {
+	log.Logger().Tracef("Received transaction list from peer (peer=%s)", peer)
+	for _, current := range transactionList.Transactions {
+		transactionRef := hash.FromSlice(current.Hash)
+		if !transactionRef.Equals(hash.SHA256Sum(current.Data)) {
+			log.Logger().Warn("Received transaction hash doesn't match transaction bytes, skipping.")
 			continue
 		}
-		if err := p.checkDocumentOnLocalNode(peer, documentRef, current.Data); err != nil {
-			log.Logger().Errorf("Error while checking peer document on local node (peer=%s, document=%s): %v", peer, documentRef, err)
+		if err := p.checkTransactionOnLocalNode(peer, transactionRef, current.Data); err != nil {
+			log.Logger().Errorf("Error while checking peer transaction on local node (peer=%s, transaction=%s): %v", peer, transactionRef, err)
 		}
 	}
 	return nil
 }
 
-// checkDocumentOnLocalNode checks whether the given document is present on the local node, adds it if not and/or queries
-// the payload if it (the payload) it not present. If we have both document and payload, nothing is done.
-func (p *protocol) checkDocumentOnLocalNode(peer p2p.PeerID, documentRef hash.SHA256Hash, data []byte) error {
+// checkTransactionOnLocalNode checks whether the given transaction is present on the local node, adds it if not and/or queries
+// the payload if it (the payload) it not present. If we have both transaction and payload, nothing is done.
+func (p *protocol) checkTransactionOnLocalNode(peer p2p.PeerID, transactionRef hash.SHA256Hash, data []byte) error {
 	// TODO: Make this a bit smarter.
-	var document dag.Document
+	var transaction dag.Transaction
 	var err error
-	if document, err = dag.ParseDocument(data); err != nil {
-		return fmt.Errorf("received document is invalid (peer=%s,pref=%s): %w", peer, documentRef, err)
+	if transaction, err = dag.ParseTransaction(data); err != nil {
+		return fmt.Errorf("received transaction is invalid (peer=%s,pref=%s): %w", peer, transactionRef, err)
 	}
 	queryContents := false
-	if present, err := p.graph.IsPresent(documentRef); err != nil {
+	if present, err := p.graph.IsPresent(transactionRef); err != nil {
 		return err
 	} else if !present {
-		if err := p.signatureVerifier.Verify(document); err != nil {
-			return fmt.Errorf("not adding received document to DAG, invalid signature (ref=%s): %w", document.Ref(), err)
+		if err := p.signatureVerifier.Verify(transaction); err != nil {
+			return fmt.Errorf("not adding received transaction to DAG, invalid signature (ref=%s): %w", transaction.Ref(), err)
 		}
-		if err := p.graph.Add(document); err != nil {
-			return fmt.Errorf("unable to add received document to DAG: %w", err)
+		if err := p.graph.Add(transaction); err != nil {
+			return fmt.Errorf("unable to add received transaction to DAG: %w", err)
 		}
 		queryContents = true
-	} else if payloadPresent, err := p.payloadStore.IsPresent(document.PayloadHash()); err != nil {
+	} else if payloadPresent, err := p.payloadStore.IsPresent(transaction.PayloadHash()); err != nil {
 		return err
 	} else {
 		queryContents = !payloadPresent
 	}
 	if queryContents {
 		// TODO: Currently we send the query to the peer that sent us the hash, but this peer might not have the
-		//   document contents. We need a smarter way to get it from a peer who does.
-		log.Logger().Infof("Received document hash from peer that we don't have yet or we're missing its contents, will query it (peer=%s,hash=%s)", peer, documentRef)
+		//   transaction contents. We need a smarter way to get it from a peer who does.
+		log.Logger().Infof("Received transaction hash from peer that we don't have yet or we're missing its contents, will query it (peer=%s,hash=%s)", peer, transactionRef)
 		responseMsg := createMessage()
-		responseMsg.DocumentPayloadQuery = &transport.DocumentPayloadQuery{PayloadHash: document.PayloadHash().Slice()}
+		responseMsg.TransactionPayloadQuery = &transport.TransactionPayloadQuery{PayloadHash: transaction.PayloadHash().Slice()}
 		return p.p2pNetwork.Send(peer, &responseMsg)
 	}
 	return nil
 }
 
-func (p *protocol) handleDocumentListQuery(peer p2p.PeerID) error {
-	log.Logger().Tracef("Received document list query from peer (peer=%s)", peer)
+func (p *protocol) handleTransactionListQuery(peer p2p.PeerID) error {
+	log.Logger().Tracef("Received transaction list query from peer (peer=%s)", peer)
 	msg := createMessage()
-	documents, err := p.graph.All()
+	transactions, err := p.graph.All()
 	if err != nil {
 		return err
 	}
-	msg.DocumentList = &transport.DocumentList{
-		Documents: make([]*transport.Document, len(documents)),
+	msg.TransactionList = &transport.TransactionList{
+		Transactions: make([]*transport.Transaction, len(transactions)),
 	}
-	for i, document := range documents {
-		msg.DocumentList.Documents[i] = &transport.Document{
-			Hash: document.Ref().Slice(),
-			Data: document.Data(),
+	for i, transaction := range transactions {
+		msg.TransactionList.Transactions[i] = &transport.Transaction{
+			Hash: transaction.Ref().Slice(),
+			Data: transaction.Data(),
 		}
 	}
 	if err := p.p2pNetwork.Send(peer, &msg); err != nil {

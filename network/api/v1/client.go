@@ -37,12 +37,12 @@ type HTTPClient struct {
 	Timeout       time.Duration
 }
 
-// GetDocumentPayload retrieves the document payload for the given document. If the document or payload is not found
+// GetTransactionPayload retrieves the transaction payload for the given transaction. If the transaction or payload is not found
 // nil is returned.
-func (hb HTTPClient) GetDocumentPayload(documentRef hash.SHA256Hash) ([]byte, error) {
+func (hb HTTPClient) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
 	defer cancel()
-	res, err := hb.client().GetDocumentPayload(ctx, documentRef.String())
+	res, err := hb.client().GetTransactionPayload(ctx, transactionRef.String())
 	if err != nil {
 		return nil, err
 	}
@@ -55,22 +55,22 @@ func (hb HTTPClient) GetDocumentPayload(documentRef hash.SHA256Hash) ([]byte, er
 	return ioutil.ReadAll(res.Body)
 }
 
-// GetDocument retrieves the document for the given reference. If the document is not known, an error is returned.
-func (hb HTTPClient) GetDocument(documentRef hash.SHA256Hash) (dag.Document, error) {
+// GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
+func (hb HTTPClient) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
 	defer cancel()
-	res, err := hb.client().GetDocument(ctx, documentRef.String())
+	res, err := hb.client().GetTransaction(ctx, transactionRef.String())
 	if err != nil {
 		return nil, err
 	}
-	return testAndParseDocumentResponse(res)
+	return testAndParseTransactionResponse(res)
 }
 
-// ListDocuments returns all documents known to this network instance.
-func (hb HTTPClient) ListDocuments() ([]dag.Document, error) {
+// ListTransactions returns all transactions known to this network instance.
+func (hb HTTPClient) ListTransactions() ([]dag.Transaction, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
 	defer cancel()
-	res, err := hb.client().ListDocuments(ctx)
+	res, err := hb.client().ListTransactions(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -81,20 +81,20 @@ func (hb HTTPClient) ListDocuments() ([]dag.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	unparsedDocuments := make([]string, 0)
-	if err = json.Unmarshal(responseData, &unparsedDocuments); err != nil {
+	unparsedTransactions := make([]string, 0)
+	if err = json.Unmarshal(responseData, &unparsedTransactions); err != nil {
 		return nil, err
 	}
-	documents := make([]dag.Document, 0)
-	for _, unparsedDocument := range unparsedDocuments {
-		document, err := dag.ParseDocument([]byte(unparsedDocument))
+	transactions := make([]dag.Transaction, 0)
+	for _, unparsedTransaction := range unparsedTransactions {
+		transaction, err := dag.ParseTransaction([]byte(unparsedTransaction))
 		if err != nil {
 			return nil, err
 		}
-		documents = append(documents, document)
+		transactions = append(transactions, transaction)
 	}
 
-	return documents, nil
+	return transactions, nil
 }
 
 func (hb HTTPClient) client() ClientInterface {
@@ -110,7 +110,7 @@ func (hb HTTPClient) client() ClientInterface {
 	return response
 }
 
-func testAndParseDocumentResponse(response *http.Response) (dag.Document, error) {
+func testAndParseTransactionResponse(response *http.Response) (dag.Transaction, error) {
 	if response.StatusCode == http.StatusNotFound {
 		return nil, nil
 	}
@@ -121,7 +121,7 @@ func testAndParseDocumentResponse(response *http.Response) (dag.Document, error)
 	if err != nil {
 		return nil, err
 	}
-	return dag.ParseDocument(responseData)
+	return dag.ParseTransaction(responseData)
 }
 
 func testResponseCode(expectedStatusCode int, response *http.Response) error {
