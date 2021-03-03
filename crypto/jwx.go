@@ -193,6 +193,7 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 	return string(data), nil
 }
 
+// {"alg":"ES256","b64":false,"crit":["b64"]}
 const jsonWebSignature2020Headers = "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19"
 
 // signDetachedJWS as specified by https://w3c-ccg.github.io/lds-jws2020/ and https://w3c-ccg.github.io/ld-proofs/#proof-algorithm
