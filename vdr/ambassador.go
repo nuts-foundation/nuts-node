@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"crypto"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
