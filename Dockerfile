@@ -1,5 +1,5 @@
 # golang alpine 1.13.x
-FROM golang:1.15-alpine as builder
+FROM golang:1.16-alpine as builder
 
 LABEL maintainer="wout.slakhorst@nuts.nl"
 

@@ -22,7 +22,7 @@ So calling `/internal/vcr/v1/vc` with
 
     {
         "issuer": "did:nuts:123",
-        "type": "ExampleCredential",
+        "type": "[ExampleCredential"],
         "credentialSubject": {
             "id": "did:nuts:321",
             "company": {

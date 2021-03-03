@@ -40,13 +40,13 @@ var ErrInvalidSubject = errors.New("invalid credential subject")
 // ErrNotFound is returned when a credential can not be found based on its ID.
 var ErrNotFound = errors.New("credential not found")
 
-// Issuer can issue credentials for DIDs to DIDs.
-type Issuer interface {
-	// Issue creates and publishes a new vcr.
-	// An optional expirationDate can be given.
-	// VCs are stored when the network has successfully published them.
-	Issue(issuer did.DID, subject did.DID, vcType string, credentialSubject interface{}, expirationDate *time.Time) (did.VerifiableCredential, error)
-}
+// ErrInvalidCredential is returned when validation failed
+var ErrInvalidCredential = errors.New("invalid credential")
+
+// ErrUnknownCredentialType is used to create an error when the credential type is unknown
+const ErrUnknownCredentialType = "unknown credential type"
+
+var vcDocumentType = "application/vc+json;type=%s"
 
 // Writer is the interface that groups al the VC write methods
 type Writer interface {
@@ -56,6 +56,10 @@ type Writer interface {
 
 // VCR is the interface that covers all functionality of the vcr store.
 type VCR interface {
+	// Issue creates and publishes a new vcr.
+	// An optional expirationDate can be given.
+	// VCs are stored when the network has successfully published them.
+	Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error)
 	// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
 	Search(query concept.Query) ([]did.VerifiableCredential, error)
 	// Resolve returns a credential based on its ID. Returns an error when not found.

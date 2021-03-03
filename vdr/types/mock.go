@@ -5,36 +5,37 @@
 package types
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
-	reflect "reflect"
 )
 
-// MockDocResolver is a mock of DocResolver interface
+// MockDocResolver is a mock of DocResolver interface.
 type MockDocResolver struct {
 	ctrl     *gomock.Controller
 	recorder *MockDocResolverMockRecorder
 }
 
-// MockDocResolverMockRecorder is the mock recorder for MockDocResolver
+// MockDocResolverMockRecorder is the mock recorder for MockDocResolver.
 type MockDocResolverMockRecorder struct {
 	mock *MockDocResolver
 }
 
-// NewMockDocResolver creates a new mock instance
+// NewMockDocResolver creates a new mock instance.
 func NewMockDocResolver(ctrl *gomock.Controller) *MockDocResolver {
 	mock := &MockDocResolver{ctrl: ctrl}
 	mock.recorder = &MockDocResolverMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDocResolver) EXPECT() *MockDocResolverMockRecorder {
 	return m.recorder
 }
 
-// Resolve mocks base method
+// Resolve mocks base method.
 func (m *MockDocResolver) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go_did.Document, *DocumentMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", id, metadata)
@@ -44,36 +45,36 @@ func (m *MockDocResolver) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go
 	return ret0, ret1, ret2
 }
 
-// Resolve indicates an expected call of Resolve
+// Resolve indicates an expected call of Resolve.
 func (mr *MockDocResolverMockRecorder) Resolve(id, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockDocResolver)(nil).Resolve), id, metadata)
 }
 
-// MockDocCreator is a mock of DocCreator interface
+// MockDocCreator is a mock of DocCreator interface.
 type MockDocCreator struct {
 	ctrl     *gomock.Controller
 	recorder *MockDocCreatorMockRecorder
 }
 
-// MockDocCreatorMockRecorder is the mock recorder for MockDocCreator
+// MockDocCreatorMockRecorder is the mock recorder for MockDocCreator.
 type MockDocCreatorMockRecorder struct {
 	mock *MockDocCreator
 }
 
-// NewMockDocCreator creates a new mock instance
+// NewMockDocCreator creates a new mock instance.
 func NewMockDocCreator(ctrl *gomock.Controller) *MockDocCreator {
 	mock := &MockDocCreator{ctrl: ctrl}
 	mock.recorder = &MockDocCreatorMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDocCreator) EXPECT() *MockDocCreatorMockRecorder {
 	return m.recorder
 }
 
-// Create mocks base method
+// Create mocks base method.
 func (m *MockDocCreator) Create() (*go_did.Document, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create")
@@ -82,36 +83,36 @@ func (m *MockDocCreator) Create() (*go_did.Document, error) {
 	return ret0, ret1
 }
 
-// Create indicates an expected call of Create
+// Create indicates an expected call of Create.
 func (mr *MockDocCreatorMockRecorder) Create() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockDocCreator)(nil).Create))
 }
 
-// MockDocWriter is a mock of DocWriter interface
+// MockDocWriter is a mock of DocWriter interface.
 type MockDocWriter struct {
 	ctrl     *gomock.Controller
 	recorder *MockDocWriterMockRecorder
 }
 
-// MockDocWriterMockRecorder is the mock recorder for MockDocWriter
+// MockDocWriterMockRecorder is the mock recorder for MockDocWriter.
 type MockDocWriterMockRecorder struct {
 	mock *MockDocWriter
 }
 
-// NewMockDocWriter creates a new mock instance
+// NewMockDocWriter creates a new mock instance.
 func NewMockDocWriter(ctrl *gomock.Controller) *MockDocWriter {
 	mock := &MockDocWriter{ctrl: ctrl}
 	mock.recorder = &MockDocWriterMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDocWriter) EXPECT() *MockDocWriterMockRecorder {
 	return m.recorder
 }
 
-// Write mocks base method
+// Write mocks base method.
 func (m *MockDocWriter) Write(document go_did.Document, metadata DocumentMetadata) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Write", document, metadata)
@@ -119,36 +120,36 @@ func (m *MockDocWriter) Write(document go_did.Document, metadata DocumentMetadat
 	return ret0
 }
 
-// Write indicates an expected call of Write
+// Write indicates an expected call of Write.
 func (mr *MockDocWriterMockRecorder) Write(document, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockDocWriter)(nil).Write), document, metadata)
 }
 
-// MockDocUpdater is a mock of DocUpdater interface
+// MockDocUpdater is a mock of DocUpdater interface.
 type MockDocUpdater struct {
 	ctrl     *gomock.Controller
 	recorder *MockDocUpdaterMockRecorder
 }
 
-// MockDocUpdaterMockRecorder is the mock recorder for MockDocUpdater
+// MockDocUpdaterMockRecorder is the mock recorder for MockDocUpdater.
 type MockDocUpdaterMockRecorder struct {
 	mock *MockDocUpdater
 }
 
-// NewMockDocUpdater creates a new mock instance
+// NewMockDocUpdater creates a new mock instance.
 func NewMockDocUpdater(ctrl *gomock.Controller) *MockDocUpdater {
 	mock := &MockDocUpdater{ctrl: ctrl}
 	mock.recorder = &MockDocUpdaterMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDocUpdater) EXPECT() *MockDocUpdaterMockRecorder {
 	return m.recorder
 }
 
-// Update mocks base method
+// Update mocks base method.
 func (m *MockDocUpdater) Update(id go_did.DID, current hash.SHA256Hash, next go_did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", id, current, next, metadata)
@@ -156,71 +157,109 @@ func (m *MockDocUpdater) Update(id go_did.DID, current hash.SHA256Hash, next go_
 	return ret0
 }
 
-// Update indicates an expected call of Update
+// Update indicates an expected call of Update.
 func (mr *MockDocUpdaterMockRecorder) Update(id, current, next, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockDocUpdater)(nil).Update), id, current, next, metadata)
 }
 
-// MockDocDeactivator is a mock of DocDeactivator interface
+// MockDocDeactivator is a mock of DocDeactivator interface.
 type MockDocDeactivator struct {
 	ctrl     *gomock.Controller
 	recorder *MockDocDeactivatorMockRecorder
 }
 
-// MockDocDeactivatorMockRecorder is the mock recorder for MockDocDeactivator
+// MockDocDeactivatorMockRecorder is the mock recorder for MockDocDeactivator.
 type MockDocDeactivatorMockRecorder struct {
 	mock *MockDocDeactivator
 }
 
-// NewMockDocDeactivator creates a new mock instance
+// NewMockDocDeactivator creates a new mock instance.
 func NewMockDocDeactivator(ctrl *gomock.Controller) *MockDocDeactivator {
 	mock := &MockDocDeactivator{ctrl: ctrl}
 	mock.recorder = &MockDocDeactivatorMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDocDeactivator) EXPECT() *MockDocDeactivatorMockRecorder {
 	return m.recorder
 }
 
-// Deactivate mocks base method
+// Deactivate mocks base method.
 func (m *MockDocDeactivator) Deactivate(id go_did.DID, current hash.SHA256Hash) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Deactivate", id, current)
 }
 
-// Deactivate indicates an expected call of Deactivate
+// Deactivate indicates an expected call of Deactivate.
 func (mr *MockDocDeactivatorMockRecorder) Deactivate(id, current interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocDeactivator)(nil).Deactivate), id, current)
 }
 
-// MockStore is a mock of Store interface
+// MockKeyResolver is a mock of KeyResolver interface.
+type MockKeyResolver struct {
+	ctrl     *gomock.Controller
+	recorder *MockKeyResolverMockRecorder
+}
+
+// MockKeyResolverMockRecorder is the mock recorder for MockKeyResolver.
+type MockKeyResolverMockRecorder struct {
+	mock *MockKeyResolver
+}
+
+// NewMockKeyResolver creates a new mock instance.
+func NewMockKeyResolver(ctrl *gomock.Controller) *MockKeyResolver {
+	mock := &MockKeyResolver{ctrl: ctrl}
+	mock.recorder = &MockKeyResolverMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockKeyResolver) EXPECT() *MockKeyResolverMockRecorder {
+	return m.recorder
+}
+
+// ResolveAssertionKey mocks base method.
+func (m *MockKeyResolver) ResolveAssertionKey(id go_did.DID, metadata *ResolveMetadata) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveAssertionKey", id, metadata)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
+func (mr *MockKeyResolverMockRecorder) ResolveAssertionKey(id, metadata interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockKeyResolver)(nil).ResolveAssertionKey), id, metadata)
+}
+
+// MockStore is a mock of Store interface.
 type MockStore struct {
 	ctrl     *gomock.Controller
 	recorder *MockStoreMockRecorder
 }
 
-// MockStoreMockRecorder is the mock recorder for MockStore
+// MockStoreMockRecorder is the mock recorder for MockStore.
 type MockStoreMockRecorder struct {
 	mock *MockStore
 }
 
-// NewMockStore creates a new mock instance
+// NewMockStore creates a new mock instance.
 func NewMockStore(ctrl *gomock.Controller) *MockStore {
 	mock := &MockStore{ctrl: ctrl}
 	mock.recorder = &MockStoreMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
 }
 
-// Resolve mocks base method
+// Resolve mocks base method.
 func (m *MockStore) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go_did.Document, *DocumentMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", id, metadata)
@@ -230,27 +269,13 @@ func (m *MockStore) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go_did.D
 	return ret0, ret1, ret2
 }
 
-// Resolve indicates an expected call of Resolve
+// Resolve indicates an expected call of Resolve.
 func (mr *MockStoreMockRecorder) Resolve(id, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockStore)(nil).Resolve), id, metadata)
 }
 
-// Write mocks base method
-func (m *MockStore) Write(document go_did.Document, metadata DocumentMetadata) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Write", document, metadata)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Write indicates an expected call of Write
-func (mr *MockStoreMockRecorder) Write(document, metadata interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockStore)(nil).Write), document, metadata)
-}
-
-// Update mocks base method
+// Update mocks base method.
 func (m *MockStore) Update(id go_did.DID, current hash.SHA256Hash, next go_did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", id, current, next, metadata)
@@ -258,36 +283,77 @@ func (m *MockStore) Update(id go_did.DID, current hash.SHA256Hash, next go_did.D
 	return ret0
 }
 
-// Update indicates an expected call of Update
+// Update indicates an expected call of Update.
 func (mr *MockStoreMockRecorder) Update(id, current, next, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockStore)(nil).Update), id, current, next, metadata)
 }
 
-// MockVDR is a mock of VDR interface
+// Write mocks base method.
+func (m *MockStore) Write(document go_did.Document, metadata DocumentMetadata) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Write", document, metadata)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Write indicates an expected call of Write.
+func (mr *MockStoreMockRecorder) Write(document, metadata interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockStore)(nil).Write), document, metadata)
+}
+
+// MockVDR is a mock of VDR interface.
 type MockVDR struct {
 	ctrl     *gomock.Controller
 	recorder *MockVDRMockRecorder
 }
 
-// MockVDRMockRecorder is the mock recorder for MockVDR
+// MockVDRMockRecorder is the mock recorder for MockVDR.
 type MockVDRMockRecorder struct {
 	mock *MockVDR
 }
 
-// NewMockVDR creates a new mock instance
+// NewMockVDR creates a new mock instance.
 func NewMockVDR(ctrl *gomock.Controller) *MockVDR {
 	mock := &MockVDR{ctrl: ctrl}
 	mock.recorder = &MockVDRMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockVDR) EXPECT() *MockVDRMockRecorder {
 	return m.recorder
 }
 
-// Resolve mocks base method
+// Create mocks base method.
+func (m *MockVDR) Create() (*go_did.Document, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create")
+	ret0, _ := ret[0].(*go_did.Document)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockVDRMockRecorder) Create() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create))
+}
+
+// Deactivate mocks base method.
+func (m *MockVDR) Deactivate(id go_did.DID, current hash.SHA256Hash) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Deactivate", id, current)
+}
+
+// Deactivate indicates an expected call of Deactivate.
+func (mr *MockVDRMockRecorder) Deactivate(id, current interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockVDR)(nil).Deactivate), id, current)
+}
+
+// Resolve mocks base method.
 func (m *MockVDR) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go_did.Document, *DocumentMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", id, metadata)
@@ -297,28 +363,28 @@ func (m *MockVDR) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go_did.Doc
 	return ret0, ret1, ret2
 }
 
-// Resolve indicates an expected call of Resolve
+// Resolve indicates an expected call of Resolve.
 func (mr *MockVDRMockRecorder) Resolve(id, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVDR)(nil).Resolve), id, metadata)
 }
 
-// Create mocks base method
-func (m *MockVDR) Create() (*go_did.Document, error) {
+// ResolveAssertionKey mocks base method.
+func (m *MockVDR) ResolveAssertionKey(id go_did.DID, metadata *ResolveMetadata) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create")
-	ret0, _ := ret[0].(*go_did.Document)
+	ret := m.ctrl.Call(m, "ResolveAssertionKey", id, metadata)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Create indicates an expected call of Create
-func (mr *MockVDRMockRecorder) Create() *gomock.Call {
+// ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
+func (mr *MockVDRMockRecorder) ResolveAssertionKey(id, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockVDR)(nil).ResolveAssertionKey), id, metadata)
 }
 
-// Update mocks base method
+// Update mocks base method.
 func (m *MockVDR) Update(id go_did.DID, current hash.SHA256Hash, next go_did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", id, current, next, metadata)
@@ -326,20 +392,8 @@ func (m *MockVDR) Update(id go_did.DID, current hash.SHA256Hash, next go_did.Doc
 	return ret0
 }
 
-// Update indicates an expected call of Update
+// Update indicates an expected call of Update.
 func (mr *MockVDRMockRecorder) Update(id, current, next, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockVDR)(nil).Update), id, current, next, metadata)
-}
-
-// Deactivate mocks base method
-func (m *MockVDR) Deactivate(id go_did.DID, current hash.SHA256Hash) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Deactivate", id, current)
-}
-
-// Deactivate indicates an expected call of Deactivate
-func (mr *MockVDRMockRecorder) Deactivate(id, current interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockVDR)(nil).Deactivate), id, current)
 }

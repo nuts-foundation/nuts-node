@@ -6,79 +6,38 @@ package network
 
 import (
 	crypto "crypto"
+	reflect "reflect"
+	time "time"
+
 	gomock "github.com/golang/mock/gomock"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
-	reflect "reflect"
-	time "time"
 )
 
-// MockTransactions is a mock of Transactions interface
+// MockTransactions is a mock of Transactions interface.
 type MockTransactions struct {
 	ctrl     *gomock.Controller
 	recorder *MockTransactionsMockRecorder
 }
 
-// MockTransactionsMockRecorder is the mock recorder for MockTransactions
+// MockTransactionsMockRecorder is the mock recorder for MockTransactions.
 type MockTransactionsMockRecorder struct {
 	mock *MockTransactions
 }
 
-// NewMockTransactions creates a new mock instance
+// NewMockTransactions creates a new mock instance.
 func NewMockTransactions(ctrl *gomock.Controller) *MockTransactions {
 	mock := &MockTransactions{ctrl: ctrl}
 	mock.recorder = &MockTransactionsMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTransactions) EXPECT() *MockTransactionsMockRecorder {
 	return m.recorder
 }
 
-// Subscribe mocks base method
-func (m *MockTransactions) Subscribe(documentType string, receiver dag.Receiver) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Subscribe", documentType, receiver)
-}
-
-// Subscribe indicates an expected call of Subscribe
-func (mr *MockTransactionsMockRecorder) Subscribe(documentType, receiver interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), documentType, receiver)
-}
-
-// GetDocumentPayload mocks base method
-func (m *MockTransactions) GetDocumentPayload(documentRef hash.SHA256Hash) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDocumentPayload", documentRef)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetDocumentPayload indicates an expected call of GetDocumentPayload
-func (mr *MockTransactionsMockRecorder) GetDocumentPayload(documentRef interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocumentPayload", reflect.TypeOf((*MockTransactions)(nil).GetDocumentPayload), documentRef)
-}
-
-// GetDocument mocks base method
-func (m *MockTransactions) GetDocument(documentRef hash.SHA256Hash) (dag.Document, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDocument", documentRef)
-	ret0, _ := ret[0].(dag.Document)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetDocument indicates an expected call of GetDocument
-func (mr *MockTransactionsMockRecorder) GetDocument(documentRef interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocument", reflect.TypeOf((*MockTransactions)(nil).GetDocument), documentRef)
-}
-
-// CreateDocument mocks base method
+// CreateDocument mocks base method.
 func (m *MockTransactions) CreateDocument(payloadType string, payload []byte, signingKeyID string, attachKey crypto.PublicKey, timestamp time.Time, fieldsOpts ...dag.FieldOpt) (dag.Document, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{payloadType, payload, signingKeyID, attachKey, timestamp}
@@ -91,14 +50,44 @@ func (m *MockTransactions) CreateDocument(payloadType string, payload []byte, si
 	return ret0, ret1
 }
 
-// CreateDocument indicates an expected call of CreateDocument
+// CreateDocument indicates an expected call of CreateDocument.
 func (mr *MockTransactionsMockRecorder) CreateDocument(payloadType, payload, signingKeyID, attachKey, timestamp interface{}, fieldsOpts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{payloadType, payload, signingKeyID, attachKey, timestamp}, fieldsOpts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDocument", reflect.TypeOf((*MockTransactions)(nil).CreateDocument), varargs...)
 }
 
-// ListDocuments mocks base method
+// GetDocument mocks base method.
+func (m *MockTransactions) GetDocument(documentRef hash.SHA256Hash) (dag.Document, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDocument", documentRef)
+	ret0, _ := ret[0].(dag.Document)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDocument indicates an expected call of GetDocument.
+func (mr *MockTransactionsMockRecorder) GetDocument(documentRef interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocument", reflect.TypeOf((*MockTransactions)(nil).GetDocument), documentRef)
+}
+
+// GetDocumentPayload mocks base method.
+func (m *MockTransactions) GetDocumentPayload(documentRef hash.SHA256Hash) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDocumentPayload", documentRef)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDocumentPayload indicates an expected call of GetDocumentPayload.
+func (mr *MockTransactionsMockRecorder) GetDocumentPayload(documentRef interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocumentPayload", reflect.TypeOf((*MockTransactions)(nil).GetDocumentPayload), documentRef)
+}
+
+// ListDocuments mocks base method.
 func (m *MockTransactions) ListDocuments() ([]dag.Document, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListDocuments")
@@ -107,8 +96,20 @@ func (m *MockTransactions) ListDocuments() ([]dag.Document, error) {
 	return ret0, ret1
 }
 
-// ListDocuments indicates an expected call of ListDocuments
+// ListDocuments indicates an expected call of ListDocuments.
 func (mr *MockTransactionsMockRecorder) ListDocuments() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListDocuments", reflect.TypeOf((*MockTransactions)(nil).ListDocuments))
+}
+
+// Subscribe mocks base method.
+func (m *MockTransactions) Subscribe(documentType string, receiver dag.Receiver) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Subscribe", documentType, receiver)
+}
+
+// Subscribe indicates an expected call of Subscribe.
+func (mr *MockTransactionsMockRecorder) Subscribe(documentType, receiver interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), documentType, receiver)
 }

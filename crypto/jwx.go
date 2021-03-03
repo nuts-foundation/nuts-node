@@ -22,6 +22,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
+	"encoding/base64"
 	"errors"
 	"fmt"
 
@@ -29,7 +30,6 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
-
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 
@@ -77,6 +77,14 @@ func (client *Crypto) SignJWS(payload []byte, protectedHeaders map[string]interf
 		return "", fmt.Errorf("error while signing JWS, can't get private key: %w", err)
 	}
 	return signJWS(payload, protectedHeaders, privateKey)
+}
+
+func (client *Crypto) SignDetachedJWS(payload []byte, kid string) (string, error) {
+	privateKey, err := client.Storage.GetPrivateKey(kid)
+	if err != nil {
+		return "", fmt.Errorf("error while signing JWS, can't get private key: %w", err)
+	}
+	return signDetachedJWS(payload, privateKey)
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
@@ -183,6 +191,20 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 		return "", fmt.Errorf("unable to sign JWS %w", err)
 	}
 	return string(data), nil
+}
+
+const jsonWebSignature2020Headers = "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19"
+
+// signDetachedJWS as specified by https://w3c-ccg.github.io/lds-jws2020/ and https://w3c-ccg.github.io/ld-proofs/#proof-algorithm
+func signDetachedJWS(payload []byte, privateKey crypto.Signer) (string, error) {
+	sig, err := jws.Sign(payload, jwa.ES256, privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	b64Sig := base64.StdEncoding.EncodeToString(sig)
+
+	return fmt.Sprintf("%s..%s", jsonWebSignature2020Headers, b64Sig), nil
 }
 
 func convertHeaders(headers map[string]interface{}) (hdr jws.Headers) {

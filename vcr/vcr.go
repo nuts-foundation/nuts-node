@@ -20,31 +20,45 @@
 package vcr
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"path"
 	"time"
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/logging"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/pkg/errors"
 )
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance() VCR {
+func NewVCRInstance(keystore crypto.KeyStore, docResolver vdr.DocResolver, network network.Transactions) VCR {
 	return &vcr{
-		config:   DefaultConfig(),
-		registry: concept.NewRegistry(),
+		config:      DefaultConfig(),
+		registry:    concept.NewRegistry(),
+		keystore: 	 keystore,
+		docResolver: docResolver,
+		network:     network,
 	}
 }
 
 type vcr struct {
-	registry concept.Registry
-	config   Config
-	store    leia.Store
+	registry    concept.Registry
+	config      Config
+	store       leia.Store
+	keystore    crypto.KeyStore
+	docResolver vdr.DocResolver
+	network     network.Transactions
 }
 
 func (c *vcr) Registry() concept.Registry {
@@ -155,12 +169,99 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 	return VCs, nil
 }
 
+// signDetachedJWS as specified by https://w3c-ccg.github.io/lds-jws2020/ and https://w3c-ccg.github.io/ld-proofs/#proof-algorithm
+// canonicalize: https://w3id.org/rdf#URDNA2015 >> https://json-ld.github.io/normalization/spec/ (todo, skipped for now)
+// msg digest SHA-256: hash(proof) + hash(doc)
+// base64(headers).sha256(proof)sha256(doc)
+// sig alg: JSON Web Signature (JWS) Unencoded Payload Option
+
+func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
+	validator, builder := credential.FindValidatorAndBuilder(vc)
+	if validator == nil || builder == nil {
+		return nil, errors.New(ErrUnknownCredentialType)
+	}
+
+	// find issuer
+	issuer, err := did.ParseDID(vc.Issuer.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse issuer: %w", err)
+	}
+
+	// resolve an assertionMethod key for issuer
+	kid, err := c.resolveAssertionKey(*issuer)
+	if err != nil {
+		return nil, fmt.Errorf("invalid issuer: %w", err)
+	}
+
+	// set defaults and sign
+	err = builder.Build(&vc, func(vc *did.VerifiableCredential) error {
+		payload, err := json.Marshal(vc)
+		if err != nil {
+			return err
+		}
+
+		// create proof
+		pr := did.Proof {
+			Type:               "JsonWebSignature2020",
+			ProofPurpose:       "assertionMethod",
+			VerificationMethod: kid,
+			Created:            time.Now(),
+		}
+		prJson, err := json.Marshal(pr)
+		if err != nil {
+			return err
+		}
+		prHash := hash.SHA256Sum(prJson)
+		vcHash := hash.SHA256Sum(payload)
+		tbs := fmt.Sprintf("%s%s", base64.URLEncoding.EncodeToString(prHash.Slice()) ,base64.URLEncoding.EncodeToString(vcHash.Slice()))
+
+		sig, err := c.keystore.SignDetachedJWS([]byte(tbs), kid.String())
+		if err != nil {
+			return err
+		}
+
+		vc.Proof = []interface{}{
+			credential.JsonWebSignature2020Proof {
+				pr,
+				sig,
+			},
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := validator.Validate(vc); err != nil {
+		return nil, fmt.Errorf("invalid credential: %w", err)
+	}
+
+	payload, err := json.Marshal(vc)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = c.network.CreateDocument(createDocumentType(builder.Type()), payload, kid.String(), nil, vc.IssuanceDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish credential: %w", err)
+	}
+
+	logging.Log().Infof("Verifiable Credential created: %s", vc.ID)
+
+	return &vc, nil
+}
+
 func (c *vcr) Resolve(ID string) (did.VerifiableCredential, error) {
 	panic("implement me")
 }
 
 func (c *vcr) Verify(vc did.VerifiableCredential, credentialSubject interface{}, at time.Time) (bool, error) {
 	panic("implement me")
+}
+
+func createDocumentType(vcType string) string {
+	return fmt.Sprintf(vcDocumentType, vcType)
 }
 
 // convert returns a map of credential type to query
@@ -183,4 +284,22 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	}
 
 	return qs
+}
+
+func (c *vcr) resolveAssertionKey(id did.DID) (did.URI, error) {
+	doc, _, err := c.docResolver.Resolve(id, nil)
+	if err != nil {
+		return did.URI{}, err
+	}
+
+	keys := doc.AssertionMethod
+	for _, key := range keys {
+		kid := key.ID.String()
+		if c.keystore.PrivateKeyExists(kid) {
+			u, _ := url.Parse(kid)
+			return did.URI{URL: *u}, nil
+		}
+	}
+
+	return did.URI{}, fmt.Errorf("no valid assertion keys found for: %s", id.String())
 }

@@ -8,7 +8,7 @@ Nuts node development
 Dependencies
 ************
 
-Go >= 1.15 is required.
+Go >= 1.16 is required.
 
 Running tests
 *************

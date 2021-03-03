@@ -20,7 +20,11 @@
 package v1
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
@@ -73,7 +77,19 @@ func (w *Wrapper) Revoke(ctx echo.Context, id string) error {
 
 // Create a Verifiable credential
 func (w *Wrapper) Create(ctx echo.Context) error {
-	panic("implement me")
+	vc := did.VerifiableCredential{}
+
+	if err := ctx.Bind(&vc); err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse request body: %s", err.Error()))
+	}
+
+	vcCreated, err := w.R.Issue(vc)
+	if err != nil {
+		// todo error distinction
+		return ctx.String(http.StatusBadRequest, err.Error())
+	}
+
+	return ctx.JSON(http.StatusOK, vcCreated)
 }
 
 // Resolve a VC and return its content

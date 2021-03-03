@@ -54,6 +54,7 @@ type VDR struct {
 	networkAmbassador Ambassador
 	_logger           *logrus.Entry
 	didDocCreator     types.DocCreator
+	keyStore          crypto.KeyStore
 }
 
 // NewVDR creates a new VDR with provided params
@@ -66,6 +67,7 @@ func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.T
 		store:             store,
 		didDocCreator:     NutsDocCreator{keyCreator: cryptoClient},
 		networkAmbassador: NewAmbassador(networkClient, store, cryptoClient),
+		keyStore:          cryptoClient,
 	}
 }
 

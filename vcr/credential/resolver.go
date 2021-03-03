@@ -17,19 +17,32 @@
  *
  */
 
-package vcr
+package credential
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/sirupsen/logrus"
+	"github.com/nuts-foundation/go-did"
 )
 
-// NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
-// specified test directory.
-func NewTestVCRInstance(testDirectory string) *vcr {
-	newInstance := NewVCRInstance(nil, nil, nil).(*vcr)
-	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
-		logrus.Fatal(err)
+// FindValidatorAndBuilder finds the Validator and Builder for the credential Type
+// It returns nils when not found.
+func FindValidatorAndBuilder(credential did.VerifiableCredential) (Validator, Builder) {
+	if vcTypes := extractTypes(credential); len(vcTypes) > 0 {
+		return defaultValidator{}, defaultBuilder{
+			vcType: vcTypes[0],
+		}
 	}
-	return newInstance
+
+	return nil, nil
+}
+
+func extractTypes(credential did.VerifiableCredential) []string {
+	var vcTypes []string
+
+	for _, t := range credential.Type {
+		if "VerifiableCredential" != t.String() {
+			vcTypes = append(vcTypes, t.String())
+		}
+	}
+
+	return vcTypes
 }

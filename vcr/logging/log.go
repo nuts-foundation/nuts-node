@@ -1,5 +1,4 @@
 /*
- * Nuts node
  * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,19 +16,16 @@
  *
  */
 
-package vcr
+package logging
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 )
 
-// NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
-// specified test directory.
-func NewTestVCRInstance(testDirectory string) *vcr {
-	newInstance := NewVCRInstance(nil, nil, nil).(*vcr)
-	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
-		logrus.Fatal(err)
-	}
-	return newInstance
+var _logger = logrus.StandardLogger().WithField("module", "VCR")
+
+// Log returns a logger which should be used for logging in this engine. It adds fields so
+// log entries from this engine can be recognized as such.
+func Log() *logrus.Entry {
+	return _logger
 }
