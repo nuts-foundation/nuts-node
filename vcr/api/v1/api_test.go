@@ -33,7 +33,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestWrapper_CreateDID(t *testing.T) {
 	u, _ := url.Parse("did:nuts:1")
 	issuer := did2.URI{URL: *u}

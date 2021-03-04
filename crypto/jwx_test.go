@@ -241,7 +241,7 @@ func TestCrypto_SignDetachedJWS(t *testing.T) {
 
 			assert.Len(t, m, 3)
 			assert.Equal(t, "ES256", m["alg"])
-			assert.Equal(t, []interface {}{"b64"}, m["crit"])
+			assert.Equal(t, []interface{}{"b64"}, m["crit"])
 			assert.Equal(t, false, m["b64"])
 		})
 

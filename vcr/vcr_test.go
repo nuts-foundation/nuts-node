@@ -59,7 +59,7 @@ func TestVCR_Configure(t *testing.T) {
 		t.Run("loads default templates", func(t *testing.T) {
 			cTemplates := instance.registry.ConceptTemplates()
 
-			if ! assert.Len(t, cTemplates, 1) {
+			if !assert.Len(t, cTemplates, 1) {
 				return
 			}
 

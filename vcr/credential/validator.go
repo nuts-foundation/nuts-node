@@ -28,7 +28,7 @@ import (
 
 // Validator is the interface specific VC verification.
 // Every VC will have it's own rules of verification.
-type Validator interface{
+type Validator interface {
 	// Validate the given credential according to the rules of the VC type.
 	Validate(credential did.VerifiableCredential) error
 }
@@ -84,7 +84,7 @@ func containsContext(credential did.VerifiableCredential, context string) bool {
 }
 
 // nutsOrganizationCredentialValidator checks if there's a 'name' and 'city' in the 'organization' struct
-type nutsOrganizationCredentialValidator struct {}
+type nutsOrganizationCredentialValidator struct{}
 
 func (d nutsOrganizationCredentialValidator) Validate(credential did.VerifiableCredential) error {
 	var target = make([]NutsOrganizationCredentialSubject, 0)

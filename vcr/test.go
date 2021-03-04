@@ -45,26 +45,25 @@ func NewTestVCRInstance(testDirectory string) *vcr {
 	return newInstance
 }
 
-
 type mockContext struct {
-	ctrl     *gomock.Controller
-	crypto   *crypto.MockKeyStore
-	tx       *network.MockTransactions
-	vcr      VCR
-	vdr      *types.MockDocResolver
+	ctrl   *gomock.Controller
+	crypto *crypto.MockKeyStore
+	tx     *network.MockTransactions
+	vcr    VCR
+	vdr    *types.MockDocResolver
 }
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
-	tx :=  network.NewMockTransactions(ctrl)
+	tx := network.NewMockTransactions(ctrl)
 	vdr := types.NewMockDocResolver(ctrl)
 
 	return mockContext{
-		ctrl:     ctrl,
-		crypto:   crypto,
-		tx:       tx,
-		vcr:      NewVCRInstance(crypto, vdr, tx).(*vcr),
-		vdr:      vdr,
+		ctrl:   ctrl,
+		crypto: crypto,
+		tx:     tx,
+		vcr:    NewVCRInstance(crypto, vdr, tx).(*vcr),
+		vdr:    vdr,
 	}
 }

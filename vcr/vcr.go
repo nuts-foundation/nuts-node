@@ -45,7 +45,7 @@ func NewVCRInstance(keystore crypto.KeyStore, docResolver vdr.DocResolver, netwo
 	return &vcr{
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
-		keystore: 	 keystore,
+		keystore:    keystore,
 		docResolver: docResolver,
 		network:     network,
 	}
@@ -281,7 +281,7 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 	}
 
 	// create proof
-	pr := did.Proof {
+	pr := did.Proof{
 		Type:               "JsonWebSignature2020",
 		ProofPurpose:       "assertionMethod",
 		VerificationMethod: kid,
@@ -303,7 +303,7 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 	}
 
 	vc.Proof = []interface{}{
-		JsonWebSignature2020Proof {
+		JsonWebSignature2020Proof{
 			pr,
 			sig,
 		},

@@ -181,7 +181,7 @@ func validNutsOrganizationCredential() *did.VerifiableCredential {
 		Issuer:            stringToURI(vdr.RandomDID.String()),
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},
-		Proof:			   []interface{}{did.Proof{}},
+		Proof:             []interface{}{did.Proof{}},
 	}
 }
 

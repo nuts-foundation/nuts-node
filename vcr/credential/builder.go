@@ -67,4 +67,3 @@ func generateID(issuer did.URI) *did.URI {
 	u, _ := url.Parse(id)
 	return &did.URI{URL: *u}
 }
-
