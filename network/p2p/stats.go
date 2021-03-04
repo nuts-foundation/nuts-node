@@ -55,3 +55,16 @@ func (p PeersStatistic) String() string {
 	})
 	return strings.Join(addrs, " ")
 }
+
+type OwnPeerIDStatistic struct {
+	peerID PeerID
+}
+
+func (o OwnPeerIDStatistic) Name() string {
+	return "[P2P Network] Peer ID of local node"
+}
+
+func (o OwnPeerIDStatistic) String() string {
+	return o.peerID.String()
+}
+

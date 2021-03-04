@@ -71,6 +71,7 @@ func (n p2pNetwork) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{
 		NumberOfPeersStatistic{NumberOfPeers: len(peers)},
 		PeersStatistic{Peers: peers},
+		OwnPeerIDStatistic{peerID: n.config.PeerID},
 	}
 }
 
@@ -124,7 +125,7 @@ func (c *connector) connect(ownID PeerID, config *tls.Config) (*connection, erro
 	grpcConn, err := c.Dialer(dialContext, c.address,
 		grpc.WithBlock(),                                          // Dial should block until connection succeeded (or time-out expired)
 		grpc.WithTransportCredentials(credentials.NewTLS(config)), // TLS authentication
-		grpc.WithReturnConnectionError()) // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
+		grpc.WithReturnConnectionError()) 						   // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
 	if err != nil {
 		return nil, errors2.Wrap(err, "unable to connect")
 	}
