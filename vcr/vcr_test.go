@@ -174,6 +174,11 @@ func TestVcr_Issue(t *testing.T) {
 		assert.Equal(t, "sig", proof[0].Jws)
 	})
 
+	t.Run("ok - verification", func(t *testing.T) {
+		// will add when verification is implemented
+		t.SkipNow()
+	})
+
 	t.Run("error - unknown DID", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr

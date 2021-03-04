@@ -27,8 +27,10 @@ import (
 // It returns nils when not found.
 func FindValidatorAndBuilder(credential did.VerifiableCredential) (Validator, Builder) {
 	if vcTypes := extractTypes(credential); len(vcTypes) > 0 {
-		return defaultValidator{}, defaultBuilder{
-			vcType: vcTypes[0],
+		for _, t := range vcTypes {
+			if t == NutsOrganizationCredential {
+				return nutsOrganizationCredentialValidator{}, defaultBuilder{vcType: NutsOrganizationCredential}
+			}
 		}
 	}
 

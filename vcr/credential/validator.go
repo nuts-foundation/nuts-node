@@ -21,6 +21,7 @@ package credential
 
 import (
 	"errors"
+	"time"
 
 	"github.com/nuts-foundation/go-did"
 )
@@ -34,59 +35,77 @@ type Validator interface{
 
 // validate the default fields
 func validate(credential did.VerifiableCredential) error {
+
+	if !typeContains(credential, "VerifiableCredential") {
+		return errors.New("validation failed: 'VerifiableCredential' is required")
+	}
+
+	if credential.ID == nil {
+		return errors.New("validation failed: 'ID' is required")
+	}
+
+	if credential.Context == nil {
+		return errors.New("validation failed: '@context' is required")
+	}
+
+	if credential.IssuanceDate.Equal(time.Time{}) {
+		return errors.New("validation failed: 'issuanceDate' is required")
+	}
+
+	if credential.Proof == nil {
+		return errors.New("validation failed: 'proof' is required")
+	}
+
 	return nil
 }
 
-// defaultValidator just checks if all fields in the credentialSubject have some sort of value.
-// It doesn't detects missing fields.
-type defaultValidator struct {}
+func typeContains(credential did.VerifiableCredential, vcType string) bool {
+	for _, t := range credential.Type {
+		if t.String() == vcType {
+			return true
+		}
+	}
 
-func (d defaultValidator) Validate(credential did.VerifiableCredential) error {
-	var target = make([]interface{}, 0)
+	return false
+}
+
+// nutsOrganizationCredentialValidator checks if there's a 'name' and 'city' in the 'organization' struct
+type nutsOrganizationCredentialValidator struct {}
+
+func (d nutsOrganizationCredentialValidator) Validate(credential did.VerifiableCredential) error {
+	var target = make([]NutsOrganizationCredentialSubject, 0)
 
 	if err := validate(credential); err != nil {
 		return err
+	}
+
+	if !typeContains(credential, NutsOrganizationCredential) {
+		return errors.New("validation failed: 'VerifiableCredential' is required")
 	}
 
 	if err := credential.UnmarshalCredentialSubject(&target); err != nil {
 		return err
 	}
 
-	if !notEmptyRecursive(target) {
-		return errors.New("validation failed: one or more fields are empty")
+	if len(target) != 1 {
+		return errors.New("validation failed: single CredentialSubject expected")
+	}
+	cs := target[0]
+
+	if cs.Organization == nil {
+		return errors.New("validation failed: 'credentialSubject.organization' is empty")
+	}
+	if cs.ID == "" {
+		return errors.New("validation failed: 'credentialSubject.ID' is nil")
+	}
+
+	if n, ok := cs.Organization["name"]; !ok || len(n) == 0 {
+		return errors.New("validation failed: 'credentialSubject.name' is empty")
+	}
+
+	if c, ok := cs.Organization["city"]; !ok || len(c) == 0 {
+		return errors.New("validation failed: 'credentialSubject.city' is empty")
 	}
 
 	return nil
 }
-
-func notEmptyRecursive(val interface{}) bool {
-	if m, ok := val.(map[string]interface{}); ok {
-		if len(m) == 0 {
-			return false
-		}
-		for _, v := range m {
-			if b := notEmptyRecursive(v); !b {
-				return false
-			}
-		}
-	}
-
-	if as, ok := val.([]interface{}); ok {
-		if len(as) == 0 {
-			return false
-		}
-		for _, a := range as {
-			if b := notEmptyRecursive(a); !b {
-				return false
-			}
-		}
-	}
-
-	if s, ok := val.(string); ok {
-		return len(s) > 0
-	}
-
-	// numbers for example
-	return true
-}
-
