@@ -37,7 +37,7 @@ func (n NumberOfPeersStatistic) String() string {
 }
 
 type PeersStatistic struct {
-	Peers []PeerID
+	Peers []Peer
 }
 
 func (p PeersStatistic) Name() string {

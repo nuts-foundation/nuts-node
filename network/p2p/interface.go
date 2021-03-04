@@ -21,6 +21,7 @@ package p2p
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -47,11 +48,23 @@ type P2PNetwork interface {
 	// Broadcast sends a message to all peers.
 	Broadcast(message *transport.NetworkMessage)
 	// Peers returns our peers (remote nodes we're currently connected to).
-	Peers() []PeerID
+	Peers() []Peer
 }
 
 type MessageQueue interface {
 	Get() PeerMessage
+}
+
+// Peer holds the properties of a remote node we're connected to
+type Peer struct {
+	// ID holds the unique identificator of the peer
+	ID PeerID
+	// Address holds the remote address of the node we're actually connected to
+	Address string
+}
+
+func (p Peer) String() string {
+	return fmt.Sprintf("%s@%s", p.ID, p.Address)
 }
 
 type PeerID string
