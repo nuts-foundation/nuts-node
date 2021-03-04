@@ -3,7 +3,6 @@ package vdr
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"encoding/base64"
 	"errors"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -36,12 +35,12 @@ func newNamingFnForExistingDID(existingDID did.DID) nutsCrypto.KIDNamingFunc {
 		if err != nil {
 			return "", err
 		}
-		thumbprint, err := jwKey.Thumbprint(thumbprintAlg)
+		err = jwk.AssignKeyID(jwKey)
 		if err != nil {
 			return "", err
 		}
 
-		existingDID.Fragment = base64.RawURLEncoding.EncodeToString(thumbprint)
+		existingDID.Fragment = jwKey.KeyID()
 
 		return existingDID.String(), nil
 	}
