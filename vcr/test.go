@@ -20,16 +20,51 @@
 package vcr
 
 import (
+	"testing"
+
+	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/sirupsen/logrus"
 )
 
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.
 func NewTestVCRInstance(testDirectory string) *vcr {
-	newInstance := NewVCRInstance(nil, nil, nil).(*vcr)
+	newInstance := NewVCRInstance(
+		nil,
+		nil,
+		nil,
+	).(*vcr)
+
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)
 	}
 	return newInstance
+}
+
+
+type mockContext struct {
+	ctrl     *gomock.Controller
+	crypto   *crypto.MockKeyStore
+	tx       *network.MockTransactions
+	vcr      VCR
+	vdr      *types.MockDocResolver
+}
+
+func newMockContext(t *testing.T) mockContext {
+	ctrl := gomock.NewController(t)
+	crypto := crypto.NewMockKeyStore(ctrl)
+	tx :=  network.NewMockTransactions(ctrl)
+	vdr := types.NewMockDocResolver(ctrl)
+
+	return mockContext{
+		ctrl:     ctrl,
+		crypto:   crypto,
+		tx:       tx,
+		vcr:      NewVCRInstance(crypto, vdr, tx).(*vcr),
+		vdr:      vdr,
+	}
 }

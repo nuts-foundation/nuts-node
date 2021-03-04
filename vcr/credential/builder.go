@@ -37,7 +37,7 @@ type Builder interface {
 	// Type returns the matching Verifiable Credential type
 	Type() string
 	// Build sets the defaults for common fields and creates the signature
-	Build(vc *did.VerifiableCredential, fn FnProofBuilder) error
+	Build(vc *did.VerifiableCredential)
 }
 
 // defaultBuilder fills in the type, issuanceDate and context
@@ -45,30 +45,7 @@ type defaultBuilder struct {
 	vcType string
 }
 
-//{
-//"type": "EcdsaSecp256r1Signature2019",
-//"created": "2017-06-18T21:19:10Z",
-//"proofPurpose": "assertionMethod",
-//"verificationMethod": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#90382475609238467#qjHYrzaJjpEstmDATng4-cGmR4t-_V3ipbDVYZrVe4A",
-//"jws": "eyJhbGciOiJSUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..TCYt5X
-//sITJX1CxPCT8yAV-TVkIEq_PbChOMqsLfRoPsnsgw5WEuts01mq-pQy7UJiN5mgRxD-WUc
-//X16dUEMGlv50aqzpqh4Qktb3rk-BuQy72IFLOqV0G_zS245-kronKb78cPN25DGlcTwLtj
-//PAYuNzVBAh4vGHSrQyHUdBBPM"
-//}
-
-// header {"alg":"ES256","b64":false,"crit":["b64"]}
-// payload: the VC in detached form
-// sig type: JsonWebSignature2020
-
-// FnProofBuilder is a function that generates the proof on a credential
-type FnProofBuilder func(vc *did.VerifiableCredential) error
-
-type JsonWebSignature2020Proof struct {
-	did.Proof
-	Jws string `json:"jws"`
-}
-
-func (d defaultBuilder) Build(vc *did.VerifiableCredential, fn FnProofBuilder) error {
+func (d defaultBuilder) Build(vc *did.VerifiableCredential) {
 	u, _ := url.Parse(defaultContext)
 	u2, _ := url.Parse(nutsContext)
 	vc.Context = []did.URI{{*u}, {*u2}}
@@ -78,7 +55,7 @@ func (d defaultBuilder) Build(vc *did.VerifiableCredential, fn FnProofBuilder) e
 	vc.IssuanceDate = time.Now()
 	vc.ID = generateID(vc.Issuer)
 
-	return fn(vc)
+	return
 }
 
 func (d defaultBuilder) Type() string {

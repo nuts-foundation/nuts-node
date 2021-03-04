@@ -60,6 +60,12 @@ type vcr struct {
 	network     network.Transactions
 }
 
+// JsonWebSignature2020Proof is a VC proof with a signature according to JsonWebSignature2020
+type JsonWebSignature2020Proof struct {
+	did.Proof
+	Jws string `json:"jws"`
+}
+
 func (c *vcr) Registry() concept.Registry {
 	return c.registry
 }
@@ -168,12 +174,8 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 	return VCs, nil
 }
 
-// signDetachedJWS as specified by https://w3c-ccg.github.io/lds-jws2020/ and https://w3c-ccg.github.io/ld-proofs/#proof-algorithm
-// canonicalize: https://w3id.org/rdf#URDNA2015 >> https://json-ld.github.io/normalization/spec/ (todo, skipped for now)
-// msg digest SHA-256: hash(proof) + hash(doc)
-// base64(headers).sha256(proof)sha256(doc)
-// sig alg: JSON Web Signature (JWS) Unencoded Payload Option
-
+// todo custom validator for NutsOrganizationCredential
+// sig verification
 func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
 	validator, builder := credential.FindValidatorAndBuilder(vc)
 	if validator == nil || builder == nil {
@@ -192,48 +194,15 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 		return nil, fmt.Errorf("validation failed: invalid issuer: %w", err)
 	}
 
-	// set defaults and sign
-	err = builder.Build(&vc, func(vc *did.VerifiableCredential) error {
-		payload, err := json.Marshal(vc)
-		if err != nil {
-			return err
-		}
+	// set defaults
+	builder.Build(&vc)
 
-		// create proof
-		pr := did.Proof {
-			Type:               "JsonWebSignature2020",
-			ProofPurpose:       "assertionMethod",
-			VerificationMethod: kid,
-			Created:            time.Now(),
-		}
-		prJson, err := json.Marshal(pr)
-		if err != nil {
-			return err
-		}
-		prHash := hash.SHA256Sum(prJson).Slice()
-		vcHash := hash.SHA256Sum(payload).Slice()
-		tbs := make([]byte, len(prHash)+len(vcHash))
-		copy(tbs, prHash)
-		copy(tbs[len(prHash):], vcHash)
-
-		sig, err := c.keystore.SignDetachedJWS(tbs, kid.String())
-		if err != nil {
-			return err
-		}
-
-		vc.Proof = []interface{}{
-			credential.JsonWebSignature2020Proof {
-				pr,
-				sig,
-			},
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
+	// sign
+	if err := c.generateProof(&vc, kid); err != nil {
+		return nil, fmt.Errorf("failed to generate credential proof: %w", err)
 	}
 
+	// do same validation as network nodes
 	if err := validator.Validate(vc); err != nil {
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
@@ -303,4 +272,42 @@ func (c *vcr) resolveAssertionKey(id did.DID) (did.URI, error) {
 	}
 
 	return did.URI{}, fmt.Errorf("no valid assertion keys found for: %s", id.String())
+}
+
+func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
+	payload, err := json.Marshal(vc)
+	if err != nil {
+		return err
+	}
+
+	// create proof
+	pr := did.Proof {
+		Type:               "JsonWebSignature2020",
+		ProofPurpose:       "assertionMethod",
+		VerificationMethod: kid,
+		Created:            vc.IssuanceDate,
+	}
+	prJson, err := json.Marshal(pr)
+	if err != nil {
+		return err
+	}
+	prHash := hash.SHA256Sum(prJson).Slice()
+	vcHash := hash.SHA256Sum(payload).Slice()
+	tbs := make([]byte, len(prHash)+len(vcHash))
+	copy(tbs, prHash)
+	copy(tbs[len(prHash):], vcHash)
+
+	sig, err := c.keystore.SignDetachedJWS(tbs, kid.String())
+	if err != nil {
+		return err
+	}
+
+	vc.Proof = []interface{}{
+		JsonWebSignature2020Proof {
+			pr,
+			sig,
+		},
+	}
+
+	return nil
 }

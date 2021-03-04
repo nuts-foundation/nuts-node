@@ -61,6 +61,9 @@ func (d defaultValidator) Validate(credential did.VerifiableCredential) error {
 
 func notEmptyRecursive(val interface{}) bool {
 	if m, ok := val.(map[string]interface{}); ok {
+		if len(m) == 0 {
+			return false
+		}
 		for _, v := range m {
 			if b := notEmptyRecursive(v); !b {
 				return false
@@ -69,6 +72,9 @@ func notEmptyRecursive(val interface{}) bool {
 	}
 
 	if as, ok := val.([]interface{}); ok {
+		if len(as) == 0 {
+			return false
+		}
 		for _, a := range as {
 			if b := notEmptyRecursive(a); !b {
 				return false
