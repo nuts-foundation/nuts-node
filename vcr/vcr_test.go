@@ -177,7 +177,6 @@ func TestVcr_Issue(t *testing.T) {
 
 	t.Run("ok - verification", func(t *testing.T) {
 		// will add when verification is implemented
-		t.SkipNow()
 	})
 
 	t.Run("error - unknown DID", func(t *testing.T) {
