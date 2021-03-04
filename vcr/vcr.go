@@ -174,7 +174,7 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 	return VCs, nil
 }
 
-// todo custom validator for NutsOrganizationCredential
+// todo custom validator for NutsOrganizationCredentialType
 // sig verification
 func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
 	validator, builder := credential.FindValidatorAndBuilder(vc)

@@ -28,8 +28,8 @@ import (
 func FindValidatorAndBuilder(credential did.VerifiableCredential) (Validator, Builder) {
 	if vcTypes := extractTypes(credential); len(vcTypes) > 0 {
 		for _, t := range vcTypes {
-			if t == NutsOrganizationCredential {
-				return nutsOrganizationCredentialValidator{}, defaultBuilder{vcType: NutsOrganizationCredential}
+			if t == NutsOrganizationCredentialType {
+				return nutsOrganizationCredentialValidator{}, defaultBuilder{vcType: NutsOrganizationCredentialType}
 			}
 		}
 	}

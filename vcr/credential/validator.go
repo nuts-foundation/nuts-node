@@ -36,16 +36,20 @@ type Validator interface{
 // validate the default fields
 func validate(credential did.VerifiableCredential) error {
 
-	if !typeContains(credential, "VerifiableCredential") {
+	if !containsType(credential, DefaultCredentialType) {
 		return errors.New("validation failed: 'VerifiableCredential' is required")
+	}
+
+	if !containsContext(credential, DefaultContext) {
+		return errors.New("validation failed: default context is required")
+	}
+
+	if !containsContext(credential, NutsContext) {
+		return errors.New("validation failed: nuts context is required")
 	}
 
 	if credential.ID == nil {
 		return errors.New("validation failed: 'ID' is required")
-	}
-
-	if credential.Context == nil {
-		return errors.New("validation failed: '@context' is required")
 	}
 
 	if credential.IssuanceDate.Equal(time.Time{}) {
@@ -59,9 +63,19 @@ func validate(credential did.VerifiableCredential) error {
 	return nil
 }
 
-func typeContains(credential did.VerifiableCredential, vcType string) bool {
+func containsType(credential did.VerifiableCredential, vcType string) bool {
 	for _, t := range credential.Type {
 		if t.String() == vcType {
+			return true
+		}
+	}
+
+	return false
+}
+
+func containsContext(credential did.VerifiableCredential, context string) bool {
+	for _, c := range credential.Context {
+		if c.String() == context {
 			return true
 		}
 	}
@@ -79,14 +93,12 @@ func (d nutsOrganizationCredentialValidator) Validate(credential did.VerifiableC
 		return err
 	}
 
-	if !typeContains(credential, NutsOrganizationCredential) {
+	if !containsType(credential, NutsOrganizationCredentialType) {
 		return errors.New("validation failed: 'VerifiableCredential' is required")
 	}
 
-	if err := credential.UnmarshalCredentialSubject(&target); err != nil {
-		return err
-	}
-
+	// if it fails, length check will trigger
+	_ = credential.UnmarshalCredentialSubject(&target)
 	if len(target) != 1 {
 		return errors.New("validation failed: single CredentialSubject expected")
 	}

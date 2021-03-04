@@ -19,10 +19,18 @@
 
 package credential
 
-// NutsOrganizationCredential is the VC type for a NutsOrganizationCredential
-const NutsOrganizationCredential = "NutsOrganizationCredential"
+const (
+	// NutsOrganizationCredentialType is the VC type for a NutsOrganizationCredentialType
+	NutsOrganizationCredentialType = "NutsOrganizationCredential"
+	// DefaultCredentialType is the default credential type required for every credential
+	DefaultCredentialType = "VerifiableCredential"
+	// DefaultContext is the context required for every credential
+	DefaultContext = "https://www.w3.org/2018/credentials/v1"
+	// NutsContext is the nuts specific json-ld context
+	NutsContext = "https://nuts.nl/credentials/v1"
+)
 
-// NutsOrganizationCredentialSubject defines the CredentialSubject struct for the NutsOrganizationCredential
+// NutsOrganizationCredentialSubject defines the CredentialSubject struct for the NutsOrganizationCredentialType
 type NutsOrganizationCredentialSubject struct {
 	ID           string `json:"id"`
 	Organization map[string]string

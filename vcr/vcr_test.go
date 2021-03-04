@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/stretchr/testify/assert"
 )
@@ -313,7 +314,7 @@ func validDIDDocument() *did.Document {
 }
 
 func validNutsOrganizationCredential() *did.VerifiableCredential {
-	u, _ := url.Parse("NutsOrganizationCredential")
+	u, _ := url.Parse(credential.NutsOrganizationCredentialType)
 	uri := did.URI{URL: *u}
 
 	u2, _ := url.Parse(vdr.RandomDID.String())
