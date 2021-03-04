@@ -60,8 +60,8 @@ type vcr struct {
 	network     network.Transactions
 }
 
-// JsonWebSignature2020Proof is a VC proof with a signature according to JsonWebSignature2020
-type JsonWebSignature2020Proof struct {
+// JSONWebSignature2020Proof is a VC proof with a signature according to JsonWebSignature2020
+type JSONWebSignature2020Proof struct {
 	did.Proof
 	Jws string `json:"jws"`
 }
@@ -287,11 +287,11 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 		VerificationMethod: kid,
 		Created:            vc.IssuanceDate,
 	}
-	prJson, err := json.Marshal(pr)
+	prJSON, err := json.Marshal(pr)
 	if err != nil {
 		return err
 	}
-	prHash := hash.SHA256Sum(prJson).Slice()
+	prHash := hash.SHA256Sum(prJSON).Slice()
 	vcHash := hash.SHA256Sum(payload).Slice()
 	tbs := make([]byte, len(prHash)+len(vcHash))
 	copy(tbs, prHash)
@@ -303,7 +303,7 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 	}
 
 	vc.Proof = []interface{}{
-		JsonWebSignature2020Proof{
+		JSONWebSignature2020Proof{
 			pr,
 			sig,
 		},

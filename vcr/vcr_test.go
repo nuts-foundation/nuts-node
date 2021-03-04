@@ -166,7 +166,7 @@ func TestVcr_Issue(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, issued)
 
-		var proof = make([]JsonWebSignature2020Proof, 1)
+		var proof = make([]JSONWebSignature2020Proof, 1)
 		err = issued.UnmarshalProofValue(&proof)
 		if !assert.NoError(t, err) {
 			return
