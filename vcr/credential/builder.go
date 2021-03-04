@@ -52,6 +52,10 @@ func (d defaultBuilder) Build(vc *did.VerifiableCredential) {
 
 	u3, _ := url.Parse(defaultType)
 	vc.Type = append(vc.Type, did.URI{URL: *u3})
+	if !containsType(*vc, d.vcType) {
+		u4, _ := url.Parse(d.vcType)
+		vc.Type = append(vc.Type, did.URI{URL: *u4})
+	}
 	vc.IssuanceDate = time.Now()
 	vc.ID = generateID(vc.Issuer)
 
