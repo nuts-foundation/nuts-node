@@ -2,12 +2,9 @@
 FROM golang:1.15-alpine as builder
 
 ARG TARGETARCH
-ARG BUILDPLATFORM
 ARG TARGETOS
 
 LABEL maintainer="wout.slakhorst@nuts.nl"
-
-RUN echo "The build is running on $BUILDPLATFORM, building for arch: $TARGETARCH and OS: $TARGETOS" > /log
 
 RUN apk update \
  && apk add --no-cache \
@@ -24,7 +21,7 @@ COPY go.sum .
 RUN go mod download && go mod verify
 
 COPY . .
-RUN GOOS=linux go build -ldflags="-w -s" -o /opt/nuts/nuts
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s" -o /opt/nuts/nuts
 
 # alpine 3.12.x
 FROM alpine:3.12
