@@ -1,7 +1,13 @@
 # golang alpine 1.13.x
 FROM golang:1.15-alpine as builder
 
+ARG TARGETARG
+ARG BUILDPLATFORM
+ARG TARGETOS
+
 LABEL maintainer="wout.slakhorst@nuts.nl"
+
+RUN echo "The build is running on $BUILDPLATFORM, building for arch: $TARGETARG and OS: $TARGETOS" > /log
 
 RUN apk update \
  && apk add --no-cache \
