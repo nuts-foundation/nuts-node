@@ -25,6 +25,7 @@ import (
 	"io/fs"
 	"net/url"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did"
@@ -174,8 +175,6 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 	return VCs, nil
 }
 
-// todo custom validator for NutsOrganizationCredentialType
-// sig verification
 func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
 	validator, builder := credential.FindValidatorAndBuilder(vc)
 	if validator == nil || builder == nil {
@@ -195,7 +194,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 	}
 
 	// set defaults
-	builder.Build(&vc)
+	builder.Fill(&vc)
 
 	// sign
 	if err := c.generateProof(&vc, kid); err != nil {
@@ -291,23 +290,38 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 	if err != nil {
 		return err
 	}
-	prHash := hash.SHA256Sum(prJSON).Slice()
-	vcHash := hash.SHA256Sum(payload).Slice()
-	tbs := make([]byte, len(prHash)+len(vcHash))
-	copy(tbs, prHash)
-	copy(tbs[len(prHash):], vcHash)
+	tbs := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
 
-	sig, err := c.keystore.SignDetachedJWS(tbs, kid.String())
+	sig, err := c.keystore.SignJWS(tbs, detachedJWSHeaders(), kid.String())
 	if err != nil {
 		return err
 	}
 
+	// remove payload from sig since a detached jws is required.
+	dsig := toDetachedSignature(sig)
+
 	vc.Proof = []interface{}{
 		JSONWebSignature2020Proof{
 			pr,
-			sig,
+			dsig,
 		},
 	}
 
 	return nil
+}
+
+// detachedJWSHeaders creates headers for JsonWebSignature2020
+// the alg will be based upon the key
+// {"alg":"ES256","b64":false,"crit":["b64"]}
+func detachedJWSHeaders() map[string]interface{} {
+	return map[string]interface{} {
+		"b64": false,
+		"crit": []string{"b64"},
+	}
+}
+
+// toDetachedSignature removes the middle part of the signature
+func toDetachedSignature(sig string) string {
+	splitted := strings.Split(sig, ".")
+	return strings.Join([]string{splitted[0], splitted[2]}, ".")
 }

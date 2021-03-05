@@ -152,7 +152,7 @@ func TestVcr_Issue(t *testing.T) {
 		cred := validNutsOrganizationCredential()
 		ctx.vdr.EXPECT().Resolve(didMatcher{*vdr.RandomDID}, nil).Return(validDIDDocument(), nil, nil)
 		ctx.crypto.EXPECT().PrivateKeyExists(vdr.RandomDID.String()).Return(true)
-		ctx.crypto.EXPECT().SignDetachedJWS(gomock.Any(), vdr.RandomDID.String()).Return("sig", nil)
+		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("hdr.pay.sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			"application/vc+json;type=NutsOrganizationCredential",
 			gomock.Any(),
@@ -172,7 +172,7 @@ func TestVcr_Issue(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, "sig", proof[0].Jws)
+		assert.Equal(t, "hdr.sig", proof[0].Jws)
 	})
 
 	t.Run("ok - verification", func(t *testing.T) {
@@ -227,7 +227,7 @@ func TestVcr_Issue(t *testing.T) {
 		cred.CredentialSubject = make([]interface{}, 0)
 		ctx.vdr.EXPECT().Resolve(didMatcher{*vdr.RandomDID}, nil).Return(validDIDDocument(), nil, nil)
 		ctx.crypto.EXPECT().PrivateKeyExists(vdr.RandomDID.String()).Return(true)
-		ctx.crypto.EXPECT().SignDetachedJWS(gomock.Any(), vdr.RandomDID.String()).Return("sig", nil)
+		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("hdr.pay.sig", nil)
 
 		_, err := instance.Issue(*cred)
 
@@ -256,7 +256,7 @@ func TestVcr_Issue(t *testing.T) {
 		cred := validNutsOrganizationCredential()
 		ctx.vdr.EXPECT().Resolve(didMatcher{*vdr.RandomDID}, nil).Return(validDIDDocument(), nil, nil)
 		ctx.crypto.EXPECT().PrivateKeyExists(vdr.RandomDID.String()).Return(true)
-		ctx.crypto.EXPECT().SignDetachedJWS(gomock.Any(), vdr.RandomDID.String()).Return("", errors.New("b00m!"))
+		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("", errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
 
@@ -271,7 +271,7 @@ func TestVcr_Issue(t *testing.T) {
 		cred := validNutsOrganizationCredential()
 		ctx.vdr.EXPECT().Resolve(didMatcher{*vdr.RandomDID}, nil).Return(validDIDDocument(), nil, nil)
 		ctx.crypto.EXPECT().PrivateKeyExists(vdr.RandomDID.String()).Return(true)
-		ctx.crypto.EXPECT().SignDetachedJWS(gomock.Any(), vdr.RandomDID.String()).Return("sig", nil)
+		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("hdr.pay.sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			"application/vc+json;type=NutsOrganizationCredential",
 			gomock.Any(),

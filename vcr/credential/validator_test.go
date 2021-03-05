@@ -106,6 +106,36 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("failed - empty organization city", func(t *testing.T) {
+		vc := validNutsOrganizationCredential()
+		var credentialSubject = make(map[string]interface{})
+		credentialSubject["id"] = vdr.AltRandomDID.String()
+		credentialSubject["organization"] = map[string]interface{}{
+			"name": "Because we care B.V.",
+			"city": " ",
+		}
+		vc.CredentialSubject = []interface{}{credentialSubject}
+
+		err := validator.Validate(*vc)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("failed - empty organization name", func(t *testing.T) {
+		vc := validNutsOrganizationCredential()
+		var credentialSubject = make(map[string]interface{})
+		credentialSubject["id"] = vdr.AltRandomDID.String()
+		credentialSubject["organization"] = map[string]interface{}{
+			"name": " ",
+			"city": "EIbergen",
+		}
+		vc.CredentialSubject = []interface{}{credentialSubject}
+
+		err := validator.Validate(*vc)
+
+		assert.Error(t, err)
+	})
+
 	t.Run("failed - missing credentialSubject.ID", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})

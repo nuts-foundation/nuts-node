@@ -25,6 +25,7 @@ import (
 
 // FindValidatorAndBuilder finds the Validator and Builder for the credential Type
 // It returns nils when not found.
+// It only supports VCs with one additional type next to the default VerifiableCredential type.
 func FindValidatorAndBuilder(credential did.VerifiableCredential) (Validator, Builder) {
 	if vcTypes := extractTypes(credential); len(vcTypes) > 0 {
 		for _, t := range vcTypes {

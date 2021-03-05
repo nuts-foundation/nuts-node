@@ -61,7 +61,7 @@ func TestDefaultBuilder_Build(t *testing.T) {
 		Issuer: issuer,
 	}
 
-	b.Build(vc)
+	b.Fill(vc)
 
 	t.Run("adds context", func(t *testing.T) {
 		assert.True(t, containsContext(*vc, DefaultContext))

@@ -22,7 +22,6 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
-	"encoding/base64"
 	"errors"
 	"fmt"
 
@@ -77,14 +76,6 @@ func (client *Crypto) SignJWS(payload []byte, protectedHeaders map[string]interf
 		return "", fmt.Errorf("error while signing JWS, can't get private key: %w", err)
 	}
 	return signJWS(payload, protectedHeaders, privateKey)
-}
-
-func (client *Crypto) SignDetachedJWS(payload []byte, kid string) (string, error) {
-	privateKey, err := client.Storage.GetPrivateKey(kid)
-	if err != nil {
-		return "", fmt.Errorf("error while signing JWS, can't get private key: %w", err)
-	}
-	return signDetachedJWS(payload, privateKey)
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
@@ -191,24 +182,6 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 		return "", fmt.Errorf("unable to sign JWS %w", err)
 	}
 	return string(data), nil
-}
-
-// jsonWebSignature2020Headers is a bse64 representation of {"alg":"ES256","b64":false,"crit":["b64"]}
-const jsonWebSignature2020Headers = "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19"
-
-// signDetachedJWS as specified by https://w3c-ccg.github.io/lds-jws2020/ and https://w3c-ccg.github.io/ld-proofs/#proof-algorithm
-func signDetachedJWS(payload []byte, privateKey crypto.Signer) (string, error) {
-	// we assume jwa.ES256 is supported here
-	signer, _ := jws.NewSigner(jwa.ES256)
-
-	sig, err := signer.Sign(payload, privateKey)
-	if err != nil {
-		return "", err
-	}
-
-	b64Sig := base64.StdEncoding.EncodeToString(sig)
-
-	return fmt.Sprintf("%s..%s", jsonWebSignature2020Headers, b64Sig), nil
 }
 
 func convertHeaders(headers map[string]interface{}) (hdr jws.Headers) {

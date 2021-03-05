@@ -53,7 +53,7 @@ type Writer interface {
 
 // VCR is the interface that covers all functionality of the vcr store.
 type VCR interface {
-	// Issue creates and publishes a new vcr.
+	// Issue creates and publishes a new VC.
 	// An optional expirationDate can be given.
 	// VCs are stored when the network has successfully published them.
 	Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error)

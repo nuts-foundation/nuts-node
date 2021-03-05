@@ -21,7 +21,6 @@ package credential
 
 import (
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,8 +35,8 @@ const defaultType = "VerifiableCredential"
 type Builder interface {
 	// Type returns the matching Verifiable Credential type
 	Type() string
-	// Build sets the defaults for common fields and creates the signature
-	Build(vc *did.VerifiableCredential)
+	// Fill sets the defaults for common fields
+	Fill(vc *did.VerifiableCredential)
 }
 
 // defaultBuilder fills in the type, issuanceDate and context
@@ -45,16 +44,16 @@ type defaultBuilder struct {
 	vcType string
 }
 
-func (d defaultBuilder) Build(vc *did.VerifiableCredential) {
-	u, _ := url.Parse(defaultContext)
-	u2, _ := url.Parse(nutsContext)
-	vc.Context = []did.URI{{*u}, {*u2}}
+func (d defaultBuilder) Fill(vc *did.VerifiableCredential) {
+	u, _ := did.ParseURI(defaultContext)
+	u2, _ := did.ParseURI(nutsContext)
+	vc.Context = []did.URI{*u, *u2}
 
-	u3, _ := url.Parse(defaultType)
-	vc.Type = append(vc.Type, did.URI{URL: *u3})
+	u3, _ := did.ParseURI(defaultType)
+	vc.Type = append(vc.Type, *u3)
 	if !containsType(*vc, d.vcType) {
-		u4, _ := url.Parse(d.vcType)
-		vc.Type = append(vc.Type, did.URI{URL: *u4})
+		u4, _ := did.ParseURI(d.vcType)
+		vc.Type = append(vc.Type, *u4)
 	}
 	vc.IssuanceDate = time.Now()
 	vc.ID = generateID(vc.Issuer)
@@ -68,6 +67,6 @@ func (d defaultBuilder) Type() string {
 
 func generateID(issuer did.URI) *did.URI {
 	id := fmt.Sprintf("%s#%s", issuer.String(), uuid.New().String())
-	u, _ := url.Parse(id)
-	return &did.URI{URL: *u}
+	u, _ := did.ParseURI(id)
+	return u
 }
