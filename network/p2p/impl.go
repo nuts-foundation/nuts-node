@@ -71,6 +71,7 @@ func (n p2pNetwork) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{
 		NumberOfPeersStatistic{NumberOfPeers: len(peers)},
 		PeersStatistic{Peers: peers},
+		OwnPeerIDStatistic{peerID: n.config.PeerID},
 	}
 }
 
