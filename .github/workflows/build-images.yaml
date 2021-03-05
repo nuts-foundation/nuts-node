@@ -32,4 +32,4 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64,linux/arm/v7
           push: true
-          tags: nutsfoundation/nuts-node:arch-test
+          tags: nutsfoundation/nuts-node:latest
