@@ -63,8 +63,8 @@ type VCR interface {
 	// todo: not implemented yet and subject to change
 	Resolve(ID string) (did.VerifiableCredential, error)
 	// Verify checks if a credential is valid and trusted at the given time.
-	// todo: not implemented yet and subject to change
-	Verify(vc did.VerifiableCredential, credentialSubject interface{}, at time.Time) (bool, error)
+	// If valid no error is returned.
+	Verify(vc did.VerifiableCredential, at time.Time) error
 	// Registry returns the concept registry
 	Registry() concept.Registry
 

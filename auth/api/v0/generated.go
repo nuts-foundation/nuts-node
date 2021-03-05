@@ -559,3 +559,4 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/auth/token_introspection", wrapper.IntrospectAccessToken)
 
 }
+

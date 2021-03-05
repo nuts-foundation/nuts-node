@@ -20,7 +20,9 @@
 package vcr
 
 import (
+	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -28,9 +30,11 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -175,10 +179,6 @@ func TestVcr_Issue(t *testing.T) {
 		assert.Equal(t, "sig", proof[0].Jws)
 	})
 
-	t.Run("ok - verification", func(t *testing.T) {
-		// will add when verification is implemented
-	})
-
 	t.Run("error - unknown DID", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
@@ -283,6 +283,68 @@ func TestVcr_Issue(t *testing.T) {
 		_, err := instance.Issue(*cred)
 
 		assert.Error(t, err)
+	})
+}
+
+
+func TestVcr_Verify(t *testing.T) {
+	// load VC
+	vc := did.VerifiableCredential{}
+	vcJSON, _ := ioutil.ReadFile("test/vc.json")
+	json.Unmarshal(vcJSON, &vc)
+
+	// oad pub key
+	pke := storage.PublicKeyEntry{}
+	pkeJSON, _ := ioutil.ReadFile("test/public.json")
+	json.Unmarshal(pkeJSON, &pke)
+	pk, _  :=  jwk.PublicKeyOf(pke.JWK())
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		at := time.Now()
+
+		ctx.crypto.EXPECT().GetPublicKey(kid, at).Return(pk, nil)
+
+		err := instance.Verify(vc, at)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - wrong hashed payload", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		at := time.Now()
+		vc2 := vc
+		vc2.IssuanceDate = time.Now()
+
+		ctx.crypto.EXPECT().GetPublicKey(kid, at).Return(pk, nil)
+
+		err := instance.Verify(vc2, at)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to verify signature")
+	})
+
+	t.Run("error - wrong hashed proof", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		at := time.Now()
+		vc2 := vc
+		pr := make([]JSONWebSignature2020Proof, 0)
+		vc2.UnmarshalProofValue(&pr)
+		pr[0].Created = at
+		vc2.Proof = []interface{}{pr[0]}
+
+		ctx.crypto.EXPECT().GetPublicKey(kid, at).Return(pk, nil)
+
+		err := instance.Verify(vc2, at)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to verify signature")
 	})
 }
 

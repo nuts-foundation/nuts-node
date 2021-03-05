@@ -20,13 +20,17 @@
 package vcr
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/url"
 	"path"
+	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -63,7 +67,7 @@ type vcr struct {
 // JSONWebSignature2020Proof is a VC proof with a signature according to JsonWebSignature2020
 type JSONWebSignature2020Proof struct {
 	did.Proof
-	Jws string `json:"jws"`
+	Jws string `json:"jws,omitempty"`
 }
 
 func (c *vcr) Registry() concept.Registry {
@@ -226,8 +230,60 @@ func (c *vcr) Resolve(ID string) (did.VerifiableCredential, error) {
 	panic("implement me")
 }
 
-func (c *vcr) Verify(vc did.VerifiableCredential, credentialSubject interface{}, at time.Time) (bool, error) {
-	panic("implement me")
+func (c *vcr) Verify(vc did.VerifiableCredential, at time.Time) error {
+	// it must have valid content
+	validator, _ := credential.FindValidatorAndBuilder(vc)
+	if validator == nil {
+		return errors.New("unknown credential type")
+	}
+
+	if err := validator.Validate(vc); err != nil {
+		return err
+	}
+
+	// create correct challenge for verification
+	challenge, err := generateCredentialChallenge(vc)
+	if err != nil {
+		return fmt.Errorf("cannot generate challenge: %w", err)
+	}
+
+	// extract proof, can't fail already done in generateCredentialChallenge
+	var proofs = make([]JSONWebSignature2020Proof, 0)
+	_ = vc.UnmarshalProofValue(&proofs)
+	proof := proofs[0]
+	splittedJws := strings.Split(proof.Jws, "..")
+	if len(splittedJws) != 2 {
+		return errors.New("invalid 'jws' value in proof")
+	}
+	sig, err := base64.StdEncoding.DecodeString(splittedJws[1])
+	if err != nil {
+		return err
+	}
+
+	// find key
+	pk, err := c.keystore.GetPublicKey(proof.VerificationMethod.String(), at)
+	if err != nil {
+		return err
+	}
+
+	// the proof must be correct
+	verifier, _ := jws.NewVerifier(jwa.ES256)
+	if err = verifier.Verify(challenge, sig, pk); err != nil {
+		return err
+	}
+
+	// next check timeRestrictions
+	if vc.IssuanceDate.After(at) {
+		return errors.New("credential not valid yet at given time")
+	}
+	if vc.ExpirationDate != nil && (*vc.ExpirationDate).Before(at) {
+		return errors.New("credential not valid anymore at given time")
+	}
+
+	// check if issuer is trusted
+	// todo requires trusted config
+
+	return nil
 }
 
 func createDocumentType(vcType string) string {
@@ -275,11 +331,6 @@ func (c *vcr) resolveAssertionKey(id did.DID) (did.URI, error) {
 }
 
 func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
-	payload, err := json.Marshal(vc)
-	if err != nil {
-		return err
-	}
-
 	// create proof
 	pr := did.Proof{
 		Type:               "JsonWebSignature2020",
@@ -287,17 +338,15 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 		VerificationMethod: kid,
 		Created:            vc.IssuanceDate,
 	}
-	prJSON, err := json.Marshal(pr)
+	vc.Proof = []interface{}{pr}
+
+	// create correct signing challenge
+	challenge, err := generateCredentialChallenge(*vc)
 	if err != nil {
 		return err
 	}
-	prHash := hash.SHA256Sum(prJSON).Slice()
-	vcHash := hash.SHA256Sum(payload).Slice()
-	tbs := make([]byte, len(prHash)+len(vcHash))
-	copy(tbs, prHash)
-	copy(tbs[len(prHash):], vcHash)
 
-	sig, err := c.keystore.SignDetachedJWS(tbs, kid.String())
+	sig, err := c.keystore.SignDetachedJWS(challenge, kid.String())
 	if err != nil {
 		return err
 	}
@@ -310,4 +359,39 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 	}
 
 	return nil
+}
+
+func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
+	var proofs = make([]JSONWebSignature2020Proof, 1)
+
+	if err := vc.UnmarshalProofValue(&proofs); err != nil {
+		return nil, err
+	}
+
+	if len(proofs) != 1 {
+		return nil, errors.New("expected a single Proof for challenge generation")
+	}
+
+	// payload
+	vc.Proof = nil
+	payload, err := json.Marshal(vc)
+	if err != nil {
+		return nil, err
+	}
+	vcHash := hash.SHA256Sum(payload).Slice()
+
+	// proof
+	proof := proofs[0]
+	proof.Jws = ""
+	prJSON, err := json.Marshal(proof)
+	if err != nil {
+		return nil, err
+	}
+	prHash := hash.SHA256Sum(prJSON).Slice()
+
+	tbs := make([]byte, len(prHash)+len(vcHash))
+	copy(tbs, prHash)
+	copy(tbs[len(prHash):], vcHash)
+
+	return tbs, nil
 }
