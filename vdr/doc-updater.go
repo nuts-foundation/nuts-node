@@ -46,8 +46,24 @@ func newNamingFnForExistingDID(existingDID did.DID) nutsCrypto.KIDNamingFunc {
 	}
 }
 
-// AddNewAuthenticationMethodToDIDDocument creates a new VerificationMethod of type JsonWebKey2020 with a freshly generated key
-func (u NutsDocUpdater) AddNewAuthenticationMethodToDIDDocument(doc *did.Document) error {
+// RotateAuthenticationKey will create a new AuthenticationMethod with the document id as prefix
+// It removes the old authenticationMethod from the document indicated with methodID
+// It adds the new authenticationMethod to the document
+// It requires the methodID to be part of the authenticationMethods
+func (u NutsDocUpdater) RotateAuthenticationKey(methodID did.DID, doc *did.Document) error {
+	if err := u.RemoveVerificationMethod(methodID, doc); err != nil {
+		return err
+	}
+
+	if err := u.CreateNewAuthenticationMethodForDocument(doc); err != nil {
+		return err
+	}
+	return nil
+}
+
+// CreateNewAuthenticationMethodForDocument creates a new VerificationMethod of type JsonWebKey2020 with a freshly generated key
+// and adds it to the provided document
+func (u NutsDocUpdater) CreateNewAuthenticationMethodForDocument(doc *did.Document) error {
 	key, keyIDStr, err := u.keyCreator.New(newNamingFnForExistingDID(doc.ID))
 	if err != nil {
 		return err

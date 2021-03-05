@@ -1,6 +1,9 @@
 package vdr
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"testing"
 
 	"github.com/nuts-foundation/go-did"
@@ -56,5 +59,60 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 		doc := &did.Document{}
 		err := updater.RemoveVerificationMethod(*id123Method, doc)
 		assert.EqualError(t, err, "verificationMethod not found in document")
+	})
+}
+
+func TestNutsDocUpdater_RotateAuthenticationKey(t *testing.T) {
+	id123, _ := did.ParseDID("did:nuts:123")
+	id123Method, _ := did.ParseDID("did:nuts:123#method-1")
+	id123UnknonwMethod, _ := did.ParseDID("did:nuts:123#unknown-1")
+
+	keyCreator := &mockKeyCreator{
+		t:      t,
+		jwkStr: jwkString,
+	}
+
+	updater := NutsDocUpdater{keyCreator: keyCreator}
+
+	t.Run("ok - rotating an existing key", func(t *testing.T) {
+		// Prepare a document with an authenticationMethod:
+		document := &did.Document{ID: *id123}
+		keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		vMethod, err := did.NewVerificationMethod(*id123Method, did.JsonWebKey2020, did.DID{}, keyPair.PublicKey)
+		if !assert.NoError(t, err) {
+			return
+		}
+		document.AddAuthenticationMethod(vMethod)
+		assert.Equal(t, document.Authentication[0].ID, vMethod.ID)
+
+		err = updater.RotateAuthenticationKey(*id123Method, document)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, document.Authentication, 1)
+		assert.Equal(t, "did:nuts:123#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", document.Authentication[0].ID.String())
+	})
+
+	t.Run("error - rotating an nonexistent key", func(t *testing.T) {
+		// Prepare a document with an authenticationMethod:
+		document := &did.Document{ID: *id123}
+		keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		vMethod, err := did.NewVerificationMethod(*id123Method, did.JsonWebKey2020, did.DID{}, keyPair.PublicKey)
+		if !assert.NoError(t, err) {
+			return
+		}
+		document.AddAuthenticationMethod(vMethod)
+		assert.Equal(t, document.Authentication[0].ID, vMethod.ID)
+
+		err = updater.RotateAuthenticationKey(*id123UnknonwMethod, document)
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "verificationMethod not found in document")
+
+		assert.Len(t, document.Authentication, 1)
+		assert.Equal(t, vMethod.ID.String(), document.Authentication[0].ID.String(),
+			"the old method should still be part of the document")
 	})
 }
