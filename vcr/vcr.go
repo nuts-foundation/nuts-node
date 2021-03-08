@@ -48,7 +48,7 @@ func NewVCRInstance(signer crypto.JWSSigner, docResolver vdr.Resolver, network n
 	return &vcr{
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
-		signer:    signer,
+		signer:      signer,
 		docResolver: docResolver,
 		network:     network,
 	}

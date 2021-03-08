@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"path"
 	"testing"
@@ -278,7 +277,7 @@ func TestVcr_Verify(t *testing.T) {
 	pke := storage.PublicKeyEntry{}
 	pkeJSON, _ := ioutil.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
-	pk, _  :=  jwk.PublicKeyOf(pke.JWK())
+	pk, _ := jwk.PublicKeyOf(pke.JWK())
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -304,7 +303,9 @@ func TestVcr_Verify(t *testing.T) {
 
 		err := instance.Verify(vc2, time.Now())
 
-		assert.Error(t, err)
+		if !assert.Error(t, err) {
+			return
+		}
 		assert.Contains(t, err.Error(), "failed to verify signature")
 	})
 
@@ -323,17 +324,122 @@ func TestVcr_Verify(t *testing.T) {
 
 		err := instance.Verify(vc2, at)
 
-		assert.Error(t, err)
+		if !assert.Error(t, err) {
+			return
+		}
 		assert.Contains(t, err.Error(), "failed to verify signature")
+	})
+
+	t.Run("error - unknown credential", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+
+		err := instance.Verify(did.VerifiableCredential{}, time.Now())
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "unknown credential type")
+	})
+
+	t.Run("error - invalid credential", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		uri, _ := did.ParseURI(credential.NutsOrganizationCredentialType)
+
+		err := instance.Verify(did.VerifiableCredential{Type: []did.URI{*uri}}, time.Now())
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "validation failed")
+	})
+
+	t.Run("error - no proof", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		vc2 := vc
+		vc2.Proof = []interface{}{}
+
+		err := instance.Verify(vc2, time.Now())
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "expected a single Proof for challenge generation")
+	})
+
+	t.Run("error - wrong jws in proof", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		at := time.Now()
+		vc2 := vc
+		pr := make([]JSONWebSignature2020Proof, 0)
+		vc2.UnmarshalProofValue(&pr)
+		pr[0].Jws = ""
+		vc2.Proof = []interface{}{pr[0]}
+
+		err := instance.Verify(vc2, at)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "invalid 'jws' value in proof")
+	})
+
+	t.Run("error - wrong base64 encoding in jws", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		at := time.Now()
+		vc2 := vc
+		pr := make([]JSONWebSignature2020Proof, 0)
+		vc2.UnmarshalProofValue(&pr)
+		pr[0].Jws = "abac..ab//"
+		vc2.Proof = []interface{}{pr[0]}
+
+		err := instance.Verify(vc2, at)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "illegal base64 data")
+	})
+
+	t.Run("error - resolving key", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		at := time.Now()
+
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, &at).Return(nil, errors.New("b00m!"))
+
+		err := instance.Verify(vc, at)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - not valid yet", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		at := vc.IssuanceDate.Add(-1 * time.Minute)
+
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
+
+		err := instance.Verify(vc, at)
+
+		assert.Error(t, err)
 	})
 }
 
 func validNutsOrganizationCredential() *did.VerifiableCredential {
-	u, _ := url.Parse(credential.NutsOrganizationCredentialType)
-	uri := did.URI{URL: *u}
-
-	u2, _ := url.Parse(vdr.RandomDID.String())
-	issuer := did.URI{URL: *u2}
+	uri, _ := did.ParseURI(credential.NutsOrganizationCredentialType)
+	issuer, _ := did.ParseURI(vdr.RandomDID.String())
 
 	var credentialSubject = make(map[string]interface{})
 	credentialSubject["id"] = vdr.AltRandomDID.String()
@@ -343,8 +449,8 @@ func validNutsOrganizationCredential() *did.VerifiableCredential {
 	}
 
 	return &did.VerifiableCredential{
-		Type:              []did.URI{uri},
-		Issuer:            issuer,
+		Type:              []did.URI{*uri},
+		Issuer:            *issuer,
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},
 	}
