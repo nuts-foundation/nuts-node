@@ -22,6 +22,7 @@ package core
 import (
 	"github.com/knadh/koanf"
 	"github.com/spf13/pflag"
+	"os"
 	"strings"
 	"time"
 )
@@ -66,5 +67,6 @@ func ClientConfigFlags() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("client", pflag.ContinueOnError)
 	flagSet.String(addressFlag, defaultAddress, "Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.")
 	flagSet.Duration(clientTimeoutFlag, defaultClientTimeout, "Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")
+	flagSet.Parse(os.Args[1:])
 	return flagSet
 }
