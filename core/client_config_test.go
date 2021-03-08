@@ -20,9 +20,10 @@
 package core
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_GetAddress(t *testing.T) {
@@ -42,4 +43,15 @@ func Test_GetAddress(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "http://localhost", cfg.GetAddress())
 	})
+}
+
+func TestClientConfigFlags(t *testing.T) {
+	os.Args = []string{"nuts", "--" + addressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms"}
+	flags := ClientConfigFlags()
+	address, err := flags.GetString(addressFlag)
+	assert.NoError(t, err)
+	duration, err := flags.GetDuration(clientTimeoutFlag)
+	assert.NoError(t, err)
+	assert.Equal(t, "localhost:1111", address)
+	assert.Equal(t, "20ms", duration.String())
 }
