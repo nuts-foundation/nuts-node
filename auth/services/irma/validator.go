@@ -62,7 +62,7 @@ type Service struct {
 	IrmaServiceConfig  ValidatorConfig
 	// todo: remove this when the deprecated ValidateJwt is removed
 	NameResolver      vdr.NameResolver
-	DIDResolver       types.DocResolver
+	DIDResolver       types.Resolver
 	Signer            nutsCrypto.JWTSigner
 	ContractTemplates contract.TemplateStore
 	StrictMode        bool
@@ -151,7 +151,7 @@ func (v Service) ValidateContract(b64EncodedContract string, format services.Con
 // deprecated
 func (v Service) ValidateJwt(rawJwt string, checkTime *time.Time) (*services.ContractValidationResult, error) {
 	token, err := nutsCrypto.ParseJWT(rawJwt, func(kid string) (crypto.PublicKey, error) {
-		return services.ResolveSigningKey(v.DIDResolver, kid, checkTime)
+		return v.DIDResolver.ResolveSigningKey(kid, checkTime)
 	})
 	if err != nil {
 		return nil, err
@@ -223,7 +223,7 @@ func (v Service) CreateIdentityTokenFromIrmaContract(contract *SignedIrmaContrac
 	if err != nil {
 		return "", err
 	}
-	signingKey, err := services.ResolveSigningKeyID(v.DIDResolver, legalEntity, nil)
+	signingKey, err := v.DIDResolver.ResolveSigningKeyID(legalEntity, nil)
 	if err != nil {
 		return "", err
 	}

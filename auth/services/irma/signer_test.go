@@ -20,11 +20,11 @@ package irma
 
 import (
 	"errors"
-	"github.com/nuts-foundation/go-did"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -171,8 +171,7 @@ func TestService_SigningSessionStatus(t *testing.T) {
 	holder := *vdr.RandomDID
 	keyID := holder
 	keyID.Fragment = keyID.ID
-	doc := &did.Document{}
-	doc.AddAssertionMethod(&did.VerificationMethod{ID: keyID})
+
 	t.Run("error - signing error", func(t *testing.T) {
 		service, ctrl := serviceWithMocks(t)
 		defer ctrl.Finish()
@@ -190,7 +189,7 @@ func TestService_SigningSessionStatus(t *testing.T) {
 			"type": "irma",
 			"kid":  keyID.String(),
 		}
-		service.DIDResolver.(*types.MockDocResolver).EXPECT().Resolve(holder, gomock.Any()).Return(doc, nil, nil)
+		service.DIDResolver.(*types.MockResolver).EXPECT().ResolveSigningKeyID(holder, gomock.Any()).Return(keyID.String(), nil)
 		service.Signer.(*crypto.MockJWTSigner).EXPECT().SignJWT(claims, gomock.Any()).Return("", errors.New("sign error"))
 
 		_, err := service.SigningSessionStatus("session")
@@ -218,7 +217,7 @@ func TestService_SigningSessionStatus(t *testing.T) {
 			"kid":  keyID.String(),
 		}
 
-		service.DIDResolver.(*types.MockDocResolver).EXPECT().Resolve(holder, gomock.Any()).Return(doc, nil, nil)
+		service.DIDResolver.(*types.MockResolver).EXPECT().ResolveSigningKeyID(holder, gomock.Any()).Return(keyID.String(), nil)
 		service.Signer.(*crypto.MockJWTSigner).EXPECT().SignJWT(claims, keyID.String()).Return("jwt", nil)
 
 		result, err := service.SigningSessionStatus("session")
@@ -246,7 +245,7 @@ func serviceWithMocks(t *testing.T) (*Service, *gomock.Controller) {
 	return &Service{
 		IrmaSessionHandler: &mockIrmaClient{},
 		IrmaConfig:         irmaConfig,
-		DIDResolver:        types.NewMockDocResolver(ctrl),
+		DIDResolver:        types.NewMockResolver(ctrl),
 		NameResolver:       vdr.NewMockNameResolver(ctrl),
 		Signer:             crypto.NewMockJWTSigner(ctrl),
 		ContractTemplates:  contract.StandardContractTemplates,

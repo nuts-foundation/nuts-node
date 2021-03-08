@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -42,7 +41,7 @@ import (
 )
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keystore crypto.KeyStore, docResolver vdr.DocResolver, network network.Transactions) VCR {
+func NewVCRInstance(keystore crypto.KeyStore, docResolver vdr.Resolver, network network.Transactions) VCR {
 	return &vcr{
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
@@ -57,7 +56,7 @@ type vcr struct {
 	config      Config
 	store       leia.Store
 	keystore    crypto.KeyStore
-	docResolver vdr.DocResolver
+	docResolver vdr.Resolver
 	network     network.Transactions
 }
 
@@ -188,7 +187,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 	}
 
 	// resolve an assertionMethod key for issuer
-	kid, err := c.resolveAssertionKey(*issuer)
+	kid, err := c.docResolver.ResolveAssertionKey(*issuer)
 	if err != nil {
 		return nil, fmt.Errorf("validation failed: invalid issuer: %w", err)
 	}
@@ -253,24 +252,6 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	}
 
 	return qs
-}
-
-func (c *vcr) resolveAssertionKey(id did.DID) (did.URI, error) {
-	doc, _, err := c.docResolver.Resolve(id, nil)
-	if err != nil {
-		return did.URI{}, err
-	}
-
-	keys := doc.AssertionMethod
-	for _, key := range keys {
-		kid := key.ID.String()
-		if c.keystore.PrivateKeyExists(kid) {
-			u, _ := url.Parse(kid)
-			return did.URI{URL: *u}, nil
-		}
-	}
-
-	return did.URI{}, fmt.Errorf("no valid assertion keys found for: %s", id.String())
 }
 
 func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {

@@ -19,6 +19,9 @@
 package types
 
 import (
+	"crypto"
+	"time"
+
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
@@ -69,6 +72,21 @@ type DocDeactivator interface {
 	Deactivate(id did.DID, current hash.SHA256Hash)
 }
 
+// KeyResolver is the interface for resolving keys.
+// This can be used for checking if a signing key is valid at a point in time or to just find a valid key for signing.
+type KeyResolver interface {
+	// ResolveSigningKeyID looks up a signing key of the specified holder. It returns the ID
+	// of the found key. Typically used to find a key for signing one's own documents. If no suitable keys
+	// are found an error is returned.
+	ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error)
+	// ResolveSigningKey looks up a specific signing key and returns it as crypto.PublicKey. If the key can't be found
+	// or isn't meant for signing an error is returned.
+	ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error)
+	// ResolveAssertionKey look for a valid assertion key for the give DID. If multiple keys are valid, the first one is returned.
+	// An error is returned when no key is found.
+	ResolveAssertionKey(id did.DID) (did.URI, error)
+}
+
 // Store is the interface that groups all low level VDR DID storage operations.
 type Store interface {
 	DocResolver
@@ -82,4 +100,11 @@ type VDR interface {
 	DocCreator
 	DocUpdater
 	DocDeactivator
+	KeyResolver
+}
+
+// Resolver interface combines the KeyResolver and DocResolver
+type Resolver interface {
+	DocResolver
+	KeyResolver
 }

@@ -150,8 +150,7 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().Resolve(didMatcher{*vdr.RandomDID}, nil).Return(validDIDDocument(), nil, nil)
-		ctx.crypto.EXPECT().PrivateKeyExists(vdr.RandomDID.String()).Return(true)
+		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(vdr.RandomDID.URI(), nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("hdr.pay.sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			"application/vc+json;type=NutsOrganizationCredential",
@@ -175,17 +174,13 @@ func TestVcr_Issue(t *testing.T) {
 		assert.Equal(t, "hdr.sig", proof[0].Jws)
 	})
 
-	t.Run("ok - verification", func(t *testing.T) {
-		// will add when verification is implemented
-	})
-
 	t.Run("error - unknown DID", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().Resolve(didMatcher{*vdr.RandomDID}, nil).Return(nil, nil, errors.New("b00m!"))
+		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(did.URI{}, errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
 
@@ -225,23 +220,8 @@ func TestVcr_Issue(t *testing.T) {
 
 		cred := validNutsOrganizationCredential()
 		cred.CredentialSubject = make([]interface{}, 0)
-		ctx.vdr.EXPECT().Resolve(didMatcher{*vdr.RandomDID}, nil).Return(validDIDDocument(), nil, nil)
-		ctx.crypto.EXPECT().PrivateKeyExists(vdr.RandomDID.String()).Return(true)
+		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(vdr.RandomDID.URI(), nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("hdr.pay.sig", nil)
-
-		_, err := instance.Issue(*cred)
-
-		assert.Error(t, err)
-	})
-
-	t.Run("error - missing private key", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
-
-		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().Resolve(didMatcher{*vdr.RandomDID}, nil).Return(validDIDDocument(), nil, nil)
-		ctx.crypto.EXPECT().PrivateKeyExists(vdr.RandomDID.String()).Return(false)
 
 		_, err := instance.Issue(*cred)
 
@@ -254,8 +234,7 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().Resolve(didMatcher{*vdr.RandomDID}, nil).Return(validDIDDocument(), nil, nil)
-		ctx.crypto.EXPECT().PrivateKeyExists(vdr.RandomDID.String()).Return(true)
+		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(vdr.RandomDID.URI(), nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("", errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
@@ -269,8 +248,7 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().Resolve(didMatcher{*vdr.RandomDID}, nil).Return(validDIDDocument(), nil, nil)
-		ctx.crypto.EXPECT().PrivateKeyExists(vdr.RandomDID.String()).Return(true)
+		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(vdr.RandomDID.URI(), nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("hdr.pay.sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			"application/vc+json;type=NutsOrganizationCredential",
@@ -284,23 +262,6 @@ func TestVcr_Issue(t *testing.T) {
 
 		assert.Error(t, err)
 	})
-}
-
-type didMatcher struct {
-	expected did.DID
-}
-
-func (d didMatcher) Matches(x interface{}) bool {
-	did, ok := x.(did.DID)
-	if !ok {
-		return ok
-	}
-
-	return d.expected.String() == did.String()
-}
-
-func (d didMatcher) String() string {
-	return "DID Matcher"
 }
 
 func validDIDDocument() *did.Document {

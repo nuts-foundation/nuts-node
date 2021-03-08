@@ -35,7 +35,7 @@ import (
 
 type contractNotaryService struct {
 	nameResolver     vdr.NameResolver
-	didResolver      types.DocResolver
+	didResolver      types.Resolver
 	privateKeyStore  crypto.PrivateKeyStore
 	contractValidity time.Duration
 }
@@ -52,7 +52,7 @@ func NewContractNotary(resolver vdr.NameResolver, contractValidity time.Duration
 // If the duration is 0 than the default duration is used.
 func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration) (*contract.Contract, error) {
 	// Test if the org in managed by this node:
-	signingKeyID, err := services.ResolveSigningKeyID(s.didResolver, orgID, &validFrom)
+	signingKeyID, err := s.didResolver.ResolveSigningKeyID(orgID, &validFrom)
 	if errors.Is(err, types.ErrNotFound) {
 		return nil, fmt.Errorf("could not draw up contract: organization not found")
 	} else if err != nil {

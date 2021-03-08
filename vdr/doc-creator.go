@@ -91,7 +91,6 @@ func (n NutsDocCreator) Create() (*did.Document, error) {
 		Controller:         []did.DID{*didID},
 		VerificationMethod: []*did.VerificationMethod{verificationMethod},
 		Authentication:     []did.VerificationRelationship{{VerificationMethod: verificationMethod}},
-		AssertionMethod:    []did.VerificationRelationship{{VerificationMethod: verificationMethod}},
 	}
 	return doc, nil
 }
