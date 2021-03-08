@@ -87,10 +87,6 @@ type KeyStore interface {
 type JWSSigner interface {
 	// SignJWS creates a signed JWS (in compact form using) the given key (private key must be present), protected headers and payload.
 	SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error)
-
-	// SignDetachedJWS creates a signed JWS (in compact form with a deteched payload) the given key (private key must be present) and payload.
-	// it always uses the following headers: {"alg":"ES256","b64":false,"crit":["b64"]}
-	SignDetachedJWS(payload []byte, kid string) (string, error)
 }
 
 // JWTSigner is the interface used to sign authorization tokens

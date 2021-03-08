@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -45,7 +44,7 @@ import (
 )
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keystore crypto.KeyStore, docResolver vdr.DocResolver, network network.Transactions) VCR {
+func NewVCRInstance(keystore crypto.KeyStore, docResolver vdr.Resolver, network network.Transactions) VCR {
 	return &vcr{
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
@@ -60,7 +59,7 @@ type vcr struct {
 	config      Config
 	store       leia.Store
 	keystore    crypto.KeyStore
-	docResolver vdr.DocResolver
+	docResolver vdr.Resolver
 	network     network.Transactions
 }
 
@@ -178,8 +177,6 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 	return VCs, nil
 }
 
-// todo custom validator for NutsOrganizationCredentialType
-// sig verification
 func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
 	validator, builder := credential.FindValidatorAndBuilder(vc)
 	if validator == nil || builder == nil {
@@ -193,13 +190,13 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 	}
 
 	// resolve an assertionMethod key for issuer
-	kid, err := c.resolveAssertionKey(*issuer)
+	kid, err := c.docResolver.ResolveAssertionKey(*issuer)
 	if err != nil {
 		return nil, fmt.Errorf("validation failed: invalid issuer: %w", err)
 	}
 
 	// set defaults
-	builder.Build(&vc)
+	builder.Fill(&vc)
 
 	// sign
 	if err := c.generateProof(&vc, kid); err != nil {
@@ -312,24 +309,6 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	return qs
 }
 
-func (c *vcr) resolveAssertionKey(id did.DID) (did.URI, error) {
-	doc, _, err := c.docResolver.Resolve(id, nil)
-	if err != nil {
-		return did.URI{}, err
-	}
-
-	keys := doc.AssertionMethod
-	for _, key := range keys {
-		kid := key.ID.String()
-		if c.keystore.PrivateKeyExists(kid) {
-			u, _ := url.Parse(kid)
-			return did.URI{URL: *u}, nil
-		}
-	}
-
-	return did.URI{}, fmt.Errorf("no valid assertion keys found for: %s", id.String())
-}
-
 func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 	// create proof
 	pr := did.Proof{
@@ -346,15 +325,18 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 		return err
 	}
 
-	sig, err := c.keystore.SignDetachedJWS(challenge, kid.String())
+	sig, err := c.keystore.SignJWS(challenge, detachedJWSHeaders(), kid.String())
 	if err != nil {
 		return err
 	}
 
+	// remove payload from sig since a detached jws is required.
+	dsig := toDetachedSignature(sig)
+
 	vc.Proof = []interface{}{
 		JSONWebSignature2020Proof{
 			pr,
-			sig,
+			dsig,
 		},
 	}
 
@@ -394,4 +376,19 @@ func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
 	copy(tbs[len(prHash):], vcHash)
 
 	return tbs, nil
+}
+// detachedJWSHeaders creates headers for JsonWebSignature2020
+// the alg will be based upon the key
+// {"alg":"ES256","b64":false,"crit":["b64"]}
+func detachedJWSHeaders() map[string]interface{} {
+	return map[string]interface{}{
+		"b64":  false,
+		"crit": []string{"b64"},
+	}
+}
+
+// toDetachedSignature removes the middle part of the signature
+func toDetachedSignature(sig string) string {
+	splitted := strings.Split(sig, ".")
+	return strings.Join([]string{splitted[0], splitted[2]}, ".")
 }

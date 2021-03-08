@@ -55,14 +55,14 @@ type mockContext struct {
 	crypto *crypto.MockKeyStore
 	tx     *network.MockTransactions
 	vcr    VCR
-	vdr    *types.MockDocResolver
+	vdr    *types.MockResolver
 }
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
-	vdr := types.NewMockDocResolver(ctrl)
+	vdr := types.NewMockResolver(ctrl)
 
 	return mockContext{
 		ctrl:   ctrl,

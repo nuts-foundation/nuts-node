@@ -21,7 +21,7 @@ package credential
 
 import (
 	"errors"
-	"time"
+	"strings"
 
 	"github.com/nuts-foundation/go-did"
 )
@@ -52,7 +52,7 @@ func validate(credential did.VerifiableCredential) error {
 		return errors.New("validation failed: 'ID' is required")
 	}
 
-	if credential.IssuanceDate.Equal(time.Time{}) {
+	if credential.IssuanceDate.IsZero() {
 		return errors.New("validation failed: 'issuanceDate' is required")
 	}
 
@@ -111,11 +111,11 @@ func (d nutsOrganizationCredentialValidator) Validate(credential did.VerifiableC
 		return errors.New("validation failed: 'credentialSubject.ID' is nil")
 	}
 
-	if n, ok := cs.Organization["name"]; !ok || len(n) == 0 {
+	if n, ok := cs.Organization["name"]; !ok || len(strings.TrimSpace(n)) == 0 {
 		return errors.New("validation failed: 'credentialSubject.name' is empty")
 	}
 
-	if c, ok := cs.Organization["city"]; !ok || len(c) == 0 {
+	if c, ok := cs.Organization["city"]; !ok || len(strings.TrimSpace(c)) == 0 {
 		return errors.New("validation failed: 'credentialSubject.city' is empty")
 	}
 

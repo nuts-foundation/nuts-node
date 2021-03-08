@@ -5,7 +5,9 @@
 package types
 
 import (
+	crypto "crypto"
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
@@ -198,6 +200,74 @@ func (mr *MockDocDeactivatorMockRecorder) Deactivate(id, current interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocDeactivator)(nil).Deactivate), id, current)
 }
 
+// MockKeyResolver is a mock of KeyResolver interface.
+type MockKeyResolver struct {
+	ctrl     *gomock.Controller
+	recorder *MockKeyResolverMockRecorder
+}
+
+// MockKeyResolverMockRecorder is the mock recorder for MockKeyResolver.
+type MockKeyResolverMockRecorder struct {
+	mock *MockKeyResolver
+}
+
+// NewMockKeyResolver creates a new mock instance.
+func NewMockKeyResolver(ctrl *gomock.Controller) *MockKeyResolver {
+	mock := &MockKeyResolver{ctrl: ctrl}
+	mock.recorder = &MockKeyResolverMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockKeyResolver) EXPECT() *MockKeyResolverMockRecorder {
+	return m.recorder
+}
+
+// ResolveAssertionKey mocks base method.
+func (m *MockKeyResolver) ResolveAssertionKey(id go_did.DID) (go_did.URI, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveAssertionKey", id)
+	ret0, _ := ret[0].(go_did.URI)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
+func (mr *MockKeyResolverMockRecorder) ResolveAssertionKey(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockKeyResolver)(nil).ResolveAssertionKey), id)
+}
+
+// ResolveSigningKey mocks base method.
+func (m *MockKeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveSigningKey", keyID, validAt)
+	ret0, _ := ret[0].(crypto.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveSigningKey indicates an expected call of ResolveSigningKey.
+func (mr *MockKeyResolverMockRecorder) ResolveSigningKey(keyID, validAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveSigningKey", reflect.TypeOf((*MockKeyResolver)(nil).ResolveSigningKey), keyID, validAt)
+}
+
+// ResolveSigningKeyID mocks base method.
+func (m *MockKeyResolver) ResolveSigningKeyID(holder go_did.DID, validAt *time.Time) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveSigningKeyID", holder, validAt)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveSigningKeyID indicates an expected call of ResolveSigningKeyID.
+func (mr *MockKeyResolverMockRecorder) ResolveSigningKeyID(holder, validAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveSigningKeyID", reflect.TypeOf((*MockKeyResolver)(nil).ResolveSigningKeyID), holder, validAt)
+}
+
 // MockStore is a mock of Store interface.
 type MockStore struct {
 	ctrl     *gomock.Controller
@@ -331,6 +401,51 @@ func (mr *MockVDRMockRecorder) Resolve(id, metadata interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVDR)(nil).Resolve), id, metadata)
 }
 
+// ResolveAssertionKey mocks base method.
+func (m *MockVDR) ResolveAssertionKey(id go_did.DID) (go_did.URI, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveAssertionKey", id)
+	ret0, _ := ret[0].(go_did.URI)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
+func (mr *MockVDRMockRecorder) ResolveAssertionKey(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockVDR)(nil).ResolveAssertionKey), id)
+}
+
+// ResolveSigningKey mocks base method.
+func (m *MockVDR) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveSigningKey", keyID, validAt)
+	ret0, _ := ret[0].(crypto.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveSigningKey indicates an expected call of ResolveSigningKey.
+func (mr *MockVDRMockRecorder) ResolveSigningKey(keyID, validAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveSigningKey", reflect.TypeOf((*MockVDR)(nil).ResolveSigningKey), keyID, validAt)
+}
+
+// ResolveSigningKeyID mocks base method.
+func (m *MockVDR) ResolveSigningKeyID(holder go_did.DID, validAt *time.Time) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveSigningKeyID", holder, validAt)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveSigningKeyID indicates an expected call of ResolveSigningKeyID.
+func (mr *MockVDRMockRecorder) ResolveSigningKeyID(holder, validAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveSigningKeyID", reflect.TypeOf((*MockVDR)(nil).ResolveSigningKeyID), holder, validAt)
+}
+
 // Update mocks base method.
 func (m *MockVDR) Update(id go_did.DID, current hash.SHA256Hash, next go_did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
@@ -343,4 +458,88 @@ func (m *MockVDR) Update(id go_did.DID, current hash.SHA256Hash, next go_did.Doc
 func (mr *MockVDRMockRecorder) Update(id, current, next, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockVDR)(nil).Update), id, current, next, metadata)
+}
+
+// MockResolver is a mock of Resolver interface.
+type MockResolver struct {
+	ctrl     *gomock.Controller
+	recorder *MockResolverMockRecorder
+}
+
+// MockResolverMockRecorder is the mock recorder for MockResolver.
+type MockResolverMockRecorder struct {
+	mock *MockResolver
+}
+
+// NewMockResolver creates a new mock instance.
+func NewMockResolver(ctrl *gomock.Controller) *MockResolver {
+	mock := &MockResolver{ctrl: ctrl}
+	mock.recorder = &MockResolverMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
+	return m.recorder
+}
+
+// Resolve mocks base method.
+func (m *MockResolver) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go_did.Document, *DocumentMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Resolve", id, metadata)
+	ret0, _ := ret[0].(*go_did.Document)
+	ret1, _ := ret[1].(*DocumentMetadata)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Resolve indicates an expected call of Resolve.
+func (mr *MockResolverMockRecorder) Resolve(id, metadata interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockResolver)(nil).Resolve), id, metadata)
+}
+
+// ResolveAssertionKey mocks base method.
+func (m *MockResolver) ResolveAssertionKey(id go_did.DID) (go_did.URI, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveAssertionKey", id)
+	ret0, _ := ret[0].(go_did.URI)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
+func (mr *MockResolverMockRecorder) ResolveAssertionKey(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockResolver)(nil).ResolveAssertionKey), id)
+}
+
+// ResolveSigningKey mocks base method.
+func (m *MockResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveSigningKey", keyID, validAt)
+	ret0, _ := ret[0].(crypto.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveSigningKey indicates an expected call of ResolveSigningKey.
+func (mr *MockResolverMockRecorder) ResolveSigningKey(keyID, validAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveSigningKey", reflect.TypeOf((*MockResolver)(nil).ResolveSigningKey), keyID, validAt)
+}
+
+// ResolveSigningKeyID mocks base method.
+func (m *MockResolver) ResolveSigningKeyID(holder go_did.DID, validAt *time.Time) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveSigningKeyID", holder, validAt)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveSigningKeyID indicates an expected call of ResolveSigningKeyID.
+func (mr *MockResolverMockRecorder) ResolveSigningKeyID(holder, validAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveSigningKeyID", reflect.TypeOf((*MockResolver)(nil).ResolveSigningKeyID), holder, validAt)
 }

@@ -13,7 +13,7 @@ Multiple credentials can give a DID its name, the concept mappings makes sure on
 
 See :ref:`preconfigured concepts <default-concepts>` for a list of supported concepts.
 
-templates
+Templates
 *********
 
 Credentials are mapped on a concept through templates.
@@ -56,7 +56,7 @@ or as key-value:
     company.name=X
     company.city=Y
 
-generic fields
+Generic fields
 ==============
 
 The following template only defines the generic fields. The generic fields are required for each credential. A `type` is also always required.
@@ -72,7 +72,7 @@ The following template only defines the generic fields. The generic fields are r
         }
     }
 
-fixed values
+Fixed values
 ============
 
 The example also contains a field that is not encapsulated, the `type` field with `ExampleCredential` as value. For the `type` field this is always the case.
@@ -80,7 +80,7 @@ When searching for a credential, the fixed value will always be added.
 So, if you search for `company.name=X` through the API, the underlying query to the DB will add `type=ExampleCredential` to that query.
 This will happen for all fixed values. This is important to know because it will influence which indexes are required.
 
-indices
+Indices
 =======
 
 When searching for or manipulating records in a DB, it's always important to have the correct indices.
@@ -92,12 +92,12 @@ In the concept templates, we use the `@{1_1},{2_1}` syntax for this. The full re
 
     ((<<[a-zA-Z\.]+>>)|([a-zA-Z\.]+))(@({[1-9](_[1-9])?})(,{[1-9](_[1-9])?})*)?
 
-Every entry between `{` and `}` represents an index. If contains multiple numbers that it represents a compound index.
+Every entry between `{` and `}` represents an index. It contains multiple numbers that it represents a compound index.
 The second number is the place in the compound index. Every combination of numbers must be unique.
 The indices are dependent on the use case. For example: revoking requires an index on `issuer` and `id` (to find all issued and to revoke).
 Searching requires an index on `type` combined with the fields that will be used in the search query (`company.name` in this example).
 
-restrictions
+Restrictions
 ============
 
 Using arrays is currently not supported in a template.
