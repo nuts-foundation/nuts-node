@@ -44,11 +44,11 @@ import (
 )
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keystore crypto.KeyStore, docResolver vdr.Resolver, network network.Transactions) VCR {
+func NewVCRInstance(signer crypto.JWSSigner, docResolver vdr.Resolver, network network.Transactions) VCR {
 	return &vcr{
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
-		keystore:    keystore,
+		signer:    signer,
 		docResolver: docResolver,
 		network:     network,
 	}
@@ -58,7 +58,7 @@ type vcr struct {
 	registry    concept.Registry
 	config      Config
 	store       leia.Store
-	keystore    crypto.KeyStore
+	signer      crypto.JWSSigner
 	docResolver vdr.Resolver
 	network     network.Transactions
 }
@@ -239,7 +239,7 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at time.Time) error {
 	}
 
 	// create correct challenge for verification
-	challenge, err := generateCredentialChallenge(vc)
+	payload, err := generateCredentialChallenge(vc)
 	if err != nil {
 		return fmt.Errorf("cannot generate challenge: %w", err)
 	}
@@ -252,20 +252,22 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at time.Time) error {
 	if len(splittedJws) != 2 {
 		return errors.New("invalid 'jws' value in proof")
 	}
-	sig, err := base64.StdEncoding.DecodeString(splittedJws[1])
+	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
 	if err != nil {
 		return err
 	}
 
 	// find key
-	pk, err := c.keystore.GetPublicKey(proof.VerificationMethod.String(), at)
+	pk, err := c.docResolver.ResolveSigningKey(proof.VerificationMethod.String(), &at)
 	if err != nil {
 		return err
 	}
 
 	// the proof must be correct
 	verifier, _ := jws.NewVerifier(jwa.ES256)
-	if err = verifier.Verify(challenge, sig, pk); err != nil {
+	// the jws lib can't do this for us, so we concat hdr with payload for verification
+	challenge := fmt.Sprintf("%s.%s", splittedJws[0], base64.RawURLEncoding.EncodeToString(payload))
+	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
 		return err
 	}
 
@@ -325,7 +327,7 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 		return err
 	}
 
-	sig, err := c.keystore.SignJWS(challenge, detachedJWSHeaders(), kid.String())
+	sig, err := c.signer.SignJWS(challenge, detachedJWSHeaders(), kid.String())
 	if err != nil {
 		return err
 	}
@@ -360,7 +362,6 @@ func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	vcHash := hash.SHA256Sum(payload).Slice()
 
 	// proof
 	proof := proofs[0]
@@ -369,17 +370,15 @@ func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	prHash := hash.SHA256Sum(prJSON).Slice()
 
-	tbs := make([]byte, len(prHash)+len(vcHash))
-	copy(tbs, prHash)
-	copy(tbs[len(prHash):], vcHash)
+	tbs := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
 
 	return tbs, nil
 }
+
 // detachedJWSHeaders creates headers for JsonWebSignature2020
 // the alg will be based upon the key
-// {"alg":"ES256","b64":false,"crit":["b64"]}
+// {"b64":false,"crit":["b64"]}
 func detachedJWSHeaders() map[string]interface{} {
 	return map[string]interface{}{
 		"b64":  false,
@@ -390,5 +389,5 @@ func detachedJWSHeaders() map[string]interface{} {
 // toDetachedSignature removes the middle part of the signature
 func toDetachedSignature(sig string) string {
 	splitted := strings.Split(sig, ".")
-	return strings.Join([]string{splitted[0], splitted[2]}, ".")
+	return strings.Join([]string{splitted[0], splitted[2]}, "..")
 }

@@ -175,7 +175,7 @@ func TestVcr_Issue(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, "hdr.sig", proof[0].Jws)
+		assert.Equal(t, "hdr..sig", proof[0].Jws)
 	})
 
 	t.Run("error - unknown DID", func(t *testing.T) {
@@ -286,7 +286,7 @@ func TestVcr_Verify(t *testing.T) {
 		defer ctx.ctrl.Finish()
 		at := time.Now()
 
-		ctx.crypto.EXPECT().GetPublicKey(kid, at).Return(pk, nil)
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, &at).Return(pk, nil)
 
 		err := instance.Verify(vc, at)
 
@@ -297,13 +297,12 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		at := time.Now()
 		vc2 := vc
 		vc2.IssuanceDate = time.Now()
 
-		ctx.crypto.EXPECT().GetPublicKey(kid, at).Return(pk, nil)
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
 
-		err := instance.Verify(vc2, at)
+		err := instance.Verify(vc2, time.Now())
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to verify signature")
@@ -320,30 +319,13 @@ func TestVcr_Verify(t *testing.T) {
 		pr[0].Created = at
 		vc2.Proof = []interface{}{pr[0]}
 
-		ctx.crypto.EXPECT().GetPublicKey(kid, at).Return(pk, nil)
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
 
 		err := instance.Verify(vc2, at)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to verify signature")
 	})
-}
-
-type didMatcher struct {
-	expected did.DID
-}
-
-func (d didMatcher) Matches(x interface{}) bool {
-	did, ok := x.(did.DID)
-	if !ok {
-		return ok
-	}
-
-	return d.expected.String() == did.String()
-}
-
-func (d didMatcher) String() string {
-	return "DID Matcher"
 }
 
 func validNutsOrganizationCredential() *did.VerifiableCredential {
