@@ -46,12 +46,30 @@ func Test_GetAddress(t *testing.T) {
 }
 
 func TestClientConfigFlags(t *testing.T) {
-	os.Args = []string{"nuts", "--" + addressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms"}
-	flags := ClientConfigFlags()
-	address, err := flags.GetString(addressFlag)
-	assert.NoError(t, err)
-	duration, err := flags.GetDuration(clientTimeoutFlag)
-	assert.NoError(t, err)
-	assert.Equal(t, "localhost:1111", address)
-	assert.Equal(t, "20ms", duration.String())
+	oldArgs := os.Args
+	os.Args = []string{"nuts"}
+	defer func() {
+		os.Args = oldArgs
+	}()
+	t.Run("no args set", func(t *testing.T) {
+		flags := ClientConfigFlags()
+		address, err := flags.GetString(addressFlag)
+		assert.NoError(t, err)
+		duration, err := flags.GetDuration(clientTimeoutFlag)
+		assert.NoError(t, err)
+		assert.Equal(t, defaultAddress, address)
+		assert.Equal(t, defaultClientTimeout.String(), duration.String())
+	})
+
+	t.Run("args set", func(t *testing.T) {
+		os.Args = []string{"nuts", "--" + addressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms"}
+
+		flags := ClientConfigFlags()
+		address, err := flags.GetString(addressFlag)
+		assert.NoError(t, err)
+		duration, err := flags.GetDuration(clientTimeoutFlag)
+		assert.NoError(t, err)
+		assert.Equal(t, "localhost:1111", address)
+		assert.Equal(t, "20ms", duration.String())
+	})
 }
