@@ -65,24 +65,24 @@ func getCustodianSigningKey() *did.URI {
 }
 
 func getCustodianDIDDocument() *did.Document {
-	   id := *vdr.AltRandomDID
-	   serviceID, _ := url.Parse(id.String() + "#service-id")
+	id := *vdr.AltRandomDID
+	serviceID, _ := url.Parse(id.String() + "#service-id")
 
-	   doc := did.Document{
-			   ID: id,
-	   }
-	   signingKeyID := id
-	   signingKeyID.Fragment = "signing-key"
-	   key, err := did.NewVerificationMethod(signingKeyID, did.JsonWebKey2020, id, custodianSigningKey.Public())
-	   if err != nil {
-			   panic(err)
-	   }
-	   doc.AddAssertionMethod(key)
-	   doc.Service = append(doc.Service, did.Service{
-			   ID:   did.URI{URL: *serviceID},
-			   Type: "oauth",
-	   })
-	   return &doc
+	doc := did.Document{
+		ID: id,
+	}
+	signingKeyID := id
+	signingKeyID.Fragment = "signing-key"
+	key, err := did.NewVerificationMethod(signingKeyID, did.JsonWebKey2020, id, custodianSigningKey.Public())
+	if err != nil {
+		panic(err)
+	}
+	doc.AddAssertionMethod(key)
+	doc.Service = append(doc.Service, did.Service{
+		ID:   did.URI{URL: *serviceID},
+		Type: "oauth",
+	})
+	return &doc
 }
 
 func TestAuth_CreateAccessToken(t *testing.T) {

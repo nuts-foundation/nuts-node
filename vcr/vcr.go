@@ -295,8 +295,8 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 // the alg will be based upon the key
 // {"alg":"ES256","b64":false,"crit":["b64"]}
 func detachedJWSHeaders() map[string]interface{} {
-	return map[string]interface{} {
-		"b64": false,
+	return map[string]interface{}{
+		"b64":  false,
 		"crit": []string{"b64"},
 	}
 }

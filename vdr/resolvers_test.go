@@ -106,4 +106,3 @@ func TestResolveSigningKeyID(t *testing.T) {
 		assert.Contains(t, err.Error(), "DID Document has no assertionMethod keys (did=")
 	})
 }
-
