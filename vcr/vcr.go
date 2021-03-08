@@ -139,7 +139,20 @@ func (c *vcr) initIndices() error {
 		}
 	}
 
+	// generic indices
+	gIndex := c.globalIndex()
+	if err := gIndex.AddIndex(leia.NewIndex("index_id", leia.NewJSONIndexPart(concept.IDField, concept.IDField))); err != nil {
+		return err
+	}
+	if err := gIndex.AddIndex(leia.NewIndex("index_issuer", leia.NewJSONIndexPart(concept.IssuerField, concept.IssuerField))); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (c *vcr) globalIndex() leia.Collection {
+	return c.store.Collection(leia.GlobalCollection)
 }
 
 func (c *vcr) Name() string {
@@ -224,7 +237,26 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 }
 
 func (c *vcr) Resolve(ID string) (did.VerifiableCredential, error) {
-	panic("implement me")
+	vc := did.VerifiableCredential{}
+	qp := leia.Eq(concept.IDField, ID)
+	q := leia.New(qp)
+
+	gIndex := c.globalIndex()
+	docs, err := gIndex.Find(q)
+	if err != nil {
+		return vc, err
+	}
+
+	if len(docs) != 1 {
+		return vc, ErrNotFound
+	}
+
+	err = json.Unmarshal(docs[0], &vc)
+	if err != nil {
+		return vc, errors.Wrap(err, "unable to parse credential from db")
+	}
+
+	return vc, nil
 }
 
 func (c *vcr) Verify(vc did.VerifiableCredential, at time.Time) error {

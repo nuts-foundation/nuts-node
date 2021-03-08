@@ -20,6 +20,7 @@
 package v1
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -97,5 +98,15 @@ func (w *Wrapper) Create(ctx echo.Context) error {
 
 // Resolve a VC and return its content
 func (w *Wrapper) Resolve(ctx echo.Context, id string) error {
-	panic("implement me")
+	// id is given with fragment
+	vc, err := w.R.Resolve(id)
+	if errors.Is(err, vcr.ErrNotFound) {
+		return ctx.NoContent(http.StatusNotFound)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return ctx.JSON(http.StatusOK, vc)
 }

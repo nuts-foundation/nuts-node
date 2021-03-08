@@ -22,7 +22,6 @@ package v1
 import (
 	"errors"
 	"net/http"
-	"net/url"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -34,11 +33,10 @@ import (
 )
 
 func TestWrapper_CreateDID(t *testing.T) {
-	u, _ := url.Parse("did:nuts:1")
-	issuer := did2.URI{URL: *u}
+	issuer, _ := did2.ParseURI("did:nuts:1")
 
 	vc := did2.VerifiableCredential{
-		Issuer: issuer,
+		Issuer: *issuer,
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -57,7 +55,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, issuer, vcReturn.Issuer)
+		assert.Equal(t, *issuer, vcReturn.Issuer)
 	})
 
 	t.Run("error - parse error", func(t *testing.T) {
@@ -97,6 +95,57 @@ func TestWrapper_CreateDID(t *testing.T) {
 		err := ctx.client.Create(ctx.echo)
 
 		assert.NoError(t, err)
+	})
+}
+
+func TestWrapper_Resolve(t *testing.T) {
+	idString := "did:nuts:1#1"
+	id, _ := did2.ParseURI(idString)
+
+	vc := did2.VerifiableCredential{
+		ID: id,
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		var vcReturn did2.VerifiableCredential
+		ctx.vcr.EXPECT().Resolve(idString).Return(vc, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
+			vcReturn = f2.(did2.VerifiableCredential)
+			return nil
+		})
+
+		err := ctx.client.Resolve(ctx.echo, idString)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, id, vcReturn.ID)
+	})
+
+	t.Run("error - not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.vcr.EXPECT().Resolve(idString).Return(vc, vcr.ErrNotFound)
+		ctx.echo.EXPECT().NoContent(http.StatusNotFound).Return(nil)
+
+		err := ctx.client.Resolve(ctx.echo, idString)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - other", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.vcr.EXPECT().Resolve(idString).Return(vc, errors.New("b00m!"))
+
+		err := ctx.client.Resolve(ctx.echo, idString)
+
+		assert.Error(t, err)
 	})
 }
 
