@@ -24,6 +24,9 @@ jobs:
         uses: crazy-max/ghaction-docker-meta@v1
         with:
           images: nutsfoundation/nuts-node
+          tag-semver: |
+            {{version}}
+            {{major}}.{{minor}}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
