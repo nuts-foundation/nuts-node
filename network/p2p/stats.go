@@ -67,4 +67,3 @@ func (o OwnPeerIDStatistic) Name() string {
 func (o OwnPeerIDStatistic) String() string {
 	return o.peerID.String()
 }
-
