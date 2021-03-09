@@ -226,6 +226,7 @@ func TestVcr_Issue(t *testing.T) {
 		_, err := instance.Issue(*cred)
 
 		assert.Error(t, err)
+		assert.True(t, errors.Is(err, credential.ValidationError))
 	})
 
 	t.Run("error - signing failed", func(t *testing.T) {
@@ -262,15 +263,6 @@ func TestVcr_Issue(t *testing.T) {
 
 		assert.Error(t, err)
 	})
-}
-
-func validDIDDocument() *did.Document {
-	doc := did.Document{}
-	vm := did.VerificationMethod{
-		ID: *vdr.RandomDID,
-	}
-	doc.AddAssertionMethod(&vm)
-	return &doc
 }
 
 func validNutsOrganizationCredential() *did.VerifiableCredential {

@@ -54,7 +54,14 @@ func TestDefaultBuilder_Type(t *testing.T) {
 }
 
 func TestDefaultBuilder_Build(t *testing.T) {
+	defer func() {
+		nowFunc = time.Now
+	}()
+	checkTime := time.Now()
 	b := defaultBuilder{vcType: "type"}
+	nowFunc = func() time.Time {
+		return checkTime
+	}
 	u2, _ := url.Parse(vdr.RandomDID.String())
 	issuer := did.URI{URL: *u2}
 	vc := &did.VerifiableCredential{
@@ -79,5 +86,9 @@ func TestDefaultBuilder_Build(t *testing.T) {
 
 	t.Run("adds ID", func(t *testing.T) {
 		assert.NotNil(t, vc.ID)
+	})
+
+	t.Run("sets time", func(t *testing.T) {
+		assert.Equal(t, checkTime, vc.IssuanceDate)
 	})
 }

@@ -20,15 +20,16 @@
 package v1
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 // Wrapper implements the generated interface from oapi-codegen
@@ -86,7 +87,7 @@ func (w *Wrapper) Create(ctx echo.Context) error {
 
 	vcCreated, err := w.R.Issue(vc)
 	if err != nil {
-		if strings.Contains(err.Error(), "validation failed") {
+		if errors.Is(err, credential.ValidationError) {
 			return ctx.String(http.StatusBadRequest, err.Error())
 		}
 		return err
