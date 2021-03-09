@@ -87,7 +87,7 @@ func (w *Wrapper) Create(ctx echo.Context) error {
 
 	vcCreated, err := w.R.Issue(vc)
 	if err != nil {
-		if errors.Is(err, credential.ValidationError) {
+		if errors.Is(err, credential.ErrValidation) {
 			return ctx.String(http.StatusBadRequest, err.Error())
 		}
 		return err

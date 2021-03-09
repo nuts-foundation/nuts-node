@@ -93,7 +93,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 
 		ctx.echo.EXPECT().Bind(gomock.Any())
 		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
-		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, credential.ValidationError)
+		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, credential.ErrValidation)
 
 		err := ctx.client.Create(ctx.echo)
 

@@ -34,8 +34,8 @@ type Validator interface {
 	Validate(credential did.VerifiableCredential) error
 }
 
-// ValidationError is a common error indicating validation failed
-var ValidationError = errors.New("validation failed")
+// ErrValidation is a common error indicating validation failed
+var ErrValidation = errors.New("validation failed")
 
 type validationError struct {
 	msg string
@@ -48,7 +48,7 @@ func (err *validationError) Error() string {
 
 // Is checks if validationError matches the target error
 func (err *validationError) Is(target error) bool {
-	return errors.Is(target, ValidationError)
+	return errors.Is(target, ErrValidation)
 }
 
 func failure(err string) error {
