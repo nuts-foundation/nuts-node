@@ -52,12 +52,7 @@ func TestVCR_Configure(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
-		instance := NewVCRInstance(nil, nil, nil).(*vcr)
-
-		err := instance.Configure(core.ServerConfig{Datadir: testDir})
-		if !assert.NoError(t, err) {
-			return
-		}
+		instance := NewTestVCRInstance(testDir)
 
 		t.Run("loads default templates", func(t *testing.T) {
 			cTemplates := instance.registry.ConceptTemplates()
@@ -73,7 +68,7 @@ func TestVCR_Configure(t *testing.T) {
 
 		t.Run("initializes DB", func(t *testing.T) {
 			fsPath := path.Join(testDir, "vcr", "credentials.db")
-			_, err = os.Stat(fsPath)
+			_, err := os.Stat(fsPath)
 			assert.NoError(t, err)
 		})
 	})
@@ -186,7 +181,7 @@ func TestVcr_Issue(t *testing.T) {
 		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(vdr.RandomDID.URI(), nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("hdr.pay.sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
-			"application/vc+json;type=NutsOrganizationCredential",
+			vcDocumentType,
 			gomock.Any(),
 			vdr.RandomDID.String(),
 			nil,
@@ -284,7 +279,7 @@ func TestVcr_Issue(t *testing.T) {
 		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(vdr.RandomDID.URI(), nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("hdr.pay.sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
-			"application/vc+json;type=NutsOrganizationCredential",
+			vcDocumentType,
 			gomock.Any(),
 			vdr.RandomDID.String(),
 			nil,
@@ -303,7 +298,7 @@ func TestVcr_Verify(t *testing.T) {
 	vcJSON, _ := ioutil.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &vc)
 
-	// oad pub key
+	// load pub key
 	pke := storage.PublicKeyEntry{}
 	pkeJSON, _ := ioutil.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
@@ -313,11 +308,10 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		at := time.Now()
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, &at).Return(pk, nil)
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, nil).Return(pk, nil)
 
-		err := instance.Verify(vc, at)
+		err := instance.Verify(vc, nil)
 
 		assert.NoError(t, err)
 	})
@@ -329,9 +323,9 @@ func TestVcr_Verify(t *testing.T) {
 		vc2 := vc
 		vc2.IssuanceDate = time.Now()
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, nil).Return(pk, nil)
 
-		err := instance.Verify(vc2, time.Now())
+		err := instance.Verify(vc2, nil)
 
 		if !assert.Error(t, err) {
 			return
@@ -343,16 +337,15 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		at := time.Now()
 		vc2 := vc
 		pr := make([]JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
-		pr[0].Created = at
+		pr[0].Created = time.Now()
 		vc2.Proof = []interface{}{pr[0]}
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, nil).Return(pk, nil)
 
-		err := instance.Verify(vc2, at)
+		err := instance.Verify(vc2, nil)
 
 		if !assert.Error(t, err) {
 			return
@@ -365,7 +358,7 @@ func TestVcr_Verify(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 
-		err := instance.Verify(did.VerifiableCredential{}, time.Now())
+		err := instance.Verify(did.VerifiableCredential{}, nil)
 
 		if !assert.Error(t, err) {
 			return
@@ -379,7 +372,7 @@ func TestVcr_Verify(t *testing.T) {
 		defer ctx.ctrl.Finish()
 		uri, _ := did.ParseURI(credential.NutsOrganizationCredentialType)
 
-		err := instance.Verify(did.VerifiableCredential{Type: []did.URI{*uri}}, time.Now())
+		err := instance.Verify(did.VerifiableCredential{Type: []did.URI{*uri}}, nil)
 
 		if !assert.Error(t, err) {
 			return
@@ -394,7 +387,7 @@ func TestVcr_Verify(t *testing.T) {
 		vc2 := vc
 		vc2.Proof = []interface{}{}
 
-		err := instance.Verify(vc2, time.Now())
+		err := instance.Verify(vc2, nil)
 
 		if !assert.Error(t, err) {
 			return
@@ -406,14 +399,13 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		at := time.Now()
 		vc2 := vc
 		pr := make([]JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
 		pr[0].Jws = ""
 		vc2.Proof = []interface{}{pr[0]}
 
-		err := instance.Verify(vc2, at)
+		err := instance.Verify(vc2, nil)
 
 		if !assert.Error(t, err) {
 			return
@@ -425,14 +417,13 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		at := time.Now()
 		vc2 := vc
 		pr := make([]JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
 		pr[0].Jws = "abac..ab//"
 		vc2.Proof = []interface{}{pr[0]}
 
-		err := instance.Verify(vc2, at)
+		err := instance.Verify(vc2, nil)
 
 		if !assert.Error(t, err) {
 			return
@@ -444,11 +435,10 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		at := time.Now()
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, &at).Return(nil, errors.New("b00m!"))
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, nil).Return(nil, errors.New("b00m!"))
 
-		err := instance.Verify(vc, at)
+		err := instance.Verify(vc, nil)
 
 		assert.Error(t, err)
 	})
@@ -461,7 +451,45 @@ func TestVcr_Verify(t *testing.T) {
 
 		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
 
-		err := instance.Verify(vc, at)
+		err := instance.Verify(vc, &at)
+
+		assert.Error(t, err)
+	})
+}
+
+func TestVcr_Write(t *testing.T) {
+	// load VC
+	vc := did.VerifiableCredential{}
+	vcJSON, _ := ioutil.ReadFile("test/vc.json")
+	json.Unmarshal(vcJSON, &vc)
+
+	// load pub key
+	pke := storage.PublicKeyEntry{}
+	pkeJSON, _ := ioutil.ReadFile("test/public.json")
+	json.Unmarshal(pkeJSON, &pke)
+	pk, _ := jwk.PublicKeyOf(pke.JWK())
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any())
+		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.vdr.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
+
+		err := ctx.vcr.Write(vc)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - validation", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any())
+		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
+		err := ctx.vcr.Write(did.VerifiableCredential{})
 
 		assert.Error(t, err)
 	})

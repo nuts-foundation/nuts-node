@@ -39,7 +39,7 @@ func NewTestVCRInstance(testDirectory string) *vcr {
 	newInstance := NewVCRInstance(
 		nil,
 		nil,
-		nil,
+		network.NewTestNetworkInstance(testDirectory),
 	).(*vcr)
 
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
@@ -52,7 +52,7 @@ type mockContext struct {
 	ctrl   *gomock.Controller
 	crypto *crypto.MockKeyStore
 	tx     *network.MockTransactions
-	vcr    VCR
+	vcr    *vcr
 	vdr    *types.MockResolver
 }
 

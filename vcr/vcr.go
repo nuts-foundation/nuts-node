@@ -45,13 +45,17 @@ import (
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(signer crypto.JWSSigner, docResolver vdr.Resolver, network network.Transactions) VCR {
-	return &vcr{
+	r :=  &vcr{
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
 		signer:      signer,
 		docResolver: docResolver,
 		network:     network,
 	}
+
+	r.ambassador = NewAmbassador(network, r)
+
+	return r
 }
 
 type vcr struct {
@@ -60,6 +64,7 @@ type vcr struct {
 	store       leia.Store
 	signer      crypto.JWSSigner
 	docResolver vdr.Resolver
+	ambassador  Ambassador
 	network     network.Transactions
 }
 
@@ -91,6 +96,9 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	if err = c.initIndices(); err != nil {
 		return err
 	}
+
+	// start listening for new credentials
+	c.ambassador.Configure()
 
 	return nil
 }
@@ -226,7 +234,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 		return nil, err
 	}
 
-	_, err = c.network.CreateTransaction(createDocumentType(builder.Type()), payload, kid.String(), nil, vc.IssuanceDate)
+	_, err = c.network.CreateTransaction(vcDocumentType, payload, kid.String(), nil, vc.IssuanceDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
@@ -259,7 +267,7 @@ func (c *vcr) Resolve(ID string) (did.VerifiableCredential, error) {
 	return vc, nil
 }
 
-func (c *vcr) Verify(vc did.VerifiableCredential, at time.Time) error {
+func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
 	// it must have valid content
 	validator, _ := credential.FindValidatorAndBuilder(vc)
 	if validator == nil {
@@ -290,7 +298,7 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at time.Time) error {
 	}
 
 	// find key
-	pk, err := c.docResolver.ResolveSigningKey(proof.VerificationMethod.String(), &at)
+	pk, err := c.docResolver.ResolveSigningKey(proof.VerificationMethod.String(), at)
 	if err != nil {
 		return err
 	}
@@ -304,11 +312,13 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at time.Time) error {
 	}
 
 	// next check timeRestrictions
-	if vc.IssuanceDate.After(at) {
-		return errors.New("credential not valid yet at given time")
-	}
-	if vc.ExpirationDate != nil && (*vc.ExpirationDate).Before(at) {
-		return errors.New("credential not valid anymore at given time")
+	if at != nil {
+		if vc.IssuanceDate.After(*at) {
+			return errors.New("credential not valid yet at given time")
+		}
+		if vc.ExpirationDate != nil && (*vc.ExpirationDate).Before(*at) {
+			return errors.New("credential not valid anymore at given time")
+		}
 	}
 
 	// check if issuer is trusted
@@ -317,8 +327,23 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at time.Time) error {
 	return nil
 }
 
-func createDocumentType(vcType string) string {
-	return fmt.Sprintf(vcDocumentType, vcType)
+func (c *vcr) Write(vc did.VerifiableCredential) error {
+	// verify first
+	if err := c.Verify(vc, nil); err != nil {
+		return err
+	}
+
+	// validation has made sure there's exactly one!
+	vcType := credential.ExtractTypes(vc)[0]
+
+	doc, err := json.Marshal(vc)
+	if err != nil {
+		return errors.Wrap(err, "failed to write credential to store")
+	}
+
+	collection :=  c.store.Collection(vcType)
+
+	return collection.Add([]leia.Document{doc})
 }
 
 // convert returns a map of credential type to query

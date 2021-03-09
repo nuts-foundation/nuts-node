@@ -711,3 +711,4 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/:concept", wrapper.Search)
 
 }
+
