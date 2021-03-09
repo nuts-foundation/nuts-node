@@ -31,7 +31,7 @@ func Test_GetAddress(t *testing.T) {
 		os.Setenv("NUTS_ADDRESS", "https://localhost")
 		defer os.Unsetenv("NUTS_ADDRESS")
 		cfg := NewClientConfig()
-		err := cfg.Load()
+		err := cfg.Load(ClientConfigFlags())
 		assert.NoError(t, err)
 		assert.Equal(t, "https://localhost", cfg.GetAddress())
 	})
@@ -39,7 +39,7 @@ func Test_GetAddress(t *testing.T) {
 		os.Setenv("NUTS_ADDRESS", "localhost")
 		defer os.Unsetenv("NUTS_ADDRESS")
 		cfg := NewClientConfig()
-		err := cfg.Load()
+		err := cfg.Load(ClientConfigFlags())
 		assert.NoError(t, err)
 		assert.Equal(t, "http://localhost", cfg.GetAddress())
 	})
@@ -62,9 +62,10 @@ func TestClientConfigFlags(t *testing.T) {
 	})
 
 	t.Run("args set", func(t *testing.T) {
-		os.Args = []string{"nuts", "--" + addressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms"}
+		args := []string{"nuts", "--" + addressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms"}
 
 		flags := ClientConfigFlags()
+		flags.Parse(args)
 		address, err := flags.GetString(addressFlag)
 		assert.NoError(t, err)
 		duration, err := flags.GetDuration(clientTimeoutFlag)

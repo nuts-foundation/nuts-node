@@ -67,7 +67,7 @@ func Cmd() *cobra.Command {
 				validAt = &args[1]
 			}
 
-			jwkKey, err := httpClient().GetPublicKey(kid, validAt)
+			jwkKey, err := httpClient(cmd.Flags()).GetPublicKey(kid, validAt)
 			if err != nil {
 				cmd.Printf("Error printing publicKey: %v", err)
 				return
@@ -104,13 +104,13 @@ func Cmd() *cobra.Command {
 }
 
 // httpClient creates a remote client
-func httpClient() api.HTTPClient {
+func httpClient(set *pflag.FlagSet) api.HTTPClient {
 	config := core.NewClientConfig()
-	if err := config.Load(); err != nil {
+	if err := config.Load(set); err != nil {
 		logrus.Fatal(err)
 	}
 	return api.HTTPClient{
-		ServerAddress: config.Address,
+		ServerAddress: config.GetAddress(),
 		Timeout:       config.Timeout,
 	}
 }

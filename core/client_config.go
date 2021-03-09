@@ -20,11 +20,11 @@
 package core
 
 import (
-	"github.com/knadh/koanf"
-	"github.com/spf13/pflag"
-	"os"
 	"strings"
 	"time"
+
+	"github.com/knadh/koanf"
+	"github.com/spf13/pflag"
 )
 
 const defaultClientTimeout = 10 * time.Second
@@ -49,8 +49,8 @@ func NewClientConfig() *ClientConfig {
 }
 
 // Load loads the client config from environment variables and commandline params.
-func (cfg *ClientConfig) Load() error {
-	return loadConfigIntoStruct(ClientConfigFlags(), cfg, koanf.New(defaultDelimiter))
+func (cfg *ClientConfig) Load(set *pflag.FlagSet) error {
+	return loadConfigIntoStruct(set, cfg, koanf.New(defaultDelimiter))
 }
 
 // GetAddress normalizes and gets the address of the remote server
@@ -67,6 +67,5 @@ func ClientConfigFlags() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("client", pflag.ContinueOnError)
 	flagSet.String(addressFlag, defaultAddress, "Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.")
 	flagSet.Duration(clientTimeoutFlag, defaultClientTimeout, "Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")
-	flagSet.Parse(os.Args[1:])
 	return flagSet
 }
