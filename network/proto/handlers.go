@@ -30,29 +30,37 @@ import (
 
 func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.AdvertHashes) {
 	log.Logger().Tracef("Received adverted hash from peer: %s", peer)
-	hashes := make([]hash.SHA256Hash, len(advertHash.Hashes))
+	peerHeads := make([]hash.SHA256Hash, len(advertHash.Hashes))
 	for i, h := range advertHash.Hashes {
-		hashes[i] = hash.FromSlice(h)
+		peerHeads[i] = hash.FromSlice(h)
 	}
 	peerHash := PeerHash{
 		Peer:   peer,
-		Hashes: hashes,
+		Hashes: peerHeads,
 	}
 	p.newPeerHashChannel <- peerHash
 
 	heads := p.graph.Heads()
-	for _, peerHash := range hashes {
-		found := false
+	for _, peerHead := range peerHeads {
+		headMatches := false
 		for _, head := range heads {
-			if peerHash.Equals(head) {
-				found = true
+			if peerHead.Equals(head) {
+				headMatches = true
 				break
 			}
 		}
-		if !found {
-			log.Logger().Infof("Peer has different heads than us, querying transaction list (peer=%s)", peer)
+		if headMatches {
+			continue
+		}
+		// We might not have our peer's head as head of our own DAG, but our peer might be out of date,
+		// missing transactions we do have. In that case, the head should be present on our DAG. If it's not,
+		// we're missing a transaction on the DAG and should query it.
+		headIsPresentOnLocalDAG, err := p.graph.IsPresent(peerHead)
+		if err != nil {
+			log.Logger().Errorf("Error while checking peer head on local DAG (ref=%s): %v", peerHead, err)
+		} else if !headIsPresentOnLocalDAG {
+			log.Logger().Infof("Peer has head which is not present on our DAG, querying transaction list (peer=%s)", peer)
 			go p.queryTransactionList(peer)
-			return
 		}
 	}
 }
