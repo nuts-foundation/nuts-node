@@ -42,7 +42,7 @@ func ExtractTypes(credential did.VerifiableCredential) []string {
 	var vcTypes []string
 
 	for _, t := range credential.Type {
-		if "VerifiableCredential" != t.String() {
+		if t != did.VerifiableCredentialTypeV1URI() {
 			vcTypes = append(vcTypes, t.String())
 		}
 	}

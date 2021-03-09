@@ -42,3 +42,14 @@ func TestFindValidatorAndBuilder(t *testing.T) {
 		assert.NotNil(t, b)
 	})
 }
+
+func TestExtractTypes(t *testing.T) {
+	vc := did.VerifiableCredential{
+		Type: []did.URI{did.VerifiableCredentialTypeV1URI(), *NutsOrganizationCredentialTypeURI},
+	}
+
+	types := ExtractTypes(vc)
+
+	assert.Len(t, types, 1)
+	assert.Equal(t, NutsOrganizationCredentialType, types[0])
+}
