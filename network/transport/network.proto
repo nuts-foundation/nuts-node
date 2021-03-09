@@ -30,17 +30,13 @@ service Network {
 // we'd need to open a stream per operation, which would make the number of required streams explode (since we're
 // building a full mesh network).
 message NetworkMessage {
-    Header header = 1;
-    AdvertHashes advertHashes = 100;
-    TransactionListQuery TransactionListQuery = 101;
-    TransactionList TransactionList = 102;
-    TransactionPayloadQuery transactionPayloadQuery = 103;
-    TransactionPayload transactionPayload = 104;
-}
-
-// Metadata types
-message Header {
-    uint32 version = 1;
+    oneof message {
+        AdvertHashes advertHashes = 100;
+        TransactionListQuery TransactionListQuery = 101;
+        TransactionList TransactionList = 102;
+        TransactionPayloadQuery transactionPayloadQuery = 103;
+        TransactionPayload transactionPayload = 104;
+    }
 }
 
 // Actual messages go here
