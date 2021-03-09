@@ -51,8 +51,9 @@ func (d defaultBuilder) Fill(vc *did.VerifiableCredential) {
 
 	u3, _ := did.ParseURI(defaultType)
 	vc.Type = append(vc.Type, *u3)
-	if !containsType(*vc, d.vcType) {
-		u4, _ := did.ParseURI(d.vcType)
+
+	u4, _ := did.ParseURI(d.vcType)
+	if !vc.IsType(*u4) {
 		vc.Type = append(vc.Type, *u4)
 	}
 	vc.IssuanceDate = time.Now()

@@ -37,14 +37,14 @@ type Ambassador interface {
 
 type ambassador struct {
 	networkClient network.Transactions
-	writer			  Writer
+	writer        Writer
 }
 
 // NewAmbassador creates a new Ambassador,
 func NewAmbassador(networkClient network.Transactions, writer Writer) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
-		writer: writer,
+		writer:        writer,
 	}
 }
 

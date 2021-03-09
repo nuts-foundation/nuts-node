@@ -1,7 +1,6 @@
 package services
 
 import (
-	"net/url"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -18,8 +17,7 @@ func TestResolveEndpointURL(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		expected, _ := url.Parse("http://nuts.nl")
-		expectedURI := did.URI{URL: *expected}
+		expectedURI, _ := did.ParseURI("http://nuts.nl")
 		s := did.Service{Type: "oauth", ServiceEndpoint: expectedURI.String()}
 		resolver := types.NewMockDocResolver(ctrl)
 		resolver.EXPECT().Resolve(holder, gomock.Any()).Return(&did.Document{Service: []did.Service{s}}, nil, nil)

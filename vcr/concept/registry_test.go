@@ -20,7 +20,6 @@
 package concept
 
 import (
-	"net/url"
 	"testing"
 
 	"github.com/nuts-foundation/go-did"
@@ -128,9 +127,9 @@ func TestRegistry_Transform(t *testing.T) {
 	})
 
 	t.Run("error - unknown type", func(t *testing.T) {
-		vcType, _ := url.Parse("unknownType")
+		vcType, _ := did.ParseURI("unknownType")
 		vc := did.VerifiableCredential{
-			Type: []did.URI{{*vcType}},
+			Type: []did.URI{*vcType},
 		}
 
 		_, err = r.Transform("company", vc)

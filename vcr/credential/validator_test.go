@@ -205,9 +205,9 @@ func validNutsOrganizationCredential() *did.VerifiableCredential {
 	}
 
 	return &did.VerifiableCredential{
-		Context:           []did.URI{stringToURI(DefaultContext), stringToURI(NutsContext)},
+		Context:           []did.URI{did.VCContextV1URI(), *NutsContextURI},
 		ID:                &did.URI{},
-		Type:              []did.URI{stringToURI(NutsOrganizationCredentialType), stringToURI(DefaultCredentialType)},
+		Type:              []did.URI{*NutsOrganizationCredentialTypeURI, did.VerifiableCredentialTypeV1URI()},
 		Issuer:            stringToURI(vdr.RandomDID.String()),
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},
@@ -216,6 +216,6 @@ func validNutsOrganizationCredential() *did.VerifiableCredential {
 }
 
 func stringToURI(input string) did.URI {
-	u, _ := url.Parse(input)
-	return did.URI{URL: *u}
+	u, _ := did.ParseURI(input)
+	return *u
 }

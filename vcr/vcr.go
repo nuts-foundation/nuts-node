@@ -45,7 +45,7 @@ import (
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(signer crypto.JWSSigner, docResolver vdr.Resolver, network network.Transactions) VCR {
-	r :=  &vcr{
+	r := &vcr{
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
 		signer:      signer,
@@ -66,12 +66,6 @@ type vcr struct {
 	docResolver vdr.Resolver
 	ambassador  Ambassador
 	network     network.Transactions
-}
-
-// JSONWebSignature2020Proof is a VC proof with a signature according to JsonWebSignature2020
-type JSONWebSignature2020Proof struct {
-	did.Proof
-	Jws string `json:"jws,omitempty"`
 }
 
 func (c *vcr) Registry() concept.Registry {
@@ -285,7 +279,7 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
 	}
 
 	// extract proof, can't fail already done in generateCredentialChallenge
-	var proofs = make([]JSONWebSignature2020Proof, 0)
+	var proofs = make([]did.JSONWebSignature2020Proof, 0)
 	_ = vc.UnmarshalProofValue(&proofs)
 	proof := proofs[0]
 	splittedJws := strings.Split(proof.Jws, "..")
@@ -341,7 +335,7 @@ func (c *vcr) Write(vc did.VerifiableCredential) error {
 		return errors.Wrap(err, "failed to write credential to store")
 	}
 
-	collection :=  c.store.Collection(vcType)
+	collection := c.store.Collection(vcType)
 
 	return collection.Add([]leia.Document{doc})
 }
@@ -393,9 +387,9 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 	dsig := toDetachedSignature(sig)
 
 	vc.Proof = []interface{}{
-		JSONWebSignature2020Proof{
-			pr,
-			dsig,
+		did.JSONWebSignature2020Proof{
+			Proof: pr,
+			Jws:   dsig,
 		},
 	}
 
@@ -403,7 +397,7 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 }
 
 func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
-	var proofs = make([]JSONWebSignature2020Proof, 1)
+	var proofs = make([]did.JSONWebSignature2020Proof, 1)
 
 	if err := vc.UnmarshalProofValue(&proofs); err != nil {
 		return nil, err

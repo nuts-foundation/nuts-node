@@ -20,7 +20,6 @@
 package credential
 
 import (
-	"net/url"
 	"testing"
 	"time"
 
@@ -31,10 +30,9 @@ import (
 )
 
 func TestGenerateID(t *testing.T) {
-	u2, _ := url.Parse(vdr.RandomDID.String())
-	issuer := did.URI{URL: *u2}
+	issuer, _ := did.ParseURI(vdr.RandomDID.String())
 
-	id := generateID(issuer)
+	id := generateID(*issuer)
 
 	if !assert.NotNil(t, id) {
 		return
@@ -55,22 +53,22 @@ func TestDefaultBuilder_Type(t *testing.T) {
 
 func TestDefaultBuilder_Build(t *testing.T) {
 	b := defaultBuilder{vcType: "type"}
-	u2, _ := url.Parse(vdr.RandomDID.String())
-	issuer := did.URI{URL: *u2}
+	issuer, _ := did.ParseURI(vdr.RandomDID.String())
 	vc := &did.VerifiableCredential{
-		Issuer: issuer,
+		Issuer: *issuer,
 	}
 
 	b.Fill(vc)
 
 	t.Run("adds context", func(t *testing.T) {
-		assert.True(t, containsContext(*vc, DefaultContext))
-		assert.True(t, containsContext(*vc, NutsContext))
+		assert.True(t, vc.ContainsContext(did.VCContextV1URI()))
+		assert.True(t, vc.ContainsContext(*NutsContextURI))
 	})
 
 	t.Run("adds type", func(t *testing.T) {
-		assert.True(t, containsType(*vc, DefaultCredentialType))
-		assert.True(t, containsType(*vc, "type"))
+		vcType, _ := did.ParseURI("type")
+		assert.True(t, vc.IsType(did.VerifiableCredentialTypeV1URI()))
+		assert.True(t, vc.IsType(*vcType))
 	})
 
 	t.Run("adds issuanceDate", func(t *testing.T) {
