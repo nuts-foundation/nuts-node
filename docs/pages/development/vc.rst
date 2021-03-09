@@ -64,6 +64,51 @@ Will be expanded by the node to:
       ]
     }
 
+Searching VCs
+*************
+
+Searching for VCs uses `concepts <vc-concepts>`_. The search API `/internal/vcr/v1/{concept}` requires a `concept` as path param.
+One of the default concepts below defines the `organization` concept.
+The search API accepts a `SearchRequest` body with key/value parameters. See the `API page <nuts-node-api>`_ for details on the request body.
+The `key` field must be filled with one of the *conceptValues* from a concept template.
+
+A valid request body when searching for a NutsOrganizationCredential:
+
+.. code-block:: json
+
+    {
+        "params": [
+            {
+                "key": "organization.name",
+                "value": "Because we care B.V."
+            },
+            {
+                "key": "subject",
+                "value": "did:nuts:1"
+            }
+        ]
+    }
+
+
+The result for a search request:
+
+.. code-block:: json
+
+    [
+        {
+            "id": "did:nuts:1#2",
+            "issuer": "did:nuts:1",
+            "subject": "did:nuts:2",
+            "type": "NutsOrganizationCredential",
+            "organization": {
+                "name": "Because we care B.V.",
+                "city": "EIbergen"
+            }
+        }
+    ]
+
+The **id**, **issuer**, **subject** and **type** fields are common and will always be returned. The rest is determined by the concept template mapping.
+
 .. _default-concepts:
 
 Preconfigured concepts

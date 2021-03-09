@@ -32,6 +32,7 @@ type Registry interface {
 	Add(conceptTemplate *Template) error
 	// QueryFor creates a query for the given concept.
 	// The query is preloaded with required fixed values like the type.
+	// It returns ErrUnknownConcept if the concept is not found
 	QueryFor(concept string) (Query, error)
 	// Transform a VerifiableCredential to concept format.
 	Transform(concept string, VC did.VerifiableCredential) (Concept, error)
