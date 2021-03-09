@@ -45,9 +45,9 @@ func (d defaultBuilder) Fill(vc *did.VerifiableCredential) {
 
 	vc.Type = append(vc.Type, did.VerifiableCredentialTypeV1URI())
 
-	u4, _ := did.ParseURI(d.vcType)
-	if !vc.IsType(*u4) {
-		vc.Type = append(vc.Type, *u4)
+	builderType, _ := did.ParseURI(d.vcType)
+	if !vc.IsType(*builderType) {
+		vc.Type = append(vc.Type, *builderType)
 	}
 	vc.IssuanceDate = time.Now()
 	vc.ID = generateID(vc.Issuer)
