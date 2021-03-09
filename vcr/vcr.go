@@ -215,7 +215,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
 
-	logging.Log().Infof("Verifiable Credential created: %s", vc.ID)
+	logging.Log().Infof("Verifiable Credential issued: %s", vc.ID)
 
 	return &vc, nil
 }
