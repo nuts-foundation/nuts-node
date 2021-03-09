@@ -27,10 +27,6 @@ import (
 	"github.com/nuts-foundation/go-did"
 )
 
-const defaultContext = "https://www.w3.org/2018/credentials/v1"
-const nutsContext = "https://nuts.nl/credentials/v1"
-const defaultType = "VerifiableCredential"
-
 // Builder is an abstraction for extending a partial VC into a fully valid VC
 type Builder interface {
 	// Type returns the matching Verifiable Credential type
@@ -45,12 +41,9 @@ type defaultBuilder struct {
 }
 
 func (d defaultBuilder) Fill(vc *did.VerifiableCredential) {
-	u, _ := did.ParseURI(defaultContext)
-	u2, _ := did.ParseURI(nutsContext)
-	vc.Context = []did.URI{*u, *u2}
+	vc.Context = []did.URI{did.VCContextV1URI(), *NutsContextURI}
 
-	u3, _ := did.ParseURI(defaultType)
-	vc.Type = append(vc.Type, *u3)
+	vc.Type = append(vc.Type, did.VerifiableCredentialTypeV1URI())
 
 	u4, _ := did.ParseURI(d.vcType)
 	if !vc.IsType(*u4) {

@@ -20,7 +20,6 @@
 package credential
 
 import (
-	"net/url"
 	"testing"
 	"time"
 
@@ -42,7 +41,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - missing custom type", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
-		vc.Type = []did.URI{stringToURI(DefaultCredentialType)}
+		vc.Type = []did.URI{did.VerifiableCredentialTypeV1URI()}
 
 		err := validator.Validate(*vc)
 
@@ -170,7 +169,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - missing nuts context", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
-		vc.Context = []did.URI{stringToURI(DefaultContext)}
+		vc.Context = []did.URI{did.VerifiableCredentialTypeV1URI()}
 
 		err := validator.Validate(*vc)
 

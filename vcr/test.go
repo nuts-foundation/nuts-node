@@ -31,7 +31,7 @@ import (
 )
 
 // keyID matches the keys in /test
-const kid = "did:nuts:6NDdXGGmzWshSibqN4EYKSibUP5WxJ8ryvK1UywEZ7vv#V9Lc9BxlmPlFWfb8HqBTz-hWxF--mJOUrYIrSJqx1e0"
+const kid = "did:nuts:EgFjg8zqN6eN3oiKtSvmUucao4VF18m2Q9fftAeANTBd#twlH6rB8ArZrknmBRWLXhao3FutZtvOm0hnNhcruenI"
 
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.

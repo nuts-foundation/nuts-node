@@ -193,7 +193,7 @@ func TestVcr_Issue(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, issued)
 
-		var proof = make([]JSONWebSignature2020Proof, 1)
+		var proof = make([]did.JSONWebSignature2020Proof, 1)
 		err = issued.UnmarshalProofValue(&proof)
 		if !assert.NoError(t, err) {
 			return
@@ -338,7 +338,7 @@ func TestVcr_Verify(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 		vc2 := vc
-		pr := make([]JSONWebSignature2020Proof, 0)
+		pr := make([]did.JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
 		pr[0].Created = time.Now()
 		vc2.Proof = []interface{}{pr[0]}
@@ -400,7 +400,7 @@ func TestVcr_Verify(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 		vc2 := vc
-		pr := make([]JSONWebSignature2020Proof, 0)
+		pr := make([]did.JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
 		pr[0].Jws = ""
 		vc2.Proof = []interface{}{pr[0]}
@@ -418,7 +418,7 @@ func TestVcr_Verify(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 		vc2 := vc
-		pr := make([]JSONWebSignature2020Proof, 0)
+		pr := make([]did.JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
 		pr[0].Jws = "abac..ab//"
 		vc2.Proof = []interface{}{pr[0]}
