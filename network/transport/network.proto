@@ -30,6 +30,9 @@ service Network {
 // we'd need to open a stream per operation, which would make the number of required streams explode (since we're
 // building a full mesh network).
 message NetworkMessage {
+    // Fields numbered 1-99 are reserved for protocol metadata
+    reserved 1 to 99;
+
     oneof message {
         AdvertHashes advertHashes = 100;
         TransactionListQuery TransactionListQuery = 101;
