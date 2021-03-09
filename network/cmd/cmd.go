@@ -140,4 +140,3 @@ func httpClient(set *pflag.FlagSet) v1.HTTPClient {
 		Timeout:       config.Timeout,
 	}
 }
-

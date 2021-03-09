@@ -123,9 +123,9 @@ func (c *connector) connect(ownID PeerID, config *tls.Config) (*connection, erro
 	cxt := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
 	dialContext, _ := context.WithTimeout(cxt, 5*time.Second)
 	grpcConn, err := c.Dialer(dialContext, c.address,
-		grpc.WithBlock(),                                          // Dial should block until connection succeeded (or time-out expired)
+		grpc.WithBlock(), // Dial should block until connection succeeded (or time-out expired)
 		grpc.WithTransportCredentials(credentials.NewTLS(config)), // TLS authentication
-		grpc.WithReturnConnectionError()) // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
+		grpc.WithReturnConnectionError())                          // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
 	if err != nil {
 		return nil, errors2.Wrap(err, "unable to connect")
 	}
