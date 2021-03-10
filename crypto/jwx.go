@@ -21,6 +21,7 @@ package crypto
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"errors"
 	"fmt"
@@ -196,6 +197,11 @@ func convertHeaders(headers map[string]interface{}) (hdr jws.Headers) {
 }
 
 func ecAlg(key *ecdsa.PrivateKey) (alg jwa.SignatureAlgorithm, err error) {
+	alg, err = ecAlgUsingPublicKey(key.PublicKey)
+	return
+}
+
+func ecAlgUsingPublicKey(key ecdsa.PublicKey) (alg jwa.SignatureAlgorithm, err error) {
 	switch key.Params().BitSize {
 	case 256:
 		alg = jwa.ES256
@@ -207,4 +213,43 @@ func ecAlg(key *ecdsa.PrivateKey) (alg jwa.SignatureAlgorithm, err error) {
 		err = ErrUnsupportedSigningKey
 	}
 	return
+}
+
+func SignatureAlgorithm(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
+	if key == nil {
+		return "", errors.New("no key provided")
+	}
+
+	var ptr interface{}
+	switch v := key.(type) {
+	case rsa.PrivateKey:
+		ptr = &v
+	case rsa.PublicKey:
+		ptr = &v
+	case ecdsa.PrivateKey:
+		ptr = &v
+	case ecdsa.PublicKey:
+		ptr = &v
+	default:
+		ptr = v
+	}
+
+	switch ptr.(type) {
+	case *rsa.PrivateKey:
+		return jwa.PS256, nil
+	case *rsa.PublicKey:
+		return jwa.PS256, nil
+	case *ecdsa.PrivateKey:
+		sk := ptr.(*ecdsa.PrivateKey)
+		return ecAlgUsingPublicKey(sk.PublicKey)
+	case *ecdsa.PublicKey:
+		pk := ptr.(*ecdsa.PublicKey)
+		return ecAlgUsingPublicKey(*pk)
+	case ed25519.PrivateKey:
+		return jwa.EdDSA, nil
+	case ed25519.PublicKey:
+		return jwa.EdDSA, nil
+	default:
+		return "", fmt.Errorf(`invalid key type '%T' for jwk.New`, key)
+	}
 }

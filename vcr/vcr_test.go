@@ -20,6 +20,7 @@
 package vcr
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -29,7 +30,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -278,7 +278,8 @@ func TestVcr_Verify(t *testing.T) {
 	pke := storage.PublicKeyEntry{}
 	pkeJSON, _ := ioutil.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
-	pk, _ := jwk.PublicKeyOf(pke.JWK())
+	var pk = new(ecdsa.PublicKey)
+	pke.JWK().Raw(pk)
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)

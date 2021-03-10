@@ -28,7 +28,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
@@ -264,7 +263,12 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at time.Time) error {
 	}
 
 	// the proof must be correct
-	verifier, _ := jws.NewVerifier(jwa.ES256)
+	alg, err := crypto.SignatureAlgorithm(pk)
+	if err != nil {
+		return err
+	}
+
+	verifier, _ := jws.NewVerifier(alg)
 	// the jws lib can't do this for us, so we concat hdr with payload for verification
 	challenge := fmt.Sprintf("%s.%s", splittedJws[0], base64.RawURLEncoding.EncodeToString(payload))
 	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
