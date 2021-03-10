@@ -73,6 +73,20 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
 }
 
+// IsRevoked mocks base method.
+func (m *MockVCR) IsRevoked(ID did.URI) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsRevoked", ID)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsRevoked indicates an expected call of IsRevoked.
+func (mr *MockVCRMockRecorder) IsRevoked(ID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRevoked", reflect.TypeOf((*MockVCR)(nil).IsRevoked), ID)
+}
+
 // Issue mocks base method.
 func (m *MockVCR) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
@@ -103,7 +117,7 @@ func (mr *MockVCRMockRecorder) Registry() *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockVCR) Resolve(ID string) (did.VerifiableCredential, error) {
+func (m *MockVCR) Resolve(ID did.URI) (did.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", ID)
 	ret0, _ := ret[0].(did.VerifiableCredential)
@@ -115,6 +129,20 @@ func (m *MockVCR) Resolve(ID string) (did.VerifiableCredential, error) {
 func (mr *MockVCRMockRecorder) Resolve(ID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVCR)(nil).Resolve), ID)
+}
+
+// Revoke mocks base method.
+func (m *MockVCR) Revoke(ID did.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Revoke", ID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Revoke indicates an expected call of Revoke.
+func (mr *MockVCRMockRecorder) Revoke(ID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockVCR)(nil).Revoke), ID)
 }
 
 // Search mocks base method.

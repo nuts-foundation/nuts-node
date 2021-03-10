@@ -40,6 +40,8 @@ type defaultBuilder struct {
 	vcType string
 }
 
+var nowFunc = time.Now
+
 func (d defaultBuilder) Fill(vc *did.VerifiableCredential) {
 	vc.Context = []did.URI{did.VCContextV1URI(), *NutsContextURI}
 

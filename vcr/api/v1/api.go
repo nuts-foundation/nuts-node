@@ -84,7 +84,33 @@ func (w *Wrapper) Search(ctx echo.Context, conceptTemplate string) error {
 
 // Revoke a credential
 func (w *Wrapper) Revoke(ctx echo.Context, id string) error {
-	panic("implement me")
+	idURI, err := did.ParseURI(id)
+	// return 400 for malformed input
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse credential ID: %s", err.Error()))
+	}
+
+	err = w.R.Revoke(*idURI)
+	// 404 not found
+	if errors.Is(err, vcr.ErrNotFound) {
+		return ctx.NoContent(http.StatusNotFound)
+	}
+
+	// return 409 when already revoked
+	if errors.Is(err, vcr.ErrRevoked) {
+		return ctx.NoContent(http.StatusConflict)
+	}
+
+	// 400 not the issuer
+	if errors.Is(err, vcr.ErrInvalidIssuer) {
+		return ctx.String(http.StatusBadRequest, "no issuer private key found")
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return ctx.NoContent(http.StatusAccepted)
 }
 
 // Create a Verifiable credential
@@ -108,8 +134,14 @@ func (w *Wrapper) Create(ctx echo.Context) error {
 
 // Resolve a VC and return its content
 func (w *Wrapper) Resolve(ctx echo.Context, id string) error {
+	idURI, err := did.ParseURI(id)
+	// return 400 for malformed input
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse credential ID: %s", err.Error()))
+	}
+
 	// id is given with fragment
-	vc, err := w.R.Resolve(id)
+	vc, err := w.R.Resolve(*idURI)
 	if errors.Is(err, vcr.ErrNotFound) {
 		return ctx.NoContent(http.StatusNotFound)
 	}

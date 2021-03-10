@@ -71,7 +71,7 @@ paths:
       tags:
         - credential
       responses:
-        "201":
+        "202":
           description: Revocation has been processed locally. It has also been published to the network.
         "400":
           description: Credential can't be revoked. Most likely due to a missing private key.
@@ -81,6 +81,12 @@ paths:
                 type: string
         "404":
           description: Credential is not found.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "409":
+          description: Credential has already been revoked.
           content:
             text/plain:
               schema:

@@ -238,7 +238,14 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 	return &vc, nil
 }
 
-func (c *vcr) Resolve(ID string) (did.VerifiableCredential, error) {
+func (c *vcr) Resolve(ID did.URI) (did.VerifiableCredential, error) {
+	// todo revocation and validity ?
+
+	return c.find(ID)
+}
+
+// find only returns a VC from storage, it does not tell anything about validity
+func (c *vcr) find(ID did.URI) (did.VerifiableCredential, error) {
 	vc := did.VerifiableCredential{}
 	qp := leia.Eq(concept.IDField, ID)
 	q := leia.New(qp)
@@ -319,6 +326,63 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
 	// todo requires trusted config
 
 	return nil
+}
+
+func (c *vcr) Revoke(ID did.URI) error {
+	// first find it using a query on id.
+	vc, err := c.find(ID)
+	if err != nil {
+		// not found and other errors
+		return err
+	}
+
+	// already revoked, return error
+	if c.IsRevoked(ID) {
+		return ErrRevoked
+	}
+
+	// find issuer
+	issuer, err := did.ParseDID(vc.Issuer.String())
+	if err != nil {
+		return fmt.Errorf("failed to extract issuer: %w", err)
+	}
+
+	// resolve an assertionMethod key for issuer
+	kid, err := c.docResolver.ResolveAssertionKey(*issuer)
+	if err != nil {
+		return ErrInvalidIssuer
+	}
+
+	// set defaults
+	r := credential.BuildRevocation(vc)
+
+	// sign
+	if err = c.generateRevocationProof(&r, kid); err != nil {
+		return fmt.Errorf("failed to generate revocation proof: %w", err)
+	}
+
+	// do same validation as network nodes
+	if err := credential.ValidateRevocation(r); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
+
+	payload, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.network.CreateTransaction(revocationDocumentType, payload, kid.String(), nil, r.StatusDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish revocation: %w", err)
+	}
+
+	logging.Log().Infof("Verifiable Credential revoked: %s", vc.ID)
+
+	return nil
+}
+
+func (c *vcr) IsRevoked(ID did.URI) bool {
+	panic("implement me")
 }
 
 func (c *vcr) Write(vc did.VerifiableCredential) error {

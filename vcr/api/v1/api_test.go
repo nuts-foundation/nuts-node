@@ -229,6 +229,78 @@ func TestWrapper_Search(t *testing.T) {
 	})
 }
 
+func TestWrapper_Revoke(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil)
+		ctx.echo.EXPECT().NoContent(http.StatusAccepted)
+
+		err := ctx.client.Revoke(ctx.echo, "test")
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - bad ID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
+
+		err := ctx.client.Revoke(ctx.echo, string([]byte{0}))
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - already revoked", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(vcr.ErrRevoked)
+		ctx.echo.EXPECT().NoContent(http.StatusConflict)
+
+		err := ctx.client.Revoke(ctx.echo, string([]byte{0}))
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("err - not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(vcr.ErrNotFound)
+		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
+
+		err := ctx.client.Revoke(ctx.echo, "test")
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("err - not issuer", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(vcr.ErrInvalidIssuer)
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
+
+		err := ctx.client.Revoke(ctx.echo, "test")
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("err - other", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(errors.New("b00m!"))
+
+		err := ctx.client.Revoke(ctx.echo, "test")
+
+		assert.Error(t, err)
+	})
+}
+
 type mockContext struct {
 	ctrl     *gomock.Controller
 	echo     *mock.MockContext
