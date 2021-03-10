@@ -75,5 +75,5 @@ See `VC Concept mapping <vc-concepts>`_ for background information on concept ma
 NutsOrganizationCredential
 ==========================
 
-.. include:: ../../../vcr/assets/NutsOrganizationCredential.json
+.. include:: ../../../vcr/assets/NutsOrganizationCredential.json.template
    :literal:
