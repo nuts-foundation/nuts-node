@@ -88,8 +88,8 @@ func (n NutsDocCreator) Create() (*did.Document, error) {
 	}
 
 	doc := &did.Document{
-		Context:    []did.URI{did.DIDContextV1URI()},
-		ID:         didID,
+		Context: []did.URI{did.DIDContextV1URI()},
+		ID:      didID,
 	}
 
 	doc.AddAuthenticationMethod(verificationMethod)
