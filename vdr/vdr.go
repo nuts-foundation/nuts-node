@@ -145,7 +145,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return err
 	}
 
-	controllers, err := r.resolveControllers(*currentDIDDocument)
+	controllers, err := r.resolveControllers([]did.Document{*currentDIDDocument})
 	if err != nil {
 		return fmt.Errorf("error while finding controllers for document: %w", err)
 	}
@@ -169,11 +169,9 @@ func (r *VDR) Deactivate(DID did.DID, current hash.SHA256Hash) {
 	panic("implement me")
 }
 
-func (r *VDR) resolveControllers(doc did.Document) ([]did.Document, error) {
-	return r._resolveControllers([]did.Document{doc})
-}
-
-func (r *VDR) _resolveControllers(input []did.Document) ([]did.Document, error) {
+// resolveControllers accepts a list of documents and finds their controllers
+// The resulting list are documents who control themselves
+func (r *VDR) resolveControllers(input []did.Document) ([]did.Document, error) {
 	// end of the chain
 	if len(input) == 0 {
 		return input, nil
@@ -204,7 +202,7 @@ func (r *VDR) _resolveControllers(input []did.Document) ([]did.Document, error) 
 		}
 		nodes = append(nodes, *node)
 	}
-	newLeaves, err := r._resolveControllers(nodes)
+	newLeaves, err := r.resolveControllers(nodes)
 	if err != nil {
 		return nil, err
 	}
