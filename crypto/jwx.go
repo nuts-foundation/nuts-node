@@ -215,6 +215,7 @@ func ecAlgUsingPublicKey(key ecdsa.PublicKey) (alg jwa.SignatureAlgorithm, err e
 	return
 }
 
+// SignatureAlgorithm determines the jwa.SigningAlgorithm for ec/rsa/ed25519 keys.
 func SignatureAlgorithm(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
 	if key == nil {
 		return "", errors.New("no key provided")
