@@ -323,8 +323,8 @@ func checkDIDDocumentIntegrity(doc did.Document) error {
 	return nil
 }
 
-func isUpdate(document dag.SubscriberTransaction) bool {
-	return !document.TimelineID().Empty()
+func isUpdate(transaction dag.SubscriberTransaction) bool {
+	return !transaction.TimelineID().Empty()
 }
 
 // resolveDIDControllers tries to resolve the controllers for a given DID Document
