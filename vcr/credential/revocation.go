@@ -38,7 +38,7 @@ type Revocation struct {
 	// statusDate is a rfc3339 formatted datetime.
 	StatusDate time.Time
 	// Proof contains the cryptographic proof(s). It must be extracted using the Proofs method or UnmarshalProofValue method for non-generic proof fields.
-	Proof did.JSONWebSignature2020Proof `json:"proof,omitempty"`
+	Proof *did.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }
 
 

@@ -247,7 +247,7 @@ func (c *vcr) Resolve(ID did.URI) (did.VerifiableCredential, error) {
 // find only returns a VC from storage, it does not tell anything about validity
 func (c *vcr) find(ID did.URI) (did.VerifiableCredential, error) {
 	vc := did.VerifiableCredential{}
-	qp := leia.Eq(concept.IDField, ID)
+	qp := leia.Eq(concept.IDField, ID.String())
 	q := leia.New(qp)
 
 	gIndex := c.globalIndex()
@@ -463,7 +463,7 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 
 func (c *vcr) generateRevocationProof(r *credential.Revocation, kid did.URI) error {
 	// create proof
-	pr := did.JSONWebSignature2020Proof {
+	r.Proof = &did.JSONWebSignature2020Proof {
 		Proof: did.Proof {
 			Type:               "JsonWebSignature2020",
 			ProofPurpose:       "assertionMethod",
@@ -471,10 +471,9 @@ func (c *vcr) generateRevocationProof(r *credential.Revocation, kid did.URI) err
 			Created:            r.StatusDate,
 		},
 	}
-	r.Proof = pr
 
 	// create correct signing challenge
-	challenge, err := generateCredentialChallenge(*r)
+	challenge, err := generateRevocationChallenge(*r)
 	if err != nil {
 		return err
 	}
@@ -487,11 +486,7 @@ func (c *vcr) generateRevocationProof(r *credential.Revocation, kid did.URI) err
 	// remove payload from sig since a detached jws is required.
 	dsig := toDetachedSignature(sig)
 
-	r.Proof =
-		did.JSONWebSignature2020Proof{
-			Proof: pr.Proof,
-			Jws:   dsig,
-		}
+	r.Proof.Jws = dsig
 
 	return nil
 }
@@ -517,6 +512,29 @@ func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
 	// proof
 	proof := proofs[0]
 	proof.Jws = ""
+	prJSON, err := json.Marshal(proof)
+	if err != nil {
+		return nil, err
+	}
+
+	tbs := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
+
+	return tbs, nil
+}
+
+
+func generateRevocationChallenge(r credential.Revocation) ([]byte, error) {
+	// without JWS
+	proof := r.Proof.Proof
+
+	// payload
+	r.Proof = nil
+	payload, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// proof
 	prJSON, err := json.Marshal(proof)
 	if err != nil {
 		return nil, err

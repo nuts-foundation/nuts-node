@@ -3,10 +3,6 @@ package vdr
 import (
 	"crypto"
 	"fmt"
-<<<<<<< HEAD
-=======
-	"net/url"
->>>>>>> master
 	"time"
 
 	"github.com/nuts-foundation/go-did"
@@ -82,13 +78,8 @@ func (r *VDR) ResolveAssertionKey(id did.DID) (did.URI, error) {
 	for _, key := range keys {
 		kid := key.ID.String()
 		if r.keyStore.PrivateKeyExists(kid) {
-<<<<<<< HEAD
 			u, _ := did.ParseURI(kid)
 			return *u, nil
-=======
-			u, _ := url.Parse(kid)
-			return did.URI{URL: *u}, nil
->>>>>>> master
 		}
 	}
 

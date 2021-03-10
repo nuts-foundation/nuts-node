@@ -136,7 +136,7 @@ func TestVCR_Resolve(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		vc, err := instance.Resolve(testVC.ID.String())
+		vc, err := instance.Resolve(*testVC.ID)
 
 		if !assert.NoError(t, err) {
 			return
@@ -146,7 +146,7 @@ func TestVCR_Resolve(t *testing.T) {
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		_, err := instance.Resolve("unknown")
+		_, err := instance.Resolve(did.URI{})
 
 		assert.Equal(t, ErrNotFound, err)
 	})

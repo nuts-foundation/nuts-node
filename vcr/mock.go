@@ -73,7 +73,6 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
 }
 
-<<<<<<< HEAD
 // IsRevoked mocks base method.
 func (m *MockVCR) IsRevoked(ID did.URI) bool {
 	m.ctrl.T.Helper()
@@ -88,8 +87,6 @@ func (mr *MockVCRMockRecorder) IsRevoked(ID interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRevoked", reflect.TypeOf((*MockVCR)(nil).IsRevoked), ID)
 }
 
-=======
->>>>>>> master
 // Issue mocks base method.
 func (m *MockVCR) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
 	m.ctrl.T.Helper()

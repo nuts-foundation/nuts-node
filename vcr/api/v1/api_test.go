@@ -112,7 +112,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		var vcReturn did2.VerifiableCredential
-		ctx.vcr.EXPECT().Resolve(idString).Return(vc, nil)
+		ctx.vcr.EXPECT().Resolve(*id).Return(vc, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			vcReturn = f2.(did2.VerifiableCredential)
 			return nil
@@ -130,7 +130,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Resolve(idString).Return(vc, vcr.ErrNotFound)
+		ctx.vcr.EXPECT().Resolve(*id).Return(vc, vcr.ErrNotFound)
 		ctx.echo.EXPECT().NoContent(http.StatusNotFound).Return(nil)
 
 		err := ctx.client.Resolve(ctx.echo, idString)
@@ -142,7 +142,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Resolve(idString).Return(vc, errors.New("b00m!"))
+		ctx.vcr.EXPECT().Resolve(*id).Return(vc, errors.New("b00m!"))
 
 		err := ctx.client.Resolve(ctx.echo, idString)
 
@@ -261,7 +261,7 @@ func TestWrapper_Revoke(t *testing.T) {
 		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(vcr.ErrRevoked)
 		ctx.echo.EXPECT().NoContent(http.StatusConflict)
 
-		err := ctx.client.Revoke(ctx.echo, string([]byte{0}))
+		err := ctx.client.Revoke(ctx.echo, "test")
 
 		assert.NoError(t, err)
 	})
