@@ -57,6 +57,13 @@ func TestDefaultBuilder_Build(t *testing.T) {
 	vc := &did.VerifiableCredential{
 		Issuer: *issuer,
 	}
+	defer func() {
+		nowFunc = time.Now
+	}()
+	checkTime := time.Now()
+	nowFunc = func() time.Time {
+		return checkTime
+	}
 
 	b.Fill(vc)
 
@@ -77,5 +84,9 @@ func TestDefaultBuilder_Build(t *testing.T) {
 
 	t.Run("adds ID", func(t *testing.T) {
 		assert.NotNil(t, vc.ID)
+	})
+
+	t.Run("sets time", func(t *testing.T) {
+		assert.Equal(t, checkTime, vc.IssuanceDate)
 	})
 }

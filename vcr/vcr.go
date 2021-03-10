@@ -45,7 +45,7 @@ import (
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(signer crypto.JWSSigner, docResolver vdr.Resolver, network network.Transactions) VCR {
-	r := &vcr{
+	r := &vcr {
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
 		signer:      signer,
@@ -98,7 +98,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 }
 
 func (c *vcr) loadTemplates() error {
-	list, err := fs.Glob(defaultTemplates, "**/*.json")
+	list, err := fs.Glob(defaultTemplates, "**/*.json.template")
 	if err != nil {
 		return err
 	}
@@ -195,19 +195,19 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
 	validator, builder := credential.FindValidatorAndBuilder(vc)
 	if validator == nil || builder == nil {
-		return nil, errors.New("validation failed: unknown credential type")
+		return nil, errors.New("unknown credential type")
 	}
 
 	// find issuer
 	issuer, err := did.ParseDID(vc.Issuer.String())
 	if err != nil {
-		return nil, fmt.Errorf("validation failed: failed to parse issuer: %w", err)
+		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
 
 	// resolve an assertionMethod key for issuer
 	kid, err := c.docResolver.ResolveAssertionKey(*issuer)
 	if err != nil {
-		return nil, fmt.Errorf("validation failed: invalid issuer: %w", err)
+		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
 
 	// set defaults
@@ -220,7 +220,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 
 	// do same validation as network nodes
 	if err := validator.Validate(vc); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
+		return nil, err
 	}
 
 	payload, err := json.Marshal(vc)
@@ -373,7 +373,7 @@ func (c *vcr) Revoke(ID did.URI) error {
 
 	_, err = c.network.CreateTransaction(revocationDocumentType, payload, kid.String(), nil, r.StatusDate)
 	if err != nil {
-		return nil, fmt.Errorf("failed to publish revocation: %w", err)
+		return fmt.Errorf("failed to publish revocation: %w", err)
 	}
 
 	logging.Log().Infof("Verifiable Credential revoked: %s", vc.ID)
@@ -403,6 +403,7 @@ func (c *vcr) Write(vc did.VerifiableCredential) error {
 
 	return collection.Add([]leia.Document{doc})
 }
+
 
 // convert returns a map of credential type to query
 // credential type is then used as collection input
@@ -456,6 +457,41 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 			Jws:   dsig,
 		},
 	}
+
+	return nil
+}
+
+func (c *vcr) generateRevocationProof(r *credential.Revocation, kid did.URI) error {
+	// create proof
+	pr := did.JSONWebSignature2020Proof {
+		Proof: did.Proof {
+			Type:               "JsonWebSignature2020",
+			ProofPurpose:       "assertionMethod",
+			VerificationMethod: kid,
+			Created:            r.StatusDate,
+		},
+	}
+	r.Proof = pr
+
+	// create correct signing challenge
+	challenge, err := generateCredentialChallenge(*r)
+	if err != nil {
+		return err
+	}
+
+	sig, err := c.signer.SignJWS(challenge, detachedJWSHeaders(), kid.String())
+	if err != nil {
+		return err
+	}
+
+	// remove payload from sig since a detached jws is required.
+	dsig := toDetachedSignature(sig)
+
+	r.Proof =
+		did.JSONWebSignature2020Proof{
+			Proof: pr.Proof,
+			Jws:   dsig,
+		}
 
 	return nil
 }

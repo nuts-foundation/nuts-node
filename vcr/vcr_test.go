@@ -254,6 +254,7 @@ func TestVcr_Issue(t *testing.T) {
 		_, err := instance.Issue(*cred)
 
 		assert.Error(t, err)
+		assert.True(t, errors.Is(err, credential.ErrValidation))
 	})
 
 	t.Run("error - signing failed", func(t *testing.T) {

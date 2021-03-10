@@ -30,36 +30,44 @@ import (
 
 func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.AdvertHashes) {
 	log.Logger().Tracef("Received adverted hash from peer: %s", peer)
-	hashes := make([]hash.SHA256Hash, len(advertHash.Hashes))
+	peerHeads := make([]hash.SHA256Hash, len(advertHash.Hashes))
 	for i, h := range advertHash.Hashes {
-		hashes[i] = hash.FromSlice(h)
+		peerHeads[i] = hash.FromSlice(h)
 	}
 	peerHash := PeerHash{
 		Peer:   peer,
-		Hashes: hashes,
+		Hashes: peerHeads,
 	}
 	p.newPeerHashChannel <- peerHash
 
 	heads := p.graph.Heads()
-	for _, peerHash := range hashes {
-		found := false
+	for _, peerHead := range peerHeads {
+		headMatches := false
 		for _, head := range heads {
-			if peerHash.Equals(head) {
-				found = true
+			if peerHead.Equals(head) {
+				headMatches = true
 				break
 			}
 		}
-		if !found {
-			log.Logger().Infof("Peer has different heads than us, querying transaction list (peer=%s)", peer)
+		if headMatches {
+			continue
+		}
+		// We might not have our peer's head as head of our own DAG, but our peer might be out of date,
+		// missing transactions we do have. In that case, the head should be present on our DAG. If it's not,
+		// we're missing a transaction on the DAG and should query it.
+		headIsPresentOnLocalDAG, err := p.graph.IsPresent(peerHead)
+		if err != nil {
+			log.Logger().Errorf("Error while checking peer head on local DAG (ref=%s): %v", peerHead, err)
+		} else if !headIsPresentOnLocalDAG {
+			log.Logger().Infof("Peer has head which is not present on our DAG, querying transaction list (peer=%s)", peer)
 			go p.queryTransactionList(peer)
-			return
 		}
 	}
 }
 
 func (p protocol) queryTransactionList(peer p2p.PeerID) {
 	msg := createMessage()
-	msg.TransactionListQuery = &transport.TransactionListQuery{}
+	msg.Message = &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{}}
 	if err := p.p2pNetwork.Send(peer, &msg); err != nil {
 		log.Logger().Errorf("Unable to query peer for hash list (peer=%s): %v", peer, err)
 	}
@@ -69,11 +77,11 @@ func (p protocol) advertHashes() {
 	msg := createMessage()
 	heads := p.graph.Heads()
 	slices := make([][]byte, len(heads))
-	for i, hash := range heads {
-		slices[i] = hash.Slice()
+	for i, head := range heads {
+		slices[i] = head.Slice()
 	}
 	log.Logger().Tracef("Broadcasting heads: %v", heads)
-	msg.AdvertHashes = &transport.AdvertHashes{Hashes: slices}
+	msg.Message = &transport.NetworkMessage_AdvertHashes{AdvertHashes: &transport.AdvertHashes{Hashes: slices}}
 	p.p2pNetwork.Broadcast(&msg)
 }
 
@@ -104,10 +112,10 @@ func (p *protocol) handleTransactionPayloadQuery(peer p2p.PeerID, query *transpo
 		return err
 	} else if data != nil {
 		responseMsg := createMessage()
-		responseMsg.TransactionPayload = &transport.TransactionPayload{
+		responseMsg.Message = &transport.NetworkMessage_TransactionPayload{TransactionPayload: &transport.TransactionPayload{
 			PayloadHash: payloadHash.Slice(),
 			Data:        data,
-		}
+		}}
 		if err := p.p2pNetwork.Send(peer, &responseMsg); err != nil {
 			return err
 		}
@@ -162,7 +170,9 @@ func (p *protocol) checkTransactionOnLocalNode(peer p2p.PeerID, transactionRef h
 		//   transaction contents. We need a smarter way to get it from a peer who does.
 		log.Logger().Infof("Received transaction hash from peer that we don't have yet or we're missing its contents, will query it (peer=%s,hash=%s)", peer, transactionRef)
 		responseMsg := createMessage()
-		responseMsg.TransactionPayloadQuery = &transport.TransactionPayloadQuery{PayloadHash: transaction.PayloadHash().Slice()}
+		responseMsg.Message = &transport.NetworkMessage_TransactionPayloadQuery{
+			TransactionPayloadQuery: &transport.TransactionPayloadQuery{PayloadHash: transaction.PayloadHash().Slice()},
+		}
 		return p.p2pNetwork.Send(peer, &responseMsg)
 	}
 	return nil
@@ -170,20 +180,21 @@ func (p *protocol) checkTransactionOnLocalNode(peer p2p.PeerID, transactionRef h
 
 func (p *protocol) handleTransactionListQuery(peer p2p.PeerID) error {
 	log.Logger().Tracef("Received transaction list query from peer (peer=%s)", peer)
-	msg := createMessage()
 	transactions, err := p.graph.All()
 	if err != nil {
 		return err
 	}
-	msg.TransactionList = &transport.TransactionList{
+	tl := &transport.TransactionList{
 		Transactions: make([]*transport.Transaction, len(transactions)),
 	}
 	for i, transaction := range transactions {
-		msg.TransactionList.Transactions[i] = &transport.Transaction{
+		tl.Transactions[i] = &transport.Transaction{
 			Hash: transaction.Ref().Slice(),
 			Data: transaction.Data(),
 		}
 	}
+	msg := createMessage()
+	msg.Message = &transport.NetworkMessage_TransactionList{TransactionList: tl}
 	if err := p.p2pNetwork.Send(peer, &msg); err != nil {
 		return err
 	}

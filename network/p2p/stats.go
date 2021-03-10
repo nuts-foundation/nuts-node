@@ -37,7 +37,7 @@ func (n NumberOfPeersStatistic) String() string {
 }
 
 type PeersStatistic struct {
-	Peers []PeerID
+	Peers []Peer
 }
 
 func (p PeersStatistic) Name() string {
@@ -54,4 +54,16 @@ func (p PeersStatistic) String() string {
 		return addrs[i] > addrs[j]
 	})
 	return strings.Join(addrs, " ")
+}
+
+type OwnPeerIDStatistic struct {
+	peerID PeerID
+}
+
+func (o OwnPeerIDStatistic) Name() string {
+	return "[P2P Network] Peer ID of local node"
+}
+
+func (o OwnPeerIDStatistic) String() string {
+	return o.peerID.String()
 }
