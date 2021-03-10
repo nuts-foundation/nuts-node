@@ -183,6 +183,11 @@ func (r *VDR) resolveControllers(input []did.Document) ([]did.Document, error) {
 
 	// for each input document, find its controllers or add the doc itself if its controls itself
 	for _, doc := range input {
+		if len(doc.Controller) == 0 && len(doc.Authentication) > 0 {
+			// no controller -> doc is its own controller
+			leaves = append(leaves, doc)
+			continue
+		}
 		for _, ctrlDID := range doc.Controller {
 			if doc.ID.Equals(ctrlDID) {
 				// doc is its own controller

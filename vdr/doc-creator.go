@@ -72,27 +72,24 @@ func (n NutsDocCreator) Create() (*did.Document, error) {
 		return nil, fmt.Errorf("unable to build did: %w", err)
 	}
 
-	// The Document DID will be the keyIDStr without the fragment:
-	didID, err := did.ParseDID(keyIDStr)
-	if err != nil {
-		return nil, err
-	}
-	didID.Fragment = ""
-
 	keyID, err := did.ParseDID(keyIDStr)
 	if err != nil {
 		return nil, err
 	}
+
+	// The Document DID will be the keyIDStr without the fragment:
+	didID := *keyID
+	didID.Fragment = ""
+
 	// Build the AuthenticationMethod and add it to the document
 	verificationMethod, err := did.NewVerificationMethod(*keyID, did.JsonWebKey2020, did.DID{}, key)
 	if err != nil {
 		return nil, err
 	}
-	// Create the Document with itself as the controller
+
 	doc := &did.Document{
 		Context:    []did.URI{did.DIDContextV1URI()},
-		ID:         *didID,
-		Controller: []did.DID{*didID},
+		ID:         didID,
 	}
 
 	doc.AddAuthenticationMethod(verificationMethod)

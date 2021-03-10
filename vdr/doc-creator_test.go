@@ -55,11 +55,6 @@ func TestDocCreator_Create(t *testing.T) {
 			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS", doc.ID.String(),
 				"the DID Doc should have the expected id")
 
-			assert.Len(t, doc.Controller, 1,
-				"one controller should be set")
-			assert.Equal(t, doc.ID.String(), doc.Controller[0].String(),
-				"controller should be equal to the document id")
-
 			assert.Len(t, doc.VerificationMethod, 1,
 				"it should have one verificationMethod")
 			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", doc.VerificationMethod[0].ID.String(),
