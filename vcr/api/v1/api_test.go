@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -92,7 +93,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 
 		ctx.echo.EXPECT().Bind(gomock.Any())
 		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
-		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, errors.New("validation failed"))
+		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, credential.ErrValidation)
 
 		err := ctx.client.Create(ctx.echo)
 

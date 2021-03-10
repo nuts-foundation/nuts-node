@@ -30,17 +30,6 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var clientCreator = func() v1.HTTPClient {
-	config := core.NewClientConfig()
-	if err := config.Load(); err != nil {
-		logrus.Fatal(err)
-	}
-	return v1.HTTPClient{
-		ServerAddress: config.GetAddress(),
-		Timeout:       config.Timeout,
-	}
-}
-
 // FlagSet contains flags relevant for the VDR instance
 func FlagSet() *pflag.FlagSet {
 	defs := network.DefaultConfig()
@@ -83,7 +72,7 @@ func payloadCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			data, err := clientCreator().GetTransactionPayload(hash)
+			data, err := httpClient(cmd.Flags()).GetTransactionPayload(hash)
 			if err != nil {
 				return err
 			}
@@ -107,7 +96,7 @@ func getCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			transaction, err := clientCreator().GetTransaction(hash)
+			transaction, err := httpClient(cmd.Flags()).GetTransaction(hash)
 			if err != nil {
 				return err
 			}
@@ -126,7 +115,7 @@ func listCommand() *cobra.Command {
 		Use:   "list",
 		Short: "Lists the transactions on the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			transactions, err := clientCreator().ListTransactions()
+			transactions, err := httpClient(cmd.Flags()).ListTransactions()
 			if err != nil {
 				return err
 			}
@@ -137,5 +126,17 @@ func listCommand() *cobra.Command {
 			}
 			return nil
 		},
+	}
+}
+
+// httpClient creates a remote client
+func httpClient(set *pflag.FlagSet) v1.HTTPClient {
+	config := core.NewClientConfig()
+	if err := config.Load(set); err != nil {
+		logrus.Fatal(err)
+	}
+	return v1.HTTPClient{
+		ServerAddress: config.GetAddress(),
+		Timeout:       config.Timeout,
 	}
 }

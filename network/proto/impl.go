@@ -105,7 +105,7 @@ func (p *protocol) updateDiagnostics() {
 			for peerId := range p.peerHashes {
 				var present = false
 				for _, connectedPeer := range connectedPeers {
-					if peerId == connectedPeer {
+					if peerId == connectedPeer.ID {
 						present = true
 					}
 				}
@@ -127,16 +127,7 @@ func (p *protocol) updateDiagnostics() {
 func (p protocol) consumeMessages(queue p2p.MessageQueue) {
 	for {
 		peerMsg := queue.Get()
-		msg := peerMsg.Message
-		var err error
-		if msg.Header == nil {
-			err = ErrMissingProtocolVersion
-		} else if msg.Header.Version != Version {
-			err = ErrUnsupportedProtocolVersion
-		} else {
-			err = p.handleMessage(peerMsg)
-		}
-		if err != nil {
+		if err := p.handleMessage(peerMsg); err != nil {
 			log.Logger().Errorf("Error handling message (peer=%s): %v", peerMsg.Peer, err)
 		}
 	}
@@ -144,35 +135,26 @@ func (p protocol) consumeMessages(queue p2p.MessageQueue) {
 
 func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
 	peer := peerMsg.Peer
-	msg := peerMsg.Message
-	if msg.AdvertHashes != nil {
+	networkMessage := peerMsg.Message
+	switch msg := networkMessage.Message.(type) {
+	case *transport.NetworkMessage_AdvertHashes:
 		p.handleAdvertHashes(peer, msg.AdvertHashes)
-	}
-	if msg.TransactionListQuery != nil {
-		if err := p.handleTransactionListQuery(peer); err != nil {
-			return err
+	case *transport.NetworkMessage_TransactionListQuery:
+		return p.handleTransactionListQuery(peer)
+	case *transport.NetworkMessage_TransactionList:
+		return p.handleTransactionList(peer, msg.TransactionList)
+	case *transport.NetworkMessage_TransactionPayloadQuery:
+		if msg.TransactionPayloadQuery.PayloadHash != nil {
+			return p.handleTransactionPayloadQuery(peer, msg.TransactionPayloadQuery)
 		}
-	}
-	if msg.TransactionList != nil {
-		if err := p.handleTransactionList(peer, msg.TransactionList); err != nil {
-			return err
+	case *transport.NetworkMessage_TransactionPayload:
+		if msg.TransactionPayload.PayloadHash != nil && msg.TransactionPayload.Data != nil {
+			p.handleTransactionPayload(peer, msg.TransactionPayload)
 		}
-	}
-	if msg.TransactionPayloadQuery != nil && msg.TransactionPayloadQuery.PayloadHash != nil {
-		if err := p.handleTransactionPayloadQuery(peer, msg.TransactionPayloadQuery); err != nil {
-			return err
-		}
-	}
-	if msg.TransactionPayload != nil && msg.TransactionPayload.PayloadHash != nil && msg.TransactionPayload.Data != nil {
-		p.handleTransactionPayload(peer, msg.TransactionPayload)
 	}
 	return nil
 }
 
 func createMessage() transport.NetworkMessage {
-	return transport.NetworkMessage{
-		Header: &transport.Header{
-			Version: Version,
-		},
-	}
+	return transport.NetworkMessage{}
 }

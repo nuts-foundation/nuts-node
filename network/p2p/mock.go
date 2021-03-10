@@ -104,10 +104,10 @@ func (mr *MockP2PNetworkMockRecorder) Diagnostics() *gomock.Call {
 }
 
 // Peers mocks base method.
-func (m *MockP2PNetwork) Peers() []PeerID {
+func (m *MockP2PNetwork) Peers() []Peer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Peers")
-	ret0, _ := ret[0].([]PeerID)
+	ret0, _ := ret[0].([]Peer)
 	return ret0
 }
 

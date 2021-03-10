@@ -21,6 +21,7 @@ package credential
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/nuts-foundation/go-did"
@@ -33,31 +34,52 @@ type Validator interface {
 	Validate(credential did.VerifiableCredential) error
 }
 
+// ErrValidation is a common error indicating validation failed
+var ErrValidation = errors.New("validation failed")
+
+type validationError struct {
+	msg string
+}
+
+// Error returns the error message
+func (err *validationError) Error() string {
+	return fmt.Sprintf("validation failed: %s", err.msg)
+}
+
+// Is checks if validationError matches the target error
+func (err *validationError) Is(target error) bool {
+	return errors.Is(target, ErrValidation)
+}
+
+func failure(err string) error {
+	return &validationError{err}
+}
+
 // validate the default fields
 func validate(credential did.VerifiableCredential) error {
 
 	if !containsType(credential, DefaultCredentialType) {
-		return errors.New("validation failed: 'VerifiableCredential' is required")
+		return failure("'VerifiableCredential' is required")
 	}
 
 	if !containsContext(credential, DefaultContext) {
-		return errors.New("validation failed: default context is required")
+		return failure("default context is required")
 	}
 
 	if !containsContext(credential, NutsContext) {
-		return errors.New("validation failed: nuts context is required")
+		return failure("nuts context is required")
 	}
 
 	if credential.ID == nil {
-		return errors.New("validation failed: 'ID' is required")
+		return failure("'ID' is required")
 	}
 
 	if credential.IssuanceDate.IsZero() {
-		return errors.New("validation failed: 'issuanceDate' is required")
+		return failure("'issuanceDate' is required")
 	}
 
 	if credential.Proof == nil {
-		return errors.New("validation failed: 'proof' is required")
+		return failure("'proof' is required")
 	}
 
 	return nil
@@ -94,29 +116,29 @@ func (d nutsOrganizationCredentialValidator) Validate(credential did.VerifiableC
 	}
 
 	if !containsType(credential, NutsOrganizationCredentialType) {
-		return errors.New("validation failed: 'VerifiableCredential' is required")
+		return failure("'VerifiableCredential' is required")
 	}
 
 	// if it fails, length check will trigger
 	_ = credential.UnmarshalCredentialSubject(&target)
 	if len(target) != 1 {
-		return errors.New("validation failed: single CredentialSubject expected")
+		return failure("single CredentialSubject expected")
 	}
 	cs := target[0]
 
 	if cs.Organization == nil {
-		return errors.New("validation failed: 'credentialSubject.organization' is empty")
+		return failure("'credentialSubject.organization' is empty")
 	}
 	if cs.ID == "" {
-		return errors.New("validation failed: 'credentialSubject.ID' is nil")
+		return failure("'credentialSubject.ID' is nil")
 	}
 
 	if n, ok := cs.Organization["name"]; !ok || len(strings.TrimSpace(n)) == 0 {
-		return errors.New("validation failed: 'credentialSubject.name' is empty")
+		return failure("'credentialSubject.name' is empty")
 	}
 
 	if c, ok := cs.Organization["city"]; !ok || len(strings.TrimSpace(c)) == 0 {
-		return errors.New("validation failed: 'credentialSubject.city' is empty")
+		return failure("'credentialSubject.city' is empty")
 	}
 
 	return nil

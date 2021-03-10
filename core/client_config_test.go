@@ -20,9 +20,10 @@
 package core
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_GetAddress(t *testing.T) {
@@ -30,7 +31,7 @@ func Test_GetAddress(t *testing.T) {
 		os.Setenv("NUTS_ADDRESS", "https://localhost")
 		defer os.Unsetenv("NUTS_ADDRESS")
 		cfg := NewClientConfig()
-		err := cfg.Load()
+		err := cfg.Load(ClientConfigFlags())
 		assert.NoError(t, err)
 		assert.Equal(t, "https://localhost", cfg.GetAddress())
 	})
@@ -38,8 +39,38 @@ func Test_GetAddress(t *testing.T) {
 		os.Setenv("NUTS_ADDRESS", "localhost")
 		defer os.Unsetenv("NUTS_ADDRESS")
 		cfg := NewClientConfig()
-		err := cfg.Load()
+		err := cfg.Load(ClientConfigFlags())
 		assert.NoError(t, err)
 		assert.Equal(t, "http://localhost", cfg.GetAddress())
+	})
+}
+
+func TestClientConfigFlags(t *testing.T) {
+	oldArgs := os.Args
+	os.Args = []string{"nuts"}
+	defer func() {
+		os.Args = oldArgs
+	}()
+	t.Run("no args set", func(t *testing.T) {
+		flags := ClientConfigFlags()
+		address, err := flags.GetString(addressFlag)
+		assert.NoError(t, err)
+		duration, err := flags.GetDuration(clientTimeoutFlag)
+		assert.NoError(t, err)
+		assert.Equal(t, defaultAddress, address)
+		assert.Equal(t, defaultClientTimeout.String(), duration.String())
+	})
+
+	t.Run("args set", func(t *testing.T) {
+		args := []string{"nuts", "--" + addressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms"}
+
+		flags := ClientConfigFlags()
+		flags.Parse(args)
+		address, err := flags.GetString(addressFlag)
+		assert.NoError(t, err)
+		duration, err := flags.GetDuration(clientTimeoutFlag)
+		assert.NoError(t, err)
+		assert.Equal(t, "localhost:1111", address)
+		assert.Equal(t, "20ms", duration.String())
 	})
 }

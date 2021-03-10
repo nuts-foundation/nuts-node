@@ -20,10 +20,11 @@
 package core
 
 import (
-	"github.com/knadh/koanf"
-	"github.com/spf13/pflag"
 	"strings"
 	"time"
+
+	"github.com/knadh/koanf"
+	"github.com/spf13/pflag"
 )
 
 const defaultClientTimeout = 10 * time.Second
@@ -48,8 +49,8 @@ func NewClientConfig() *ClientConfig {
 }
 
 // Load loads the client config from environment variables and commandline params.
-func (cfg *ClientConfig) Load() error {
-	return loadConfigIntoStruct(ClientConfigFlags(), cfg, koanf.New(defaultDelimiter))
+func (cfg *ClientConfig) Load(set *pflag.FlagSet) error {
+	return loadConfigIntoStruct(set, cfg, koanf.New(defaultDelimiter))
 }
 
 // GetAddress normalizes and gets the address of the remote server
