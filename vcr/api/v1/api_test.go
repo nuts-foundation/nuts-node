@@ -231,12 +231,14 @@ func TestWrapper_Search(t *testing.T) {
 }
 
 func TestWrapper_Revoke(t *testing.T) {
+	revocation := &credential.Revocation{}
+
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil)
-		ctx.echo.EXPECT().NoContent(http.StatusAccepted)
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(revocation, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, revocation)
 
 		err := ctx.client.Revoke(ctx.echo, "test")
 
@@ -258,7 +260,7 @@ func TestWrapper_Revoke(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(vcr.ErrRevoked)
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, vcr.ErrRevoked)
 		ctx.echo.EXPECT().NoContent(http.StatusConflict)
 
 		err := ctx.client.Revoke(ctx.echo, "test")
@@ -270,7 +272,7 @@ func TestWrapper_Revoke(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(vcr.ErrNotFound)
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, vcr.ErrNotFound)
 		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
 
 		err := ctx.client.Revoke(ctx.echo, "test")
@@ -282,7 +284,7 @@ func TestWrapper_Revoke(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(vcr.ErrInvalidIssuer)
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, vcr.ErrInvalidIssuer)
 		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 
 		err := ctx.client.Revoke(ctx.echo, "test")
@@ -294,7 +296,7 @@ func TestWrapper_Revoke(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(errors.New("b00m!"))
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.Revoke(ctx.echo, "test")
 

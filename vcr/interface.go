@@ -26,6 +26,7 @@ import (
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 //go:embed assets/*
@@ -52,10 +53,10 @@ var revocationDocumentType = "application/vc+json;type=revocation"
 
 // Writer is the interface that groups al the VC write methods
 type Writer interface {
-	// Write writes a VC to storage. Before writing, it calls Verify!
-	Write(vc did.VerifiableCredential) error
-
-	// is revocation an addition of a revoke credential or the removal of the credential.
+	// StoreCredential writes a VC to storage. Before writing, it calls Verify!
+	StoreCredential(vc did.VerifiableCredential) error
+	// StoreRevocation writes a revocation to storage.
+	StoreRevocation(r credential.Revocation) error
 }
 
 // VCR is the interface that covers all functionality of the vcr store.
@@ -75,9 +76,9 @@ type VCR interface {
 	// Revoke a credential based on its ID, the Issuer will be resolved automatically.
 	// The CurrentStatus will be set to 'Revoked' and the statusDate to the current time.
 	// It returns an error if the credential, issuer or private key can not be found.
-	Revoke(ID did.URI) error
+	Revoke(ID did.URI) (*credential.Revocation, error)
 	// IsRevoked returns true when a revocation exists for a credential
-	IsRevoked(ID did.URI) bool
+	IsRevoked(ID did.URI) (bool, error)
 	// Registry returns the concept registry
 	Registry() concept.Registry
 

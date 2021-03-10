@@ -458,41 +458,50 @@ func TestVcr_Verify(t *testing.T) {
 	})
 }
 
-func TestVcr_Write(t *testing.T) {
+func TestVcr_Revoke(t *testing.T) {
 	// load VC
 	vc := did.VerifiableCredential{}
 	vcJSON, _ := ioutil.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &vc)
 
-	// load pub key
-	pke := storage.PublicKeyEntry{}
-	pkeJSON, _ := ioutil.ReadFile("test/public.json")
-	json.Unmarshal(pkeJSON, &pke)
-	pk, _ := jwk.PublicKeyOf(pke.JWK())
-
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
-
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any())
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-		ctx.vdr.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
+		ctx.vcr.writeCredential(vc)
+		ctx.vdr.EXPECT().ResolveAssertionKey(gomock.Any()).Return(vc.Issuer, nil)
+		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vc.Issuer.String()).Return("hdr..sig", nil)
+		ctx.tx.EXPECT().CreateTransaction(
+			revocationDocumentType,
+			gomock.Any(),
+			vc.Issuer.String(),
+			nil,
+			gomock.Any(),
+		)
 
-		err := ctx.vcr.Write(vc)
+		r, err := ctx.vcr.Revoke(*vc.ID)
 
-		assert.NoError(t, err)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, "hdr..sig", r.Proof.Jws)
 	})
 
-	t.Run("error - validation", func(t *testing.T) {
+	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
-
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any())
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
-		err := ctx.vcr.Write(did.VerifiableCredential{})
+		_, err := ctx.vcr.Revoke(did.URI{})
 
-		assert.Error(t, err)
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.Equal(t, ErrNotFound, err)
 	})
 }
 

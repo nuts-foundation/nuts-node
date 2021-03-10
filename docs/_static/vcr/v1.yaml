@@ -71,8 +71,12 @@ paths:
       tags:
         - credential
       responses:
-        "202":
+        "200":
           description: Revocation has been processed locally. It has also been published to the network.
+          content:
+            application/vc+json;type=revocation:
+              schema:
+                $ref: '#/components/schemas/Revocation'
         "400":
           description: Credential can't be revoked. Most likely due to a missing private key.
           content:
@@ -165,6 +169,34 @@ components:
           example: company.name
         value:
           type: string
+    Revocation:
+      type: object
+      description: Credential revocation record
+      required:
+        - issuer
+        - subject
+        - currentStatus
+        - statusDate
+      properties:
+        issuer:
+          type: string
+          description: issuer refers to the party that issued the credential
+        subject:
+          type: string
+          description: subject refers to the VC that is revoked
+        currentStatus:
+          type: string
+          description: currentStatus describes the current status
+          enum: ["Revoked"]
+        statusReason:
+          type: string
+          description: statusReason describes why the VC has been revoked
+        statusDate:
+          type: string
+          description: statusDate is a rfc3339 formatted datetime.
+        proof:
+          type: object
+          description: Proof contains the cryptographic proof(s).
     SearchRequest:
       type: object
       description: >

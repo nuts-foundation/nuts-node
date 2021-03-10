@@ -45,7 +45,7 @@ import (
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(signer crypto.JWSSigner, docResolver vdr.Resolver, network network.Transactions) VCR {
-	r := &vcr {
+	r := &vcr{
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
 		signer:      signer,
@@ -147,6 +147,10 @@ func (c *vcr) initIndices() error {
 		return err
 	}
 	if err := gIndex.AddIndex(leia.NewIndex("index_issuer", leia.NewJSONIndexPart(concept.IssuerField, concept.IssuerField))); err != nil {
+		return err
+	}
+	rIndex := c.revocationIndex()
+	if err := rIndex.AddIndex(leia.NewIndex("index_subject", leia.NewJSONIndexPart(concept.SubjectField, concept.SubjectField))); err != nil {
 		return err
 	}
 
@@ -328,29 +332,33 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
 	return nil
 }
 
-func (c *vcr) Revoke(ID did.URI) error {
+func (c *vcr) Revoke(ID did.URI) (*credential.Revocation, error) {
 	// first find it using a query on id.
 	vc, err := c.find(ID)
 	if err != nil {
 		// not found and other errors
-		return err
+		return nil, err
 	}
 
 	// already revoked, return error
-	if c.IsRevoked(ID) {
-		return ErrRevoked
+	conflict, err := c.IsRevoked(ID)
+	if err != nil {
+		return nil, err
+	}
+	if conflict {
+		return nil, ErrRevoked
 	}
 
 	// find issuer
 	issuer, err := did.ParseDID(vc.Issuer.String())
 	if err != nil {
-		return fmt.Errorf("failed to extract issuer: %w", err)
+		return nil, fmt.Errorf("failed to extract issuer: %w", err)
 	}
 
 	// resolve an assertionMethod key for issuer
 	kid, err := c.docResolver.ResolveAssertionKey(*issuer)
 	if err != nil {
-		return ErrInvalidIssuer
+		return nil, ErrInvalidIssuer
 	}
 
 	// set defaults
@@ -358,50 +366,84 @@ func (c *vcr) Revoke(ID did.URI) error {
 
 	// sign
 	if err = c.generateRevocationProof(&r, kid); err != nil {
-		return fmt.Errorf("failed to generate revocation proof: %w", err)
+		return nil, fmt.Errorf("failed to generate revocation proof: %w", err)
 	}
 
 	// do same validation as network nodes
 	if err := credential.ValidateRevocation(r); err != nil {
-		return fmt.Errorf("validation failed: %w", err)
+		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
 	payload, err := json.Marshal(r)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	_, err = c.network.CreateTransaction(revocationDocumentType, payload, kid.String(), nil, r.StatusDate)
 	if err != nil {
-		return fmt.Errorf("failed to publish revocation: %w", err)
+		return nil, fmt.Errorf("failed to publish revocation: %w", err)
 	}
 
 	logging.Log().Infof("Verifiable Credential revoked: %s", vc.ID)
 
-	return nil
+	return &r, nil
 }
 
-func (c *vcr) IsRevoked(ID did.URI) bool {
-	panic("implement me")
-}
 
-func (c *vcr) Write(vc did.VerifiableCredential) error {
-	// verify first
-	if err := c.Verify(vc, nil); err != nil {
+func (c *vcr) verifyRevocation(r credential.Revocation) error {
+	// it must have valid content
+	if err := credential.ValidateRevocation(r); err != nil {
 		return err
 	}
 
-	// validation has made sure there's exactly one!
-	vcType := credential.ExtractTypes(vc)[0]
-
-	doc, err := json.Marshal(vc)
+	// create correct challenge for verification
+	payload, err := generateRevocationChallenge(r)
 	if err != nil {
-		return errors.Wrap(err, "failed to write credential to store")
+		return fmt.Errorf("cannot generate challenge: %w", err)
 	}
 
-	collection := c.store.Collection(vcType)
+	// extract proof, can't fail, already done in generateRevocationChallenge
+	splittedJws := strings.Split(r.Proof.Jws, "..")
+	if len(splittedJws) != 2 {
+		return errors.New("invalid 'jws' value in proof")
+	}
+	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
+	if err != nil {
+		return err
+	}
 
-	return collection.Add([]leia.Document{doc})
+	// find key
+	pk, err := c.docResolver.ResolveSigningKey(r.Proof.VerificationMethod.String(), &r.StatusDate)
+	if err != nil {
+		return err
+	}
+
+	// the proof must be correct
+	verifier, _ := jws.NewVerifier(jwa.ES256)
+	// the jws lib can't do this for us, so we concat hdr with payload for verification
+	challenge := fmt.Sprintf("%s.%s", splittedJws[0], base64.RawURLEncoding.EncodeToString(payload))
+	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *vcr) IsRevoked(ID did.URI) (bool, error) {
+	qp := leia.Eq(concept.SubjectField, ID.String())
+	q := leia.New(qp)
+
+	gIndex := c.revocationIndex()
+	docs, err := gIndex.Find(q)
+	if err != nil {
+		return false, err
+	}
+
+	if len(docs) >= 1 {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 
@@ -463,8 +505,8 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 
 func (c *vcr) generateRevocationProof(r *credential.Revocation, kid did.URI) error {
 	// create proof
-	r.Proof = &did.JSONWebSignature2020Proof {
-		Proof: did.Proof {
+	r.Proof = &did.JSONWebSignature2020Proof{
+		Proof: did.Proof{
 			Type:               "JsonWebSignature2020",
 			ProofPurpose:       "assertionMethod",
 			VerificationMethod: kid,
@@ -521,7 +563,6 @@ func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
 
 	return tbs, nil
 }
-
 
 func generateRevocationChallenge(r credential.Revocation) ([]byte, error) {
 	// without JWS

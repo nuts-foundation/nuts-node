@@ -25,11 +25,12 @@ import (
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
 	"github.com/pkg/errors"
 )
 
-// Ambassador registers a callback with the network for processing received Verifiable Credentials.
+// Ambassador registers a vcCallback with the network for processing received Verifiable Credentials.
 type Ambassador interface {
 	// Configure instructs the ambassador to start receiving DID Documents from the network.
 	Configure()
@@ -50,13 +51,14 @@ func NewAmbassador(networkClient network.Transactions, writer Writer) Ambassador
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n *ambassador) Configure() {
-	n.networkClient.Subscribe(vcDocumentType, n.callback)
+	n.networkClient.Subscribe(vcDocumentType, n.vcCallback)
+	n.networkClient.Subscribe(revocationDocumentType, n.rCallback)
 }
 
-// callback gets called when new Verifiable Credentials are received by the network. All checks on the signature are already performed.
+// vcCallback gets called when new Verifiable Credentials are received by the network. All checks on the signature are already performed.
 // The VCR is used to verify the contents of the credential.
 // payload should be a json encoded did.VerifiableCredential
-func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) error {
+func (n *ambassador) vcCallback(tx dag.SubscriberTransaction, payload []byte) error {
 	logging.Log().Debugf("Processing Verifiable Credential received from Nuts Network: ref=%s", tx.Ref())
 
 	vc := did.VerifiableCredential{}
@@ -65,5 +67,20 @@ func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) erro
 	}
 
 	// Verify and store
-	return n.writer.Write(vc)
+	return n.writer.StoreCredential(vc)
+}
+
+// rCallback gets called when new credential revocations are received by the network. All checks on the signature are already performed.
+// The VCR is used to verify the contents of the revocation.
+// payload should be a json encoded Revocation
+func (n *ambassador) rCallback(tx dag.SubscriberTransaction, payload []byte) error {
+	logging.Log().Debugf("Processing Credential revocation received from Nuts Network: ref=%s", tx.Ref())
+
+	r := credential.Revocation{}
+	if err := json.Unmarshal(payload, &r); err != nil {
+		return errors.Wrap(err, "revocation processing failed")
+	}
+
+	// Verify and store
+	return n.writer.StoreRevocation(r)
 }

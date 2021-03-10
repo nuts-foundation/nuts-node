@@ -45,13 +45,13 @@ func TestAmbassador_Configure(t *testing.T) {
 		defer ctrl.Finish()
 
 		a := NewAmbassador(nMock, nil)
-		nMock.EXPECT().Subscribe(vcDocumentType, gomock.Any())
+		nMock.EXPECT().Subscribe(gomock.Any(), gomock.Any()).MinTimes(2)
 
 		a.Configure()
 	})
 }
 
-func TestAmbassador_callback(t *testing.T) {
+func TestAmbassador_vcCallback(t *testing.T) {
 	payload := []byte(concept.TestCredential)
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), vcDocumentType, nil)
 	stx := tx.(dag.SubscriberTransaction)
@@ -63,12 +63,12 @@ func TestAmbassador_callback(t *testing.T) {
 
 		vc := did.VerifiableCredential{}
 		a := NewAmbassador(nil, wMock).(*ambassador)
-		wMock.EXPECT().Write(gomock.Any()).DoAndReturn(func(f interface{}) error {
+		wMock.EXPECT().StoreCredential(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			vc = f.(did.VerifiableCredential)
 			return nil
 		})
 
-		err := a.callback(stx, payload)
+		err := a.vcCallback(stx, payload)
 
 		if !assert.NoError(t, err) {
 			return
@@ -83,9 +83,9 @@ func TestAmbassador_callback(t *testing.T) {
 		defer ctrl.Finish()
 
 		a := NewAmbassador(nil, wMock).(*ambassador)
-		wMock.EXPECT().Write(gomock.Any()).Return(errors.New("b00m!"))
+		wMock.EXPECT().StoreCredential(gomock.Any()).Return(errors.New("b00m!"))
 
-		err := a.callback(stx, payload)
+		err := a.vcCallback(stx, payload)
 
 		assert.Error(t, err)
 	})

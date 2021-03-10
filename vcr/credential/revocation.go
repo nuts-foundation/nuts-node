@@ -41,7 +41,6 @@ type Revocation struct {
 	Proof *did.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }
 
-
 // BuildRevocation generates a revocation based on the credential
 func BuildRevocation(vc did.VerifiableCredential) Revocation {
 	return Revocation{
