@@ -19,16 +19,13 @@
 package contract
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"errors"
-	"github.com/nuts-foundation/go-did"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -75,7 +72,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 	type testContext struct {
 		ctrl            *gomock.Controller
 		nameResolver    *vdr.MockNameResolver
-		didResolver     *types.MockDocResolver
+		didResolver     *types.MockResolver
 		privateKeyStore *crypto.MockPrivateKeyStore
 		notary          contractNotaryService
 	}
@@ -84,7 +81,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		ctx := &testContext{
 			ctrl:            ctrl,
 			nameResolver:    vdr.NewMockNameResolver(ctrl),
-			didResolver:     types.NewMockDocResolver(ctrl),
+			didResolver:     types.NewMockResolver(ctrl),
 			privateKeyStore: crypto.NewMockPrivateKeyStore(ctrl),
 		}
 		notary := contractNotaryService{
@@ -105,18 +102,14 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 	duration := 10 * time.Minute
 
 	// Create DID document for org
-	didDocument := &did.Document{}
 	keyID := orgID
 	keyID.Fragment = "key-1"
-	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	vm, _ := did.NewVerificationMethod(keyID, did.JsonWebKey2020, orgID, privateKey.Public())
-	didDocument.AddAssertionMethod(vm)
 
 	t.Run("draw up valid contract", func(t *testing.T) {
 		ctx := buildContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.didResolver.EXPECT().Resolve(orgID, gomock.Any()).Return(didDocument, nil, nil)
+		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(true)
 		ctx.nameResolver.EXPECT().Resolve(gomock.Any()).AnyTimes().Return("CareBears", nil)
 
@@ -133,7 +126,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		ctx := buildContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.didResolver.EXPECT().Resolve(orgID, gomock.Any()).Return(didDocument, nil, nil)
+		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(true)
 		ctx.nameResolver.EXPECT().Resolve(gomock.Any()).AnyTimes().Return("CareBears", nil)
 
@@ -150,7 +143,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		ctx := buildContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.didResolver.EXPECT().Resolve(orgID, gomock.Any()).Return(didDocument, nil, nil)
+		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(true)
 		ctx.nameResolver.EXPECT().Resolve(gomock.Any()).AnyTimes().Return("CareBears", nil)
 
@@ -171,7 +164,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		ctx := buildContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.didResolver.EXPECT().Resolve(orgID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return("", types.ErrNotFound)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 		if assert.Error(t, err) {
@@ -184,7 +177,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		ctx := buildContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.didResolver.EXPECT().Resolve(orgID, gomock.Any()).Return(didDocument, nil, nil)
+		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(false)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
@@ -198,7 +191,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		ctx := buildContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.didResolver.EXPECT().Resolve(orgID, gomock.Any()).Return(nil, nil, errors.New("error occurred"))
+		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return("", errors.New("error occurred"))
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 		if assert.Error(t, err) {
@@ -211,7 +204,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		ctx := buildContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.didResolver.EXPECT().Resolve(orgID, gomock.Any()).Return(didDocument, nil, nil)
+		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(true)
 		ctx.nameResolver.EXPECT().Resolve(gomock.Any()).AnyTimes().Return("", errors.New("error occurred"))
 
@@ -226,7 +219,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		ctx := buildContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.didResolver.EXPECT().Resolve(orgID, gomock.Any()).Return(didDocument, nil, nil)
+		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(true)
 		ctx.nameResolver.EXPECT().Resolve(gomock.Any()).AnyTimes().Return("CareBears", nil)
 

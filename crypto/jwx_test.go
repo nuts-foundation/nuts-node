@@ -24,8 +24,9 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
-	"github.com/lestrrat-go/jwx/jwt"
 	"testing"
+
+	"github.com/lestrrat-go/jwx/jwt"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"

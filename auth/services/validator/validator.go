@@ -72,12 +72,12 @@ type service struct {
 	nameResolver    vdr.NameResolver
 	verifiers       map[contract.VPType]contract.VPVerifier
 	signers         map[contract.SigningMeans]contract.Signer
-	didResolver     types.DocResolver
+	didResolver     types.Resolver
 	privateKeyStore crypto.PrivateKeyStore
 }
 
 // NewContractInstance accepts a Config and several Nuts engines and returns a new instance of services.ContractClient
-func NewContractInstance(config Config, didResolver types.DocResolver, privateKeyStore crypto.PrivateKeyStore, nameResolver vdr.NameResolver) services.ContractClient {
+func NewContractInstance(config Config, didResolver types.Resolver, privateKeyStore crypto.PrivateKeyStore, nameResolver vdr.NameResolver) services.ContractClient {
 	return &service{
 		config:          config,
 		didResolver:     didResolver,

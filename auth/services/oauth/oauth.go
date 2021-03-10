@@ -40,7 +40,7 @@ const errInvalidIssuerKeyFmt = "invalid jwt.issuer key ID: %w"
 const errInvalidSubjectFmt = "invalid jwt.subject: %w"
 
 type service struct {
-	didResolver     types.DocResolver
+	didResolver     types.Resolver
 	nameResolver    vdr2.NameResolver
 	privateKeyStore nutsCrypto.PrivateKeyStore
 	contractClient  services.ContractClient
@@ -55,7 +55,7 @@ type validationContext struct {
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(didResolver types.DocResolver, nameResolver vdr2.NameResolver, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
+func NewOAuthService(didResolver types.Resolver, nameResolver vdr2.NameResolver, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
 	return &service{
 		didResolver:     didResolver,
 		contractClient:  contractClient,
@@ -159,7 +159,7 @@ func (s *service) validateIssuer(context *validationContext) error {
 	}
 
 	validationTime := context.jwtBearerToken.IssuedAt()
-	_, err = services.ResolveSigningKey(s.didResolver, context.jwtBearerTokenClaims.KeyID, &validationTime)
+	_, err = s.didResolver.ResolveSigningKey(context.jwtBearerTokenClaims.KeyID, &validationTime)
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
@@ -180,7 +180,7 @@ func (s *service) validateSubject(context *validationContext) error {
 	}
 
 	iat := context.jwtBearerToken.IssuedAt()
-	signingKeyID, err := services.ResolveSigningKeyID(s.didResolver, *subject, &iat)
+	signingKeyID, err := s.didResolver.ResolveSigningKeyID(*subject, &iat)
 	if err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func (s *service) CreateJwtBearerToken(request services.CreateJwtBearerTokenRequ
 	keyVals := claimsFromRequest(request, endpointID.String())
 
 	now := time.Now()
-	signingKeyID, err := services.ResolveSigningKeyID(s.didResolver, *actor, &now)
+	signingKeyID, err := s.didResolver.ResolveSigningKeyID(*actor, &now)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,7 @@ func claimsFromRequest(request services.CreateJwtBearerTokenRequest, audience st
 // parseAndValidateJwtBearerToken validates the jwt signature and returns the containing claims
 func (s *service) parseAndValidateJwtBearerToken(context *validationContext) error {
 	token, err := nutsCrypto.ParseJWT(context.rawJwtBearerToken, func(kid string) (crypto.PublicKey, error) {
-		return services.ResolveSigningKey(s.didResolver, kid, nil)
+		return s.didResolver.ResolveSigningKey(kid, nil)
 	})
 	if err != nil {
 		return err
@@ -281,7 +281,7 @@ func (s *service) IntrospectAccessToken(accessToken string) (*services.NutsAcces
 		if !s.privateKeyStore.PrivateKeyExists(kid) {
 			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
 		}
-		return services.ResolveSigningKey(s.didResolver, kid, nil)
+		return s.didResolver.ResolveSigningKey(kid, nil)
 	})
 	if err != nil {
 		return nil, err
@@ -341,7 +341,7 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 	}
 
 	// Sign with the private key of the issuer
-	signingKeyID, err := services.ResolveSigningKeyID(s.didResolver, *issuer, &issueTime)
+	signingKeyID, err := s.didResolver.ResolveSigningKeyID(*issuer, &issueTime)
 	if err != nil {
 		return "", err
 	}

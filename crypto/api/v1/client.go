@@ -21,7 +21,6 @@ package v1
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -31,9 +30,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jwk"
 )
-
-// ErrNotImplemented indicates that this client API call is not implemented.
-var ErrNotImplemented = errors.New("operation not implemented")
 
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {

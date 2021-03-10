@@ -29,7 +29,6 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
-
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 

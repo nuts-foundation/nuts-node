@@ -4,10 +4,7 @@ orbs:
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.15
-
-    environment:
-      GO111MODULE: "on"
+      - image: circleci/golang:1.16
 
     steps:
       - checkout

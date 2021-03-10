@@ -256,7 +256,7 @@ type testContext struct {
 	contractSessionHandler *services.MockContractSessionHandler
 	contractService        *service
 	signerMock             *contract.MockSigner
-	didResolver            *types.MockDocResolver
+	didResolver            *types.MockResolver
 }
 
 func createContext(t *testing.T) *testContext {
@@ -268,7 +268,7 @@ func createContext(t *testing.T) *testContext {
 	signerMock := contract.NewMockSigner(ctrl)
 	signers["irma"] = signerMock
 
-	didResolver := types.NewMockDocResolver(ctrl)
+	didResolver := types.NewMockResolver(ctrl)
 	return &testContext{
 		ctrl:                   ctrl,
 		didResolver:            didResolver,

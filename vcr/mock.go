@@ -13,44 +13,6 @@ import (
 	concept "github.com/nuts-foundation/nuts-node/vcr/concept"
 )
 
-// MockIssuer is a mock of Issuer interface.
-type MockIssuer struct {
-	ctrl     *gomock.Controller
-	recorder *MockIssuerMockRecorder
-}
-
-// MockIssuerMockRecorder is the mock recorder for MockIssuer.
-type MockIssuerMockRecorder struct {
-	mock *MockIssuer
-}
-
-// NewMockIssuer creates a new mock instance.
-func NewMockIssuer(ctrl *gomock.Controller) *MockIssuer {
-	mock := &MockIssuer{ctrl: ctrl}
-	mock.recorder = &MockIssuerMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockIssuer) EXPECT() *MockIssuerMockRecorder {
-	return m.recorder
-}
-
-// Issue mocks base method.
-func (m *MockIssuer) Issue(issuer, subject did.DID, vcType string, credentialSubject interface{}, expirationDate *time.Time) (did.VerifiableCredential, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Issue", issuer, subject, vcType, credentialSubject, expirationDate)
-	ret0, _ := ret[0].(did.VerifiableCredential)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Issue indicates an expected call of Issue.
-func (mr *MockIssuerMockRecorder) Issue(issuer, subject, vcType, credentialSubject, expirationDate interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockIssuer)(nil).Issue), issuer, subject, vcType, credentialSubject, expirationDate)
-}
-
 // MockWriter is a mock of Writer interface.
 type MockWriter struct {
 	ctrl     *gomock.Controller
@@ -109,6 +71,21 @@ func NewMockVCR(ctrl *gomock.Controller) *MockVCR {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
+}
+
+// Issue mocks base method.
+func (m *MockVCR) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Issue", vc)
+	ret0, _ := ret[0].(*did.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Issue indicates an expected call of Issue.
+func (mr *MockVCRMockRecorder) Issue(vc interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockVCR)(nil).Issue), vc)
 }
 
 // Registry mocks base method.

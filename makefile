@@ -3,7 +3,6 @@
 run-generators: gen-mocks gen-api gen-protobuf
 
 install-tools:
-	export GO111MODULE=on  # default in Go >= 1.16
 	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen
 	go install github.com/golang/mock/mockgen
 	go install google.golang.org/protobuf/cmd/protoc-gen-go

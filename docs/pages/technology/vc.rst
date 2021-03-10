@@ -1,0 +1,5 @@
+.. _vcs:
+
+Verifiable Credentials
+######################
+
