@@ -88,28 +88,23 @@ func (u NutsDocUpdater) CreateNewAuthenticationMethodForDocument(doc *did.Docume
 // a provided current and a proposedDocument. It returns a list with new and removed verificationMethods
 func getVerificationMethodDiff(currentDocument, proposedDocument did.Document) (new, removed []*did.VerificationMethod) {
 	for _, vmp := range proposedDocument.VerificationMethod {
-		found := false
 		for _, mpc := range currentDocument.VerificationMethod {
 			if vmp.ID.Equals(mpc.ID) {
-				found = true
-				continue
+				goto nextProposedMethod
 			}
 		}
-		if !found {
-			new = append(new, vmp)
-		}
+		new = append(new, vmp)
+		nextProposedMethod:
 	}
+	// check which are not present in the proposed document
 	for _, vmc := range currentDocument.VerificationMethod {
-		found := false
 		for _, vmp := range proposedDocument.VerificationMethod {
 			if vmp.ID.Equals(vmc.ID) {
-				found = true
-				continue
+				goto nextCurrentMethod
 			}
 		}
-		if !found {
-			removed = append(new, vmc)
-		}
+		removed = append(removed, vmc)
+		nextCurrentMethod:
 	}
 	return
 }

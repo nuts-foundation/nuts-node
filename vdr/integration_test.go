@@ -14,6 +14,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // Test the full stack by testing creating and updating did documents.
@@ -59,18 +60,20 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 	assert.NotNil(t, docA)
 
+	docAID := docA.ID
+
 	// Check if the document can be found in the store
-	resolvedDoc, metadataDocA, err := vdr.Resolve(docA.ID, nil)
+	docA, metadataDocA, err := vdr.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	assert.NotNil(t, resolvedDoc)
+	assert.NotNil(t, docA)
 	assert.NotNil(t, metadataDocA)
-	assert.Equal(t, docA.ID, resolvedDoc.ID)
+	assert.Equal(t, docAID, docA.ID)
 
 	// Check if the public key is added to the store
-	docAAuthenticationKeyID := resolvedDoc.Authentication[0].ID.String()
+	docAAuthenticationKeyID := docA.Authentication[0].ID.String()
 	key, err := nutsCrypto.GetPublicKey(docAAuthenticationKeyID, time.Now())
 	assert.NoError(t, err,
 		"unable to get the public key of document a from the keyStore")
@@ -79,26 +82,28 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// Try to update the document with a service
 	serviceID, _ := url.Parse(docA.ID.String() + "#service-1")
-
-	docA.Service = append(docA.Service, did.Service{
+	newService := did.Service{
 		ID:              did.URI{URL: *serviceID},
 		Type:            "service",
 		ServiceEndpoint: []interface{}{"http://example.com/service"},
-	})
+	}
 
-	err = vdr.Update(docA.ID, metadataDocA.Hash, *docA, nil)
+	docA.Service = append(docA.Service, newService)
+
+	err = vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
 	if !assert.NoError(t, err,
 		"unable to update docA with a new service") {
 		return
 	}
 
 	// Resolve the document and check it contents
-	resolvedDoc, metadataDocA, err = vdr.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = vdr.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err,
 		"unable to resolve updated document") {
 		return
 	}
-	assert.Equal(t, docA.Service[0], resolvedDoc.Service[0],
+	assert.Len(t, docA.Service, 1)
+	assert.Equal(t, newService, docA.Service[0],
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
@@ -109,32 +114,31 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 	assert.NotNil(t, docB,
 		"a new document should have been created")
-	resolvedDoc, metadataDocB, err := vdr.Resolve(docB.ID, nil)
+	resolvedDocB, metadataDocB, err := vdr.Resolve(docB.ID, nil)
 	assert.NoError(t, err,
 		"unexpected error while resolving documentB")
 
 	// Update the controller of DocumentA with DocumentB
 	// And remove it's own authenticationMethod
 	docA.Controller = []did.DID{docB.ID}
-	// FIXME: add helper method to did lib to conveniently remove various verificationMethods
 	docA.Authentication = []did.VerificationRelationship{}
 	docA.VerificationMethod = []*did.VerificationMethod{}
-	err = vdr.Update(docA.ID, metadataDocA.Hash, *docA, nil)
+	err = vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
 	if !assert.NoError(t, err,
 		"unable to update documentA with a new controller") {
 		return
 	}
 
 	// Resolve and check DocumentA
-	resolvedDoc, metadataDocA, err = vdr.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = vdr.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err,
 		"unable to resolve updated documentA") {
 		return
 	}
-	assert.Equal(t, []did.DID{docB.ID}, resolvedDoc.Controller,
+	assert.Equal(t, []did.DID{docB.ID}, docA.Controller,
 		"expected updated documentA to have documentB as its controller")
 
-	assert.Empty(t, resolvedDoc.Authentication,
+	assert.Empty(t, docA.Authentication,
 		"expected documentA to have no authenticationMethods")
 
 	// Check if the key has been removed from the keyStore
@@ -144,31 +148,33 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// Update and check DocumentA with a new service:
 	serviceID, _ = url.Parse(docA.ID.String() + "#service-2")
-	docA.Service = append(docA.Service, did.Service{
+	newService = did.Service{
 		ID:              did.URI{URL: *serviceID},
 		Type:            "service-2",
 		ServiceEndpoint: []interface{}{"http://example.com/service2"},
-	})
+	}
+	docA.Service = append(docA.Service, newService)
+
 	err = vdr.Update(docA.ID, metadataDocA.Hash, *docA, nil)
 	if !assert.NoError(t, err,
 		"unable to update documentA with a new service") {
 		return
 	}
 	// Resolve and check if the service has been added
-	resolvedDoc, metadataDocA, err = vdr.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = vdr.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err,
 		"unable to resolve updated documentA") {
 		return
 	}
-	if !assert.Len(t, resolvedDoc.Service, 2,
+	if !assert.Len(t, docA.Service, 2,
 		"expected documentA to have 2 services after the update") {
 		return
 	}
-	assert.Equal(t, docA.Service[1], resolvedDoc.Service[1],
+	assert.Equal(t, newService, docA.Service[1],
 		"news service of document a does not contain expected values")
 
 	// Update document B with a new authentication key which replaces the first one:
-	oldAuthKeyDocB := docB.Authentication[0].ID
+	oldAuthKeyDocB := resolvedDocB.Authentication[0].ID
 	docUpdater := NutsDocUpdater{keyCreator: nutsCrypto}
 	err = docUpdater.RotateAuthenticationKey(oldAuthKeyDocB, docB)
 	assert.NoError(t, err)
@@ -179,16 +185,36 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 
 	// Resolve document B and check if the key has been updated
-	resolvedDoc, metadataDocB, err = vdr.Resolve(docB.ID, nil)
+	resolvedDocB, metadataDocB, err = vdr.Resolve(docB.ID, nil)
 	assert.NoError(t, err,
 		"expected DocumentB to be resolved without error")
 
-	assert.Len(t, resolvedDoc.Authentication, 1)
-	assert.NotEqual(t, oldAuthKeyDocB, resolvedDoc.Authentication[0].ID)
+	assert.Len(t, resolvedDocB.Authentication, 1)
+	assert.NotEqual(t, oldAuthKeyDocB, resolvedDocB.Authentication[0].ID)
 
 	// Check if the key has been removed from the keyStore
 	key, err = nutsCrypto.GetPublicKey(oldAuthKeyDocB.String(), time.Now())
 	assert.EqualError(t, err, "key not found",
 		"expected authenticationKey of documentB to be removed from the keyStore")
+
+	// deactivate document B
+	err = vdr.Deactivate(docB.ID, metadataDocB.Hash)
+	assert.NoError(t, err,
+		"expected deactivation to succeed")
+
+	docB, metadataDocB, err = vdr.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
+	assert.NoError(t, err)
+	assert.Len(t, docB.Authentication, 0,
+		"expected document B to not have any authentication methods after deactivation")
+
+	// try to deactivate the document again
+	err = vdr.Deactivate(docB.ID, metadataDocB.Hash)
+	assert.EqualError(t, err, "the document has been deactivated",
+		"expected an error when trying to deactivate an already deactivated document")
+
+	// try to update document A should fail since it no longer has an active controller
+	docA.Service = docA.Service[1:]
+	err = vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
+	assert.EqualError(t, err, "could not find any contollers for document")
 
 }

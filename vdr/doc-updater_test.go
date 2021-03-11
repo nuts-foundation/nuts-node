@@ -116,3 +116,61 @@ func TestNutsDocUpdater_RotateAuthenticationKey(t *testing.T) {
 			"the old method should still be part of the document")
 	})
 }
+
+func Test_getVerificationMethodDiff(t *testing.T) {
+	idMethod1, _ := did.ParseDID("did:nuts:123#method1")
+	idMethod2, _ := did.ParseDID("did:nuts:123#method2")
+	t.Run("empty documents", func(t *testing.T) {
+		docA := did.Document{}
+		docB := did.Document{}
+		newMethods, removed := getVerificationMethodDiff(docA, docB)
+
+		assert.Len(t, removed, 0)
+		assert.Len(t, newMethods, 0)
+	})
+
+	t.Run("a new verificationMethod", func(t *testing.T) {
+		docA := did.Document{}
+		docB := did.Document{}
+		newMethod := &did.VerificationMethod{ID: *idMethod1}
+		docB.VerificationMethod.Add(newMethod)
+
+		newMethods, removed := getVerificationMethodDiff(docA, docB)
+
+		assert.Len(t, removed, 0)
+		assert.Len(t, newMethods, 1)
+		assert.Equal(t, newMethod, newMethods[0])
+	})
+
+	t.Run("a new and an old verificationMethod", func(t *testing.T) {
+		docA := did.Document{}
+		oldMethod := &did.VerificationMethod{ID: *idMethod1}
+		docA.VerificationMethod.Add(oldMethod)
+
+		docB := did.Document{}
+		newMethod := &did.VerificationMethod{ID: *idMethod2}
+		docB.VerificationMethod.Add(newMethod)
+
+		newMethods, oldMethods := getVerificationMethodDiff(docA, docB)
+
+		assert.Len(t, oldMethods, 1)
+		assert.Len(t, newMethods, 1)
+		assert.Equal(t, newMethod, newMethods[0])
+		assert.Equal(t, oldMethod, oldMethods[0])
+	})
+
+	t.Run("no changes to the methods", func(t *testing.T) {
+		method := &did.VerificationMethod{ID: *idMethod1}
+		docA := did.Document{}
+		docA.VerificationMethod.Add(method)
+
+		docB := did.Document{}
+		docB.VerificationMethod.Add(method)
+
+		newMethods, oldMethods := getVerificationMethodDiff(docA, docB)
+
+		assert.Len(t, oldMethods, 0)
+		assert.Len(t, newMethods, 0)
+	})
+
+}

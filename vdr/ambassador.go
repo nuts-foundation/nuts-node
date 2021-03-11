@@ -234,13 +234,17 @@ func (n ambassador) updateKeysInStore(currentDIDDocument, proposedDIDDocument di
 		if err != nil {
 			return fmt.Errorf("could not parse public key from verificationMethod: %w", err)
 		}
+		logging.Log().Debugf("adding new public key: %s", vm.ID.String())
 		if err := n.keyStore.AddPublicKey(vm.ID.String(), pKey, signingTime); err != nil {
+			logging.Log().WithError(err).WithFields(map[string]interface{}{"keyID": vm.ID.String()}).Warn("could not add new public key")
 			return fmt.Errorf("unable to add new public key: %w", err)
 		}
 
 	}
 	for _, vm := range removedVMs {
+		logging.Log().Debugf("revoking public key: %s", vm.ID.String())
 		if err := n.keyStore.RevokePublicKey(vm.ID.String(), signingTime); err != nil {
+			logging.Log().WithError(err).WithFields(map[string]interface{}{"keyID": vm.ID.String()}).Warn("could not revoke public key")
 			return fmt.Errorf("unable to revoke public key: %w", err)
 		}
 	}

@@ -134,11 +134,14 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	// TODO: check the integrity / validity of the proposed DID Document.
 	resolverMetadata := &types.ResolveMetadata{
 		Hash:             &current,
-		AllowDeactivated: false,
+		AllowDeactivated: true,
 	}
 	currentDIDDocument, meta, err := r.store.Resolve(id, resolverMetadata)
 	if err != nil {
 		return err
+	}
+	if isDeactivated(currentDIDDocument) {
+		return types.ErrDeactivated
 	}
 	payload, err := json.Marshal(next)
 	if err != nil {
@@ -163,10 +166,16 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	return err
 }
 
+func isDeactivated(document *did.Document) bool {
+	return len(document.Controller) == 0 && len(document.Authentication) == 0
+}
+
 // Deactivate updates the DID Document so it can no longer be updated
-func (r *VDR) Deactivate(DID did.DID, current hash.SHA256Hash) {
-	logging.Log().Debugf("Deactivating DID Document: %s", DID)
-	panic("implement me")
+func (r *VDR) Deactivate(id did.DID, currentHash hash.SHA256Hash) error {
+	// A deactivated document is the original document stripped from a controller and keys.
+	// So, apart from the services, it is practically an empty document. Should we even keep the services?
+	emptyDoc := did.Document{ID: id}
+	return r.Update(id, currentHash, emptyDoc, nil)
 }
 
 // resolveControllers accepts a list of documents and finds their controllers

@@ -189,9 +189,11 @@ func (m *MockDocDeactivator) EXPECT() *MockDocDeactivatorMockRecorder {
 }
 
 // Deactivate mocks base method.
-func (m *MockDocDeactivator) Deactivate(id go_did.DID, current hash.SHA256Hash) {
+func (m *MockDocDeactivator) Deactivate(id go_did.DID, current hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Deactivate", id, current)
+	ret := m.ctrl.Call(m, "Deactivate", id, current)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Deactivate indicates an expected call of Deactivate.
@@ -374,9 +376,11 @@ func (mr *MockVDRMockRecorder) Create() *gomock.Call {
 }
 
 // Deactivate mocks base method.
-func (m *MockVDR) Deactivate(id go_did.DID, current hash.SHA256Hash) {
+func (m *MockVDR) Deactivate(id go_did.DID, current hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Deactivate", id, current)
+	ret := m.ctrl.Call(m, "Deactivate", id, current)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Deactivate indicates an expected call of Deactivate.

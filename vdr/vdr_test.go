@@ -5,8 +5,9 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/core"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did"
@@ -123,6 +124,35 @@ func TestVDR_Create(t *testing.T) {
 	didDoc, err := vdr.Create()
 	assert.NoError(t, err)
 	assert.NotNil(t, didDoc)
+}
+
+func TestVDR_Deactivate(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	keyID, _ := did.ParseDID("did:nuts:123#key-1")
+	currentHash := hash.SHA256Sum([]byte("currentHash"))
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	didStoreMock := types.NewMockStore(ctrl)
+	networkMock := network.NewMockTransactions(ctrl)
+	vdr := VDR{
+		store:   didStoreMock,
+		network: networkMock,
+	}
+
+	expectedDocument := did.Document{ID: *id}
+	expectedPayload, _ := json.Marshal(expectedDocument)
+
+	currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
+	currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
+
+	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any(), gomock.Any())
+	didStoreMock.EXPECT().Resolve(*id, &types.ResolveMetadata{Hash: &currentHash}).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
+
+	err := vdr.Deactivate(*id, currentHash)
+	if !assert.NoError(t, err) {
+		return
+	}
 }
 
 func TestNewVDR(t *testing.T) {
