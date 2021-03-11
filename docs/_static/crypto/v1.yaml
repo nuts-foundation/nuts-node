@@ -67,7 +67,9 @@ paths:
             text/plain:
               schema:
                 example: "aa==.bb==.cc=="
-        default:
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
           $ref: '#/components/responses/ErrorResponse'
 components:
   schemas:
