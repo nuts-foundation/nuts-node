@@ -143,11 +143,6 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	if isDeactivated(currentDIDDocument) {
 		return types.ErrDeactivated
 	}
-	payload, err := json.Marshal(next)
-	if err != nil {
-		return err
-	}
-
 	controllers, err := r.resolveControllers([]did.Document{*currentDIDDocument})
 	if err != nil {
 		return fmt.Errorf("error while finding controllers for document: %w", err)
@@ -156,7 +151,11 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return fmt.Errorf("could not find any controllers for document")
 	}
 
-	// TODO: look into the controller of the did for a signing key
+	payload, err := json.Marshal(next)
+	if err != nil {
+		return err
+	}
+
 	keyID := controllers[0].Authentication[0].ID.String()
 	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now(), dag.TimelineIDField(meta.TimelineID), dag.TimelineVersionField(meta.Version+1))
 	if err == nil {
@@ -199,8 +198,10 @@ func (r *VDR) resolveControllers(input []did.Document) ([]did.Document, error) {
 		}
 		for _, ctrlDID := range doc.Controller {
 			if doc.ID.Equals(ctrlDID) {
-				// doc is its own controller
-				leaves = append(leaves, doc)
+				if len(doc.Authentication) > 0 {
+					// doc is its own controller
+					leaves = append(leaves, doc)
+				}
 			} else {
 				// add did to be resolved later
 				refsToResolve = append(refsToResolve, ctrlDID)
@@ -208,7 +209,8 @@ func (r *VDR) resolveControllers(input []did.Document) ([]did.Document, error) {
 		}
 	}
 	// resolve all unresolved docs
-	// TODO: check for loops or already resolved docs?
+	// TODO: check for recursions in controllers. Behaviour must be described in spec:
+	// nuts-foundation/nuts-specification#39
 	for _, ref := range refsToResolve {
 		node, _, err := r.store.Resolve(ref, nil)
 		if err != nil {

@@ -231,6 +231,7 @@ func TestVDR_resolveControllers1(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 	id123Method1, _ := did.ParseDID("did:nuts:123#method-1")
 	id456, _ := did.ParseDID("did:nuts:456")
+	id456Method1, _ := did.ParseDID("did:nuts:456#method-1")
 	t.Run("emtpy input", func(t *testing.T) {
 		sut := VDR{}
 		docs, err := sut.resolveControllers([]did.Document{})
@@ -278,6 +279,28 @@ func TestVDR_resolveControllers1(t *testing.T) {
 		assert.Len(t, docs, 1)
 		assert.Equal(t, docA, docs[0],
 			"expected docA to be resolved as controller for docB")
+	})
+
+	t.Run("docA and docB are both the controllers of docB", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		store := types.NewMockStore(ctrl)
+
+		sut := VDR{store: store}
+		docA := did.Document{ID: *id123}
+		docA.AddAuthenticationMethod(&did.VerificationMethod{ID: *id123Method1})
+
+		store.EXPECT().Resolve(*id123, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
+
+		docB := did.Document{ID: *id456, Controller: []did.DID{*id123, *id456}}
+		docB.AddAuthenticationMethod(&did.VerificationMethod{ID: *id456Method1})
+
+		docs, err := sut.resolveControllers([]did.Document{docB})
+		assert.NoError(t, err)
+		assert.Len(t, docs, 2)
+		assert.Equal(t, []did.Document{docB, docA}, docs,
+			"expected docA and docB to be resolved as controller of docB")
 	})
 
 	t.Run("docA is controller of docB, docA has explicit self link in Controllers", func(t *testing.T) {
