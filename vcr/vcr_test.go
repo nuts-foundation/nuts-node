@@ -150,6 +150,15 @@ func TestVCR_Resolve(t *testing.T) {
 		assert.Equal(t, testVC, vc)
 	})
 
+	t.Run("error - error from store", func(t *testing.T) {
+		testDir := io.TestDirectory(t)
+		instance := NewTestVCRInstance(testDir)
+		instance.store.Collection(leia.GlobalCollection).DropIndex("index_id")
+		_, err := instance.Resolve(testVC.ID.String())
+
+		assert.Error(t, err)
+	})
+
 	t.Run("error - not found", func(t *testing.T) {
 		_, err := instance.Resolve("unknown")
 
