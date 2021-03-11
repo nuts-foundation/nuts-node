@@ -18,13 +18,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// Error defines model for Error.
-type Error struct {
-	Detail string  `json:"detail"`
-	Status float32 `json:"status"`
-	Title  string  `json:"title"`
-}
-
 // JWK defines model for JWK.
 type JWK map[string]interface{}
 
@@ -36,9 +29,6 @@ type SignJwtRequest struct {
 	Claims map[string]interface{} `json:"claims"`
 	Kid    string                 `json:"kid"`
 }
-
-// ErrorResponse defines model for ErrorResponse.
-type ErrorResponse Error
 
 // PublicKeyParams defines parameters for PublicKey.
 type PublicKeyParams struct {
@@ -336,7 +326,16 @@ func (r PublicKeyResponse) StatusCode() int {
 type SignJwtResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSONDefault  *Error
+	JSON400      *struct {
+		Detail string  `json:"detail"`
+		Status float32 `json:"status"`
+		Title  string  `json:"title"`
+	}
+	JSON500 *struct {
+		Detail string  `json:"detail"`
+		Status float32 `json:"status"`
+		Title  string  `json:"title"`
+	}
 }
 
 // Status returns HTTPResponse.Status
@@ -424,12 +423,27 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest Error
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest struct {
+			Detail string  `json:"detail"`
+			Status float32 `json:"status"`
+			Title  string  `json:"title"`
+		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSONDefault = &dest
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest struct {
+			Detail string  `json:"detail"`
+			Status float32 `json:"status"`
+			Title  string  `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
 
 	}
 

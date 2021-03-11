@@ -1,0 +1,16 @@
+description: "Generic >400 response describing the error"
+content:
+  application/json:
+    schema:
+      type: object
+      required:
+        - title
+        - status
+        - detail
+      properties:
+        title:
+          type: string
+        status:
+          type: number
+        detail:
+          type: string
