@@ -41,6 +41,7 @@ func TestVDR_Update(t *testing.T) {
 		nextDIDDocument := did.Document{}
 		expectedResolverMetadata := &types.ResolveMetadata{
 			Hash: &currentHash,
+			AllowDeactivated: true,
 		}
 		resolvedMetadata := types.DocumentMetadata{
 			TimelineID: hash.SHA256Sum([]byte("timeline")),
@@ -67,6 +68,7 @@ func TestVDR_Update(t *testing.T) {
 		nextDIDDocument := did.Document{}
 		expectedResolverMetadata := &types.ResolveMetadata{
 			Hash: &currentHash,
+			AllowDeactivated: true,
 		}
 		resolvedMetadata := types.DocumentMetadata{
 			TimelineID: hash.SHA256Sum([]byte("timeline")),
@@ -74,7 +76,7 @@ func TestVDR_Update(t *testing.T) {
 		}
 		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
-		assert.EqualError(t, err, "could not find any contollers for document")
+		assert.EqualError(t, err, "the document has been deactivated")
 	})
 	t.Run("error - could not resolve current document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -88,6 +90,7 @@ func TestVDR_Update(t *testing.T) {
 		nextDIDDocument := did.Document{}
 		expectedResolverMetadata := &types.ResolveMetadata{
 			Hash: &currentHash,
+			AllowDeactivated: true,
 		}
 		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
@@ -147,7 +150,7 @@ func TestVDR_Deactivate(t *testing.T) {
 	currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
 
 	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any(), gomock.Any())
-	didStoreMock.EXPECT().Resolve(*id, &types.ResolveMetadata{Hash: &currentHash}).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
+	didStoreMock.EXPECT().Resolve(*id, &types.ResolveMetadata{Hash: &currentHash, AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
 
 	err := vdr.Deactivate(*id, currentHash)
 	if !assert.NoError(t, err) {

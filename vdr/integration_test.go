@@ -215,6 +215,6 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// try to update document A should fail since it no longer has an active controller
 	docA.Service = docA.Service[1:]
 	err = vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
-	assert.EqualError(t, err, "could not find any contollers for document")
+	assert.EqualError(t, err, "could not find any controllers for document")
 
 }

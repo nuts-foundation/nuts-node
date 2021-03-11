@@ -153,7 +153,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return fmt.Errorf("error while finding controllers for document: %w", err)
 	}
 	if len(controllers) == 0 {
-		return fmt.Errorf("could not find any contollers for document")
+		return fmt.Errorf("could not find any controllers for document")
 	}
 
 	// TODO: look into the controller of the did for a signing key
