@@ -176,8 +176,10 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// Update document B with a new authentication key which replaces the first one:
 	oldAuthKeyDocB := resolvedDocB.Authentication[0].ID
 	docUpdater := NutsDocUpdater{keyCreator: nutsCrypto}
-	err = docUpdater.RotateAuthenticationKey(oldAuthKeyDocB, docB)
+	err = docUpdater.CreateNewAuthenticationMethodForDocument(docB)
 	assert.NoError(t, err)
+	docB.Authentication.Remove(oldAuthKeyDocB)
+	docB.VerificationMethod.Remove(oldAuthKeyDocB)
 	err = vdr.Update(docB.ID, metadataDocB.Hash, *docB, nil)
 	if !assert.NoError(t, err,
 		"unable to update documentB with a new authenticationMethod") {

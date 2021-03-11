@@ -62,10 +62,9 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 	})
 }
 
-func TestNutsDocUpdater_RotateAuthenticationKey(t *testing.T) {
+func TestNutsDocUpdater_CreateNewAuthenticationMethodForDocument(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 	id123Method, _ := did.ParseDID("did:nuts:123#method-1")
-	id123UnknonwMethod, _ := did.ParseDID("did:nuts:123#unknown-1")
 
 	keyCreator := &mockKeyCreator{
 		t:      t,
@@ -85,36 +84,16 @@ func TestNutsDocUpdater_RotateAuthenticationKey(t *testing.T) {
 		document.AddAuthenticationMethod(vMethod)
 		assert.Equal(t, document.Authentication[0].ID, vMethod.ID)
 
-		err = updater.RotateAuthenticationKey(*id123Method, document)
+		err = updater.CreateNewAuthenticationMethodForDocument(document)
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		assert.Len(t, document.Authentication, 1)
-		assert.Equal(t, "did:nuts:123#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", document.Authentication[0].ID.String())
+		assert.Len(t, document.Authentication, 2)
+		assert.Equal(t, vMethod.ID.String(), document.Authentication[0].ID.String())
+		assert.Equal(t, "did:nuts:123#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", document.Authentication[1].ID.String())
 	})
 
-	t.Run("error - rotating an nonexistent key", func(t *testing.T) {
-		// Prepare a document with an authenticationMethod:
-		document := &did.Document{ID: *id123}
-		keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		vMethod, err := did.NewVerificationMethod(*id123Method, did.JsonWebKey2020, did.DID{}, keyPair.PublicKey)
-		if !assert.NoError(t, err) {
-			return
-		}
-		document.AddAuthenticationMethod(vMethod)
-		assert.Equal(t, document.Authentication[0].ID, vMethod.ID)
-
-		err = updater.RotateAuthenticationKey(*id123UnknonwMethod, document)
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.EqualError(t, err, "verificationMethod not found in document")
-
-		assert.Len(t, document.Authentication, 1)
-		assert.Equal(t, vMethod.ID.String(), document.Authentication[0].ID.String(),
-			"the old method should still be part of the document")
-	})
 }
 
 func Test_getVerificationMethodDiff(t *testing.T) {
