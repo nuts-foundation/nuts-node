@@ -28,7 +28,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
@@ -96,7 +95,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 }
 
 func (c *vcr) loadTemplates() error {
-	list, err := fs.Glob(defaultTemplates, "**/*.json")
+	list, err := fs.Glob(defaultTemplates, "**/*.json.template")
 	if err != nil {
 		return err
 	}
@@ -193,19 +192,19 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
 	validator, builder := credential.FindValidatorAndBuilder(vc)
 	if validator == nil || builder == nil {
-		return nil, errors.New("validation failed: unknown credential type")
+		return nil, errors.New("unknown credential type")
 	}
 
 	// find issuer
 	issuer, err := did.ParseDID(vc.Issuer.String())
 	if err != nil {
-		return nil, fmt.Errorf("validation failed: failed to parse issuer: %w", err)
+		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
 
 	// resolve an assertionMethod key for issuer
 	kid, err := c.docResolver.ResolveAssertionKey(*issuer)
 	if err != nil {
-		return nil, fmt.Errorf("validation failed: invalid issuer: %w", err)
+		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
 
 	// set defaults
@@ -218,7 +217,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 
 	// do same validation as network nodes
 	if err := validator.Validate(vc); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
+		return nil, err
 	}
 
 	payload, err := json.Marshal(vc)
@@ -231,7 +230,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
 
-	logging.Log().Infof("Verifiable Credential created: %s", vc.ID)
+	logging.Log().Infof("Verifiable Credential issued: %s", vc.ID)
 
 	return &vc, nil
 }
@@ -296,7 +295,12 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at time.Time) error {
 	}
 
 	// the proof must be correct
-	verifier, _ := jws.NewVerifier(jwa.ES256)
+	alg, err := crypto.SignatureAlgorithm(pk)
+	if err != nil {
+		return err
+	}
+
+	verifier, _ := jws.NewVerifier(alg)
 	// the jws lib can't do this for us, so we concat hdr with payload for verification
 	challenge := fmt.Sprintf("%s.%s", splittedJws[0], base64.RawURLEncoding.EncodeToString(payload))
 	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {

@@ -1,6 +1,9 @@
 # golang alpine 1.13.x
 FROM golang:1.16-alpine as builder
 
+ARG TARGETARCH
+ARG TARGETOS
+
 LABEL maintainer="wout.slakhorst@nuts.nl"
 
 RUN apk update \
@@ -18,7 +21,7 @@ COPY go.sum .
 RUN go mod download && go mod verify
 
 COPY . .
-RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /opt/nuts/nuts
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s" -o /opt/nuts/nuts
 
 # alpine 3.12.x
 FROM alpine:3.12
@@ -33,6 +36,6 @@ COPY --from=builder /opt/nuts/nuts /usr/bin/nuts
 HEALTHCHECK --start-period=30s --timeout=5s --interval=10s \
     CMD curl -f http://localhost:1323/status || exit 1
 
-EXPOSE 1323 4222 5555
+EXPOSE 1323 5555
 ENTRYPOINT ["/usr/bin/nuts"]
 CMD ["server"]
