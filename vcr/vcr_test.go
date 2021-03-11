@@ -127,6 +127,45 @@ func TestVCR_Search(t *testing.T) {
 	assert.Equal(t, "Because we care BV", c["name"])
 }
 
+func TestVCR_Resolve(t *testing.T) {
+	testDir := io.TestDirectory(t)
+	instance := NewTestVCRInstance(testDir)
+	testVC := did.VerifiableCredential{}
+	_ = json.Unmarshal([]byte(concept.TestCredential), &testVC)
+
+	// add document
+	doc := leia.Document(concept.TestCredential)
+	err := instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		vc, err := instance.Resolve(testVC.ID.String())
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, testVC, vc)
+	})
+
+	t.Run("error - error from store", func(t *testing.T) {
+		testDir := io.TestDirectory(t)
+		instance := NewTestVCRInstance(testDir)
+		instance.store.Collection(leia.GlobalCollection).DropIndex("index_id")
+		_, err := instance.Resolve(testVC.ID.String())
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - not found", func(t *testing.T) {
+		_, err := instance.Resolve("unknown")
+
+		assert.Equal(t, ErrNotFound, err)
+	})
+}
+
 func TestVcr_Instance(t *testing.T) {
 	testDir := io.TestDirectory(t)
 	instance := NewTestVCRInstance(testDir)
