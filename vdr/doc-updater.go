@@ -94,7 +94,7 @@ func getVerificationMethodDiff(currentDocument, proposedDocument did.Document) (
 			}
 		}
 		new = append(new, vmp)
-		nextProposedMethod:
+	nextProposedMethod:
 	}
 	// check which are not present in the proposed document
 	for _, vmc := range currentDocument.VerificationMethod {
@@ -104,7 +104,7 @@ func getVerificationMethodDiff(currentDocument, proposedDocument did.Document) (
 			}
 		}
 		removed = append(removed, vmc)
-		nextCurrentMethod:
+	nextCurrentMethod:
 	}
 	return
 }
