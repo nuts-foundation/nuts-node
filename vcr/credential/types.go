@@ -31,7 +31,7 @@ const (
 var (
 	// NutsOrganizationCredentialTypeURI is the VC type for a NutsOrganizationCredentialType as URI
 	NutsOrganizationCredentialTypeURI, _ = did.ParseURI(NutsOrganizationCredentialType)
-	// NutsContext is the nuts specific json-ld context as URI
+	// NutsContextURI is the nuts specific json-ld context as URI
 	NutsContextURI, _ = did.ParseURI(NutsContext)
 )
 
