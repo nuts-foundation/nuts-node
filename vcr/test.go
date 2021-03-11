@@ -30,6 +30,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// keyID matches the keys in /test
+const kid = "did:nuts:6NDdXGGmzWshSibqN4EYKSibUP5WxJ8ryvK1UywEZ7vv#V9Lc9BxlmPlFWfb8HqBTz-hWxF--mJOUrYIrSJqx1e0"
+
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.
 func NewTestVCRInstance(testDirectory string) *vcr {

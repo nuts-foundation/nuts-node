@@ -20,6 +20,7 @@
 package vcr
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -27,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -41,11 +43,11 @@ import (
 )
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keystore crypto.KeyStore, docResolver vdr.Resolver, network network.Transactions) VCR {
+func NewVCRInstance(signer crypto.JWSSigner, docResolver vdr.Resolver, network network.Transactions) VCR {
 	return &vcr{
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
-		keystore:    keystore,
+		signer:      signer,
 		docResolver: docResolver,
 		network:     network,
 	}
@@ -55,7 +57,7 @@ type vcr struct {
 	registry    concept.Registry
 	config      Config
 	store       leia.Store
-	keystore    crypto.KeyStore
+	signer      crypto.JWSSigner
 	docResolver vdr.Resolver
 	network     network.Transactions
 }
@@ -63,7 +65,7 @@ type vcr struct {
 // JSONWebSignature2020Proof is a VC proof with a signature according to JsonWebSignature2020
 type JSONWebSignature2020Proof struct {
 	did.Proof
-	Jws string `json:"jws"`
+	Jws string `json:"jws,omitempty"`
 }
 
 func (c *vcr) Registry() concept.Registry {
@@ -224,8 +226,67 @@ func (c *vcr) Resolve(ID string) (did.VerifiableCredential, error) {
 	panic("implement me")
 }
 
-func (c *vcr) Verify(vc did.VerifiableCredential, credentialSubject interface{}, at time.Time) (bool, error) {
-	panic("implement me")
+func (c *vcr) Verify(vc did.VerifiableCredential, at time.Time) error {
+	// it must have valid content
+	validator, _ := credential.FindValidatorAndBuilder(vc)
+	if validator == nil {
+		return errors.New("unknown credential type")
+	}
+
+	if err := validator.Validate(vc); err != nil {
+		return err
+	}
+
+	// create correct challenge for verification
+	payload, err := generateCredentialChallenge(vc)
+	if err != nil {
+		return fmt.Errorf("cannot generate challenge: %w", err)
+	}
+
+	// extract proof, can't fail already done in generateCredentialChallenge
+	var proofs = make([]JSONWebSignature2020Proof, 0)
+	_ = vc.UnmarshalProofValue(&proofs)
+	proof := proofs[0]
+	splittedJws := strings.Split(proof.Jws, "..")
+	if len(splittedJws) != 2 {
+		return errors.New("invalid 'jws' value in proof")
+	}
+	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
+	if err != nil {
+		return err
+	}
+
+	// find key
+	pk, err := c.docResolver.ResolveSigningKey(proof.VerificationMethod.String(), &at)
+	if err != nil {
+		return err
+	}
+
+	// the proof must be correct
+	alg, err := crypto.SignatureAlgorithm(pk)
+	if err != nil {
+		return err
+	}
+
+	verifier, _ := jws.NewVerifier(alg)
+	// the jws lib can't do this for us, so we concat hdr with payload for verification
+	challenge := fmt.Sprintf("%s.%s", splittedJws[0], base64.RawURLEncoding.EncodeToString(payload))
+	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
+		return err
+	}
+
+	// next check timeRestrictions
+	if vc.IssuanceDate.After(at) {
+		return errors.New("credential not valid yet at given time")
+	}
+	if vc.ExpirationDate != nil && (*vc.ExpirationDate).Before(at) {
+		return errors.New("credential not valid anymore at given time")
+	}
+
+	// check if issuer is trusted
+	// todo requires trusted config
+
+	return nil
 }
 
 func createDocumentType(vcType string) string {
@@ -255,11 +316,6 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 }
 
 func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
-	payload, err := json.Marshal(vc)
-	if err != nil {
-		return err
-	}
-
 	// create proof
 	pr := did.Proof{
 		Type:               "JsonWebSignature2020",
@@ -267,13 +323,15 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 		VerificationMethod: kid,
 		Created:            vc.IssuanceDate,
 	}
-	prJSON, err := json.Marshal(pr)
+	vc.Proof = []interface{}{pr}
+
+	// create correct signing challenge
+	challenge, err := generateCredentialChallenge(*vc)
 	if err != nil {
 		return err
 	}
-	tbs := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
 
-	sig, err := c.keystore.SignJWS(tbs, detachedJWSHeaders(), kid.String())
+	sig, err := c.signer.SignJWS(challenge, detachedJWSHeaders(), kid.String())
 	if err != nil {
 		return err
 	}
@@ -291,9 +349,40 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 	return nil
 }
 
+func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
+	var proofs = make([]JSONWebSignature2020Proof, 1)
+
+	if err := vc.UnmarshalProofValue(&proofs); err != nil {
+		return nil, err
+	}
+
+	if len(proofs) != 1 {
+		return nil, errors.New("expected a single Proof for challenge generation")
+	}
+
+	// payload
+	vc.Proof = nil
+	payload, err := json.Marshal(vc)
+	if err != nil {
+		return nil, err
+	}
+
+	// proof
+	proof := proofs[0]
+	proof.Jws = ""
+	prJSON, err := json.Marshal(proof)
+	if err != nil {
+		return nil, err
+	}
+
+	tbs := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
+
+	return tbs, nil
+}
+
 // detachedJWSHeaders creates headers for JsonWebSignature2020
 // the alg will be based upon the key
-// {"alg":"ES256","b64":false,"crit":["b64"]}
+// {"b64":false,"crit":["b64"]}
 func detachedJWSHeaders() map[string]interface{} {
 	return map[string]interface{}{
 		"b64":  false,
@@ -304,5 +393,5 @@ func detachedJWSHeaders() map[string]interface{} {
 // toDetachedSignature removes the middle part of the signature
 func toDetachedSignature(sig string) string {
 	splitted := strings.Split(sig, ".")
-	return strings.Join([]string{splitted[0], splitted[2]}, ".")
+	return strings.Join([]string{splitted[0], splitted[2]}, "..")
 }

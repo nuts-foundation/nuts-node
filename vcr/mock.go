@@ -133,16 +133,15 @@ func (mr *MockVCRMockRecorder) Search(query interface{}) *gomock.Call {
 }
 
 // Verify mocks base method.
-func (m *MockVCR) Verify(vc did.VerifiableCredential, credentialSubject interface{}, at time.Time) (bool, error) {
+func (m *MockVCR) Verify(vc did.VerifiableCredential, at time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify", vc, credentialSubject, at)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "Verify", vc, at)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Verify indicates an expected call of Verify.
-func (mr *MockVCRMockRecorder) Verify(vc, credentialSubject, at interface{}) *gomock.Call {
+func (mr *MockVCRMockRecorder) Verify(vc, at interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVCR)(nil).Verify), vc, credentialSubject, at)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVCR)(nil).Verify), vc, at)
 }

@@ -21,8 +21,10 @@ package crypto
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
 	"testing"
 
@@ -238,4 +240,46 @@ func Test_isAlgorithmSupported(t *testing.T) {
 	assert.True(t, isAlgorithmSupported(jwa.PS256))
 	assert.False(t, isAlgorithmSupported(jwa.RS256))
 	assert.False(t, isAlgorithmSupported(""))
+}
+
+func TestSignatureAlgorithm(t *testing.T) {
+	ecKey256, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	ecKey384, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	ecKey521, _ := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	rsaKey, _ := rsa.GenerateKey(rand.Reader, 1024)
+	pEDKey, sEDKey, _ := ed25519.GenerateKey(rand.Reader)
+
+	t.Run("no key", func(t *testing.T) {
+		_, err := SignatureAlgorithm(nil)
+
+		assert.Error(t, err)
+	})
+
+	tests := []struct {
+		name string
+		key interface{}
+		alg jwa.SignatureAlgorithm
+	} {
+		{"EC private key as pointer", ecKey256, jwa.ES256},
+		{"EC private key", *ecKey256, jwa.ES256},
+		{"EC public key as pointer", &ecKey384.PublicKey, jwa.ES384},
+		{"EC public key", ecKey521.PublicKey, jwa.ES512},
+		{"RSA private key as pointer", rsaKey, jwa.PS256},
+		{"RSA private key", *rsaKey, jwa.PS256},
+		{"RSA public key as pointer", &rsaKey.PublicKey, jwa.PS256},
+		{"RSA public key", rsaKey.PublicKey, jwa.PS256},
+		{"ED25519 private key", pEDKey, jwa.EdDSA},
+		{"ED25519 public key", sEDKey, jwa.EdDSA},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			alg, err := SignatureAlgorithm(test.key)
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Equal(t, test.alg, alg)
+		})
+	}
 }
