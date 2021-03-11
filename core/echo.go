@@ -1,8 +1,11 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"schneider.vip/problem"
 	"strings"
 	"sync"
 )
@@ -102,4 +105,37 @@ func getGroup(path string) string {
 		}
 	}
 	return ""
+}
+
+func creatorFn(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
+	echoServer := echo.New()
+	echoServer.HideBanner = true
+	echoServer.Use(middleware.Logger())
+	echoServer.HTTPErrorHandler = httpErrorHandler
+	if cfg.CORS.Enabled() {
+		if strictmode {
+			for _, origin := range cfg.CORS.Origin {
+				if strings.TrimSpace(origin) == "*" {
+					return nil, errors.New("wildcard CORS origin is not allowed in strict mode")
+				}
+			}
+		}
+		echoServer.Use(middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: cfg.CORS.Origin}))
+	}
+	echoServer.Use(DecodeURIPath)
+	return echoServer, nil
+}
+
+func httpErrorHandler(err error, c echo.Context) {
+	if prb, ok := err.(*problem.Problem); ok {
+		// todo: connect to module logger
+		if !c.Response().Committed {
+			if _, err := prb.WriteTo(c.Response()); err != nil {
+				//c.Echo().Logger.Error(err)
+			}
+		}
+	} else {
+		// e is an instance of echo.Echo
+		c.Echo().DefaultHTTPErrorHandler(err, c)
+	}
 }

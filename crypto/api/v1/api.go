@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"schneider.vip/problem"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -61,7 +62,10 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	err := ctx.Bind(signRequest)
 	if err != nil {
 		log.Logger().Error(err.Error())
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return problem.New(
+			problem.Title("SignJWT failed"),
+			problem.Detail(err.Error()),
+			problem.Status(http.StatusBadRequest))
 	}
 
 	if err := signRequest.validate(); err != nil {

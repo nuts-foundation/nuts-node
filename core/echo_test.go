@@ -3,8 +3,11 @@ package core
 import (
 	"fmt"
 	"github.com/golang/mock/gomock"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"net/http"
+	"net/http/httptest"
+	"schneider.vip/problem"
 	"testing"
 )
 
@@ -101,4 +104,20 @@ func Test_getGroup(t *testing.T) {
 	assert.Equal(t, "internal", getGroup("internal/"))
 	assert.Equal(t, "", getGroup(""))
 	assert.Equal(t, "", getGroup("/"))
+}
+
+func TestHttpErrorHandler(t *testing.T) {
+	es, _ := creatorFn(HTTPConfig{}, false)
+	e := es.(*echo.Echo)
+	f := func(c echo.Context) error {
+		return problem.New(problem.Status(http.StatusInternalServerError))
+	}
+	e.Add(http.MethodGet, "/500", f)
+	server := httptest.NewServer(e)
+	client := http.Client{}
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/500", server.URL), nil)
+	resp, err := client.Do(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 }

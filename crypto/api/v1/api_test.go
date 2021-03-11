@@ -125,7 +125,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 		err := ctx.client.SignJwt(ctx.echo)
 
 		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "code=400, message=missing body in request")
+		assert.Contains(t, err.Error(), "missing body in request")
 	})
 }
 
