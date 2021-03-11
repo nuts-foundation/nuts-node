@@ -212,7 +212,7 @@ func (r *VDR) resolveControllers(input []did.Document) ([]did.Document, error) {
 	for _, ref := range refsToResolve {
 		node, _, err := r.store.Resolve(ref, nil)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to resolve controllers: %w", err)
 		}
 		nodes = append(nodes, *node)
 	}
