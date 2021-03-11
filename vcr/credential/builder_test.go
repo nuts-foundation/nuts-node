@@ -20,6 +20,7 @@
 package credential
 
 import (
+	"net/url"
 	"testing"
 	"time"
 
@@ -31,7 +32,6 @@ import (
 
 func TestGenerateID(t *testing.T) {
 	issuer, _ := did.ParseURI(vdr.RandomDID.String())
-
 	id := generateID(*issuer)
 
 	if !assert.NotNil(t, id) {
@@ -52,10 +52,18 @@ func TestDefaultBuilder_Type(t *testing.T) {
 }
 
 func TestDefaultBuilder_Build(t *testing.T) {
+	defer func() {
+		nowFunc = time.Now
+	}()
+	checkTime := time.Now()
 	b := defaultBuilder{vcType: "type"}
-	issuer, _ := did.ParseURI(vdr.RandomDID.String())
+	nowFunc = func() time.Time {
+		return checkTime
+	}
+	u2, _ := url.Parse(vdr.RandomDID.String())
+	issuer := did.URI{URL: *u2}
 	vc := &did.VerifiableCredential{
-		Issuer: *issuer,
+		Issuer: issuer,
 	}
 
 	b.Fill(vc)
@@ -77,5 +85,9 @@ func TestDefaultBuilder_Build(t *testing.T) {
 
 	t.Run("adds ID", func(t *testing.T) {
 		assert.NotNil(t, vc.ID)
+	})
+
+	t.Run("sets time", func(t *testing.T) {
+		assert.Equal(t, checkTime, vc.IssuanceDate)
 	})
 }

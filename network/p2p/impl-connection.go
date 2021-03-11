@@ -19,7 +19,6 @@
 package p2p
 
 import (
-	"fmt"
 	"io"
 	"sync"
 
@@ -33,16 +32,14 @@ type messageGate interface {
 	Recv() (*transport.NetworkMessage, error)
 }
 
-// Peer represents a connected peer
-type peer struct {
-	id PeerID
-	// address holds the remote address of the node we're actually connected to
-	address string
+// connection represents a bidirectional connection with a peer.
+type connection struct {
+	Peer
 	// gate is used to send and receive messages
 	gate messageGate
-	// conn and client are only filled for peers where we're the connecting party
-	conn   *grpc.ClientConn
-	client transport.NetworkClient
+	// grpcConn and client are only filled for peers where we're the connecting party
+	grpcConn *grpc.ClientConn
+	client   transport.NetworkClient
 	// outMessages contains the messages we want to send to the peer.
 	//   According to the docs it's unsafe to simultaneously call stream.Send() from multiple goroutines so we put them
 	//   on a channel so that each peer can have its own goroutine sending messages (consuming messages from this channel)
@@ -51,36 +48,32 @@ type peer struct {
 	closeMutex *sync.Mutex
 }
 
-func (p peer) String() string {
-	return fmt.Sprintf("%s@%s", p.id, p.address)
-}
-
-func (p *peer) close() {
-	p.closeMutex.Lock()
-	defer p.closeMutex.Unlock()
-	if p.conn != nil {
-		if err := p.conn.Close(); err != nil {
-			log.Logger().Errorf("Unable to close client connection (peer=%s): %v", p, err)
+func (conn *connection) close() {
+	conn.closeMutex.Lock()
+	defer conn.closeMutex.Unlock()
+	if conn.grpcConn != nil {
+		if err := conn.grpcConn.Close(); err != nil {
+			log.Logger().Errorf("Unable to close client connection (peer=%s): %v", conn.Peer, err)
 		}
-		p.conn = nil
+		conn.grpcConn = nil
 	}
-	if p.outMessages != nil {
-		close(p.outMessages)
-		p.outMessages = nil
+	if conn.outMessages != nil {
+		close(conn.outMessages)
+		conn.outMessages = nil
 	}
 }
 
-func (p *peer) send(message *transport.NetworkMessage) {
-	p.closeMutex.Lock()
-	defer p.closeMutex.Unlock()
-	p.outMessages <- message
+func (conn *connection) send(message *transport.NetworkMessage) {
+	conn.closeMutex.Lock()
+	defer conn.closeMutex.Unlock()
+	conn.outMessages <- message
 }
 
 // sendMessages (blocking) reads messages from its outMessages channel and sends them to the peer until the channel is closed.
-func (p peer) sendMessages() {
-	for message := range p.outMessages {
-		if p.gate.Send(message) != nil {
-			log.Logger().Errorf("Unable to broadcast message to peer (peer=%s)", p.id)
+func (conn connection) sendMessages() {
+	for message := range conn.outMessages {
+		if conn.gate.Send(message) != nil {
+			log.Logger().Errorf("Unable to broadcast message to peer (peer=%s)", conn.Peer)
 		}
 	}
 }
