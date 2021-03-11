@@ -266,8 +266,7 @@ func checkSubscriberTransactionIntegrity(transaction dag.SubscriberTransaction) 
 	}
 
 	// Signing time should be set and lay in the past:
-	// allow for 2 seconds clock skew
-	if transaction.SigningTime().IsZero() || transaction.SigningTime().After(time.Now().Add(2*time.Second)) {
+	if transaction.SigningTime().IsZero() || transaction.SigningTime().After(time.Now()) {
 		return fmt.Errorf("signingTime must be set and in the past")
 	}
 
