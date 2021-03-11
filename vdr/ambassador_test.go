@@ -379,7 +379,7 @@ func Test_ambassador_callback(t *testing.T) {
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
-		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{}).Times(2).Return(&expectedDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
 		keyStore.EXPECT().GetPublicKey(didDocument.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
@@ -448,7 +448,7 @@ func Test_ambassador_callback(t *testing.T) {
 			TimelineID: timelineID,
 			Version:    subDoc.timelineVersion + 1,
 		}
-		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, nil).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
 
 		err = am.callback(subDoc, didDocPayload)
 		if !assert.Error(t, err) {
@@ -482,7 +482,7 @@ func Test_ambassador_callback(t *testing.T) {
 		currentMetadata := &types.DocumentMetadata{
 			TimelineID: hash.SHA256Sum([]byte("wrong timeline")),
 		}
-		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, nil).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
 
 		err = am.callback(subDoc, didDocPayload)
 		if !assert.Error(t, err) {
@@ -565,10 +565,12 @@ func Test_ambassador_callback(t *testing.T) {
 			Hash:       payloadHash,
 		}
 
-		// expect a resolve for previous versions of the did document
-		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedDocument, currentMetadata, nil)
-		// expect a resolve for the did documents controller
-		didStoreMock.EXPECT().Resolve(didDocumentController.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedController, nil, nil)
+		gomock.InOrder(
+			// expect a resolve for previous versions of the did document
+			didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(1).Return(&expectedDocument, currentMetadata, nil),
+			// expect a resolve for the did documents controller
+			didStoreMock.EXPECT().Resolve(didDocumentController.ID, nil).Times(1).Return(&expectedController, nil, nil),
+		)
 
 		keyStore.EXPECT().GetPublicKey(didDocumentController.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
@@ -648,9 +650,9 @@ func Test_ambassador_callback(t *testing.T) {
 		}
 
 		// expect a resolve for previous versions of the did document
-		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(1).Return(&expectedDocument, currentMetadata, nil)
 		// expect a resolve for the did documents controller
-		didStoreMock.EXPECT().Resolve(didDocumentController.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedController, nil, nil)
+		didStoreMock.EXPECT().Resolve(didDocumentController.ID, nil).Times(1).Return(&expectedController, nil, nil)
 
 		keyStore.EXPECT().GetPublicKey(keyID, subDoc.signingTime).Return(pKey, nil)
 

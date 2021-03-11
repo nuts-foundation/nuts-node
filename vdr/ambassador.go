@@ -143,11 +143,8 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 }
 
 func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
-	// Resolve current version of DID Document
-	resolverMetadata := &types.ResolveMetadata{
-		AllowDeactivated: false,
-	}
-	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, resolverMetadata)
+	// Resolve latest version of DID Document
+	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
 	if err != nil {
 		return fmt.Errorf("unable to update did document: %w", err)
 	}
@@ -341,7 +338,7 @@ func (n ambassador) resolveDIDControllers(didDocument *did.Document) ([]*did.Doc
 	}
 
 	for _, ctrlDID := range docsToResolve {
-		controllerDoc, _, err := n.didStore.Resolve(ctrlDID, &types.ResolveMetadata{})
+		controllerDoc, _, err := n.didStore.Resolve(ctrlDID, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve document controller: %w", err)
 		}
