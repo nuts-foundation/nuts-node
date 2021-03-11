@@ -18,6 +18,13 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// Error defines model for Error.
+type Error struct {
+	Detail string  `json:"detail"`
+	Status float32 `json:"status"`
+	Title  string  `json:"title"`
+}
+
 // JWK defines model for JWK.
 type JWK map[string]interface{}
 
@@ -29,6 +36,9 @@ type SignJwtRequest struct {
 	Claims map[string]interface{} `json:"claims"`
 	Kid    string                 `json:"kid"`
 }
+
+// ErrorResponse defines model for ErrorResponse.
+type ErrorResponse Error
 
 // PublicKeyParams defines parameters for PublicKey.
 type PublicKeyParams struct {
@@ -326,6 +336,7 @@ func (r PublicKeyResponse) StatusCode() int {
 type SignJwtResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSONDefault  *Error
 }
 
 // Status returns HTTPResponse.Status
@@ -413,6 +424,13 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
 	}
 
 	return response, nil
@@ -493,3 +511,4 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/internal/crypto/v1/sign_jwt", wrapper.SignJwt)
 
 }
+

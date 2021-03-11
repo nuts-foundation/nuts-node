@@ -67,14 +67,22 @@ paths:
             text/plain:
               schema:
                 example: "aa==.bb==.cc=="
-        '400':
-          description: "incorrect data"
-          content:
-            text/plain:
-              example:
-                "unknown kid"
+        default:
+          $ref: '#/components/responses/ErrorResponse'
 components:
   schemas:
+    Error:
+      required:
+        - title
+        - status
+        - detail
+      properties:
+        title:
+          type: string
+        status:
+          type: number
+        detail:
+          type: string
     SignJwtRequest:
       required:
         - claims
@@ -97,3 +105,10 @@ components:
                  "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0",
                  "kid": "Public key used in JWS spec Appendix A.3 example"
       }
+  responses:
+    ErrorResponse:
+      description: "Generic >400 response describing the error"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
