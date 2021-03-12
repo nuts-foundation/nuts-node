@@ -34,36 +34,6 @@ type Validator interface {
 	Validate(credential did.VerifiableCredential) error
 }
 
-// validate the default fields
-func validate(credential did.VerifiableCredential) error {
-
-	if !credential.IsType(did.VerifiableCredentialTypeV1URI()) {
-		return errors.New("validation failed: 'VerifiableCredential' is required")
-	}
-
-	if !credential.ContainsContext(did.VCContextV1URI()) {
-		return errors.New("validation failed: default context is required")
-	}
-
-	if !credential.ContainsContext(*NutsContextURI) {
-		return errors.New("validation failed: nuts context is required")
-	}
-
-	if credential.ID == nil {
-		return errors.New("validation failed: 'ID' is required")
-	}
-
-	if credential.IssuanceDate.IsZero() {
-		return errors.New("validation failed: 'issuanceDate' is required")
-	}
-
-	if credential.Proof == nil {
-		return errors.New("validation failed: 'proof' is required")
-	}
-
-	return nil
-}
-
 // ErrValidation is a common error indicating validation failed
 var ErrValidation = errors.New("validation failed")
 
@@ -85,24 +55,34 @@ func failure(err string) error {
 	return &validationError{err}
 }
 
-func containsType(credential did.VerifiableCredential, vcType string) bool {
-	for _, t := range credential.Type {
-		if t.String() == vcType {
-			return true
-		}
+// validate the default fields
+func validate(credential did.VerifiableCredential) error {
+
+	if !credential.IsType(did.VerifiableCredentialTypeV1URI()) {
+		return failure("'VerifiableCredential' is required")
 	}
 
-	return false
-}
-
-func containsContext(credential did.VerifiableCredential, context string) bool {
-	for _, c := range credential.Context {
-		if c.String() == context {
-			return true
-		}
+	if !credential.ContainsContext(did.VCContextV1URI()) {
+		return failure("default context is required")
 	}
 
-	return false
+	if !credential.ContainsContext(*NutsContextURI) {
+		return failure("nuts context is required")
+	}
+
+	if credential.ID == nil {
+		return failure("'ID' is required")
+	}
+
+	if credential.IssuanceDate.IsZero() {
+		return failure("'issuanceDate' is required")
+	}
+
+	if credential.Proof == nil {
+		return failure("'proof' is required")
+	}
+
+	return nil
 }
 
 // nutsOrganizationCredentialValidator checks if there's a 'name' and 'city' in the 'organization' struct

@@ -20,12 +20,12 @@
 package vcr
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"io/ioutil"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
@@ -43,7 +43,8 @@ func TestVcr_StoreCredential(t *testing.T) {
 	pke := storage.PublicKeyEntry{}
 	pkeJSON, _ := ioutil.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
-	pk, _ := jwk.PublicKeyOf(pke.JWK())
+	var pk = new(ecdsa.PublicKey)
+	pke.JWK().Raw(pk)
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)

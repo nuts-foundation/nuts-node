@@ -41,16 +41,16 @@ type ambassador struct {
 	writer        Writer
 }
 
-// NewAmbassador creates a new Ambassador,
+// NewAmbassador creates a new listener for the network that listens to Verifiable Credential transactions.
 func NewAmbassador(networkClient network.Transactions, writer Writer) Ambassador {
-	return &ambassador{
+	return ambassador{
 		networkClient: networkClient,
 		writer:        writer,
 	}
 }
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
-func (n *ambassador) Configure() {
+func (n ambassador) Configure() {
 	n.networkClient.Subscribe(vcDocumentType, n.vcCallback)
 	n.networkClient.Subscribe(revocationDocumentType, n.rCallback)
 }
@@ -58,7 +58,7 @@ func (n *ambassador) Configure() {
 // vcCallback gets called when new Verifiable Credentials are received by the network. All checks on the signature are already performed.
 // The VCR is used to verify the contents of the credential.
 // payload should be a json encoded did.VerifiableCredential
-func (n *ambassador) vcCallback(tx dag.SubscriberTransaction, payload []byte) error {
+func (n ambassador) vcCallback(tx dag.SubscriberTransaction, payload []byte) error {
 	logging.Log().Debugf("Processing Verifiable Credential received from Nuts Network: ref=%s", tx.Ref())
 
 	vc := did.VerifiableCredential{}
@@ -73,7 +73,7 @@ func (n *ambassador) vcCallback(tx dag.SubscriberTransaction, payload []byte) er
 // rCallback gets called when new credential revocations are received by the network. All checks on the signature are already performed.
 // The VCR is used to verify the contents of the revocation.
 // payload should be a json encoded Revocation
-func (n *ambassador) rCallback(tx dag.SubscriberTransaction, payload []byte) error {
+func (n ambassador) rCallback(tx dag.SubscriberTransaction, payload []byte) error {
 	logging.Log().Debugf("Processing Credential revocation received from Nuts Network: ref=%s", tx.Ref())
 
 	r := credential.Revocation{}

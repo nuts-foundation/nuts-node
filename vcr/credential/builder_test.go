@@ -31,7 +31,6 @@ import (
 
 func TestGenerateID(t *testing.T) {
 	issuer, _ := did.ParseURI(vdr.RandomDID.String())
-
 	id := generateID(*issuer)
 
 	if !assert.NotNil(t, id) {

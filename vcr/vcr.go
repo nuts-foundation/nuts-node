@@ -237,7 +237,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
 
-	logging.Log().Infof("Verifiable Credential created: %s", vc.ID)
+	logging.Log().Infof("Verifiable Credential issued: %s", vc.ID)
 
 	return &vc, nil
 }
@@ -309,7 +309,12 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
 	}
 
 	// the proof must be correct
-	verifier, _ := jws.NewVerifier(jwa.ES256)
+	alg, err := crypto.SignatureAlgorithm(pk)
+	if err != nil {
+		return err
+	}
+
+	verifier, _ := jws.NewVerifier(alg)
 	// the jws lib can't do this for us, so we concat hdr with payload for verification
 	challenge := fmt.Sprintf("%s.%s", splittedJws[0], base64.RawURLEncoding.EncodeToString(payload))
 	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
@@ -445,7 +450,6 @@ func (c *vcr) IsRevoked(ID did.URI) (bool, error) {
 
 	return false, nil
 }
-
 
 // convert returns a map of credential type to query
 // credential type is then used as collection input

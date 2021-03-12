@@ -20,6 +20,7 @@
 package vcr
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -29,7 +30,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -143,6 +143,15 @@ func TestVCR_Resolve(t *testing.T) {
 		}
 
 		assert.Equal(t, testVC, vc)
+	})
+
+	t.Run("error - error from store", func(t *testing.T) {
+		testDir := io.TestDirectory(t)
+		instance := NewTestVCRInstance(testDir)
+		instance.store.Collection(leia.GlobalCollection).DropIndex("index_id")
+		_, err := instance.Resolve(*testVC.ID)
+
+		assert.Error(t, err)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -299,11 +308,12 @@ func TestVcr_Verify(t *testing.T) {
 	vcJSON, _ := ioutil.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &vc)
 
-	// load pub key
+	// oad pub key
 	pke := storage.PublicKeyEntry{}
 	pkeJSON, _ := ioutil.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
-	pk, _ := jwk.PublicKeyOf(pke.JWK())
+	var pk = new(ecdsa.PublicKey)
+	pke.JWK().Raw(pk)
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -463,6 +473,13 @@ func TestVcr_Revoke(t *testing.T) {
 	vc := did.VerifiableCredential{}
 	vcJSON, _ := ioutil.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &vc)
+
+	// load pub key
+	pke := storage.PublicKeyEntry{}
+	pkeJSON, _ := ioutil.ReadFile("test/public.json")
+	json.Unmarshal(pkeJSON, &pke)
+	var pk = new(ecdsa.PublicKey)
+	pke.JWK().Raw(pk)
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
