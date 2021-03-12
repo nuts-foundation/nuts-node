@@ -57,7 +57,7 @@ var TestCredential = `
 }
 `
 
-func testVC() did.VerifiableCredential {
+func TestVC() did.VerifiableCredential {
 	vc := did.VerifiableCredential{}
 
 	json.Unmarshal([]byte(TestCredential), &vc)

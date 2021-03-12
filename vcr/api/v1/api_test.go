@@ -150,6 +150,86 @@ func TestWrapper_Resolve(t *testing.T) {
 	})
 }
 
+func TestWrapper_Search(t *testing.T) {
+	searchRequest := SearchRequest{
+		Params: []KeyValuePair{
+			{
+				Key:   "name",
+				Value: "Because we care B.V.",
+			},
+		},
+	}
+	registry := concept.NewRegistry()
+	template, _ := concept.ParseTemplate(concept.ExampleTemplate)
+	registry.Add(template)
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.client.CR = registry
+		defer ctx.ctrl.Finish()
+
+		var capturedConcept []concept.Concept
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			sr := f.(*SearchRequest)
+			*sr = searchRequest
+			return nil
+		})
+		ctx.vcr.EXPECT().Search(gomock.Any()).Return([]did2.VerifiableCredential{concept.TestVC()}, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
+			capturedConcept = f2.([]concept.Concept)
+			return nil
+		})
+
+		err := ctx.client.Search(ctx.echo, "company")
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, capturedConcept, 1)
+		assert.Equal(t, "did:nuts:1#123", capturedConcept[0]["id"])
+		assert.Equal(t, "ExampleCredential", capturedConcept[0]["type"])
+	})
+
+	t.Run("error - unknown template", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.client.CR = registry
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any())
+		ctx.echo.EXPECT().NoContent(http.StatusNotFound).Return(nil)
+
+		err := ctx.client.Search(ctx.echo, "unknown")
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - Bind explodes", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any()).Return(nil)
+
+		err := ctx.client.Search(ctx.echo, "unknown")
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - search returns error", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.client.CR = registry
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any())
+		ctx.vcr.EXPECT().Search(gomock.Any()).Return(nil, errors.New("b00m!"))
+
+		err := ctx.client.Search(ctx.echo, "company")
+
+		assert.Error(t, err)
+	})
+}
+
 type mockContext struct {
 	ctrl     *gomock.Controller
 	echo     *mock.MockContext

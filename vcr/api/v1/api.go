@@ -44,32 +44,42 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 }
 
 // Search finds concepts. Concepts are mapped to VCs. This is primarily used for finding DIDs.
-func (w *Wrapper) Search(ctx echo.Context, ccept string) error {
-	////q := params.Query
-	//
-	//q, err := w.CR.QueryFor(ccept)
-	//if err != nil {
-	//	ctx.NoContent(http.StatusNotFound)
-	//}
-	//
-	//VCs, err := w.R.Search(q)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//var results = make([]concept.Concept, len(VCs))
-	//
-	//for i, vc := range VCs {
-	//	o, err := w.CR.Transform(ccept, vc)
-	//	if err != nil {
-	//		return err
-	//	}
-	//
-	//	results[i] = o
-	//}
-	//
-	//return ctx.JSON(http.StatusOK, results)
-	panic("implement me")
+func (w *Wrapper) Search(ctx echo.Context, conceptTemplate string) error {
+	sr := new(SearchRequest)
+
+	if err := ctx.Bind(sr); err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse request body: %s", err.Error()))
+	}
+
+	query, err := w.CR.QueryFor(conceptTemplate)
+	if err != nil {
+		if err == concept.ErrUnknownConcept {
+			return ctx.NoContent(http.StatusNotFound)
+		}
+		return err
+	}
+
+	for _, kvp := range sr.Params {
+		query.AddClause(concept.Eq(kvp.Key, kvp.Value))
+	}
+
+	VCs, err := w.R.Search(query)
+	if err != nil {
+		return err
+	}
+
+	var results = make([]concept.Concept, len(VCs))
+
+	for i, vc := range VCs {
+		o, err := w.CR.Transform(conceptTemplate, vc)
+		if err != nil {
+			return err
+		}
+
+		results[i] = o
+	}
+
+	return ctx.JSON(http.StatusOK, results)
 }
 
 // Revoke a credential

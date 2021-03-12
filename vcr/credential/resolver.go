@@ -38,7 +38,7 @@ func FindValidatorAndBuilder(credential did.VerifiableCredential) (Validator, Bu
 	return nil, nil
 }
 
-// ExtractTypes lists the custom VC types as string
+// ExtractTypes extract additional VC types from the VC as strings
 func ExtractTypes(credential did.VerifiableCredential) []string {
 	var vcTypes []string
 

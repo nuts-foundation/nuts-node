@@ -100,7 +100,7 @@ func TestRegistry_Transform(t *testing.T) {
 	}
 
 	t.Run("VC is transformed", func(t *testing.T) {
-		c, err := r.Transform(ExampleConcept, testVC())
+		c, err := r.Transform(ExampleConcept, TestVC())
 
 		if !assert.NoError(t, err) {
 			return
