@@ -30,7 +30,6 @@ func TestNewUziValidator(t *testing.T) {
 func TestUziValidator(t *testing.T) {
 	t.Skip("Still uses v1 contract, migrate to v3")
 
-
 	t.Run("ok - acceptation environment", func(t *testing.T) {
 		crls, err := NewMockCrlService([]string{
 			"http://www.uzi-register-test.nl/cdp/test_uzi-register_medewerker_op_naam_ca_g3.crl",

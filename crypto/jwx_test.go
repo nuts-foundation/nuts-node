@@ -257,9 +257,9 @@ func TestSignatureAlgorithm(t *testing.T) {
 
 	tests := []struct {
 		name string
-		key interface{}
-		alg jwa.SignatureAlgorithm
-	} {
+		key  interface{}
+		alg  jwa.SignatureAlgorithm
+	}{
 		{"EC private key as pointer", ecKey256, jwa.ES256},
 		{"EC private key", *ecKey256, jwa.ES256},
 		{"EC public key as pointer", &ecKey384.PublicKey, jwa.ES384},

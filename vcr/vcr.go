@@ -394,7 +394,6 @@ func (c *vcr) Revoke(ID did.URI) (*credential.Revocation, error) {
 	return &r, nil
 }
 
-
 func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	// it must have valid content
 	if err := credential.ValidateRevocation(r); err != nil {

@@ -51,6 +51,7 @@ func BuildRevocation(vc did.VerifiableCredential) Revocation {
 	}
 }
 
+// ValidateRevocation checks if a revocation record contains the required fields and if fields have the correct value.
 func ValidateRevocation(r Revocation) error {
 	return nil
 }

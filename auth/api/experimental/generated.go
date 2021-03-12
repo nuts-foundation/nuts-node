@@ -238,4 +238,3 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPut, baseURL+"/internal/auth/experimental/signature/verify", wrapper.VerifySignature)
 
 }
-

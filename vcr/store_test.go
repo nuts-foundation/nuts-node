@@ -71,4 +71,3 @@ func TestVcr_StoreCredential(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
-
