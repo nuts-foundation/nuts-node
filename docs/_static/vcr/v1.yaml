@@ -12,6 +12,12 @@ paths:
       operationId: "create"
       tags:
         - credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifiableCredential'
       responses:
         "200":
           description: "New VC has been created successfully. Returns the Verifiable Credential."

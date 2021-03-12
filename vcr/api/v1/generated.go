@@ -39,8 +39,14 @@ type SearchRequest struct {
 	Params []KeyValuePair `json:"params"`
 }
 
+// CreateJSONBody defines parameters for Create.
+type CreateJSONBody VerifiableCredential
+
 // SearchJSONBody defines parameters for Search.
 type SearchJSONBody SearchRequest
+
+// CreateRequestBody defines body for Create for application/json ContentType.
+type CreateJSONRequestBody CreateJSONBody
 
 // SearchRequestBody defines body for Search for application/json ContentType.
 type SearchJSONRequestBody SearchJSONBody
@@ -118,8 +124,10 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// Create request
-	Create(ctx context.Context) (*http.Response, error)
+	// Create request  with any body
+	CreateWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error)
+
+	Create(ctx context.Context, body CreateJSONRequestBody) (*http.Response, error)
 
 	// Revoke request
 	Revoke(ctx context.Context, id string) (*http.Response, error)
@@ -133,8 +141,23 @@ type ClientInterface interface {
 	Search(ctx context.Context, concept string, body SearchJSONRequestBody) (*http.Response, error)
 }
 
-func (c *Client) Create(ctx context.Context) (*http.Response, error) {
-	req, err := NewCreateRequest(c.Server)
+func (c *Client) CreateWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := NewCreateRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) Create(ctx context.Context, body CreateJSONRequestBody) (*http.Response, error) {
+	req, err := NewCreateRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -208,8 +231,19 @@ func (c *Client) Search(ctx context.Context, concept string, body SearchJSONRequ
 	return c.Client.Do(req)
 }
 
-// NewCreateRequest generates requests for Create
-func NewCreateRequest(server string) (*http.Request, error) {
+// NewCreateRequest calls the generic Create builder with application/json body
+func NewCreateRequest(server string, body CreateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateRequestWithBody generates requests for Create with any type of body
+func NewCreateRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	queryUrl, err := url.Parse(server)
@@ -227,11 +261,12 @@ func NewCreateRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryUrl.String(), nil)
+	req, err := http.NewRequest("POST", queryUrl.String(), body)
 	if err != nil {
 		return nil, err
 	}
 
+	req.Header.Add("Content-Type", contentType)
 	return req, nil
 }
 
@@ -378,8 +413,10 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// Create request
-	CreateWithResponse(ctx context.Context) (*CreateResponse, error)
+	// Create request  with any body
+	CreateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*CreateResponse, error)
+
+	CreateWithResponse(ctx context.Context, body CreateJSONRequestBody) (*CreateResponse, error)
 
 	// Revoke request
 	RevokeWithResponse(ctx context.Context, id string) (*RevokeResponse, error)
@@ -478,9 +515,17 @@ func (r SearchResponse) StatusCode() int {
 	return 0
 }
 
-// CreateWithResponse request returning *CreateResponse
-func (c *ClientWithResponses) CreateWithResponse(ctx context.Context) (*CreateResponse, error) {
-	rsp, err := c.Create(ctx)
+// CreateWithBodyWithResponse request with arbitrary body returning *CreateResponse
+func (c *ClientWithResponses) CreateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*CreateResponse, error) {
+	rsp, err := c.CreateWithBody(ctx, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateWithResponse(ctx context.Context, body CreateJSONRequestBody) (*CreateResponse, error) {
+	rsp, err := c.Create(ctx, body)
 	if err != nil {
 		return nil, err
 	}
@@ -711,4 +756,3 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/:concept", wrapper.Search)
 
 }
-
