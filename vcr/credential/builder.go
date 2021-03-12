@@ -40,6 +40,8 @@ type defaultBuilder struct {
 	vcType string
 }
 
+var nowFunc = time.Now
+
 func (d defaultBuilder) Fill(vc *did.VerifiableCredential) {
 	vc.Context = []did.URI{did.VCContextV1URI(), *NutsContextURI}
 
@@ -49,7 +51,7 @@ func (d defaultBuilder) Fill(vc *did.VerifiableCredential) {
 	if !vc.IsType(*builderType) {
 		vc.Type = append(vc.Type, *builderType)
 	}
-	vc.IssuanceDate = time.Now()
+	vc.IssuanceDate = nowFunc()
 	vc.ID = generateID(vc.Issuer)
 
 	return

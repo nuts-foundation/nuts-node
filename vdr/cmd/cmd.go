@@ -23,14 +23,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/core"
-	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"io/ioutil"
-	"log"
-	"os"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 )
 
 // FlagSet contains flags relevant for the VDR instance
@@ -61,7 +63,7 @@ func createCmd() *cobra.Command {
 		Short: "Registers a new DID",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			doc, err := httpClient().Create()
+			doc, err := httpClient(cmd.Flags()).Create()
 			if err != nil {
 				return fmt.Errorf("unable to create new DID: %v", err)
 			}
@@ -104,7 +106,7 @@ func updateCmd() *cobra.Command {
 				return fmt.Errorf("failed to parse DID document: %w", err)
 			}
 
-			if _, err = httpClient().Update(id, hash, didDoc); err != nil {
+			if _, err = httpClient(cmd.Flags()).Update(id, hash, didDoc); err != nil {
 				return fmt.Errorf("failed to update DID document: %w", err)
 			}
 
@@ -122,7 +124,7 @@ func resolveCmd() *cobra.Command {
 		Short: "Resolve a DID document based on its DID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			doc, meta, err := httpClient().Get(args[0])
+			doc, meta, err := httpClient(cmd.Flags()).Get(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to resolve DID document: %v", err)
 			}
@@ -162,10 +164,11 @@ func readFromStdin() ([]byte, error) {
 	return ioutil.ReadAll(bufio.NewReader(os.Stdin))
 }
 
-func httpClient() api.HTTPClient {
+// httpClient creates a remote client
+func httpClient(set *pflag.FlagSet) api.HTTPClient {
 	config := core.NewClientConfig()
-	if err := config.Load(); err != nil {
-		log.Fatal(err)
+	if err := config.Load(set); err != nil {
+		logrus.Fatal(err)
 	}
 	return api.HTTPClient{
 		ServerAddress: config.GetAddress(),

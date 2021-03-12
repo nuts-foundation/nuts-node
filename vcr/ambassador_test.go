@@ -62,7 +62,7 @@ func TestAmbassador_callback(t *testing.T) {
 		defer ctrl.Finish()
 
 		vc := did.VerifiableCredential{}
-		a := NewAmbassador(nil, wMock).(*ambassador)
+		a := NewAmbassador(nil, wMock).(ambassador)
 		wMock.EXPECT().Write(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			vc = f.(did.VerifiableCredential)
 			return nil
@@ -82,7 +82,7 @@ func TestAmbassador_callback(t *testing.T) {
 		wMock := NewMockWriter(ctrl)
 		defer ctrl.Finish()
 
-		a := NewAmbassador(nil, wMock).(*ambassador)
+		a := NewAmbassador(nil, wMock).(ambassador)
 		wMock.EXPECT().Write(gomock.Any()).Return(errors.New("b00m!"))
 
 		err := a.callback(stx, payload)
