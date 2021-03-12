@@ -2,7 +2,6 @@ package vdr
 
 import (
 	"crypto"
-	"crypto/ecdsa"
 	"errors"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -22,15 +21,6 @@ type NutsDocUpdater struct {
 // It returns a keyID in the form of the documents DID with the new keys thumbprint as fragment.
 func newNamingFnForExistingDID(existingDID did.DID) nutsCrypto.KIDNamingFunc {
 	return func(pKey crypto.PublicKey) (string, error) {
-		ecPKey, ok := pKey.(*ecdsa.PublicKey)
-		if !ok {
-			return "", errors.New("could not generate kid: invalid key type")
-		}
-
-		if ecPKey.Curve == nil {
-			return "", errors.New("could not generate kid: empty key curve")
-		}
-
 		jwKey, err := jwk.New(pKey)
 		if err != nil {
 			return "", err

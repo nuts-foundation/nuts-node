@@ -11,12 +11,13 @@ import (
 )
 
 func Test_newNamingFnForExistingDID(t *testing.T) {
+	existingDID, _ := did.ParseDID("did:nuts:123")
+	fn := newNamingFnForExistingDID(*existingDID)
+	if !assert.NotNil(t, fn) {
+		return
+	}
+
 	t.Run("it creates a new did", func(t *testing.T) {
-
-		existingDID, _ := did.ParseDID("did:nuts:123")
-		fn := newNamingFnForExistingDID(*existingDID)
-		assert.NotNil(t, fn)
-
 		rawKey, err := jwkToPublicKey(t, jwkString)
 		keyID, err := fn(rawKey)
 		if !assert.NoError(t, err) {
@@ -32,6 +33,11 @@ func Test_newNamingFnForExistingDID(t *testing.T) {
 			"expected the base to be the same as the existing DID")
 		assert.Equal(t, newDID.Fragment, "J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE",
 			"expected the fragment to be derived from the public key")
+	})
+	t.Run("error on empty key", func(t *testing.T) {
+		keyID, err := fn(nil)
+		assert.EqualError(t, err, "jwk.New requires a non-nil key")
+		assert.Empty(t, keyID)
 	})
 }
 
