@@ -37,6 +37,6 @@ var (
 
 // NutsOrganizationCredentialSubject defines the CredentialSubject struct for the NutsOrganizationCredentialType
 type NutsOrganizationCredentialSubject struct {
-	ID           string `json:"id"`
-	Organization map[string]string
+	ID           string            `json:"id"`
+	Organization map[string]string `json:"organization"`
 }
