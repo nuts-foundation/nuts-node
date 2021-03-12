@@ -47,7 +47,8 @@ var vcDocumentType = "application/vc+json"
 
 // Writer is the interface that groups al the VC write methods
 type Writer interface {
-	// Write writes a VC to storage. Before writing, it calls Verify!
+	// Write writes a VC to storage.
+	// If the VC is not valid, an error is returned.
 	Write(vc did.VerifiableCredential) error
 }
 
