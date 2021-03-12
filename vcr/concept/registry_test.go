@@ -132,7 +132,7 @@ func TestRegistry_Transform(t *testing.T) {
 			Type: []did.URI{*vcType},
 		}
 
-		_, err = r.Transform("company", vc)
+		_, err = r.Transform("organization", vc)
 
 		if !assert.Error(t, err) {
 			return

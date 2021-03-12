@@ -66,8 +66,8 @@ func TestTemplate_parse(t *testing.T) {
 		assert.Equal(t, "id", ct.ToVCPath("id"))
 		assert.Equal(t, "credentialSubject.id", ct.conceptIndexMapping["subject"])
 		assert.Equal(t, "issuer", ct.conceptIndexMapping["issuer"])
-		assert.Equal(t, "credentialSubject.company.city", ct.conceptIndexMapping["company.city"])
-		assert.Equal(t, "credentialSubject.company.name", ct.conceptIndexMapping["company.name"])
+		assert.Equal(t, "credentialSubject.organization.city", ct.conceptIndexMapping["organization.city"])
+		assert.Equal(t, "credentialSubject.organization.name", ct.conceptIndexMapping["organization.name"])
 	})
 
 	t.Run("it adds the correct fixed values", func(t *testing.T) {
@@ -80,7 +80,7 @@ func TestTemplate_parse(t *testing.T) {
 		assert.Len(t, ct.Indices(), 2)
 
 		assert.Equal(t, "type", ct.indices[0][0])
-		assert.Equal(t, "company.name", ct.indices[0][1])
+		assert.Equal(t, "organization.name", ct.indices[0][1])
 		assert.Equal(t, "type", ct.indices[1][0])
 		assert.Equal(t, "subject", ct.indices[1][1])
 	})
@@ -122,7 +122,7 @@ func TestTemplate_transform(t *testing.T) {
 		assert.Equal(t, "did:nuts:1", concept[IssuerField])
 		assert.Equal(t, "did:nuts:2", concept[SubjectField])
 
-		ce := concept["company"]
+		ce := concept["organization"]
 		assert.NotNil(t, ce)
 
 		cem := ce.(Concept)
@@ -161,7 +161,7 @@ func TestTemplate_concepts(t *testing.T) {
 	})
 
 	assert.Len(t, cs, 2)
-	assert.Equal(t, "company.name", cs[1])
-	assert.Equal(t, "company.city", cs[0])
+	assert.Equal(t, "organization.name", cs[1])
+	assert.Equal(t, "organization.city", cs[0])
 
 }

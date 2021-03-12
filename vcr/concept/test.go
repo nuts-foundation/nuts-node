@@ -24,7 +24,7 @@ import (
 	"github.com/nuts-foundation/go-did"
 )
 
-const ExampleConcept = "company"
+const ExampleConcept = "organization"
 const ExampleType = "ExampleCredential"
 
 var ExampleTemplate = `
@@ -34,9 +34,9 @@ var ExampleTemplate = `
 	"type": "ExampleCredential@{1_1},{2_1}",
 	"credentialSubject": {
 		"id": "<<subject>>@{2_2}",
-		"company": {
-			"name": "<<company.name>>@{1_2}",
-			"city": "<<company.city>>"
+		"organization": {
+			"name": "<<organization.name>>@{1_2}",
+			"city": "<<organization.city>>"
 		}
 	}
 }
@@ -49,7 +49,7 @@ var TestCredential = `
 	"type": ["VerifiableCredential", "ExampleCredential"],
 	"credentialSubject": {
 		"id": "did:nuts:2",
-		"company": {
+		"organization": {
 			"name": "Because we care BV",
 			"city": "Eibergen"
 		}
