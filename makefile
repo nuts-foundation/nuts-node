@@ -40,9 +40,6 @@ gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/network.proto
 	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/network.proto
 
-gen-bindata:
-	go-bindata -ignore=\\.DS_Store -pkg=assets -o=./auth/assets/bindata.go -prefix=auth/bindata ./auth/bindata/...
-
 gen-docs:
 	go run ./docs
 
