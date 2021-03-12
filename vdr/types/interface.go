@@ -69,7 +69,7 @@ type DocDeactivator interface {
 	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
 	// If the DID Document is not found or not local a ErrNotFound is returned
 	// If the DID Document is not active a ErrDeactivated is returned
-	Deactivate(id did.DID, current hash.SHA256Hash)
+	Deactivate(id did.DID, current hash.SHA256Hash) error
 }
 
 // KeyResolver is the interface for resolving keys.
