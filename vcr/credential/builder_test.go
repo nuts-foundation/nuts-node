@@ -51,6 +51,20 @@ func TestDefaultBuilder_Type(t *testing.T) {
 	assert.Equal(t, "type", b.Type())
 }
 
+func TestDefaultBuilder_Fill(t *testing.T) {
+	u2, _ := url.Parse(vdr.RandomDID.String())
+	issuer := did.URI{URL: *u2}
+	b := defaultBuilder{vcType: "type"}
+	t.Run("default VC type is not added twice if already present", func(t *testing.T) {
+		vc := &did.VerifiableCredential{
+			Type:   []did.URI{did.VerifiableCredentialTypeV1URI()},
+			Issuer: issuer,
+		}
+		b.Fill(vc)
+		assert.Len(t, vc.Type, 2)
+	})
+}
+
 func TestDefaultBuilder_Build(t *testing.T) {
 	defer func() {
 		nowFunc = time.Now

@@ -45,7 +45,10 @@ var nowFunc = time.Now
 func (d defaultBuilder) Fill(vc *did.VerifiableCredential) {
 	vc.Context = []did.URI{did.VCContextV1URI(), *NutsContextURI}
 
-	vc.Type = append(vc.Type, did.VerifiableCredentialTypeV1URI())
+	defaultType := did.VerifiableCredentialTypeV1URI()
+	if !vc.IsType(defaultType) {
+		vc.Type = append(vc.Type, defaultType)
+	}
 
 	builderType, _ := did.ParseURI(d.vcType)
 	if !vc.IsType(*builderType) {
