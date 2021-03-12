@@ -218,3 +218,17 @@ func (mr *MockVCRMockRecorder) Verify(vc, at interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVCR)(nil).Verify), vc, at)
 }
+
+// Write mocks base method.
+func (m *MockVCR) Write(vc did.VerifiableCredential) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Write", vc)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Write indicates an expected call of Write.
+func (mr *MockVCRMockRecorder) Write(vc interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockVCR)(nil).Write), vc)
+}

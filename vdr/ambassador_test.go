@@ -379,7 +379,7 @@ func Test_ambassador_callback(t *testing.T) {
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
-		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{}).Times(2).Return(&expectedDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
 		keyStore.EXPECT().GetPublicKey(didDocument.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
@@ -448,7 +448,7 @@ func Test_ambassador_callback(t *testing.T) {
 			TimelineID: timelineID,
 			Version:    subDoc.timelineVersion + 1,
 		}
-		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, nil).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
 
 		err = am.callback(subDoc, didDocPayload)
 		if !assert.Error(t, err) {
@@ -482,7 +482,7 @@ func Test_ambassador_callback(t *testing.T) {
 		currentMetadata := &types.DocumentMetadata{
 			TimelineID: hash.SHA256Sum([]byte("wrong timeline")),
 		}
-		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, nil).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
 
 		err = am.callback(subDoc, didDocPayload)
 		if !assert.Error(t, err) {
@@ -565,10 +565,12 @@ func Test_ambassador_callback(t *testing.T) {
 			Hash:       payloadHash,
 		}
 
-		// expect a resolve for previous versions of the did document
-		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedDocument, currentMetadata, nil)
-		// expect a resolve for the did documents controller
-		didStoreMock.EXPECT().Resolve(didDocumentController.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedController, nil, nil)
+		gomock.InOrder(
+			// expect a resolve for previous versions of the did document
+			didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(1).Return(&expectedDocument, currentMetadata, nil),
+			// expect a resolve for the did documents controller
+			didStoreMock.EXPECT().Resolve(didDocumentController.ID, nil).Times(1).Return(&expectedController, nil, nil),
+		)
 
 		keyStore.EXPECT().GetPublicKey(didDocumentController.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
@@ -648,9 +650,9 @@ func Test_ambassador_callback(t *testing.T) {
 		}
 
 		// expect a resolve for previous versions of the did document
-		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(1).Return(&expectedDocument, currentMetadata, nil)
 		// expect a resolve for the did documents controller
-		didStoreMock.EXPECT().Resolve(didDocumentController.ID, &types.ResolveMetadata{}).Times(1).Return(&expectedController, nil, nil)
+		didStoreMock.EXPECT().Resolve(didDocumentController.ID, nil).Times(1).Return(&expectedController, nil, nil)
 
 		keyStore.EXPECT().GetPublicKey(keyID, subDoc.signingTime).Return(pKey, nil)
 
@@ -786,7 +788,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := checkSubscriberDocumentIntegrity(tt.args); err != nil || tt.wantedErr != nil {
+			if err := checkSubscriberTransactionIntegrity(tt.args); err != nil || tt.wantedErr != nil {
 				if err == nil {
 					if tt.wantedErr != nil {
 						t.Error("expected an error, got nothing")
@@ -875,4 +877,125 @@ func Test_checkDIDDocumentIntegrity(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_ambassador_updateKeysInStore(t *testing.T) {
+	t.Run("ok - empty documents", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		sut := ambassador{keyStore: keyStoreMock}
+
+		current := did.Document{}
+		proposed := did.Document{}
+
+		err := sut.updateKeysInStore(current, proposed, time.Now())
+		assert.NoError(t, err,
+			"expected no error when providing two empty documents")
+	})
+
+	t.Run("ok - one new key", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		sut := ambassador{keyStore: keyStoreMock}
+
+		current := did.Document{}
+		proposed := did.Document{}
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		timeNow := time.Now()
+		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		if !assert.NoError(t, err,
+			"unexpected error while generating a new verificationMethod") {
+			return
+		}
+		proposed.AddAuthenticationMethod(vm)
+
+		keyStoreMock.EXPECT().AddPublicKey(vm.ID.String(), &pair.PublicKey, timeNow).Return(nil)
+
+		err = sut.updateKeysInStore(current, proposed, timeNow)
+		assert.NoError(t, err,
+			"expected no error when adding one key")
+
+	})
+
+	t.Run("ok - one old key", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		sut := ambassador{keyStore: keyStoreMock}
+
+		current := did.Document{}
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		timeNow := time.Now()
+		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		if !assert.NoError(t, err,
+			"unexpected error while generating a new verificationMethod") {
+			return
+		}
+		current.AddAuthenticationMethod(vm)
+
+		proposed := did.Document{}
+		keyStoreMock.EXPECT().RevokePublicKey(vm.ID.String(), timeNow)
+
+		err = sut.updateKeysInStore(current, proposed, timeNow)
+		assert.NoError(t, err,
+			"expected no error when removing one key")
+	})
+
+	t.Run("error - adding key failed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		sut := ambassador{keyStore: keyStoreMock}
+
+		current := did.Document{}
+		proposed := did.Document{}
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		timeNow := time.Now()
+		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		if !assert.NoError(t, err,
+			"unexpected error while generating a new verificationMethod") {
+			return
+		}
+		proposed.AddAuthenticationMethod(vm)
+
+		keyStoreMock.EXPECT().AddPublicKey(vm.ID.String(), &pair.PublicKey, timeNow).Return(crypto.ErrKeyAlreadyExists)
+
+		err = sut.updateKeysInStore(current, proposed, timeNow)
+		assert.EqualError(t, err, "unable to add new public key: key already exists")
+	})
+
+	t.Run("error - revoking key failed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		sut := ambassador{keyStore: keyStoreMock}
+
+		current := did.Document{}
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		timeNow := time.Now()
+		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		if !assert.NoError(t, err,
+			"unexpected error while generating a new verificationMethod") {
+			return
+		}
+		current.AddAuthenticationMethod(vm)
+
+		proposed := did.Document{}
+		keyStoreMock.EXPECT().RevokePublicKey(vm.ID.String(), timeNow).Return(crypto.ErrKeyRevoked)
+
+		err = sut.updateKeysInStore(current, proposed, timeNow)
+		assert.EqualError(t, err, "unable to revoke public key: key is revoked")
+	})
 }

@@ -132,23 +132,32 @@ func (r VDR) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document
 func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
 	logging.Log().Debugf("Updating DID Document: %s", id)
 	// TODO: check the integrity / validity of the proposed DID Document.
-	resolverMetada := &types.ResolveMetadata{
+	resolverMetadata := &types.ResolveMetadata{
 		Hash:             &current,
-		AllowDeactivated: false,
+		AllowDeactivated: true,
 	}
-	currentDIDdocument, meta, err := r.store.Resolve(id, resolverMetada)
+	currentDIDDocument, meta, err := r.store.Resolve(id, resolverMetadata)
 	if err != nil {
 		return err
 	}
+	if isDeactivated(currentDIDDocument) {
+		return types.ErrDeactivated
+	}
+	controllers, err := r.resolveControllers([]did.Document{*currentDIDDocument})
+	if err != nil {
+		return fmt.Errorf("error while finding controllers for document: %w", err)
+	}
+	if len(controllers) == 0 {
+		return fmt.Errorf("could not find any controllers for document")
+	}
+
 	payload, err := json.Marshal(next)
 	if err != nil {
 		return err
 	}
 
-	// TODO: look into the controller of the did for a signing key
-	keyID := currentDIDdocument.Authentication[0].ID.String()
+	keyID := controllers[0].Authentication[0].ID.String()
 	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now(), dag.TimelineIDField(meta.TimelineID), dag.TimelineVersionField(meta.Version+1))
-
 	if err == nil {
 		logging.Log().Infof("DID Document updated: %s", id)
 	}
@@ -156,8 +165,67 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	return err
 }
 
+func isDeactivated(document *did.Document) bool {
+	return len(document.Controller) == 0 && len(document.Authentication) == 0
+}
+
 // Deactivate updates the DID Document so it can no longer be updated
-func (r *VDR) Deactivate(DID did.DID, current hash.SHA256Hash) {
-	logging.Log().Debugf("Deactivating DID Document: %s", DID)
-	panic("implement me")
+func (r *VDR) Deactivate(id did.DID, currentHash hash.SHA256Hash) error {
+	// A deactivated document is the original document stripped from a controller and keys.
+	// So, apart from the services, it is practically an empty document. Should we even keep the services?
+	emptyDoc := did.Document{ID: id}
+	return r.Update(id, currentHash, emptyDoc, nil)
+}
+
+// resolveControllers accepts a list of documents and finds their controllers
+// The resulting list are documents who control themselves
+func (r *VDR) resolveControllers(input []did.Document) ([]did.Document, error) {
+	// end of the chain
+	if len(input) == 0 {
+		return input, nil
+	}
+
+	var leaves []did.Document
+	var refsToResolve []did.DID
+	var nodes []did.Document
+
+	// for each input document, find its controllers or add the doc itself if its controls itself
+	for _, doc := range input {
+		if len(doc.Controller) == 0 && len(doc.Authentication) > 0 {
+			// no controller -> doc is its own controller
+			leaves = append(leaves, doc)
+			continue
+		}
+		for _, ctrlDID := range doc.Controller {
+			if doc.ID.Equals(ctrlDID) {
+				if len(doc.Authentication) > 0 {
+					// doc is its own controller
+					leaves = append(leaves, doc)
+				}
+			} else {
+				// add did to be resolved later
+				refsToResolve = append(refsToResolve, ctrlDID)
+			}
+		}
+	}
+	// resolve all unresolved docs
+	// TODO: check for recursions in controllers. Behaviour must be described in spec:
+	// nuts-foundation/nuts-specification#39
+	for _, ref := range refsToResolve {
+		node, _, err := r.store.Resolve(ref, nil)
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve controllers: %w", err)
+		}
+		nodes = append(nodes, *node)
+	}
+	newLeaves, err := r.resolveControllers(nodes)
+	if err != nil {
+		return nil, err
+	}
+	// Merge local leaves and new found leaves
+	for _, leave := range newLeaves {
+		leaves = append(leaves, leave)
+	}
+
+	return leaves, nil
 }

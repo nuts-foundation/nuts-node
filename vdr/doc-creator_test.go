@@ -6,15 +6,14 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	"github.com/golang/mock/gomock"
-
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/nuts-foundation/go-did"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+
 	"github.com/lestrrat-go/jwx/jwk"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/stretchr/testify/assert"
+
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
 
 // mockKeyCreator can create new keys based on a predefined key
@@ -48,21 +47,26 @@ func TestDocCreator_Create(t *testing.T) {
 		sut := NutsDocCreator{keyCreator: kc}
 		t.Run("ok", func(t *testing.T) {
 			doc, err := sut.Create()
-			assert.NoError(t, err)
-			assert.NotNil(t, doc)
+			assert.NoError(t, err,
+				"create should not return an error")
+			assert.NotNil(t, doc,
+				"create should return a document")
 
-			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS", doc.ID.String())
+			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS", doc.ID.String(),
+				"the DID Doc should have the expected id")
 
-			assert.Len(t, doc.Controller, 1)
-			assert.Equal(t, doc.ID.String(), doc.Controller[0].String())
+			assert.Len(t, doc.VerificationMethod, 1,
+				"it should have one verificationMethod")
+			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", doc.VerificationMethod[0].ID.String(),
+				"verificationMethod should have the correct id")
 
-			assert.Len(t, doc.VerificationMethod, 1)
-			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", doc.VerificationMethod[0].ID.String())
+			assert.Len(t, doc.Authentication, 1,
+				"it should have 1 authenticationMethod")
+			assert.Equal(t, doc.Authentication[0].VerificationMethod, doc.VerificationMethod[0],
+				"the assertionMethod should be a pointer to the verificationMethod")
 
-			assert.Len(t, doc.Authentication, 1)
-			assert.Equal(t, doc.Authentication[0].VerificationMethod, doc.VerificationMethod[0])
-
-			assert.Len(t, doc.AssertionMethod, 0)
+			assert.Empty(t, doc.AssertionMethod,
+				"no assertionMethods should been set")
 		})
 	})
 	t.Run("invalid key ID", func(t *testing.T) {
@@ -134,30 +138,4 @@ func jwkToPublicKey(t *testing.T, jwkStr string) (crypto.PublicKey, error) {
 		return nil, err
 	}
 	return rawKey, nil
-}
-
-func Test_keyToVerificationMethod(t *testing.T) {
-	t.Run("invalid key", func(t *testing.T) {
-		rawKey, err := jwkToPublicKey(t, jwkString)
-		if !assert.NoError(t, err) {
-			return
-		}
-		vm, err := keyToVerificationMethod(rawKey, "keyID")
-		assert.Error(t, err)
-		assert.Nil(t, vm)
-	})
-	t.Run("ok", func(t *testing.T) {
-		rawKey, err := jwkToPublicKey(t, jwkString)
-		if !assert.NoError(t, err) {
-			return
-		}
-		kid, _ := didKIDNamingFunc(rawKey)
-		vm, err := keyToVerificationMethod(rawKey, kid)
-		assert.NoError(t, err)
-		assert.NotNil(t, vm)
-
-		assert.Equal(t, kid, vm.ID.String())
-		assert.Equal(t, did.JsonWebKey2020, vm.Type)
-		assert.Equal(t, jwa.EllipticCurveAlgorithm("P-256"), vm.PublicKeyJwk["crv"])
-	})
 }

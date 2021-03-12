@@ -30,7 +30,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Ambassador registers a vcCallback with the network for processing received Verifiable Credentials.
+// Ambassador registers a callback with the network for processing received Verifiable Credentials.
 type Ambassador interface {
 	// Configure instructs the ambassador to start receiving DID Documents from the network.
 	Configure()
