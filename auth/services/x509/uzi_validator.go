@@ -4,11 +4,12 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/assets"
+	"io/fs"
 	"strings"
 
 	"github.com/lestrrat-go/jwx/jwa"
 
-	"github.com/nuts-foundation/nuts-node/auth/assets"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 )
@@ -82,14 +83,14 @@ func (t UziSignedToken) Contract() contract.Contract {
 }
 
 // certsFromAssets allows for easy loading of the used UziCertificates.
-// These certs are compiled into the binary for easy distribution using go-bindata.
+// These certs are embedded into the binary for easy distribution.
 func certsFromAssets(paths []string) (certs []*x509.Certificate, err error) {
 	for _, path := range paths {
 		var (
 			rawCert []byte
 			cert    *x509.Certificate
 		)
-		rawCert, err = assets.Asset(path)
+		rawCert, err = fs.ReadFile(assets.FS, path)
 		if err != nil {
 			return
 		}
