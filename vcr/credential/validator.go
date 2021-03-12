@@ -58,15 +58,15 @@ func failure(err string) error {
 // validate the default fields
 func validate(credential did.VerifiableCredential) error {
 
-	if !containsType(credential, DefaultCredentialType) {
+	if !credential.IsType(did.VerifiableCredentialTypeV1URI()) {
 		return failure("'VerifiableCredential' is required")
 	}
 
-	if !containsContext(credential, DefaultContext) {
+	if !credential.ContainsContext(did.VCContextV1URI()) {
 		return failure("default context is required")
 	}
 
-	if !containsContext(credential, NutsContext) {
+	if !credential.ContainsContext(*NutsContextURI) {
 		return failure("nuts context is required")
 	}
 
@@ -85,26 +85,6 @@ func validate(credential did.VerifiableCredential) error {
 	return nil
 }
 
-func containsType(credential did.VerifiableCredential, vcType string) bool {
-	for _, t := range credential.Type {
-		if t.String() == vcType {
-			return true
-		}
-	}
-
-	return false
-}
-
-func containsContext(credential did.VerifiableCredential, context string) bool {
-	for _, c := range credential.Context {
-		if c.String() == context {
-			return true
-		}
-	}
-
-	return false
-}
-
 // nutsOrganizationCredentialValidator checks if there's a 'name' and 'city' in the 'organization' struct
 type nutsOrganizationCredentialValidator struct{}
 
@@ -115,7 +95,7 @@ func (d nutsOrganizationCredentialValidator) Validate(credential did.VerifiableC
 		return err
 	}
 
-	if !containsType(credential, NutsOrganizationCredentialType) {
+	if !credential.IsType(*NutsOrganizationCredentialTypeURI) {
 		return failure("'VerifiableCredential' is required")
 	}
 

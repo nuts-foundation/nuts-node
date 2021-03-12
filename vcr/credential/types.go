@@ -19,15 +19,20 @@
 
 package credential
 
+import "github.com/nuts-foundation/go-did"
+
 const (
 	// NutsOrganizationCredentialType is the VC type for a NutsOrganizationCredentialType
 	NutsOrganizationCredentialType = "NutsOrganizationCredential"
-	// DefaultCredentialType is the default credential type required for every credential
-	DefaultCredentialType = "VerifiableCredential"
-	// DefaultContext is the context required for every credential
-	DefaultContext = "https://www.w3.org/2018/credentials/v1"
 	// NutsContext is the nuts specific json-ld context
 	NutsContext = "https://nuts.nl/credentials/v1"
+)
+
+var (
+	// NutsOrganizationCredentialTypeURI is the VC type for a NutsOrganizationCredentialType as URI
+	NutsOrganizationCredentialTypeURI, _ = did.ParseURI(NutsOrganizationCredentialType)
+	// NutsContextURI is the nuts specific json-ld context as URI
+	NutsContextURI, _ = did.ParseURI(NutsContext)
 )
 
 // NutsOrganizationCredentialSubject defines the CredentialSubject struct for the NutsOrganizationCredentialType

@@ -26,6 +26,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
@@ -33,9 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"net/url"
-	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -66,7 +66,7 @@ func getCustodianSigningKey() *did.URI {
 
 func getCustodianDIDDocument() *did.Document {
 	id := *vdr.AltRandomDID
-	serviceID, _ := url.Parse(id.String() + "#service-id")
+	serviceID, _ := did.ParseURI(id.String() + "#service-id")
 
 	doc := did.Document{
 		ID: id,
@@ -79,7 +79,7 @@ func getCustodianDIDDocument() *did.Document {
 	}
 	doc.AddAssertionMethod(key)
 	doc.Service = append(doc.Service, did.Service{
-		ID:   did.URI{URL: *serviceID},
+		ID:   *serviceID,
 		Type: "oauth",
 	})
 	return &doc

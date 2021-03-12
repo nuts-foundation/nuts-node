@@ -20,7 +20,6 @@
 package credential
 
 import (
-	"net/url"
 	"testing"
 	"time"
 
@@ -42,7 +41,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - missing custom type", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
-		vc.Type = []did.URI{stringToURI(DefaultCredentialType)}
+		vc.Type = []did.URI{did.VerifiableCredentialTypeV1URI()}
 
 		err := validator.Validate(*vc)
 
@@ -170,7 +169,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - missing nuts context", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
-		vc.Context = []did.URI{stringToURI(DefaultContext)}
+		vc.Context = []did.URI{did.VerifiableCredentialTypeV1URI()}
 
 		err := validator.Validate(*vc)
 
@@ -205,9 +204,9 @@ func validNutsOrganizationCredential() *did.VerifiableCredential {
 	}
 
 	return &did.VerifiableCredential{
-		Context:           []did.URI{stringToURI(DefaultContext), stringToURI(NutsContext)},
+		Context:           []did.URI{did.VCContextV1URI(), *NutsContextURI},
 		ID:                &did.URI{},
-		Type:              []did.URI{stringToURI(NutsOrganizationCredentialType), stringToURI(DefaultCredentialType)},
+		Type:              []did.URI{*NutsOrganizationCredentialTypeURI, did.VerifiableCredentialTypeV1URI()},
 		Issuer:            stringToURI(vdr.RandomDID.String()),
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},
@@ -216,6 +215,6 @@ func validNutsOrganizationCredential() *did.VerifiableCredential {
 }
 
 func stringToURI(input string) did.URI {
-	u, _ := url.Parse(input)
-	return did.URI{URL: *u}
+	u, _ := did.ParseURI(input)
+	return *u
 }

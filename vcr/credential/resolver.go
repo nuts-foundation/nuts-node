@@ -27,7 +27,7 @@ import (
 // It returns nils when not found.
 // It only supports VCs with one additional type next to the default VerifiableCredential type.
 func FindValidatorAndBuilder(credential did.VerifiableCredential) (Validator, Builder) {
-	if vcTypes := extractTypes(credential); len(vcTypes) > 0 {
+	if vcTypes := ExtractTypes(credential); len(vcTypes) > 0 {
 		for _, t := range vcTypes {
 			if t == NutsOrganizationCredentialType {
 				return nutsOrganizationCredentialValidator{}, defaultBuilder{vcType: NutsOrganizationCredentialType}
@@ -38,11 +38,12 @@ func FindValidatorAndBuilder(credential did.VerifiableCredential) (Validator, Bu
 	return nil, nil
 }
 
-func extractTypes(credential did.VerifiableCredential) []string {
+// ExtractTypes lists the custom VC types as string
+func ExtractTypes(credential did.VerifiableCredential) []string {
 	var vcTypes []string
 
 	for _, t := range credential.Type {
-		if "VerifiableCredential" != t.String() {
+		if t != did.VerifiableCredentialTypeV1URI() {
 			vcTypes = append(vcTypes, t.String())
 		}
 	}

@@ -43,11 +43,12 @@ var ErrNotFound = errors.New("credential not found")
 // ErrInvalidCredential is returned when validation failed
 var ErrInvalidCredential = errors.New("invalid credential")
 
-var vcDocumentType = "application/vc+json;type=%s"
+var vcDocumentType = "application/vc+json"
 
 // Writer is the interface that groups al the VC write methods
 type Writer interface {
 	// Write writes a VC to storage.
+	// If the VC is not valid, an error is returned.
 	Write(vc did.VerifiableCredential) error
 }
 
@@ -63,11 +64,11 @@ type VCR interface {
 	// todo: not implemented yet and subject to change
 	Resolve(ID string) (did.VerifiableCredential, error)
 	// Verify checks if a credential is valid and trusted at the given time.
+	// The time check is optional, so credentials can be issued that will become valid.
 	// If valid no error is returned.
-	Verify(vc did.VerifiableCredential, at time.Time) error
+	Verify(vc did.VerifiableCredential, at *time.Time) error
 	// Registry returns the concept registry
 	Registry() concept.Registry
 
-	//Writer
-	//Issuer
+	Writer
 }
