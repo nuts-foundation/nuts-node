@@ -1,13 +1,13 @@
 {
-  "Issuer": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv",
-  "Subject": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#43940199-4492-4d0e-b102-8a6c6632280e",
-  "CurrentStatus": "Revoked",
-  "StatusDate": "2021-03-10T16:02:53.318646+01:00",
+  "issuer": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv",
+  "subject": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#a4f5c9d5-ba37-4e8b-b259-857016d486a4",
+  "currentStatus": "Revoked",
+  "statusDate": "2021-03-13T16:39:58.496215+01:00",
   "proof": {
     "type": "JsonWebSignature2020",
     "proofPurpose": "assertionMethod",
     "verificationMethod": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#h22vbXHX7-lRd1qAJnU63liaehb9sAoBS7RavhvfgR8",
-    "created": "2021-03-10T16:02:53.318646+01:00",
-    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..TN3Y-JbvUEKkCJueDbeYcCMstNCFq4v9GgbV6RBJwBEI0k3PIHsatUwubqkNSby9H8G7QC3m7EPMJ8CgLVMfSA"
+    "created": "2021-03-13T16:39:58.496215+01:00",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..mIshQR1onPxDVDbrcPl43W9SUHWStYFNWhredUdD629bLq43rXyUHDPqIUAowFbnno_ubUVwusvem3egrB6koQ"
   }
 }

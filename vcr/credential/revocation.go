@@ -28,15 +28,15 @@ import (
 // Revocation defines a proof that a VC has been revoked by it's issuer.
 type Revocation struct {
 	// Issuer refers to the party that issued the credential
-	Issuer did.URI
+	Issuer did.URI `json:"issuer"`
 	// Subject refers to the VC that is revoked
-	Subject did.URI
+	Subject did.URI `json:"subject"`
 	// CurrentStatus describes the current status, eg: 'Revoked'
-	CurrentStatus string
+	CurrentStatus string `json:"currentStatus"`
 	// StatusReason describes why the VC has been revoked
 	StatusReason string `json:"statusReason,omitempty"`
-	// statusDate is a rfc3339 formatted datetime.
-	StatusDate time.Time
+	// StatusDate is a rfc3339 formatted datetime.
+	StatusDate time.Time `json:"statusDate"`
 	// Proof contains the cryptographic proof(s). It must be extracted using the Proofs method or UnmarshalProofValue method for non-generic proof fields.
 	Proof *did.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }

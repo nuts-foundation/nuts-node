@@ -474,6 +474,11 @@ func TestVcr_Revoke(t *testing.T) {
 	vcJSON, _ := ioutil.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &vc)
 
+	// load example revocation
+	r := credential.Revocation{}
+	rJSON, _ := ioutil.ReadFile("test/revocation.json")
+	json.Unmarshal(rJSON, &r)
+
 	// load pub key
 	pke := storage.PublicKeyEntry{}
 	pkeJSON, _ := ioutil.ReadFile("test/public.json")
@@ -519,6 +524,115 @@ func TestVcr_Revoke(t *testing.T) {
 		}
 
 		assert.Equal(t, ErrNotFound, err)
+	})
+
+	t.Run("error - already revoked", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
+		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.vcr.writeCredential(vc)
+
+		err := ctx.vcr.writeRevocation(r)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		_, err = ctx.vcr.Revoke(*vc.ID)
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.Equal(t, ErrRevoked, err)
+	})
+}
+
+func TestVcr_verifyRevocation(t *testing.T) {
+	// load revocation
+	r := credential.Revocation{}
+	rJSON, _ := ioutil.ReadFile("test/revocation.json")
+	json.Unmarshal(rJSON, &r)
+
+	// Load pub key
+	pke := storage.PublicKeyEntry{}
+	pkeJSON, _ := ioutil.ReadFile("test/public.json")
+	json.Unmarshal(pkeJSON, &pke)
+	var pk = new(ecdsa.PublicKey)
+	pke.JWK().Raw(pk)
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
+
+		err := instance.verifyRevocation(r)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - invalid revocation", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		r2 := r
+		r2.Issuer = did.URI{}
+
+		err := instance.verifyRevocation(r2)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - invalid signature", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		r2 := r
+		r2.StatusReason = "sig fails"
+
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
+
+		err := instance.verifyRevocation(r2)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - incorrect signature", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		r2 := r
+		r2.Proof = &did.JSONWebSignature2020Proof{}
+
+		err := instance.verifyRevocation(r2)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - resolving key", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(nil, errors.New("b00m!"))
+
+		err := instance.verifyRevocation(r)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - incorrect base64 encoded sig", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		r2 := r
+		r2.Proof.Jws = "====..===="
+
+		err := instance.verifyRevocation(r2)
+
+		assert.Error(t, err)
 	})
 }
 

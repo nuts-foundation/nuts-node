@@ -10,12 +10,12 @@
       "name": "Because we care B.V."
     }
   },
-  "id": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#43940199-4492-4d0e-b102-8a6c6632280e",
-  "issuanceDate": "2021-03-10T16:01:56.361976+01:00",
+  "id": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#a4f5c9d5-ba37-4e8b-b259-857016d486a4",
+  "issuanceDate": "2021-03-13T16:38:55.920032+01:00",
   "issuer": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv",
   "proof": {
-    "created": "2021-03-10T16:01:56.361976+01:00",
-    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..l57GVQXqQ8S8BNWV5SxjCOpeXwGmlwxKcB40RpRZPza-m_sah5dkWhLCaZg2OaE5b-yUWhHzKdGtrJjRyCYjEA",
+    "created": "2021-03-13T16:38:55.920032+01:00",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..IdlVolFz0Bh9mKWqguPLVaOMAx668wtMNIqF26MpsmUQIv8KxE8M9_r0JAYRBw_6BMKWlvou_ZWawrni_GC-Vg",
     "proofPurpose": "assertionMethod",
     "type": "JsonWebSignature2020",
     "verificationMethod": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#h22vbXHX7-lRd1qAJnU63liaehb9sAoBS7RavhvfgR8"
