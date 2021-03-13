@@ -53,5 +53,25 @@ func BuildRevocation(vc did.VerifiableCredential) Revocation {
 
 // ValidateRevocation checks if a revocation record contains the required fields and if fields have the correct value.
 func ValidateRevocation(r Revocation) error {
+	if r.Subject.String() == "" || r.Subject.Fragment == "" {
+		return failure("'subject' is required and requires a valid fragment")
+	}
+
+	if r.Issuer.String() == "" {
+		return failure("'issuer' is required")
+	}
+
+	if r.StatusDate.IsZero() {
+		return failure("'statusDate' is required")
+	}
+
+	if r.CurrentStatus != "Revoked" {
+		return failure("'currentStatus' is required and must be one of [Revoked]")
+	}
+
+	if r.Proof == nil {
+		return failure("'proof' is required")
+	}
+
 	return nil
 }
