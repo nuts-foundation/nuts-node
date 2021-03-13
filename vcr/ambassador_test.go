@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -86,6 +87,47 @@ func TestAmbassador_vcCallback(t *testing.T) {
 		wMock.EXPECT().StoreCredential(gomock.Any()).Return(errors.New("b00m!"))
 
 		err := a.vcCallback(stx, payload)
+
+		assert.Error(t, err)
+	})
+}
+
+
+func TestAmbassador_rCallback(t *testing.T) {
+	payload := []byte("{\"subject\":\"did:nuts:1#123\"}")
+	tx, _ := dag.NewTransaction(hash.EmptyHash(), revocationDocumentType, nil)
+	stx := tx.(dag.SubscriberTransaction)
+
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wMock := NewMockWriter(ctrl)
+		defer ctrl.Finish()
+
+		r := credential.Revocation{}
+		a := NewAmbassador(nil, wMock).(ambassador)
+		wMock.EXPECT().StoreRevocation(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			r = f.(credential.Revocation)
+			return nil
+		})
+
+		err := a.rCallback(stx, payload)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, "did:nuts:1#123", r.Subject.String())
+	})
+
+	t.Run("error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wMock := NewMockWriter(ctrl)
+		defer ctrl.Finish()
+
+		a := NewAmbassador(nil, wMock).(ambassador)
+		wMock.EXPECT().StoreRevocation(gomock.Any()).Return(errors.New("b00m!"))
+
+		err := a.rCallback(stx, payload)
 
 		assert.Error(t, err)
 	})
