@@ -573,6 +573,20 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("error - invalid issuer", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		issuer, _ := did.ParseURI(r.Issuer.String() + "2")
+		r2 := r
+		r2.Issuer = *issuer
+
+		err := instance.verifyRevocation(r2)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "issuer of revocation is not the same as issuer of credential")
+	})
+
 	t.Run("error - invalid revocation", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr

@@ -395,7 +395,11 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	}
 
 	// issuer must be the same as vc issuer
-
+	subject := r.Subject
+	subject.Fragment = ""
+	if subject != r.Issuer {
+		return errors.New("issuer of revocation is not the same as issuer of credential")
+	}
 
 	// create correct challenge for verification
 	payload := generateRevocationChallenge(r)
