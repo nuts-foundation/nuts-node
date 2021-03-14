@@ -25,7 +25,6 @@ import (
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/pkg/errors"
 )
 
 const revocationCollection = "_revocation"
@@ -43,10 +42,7 @@ func (c *vcr) writeCredential(vc did.VerifiableCredential) error {
 	// validation has made sure there's exactly one!
 	vcType := credential.ExtractTypes(vc)[0]
 
-	doc, err := json.Marshal(vc)
-	if err != nil {
-		return errors.Wrap(err, "failed to write credential to store")
-	}
+	doc, _ := json.Marshal(vc)
 
 	collection := c.store.Collection(vcType)
 
@@ -65,10 +61,7 @@ func (c *vcr) StoreRevocation(r credential.Revocation) error {
 func (c *vcr) writeRevocation(r credential.Revocation) error {
 	collection := c.revocationIndex()
 
-	doc, err := json.Marshal(r)
-	if err != nil {
-		return errors.Wrap(err, "failed to write revocation to store")
-	}
+	doc, _ := json.Marshal(r)
 
 	return collection.Add([]leia.Document{doc})
 }

@@ -227,10 +227,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 		return nil, err
 	}
 
-	payload, err := json.Marshal(vc)
-	if err != nil {
-		return nil, err
-	}
+	payload, _ := json.Marshal(vc)
 
 	_, err = c.network.CreateTransaction(vcDocumentType, payload, kid.String(), nil, vc.IssuanceDate)
 	if err != nil {
@@ -379,10 +376,7 @@ func (c *vcr) Revoke(ID did.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
-	payload, err := json.Marshal(r)
-	if err != nil {
-		return nil, err
-	}
+	payload, _ := json.Marshal(r)
 
 	_, err = c.network.CreateTransaction(revocationDocumentType, payload, kid.String(), nil, r.StatusDate)
 	if err != nil {
@@ -400,11 +394,11 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 		return err
 	}
 
+	// issuer must be the same as vc issuer
+
+
 	// create correct challenge for verification
-	payload, err := generateRevocationChallenge(r)
-	if err != nil {
-		return fmt.Errorf("cannot generate challenge: %w", err)
-	}
+	payload := generateRevocationChallenge(r)
 
 	// extract proof, can't fail, already done in generateRevocationChallenge
 	splittedJws := strings.Split(r.Proof.Jws, "..")
@@ -518,10 +512,7 @@ func (c *vcr) generateRevocationProof(r *credential.Revocation, kid did.URI) err
 	}
 
 	// create correct signing challenge
-	challenge, err := generateRevocationChallenge(*r)
-	if err != nil {
-		return err
-	}
+	challenge := generateRevocationChallenge(*r)
 
 	sig, err := c.signer.SignJWS(challenge, detachedJWSHeaders(), kid.String())
 	if err != nil {
@@ -549,44 +540,32 @@ func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
 
 	// payload
 	vc.Proof = nil
-	payload, err := json.Marshal(vc)
-	if err != nil {
-		return nil, err
-	}
+	payload, _ := json.Marshal(vc)
 
 	// proof
 	proof := proofs[0]
 	proof.Jws = ""
-	prJSON, err := json.Marshal(proof)
-	if err != nil {
-		return nil, err
-	}
+	prJSON, _ := json.Marshal(proof)
 
 	tbs := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
 
 	return tbs, nil
 }
 
-func generateRevocationChallenge(r credential.Revocation) ([]byte, error) {
+func generateRevocationChallenge(r credential.Revocation) []byte {
 	// without JWS
 	proof := r.Proof.Proof
 
 	// payload
 	r.Proof = nil
-	payload, err := json.Marshal(r)
-	if err != nil {
-		return nil, err
-	}
+	payload, _ := json.Marshal(r)
 
 	// proof
-	prJSON, err := json.Marshal(proof)
-	if err != nil {
-		return nil, err
-	}
+	prJSON, _ := json.Marshal(proof)
 
 	tbs := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
 
-	return tbs, nil
+	return tbs
 }
 
 // detachedJWSHeaders creates headers for JsonWebSignature2020

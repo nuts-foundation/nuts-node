@@ -29,6 +29,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestBuildRevocation(t *testing.T) {
+	vc := did.VerifiableCredential{}
+	vcData, _ := os.ReadFile("../test/vc.json")
+	json.Unmarshal(vcData, &vc)
+
+
+	at := time.Now()
+	nowFunc = func() time.Time {
+		return at
+	}
+	defer func() {
+		nowFunc = time.Now
+	}()
+
+	r := BuildRevocation(vc)
+
+	assert.Equal(t, *vc.ID, r.Subject)
+	assert.Equal(t, vc.Issuer, r.Issuer)
+	assert.Equal(t, "Revoked", r.CurrentStatus)
+	assert.Equal(t, at, r.StatusDate)
+}
+
 func TestValidateRevocation(t *testing.T) {
 	revocation := Revocation{}
 	jData, _ := os.ReadFile("../test/revocation.json")
