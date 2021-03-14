@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,6 +68,46 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
 		err := ctx.vcr.StoreCredential(did.VerifiableCredential{})
+
+		assert.Error(t, err)
+	})
+}
+
+
+func TestVcr_StoreRevocation(t *testing.T) {
+	// load VC
+	r := credential.Revocation{}
+	rJSON, _ := ioutil.ReadFile("test/revocation.json")
+	json.Unmarshal(rJSON, &r)
+
+	// load pub key
+	pke := storage.PublicKeyEntry{}
+	pkeJSON, _ := ioutil.ReadFile("test/public.json")
+	json.Unmarshal(pkeJSON, &pke)
+	var pk = new(ecdsa.PublicKey)
+	pke.JWK().Raw(pk)
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
+		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.vdr.EXPECT().ResolveSigningKey(gomock.Any(), gomock.Any()).Return(pk, nil)
+
+		err := ctx.vcr.StoreRevocation(r)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - validation", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
+		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
+		err := ctx.vcr.StoreRevocation(credential.Revocation{})
 
 		assert.Error(t, err)
 	})

@@ -90,6 +90,18 @@ func TestAmbassador_vcCallback(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+
+	t.Run("error - invalid payload", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wMock := NewMockWriter(ctrl)
+		defer ctrl.Finish()
+
+		a := NewAmbassador(nil, wMock).(ambassador)
+
+		err := a.vcCallback(stx, []byte("{"))
+
+		assert.Error(t, err)
+	})
 }
 
 
@@ -119,7 +131,7 @@ func TestAmbassador_rCallback(t *testing.T) {
 		assert.Equal(t, "did:nuts:1#123", r.Subject.String())
 	})
 
-	t.Run("error", func(t *testing.T) {
+	t.Run("error - storing fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		wMock := NewMockWriter(ctrl)
 		defer ctrl.Finish()
@@ -128,6 +140,18 @@ func TestAmbassador_rCallback(t *testing.T) {
 		wMock.EXPECT().StoreRevocation(gomock.Any()).Return(errors.New("b00m!"))
 
 		err := a.rCallback(stx, payload)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - invalid payload", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wMock := NewMockWriter(ctrl)
+		defer ctrl.Finish()
+
+		a := NewAmbassador(nil, wMock).(ambassador)
+
+		err := a.rCallback(stx, []byte("{"))
 
 		assert.Error(t, err)
 	})
