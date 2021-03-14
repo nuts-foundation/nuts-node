@@ -299,6 +299,13 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
 		return err
 	}
 
+	// check if key is of issuer
+	vm := proof.VerificationMethod
+	vm.Fragment = ""
+	if vm != vc.Issuer {
+		return errors.New("verification method is not of issuer")
+	}
+
 	// find key
 	pk, err := c.docResolver.ResolveSigningKey(proof.VerificationMethod.String(), at)
 	if err != nil {
@@ -412,6 +419,13 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
 	if err != nil {
 		return err
+	}
+
+	// check if key is of issuer
+	vm := r.Proof.VerificationMethod
+	vm.Fragment = ""
+	if vm != r.Issuer {
+		return errors.New("verification method is not of issuer")
 	}
 
 	// find key

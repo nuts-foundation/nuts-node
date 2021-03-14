@@ -327,6 +327,24 @@ func TestVcr_Verify(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("error - invalid vm", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+
+		vc2 := vc
+		pr := make([]did.JSONWebSignature2020Proof, 0)
+		vc2.UnmarshalProofValue(&pr)
+		u, _ := did.ParseURI(vc.Issuer.String() + "2")
+		pr[0].VerificationMethod = *u
+		vc2.Proof = []interface{}{pr[0]}
+
+		err := instance.Verify(vc2, nil)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "verification method is not of issuer")
+	})
+
 	t.Run("error - wrong hashed payload", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
@@ -585,6 +603,22 @@ func TestVcr_verifyRevocation(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "issuer of revocation is not the same as issuer of credential")
+	})
+
+	t.Run("error - invalid vm", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		vm, _ := did.ParseURI(r.Issuer.String() + "2")
+		r2 := r
+		p := *r2.Proof
+		p.VerificationMethod = *vm
+		r2.Proof = &p
+
+		err := instance.verifyRevocation(r2)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "verification method is not of issuer")
 	})
 
 	t.Run("error - invalid revocation", func(t *testing.T) {
