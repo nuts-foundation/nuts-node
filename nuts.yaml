@@ -1,4 +1,0 @@
-network:
-  certFile: data/pub.pem
-  certKeyFile: data/tls.key
-  trustStoreFile: data/ca.pem
