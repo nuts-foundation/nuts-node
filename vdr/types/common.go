@@ -31,6 +31,9 @@ var ErrUpdateOnOutdatedData = errors.New("could not update outdated document")
 // ErrInvalidDID The DID supplied to the DID resolution function does not conform to valid syntax.
 var ErrInvalidDID = errors.New("invalid did syntax")
 
+// ErrKeyNotFound is returned when a particular key or type of key is not found.
+var ErrKeyNotFound = errors.New("key not found")
+
 // ErrNotFound The DID resolver was unable to find the DID document resulting from this resolution request.
 var ErrNotFound = errors.New("unable to find the did document")
 

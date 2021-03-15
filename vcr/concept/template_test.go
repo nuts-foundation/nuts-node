@@ -130,13 +130,13 @@ func TestTemplate_transform(t *testing.T) {
 		assert.Equal(t, "Because we care BV", cem["name"])
 	})
 
-	t.Run("error - arrays not supported", func(t *testing.T) {
+	t.Run("ok - arrays not supported", func(t *testing.T) {
 		var testCredential = `
 {
+	"@context": ["1", "2"],
 	"id": "did:nuts:1#123",
 	"issuer": "did:nuts:1",
-	"type": ["VerifiableCredential", "ExampleCredential"],
-	"credentialSubject": []
+	"type": ["VerifiableCredential", "ExampleCredential"]
 }
 `
 		testVC := did.VerifiableCredential{}
@@ -144,8 +144,11 @@ func TestTemplate_transform(t *testing.T) {
 			return
 		}
 
-		_, err := ct.transform(testVC)
-		assert.Error(t, err)
+		c, err := ct.transform(testVC)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Nil(t, c["@context"])
 	})
 }
 

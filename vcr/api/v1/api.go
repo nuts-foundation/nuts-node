@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // Wrapper implements the generated interface from oapi-codegen
@@ -125,6 +126,12 @@ func (w *Wrapper) Create(ctx echo.Context) error {
 	vcCreated, err := w.R.Issue(vc)
 	if err != nil {
 		if errors.Is(err, credential.ErrValidation) {
+			return ctx.String(http.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, types.ErrNotFound) {
+			return ctx.String(http.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, types.ErrKeyNotFound) {
 			return ctx.String(http.StatusBadRequest, err.Error())
 		}
 		return err
