@@ -175,8 +175,7 @@ components:
       required:
         - issuer
         - subject
-        - currentStatus
-        - statusDate
+        - date
       properties:
         issuer:
           type: string
