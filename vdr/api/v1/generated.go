@@ -120,6 +120,9 @@ type ClientInterface interface {
 	// CreateDID request
 	CreateDID(ctx context.Context) (*http.Response, error)
 
+	// DeactivateDID request
+	DeactivateDID(ctx context.Context, did string) (*http.Response, error)
+
 	// GetDID request
 	GetDID(ctx context.Context, did string) (*http.Response, error)
 
@@ -131,6 +134,21 @@ type ClientInterface interface {
 
 func (c *Client) CreateDID(ctx context.Context) (*http.Response, error) {
 	req, err := NewCreateDIDRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeactivateDID(ctx context.Context, did string) (*http.Response, error) {
+	req, err := NewDeactivateDIDRequest(c.Server, did)
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +227,40 @@ func NewCreateDIDRequest(server string) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest("POST", queryUrl.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeactivateDIDRequest generates requests for DeactivateDID
+func NewDeactivateDIDRequest(server string, did string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParam("simple", false, "did", did)
+	if err != nil {
+		return nil, err
+	}
+
+	queryUrl, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	basePath := fmt.Sprintf("/internal/vdr/v1/did/%s", pathParam0)
+	if basePath[0] == '/' {
+		basePath = basePath[1:]
+	}
+
+	queryUrl, err = queryUrl.Parse(basePath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryUrl.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -328,6 +380,9 @@ type ClientWithResponsesInterface interface {
 	// CreateDID request
 	CreateDIDWithResponse(ctx context.Context) (*CreateDIDResponse, error)
 
+	// DeactivateDID request
+	DeactivateDIDWithResponse(ctx context.Context, did string) (*DeactivateDIDResponse, error)
+
 	// GetDID request
 	GetDIDWithResponse(ctx context.Context, did string) (*GetDIDResponse, error)
 
@@ -352,6 +407,27 @@ func (r CreateDIDResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateDIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeactivateDIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeactivateDIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeactivateDIDResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -409,6 +485,15 @@ func (c *ClientWithResponses) CreateDIDWithResponse(ctx context.Context) (*Creat
 	return ParseCreateDIDResponse(rsp)
 }
 
+// DeactivateDIDWithResponse request returning *DeactivateDIDResponse
+func (c *ClientWithResponses) DeactivateDIDWithResponse(ctx context.Context, did string) (*DeactivateDIDResponse, error) {
+	rsp, err := c.DeactivateDID(ctx, did)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeactivateDIDResponse(rsp)
+}
+
 // GetDIDWithResponse request returning *GetDIDResponse
 func (c *ClientWithResponses) GetDIDWithResponse(ctx context.Context, did string) (*GetDIDResponse, error) {
 	rsp, err := c.GetDID(ctx, did)
@@ -444,6 +529,25 @@ func ParseCreateDIDResponse(rsp *http.Response) (*CreateDIDResponse, error) {
 	}
 
 	response := &CreateDIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	}
+
+	return response, nil
+}
+
+// ParseDeactivateDIDResponse parses an HTTP response from a DeactivateDIDWithResponse call
+func ParseDeactivateDIDResponse(rsp *http.Response) (*DeactivateDIDResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeactivateDIDResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -497,6 +601,9 @@ type ServerInterface interface {
 	// Creates a new Nuts DID
 	// (POST /internal/vdr/v1/did)
 	CreateDID(ctx echo.Context) error
+	// Deactivatates a Nuts DID Document according to the specification.
+	// (DELETE /internal/vdr/v1/did/{did})
+	DeactivateDID(ctx echo.Context, did string) error
 	// Resolves a Nuts DID Document
 	// (GET /internal/vdr/v1/did/{did})
 	GetDID(ctx echo.Context, did string) error
@@ -516,6 +623,22 @@ func (w *ServerInterfaceWrapper) CreateDID(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.CreateDID(ctx)
+	return err
+}
+
+// DeactivateDID converts echo context to params.
+func (w *ServerInterfaceWrapper) DeactivateDID(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameter("simple", false, "did", ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.DeactivateDID(ctx, did)
 	return err
 }
 
@@ -574,8 +697,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.Add(http.MethodPost, baseURL+"/internal/vdr/v1/did", wrapper.CreateDID)
+	router.Add(http.MethodDelete, baseURL+"/internal/vdr/v1/did/:did", wrapper.DeactivateDID)
 	router.Add(http.MethodGet, baseURL+"/internal/vdr/v1/did/:did", wrapper.GetDID)
 	router.Add(http.MethodPut, baseURL+"/internal/vdr/v1/did/:did", wrapper.UpdateDID)
 
 }
-

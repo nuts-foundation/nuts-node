@@ -189,17 +189,17 @@ func (m *MockDocDeactivator) EXPECT() *MockDocDeactivatorMockRecorder {
 }
 
 // Deactivate mocks base method.
-func (m *MockDocDeactivator) Deactivate(id go_did.DID, current hash.SHA256Hash) error {
+func (m *MockDocDeactivator) Deactivate(id go_did.DID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Deactivate", id, current)
+	ret := m.ctrl.Call(m, "Deactivate", id)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Deactivate indicates an expected call of Deactivate.
-func (mr *MockDocDeactivatorMockRecorder) Deactivate(id, current interface{}) *gomock.Call {
+func (mr *MockDocDeactivatorMockRecorder) Deactivate(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocDeactivator)(nil).Deactivate), id, current)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocDeactivator)(nil).Deactivate), id)
 }
 
 // MockKeyResolver is a mock of KeyResolver interface.
@@ -376,17 +376,17 @@ func (mr *MockVDRMockRecorder) Create() *gomock.Call {
 }
 
 // Deactivate mocks base method.
-func (m *MockVDR) Deactivate(id go_did.DID, current hash.SHA256Hash) error {
+func (m *MockVDR) Deactivate(id go_did.DID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Deactivate", id, current)
+	ret := m.ctrl.Call(m, "Deactivate", id)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Deactivate indicates an expected call of Deactivate.
-func (mr *MockVDRMockRecorder) Deactivate(id, current interface{}) *gomock.Call {
+func (mr *MockVDRMockRecorder) Deactivate(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockVDR)(nil).Deactivate), id, current)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockVDR)(nil).Deactivate), id)
 }
 
 // Resolve mocks base method.

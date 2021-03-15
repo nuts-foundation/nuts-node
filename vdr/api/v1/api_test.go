@@ -22,9 +22,10 @@ import (
 
 	"github.com/golang/mock/gomock"
 	did2 "github.com/nuts-foundation/go-did"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestWrapper_CreateDID(t *testing.T) {
@@ -223,6 +224,48 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 		err := ctx.client.UpdateDID(ctx.echo, did.String())
 
+		assert.NoError(t, err)
+	})
+}
+
+func TestWrapper_DeactivateDID(t *testing.T) {
+	did123, _ := did2.ParseDID("did:nuts:123")
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Deactivate(*did123).Return(nil)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().NoContent(http.StatusOK)
+		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - invalid DID format", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().String(http.StatusBadRequest, "given DID could not be parsed: input does not begin with 'did:' prefix")
+		err := ctx.client.DeactivateDID(ctx.echo, "invalidFormattedDID")
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Deactivate(*did123).Return(types.ErrNotFound)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
+		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - document already deactivated", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Deactivate(*did123).Return(types.ErrDeactivated)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().String(http.StatusBadRequest, "could not deactivate document: the document has been deactivated")
+		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 		assert.NoError(t, err)
 	})
 }

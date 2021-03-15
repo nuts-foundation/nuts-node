@@ -24,12 +24,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-
-	"github.com/nuts-foundation/go-did"
-
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/nuts-foundation/go-did"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -100,6 +99,19 @@ func (hb HTTPClient) Update(DID string, current string, next did.Document) (*did
 	}
 
 	return readDIDDocument(response.Body)
+}
+
+func (hb HTTPClient) Deactivate(DID string) error {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+	response, err := hb.client().DeactivateDID(ctx, DID)
+	if err != nil {
+		return err
+	}
+	if err := testResponseCode(http.StatusOK, response); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {

@@ -54,6 +54,8 @@ func Cmd() *cobra.Command {
 
 	cmd.AddCommand(updateCmd())
 
+	cmd.AddCommand(deactivateCmd())
+
 	return cmd
 }
 
@@ -150,6 +152,24 @@ func resolveCmd() *cobra.Command {
 	}
 	result.Flags().BoolVar(&printMetadata, "metadata", false, "Pass 'true' to only print the metadata (unless other flags are provided as well).")
 	result.Flags().BoolVar(&printDocument, "document", false, "Pass 'true' to only print the document (unless other flags are provided as well).")
+	return result
+}
+
+func deactivateCmd() *cobra.Command {
+	result := &cobra.Command{
+		Use:   "deactivate [DID]",
+		Short: "Deactivate a DID document based on its DID",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := httpClient(cmd.Flags()).Deactivate(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to deactivate DID document: %v", err)
+			}
+			cmd.Println("DID document deactivated")
+
+			return nil
+		},
+	}
 	return result
 }
 

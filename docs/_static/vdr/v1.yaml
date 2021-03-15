@@ -100,7 +100,32 @@ paths:
             text/plain:
               schema:
                 type: string
-
+    delete:
+      summary: Deactivatates a Nuts DID Document according to the specification.
+      operationId: "deactivateDID"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: DID Document has been deactivated.
+        "400":
+          description: DID couldn't be deactivated because the input conflicts or is malformed.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "404":
+          description: Corresponding DID document could not be found.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "500":
+          description: An error occurred while processing the request.
+          content:
+            text/plain:
+              schema:
+                type: string
 components:
   schemas:
     DIDDocument:

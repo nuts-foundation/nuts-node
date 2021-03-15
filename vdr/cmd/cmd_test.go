@@ -240,6 +240,47 @@ func TestEngine_Command(t *testing.T) {
 			assert.Contains(t, buf.String(), "invalid")
 		})
 	})
+
+	t.Run("deactivate", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			cmd := Cmd()
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"deactivate", "did"})
+			cmd.SetOut(buf)
+			cmd.SetErr(buf)
+			err := cmd.Execute()
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Equal(t, buf.String(), "DID document deactivated\n")
+		})
+		t.Run("error - did document not found", func(t *testing.T) {
+			cmd := Cmd()
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewServerConfig().Load(cmd)
+			defer s.Close()
+
+			buf := new(bytes.Buffer)
+			cmd.SetArgs([]string{"deactivate", "did"})
+			cmd.SetOut(buf)
+			cmd.SetErr(buf)
+			err := cmd.Execute()
+
+			if !assert.Error(t, err) {
+				return
+			}
+			assert.Contains(t, buf.String(), "failed to deactivate DID document: VDR returned HTTP 404 (expected: 200)")
+		})
+	})
 }
 
 func Test_httpClient(t *testing.T) {

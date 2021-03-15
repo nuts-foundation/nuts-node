@@ -65,11 +65,10 @@ type DocUpdater interface {
 // DocDeactivator is the interface that defines functions to deactivate DID Docs
 // Deactivation will be done in such a way that a DID doc cannot be used / activated anymore.
 type DocDeactivator interface {
-	// To prevent updating stale data a hash of the current version should be provided.
-	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
+	// Since the deactivation is definitive, no version is required
 	// If the DID Document is not found or not local a ErrNotFound is returned
-	// If the DID Document is not active a ErrDeactivated is returned
-	Deactivate(id did.DID, current hash.SHA256Hash) error
+	// If the DID Document is already deactivated ErrDeactivated is returned
+	Deactivate(id did.DID) error
 }
 
 // KeyResolver is the interface for resolving keys.

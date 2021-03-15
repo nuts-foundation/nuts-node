@@ -170,11 +170,15 @@ func isDeactivated(document *did.Document) bool {
 }
 
 // Deactivate updates the DID Document so it can no longer be updated
-func (r *VDR) Deactivate(id did.DID, currentHash hash.SHA256Hash) error {
+func (r *VDR) Deactivate(id did.DID) error {
+	_, meta, err := r.store.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
+	if err != nil {
+		return err
+	}
 	// A deactivated document is the original document stripped from a controller and keys.
-	// So, apart from the services, it is practically an empty document. Should we even keep the services?
+	// So, apart from the services, it is practically an empty document.
 	emptyDoc := did.Document{ID: id}
-	return r.Update(id, currentHash, emptyDoc, nil)
+	return r.Update(id, meta.Hash, emptyDoc, nil)
 }
 
 // resolveControllers accepts a list of documents and finds their controllers
