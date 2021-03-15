@@ -24,19 +24,19 @@ import (
 	"github.com/nuts-foundation/go-did"
 )
 
-const ExampleConcept = "organization"
-const ExampleType = "ExampleCredential"
+const ExampleConcept = "human"
+const ExampleType = "HumanCredential"
 
 var ExampleTemplate = `
 {
 	"id": "<<id>>",
 	"issuer": "<<issuer>>",
-	"type": "ExampleCredential@{1_1},{2_1}",
+	"type": "HumanCredential@{1_1},{2_1}",
 	"credentialSubject": {
 		"id": "<<subject>>@{2_2}",
-		"organization": {
-			"name": "<<organization.name>>@{1_2}",
-			"city": "<<organization.city>>"
+		"human": {
+			"eyeColour": "<<human.eyeColour>>@{1_2}",
+			"hairColour": "<<human.hairColour>>"
 		}
 	}
 }
@@ -46,12 +46,12 @@ var TestCredential = `
 {
 	"id": "did:nuts:1#123",
 	"issuer": "did:nuts:1",
-	"type": ["VerifiableCredential", "ExampleCredential"],
+	"type": ["VerifiableCredential", "HumanCredential"],
 	"credentialSubject": {
 		"id": "did:nuts:2",
-		"organization": {
-			"name": "Because we care BV",
-			"city": "Eibergen"
+		"human": {
+			"eyeColour": "blue/grey",
+			"hairColour": "fair"
 		}
 	}
 }

@@ -117,9 +117,9 @@ func TestVCR_Search(t *testing.T) {
 
 	cs := creds[0].CredentialSubject[0]
 	m := cs.(map[string]interface{})
-	c := m["organization"].(map[string]interface{})
+	c := m["human"].(map[string]interface{})
 
-	assert.Equal(t, "Because we care BV", c["name"])
+	assert.Equal(t, "fair", c["hairColour"])
 }
 
 func TestVCR_Resolve(t *testing.T) {

@@ -122,8 +122,8 @@ func TestRegistry_Transform(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, "Because we care BV", cm["name"])
-		assert.Equal(t, "Eibergen", cm["city"])
+		assert.Equal(t, "fair", cm["hairColour"])
+		assert.Equal(t, "blue/grey", cm["eyeColour"])
 	})
 
 	t.Run("error - unknown type", func(t *testing.T) {
@@ -132,7 +132,7 @@ func TestRegistry_Transform(t *testing.T) {
 			Type: []did.URI{*vcType},
 		}
 
-		_, err = r.Transform("organization", vc)
+		_, err = r.Transform("human", vc)
 
 		if !assert.Error(t, err) {
 			return
