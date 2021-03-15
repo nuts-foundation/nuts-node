@@ -40,7 +40,20 @@ type SearchRequest struct {
 }
 
 // CreateJSONBody defines parameters for Create.
-type CreateJSONBody VerifiableCredential
+type CreateJSONBody struct {
+
+	// Subject of a Verifiable Credential identifying the holder and expressing claims.
+	CredentialSubject *CredentialSubject `json:"credentialSubject,omitempty"`
+
+	// rfc3339 time string until when the credential is valid.
+	ExpirationDate *string `json:"expirationDate,omitempty"`
+
+	// DID according to Nuts specification.
+	Issuer *string `json:"issuer,omitempty"`
+
+	// List of type definitions for the credential.
+	Type *[]string `json:"type,omitempty"`
+}
 
 // SearchJSONBody defines parameters for Search.
 type SearchJSONBody SearchRequest
@@ -756,3 +769,4 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/:concept", wrapper.Search)
 
 }
+
