@@ -106,7 +106,7 @@ func TestVCR_Search(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	q.AddClause(concept.Eq("organization.name", "Because we care BV"))
+	q.AddClause(concept.Eq("human.eyeColour", "blue/grey"))
 
 	creds, err := instance.Search(q)
 	if !assert.NoError(t, err) {
