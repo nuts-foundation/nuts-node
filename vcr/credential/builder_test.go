@@ -31,14 +31,14 @@ import (
 )
 
 func TestGenerateID(t *testing.T) {
-	issuer, _ := did.ParseURI(vdr.RandomDID.String())
+	issuer, _ := did.ParseURI(vdr.TestDIDA.String())
 	id := generateID(*issuer)
 
 	if !assert.NotNil(t, id) {
 		return
 	}
 
-	assert.Contains(t, id.String(), vdr.RandomDID.String())
+	assert.Contains(t, id.String(), vdr.TestDIDA.String())
 
 	_, err := uuid.Parse(id.Fragment)
 
@@ -60,7 +60,7 @@ func TestDefaultBuilder_Build(t *testing.T) {
 	nowFunc = func() time.Time {
 		return checkTime
 	}
-	u2, _ := url.Parse(vdr.RandomDID.String())
+	u2, _ := url.Parse(vdr.TestDIDA.String())
 	issuer := did.URI{URL: *u2}
 	vc := &did.VerifiableCredential{
 		Issuer: issuer,

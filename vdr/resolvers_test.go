@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var holder = *RandomDID
+var holder = *TestDIDA
 
 func TestResolveSigningKey(t *testing.T) {
 	resolver := NewTestVDRInstance(io.TestDirectory(t))

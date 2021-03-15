@@ -69,7 +69,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	t.Run("failed - missing organization", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})
-		credentialSubject["id"] = vdr.AltRandomDID.String()
+		credentialSubject["id"] = vdr.TestDIDB.String()
 		vc.CredentialSubject = []interface{}{credentialSubject}
 
 		err := validator.Validate(*vc)
@@ -80,7 +80,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	t.Run("failed - missing organization name", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})
-		credentialSubject["id"] = vdr.AltRandomDID.String()
+		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
 			"city": "EIbergen",
 		}
@@ -94,7 +94,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	t.Run("failed - missing organization city", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})
-		credentialSubject["id"] = vdr.AltRandomDID.String()
+		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
 			"name": "Because we care B.V.",
 		}
@@ -108,7 +108,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	t.Run("failed - empty organization city", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})
-		credentialSubject["id"] = vdr.AltRandomDID.String()
+		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
 			"name": "Because we care B.V.",
 			"city": " ",
@@ -123,7 +123,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	t.Run("failed - empty organization name", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})
-		credentialSubject["id"] = vdr.AltRandomDID.String()
+		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
 			"name": " ",
 			"city": "EIbergen",
@@ -197,7 +197,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 func validNutsOrganizationCredential() *did.VerifiableCredential {
 	var credentialSubject = make(map[string]interface{})
-	credentialSubject["id"] = vdr.AltRandomDID.String()
+	credentialSubject["id"] = vdr.TestDIDB.String()
 	credentialSubject["organization"] = map[string]interface{}{
 		"name": "Because we care B.V.",
 		"city": "EIbergen",
@@ -207,7 +207,7 @@ func validNutsOrganizationCredential() *did.VerifiableCredential {
 		Context:           []did.URI{did.VCContextV1URI(), *NutsContextURI},
 		ID:                &did.URI{},
 		Type:              []did.URI{*NutsOrganizationCredentialTypeURI, did.VerifiableCredentialTypeV1URI()},
-		Issuer:            stringToURI(vdr.RandomDID.String()),
+		Issuer:            stringToURI(vdr.TestDIDA.String()),
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},
 		Proof:             []interface{}{did.Proof{}},

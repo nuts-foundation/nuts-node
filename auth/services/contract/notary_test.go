@@ -35,7 +35,7 @@ import (
 
 const orgName = "zorginstelling het hoekje"
 
-var orgID = *vdr.RandomDID
+var orgID = *vdr.TestDIDA
 
 func Test_contractNotaryService_ValidateContract(t *testing.T) {
 	// TODO: Re-enable this test (https://github.com/nuts-foundation/nuts-node/issues/91)

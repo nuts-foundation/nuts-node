@@ -188,7 +188,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			Language:    ContractLanguage("EN"),
 			Type:        ContractType("PractitionerLogin"),
 			Version:     ContractVersion("v3"),
-			LegalEntity: LegalEntity(vdr.RandomDID.String()),
+			LegalEntity: LegalEntity(vdr.TestDIDA.String()),
 		}
 		bindPostBody(&ctx, params)
 
@@ -299,7 +299,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			Language:    ContractLanguage("EN"),
 			Type:        ContractType("PractitionerLogin"),
 			Version:     ContractVersion("v3"),
-			LegalEntity: LegalEntity(vdr.RandomDID.String()),
+			LegalEntity: LegalEntity(vdr.TestDIDA.String()),
 		}
 		bindPostBody(&ctx, params)
 
