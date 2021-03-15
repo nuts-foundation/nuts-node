@@ -18,6 +18,22 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// IssueVCRequest defines model for IssueVCRequest.
+type IssueVCRequest struct {
+
+	// Subject of a Verifiable Credential identifying the holder and expressing claims.
+	CredentialSubject CredentialSubject `json:"credentialSubject"`
+
+	// rfc3339 time string until when the credential is valid.
+	ExpirationDate *string `json:"expirationDate,omitempty"`
+
+	// DID according to Nuts specification.
+	Issuer string `json:"issuer"`
+
+	// List of type definitions for the credential.
+	Type []string `json:"type"`
+}
+
 // KeyValuePair defines model for KeyValuePair.
 type KeyValuePair struct {
 
@@ -40,20 +56,7 @@ type SearchRequest struct {
 }
 
 // CreateJSONBody defines parameters for Create.
-type CreateJSONBody struct {
-
-	// Subject of a Verifiable Credential identifying the holder and expressing claims.
-	CredentialSubject *CredentialSubject `json:"credentialSubject,omitempty"`
-
-	// rfc3339 time string until when the credential is valid.
-	ExpirationDate *string `json:"expirationDate,omitempty"`
-
-	// DID according to Nuts specification.
-	Issuer *string `json:"issuer,omitempty"`
-
-	// List of type definitions for the credential.
-	Type *[]string `json:"type,omitempty"`
-}
+type CreateJSONBody IssueVCRequest
 
 // SearchJSONBody defines parameters for Search.
 type SearchJSONBody SearchRequest
