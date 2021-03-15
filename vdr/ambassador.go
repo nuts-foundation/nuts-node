@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -295,29 +294,52 @@ func checkSubscriberTransactionIntegrity(transaction dag.SubscriberTransaction) 
 }
 
 // checkDIDDocumentIntegrity checks for inconsistencies in the the DID Document:
-// Currently it only checks validationMethods for the following conditions:
-// - every validationMethod id must have a fragment
-// - every validationMethod id should have the DID prefix
-// - every validationMethod id must be unique
+// - it checks validationMethods for the following conditions:
+//  - every validationMethod id must have a fragment
+//  - every validationMethod id should have the DID prefix
+//  - every validationMethod id must be unique
+// - it checks services for the following conditions:
+//  - every service id must have a fragment
+//  - every service id should have the DID prefix
+//  - every service id must be unique
 func checkDIDDocumentIntegrity(doc did.Document) error {
-	var knownKeyIds []string
+	// Verification methods
+	knownKeyIds := make(map[string]bool, 0)
 	for _, method := range doc.VerificationMethod {
-		// Check the verification method id has a fragment
-		if len(method.ID.Fragment) == 0 {
-			return fmt.Errorf("verification method must have a fragment")
+		if err := verifyDocumentEntryID(doc.ID, method.ID.URI(), knownKeyIds); err != nil {
+			return fmt.Errorf("invalid verificationMethod: %w", err)
 		}
-		// Check if this id was part of a previous verification method
-		for _, knownKeyID := range knownKeyIds {
-			if method.ID.String() == knownKeyID {
-				return fmt.Errorf("verification method ID must be unique")
-			}
-		}
-		// Check if the method has the same prefix as the DID Document, e.g.: did:nuts:123 and did:nuts:123#key-1
-		if !strings.HasPrefix(method.ID.String(), doc.ID.String()) {
-			return fmt.Errorf("verification method must have document prefix")
-		}
-		knownKeyIds = append(knownKeyIds, method.ID.String())
 	}
+	// Services
+	knownServiceIDs := make(map[string]bool, 0)
+	for _, method := range doc.Service {
+		if err := verifyDocumentEntryID(doc.ID, method.ID, knownServiceIDs); err != nil {
+			return fmt.Errorf("invalid service: %w", err)
+		}
+	}
+	return nil
+}
+
+func verifyDocumentEntryID(owner did.DID, entryID did.URI, knownIDs map[string]bool) error {
+	// Check theID has a fragment
+	if len(entryID.Fragment) == 0 {
+		return fmt.Errorf("ID must have a fragment")
+	}
+	// Check if this ID was part of a previous entry
+	entryIDStr := entryID.String()
+	if knownIDs[entryIDStr] {
+		return fmt.Errorf("ID must be unique")
+	}
+	entryIDAsDID, err := did.ParseDID(entryIDStr)
+	if err != nil {
+		// Shouldn't happen
+		return err
+	}
+	entryIDAsDID.Fragment = ""
+	if !owner.Equals(*entryIDAsDID) {
+		return fmt.Errorf("ID must have document prefix")
+	}
+	knownIDs[entryIDStr] = true
 	return nil
 }
 

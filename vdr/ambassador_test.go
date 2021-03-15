@@ -820,7 +820,19 @@ func newDidDoc(t *testing.T) (did.Document, jwk.Key, error) {
 	}
 	docCreator := NutsDocCreator{keyCreator: kc}
 	didDocument, err := docCreator.Create()
-	return *didDocument, signingKey, err
+	if err != nil {
+		return did.Document{}, nil, err
+	}
+	serviceID := didDocument.ID
+	serviceID.Fragment = "1234"
+	didDocument.Service = []did.Service{
+		{
+			ID:              serviceID.URI(),
+			Type:            "test",
+			ServiceEndpoint: "https://nuts.nl",
+		},
+	}
+	return *didDocument, signingKey, nil
 }
 
 func Test_checkDIDDocumentIntegrity(t *testing.T) {
@@ -837,22 +849,45 @@ func Test_checkDIDDocumentIntegrity(t *testing.T) {
 			didDoc, _, _ := newDidDoc(t)
 			a.doc = didDoc
 		}, nil},
-		{"nok - validation method has no fragment", func(t *testing.T, a *args) {
+		//
+		// Verification methods
+		//
+		{"nok - verificationMethod ID has no fragment", func(t *testing.T, a *args) {
 			didDoc, _, _ := newDidDoc(t)
 			didDoc.VerificationMethod[0].ID.Fragment = ""
 			a.doc = didDoc
-		}, errors.New("verification method must have a fragment")},
-		{"nok - validation has wrong prefix", func(t *testing.T, a *args) {
+		}, errors.New("invalid verificationMethod: ID must have a fragment")},
+		{"nok - verificationMethod ID has wrong prefix", func(t *testing.T, a *args) {
 			didDoc, _, _ := newDidDoc(t)
 			didDoc.VerificationMethod[0].ID.ID = "foo:123"
 			a.doc = didDoc
-		}, errors.New("verification method must have document prefix")},
-		{"nok - validation method with duplicate id", func(t *testing.T, a *args) {
+		}, errors.New("invalid verificationMethod: ID must have document prefix")},
+		{"nok - verificationMethod with duplicate id", func(t *testing.T, a *args) {
 			didDoc, _, _ := newDidDoc(t)
 			method := didDoc.VerificationMethod[0]
 			didDoc.VerificationMethod = append(didDoc.VerificationMethod, method)
 			a.doc = didDoc
-		}, errors.New("verification method ID must be unique")},
+		}, errors.New("invalid verificationMethod: ID must be unique")},
+		//
+		// Services
+		//
+		{"nok - service with duplicate id", func(t *testing.T, a *args) {
+			didDoc, _, _ := newDidDoc(t)
+			svc := didDoc.Service[0]
+			didDoc.Service = append(didDoc.Service, svc)
+			a.doc = didDoc
+		}, errors.New("invalid service: ID must be unique")},
+		{"nok - service ID has no fragment", func(t *testing.T, a *args) {
+			didDoc, _, _ := newDidDoc(t)
+			didDoc.Service[0].ID.Fragment = ""
+			a.doc = didDoc
+		}, errors.New("invalid service: ID must have a fragment")},
+		{"nok - service ID has wrong prefix", func(t *testing.T, a *args) {
+			didDoc, _, _ := newDidDoc(t)
+			uri, _ := did.ParseURI("did:foo:123#foobar")
+			didDoc.Service[0].ID = *uri
+			a.doc = didDoc
+		}, errors.New("invalid service: ID must have document prefix")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
