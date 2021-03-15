@@ -73,7 +73,6 @@ func TestVcr_StoreCredential(t *testing.T) {
 	})
 }
 
-
 func TestVcr_StoreRevocation(t *testing.T) {
 	// load VC
 	r := credential.Revocation{}

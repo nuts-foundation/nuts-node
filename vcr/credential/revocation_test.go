@@ -34,7 +34,6 @@ func TestBuildRevocation(t *testing.T) {
 	vcData, _ := os.ReadFile("../test/vc.json")
 	json.Unmarshal(vcData, &vc)
 
-
 	at := time.Now()
 	nowFunc = func() time.Time {
 		return at

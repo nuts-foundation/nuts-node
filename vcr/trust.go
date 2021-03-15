@@ -29,6 +29,7 @@ import (
 )
 
 var mutex = sync.Mutex{}
+
 type trustConfig struct {
 	filename      string
 	issuesPerType map[string][]string
@@ -100,7 +101,7 @@ func (tc trustConfig) AddTrust(credentialType did.URI, issuer did.URI) error {
 	}
 	j := 0
 	var issuerList = make([]string, len(issuerSet))
-	for k, _ := range issuerSet {
+	for k := range issuerSet {
 		issuerList[j] = k
 		j++
 	}
@@ -124,7 +125,7 @@ func (tc trustConfig) RemoveTrust(credentialType did.URI, issuer did.URI) error 
 
 	j := 0
 	var issuerList = make([]string, len(issuerSet))
-	for k, _ := range issuerSet {
+	for k := range issuerSet {
 		issuerList[j] = k
 		j++
 	}

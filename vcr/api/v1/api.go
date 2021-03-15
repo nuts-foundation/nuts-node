@@ -159,8 +159,10 @@ func (w *Wrapper) Resolve(ctx echo.Context, id string) error {
 	}
 
 	switch err {
-	case vcr.ErrUntrusted: rr.CurrentStatus = untrusted
-	case vcr.ErrRevoked: rr.CurrentStatus = revoked
+	case vcr.ErrUntrusted:
+		rr.CurrentStatus = untrusted
+	case vcr.ErrRevoked:
+		rr.CurrentStatus = revoked
 	}
 
 	return ctx.JSON(http.StatusOK, rr)

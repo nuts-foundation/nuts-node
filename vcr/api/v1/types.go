@@ -34,7 +34,7 @@ type CredentialSubject = interface{}
 type Revocation = credential.Revocation
 
 const (
-	trusted = "trusted"
+	trusted   = "trusted"
 	untrusted = "untrusted"
-	revoked = "revoked"
+	revoked   = "revoked"
 )
