@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var holder = *vdr.RandomDID
+var holder = *vdr.TestDIDA
 
 func TestResolveEndpointURL(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {

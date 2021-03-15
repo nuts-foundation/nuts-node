@@ -79,7 +79,7 @@ func TestWrapper_NutsAuthCreateSession(t *testing.T) {
 			Version:     "v3",
 			ValidFrom:   &vf,
 			ValidTo:     &vt,
-			LegalEntity: LegalEntity(vdr.RandomDID.String()),
+			LegalEntity: LegalEntity(vdr.TestDIDA.String()),
 		}
 
 		jsonData, _ := json.Marshal(params)
@@ -150,7 +150,7 @@ func TestWrapper_NutsAuthCreateSession(t *testing.T) {
 			Type:        "UnknownContract",
 			Language:    "NL",
 			Version:     "v1",
-			LegalEntity: LegalEntity(vdr.RandomDID.String()),
+			LegalEntity: LegalEntity(vdr.TestDIDA.String()),
 		}
 
 		wrapper := Wrapper{Auth: ctx.authMock}
@@ -175,7 +175,7 @@ func TestWrapper_NutsAuthCreateSession(t *testing.T) {
 			Type:        "BehandelaarLogin",
 			Language:    "NL",
 			Version:     "v3",
-			LegalEntity: LegalEntity(vdr.RandomDID.String()),
+			LegalEntity: LegalEntity(vdr.TestDIDA.String()),
 		}
 
 		ctx.notaryMock.EXPECT().DrawUpContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("not found"))
@@ -202,7 +202,7 @@ func TestWrapper_NutsAuthCreateSession(t *testing.T) {
 			Type:        "BehandelaarLogin",
 			Language:    "NL",
 			Version:     "v3",
-			LegalEntity: LegalEntity(vdr.RandomDID.String()),
+			LegalEntity: LegalEntity(vdr.TestDIDA.String()),
 		}
 
 		ctx.notaryMock.EXPECT().DrawUpContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, validator.ErrMissingOrganizationKey)

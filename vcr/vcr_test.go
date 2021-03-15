@@ -187,12 +187,12 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(vdr.RandomDID.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("hdr.pay.sig", nil)
+		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
+		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
 			gomock.Any(),
-			vdr.RandomDID.String(),
+			vdr.TestDIDA.String(),
 			nil,
 			gomock.Any(),
 		).Return(nil, nil)
@@ -217,7 +217,7 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(did.URI{}, errors.New("b00m!"))
+		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(did.URI{}, errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
 
@@ -257,8 +257,8 @@ func TestVcr_Issue(t *testing.T) {
 
 		cred := validNutsOrganizationCredential()
 		cred.CredentialSubject = make([]interface{}, 0)
-		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(vdr.RandomDID.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("hdr.pay.sig", nil)
+		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
+		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
 
 		_, err := instance.Issue(*cred)
 
@@ -272,8 +272,8 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(vdr.RandomDID.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("", errors.New("b00m!"))
+		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
+		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("", errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
 
@@ -286,12 +286,12 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.RandomDID).Return(vdr.RandomDID.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.RandomDID.String()).Return("hdr.pay.sig", nil)
+		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
+		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
 			gomock.Any(),
-			vdr.RandomDID.String(),
+			vdr.TestDIDA.String(),
 			nil,
 			gomock.Any(),
 		).Return(nil, errors.New("b00m!"))
@@ -509,10 +509,10 @@ func TestVcr_Write(t *testing.T) {
 
 func validNutsOrganizationCredential() *did.VerifiableCredential {
 	uri, _ := did.ParseURI(credential.NutsOrganizationCredentialType)
-	issuer, _ := did.ParseURI(vdr.RandomDID.String())
+	issuer, _ := did.ParseURI(vdr.TestDIDA.String())
 
 	var credentialSubject = make(map[string]interface{})
-	credentialSubject["id"] = vdr.AltRandomDID.String()
+	credentialSubject["id"] = vdr.TestDIDB.String()
 	credentialSubject["organization"] = map[string]interface{}{
 		"name": "Because we care B.V.",
 		"city": "EIbergen",
