@@ -168,7 +168,7 @@ func TestService_SigningSessionStatus(t *testing.T) {
 		assert.Equal(t, "could not create JWT for given session: some error", err.Error())
 	})
 
-	holder := *vdr.RandomDID
+	holder := *vdr.TestDIDA
 	keyID := holder
 	keyID.Fragment = keyID.ID
 

@@ -30,14 +30,14 @@ import (
 )
 
 func TestGenerateID(t *testing.T) {
-	issuer, _ := did.ParseURI(vdr.RandomDID.String())
+	issuer, _ := did.ParseURI(vdr.TestDIDA.String())
 	id := generateID(*issuer)
 
 	if !assert.NotNil(t, id) {
 		return
 	}
 
-	assert.Contains(t, id.String(), vdr.RandomDID.String())
+	assert.Contains(t, id.String(), vdr.TestDIDA.String())
 
 	_, err := uuid.Parse(id.Fragment)
 
@@ -52,7 +52,7 @@ func TestDefaultBuilder_Type(t *testing.T) {
 
 func TestDefaultBuilder_Fill(t *testing.T) {
 	b := defaultBuilder{vcType: "type"}
-	issuer, _ := did.ParseURI(vdr.RandomDID.String())
+	issuer, _ := did.ParseURI(vdr.TestDIDA.String())
 	vc := &did.VerifiableCredential{
 		Issuer: *issuer,
 	}
