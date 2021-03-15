@@ -45,6 +45,7 @@ func NewTestVCRInstance(testDirectory string) *vcr {
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)
 	}
+
 	return newInstance
 }
 

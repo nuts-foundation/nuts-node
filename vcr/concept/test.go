@@ -57,6 +57,15 @@ var TestCredential = `
 }
 `
 
+var TestRevocation = `
+{
+  "issuer": "did:nuts:1",
+  "subject": "did:nuts:1#123",
+  "currentStatus": "Revoked",
+  "statusDate": "2021-03-13T16:39:58.496215+01:00"
+}
+`
+
 func TestVC() did.VerifiableCredential {
 	vc := did.VerifiableCredential{}
 

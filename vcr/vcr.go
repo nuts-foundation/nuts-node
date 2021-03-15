@@ -66,6 +66,7 @@ type vcr struct {
 	docResolver vdr.Resolver
 	ambassador  Ambassador
 	network     network.Transactions
+	trustConfig trustConfig
 }
 
 func (c *vcr) Registry() concept.Registry {
@@ -75,9 +76,20 @@ func (c *vcr) Registry() concept.Registry {
 func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
 	fsPath := path.Join(config.Datadir, "vcr", "credentials.db")
+	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {
+		return err
+	}
+
+	// load trusted issuers
+	c.trustConfig = trustConfig{
+		filename:      tcPath,
+		issuesPerType: map[string][]string{},
+	}
+
+	if err = c.trustConfig.Load(); err != nil {
 		return err
 	}
 
@@ -189,7 +201,15 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 			if err != nil {
 				return nil, errors.Wrap(err, "unable to parse credential from db")
 			}
-			VCs = append(VCs, vc)
+
+			trusted := c.isTrusted(vc)
+			revoked, err := c.isRevoked(*vc.ID)
+			if err != nil {
+				return nil, errors.Wrap(err, "unable to check revocation state for credential")
+			}
+			if trusted && !revoked {
+				VCs = append(VCs, vc)
+			}
 		}
 	}
 
@@ -239,10 +259,36 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 	return &vc, nil
 }
 
-func (c *vcr) Resolve(ID did.URI) (did.VerifiableCredential, error) {
-	// todo revocation and validity ?
+func (c *vcr) Resolve(ID did.URI) (*did.VerifiableCredential, error) {
+	vc, err := c.find(ID)
+	if err != nil {
+		return nil, err
+	}
 
-	return c.find(ID)
+	revoked, err := c.isRevoked(ID)
+	if revoked {
+		return &vc, ErrRevoked
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	trusted := c.isTrusted(vc)
+	if !trusted {
+		return &vc, ErrUntrusted
+	}
+
+	return &vc, nil
+}
+
+func (c *vcr) isTrusted(vc did.VerifiableCredential) bool {
+	for _, t := range vc.Type {
+		if c.trustConfig.IsTrusted(t, vc.Issuer) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // find only returns a VC from storage, it does not tell anything about validity
@@ -350,7 +396,7 @@ func (c *vcr) Revoke(ID did.URI) (*credential.Revocation, error) {
 	}
 
 	// already revoked, return error
-	conflict, err := c.IsRevoked(ID)
+	conflict, err := c.isRevoked(ID)
 	if err != nil {
 		return nil, err
 	}
@@ -393,6 +439,14 @@ func (c *vcr) Revoke(ID did.URI) (*credential.Revocation, error) {
 	logging.Log().Infof("Verifiable Credential revoked: %s", vc.ID)
 
 	return &r, nil
+}
+
+func (c *vcr) AddTrust(credentialType did.URI, issuer did.URI) error {
+	return c.trustConfig.AddTrust(credentialType, issuer)
+}
+
+func (c *vcr) RemoveTrust(credentialType did.URI, issuer did.URI) error {
+	return c.trustConfig.RemoveTrust(credentialType, issuer)
 }
 
 func (c *vcr) verifyRevocation(r credential.Revocation) error {
@@ -445,7 +499,7 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	return nil
 }
 
-func (c *vcr) IsRevoked(ID did.URI) (bool, error) {
+func (c *vcr) isRevoked(ID did.URI) (bool, error) {
 	qp := leia.Eq(concept.SubjectField, ID.String())
 	q := leia.New(qp)
 

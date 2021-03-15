@@ -88,19 +88,18 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
 }
 
-// IsRevoked mocks base method.
-func (m *MockVCR) IsRevoked(ID did.URI) (bool, error) {
+// AddTrust mocks base method.
+func (m *MockVCR) AddTrust(credentialType, issuer did.URI) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsRevoked", ID)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "AddTrust", credentialType, issuer)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
-// IsRevoked indicates an expected call of IsRevoked.
-func (mr *MockVCRMockRecorder) IsRevoked(ID interface{}) *gomock.Call {
+// AddTrust indicates an expected call of AddTrust.
+func (mr *MockVCRMockRecorder) AddTrust(credentialType, issuer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRevoked", reflect.TypeOf((*MockVCR)(nil).IsRevoked), ID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTrust", reflect.TypeOf((*MockVCR)(nil).AddTrust), credentialType, issuer)
 }
 
 // Issue mocks base method.
@@ -132,11 +131,25 @@ func (mr *MockVCRMockRecorder) Registry() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockVCR)(nil).Registry))
 }
 
+// RemoveTrust mocks base method.
+func (m *MockVCR) RemoveTrust(credentialType, issuer did.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveTrust", credentialType, issuer)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveTrust indicates an expected call of RemoveTrust.
+func (mr *MockVCRMockRecorder) RemoveTrust(credentialType, issuer interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveTrust", reflect.TypeOf((*MockVCR)(nil).RemoveTrust), credentialType, issuer)
+}
+
 // Resolve mocks base method.
-func (m *MockVCR) Resolve(ID did.URI) (did.VerifiableCredential, error) {
+func (m *MockVCR) Resolve(ID did.URI) (*did.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", ID)
-	ret0, _ := ret[0].(did.VerifiableCredential)
+	ret0, _ := ret[0].(*did.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

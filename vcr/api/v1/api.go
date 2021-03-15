@@ -147,9 +147,59 @@ func (w *Wrapper) Resolve(ctx echo.Context, id string) error {
 		return ctx.NoContent(http.StatusNotFound)
 	}
 
-	if err != nil {
+	// 500
+	if vc == nil && err != nil {
 		return err
 	}
 
-	return ctx.JSON(http.StatusOK, vc)
+	// transform VC && error
+	rr := ResolutionResult{
+		CurrentStatus:        trusted,
+		VerifiableCredential: *vc,
+	}
+
+	switch err {
+	case vcr.ErrUntrusted: rr.CurrentStatus = untrusted
+	case vcr.ErrRevoked: rr.CurrentStatus = revoked
+	}
+
+	return ctx.JSON(http.StatusOK, rr)
+}
+
+func (w *Wrapper) RemoveTrust(ctx echo.Context) error {
+	return changeTrust(ctx, func(cType did.URI, d did.URI) error {
+		return w.R.RemoveTrust(cType, d)
+	})
+}
+
+func (w *Wrapper) AddTrust(ctx echo.Context) error {
+	return changeTrust(ctx, func(cType did.URI, d did.URI) error {
+		return w.R.AddTrust(cType, d)
+	})
+}
+
+type trustChangeFunc func(did.URI, did.URI) error
+
+func changeTrust(ctx echo.Context, f trustChangeFunc) error {
+	var icc = new(IssuerCredentialCombination)
+
+	if err := ctx.Bind(icc); err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse request body: %s", err.Error()))
+	}
+
+	d, err := did.ParseURI(icc.Issuer)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse issuer: %s", err.Error()))
+	}
+
+	cType, err := did.ParseURI(icc.CredentialType)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse credential type: %s", err.Error()))
+	}
+
+	if err = f(*cType, *d); err != nil {
+		return err
+	}
+
+	return ctx.NoContent(http.StatusAccepted)
 }

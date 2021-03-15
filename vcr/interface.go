@@ -44,6 +44,9 @@ var ErrNotFound = errors.New("credential not found")
 // ErrRevoked is returned when a credential has been revoked and the required action requires it to not be revoked.
 var ErrRevoked = errors.New("credential is revoked")
 
+// ErrUntrusted is returned when a credential is resolved or searched but its issuer is not trusted.
+var ErrUntrusted = errors.New("credential issuer is untrusted")
+
 // ErrInvalidCredential is returned when validation failed
 var ErrInvalidCredential = errors.New("invalid credential")
 
@@ -67,8 +70,10 @@ type VCR interface {
 	Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error)
 	// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
 	Search(query concept.Query) ([]did.VerifiableCredential, error)
-	// Resolve returns a credential based on its ID. Returns an error when not found.
-	Resolve(ID did.URI) (did.VerifiableCredential, error)
+	// Resolve returns a credential based on its ID.
+	// The credential will still be returned in the case of ErrRevoked and ErrUntrusted.
+	// For other errors, nil is returned
+	Resolve(ID did.URI) (*did.VerifiableCredential, error)
 	// Verify checks if a credential is valid and trusted at the given time.
 	// The time check is optional, so credentials can be issued that will become valid.
 	// If valid no error is returned.
@@ -77,10 +82,12 @@ type VCR interface {
 	// The CurrentStatus will be set to 'Revoked' and the statusDate to the current time.
 	// It returns an error if the credential, issuer or private key can not be found.
 	Revoke(ID did.URI) (*credential.Revocation, error)
-	// IsRevoked returns true when a revocation exists for a credential
-	IsRevoked(ID did.URI) (bool, error)
 	// Registry returns the concept registry
 	Registry() concept.Registry
+	// AddTrust adds trust for a Issuer/CredentialType combination. The added trust is persisted to disk.
+	AddTrust(credentialType did.URI, issuer did.URI) error
+	// RemoveTrust removes trust for a Issuer/CredentialType combination. The result is persisted to disk.
+	RemoveTrust(credentialType did.URI, issuer did.URI) error
 
 	Writer
 }
