@@ -196,11 +196,21 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 	return VCs, nil
 }
 
-func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
-	validator, builder := credential.FindValidatorAndBuilder(vc)
+func (c *vcr) Issue(template did.VerifiableCredential) (*did.VerifiableCredential, error) {
+	validator, builder := credential.FindValidatorAndBuilder(template)
 	if validator == nil || builder == nil {
 		return nil, errors.New("unknown credential type")
 	}
+
+	if len(template.Type) > 1 {
+		return nil, errors.New("can only issue credential with 1 type")
+	}
+
+	var vc did.VerifiableCredential
+	vc.Type = template.Type
+	vc.CredentialSubject = template.CredentialSubject
+	vc.Issuer = template.Issuer
+	vc.ExpirationDate = template.ExpirationDate
 
 	// find issuer
 	issuer, err := did.ParseDID(vc.Issuer.String())

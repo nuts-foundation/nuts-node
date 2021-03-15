@@ -268,11 +268,9 @@ components:
         - credentialSubject
       properties:
         type:
-          description: List of type definitions for the credential.
-          type: array
-          items:
-            type: string
-          example: [ "NutsOrganizationCredential" ]
+          description: Type definition for the credential.
+          type: string
+          example: "NutsOrganizationCredential"
         issuer:
           description: DID according to Nuts specification.
           type: string

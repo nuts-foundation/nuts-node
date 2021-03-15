@@ -187,6 +187,9 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
+		cred.CredentialStatus = &did.CredentialStatus{
+			Type: "test",
+		}
 		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
@@ -201,6 +204,12 @@ func TestVcr_Issue(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, issued)
+		// Only type, subject, issuer and expiration date should be taken from input VC
+		assert.Nil(t, issued.CredentialStatus, "not all fields should be copied from input VC")
+		assert.Contains(t, issued.Type, cred.Type[0])
+		assert.Equal(t, issued.CredentialSubject, cred.CredentialSubject)
+		assert.Equal(t, issued.Issuer, cred.Issuer)
+		assert.Equal(t, issued.ExpirationDate, cred.ExpirationDate)
 
 		var proof = make([]did.JSONWebSignature2020Proof, 1)
 		err = issued.UnmarshalProofValue(&proof)
@@ -209,6 +218,19 @@ func TestVcr_Issue(t *testing.T) {
 		}
 
 		assert.Equal(t, "hdr..sig", proof[0].Jws)
+	})
+
+	t.Run("error - too many types", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+
+		cred := validNutsOrganizationCredential()
+		cred.Type = append(cred.Type, cred.Type[0])
+
+		_, err := instance.Issue(*cred)
+
+		assert.Error(t, err)
 	})
 
 	t.Run("error - unknown DID", func(t *testing.T) {

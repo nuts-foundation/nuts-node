@@ -32,7 +32,7 @@ gen-api:
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 docs/_static/crypto/v1.yaml > crypto/api/v1/generated.go
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas DIDDocument,DIDDocumentMetadata,Service,VerificationMethod docs/_static/vdr/v1.yaml > vdr/api/v1/generated.go
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 docs/_static/network/v1.yaml > network/api/v1/generated.go
-	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential,CredentialSubject,Revocation docs/_static/vcr/v1.yaml > vcr/api/v1/generated.go
+	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential,CredentialSubject,IssueVCRequest,Revocation docs/_static/vcr/v1.yaml > vcr/api/v1/generated.go
 	oapi-codegen -generate types,server -templates codegen/oapi/ -package v0 docs/_static/auth/v0.yaml > auth/api/v0/generated.go
 	oapi-codegen -generate types,server -templates codegen/oapi/ -package experimental docs/_static/auth/experimental.yaml > auth/api/experimental/generated.go
 
