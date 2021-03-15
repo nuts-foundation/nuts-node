@@ -21,6 +21,7 @@ package v1
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -92,6 +94,32 @@ func TestWrapper_CreateDID(t *testing.T) {
 		ctx.echo.EXPECT().Bind(gomock.Any())
 		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, credential.ErrValidation)
+
+		err := ctx.client.Create(ctx.echo)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - DID not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any())
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
+		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, fmt.Errorf("wrapped error: %w", types.ErrNotFound))
+
+		err := ctx.client.Create(ctx.echo)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - key not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any())
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
+		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, fmt.Errorf("wrapped error: %w", types.ErrKeyNotFound))
 
 		err := ctx.client.Create(ctx.echo)
 

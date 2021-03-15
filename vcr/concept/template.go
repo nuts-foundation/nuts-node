@@ -231,7 +231,7 @@ func (ct *Template) transformRecursive(val interface{}, currentPath string, c Co
 
 	// we do not support mapped values within lists
 	if _, ok := val.([]interface{}); ok {
-		return errors.New("json arrays are not supported")
+		return nil
 	}
 
 	if m, ok := val.(map[string]interface{}); ok {

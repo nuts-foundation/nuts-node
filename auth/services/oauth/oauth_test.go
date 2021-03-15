@@ -46,8 +46,8 @@ import (
 var actorSigningKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 var custodianSigningKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
-var actorDID = *vdr.RandomDID
-var custodianDID = *vdr.AltRandomDID
+var actorDID = *vdr.TestDIDA
+var custodianDID = *vdr.TestDIDB
 var custodianDIDDocument = getCustodianDIDDocument()
 var actorSigningKeyID = getActorSigningKey()
 var custodianSigningKeyID = getCustodianSigningKey()
@@ -65,7 +65,7 @@ func getCustodianSigningKey() *did.URI {
 }
 
 func getCustodianDIDDocument() *did.Document {
-	id := *vdr.AltRandomDID
+	id := *vdr.TestDIDB
 	serviceID, _ := did.ParseURI(id.String() + "#service-id")
 
 	doc := did.Document{

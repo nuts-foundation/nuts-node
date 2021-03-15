@@ -38,7 +38,7 @@ func (r *VDR) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, e
 		return "", err
 	}
 	if len(doc.AssertionMethod) == 0 {
-		return "", fmt.Errorf("DID Document has no assertionMethod keys (did=%s)", holder)
+		return "", types.ErrKeyNotFound
 	}
 	return doc.AssertionMethod[0].ID.String(), nil
 }
@@ -63,7 +63,7 @@ func (r *VDR) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.Public
 		}
 	}
 	if result == nil {
-		return "", fmt.Errorf("signing key not found (id=%s)", keyID)
+		return "", types.ErrKeyNotFound
 	}
 	return result.PublicKey()
 }
@@ -83,5 +83,5 @@ func (r *VDR) ResolveAssertionKey(id did.DID) (did.URI, error) {
 		}
 	}
 
-	return did.URI{}, fmt.Errorf("no valid assertion keys found for: %s", id.String())
+	return did.URI{}, types.ErrKeyNotFound
 }

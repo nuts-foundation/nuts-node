@@ -25,10 +25,11 @@ import (
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
 
-var holder = *RandomDID
+var holder = *TestDIDA
 
 func TestResolveSigningKey(t *testing.T) {
 	resolver := NewTestVDRInstance(io.TestDirectory(t))
@@ -103,6 +104,6 @@ func TestResolveSigningKeyID(t *testing.T) {
 
 		_, err := resolver.ResolveSigningKeyID(doc.ID, nil)
 
-		assert.Contains(t, err.Error(), "DID Document has no assertionMethod keys (did=")
+		assert.Equal(t, types.ErrKeyNotFound, err)
 	})
 }

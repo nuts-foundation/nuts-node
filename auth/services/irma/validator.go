@@ -213,7 +213,7 @@ func (v Service) SessionStatus(id services.SessionID) (*services.SessionStatusRe
 
 func (v Service) legalEntityFromContract(_ *SignedIrmaContract) (*did.DID, error) {
 	// TODO: Implement this (https://github.com/nuts-foundation/nuts-node/issues/84)
-	return vdr.RandomDID, nil
+	return vdr.TestDIDA, nil
 }
 
 // CreateIdentityTokenFromIrmaContract from a signed irma contract. Returns a JWT signed with the provided legalEntity.
