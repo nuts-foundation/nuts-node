@@ -74,7 +74,7 @@ type VCR interface {
 	// If valid no error is returned.
 	Verify(vc did.VerifiableCredential, at *time.Time) error
 	// Revoke a credential based on its ID, the Issuer will be resolved automatically.
-	// The CurrentStatus will be set to 'Revoked' and the statusDate to the current time.
+	// The statusDate will be set to the current time.
 	// It returns an error if the credential, issuer or private key can not be found.
 	Revoke(ID did.URI) (*credential.Revocation, error)
 	// IsRevoked returns true when a revocation exists for a credential

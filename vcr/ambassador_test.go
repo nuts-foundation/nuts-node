@@ -104,7 +104,6 @@ func TestAmbassador_vcCallback(t *testing.T) {
 	})
 }
 
-
 func TestAmbassador_rCallback(t *testing.T) {
 	payload := []byte("{\"subject\":\"did:nuts:1#123\"}")
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), revocationDocumentType, nil)

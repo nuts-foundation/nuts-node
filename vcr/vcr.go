@@ -367,7 +367,7 @@ func (c *vcr) Revoke(ID did.URI) (*credential.Revocation, error) {
 	// resolve an assertionMethod key for issuer
 	kid, err := c.docResolver.ResolveAssertionKey(*issuer)
 	if err != nil {
-		return nil, ErrInvalidIssuer
+		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
 
 	// set defaults
@@ -385,7 +385,7 @@ func (c *vcr) Revoke(ID did.URI) (*credential.Revocation, error) {
 
 	payload, _ := json.Marshal(r)
 
-	_, err = c.network.CreateTransaction(revocationDocumentType, payload, kid.String(), nil, r.StatusDate)
+	_, err = c.network.CreateTransaction(revocationDocumentType, payload, kid.String(), nil, r.Date)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish revocation: %w", err)
 	}
@@ -429,7 +429,7 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	}
 
 	// find key
-	pk, err := c.docResolver.ResolveSigningKey(r.Proof.VerificationMethod.String(), &r.StatusDate)
+	pk, err := c.docResolver.ResolveSigningKey(r.Proof.VerificationMethod.String(), &r.Date)
 	if err != nil {
 		return err
 	}
@@ -525,7 +525,7 @@ func (c *vcr) generateRevocationProof(r *credential.Revocation, kid did.URI) err
 			Type:               "JsonWebSignature2020",
 			ProofPurpose:       "assertionMethod",
 			VerificationMethod: kid,
-			Created:            r.StatusDate,
+			Created:            r.Date,
 		},
 	}
 

@@ -34,7 +34,6 @@ func TestBuildRevocation(t *testing.T) {
 	vcData, _ := os.ReadFile("../test/vc.json")
 	json.Unmarshal(vcData, &vc)
 
-
 	at := time.Now()
 	nowFunc = func() time.Time {
 		return at
@@ -47,8 +46,7 @@ func TestBuildRevocation(t *testing.T) {
 
 	assert.Equal(t, *vc.ID, r.Subject)
 	assert.Equal(t, vc.Issuer, r.Issuer)
-	assert.Equal(t, "Revoked", r.CurrentStatus)
-	assert.Equal(t, at, r.StatusDate)
+	assert.Equal(t, at, r.Date)
 }
 
 func TestValidateRevocation(t *testing.T) {
@@ -89,20 +87,11 @@ func TestValidateRevocation(t *testing.T) {
 
 	t.Run("error - zero time", func(t *testing.T) {
 		r := revocation
-		r.StatusDate = time.Time{}
+		r.Date = time.Time{}
 
 		err := ValidateRevocation(r)
 		assert.Error(t, err)
-		assert.Equal(t, "validation failed: 'statusDate' is required", err.Error())
-	})
-
-	t.Run("error - wrong status", func(t *testing.T) {
-		r := revocation
-		r.CurrentStatus = "unknown"
-
-		err := ValidateRevocation(r)
-		assert.Error(t, err)
-		assert.Equal(t, "validation failed: 'currentStatus' is required and must be one of [Revoked]", err.Error())
+		assert.Equal(t, "validation failed: 'date' is required", err.Error())
 	})
 
 	t.Run("error - missing proof", func(t *testing.T) {

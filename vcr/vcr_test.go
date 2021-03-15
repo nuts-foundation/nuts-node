@@ -638,7 +638,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 		r2 := r
-		r2.StatusReason = "sig fails"
+		r2.Reason = "sig fails"
 
 		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
 

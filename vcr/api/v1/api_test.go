@@ -312,7 +312,7 @@ func TestWrapper_Revoke(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, vcr.ErrInvalidIssuer)
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, types.ErrKeyNotFound)
 		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 
 		err := ctx.client.Revoke(ctx.echo, "test")
