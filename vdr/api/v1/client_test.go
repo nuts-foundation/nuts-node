@@ -148,6 +148,24 @@ func TestHTTPClient_Update(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+func TestHTTPClient_Deactivate(t *testing.T) {
+	didString := "did:nuts:1"
+
+	t.Run("ok", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.Deactivate(didString)
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+
+	t.Run("error - server problems", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		err := c.Deactivate(didString)
+		assert.Error(t, err)
+	})
+}
 
 func TestReadDIDDocument(t *testing.T) {
 	t.Run("error - faulty stream", func(t *testing.T) {
