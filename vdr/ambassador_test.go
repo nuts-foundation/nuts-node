@@ -389,12 +389,13 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("ok - where the document is not the controller", func(t *testing.T) {
 		// the right key should be resolved
+		t.Skip("Test not implemented yet")
 	})
 
 	t.Run("ok - update with a new authentication key", func(t *testing.T) {
 		// old key should be removed
 		// new key should be present
-
+		t.Skip("Test not implemented yet")
 	})
 
 	t.Run("nok - update with missing timelineID", func(t *testing.T) {
@@ -661,7 +662,7 @@ func Test_ambassador_callback(t *testing.T) {
 	})
 
 	t.Run("nok - create where keyID of authentication key matches but thumbprints not", func(t *testing.T) {
-
+		t.Skip("Test not implemented yet")
 	})
 }
 
