@@ -212,11 +212,11 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 	//		check if it is known.
 	updatedAt := document.SigningTime()
 	documentMetadata := types.DocumentMetadata{
-		Created:    currentDIDMeta.Created,
-		Updated:    &updatedAt,
-		Version:    document.TimelineVersion(),
-		TimelineID: document.TimelineID(),
-		Hash:       document.PayloadHash(),
+		Created:     currentDIDMeta.Created,
+		Updated:     &updatedAt,
+		Version:     document.TimelineVersion(),
+		TimelineID:  document.TimelineID(),
+		Hash:        document.PayloadHash(),
 		Deactivated: isDeactivated(&proposedDIDDocument),
 	}
 	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)

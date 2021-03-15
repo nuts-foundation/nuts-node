@@ -21,10 +21,10 @@ import (
 // DIDResolutionResult defines model for DIDResolutionResult.
 type DIDResolutionResult struct {
 
-	// A DID Document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
+	// A DID document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
 	Document DIDDocument `json:"document"`
 
-	// The DID Document metadata.
+	// The DID document metadata.
 	DocumentMetadata DIDDocumentMetadata `json:"documentMetadata"`
 }
 
@@ -34,7 +34,7 @@ type DIDUpdateRequest struct {
 	// The hash of the document in hex format.
 	CurrentHash string `json:"currentHash"`
 
-	// A DID Document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
+	// A DID document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
 	Document DIDDocument `json:"document"`
 }
 
@@ -601,13 +601,13 @@ type ServerInterface interface {
 	// Creates a new Nuts DID
 	// (POST /internal/vdr/v1/did)
 	CreateDID(ctx echo.Context) error
-	// Deactivatates a Nuts DID Document according to the specification.
+	// Deactivates a Nuts DID document according to the specification.
 	// (DELETE /internal/vdr/v1/did/{did})
 	DeactivateDID(ctx echo.Context, did string) error
-	// Resolves a Nuts DID Document
+	// Resolves a Nuts DID document
 	// (GET /internal/vdr/v1/did/{did})
 	GetDID(ctx echo.Context, did string) error
-	// Updates a Nuts DID Document.
+	// Updates a Nuts DID document.
 	// (PUT /internal/vdr/v1/did/{did})
 	UpdateDID(ctx echo.Context, did string) error
 }
