@@ -83,7 +83,7 @@ type KeyResolver interface {
 	// or isn't meant for signing an error is returned.
 	ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error)
 	// ResolveAssertionKey look for a valid assertion key for the give DID. If multiple keys are valid, the first one is returned.
-	// An error is returned when no key is found.
+	// An ErrKeyNotFound is returned when no key is found.
 	ResolveAssertionKey(id did.DID) (did.URI, error)
 }
 
