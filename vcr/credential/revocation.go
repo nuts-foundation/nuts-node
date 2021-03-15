@@ -31,12 +31,10 @@ type Revocation struct {
 	Issuer did.URI `json:"issuer"`
 	// Subject refers to the VC that is revoked
 	Subject did.URI `json:"subject"`
-	// CurrentStatus describes the current status, eg: 'Revoked'
-	CurrentStatus string `json:"currentStatus"`
-	// StatusReason describes why the VC has been revoked
-	StatusReason string `json:"statusReason,omitempty"`
-	// StatusDate is a rfc3339 formatted datetime.
-	StatusDate time.Time `json:"statusDate"`
+	// Reason describes why the VC has been revoked
+	Reason string `json:"reason,omitempty"`
+	// Date is a rfc3339 formatted datetime.
+	Date time.Time `json:"date"`
 	// Proof contains the cryptographic proof(s). It must be extracted using the Proofs method or UnmarshalProofValue method for non-generic proof fields.
 	Proof *did.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }
@@ -44,10 +42,9 @@ type Revocation struct {
 // BuildRevocation generates a revocation based on the credential
 func BuildRevocation(vc did.VerifiableCredential) Revocation {
 	return Revocation{
-		Issuer:        vc.Issuer,
-		Subject:       *vc.ID,
-		CurrentStatus: "Revoked",
-		StatusDate:    nowFunc(),
+		Issuer:  vc.Issuer,
+		Subject: *vc.ID,
+		Date:    nowFunc(),
 	}
 }
 
@@ -61,12 +58,8 @@ func ValidateRevocation(r Revocation) error {
 		return failure("'issuer' is required")
 	}
 
-	if r.StatusDate.IsZero() {
-		return failure("'statusDate' is required")
-	}
-
-	if r.CurrentStatus != "Revoked" {
-		return failure("'currentStatus' is required and must be one of [Revoked]")
+	if r.Date.IsZero() {
+		return failure("'date' is required")
 	}
 
 	if r.Proof == nil {

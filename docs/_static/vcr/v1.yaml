@@ -262,25 +262,20 @@ components:
       required:
         - issuer
         - subject
-        - currentStatus
-        - statusDate
+        - date
       properties:
         issuer:
           type: string
           description: issuer refers to the party that issued the credential
         subject:
           type: string
-          description: subject refers to the VC that is revoked
-        currentStatus:
+          description: subject refers to the credential identifier that is revoked
+        reason:
           type: string
-          description: currentStatus describes the current status
-          enum: ["Revoked"]
-        statusReason:
+          description: reason describes why the VC has been revoked
+        date:
           type: string
-          description: statusReason describes why the VC has been revoked
-        statusDate:
-          type: string
-          description: statusDate is a rfc3339 formatted datetime.
+          description: date is a rfc3339 formatted datetime.
         proof:
           type: object
           description: Proof contains the cryptographic proof(s).

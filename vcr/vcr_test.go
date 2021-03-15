@@ -107,7 +107,7 @@ func TestVCR_Search(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	q.AddClause(concept.Eq("company.name", "Because we care BV"))
+	q.AddClause(concept.Eq("human.eyeColour", "blue/grey"))
 
 	t.Run("ok", func(t *testing.T) {
 		instance.AddTrust(vc.Type[0], vc.Issuer)
@@ -123,9 +123,9 @@ func TestVCR_Search(t *testing.T) {
 
 		cs := creds[0].CredentialSubject[0]
 		m := cs.(map[string]interface{})
-		c := m["company"].(map[string]interface{})
+		c := m["human"].(map[string]interface{})
 
-		assert.Equal(t, "Because we care BV", c["name"])
+		assert.Equal(t, "fair", c["hairColour"])
 	})
 
 	t.Run("ok - untrusted", func(t *testing.T) {
@@ -586,6 +586,22 @@ func TestVcr_Revoke(t *testing.T) {
 		assert.Equal(t, ErrNotFound, err)
 	})
 
+	t.Run("error - not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
+		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.vcr.writeCredential(vc)
+
+		_, err := ctx.vcr.Revoke(did.URI{})
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.Equal(t, ErrNotFound, err)
+	})
+
 	t.Run("error - already revoked", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
@@ -680,7 +696,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 		r2 := r
-		r2.StatusReason = "sig fails"
+		r2.Reason = "sig fails"
 
 		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
 

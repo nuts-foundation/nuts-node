@@ -104,7 +104,7 @@ func (w *Wrapper) Revoke(ctx echo.Context, id string) error {
 	}
 
 	// 400 not the issuer
-	if errors.Is(err, vcr.ErrInvalidIssuer) {
+	if errors.Is(err, types.ErrKeyNotFound) {
 		return ctx.String(http.StatusBadRequest, "no issuer private key found")
 	}
 
