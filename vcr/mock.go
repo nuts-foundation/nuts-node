@@ -11,6 +11,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did"
 	concept "github.com/nuts-foundation/nuts-node/vcr/concept"
+	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 // MockWriter is a mock of Writer interface.
@@ -36,18 +37,32 @@ func (m *MockWriter) EXPECT() *MockWriterMockRecorder {
 	return m.recorder
 }
 
-// Write mocks base method.
-func (m *MockWriter) Write(vc did.VerifiableCredential) error {
+// StoreCredential mocks base method.
+func (m *MockWriter) StoreCredential(vc did.VerifiableCredential) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Write", vc)
+	ret := m.ctrl.Call(m, "StoreCredential", vc)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Write indicates an expected call of Write.
-func (mr *MockWriterMockRecorder) Write(vc interface{}) *gomock.Call {
+// StoreCredential indicates an expected call of StoreCredential.
+func (mr *MockWriterMockRecorder) StoreCredential(vc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockWriter)(nil).Write), vc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockWriter)(nil).StoreCredential), vc)
+}
+
+// StoreRevocation mocks base method.
+func (m *MockWriter) StoreRevocation(r credential.Revocation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreRevocation", r)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StoreRevocation indicates an expected call of StoreRevocation.
+func (mr *MockWriterMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockWriter)(nil).StoreRevocation), r)
 }
 
 // MockVCR is a mock of VCR interface.
@@ -71,6 +86,21 @@ func NewMockVCR(ctrl *gomock.Controller) *MockVCR {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
+}
+
+// IsRevoked mocks base method.
+func (m *MockVCR) IsRevoked(ID did.URI) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsRevoked", ID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsRevoked indicates an expected call of IsRevoked.
+func (mr *MockVCRMockRecorder) IsRevoked(ID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRevoked", reflect.TypeOf((*MockVCR)(nil).IsRevoked), ID)
 }
 
 // Issue mocks base method.
@@ -103,7 +133,7 @@ func (mr *MockVCRMockRecorder) Registry() *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockVCR) Resolve(ID string) (did.VerifiableCredential, error) {
+func (m *MockVCR) Resolve(ID did.URI) (did.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", ID)
 	ret0, _ := ret[0].(did.VerifiableCredential)
@@ -115,6 +145,21 @@ func (m *MockVCR) Resolve(ID string) (did.VerifiableCredential, error) {
 func (mr *MockVCRMockRecorder) Resolve(ID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVCR)(nil).Resolve), ID)
+}
+
+// Revoke mocks base method.
+func (m *MockVCR) Revoke(ID did.URI) (*credential.Revocation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Revoke", ID)
+	ret0, _ := ret[0].(*credential.Revocation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Revoke indicates an expected call of Revoke.
+func (mr *MockVCRMockRecorder) Revoke(ID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockVCR)(nil).Revoke), ID)
 }
 
 // Search mocks base method.
@@ -132,6 +177,34 @@ func (mr *MockVCRMockRecorder) Search(query interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), query)
 }
 
+// StoreCredential mocks base method.
+func (m *MockVCR) StoreCredential(vc did.VerifiableCredential) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreCredential", vc)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StoreCredential indicates an expected call of StoreCredential.
+func (mr *MockVCRMockRecorder) StoreCredential(vc interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockVCR)(nil).StoreCredential), vc)
+}
+
+// StoreRevocation mocks base method.
+func (m *MockVCR) StoreRevocation(r credential.Revocation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreRevocation", r)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StoreRevocation indicates an expected call of StoreRevocation.
+func (mr *MockVCRMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockVCR)(nil).StoreRevocation), r)
+}
+
 // Verify mocks base method.
 func (m *MockVCR) Verify(vc did.VerifiableCredential, at *time.Time) error {
 	m.ctrl.T.Helper()
@@ -144,18 +217,4 @@ func (m *MockVCR) Verify(vc did.VerifiableCredential, at *time.Time) error {
 func (mr *MockVCRMockRecorder) Verify(vc, at interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVCR)(nil).Verify), vc, at)
-}
-
-// Write mocks base method.
-func (m *MockVCR) Write(vc did.VerifiableCredential) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Write", vc)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Write indicates an expected call of Write.
-func (mr *MockVCRMockRecorder) Write(vc interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockVCR)(nil).Write), vc)
 }

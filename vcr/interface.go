@@ -26,6 +26,7 @@ import (
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 //go:embed assets/*
@@ -40,16 +41,22 @@ var ErrInvalidSubject = errors.New("invalid credential subject")
 // ErrNotFound is returned when a credential can not be found based on its ID.
 var ErrNotFound = errors.New("credential not found")
 
+// ErrRevoked is returned when a credential has been revoked and the required action requires it to not be revoked.
+var ErrRevoked = errors.New("credential is revoked")
+
 // ErrInvalidCredential is returned when validation failed
 var ErrInvalidCredential = errors.New("invalid credential")
 
 var vcDocumentType = "application/vc+json"
 
+var revocationDocumentType = "application/vc+json;type=revocation"
+
 // Writer is the interface that groups al the VC write methods
 type Writer interface {
-	// Write writes a VC to storage.
-	// If the VC is not valid, an error is returned.
-	Write(vc did.VerifiableCredential) error
+	// StoreCredential writes a VC to storage. Before writing, it calls Verify!
+	StoreCredential(vc did.VerifiableCredential) error
+	// StoreRevocation writes a revocation to storage.
+	StoreRevocation(r credential.Revocation) error
 }
 
 // VCR is the interface that covers all functionality of the vcr store.
@@ -61,12 +68,17 @@ type VCR interface {
 	// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
 	Search(query concept.Query) ([]did.VerifiableCredential, error)
 	// Resolve returns a credential based on its ID. Returns an error when not found.
-	// todo: not implemented yet and subject to change
-	Resolve(ID string) (did.VerifiableCredential, error)
+	Resolve(ID did.URI) (did.VerifiableCredential, error)
 	// Verify checks if a credential is valid and trusted at the given time.
 	// The time check is optional, so credentials can be issued that will become valid.
 	// If valid no error is returned.
 	Verify(vc did.VerifiableCredential, at *time.Time) error
+	// Revoke a credential based on its ID, the Issuer will be resolved automatically.
+	// The statusDate will be set to the current time.
+	// It returns an error if the credential, issuer or private key can not be found.
+	Revoke(ID did.URI) (*credential.Revocation, error)
+	// IsRevoked returns true when a revocation exists for a credential
+	IsRevoked(ID did.URI) (bool, error)
 	// Registry returns the concept registry
 	Registry() concept.Registry
 

@@ -1,0 +1,12 @@
+{
+  "issuer": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv",
+  "subject": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#6f91673b-afa9-4d26-9e0f-00d989943275",
+  "date": "2021-03-15T16:34:47.422436+01:00",
+  "proof": {
+    "type": "JsonWebSignature2020",
+    "proofPurpose": "assertionMethod",
+    "verificationMethod": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#h22vbXHX7-lRd1qAJnU63liaehb9sAoBS7RavhvfgR8",
+    "created": "2021-03-15T16:34:47.422436+01:00",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..Rc7iK7wXabMx24ZNAFJIwxqpYGCdye0EmdOYwu5CO54pwEPNIQt-9qIvqEZ7ZBFcFUdhnNCvYkR8IDtFAM18Rw"
+  }
+}

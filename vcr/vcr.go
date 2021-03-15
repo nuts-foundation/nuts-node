@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
@@ -148,6 +149,10 @@ func (c *vcr) initIndices() error {
 	if err := gIndex.AddIndex(leia.NewIndex("index_issuer", leia.NewJSONIndexPart(concept.IssuerField, concept.IssuerField))); err != nil {
 		return err
 	}
+	rIndex := c.revocationIndex()
+	if err := rIndex.AddIndex(leia.NewIndex("index_subject", leia.NewJSONIndexPart(concept.SubjectField, concept.SubjectField))); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -222,10 +227,7 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 		return nil, err
 	}
 
-	payload, err := json.Marshal(vc)
-	if err != nil {
-		return nil, err
-	}
+	payload, _ := json.Marshal(vc)
 
 	_, err = c.network.CreateTransaction(vcDocumentType, payload, kid.String(), nil, vc.IssuanceDate)
 	if err != nil {
@@ -237,9 +239,16 @@ func (c *vcr) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, err
 	return &vc, nil
 }
 
-func (c *vcr) Resolve(ID string) (did.VerifiableCredential, error) {
+func (c *vcr) Resolve(ID did.URI) (did.VerifiableCredential, error) {
+	// todo revocation and validity ?
+
+	return c.find(ID)
+}
+
+// find only returns a VC from storage, it does not tell anything about validity
+func (c *vcr) find(ID did.URI) (did.VerifiableCredential, error) {
 	vc := did.VerifiableCredential{}
-	qp := leia.Eq(concept.IDField, ID)
+	qp := leia.Eq(concept.IDField, ID.String())
 	q := leia.New(qp)
 
 	gIndex := c.globalIndex()
@@ -290,6 +299,13 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
 		return err
 	}
 
+	// check if key is of issuer
+	vm := proof.VerificationMethod
+	vm.Fragment = ""
+	if vm != vc.Issuer {
+		return errors.New("verification method is not of issuer")
+	}
+
 	// find key
 	pk, err := c.docResolver.ResolveSigningKey(proof.VerificationMethod.String(), at)
 	if err != nil {
@@ -325,23 +341,125 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
 	return nil
 }
 
-func (c *vcr) Write(vc did.VerifiableCredential) error {
-	// verify first
-	if err := c.Verify(vc, nil); err != nil {
+func (c *vcr) Revoke(ID did.URI) (*credential.Revocation, error) {
+	// first find it using a query on id.
+	vc, err := c.find(ID)
+	if err != nil {
+		// not found and other errors
+		return nil, err
+	}
+
+	// already revoked, return error
+	conflict, err := c.IsRevoked(ID)
+	if err != nil {
+		return nil, err
+	}
+	if conflict {
+		return nil, ErrRevoked
+	}
+
+	// find issuer
+	issuer, err := did.ParseDID(vc.Issuer.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract issuer: %w", err)
+	}
+
+	// resolve an assertionMethod key for issuer
+	kid, err := c.docResolver.ResolveAssertionKey(*issuer)
+	if err != nil {
+		return nil, fmt.Errorf("invalid issuer: %w", err)
+	}
+
+	// set defaults
+	r := credential.BuildRevocation(vc)
+
+	// sign
+	if err = c.generateRevocationProof(&r, kid); err != nil {
+		return nil, fmt.Errorf("failed to generate revocation proof: %w", err)
+	}
+
+	// do same validation as network nodes
+	if err := credential.ValidateRevocation(r); err != nil {
+		return nil, fmt.Errorf("validation failed: %w", err)
+	}
+
+	payload, _ := json.Marshal(r)
+
+	_, err = c.network.CreateTransaction(revocationDocumentType, payload, kid.String(), nil, r.Date)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish revocation: %w", err)
+	}
+
+	logging.Log().Infof("Verifiable Credential revoked: %s", vc.ID)
+
+	return &r, nil
+}
+
+func (c *vcr) verifyRevocation(r credential.Revocation) error {
+	// it must have valid content
+	if err := credential.ValidateRevocation(r); err != nil {
 		return err
 	}
 
-	// validation has made sure there's exactly one!
-	vcType := credential.ExtractTypes(vc)[0]
-
-	doc, err := json.Marshal(vc)
-	if err != nil {
-		return errors.Wrap(err, "failed to write credential to store")
+	// issuer must be the same as vc issuer
+	subject := r.Subject
+	subject.Fragment = ""
+	if subject != r.Issuer {
+		return errors.New("issuer of revocation is not the same as issuer of credential")
 	}
 
-	collection := c.store.Collection(vcType)
+	// create correct challenge for verification
+	payload := generateRevocationChallenge(r)
 
-	return collection.Add([]leia.Document{doc})
+	// extract proof, can't fail, already done in generateRevocationChallenge
+	splittedJws := strings.Split(r.Proof.Jws, "..")
+	if len(splittedJws) != 2 {
+		return errors.New("invalid 'jws' value in proof")
+	}
+	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
+	if err != nil {
+		return err
+	}
+
+	// check if key is of issuer
+	vm := r.Proof.VerificationMethod
+	vm.Fragment = ""
+	if vm != r.Issuer {
+		return errors.New("verification method is not of issuer")
+	}
+
+	// find key
+	pk, err := c.docResolver.ResolveSigningKey(r.Proof.VerificationMethod.String(), &r.Date)
+	if err != nil {
+		return err
+	}
+
+	// the proof must be correct
+	verifier, _ := jws.NewVerifier(jwa.ES256)
+	// the jws lib can't do this for us, so we concat hdr with payload for verification
+	challenge := fmt.Sprintf("%s.%s", splittedJws[0], base64.RawURLEncoding.EncodeToString(payload))
+	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *vcr) IsRevoked(ID did.URI) (bool, error) {
+	qp := leia.Eq(concept.SubjectField, ID.String())
+	q := leia.New(qp)
+
+	gIndex := c.revocationIndex()
+	docs, err := gIndex.Find(q)
+	if err != nil {
+		return false, err
+	}
+
+	if len(docs) >= 1 {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // convert returns a map of credential type to query
@@ -400,6 +518,33 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 	return nil
 }
 
+func (c *vcr) generateRevocationProof(r *credential.Revocation, kid did.URI) error {
+	// create proof
+	r.Proof = &did.JSONWebSignature2020Proof{
+		Proof: did.Proof{
+			Type:               "JsonWebSignature2020",
+			ProofPurpose:       "assertionMethod",
+			VerificationMethod: kid,
+			Created:            r.Date,
+		},
+	}
+
+	// create correct signing challenge
+	challenge := generateRevocationChallenge(*r)
+
+	sig, err := c.signer.SignJWS(challenge, detachedJWSHeaders(), kid.String())
+	if err != nil {
+		return err
+	}
+
+	// remove payload from sig since a detached jws is required.
+	dsig := toDetachedSignature(sig)
+
+	r.Proof.Jws = dsig
+
+	return nil
+}
+
 func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
 	var proofs = make([]did.JSONWebSignature2020Proof, 1)
 
@@ -413,22 +558,32 @@ func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
 
 	// payload
 	vc.Proof = nil
-	payload, err := json.Marshal(vc)
-	if err != nil {
-		return nil, err
-	}
+	payload, _ := json.Marshal(vc)
 
 	// proof
 	proof := proofs[0]
 	proof.Jws = ""
-	prJSON, err := json.Marshal(proof)
-	if err != nil {
-		return nil, err
-	}
+	prJSON, _ := json.Marshal(proof)
 
 	tbs := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
 
 	return tbs, nil
+}
+
+func generateRevocationChallenge(r credential.Revocation) []byte {
+	// without JWS
+	proof := r.Proof.Proof
+
+	// payload
+	r.Proof = nil
+	payload, _ := json.Marshal(r)
+
+	// proof
+	prJSON, _ := json.Marshal(proof)
+
+	tbs := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
+
+	return tbs
 }
 
 // detachedJWSHeaders creates headers for JsonWebSignature2020

@@ -204,14 +204,11 @@ func (ct *Template) transform(VC did.VerifiableCredential) (Concept, error) {
 	// remove type as this will be hardcoded later
 	VC.Type = nil
 
-	vcJSON, err := json.Marshal(VC)
-	if err != nil {
-		return nil, errors2.Wrap(err, "failed to marshal credential into json")
-	}
+	vcJSON, _ := json.Marshal(VC)
 
 	// json parsing
 	var val = make(map[string]interface{})
-	if err = json.Unmarshal(vcJSON, &val); err != nil {
+	if err := json.Unmarshal(vcJSON, &val); err != nil {
 		return nil, errors2.Wrap(err, "failed to parse json")
 	}
 
@@ -219,7 +216,7 @@ func (ct *Template) transform(VC did.VerifiableCredential) (Concept, error) {
 	c := Concept{
 		TypeField: ct.fixedValues[TypeField],
 	}
-	err = ct.transformRecursive(val, "", c)
+	err := ct.transformRecursive(val, "", c)
 
 	return c, err
 }

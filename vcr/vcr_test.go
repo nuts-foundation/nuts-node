@@ -136,7 +136,7 @@ func TestVCR_Resolve(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		vc, err := instance.Resolve(testVC.ID.String())
+		vc, err := instance.Resolve(*testVC.ID)
 
 		if !assert.NoError(t, err) {
 			return
@@ -149,13 +149,13 @@ func TestVCR_Resolve(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		instance := NewTestVCRInstance(testDir)
 		instance.store.Collection(leia.GlobalCollection).DropIndex("index_id")
-		_, err := instance.Resolve(testVC.ID.String())
+		_, err := instance.Resolve(*testVC.ID)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		_, err := instance.Resolve("unknown")
+		_, err := instance.Resolve(did.URI{})
 
 		assert.Equal(t, ErrNotFound, err)
 	})
@@ -327,6 +327,24 @@ func TestVcr_Verify(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("error - invalid vm", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+
+		vc2 := vc
+		pr := make([]did.JSONWebSignature2020Proof, 0)
+		vc2.UnmarshalProofValue(&pr)
+		u, _ := did.ParseURI(vc.Issuer.String() + "2")
+		pr[0].VerificationMethod = *u
+		vc2.Proof = []interface{}{pr[0]}
+
+		err := instance.Verify(vc2, nil)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "verification method is not of issuer")
+	})
+
 	t.Run("error - wrong hashed payload", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
@@ -468,11 +486,16 @@ func TestVcr_Verify(t *testing.T) {
 	})
 }
 
-func TestVcr_Write(t *testing.T) {
+func TestVcr_Revoke(t *testing.T) {
 	// load VC
 	vc := did.VerifiableCredential{}
 	vcJSON, _ := ioutil.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &vc)
+
+	// load example revocation
+	r := credential.Revocation{}
+	rJSON, _ := ioutil.ReadFile("test/revocation.json")
+	json.Unmarshal(rJSON, &r)
 
 	// load pub key
 	pke := storage.PublicKeyEntry{}
@@ -484,24 +507,178 @@ func TestVcr_Write(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
-
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any())
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-		ctx.vdr.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
+		ctx.vcr.writeCredential(vc)
+		ctx.vdr.EXPECT().ResolveAssertionKey(gomock.Any()).Return(vc.Issuer, nil)
+		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vc.Issuer.String()).Return("hdr..sig", nil)
+		ctx.tx.EXPECT().CreateTransaction(
+			revocationDocumentType,
+			gomock.Any(),
+			vc.Issuer.String(),
+			nil,
+			gomock.Any(),
+		)
 
-		err := ctx.vcr.Write(vc)
+		r, err := ctx.vcr.Revoke(*vc.ID)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, "hdr..sig", r.Proof.Jws)
+	})
+
+	t.Run("error - not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
+		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
+		_, err := ctx.vcr.Revoke(did.URI{})
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.Equal(t, ErrNotFound, err)
+	})
+
+	t.Run("error - already revoked", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
+		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.vcr.writeCredential(vc)
+
+		err := ctx.vcr.writeRevocation(r)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		_, err = ctx.vcr.Revoke(*vc.ID)
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.Equal(t, ErrRevoked, err)
+	})
+}
+
+func TestVcr_verifyRevocation(t *testing.T) {
+	// load revocation
+	r := credential.Revocation{}
+	rJSON, _ := ioutil.ReadFile("test/revocation.json")
+	json.Unmarshal(rJSON, &r)
+
+	// Load pub key
+	pke := storage.PublicKeyEntry{}
+	pkeJSON, _ := ioutil.ReadFile("test/public.json")
+	json.Unmarshal(pkeJSON, &pke)
+	var pk = new(ecdsa.PublicKey)
+	pke.JWK().Raw(pk)
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
+
+		err := instance.verifyRevocation(r)
 
 		assert.NoError(t, err)
 	})
 
-	t.Run("error - validation", func(t *testing.T) {
+	t.Run("error - invalid issuer", func(t *testing.T) {
 		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		issuer, _ := did.ParseURI(r.Issuer.String() + "2")
+		r2 := r
+		r2.Issuer = *issuer
+
+		err := instance.verifyRevocation(r2)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "issuer of revocation is not the same as issuer of credential")
+	})
+
+	t.Run("error - invalid vm", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		vm, _ := did.ParseURI(r.Issuer.String() + "2")
+		r2 := r
+		p := *r2.Proof
+		p.VerificationMethod = *vm
+		r2.Proof = &p
+
+		err := instance.verifyRevocation(r2)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "verification method is not of issuer")
+	})
+
+	t.Run("error - invalid revocation", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		r2 := r
+		r2.Issuer = did.URI{}
+
+		err := instance.verifyRevocation(r2)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - invalid signature", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		r2 := r
+		r2.Reason = "sig fails"
+
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
+
+		err := instance.verifyRevocation(r2)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - incorrect signature", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		r2 := r
+		r2.Proof = &did.JSONWebSignature2020Proof{}
+
+		err := instance.verifyRevocation(r2)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - resolving key", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any())
-		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		err := ctx.vcr.Write(did.VerifiableCredential{})
+		err := instance.verifyRevocation(r)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - incorrect base64 encoded sig", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		defer ctx.ctrl.Finish()
+		r2 := r
+		r2.Proof.Jws = "====..===="
+
+		err := instance.verifyRevocation(r2)
 
 		assert.Error(t, err)
 	})

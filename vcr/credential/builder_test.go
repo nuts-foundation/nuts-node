@@ -20,7 +20,6 @@
 package credential
 
 import (
-	"net/url"
 	"testing"
 	"time"
 
@@ -52,32 +51,17 @@ func TestDefaultBuilder_Type(t *testing.T) {
 }
 
 func TestDefaultBuilder_Fill(t *testing.T) {
-	u2, _ := url.Parse(vdr.RandomDID.String())
-	issuer := did.URI{URL: *u2}
 	b := defaultBuilder{vcType: "type"}
-	t.Run("default VC type is not added twice if already present", func(t *testing.T) {
-		vc := &did.VerifiableCredential{
-			Type:   []did.URI{did.VerifiableCredentialTypeV1URI()},
-			Issuer: issuer,
-		}
-		b.Fill(vc)
-		assert.Len(t, vc.Type, 2)
-	})
-}
-
-func TestDefaultBuilder_Build(t *testing.T) {
+	issuer, _ := did.ParseURI(vdr.TestDIDA.String())
+	vc := &did.VerifiableCredential{
+		Issuer: *issuer,
+	}
 	defer func() {
 		nowFunc = time.Now
 	}()
 	checkTime := time.Now()
-	b := defaultBuilder{vcType: "type"}
 	nowFunc = func() time.Time {
 		return checkTime
-	}
-	u2, _ := url.Parse(vdr.TestDIDA.String())
-	issuer := did.URI{URL: *u2}
-	vc := &did.VerifiableCredential{
-		Issuer: issuer,
 	}
 
 	b.Fill(vc)
@@ -103,5 +87,14 @@ func TestDefaultBuilder_Build(t *testing.T) {
 
 	t.Run("sets time", func(t *testing.T) {
 		assert.Equal(t, checkTime, vc.IssuanceDate)
+	})
+
+	t.Run("default VC type is not added twice if already present", func(t *testing.T) {
+		vc := &did.VerifiableCredential{
+			Type:   []did.URI{did.VerifiableCredentialTypeV1URI()},
+			Issuer: *issuer,
+		}
+		b.Fill(vc)
+		assert.Len(t, vc.Type, 2)
 	})
 }

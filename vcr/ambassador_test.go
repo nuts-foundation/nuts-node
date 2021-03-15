@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,13 +46,13 @@ func TestAmbassador_Configure(t *testing.T) {
 		defer ctrl.Finish()
 
 		a := NewAmbassador(nMock, nil)
-		nMock.EXPECT().Subscribe(vcDocumentType, gomock.Any())
+		nMock.EXPECT().Subscribe(gomock.Any(), gomock.Any()).MinTimes(2)
 
 		a.Configure()
 	})
 }
 
-func TestAmbassador_callback(t *testing.T) {
+func TestAmbassador_vcCallback(t *testing.T) {
 	payload := []byte(concept.TestCredential)
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), vcDocumentType, nil)
 	stx := tx.(dag.SubscriberTransaction)
@@ -63,12 +64,12 @@ func TestAmbassador_callback(t *testing.T) {
 
 		vc := did.VerifiableCredential{}
 		a := NewAmbassador(nil, wMock).(ambassador)
-		wMock.EXPECT().Write(gomock.Any()).DoAndReturn(func(f interface{}) error {
+		wMock.EXPECT().StoreCredential(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			vc = f.(did.VerifiableCredential)
 			return nil
 		})
 
-		err := a.callback(stx, payload)
+		err := a.vcCallback(stx, payload)
 
 		if !assert.NoError(t, err) {
 			return
@@ -83,9 +84,73 @@ func TestAmbassador_callback(t *testing.T) {
 		defer ctrl.Finish()
 
 		a := NewAmbassador(nil, wMock).(ambassador)
-		wMock.EXPECT().Write(gomock.Any()).Return(errors.New("b00m!"))
+		wMock.EXPECT().StoreCredential(gomock.Any()).Return(errors.New("b00m!"))
 
-		err := a.callback(stx, payload)
+		err := a.vcCallback(stx, payload)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - invalid payload", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wMock := NewMockWriter(ctrl)
+		defer ctrl.Finish()
+
+		a := NewAmbassador(nil, wMock).(ambassador)
+
+		err := a.vcCallback(stx, []byte("{"))
+
+		assert.Error(t, err)
+	})
+}
+
+func TestAmbassador_rCallback(t *testing.T) {
+	payload := []byte("{\"subject\":\"did:nuts:1#123\"}")
+	tx, _ := dag.NewTransaction(hash.EmptyHash(), revocationDocumentType, nil)
+	stx := tx.(dag.SubscriberTransaction)
+
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wMock := NewMockWriter(ctrl)
+		defer ctrl.Finish()
+
+		r := credential.Revocation{}
+		a := NewAmbassador(nil, wMock).(ambassador)
+		wMock.EXPECT().StoreRevocation(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			r = f.(credential.Revocation)
+			return nil
+		})
+
+		err := a.rCallback(stx, payload)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, "did:nuts:1#123", r.Subject.String())
+	})
+
+	t.Run("error - storing fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wMock := NewMockWriter(ctrl)
+		defer ctrl.Finish()
+
+		a := NewAmbassador(nil, wMock).(ambassador)
+		wMock.EXPECT().StoreRevocation(gomock.Any()).Return(errors.New("b00m!"))
+
+		err := a.rCallback(stx, payload)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - invalid payload", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wMock := NewMockWriter(ctrl)
+		defer ctrl.Finish()
+
+		a := NewAmbassador(nil, wMock).(ambassador)
+
+		err := a.rCallback(stx, []byte("{"))
 
 		assert.Error(t, err)
 	})
