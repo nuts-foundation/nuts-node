@@ -51,19 +51,6 @@ func TestDefaultBuilder_Type(t *testing.T) {
 }
 
 func TestDefaultBuilder_Fill(t *testing.T) {
-	issuer, _ := did.ParseURI(vdr.RandomDID.String())
-	b := defaultBuilder{vcType: "type"}
-	t.Run("default VC type is not added twice if already present", func(t *testing.T) {
-		vc := &did.VerifiableCredential{
-			Type:   []did.URI{did.VerifiableCredentialTypeV1URI()},
-			Issuer: *issuer,
-		}
-		b.Fill(vc)
-		assert.Len(t, vc.Type, 2)
-	})
-}
-
-func TestDefaultBuilder_Build(t *testing.T) {
 	b := defaultBuilder{vcType: "type"}
 	issuer, _ := did.ParseURI(vdr.RandomDID.String())
 	vc := &did.VerifiableCredential{
@@ -100,5 +87,14 @@ func TestDefaultBuilder_Build(t *testing.T) {
 
 	t.Run("sets time", func(t *testing.T) {
 		assert.Equal(t, checkTime, vc.IssuanceDate)
+	})
+
+	t.Run("default VC type is not added twice if already present", func(t *testing.T) {
+		vc := &did.VerifiableCredential{
+			Type:   []did.URI{did.VerifiableCredentialTypeV1URI()},
+			Issuer: *issuer,
+		}
+		b.Fill(vc)
+		assert.Len(t, vc.Type, 2)
 	})
 }
