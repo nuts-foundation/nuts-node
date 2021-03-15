@@ -208,7 +208,7 @@ func TestWrapper_Search(t *testing.T) {
 			return nil
 		})
 
-		err := ctx.client.Search(ctx.echo, "company")
+		err := ctx.client.Search(ctx.echo, "human")
 
 		if !assert.NoError(t, err) {
 			return
@@ -216,7 +216,7 @@ func TestWrapper_Search(t *testing.T) {
 
 		assert.Len(t, capturedConcept, 1)
 		assert.Equal(t, "did:nuts:1#123", capturedConcept[0]["id"])
-		assert.Equal(t, "ExampleCredential", capturedConcept[0]["type"])
+		assert.Equal(t, "HumanCredential", capturedConcept[0]["type"])
 	})
 
 	t.Run("error - unknown template", func(t *testing.T) {
@@ -252,7 +252,7 @@ func TestWrapper_Search(t *testing.T) {
 		ctx.echo.EXPECT().Bind(gomock.Any())
 		ctx.vcr.EXPECT().Search(gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		err := ctx.client.Search(ctx.echo, "company")
+		err := ctx.client.Search(ctx.echo, "human")
 
 		assert.Error(t, err)
 	})

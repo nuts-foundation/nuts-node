@@ -42,7 +42,7 @@ type Registry interface {
 // Queries are created through the conceptRegistry to add the correct templates.
 // The registry can also do transformations of VCs and queries to the correct format.
 // Concepts are automatically determined from the ConceptTemplates
-// a concept value of <<company.name>> creates the concept "company"
+// a concept value of <<organization.name>> creates the concept "organization"
 type registry struct {
 	conceptTemplates map[string][]*Template
 	typedTemplates   map[string]*Template
