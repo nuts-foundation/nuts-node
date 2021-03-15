@@ -217,6 +217,7 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 		Version:    document.TimelineVersion(),
 		TimelineID: document.TimelineID(),
 		Hash:       document.PayloadHash(),
+		Deactivated: isDeactivated(&proposedDIDDocument),
 	}
 	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 }

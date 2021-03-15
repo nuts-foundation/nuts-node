@@ -39,8 +39,9 @@ func TestCopy(t *testing.T) {
 		Version:    5,
 		TimelineID: hTime,
 		Hash:       h,
+		Deactivated: false,
 	}
-	numFields := 5
+	numFields := 6
 
 	t.Run("returns error if metadata can be manipulated", func(t *testing.T) {
 		var metaCopy DocumentMetadata
