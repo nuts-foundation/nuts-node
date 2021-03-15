@@ -101,6 +101,8 @@ func (hb HTTPClient) Update(DID string, current string, next did.Document) (*did
 	return readDIDDocument(response.Body)
 }
 
+// Deactivate a DID Document given a DID.
+// It expects a status 200 response from the server, returns an error otherwise.
 func (hb HTTPClient) Deactivate(DID string) error {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()

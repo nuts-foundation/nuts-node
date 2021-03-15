@@ -104,6 +104,8 @@ func (a Wrapper) UpdateDID(ctx echo.Context, did string) error {
 	return ctx.JSON(http.StatusOK, req.Document)
 }
 
+// DeactivateDID deactivates a DID Document given a DID.
+// It returns a 200 and an empty body if the deactivation was successful.
 func (a *Wrapper) DeactivateDID(ctx echo.Context, did string) error {
 	id, err := did2.ParseDID(did)
 	if err != nil {
