@@ -254,7 +254,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.echo.EXPECT().String(http.StatusForbidden, "could not update document: did document not managed by this host")
+		ctx.echo.EXPECT().String(http.StatusForbidden, "could not update document: DID document not managed by this node")
 		ctx.vdr.EXPECT().Update(*did, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
 
 		err := ctx.client.UpdateDID(ctx.echo, did.String())
@@ -309,7 +309,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 		ctx.vdr.EXPECT().Deactivate(*did123).Return(types.ErrDIDNotManagedByThisNode)
 		defer ctx.ctrl.Finish()
 
-		ctx.echo.EXPECT().String(http.StatusForbidden, "could not deactivate document: did document not managed by this host")
+		ctx.echo.EXPECT().String(http.StatusForbidden, "could not deactivate document: DID document not managed by this node")
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 		assert.NoError(t, err)
 	})

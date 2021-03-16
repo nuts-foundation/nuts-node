@@ -119,7 +119,7 @@ func TestVDR_Update(t *testing.T) {
 		networkMock.EXPECT().CreateTransaction(gomock.Any(), gomock.Any(), gomock.Any(), nil, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, crypto.ErrKeyNotFound)
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
 		assert.Error(t, err)
-		assert.EqualError(t, err, "did document not managed by this host")
+		assert.EqualError(t, err, "DID document not managed by this node")
 		assert.True(t, errors.Is(err, types.ErrDIDNotManagedByThisNode),
 			"expected ErrDIDNotManagedByThisNode error when the document is not managed by this node")
 	})
