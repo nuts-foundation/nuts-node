@@ -34,13 +34,14 @@ func TestCopy(t *testing.T) {
 	hTime, _ := hash.ParseHex("542d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 
 	meta := DocumentMetadata{
-		Created:    timeBefore,
-		Updated:    &timeNow,
-		Version:    5,
-		TimelineID: hTime,
-		Hash:       h,
+		Created:     timeBefore,
+		Updated:     &timeNow,
+		Version:     5,
+		TimelineID:  hTime,
+		Hash:        h,
+		Deactivated: false,
 	}
-	numFields := 5
+	numFields := 6
 
 	t.Run("returns error if metadata can be manipulated", func(t *testing.T) {
 		var metaCopy DocumentMetadata

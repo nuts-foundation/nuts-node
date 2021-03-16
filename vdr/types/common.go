@@ -53,6 +53,8 @@ type DocumentMetadata struct {
 	TimelineID hash.SHA256Hash `json:"timelineID"`
 	// Hash of DID document bytes. Is equal to payloadHash in network layer.
 	Hash hash.SHA256Hash `json:"hash"`
+	// Deactivated indicates if the document is deactivated
+	Deactivated bool `json:"deactivated"`
 }
 
 // Copy creates a deep copy of DocumentMetadata

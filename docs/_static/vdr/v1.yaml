@@ -14,7 +14,7 @@ paths:
         - DID
       responses:
         "201":
-          description: "New DID has been created successfully. Returns the DID Document."
+          description: "New DID has been created successfully. Returns the DID document."
           content:
             application/json+did-document:
               schema:
@@ -36,7 +36,7 @@ paths:
         schema:
           type: string
     get:
-      summary: "Resolves a Nuts DID Document"
+      summary: "Resolves a Nuts DID document"
       operationId: "getDID"
       tags:
         - DID
@@ -65,7 +65,7 @@ paths:
               schema:
                 type: string
     put:
-      summary: Updates a Nuts DID Document.
+      summary: Updates a Nuts DID document.
       operationId: "updateDID"
       tags:
         - DID
@@ -77,13 +77,13 @@ paths:
               $ref: '#/components/schemas/DIDUpdateRequest'
       responses:
         "200":
-          description: DID Document has been updated.
+          description: DID document has been updated.
           content:
             application/json+did-document:
               schema:
                  $ref: '#/components/schemas/DIDDocument'
         "400":
-          description: DID couldn't be updated because the input conflicts or is malformed.
+          description: DID document couldn't be updated because the did param was malformed or the document was deactivated.
           content:
             text/plain:
               schema:
@@ -100,12 +100,43 @@ paths:
             text/plain:
               schema:
                 type: string
-
+    delete:
+      summary: Deactivates a Nuts DID document according to the specification.
+      operationId: "deactivateDID"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: DID document has been deactivated.
+        "400":
+          description: DID document couldn't be updated because the DID param was malformed.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "404":
+          description: Corresponding DID document could not be found.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "409":
+          description: DID document couldn't be updated because the the document was already deactivated.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "500":
+          description: An error occurred while processing the request.
+          content:
+            text/plain:
+              schema:
+                type: string
 components:
   schemas:
     DIDDocument:
       type: object
-      description: A DID Document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
+      description: A DID document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
       required:
         - id
       properties:
@@ -125,7 +156,7 @@ components:
           items:
             type: string
         controller:
-          description: List of DIDs that have control over the DID Document
+          description: List of DIDs that have control over the DID document
           type: array
           items:
             type: string
@@ -145,7 +176,7 @@ components:
             $ref: '#/components/schemas/VerificationMethod'
     DIDDocumentMetadata:
       type: object
-      description: The DID Document metadata.
+      description: The DID document metadata.
       required:
         - created
         - hash
@@ -153,19 +184,19 @@ components:
         - version
       properties:
         created:
-          description: Time when DID Document was created in rfc3339 form.
+          description: Time when DID document was created in rfc3339 form.
           type: string
         hash:
           description: Sha256 in hex form of the DID document contents.
           type: string
         originJWSHash:
-          description: Sha256 in hex form of the transaction in which the DID Document was published.
+          description: Sha256 in hex form of the transaction in which the DID document was published.
           type: string
         updated:
-          description: Time when DID Document was updated in rfc3339 form.
+          description: Time when DID document was updated in rfc3339 form.
           type: string
         version:
-          description: Version of the DID Document, starting at 1.
+          description: Version of the DID document, starting at 1.
           type: integer
     DIDResolutionResult:
       required:

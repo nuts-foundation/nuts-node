@@ -200,7 +200,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected authenticationKey of documentB to be removed from the keyStore")
 
 	// deactivate document B
-	err = vdr.Deactivate(docB.ID, metadataDocB.Hash)
+	err = vdr.Deactivate(docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
 
@@ -210,7 +210,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected document B to not have any authentication methods after deactivation")
 
 	// try to deactivate the document again
-	err = vdr.Deactivate(docB.ID, metadataDocB.Hash)
+	err = vdr.Deactivate(docB.ID)
 	assert.EqualError(t, err, "the document has been deactivated",
 		"expected an error when trying to deactivate an already deactivated document")
 

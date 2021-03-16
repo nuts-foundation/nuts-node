@@ -103,3 +103,23 @@ func (a Wrapper) UpdateDID(ctx echo.Context, did string) error {
 
 	return ctx.JSON(http.StatusOK, req.Document)
 }
+
+// DeactivateDID deactivates a DID Document given a DID.
+// It returns a 200 and an empty body if the deactivation was successful.
+func (a *Wrapper) DeactivateDID(ctx echo.Context, did string) error {
+	id, err := did2.ParseDID(did)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+	}
+
+	if err = a.VDR.Deactivate(*id); err != nil {
+		if errors.Is(err, types.ErrNotFound) {
+			return ctx.NoContent(http.StatusNotFound)
+		}
+		if errors.Is(err, types.ErrDeactivated) {
+			return ctx.String(http.StatusConflict, fmt.Sprintf("could not deactivate document: %s", err.Error()))
+		}
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("could not deactivate document: %s", err.Error()))
+	}
+	return ctx.NoContent(http.StatusOK)
+}

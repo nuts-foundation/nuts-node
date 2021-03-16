@@ -328,6 +328,68 @@ func Test_ambassador_callback(t *testing.T) {
 		}
 		assert.Equal(t, "key used to sign transaction must be be part of DID Document authentication", err.Error())
 	})
+	t.Run("update ok - with a deactivated document", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		didStoreMock := types.NewMockStore(ctrl)
+		keyStore := crypto.NewMockPublicKeyStore(ctrl)
+
+		am := ambassador{
+			didStore: didStoreMock,
+			keyStore: keyStore,
+		}
+		didDocument, signingKey, err := newDidDoc()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		didDocPayload, _ := json.Marshal(didDocument)
+		payloadHash := hash.SHA256Sum(didDocPayload)
+
+		subDoc := newSubscriberDoc()
+		subDoc.signingKeyID = didDocument.Authentication[0].ID.String()
+		subDoc.timelineVersion = 1
+		subDoc.timelineID = timelineID
+		subDoc.payloadHash = payloadHash
+
+		storedDocument := did.Document{}
+		json.Unmarshal(didDocPayload, &storedDocument)
+
+		deactivatedDocument := did.Document{ID: storedDocument.ID}
+		didDocPayload, _ = json.Marshal(deactivatedDocument)
+
+		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
+
+		// This is the metadata of the current version of the document which will be returned by the resolver
+		currentMetadata := &types.DocumentMetadata{
+			Created:    createdAt,
+			Updated:    nil,
+			Version:    0,
+			TimelineID: timelineID,
+			Hash:       currentPayloadHash,
+		}
+
+		// This is the metadata that will be written during the update
+		expectedNextMetadata := types.DocumentMetadata{
+			Created:     createdAt,
+			Updated:     &signingTime,
+			Version:     1,
+			TimelineID:  timelineID,
+			Hash:        payloadHash,
+			Deactivated: true,
+		}
+		var pKey crypto2.PublicKey
+		signingKey.Raw(&pKey)
+
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&storedDocument, currentMetadata, nil)
+		keyStore.EXPECT().GetPublicKey(didDocument.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
+		keyStore.EXPECT().RevokePublicKey(storedDocument.Authentication[0].ID.String(), gomock.Any())
+		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
+
+		err = am.callback(subDoc, didDocPayload)
+		assert.NoError(t, err)
+	})
 
 	t.Run("update ok - with the exact same document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
