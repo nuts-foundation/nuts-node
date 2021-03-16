@@ -214,7 +214,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 	t.Run("unknown key", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
 		signature, err := client.SignJWS(payload, map[string]interface{}{}, "unknown")
-		assert.Contains(t, err.Error(), "error while signing JWS, can't get private key")
+		assert.True(t, errors.Is(err, ErrKeyNotFound))
 		assert.Empty(t, signature)
 	})
 }

@@ -25,6 +25,7 @@ package vdr
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -160,6 +161,11 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now(), dag.TimelineIDField(meta.TimelineID), dag.TimelineVersionField(meta.Version+1))
 	if err == nil {
 		logging.Log().Infof("DID Document updated: %s", id)
+	} else {
+		logging.Log().WithError(err).Info("unable to update DID document")
+		if errors.Is(err, crypto.ErrKeyNotFound) {
+			return types.ErrDIDNotManagedByThisNode
+		}
 	}
 
 	return err

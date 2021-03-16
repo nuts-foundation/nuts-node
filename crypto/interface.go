@@ -85,12 +85,15 @@ type KeyStore interface {
 
 // JWSSigner defines the functions for signing JSON Web Signatures.
 type JWSSigner interface {
-	// SignJWS creates a signed JWS (in compact form using) the given key (private key must be present), protected headers and payload.
+	// SignJWS creates a signed JWS using the indicated key.
+	// It contains protected headers and a payload.
+	// Returns ErrKeyNotFound when indicated private key is not present.
 	SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error)
 }
 
-// JWTSigner is the interface used to sign authorization tokens
+// JWTSigner is the interface used to sign authorization tokens.
 type JWTSigner interface {
-	// SignJWT creates a signed JWT using the given key and map of claims (private key must be present).
+	// SignJWT creates a signed JWT using the indicated key and map of claims.
+	// Returns ErrKeyNotFound when indicated private key is not present.
 	SignJWT(claims map[string]interface{}, kid string) (string, error)
 }

@@ -226,6 +226,40 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 		assert.NoError(t, err)
 	})
+
+	t.Run("error - document deactivated", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*DIDUpdateRequest)
+			*p = didUpdate
+			return nil
+		})
+
+		ctx.echo.EXPECT().String(http.StatusConflict, "could not update document: the document has been deactivated")
+		ctx.vdr.EXPECT().Update(*did, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDeactivated)
+
+		err := ctx.client.UpdateDID(ctx.echo, did.String())
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - did not managed by this node", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*DIDUpdateRequest)
+			*p = didUpdate
+			return nil
+		})
+
+		ctx.echo.EXPECT().String(http.StatusForbidden, "could not update document: did document not managed by this host")
+		ctx.vdr.EXPECT().Update(*did, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
+
+		err := ctx.client.UpdateDID(ctx.echo, did.String())
+		assert.NoError(t, err)
+	})
 }
 
 func TestWrapper_DeactivateDID(t *testing.T) {
@@ -265,6 +299,16 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().String(http.StatusConflict, "could not deactivate document: the document has been deactivated")
+		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - did not managed by this node", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Deactivate(*did123).Return(types.ErrDIDNotManagedByThisNode)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().String(http.StatusForbidden, "could not deactivate document: did document not managed by this host")
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 		assert.NoError(t, err)
 	})

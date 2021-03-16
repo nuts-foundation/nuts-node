@@ -57,8 +57,9 @@ type DocUpdater interface {
 	// Update replaces the DID document identified by DID with the nextVersion
 	// To prevent updating stale data a hash of the current version should be provided.
 	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
-	// If the DID Document is not found or not local a ErrNotFound is returned
-	// If the DID Document is not active a ErrDeactivated is returned
+	// If the DID Document is not found, ErrNotFound is returned
+	// If the DID Document is not managed by this node, ErrDIDNotManagedByThisNode is returned
+	// If the DID Document is not active, ErrDeactivated is returned
 	Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error
 }
 
@@ -66,7 +67,8 @@ type DocUpdater interface {
 // Deactivation will be done in such a way that a DID doc cannot be used / activated anymore.
 type DocDeactivator interface {
 	// Since the deactivation is definitive, no version is required
-	// If the DID Document is not found or not local a ErrNotFound is returned
+	// If the DID Document is not found ErrNotFound is returned
+	// If the DID Document is not managed by this node, ErrDIDNotManagedByThisNode is returned
 	// If the DID Document is already deactivated ErrDeactivated is returned
 	Deactivate(id did.DID) error
 }
