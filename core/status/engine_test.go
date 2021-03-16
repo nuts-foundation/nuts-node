@@ -1,6 +1,7 @@
-package core
+package status
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"testing"
@@ -14,19 +15,19 @@ func TestNewStatusEngine_Routes(t *testing.T) {
 	t.Run("Registers a single route for listing all engines", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		echo := NewMockEchoRouter(ctrl)
+		echo := core.NewMockEchoRouter(ctrl)
 
 		echo.EXPECT().Add(http.MethodGet, "/status/diagnostics", gomock.Any())
 		echo.EXPECT().Add(http.MethodGet, "/status", gomock.Any())
 
-		NewStatusEngine(NewSystem()).(*status).Routes(echo)
+		NewStatusEngine(core.NewSystem()).(*status).Routes(echo)
 	})
 }
 
 func TestNewStatusEngine_Diagnostics(t *testing.T) {
-	system := NewSystem()
+	system := core.NewSystem()
 	system.RegisterEngine(NewStatusEngine(system))
-	system.RegisterEngine(NewMetricsEngine())
+	system.RegisterEngine(core.NewMetricsEngine())
 
 	t.Run("diagnostics() returns engine list", func(t *testing.T) {
 		system := NewStatusEngine(system)
