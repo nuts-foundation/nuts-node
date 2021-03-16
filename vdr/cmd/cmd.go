@@ -190,10 +190,10 @@ func askYesNo(question string, cmd *cobra.Command) (answer bool) {
 		}
 		s = strings.TrimSuffix(s, "\n")
 		s = strings.ToLower(s)
-		if  s == "y" || s == "yes" {
+		if s == "y" || s == "yes" {
 			answer = true
 			break
-		} else if  s == "n" || s == "no" {
+		} else if s == "n" || s == "no" {
 			break
 		}
 		cmd.Println("invalid answer")
