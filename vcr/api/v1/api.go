@@ -22,6 +22,7 @@ package v1
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
