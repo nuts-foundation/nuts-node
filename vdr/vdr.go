@@ -175,7 +175,7 @@ func (r *VDR) Deactivate(id did.DID) error {
 	if err != nil {
 		return err
 	}
-	// A deactivated document is the original document stripped from a controller and keys.
+	// A deactivated DID resolves to an empty DID document.
 	emptyDoc := did.Document{
 		Context: []did.URI{did.DIDContextV1URI()},
 		ID:      id,
