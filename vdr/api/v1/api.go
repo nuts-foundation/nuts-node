@@ -96,7 +96,7 @@ func (a Wrapper) UpdateDID(ctx echo.Context, did string) error {
 
 	err = a.VDR.Update(*d, h, req.Document, nil)
 	if err != nil {
-		return handleError(ctx, err,  "could not update document: %s")
+		return handleError(ctx, err, "could not update document: %s")
 	}
 	return ctx.JSON(http.StatusOK, req.Document)
 }
