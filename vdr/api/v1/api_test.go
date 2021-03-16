@@ -189,7 +189,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			*p = didUpdate
 			return nil
 		})
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
+		ctx.echo.EXPECT().String(http.StatusInternalServerError, gomock.Any())
 		ctx.vdr.EXPECT().Update(*did, gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("b00m!"))
 		err := ctx.client.UpdateDID(ctx.echo, did.String())
 

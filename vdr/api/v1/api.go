@@ -126,7 +126,7 @@ func handleError(ctx echo.Context, err error, errTemplate string) error {
 		if errors.Is(err, types.ErrDeactivated) {
 			return ctx.String(http.StatusConflict, fmt.Sprintf(errTemplate, err.Error()))
 		}
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf(errTemplate, err.Error()))
+		return ctx.String(http.StatusInternalServerError, fmt.Sprintf(errTemplate, err.Error()))
 	}
 	return err
 }
