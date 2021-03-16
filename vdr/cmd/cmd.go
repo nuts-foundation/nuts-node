@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/sirupsen/logrus"
@@ -161,6 +162,10 @@ func deactivateCmd() *cobra.Command {
 		Short: "Deactivate a DID document based on its DID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if !askYesNo("This wil delete the did document, are you sure?", cmd) {
+				cmd.Println("Deactivation cancelled")
+				return nil
+			}
 			err := httpClient(cmd.Flags()).Deactivate(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to deactivate DID document: %v", err)
@@ -171,6 +176,29 @@ func deactivateCmd() *cobra.Command {
 		},
 	}
 	return result
+}
+
+func askYesNo(question string, cmd *cobra.Command) (answer bool) {
+	reader := bufio.NewReader(cmd.InOrStdin())
+	question += "[yes/no]: "
+
+	for true {
+		cmd.Print(question)
+		s, err := reader.ReadString('\n')
+		if err != nil {
+			break
+		}
+		s = strings.TrimSuffix(s, "\n")
+		s = strings.ToLower(s)
+		if  s == "y" || s == "yes" {
+			answer = true
+			break
+		} else if  s == "n" || s == "no" {
+			break
+		}
+		cmd.Println("invalid answer")
+	}
+	return
 }
 
 func readFromStdin() ([]byte, error) {
