@@ -17,7 +17,7 @@
  *
  */
 
-package vcr
+package trust
 
 import (
 	"path"
@@ -30,24 +30,21 @@ import (
 
 const nutsTestCredential = "NutsOrganizationCredential"
 
-func TestTrustConfig_Save(t *testing.T) {
+func TestTrustConfig_save(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
-		tc := trustConfig{
-			filename:      path.Join(testDir, "test.yaml"),
-			issuesPerType: map[string][]string{},
-		}
+		tc := NewConfig(path.Join(testDir, "test.yaml"))
 
-		tc.issuesPerType[nutsTestCredential] = []string{"did:nuts:1"}
+		tc.issuersPerType[nutsTestCredential] = []string{"did:nuts:1"}
 
-		err := tc.Save()
+		err := tc.save()
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		tc2 := trustConfig{
-			filename:      path.Join(testDir, "test.yaml"),
-			issuesPerType: map[string][]string{},
+		tc2 := TrustConfig{
+			filename:       path.Join(testDir, "test.yaml"),
+			issuersPerType: map[string][]string{},
 		}
 
 		err = tc2.Load()
@@ -55,31 +52,25 @@ func TestTrustConfig_Save(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, []string{"did:nuts:1"}, tc2.issuesPerType[nutsTestCredential])
+		assert.Equal(t, []string{"did:nuts:1"}, tc2.issuersPerType[nutsTestCredential])
 	})
 }
 
 func TestTrustConfig_Load(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		tc := trustConfig{
-			filename:      "test/issuers.yaml",
-			issuesPerType: map[string][]string{},
-		}
+		tc := NewConfig("../test/issuers.yaml")
 
 		err := tc.Load()
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		assert.Equal(t, []string{"did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv"}, tc.issuesPerType[nutsTestCredential])
+		assert.Equal(t, []string{"did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv"}, tc.issuersPerType[nutsTestCredential])
 	})
 }
 
 func TestTrustConfig_IsTrusted(t *testing.T) {
-	tc := trustConfig{
-		filename:      "test/issuers.yaml",
-		issuesPerType: map[string][]string{},
-	}
+	tc := NewConfig("../test/issuers.yaml")
 
 	err := tc.Load()
 	if !assert.NoError(t, err) {

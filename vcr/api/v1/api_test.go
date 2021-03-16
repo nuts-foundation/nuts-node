@@ -373,7 +373,7 @@ func TestWrapper_Revoke(t *testing.T) {
 	})
 }
 
-func TestWrapper_AddRemoveTrust(t *testing.T) {
+func TestWrapper_TrustUntrust(t *testing.T) {
 	vc := concept.TestVC()
 	issuer := vc.Issuer
 	cType := vc.Type[0]
@@ -383,15 +383,15 @@ func TestWrapper_AddRemoveTrust(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			capturedCombination := f.(*IssuerCredentialCombination)
+			capturedCombination := f.(*CredentialIssuer)
 			capturedCombination.CredentialType = cType.String()
 			capturedCombination.Issuer = issuer.String()
 			return nil
 		})
-		ctx.vcr.EXPECT().AddTrust(cType, issuer).Return(nil)
+		ctx.vcr.EXPECT().Trust(cType, issuer).Return(nil)
 		ctx.echo.EXPECT().NoContent(http.StatusAccepted)
 
-		ctx.client.AddTrust(ctx.echo)
+		ctx.client.TrustIssuer(ctx.echo)
 	})
 
 	t.Run("ok - remove", func(t *testing.T) {
@@ -399,15 +399,15 @@ func TestWrapper_AddRemoveTrust(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			capturedCombination := f.(*IssuerCredentialCombination)
+			capturedCombination := f.(*CredentialIssuer)
 			capturedCombination.CredentialType = cType.String()
 			capturedCombination.Issuer = issuer.String()
 			return nil
 		})
-		ctx.vcr.EXPECT().RemoveTrust(cType, issuer).Return(nil)
+		ctx.vcr.EXPECT().Untrust(cType, issuer).Return(nil)
 		ctx.echo.EXPECT().NoContent(http.StatusAccepted)
 
-		ctx.client.RemoveTrust(ctx.echo)
+		ctx.client.UntrustIssuer(ctx.echo)
 	})
 
 	t.Run("error - invalid issuer", func(t *testing.T) {
@@ -415,14 +415,14 @@ func TestWrapper_AddRemoveTrust(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			capturedCombination := f.(*IssuerCredentialCombination)
+			capturedCombination := f.(*CredentialIssuer)
 			capturedCombination.CredentialType = cType.String()
 			capturedCombination.Issuer = string([]byte{0})
 			return nil
 		})
 		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 
-		ctx.client.AddTrust(ctx.echo)
+		ctx.client.TrustIssuer(ctx.echo)
 	})
 
 	t.Run("error - invalid credential", func(t *testing.T) {
@@ -430,14 +430,14 @@ func TestWrapper_AddRemoveTrust(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			capturedCombination := f.(*IssuerCredentialCombination)
+			capturedCombination := f.(*CredentialIssuer)
 			capturedCombination.CredentialType = string([]byte{0})
 			capturedCombination.Issuer = cType.String()
 			return nil
 		})
 		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 
-		ctx.client.AddTrust(ctx.echo)
+		ctx.client.TrustIssuer(ctx.echo)
 	})
 
 	t.Run("error - invalid body", func(t *testing.T) {
@@ -449,7 +449,7 @@ func TestWrapper_AddRemoveTrust(t *testing.T) {
 		})
 		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 
-		ctx.client.AddTrust(ctx.echo)
+		ctx.client.TrustIssuer(ctx.echo)
 	})
 
 	t.Run("error - failed to add", func(t *testing.T) {
@@ -457,14 +457,14 @@ func TestWrapper_AddRemoveTrust(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			capturedCombination := f.(*IssuerCredentialCombination)
+			capturedCombination := f.(*CredentialIssuer)
 			capturedCombination.CredentialType = cType.String()
 			capturedCombination.Issuer = issuer.String()
 			return nil
 		})
-		ctx.vcr.EXPECT().AddTrust(cType, issuer).Return(errors.New("b00m!"))
+		ctx.vcr.EXPECT().Trust(cType, issuer).Return(errors.New("b00m!"))
 
-		err := ctx.client.AddTrust(ctx.echo)
+		err := ctx.client.TrustIssuer(ctx.echo)
 
 		assert.Error(t, err)
 	})

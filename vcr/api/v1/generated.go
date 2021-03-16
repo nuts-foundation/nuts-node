@@ -18,8 +18,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// IssuerCredentialCombination defines model for IssuerCredentialCombination.
-type IssuerCredentialCombination struct {
+// CredentialIssuer defines model for CredentialIssuer.
+type CredentialIssuer struct {
 
 	// a credential type
 	CredentialType string `json:"credentialType"`
@@ -39,7 +39,7 @@ type KeyValuePair struct {
 // ResolutionResult defines model for ResolutionResult.
 type ResolutionResult struct {
 
-	// trusted is the only valid state. Revoked is returned regardless of if it's trusted.
+	// Only credentials with with "trusted" state are valid. If a revoked credential is also untrusted, revoked will be returned.
 	CurrentStatus string `json:"currentStatus"`
 
 	// A credential according to the W3C and Nuts specs.
@@ -59,20 +59,20 @@ type SearchRequest struct {
 	Params []KeyValuePair `json:"params"`
 }
 
-// RemoveTrustJSONBody defines parameters for RemoveTrust.
-type RemoveTrustJSONBody IssuerCredentialCombination
+// UntrustIssuerJSONBody defines parameters for UntrustIssuer.
+type UntrustIssuerJSONBody CredentialIssuer
 
-// AddTrustJSONBody defines parameters for AddTrust.
-type AddTrustJSONBody IssuerCredentialCombination
+// TrustIssuerJSONBody defines parameters for TrustIssuer.
+type TrustIssuerJSONBody CredentialIssuer
 
 // SearchJSONBody defines parameters for Search.
 type SearchJSONBody SearchRequest
 
-// RemoveTrustRequestBody defines body for RemoveTrust for application/json ContentType.
-type RemoveTrustJSONRequestBody RemoveTrustJSONBody
+// UntrustIssuerRequestBody defines body for UntrustIssuer for application/json ContentType.
+type UntrustIssuerJSONRequestBody UntrustIssuerJSONBody
 
-// AddTrustRequestBody defines body for AddTrust for application/json ContentType.
-type AddTrustJSONRequestBody AddTrustJSONBody
+// TrustIssuerRequestBody defines body for TrustIssuer for application/json ContentType.
+type TrustIssuerJSONRequestBody TrustIssuerJSONBody
 
 // SearchRequestBody defines body for Search for application/json ContentType.
 type SearchJSONRequestBody SearchJSONBody
@@ -150,15 +150,15 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// RemoveTrust request  with any body
-	RemoveTrustWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error)
+	// UntrustIssuer request  with any body
+	UntrustIssuerWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error)
 
-	RemoveTrust(ctx context.Context, body RemoveTrustJSONRequestBody) (*http.Response, error)
+	UntrustIssuer(ctx context.Context, body UntrustIssuerJSONRequestBody) (*http.Response, error)
 
-	// AddTrust request  with any body
-	AddTrustWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error)
+	// TrustIssuer request  with any body
+	TrustIssuerWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error)
 
-	AddTrust(ctx context.Context, body AddTrustJSONRequestBody) (*http.Response, error)
+	TrustIssuer(ctx context.Context, body TrustIssuerJSONRequestBody) (*http.Response, error)
 
 	// Create request
 	Create(ctx context.Context) (*http.Response, error)
@@ -175,8 +175,8 @@ type ClientInterface interface {
 	Search(ctx context.Context, concept string, body SearchJSONRequestBody) (*http.Response, error)
 }
 
-func (c *Client) RemoveTrustWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error) {
-	req, err := NewRemoveTrustRequestWithBody(c.Server, contentType, body)
+func (c *Client) UntrustIssuerWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := NewUntrustIssuerRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -190,8 +190,8 @@ func (c *Client) RemoveTrustWithBody(ctx context.Context, contentType string, bo
 	return c.Client.Do(req)
 }
 
-func (c *Client) RemoveTrust(ctx context.Context, body RemoveTrustJSONRequestBody) (*http.Response, error) {
-	req, err := NewRemoveTrustRequest(c.Server, body)
+func (c *Client) UntrustIssuer(ctx context.Context, body UntrustIssuerJSONRequestBody) (*http.Response, error) {
+	req, err := NewUntrustIssuerRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -205,8 +205,8 @@ func (c *Client) RemoveTrust(ctx context.Context, body RemoveTrustJSONRequestBod
 	return c.Client.Do(req)
 }
 
-func (c *Client) AddTrustWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error) {
-	req, err := NewAddTrustRequestWithBody(c.Server, contentType, body)
+func (c *Client) TrustIssuerWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := NewTrustIssuerRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -220,8 +220,8 @@ func (c *Client) AddTrustWithBody(ctx context.Context, contentType string, body 
 	return c.Client.Do(req)
 }
 
-func (c *Client) AddTrust(ctx context.Context, body AddTrustJSONRequestBody) (*http.Response, error) {
-	req, err := NewAddTrustRequest(c.Server, body)
+func (c *Client) TrustIssuer(ctx context.Context, body TrustIssuerJSONRequestBody) (*http.Response, error) {
+	req, err := NewTrustIssuerRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -310,19 +310,19 @@ func (c *Client) Search(ctx context.Context, concept string, body SearchJSONRequ
 	return c.Client.Do(req)
 }
 
-// NewRemoveTrustRequest calls the generic RemoveTrust builder with application/json body
-func NewRemoveTrustRequest(server string, body RemoveTrustJSONRequestBody) (*http.Request, error) {
+// NewUntrustIssuerRequest calls the generic UntrustIssuer builder with application/json body
+func NewUntrustIssuerRequest(server string, body UntrustIssuerJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewRemoveTrustRequestWithBody(server, "application/json", bodyReader)
+	return NewUntrustIssuerRequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewRemoveTrustRequestWithBody generates requests for RemoveTrust with any type of body
-func NewRemoveTrustRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewUntrustIssuerRequestWithBody generates requests for UntrustIssuer with any type of body
+func NewUntrustIssuerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	queryUrl, err := url.Parse(server)
@@ -349,19 +349,19 @@ func NewRemoveTrustRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
-// NewAddTrustRequest calls the generic AddTrust builder with application/json body
-func NewAddTrustRequest(server string, body AddTrustJSONRequestBody) (*http.Request, error) {
+// NewTrustIssuerRequest calls the generic TrustIssuer builder with application/json body
+func NewTrustIssuerRequest(server string, body TrustIssuerJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewAddTrustRequestWithBody(server, "application/json", bodyReader)
+	return NewTrustIssuerRequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewAddTrustRequestWithBody generates requests for AddTrust with any type of body
-func NewAddTrustRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewTrustIssuerRequestWithBody generates requests for TrustIssuer with any type of body
+func NewTrustIssuerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	queryUrl, err := url.Parse(server)
@@ -558,15 +558,15 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// RemoveTrust request  with any body
-	RemoveTrustWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*RemoveTrustResponse, error)
+	// UntrustIssuer request  with any body
+	UntrustIssuerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*UntrustIssuerResponse, error)
 
-	RemoveTrustWithResponse(ctx context.Context, body RemoveTrustJSONRequestBody) (*RemoveTrustResponse, error)
+	UntrustIssuerWithResponse(ctx context.Context, body UntrustIssuerJSONRequestBody) (*UntrustIssuerResponse, error)
 
-	// AddTrust request  with any body
-	AddTrustWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*AddTrustResponse, error)
+	// TrustIssuer request  with any body
+	TrustIssuerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*TrustIssuerResponse, error)
 
-	AddTrustWithResponse(ctx context.Context, body AddTrustJSONRequestBody) (*AddTrustResponse, error)
+	TrustIssuerWithResponse(ctx context.Context, body TrustIssuerJSONRequestBody) (*TrustIssuerResponse, error)
 
 	// Create request
 	CreateWithResponse(ctx context.Context) (*CreateResponse, error)
@@ -583,13 +583,13 @@ type ClientWithResponsesInterface interface {
 	SearchWithResponse(ctx context.Context, concept string, body SearchJSONRequestBody) (*SearchResponse, error)
 }
 
-type RemoveTrustResponse struct {
+type UntrustIssuerResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 }
 
 // Status returns HTTPResponse.Status
-func (r RemoveTrustResponse) Status() string {
+func (r UntrustIssuerResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -597,20 +597,20 @@ func (r RemoveTrustResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r RemoveTrustResponse) StatusCode() int {
+func (r UntrustIssuerResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type AddTrustResponse struct {
+type TrustIssuerResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 }
 
 // Status returns HTTPResponse.Status
-func (r AddTrustResponse) Status() string {
+func (r TrustIssuerResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -618,7 +618,7 @@ func (r AddTrustResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r AddTrustResponse) StatusCode() int {
+func (r TrustIssuerResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -710,38 +710,38 @@ func (r SearchResponse) StatusCode() int {
 	return 0
 }
 
-// RemoveTrustWithBodyWithResponse request with arbitrary body returning *RemoveTrustResponse
-func (c *ClientWithResponses) RemoveTrustWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*RemoveTrustResponse, error) {
-	rsp, err := c.RemoveTrustWithBody(ctx, contentType, body)
+// UntrustIssuerWithBodyWithResponse request with arbitrary body returning *UntrustIssuerResponse
+func (c *ClientWithResponses) UntrustIssuerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*UntrustIssuerResponse, error) {
+	rsp, err := c.UntrustIssuerWithBody(ctx, contentType, body)
 	if err != nil {
 		return nil, err
 	}
-	return ParseRemoveTrustResponse(rsp)
+	return ParseUntrustIssuerResponse(rsp)
 }
 
-func (c *ClientWithResponses) RemoveTrustWithResponse(ctx context.Context, body RemoveTrustJSONRequestBody) (*RemoveTrustResponse, error) {
-	rsp, err := c.RemoveTrust(ctx, body)
+func (c *ClientWithResponses) UntrustIssuerWithResponse(ctx context.Context, body UntrustIssuerJSONRequestBody) (*UntrustIssuerResponse, error) {
+	rsp, err := c.UntrustIssuer(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	return ParseRemoveTrustResponse(rsp)
+	return ParseUntrustIssuerResponse(rsp)
 }
 
-// AddTrustWithBodyWithResponse request with arbitrary body returning *AddTrustResponse
-func (c *ClientWithResponses) AddTrustWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*AddTrustResponse, error) {
-	rsp, err := c.AddTrustWithBody(ctx, contentType, body)
+// TrustIssuerWithBodyWithResponse request with arbitrary body returning *TrustIssuerResponse
+func (c *ClientWithResponses) TrustIssuerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*TrustIssuerResponse, error) {
+	rsp, err := c.TrustIssuerWithBody(ctx, contentType, body)
 	if err != nil {
 		return nil, err
 	}
-	return ParseAddTrustResponse(rsp)
+	return ParseTrustIssuerResponse(rsp)
 }
 
-func (c *ClientWithResponses) AddTrustWithResponse(ctx context.Context, body AddTrustJSONRequestBody) (*AddTrustResponse, error) {
-	rsp, err := c.AddTrust(ctx, body)
+func (c *ClientWithResponses) TrustIssuerWithResponse(ctx context.Context, body TrustIssuerJSONRequestBody) (*TrustIssuerResponse, error) {
+	rsp, err := c.TrustIssuer(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	return ParseAddTrustResponse(rsp)
+	return ParseTrustIssuerResponse(rsp)
 }
 
 // CreateWithResponse request returning *CreateResponse
@@ -788,15 +788,15 @@ func (c *ClientWithResponses) SearchWithResponse(ctx context.Context, concept st
 	return ParseSearchResponse(rsp)
 }
 
-// ParseRemoveTrustResponse parses an HTTP response from a RemoveTrustWithResponse call
-func ParseRemoveTrustResponse(rsp *http.Response) (*RemoveTrustResponse, error) {
+// ParseUntrustIssuerResponse parses an HTTP response from a UntrustIssuerWithResponse call
+func ParseUntrustIssuerResponse(rsp *http.Response) (*UntrustIssuerResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &RemoveTrustResponse{
+	response := &UntrustIssuerResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -807,15 +807,15 @@ func ParseRemoveTrustResponse(rsp *http.Response) (*RemoveTrustResponse, error) 
 	return response, nil
 }
 
-// ParseAddTrustResponse parses an HTTP response from a AddTrustWithResponse call
-func ParseAddTrustResponse(rsp *http.Response) (*AddTrustResponse, error) {
+// ParseTrustIssuerResponse parses an HTTP response from a TrustIssuerWithResponse call
+func ParseTrustIssuerResponse(rsp *http.Response) (*TrustIssuerResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &AddTrustResponse{
+	response := &TrustIssuerResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -913,10 +913,10 @@ func ParseSearchResponse(rsp *http.Response) (*SearchResponse, error) {
 type ServerInterface interface {
 	// Remove trust in an issuer/credentialType combination
 	// (DELETE /internal/vcr/v1/trust)
-	RemoveTrust(ctx echo.Context) error
-	// Place trust in an issuer/credentialType combination
+	UntrustIssuer(ctx echo.Context) error
+	// Mark all the VCs of given type and issuer as 'trusted'.
 	// (POST /internal/vcr/v1/trust)
-	AddTrust(ctx echo.Context) error
+	TrustIssuer(ctx echo.Context) error
 	// Creates a new Verifiable Credential
 	// (POST /internal/vcr/v1/vc)
 	Create(ctx echo.Context) error
@@ -936,21 +936,21 @@ type ServerInterfaceWrapper struct {
 	Handler ServerInterface
 }
 
-// RemoveTrust converts echo context to params.
-func (w *ServerInterfaceWrapper) RemoveTrust(ctx echo.Context) error {
+// UntrustIssuer converts echo context to params.
+func (w *ServerInterfaceWrapper) UntrustIssuer(ctx echo.Context) error {
 	var err error
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.RemoveTrust(ctx)
+	err = w.Handler.UntrustIssuer(ctx)
 	return err
 }
 
-// AddTrust converts echo context to params.
-func (w *ServerInterfaceWrapper) AddTrust(ctx echo.Context) error {
+// TrustIssuer converts echo context to params.
+func (w *ServerInterfaceWrapper) TrustIssuer(ctx echo.Context) error {
 	var err error
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.AddTrust(ctx)
+	err = w.Handler.TrustIssuer(ctx)
 	return err
 }
 
@@ -1033,8 +1033,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v1/trust", wrapper.RemoveTrust)
-	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/trust", wrapper.AddTrust)
+	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v1/trust", wrapper.UntrustIssuer)
+	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/trust", wrapper.TrustIssuer)
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/vc", wrapper.Create)
 	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v1/vc/:id", wrapper.Revoke)
 	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/vc/:id", wrapper.Resolve)

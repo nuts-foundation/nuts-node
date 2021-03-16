@@ -160,37 +160,37 @@ func (w *Wrapper) Resolve(ctx echo.Context, id string) error {
 	}
 
 	// transform VC && error
-	rr := ResolutionResult{
+	result := ResolutionResult{
 		CurrentStatus:        trusted,
 		VerifiableCredential: *vc,
 	}
 
 	switch err {
 	case vcr.ErrUntrusted:
-		rr.CurrentStatus = untrusted
+		result.CurrentStatus = untrusted
 	case vcr.ErrRevoked:
-		rr.CurrentStatus = revoked
+		result.CurrentStatus = revoked
 	}
 
-	return ctx.JSON(http.StatusOK, rr)
+	return ctx.JSON(http.StatusOK, result)
 }
 
-func (w *Wrapper) RemoveTrust(ctx echo.Context) error {
-	return changeTrust(ctx, func(cType did.URI, d did.URI) error {
-		return w.R.RemoveTrust(cType, d)
+func (w *Wrapper) TrustIssuer(ctx echo.Context) error {
+	return changeTrust(ctx, func(cType did.URI, issuer did.URI) error {
+		return w.R.Trust(cType, issuer)
 	})
 }
 
-func (w *Wrapper) AddTrust(ctx echo.Context) error {
-	return changeTrust(ctx, func(cType did.URI, d did.URI) error {
-		return w.R.AddTrust(cType, d)
+func (w *Wrapper) UntrustIssuer(ctx echo.Context) error {
+	return changeTrust(ctx, func(cType did.URI, issuer did.URI) error {
+		return w.R.Untrust(cType, issuer)
 	})
 }
 
 type trustChangeFunc func(did.URI, did.URI) error
 
 func changeTrust(ctx echo.Context, f trustChangeFunc) error {
-	var icc = new(IssuerCredentialCombination)
+	var icc = new(CredentialIssuer)
 
 	if err := ctx.Bind(icc); err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse request body: %s", err.Error()))

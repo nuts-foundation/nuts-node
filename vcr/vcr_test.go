@@ -110,9 +110,9 @@ func TestVCR_Search(t *testing.T) {
 	q.AddClause(concept.Eq("human.eyeColour", "blue/grey"))
 
 	t.Run("ok", func(t *testing.T) {
-		instance.AddTrust(vc.Type[0], vc.Issuer)
+		instance.Trust(vc.Type[0], vc.Issuer)
 		defer func() {
-			instance.RemoveTrust(vc.Type[0], vc.Issuer)
+			instance.Untrust(vc.Type[0], vc.Issuer)
 		}()
 		creds, err := instance.Search(q)
 		if !assert.NoError(t, err) {
@@ -138,11 +138,11 @@ func TestVCR_Search(t *testing.T) {
 	})
 
 	t.Run("ok - revoked", func(t *testing.T) {
-		instance.AddTrust(vc.Type[0], vc.Issuer)
+		instance.Trust(vc.Type[0], vc.Issuer)
 		rev := leia.Document(concept.TestRevocation)
 		instance.store.Collection(revocationCollection).Add([]leia.Document{rev})
 		defer func() {
-			instance.RemoveTrust(vc.Type[0], vc.Issuer)
+			instance.Untrust(vc.Type[0], vc.Issuer)
 			instance.store.Collection(revocationCollection).Delete(rev)
 		}()
 		creds, err := instance.Search(q)

@@ -17,28 +17,36 @@
  *
  */
 
-package vcr
+package trust
 
 import (
 	"errors"
 	"os"
 	"sync"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuts-foundation/go-did"
+	"gopkg.in/yaml.v2"
 )
 
-var mutex = sync.Mutex{}
+// TrustConfig holds the trusted issuers per credential type
+type TrustConfig struct {
+	filename       string
+	issuersPerType map[string][]string
+	mutex          sync.Mutex
+}
 
-type trustConfig struct {
-	filename      string
-	issuesPerType map[string][]string
+func NewConfig(filename string) TrustConfig {
+	return TrustConfig {
+		filename: filename,
+		issuersPerType: map[string][]string{},
+		mutex: sync.Mutex{},
+	}
 }
 
 // Load the trusted issuers per credential type from file
-func (tc trustConfig) Load() error {
-	mutex.Lock()
-	defer mutex.Unlock()
+func (tc TrustConfig) Load() error {
+	tc.mutex.Lock()
+	defer tc.mutex.Unlock()
 
 	if tc.filename == "" {
 		return errors.New("trust config file not loaded")
@@ -55,19 +63,16 @@ func (tc trustConfig) Load() error {
 		return err
 	}
 
-	return yaml.Unmarshal(data, &tc.issuesPerType)
+	return yaml.Unmarshal(data, &tc.issuersPerType)
 }
 
 // Save the list of trusted issuers per credential type to file
-func (tc trustConfig) Save() error {
-	mutex.Lock()
-	defer mutex.Unlock()
-
+func (tc TrustConfig) save() error {
 	if tc.filename == "" {
 		return errors.New("no filename specified")
 	}
 
-	data, err := yaml.Marshal(tc.issuesPerType)
+	data, err := yaml.Marshal(tc.issuersPerType)
 	if err != nil {
 		return err
 	}
@@ -76,9 +81,9 @@ func (tc trustConfig) Save() error {
 }
 
 // IsTrusted returns true when the given issuer is in the trusted issuers list of the given credentialType
-func (tc trustConfig) IsTrusted(credentialType did.URI, issuer did.URI) bool {
+func (tc TrustConfig) IsTrusted(credentialType did.URI, issuer did.URI) bool {
 	issuerString := issuer.String()
-	for _, i := range tc.issuesPerType[credentialType.String()] {
+	for _, i := range tc.issuersPerType[credentialType.String()] {
 		if i == issuerString {
 			return true
 		}
@@ -89,48 +94,42 @@ func (tc trustConfig) IsTrusted(credentialType did.URI, issuer did.URI) bool {
 
 // AddTrust adds trust in a specific Issuer for a credential type.
 // It returns an error if the Save fails
-func (tc trustConfig) AddTrust(credentialType did.URI, issuer did.URI) error {
+func (tc TrustConfig) AddTrust(credentialType did.URI, issuer did.URI) error {
+	tc.mutex.Lock()
+	defer tc.mutex.Unlock()
+
 	tString := credentialType.String()
 
-	// to prevent duplicates
-	issuerSet := map[string]bool{
-		issuer.String(): true,
-	}
-	for _, i := range tc.issuesPerType[tString] {
-		issuerSet[i] = true
-	}
-	j := 0
-	var issuerList = make([]string, len(issuerSet))
-	for k := range issuerSet {
-		issuerList[j] = k
-		j++
+	if tc.IsTrusted(credentialType, issuer) {
+		return nil
 	}
 
-	tc.issuesPerType[tString] = issuerList
+	tc.issuersPerType[tString] = append(tc.issuersPerType[tString], issuer.String())
 
-	return tc.Save()
+	return tc.save()
 }
 
 // RemoveTrust removes trust in a specific Issuer for a credential type.
 // It returns an error if the Save fails
-func (tc trustConfig) RemoveTrust(credentialType did.URI, issuer did.URI) error {
+func (tc TrustConfig) RemoveTrust(credentialType did.URI, issuer did.URI) error {
+	tc.mutex.Lock()
+	defer tc.mutex.Unlock()
 	tString := credentialType.String()
 
-	// to prevent duplicates
-	issuerSet := map[string]bool{}
-	for _, i := range tc.issuesPerType[tString] {
-		issuerSet[i] = true
+	if !tc.IsTrusted(credentialType, issuer) {
+		return nil
 	}
-	delete(issuerSet, issuer.String())
 
+	var issuerList = make([]string, len(tc.issuersPerType[tString])-1)
 	j := 0
-	var issuerList = make([]string, len(issuerSet))
-	for k := range issuerSet {
-		issuerList[j] = k
-		j++
+	for _, i := range tc.issuersPerType[tString] {
+		if i != issuer.String() {
+			issuerList[j] = i
+			j++
+		}
 	}
 
-	tc.issuesPerType[tString] = issuerList
+	tc.issuersPerType[tString] = issuerList
 
-	return tc.Save()
+	return tc.save()
 }

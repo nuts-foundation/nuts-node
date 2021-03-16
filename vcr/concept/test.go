@@ -27,7 +27,7 @@ import (
 const ExampleConcept = "human"
 const ExampleType = "HumanCredential"
 
-var ExampleTemplate = `
+const ExampleTemplate = `
 {
 	"id": "<<id>>",
 	"issuer": "<<issuer>>",
@@ -42,7 +42,7 @@ var ExampleTemplate = `
 }
 `
 
-var TestCredential = `
+const TestCredential = `
 {
 	"id": "did:nuts:1#123",
 	"issuer": "did:nuts:1",
@@ -57,7 +57,7 @@ var TestCredential = `
 }
 `
 
-var TestRevocation = `
+const TestRevocation = `
 {
   "issuer": "did:nuts:1",
   "subject": "did:nuts:1#123",

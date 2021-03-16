@@ -6,7 +6,6 @@ require (
 	github.com/cbroglie/mustache v1.2.0
 	github.com/deepmap/oapi-codegen v1.4.2
 	github.com/dgrijalva/jwt-go v3.2.1-0.20200107013213-dc14462fd587+incompatible // indirect
-	github.com/ghodss/yaml v1.0.0
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.4.3
@@ -37,4 +36,5 @@ require (
 	go.etcd.io/bbolt v1.3.5
 	google.golang.org/grpc v1.33.1
 	google.golang.org/protobuf v1.25.0
+	gopkg.in/yaml.v2 v2.3.0
 )

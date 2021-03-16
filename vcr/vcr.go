@@ -39,6 +39,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/logging"
+	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/pkg/errors"
 )
@@ -66,7 +67,7 @@ type vcr struct {
 	docResolver vdr.Resolver
 	ambassador  Ambassador
 	network     network.Transactions
-	trustConfig trustConfig
+	trustConfig trust.TrustConfig
 }
 
 func (c *vcr) Registry() concept.Registry {
@@ -84,10 +85,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	}
 
 	// load trusted issuers
-	c.trustConfig = trustConfig{
-		filename:      tcPath,
-		issuesPerType: map[string][]string{},
-	}
+	c.trustConfig = trust.NewConfig(tcPath)
 
 	if err = c.trustConfig.Load(); err != nil {
 		return err
@@ -441,11 +439,11 @@ func (c *vcr) Revoke(ID did.URI) (*credential.Revocation, error) {
 	return &r, nil
 }
 
-func (c *vcr) AddTrust(credentialType did.URI, issuer did.URI) error {
+func (c *vcr) Trust(credentialType did.URI, issuer did.URI) error {
 	return c.trustConfig.AddTrust(credentialType, issuer)
 }
 
-func (c *vcr) RemoveTrust(credentialType did.URI, issuer did.URI) error {
+func (c *vcr) Untrust(credentialType did.URI, issuer did.URI) error {
 	return c.trustConfig.RemoveTrust(credentialType, issuer)
 }
 

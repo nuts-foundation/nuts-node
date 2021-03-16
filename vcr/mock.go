@@ -88,20 +88,6 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
 }
 
-// AddTrust mocks base method.
-func (m *MockVCR) AddTrust(credentialType, issuer did.URI) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddTrust", credentialType, issuer)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddTrust indicates an expected call of AddTrust.
-func (mr *MockVCRMockRecorder) AddTrust(credentialType, issuer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTrust", reflect.TypeOf((*MockVCR)(nil).AddTrust), credentialType, issuer)
-}
-
 // Issue mocks base method.
 func (m *MockVCR) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
@@ -129,20 +115,6 @@ func (m *MockVCR) Registry() concept.Registry {
 func (mr *MockVCRMockRecorder) Registry() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockVCR)(nil).Registry))
-}
-
-// RemoveTrust mocks base method.
-func (m *MockVCR) RemoveTrust(credentialType, issuer did.URI) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RemoveTrust", credentialType, issuer)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RemoveTrust indicates an expected call of RemoveTrust.
-func (mr *MockVCRMockRecorder) RemoveTrust(credentialType, issuer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveTrust", reflect.TypeOf((*MockVCR)(nil).RemoveTrust), credentialType, issuer)
 }
 
 // Resolve mocks base method.
@@ -216,6 +188,34 @@ func (m *MockVCR) StoreRevocation(r credential.Revocation) error {
 func (mr *MockVCRMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockVCR)(nil).StoreRevocation), r)
+}
+
+// Trust mocks base method.
+func (m *MockVCR) Trust(credentialType, issuer did.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Trust", credentialType, issuer)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Trust indicates an expected call of Trust.
+func (mr *MockVCRMockRecorder) Trust(credentialType, issuer interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trust", reflect.TypeOf((*MockVCR)(nil).Trust), credentialType, issuer)
+}
+
+// Untrust mocks base method.
+func (m *MockVCR) Untrust(credentialType, issuer did.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Untrust", credentialType, issuer)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Untrust indicates an expected call of Untrust.
+func (mr *MockVCRMockRecorder) Untrust(credentialType, issuer interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrust", reflect.TypeOf((*MockVCR)(nil).Untrust), credentialType, issuer)
 }
 
 // Verify mocks base method.

@@ -154,9 +154,9 @@ paths:
                 type: string
   /internal/vcr/v1/trust:
     post:
-      summary: Place trust in an issuer/credentialType combination
+      summary: Mark all the VCs of given type and issuer as 'trusted'.
       description: The added trust is persisted and may be removed with a delete operation.
-      operationId: "addTrust"
+      operationId: "trustIssuer"
       tags:
         - credential
       requestBody:
@@ -165,9 +165,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/IssuerCredentialCombination"
+              $ref: "#/components/schemas/CredentialIssuer"
       responses:
-        "202":
+        "204":
           description: The change was accepted.
         "400":
           description: invalid params.
@@ -184,7 +184,7 @@ paths:
     delete:
       summary: Remove trust in an issuer/credentialType combination
       description: The removed trust is persisted.
-      operationId: "removeTrust"
+      operationId: "untrustIssuer"
       tags:
         - credential
       requestBody:
@@ -193,9 +193,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/IssuerCredentialCombination"
+              $ref: "#/components/schemas/CredentialIssuer"
       responses:
-        "202":
+        "204":
           description: The change was accepted.
         "400":
           description: invalid params.
@@ -214,7 +214,7 @@ components:
     CredentialSubject:
       type: object
       description: Subject of a Verifiable Credential identifying the holder and expressing claims.
-    IssuerCredentialCombination:
+    CredentialIssuer:
       type: object
       required:
         - issuer
@@ -245,7 +245,7 @@ components:
           type: string
     ResolutionResult:
       type: object
-      description: result of doing a Resolve operation.
+      description: result of a Resolve operation.
       required:
         - currentStatus
         - verifiableCredential
@@ -253,7 +253,7 @@ components:
         currentStatus:
           type: string
           enum: ["trusted", "revoked", "untrusted"]
-          description: trusted is the only valid state. Revoked is returned regardless of if it's trusted.
+          description: Only credentials with with "trusted" state are valid. If a revoked credential is also untrusted, revoked will be returned.
         verifiableCredential:
           $ref: "#/components/schemas/VerifiableCredential"
     Revocation:

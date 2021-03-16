@@ -84,10 +84,10 @@ type VCR interface {
 	Revoke(ID did.URI) (*credential.Revocation, error)
 	// Registry returns the concept registry
 	Registry() concept.Registry
-	// AddTrust adds trust for a Issuer/CredentialType combination. The added trust is persisted to disk.
-	AddTrust(credentialType did.URI, issuer did.URI) error
-	// RemoveTrust removes trust for a Issuer/CredentialType combination. The result is persisted to disk.
-	RemoveTrust(credentialType did.URI, issuer did.URI) error
+	// Trust adds trust for a Issuer/CredentialType combination. The added trust is persisted to disk.
+	Trust(credentialType did.URI, issuer did.URI) error
+	// Untrust removes trust for a Issuer/CredentialType combination. The result is persisted to disk.
+	Untrust(credentialType did.URI, issuer did.URI) error
 
 	Writer
 }
