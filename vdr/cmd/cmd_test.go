@@ -56,7 +56,7 @@ func TestEngine_Command(t *testing.T) {
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewServerConfig().Load(cmd)
+			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -80,7 +80,7 @@ func TestEngine_Command(t *testing.T) {
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "b00m!"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewServerConfig().Load(cmd)
+			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -103,7 +103,7 @@ func TestEngine_Command(t *testing.T) {
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewServerConfig().Load(cmd)
+			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -123,7 +123,7 @@ func TestEngine_Command(t *testing.T) {
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewServerConfig().Load(cmd)
+			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -143,7 +143,7 @@ func TestEngine_Command(t *testing.T) {
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewServerConfig().Load(cmd)
+			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -163,7 +163,7 @@ func TestEngine_Command(t *testing.T) {
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewServerConfig().Load(cmd)
+			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -186,7 +186,7 @@ func TestEngine_Command(t *testing.T) {
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewServerConfig().Load(cmd)
+			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -205,7 +205,7 @@ func TestEngine_Command(t *testing.T) {
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewServerConfig().Load(cmd)
+			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -225,7 +225,7 @@ func TestEngine_Command(t *testing.T) {
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "invalid"})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewServerConfig().Load(cmd)
+			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
 			buf := new(bytes.Buffer)
@@ -248,7 +248,7 @@ func TestEngine_Command(t *testing.T) {
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewServerConfig().Load(cmd)
+			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
 			inBuf := new(bytes.Buffer)
@@ -288,7 +288,7 @@ func TestEngine_Command(t *testing.T) {
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewServerConfig().Load(cmd)
+			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
 			inBuf := new(bytes.Buffer)
