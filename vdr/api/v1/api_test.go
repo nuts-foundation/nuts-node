@@ -285,10 +285,11 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Deactivate(*did123).Return(types.ErrNotFound)
 		defer ctx.ctrl.Finish()
 
+		ctx.vdr.EXPECT().Deactivate(*did123).Return(types.ErrNotFound)
 		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
+
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 		assert.NoError(t, err)
 	})
