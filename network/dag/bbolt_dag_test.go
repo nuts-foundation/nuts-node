@@ -259,7 +259,7 @@ func TestBBoltDAG_Diagnostics(t *testing.T) {
 	actual := strings.Join(lines, "\n")
 	assert.Equal(t, `[DAG] Heads: [`+doc1.Ref().String()+`]
 [DAG] Number of transactions: 2
-[DAG] Stored transaction size (bytes): 0`, actual)
+[DAG] Stored transaction size (bytes): 8192`, actual)
 }
 
 func Test_parseHashList(t *testing.T) {
