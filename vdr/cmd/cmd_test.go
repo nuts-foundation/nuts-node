@@ -263,7 +263,7 @@ func TestEngine_Command(t *testing.T) {
 			if !assert.NoError(t, err) {
 				return
 			}
-			assert.Contains(t, buf.String(), "This wil delete the did document, are you sure?")
+			assert.Contains(t, buf.String(), "This will delete the DID document, are you sure?")
 			assert.Contains(t, buf.String(), "DID document deactivated\n")
 		})
 		t.Run("ok - stops when the user does not confirm", func(t *testing.T) {

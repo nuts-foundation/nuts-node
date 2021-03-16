@@ -162,7 +162,7 @@ func deactivateCmd() *cobra.Command {
 		Short: "Deactivate a DID document based on its DID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !askYesNo("This wil delete the did document, are you sure?", cmd) {
+			if !askYesNo("This will delete the DID document, are you sure?", cmd) {
 				cmd.Println("Deactivation cancelled")
 				return nil
 			}

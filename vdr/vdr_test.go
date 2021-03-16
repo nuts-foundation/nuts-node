@@ -147,7 +147,7 @@ func TestVDR_Deactivate(t *testing.T) {
 		network: networkMock,
 	}
 
-	expectedDocument := did.Document{ID: *id}
+	expectedDocument := did.Document{ID: *id, Context: []did.URI{did.DIDContextV1URI()}}
 	expectedPayload, _ := json.Marshal(expectedDocument)
 
 	currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
