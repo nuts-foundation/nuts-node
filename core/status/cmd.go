@@ -29,7 +29,6 @@ import (
 
 // Cmd contains sub-commands for the remote client
 func Cmd() *cobra.Command {
-	var verbose bool
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Shows the status of the Nuts Node.",
@@ -38,12 +37,7 @@ func Cmd() *cobra.Command {
 			if err := config.Load(cmd.PersistentFlags()); err != nil {
 				return err
 			}
-			var targetURL string
-			if verbose {
-				targetURL = config.GetAddress() + diagnosticsEndpoint
-			} else {
-				targetURL = config.GetAddress() + statusEndpoint
-			}
+			targetURL := config.GetAddress() + diagnosticsEndpoint
 			response, err := http.Get(targetURL)
 			if err != nil {
 				return err
@@ -56,6 +50,5 @@ func Cmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Pass 'true' to show verbose diagnostics.")
 	return cmd
 }

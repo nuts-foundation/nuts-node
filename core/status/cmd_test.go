@@ -31,22 +31,7 @@ import (
 )
 
 func TestEngine_Command(t *testing.T) {
-	t.Run("status", func(t *testing.T) {
-		cmd := Cmd()
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "OK"})
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
-		defer s.Close()
-
-		buf := new(bytes.Buffer)
-		cmd.SetArgs([]string{"status"})
-		cmd.SetOut(buf)
-		err := cmd.Execute()
-		assert.NoError(t, err)
-		assert.Equal(t, "OK\n", buf.String())
-	})
-	t.Run("verbose", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		cmd := Cmd()
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "diagnostics"})
 		os.Setenv("NUTS_ADDRESS", s.URL)
@@ -55,7 +40,7 @@ func TestEngine_Command(t *testing.T) {
 		defer s.Close()
 
 		buf := new(bytes.Buffer)
-		cmd.SetArgs([]string{"status", "-v"})
+		cmd.SetArgs([]string{"status"})
 		cmd.SetOut(buf)
 		err := cmd.Execute()
 		assert.NoError(t, err)
