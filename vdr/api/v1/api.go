@@ -116,6 +116,9 @@ func (a *Wrapper) DeactivateDID(ctx echo.Context, did string) error {
 		if errors.Is(err, types.ErrNotFound) {
 			return ctx.NoContent(http.StatusNotFound)
 		}
+		if errors.Is(err, types.ErrDeactivated) {
+			return ctx.String(http.StatusConflict, fmt.Sprintf("could not deactivate document: %s", err.Error()))
+		}
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("could not deactivate document: %s", err.Error()))
 	}
 	return ctx.NoContent(http.StatusOK)

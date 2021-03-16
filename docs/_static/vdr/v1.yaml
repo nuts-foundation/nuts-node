@@ -109,13 +109,19 @@ paths:
         "200":
           description: DID document has been deactivated.
         "400":
-          description: DID document couldn't be updated because the did param was malformed or the document was already deactivated.
+          description: DID document couldn't be updated because the DID param was malformed.
           content:
             text/plain:
               schema:
                 type: string
         "404":
           description: Corresponding DID document could not be found.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "409":
+          description: DID document couldn't be updated because the the document was already deactivated.
           content:
             text/plain:
               schema:

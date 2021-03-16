@@ -264,7 +264,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 		ctx.vdr.EXPECT().Deactivate(*did123).Return(types.ErrDeactivated)
 		defer ctx.ctrl.Finish()
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, "could not deactivate document: the document has been deactivated")
+		ctx.echo.EXPECT().String(http.StatusConflict, "could not deactivate document: the document has been deactivated")
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 		assert.NoError(t, err)
 	})
