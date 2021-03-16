@@ -31,6 +31,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestMetricsEngine_Name(t *testing.T) {
+	named := NewMetricsEngine().(Named)
+	assert.Equal(t, "Metrics", named.Name())
+}
+
 func TestNewMetricsEngine(t *testing.T) {
 	mEngine := NewMetricsEngine().(*metrics)
 	_ = mEngine.Configure(ServerConfig{})
