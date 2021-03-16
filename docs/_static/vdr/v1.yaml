@@ -83,7 +83,7 @@ paths:
               schema:
                  $ref: '#/components/schemas/DIDDocument'
         "400":
-          description: DID document couldn't be updated because the did param was malformed or the document was already deactivated.
+          description: DID document couldn't be updated because the did param was malformed or the document was deactivated.
           content:
             text/plain:
               schema:
@@ -109,7 +109,7 @@ paths:
         "200":
           description: DID document has been deactivated.
         "400":
-          description: DID couldn't be deactivated because the input conflicts or is malformed.
+          description: DID document couldn't be updated because the did param was malformed or the document was already deactivated.
           content:
             text/plain:
               schema:
