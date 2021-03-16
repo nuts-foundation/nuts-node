@@ -112,7 +112,6 @@ func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 		return nil
 	})
 	result = append(result, numberOfTransactionsStatistic{numberOfTransactions: transactionNum})
-	// TODO: https://github.com/nuts-foundation/nuts-node/issues/11
 	result = append(result, dataSizeStatistic{sizeInBytes: dag.db.Stats().TxStats.PageAlloc})
 	return result
 }
