@@ -17,7 +17,6 @@ const (
 )
 
 // NutsIdentityToken contains the signed identity of the user performing the request
-// Deprecated ??
 type NutsIdentityToken struct {
 	// KeyID identifies the key that was used to sign the token
 	KeyID string `json:"kid"`

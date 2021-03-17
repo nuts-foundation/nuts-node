@@ -53,6 +53,5 @@ type ContractClient interface {
 	Configure() error
 
 	// HandlerFunc returns the Irma server handler func
-	// deprecated?
 	HandlerFunc() http.HandlerFunc
 }
