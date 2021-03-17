@@ -24,12 +24,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	vdr2 "github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
@@ -41,7 +42,7 @@ const errInvalidSubjectFmt = "invalid jwt.subject: %w"
 
 type service struct {
 	didResolver     types.Resolver
-	nameResolver    vdr2.NameResolver
+	nameResolver    vcr.NameResolver
 	privateKeyStore nutsCrypto.PrivateKeyStore
 	contractClient  services.ContractClient
 }
@@ -55,7 +56,7 @@ type validationContext struct {
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(didResolver types.Resolver, nameResolver vdr2.NameResolver, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
+func NewOAuthService(didResolver types.Resolver, nameResolver vcr.NameResolver, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
 	return &service{
 		didResolver:     didResolver,
 		contractClient:  contractClient,
@@ -164,7 +165,7 @@ func (s *service) validateIssuer(context *validationContext) error {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
-	actorName, err := s.nameResolver.Resolve(*actorDID)
+	actorName, _, err := s.nameResolver.Resolve(*actorDID)
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}

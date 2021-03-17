@@ -21,12 +21,13 @@ package contract
 import (
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/auth/services/validator"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
 
@@ -34,7 +35,7 @@ import (
 )
 
 type contractNotaryService struct {
-	nameResolver     vdr.NameResolver
+	nameResolver     vcr.NameResolver
 	didResolver      types.Resolver
 	privateKeyStore  crypto.PrivateKeyStore
 	contractValidity time.Duration
@@ -43,7 +44,7 @@ type contractNotaryService struct {
 var timenow = time.Now
 
 // NewContractNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewContractNotary(resolver vdr.NameResolver, contractValidity time.Duration) services.ContractNotary {
+func NewContractNotary(resolver vcr.NameResolver, contractValidity time.Duration) services.ContractNotary {
 	return &contractNotaryService{nameResolver: resolver, contractValidity: contractValidity}
 }
 
@@ -63,7 +64,7 @@ func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID
 	}
 
 	// DrawUpContract draws up a contract for a specific organisation from a template
-	orgName, err := s.nameResolver.Resolve(orgID)
+	orgName, _, err := s.nameResolver.Resolve(orgID)
 	if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}

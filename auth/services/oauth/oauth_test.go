@@ -34,6 +34,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
@@ -100,7 +101,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	t.Run("broken identity token", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
-		ctx.nameResolver.EXPECT().Resolve(actorDID).MinTimes(1).Return("foo", nil)
+		ctx.nameResolver.EXPECT().Resolve(actorDID).MinTimes(1).Return("foo", "", nil)
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(nil, errors.New("identity validation failed"))
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.docResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
@@ -138,7 +139,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.nameResolver.EXPECT().Resolve(actorDID).MinTimes(1).Return("foo", nil)
+		ctx.nameResolver.EXPECT().Resolve(actorDID).MinTimes(1).Return("foo", "", nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(true)
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.docResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
@@ -159,7 +160,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		defer ctx.ctrl.Finish()
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.docResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
-		ctx.nameResolver.EXPECT().Resolve(actorDID).MinTimes(1).Return("Nice Org", nil)
+		ctx.nameResolver.EXPECT().Resolve(actorDID).MinTimes(1).Return("Nice Org", "", nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), custodianSigningKeyID.String()).Return("expectedAT", nil)
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(&contract.VPVerificationResult{
@@ -186,7 +187,7 @@ func TestService_validateIssuer(t *testing.T) {
 
 		tokenCtx := validContext()
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
-		ctx.nameResolver.EXPECT().Resolve(actorDID).Return("OK", nil)
+		ctx.nameResolver.EXPECT().Resolve(actorDID).Return("OK", "", nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.NoError(t, err)
@@ -210,7 +211,7 @@ func TestService_validateIssuer(t *testing.T) {
 
 		tokenCtx := validContext()
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
-		ctx.nameResolver.EXPECT().Resolve(actorDID).Return("", errors.New("failed"))
+		ctx.nameResolver.EXPECT().Resolve(actorDID).Return("", "", errors.New("failed"))
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.EqualError(t, err, "invalid jwt.issuer: failed")
@@ -586,7 +587,7 @@ type testContext struct {
 	contractClientMock *services.MockContractClient
 	privateKeyStore    *crypto.MockPrivateKeyStore
 	docResolver        *types.MockResolver
-	nameResolver       *vdr.MockNameResolver
+	nameResolver       *vcr.MockNameResolver
 	oauthService       *service
 }
 
@@ -596,7 +597,7 @@ var createContext = func(t *testing.T) *testContext {
 	contractClientMock := services.NewMockContractClient(ctrl)
 	privateKeyStore := crypto.NewMockPrivateKeyStore(ctrl)
 	didResolver := types.NewMockResolver(ctrl)
-	nameResolver := vdr.NewMockNameResolver(ctrl)
+	nameResolver := vcr.NewMockNameResolver(ctrl)
 	return &testContext{
 		ctrl:               ctrl,
 		contractClientMock: contractClientMock,

@@ -9,10 +9,49 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	did "github.com/nuts-foundation/go-did"
+	go_did "github.com/nuts-foundation/go-did"
 	concept "github.com/nuts-foundation/nuts-node/vcr/concept"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 )
+
+// MockNameResolver is a mock of NameResolver interface.
+type MockNameResolver struct {
+	ctrl     *gomock.Controller
+	recorder *MockNameResolverMockRecorder
+}
+
+// MockNameResolverMockRecorder is the mock recorder for MockNameResolver.
+type MockNameResolverMockRecorder struct {
+	mock *MockNameResolver
+}
+
+// NewMockNameResolver creates a new mock instance.
+func NewMockNameResolver(ctrl *gomock.Controller) *MockNameResolver {
+	mock := &MockNameResolver{ctrl: ctrl}
+	mock.recorder = &MockNameResolverMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockNameResolver) EXPECT() *MockNameResolverMockRecorder {
+	return m.recorder
+}
+
+// Resolve mocks base method.
+func (m *MockNameResolver) Resolve(ID go_did.DID) (string, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Resolve", ID)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Resolve indicates an expected call of Resolve.
+func (mr *MockNameResolverMockRecorder) Resolve(ID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockNameResolver)(nil).Resolve), ID)
+}
 
 // MockWriter is a mock of Writer interface.
 type MockWriter struct {
@@ -38,7 +77,7 @@ func (m *MockWriter) EXPECT() *MockWriterMockRecorder {
 }
 
 // StoreCredential mocks base method.
-func (m *MockWriter) StoreCredential(vc did.VerifiableCredential) error {
+func (m *MockWriter) StoreCredential(vc go_did.VerifiableCredential) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreCredential", vc)
 	ret0, _ := ret[0].(error)
@@ -89,10 +128,10 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 }
 
 // Issue mocks base method.
-func (m *MockVCR) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error) {
+func (m *MockVCR) Issue(vc go_did.VerifiableCredential) (*go_did.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Issue", vc)
-	ret0, _ := ret[0].(*did.VerifiableCredential)
+	ret0, _ := ret[0].(*go_did.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -101,6 +140,20 @@ func (m *MockVCR) Issue(vc did.VerifiableCredential) (*did.VerifiableCredential,
 func (mr *MockVCRMockRecorder) Issue(vc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockVCR)(nil).Issue), vc)
+}
+
+// NameResolver mocks base method.
+func (m *MockVCR) NameResolver() NameResolver {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NameResolver")
+	ret0, _ := ret[0].(NameResolver)
+	return ret0
+}
+
+// NameResolver indicates an expected call of NameResolver.
+func (mr *MockVCRMockRecorder) NameResolver() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NameResolver", reflect.TypeOf((*MockVCR)(nil).NameResolver))
 }
 
 // Registry mocks base method.
@@ -118,10 +171,10 @@ func (mr *MockVCRMockRecorder) Registry() *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockVCR) Resolve(ID did.URI) (*did.VerifiableCredential, error) {
+func (m *MockVCR) Resolve(ID go_did.URI) (*go_did.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", ID)
-	ret0, _ := ret[0].(*did.VerifiableCredential)
+	ret0, _ := ret[0].(*go_did.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -133,7 +186,7 @@ func (mr *MockVCRMockRecorder) Resolve(ID interface{}) *gomock.Call {
 }
 
 // Revoke mocks base method.
-func (m *MockVCR) Revoke(ID did.URI) (*credential.Revocation, error) {
+func (m *MockVCR) Revoke(ID go_did.URI) (*credential.Revocation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Revoke", ID)
 	ret0, _ := ret[0].(*credential.Revocation)
@@ -148,10 +201,10 @@ func (mr *MockVCRMockRecorder) Revoke(ID interface{}) *gomock.Call {
 }
 
 // Search mocks base method.
-func (m *MockVCR) Search(query concept.Query) ([]did.VerifiableCredential, error) {
+func (m *MockVCR) Search(query concept.Query) ([]go_did.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Search", query)
-	ret0, _ := ret[0].([]did.VerifiableCredential)
+	ret0, _ := ret[0].([]go_did.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -163,7 +216,7 @@ func (mr *MockVCRMockRecorder) Search(query interface{}) *gomock.Call {
 }
 
 // StoreCredential mocks base method.
-func (m *MockVCR) StoreCredential(vc did.VerifiableCredential) error {
+func (m *MockVCR) StoreCredential(vc go_did.VerifiableCredential) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreCredential", vc)
 	ret0, _ := ret[0].(error)
@@ -191,7 +244,7 @@ func (mr *MockVCRMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
 }
 
 // Trust mocks base method.
-func (m *MockVCR) Trust(credentialType, issuer did.URI) error {
+func (m *MockVCR) Trust(credentialType, issuer go_did.URI) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Trust", credentialType, issuer)
 	ret0, _ := ret[0].(error)
@@ -205,7 +258,7 @@ func (mr *MockVCRMockRecorder) Trust(credentialType, issuer interface{}) *gomock
 }
 
 // Untrust mocks base method.
-func (m *MockVCR) Untrust(credentialType, issuer did.URI) error {
+func (m *MockVCR) Untrust(credentialType, issuer go_did.URI) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Untrust", credentialType, issuer)
 	ret0, _ := ret[0].(error)
@@ -219,7 +272,7 @@ func (mr *MockVCRMockRecorder) Untrust(credentialType, issuer interface{}) *gomo
 }
 
 // Verify mocks base method.
-func (m *MockVCR) Verify(vc did.VerifiableCredential, at *time.Time) error {
+func (m *MockVCR) Verify(vc go_did.VerifiableCredential, at *time.Time) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Verify", vc, at)
 	ret0, _ := ret[0].(error)

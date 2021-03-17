@@ -65,10 +65,10 @@ type service struct {
 	config            Config
 	irmaServiceConfig irma.ValidatorConfig
 	irmaServer        *irmaserver.Server
-	verifiers         map[contract.VPType]contract.VPVerifier
-	signers           map[contract.SigningMeans]contract.Signer
-	didResolver       types.Resolver
-	privateKeyStore   crypto.PrivateKeyStore
+	verifiers       map[contract.VPType]contract.VPVerifier
+	signers         map[contract.SigningMeans]contract.Signer
+	didResolver     types.Resolver
+	privateKeyStore crypto.PrivateKeyStore
 }
 
 // NewContractInstance accepts a Config and several Nuts engines and returns a new instance of services.ContractClient

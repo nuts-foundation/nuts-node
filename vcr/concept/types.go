@@ -51,3 +51,25 @@ func (c Concept) SetValue(path string, val interface{}) {
 		m = m[p].(Concept)
 	}
 }
+
+// GetValue returns the value at the given path or nil if not found
+func (c Concept) GetValue(path string) interface{} {
+	parts := strings.Split(path, ".")
+
+	current := c
+
+	for i, p := range parts {
+		if i == len(parts)-1 {
+			return current[p]
+		}
+		if sub, ok := current[p]; ok {
+			ok2 := false
+			if current, ok2 = sub.(Concept); ok2 {
+				continue
+			}
+		}
+		return nil
+	}
+
+	return nil
+}
