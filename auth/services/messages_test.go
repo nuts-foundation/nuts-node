@@ -21,7 +21,7 @@ func TestNutsAccessToken_FromMap(t *testing.T) {
 }
 
 func TestNutsJwtBearerToken_FromMap(t *testing.T) {
-	expected := NutsJwtBearerToken{KeyID: "kid"}
+	expected := NutsJwtBearerToken{Scope: "scope"}
 	m, _ := expected.AsMap()
 	var actual NutsJwtBearerToken
 	err := actual.FromMap(m)

@@ -262,7 +262,9 @@ func claimsFromRequest(request services.CreateJwtBearerTokenRequest, audience st
 
 // parseAndValidateJwtBearerToken validates the jwt signature and returns the containing claims
 func (s *service) parseAndValidateJwtBearerToken(context *validationContext) error {
+	var kidHdr string
 	token, err := nutsCrypto.ParseJWT(context.rawJwtBearerToken, func(kid string) (crypto.PublicKey, error) {
+		kidHdr = kid
 		return s.didResolver.ResolveSigningKey(kid, nil)
 	})
 	if err != nil {
@@ -271,7 +273,7 @@ func (s *service) parseAndValidateJwtBearerToken(context *validationContext) err
 
 	// this should be ok since it has already succeeded before
 	context.jwtBearerToken = token
-	context.jwtBearerTokenClaims = &services.NutsJwtBearerToken{}
+	context.jwtBearerTokenClaims = &services.NutsJwtBearerToken{KeyID: kidHdr}
 	return context.jwtBearerTokenClaims.FromMap(token.PrivateClaims())
 }
 

@@ -324,6 +324,7 @@ func TestOAuthService_parseAndValidateJwtBearerToken(t *testing.T) {
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
 		assert.NoError(t, err)
 		assert.Equal(t, actorDID.String(), tokenCtx.jwtBearerToken.Issuer())
+		assert.Equal(t, actorSigningKeyID.String(), tokenCtx.jwtBearerTokenClaims.KeyID)
 	})
 }
 
