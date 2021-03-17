@@ -42,7 +42,7 @@ func TestTrustConfig_save(t *testing.T) {
 			return
 		}
 
-		tc2 := TrustConfig{
+		tc2 := Config{
 			filename:       path.Join(testDir, "test.yaml"),
 			issuersPerType: map[string][]string{},
 		}

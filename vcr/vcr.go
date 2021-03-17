@@ -67,7 +67,7 @@ type vcr struct {
 	docResolver vdr.Resolver
 	ambassador  Ambassador
 	network     network.Transactions
-	trustConfig trust.TrustConfig
+	trustConfig trust.Config
 }
 
 func (c *vcr) Registry() concept.Registry {
