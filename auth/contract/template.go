@@ -35,6 +35,8 @@ const ValidFromAttr = "valid_from"
 // ValidToAttr contains the key of the valid-to attribute.
 const ValidToAttr = "valid_to"
 
+// deprecated
+const ActingPartyAttr = "acting_party"
 // LegalEntityAttr contains the key of the legal-entity attribute.
 const LegalEntityAttr = "legal_entity"
 

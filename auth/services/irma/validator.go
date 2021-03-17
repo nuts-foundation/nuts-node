@@ -19,19 +19,17 @@
 package irma
 
 import (
-	"crypto"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"time"
-
-	"github.com/nuts-foundation/nuts-node/auth/logging"
 
 	irmaserver2 "github.com/privacybydesign/irmago/server/irmaserver"
 
@@ -60,8 +58,6 @@ type Service struct {
 	IrmaSessionHandler SessionHandler
 	IrmaConfig         *irma.Configuration
 	IrmaServiceConfig  ValidatorConfig
-	// todo: remove this when the deprecated ValidateJwt is removed
-	NameResolver      vdr.NameResolver
 	DIDResolver       types.Resolver
 	Signer            nutsCrypto.JWTSigner
 	ContractTemplates contract.TemplateStore
@@ -126,91 +122,6 @@ func (v Service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time
 	}, nil
 }
 
-// ValidateContract is the entry point for contract validation.
-// It decodes the base64 encoded contract, parses the contract string, and validates the contract.
-// Returns nil, ErrUnknownContractFormat if the contract used in the message is unknown
-// deprecated
-func (v Service) ValidateContract(b64EncodedContract string, format services.ContractFormat, checkTime *time.Time) (*services.ContractValidationResult, error) {
-	if format == services.IrmaFormat {
-		contract, err := base64.StdEncoding.DecodeString(b64EncodedContract)
-		if err != nil {
-			return nil, fmt.Errorf("could not base64-decode contract: %w", err)
-		}
-		// Create the irma contract validator
-		contractValidator := contractVerifier{irmaConfig: v.IrmaConfig, validContracts: v.ContractTemplates, strictMode: v.StrictMode}
-		signedContract, err := contractValidator.ParseIrmaContract(contract)
-		if err != nil {
-			return nil, err
-		}
-		return contractValidator.verifyAll(signedContract.(*SignedIrmaContract), checkTime)
-	}
-	return nil, contract.ErrUnknownContractFormat
-}
-
-// ValidateJwt validates a JWT.
-// deprecated
-func (v Service) ValidateJwt(rawJwt string, checkTime *time.Time) (*services.ContractValidationResult, error) {
-	token, err := nutsCrypto.ParseJWT(rawJwt, func(kid string) (crypto.PublicKey, error) {
-		return v.DIDResolver.ResolveSigningKey(kid, checkTime)
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	contractType, _ := token.Get("type")
-	if contractType != services.IrmaFormat {
-		return nil, fmt.Errorf("%s: %w", contractType, contract.ErrInvalidContractFormat)
-	}
-
-	sig, _ := token.Get("sig")
-	contractStr, err := base64.StdEncoding.DecodeString(sig.(string))
-	if err != nil {
-		return nil, err
-	}
-
-	contractValidator := contractVerifier{irmaConfig: v.IrmaConfig, validContracts: v.ContractTemplates, strictMode: v.StrictMode}
-	signedContract, err := contractValidator.ParseIrmaContract(contractStr)
-	if err != nil {
-		return nil, err
-	}
-	return contractValidator.verifyAll(signedContract.(*SignedIrmaContract), checkTime)
-}
-
-// SessionStatus returns the current status of a certain session.
-// It returns nil if the session is not found
-// deprecated
-func (v Service) SessionStatus(id services.SessionID) (*services.SessionStatusResult, error) {
-	if result := v.IrmaSessionHandler.GetSessionResult(string(id)); result != nil {
-		var (
-			token string
-		)
-		if result.Signature != nil {
-			c, err := contract.ParseContractString(result.Signature.Message, v.ContractTemplates)
-			sic := &SignedIrmaContract{
-				IrmaContract: *result.Signature,
-				contract:     c,
-			}
-			if err != nil {
-				return nil, err
-			}
-
-			le, err := v.legalEntityFromContract(sic)
-			if err != nil {
-				return nil, fmt.Errorf("could not create JWT for given session: %w", err)
-			}
-
-			token, err = v.CreateIdentityTokenFromIrmaContract(sic, *le)
-			if err != nil {
-				return nil, err
-			}
-		}
-		result := &services.SessionStatusResult{SessionResult: *result, NutsAuthToken: token}
-		logging.Log().Info(result.NutsAuthToken)
-		return result, nil
-	}
-	return nil, services.ErrSessionNotFound
-}
-
 func (v Service) legalEntityFromContract(_ *SignedIrmaContract) (*did.DID, error) {
 	// TODO: Implement this (https://github.com/nuts-foundation/nuts-node/issues/84)
 	return vdr.TestDIDA, nil
@@ -258,12 +169,6 @@ func convertPayloadToClaims(payload services.NutsIdentityToken) (map[string]inte
 	}
 
 	return claims, nil
-}
-
-// StartSession starts an irma session.
-// This is mainly a wrapper around the irma.SessionHandler.StartSession
-func (v Service) StartSession(request interface{}, handler irmaserver.SessionHandler) (*irma.Qr, string, error) {
-	return v.IrmaSessionHandler.StartSession(request, handler)
 }
 
 // SessionHandler is an abstraction for the Irma Server, mainly for enabling better testing

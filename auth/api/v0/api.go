@@ -19,20 +19,14 @@
 package v0
 
 import (
-	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"regexp"
 	"strings"
-	"time"
-
-	"github.com/nuts-foundation/nuts-node/auth/logging"
-	"github.com/nuts-foundation/nuts-node/auth/services/irma"
-	"github.com/nuts-foundation/nuts-node/auth/services/validator"
 
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/auth/logging"
+	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -57,164 +51,6 @@ func (api *Wrapper) Routes(router core.EchoRouter) {
 const errOauthInvalidRequest = "invalid_request"
 const errOauthInvalidGrant = "invalid_grant"
 const errOauthUnsupportedGrant = "unsupported_grant_type"
-
-// CreateSession translates http params to internal format, creates a IRMA signing session
-// and returns the session pointer to the HTTP stack.
-func (api *Wrapper) CreateSession(ctx echo.Context) error {
-	// bind params to a generated api format struct
-	var params ContractSigningRequest
-	if err := ctx.Bind(&params); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Could not parse request body: %s", err))
-	}
-
-	validFrom, _, validDuration, err := parsePeriodParams(params)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-
-	orgID, err := did.ParseDID(string(params.LegalEntity))
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid value for param legalEntity: '%s'", params.LegalEntity))
-	}
-
-	template := contract.StandardContractTemplates.Get(contract.Type(params.Type), contract.Language(params.Language), contract.Version(params.Version))
-	if template == nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Unable to find contract: %s", params.Type))
-	}
-	drawnUpContract, err := api.Auth.ContractNotary().DrawUpContract(*template, *orgID, validFrom, validDuration)
-	if err != nil {
-		if errors.Is(err, validator.ErrMissingOrganizationKey) {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Unknown legalEntity, this Nuts node does not seem to be managing '%s'", orgID))
-		}
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Unable to draw up contract: %s", err.Error()))
-	}
-
-	sessionRequest := services.CreateSessionRequest{SigningMeans: "irma", Message: drawnUpContract.RawContractText}
-	// Initiate the actual session
-	result, err := api.Auth.ContractClient().CreateSigningSession(sessionRequest)
-	if err != nil {
-		logging.Log().WithError(err).Error("error while creating contract session")
-		return err
-	}
-
-	// backwards compatibility
-	irmaResult := result.(irma.SessionPtr)
-
-	// convert internal result back to generated api format
-	answer := CreateSessionResult{
-		QrCodeInfo: IrmaQR{U: irmaResult.QrCodeInfo.URL, Irmaqr: string(irmaResult.QrCodeInfo.Type)},
-		SessionId:  result.SessionID(),
-	}
-
-	return ctx.JSON(http.StatusCreated, answer)
-}
-
-func parsePeriodParams(params ContractSigningRequest) (time.Time, time.Time, time.Duration, error) {
-	var (
-		validFrom, validTo time.Time
-		d                  time.Duration
-		err                error
-	)
-	if params.ValidFrom != nil {
-		validFrom, err = time.Parse(time.RFC3339, *params.ValidFrom)
-		if err != nil {
-			return time.Time{}, time.Time{}, 0, fmt.Errorf("could not parse validFrom: %v", err)
-		}
-	}
-	if params.ValidTo != nil {
-		validTo, err = time.Parse(time.RFC3339, *params.ValidTo)
-		if err != nil {
-			return time.Time{}, time.Time{}, 0, fmt.Errorf("could not parse validTo: %v", err)
-		}
-		d = validTo.Sub(validFrom)
-	}
-	return validFrom, validTo, d, nil
-}
-
-// SessionRequestStatus gets the current status or the IRMA signing session,
-// it translates the result to the api format and returns it to the HTTP stack
-// If the session is not found it returns a 404
-func (api *Wrapper) SessionRequestStatus(ctx echo.Context, sessionID string) error {
-	sessionStatus, err := api.Auth.ContractClient().ContractSessionStatus(sessionID)
-	if err != nil {
-		if errors.Is(err, services.ErrSessionNotFound) {
-			return echo.NewHTTPError(http.StatusNotFound, err.Error())
-		}
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-
-	// convert internal result back to generated api format
-	var disclosedAttributes []DisclosedAttribute
-	if len(sessionStatus.Disclosed) > 0 {
-		for _, attr := range sessionStatus.Disclosed[0] {
-			value := make(map[string]interface{})
-			for key, val := range map[string]string(attr.Value) {
-				value[key] = val
-			}
-
-			disclosedAttributes = append(disclosedAttributes, DisclosedAttribute{
-				Identifier: attr.Identifier.String(),
-				Value:      value,
-				Rawvalue:   attr.RawValue,
-				Status:     string(attr.Status),
-			})
-		}
-	}
-
-	nutsAuthToken := sessionStatus.NutsAuthToken
-	proofStatus := string(sessionStatus.ProofStatus)
-
-	answer := SessionResult{
-		Disclosed: &disclosedAttributes,
-		Status:    string(sessionStatus.Status),
-		Token:     sessionStatus.Token,
-		Type:      string(sessionStatus.Type),
-	}
-	if nutsAuthToken != "" {
-		answer.NutsAuthToken = &nutsAuthToken
-	}
-
-	if proofStatus != "" {
-		answer.ProofStatus = &proofStatus
-	}
-
-	return ctx.JSON(http.StatusOK, answer)
-}
-
-// ValidateContract first translates the request params to an internal format, it then
-// calls the engine's validator and translates the results to the API format and returns
-// the answer to the HTTP stack
-func (api *Wrapper) ValidateContract(ctx echo.Context) error {
-	params := &ValidationRequest{}
-	if err := ctx.Bind(params); err != nil {
-		return err
-	}
-	logging.Log().Debug(params)
-
-	validationRequest := services.ValidationRequest{
-		ContractFormat: services.ContractFormat(params.ContractFormat),
-		ContractString: params.ContractString,
-	}
-
-	validationResponse, err := api.Auth.ContractClient().ValidateContract(validationRequest)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-
-	// convert internal result back to API format
-	signerAttributes := make(map[string]interface{})
-	for k, v := range validationResponse.DisclosedAttributes {
-		signerAttributes[k] = v
-	}
-
-	answer := ValidationResult{
-		ContractFormat:   string(validationResponse.ContractFormat),
-		SignerAttributes: signerAttributes,
-		ValidationResult: string(validationResponse.ValidationResult),
-	}
-
-	return ctx.JSON(http.StatusOK, answer)
-}
 
 // GetContractByType calls the engines GetContractByType and translate the answer to
 // the API format and returns the the answer back to the HTTP stack

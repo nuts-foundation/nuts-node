@@ -25,8 +25,18 @@ import (
 
 // StandardContractTemplates contains a the official contract templates as specified in the Nuts specification
 // EN:PractitionerLogin:v1 Template
+// todo: remove v1 template after renewing (irma) test data.
 var StandardContractTemplates = TemplateStore{
 	"NL": {"BehandelaarLogin": {
+		"v1": &Template{
+			Type:               "BehandelaarLogin",
+			Version:            "v1",
+			Language:           "NL",
+			SignerAttributes:   []string{".nuts.agb.agbcode"},
+			Template:           `NL:BehandelaarLogin:v1 Ondergetekende geeft toestemming aan {{` + ActingPartyAttr + `}} om namens {{` + LegalEntityAttr + `}} en ondergetekende het Nuts netwerk te bevragen. Deze toestemming is geldig van {{` + ValidFromAttr + `}} tot {{` + ValidToAttr + `}}.`,
+			TemplateAttributes: []string{ActingPartyAttr, LegalEntityAttr, ValidFromAttr, ValidToAttr},
+			Regexp:             `NL:BehandelaarLogin:v1 Ondergetekende geeft toestemming aan (.+) om namens (.+) en ondergetekende het Nuts netwerk te bevragen. Deze toestemming is geldig van (.+) tot (.+).`,
+		},
 		"v3": &Template{
 			Type:               "BehandelaarLogin",
 			Version:            "v3",
