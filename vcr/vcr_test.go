@@ -178,6 +178,20 @@ func TestVCR_Resolve(t *testing.T) {
 		assert.Equal(t, testVC, *vc)
 	})
 
+	t.Run("ok - revoked", func(t *testing.T) {
+		instance.trustConfig.RemoveTrust(testVC.Type[0], testVC.Issuer)
+		rev := leia.Document(concept.TestRevocation)
+		instance.store.Collection(revocationCollection).Add([]leia.Document{rev})
+		defer func() {
+			instance.Untrust(testVC.Type[0], testVC.Issuer)
+			instance.store.Collection(revocationCollection).Delete(rev)
+		}()
+		vc, err := instance.Resolve(*testVC.ID)
+
+		assert.Equal(t, err, ErrRevoked)
+		assert.Equal(t, testVC, *vc)
+	})
+
 	t.Run("ok - untrusted", func(t *testing.T) {
 		instance.trustConfig.RemoveTrust(testVC.Type[0], testVC.Issuer)
 
