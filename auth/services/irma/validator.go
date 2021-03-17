@@ -58,10 +58,10 @@ type Service struct {
 	IrmaSessionHandler SessionHandler
 	IrmaConfig         *irma.Configuration
 	IrmaServiceConfig  ValidatorConfig
-	DIDResolver       types.Resolver
-	Signer            nutsCrypto.JWTSigner
-	ContractTemplates contract.TemplateStore
-	StrictMode        bool
+	DIDResolver        types.Resolver
+	Signer             nutsCrypto.JWTSigner
+	ContractTemplates  contract.TemplateStore
+	StrictMode         bool
 }
 
 // ValidatorConfig holds the configuration for the irma validator.

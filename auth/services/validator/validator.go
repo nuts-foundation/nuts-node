@@ -62,13 +62,13 @@ func (c Config) hasContractValidator(cv string) bool {
 }
 
 type service struct {
-	config                 Config
+	config            Config
 	irmaServiceConfig irma.ValidatorConfig
 	irmaServer        *irmaserver.Server
-	verifiers       map[contract.VPType]contract.VPVerifier
-	signers         map[contract.SigningMeans]contract.Signer
-	didResolver     types.Resolver
-	privateKeyStore crypto.PrivateKeyStore
+	verifiers         map[contract.VPType]contract.VPVerifier
+	signers           map[contract.SigningMeans]contract.Signer
+	didResolver       types.Resolver
+	privateKeyStore   crypto.PrivateKeyStore
 }
 
 // NewContractInstance accepts a Config and several Nuts engines and returns a new instance of services.ContractClient
@@ -104,10 +104,10 @@ func (s *service) Configure() (err error) {
 		irmaService := irma.Service{
 			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
 			IrmaConfig:         irmaConfig,
-			DIDResolver:       s.didResolver,
-			Signer:            s.privateKeyStore,
-			IrmaServiceConfig: s.irmaServiceConfig,
-			ContractTemplates: contract.StandardContractTemplates,
+			DIDResolver:        s.didResolver,
+			Signer:             s.privateKeyStore,
+			IrmaServiceConfig:  s.irmaServiceConfig,
+			ContractTemplates:  contract.StandardContractTemplates,
 		}
 
 		// todo config to VP types

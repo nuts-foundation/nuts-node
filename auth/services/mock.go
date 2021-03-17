@@ -238,21 +238,6 @@ func (mr *MockContractNotaryMockRecorder) DrawUpContract(template, orgID, validF
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DrawUpContract", reflect.TypeOf((*MockContractNotary)(nil).DrawUpContract), template, orgID, validFrom, validDuration)
 }
 
-// ValidateContract mocks base method.
-func (m *MockContractNotary) ValidateContract(contractToValidate contract.Contract, orgID go_did.DID, checkTime time.Time) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateContract", contractToValidate, orgID, checkTime)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ValidateContract indicates an expected call of ValidateContract.
-func (mr *MockContractNotaryMockRecorder) ValidateContract(contractToValidate, orgID, checkTime interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateContract", reflect.TypeOf((*MockContractNotary)(nil).ValidateContract), contractToValidate, orgID, checkTime)
-}
-
 // MockContractClient is a mock of ContractClient interface.
 type MockContractClient struct {
 	ctrl     *gomock.Controller

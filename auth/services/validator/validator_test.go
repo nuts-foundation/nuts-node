@@ -194,9 +194,9 @@ func TestContract_SigningSessionStatus(t *testing.T) {
 type testContext struct {
 	ctrl *gomock.Controller
 
-	contractService        *service
-	signerMock             *contract.MockSigner
-	didResolver            *types.MockResolver
+	contractService *service
+	signerMock      *contract.MockSigner
+	didResolver     *types.MockResolver
 }
 
 func createContext(t *testing.T) *testContext {
@@ -208,12 +208,12 @@ func createContext(t *testing.T) *testContext {
 
 	didResolver := types.NewMockResolver(ctrl)
 	return &testContext{
-		ctrl:                   ctrl,
-		didResolver:            didResolver,
-		signerMock:             signerMock,
+		ctrl:        ctrl,
+		didResolver: didResolver,
+		signerMock:  signerMock,
 		contractService: &service{
-			didResolver:            didResolver,
-			signers:                signers,
+			didResolver: didResolver,
+			signers:     signers,
 		},
 	}
 }

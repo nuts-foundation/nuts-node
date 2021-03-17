@@ -54,6 +54,7 @@ func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercor
 
 	return m.irmaQr, m.sessionToken, nil
 }
+
 //
 //func TestDefaultValidator_legalEntityFromContract(t *testing.T) {
 //	type TestContext struct {
