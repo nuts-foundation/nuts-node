@@ -65,6 +65,9 @@ type UntrustIssuerJSONBody CredentialIssuer
 // TrustIssuerJSONBody defines parameters for TrustIssuer.
 type TrustIssuerJSONBody CredentialIssuer
 
+// CreateJSONBody defines parameters for Create.
+type CreateJSONBody IssueVCRequest
+
 // SearchJSONBody defines parameters for Search.
 type SearchJSONBody SearchRequest
 
@@ -73,6 +76,9 @@ type UntrustIssuerJSONRequestBody UntrustIssuerJSONBody
 
 // TrustIssuerRequestBody defines body for TrustIssuer for application/json ContentType.
 type TrustIssuerJSONRequestBody TrustIssuerJSONBody
+
+// CreateRequestBody defines body for Create for application/json ContentType.
+type CreateJSONRequestBody CreateJSONBody
 
 // SearchRequestBody defines body for Search for application/json ContentType.
 type SearchJSONRequestBody SearchJSONBody
@@ -160,8 +166,10 @@ type ClientInterface interface {
 
 	TrustIssuer(ctx context.Context, body TrustIssuerJSONRequestBody) (*http.Response, error)
 
-	// Create request
-	Create(ctx context.Context) (*http.Response, error)
+	// Create request  with any body
+	CreateWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error)
+
+	Create(ctx context.Context, body CreateJSONRequestBody) (*http.Response, error)
 
 	// Revoke request
 	Revoke(ctx context.Context, id string) (*http.Response, error)
@@ -235,8 +243,23 @@ func (c *Client) TrustIssuer(ctx context.Context, body TrustIssuerJSONRequestBod
 	return c.Client.Do(req)
 }
 
-func (c *Client) Create(ctx context.Context) (*http.Response, error) {
-	req, err := NewCreateRequest(c.Server)
+func (c *Client) CreateWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := NewCreateRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) Create(ctx context.Context, body CreateJSONRequestBody) (*http.Response, error) {
+	req, err := NewCreateRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -388,8 +411,19 @@ func NewTrustIssuerRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
-// NewCreateRequest generates requests for Create
-func NewCreateRequest(server string) (*http.Request, error) {
+// NewCreateRequest calls the generic Create builder with application/json body
+func NewCreateRequest(server string, body CreateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateRequestWithBody generates requests for Create with any type of body
+func NewCreateRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	queryUrl, err := url.Parse(server)
@@ -407,11 +441,12 @@ func NewCreateRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryUrl.String(), nil)
+	req, err := http.NewRequest("POST", queryUrl.String(), body)
 	if err != nil {
 		return nil, err
 	}
 
+	req.Header.Add("Content-Type", contentType)
 	return req, nil
 }
 
@@ -568,8 +603,10 @@ type ClientWithResponsesInterface interface {
 
 	TrustIssuerWithResponse(ctx context.Context, body TrustIssuerJSONRequestBody) (*TrustIssuerResponse, error)
 
-	// Create request
-	CreateWithResponse(ctx context.Context) (*CreateResponse, error)
+	// Create request  with any body
+	CreateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*CreateResponse, error)
+
+	CreateWithResponse(ctx context.Context, body CreateJSONRequestBody) (*CreateResponse, error)
 
 	// Revoke request
 	RevokeWithResponse(ctx context.Context, id string) (*RevokeResponse, error)
@@ -744,9 +781,17 @@ func (c *ClientWithResponses) TrustIssuerWithResponse(ctx context.Context, body 
 	return ParseTrustIssuerResponse(rsp)
 }
 
-// CreateWithResponse request returning *CreateResponse
-func (c *ClientWithResponses) CreateWithResponse(ctx context.Context) (*CreateResponse, error) {
-	rsp, err := c.Create(ctx)
+// CreateWithBodyWithResponse request with arbitrary body returning *CreateResponse
+func (c *ClientWithResponses) CreateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*CreateResponse, error) {
+	rsp, err := c.CreateWithBody(ctx, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateWithResponse(ctx context.Context, body CreateJSONRequestBody) (*CreateResponse, error) {
+	rsp, err := c.Create(ctx, body)
 	if err != nil {
 		return nil, err
 	}

@@ -30,6 +30,9 @@ type VerifiableCredential = did.VerifiableCredential
 // CredentialSubject is an alias to use from within the API
 type CredentialSubject = interface{}
 
+// IssueVCRequest is an alias to use from within the API for issuing VCs.
+type IssueVCRequest = did.VerifiableCredential
+
 // Revocation is an alias to use from within the API
 type Revocation = credential.Revocation
 

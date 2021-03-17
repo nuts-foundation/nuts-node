@@ -147,16 +147,19 @@ func TestVDR_Deactivate(t *testing.T) {
 		network: networkMock,
 	}
 
-	expectedDocument := did.Document{ID: *id}
+	expectedDocument := did.Document{ID: *id, Context: []did.URI{did.DIDContextV1URI()}}
 	expectedPayload, _ := json.Marshal(expectedDocument)
 
 	currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 	currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
 
 	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any(), gomock.Any())
-	didStoreMock.EXPECT().Resolve(*id, &types.ResolveMetadata{Hash: &currentHash, AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
+	gomock.InOrder(
+		didStoreMock.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil),
+		didStoreMock.EXPECT().Resolve(*id, &types.ResolveMetadata{Hash: &currentHash, AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil),
+	)
 
-	err := vdr.Deactivate(*id, currentHash)
+	err := vdr.Deactivate(*id)
 	if !assert.NoError(t, err) {
 		return
 	}

@@ -17,10 +17,11 @@
  *
  */
 
-package core
+package status
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"strings"
 	"time"
@@ -29,14 +30,16 @@ import (
 )
 
 const moduleName = "Status"
+const diagnosticsEndpoint = "/status/diagnostics"
+const statusEndpoint = "/status"
 
 type status struct {
-	system    *System
+	system    *core.System
 	startTime time.Time
 }
 
 //NewStatusEngine creates a new Engine for viewing all engines
-func NewStatusEngine(system *System) Engine {
+func NewStatusEngine(system *core.System) core.Engine {
 	return &status{
 		system:    system,
 		startTime: time.Now(),
@@ -47,9 +50,9 @@ func (s *status) Name() string {
 	return moduleName
 }
 
-func (s *status) Routes(router EchoRouter) {
-	router.Add(http.MethodGet, "/status/diagnostics", s.diagnosticsOverview)
-	router.Add(http.MethodGet, "/status", statusOK)
+func (s *status) Routes(router core.EchoRouter) {
+	router.Add(http.MethodGet, diagnosticsEndpoint, s.diagnosticsOverview)
+	router.Add(http.MethodGet, statusEndpoint, statusOK)
 }
 
 func (s *status) diagnosticsOverview(ctx echo.Context) error {
@@ -58,8 +61,8 @@ func (s *status) diagnosticsOverview(ctx echo.Context) error {
 
 func (s *status) diagnosticsSummaryAsText() string {
 	var lines []string
-	s.system.VisitEngines(func(engine Engine) {
-		if m, ok := engine.(ViewableDiagnostics); ok {
+	s.system.VisitEngines(func(engine core.Engine) {
+		if m, ok := engine.(core.ViewableDiagnostics); ok {
 			lines = append(lines, m.Name())
 			diagnostics := m.Diagnostics()
 			for _, d := range diagnostics {
@@ -72,17 +75,17 @@ func (s *status) diagnosticsSummaryAsText() string {
 
 // Diagnostics returns list of DiagnosticResult for the StatusEngine.
 // The results are a list of all registered engines
-func (s *status) Diagnostics() []DiagnosticResult {
-	return []DiagnosticResult{
-		&GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(s.listAllEngines(), ",")},
-		&GenericDiagnosticResult{Title: "Uptime", Outcome: time.Now().Sub(s.startTime).String()},
+func (s *status) Diagnostics() []core.DiagnosticResult {
+	return []core.DiagnosticResult{
+		&core.GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(s.listAllEngines(), ",")},
+		&core.GenericDiagnosticResult{Title: "Uptime", Outcome: time.Now().Sub(s.startTime).String()},
 	}
 }
 
 func (s *status) listAllEngines() []string {
 	var names []string
-	s.system.VisitEngines(func(engine Engine) {
-		if m, ok := engine.(Named); ok {
+	s.system.VisitEngines(func(engine core.Engine) {
+		if m, ok := engine.(core.Named); ok {
 			names = append(names, m.Name())
 		}
 	})

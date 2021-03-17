@@ -25,6 +25,7 @@ import (
 	authIrmaAPI "github.com/nuts-foundation/nuts-node/auth/api/irma"
 	authV1API "github.com/nuts-foundation/nuts-node/auth/api/v0"
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
+	"github.com/nuts-foundation/nuts-node/core/status"
 	"io"
 	"os"
 
@@ -144,7 +145,7 @@ func CreateSystem() *core.System {
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), cryptoInstance)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, vdrInstance, networkInstance)
-	statusEngine := core.NewStatusEngine(system)
+	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, cryptoInstance)
 
@@ -182,6 +183,7 @@ func Execute(system *core.System) {
 func addSubCommands(system *core.System, root *cobra.Command) {
 	// Register client commands
 	clientCommands := []*cobra.Command{
+		status.Cmd(),
 		cryptoCmd.Cmd(),
 		networkCmd.Cmd(),
 		vdrCmd.Cmd(),
