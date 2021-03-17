@@ -54,6 +54,12 @@ func TestTrustConfig_save(t *testing.T) {
 
 		assert.Equal(t, []string{"did:nuts:1"}, tc2.issuersPerType[nutsTestCredential])
 	})
+
+	t.Run("error - no filename", func(t *testing.T) {
+		err := NewConfig("").save()
+
+		assert.Error(t, err)
+	})
 }
 
 func TestTrustConfig_Load(t *testing.T) {
@@ -66,6 +72,12 @@ func TestTrustConfig_Load(t *testing.T) {
 		}
 
 		assert.Equal(t, []string{"did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv"}, tc.issuersPerType[nutsTestCredential])
+	})
+
+	t.Run("error - no filename", func(t *testing.T) {
+		err := NewConfig("").Load()
+
+		assert.Error(t, err)
 	})
 }
 
@@ -89,5 +101,71 @@ func TestTrustConfig_IsTrusted(t *testing.T) {
 		d, _ := did.ParseURI("did:nuts:1")
 
 		assert.False(t, tc.IsTrusted(*c, *d))
+	})
+}
+
+func TestConfig_AddTrust(t *testing.T) {
+	testDir := io.TestDirectory(t)
+	tc := NewConfig(path.Join(testDir, "test.yaml"))
+	issuer, _ := did.ParseURI("did:nuts:1")
+
+	t.Run("ok - already present", func(t *testing.T) {
+		err := tc.AddTrust(did.VerifiableCredentialTypeV1URI(), *issuer)
+
+		assert.NoError(t, err)
+
+		err = tc.AddTrust(did.VerifiableCredentialTypeV1URI(), *issuer)
+
+		assert.NoError(t, err)
+	})
+}
+
+func TestConfig_RemoveTrust(t *testing.T) {
+	testDir := io.TestDirectory(t)
+	tc := NewConfig(path.Join(testDir, "test.yaml"))
+	issuer, _ := did.ParseURI("did:nuts:1")
+
+	t.Run("ok - not present", func(t *testing.T) {
+		isTrusted := tc.IsTrusted(did.VerifiableCredentialTypeV1URI(), *issuer)
+
+		assert.False(t, isTrusted)
+		err := tc.RemoveTrust(did.VerifiableCredentialTypeV1URI(), *issuer)
+
+		assert.NoError(t, err)
+		assert.False(t, isTrusted)
+	})
+
+	t.Run("ok", func(t *testing.T) {
+		err := tc.AddTrust(did.VerifiableCredentialTypeV1URI(), *issuer)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.True(t, tc.IsTrusted(did.VerifiableCredentialTypeV1URI(), *issuer))
+		err = tc.RemoveTrust(did.VerifiableCredentialTypeV1URI(), *issuer)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.False(t, tc.IsTrusted(did.VerifiableCredentialTypeV1URI(), *issuer))
+	})
+
+	t.Run("ok - with multiple entries", func(t *testing.T) {
+		testDir := io.TestDirectory(t)
+		tc := NewConfig(path.Join(testDir, "test.yaml"))
+
+		issuer2, _ := did.ParseURI("did:nuts:2")
+		issuer3, _ := did.ParseURI("did:nuts:3")
+
+		tc.AddTrust(did.VerifiableCredentialTypeV1URI(), *issuer)
+		tc.AddTrust(did.VerifiableCredentialTypeV1URI(), *issuer2)
+		tc.AddTrust(did.VerifiableCredentialTypeV1URI(), *issuer3)
+
+		err := tc.RemoveTrust(did.VerifiableCredentialTypeV1URI(), *issuer)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.True(t, tc.IsTrusted(did.VerifiableCredentialTypeV1URI(), *issuer3))
 	})
 }
