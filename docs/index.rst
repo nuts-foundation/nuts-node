@@ -6,6 +6,13 @@ Nuts documentation
 
 .. toctree::
     :maxdepth: 1
+    :caption: Getting Started:
+    :glob:
+
+    pages/getting-started/**
+
+.. toctree::
+    :maxdepth: 1
     :caption: Technology:
     :glob:
 
@@ -31,7 +38,6 @@ Nuts documentation
     :glob:
 
     pages/monitoring.rst
-    pages/running-a-node.rst
     pages/administering-your-node.rst
     pages/production-configuration.rst
 
