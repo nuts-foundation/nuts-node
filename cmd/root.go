@@ -26,6 +26,7 @@ import (
 	authV1API "github.com/nuts-foundation/nuts-node/auth/api/v0"
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core/status"
+	"github.com/nuts-foundation/nuts-node/didman"
 	"io"
 	"os"
 
@@ -148,6 +149,7 @@ func CreateSystem() *core.System {
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, cryptoInstance)
+	didManagerInstance := didman.NewDIDManager()
 
 	// add engine specific routes
 	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})
@@ -168,6 +170,7 @@ func CreateSystem() *core.System {
 	system.RegisterEngine(vdrInstance)
 	system.RegisterEngine(credentialInstance)
 	system.RegisterEngine(authInstance)
+	system.RegisterEngine(didManagerInstance)
 	return system
 }
 
