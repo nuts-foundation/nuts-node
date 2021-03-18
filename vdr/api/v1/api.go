@@ -26,6 +26,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	did2 "github.com/nuts-foundation/go-did"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -93,14 +94,10 @@ func (a Wrapper) UpdateDID(ctx echo.Context, did string) error {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given hash is not valid: %s", err.Error()))
 	}
 
-	if err := a.VDR.Update(*d, h, req.Document, nil); err != nil {
-		// for middleware maybe
-		if errors.Is(err, types.ErrNotFound) {
-			return ctx.NoContent(http.StatusNotFound)
-		}
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("couldn't update DID document: %s", err.Error()))
+	err = a.VDR.Update(*d, h, req.Document, nil)
+	if err != nil {
+		return handleError(ctx, err, "could not update document: %s")
 	}
-
 	return ctx.JSON(http.StatusOK, req.Document)
 }
 
@@ -111,15 +108,25 @@ func (a *Wrapper) DeactivateDID(ctx echo.Context, did string) error {
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
 	}
+	err = a.VDR.Deactivate(*id)
+	if err != nil {
+		return handleError(ctx, err, "could not deactivate document: %s")
+	}
+	return ctx.NoContent(http.StatusOK)
+}
 
-	if err = a.VDR.Deactivate(*id); err != nil {
+func handleError(ctx echo.Context, err error, errTemplate string) error {
+	if err != nil {
 		if errors.Is(err, types.ErrNotFound) {
 			return ctx.NoContent(http.StatusNotFound)
 		}
-		if errors.Is(err, types.ErrDeactivated) {
-			return ctx.String(http.StatusConflict, fmt.Sprintf("could not deactivate document: %s", err.Error()))
+		if errors.Is(err, types.ErrDIDNotManagedByThisNode) {
+			return ctx.String(http.StatusForbidden, fmt.Sprintf(errTemplate, err.Error()))
 		}
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("could not deactivate document: %s", err.Error()))
+		if errors.Is(err, types.ErrDeactivated) {
+			return ctx.String(http.StatusConflict, fmt.Sprintf(errTemplate, err.Error()))
+		}
+		return ctx.String(http.StatusInternalServerError, fmt.Sprintf(errTemplate, err.Error()))
 	}
-	return ctx.NoContent(http.StatusOK)
+	return err
 }

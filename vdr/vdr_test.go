@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -99,6 +100,28 @@ func TestVDR_Update(t *testing.T) {
 		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
 		assert.EqualError(t, err, "unable to find the did document")
+	})
+
+	t.Run("error - document not managed by this node", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		didStoreMock := types.NewMockStore(ctrl)
+		networkMock := network.NewMockTransactions(ctrl)
+
+		vdr := VDR{
+			store:   didStoreMock,
+			network: networkMock,
+		}
+		nextDIDDocument := did.Document{ID: *id}
+		currentDIDDocument := nextDIDDocument
+		currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
+		didStoreMock.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
+		networkMock.EXPECT().CreateTransaction(gomock.Any(), gomock.Any(), gomock.Any(), nil, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, crypto.ErrKeyNotFound)
+		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "DID document not managed by this node")
+		assert.True(t, errors.Is(err, types.ErrDIDNotManagedByThisNode),
+			"expected ErrDIDNotManagedByThisNode error when the document is not managed by this node")
 	})
 }
 

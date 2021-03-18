@@ -34,6 +34,9 @@ var ErrInvalidDID = errors.New("invalid did syntax")
 // ErrKeyNotFound is returned when a particular key or type of key is not found.
 var ErrKeyNotFound = errors.New("key not found")
 
+// ErrDIDNotManagedByThisNode is returned when an operation needs the private key and if is not found on this host
+var ErrDIDNotManagedByThisNode = errors.New("DID document not managed by this node")
+
 // ErrNotFound The DID resolver was unable to find the DID document resulting from this resolution request.
 var ErrNotFound = errors.New("unable to find the did document")
 
