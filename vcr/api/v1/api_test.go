@@ -389,7 +389,7 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 			return nil
 		})
 		ctx.vcr.EXPECT().Trust(cType, issuer).Return(nil)
-		ctx.echo.EXPECT().NoContent(http.StatusAccepted)
+		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
 
 		ctx.client.TrustIssuer(ctx.echo)
 	})
@@ -405,7 +405,7 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 			return nil
 		})
 		ctx.vcr.EXPECT().Untrust(cType, issuer).Return(nil)
-		ctx.echo.EXPECT().NoContent(http.StatusAccepted)
+		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
 
 		ctx.client.UntrustIssuer(ctx.echo)
 	})

@@ -210,5 +210,5 @@ func changeTrust(ctx echo.Context, f trustChangeFunc) error {
 		return err
 	}
 
-	return ctx.NoContent(http.StatusAccepted)
+	return ctx.NoContent(http.StatusNoContent)
 }

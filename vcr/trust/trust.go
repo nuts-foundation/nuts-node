@@ -36,8 +36,8 @@ type Config struct {
 }
 
 // NewConfig returns a fully configured Config
-func NewConfig(filename string) Config {
-	return Config{
+func NewConfig(filename string) *Config {
+	return &Config{
 		filename:       filename,
 		issuersPerType: map[string][]string{},
 		mutex:          sync.Mutex{},
@@ -45,7 +45,7 @@ func NewConfig(filename string) Config {
 }
 
 // Load the trusted issuers per credential type from file
-func (tc Config) Load() error {
+func (tc *Config) Load() error {
 	tc.mutex.Lock()
 	defer tc.mutex.Unlock()
 
@@ -68,7 +68,7 @@ func (tc Config) Load() error {
 }
 
 // Save the list of trusted issuers per credential type to file
-func (tc Config) save() error {
+func (tc *Config) save() error {
 	if tc.filename == "" {
 		return errors.New("no filename specified")
 	}
@@ -82,7 +82,7 @@ func (tc Config) save() error {
 }
 
 // IsTrusted returns true when the given issuer is in the trusted issuers list of the given credentialType
-func (tc Config) IsTrusted(credentialType did.URI, issuer did.URI) bool {
+func (tc *Config) IsTrusted(credentialType did.URI, issuer did.URI) bool {
 	issuerString := issuer.String()
 	for _, i := range tc.issuersPerType[credentialType.String()] {
 		if i == issuerString {
@@ -95,7 +95,7 @@ func (tc Config) IsTrusted(credentialType did.URI, issuer did.URI) bool {
 
 // AddTrust adds trust in a specific Issuer for a credential type.
 // It returns an error if the Save fails
-func (tc Config) AddTrust(credentialType did.URI, issuer did.URI) error {
+func (tc *Config) AddTrust(credentialType did.URI, issuer did.URI) error {
 	tc.mutex.Lock()
 	defer tc.mutex.Unlock()
 
@@ -112,7 +112,7 @@ func (tc Config) AddTrust(credentialType did.URI, issuer did.URI) error {
 
 // RemoveTrust removes trust in a specific Issuer for a credential type.
 // It returns an error if the Save fails
-func (tc Config) RemoveTrust(credentialType did.URI, issuer did.URI) error {
+func (tc *Config) RemoveTrust(credentialType did.URI, issuer did.URI) error {
 	tc.mutex.Lock()
 	defer tc.mutex.Unlock()
 	tString := credentialType.String()
