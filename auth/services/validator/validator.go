@@ -22,14 +22,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
-	"github.com/nuts-foundation/nuts-node/auth/services/x509"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
+	"github.com/nuts-foundation/nuts-node/auth/services/x509"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
 
@@ -62,27 +62,21 @@ func (c Config) hasContractValidator(cv string) bool {
 }
 
 type service struct {
-	config                 Config
-	contractSessionHandler services.ContractSessionHandler
-	// deprecated
-	contractValidator services.ContractValidator
+	config            Config
 	irmaServiceConfig irma.ValidatorConfig
 	irmaServer        *irmaserver.Server
-	// todo: remove this when the deprecated ValidateJwt is removed
-	nameResolver    vdr.NameResolver
-	verifiers       map[contract.VPType]contract.VPVerifier
-	signers         map[contract.SigningMeans]contract.Signer
-	didResolver     types.Resolver
-	privateKeyStore crypto.PrivateKeyStore
+	verifiers         map[contract.VPType]contract.VPVerifier
+	signers           map[contract.SigningMeans]contract.Signer
+	didResolver       types.Resolver
+	privateKeyStore   crypto.PrivateKeyStore
 }
 
 // NewContractInstance accepts a Config and several Nuts engines and returns a new instance of services.ContractClient
-func NewContractInstance(config Config, didResolver types.Resolver, privateKeyStore crypto.PrivateKeyStore, nameResolver vdr.NameResolver) services.ContractClient {
+func NewContractInstance(config Config, didResolver types.Resolver, privateKeyStore crypto.PrivateKeyStore) services.ContractClient {
 	return &service{
 		config:          config,
 		didResolver:     didResolver,
 		privateKeyStore: privateKeyStore,
-		nameResolver:    nameResolver,
 	}
 }
 
@@ -110,16 +104,11 @@ func (s *service) Configure() (err error) {
 		irmaService := irma.Service{
 			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
 			IrmaConfig:         irmaConfig,
-			// todo: remove this when the deprecated irmaValidatorValidateJwt is removed
-			NameResolver:      s.nameResolver,
-			DIDResolver:       s.didResolver,
-			Signer:            s.privateKeyStore,
-			IrmaServiceConfig: s.irmaServiceConfig,
-			ContractTemplates: contract.StandardContractTemplates,
+			DIDResolver:        s.didResolver,
+			Signer:             s.privateKeyStore,
+			IrmaServiceConfig:  s.irmaServiceConfig,
+			ContractTemplates:  contract.StandardContractTemplates,
 		}
-		// todo refactor and use signer/verifier
-		s.contractSessionHandler = irmaService
-		s.contractValidator = irmaService
 
 		// todo config to VP types
 		if _, ok := cvMap[irma.ContractFormat]; ok {
@@ -232,32 +221,4 @@ func (s *service) CreateSigningSession(sessionRequest services.CreateSessionRequ
 		return nil, ErrUnknownSigningMeans
 	}
 	return signer.StartSigningSession(sessionRequest.Message)
-}
-
-// ContractSessionStatus returns the current session status for a given sessionID.
-// If the session is not found, the error is an ErrSessionNotFound and SessionStatusResult is nil
-func (s *service) ContractSessionStatus(sessionID string) (*services.SessionStatusResult, error) {
-	sessionStatus, err := s.contractSessionHandler.SessionStatus(services.SessionID(sessionID))
-
-	if err != nil {
-		return nil, fmt.Errorf("sessionID %s: %w", sessionID, err)
-	}
-
-	if sessionStatus == nil {
-		return nil, fmt.Errorf("sessionID %s: %w", sessionID, services.ErrSessionNotFound)
-	}
-
-	return sessionStatus, nil
-}
-
-// ValidateContract validates a given contract. Currently two Type's are accepted: Irma and Jwt.
-// Both types should be passed as a base64 encoded string in the ContractString of the request paramContractString of the request param
-// deprecated
-func (s *service) ValidateContract(request services.ValidationRequest) (*services.ContractValidationResult, error) {
-	if request.ContractFormat == services.IrmaFormat {
-		return s.contractValidator.ValidateContract(request.ContractString, services.IrmaFormat, nil)
-	} else if request.ContractFormat == services.JwtFormat {
-		return s.contractValidator.ValidateJwt(request.ContractString, nil)
-	}
-	return nil, fmt.Errorf("format %v: %w", request.ContractFormat, contract.ErrUnknownContractFormat)
 }

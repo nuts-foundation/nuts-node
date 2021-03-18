@@ -20,10 +20,10 @@ package validator
 
 import (
 	"encoding/json"
-	"errors"
+	"testing"
+
 	irmaService "github.com/nuts-foundation/nuts-node/auth/services/irma"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"testing"
 
 	"github.com/golang/mock/gomock"
 	irma "github.com/privacybydesign/irmago"
@@ -56,64 +56,6 @@ func TestService_CreateContractSession(t *testing.T) {
 
 		assert.Equal(t, irmaResult.QrCodeInfo.URL, qrURL, "qrCode should contain the correct URL")
 		assert.Equal(t, irmaResult.QrCodeInfo.Type, irma.ActionSigning, "qrCode type should be signing")
-	})
-}
-
-func TestService_ContractSessionStatus(t *testing.T) {
-	ctx := createContext(t)
-	defer ctx.ctrl.Finish()
-
-	t.Run("returns err if session is not found", func(t *testing.T) {
-		ctx.contractSessionHandler.EXPECT().SessionStatus(services.SessionID("ID")).Return(nil, services.ErrSessionNotFound)
-
-		_, err := ctx.contractService.ContractSessionStatus("ID")
-
-		assert.True(t, errors.Is(err, services.ErrSessionNotFound))
-	})
-
-	t.Run("returns session status when found", func(t *testing.T) {
-		ctx.contractSessionHandler.EXPECT().SessionStatus(services.SessionID("ID")).Return(&services.SessionStatusResult{NutsAuthToken: "token"}, nil)
-
-		result, err := ctx.contractService.ContractSessionStatus("ID")
-
-		assert.Nil(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, "token", result.NutsAuthToken)
-	})
-}
-
-func TestService_ValidateContract(t *testing.T) {
-	ctx := createContext(t)
-	defer ctx.ctrl.Finish()
-
-	t.Run("Returns error on unknown constract type", func(t *testing.T) {
-		_, err := ctx.contractService.ValidateContract(services.ValidationRequest{ContractFormat: "Unknown"})
-
-		assert.True(t, errors.Is(err, contract.ErrUnknownContractFormat))
-	})
-
-	t.Run("Returns validation result for JWT", func(t *testing.T) {
-		ctx.contractValidatorMock.EXPECT().ValidateJwt(gomock.Any(), nil).Return(&services.ContractValidationResult{
-			ValidationResult: services.Valid,
-		}, nil)
-
-		result, err := ctx.contractService.ValidateContract(services.ValidationRequest{ContractFormat: services.JwtFormat})
-
-		assert.Nil(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, services.Valid, result.ValidationResult)
-	})
-
-	t.Run("Returns validation result for Irma", func(t *testing.T) {
-		ctx.contractValidatorMock.EXPECT().ValidateContract(gomock.Any(), gomock.Any(), nil).Return(&services.ContractValidationResult{
-			ValidationResult: services.Valid,
-		}, nil)
-
-		result, err := ctx.contractService.ValidateContract(services.ValidationRequest{ContractFormat: services.IrmaFormat})
-
-		assert.Nil(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, services.Valid, result.ValidationResult)
 	})
 }
 
@@ -252,17 +194,13 @@ func TestContract_SigningSessionStatus(t *testing.T) {
 type testContext struct {
 	ctrl *gomock.Controller
 
-	contractValidatorMock  *services.MockContractValidator
-	contractSessionHandler *services.MockContractSessionHandler
-	contractService        *service
-	signerMock             *contract.MockSigner
-	didResolver            *types.MockResolver
+	contractService *service
+	signerMock      *contract.MockSigner
+	didResolver     *types.MockResolver
 }
 
 func createContext(t *testing.T) *testContext {
 	ctrl := gomock.NewController(t)
-	contractValidatorMock := services.NewMockContractValidator(ctrl)
-	contractSessionHandler := services.NewMockContractSessionHandler(ctrl)
 
 	signers := map[contract.SigningMeans]contract.Signer{}
 	signerMock := contract.NewMockSigner(ctrl)
@@ -270,16 +208,12 @@ func createContext(t *testing.T) *testContext {
 
 	didResolver := types.NewMockResolver(ctrl)
 	return &testContext{
-		ctrl:                   ctrl,
-		didResolver:            didResolver,
-		contractValidatorMock:  contractValidatorMock,
-		contractSessionHandler: contractSessionHandler,
-		signerMock:             signerMock,
+		ctrl:        ctrl,
+		didResolver: didResolver,
+		signerMock:  signerMock,
 		contractService: &service{
-			contractSessionHandler: contractSessionHandler,
-			contractValidator:      contractValidatorMock,
-			didResolver:            didResolver,
-			signers:                signers,
+			didResolver: didResolver,
+			signers:     signers,
 		},
 	}
 }

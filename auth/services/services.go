@@ -1,31 +1,13 @@
 package services
 
 import (
-	"github.com/nuts-foundation/go-did"
 	"net/http"
 	"time"
 
-	irma "github.com/privacybydesign/irmago"
-	"github.com/privacybydesign/irmago/server"
+	"github.com/nuts-foundation/go-did"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 )
-
-// ContractValidator interface must be implemented by contract validators
-// deprecated
-type ContractValidator interface {
-	// ValidateContract validates a signed login contract
-	ValidateContract(contract string, format ContractFormat, checkTime *time.Time) (*ContractValidationResult, error)
-	// ValidateJwt validates a JWT that contains a signed login contract
-	ValidateJwt(contract string, checkTime *time.Time) (*ContractValidationResult, error)
-}
-
-// ContractSessionHandler interface must be implemented by ContractSessionHandlers
-// deprecated
-type ContractSessionHandler interface {
-	SessionStatus(session SessionID) (*SessionStatusResult, error)
-	StartSession(request interface{}, handler server.SessionHandler) (*irma.Qr, string, error)
-}
 
 // OAuthClient is the client interface for the OAuth service
 type OAuthClient interface {
@@ -56,8 +38,6 @@ type VPProofValueParser interface {
 type ContractNotary interface {
 	// DrawUpContract draws up a contract from a template and returns a Contract which than can be signed by the user.
 	DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration) (*contract.Contract, error)
-
-	ValidateContract(contractToValidate contract.Contract, orgID did.DID, checkTime time.Time) (bool, error)
 }
 
 // ContractClient defines functions for creating and validating verifiable credentials
@@ -72,11 +52,6 @@ type ContractClient interface {
 
 	Configure() error
 
-	// deprecated
-	ContractSessionStatus(sessionID string) (*SessionStatusResult, error)
-	// deprecated
-	ValidateContract(request ValidationRequest) (*ContractValidationResult, error)
 	// HandlerFunc returns the Irma server handler func
-	// deprecated
 	HandlerFunc() http.HandlerFunc
 }

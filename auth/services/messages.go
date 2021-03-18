@@ -2,10 +2,10 @@ package services
 
 import (
 	"encoding/json"
+
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 
 	irma "github.com/privacybydesign/irmago"
-	"github.com/privacybydesign/irmago/server"
 )
 
 // CreateSessionRequest is used to create a contract signing session.
@@ -19,24 +19,6 @@ type CreateSessionRequest struct {
 type CreateSessionResult struct {
 	QrCodeInfo irma.Qr
 	SessionID  string
-}
-
-// SessionStatusResult contains the current state of a session. If the session is DONE it also contains a JWT in the NutsAuthToken
-// deprecated
-type SessionStatusResult struct {
-	server.SessionResult
-	// NutsAuthToken contains the JWT if the sessionStatus is DONE
-	NutsAuthToken string `json:"nuts_auth_token"`
-}
-
-// ValidationRequest is used to pass all information to ValidateContract
-// deprecated, moved to pkg/contract
-type ValidationRequest struct {
-	// ContractFormat specifies the type of format used for the contract, e.g. 'irma'
-	ContractFormat ContractFormat
-
-	// The actual contract in string format to validate
-	ContractString string
 }
 
 // CreateAccessTokenRequest contains all information to create an access token from a JwtBearerToken
@@ -115,7 +97,6 @@ func (token *NutsJwtBearerToken) FromMap(m map[string]interface{}) error {
 }
 
 // ContractValidationResult contains the result of a contract validation
-// deprecated, moved to pkg/contract
 type ContractValidationResult struct {
 	ValidationResult ValidationState `json:"validation_result"`
 	ContractFormat   ContractFormat  `json:"contract_format"`

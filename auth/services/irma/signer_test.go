@@ -246,7 +246,6 @@ func serviceWithMocks(t *testing.T) (*Service, *gomock.Controller) {
 		IrmaSessionHandler: &mockIrmaClient{},
 		IrmaConfig:         irmaConfig,
 		DIDResolver:        types.NewMockResolver(ctrl),
-		NameResolver:       vdr.NewMockNameResolver(ctrl),
 		Signer:             crypto.NewMockJWTSigner(ctrl),
 		ContractTemplates:  contract.StandardContractTemplates,
 	}, ctrl
