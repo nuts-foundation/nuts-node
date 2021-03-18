@@ -11,7 +11,7 @@ Prerequisites
 
 The following is needed to run a Nuts node:
 
-1. Nuts executable for your platform (Docker guide is coming soon).
+1. Nuts executable for your platform.
 2. The address of your running Nuts node. You can pass this using the `address` variable.
 
 Commands

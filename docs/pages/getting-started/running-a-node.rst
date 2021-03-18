@@ -1,21 +1,23 @@
-.. _running-nuts-server:
+.. _running-native:
 
-Running a Nuts node
-###################
+Getting Started with native binary
+##################################
 
 The Nuts executable this project provides can be used to both run a Nuts server (a.k.a. node) and administer a running
-node remotely. This chapter explains how to run a server.
+node remotely. This chapter explains how to run a server using the native binary.
 
 Prerequisites
 *************
 
 The following is needed to run a Nuts node:
 
-1. Nuts executable for your platform (Docker guide is coming soon).
+1. Nuts executable for your platform.
 2. If connecting to an existing network: the public address of one or more remote nodes you'd like to use as bootstrap nodes.
 3. A TLS client- and server certificate which is accepted by the other nodes in the network (e.g. PKIoverheid).
 4. A truststore containing the CA trust anchors for TLS certificates the network you're connecting to accepts (e.g. PKIoverheid).
 5. The public address of your Nuts node remote nodes can connect to.
+
+To connect to the development network you can use the `nuts-development-network-ca` by cloning `https://github.com/nuts-foundation/nuts-development-network-ca`.
 
 Configuring
 ***********
