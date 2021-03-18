@@ -36,4 +36,5 @@ require (
 	go.etcd.io/bbolt v1.3.5
 	google.golang.org/grpc v1.33.1
 	google.golang.org/protobuf v1.25.0
+	gopkg.in/yaml.v2 v2.3.0
 )

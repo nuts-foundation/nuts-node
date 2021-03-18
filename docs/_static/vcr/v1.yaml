@@ -49,6 +49,9 @@ paths:
           type: string
     get:
       summary: "Resolves a verifiable credential"
+      description: >
+        The resolutionResult contains the credential regardless of the validity.
+        The resolutionResult.currentStatus must be checked to see if the credential is valid.
       operationId: "resolve"
       tags:
         - credential
@@ -58,7 +61,7 @@ paths:
           content:
             application/vc+json:
               schema:
-                $ref: '#/components/schemas/VerifiableCredential'
+                $ref: '#/components/schemas/ResolutionResult'
         "404":
           description: Corresponding credential could not be found.
           content:
@@ -155,11 +158,82 @@ paths:
             text/plain:
               schema:
                 type: string
+  /internal/vcr/v1/trust:
+    post:
+      summary: Mark all the VCs of given type and issuer as 'trusted'.
+      description: The added trust is persisted and may be removed with a delete operation.
+      operationId: "trustIssuer"
+      tags:
+        - credential
+      requestBody:
+        required: true
+        description: a issuer/credentialType combination
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialIssuer"
+      responses:
+        "204":
+          description: The change was accepted.
+        "400":
+          description: invalid params.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "500":
+          description: An error occurred while processing the request.
+          content:
+            text/plain:
+              schema:
+                type: string
+    delete:
+      summary: Remove trust in an issuer/credentialType combination
+      description: The removed trust is persisted.
+      operationId: "untrustIssuer"
+      tags:
+        - credential
+      requestBody:
+        required: true
+        description: a issuer/credentialType combination
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialIssuer"
+      responses:
+        "204":
+          description: The change was accepted.
+        "400":
+          description: invalid params.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "500":
+          description: An error occurred while processing the request.
+          content:
+            text/plain:
+              schema:
+                type: string
 components:
   schemas:
     CredentialSubject:
       type: object
       description: Subject of a Verifiable Credential identifying the holder and expressing claims.
+    CredentialIssuer:
+      type: object
+      required:
+        - issuer
+        - credentialType
+      properties:
+        issuer:
+          description: the DID of an issuer
+          example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+          type: string
+        credentialType:
+          description: a credential type
+          example: NutsOrganizationCredential
+          type: string
     KeyValuePair:
       type: object
       description: used search params
@@ -175,6 +249,19 @@ components:
           example: company.name
         value:
           type: string
+    ResolutionResult:
+      type: object
+      description: result of a Resolve operation.
+      required:
+        - currentStatus
+        - verifiableCredential
+      properties:
+        currentStatus:
+          type: string
+          enum: ["trusted", "revoked", "untrusted"]
+          description: Only credentials with with "trusted" state are valid. If a revoked credential is also untrusted, revoked will be returned.
+        verifiableCredential:
+          $ref: "#/components/schemas/VerifiableCredential"
     Revocation:
       type: object
       description: Credential revocation record

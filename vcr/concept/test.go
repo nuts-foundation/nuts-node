@@ -27,7 +27,7 @@ import (
 const ExampleConcept = "human"
 const ExampleType = "HumanCredential"
 
-var ExampleTemplate = `
+const ExampleTemplate = `
 {
 	"id": "<<id>>",
 	"issuer": "<<issuer>>",
@@ -42,7 +42,7 @@ var ExampleTemplate = `
 }
 `
 
-var TestCredential = `
+const TestCredential = `
 {
 	"id": "did:nuts:1#123",
 	"issuer": "did:nuts:1",
@@ -54,6 +54,15 @@ var TestCredential = `
 			"hairColour": "fair"
 		}
 	}
+}
+`
+
+const TestRevocation = `
+{
+  "issuer": "did:nuts:1",
+  "subject": "did:nuts:1#123",
+  "currentStatus": "Revoked",
+  "statusDate": "2021-03-13T16:39:58.496215+01:00"
 }
 `
 

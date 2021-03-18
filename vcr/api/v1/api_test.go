@@ -139,10 +139,10 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		var vcReturn did2.VerifiableCredential
-		ctx.vcr.EXPECT().Resolve(*id).Return(vc, nil)
+		var resolutionResult ResolutionResult
+		ctx.vcr.EXPECT().Resolve(*id).Return(&vc, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
-			vcReturn = f2.(did2.VerifiableCredential)
+			resolutionResult = f2.(ResolutionResult)
 			return nil
 		})
 
@@ -151,14 +151,15 @@ func TestWrapper_Resolve(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, id, vcReturn.ID)
+		assert.Equal(t, id, resolutionResult.VerifiableCredential.ID)
+		assert.Equal(t, trusted, resolutionResult.CurrentStatus)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Resolve(*id).Return(vc, vcr.ErrNotFound)
+		ctx.vcr.EXPECT().Resolve(*id).Return(nil, vcr.ErrNotFound)
 		ctx.echo.EXPECT().NoContent(http.StatusNotFound).Return(nil)
 
 		err := ctx.client.Resolve(ctx.echo, idString)
@@ -170,11 +171,51 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Resolve(*id).Return(vc, errors.New("b00m!"))
+		ctx.vcr.EXPECT().Resolve(*id).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.Resolve(ctx.echo, idString)
 
 		assert.Error(t, err)
+	})
+
+	t.Run("error - revoked", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		var resolutionResult ResolutionResult
+		ctx.vcr.EXPECT().Resolve(*id).Return(&vc, vcr.ErrRevoked)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
+			resolutionResult = f2.(ResolutionResult)
+			return nil
+		})
+
+		err := ctx.client.Resolve(ctx.echo, idString)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, id, resolutionResult.VerifiableCredential.ID)
+		assert.Equal(t, revoked, resolutionResult.CurrentStatus)
+	})
+
+	t.Run("error - revoked", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		var resolutionResult ResolutionResult
+		ctx.vcr.EXPECT().Resolve(*id).Return(&vc, vcr.ErrUntrusted)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
+			resolutionResult = f2.(ResolutionResult)
+			return nil
+		})
+
+		err := ctx.client.Resolve(ctx.echo, idString)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, id, resolutionResult.VerifiableCredential.ID)
+		assert.Equal(t, untrusted, resolutionResult.CurrentStatus)
 	})
 }
 
@@ -327,6 +368,103 @@ func TestWrapper_Revoke(t *testing.T) {
 		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.Revoke(ctx.echo, "test")
+
+		assert.Error(t, err)
+	})
+}
+
+func TestWrapper_TrustUntrust(t *testing.T) {
+	vc := concept.TestVC()
+	issuer := vc.Issuer
+	cType := vc.Type[0]
+
+	t.Run("ok - add", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			capturedCombination := f.(*CredentialIssuer)
+			capturedCombination.CredentialType = cType.String()
+			capturedCombination.Issuer = issuer.String()
+			return nil
+		})
+		ctx.vcr.EXPECT().Trust(cType, issuer).Return(nil)
+		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
+
+		ctx.client.TrustIssuer(ctx.echo)
+	})
+
+	t.Run("ok - remove", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			capturedCombination := f.(*CredentialIssuer)
+			capturedCombination.CredentialType = cType.String()
+			capturedCombination.Issuer = issuer.String()
+			return nil
+		})
+		ctx.vcr.EXPECT().Untrust(cType, issuer).Return(nil)
+		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
+
+		ctx.client.UntrustIssuer(ctx.echo)
+	})
+
+	t.Run("error - invalid issuer", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			capturedCombination := f.(*CredentialIssuer)
+			capturedCombination.CredentialType = cType.String()
+			capturedCombination.Issuer = string([]byte{0})
+			return nil
+		})
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
+
+		ctx.client.TrustIssuer(ctx.echo)
+	})
+
+	t.Run("error - invalid credential", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			capturedCombination := f.(*CredentialIssuer)
+			capturedCombination.CredentialType = string([]byte{0})
+			capturedCombination.Issuer = cType.String()
+			return nil
+		})
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
+
+		ctx.client.TrustIssuer(ctx.echo)
+	})
+
+	t.Run("error - invalid body", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			return errors.New("b00m!")
+		})
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
+
+		ctx.client.TrustIssuer(ctx.echo)
+	})
+
+	t.Run("error - failed to add", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			capturedCombination := f.(*CredentialIssuer)
+			capturedCombination.CredentialType = cType.String()
+			capturedCombination.Issuer = issuer.String()
+			return nil
+		})
+		ctx.vcr.EXPECT().Trust(cType, issuer).Return(errors.New("b00m!"))
+
+		err := ctx.client.TrustIssuer(ctx.echo)
 
 		assert.Error(t, err)
 	})
