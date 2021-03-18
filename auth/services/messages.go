@@ -69,7 +69,7 @@ type NutsJwtBearerToken struct {
 	UserIdentity *string `json:"usi,omitempty"`
 	SubjectID    *string `json:"sid,omitempty"`
 	Scope        string  `json:"scope"`
-	KeyID        string  `json:"kid"`
+	KeyID        string  `json:"-"`
 }
 
 // NutsAccessToken is a OAuth 2.0 access token which provides context to a request.
@@ -84,7 +84,7 @@ type NutsAccessToken struct {
 	FamilyName string  `json:"family_name"`
 	Email      string  `json:"email"`
 
-	KeyID      string `json:"kid"`
+	KeyID      string `json:"-"`
 	Expiration int64  `json:"exp"`
 	IssuedAt   int64  `json:"iat"`
 	Issuer     string `json:"iss"`
