@@ -95,7 +95,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		AutoUpdateIrmaSchemas: auth.config.Irma.AutoUpdateSchemas,
 		ContractValidators:    auth.config.ContractValidators,
 	}
-	nameResolver := auth.vcr.NameResolver()
+	nameResolver := auth.vcr
 	auth.contractNotary = contract.NewContractNotary(nameResolver, contractValidity)
 	auth.contractClient = validator.NewContractInstance(cfg, auth.registry, auth.keyStore)
 	if err := auth.contractClient.Configure(); err != nil {

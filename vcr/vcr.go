@@ -457,6 +457,29 @@ func (c *vcr) Untrust(credentialType did.URI, issuer did.URI) error {
 	return c.trustConfig.RemoveTrust(credentialType, issuer)
 }
 
+
+func (c *vcr) Find(conceptName string, ID did.DID) (concept.Concept, error) {
+	q, err := c.Registry().QueryFor(conceptName)
+	if err != nil {
+		return nil, err
+	}
+
+	q.AddClause(concept.Eq(concept.SubjectField, ID.String()))
+
+	vcs, err := c.Search(q)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(vcs) == 0 {
+		return nil, ErrNotFound
+	}
+
+	// multiple valids, use first one
+	return c.Registry().Transform(conceptName, vcs[0])
+}
+
+
 func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	// it must have valid content
 	if err := credential.ValidateRevocation(r); err != nil {

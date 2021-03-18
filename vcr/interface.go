@@ -54,11 +54,10 @@ var vcDocumentType = "application/vc+json"
 
 var revocationDocumentType = "application/vc+json;type=revocation"
 
-// NameResolver is the helper interface for getting an organization name and city
-// The organization name/city is a concept that is required for the auth engine
-type NameResolver interface {
-	// Resolve returns the organization name and city.
-	Resolve(ID did.DID) (string, string, error)
+// ConceptFinder can resolve VC backed concepts for a DID.
+type ConceptFinder interface {
+	// Find returns the requested concept or ErrNotFound
+	Find(conceptName string, ID did.DID) (concept.Concept, error)
 }
 
 // Writer is the interface that groups al the VC write methods
@@ -95,8 +94,8 @@ type VCR interface {
 	Trust(credentialType did.URI, issuer did.URI) error
 	// Untrust removes trust for a Issuer/CredentialType combination. The result is persisted to disk.
 	Untrust(credentialType did.URI, issuer did.URI) error
-	// NameResolver returns the resolver for organization name and city
-	NameResolver() NameResolver
+
+	ConceptFinder
 
 	Writer
 }

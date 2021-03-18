@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -42,7 +43,7 @@ const errInvalidSubjectFmt = "invalid jwt.subject: %w"
 
 type service struct {
 	didResolver     types.Resolver
-	nameResolver    vcr.NameResolver
+	nameResolver    vcr.ConceptFinder
 	privateKeyStore nutsCrypto.PrivateKeyStore
 	contractClient  services.ContractClient
 }
@@ -56,7 +57,7 @@ type validationContext struct {
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(didResolver types.Resolver, nameResolver vcr.NameResolver, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
+func NewOAuthService(didResolver types.Resolver, nameResolver vcr.ConceptFinder, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
 	return &service{
 		didResolver:     didResolver,
 		contractClient:  contractClient,
@@ -165,11 +166,15 @@ func (s *service) validateIssuer(context *validationContext) error {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
-	actorName, _, err := s.nameResolver.Resolve(*actorDID)
+	orgConcept, err := s.nameResolver.Find(concept.OrganizationConcept, *actorDID)
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
-	context.actorName = actorName
+	ok := false
+	if context.actorName, ok = orgConcept.GetValue(concept.OrganizationName).(string); !ok {
+		return fmt.Errorf(errInvalidIssuerFmt, errors.New("actor has invalid organization VC"))
+	}
+
 	return nil
 }
 

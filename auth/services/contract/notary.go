@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/validator"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
@@ -35,7 +36,7 @@ import (
 )
 
 type contractNotaryService struct {
-	nameResolver     vcr.NameResolver
+	conceptFinder    vcr.ConceptFinder
 	didResolver      types.Resolver
 	privateKeyStore  crypto.PrivateKeyStore
 	contractValidity time.Duration
@@ -44,8 +45,8 @@ type contractNotaryService struct {
 var timenow = time.Now
 
 // NewContractNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewContractNotary(resolver vcr.NameResolver, contractValidity time.Duration) services.ContractNotary {
-	return &contractNotaryService{nameResolver: resolver, contractValidity: contractValidity}
+func NewContractNotary(finder vcr.ConceptFinder, contractValidity time.Duration) services.ContractNotary {
+	return &contractNotaryService{conceptFinder: finder, contractValidity: contractValidity}
 }
 
 // DrawUpContract accepts a template and fills in the Party, validFrom time and its duration.
@@ -59,15 +60,21 @@ func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID
 	} else if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
+
 	if !s.privateKeyStore.PrivateKeyExists(signingKeyID) {
 		return nil, fmt.Errorf("could not draw up contract: organization is not managed by this node: %w", validator.ErrMissingOrganizationKey)
 	}
 
 	// DrawUpContract draws up a contract for a specific organisation from a template
-	orgName, _, err := s.nameResolver.Resolve(orgID)
+	result, err := s.conceptFinder.Find(concept.OrganizationConcept, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
+	orgName, ok := result.GetValue(concept.OrganizationName).(string)
+	if !ok {
+		return nil, fmt.Errorf("could not extract organization name from concept")
+	}
+
 	contractAttrs := map[string]string{
 		contract.LegalEntityAttr: orgName,
 	}
@@ -101,7 +108,7 @@ func (s *contractNotaryService) ValidateContract(contractToValidate contract.Con
 	//if !ok {
 	//	return false, errors.New("legalEntity not part of the contract")
 	//}
-	//foundOrgs, err := s.nameResolver.Resolve(orgID)
+	//foundOrgs, err := s.conceptFinder.Resolve(orgID)
 	//for _, foundOrg := range foundOrgs {
 	//	if foundOrg.Equals(orgID) {
 	//		return true, nil
