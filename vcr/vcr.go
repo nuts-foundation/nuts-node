@@ -478,7 +478,6 @@ func (c *vcr) Find(conceptName string, ID did.DID) (concept.Concept, error) {
 	return c.Registry().Transform(conceptName, vcs[0])
 }
 
-
 func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	// it must have valid content
 	if err := credential.ValidateRevocation(r); err != nil {

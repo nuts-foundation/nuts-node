@@ -36,6 +36,7 @@ import (
 )
 
 const orgName = "CareBears"
+
 var orgConceptName = concept.Concept{"organization": concept.Concept{"name": orgName}}
 
 var orgID = *vdr.TestDIDA
