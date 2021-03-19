@@ -15,9 +15,13 @@ content:
       properties:
         title:
           type: string
-          description:
-          example:
+          description: General desciption of attempted action
+          example: SignJWT failed
         status:
           type: number
+          description: HTTP statuscode
+          example: 400
         detail:
           type: string
+          description: Detailed description of the error
+          example: missing body in request

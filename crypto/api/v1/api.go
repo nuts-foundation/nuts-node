@@ -64,19 +64,26 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 		log.Logger().Error(err.Error())
 		return problem.New(
 			problem.Title("SignJWT failed"),
-			problem.Detail(err.Error()),
-			problem.Status(http.StatusBadRequest))
+			problem.Status(http.StatusBadRequest), // should this be 500?
+			problem.Detail(err.Error()))
 	}
 
 	if err := signRequest.validate(); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return problem.New(
+			problem.Title("SignJWT failed"),
+			problem.Status(http.StatusBadRequest),
+			problem.Detail(err.Error()))
 	}
 
 	sig, err := w.C.SignJWT(signRequest.Claims, signRequest.Kid)
 
 	if err != nil {
 		log.Logger().Error(err.Error())
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		problem.New()
+		return problem.New(
+			problem.Title("SignJWT failed"),
+			problem.Status(http.StatusBadRequest),
+			problem.Detail(err.Error()))
 	}
 
 	return ctx.String(http.StatusOK, sig)
@@ -92,17 +99,26 @@ func (w *Wrapper) PublicKey(ctx echo.Context, kid string, params PublicKeyParams
 	if params.At != nil {
 		at, err = time.Parse(time.RFC3339, *params.At)
 		if err != nil {
-			return ctx.String(http.StatusBadRequest, fmt.Sprintf("cannot parse '%s' as RFC3339 time format", *params.At))
+			return problem.New(
+				problem.Title("Failed to get PublicKey"),
+				problem.Status(http.StatusBadRequest),
+				problem.Detail(fmt.Sprintf("cannot parse '%s' as RFC3339 time format", *params.At)))
 		}
 	}
 
 	pubKey, err := w.C.GetPublicKey(kid, at)
 	if err != nil {
 		if errors.Is(err, crypto.ErrKeyNotFound) {
-			return ctx.NoContent(http.StatusNotFound)
+			return problem.New(
+				problem.Title("Failed to get PublicKey"),
+				problem.Status(http.StatusNotFound),
+				problem.Detail(fmt.Sprintf("no pubkey found for %s", kid)))
 		}
 		log.Logger().Error(err.Error())
-		return err
+		return problem.New(
+			problem.Title("Failed to get PublicKey"),
+			problem.Status(http.StatusInternalServerError),
+			problem.Detail(err.Error()))
 	}
 
 	// starts with so we can ignore any +
@@ -110,7 +126,10 @@ func (w *Wrapper) PublicKey(ctx echo.Context, kid string, params PublicKeyParams
 		jwk, err := jwk.New(pubKey)
 		if err != nil {
 			log.Logger().Error(err.Error())
-			return err
+			return problem.New(
+				problem.Title("Failed to get PublicKey"),
+				problem.Status(http.StatusInternalServerError),
+				problem.Detail(err.Error()))
 		}
 
 		return ctx.JSON(http.StatusOK, jwk)
@@ -120,7 +139,10 @@ func (w *Wrapper) PublicKey(ctx echo.Context, kid string, params PublicKeyParams
 	pub, err := util.PublicKeyToPem(pubKey)
 	if err != nil {
 		log.Logger().Error(err.Error())
-		return err
+		return problem.New(
+			problem.Title("Failed to get PublicKey"),
+			problem.Status(http.StatusInternalServerError),
+			problem.Detail(err.Error()))
 	}
 
 	return ctx.String(http.StatusOK, pub)

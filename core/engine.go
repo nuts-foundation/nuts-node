@@ -37,9 +37,9 @@ type Routable interface {
 // NewSystem creates a new, empty System.
 func NewSystem() *System {
 	return &System{
-		engines: []Engine{},
-		Config:  NewServerConfig(),
-		Routers: []Routable{},
+		engines:     []Engine{},
+		Config:      NewServerConfig(),
+		Routers:     []Routable{},
 		EchoCreator: creatorFn,
 	}
 }

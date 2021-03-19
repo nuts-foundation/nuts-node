@@ -305,6 +305,17 @@ type PublicKeyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *JWK
+	JSONDefault  *struct {
+
+		// Detailed description of the error
+		Detail string `json:"detail"`
+
+		// HTTP statuscode
+		Status float32 `json:"status"`
+
+		// General desciption of attempted action
+		Title string `json:"title"`
+	}
 }
 
 // Status returns HTTPResponse.Status
@@ -327,14 +338,26 @@ type SignJwtResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON400      *struct {
-		Detail string  `json:"detail"`
+
+		// Detailed description of the error
+		Detail string `json:"detail"`
+
+		// HTTP statuscode
 		Status float32 `json:"status"`
-		Title  string  `json:"title"`
+
+		// General desciption of attempted action
+		Title string `json:"title"`
 	}
 	JSON500 *struct {
-		Detail string  `json:"detail"`
+
+		// Detailed description of the error
+		Detail string `json:"detail"`
+
+		// HTTP statuscode
 		Status float32 `json:"status"`
-		Title  string  `json:"title"`
+
+		// General desciption of attempted action
+		Title string `json:"title"`
 	}
 }
 
@@ -401,6 +424,23 @@ func ParsePublicKeyResponse(rsp *http.Response) (*PublicKeyResponse, error) {
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+
+			// Detailed description of the error
+			Detail string `json:"detail"`
+
+			// HTTP statuscode
+			Status float32 `json:"status"`
+
+			// General desciption of attempted action
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
 	case rsp.StatusCode == 200:
 		// Content-type (text/plain) unsupported
 
@@ -425,9 +465,15 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest struct {
-			Detail string  `json:"detail"`
+
+			// Detailed description of the error
+			Detail string `json:"detail"`
+
+			// HTTP statuscode
 			Status float32 `json:"status"`
-			Title  string  `json:"title"`
+
+			// General desciption of attempted action
+			Title string `json:"title"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
@@ -436,9 +482,15 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
-			Detail string  `json:"detail"`
+
+			// Detailed description of the error
+			Detail string `json:"detail"`
+
+			// HTTP statuscode
 			Status float32 `json:"status"`
-			Title  string  `json:"title"`
+
+			// General desciption of attempted action
+			Title string `json:"title"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err

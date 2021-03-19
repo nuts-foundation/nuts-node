@@ -51,7 +51,8 @@ func TestWrapper_SignJwt(t *testing.T) {
 		err := ctx.client.SignJwt(ctx.echo)
 
 		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "code=400, message=missing claims")
+		assert.Contains(t, err.Error(), "missing claims")
+		assert.Contains(t, err.Error(), "\"status\":400")
 	})
 
 	t.Run("Missing kid returns 400", func(t *testing.T) {
@@ -70,7 +71,8 @@ func TestWrapper_SignJwt(t *testing.T) {
 		err := ctx.client.SignJwt(ctx.echo)
 
 		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "code=400, message=missing kid")
+		assert.Contains(t, err.Error(), "missing kid")
+		assert.Contains(t, err.Error(), "\"status\":400")
 	})
 
 	t.Run("Sign error returns 400", func(t *testing.T) {
@@ -91,7 +93,8 @@ func TestWrapper_SignJwt(t *testing.T) {
 		err := ctx.client.SignJwt(ctx.echo)
 
 		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "code=400, message=b00m!")
+		assert.Contains(t, err.Error(), "b00m!")
+		assert.Contains(t, err.Error(), "\"status\":400")
 	})
 
 	t.Run("All OK returns 200", func(t *testing.T) {
@@ -126,6 +129,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "missing body in request")
+		assert.Contains(t, err.Error(), "\"status\":400")
 	})
 }
 
@@ -168,9 +172,12 @@ func TestWrapper_PublicKey(t *testing.T) {
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{})
 		ctx.keyStore.EXPECT().GetPublicKey("kid", at).Return(nil, crypto.ErrKeyNotFound)
-		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
+		//ctx.echo.EXPECT().NoContent(http.StatusNotFound)
 
-		_ = ctx.client.PublicKey(ctx.echo, "kid", params)
+		err := ctx.client.PublicKey(ctx.echo, "kid", params)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "no pubkey found for kid")
+		assert.Contains(t, err.Error(), "\"status\":404")
 	})
 
 	t.Run("PublicKey API call returns 500 for other error", func(t *testing.T) {
@@ -182,6 +189,7 @@ func TestWrapper_PublicKey(t *testing.T) {
 
 		err := ctx.client.PublicKey(ctx.echo, "kid", params)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "\"status\":500")
 	})
 
 	t.Run("error - 400 for incorrect time format", func(t *testing.T) {
@@ -189,10 +197,14 @@ func TestWrapper_PublicKey(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{})
-		ctx.echo.EXPECT().String(http.StatusBadRequest, "cannot parse 'b00m!' as RFC3339 time format")
-		notAt := "b00m!"
+		//ctx.echo.EXPECT().String(http.StatusBadRequest, "cannot parse 'b00m!' as RFC3339 time format")
 
-		_ = ctx.client.PublicKey(ctx.echo, "kid", PublicKeyParams{At: &notAt})
+		notAt := "b00m!"
+		err := ctx.client.PublicKey(ctx.echo, "kid", PublicKeyParams{At: &notAt})
+
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "cannot parse 'b00m!' as RFC3339 time format")
+		assert.Contains(t, err.Error(), "\"status\":400")
 	})
 }
 

@@ -35,18 +35,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JWK'
-        '400':
-          description: "one of the parameters has the wrong format"
-          content:
-            text/plain:
-              example:
-                "invalid time format"
-        '404':
-          description: "not found or key is not valid at the time"
-          content:
-            text/plain:
-              example:
-                "key not found"
+#        '400':
+#          description: "one of the parameters has the wrong format"
+#          content:
+#            text/plain:
+#              example:
+#                "invalid time format"
+#        '404':
+#          description: "not found or key is not valid at the time"
+#          content:
+#            text/plain:
+#              example:
+#                "key not found"
+        default:
+          $ref: '../common/error_response.yaml'
 
   /internal/crypto/v1/sign_jwt:
     post:
@@ -71,6 +73,7 @@ paths:
           $ref: '../common/error_response.yaml'
         '500':
           $ref: '../common/error_response.yaml'
+
 components:
   schemas:
     SignJwtRequest:
