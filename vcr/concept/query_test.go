@@ -31,6 +31,10 @@ func TestEq(t *testing.T) {
 		value: "value",
 	}
 
+	t.Run("ok - type", func(t *testing.T) {
+		assert.Equal(t, EqType, q.Type())
+	})
+
 	t.Run("ok - key", func(t *testing.T) {
 		assert.Equal(t, "key", q.Key())
 	})
@@ -42,7 +46,29 @@ func TestEq(t *testing.T) {
 	t.Run("ok - seek", func(t *testing.T) {
 		assert.Equal(t, "value", q.Seek())
 	})
+}
 
+func TestPrefix(t *testing.T) {
+	q := prefix{
+		key:   "key",
+		value: "value",
+	}
+
+	t.Run("ok - type", func(t *testing.T) {
+		assert.Equal(t, PrefixType, q.Type())
+	})
+
+	t.Run("ok - key", func(t *testing.T) {
+		assert.Equal(t, "key", q.Key())
+	})
+
+	t.Run("ok - match", func(t *testing.T) {
+		assert.Equal(t, "value", q.Match())
+	})
+
+	t.Run("ok - seek", func(t *testing.T) {
+		assert.Equal(t, "value", q.Seek())
+	})
 }
 
 func TestQuery(t *testing.T) {
