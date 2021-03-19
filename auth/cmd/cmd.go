@@ -6,16 +6,16 @@ import (
 )
 
 // ConfPublicURL is the config key for the public URL the http/irma server can be discovered
-const ConfPublicURL = "auth.publicUrl"
+const ConfPublicURL = "auth.publicurl"
 
 // ConfContractValidators is the config key for defining which contract validators to use
-const ConfContractValidators = "auth.contractValidators"
+const ConfContractValidators = "auth.contractvalidators"
 
 // ConfAutoUpdateIrmaSchemas is the config key to provide an option to skip auto updating the irma schemas
-const ConfAutoUpdateIrmaSchemas = "auth.irma.autoUpdateSchemas"
+const ConfAutoUpdateIrmaSchemas = "auth.irma.autoupdateschemas"
 
 // ConfIrmaSchemeManager allows selecting an IRMA scheme manager. During development this can ben irma-demo. Production should be pdfb
-const ConfIrmaSchemeManager = "auth.irma.schemaManager"
+const ConfIrmaSchemeManager = "auth.irma.schemamanager"
 
 // FlagSet returns the configuration flags supported by this module.
 func FlagSet() *pflag.FlagSet {

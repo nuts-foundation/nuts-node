@@ -9,15 +9,15 @@ import (
 // Config holds the config for Transactions
 type Config struct {
 	// Socket address for gRPC to listen on
-	GrpcAddr string `koanf:"grpcAddr"`
+	GrpcAddr string `koanf:"grpcaddr"`
 	// EnableTLS specifies whether to enable TLS for incoming connections.
-	EnableTLS bool `koanf:"enableTLS"`
+	EnableTLS bool `koanf:"enabletls"`
 	// Public address of this nodes other nodes can use to connect to this node.
-	PublicAddr     string   `koanf:"publicAddr"`
-	BootstrapNodes []string `koanf:"bootstrapNodes"`
-	CertFile       string   `koanf:"certFile"`
-	CertKeyFile    string   `koanf:"certKeyFile"`
-	TrustStoreFile string   `koanf:"trustStoreFile"`
+	PublicAddr     string   `koanf:"publicaddr"`
+	BootstrapNodes []string `koanf:"bootstrapnodes"`
+	CertFile       string   `koanf:"certfile"`
+	CertKeyFile    string   `koanf:"certkeyfile"`
+	TrustStoreFile string   `koanf:"truststorefile"`
 
 	// AdvertHashesInterval specifies how often (in milliseconds) the node should broadcasts its last hashes so
 	// other nodes can compare and synchronize.

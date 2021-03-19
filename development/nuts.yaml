@@ -1,14 +1,14 @@
 datadir: /opt/nuts
 network:
-  trustStoreFile: /opt/nuts/truststore.pem
-  certFile: /opt/nuts/certificate.pem
-  certKeyFile: /opt/nuts/certificate.pem
-  bootstrapNodes: bootstrap:5555
+  truststorefile: /opt/nuts/truststore.pem
+  certfile: /opt/nuts/certificate.pem
+  certkeyfile: /opt/nuts/certificate.pem
+  bootstrapnodes: bootstrap:5555
 http:
   alt:
     status:
       address: :8080
 auth:
   irma:
-    schemeManager: empty
-    autoUpdateSchemas: false
+    schememanager: empty
+    autoupdateschemas: false
