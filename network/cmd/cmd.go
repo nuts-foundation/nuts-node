@@ -140,13 +140,13 @@ func listCommand() *cobra.Command {
 	return cmd
 }
 
+// Sorts the transactions by provided flag or by time.
 func sortTransactions(transactions []dag.Transaction, sortFlag string) {
 	sort.Slice(transactions, func(i, j int) bool {
 		if sortFlag == sortFlagType {
 			return transactions[i].PayloadType() < transactions[j].PayloadType()
-		} else {
-			return transactions[i].SigningTime().Before(transactions[j].SigningTime())
-		}
+		} // default is sortFlagTime:
+		return transactions[i].SigningTime().Before(transactions[j].SigningTime())
 	})
 }
 
