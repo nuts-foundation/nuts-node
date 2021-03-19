@@ -1,0 +1,63 @@
+openapi: "3.0.0"
+info:
+  title: Nuts DID Manager API spec
+  description: API specification for high-level DID management
+  version: 0.1.0
+  license:
+    name: GPLv3
+paths:
+  /internal/didman/v1/{did}/bolt/{name}:
+    parameters:
+      - name: did
+        in: path
+        description: DID to operate on
+        required: true
+        schema:
+          type: string
+      - name: name
+        in: path
+        description: Name of the bolt
+        required: true
+        schema:
+          type: string
+    post:
+      summary: "Enables a Bolt for a DID"
+      operationId: "enableBolt"
+      tags:
+        - bolts
+      requestBody:
+        description: "Map containing Bolt-specific parameters"
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "204":
+          description: "Bolt enabled."
+        "400":
+          description: "Invalid DID or Bolt name"
+          content:
+            text/plain:
+              schema:
+                type: string
+        "406":
+          description: "Invalid parameters for this Bolt"
+          content:
+            text/plain:
+              schema:
+                type: string
+    delete:
+      summary: "Disables a Bolt for a DID"
+      operationId: "disableBolt"
+      tags:
+        - bolts
+      responses:
+        "204":
+          description: "Bolt disabled."
+        "400":
+          description: "Invalid DID or Bolt name"
+          content:
+            text/plain:
+              schema:
+                type: string

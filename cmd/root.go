@@ -27,6 +27,8 @@ import (
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core/status"
 	"github.com/nuts-foundation/nuts-node/didman"
+	didManAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
+	didManCmd "github.com/nuts-foundation/nuts-node/didman/cmd"
 	"io"
 	"os"
 
@@ -161,6 +163,7 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&authV1API.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&authExperimentalAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&authIrmaAPI.Wrapper{Auth: authInstance})
+	system.RegisterRoutes(&didManAPI.Wrapper{Service: didManagerInstance})
 
 	// Register engines
 	system.RegisterEngine(statusEngine)
@@ -190,6 +193,7 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		cryptoCmd.Cmd(),
 		networkCmd.Cmd(),
 		vdrCmd.Cmd(),
+		didManCmd.Cmd(),
 	}
 	clientFlags := core.ClientConfigFlags()
 	for _, clientCommand := range clientCommands {
