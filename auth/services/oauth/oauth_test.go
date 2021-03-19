@@ -212,11 +212,23 @@ func TestService_validateIssuer(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
-		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
+		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).Return(actorSigningKey.Public(), nil)
 		ctx.nameResolver.EXPECT().Find(concept.OrganizationConcept, actorDID).Return(nil, errors.New("failed"))
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.EqualError(t, err, "invalid jwt.issuer: failed")
+	})
+	t.Run("unable to resolve name from credential", func(t *testing.T) {
+		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+		falseConceptName := concept.Concept{"no org": concept.Concept{"name": "Carebears"}}
+
+		tokenCtx := validContext()
+		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).Return(actorSigningKey.Public(), nil)
+		ctx.nameResolver.EXPECT().Find(concept.OrganizationConcept, actorDID).Return(falseConceptName, nil)
+
+		err := ctx.oauthService.validateIssuer(tokenCtx)
+		assert.EqualError(t, err, "invalid jwt.issuer: actor has invalid organization VC")
 	})
 	t.Run("unable to resolve key", func(t *testing.T) {
 		ctx := createContext(t)
@@ -610,7 +622,7 @@ var createContext = func(t *testing.T) *testContext {
 			didResolver:     didResolver,
 			contractClient:  contractClientMock,
 			privateKeyStore: privateKeyStore,
-			nameResolver:    nameResolver,
+			conceptFinder:   nameResolver,
 		},
 	}
 }

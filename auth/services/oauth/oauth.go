@@ -43,7 +43,7 @@ const errInvalidSubjectFmt = "invalid jwt.subject: %w"
 
 type service struct {
 	didResolver     types.Resolver
-	nameResolver    vcr.ConceptFinder
+	conceptFinder   vcr.ConceptFinder
 	privateKeyStore nutsCrypto.PrivateKeyStore
 	contractClient  services.ContractClient
 }
@@ -57,11 +57,11 @@ type validationContext struct {
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(didResolver types.Resolver, nameResolver vcr.ConceptFinder, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
+func NewOAuthService(didResolver types.Resolver, conceptFinder vcr.ConceptFinder, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
 	return &service{
 		didResolver:     didResolver,
 		contractClient:  contractClient,
-		nameResolver:    nameResolver,
+		conceptFinder:   conceptFinder,
 		privateKeyStore: privateKeyStore,
 	}
 }
@@ -166,7 +166,7 @@ func (s *service) validateIssuer(context *validationContext) error {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
-	orgConcept, err := s.nameResolver.Find(concept.OrganizationConcept, *actorDID)
+	orgConcept, err := s.conceptFinder.Find(concept.OrganizationConcept, *actorDID)
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}

@@ -57,10 +57,12 @@ func (c Concept) GetValue(path string) interface{} {
 	parts := strings.Split(path, ".")
 
 	current := c
+	var returnValue interface{}
 
 	for i, p := range parts {
 		if i == len(parts)-1 {
-			return current[p]
+			returnValue = current[p]
+			break
 		}
 		if sub, ok := current[p]; ok {
 			ok2 := false
@@ -68,8 +70,8 @@ func (c Concept) GetValue(path string) interface{} {
 				continue
 			}
 		}
-		return nil
+		break
 	}
 
-	return nil
+	return returnValue
 }

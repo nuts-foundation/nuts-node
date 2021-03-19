@@ -54,4 +54,13 @@ func TestConcept_GetSetValue(t *testing.T) {
 
 		assert.Nil(t, value)
 	})
+
+	t.Run("ok - not found 2", func(t *testing.T) {
+		c := Concept{}
+		c.SetValue("deep.path", "value")
+
+		value := c.GetValue("other.other")
+
+		assert.Nil(t, value)
+	})
 }
