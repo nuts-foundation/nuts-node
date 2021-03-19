@@ -20,14 +20,18 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 // FlagSet contains flags relevant for the VDR instance
@@ -110,8 +114,12 @@ func getCommand() *cobra.Command {
 	}
 }
 
+const sortFlagTime = "time"
+const sortFlagType = "type"
+
 func listCommand() *cobra.Command {
-	return &cobra.Command{
+	var sortFlag string
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "Lists the transactions on the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -120,13 +128,26 @@ func listCommand() *cobra.Command {
 				return err
 			}
 			const format = "%-65s %-40s %-20s\n"
-			fmt.Printf(format, "Hashes", "Timestamp", "Type")
+			cmd.Printf(format, "Hashes", "Timestamp", "Type")
+			sortTransactions(transactions, sortFlag)
 			for _, transaction := range transactions {
-				fmt.Printf(format, transaction.Ref(), transaction.SigningTime(), transaction.PayloadType())
+				cmd.Printf(format, transaction.Ref(), transaction.SigningTime(), transaction.PayloadType())
 			}
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&sortFlag, "sort", sortFlagTime, "sort the results on either time or type")
+	return cmd
+}
+
+func sortTransactions(transactions []dag.Transaction, sortFlag string) {
+	sort.Slice(transactions, func(i, j int) bool {
+		if sortFlag == sortFlagType {
+			return transactions[i].PayloadType() < transactions[j].PayloadType()
+		} else {
+			return transactions[i].SigningTime().Before(transactions[j].SigningTime())
+		}
+	})
 }
 
 // httpClient creates a remote client
