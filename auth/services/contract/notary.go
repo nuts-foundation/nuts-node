@@ -45,10 +45,10 @@ var timenow = time.Now
 // NewContractNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
 func NewContractNotary(resolver vdr.NameResolver, didResolver types.Resolver, keyStore crypto.PrivateKeyStore, contractValidity time.Duration) services.ContractNotary {
 	return &contractNotaryService{
-		nameResolver: resolver,
+		nameResolver:     resolver,
 		contractValidity: contractValidity,
-		didResolver: didResolver,
-		privateKeyStore: keyStore,
+		didResolver:      didResolver,
+		privateKeyStore:  keyStore,
 	}
 }
 
