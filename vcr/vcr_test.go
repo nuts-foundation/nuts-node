@@ -107,7 +107,7 @@ func TestVCR_Search(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	q.AddClause(concept.Eq("human.eyeColour", "blue/grey"))
+	q.AddClause(concept.Prefix("human.eyeColour", "blue"))
 
 	t.Run("ok", func(t *testing.T) {
 		instance.Trust(vc.Type[0], vc.Issuer)
