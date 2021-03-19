@@ -33,11 +33,11 @@ type HTTPClient struct {
 	Timeout       time.Duration
 }
 
-func (hb HTTPClient) EnableBolt(subject did.DID, bolt string, properties map[string]string) error {
+func (hb HTTPClient) ApplyServiceTemplate(subject did.DID, template string, properties map[string]string) error {
 	panic("implement me")
 }
 
-func (hb HTTPClient) DisableBolt(subject did.DID, bolt string) error {
+func (hb HTTPClient) UnapplyServiceTemplate(subject did.DID, template string) error {
 	panic("implement me")
 }
 
@@ -57,7 +57,7 @@ func (hb HTTPClient) client() ClientInterface {
 func testResponseCode(expectedStatusCode int, response *http.Response) error {
 	if response.StatusCode != expectedStatusCode {
 		responseData, _ := ioutil.ReadAll(response.Body)
-		return fmt.Errorf("network returned HTTP %d (expected: %d), response: %s",
+		return fmt.Errorf("didman returned HTTP %d (expected: %d), response: %s",
 			response.StatusCode, expectedStatusCode, string(responseData))
 	}
 	return nil

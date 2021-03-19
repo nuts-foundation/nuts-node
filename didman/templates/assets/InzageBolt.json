@@ -1,0 +1,20 @@
+{
+  "controller": {
+    "concreteServices": [
+      {
+        "type": "oauth",
+        "serviceEndpoint": "<<param:oauthServiceEndpoint>>"
+      }
+    ]
+  },
+  "subject": {
+    "compoundServices": [
+      {
+        "type": "bolt:zorginzage",
+        "serviceEndpoint": {
+          "oauth": null
+        }
+      }
+    ]
+  }
+}

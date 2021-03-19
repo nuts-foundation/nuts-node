@@ -6,7 +6,7 @@ info:
   license:
     name: GPLv3
 paths:
-  /internal/didman/v1/{did}/bolt/{name}:
+  /internal/didman/v1/{did}/svctpl/{name}:
     parameters:
       - name: did
         in: path
@@ -16,17 +16,17 @@ paths:
           type: string
       - name: name
         in: path
-        description: Name of the bolt
+        description: Name of the service template
         required: true
         schema:
           type: string
     post:
-      summary: "Enables a Bolt for a DID"
-      operationId: "enableBolt"
+      summary: "Applies a service template for a DID"
+      operationId: "applyServiceTemplate"
       tags:
-        - bolts
+        - serviceTemplates
       requestBody:
-        description: "Map containing Bolt-specific parameters"
+        description: "Map containing template specific parameters"
         required: true
         content:
           application/json:
@@ -34,29 +34,29 @@ paths:
               type: object
       responses:
         "204":
-          description: "Bolt enabled."
+          description: "Service template applied"
         "400":
-          description: "Invalid DID or Bolt name"
+          description: "Invalid DID or template name"
           content:
             text/plain:
               schema:
                 type: string
         "406":
-          description: "Invalid parameters for this Bolt"
+          description: "Template parameters are invalid"
           content:
             text/plain:
               schema:
                 type: string
     delete:
-      summary: "Disables a Bolt for a DID"
-      operationId: "disableBolt"
+      summary: "Unapplies a service template for a DID"
+      operationId: "unapplyServiceTemplate"
       tags:
         - bolts
       responses:
         "204":
-          description: "Bolt disabled."
+          description: "Service template unapplied"
         "400":
-          description: "Invalid DID or Bolt name"
+          description: "Invalid DID or template name"
           content:
             text/plain:
               schema:

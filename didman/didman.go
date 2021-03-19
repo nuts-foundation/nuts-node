@@ -22,6 +22,7 @@ package didman
 import (
 	"fmt"
 	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/didman/templates"
 )
 
 const (
@@ -30,13 +31,13 @@ const (
 
 // DIDManager provides high-level management operations for administrating one's DIDs.
 type DIDManager struct {
-	bolts map[string]Bolt
+	bolts map[string]templates.ServiceTemplateApplier
 }
 
 // NewDIDManager creates a new DID Manager.
 func NewDIDManager() *DIDManager {
 	return &DIDManager{
-		bolts: map[string]Bolt{},
+		bolts: map[string]templates.ServiceTemplateApplier{},
 	}
 }
 
@@ -44,20 +45,20 @@ func (dm *DIDManager) Name() string {
 	return moduleName
 }
 
-// EnableBolt enables a Bolt for the given care provider with the given properties.
+// EnableBolt enables a ServiceTemplate for the given care provider with the given properties.
 func (dm DIDManager) EnableBolt(careProvider did.DID, boltKey string, properties map[string]string) error {
 	bolt, exists := dm.bolts[boltKey]
 	if !exists {
-		return fmt.Errorf("unknown Bolt: %s", boltKey)
+		return fmt.Errorf("unknown ServiceTemplate: %s", boltKey)
 	}
-	return bolt.Enable(careProvider, properties)
+	return bolt.Apply(careProvider, properties)
 }
 
-// DisableBolt disables a Bolt for the given care provider.
+// DisableBolt disables a ServiceTemplate for the given care provider.
 func (dm DIDManager) DisableBolt(careProvider did.DID, boltKey string) error {
 	bolt, exists := dm.bolts[boltKey]
 	if !exists {
-		return fmt.Errorf("unknown Bolt: %s", boltKey)
+		return fmt.Errorf("unknown ServiceTemplate: %s", boltKey)
 	}
-	return bolt.Disable(careProvider)
+	return bolt.Unapply(careProvider)
 }

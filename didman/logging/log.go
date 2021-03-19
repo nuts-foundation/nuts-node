@@ -16,27 +16,16 @@
  *
  */
 
-package v1
+package logging
 
 import (
-	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/sirupsen/logrus"
 )
 
-// Wrapper implements the ServerInterface.
-type Wrapper struct {
-	Service *didman.DIDManager
-}
+var _logger = logrus.StandardLogger().WithField("module", "DIDMan")
 
-func (a *Wrapper) UnapplyServiceTemplate(ctx echo.Context, did string, template string) error {
-	panic("implement me")
-}
-
-func (a *Wrapper) ApplyServiceTemplate(ctx echo.Context, did string, template string) error {
-	panic("implement me")
-}
-
-func (a *Wrapper) Routes(router core.EchoRouter) {
-	RegisterHandlers(router, a)
+// Log returns a logger which should be used for logging in this engine. It adds fields so
+// log entries from this engine can be recognized as such.
+func Log() *logrus.Entry {
+	return _logger
 }

@@ -32,17 +32,17 @@ func Cmd() *cobra.Command {
 		Use:   "did",
 		Short: "High-level DID operations",
 	}
-	cmd.AddCommand(enableBoltCommand())
-	cmd.AddCommand(disableBoltCommand())
+	cmd.AddCommand(applyServiceTemplateCommand())
+	cmd.AddCommand(unapplyServiceTemplateCommand())
 	return cmd
 }
 
-func enableBoltCommand() *cobra.Command {
+func applyServiceTemplateCommand() *cobra.Command {
 	var propertiesAsString []string
 	cmd := &cobra.Command{
-		Use:   "enable-bolt [DID] [bolt]",
+		Use:   "svc apply [DID] [bolt]",
 		Args:  cobra.ExactArgs(2),
-		Short: "Enables a Bolt for a DID using the given properties (-p 'key=value')",
+		Short: "Applies a service template for a DID using the given properties (-p 'key=value')",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			panic("implement me")
 			//httpClient(cmd.PersistentFlags()).EnableBolt()
@@ -52,10 +52,10 @@ func enableBoltCommand() *cobra.Command {
 	return cmd
 }
 
-func disableBoltCommand() *cobra.Command {
+func unapplyServiceTemplateCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "disable-bolt [DID] [bolt]",
-		Short: "Disables a Bolt for a DID",
+		Use:   "svc unapply [DID] [bolt]",
+		Short: "Unapplies a service template for a DID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			panic("implement me")

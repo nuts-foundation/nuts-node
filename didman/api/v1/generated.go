@@ -18,11 +18,11 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// EnableBoltJSONBody defines parameters for EnableBolt.
-type EnableBoltJSONBody map[string]interface{}
+// ApplyServiceTemplateJSONBody defines parameters for ApplyServiceTemplate.
+type ApplyServiceTemplateJSONBody map[string]interface{}
 
-// EnableBoltRequestBody defines body for EnableBolt for application/json ContentType.
-type EnableBoltJSONRequestBody EnableBoltJSONBody
+// ApplyServiceTemplateRequestBody defines body for ApplyServiceTemplate for application/json ContentType.
+type ApplyServiceTemplateJSONRequestBody ApplyServiceTemplateJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -97,17 +97,17 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// DisableBolt request
-	DisableBolt(ctx context.Context, did string, name string) (*http.Response, error)
+	// UnapplyServiceTemplate request
+	UnapplyServiceTemplate(ctx context.Context, did string, name string) (*http.Response, error)
 
-	// EnableBolt request  with any body
-	EnableBoltWithBody(ctx context.Context, did string, name string, contentType string, body io.Reader) (*http.Response, error)
+	// ApplyServiceTemplate request  with any body
+	ApplyServiceTemplateWithBody(ctx context.Context, did string, name string, contentType string, body io.Reader) (*http.Response, error)
 
-	EnableBolt(ctx context.Context, did string, name string, body EnableBoltJSONRequestBody) (*http.Response, error)
+	ApplyServiceTemplate(ctx context.Context, did string, name string, body ApplyServiceTemplateJSONRequestBody) (*http.Response, error)
 }
 
-func (c *Client) DisableBolt(ctx context.Context, did string, name string) (*http.Response, error) {
-	req, err := NewDisableBoltRequest(c.Server, did, name)
+func (c *Client) UnapplyServiceTemplate(ctx context.Context, did string, name string) (*http.Response, error) {
+	req, err := NewUnapplyServiceTemplateRequest(c.Server, did, name)
 	if err != nil {
 		return nil, err
 	}
@@ -121,8 +121,8 @@ func (c *Client) DisableBolt(ctx context.Context, did string, name string) (*htt
 	return c.Client.Do(req)
 }
 
-func (c *Client) EnableBoltWithBody(ctx context.Context, did string, name string, contentType string, body io.Reader) (*http.Response, error) {
-	req, err := NewEnableBoltRequestWithBody(c.Server, did, name, contentType, body)
+func (c *Client) ApplyServiceTemplateWithBody(ctx context.Context, did string, name string, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := NewApplyServiceTemplateRequestWithBody(c.Server, did, name, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -136,8 +136,8 @@ func (c *Client) EnableBoltWithBody(ctx context.Context, did string, name string
 	return c.Client.Do(req)
 }
 
-func (c *Client) EnableBolt(ctx context.Context, did string, name string, body EnableBoltJSONRequestBody) (*http.Response, error) {
-	req, err := NewEnableBoltRequest(c.Server, did, name, body)
+func (c *Client) ApplyServiceTemplate(ctx context.Context, did string, name string, body ApplyServiceTemplateJSONRequestBody) (*http.Response, error) {
+	req, err := NewApplyServiceTemplateRequest(c.Server, did, name, body)
 	if err != nil {
 		return nil, err
 	}
@@ -151,8 +151,8 @@ func (c *Client) EnableBolt(ctx context.Context, did string, name string, body E
 	return c.Client.Do(req)
 }
 
-// NewDisableBoltRequest generates requests for DisableBolt
-func NewDisableBoltRequest(server string, did string, name string) (*http.Request, error) {
+// NewUnapplyServiceTemplateRequest generates requests for UnapplyServiceTemplate
+func NewUnapplyServiceTemplateRequest(server string, did string, name string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -174,7 +174,7 @@ func NewDisableBoltRequest(server string, did string, name string) (*http.Reques
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/internal/didman/v1/%s/bolt/%s", pathParam0, pathParam1)
+	basePath := fmt.Sprintf("/internal/didman/v1/%s/svctpl/%s", pathParam0, pathParam1)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -192,19 +192,19 @@ func NewDisableBoltRequest(server string, did string, name string) (*http.Reques
 	return req, nil
 }
 
-// NewEnableBoltRequest calls the generic EnableBolt builder with application/json body
-func NewEnableBoltRequest(server string, did string, name string, body EnableBoltJSONRequestBody) (*http.Request, error) {
+// NewApplyServiceTemplateRequest calls the generic ApplyServiceTemplate builder with application/json body
+func NewApplyServiceTemplateRequest(server string, did string, name string, body ApplyServiceTemplateJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewEnableBoltRequestWithBody(server, did, name, "application/json", bodyReader)
+	return NewApplyServiceTemplateRequestWithBody(server, did, name, "application/json", bodyReader)
 }
 
-// NewEnableBoltRequestWithBody generates requests for EnableBolt with any type of body
-func NewEnableBoltRequestWithBody(server string, did string, name string, contentType string, body io.Reader) (*http.Request, error) {
+// NewApplyServiceTemplateRequestWithBody generates requests for ApplyServiceTemplate with any type of body
+func NewApplyServiceTemplateRequestWithBody(server string, did string, name string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -226,7 +226,7 @@ func NewEnableBoltRequestWithBody(server string, did string, name string, conten
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/internal/didman/v1/%s/bolt/%s", pathParam0, pathParam1)
+	basePath := fmt.Sprintf("/internal/didman/v1/%s/svctpl/%s", pathParam0, pathParam1)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -274,22 +274,22 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// DisableBolt request
-	DisableBoltWithResponse(ctx context.Context, did string, name string) (*DisableBoltResponse, error)
+	// UnapplyServiceTemplate request
+	UnapplyServiceTemplateWithResponse(ctx context.Context, did string, name string) (*UnapplyServiceTemplateResponse, error)
 
-	// EnableBolt request  with any body
-	EnableBoltWithBodyWithResponse(ctx context.Context, did string, name string, contentType string, body io.Reader) (*EnableBoltResponse, error)
+	// ApplyServiceTemplate request  with any body
+	ApplyServiceTemplateWithBodyWithResponse(ctx context.Context, did string, name string, contentType string, body io.Reader) (*ApplyServiceTemplateResponse, error)
 
-	EnableBoltWithResponse(ctx context.Context, did string, name string, body EnableBoltJSONRequestBody) (*EnableBoltResponse, error)
+	ApplyServiceTemplateWithResponse(ctx context.Context, did string, name string, body ApplyServiceTemplateJSONRequestBody) (*ApplyServiceTemplateResponse, error)
 }
 
-type DisableBoltResponse struct {
+type UnapplyServiceTemplateResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 }
 
 // Status returns HTTPResponse.Status
-func (r DisableBoltResponse) Status() string {
+func (r UnapplyServiceTemplateResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -297,20 +297,20 @@ func (r DisableBoltResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r DisableBoltResponse) StatusCode() int {
+func (r UnapplyServiceTemplateResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type EnableBoltResponse struct {
+type ApplyServiceTemplateResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 }
 
 // Status returns HTTPResponse.Status
-func (r EnableBoltResponse) Status() string {
+func (r ApplyServiceTemplateResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -318,48 +318,48 @@ func (r EnableBoltResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r EnableBoltResponse) StatusCode() int {
+func (r ApplyServiceTemplateResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-// DisableBoltWithResponse request returning *DisableBoltResponse
-func (c *ClientWithResponses) DisableBoltWithResponse(ctx context.Context, did string, name string) (*DisableBoltResponse, error) {
-	rsp, err := c.DisableBolt(ctx, did, name)
+// UnapplyServiceTemplateWithResponse request returning *UnapplyServiceTemplateResponse
+func (c *ClientWithResponses) UnapplyServiceTemplateWithResponse(ctx context.Context, did string, name string) (*UnapplyServiceTemplateResponse, error) {
+	rsp, err := c.UnapplyServiceTemplate(ctx, did, name)
 	if err != nil {
 		return nil, err
 	}
-	return ParseDisableBoltResponse(rsp)
+	return ParseUnapplyServiceTemplateResponse(rsp)
 }
 
-// EnableBoltWithBodyWithResponse request with arbitrary body returning *EnableBoltResponse
-func (c *ClientWithResponses) EnableBoltWithBodyWithResponse(ctx context.Context, did string, name string, contentType string, body io.Reader) (*EnableBoltResponse, error) {
-	rsp, err := c.EnableBoltWithBody(ctx, did, name, contentType, body)
+// ApplyServiceTemplateWithBodyWithResponse request with arbitrary body returning *ApplyServiceTemplateResponse
+func (c *ClientWithResponses) ApplyServiceTemplateWithBodyWithResponse(ctx context.Context, did string, name string, contentType string, body io.Reader) (*ApplyServiceTemplateResponse, error) {
+	rsp, err := c.ApplyServiceTemplateWithBody(ctx, did, name, contentType, body)
 	if err != nil {
 		return nil, err
 	}
-	return ParseEnableBoltResponse(rsp)
+	return ParseApplyServiceTemplateResponse(rsp)
 }
 
-func (c *ClientWithResponses) EnableBoltWithResponse(ctx context.Context, did string, name string, body EnableBoltJSONRequestBody) (*EnableBoltResponse, error) {
-	rsp, err := c.EnableBolt(ctx, did, name, body)
+func (c *ClientWithResponses) ApplyServiceTemplateWithResponse(ctx context.Context, did string, name string, body ApplyServiceTemplateJSONRequestBody) (*ApplyServiceTemplateResponse, error) {
+	rsp, err := c.ApplyServiceTemplate(ctx, did, name, body)
 	if err != nil {
 		return nil, err
 	}
-	return ParseEnableBoltResponse(rsp)
+	return ParseApplyServiceTemplateResponse(rsp)
 }
 
-// ParseDisableBoltResponse parses an HTTP response from a DisableBoltWithResponse call
-func ParseDisableBoltResponse(rsp *http.Response) (*DisableBoltResponse, error) {
+// ParseUnapplyServiceTemplateResponse parses an HTTP response from a UnapplyServiceTemplateWithResponse call
+func ParseUnapplyServiceTemplateResponse(rsp *http.Response) (*UnapplyServiceTemplateResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &DisableBoltResponse{
+	response := &UnapplyServiceTemplateResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -370,15 +370,15 @@ func ParseDisableBoltResponse(rsp *http.Response) (*DisableBoltResponse, error) 
 	return response, nil
 }
 
-// ParseEnableBoltResponse parses an HTTP response from a EnableBoltWithResponse call
-func ParseEnableBoltResponse(rsp *http.Response) (*EnableBoltResponse, error) {
+// ParseApplyServiceTemplateResponse parses an HTTP response from a ApplyServiceTemplateWithResponse call
+func ParseApplyServiceTemplateResponse(rsp *http.Response) (*ApplyServiceTemplateResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &EnableBoltResponse{
+	response := &ApplyServiceTemplateResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -391,12 +391,12 @@ func ParseEnableBoltResponse(rsp *http.Response) (*EnableBoltResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Disables a Bolt for a DID
-	// (DELETE /internal/didman/v1/{did}/bolt/{name})
-	DisableBolt(ctx echo.Context, did string, name string) error
-	// Enables a Bolt for a DID
-	// (POST /internal/didman/v1/{did}/bolt/{name})
-	EnableBolt(ctx echo.Context, did string, name string) error
+	// Unapplies a service template for a DID
+	// (DELETE /internal/didman/v1/{did}/svctpl/{name})
+	UnapplyServiceTemplate(ctx echo.Context, did string, name string) error
+	// Applies a service template for a DID
+	// (POST /internal/didman/v1/{did}/svctpl/{name})
+	ApplyServiceTemplate(ctx echo.Context, did string, name string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -404,8 +404,8 @@ type ServerInterfaceWrapper struct {
 	Handler ServerInterface
 }
 
-// DisableBolt converts echo context to params.
-func (w *ServerInterfaceWrapper) DisableBolt(ctx echo.Context) error {
+// UnapplyServiceTemplate converts echo context to params.
+func (w *ServerInterfaceWrapper) UnapplyServiceTemplate(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "did" -------------
 	var did string
@@ -424,12 +424,12 @@ func (w *ServerInterfaceWrapper) DisableBolt(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.DisableBolt(ctx, did, name)
+	err = w.Handler.UnapplyServiceTemplate(ctx, did, name)
 	return err
 }
 
-// EnableBolt converts echo context to params.
-func (w *ServerInterfaceWrapper) EnableBolt(ctx echo.Context) error {
+// ApplyServiceTemplate converts echo context to params.
+func (w *ServerInterfaceWrapper) ApplyServiceTemplate(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "did" -------------
 	var did string
@@ -448,7 +448,7 @@ func (w *ServerInterfaceWrapper) EnableBolt(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.EnableBolt(ctx, did, name)
+	err = w.Handler.ApplyServiceTemplate(ctx, did, name)
 	return err
 }
 
@@ -474,8 +474,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/:did/bolt/:name", wrapper.DisableBolt)
-	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/:did/bolt/:name", wrapper.EnableBolt)
+	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/:did/svctpl/:name", wrapper.UnapplyServiceTemplate)
+	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/:did/svctpl/:name", wrapper.ApplyServiceTemplate)
 
 }
-
