@@ -306,7 +306,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		cxt.network.config.EnableTLS = true
 		cfg, err := cxt.network.buildP2PConfig("")
 		assert.Nil(t, cfg)
-		assert.EqualError(t, err, "unable to load node TLS client certificate (certFile=test/non-existent.pem,certKeyFile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
+		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
 }
 

@@ -208,7 +208,7 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.P2PNetworkConfig, erro
 	}
 	clientCertificate, err := tls.LoadX509KeyPair(n.config.CertFile, n.config.CertKeyFile)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certFile=%s,certKeyFile=%s)", n.config.CertFile, n.config.CertKeyFile)
+		return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", n.config.CertFile, n.config.CertKeyFile)
 	}
 	cfg.ClientCert = clientCertificate
 	if n.config.EnableTLS {

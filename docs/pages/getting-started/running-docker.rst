@@ -39,9 +39,9 @@ Copy the YAML file below and save it as `nuts.yaml` in the working directory:
 ```
 datadir: /opt/nuts
 network:
-  trustStoreFile: /opt/nuts/truststore.pem
-  certFile: /opt/nuts/certificate-and-key.pem
-  certKeyFile: /opt/nuts/certificate-and-key.pem
+  truststorefile: /opt/nuts/truststore.pem
+  certfile: /opt/nuts/certificate-and-key.pem
+  certkeyfile: /opt/nuts/certificate-and-key.pem
 ```
 
 See :ref:`configuration <nuts-node-config>` for more information on what can be configured.
