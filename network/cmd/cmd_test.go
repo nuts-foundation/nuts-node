@@ -65,10 +65,6 @@ func TestCmd_List(t *testing.T) {
 		assert.Equal(t, t1.Ref().String(), hashStr1)
 		assert.Equal(t, t3.Ref().String(), hashStr2)
 		assert.Equal(t, t2.Ref().String(), hashStr3)
-		//format := "2006-01-02 15:04:05.999999999 -0700 MST"
-		//time1, _ := time.Parse(format, timeStr1)
-		//time2, _ := time.Parse(format, timeStr2)
-		//time3, _ := time.Parse(format, timeStr3)
 	})
 
 	t.Run("it sorts by type", func(t *testing.T) {
