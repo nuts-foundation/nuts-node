@@ -29,6 +29,7 @@ import (
 
 const defaultClientTimeout = 10 * time.Second
 const clientTimeoutFlag = "timeout"
+const defaultAddress = "localhost" + defaultHTTPInterface
 
 // ClientConfig has CLI client settings.
 type ClientConfig struct {
