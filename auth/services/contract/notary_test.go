@@ -24,9 +24,9 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
@@ -247,7 +247,7 @@ func TestNewContractNotary(t *testing.T) {
 			vdr.NewDummyNameResolver(),
 			vdr.NewTestVDRInstance(testDir),
 			crypto.NewTestCryptoInstance(testDir),
-			60 * time.Minute,
+			60*time.Minute,
 		)
 
 		if !assert.NotNil(t, instance) {
