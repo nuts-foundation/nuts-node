@@ -94,7 +94,12 @@ type Clause interface {
 	Seek() string
 	// Match returns the string that should match each subsequent test when using a cursor or something equal.
 	Match() string
+	// Type returns the clause identifier type. This type is used for mapping to the underlying DB query language
+	Type() string
 }
+
+// EqType is the identifier for an equals clause
+const EqType = "eq"
 
 // Eq creates an equal Clause
 func Eq(key string, value string) Clause {
@@ -104,6 +109,10 @@ func Eq(key string, value string) Clause {
 type eq struct {
 	key   string
 	value string
+}
+
+func (e eq) Type() string {
+	return EqType
 }
 
 func (e eq) Key() string {
@@ -118,9 +127,31 @@ func (e eq) Match() string {
 	return e.value
 }
 
-//
-//type between struct {
-//	key string
-//	left string
-//	right string
-//}
+// EqType is the identifier for an equals clause
+const PrefixType = "prefix"
+
+// Prefix creates a prefix Clause
+func Prefix(key string, value string) Clause {
+	return prefix{key, value}
+}
+
+type prefix struct {
+	key   string
+	value string
+}
+
+func (e prefix) Type() string {
+	return PrefixType
+}
+
+func (e prefix) Key() string {
+	return e.key
+}
+
+func (e prefix) Seek() string {
+	return e.value
+}
+
+func (e prefix) Match() string {
+	return e.value
+}

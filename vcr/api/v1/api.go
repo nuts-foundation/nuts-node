@@ -61,7 +61,7 @@ func (w *Wrapper) Search(ctx echo.Context, conceptTemplate string) error {
 	}
 
 	for _, kvp := range sr.Params {
-		query.AddClause(concept.Eq(kvp.Key, kvp.Value))
+		query.AddClause(concept.Prefix(kvp.Key, kvp.Value))
 	}
 
 	VCs, err := w.R.Search(query)
