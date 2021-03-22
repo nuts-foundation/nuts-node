@@ -103,7 +103,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	t.Run("broken identity token", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
-		ctx.nameResolver.EXPECT().Find(concept.OrganizationConcept, actorDID).MinTimes(1).Return(orgConceptName, nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(nil, errors.New("identity validation failed"))
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.docResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
@@ -141,7 +141,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.nameResolver.EXPECT().Find(concept.OrganizationConcept, actorDID).MinTimes(1).Return(orgConceptName, nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(true)
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.docResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
@@ -162,7 +162,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		defer ctx.ctrl.Finish()
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.docResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
-		ctx.nameResolver.EXPECT().Find(concept.OrganizationConcept, actorDID).MinTimes(1).Return(orgConceptName, nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), custodianSigningKeyID.String()).Return("expectedAT", nil)
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(&contract.VPVerificationResult{
@@ -189,7 +189,7 @@ func TestService_validateIssuer(t *testing.T) {
 
 		tokenCtx := validContext()
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
-		ctx.nameResolver.EXPECT().Find(concept.OrganizationConcept, actorDID).Return(orgConceptName, nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).Return(orgConceptName, nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.NoError(t, err)
@@ -213,7 +213,7 @@ func TestService_validateIssuer(t *testing.T) {
 
 		tokenCtx := validContext()
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).Return(actorSigningKey.Public(), nil)
-		ctx.nameResolver.EXPECT().Find(concept.OrganizationConcept, actorDID).Return(nil, errors.New("failed"))
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).Return(nil, errors.New("failed"))
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.EqualError(t, err, "invalid jwt.issuer: failed")
@@ -225,7 +225,7 @@ func TestService_validateIssuer(t *testing.T) {
 
 		tokenCtx := validContext()
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).Return(actorSigningKey.Public(), nil)
-		ctx.nameResolver.EXPECT().Find(concept.OrganizationConcept, actorDID).Return(falseConceptName, nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).Return(falseConceptName, nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.EqualError(t, err, "invalid jwt.issuer: actor has invalid organization VC")

@@ -64,3 +64,41 @@ func TestConcept_GetSetValue(t *testing.T) {
 		assert.Nil(t, value)
 	})
 }
+
+func TestConcept_GetString(t *testing.T) {
+	c := Concept{}
+	c.SetValue("string", "value")
+	c.SetValue("int", 0)
+
+	t.Run("ok - string", func(t *testing.T) {
+		value, err := c.GetString("string")
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, "value", value)
+	})
+
+	t.Run("err - not found", func(t *testing.T) {
+		value, err := c.GetString("other")
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.Equal(t, ErrNoValue, err)
+		assert.Equal(t, "", value)
+	})
+
+	t.Run("error - wrong type", func(t *testing.T) {
+		value, err := c.GetString("int")
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.Equal(t, ErrIncorrectType, err)
+		assert.Equal(t, "", value)
+	})
+}

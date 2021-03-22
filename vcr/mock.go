@@ -37,19 +37,19 @@ func (m *MockConceptFinder) EXPECT() *MockConceptFinderMockRecorder {
 	return m.recorder
 }
 
-// Find mocks base method.
-func (m *MockConceptFinder) Find(conceptName string, ID did.DID) (concept.Concept, error) {
+// Get mocks base method.
+func (m *MockConceptFinder) Get(conceptName, subject string) (concept.Concept, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Find", conceptName, ID)
+	ret := m.ctrl.Call(m, "Get", conceptName, subject)
 	ret0, _ := ret[0].(concept.Concept)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Find indicates an expected call of Find.
-func (mr *MockConceptFinderMockRecorder) Find(conceptName, ID interface{}) *gomock.Call {
+// Get indicates an expected call of Get.
+func (mr *MockConceptFinderMockRecorder) Get(conceptName, subject interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockConceptFinder)(nil).Find), conceptName, ID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockConceptFinder)(nil).Get), conceptName, subject)
 }
 
 // MockWriter is a mock of Writer interface.
@@ -126,19 +126,19 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
 }
 
-// Find mocks base method.
-func (m *MockVCR) Find(conceptName string, ID did.DID) (concept.Concept, error) {
+// Get mocks base method.
+func (m *MockVCR) Get(conceptName, subject string) (concept.Concept, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Find", conceptName, ID)
+	ret := m.ctrl.Call(m, "Get", conceptName, subject)
 	ret0, _ := ret[0].(concept.Concept)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Find indicates an expected call of Find.
-func (mr *MockVCRMockRecorder) Find(conceptName, ID interface{}) *gomock.Call {
+// Get indicates an expected call of Get.
+func (mr *MockVCRMockRecorder) Get(conceptName, subject interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockVCR)(nil).Find), conceptName, ID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockVCR)(nil).Get), conceptName, subject)
 }
 
 // Issue mocks base method.

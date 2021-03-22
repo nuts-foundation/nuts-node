@@ -155,18 +155,16 @@ func (s *service) validateActor(context *validationContext) error {
 // - the signing key (KID) must be present as assertionMethod in the issuer's DID.
 // - the actor name which must match the login contract.
 func (s *service) validateIssuer(context *validationContext) error {
-	actorDID, err := did.ParseDID(context.jwtBearerToken.Issuer())
-	if err != nil {
+	if _, err := did.ParseDID(context.jwtBearerToken.Issuer()); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
 
 	validationTime := context.jwtBearerToken.IssuedAt()
-	_, err = s.didResolver.ResolveSigningKey(context.jwtBearerTokenClaims.KeyID, &validationTime)
-	if err != nil {
+	if _, err := s.didResolver.ResolveSigningKey(context.jwtBearerTokenClaims.KeyID, &validationTime); err != nil {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
-	orgConcept, err := s.conceptFinder.Find(concept.OrganizationConcept, *actorDID)
+	orgConcept, err := s.conceptFinder.Get(concept.OrganizationConcept, context.jwtBearerToken.Issuer())
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}

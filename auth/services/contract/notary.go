@@ -71,13 +71,13 @@ func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID
 	}
 
 	// DrawUpContract draws up a contract for a specific organisation from a template
-	result, err := s.conceptFinder.Find(concept.OrganizationConcept, orgID)
+	result, err := s.conceptFinder.Get(concept.OrganizationConcept, orgID.String())
 	if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
-	orgName, ok := result.GetValue(concept.OrganizationName).(string)
-	if !ok {
-		return nil, fmt.Errorf("could not extract organization name from concept")
+	orgName, err := result.GetString(concept.OrganizationName)
+	if err != nil {
+		return nil, fmt.Errorf("could not extract organization name: %w", err)
 	}
 
 	contractAttrs := map[string]string{

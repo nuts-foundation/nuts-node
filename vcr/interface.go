@@ -56,8 +56,8 @@ var revocationDocumentType = "application/vc+json;type=revocation"
 
 // ConceptFinder can resolve VC backed concepts for a DID.
 type ConceptFinder interface {
-	// Find returns the requested concept or ErrNotFound
-	Find(conceptName string, ID did.DID) (concept.Concept, error)
+	// Get returns the requested concept for the subject or ErrNotFound
+	Get(conceptName string, subject string) (concept.Concept, error)
 }
 
 // Writer is the interface that groups al the VC write methods

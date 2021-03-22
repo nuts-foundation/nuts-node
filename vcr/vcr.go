@@ -457,13 +457,13 @@ func (c *vcr) Untrust(credentialType did.URI, issuer did.URI) error {
 	return c.trustConfig.RemoveTrust(credentialType, issuer)
 }
 
-func (c *vcr) Find(conceptName string, ID did.DID) (concept.Concept, error) {
+func (c *vcr) Get(conceptName string, subject string) (concept.Concept, error) {
 	q, err := c.Registry().QueryFor(conceptName)
 	if err != nil {
 		return nil, err
 	}
 
-	q.AddClause(concept.Eq(concept.SubjectField, ID.String()))
+	q.AddClause(concept.Eq(concept.SubjectField, subject))
 
 	vcs, err := c.Search(q)
 	if err != nil {

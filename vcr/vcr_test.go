@@ -664,7 +664,7 @@ func TestVcr_Find(t *testing.T) {
 	testDir := io.TestDirectory(t)
 	instance := NewTestVCRInstance(testDir)
 	vc := concept.TestVC()
-	subject, _ := did.ParseDID("did:nuts:2")
+	subject := "did:nuts:2"
 
 	ct, err := concept.ParseTemplate(concept.ExampleTemplate)
 	if !assert.NoError(t, err) {
@@ -701,7 +701,7 @@ func TestVcr_Find(t *testing.T) {
 		defer func() {
 			instance.Untrust(vc.Type[0], vc.Issuer)
 		}()
-		conc, err := instance.Find(concept.ExampleConcept, *subject)
+		conc, err := instance.Get(concept.ExampleConcept, subject)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -712,14 +712,14 @@ func TestVcr_Find(t *testing.T) {
 	})
 
 	t.Run("error - unknown concept", func(t *testing.T) {
-		_, err := instance.Find("unknown", *subject)
+		_, err := instance.Get("unknown", subject)
 
 		assert.Error(t, err)
 		assert.Equal(t, err, concept.ErrUnknownConcept)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		_, err := instance.Find(concept.ExampleConcept, did.DID{})
+		_, err := instance.Get(concept.ExampleConcept, "unknown")
 
 		assert.Error(t, err)
 		assert.Equal(t, err, ErrNotFound)
