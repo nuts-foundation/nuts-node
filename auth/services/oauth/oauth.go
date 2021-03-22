@@ -24,12 +24,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	vdr2 "github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
@@ -41,7 +43,7 @@ const errInvalidSubjectFmt = "invalid jwt.subject: %w"
 
 type service struct {
 	didResolver     types.Resolver
-	nameResolver    vdr2.NameResolver
+	conceptFinder   vcr.ConceptFinder
 	privateKeyStore nutsCrypto.PrivateKeyStore
 	contractClient  services.ContractClient
 }
@@ -55,11 +57,11 @@ type validationContext struct {
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(didResolver types.Resolver, nameResolver vdr2.NameResolver, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
+func NewOAuthService(didResolver types.Resolver, conceptFinder vcr.ConceptFinder, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
 	return &service{
 		didResolver:     didResolver,
 		contractClient:  contractClient,
-		nameResolver:    nameResolver,
+		conceptFinder:   conceptFinder,
 		privateKeyStore: privateKeyStore,
 	}
 }
@@ -153,22 +155,24 @@ func (s *service) validateActor(context *validationContext) error {
 // - the signing key (KID) must be present as assertionMethod in the issuer's DID.
 // - the actor name which must match the login contract.
 func (s *service) validateIssuer(context *validationContext) error {
-	actorDID, err := did.ParseDID(context.jwtBearerToken.Issuer())
-	if err != nil {
+	if _, err := did.ParseDID(context.jwtBearerToken.Issuer()); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
 
 	validationTime := context.jwtBearerToken.IssuedAt()
-	_, err = s.didResolver.ResolveSigningKey(context.jwtBearerTokenClaims.KeyID, &validationTime)
-	if err != nil {
+	if _, err := s.didResolver.ResolveSigningKey(context.jwtBearerTokenClaims.KeyID, &validationTime); err != nil {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
-	actorName, err := s.nameResolver.Resolve(*actorDID)
+	orgConcept, err := s.conceptFinder.Get(concept.OrganizationConcept, context.jwtBearerToken.Issuer())
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
-	context.actorName = actorName
+	ok := false
+	if context.actorName, ok = orgConcept.GetValue(concept.OrganizationName).(string); !ok {
+		return fmt.Errorf(errInvalidIssuerFmt, errors.New("actor has invalid organization VC"))
+	}
+
 	return nil
 }
 

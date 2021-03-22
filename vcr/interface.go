@@ -54,6 +54,12 @@ var vcDocumentType = "application/vc+json"
 
 var revocationDocumentType = "application/vc+json;type=revocation"
 
+// ConceptFinder can resolve VC backed concepts for a DID.
+type ConceptFinder interface {
+	// Get returns the requested concept for the subject or ErrNotFound
+	Get(conceptName string, subject string) (concept.Concept, error)
+}
+
 // Writer is the interface that groups al the VC write methods
 type Writer interface {
 	// StoreCredential writes a VC to storage. Before writing, it calls Verify!
@@ -88,6 +94,8 @@ type VCR interface {
 	Trust(credentialType did.URI, issuer did.URI) error
 	// Untrust removes trust for a Issuer/CredentialType combination. The result is persisted to disk.
 	Untrust(credentialType did.URI, issuer did.URI) error
+
+	ConceptFinder
 
 	Writer
 }

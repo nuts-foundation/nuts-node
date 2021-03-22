@@ -30,6 +30,12 @@ var ErrUnknownConcept = errors.New("unknown concept")
 // ErrNoType is returned when a template is loaded which doesn't have a type
 var ErrNoType = errors.New("no template type found")
 
+// ErrIncorrectType is returned when a requested value type is different tham the set type.
+var ErrIncorrectType = errors.New("set value is not of correct type")
+
+// ErrNoValue is returned when a requested path doesn't have a value.
+var ErrNoValue = errors.New("no value for given path")
+
 // Concept is a JSON format for querying and returning results of queries.
 // It contains the default values of a VC: id, type, issuer and subject as well as custom concept specific data.
 type Concept map[string]interface{}
@@ -50,4 +56,44 @@ func (c Concept) SetValue(path string, val interface{}) {
 		}
 		m = m[p].(Concept)
 	}
+}
+
+// GetValue returns the value at the given path or nil if not found
+func (c Concept) GetValue(path string) interface{} {
+	parts := strings.Split(path, ".")
+
+	current := c
+	var returnValue interface{}
+
+	for i, p := range parts {
+		if i == len(parts)-1 {
+			returnValue = current[p]
+			break
+		}
+		if sub, ok := current[p]; ok {
+			ok2 := false
+			if current, ok2 = sub.(Concept); ok2 {
+				continue
+			}
+		}
+		break
+	}
+
+	return returnValue
+}
+
+// GetString returns the value as a string for the given path or an error if not found or if the value is not a string
+func (c Concept) GetString(path string) (string, error) {
+	val := c.GetValue(path)
+
+	if val == nil {
+		return "", ErrNoValue
+	}
+
+	stringValue, ok := val.(string)
+	if !ok {
+		return "", ErrIncorrectType
+	}
+
+	return stringValue, nil
 }

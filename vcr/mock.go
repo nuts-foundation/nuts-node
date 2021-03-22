@@ -14,6 +14,44 @@ import (
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
+// MockConceptFinder is a mock of ConceptFinder interface.
+type MockConceptFinder struct {
+	ctrl     *gomock.Controller
+	recorder *MockConceptFinderMockRecorder
+}
+
+// MockConceptFinderMockRecorder is the mock recorder for MockConceptFinder.
+type MockConceptFinderMockRecorder struct {
+	mock *MockConceptFinder
+}
+
+// NewMockConceptFinder creates a new mock instance.
+func NewMockConceptFinder(ctrl *gomock.Controller) *MockConceptFinder {
+	mock := &MockConceptFinder{ctrl: ctrl}
+	mock.recorder = &MockConceptFinderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockConceptFinder) EXPECT() *MockConceptFinderMockRecorder {
+	return m.recorder
+}
+
+// Get mocks base method.
+func (m *MockConceptFinder) Get(conceptName, subject string) (concept.Concept, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", conceptName, subject)
+	ret0, _ := ret[0].(concept.Concept)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Get indicates an expected call of Get.
+func (mr *MockConceptFinderMockRecorder) Get(conceptName, subject interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockConceptFinder)(nil).Get), conceptName, subject)
+}
+
 // MockWriter is a mock of Writer interface.
 type MockWriter struct {
 	ctrl     *gomock.Controller
@@ -86,6 +124,21 @@ func NewMockVCR(ctrl *gomock.Controller) *MockVCR {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
+}
+
+// Get mocks base method.
+func (m *MockVCR) Get(conceptName, subject string) (concept.Concept, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", conceptName, subject)
+	ret0, _ := ret[0].(concept.Concept)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Get indicates an expected call of Get.
+func (mr *MockVCRMockRecorder) Get(conceptName, subject interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockVCR)(nil).Get), conceptName, subject)
 }
 
 // Issue mocks base method.

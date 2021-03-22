@@ -34,6 +34,8 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
@@ -51,6 +53,7 @@ var custodianDID = *vdr.TestDIDB
 var custodianDIDDocument = getCustodianDIDDocument()
 var actorSigningKeyID = getActorSigningKey()
 var custodianSigningKeyID = getCustodianSigningKey()
+var orgConceptName = concept.Concept{"organization": concept.Concept{"name": "Carebears"}}
 
 func getActorSigningKey() *did.URI {
 	serviceID, _ := did.ParseURI(actorDID.String() + "#signing-key")
@@ -100,7 +103,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	t.Run("broken identity token", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
-		ctx.nameResolver.EXPECT().Resolve(actorDID).MinTimes(1).Return("foo", nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(nil, errors.New("identity validation failed"))
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.docResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
@@ -138,7 +141,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.nameResolver.EXPECT().Resolve(actorDID).MinTimes(1).Return("foo", nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(true)
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.docResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
@@ -159,13 +162,13 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		defer ctx.ctrl.Finish()
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.docResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
-		ctx.nameResolver.EXPECT().Resolve(actorDID).MinTimes(1).Return("Nice Org", nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), custodianSigningKeyID.String()).Return("expectedAT", nil)
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(&contract.VPVerificationResult{
 			Validity:            contract.Valid,
 			DisclosedAttributes: map[string]string{"name": "Henk de Vries"},
-			ContractAttributes:  map[string]string{"legal_entity": "Nice Org"},
+			ContractAttributes:  map[string]string{"legal_entity": "Carebears"},
 		}, nil)
 
 		tokenCtx := validContext()
@@ -186,11 +189,11 @@ func TestService_validateIssuer(t *testing.T) {
 
 		tokenCtx := validContext()
 		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
-		ctx.nameResolver.EXPECT().Resolve(actorDID).Return("OK", nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).Return(orgConceptName, nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.NoError(t, err)
-		assert.Equal(t, tokenCtx.actorName, "OK")
+		assert.Equal(t, "Carebears", tokenCtx.actorName)
 	})
 	t.Run("invalid issuer", func(t *testing.T) {
 		ctx := createContext(t)
@@ -209,11 +212,23 @@ func TestService_validateIssuer(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
-		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
-		ctx.nameResolver.EXPECT().Resolve(actorDID).Return("", errors.New("failed"))
+		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).Return(actorSigningKey.Public(), nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).Return(nil, errors.New("failed"))
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.EqualError(t, err, "invalid jwt.issuer: failed")
+	})
+	t.Run("unable to resolve name from credential", func(t *testing.T) {
+		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+		falseConceptName := concept.Concept{"no org": concept.Concept{"name": "Carebears"}}
+
+		tokenCtx := validContext()
+		ctx.docResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).Return(actorSigningKey.Public(), nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).Return(falseConceptName, nil)
+
+		err := ctx.oauthService.validateIssuer(tokenCtx)
+		assert.EqualError(t, err, "invalid jwt.issuer: actor has invalid organization VC")
 	})
 	t.Run("unable to resolve key", func(t *testing.T) {
 		ctx := createContext(t)
@@ -586,7 +601,7 @@ type testContext struct {
 	contractClientMock *services.MockContractClient
 	privateKeyStore    *crypto.MockPrivateKeyStore
 	docResolver        *types.MockResolver
-	nameResolver       *vdr.MockNameResolver
+	nameResolver       *vcr.MockConceptFinder
 	oauthService       *service
 }
 
@@ -596,7 +611,7 @@ var createContext = func(t *testing.T) *testContext {
 	contractClientMock := services.NewMockContractClient(ctrl)
 	privateKeyStore := crypto.NewMockPrivateKeyStore(ctrl)
 	didResolver := types.NewMockResolver(ctrl)
-	nameResolver := vdr.NewMockNameResolver(ctrl)
+	nameResolver := vcr.NewMockConceptFinder(ctrl)
 	return &testContext{
 		ctrl:               ctrl,
 		contractClientMock: contractClientMock,
@@ -607,7 +622,7 @@ var createContext = func(t *testing.T) *testContext {
 			didResolver:     didResolver,
 			contractClient:  contractClientMock,
 			privateKeyStore: privateKeyStore,
-			nameResolver:    nameResolver,
+			conceptFinder:   nameResolver,
 		},
 	}
 }

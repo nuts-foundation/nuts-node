@@ -660,6 +660,72 @@ func TestVcr_Revoke(t *testing.T) {
 	})
 }
 
+func TestVcr_Find(t *testing.T) {
+	testDir := io.TestDirectory(t)
+	instance := NewTestVCRInstance(testDir)
+	vc := concept.TestVC()
+	subject := "did:nuts:2"
+
+	ct, err := concept.ParseTemplate(concept.ExampleTemplate)
+	if !assert.NoError(t, err) {
+		return
+	}
+	// init template
+	err = instance.registry.Add(ct)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// reindex
+	err = instance.initIndices()
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// add document
+	doc := leia.Document(concept.TestCredential)
+	err = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// query
+	q, err := instance.Registry().QueryFor(concept.ExampleConcept)
+	if !assert.NoError(t, err) {
+		return
+	}
+	q.AddClause(concept.Eq("human.eyeColour", "blue/grey"))
+
+	t.Run("ok", func(t *testing.T) {
+		instance.Trust(vc.Type[0], vc.Issuer)
+		defer func() {
+			instance.Untrust(vc.Type[0], vc.Issuer)
+		}()
+		conc, err := instance.Get(concept.ExampleConcept, subject)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		hairColour := conc.GetValue("human.hairColour")
+
+		assert.Equal(t, "fair", hairColour)
+	})
+
+	t.Run("error - unknown concept", func(t *testing.T) {
+		_, err := instance.Get("unknown", subject)
+
+		assert.Error(t, err)
+		assert.Equal(t, err, concept.ErrUnknownConcept)
+	})
+
+	t.Run("error - not found", func(t *testing.T) {
+		_, err := instance.Get(concept.ExampleConcept, "unknown")
+
+		assert.Error(t, err)
+		assert.Equal(t, err, ErrNotFound)
+	})
+}
+
 func TestVcr_verifyRevocation(t *testing.T) {
 	// load revocation
 	r := credential.Revocation{}

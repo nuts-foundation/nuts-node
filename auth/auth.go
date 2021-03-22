@@ -2,16 +2,17 @@ package auth
 
 import (
 	"errors"
+	"path"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services/validator"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"path"
-	"time"
 )
 
 // ErrMissingPublicURL is returned when the publicUrl is missing from the config
@@ -27,6 +28,7 @@ type Auth struct {
 	contractNotary services.ContractNotary
 	keyStore       crypto.KeyStore
 	registry       types.VDR
+	vcr            vcr.VCR
 }
 
 // Name returns the name of the module.
@@ -50,11 +52,12 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, registry types.VDR, keyStore crypto.KeyStore) *Auth {
+func NewAuthInstance(config Config, registry types.VDR, vcr vcr.VCR, keyStore crypto.KeyStore) *Auth {
 	return &Auth{
 		config:   config,
 		registry: registry,
 		keyStore: keyStore,
+		vcr:      vcr,
 	}
 }
 
@@ -92,8 +95,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		AutoUpdateIrmaSchemas: auth.config.Irma.AutoUpdateSchemas,
 		ContractValidators:    auth.config.ContractValidators,
 	}
-	// TODO: Replace with VC-based name resolver (https://github.com/nuts-foundation/nuts-node/issues/90)
-	nameResolver := vdr.NewDummyNameResolver()
+	nameResolver := auth.vcr
 	auth.contractNotary = contract.NewContractNotary(nameResolver, auth.registry, auth.keyStore, contractValidity)
 	auth.contractClient = validator.NewContractInstance(cfg, auth.registry, auth.keyStore)
 	if err := auth.contractClient.Configure(); err != nil {

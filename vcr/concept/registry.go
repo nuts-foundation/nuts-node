@@ -38,6 +38,15 @@ type Registry interface {
 	Transform(concept string, VC did.VerifiableCredential) (Concept, error)
 }
 
+const (
+	// OrganizationConcept is a concept required for the auth module to work
+	OrganizationConcept = "organization"
+	// OrganizationName defines the concept path for an organization name
+	OrganizationName = "organization.name"
+	// OrganizationCity defines the concept path for an organization city
+	OrganizationCity = "organization.city"
+)
+
 // registry holds parsed concepts which contain all the mappings from concept names to json paths.
 // Queries are created through the conceptRegistry to add the correct templates.
 // The registry can also do transformations of VCs and queries to the correct format.
