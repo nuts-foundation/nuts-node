@@ -8,7 +8,7 @@ Distributed registry for storing and querying health care providers their vendor
     :alt: Build Status
 
 .. image:: https://readthedocs.org/projects/nuts-node/badge/?version=latest
-    :target: https://nuts-documentation.readthedocs.io/projects/nuts--node/en/latest/?badge=latest
+    :target: https://nuts-node.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
 .. image:: https://codecov.io/gh/nuts-foundation/nuts-node/branch/master/graph/badge.svg?style=svg
