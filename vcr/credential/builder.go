@@ -21,6 +21,7 @@ package credential
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/go-did/vc"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,7 +33,7 @@ type Builder interface {
 	// Type returns the matching Verifiable Credential type
 	Type() string
 	// Fill sets the defaults for common fields
-	Fill(vc *did.VerifiableCredential)
+	Fill(vc *vc.VerifiableCredential)
 }
 
 // defaultBuilder fills in the type, issuanceDate and context
@@ -42,20 +43,20 @@ type defaultBuilder struct {
 
 var nowFunc = time.Now
 
-func (d defaultBuilder) Fill(vc *did.VerifiableCredential) {
-	vc.Context = []did.URI{did.VCContextV1URI(), *NutsContextURI}
+func (d defaultBuilder) Fill(credential *vc.VerifiableCredential) {
+	credential.Context = []ssi.URI{vc.VCContextV1URI(), *NutsContextURI}
 
-	defaultType := did.VerifiableCredentialTypeV1URI()
-	if !vc.IsType(defaultType) {
-		vc.Type = append(vc.Type, defaultType)
+	defaultType := vc.VerifiableCredentialTypeV1URI()
+	if !credential.IsType(defaultType) {
+		credential.Type = append(credential.Type, defaultType)
 	}
 
-	builderType, _ := did.ParseURI(d.vcType)
-	if !vc.IsType(*builderType) {
-		vc.Type = append(vc.Type, *builderType)
+	builderType, _ := ssi.ParseURI(d.vcType)
+	if !credential.IsType(*builderType) {
+		credential.Type = append(credential.Type, *builderType)
 	}
-	vc.IssuanceDate = nowFunc()
-	vc.ID = generateID(vc.Issuer)
+	credential.IssuanceDate = nowFunc()
+	credential.ID = generateID(credential.Issuer)
 
 	return
 }
@@ -64,8 +65,8 @@ func (d defaultBuilder) Type() string {
 	return d.vcType
 }
 
-func generateID(issuer did.URI) *did.URI {
+func generateID(issuer ssi.URI) *ssi.URI {
 	id := fmt.Sprintf("%s#%s", issuer.String(), uuid.New().String())
-	u, _ := did.ParseURI(id)
+	u, _ := ssi.ParseURI(id)
 	return u
 }

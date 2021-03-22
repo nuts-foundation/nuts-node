@@ -19,7 +19,9 @@
 
 package credential
 
-import "github.com/nuts-foundation/go-did"
+import (
+	ssi "github.com/nuts-foundation/go-did"
+)
 
 const (
 	// NutsOrganizationCredentialType is the VC type for a NutsOrganizationCredentialType
@@ -30,9 +32,9 @@ const (
 
 var (
 	// NutsOrganizationCredentialTypeURI is the VC type for a NutsOrganizationCredentialType as URI
-	NutsOrganizationCredentialTypeURI, _ = did.ParseURI(NutsOrganizationCredentialType)
+	NutsOrganizationCredentialTypeURI, _ = ssi.ParseURI(NutsOrganizationCredentialType)
 	// NutsContextURI is the nuts specific json-ld context as URI
-	NutsContextURI, _ = did.ParseURI(NutsContext)
+	NutsContextURI, _ = ssi.ParseURI(NutsContext)
 )
 
 // NutsOrganizationCredentialSubject defines the CredentialSubject struct for the NutsOrganizationCredentialType

@@ -25,10 +25,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -295,15 +296,21 @@ func checkSubscriberTransactionIntegrity(transaction dag.SubscriberTransaction) 
 }
 
 // checkDIDDocumentIntegrity checks for inconsistencies in the the DID Document:
-// - it checks validationMethods for the following conditions:
-//  - every validationMethod id must have a fragment
-//  - every validationMethod id should have the DID prefix
-//  - every validationMethod id must be unique
-// - it checks services for the following conditions:
-//  - every service id must have a fragment
-//  - every service id should have the DID prefix
-//  - every service id must be unique
+// - validate it according to the W3C DID Core Data Model specification
+// - validate is according to the Nuts DID Method specification:
+//  - it checks validationMethods for the following conditions:
+//   - every validationMethod id must have a fragment
+//   - every validationMethod id should have the DID prefix
+//   - every validationMethod id must be unique
+//  - it checks services for the following conditions:
+//   - every service id must have a fragment
+//   - every service id should have the DID prefix
+//   - every service id must be unique
 func checkDIDDocumentIntegrity(doc did.Document) error {
+	if err := (did.W3CSpecValidator{}).Validate(doc); err != nil {
+		return err
+	}
+
 	// Verification methods
 	knownKeyIds := make(map[string]bool, 0)
 	for _, method := range doc.VerificationMethod {
@@ -321,7 +328,7 @@ func checkDIDDocumentIntegrity(doc did.Document) error {
 	return nil
 }
 
-func verifyDocumentEntryID(owner did.DID, entryID did.URI, knownIDs map[string]bool) error {
+func verifyDocumentEntryID(owner did.DID, entryID ssi.URI, knownIDs map[string]bool) error {
 	// Check theID has a fragment
 	if len(entryID.Fragment) == 0 {
 		return fmt.Errorf("ID must have a fragment")

@@ -82,7 +82,7 @@ func (tc *Config) save() error {
 }
 
 // IsTrusted returns true when the given issuer is in the trusted issuers list of the given credentialType
-func (tc *Config) IsTrusted(credentialType did.URI, issuer did.URI) bool {
+func (tc *Config) IsTrusted(credentialType ssi.URI, issuer ssi.URI) bool {
 	issuerString := issuer.String()
 	for _, i := range tc.issuersPerType[credentialType.String()] {
 		if i == issuerString {
@@ -95,7 +95,7 @@ func (tc *Config) IsTrusted(credentialType did.URI, issuer did.URI) bool {
 
 // AddTrust adds trust in a specific Issuer for a credential type.
 // It returns an error if the Save fails
-func (tc *Config) AddTrust(credentialType did.URI, issuer did.URI) error {
+func (tc *Config) AddTrust(credentialType ssi.URI, issuer ssi.URI) error {
 	tc.mutex.Lock()
 	defer tc.mutex.Unlock()
 
@@ -112,7 +112,7 @@ func (tc *Config) AddTrust(credentialType did.URI, issuer did.URI) error {
 
 // RemoveTrust removes trust in a specific Issuer for a credential type.
 // It returns an error if the Save fails
-func (tc *Config) RemoveTrust(credentialType did.URI, issuer did.URI) error {
+func (tc *Config) RemoveTrust(credentialType ssi.URI, issuer ssi.URI) error {
 	tc.mutex.Lock()
 	defer tc.mutex.Unlock()
 	tString := credentialType.String()
