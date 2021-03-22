@@ -21,10 +21,10 @@ package vcr
 
 import (
 	"errors"
+	"github.com/nuts-foundation/go-did/vc"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	did "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -62,10 +62,10 @@ func TestAmbassador_vcCallback(t *testing.T) {
 		wMock := NewMockWriter(ctrl)
 		defer ctrl.Finish()
 
-		vc := did.VerifiableCredential{}
+		target := vc.VerifiableCredential{}
 		a := NewAmbassador(nil, wMock).(ambassador)
 		wMock.EXPECT().StoreCredential(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			vc = f.(did.VerifiableCredential)
+			target = f.(vc.VerifiableCredential)
 			return nil
 		})
 
@@ -75,7 +75,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, "did:nuts:1#123", vc.ID.String())
+		assert.Equal(t, "did:nuts:1#123", target.ID.String())
 	})
 
 	t.Run("error", func(t *testing.T) {

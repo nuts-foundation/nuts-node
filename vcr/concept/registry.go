@@ -20,7 +20,7 @@
 package concept
 
 import (
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 )
 
 // Registry defines the interface for accessing loaded concepts and using the templates
@@ -35,7 +35,7 @@ type Registry interface {
 	// It returns ErrUnknownConcept if the concept is not found
 	QueryFor(concept string) (Query, error)
 	// Transform a VerifiableCredential to concept format.
-	Transform(concept string, VC did.VerifiableCredential) (Concept, error)
+	Transform(concept string, VC vc.VerifiableCredential) (Concept, error)
 }
 
 const (
@@ -105,7 +105,7 @@ func (r *registry) Add(conceptTemplate *Template) error {
 }
 
 // Transform a raw VC to a Concept
-func (r *registry) Transform(concept string, VC did.VerifiableCredential) (Concept, error) {
+func (r *registry) Transform(concept string, VC vc.VerifiableCredential) (Concept, error) {
 	if !r.hasConcept(concept) {
 		return nil, ErrUnknownConcept
 	}

@@ -10,7 +10,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	go_did "github.com/nuts-foundation/go-did"
+	did "github.com/nuts-foundation/go-did/did"
 	contract "github.com/nuts-foundation/nuts-node/auth/contract"
 )
 
@@ -224,7 +224,7 @@ func (m *MockContractNotary) EXPECT() *MockContractNotaryMockRecorder {
 }
 
 // DrawUpContract mocks base method.
-func (m *MockContractNotary) DrawUpContract(template contract.Template, orgID go_did.DID, validFrom time.Time, validDuration time.Duration) (*contract.Contract, error) {
+func (m *MockContractNotary) DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration) (*contract.Contract, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DrawUpContract", template, orgID, validFrom, validDuration)
 	ret0, _ := ret[0].(*contract.Contract)

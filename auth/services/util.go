@@ -1,10 +1,10 @@
 package services
 
 import (
-	"time"
-
-	"github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"time"
 )
 
 // ResolveEndpointURL finds the endpoint with the given type of the given holder and unmarshals it as single URL.
@@ -13,10 +13,10 @@ import (
 // - service with given type doesn't exist,
 // - multiple services match,
 // - serviceEndpoint isn't a string.
-func ResolveEndpointURL(resolver types.DocResolver, holder did.DID, endpointType string, validAt *time.Time) (endpointID did.URI, endpointURL string, err error) {
+func ResolveEndpointURL(resolver types.DocResolver, holder did.DID, endpointType string, validAt *time.Time) (endpointID ssi.URI, endpointURL string, err error) {
 	doc, _, err := resolver.Resolve(holder, &types.ResolveMetadata{ResolveTime: validAt})
 	if err != nil {
-		return did.URI{}, "", err
+		return ssi.URI{}, "", err
 	}
 	return doc.ResolveEndpointURL(endpointType)
 }

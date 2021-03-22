@@ -20,13 +20,12 @@
 package vdr
 
 import (
-	"testing"
-
-	"github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 var holder = *TestDIDA
@@ -51,7 +50,7 @@ func TestResolveSigningKey(t *testing.T) {
 	})
 
 	t.Run("unable to resolve", func(t *testing.T) {
-		fakeDID, _ := did.ParseURI("did:nuts:fake")
+		fakeDID, _ := ssi.ParseURI("did:nuts:fake")
 
 		_, err := resolver.ResolveSigningKey(fakeDID.String(), nil)
 

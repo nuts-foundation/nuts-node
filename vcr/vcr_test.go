@@ -23,6 +23,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"io/ioutil"
 	"os"
 	"path"
@@ -30,7 +32,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
@@ -157,7 +158,7 @@ func TestVCR_Search(t *testing.T) {
 func TestVCR_Resolve(t *testing.T) {
 	testDir := io.TestDirectory(t)
 	instance := NewTestVCRInstance(testDir)
-	testVC := did.VerifiableCredential{}
+	testVC := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(concept.TestCredential), &testVC)
 
 	// add document
@@ -211,7 +212,7 @@ func TestVCR_Resolve(t *testing.T) {
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		_, err := instance.Resolve(did.URI{})
+		_, err := instance.Resolve(ssi.URI{})
 
 		assert.Equal(t, ErrNotFound, err)
 	})
@@ -243,7 +244,7 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		cred.CredentialStatus = &did.CredentialStatus{
+		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
 		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
@@ -267,7 +268,7 @@ func TestVcr_Issue(t *testing.T) {
 		assert.Equal(t, issued.Issuer, cred.Issuer)
 		assert.Equal(t, issued.ExpirationDate, cred.ExpirationDate)
 
-		var proof = make([]did.JSONWebSignature2020Proof, 1)
+		var proof = make([]vc.JSONWebSignature2020Proof, 1)
 		err = issued.UnmarshalProofValue(&proof)
 		if !assert.NoError(t, err) {
 			return
@@ -295,7 +296,7 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(did.URI{}, errors.New("b00m!"))
+		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(ssi.URI{}, errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
 
@@ -308,7 +309,7 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		cred.Issuer = did.URI{}
+		cred.Issuer = ssi.URI{}
 
 		_, err := instance.Issue(*cred)
 
@@ -321,7 +322,7 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		cred.Type = []did.URI{}
+		cred.Type = []ssi.URI{}
 
 		_, err := instance.Issue(*cred)
 
@@ -382,9 +383,9 @@ func TestVcr_Issue(t *testing.T) {
 
 func TestVcr_Verify(t *testing.T) {
 	// load VC
-	vc := did.VerifiableCredential{}
+	subject := vc.VerifiableCredential{}
 	vcJSON, _ := ioutil.ReadFile("test/vc.json")
-	json.Unmarshal(vcJSON, &vc)
+	json.Unmarshal(vcJSON, &subject)
 
 	// oad pub key
 	pke := storage.PublicKeyEntry{}
@@ -400,7 +401,7 @@ func TestVcr_Verify(t *testing.T) {
 
 		ctx.vdr.EXPECT().ResolveSigningKey(kid, nil).Return(pk, nil)
 
-		err := instance.Verify(vc, nil)
+		err := instance.Verify(subject, nil)
 
 		assert.NoError(t, err)
 	})
@@ -410,10 +411,10 @@ func TestVcr_Verify(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 
-		vc2 := vc
-		pr := make([]did.JSONWebSignature2020Proof, 0)
+		vc2 := subject
+		pr := make([]vc.JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
-		u, _ := did.ParseURI(vc.Issuer.String() + "2")
+		u, _ := ssi.ParseURI(subject.Issuer.String() + "2")
 		pr[0].VerificationMethod = *u
 		vc2.Proof = []interface{}{pr[0]}
 
@@ -427,7 +428,7 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		vc2 := vc
+		vc2 := subject
 		vc2.IssuanceDate = time.Now()
 
 		ctx.vdr.EXPECT().ResolveSigningKey(kid, nil).Return(pk, nil)
@@ -444,8 +445,8 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		vc2 := vc
-		pr := make([]did.JSONWebSignature2020Proof, 0)
+		vc2 := subject
+		pr := make([]vc.JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
 		pr[0].Created = time.Now()
 		vc2.Proof = []interface{}{pr[0]}
@@ -465,7 +466,7 @@ func TestVcr_Verify(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 
-		err := instance.Verify(did.VerifiableCredential{}, nil)
+		err := instance.Verify(vc.VerifiableCredential{}, nil)
 
 		if !assert.Error(t, err) {
 			return
@@ -477,9 +478,9 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		uri, _ := did.ParseURI(credential.NutsOrganizationCredentialType)
+		uri, _ := ssi.ParseURI(credential.NutsOrganizationCredentialType)
 
-		err := instance.Verify(did.VerifiableCredential{Type: []did.URI{*uri}}, nil)
+		err := instance.Verify(vc.VerifiableCredential{Type: []ssi.URI{*uri}}, nil)
 
 		if !assert.Error(t, err) {
 			return
@@ -491,7 +492,7 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		vc2 := vc
+		vc2 := subject
 		vc2.Proof = []interface{}{}
 
 		err := instance.Verify(vc2, nil)
@@ -506,8 +507,8 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		vc2 := vc
-		pr := make([]did.JSONWebSignature2020Proof, 0)
+		vc2 := subject
+		pr := make([]vc.JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
 		pr[0].Jws = ""
 		vc2.Proof = []interface{}{pr[0]}
@@ -524,8 +525,8 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		vc2 := vc
-		pr := make([]did.JSONWebSignature2020Proof, 0)
+		vc2 := subject
+		pr := make([]vc.JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
 		pr[0].Jws = "abac..ab//"
 		vc2.Proof = []interface{}{pr[0]}
@@ -545,7 +546,7 @@ func TestVcr_Verify(t *testing.T) {
 
 		ctx.vdr.EXPECT().ResolveSigningKey(kid, nil).Return(nil, errors.New("b00m!"))
 
-		err := instance.Verify(vc, nil)
+		err := instance.Verify(subject, nil)
 
 		assert.Error(t, err)
 	})
@@ -554,11 +555,11 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		at := vc.IssuanceDate.Add(-1 * time.Minute)
+		at := subject.IssuanceDate.Add(-1 * time.Minute)
 
 		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
 
-		err := instance.Verify(vc, &at)
+		err := instance.Verify(subject, &at)
 
 		assert.Error(t, err)
 	})
@@ -566,7 +567,7 @@ func TestVcr_Verify(t *testing.T) {
 
 func TestVcr_Revoke(t *testing.T) {
 	// load VC
-	vc := did.VerifiableCredential{}
+	vc := vc.VerifiableCredential{}
 	vcJSON, _ := ioutil.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &vc)
 
@@ -613,7 +614,7 @@ func TestVcr_Revoke(t *testing.T) {
 		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
-		_, err := ctx.vcr.Revoke(did.URI{})
+		_, err := ctx.vcr.Revoke(ssi.URI{})
 
 		if !assert.Error(t, err) {
 			return
@@ -629,7 +630,7 @@ func TestVcr_Revoke(t *testing.T) {
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
 
-		_, err := ctx.vcr.Revoke(did.URI{})
+		_, err := ctx.vcr.Revoke(ssi.URI{})
 
 		if !assert.Error(t, err) {
 			return
@@ -755,7 +756,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		issuer, _ := did.ParseURI(r.Issuer.String() + "2")
+		issuer, _ := ssi.ParseURI(r.Issuer.String() + "2")
 		r2 := r
 		r2.Issuer = *issuer
 
@@ -769,7 +770,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
-		vm, _ := did.ParseURI(r.Issuer.String() + "2")
+		vm, _ := ssi.ParseURI(r.Issuer.String() + "2")
 		r2 := r
 		p := *r2.Proof
 		p.VerificationMethod = *vm
@@ -786,7 +787,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 		r2 := r
-		r2.Issuer = did.URI{}
+		r2.Issuer = ssi.URI{}
 
 		err := instance.verifyRevocation(r2)
 
@@ -812,7 +813,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 		r2 := r
-		r2.Proof = &did.JSONWebSignature2020Proof{}
+		r2.Proof = &vc.JSONWebSignature2020Proof{}
 
 		err := instance.verifyRevocation(r2)
 
@@ -844,9 +845,9 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	})
 }
 
-func validNutsOrganizationCredential() *did.VerifiableCredential {
-	uri, _ := did.ParseURI(credential.NutsOrganizationCredentialType)
-	issuer, _ := did.ParseURI(vdr.TestDIDA.String())
+func validNutsOrganizationCredential() *vc.VerifiableCredential {
+	uri, _ := ssi.ParseURI(credential.NutsOrganizationCredentialType)
+	issuer, _ := ssi.ParseURI(vdr.TestDIDA.String())
 
 	var credentialSubject = make(map[string]interface{})
 	credentialSubject["id"] = vdr.TestDIDB.String()
@@ -855,8 +856,8 @@ func validNutsOrganizationCredential() *did.VerifiableCredential {
 		"city": "EIbergen",
 	}
 
-	return &did.VerifiableCredential{
-		Type:              []did.URI{*uri},
+	return &vc.VerifiableCredential{
+		Type:              []ssi.URI{*uri},
 		Issuer:            *issuer,
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},

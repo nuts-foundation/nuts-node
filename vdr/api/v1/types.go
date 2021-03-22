@@ -16,7 +16,7 @@
 package v1
 
 import (
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 

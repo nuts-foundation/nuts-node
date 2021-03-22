@@ -21,14 +21,13 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
-
-	"github.com/nuts-foundation/go-did"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"

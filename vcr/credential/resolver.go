@@ -20,13 +20,13 @@
 package credential
 
 import (
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 )
 
 // FindValidatorAndBuilder finds the Validator and Builder for the credential Type
 // It returns nils when not found.
 // It only supports VCs with one additional type next to the default VerifiableCredential type.
-func FindValidatorAndBuilder(credential did.VerifiableCredential) (Validator, Builder) {
+func FindValidatorAndBuilder(credential vc.VerifiableCredential) (Validator, Builder) {
 	if vcTypes := ExtractTypes(credential); len(vcTypes) > 0 {
 		for _, t := range vcTypes {
 			if t == NutsOrganizationCredentialType {
@@ -39,11 +39,11 @@ func FindValidatorAndBuilder(credential did.VerifiableCredential) (Validator, Bu
 }
 
 // ExtractTypes extract additional VC types from the VC as strings
-func ExtractTypes(credential did.VerifiableCredential) []string {
+func ExtractTypes(credential vc.VerifiableCredential) []string {
 	var vcTypes []string
 
 	for _, t := range credential.Type {
-		if t != did.VerifiableCredentialTypeV1URI() {
+		if t != vc.VerifiableCredentialTypeV1URI() {
 			vcTypes = append(vcTypes, t.String())
 		}
 	}

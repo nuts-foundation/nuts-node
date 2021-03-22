@@ -20,8 +20,7 @@ package concept
 
 import (
 	"encoding/json"
-
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 )
 
 const ExampleConcept = "human"
@@ -66,10 +65,10 @@ const TestRevocation = `
 }
 `
 
-func TestVC() did.VerifiableCredential {
-	vc := did.VerifiableCredential{}
+func TestVC() vc.VerifiableCredential {
+	credential := vc.VerifiableCredential{}
 
-	json.Unmarshal([]byte(TestCredential), &vc)
+	json.Unmarshal([]byte(TestCredential), &credential)
 
-	return vc
+	return credential
 }

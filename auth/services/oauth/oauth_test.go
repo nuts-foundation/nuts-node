@@ -26,13 +26,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"testing"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
@@ -55,28 +56,28 @@ var actorSigningKeyID = getActorSigningKey()
 var custodianSigningKeyID = getCustodianSigningKey()
 var orgConceptName = concept.Concept{"organization": concept.Concept{"name": "Carebears"}}
 
-func getActorSigningKey() *did.URI {
-	serviceID, _ := did.ParseURI(actorDID.String() + "#signing-key")
+func getActorSigningKey() *ssi.URI {
+	serviceID, _ := ssi.ParseURI(actorDID.String() + "#signing-key")
 
 	return serviceID
 }
 
-func getCustodianSigningKey() *did.URI {
-	keyID, _ := did.ParseURI(custodianDID.String() + "#signing-key")
+func getCustodianSigningKey() *ssi.URI {
+	keyID, _ := ssi.ParseURI(custodianDID.String() + "#signing-key")
 
 	return keyID
 }
 
 func getCustodianDIDDocument() *did.Document {
 	id := *vdr.TestDIDB
-	serviceID, _ := did.ParseURI(id.String() + "#service-id")
+	serviceID, _ := ssi.ParseURI(id.String() + "#service-id")
 
 	doc := did.Document{
 		ID: id,
 	}
 	signingKeyID := id
 	signingKeyID.Fragment = "signing-key"
-	key, err := did.NewVerificationMethod(signingKeyID, did.JsonWebKey2020, id, custodianSigningKey.Public())
+	key, err := did.NewVerificationMethod(signingKeyID, ssi.JsonWebKey2020, id, custodianSigningKey.Public())
 	if err != nil {
 		panic(err)
 	}

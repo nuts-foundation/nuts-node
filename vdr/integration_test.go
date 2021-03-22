@@ -1,15 +1,15 @@
 package vdr
 
 import (
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/nuts-foundation/go-did"
-	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -83,7 +83,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// Try to update the document with a service
 	serviceID, _ := url.Parse(docA.ID.String() + "#service-1")
 	newService := did.Service{
-		ID:              did.URI{URL: *serviceID},
+		ID:              ssi.URI{URL: *serviceID},
 		Type:            "service",
 		ServiceEndpoint: []interface{}{"http://example.com/service"},
 	}
@@ -149,7 +149,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// Update and check DocumentA with a new service:
 	serviceID, _ = url.Parse(docA.ID.String() + "#service-2")
 	newService = did.Service{
-		ID:              did.URI{URL: *serviceID},
+		ID:              ssi.URI{URL: *serviceID},
 		Type:            "service-2",
 		ServiceEndpoint: []interface{}{"http://example.com/service2"},
 	}

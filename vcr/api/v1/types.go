@@ -20,18 +20,18 @@
 package v1
 
 import (
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 // VerifiableCredential is an alias to use from within the API
-type VerifiableCredential = did.VerifiableCredential
+type VerifiableCredential = vc.VerifiableCredential
 
 // CredentialSubject is an alias to use from within the API
 type CredentialSubject = interface{}
 
 // IssueVCRequest is an alias to use from within the API for issuing VCs.
-type IssueVCRequest = did.VerifiableCredential
+type IssueVCRequest = vc.VerifiableCredential
 
 // Revocation is an alias to use from within the API
 type Revocation = credential.Revocation

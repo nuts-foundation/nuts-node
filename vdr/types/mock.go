@@ -11,6 +11,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
+	did "github.com/nuts-foundation/go-did/did"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
@@ -38,10 +39,10 @@ func (m *MockDocResolver) EXPECT() *MockDocResolverMockRecorder {
 }
 
 // Resolve mocks base method.
-func (m *MockDocResolver) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go_did.Document, *DocumentMetadata, error) {
+func (m *MockDocResolver) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", id, metadata)
-	ret0, _ := ret[0].(*go_did.Document)
+	ret0, _ := ret[0].(*did.Document)
 	ret1, _ := ret[1].(*DocumentMetadata)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -77,10 +78,10 @@ func (m *MockDocCreator) EXPECT() *MockDocCreatorMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockDocCreator) Create() (*go_did.Document, error) {
+func (m *MockDocCreator) Create() (*did.Document, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create")
-	ret0, _ := ret[0].(*go_did.Document)
+	ret0, _ := ret[0].(*did.Document)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -115,7 +116,7 @@ func (m *MockDocWriter) EXPECT() *MockDocWriterMockRecorder {
 }
 
 // Write mocks base method.
-func (m *MockDocWriter) Write(document go_did.Document, metadata DocumentMetadata) error {
+func (m *MockDocWriter) Write(document did.Document, metadata DocumentMetadata) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Write", document, metadata)
 	ret0, _ := ret[0].(error)
@@ -152,7 +153,7 @@ func (m *MockDocUpdater) EXPECT() *MockDocUpdaterMockRecorder {
 }
 
 // Update mocks base method.
-func (m *MockDocUpdater) Update(id go_did.DID, current hash.SHA256Hash, next go_did.Document, metadata *DocumentMetadata) error {
+func (m *MockDocUpdater) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", id, current, next, metadata)
 	ret0, _ := ret[0].(error)
@@ -189,7 +190,7 @@ func (m *MockDocDeactivator) EXPECT() *MockDocDeactivatorMockRecorder {
 }
 
 // Deactivate mocks base method.
-func (m *MockDocDeactivator) Deactivate(id go_did.DID) error {
+func (m *MockDocDeactivator) Deactivate(id did.DID) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Deactivate", id)
 	ret0, _ := ret[0].(error)
@@ -226,7 +227,7 @@ func (m *MockKeyResolver) EXPECT() *MockKeyResolverMockRecorder {
 }
 
 // ResolveAssertionKey mocks base method.
-func (m *MockKeyResolver) ResolveAssertionKey(id go_did.DID) (go_did.URI, error) {
+func (m *MockKeyResolver) ResolveAssertionKey(id did.DID) (go_did.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveAssertionKey", id)
 	ret0, _ := ret[0].(go_did.URI)
@@ -256,7 +257,7 @@ func (mr *MockKeyResolverMockRecorder) ResolveSigningKey(keyID, validAt interfac
 }
 
 // ResolveSigningKeyID mocks base method.
-func (m *MockKeyResolver) ResolveSigningKeyID(holder go_did.DID, validAt *time.Time) (string, error) {
+func (m *MockKeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveSigningKeyID", holder, validAt)
 	ret0, _ := ret[0].(string)
@@ -294,10 +295,10 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 }
 
 // Resolve mocks base method.
-func (m *MockStore) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go_did.Document, *DocumentMetadata, error) {
+func (m *MockStore) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", id, metadata)
-	ret0, _ := ret[0].(*go_did.Document)
+	ret0, _ := ret[0].(*did.Document)
 	ret1, _ := ret[1].(*DocumentMetadata)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -310,7 +311,7 @@ func (mr *MockStoreMockRecorder) Resolve(id, metadata interface{}) *gomock.Call 
 }
 
 // Update mocks base method.
-func (m *MockStore) Update(id go_did.DID, current hash.SHA256Hash, next go_did.Document, metadata *DocumentMetadata) error {
+func (m *MockStore) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", id, current, next, metadata)
 	ret0, _ := ret[0].(error)
@@ -324,7 +325,7 @@ func (mr *MockStoreMockRecorder) Update(id, current, next, metadata interface{})
 }
 
 // Write mocks base method.
-func (m *MockStore) Write(document go_did.Document, metadata DocumentMetadata) error {
+func (m *MockStore) Write(document did.Document, metadata DocumentMetadata) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Write", document, metadata)
 	ret0, _ := ret[0].(error)
@@ -361,10 +362,10 @@ func (m *MockVDR) EXPECT() *MockVDRMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockVDR) Create() (*go_did.Document, error) {
+func (m *MockVDR) Create() (*did.Document, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create")
-	ret0, _ := ret[0].(*go_did.Document)
+	ret0, _ := ret[0].(*did.Document)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -376,7 +377,7 @@ func (mr *MockVDRMockRecorder) Create() *gomock.Call {
 }
 
 // Deactivate mocks base method.
-func (m *MockVDR) Deactivate(id go_did.DID) error {
+func (m *MockVDR) Deactivate(id did.DID) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Deactivate", id)
 	ret0, _ := ret[0].(error)
@@ -390,10 +391,10 @@ func (mr *MockVDRMockRecorder) Deactivate(id interface{}) *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockVDR) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go_did.Document, *DocumentMetadata, error) {
+func (m *MockVDR) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", id, metadata)
-	ret0, _ := ret[0].(*go_did.Document)
+	ret0, _ := ret[0].(*did.Document)
 	ret1, _ := ret[1].(*DocumentMetadata)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -406,7 +407,7 @@ func (mr *MockVDRMockRecorder) Resolve(id, metadata interface{}) *gomock.Call {
 }
 
 // ResolveAssertionKey mocks base method.
-func (m *MockVDR) ResolveAssertionKey(id go_did.DID) (go_did.URI, error) {
+func (m *MockVDR) ResolveAssertionKey(id did.DID) (go_did.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveAssertionKey", id)
 	ret0, _ := ret[0].(go_did.URI)
@@ -436,7 +437,7 @@ func (mr *MockVDRMockRecorder) ResolveSigningKey(keyID, validAt interface{}) *go
 }
 
 // ResolveSigningKeyID mocks base method.
-func (m *MockVDR) ResolveSigningKeyID(holder go_did.DID, validAt *time.Time) (string, error) {
+func (m *MockVDR) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveSigningKeyID", holder, validAt)
 	ret0, _ := ret[0].(string)
@@ -451,7 +452,7 @@ func (mr *MockVDRMockRecorder) ResolveSigningKeyID(holder, validAt interface{}) 
 }
 
 // Update mocks base method.
-func (m *MockVDR) Update(id go_did.DID, current hash.SHA256Hash, next go_did.Document, metadata *DocumentMetadata) error {
+func (m *MockVDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", id, current, next, metadata)
 	ret0, _ := ret[0].(error)
@@ -488,10 +489,10 @@ func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 }
 
 // Resolve mocks base method.
-func (m *MockResolver) Resolve(id go_did.DID, metadata *ResolveMetadata) (*go_did.Document, *DocumentMetadata, error) {
+func (m *MockResolver) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", id, metadata)
-	ret0, _ := ret[0].(*go_did.Document)
+	ret0, _ := ret[0].(*did.Document)
 	ret1, _ := ret[1].(*DocumentMetadata)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -504,7 +505,7 @@ func (mr *MockResolverMockRecorder) Resolve(id, metadata interface{}) *gomock.Ca
 }
 
 // ResolveAssertionKey mocks base method.
-func (m *MockResolver) ResolveAssertionKey(id go_did.DID) (go_did.URI, error) {
+func (m *MockResolver) ResolveAssertionKey(id did.DID) (go_did.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveAssertionKey", id)
 	ret0, _ := ret[0].(go_did.URI)
@@ -534,7 +535,7 @@ func (mr *MockResolverMockRecorder) ResolveSigningKey(keyID, validAt interface{}
 }
 
 // ResolveSigningKeyID mocks base method.
-func (m *MockResolver) ResolveSigningKeyID(holder go_did.DID, validAt *time.Time) (string, error) {
+func (m *MockResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveSigningKeyID", holder, validAt)
 	ret0, _ := ret[0].(string)

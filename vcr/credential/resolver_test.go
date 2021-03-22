@@ -20,15 +20,15 @@
 package credential
 
 import (
-	"testing"
-
-	"github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestFindValidatorAndBuilder(t *testing.T) {
 	t.Run("nothing found", func(t *testing.T) {
-		v, b := FindValidatorAndBuilder(did.VerifiableCredential{})
+		v, b := FindValidatorAndBuilder(vc.VerifiableCredential{})
 
 		assert.Nil(t, v)
 		assert.Nil(t, b)
@@ -44,11 +44,11 @@ func TestFindValidatorAndBuilder(t *testing.T) {
 }
 
 func TestExtractTypes(t *testing.T) {
-	vc := did.VerifiableCredential{
-		Type: []did.URI{did.VerifiableCredentialTypeV1URI(), *NutsOrganizationCredentialTypeURI},
+	v := vc.VerifiableCredential{
+		Type: []ssi.URI{vc.VerifiableCredentialTypeV1URI(), *NutsOrganizationCredentialTypeURI},
 	}
 
-	types := ExtractTypes(vc)
+	types := ExtractTypes(v)
 
 	assert.Len(t, types, 1)
 	assert.Equal(t, NutsOrganizationCredentialType, types[0])
