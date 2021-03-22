@@ -94,7 +94,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	}
 	// TODO: Replace with VC-based name resolver (https://github.com/nuts-foundation/nuts-node/issues/90)
 	nameResolver := vdr.NewDummyNameResolver()
-	auth.contractNotary = contract.NewContractNotary(nameResolver, contractValidity)
+	auth.contractNotary = contract.NewContractNotary(nameResolver, auth.registry, auth.keyStore, contractValidity)
 	auth.contractClient = validator.NewContractInstance(cfg, auth.registry, auth.keyStore)
 	if err := auth.contractClient.Configure(); err != nil {
 		return err

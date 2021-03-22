@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
@@ -232,5 +233,31 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 			assert.Equal(t, "could not draw up contract: could not render contract template: line 1: unmatched open tag", err.Error())
 		}
 		assert.Nil(t, drawnUpContract)
+	})
+}
+
+func TestNewContractNotary(t *testing.T) {
+	t.Run("adds all services", func(t *testing.T) {
+		testDir := io.TestDirectory(t)
+		instance := NewContractNotary(
+			vdr.NewDummyNameResolver(),
+			vdr.NewTestVDRInstance(testDir),
+			crypto.NewTestCryptoInstance(testDir),
+			60 * time.Minute,
+		)
+
+		if !assert.NotNil(t, instance) {
+			return
+		}
+
+		service, ok := instance.(*contractNotaryService)
+		if !assert.True(t, ok) {
+			return
+		}
+
+		assert.NotNil(t, service.privateKeyStore)
+		assert.NotNil(t, service.nameResolver)
+		assert.NotNil(t, service.didResolver)
+		assert.NotNil(t, service.contractValidity)
 	})
 }
