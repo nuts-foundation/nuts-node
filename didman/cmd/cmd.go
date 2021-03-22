@@ -41,13 +41,18 @@ func Cmd() *cobra.Command {
 func applyServiceTemplateCommand() *cobra.Command {
 	var propertiesAsString []string
 	cmd := &cobra.Command{
-		Use:   "svc-apply [name] [controller DID] [subject DID]",
-		Args:  cobra.ExactArgs(3),
-		Short: "Applies a service template for a controller and subject DID using the given properties (-p 'key=value')",
+		Use:   "svc-apply [name] [controller DID] [subject DID (optional)]",
+		Args:  cobra.RangeArgs(2, 3),
+		Short: "Applies a service template for a controller and subject DID using the given properties (-p 'key=value'). Parameter 'subject' can be omitted if equals 'controller'.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			template := args[0]
 			controller := args[1]
-			subject := args[2]
+			var subject string
+			if len(args) == 3 {
+				subject = args[2]
+			} else {
+				subject = controller
+			}
 			return httpClient(cmd.PersistentFlags()).ApplyServiceTemplate(controller, subject, template, parseKeyValueProperties(propertiesAsString))
 		},
 	}
