@@ -19,6 +19,10 @@ Distributed registry for storing and querying health care providers their vendor
    :target: https://codeclimate.com/github/nuts-foundation/nuts-node/maintainability
    :alt: Maintainability
 
+.. image:: https://github.com/nuts-foundation/nuts-node/actions/workflows/build-images.yaml/badge.svg
+   :target: https://github.com/nuts-foundation/nuts-node/actions/workflows/build-images.yaml
+   :alt: Build Docker images
+
 .. include:: docs/pages/development/development.rst
     :start-after: .. marker-for-readme
 
