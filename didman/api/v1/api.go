@@ -19,9 +19,12 @@
 package v1
 
 import (
+	"fmt"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
+	"net/http"
 )
 
 // Wrapper implements the ServerInterface.
@@ -29,12 +32,37 @@ type Wrapper struct {
 	Service *didman.DIDManager
 }
 
-func (a *Wrapper) UnapplyServiceTemplate(ctx echo.Context, did string, template string) error {
+func (a *Wrapper) UnapplyServiceTemplate(ctx echo.Context, name string) error {
 	panic("implement me")
 }
 
-func (a *Wrapper) ApplyServiceTemplate(ctx echo.Context, did string, template string) error {
-	panic("implement me")
+func (a *Wrapper) ApplyServiceTemplate(ctx echo.Context, name string) error {
+	request := ServiceTemplateRequest{}
+	if err := ctx.Bind(&request); err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err.Error()))
+	}
+	controller, err := did.ParseDID(request.Controller)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("invalid controller: %s", request.Controller))
+	}
+	subject, err := did.ParseDID(request.Subject)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("invalid subject: %s", request.Subject))
+	}
+	params := make(map[string]string, 0)
+	if request.Params != nil {
+		for key, value := range *request.Params {
+			valueAsString, valid := value.(string)
+			if !valid {
+				return ctx.String(http.StatusBadRequest, "invalid input parameters")
+			}
+			params[key] = valueAsString
+		}
+	}
+	if err := a.Service.ApplyServiceTemplate(*controller, *subject, name, params); err != nil {
+		return ctx.String(http.StatusInternalServerError, fmt.Sprintf("service template could not be applied: %s", err.Error()))
+	}
+	return ctx.NoContent(http.StatusNoContent)
 }
 
 func (a *Wrapper) Routes(router core.EchoRouter) {

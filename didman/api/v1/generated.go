@@ -18,8 +18,27 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// ServiceTemplateRequest defines model for ServiceTemplateRequest.
+type ServiceTemplateRequest struct {
+
+	// DID of the controller which the service template should be applied to. Can be equal to subject.
+	Controller string `json:"controller"`
+
+	// Key-value parameters for the service template when applying.
+	Params *map[string]interface{} `json:"params,omitempty"`
+
+	// DID of the subject which the service template should be applied to. Can be equal to controller.
+	Subject string `json:"subject"`
+}
+
+// UnapplyServiceTemplateJSONBody defines parameters for UnapplyServiceTemplate.
+type UnapplyServiceTemplateJSONBody ServiceTemplateRequest
+
 // ApplyServiceTemplateJSONBody defines parameters for ApplyServiceTemplate.
-type ApplyServiceTemplateJSONBody map[string]interface{}
+type ApplyServiceTemplateJSONBody ServiceTemplateRequest
+
+// UnapplyServiceTemplateRequestBody defines body for UnapplyServiceTemplate for application/json ContentType.
+type UnapplyServiceTemplateJSONRequestBody UnapplyServiceTemplateJSONBody
 
 // ApplyServiceTemplateRequestBody defines body for ApplyServiceTemplate for application/json ContentType.
 type ApplyServiceTemplateJSONRequestBody ApplyServiceTemplateJSONBody
@@ -97,17 +116,19 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// UnapplyServiceTemplate request
-	UnapplyServiceTemplate(ctx context.Context, did string, name string) (*http.Response, error)
+	// UnapplyServiceTemplate request  with any body
+	UnapplyServiceTemplateWithBody(ctx context.Context, name string, contentType string, body io.Reader) (*http.Response, error)
+
+	UnapplyServiceTemplate(ctx context.Context, name string, body UnapplyServiceTemplateJSONRequestBody) (*http.Response, error)
 
 	// ApplyServiceTemplate request  with any body
-	ApplyServiceTemplateWithBody(ctx context.Context, did string, name string, contentType string, body io.Reader) (*http.Response, error)
+	ApplyServiceTemplateWithBody(ctx context.Context, name string, contentType string, body io.Reader) (*http.Response, error)
 
-	ApplyServiceTemplate(ctx context.Context, did string, name string, body ApplyServiceTemplateJSONRequestBody) (*http.Response, error)
+	ApplyServiceTemplate(ctx context.Context, name string, body ApplyServiceTemplateJSONRequestBody) (*http.Response, error)
 }
 
-func (c *Client) UnapplyServiceTemplate(ctx context.Context, did string, name string) (*http.Response, error) {
-	req, err := NewUnapplyServiceTemplateRequest(c.Server, did, name)
+func (c *Client) UnapplyServiceTemplateWithBody(ctx context.Context, name string, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := NewUnapplyServiceTemplateRequestWithBody(c.Server, name, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -121,8 +142,8 @@ func (c *Client) UnapplyServiceTemplate(ctx context.Context, did string, name st
 	return c.Client.Do(req)
 }
 
-func (c *Client) ApplyServiceTemplateWithBody(ctx context.Context, did string, name string, contentType string, body io.Reader) (*http.Response, error) {
-	req, err := NewApplyServiceTemplateRequestWithBody(c.Server, did, name, contentType, body)
+func (c *Client) UnapplyServiceTemplate(ctx context.Context, name string, body UnapplyServiceTemplateJSONRequestBody) (*http.Response, error) {
+	req, err := NewUnapplyServiceTemplateRequest(c.Server, name, body)
 	if err != nil {
 		return nil, err
 	}
@@ -136,8 +157,8 @@ func (c *Client) ApplyServiceTemplateWithBody(ctx context.Context, did string, n
 	return c.Client.Do(req)
 }
 
-func (c *Client) ApplyServiceTemplate(ctx context.Context, did string, name string, body ApplyServiceTemplateJSONRequestBody) (*http.Response, error) {
-	req, err := NewApplyServiceTemplateRequest(c.Server, did, name, body)
+func (c *Client) ApplyServiceTemplateWithBody(ctx context.Context, name string, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := NewApplyServiceTemplateRequestWithBody(c.Server, name, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -151,20 +172,39 @@ func (c *Client) ApplyServiceTemplate(ctx context.Context, did string, name stri
 	return c.Client.Do(req)
 }
 
-// NewUnapplyServiceTemplateRequest generates requests for UnapplyServiceTemplate
-func NewUnapplyServiceTemplateRequest(server string, did string, name string) (*http.Request, error) {
+func (c *Client) ApplyServiceTemplate(ctx context.Context, name string, body ApplyServiceTemplateJSONRequestBody) (*http.Response, error) {
+	req, err := NewApplyServiceTemplateRequest(c.Server, name, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.Client.Do(req)
+}
+
+// NewUnapplyServiceTemplateRequest calls the generic UnapplyServiceTemplate builder with application/json body
+func NewUnapplyServiceTemplateRequest(server string, name string, body UnapplyServiceTemplateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUnapplyServiceTemplateRequestWithBody(server, name, "application/json", bodyReader)
+}
+
+// NewUnapplyServiceTemplateRequestWithBody generates requests for UnapplyServiceTemplate with any type of body
+func NewUnapplyServiceTemplateRequestWithBody(server string, name string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParam("simple", false, "did", did)
-	if err != nil {
-		return nil, err
-	}
-
-	var pathParam1 string
-
-	pathParam1, err = runtime.StyleParam("simple", false, "name", name)
+	pathParam0, err = runtime.StyleParam("simple", false, "name", name)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +214,7 @@ func NewUnapplyServiceTemplateRequest(server string, did string, name string) (*
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/internal/didman/v1/%s/svctpl/%s", pathParam0, pathParam1)
+	basePath := fmt.Sprintf("/internal/didman/v1/svctpl/%s", pathParam0)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -184,39 +224,33 @@ func NewUnapplyServiceTemplateRequest(server string, did string, name string) (*
 		return nil, err
 	}
 
-	req, err := http.NewRequest("DELETE", queryUrl.String(), nil)
+	req, err := http.NewRequest("DELETE", queryUrl.String(), body)
 	if err != nil {
 		return nil, err
 	}
 
+	req.Header.Add("Content-Type", contentType)
 	return req, nil
 }
 
 // NewApplyServiceTemplateRequest calls the generic ApplyServiceTemplate builder with application/json body
-func NewApplyServiceTemplateRequest(server string, did string, name string, body ApplyServiceTemplateJSONRequestBody) (*http.Request, error) {
+func NewApplyServiceTemplateRequest(server string, name string, body ApplyServiceTemplateJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewApplyServiceTemplateRequestWithBody(server, did, name, "application/json", bodyReader)
+	return NewApplyServiceTemplateRequestWithBody(server, name, "application/json", bodyReader)
 }
 
 // NewApplyServiceTemplateRequestWithBody generates requests for ApplyServiceTemplate with any type of body
-func NewApplyServiceTemplateRequestWithBody(server string, did string, name string, contentType string, body io.Reader) (*http.Request, error) {
+func NewApplyServiceTemplateRequestWithBody(server string, name string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParam("simple", false, "did", did)
-	if err != nil {
-		return nil, err
-	}
-
-	var pathParam1 string
-
-	pathParam1, err = runtime.StyleParam("simple", false, "name", name)
+	pathParam0, err = runtime.StyleParam("simple", false, "name", name)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +260,7 @@ func NewApplyServiceTemplateRequestWithBody(server string, did string, name stri
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/internal/didman/v1/%s/svctpl/%s", pathParam0, pathParam1)
+	basePath := fmt.Sprintf("/internal/didman/v1/svctpl/%s", pathParam0)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -274,13 +308,15 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// UnapplyServiceTemplate request
-	UnapplyServiceTemplateWithResponse(ctx context.Context, did string, name string) (*UnapplyServiceTemplateResponse, error)
+	// UnapplyServiceTemplate request  with any body
+	UnapplyServiceTemplateWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader) (*UnapplyServiceTemplateResponse, error)
+
+	UnapplyServiceTemplateWithResponse(ctx context.Context, name string, body UnapplyServiceTemplateJSONRequestBody) (*UnapplyServiceTemplateResponse, error)
 
 	// ApplyServiceTemplate request  with any body
-	ApplyServiceTemplateWithBodyWithResponse(ctx context.Context, did string, name string, contentType string, body io.Reader) (*ApplyServiceTemplateResponse, error)
+	ApplyServiceTemplateWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader) (*ApplyServiceTemplateResponse, error)
 
-	ApplyServiceTemplateWithResponse(ctx context.Context, did string, name string, body ApplyServiceTemplateJSONRequestBody) (*ApplyServiceTemplateResponse, error)
+	ApplyServiceTemplateWithResponse(ctx context.Context, name string, body ApplyServiceTemplateJSONRequestBody) (*ApplyServiceTemplateResponse, error)
 }
 
 type UnapplyServiceTemplateResponse struct {
@@ -325,9 +361,17 @@ func (r ApplyServiceTemplateResponse) StatusCode() int {
 	return 0
 }
 
-// UnapplyServiceTemplateWithResponse request returning *UnapplyServiceTemplateResponse
-func (c *ClientWithResponses) UnapplyServiceTemplateWithResponse(ctx context.Context, did string, name string) (*UnapplyServiceTemplateResponse, error) {
-	rsp, err := c.UnapplyServiceTemplate(ctx, did, name)
+// UnapplyServiceTemplateWithBodyWithResponse request with arbitrary body returning *UnapplyServiceTemplateResponse
+func (c *ClientWithResponses) UnapplyServiceTemplateWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader) (*UnapplyServiceTemplateResponse, error) {
+	rsp, err := c.UnapplyServiceTemplateWithBody(ctx, name, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnapplyServiceTemplateResponse(rsp)
+}
+
+func (c *ClientWithResponses) UnapplyServiceTemplateWithResponse(ctx context.Context, name string, body UnapplyServiceTemplateJSONRequestBody) (*UnapplyServiceTemplateResponse, error) {
+	rsp, err := c.UnapplyServiceTemplate(ctx, name, body)
 	if err != nil {
 		return nil, err
 	}
@@ -335,16 +379,16 @@ func (c *ClientWithResponses) UnapplyServiceTemplateWithResponse(ctx context.Con
 }
 
 // ApplyServiceTemplateWithBodyWithResponse request with arbitrary body returning *ApplyServiceTemplateResponse
-func (c *ClientWithResponses) ApplyServiceTemplateWithBodyWithResponse(ctx context.Context, did string, name string, contentType string, body io.Reader) (*ApplyServiceTemplateResponse, error) {
-	rsp, err := c.ApplyServiceTemplateWithBody(ctx, did, name, contentType, body)
+func (c *ClientWithResponses) ApplyServiceTemplateWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader) (*ApplyServiceTemplateResponse, error) {
+	rsp, err := c.ApplyServiceTemplateWithBody(ctx, name, contentType, body)
 	if err != nil {
 		return nil, err
 	}
 	return ParseApplyServiceTemplateResponse(rsp)
 }
 
-func (c *ClientWithResponses) ApplyServiceTemplateWithResponse(ctx context.Context, did string, name string, body ApplyServiceTemplateJSONRequestBody) (*ApplyServiceTemplateResponse, error) {
-	rsp, err := c.ApplyServiceTemplate(ctx, did, name, body)
+func (c *ClientWithResponses) ApplyServiceTemplateWithResponse(ctx context.Context, name string, body ApplyServiceTemplateJSONRequestBody) (*ApplyServiceTemplateResponse, error) {
+	rsp, err := c.ApplyServiceTemplate(ctx, name, body)
 	if err != nil {
 		return nil, err
 	}
@@ -391,12 +435,12 @@ func ParseApplyServiceTemplateResponse(rsp *http.Response) (*ApplyServiceTemplat
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Unapplies a service template for a DID
-	// (DELETE /internal/didman/v1/{did}/svctpl/{name})
-	UnapplyServiceTemplate(ctx echo.Context, did string, name string) error
+	// Unapply a service template for a DID
+	// (DELETE /internal/didman/v1/svctpl/{name})
+	UnapplyServiceTemplate(ctx echo.Context, name string) error
 	// Applies a service template for a DID
-	// (POST /internal/didman/v1/{did}/svctpl/{name})
-	ApplyServiceTemplate(ctx echo.Context, did string, name string) error
+	// (POST /internal/didman/v1/svctpl/{name})
+	ApplyServiceTemplate(ctx echo.Context, name string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -407,14 +451,6 @@ type ServerInterfaceWrapper struct {
 // UnapplyServiceTemplate converts echo context to params.
 func (w *ServerInterfaceWrapper) UnapplyServiceTemplate(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
-
-	err = runtime.BindStyledParameter("simple", false, "did", ctx.Param("did"), &did)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
-
 	// ------------- Path parameter "name" -------------
 	var name string
 
@@ -424,21 +460,13 @@ func (w *ServerInterfaceWrapper) UnapplyServiceTemplate(ctx echo.Context) error 
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.UnapplyServiceTemplate(ctx, did, name)
+	err = w.Handler.UnapplyServiceTemplate(ctx, name)
 	return err
 }
 
 // ApplyServiceTemplate converts echo context to params.
 func (w *ServerInterfaceWrapper) ApplyServiceTemplate(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
-
-	err = runtime.BindStyledParameter("simple", false, "did", ctx.Param("did"), &did)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
-
 	// ------------- Path parameter "name" -------------
 	var name string
 
@@ -448,7 +476,7 @@ func (w *ServerInterfaceWrapper) ApplyServiceTemplate(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.ApplyServiceTemplate(ctx, did, name)
+	err = w.Handler.ApplyServiceTemplate(ctx, name)
 	return err
 }
 
@@ -474,7 +502,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/:did/svctpl/:name", wrapper.UnapplyServiceTemplate)
-	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/:did/svctpl/:name", wrapper.ApplyServiceTemplate)
+	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/svctpl/:name", wrapper.UnapplyServiceTemplate)
+	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/svctpl/:name", wrapper.ApplyServiceTemplate)
 
 }

@@ -19,8 +19,8 @@
 package v1
 
 import (
+	"context"
 	"fmt"
-	"github.com/nuts-foundation/go-did"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -33,11 +33,24 @@ type HTTPClient struct {
 	Timeout       time.Duration
 }
 
-func (hb HTTPClient) ApplyServiceTemplate(subject did.DID, template string, properties map[string]string) error {
-	panic("implement me")
+func (hb HTTPClient) ApplyServiceTemplate(controllerDID, subjectDID string, templateName string, properties map[string]string) error {
+	params := make(map[string]interface{}, 0)
+	body := ApplyServiceTemplateJSONRequestBody{
+		Controller: controllerDID,
+		Subject:    subjectDID,
+		Params:     &params,
+	}
+	for k, v := range properties {
+		params[k] = v
+	}
+	response, err := hb.client().ApplyServiceTemplate(context.Background(), templateName, body)
+	if err != nil {
+		return err
+	}
+	return testResponseCode(http.StatusNoContent, response)
 }
 
-func (hb HTTPClient) UnapplyServiceTemplate(subject did.DID, template string) error {
+func (hb HTTPClient) UnapplyServiceTemplate(controller, subject string, templateName string) error {
 	panic("implement me")
 }
 
@@ -57,7 +70,7 @@ func (hb HTTPClient) client() ClientInterface {
 func testResponseCode(expectedStatusCode int, response *http.Response) error {
 	if response.StatusCode != expectedStatusCode {
 		responseData, _ := ioutil.ReadAll(response.Body)
-		return fmt.Errorf("didman returned HTTP %d (expected: %d), response: %s",
+		return fmt.Errorf("server returned HTTP %d (expected: %d), response: %s",
 			response.StatusCode, expectedStatusCode, string(responseData))
 	}
 	return nil

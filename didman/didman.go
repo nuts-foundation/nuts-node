@@ -22,7 +22,10 @@ package didman
 import (
 	"fmt"
 	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman/templates"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"strings"
 )
 
 const (
@@ -31,13 +34,26 @@ const (
 
 // DIDManager provides high-level management operations for administrating one's DIDs.
 type DIDManager struct {
-	bolts map[string]templates.ServiceTemplateApplier
+	templates map[string]templates.Definition
+	vdr       vdr.VDR
+}
+
+func (dm *DIDManager) Configure(_ core.ServerConfig) error {
+	tpls, err := templates.LoadEmbeddedDefinitions()
+	if err != nil {
+		return err
+	}
+	for _, template := range tpls {
+		dm.templates[template.Name()] = template
+	}
+	return nil
 }
 
 // NewDIDManager creates a new DID Manager.
-func NewDIDManager() *DIDManager {
+func NewDIDManager(vdr vdr.VDR) *DIDManager {
 	return &DIDManager{
-		bolts: map[string]templates.ServiceTemplateApplier{},
+		vdr:       vdr,
+		templates: map[string]templates.Definition{},
 	}
 }
 
@@ -45,20 +61,36 @@ func (dm *DIDManager) Name() string {
 	return moduleName
 }
 
-// EnableBolt enables a ServiceTemplate for the given care provider with the given properties.
-func (dm DIDManager) EnableBolt(careProvider did.DID, boltKey string, properties map[string]string) error {
-	bolt, exists := dm.bolts[boltKey]
-	if !exists {
-		return fmt.Errorf("unknown ServiceTemplate: %s", boltKey)
+// ApplyServiceTemplate applies a ServiceTemplate.
+func (dm DIDManager) ApplyServiceTemplate(controller, subject did.DID, templateName string, properties map[string]string) error {
+	template, err := dm.getTemplate(templateName)
+	if err != nil {
+		return err
 	}
-	return bolt.Apply(careProvider, properties)
+	return templates.ServiceTemplateApplier{VDR: dm.vdr}.Apply(controller, subject, template, properties)
 }
 
-// DisableBolt disables a ServiceTemplate for the given care provider.
-func (dm DIDManager) DisableBolt(careProvider did.DID, boltKey string) error {
-	bolt, exists := dm.bolts[boltKey]
-	if !exists {
-		return fmt.Errorf("unknown ServiceTemplate: %s", boltKey)
+// UnapplyServiceTemplate disables the services created by applying a ServiceTemplate.
+func (dm DIDManager) UnapplyServiceTemplate(controller, subject did.DID, templateName string) error {
+	_, err := dm.getTemplate(templateName)
+	if err != nil {
+		return err
 	}
-	return bolt.Unapply(careProvider)
+	panic("implement me")
+}
+
+func (dm DIDManager) getTemplateNames() []string {
+	result := make([]string, 0)
+	for name, _ := range dm.templates {
+		result = append(result, name)
+	}
+	return result
+}
+
+func (dm DIDManager) getTemplate(templateName string) (templates.Definition, error) {
+	template, exists := dm.templates[templateName]
+	if !exists {
+		return nil, fmt.Errorf("unknown service template: %s (valid are: %s)", templateName, strings.Join(dm.getTemplateNames(), ", "))
+	}
+	return template, nil
 }

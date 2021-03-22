@@ -81,6 +81,8 @@ func (c Template) timeLocation() *time.Location {
 // The ValidFrom or ValidTo provided in the vars map will be overwritten.
 // Note: For date calculation the Amsterdam timezone and Dutch locale is used.
 func (c Template) Render(vars map[string]string, validFrom time.Time, validDuration time.Duration) (*Contract, error) {
+	mustache.AllowMissingVariables = false
+
 	vars[ValidFromAttr] = monday.Format(validFrom.In(c.timeLocation()), timeLayout, monday.LocaleNlNL)
 	vars[ValidToAttr] = monday.Format(validFrom.Add(validDuration).In(c.timeLocation()), timeLayout, monday.LocaleNlNL)
 

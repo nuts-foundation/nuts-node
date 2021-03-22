@@ -6,7 +6,7 @@ import (
 )
 
 func TestLoadEmbeddedTemplates(t *testing.T) {
-	tpl, err := LoadEmbeddedTemplates()
+	tpl, err := LoadEmbeddedDefinitions()
 	if !assert.NoError(t, err) {
 		return
 	}

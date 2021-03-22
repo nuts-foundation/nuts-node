@@ -3,7 +3,7 @@
     "concreteServices": [
       {
         "type": "oauth",
-        "serviceEndpoint": "<<param:oauthServiceEndpoint>>"
+        "serviceEndpoint": "{{authServerURL}}"
       }
     ]
   },

@@ -24,6 +24,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"strings"
 )
 
 // Cmd contains sub-commands for the remote client
@@ -40,12 +41,14 @@ func Cmd() *cobra.Command {
 func applyServiceTemplateCommand() *cobra.Command {
 	var propertiesAsString []string
 	cmd := &cobra.Command{
-		Use:   "svc apply [DID] [bolt]",
-		Args:  cobra.ExactArgs(2),
-		Short: "Applies a service template for a DID using the given properties (-p 'key=value')",
+		Use:   "svc-apply [name] [controller DID] [subject DID]",
+		Args:  cobra.ExactArgs(3),
+		Short: "Applies a service template for a controller and subject DID using the given properties (-p 'key=value')",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			panic("implement me")
-			//httpClient(cmd.PersistentFlags()).EnableBolt()
+			template := args[0]
+			controller := args[1]
+			subject := args[2]
+			return httpClient(cmd.PersistentFlags()).ApplyServiceTemplate(controller, subject, template, parseKeyValueProperties(propertiesAsString))
 		},
 	}
 	cmd.Flags().StringSliceVarP(&propertiesAsString, "properties", "p", nil, "Properties for the bolt passed as key=value")
@@ -54,13 +57,27 @@ func applyServiceTemplateCommand() *cobra.Command {
 
 func unapplyServiceTemplateCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "svc unapply [DID] [bolt]",
-		Short: "Unapplies a service template for a DID",
-		Args:  cobra.ExactArgs(1),
+		Use:   "svc-unapply [name] [controller DID] [subject DID]",
+		Short: "Unapplies a service template for a controller and subject DID.",
+		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			panic("implement me")
+			template := args[0]
+			controller := args[1]
+			subject := args[2]
+			return httpClient(cmd.PersistentFlags()).UnapplyServiceTemplate(controller, subject, template)
 		},
 	}
+}
+
+func parseKeyValueProperties(propertiesAsString []string) map[string]string {
+	properties := make(map[string]string, 0)
+	for _, propAsString := range propertiesAsString {
+		propParts := strings.SplitN(propAsString, "=", 2)
+		if len(propParts) == 2 {
+			properties[propParts[0]] = propParts[1]
+		}
+	}
+	return properties
 }
 
 // httpClient creates a remote client
