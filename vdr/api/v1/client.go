@@ -117,6 +117,23 @@ func (hb HTTPClient) Deactivate(DID string) error {
 	return nil
 }
 
+// AddNewVerificationMethod creates a new verificationMethod and adds it to the DID document
+// It expects a status 201 respond from the server, returns an error otherwise
+func (hb HTTPClient) AddNewVerificationMethod(DID string) (*did.VerificationMethod, error) {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
+	response, err := hb.client().AddNewVerificationMethod(ctx, DID)
+	if err != nil {
+		return nil, err
+	}
+	if err := testResponseCode(http.StatusCreated, response); err != nil {
+		return nil, err
+	}
+
+	return readVerificationMethod(response.Body)
+}
+
 func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), hb.Timeout)
 }
@@ -147,4 +164,18 @@ func readDIDResolutionResult(reader io.Reader) (*DIDResolutionResult, error) {
 		return nil, fmt.Errorf("unable to unmarshal DID Resolve response: %w", err)
 	}
 	return &resolutionResult, nil
+}
+
+func readVerificationMethod(reader io.Reader) (*did.VerificationMethod, error) {
+	var data []byte
+	var err error
+
+	if data, err = ioutil.ReadAll(reader); err != nil {
+		return nil, fmt.Errorf("unable to read DID Resolve response: %w", err)
+	}
+	verificationMethod := did.VerificationMethod{}
+	if err = json.Unmarshal(data, &verificationMethod); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal verification method response: %w, %s", err.Error(), string(data))
+	}
+	return &verificationMethod, nil
 }

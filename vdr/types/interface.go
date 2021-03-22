@@ -103,6 +103,12 @@ type VDR interface {
 	DocUpdater
 	DocDeactivator
 	KeyResolver
+	DocKeyAdder
+}
+
+// DocKeyAdder adds a new key, wrapped as a VerificationMethod to a DID document.
+type DocKeyAdder interface {
+	AddKey(id did.DID) (*did.VerificationMethod, error)
 }
 
 // Resolver interface combines the KeyResolver and DocResolver

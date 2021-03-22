@@ -56,6 +56,8 @@ func Cmd() *cobra.Command {
 
 	cmd.AddCommand(deactivateCmd())
 
+	cmd.AddCommand(addVerificationMethodCmd())
+
 	return cmd
 }
 
@@ -174,6 +176,27 @@ func deactivateCmd() *cobra.Command {
 			return nil
 		},
 	}
+	return result
+}
+
+func addVerificationMethodCmd() *cobra.Command {
+	//var keyType string
+	result := &cobra.Command{
+		Use: "addvm [DID] [type]",
+		Short: "Add a verification method key to the DID document.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			verificationMethod, err := httpClient(cmd.Flags()).AddNewVerificationMethod(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to add a new verification method to DID document: %s", err.Error())
+			}
+			cmd.Println("New verification method added to the DID document:")
+			bytes, _ := json.MarshalIndent(verificationMethod, "", "  ")
+			cmd.Printf("%s\n", string(bytes))
+			return nil
+		},
+	}
+
 	return result
 }
 

@@ -36,6 +36,24 @@ type Wrapper struct {
 	VDR types.VDR
 }
 
+func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, did string) error {
+	d, err := did2.ParseDID(did)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+	}
+
+	req := DIDUpdateRequest{}
+	if err := ctx.Bind(&req); err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given update request could not be parsed: %s", err.Error()))
+	}
+
+	vm, err := a.VDR.AddKey(*d)
+	if err != nil {
+		return handleError(ctx, err, "could not update document: %s")
+	}
+	return ctx.JSON(http.StatusCreated, vm)
+}
+
 func (a *Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, a)
 }

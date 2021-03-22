@@ -40,21 +40,20 @@ func newNamingFnForExistingDID(existingDID did.DID) nutsCrypto.KIDNamingFunc {
 // and adds it to the provided document
 // FIXME:This method is a bit too high level and should be moved as part of this issue:
 // https://github.com/nuts-foundation/nuts-node/issues/123
-func (u NutsDocUpdater) CreateNewAuthenticationMethodForDocument(doc *did.Document) error {
-	key, keyIDStr, err := u.keyCreator.New(newNamingFnForExistingDID(doc.ID))
+func (u NutsDocUpdater) CreateNewAuthenticationMethodForDID(id did.DID) (*did.VerificationMethod, error) {
+	key, keyIDStr, err := u.keyCreator.New(newNamingFnForExistingDID(id))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	keyID, err := did.ParseDID(keyIDStr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	doc.AddAuthenticationMethod(method)
-	return nil
+	return method, nil
 }
 
 // getVerificationMethodDiff is a helper function that makes a diff of verificationMethods between

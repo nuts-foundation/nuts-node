@@ -189,6 +189,23 @@ func (r *VDR) Deactivate(id did.DID) error {
 	return r.Update(id, meta.Hash, emptyDoc, nil)
 }
 
+func (r *VDR) AddKey(id did.DID) (*did.VerificationMethod, error) {
+	doc, meta, err := r.store.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
+	if err != nil {
+		return nil, err
+	}
+	updater := NutsDocUpdater{keyCreator: r.keyStore}
+	method, err := updater.CreateNewAuthenticationMethodForDID(doc.ID)
+	if err != nil {
+		return nil, err
+	}
+	doc.VerificationMethod.Add(method)
+	if err != r.Update(id, meta.Hash, *doc, nil) {
+		return nil, err
+	}
+	return method, nil
+}
+
 // resolveControllers accepts a list of documents and finds their controllers
 // The resulting list are documents who control themselves
 func (r *VDR) resolveControllers(input []did.Document) ([]did.Document, error) {
