@@ -48,9 +48,11 @@ func (s ServiceTemplateApplier) Apply(controller did.DID, subject did.DID, templ
 	// - Apply compound services for controller
 	// - Apply concrete endpoint services for subject
 	// - Apply compound services for subject
+	ctrlDIDUpdated := false
+	if updated, err := s.createServices(ctrlDID, template.Controller.ConcreteServices, nil); err != nil {
 
-	ctrlDIDUpdated := s.createServices(ctrlDID, template.Controller.ConcreteServices, nil)
-	ctrlDIDUpdated = ctrlDIDUpdated || s.createServices(ctrlDID, template.Controller.CompoundServices, template.Controller.ConcreteServices)
+	}
+	updated s.createServices(ctrlDID, template.Controller.CompoundServices, template.Controller.ConcreteServices)
 	subjectDIDUpdated := s.createServices(subjectDID, template.Subject.ConcreteServices, template.Controller.ConcreteServices)
 	subjectDIDUpdated = subjectDIDUpdated || s.createServices(subjectDID, template.Subject.CompoundServices, append(template.Controller.ConcreteServices, template.Subject.ConcreteServices...))
 
@@ -67,14 +69,16 @@ func (s ServiceTemplateApplier) Apply(controller did.DID, subject did.DID, templ
 	return nil
 }
 
-func (s ServiceTemplateApplier) createServices(currentDocument *did.Document, servicesToApply, referencableServices []did.Service) bool {
+func (s ServiceTemplateApplier) createServices(currentDocument *did.Document, servicesToApply, referencableServices []did.Service) (bool, error) {
 	updated := false
 	for _, serviceTemplate := range servicesToApply {
-		if createOrUpdateService(currentDocument, currentDocument.Service, serviceTemplate) {
-			updated = true
+		serviceUpdated, err := createOrUpdateService(currentDocument, referencableServices, serviceTemplate)
+		if err != nil {
+			return false, err
 		}
+		updated = updated || serviceUpdated
 	}
-	return updated
+	return updated, nil
 }
 
 // createOrUpdateService checks if the specified service exists for the DID document and creates/updates it:
@@ -83,18 +87,25 @@ func (s ServiceTemplateApplier) createServices(currentDocument *did.Document, se
 // - if it doesn't exist, it is created
 // The function returns true when the service was created or updated, false if nothing was done
 // (because the DID document already was up-to-date).
-func createOrUpdateService(currentDocument *did.Document, referencableServices []did.Service, service did.Service) bool {
+func createOrUpdateService(currentDocument *did.Document, referencableServices []did.Service, service did.Service) (bool, error) {
+	// If it is a compound service, resolve the references
 	serviceEndpoint, isCompound := service.ServiceEndpoint.(map[string]interface{})
 	if isCompound {
-
+		service.ID = did.URI{}
+		for referencedType := range serviceEndpoint {
+			referencedService := findServiceWithType(referencableServices, referencedType)
+			if referencedService == nil {
+				return false, fmt.Errorf("concrete service can't be resolved (DID=%s, compound service type=%s)", currentDocument.ID, service.Type)
+			}
+			serviceEndpoint[referencedType] = referencedService.ID
+		}
 	}
 
-	// TODO: Resolve references
 	var serviceToUpdateOrCreate *did.Service
 	for i, existingService := range currentDocument.Service {
 		if existingService.Type == service.Type {
 			if existingService.ServiceEndpoint == service.ServiceEndpoint {
-				return false
+				return false, nil
 			}
 			// Service exists, update serviceEndpoint (only property that can change)
 			serviceToUpdateOrCreate = &currentDocument.Service[i]
@@ -102,21 +113,26 @@ func createOrUpdateService(currentDocument *did.Document, referencableServices [
 		}
 	}
 	if serviceToUpdateOrCreate == nil {
-		service.ID = currentDocument.ID.URI()
-		service.ID.Fragment = uuid.New().String()
-		logging.Log().Infof("Creating new DID service (ID=%s, type=%s)", service.ID, service.Type)
-		serviceToUpdateOrCreate = &service
+		serviceToUpdateOrCreate = &did.Service{}
+		*serviceToUpdateOrCreate = service
+		serviceToUpdateOrCreate.ID = currentDocument.ID.URI()
+		serviceToUpdateOrCreate.ID.Fragment = uuid.New().String()
+		logging.Log().Infof("Creating new DID service (ID=%s, type=%s)", serviceToUpdateOrCreate.ID, serviceToUpdateOrCreate.Type)
+		currentDocument.Service = append(currentDocument.Service, *serviceToUpdateOrCreate)
 	} else {
-		logging.Log().Infof("Updating endpoint of DID service (ID=%s, endpoint=%s)", serviceToUpdateOrCreate.ID, service.ServiceEndpoint)
+		serviceToUpdateOrCreate.ServiceEndpoint = service.ServiceEndpoint
+		logging.Log().Infof("Updating endpoint of DID service (ID=%s, endpoint=%s)", serviceToUpdateOrCreate.ID, serviceToUpdateOrCreate.ServiceEndpoint)
 	}
+	return true, nil
+}
 
-
-
-	existingService.ServiceEndpoint = service.ServiceEndpoint
-
-		currentDocument.Service = append(currentDocument.Service, service)
+func findServiceWithType(services []did.Service, referencedType string) *did.Service {
+	for _, svc := range services {
+		if svc.Type == referencedType {
+			return &svc
+		}
 	}
-	return true
+	return nil
 }
 
 // Unapply disables services associated with the template for the given subject.
