@@ -295,6 +295,22 @@ func Test_ambassador_callback(t *testing.T) {
 		assert.EqualError(t, err, "unable to unmarshall did document from network payload: invalid character '}' looking for beginning of value")
 	})
 
+	t.Run("nok - DID document invalid according to W3C spec", func(t *testing.T) {
+		subDoc := newSubscriberDoc()
+		subDoc.timelineID = timelineID
+		subDoc.timelineVersion = 1
+		am := ambassador{}
+
+		// Document is missing context
+		id, _ := did.ParseDID("did:foo:bar")
+		emptyDIDDocument := did.Document{ID: *id}
+		didDocumentBytes, _ := emptyDIDDocument.MarshalJSON()
+
+		err := am.callback(subDoc, didDocumentBytes)
+		assert.True(t, errors.Is(err, did.ErrInvalidContext))
+		assert.True(t, errors.Is(err, did.ErrDIDDocumentInvalid))
+	})
+
 	t.Run("create nok - fails without embedded key", func(t *testing.T) {
 		am := ambassador{}
 
@@ -323,7 +339,10 @@ func Test_ambassador_callback(t *testing.T) {
 		subDoc.signingKeyID = ""
 		subDoc.signingKey = signingKey
 
-		err := am.callback(subDoc, []byte("{}"))
+		doc, _, _ := newDidDoc()
+		docBytes, _ := doc.MarshalJSON()
+
+		err := am.callback(subDoc, docBytes)
 		if !assert.Error(t, err) {
 			return
 		}
@@ -357,7 +376,7 @@ func Test_ambassador_callback(t *testing.T) {
 		storedDocument := did.Document{}
 		json.Unmarshal(didDocPayload, &storedDocument)
 
-		deactivatedDocument := did.Document{ID: storedDocument.ID}
+		deactivatedDocument := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: storedDocument.ID}
 		didDocPayload, _ = json.Marshal(deactivatedDocument)
 
 		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
@@ -478,7 +497,11 @@ func Test_ambassador_callback(t *testing.T) {
 		am := ambassador{
 			didStore: didStoreMock{err: types.ErrNotFound},
 		}
-		err := am.callback(subDoc, []byte("{}"))
+
+		doc, _, _ := newDidDoc()
+		docBytes, _ := doc.MarshalJSON()
+
+		err := am.callback(subDoc, docBytes)
 		if !assert.Error(t, err) {
 			return
 		}

@@ -307,6 +307,10 @@ func checkSubscriberTransactionIntegrity(transaction dag.SubscriberTransaction) 
 //   - every service id should have the DID prefix
 //   - every service id must be unique
 func checkDIDDocumentIntegrity(doc did.Document) error {
+	if err := (did.W3CSpecValidator{}).Validate(doc); err != nil {
+		return err
+	}
+
 	// Verification methods
 	knownKeyIds := make(map[string]bool, 0)
 	for _, method := range doc.VerificationMethod {
