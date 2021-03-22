@@ -244,7 +244,7 @@ func TestNewContractNotary(t *testing.T) {
 	t.Run("adds all services", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		instance := NewContractNotary(
-			vdr.NewDummyNameResolver(),
+			vcr.NewTestVCRInstance(testDir),
 			vdr.NewTestVDRInstance(testDir),
 			crypto.NewTestCryptoInstance(testDir),
 			60*time.Minute,
@@ -260,7 +260,7 @@ func TestNewContractNotary(t *testing.T) {
 		}
 
 		assert.NotNil(t, service.privateKeyStore)
-		assert.NotNil(t, service.nameResolver)
+		assert.NotNil(t, service.conceptFinder)
 		assert.NotNil(t, service.didResolver)
 		assert.NotNil(t, service.contractValidity)
 	})
