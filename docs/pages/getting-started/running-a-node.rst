@@ -24,9 +24,9 @@ Configuring
 
 First you need to configure your Nuts node;
 
-1. Configure the bootstrap nodes using `network.bootstrapNodes`.
-2. Configure TLS using `network.certFile`, `network.certKeyFile` and `network.trustStoreFile`.
-3. Configure the public address of your node using `network.publicAddr`.
+1. Configure the bootstrap nodes using `network.bootstrapnodes`.
+2. Configure TLS using `network.certfile`, `network.certkeyfile` and `network.truststorefile`.
+3. Configure the public address of your node using `network.publicaddr`.
 
 See :ref:`configuration <nuts-node-config>` for a detailed explanation on how to exactly configure the Nuts node.
 

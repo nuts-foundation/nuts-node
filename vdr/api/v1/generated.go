@@ -702,4 +702,3 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPut, baseURL+"/internal/vdr/v1/did/:did", wrapper.UpdateDID)
 
 }
-

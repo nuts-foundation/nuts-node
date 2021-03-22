@@ -19,14 +19,10 @@ Distributed registry for storing and querying health care providers their vendor
    :target: https://codeclimate.com/github/nuts-foundation/nuts-node/maintainability
    :alt: Maintainability
 
-.. image:: https://github.com/nuts-foundation/nuts-node/actions/workflows/build-images.yaml/badge.svg
-   :target: https://github.com/nuts-foundation/nuts-node/actions/workflows/build-images.yaml
-   :alt: Build Docker images
-
 Dependencies
 ************
 
-Go >= 1.15 is required.
+Go >= 1.16 is required.
 
 Running tests
 *************
@@ -151,21 +147,21 @@ datadir                       ./data            Directory where the node stores 
 strictmode                    false             When set, insecure settings are forbidden.
 verbosity                     info              Log level (trace, debug, info, warn, error)
 **Auth**
-auth.contractValidators       [irma,uzi,dummy]  sets the different contract validators to use
-auth.irma.autoUpdateSchemas   true              set if you want automatically update the IRMA schemas every 60 minutes.
-auth.irma.schemaManager       pbdf              IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'.
-auth.publicUrl                                  public URL which can be reached by a users IRMA client
+auth.contractvalidators       [irma,uzi,dummy]  sets the different contract validators to use
+auth.irma.autoupdateschemas   true              set if you want automatically update the IRMA schemas every 60 minutes.
+auth.irma.schemamanager       pbdf              IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'.
+auth.publicurl                                  public URL which can be reached by a users IRMA client
 **Crypto**
 crypto.storage                fs                Storage to use, 'fs' for file system, default: fs
 **Network**
-network.advertHashesInterval  2000              Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.
-network.bootstrapNodes        []                Comma-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.
-network.certFile                                PEM file containing the server certificate for the gRPC server. Required when `enableTLS` is `true`.
-network.certKeyFile                             PEM file containing the private key of the server certificate. Required when `network.enableTLS` is `true`.
-network.enableTLS             true              Whether to enable TLS for inbound gRPC connections. If set to `true` (which is default) `certFile` and `certKeyFile` MUST be configured.
-network.grpcAddr              \:5555             Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made).
-network.publicAddr                              Public address (of this node) other nodes can use to connect to it. If set, it is registered on the nodelist.
-network.trustStoreFile                          PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
+network.adverthashesinterval  2000              Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.
+network.bootstrapnodes        []                Comma-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.
+network.certfile                                PEM file containing the server certificate for the gRPC server. Required when `enableTLS` is `true`.
+network.certkeyfile                             PEM file containing the private key of the server certificate. Required when `network.enabletls` is `true`.
+network.enabletls             true              Whether to enable TLS for inbound gRPC connections. If set to `true` (which is default) `certfile` and `certkeyfile` MUST be configured.
+network.grpcaddr              \:5555             Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made).
+network.publicaddr                              Public address (of this node) other nodes can use to connect to it. If set, it is registered on the nodelist.
+network.truststorefile                          PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
 ============================  ================  =================================================================================================================================================================================
 
 This table is automatically generated using the configuration flags in the core and engines. When they're changed

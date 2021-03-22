@@ -96,7 +96,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		ContractValidators:    auth.config.ContractValidators,
 	}
 	nameResolver := auth.vcr
-	auth.contractNotary = contract.NewContractNotary(nameResolver, contractValidity)
+	auth.contractNotary = contract.NewContractNotary(nameResolver, auth.registry, auth.keyStore, contractValidity)
 	auth.contractClient = validator.NewContractInstance(cfg, auth.registry, auth.keyStore)
 	if err := auth.contractClient.Configure(); err != nil {
 		return err

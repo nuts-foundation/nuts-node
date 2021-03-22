@@ -45,7 +45,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 
 		assert.Equal(t, defaultLogLevel, cfg.Verbosity)
 		assert.Equal(t, defaultStrictMode, cfg.Strictmode)
-		assert.Equal(t, defaultAddress, cfg.HTTP.Address)
+		assert.Equal(t, defaultHTTPInterface, cfg.HTTP.Address)
 		assert.Empty(t, cfg.HTTP.AltBinds)
 	})
 

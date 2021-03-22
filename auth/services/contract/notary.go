@@ -45,8 +45,13 @@ type contractNotaryService struct {
 var timenow = time.Now
 
 // NewContractNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewContractNotary(finder vcr.ConceptFinder, contractValidity time.Duration) services.ContractNotary {
-	return &contractNotaryService{conceptFinder: finder, contractValidity: contractValidity}
+func NewContractNotary(finder vcr.ConceptFinder, didResolver types.Resolver, keyStore crypto.PrivateKeyStore, contractValidity time.Duration) services.ContractNotary {
+	return &contractNotaryService{
+		conceptFinder:     finder,
+		contractValidity:  contractValidity,
+		didResolver:       didResolver,
+		privateKeyStore:   keyStore,
+	}
 }
 
 // DrawUpContract accepts a template and fills in the Party, validFrom time and its duration.

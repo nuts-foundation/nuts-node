@@ -25,11 +25,16 @@ For production it is recommended to enable `strictmode` which blocks some of the
 HTTP Interface Binding
 **********************
 
-By default all HTTP endpoints get bound on `localhost:1323` which generally isn't usable for production, since there are
-endpoints which are required to be accessible by the public. For instance `auth` engine HTTP endpoints required for IRMA
-authentication flows. However, having all endpoints open to the public would be very unsafe, so it's advisable to bind
-public endpoints to publicly accessible interfaces or ports and have administrative endpoints only accessible from
-secure subnets. This is done through the `http` configuration:
+By default all HTTP endpoints get bound on `:1323` which generally isn't usable for production, since some endpoints
+are required to be accessible by the public and others only meant for administrator or your own XIS. You can determine
+the intended public by looking at the first part of the URL.
+
+* Endpoints that start with `/public` should be accessible by the general public,
+* `/internal` is meant for XIS application integration and administrators.
+
+It's advisable to make sure internal endpoints aren't reachable from public networks. The HTTP configuration facilitates
+this by allowing you to bind sets of endpoints to a different HTTP port.
+This can be done by This is done through the `http` configuration:
 
 .. code-block:: yaml
 
@@ -38,7 +43,7 @@ secure subnets. This is done through the `http` configuration:
       # which don't have an alternative bind specified under `alt`. Since it's a default it can be left out or
       # be used to override the default bind address.
       default:
-        address: localhost:1323
+        address: :1323
       alt:
         # The following binds all endpoints starting with `/internal` to `internal.lan:1111`
         internal:

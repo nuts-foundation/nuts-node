@@ -554,8 +554,17 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	for _, tq := range query.Parts() {
 		var q leia.Query
 		for _, clause := range tq.Clauses {
-			// todo this should map better
-			qp := leia.Range(clause.Key(), clause.Seek(), clause.Match())
+			var qp leia.QueryPart
+
+			switch clause.Type() {
+			case concept.EqType:
+				qp = leia.Eq(clause.Key(), clause.Seek())
+			case concept.PrefixType:
+				qp = leia.Prefix(clause.Key(), clause.Seek())
+			default:
+				qp = leia.Range(clause.Key(), clause.Seek(), clause.Match())
+			}
+
 			if q == nil {
 				q = leia.New(qp)
 			} else {

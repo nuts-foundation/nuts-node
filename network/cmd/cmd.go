@@ -34,19 +34,19 @@ import (
 func FlagSet() *pflag.FlagSet {
 	defs := network.DefaultConfig()
 	flagSet := pflag.NewFlagSet("network", pflag.ContinueOnError)
-	flagSet.String("network.grpcAddr", defs.GrpcAddr, "Local address for gRPC to listen on. "+
+	flagSet.String("network.grpcaddr", defs.GrpcAddr, "Local address for gRPC to listen on. "+
 		"If empty the gRPC server won't be started and other nodes will not be able to connect to this node "+
 		"(outbound connections can still be made).")
-	flagSet.String("network.publicAddr", defs.PublicAddr, "Public address (of this node) other nodes can use to connect to it. If set, it is registered on the nodelist.")
-	flagSet.StringSlice("network.bootstrapNodes", defs.BootstrapNodes, "Comma-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
-	flagSet.Bool("network.enableTLS", defs.EnableTLS, "Whether to enable TLS for inbound gRPC connections. "+
-		"If set to `true` (which is default) `certFile` and `certKeyFile` MUST be configured.")
-	flagSet.String("network.certFile", defs.CertFile, "PEM file containing the server certificate for the gRPC server. "+
+	flagSet.String("network.publicaddr", defs.PublicAddr, "Public address (of this node) other nodes can use to connect to it. If set, it is registered on the nodelist.")
+	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "Comma-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
+	flagSet.Bool("network.enabletls", defs.EnableTLS, "Whether to enable TLS for inbound gRPC connections. "+
+		"If set to `true` (which is default) `certfile` and `certkeyfile` MUST be configured.")
+	flagSet.String("network.certfile", defs.CertFile, "PEM file containing the server certificate for the gRPC server. "+
 		"Required when `enableTLS` is `true`.")
-	flagSet.String("network.certKeyFile", defs.CertKeyFile, "PEM file containing the private key of the server certificate. "+
-		"Required when `network.enableTLS` is `true`.")
-	flagSet.String("network.trustStoreFile", defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
-	flagSet.Int("network.advertHashesInterval", defs.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
+	flagSet.String("network.certkeyfile", defs.CertKeyFile, "PEM file containing the private key of the server certificate. "+
+		"Required when `network.enabletls` is `true`.")
+	flagSet.String("network.truststorefile", defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
+	flagSet.Int("network.adverthashesinterval", defs.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
 	return flagSet
 }
 
