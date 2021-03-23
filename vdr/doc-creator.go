@@ -7,13 +7,13 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/shengdoushi/base58"
 
+	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-
-	"github.com/nuts-foundation/go-did"
 )
 
 // NutsDIDMethodName is the DID method name used by Nuts
@@ -82,13 +82,13 @@ func (n NutsDocCreator) Create() (*did.Document, error) {
 	didID.Fragment = ""
 
 	// Build the AuthenticationMethod and add it to the document
-	verificationMethod, err := did.NewVerificationMethod(*keyID, did.JsonWebKey2020, did.DID{}, key)
+	verificationMethod, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key)
 	if err != nil {
 		return nil, err
 	}
 
 	doc := &did.Document{
-		Context: []did.URI{did.DIDContextV1URI()},
+		Context: []ssi.URI{did.DIDContextV1URI()},
 		ID:      didID,
 	}
 

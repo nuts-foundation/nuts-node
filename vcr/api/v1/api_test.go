@@ -22,11 +22,12 @@ package v1
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/vc"
 	"net/http"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	did2 "github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
@@ -36,9 +37,9 @@ import (
 )
 
 func TestWrapper_CreateDID(t *testing.T) {
-	issuer, _ := did2.ParseURI("did:nuts:1")
+	issuer, _ := ssi.ParseURI("did:nuts:1")
 
-	vc := did2.VerifiableCredential{
+	v := vc.VerifiableCredential{
 		Issuer: *issuer,
 	}
 
@@ -46,13 +47,13 @@ func TestWrapper_CreateDID(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		var vcReturn *did2.VerifiableCredential
+		var vcReturn *vc.VerifiableCredential
 		ctx.echo.EXPECT().Bind(gomock.Any())
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
-			vcReturn = f2.(*did2.VerifiableCredential)
+			vcReturn = f2.(*vc.VerifiableCredential)
 			return nil
 		})
-		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(&vc, nil)
+		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(&v, nil)
 		err := ctx.client.Create(ctx.echo)
 
 		if !assert.NoError(t, err) {
@@ -129,9 +130,9 @@ func TestWrapper_CreateDID(t *testing.T) {
 
 func TestWrapper_Resolve(t *testing.T) {
 	idString := "did:nuts:1#1"
-	id, _ := did2.ParseURI(idString)
+	id, _ := ssi.ParseURI(idString)
 
-	vc := did2.VerifiableCredential{
+	v := vc.VerifiableCredential{
 		ID: id,
 	}
 
@@ -140,7 +141,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id).Return(&vc, nil)
+		ctx.vcr.EXPECT().Resolve(*id).Return(&v, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
@@ -183,7 +184,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id).Return(&vc, vcr.ErrRevoked)
+		ctx.vcr.EXPECT().Resolve(*id).Return(&v, vcr.ErrRevoked)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
@@ -203,7 +204,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id).Return(&vc, vcr.ErrUntrusted)
+		ctx.vcr.EXPECT().Resolve(*id).Return(&v, vcr.ErrUntrusted)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
@@ -243,7 +244,7 @@ func TestWrapper_Search(t *testing.T) {
 			*sr = searchRequest
 			return nil
 		})
-		ctx.vcr.EXPECT().Search(gomock.Any()).Return([]did2.VerifiableCredential{concept.TestVC()}, nil)
+		ctx.vcr.EXPECT().Search(gomock.Any()).Return([]vc.VerifiableCredential{concept.TestVC()}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			capturedConcept = f2.([]concept.Concept)
 			return nil

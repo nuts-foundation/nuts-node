@@ -21,12 +21,11 @@ package concept
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/stretchr/testify/assert"
 	"sort"
 	"strings"
 	"testing"
-
-	"github.com/nuts-foundation/go-did"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestTemplateString_isValid(t *testing.T) {
@@ -105,7 +104,7 @@ func TestTemplate_transform(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		testVC := did.VerifiableCredential{}
+		testVC := vc.VerifiableCredential{}
 		if !assert.NoError(t, json.Unmarshal([]byte(TestCredential), &testVC)) {
 			return
 		}
@@ -139,7 +138,7 @@ func TestTemplate_transform(t *testing.T) {
 	"type": ["VerifiableCredential", "ExampleCredential"]
 }
 `
-		testVC := did.VerifiableCredential{}
+		testVC := vc.VerifiableCredential{}
 		if !assert.NoError(t, json.Unmarshal([]byte(testCredential), &testVC)) {
 			return
 		}

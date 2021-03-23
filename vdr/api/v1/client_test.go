@@ -22,16 +22,16 @@ import (
 	"testing"
 	"time"
 
-	did2 "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTPClient_Create(t *testing.T) {
-	did, _ := did2.ParseDID("did:nuts:1")
-	didDoc := did2.Document{
-		ID: *did,
+	id, _ := did.ParseDID("did:nuts:1")
+	didDoc := did.Document{
+		ID: *id,
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -60,9 +60,9 @@ func TestHTTPClient_Create(t *testing.T) {
 
 func TestHttpClient_Get(t *testing.T) {
 	didString := "did:nuts:1"
-	did, _ := did2.ParseDID(didString)
-	didDoc := did2.Document{
-		ID: *did,
+	id, _ := did.ParseDID(didString)
+	didDoc := did.Document{
+		ID: *id,
 	}
 	meta := types.DocumentMetadata{}
 
@@ -108,9 +108,9 @@ func TestHttpClient_Get(t *testing.T) {
 
 func TestHTTPClient_Update(t *testing.T) {
 	didString := "did:nuts:1"
-	did, _ := did2.ParseDID(didString)
-	didDoc := did2.Document{
-		ID: *did,
+	id, _ := did.ParseDID(didString)
+	didDoc := did.Document{
+		ID: *id,
 	}
 	hash := "0000000000000000000000000000000000000000"
 

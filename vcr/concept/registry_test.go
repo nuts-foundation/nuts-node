@@ -20,10 +20,10 @@
 package concept
 
 import (
-	"testing"
-
-	"github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestRegistry_AddFromString(t *testing.T) {
@@ -127,9 +127,9 @@ func TestRegistry_Transform(t *testing.T) {
 	})
 
 	t.Run("error - unknown type", func(t *testing.T) {
-		vcType, _ := did.ParseURI("unknownType")
-		vc := did.VerifiableCredential{
-			Type: []did.URI{*vcType},
+		vcType, _ := ssi.ParseURI("unknownType")
+		vc := vc.VerifiableCredential{
+			Type: []ssi.URI{*vcType},
 		}
 
 		_, err = r.Transform("human", vc)
@@ -142,7 +142,7 @@ func TestRegistry_Transform(t *testing.T) {
 	})
 
 	t.Run("error - unknown concept", func(t *testing.T) {
-		_, err = r.Transform("unknown", did.VerifiableCredential{})
+		_, err = r.Transform("unknown", vc.VerifiableCredential{})
 
 		if !assert.Error(t, err) {
 			return

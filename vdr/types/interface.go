@@ -20,9 +20,10 @@ package types
 
 import (
 	"crypto"
+	ssi "github.com/nuts-foundation/go-did"
 	"time"
 
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
@@ -85,7 +86,7 @@ type KeyResolver interface {
 	ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error)
 	// ResolveAssertionKey look for a valid assertion key for the give DID. If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key is found.
-	ResolveAssertionKey(id did.DID) (did.URI, error)
+	ResolveAssertionKey(id did.DID) (ssi.URI, error)
 }
 
 // Store is the interface that groups all low level VDR DID storage operations.

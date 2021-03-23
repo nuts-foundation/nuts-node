@@ -21,8 +21,7 @@ package vcr
 
 import (
 	"encoding/json"
-
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -57,17 +56,17 @@ func (n ambassador) Configure() {
 
 // vcCallback gets called when new Verifiable Credentials are received by the network. All checks on the signature are already performed.
 // The VCR is used to verify the contents of the credential.
-// payload should be a json encoded did.VerifiableCredential
+// payload should be a json encoded vc.VerifiableCredential
 func (n ambassador) vcCallback(tx dag.SubscriberTransaction, payload []byte) error {
 	logging.Log().Debugf("Processing Verifiable Credential received from Nuts Network: ref=%s", tx.Ref())
 
-	vc := did.VerifiableCredential{}
-	if err := json.Unmarshal(payload, &vc); err != nil {
+	target := vc.VerifiableCredential{}
+	if err := json.Unmarshal(payload, &target); err != nil {
 		return errors.Wrap(err, "credential processing failed")
 	}
 
 	// Verify and store
-	return n.writer.StoreCredential(vc)
+	return n.writer.StoreCredential(target)
 }
 
 // rCallback gets called when new credential revocations are received by the network. All checks on the signature are already performed.

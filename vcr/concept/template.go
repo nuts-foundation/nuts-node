@@ -23,11 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/vc"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/nuts-foundation/go-did"
 	errors2 "github.com/pkg/errors"
 )
 
@@ -200,7 +200,7 @@ func (ct *Template) addIndex(lvl1 int, lvl2 int, jsonPath string) {
 }
 
 // transform a VC to a concept given the template mapping
-func (ct *Template) transform(VC did.VerifiableCredential) (Concept, error) {
+func (ct *Template) transform(VC vc.VerifiableCredential) (Concept, error) {
 	// remove type as this will be hardcoded later
 	VC.Type = nil
 

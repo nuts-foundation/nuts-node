@@ -3,10 +3,10 @@ package vdr
 import (
 	"crypto"
 	"errors"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/nuts-foundation/go-did"
-
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
 
@@ -49,7 +49,7 @@ func (u NutsDocUpdater) CreateNewAuthenticationMethodForDocument(doc *did.Docume
 	if err != nil {
 		return err
 	}
-	method, err := did.NewVerificationMethod(*keyID, did.JsonWebKey2020, did.DID{}, key)
+	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key)
 	if err != nil {
 		return err
 	}

@@ -7,12 +7,13 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	ssi "github.com/nuts-foundation/go-did"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -946,7 +947,7 @@ func Test_checkDIDDocumentIntegrity(t *testing.T) {
 		}, errors.New("invalid service: ID must have a fragment")},
 		{"nok - service ID has wrong prefix", func(t *testing.T, a *args) {
 			didDoc, _, _ := newDidDoc(t)
-			uri, _ := did.ParseURI("did:foo:123#foobar")
+			uri, _ := ssi.ParseURI("did:foo:123#foobar")
 			didDoc.Service[0].ID = *uri
 			a.doc = didDoc
 		}, errors.New("invalid service: ID must have document prefix")},
@@ -1005,7 +1006,7 @@ func Test_ambassador_updateKeysInStore(t *testing.T) {
 		proposed := did.Document{}
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		timeNow := time.Now()
-		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		vm, err := did.NewVerificationMethod(did.DID{}, ssi.JsonWebKey2020, did.DID{}, pair.PublicKey)
 		if !assert.NoError(t, err,
 			"unexpected error while generating a new verificationMethod") {
 			return
@@ -1031,7 +1032,7 @@ func Test_ambassador_updateKeysInStore(t *testing.T) {
 		current := did.Document{}
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		timeNow := time.Now()
-		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		vm, err := did.NewVerificationMethod(did.DID{}, ssi.JsonWebKey2020, did.DID{}, pair.PublicKey)
 		if !assert.NoError(t, err,
 			"unexpected error while generating a new verificationMethod") {
 			return
@@ -1058,7 +1059,7 @@ func Test_ambassador_updateKeysInStore(t *testing.T) {
 		proposed := did.Document{}
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		timeNow := time.Now()
-		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		vm, err := did.NewVerificationMethod(did.DID{}, ssi.JsonWebKey2020, did.DID{}, pair.PublicKey)
 		if !assert.NoError(t, err,
 			"unexpected error while generating a new verificationMethod") {
 			return
@@ -1082,7 +1083,7 @@ func Test_ambassador_updateKeysInStore(t *testing.T) {
 		current := did.Document{}
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		timeNow := time.Now()
-		vm, err := did.NewVerificationMethod(did.DID{}, did.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		vm, err := did.NewVerificationMethod(did.DID{}, ssi.JsonWebKey2020, did.DID{}, pair.PublicKey)
 		if !assert.NoError(t, err,
 			"unexpected error while generating a new verificationMethod") {
 			return

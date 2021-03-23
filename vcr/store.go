@@ -21,28 +21,28 @@ package vcr
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/go-did/vc"
 
-	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 const revocationCollection = "_revocation"
 
-func (c *vcr) StoreCredential(vc did.VerifiableCredential) error {
+func (c *vcr) StoreCredential(credential vc.VerifiableCredential) error {
 	// verify first
-	if err := c.Verify(vc, nil); err != nil {
+	if err := c.Verify(credential, nil); err != nil {
 		return err
 	}
 
-	return c.writeCredential(vc)
+	return c.writeCredential(credential)
 }
 
-func (c *vcr) writeCredential(vc did.VerifiableCredential) error {
+func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 	// validation has made sure there's exactly one!
-	vcType := credential.ExtractTypes(vc)[0]
+	vcType := credential.ExtractTypes(subject)[0]
 
-	doc, _ := json.Marshal(vc)
+	doc, _ := json.Marshal(subject)
 
 	collection := c.store.Collection(vcType)
 

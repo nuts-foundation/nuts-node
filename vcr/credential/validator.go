@@ -22,16 +22,15 @@ package credential
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/vc"
 	"strings"
-
-	"github.com/nuts-foundation/go-did"
 )
 
 // Validator is the interface specific VC verification.
 // Every VC will have it's own rules of verification.
 type Validator interface {
 	// Validate the given credential according to the rules of the VC type.
-	Validate(credential did.VerifiableCredential) error
+	Validate(credential vc.VerifiableCredential) error
 }
 
 // ErrValidation is a common error indicating validation failed
@@ -56,13 +55,13 @@ func failure(err string) error {
 }
 
 // validate the default fields
-func validate(credential did.VerifiableCredential) error {
+func validate(credential vc.VerifiableCredential) error {
 
-	if !credential.IsType(did.VerifiableCredentialTypeV1URI()) {
+	if !credential.IsType(vc.VerifiableCredentialTypeV1URI()) {
 		return failure("'VerifiableCredential' is required")
 	}
 
-	if !credential.ContainsContext(did.VCContextV1URI()) {
+	if !credential.ContainsContext(vc.VCContextV1URI()) {
 		return failure("default context is required")
 	}
 
@@ -88,7 +87,7 @@ func validate(credential did.VerifiableCredential) error {
 // nutsOrganizationCredentialValidator checks if there's a 'name' and 'city' in the 'organization' struct
 type nutsOrganizationCredentialValidator struct{}
 
-func (d nutsOrganizationCredentialValidator) Validate(credential did.VerifiableCredential) error {
+func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
 	var target = make([]NutsOrganizationCredentialSubject, 0)
 
 	if err := validate(credential); err != nil {

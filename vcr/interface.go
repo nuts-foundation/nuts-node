@@ -22,11 +22,11 @@ package vcr
 import (
 	"embed"
 	"errors"
-	"time"
-
-	"github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"time"
 )
 
 //go:embed assets/*
@@ -63,7 +63,7 @@ type ConceptFinder interface {
 // Writer is the interface that groups al the VC write methods
 type Writer interface {
 	// StoreCredential writes a VC to storage. Before writing, it calls Verify!
-	StoreCredential(vc did.VerifiableCredential) error
+	StoreCredential(vc vc.VerifiableCredential) error
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error
 }
@@ -73,27 +73,27 @@ type VCR interface {
 	// Issue creates and publishes a new VC.
 	// An optional expirationDate can be given.
 	// VCs are stored when the network has successfully published them.
-	Issue(vc did.VerifiableCredential) (*did.VerifiableCredential, error)
+	Issue(vcToIssue vc.VerifiableCredential) (*vc.VerifiableCredential, error)
 	// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
-	Search(query concept.Query) ([]did.VerifiableCredential, error)
+	Search(query concept.Query) ([]vc.VerifiableCredential, error)
 	// Resolve returns a credential based on its ID.
 	// The credential will still be returned in the case of ErrRevoked and ErrUntrusted.
 	// For other errors, nil is returned
-	Resolve(ID did.URI) (*did.VerifiableCredential, error)
+	Resolve(ID ssi.URI) (*vc.VerifiableCredential, error)
 	// Verify checks if a credential is valid and trusted at the given time.
 	// The time check is optional, so credentials can be issued that will become valid.
 	// If valid no error is returned.
-	Verify(vc did.VerifiableCredential, at *time.Time) error
+	Verify(vcToVerify vc.VerifiableCredential, at *time.Time) error
 	// Revoke a credential based on its ID, the Issuer will be resolved automatically.
 	// The statusDate will be set to the current time.
 	// It returns an error if the credential, issuer or private key can not be found.
-	Revoke(ID did.URI) (*credential.Revocation, error)
+	Revoke(ID ssi.URI) (*credential.Revocation, error)
 	// Registry returns the concept registry
 	Registry() concept.Registry
 	// Trust adds trust for a Issuer/CredentialType combination. The added trust is persisted to disk.
-	Trust(credentialType did.URI, issuer did.URI) error
+	Trust(credentialType ssi.URI, issuer ssi.URI) error
 	// Untrust removes trust for a Issuer/CredentialType combination. The result is persisted to disk.
-	Untrust(credentialType did.URI, issuer did.URI) error
+	Untrust(credentialType ssi.URI, issuer ssi.URI) error
 
 	ConceptFinder
 

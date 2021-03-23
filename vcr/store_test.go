@@ -22,11 +22,11 @@ package vcr
 import (
 	"crypto/ecdsa"
 	"encoding/json"
+	"github.com/nuts-foundation/go-did/vc"
 	"io/ioutil"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -36,9 +36,9 @@ import (
 
 func TestVcr_StoreCredential(t *testing.T) {
 	// load VC
-	vc := did.VerifiableCredential{}
+	target := vc.VerifiableCredential{}
 	vcJSON, _ := ioutil.ReadFile("test/vc.json")
-	json.Unmarshal(vcJSON, &vc)
+	json.Unmarshal(vcJSON, &target)
 
 	// load pub key
 	pke := storage.PublicKeyEntry{}
@@ -55,7 +55,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vdr.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
 
-		err := ctx.vcr.StoreCredential(vc)
+		err := ctx.vcr.StoreCredential(target)
 
 		assert.NoError(t, err)
 	})
@@ -67,7 +67,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
-		err := ctx.vcr.StoreCredential(did.VerifiableCredential{})
+		err := ctx.vcr.StoreCredential(vc.VerifiableCredential{})
 
 		assert.Error(t, err)
 	})

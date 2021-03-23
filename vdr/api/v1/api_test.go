@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	did2 "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/mock"
@@ -29,18 +29,18 @@ import (
 )
 
 func TestWrapper_CreateDID(t *testing.T) {
-	did, _ := did2.ParseDID("did:nuts:1")
-	didDoc := &did2.Document{
-		ID: *did,
+	id, _ := did.ParseDID("did:nuts:1")
+	didDoc := &did.Document{
+		ID: *id,
 	}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		var didDocReturn did2.Document
+		var didDocReturn did.Document
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
-			didDocReturn = f2.(did2.Document)
+			didDocReturn = f2.(did.Document)
 			return nil
 		})
 		ctx.vdr.EXPECT().Create().Return(didDoc, nil)
@@ -49,7 +49,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, *did, didDocReturn.ID)
+		assert.Equal(t, *id, didDocReturn.ID)
 	})
 
 	t.Run("error - 500", func(t *testing.T) {
@@ -64,9 +64,9 @@ func TestWrapper_CreateDID(t *testing.T) {
 }
 
 func TestWrapper_GetDID(t *testing.T) {
-	did, _ := did2.ParseDID("did:nuts:1")
-	didDoc := &did2.Document{
-		ID: *did,
+	id, _ := did.ParseDID("did:nuts:1")
+	didDoc := &did.Document{
+		ID: *id,
 	}
 	meta := &types.DocumentMetadata{}
 
@@ -80,13 +80,13 @@ func TestWrapper_GetDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.vdr.EXPECT().Resolve(*did, nil).Return(didDoc, meta, nil)
-		err := ctx.client.GetDID(ctx.echo, did.String())
+		ctx.vdr.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		err := ctx.client.GetDID(ctx.echo, id.String())
 
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, *did, didResolutionResult.Document.ID)
+		assert.Equal(t, *id, didResolutionResult.Document.ID)
 	})
 
 	t.Run("error - wrong did format", func(t *testing.T) {
@@ -104,8 +104,8 @@ func TestWrapper_GetDID(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
-		ctx.vdr.EXPECT().Resolve(*did, nil).Return(nil, nil, types.ErrNotFound)
-		err := ctx.client.GetDID(ctx.echo, did.String())
+		ctx.vdr.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
+		err := ctx.client.GetDID(ctx.echo, id.String())
 
 		assert.NoError(t, err)
 	})
@@ -114,17 +114,17 @@ func TestWrapper_GetDID(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vdr.EXPECT().Resolve(*did, nil).Return(nil, nil, errors.New("b00m!"))
-		err := ctx.client.GetDID(ctx.echo, did.String())
+		ctx.vdr.EXPECT().Resolve(*id, nil).Return(nil, nil, errors.New("b00m!"))
+		err := ctx.client.GetDID(ctx.echo, id.String())
 
 		assert.Error(t, err)
 	})
 }
 
 func TestWrapper_UpdateDID(t *testing.T) {
-	did, _ := did2.ParseDID("did:nuts:1")
-	didDoc := &did2.Document{
-		ID: *did,
+	id, _ := did.ParseDID("did:nuts:1")
+	didDoc := &did.Document{
+		ID: *id,
 	}
 	didUpdate := DIDUpdateRequest{
 		Document:    *didDoc,
@@ -135,23 +135,23 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		var didReturn did2.Document
+		var didReturn did.Document
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			p := f.(*DIDUpdateRequest)
 			*p = didUpdate
 			return nil
 		})
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
-			didReturn = f2.(did2.Document)
+			didReturn = f2.(did.Document)
 			return nil
 		})
-		ctx.vdr.EXPECT().Update(*did, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-		err := ctx.client.UpdateDID(ctx.echo, did.String())
+		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, *did, didReturn.ID)
+		assert.Equal(t, *id, didReturn.ID)
 	})
 
 	t.Run("error - wrong did format", func(t *testing.T) {
@@ -174,8 +174,8 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
-		ctx.vdr.EXPECT().Update(*did, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrNotFound)
-		err := ctx.client.UpdateDID(ctx.echo, did.String())
+		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrNotFound)
+		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		assert.NoError(t, err)
 	})
@@ -190,8 +190,8 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 		ctx.echo.EXPECT().String(http.StatusInternalServerError, gomock.Any())
-		ctx.vdr.EXPECT().Update(*did, gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("b00m!"))
-		err := ctx.client.UpdateDID(ctx.echo, did.String())
+		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("b00m!"))
+		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		assert.NoError(t, err)
 	})
@@ -211,7 +211,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
-		err := ctx.client.UpdateDID(ctx.echo, did.String())
+		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		assert.NoError(t, err)
 	})
@@ -222,7 +222,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
 		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
-		err := ctx.client.UpdateDID(ctx.echo, did.String())
+		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		assert.NoError(t, err)
 	})
@@ -238,9 +238,9 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		})
 
 		ctx.echo.EXPECT().String(http.StatusConflict, "could not update document: the document has been deactivated")
-		ctx.vdr.EXPECT().Update(*did, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDeactivated)
+		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDeactivated)
 
-		err := ctx.client.UpdateDID(ctx.echo, did.String())
+		err := ctx.client.UpdateDID(ctx.echo, id.String())
 		assert.NoError(t, err)
 	})
 
@@ -255,15 +255,15 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		})
 
 		ctx.echo.EXPECT().String(http.StatusForbidden, "could not update document: DID document not managed by this node")
-		ctx.vdr.EXPECT().Update(*did, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
+		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
 
-		err := ctx.client.UpdateDID(ctx.echo, did.String())
+		err := ctx.client.UpdateDID(ctx.echo, id.String())
 		assert.NoError(t, err)
 	})
 }
 
 func TestWrapper_DeactivateDID(t *testing.T) {
-	did123, _ := did2.ParseDID("did:nuts:123")
+	did123, _ := did.ParseDID("did:nuts:123")
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vdr.EXPECT().Deactivate(*did123).Return(nil)

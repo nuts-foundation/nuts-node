@@ -22,7 +22,7 @@ package v1
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -85,7 +85,7 @@ func (w *Wrapper) Search(ctx echo.Context, conceptTemplate string) error {
 
 // Revoke a credential
 func (w *Wrapper) Revoke(ctx echo.Context, id string) error {
-	idURI, err := did.ParseURI(id)
+	idURI, err := ssi.ParseURI(id)
 
 	// return 400 for malformed input
 	if err != nil {
@@ -142,7 +142,7 @@ func (w *Wrapper) Create(ctx echo.Context) error {
 
 // Resolve a VC and return its content
 func (w *Wrapper) Resolve(ctx echo.Context, id string) error {
-	idURI, err := did.ParseURI(id)
+	idURI, err := ssi.ParseURI(id)
 	// return 400 for malformed input
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse credential ID: %s", err.Error()))
@@ -176,18 +176,18 @@ func (w *Wrapper) Resolve(ctx echo.Context, id string) error {
 }
 
 func (w *Wrapper) TrustIssuer(ctx echo.Context) error {
-	return changeTrust(ctx, func(cType did.URI, issuer did.URI) error {
+	return changeTrust(ctx, func(cType ssi.URI, issuer ssi.URI) error {
 		return w.R.Trust(cType, issuer)
 	})
 }
 
 func (w *Wrapper) UntrustIssuer(ctx echo.Context) error {
-	return changeTrust(ctx, func(cType did.URI, issuer did.URI) error {
+	return changeTrust(ctx, func(cType ssi.URI, issuer ssi.URI) error {
 		return w.R.Untrust(cType, issuer)
 	})
 }
 
-type trustChangeFunc func(did.URI, did.URI) error
+type trustChangeFunc func(ssi.URI, ssi.URI) error
 
 func changeTrust(ctx echo.Context, f trustChangeFunc) error {
 	var icc = new(CredentialIssuer)
@@ -196,12 +196,12 @@ func changeTrust(ctx echo.Context, f trustChangeFunc) error {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse request body: %s", err.Error()))
 	}
 
-	d, err := did.ParseURI(icc.Issuer)
+	d, err := ssi.ParseURI(icc.Issuer)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse issuer: %s", err.Error()))
 	}
 
-	cType, err := did.ParseURI(icc.CredentialType)
+	cType, err := ssi.ParseURI(icc.CredentialType)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse credential type: %s", err.Error()))
 	}

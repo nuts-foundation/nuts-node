@@ -20,182 +20,182 @@
 package credential
 
 import (
-	"testing"
-	"time"
-
-	"github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
 )
 
 func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	validator := nutsOrganizationCredentialValidator{}
 
 	t.Run("ok", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
+		v := validNutsOrganizationCredential()
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.NoError(t, err)
 	})
 
 	t.Run("failed - missing custom type", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
-		vc.Type = []did.URI{did.VerifiableCredentialTypeV1URI()}
+		v := validNutsOrganizationCredential()
+		v.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - missing default type", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
-		vc.Type = []did.URI{stringToURI(NutsOrganizationCredentialType)}
+		v := validNutsOrganizationCredential()
+		v.Type = []ssi.URI{stringToURI(NutsOrganizationCredentialType)}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - missing credential subject", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
-		vc.CredentialSubject = []interface{}{}
+		v := validNutsOrganizationCredential()
+		v.CredentialSubject = []interface{}{}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - missing organization", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
+		v := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
-		vc.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - missing organization name", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
+		v := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
 			"city": "EIbergen",
 		}
-		vc.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - missing organization city", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
+		v := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
 			"name": "Because we care B.V.",
 		}
-		vc.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - empty organization city", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
+		v := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
 			"name": "Because we care B.V.",
 			"city": " ",
 		}
-		vc.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - empty organization name", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
+		v := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
 			"name": " ",
 			"city": "EIbergen",
 		}
-		vc.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - missing credentialSubject.ID", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
+		v := validNutsOrganizationCredential()
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["organization"] = map[string]interface{}{
 			"name": "Because we care B.V.",
 			"city": "EIbergen",
 		}
-		vc.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - missing ID", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
-		vc.ID = nil
+		v := validNutsOrganizationCredential()
+		v.ID = nil
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - missing default context", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
-		vc.Context = []did.URI{stringToURI(NutsContext)}
+		v := validNutsOrganizationCredential()
+		v.Context = []ssi.URI{stringToURI(NutsContext)}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - missing nuts context", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
-		vc.Context = []did.URI{did.VerifiableCredentialTypeV1URI()}
+		v := validNutsOrganizationCredential()
+		v.Context = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - missing issuanceDate", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
-		vc.IssuanceDate = time.Time{}
+		v := validNutsOrganizationCredential()
+		v.IssuanceDate = time.Time{}
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("failed - missing proof", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
-		vc.Proof = nil
+		v := validNutsOrganizationCredential()
+		v.Proof = nil
 
-		err := validator.Validate(*vc)
+		err := validator.Validate(*v)
 
 		assert.Error(t, err)
 	})
 }
 
-func validNutsOrganizationCredential() *did.VerifiableCredential {
+func validNutsOrganizationCredential() *vc.VerifiableCredential {
 	var credentialSubject = make(map[string]interface{})
 	credentialSubject["id"] = vdr.TestDIDB.String()
 	credentialSubject["organization"] = map[string]interface{}{
@@ -203,18 +203,18 @@ func validNutsOrganizationCredential() *did.VerifiableCredential {
 		"city": "EIbergen",
 	}
 
-	return &did.VerifiableCredential{
-		Context:           []did.URI{did.VCContextV1URI(), *NutsContextURI},
-		ID:                &did.URI{},
-		Type:              []did.URI{*NutsOrganizationCredentialTypeURI, did.VerifiableCredentialTypeV1URI()},
+	return &vc.VerifiableCredential{
+		Context:           []ssi.URI{vc.VCContextV1URI(), *NutsContextURI},
+		ID:                &ssi.URI{},
+		Type:              []ssi.URI{*NutsOrganizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 		Issuer:            stringToURI(vdr.TestDIDA.String()),
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},
-		Proof:             []interface{}{did.Proof{}},
+		Proof:             []interface{}{vc.Proof{}},
 	}
 }
 
-func stringToURI(input string) did.URI {
-	u, _ := did.ParseURI(input)
+func stringToURI(input string) ssi.URI {
+	u, _ := ssi.ParseURI(input)
 	return *u
 }

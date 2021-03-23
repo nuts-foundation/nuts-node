@@ -21,18 +21,18 @@ package credential
 
 import (
 	"encoding/json"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/nuts-foundation/go-did"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestBuildRevocation(t *testing.T) {
-	vc := did.VerifiableCredential{}
+	target := vc.VerifiableCredential{}
 	vcData, _ := os.ReadFile("../test/vc.json")
-	json.Unmarshal(vcData, &vc)
+	json.Unmarshal(vcData, &target)
 
 	at := time.Now()
 	nowFunc = func() time.Time {
@@ -42,10 +42,10 @@ func TestBuildRevocation(t *testing.T) {
 		nowFunc = time.Now
 	}()
 
-	r := BuildRevocation(vc)
+	r := BuildRevocation(target)
 
-	assert.Equal(t, *vc.ID, r.Subject)
-	assert.Equal(t, vc.Issuer, r.Issuer)
+	assert.Equal(t, *target.ID, r.Subject)
+	assert.Equal(t, target.Issuer, r.Issuer)
 	assert.Equal(t, at, r.Date)
 }
 
@@ -60,7 +60,7 @@ func TestValidateRevocation(t *testing.T) {
 
 	t.Run("error - empty subject", func(t *testing.T) {
 		r := revocation
-		r.Subject = did.URI{}
+		r.Subject = ssi.URI{}
 
 		err := ValidateRevocation(r)
 		assert.Error(t, err)
@@ -78,7 +78,7 @@ func TestValidateRevocation(t *testing.T) {
 
 	t.Run("error - issuer is required", func(t *testing.T) {
 		r := revocation
-		r.Issuer = did.URI{}
+		r.Issuer = ssi.URI{}
 
 		err := ValidateRevocation(r)
 		assert.Error(t, err)

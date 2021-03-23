@@ -1,10 +1,11 @@
 package services
 
 import (
+	ssi "github.com/nuts-foundation/go-did"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +18,7 @@ func TestResolveEndpointURL(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		expectedURI, _ := did.ParseURI("http://nuts.nl")
+		expectedURI, _ := ssi.ParseURI("http://nuts.nl")
 		s := did.Service{Type: "oauth", ServiceEndpoint: expectedURI.String()}
 		resolver := types.NewMockDocResolver(ctrl)
 		resolver.EXPECT().Resolve(holder, gomock.Any()).Return(&did.Document{Service: []did.Service{s}}, nil, nil)

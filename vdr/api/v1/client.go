@@ -23,12 +23,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
-
-	"github.com/nuts-foundation/go-did"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client

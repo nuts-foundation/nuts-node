@@ -23,6 +23,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"io/fs"
 	"path"
 	"strings"
@@ -30,7 +32,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -183,30 +185,30 @@ func (c *vcr) Config() interface{} {
 	return &c.config
 }
 
-func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
+func (c *vcr) Search(query concept.Query) ([]vc.VerifiableCredential, error) {
 	//transform query to leia query, for each template a query is returned
 	queries := c.convert(query)
 
-	var VCs = make([]did.VerifiableCredential, 0)
+	var VCs = make([]vc.VerifiableCredential, 0)
 	for vcType, q := range queries {
 		docs, err := c.store.Collection(vcType).Find(q)
 		if err != nil {
 			return nil, err
 		}
 		for _, doc := range docs {
-			vc := did.VerifiableCredential{}
-			err = json.Unmarshal(doc, &vc)
+			foundCredential := vc.VerifiableCredential{}
+			err = json.Unmarshal(doc, &foundCredential)
 			if err != nil {
 				return nil, errors.Wrap(err, "unable to parse credential from db")
 			}
 
-			trusted := c.isTrusted(vc)
-			revoked, err := c.isRevoked(*vc.ID)
+			trusted := c.isTrusted(foundCredential)
+			revoked, err := c.isRevoked(*foundCredential.ID)
 			if err != nil {
 				return nil, errors.Wrap(err, "unable to check revocation state for credential")
 			}
 			if trusted && !revoked {
-				VCs = append(VCs, vc)
+				VCs = append(VCs, foundCredential)
 			}
 		}
 	}
@@ -214,7 +216,7 @@ func (c *vcr) Search(query concept.Query) ([]did.VerifiableCredential, error) {
 	return VCs, nil
 }
 
-func (c *vcr) Issue(template did.VerifiableCredential) (*did.VerifiableCredential, error) {
+func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
 	validator, builder := credential.FindValidatorAndBuilder(template)
 	if validator == nil || builder == nil {
 		return nil, errors.New("unknown credential type")
@@ -224,14 +226,14 @@ func (c *vcr) Issue(template did.VerifiableCredential) (*did.VerifiableCredentia
 		return nil, errors.New("can only issue credential with 1 type")
 	}
 
-	var vc did.VerifiableCredential
-	vc.Type = template.Type
-	vc.CredentialSubject = template.CredentialSubject
-	vc.Issuer = template.Issuer
-	vc.ExpirationDate = template.ExpirationDate
+	var credential vc.VerifiableCredential
+	credential.Type = template.Type
+	credential.CredentialSubject = template.CredentialSubject
+	credential.Issuer = template.Issuer
+	credential.ExpirationDate = template.ExpirationDate
 
 	// find issuer
-	issuer, err := did.ParseDID(vc.Issuer.String())
+	issuer, err := did.ParseDID(credential.Issuer.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
@@ -243,55 +245,55 @@ func (c *vcr) Issue(template did.VerifiableCredential) (*did.VerifiableCredentia
 	}
 
 	// set defaults
-	builder.Fill(&vc)
+	builder.Fill(&credential)
 
 	// sign
-	if err := c.generateProof(&vc, kid); err != nil {
+	if err := c.generateProof(&credential, kid); err != nil {
 		return nil, fmt.Errorf("failed to generate credential proof: %w", err)
 	}
 
 	// do same validation as network nodes
-	if err := validator.Validate(vc); err != nil {
+	if err := validator.Validate(credential); err != nil {
 		return nil, err
 	}
 
-	payload, _ := json.Marshal(vc)
+	payload, _ := json.Marshal(credential)
 
-	_, err = c.network.CreateTransaction(vcDocumentType, payload, kid.String(), nil, vc.IssuanceDate)
+	_, err = c.network.CreateTransaction(vcDocumentType, payload, kid.String(), nil, credential.IssuanceDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
 
-	logging.Log().Infof("Verifiable Credential issued: %s", vc.ID)
+	logging.Log().Infof("Verifiable Credential issued: %s", credential.ID)
 
-	return &vc, nil
+	return &credential, nil
 }
 
-func (c *vcr) Resolve(ID did.URI) (*did.VerifiableCredential, error) {
-	vc, err := c.find(ID)
+func (c *vcr) Resolve(ID ssi.URI) (*vc.VerifiableCredential, error) {
+	credential, err := c.find(ID)
 	if err != nil {
 		return nil, err
 	}
 
 	revoked, err := c.isRevoked(ID)
 	if revoked {
-		return &vc, ErrRevoked
+		return &credential, ErrRevoked
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	trusted := c.isTrusted(vc)
+	trusted := c.isTrusted(credential)
 	if !trusted {
-		return &vc, ErrUntrusted
+		return &credential, ErrUntrusted
 	}
 
-	return &vc, nil
+	return &credential, nil
 }
 
-func (c *vcr) isTrusted(vc did.VerifiableCredential) bool {
-	for _, t := range vc.Type {
-		if c.trustConfig.IsTrusted(t, vc.Issuer) {
+func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
+	for _, t := range credential.Type {
+		if c.trustConfig.IsTrusted(t, credential.Issuer) {
 			return true
 		}
 	}
@@ -300,49 +302,49 @@ func (c *vcr) isTrusted(vc did.VerifiableCredential) bool {
 }
 
 // find only returns a VC from storage, it does not tell anything about validity
-func (c *vcr) find(ID did.URI) (did.VerifiableCredential, error) {
-	vc := did.VerifiableCredential{}
+func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
+	credential := vc.VerifiableCredential{}
 	qp := leia.Eq(concept.IDField, ID.String())
 	q := leia.New(qp)
 
 	gIndex := c.globalIndex()
 	docs, err := gIndex.Find(q)
 	if err != nil {
-		return vc, err
+		return credential, err
 	}
 
 	if len(docs) != 1 {
-		return vc, ErrNotFound
+		return credential, ErrNotFound
 	}
 
-	err = json.Unmarshal(docs[0], &vc)
+	err = json.Unmarshal(docs[0], &credential)
 	if err != nil {
-		return vc, errors.Wrap(err, "unable to parse credential from db")
+		return credential, errors.Wrap(err, "unable to parse credential from db")
 	}
 
-	return vc, nil
+	return credential, nil
 }
 
-func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
+func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
 	// it must have valid content
-	validator, _ := credential.FindValidatorAndBuilder(vc)
+	validator, _ := credential.FindValidatorAndBuilder(subject)
 	if validator == nil {
 		return errors.New("unknown credential type")
 	}
 
-	if err := validator.Validate(vc); err != nil {
+	if err := validator.Validate(subject); err != nil {
 		return err
 	}
 
 	// create correct challenge for verification
-	payload, err := generateCredentialChallenge(vc)
+	payload, err := generateCredentialChallenge(subject)
 	if err != nil {
 		return fmt.Errorf("cannot generate challenge: %w", err)
 	}
 
 	// extract proof, can't fail already done in generateCredentialChallenge
-	var proofs = make([]did.JSONWebSignature2020Proof, 0)
-	_ = vc.UnmarshalProofValue(&proofs)
+	var proofs = make([]vc.JSONWebSignature2020Proof, 0)
+	_ = subject.UnmarshalProofValue(&proofs)
 	proof := proofs[0]
 	splittedJws := strings.Split(proof.Jws, "..")
 	if len(splittedJws) != 2 {
@@ -356,7 +358,7 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
 	// check if key is of issuer
 	vm := proof.VerificationMethod
 	vm.Fragment = ""
-	if vm != vc.Issuer {
+	if vm != subject.Issuer {
 		return errors.New("verification method is not of issuer")
 	}
 
@@ -381,10 +383,10 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
 
 	// next check timeRestrictions
 	if at != nil {
-		if vc.IssuanceDate.After(*at) {
+		if subject.IssuanceDate.After(*at) {
 			return errors.New("credential not valid yet at given time")
 		}
-		if vc.ExpirationDate != nil && (*vc.ExpirationDate).Before(*at) {
+		if subject.ExpirationDate != nil && (*subject.ExpirationDate).Before(*at) {
 			return errors.New("credential not valid anymore at given time")
 		}
 	}
@@ -395,7 +397,7 @@ func (c *vcr) Verify(vc did.VerifiableCredential, at *time.Time) error {
 	return nil
 }
 
-func (c *vcr) Revoke(ID did.URI) (*credential.Revocation, error) {
+func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 	// first find it using a query on id.
 	vc, err := c.find(ID)
 	if err != nil {
@@ -449,11 +451,11 @@ func (c *vcr) Revoke(ID did.URI) (*credential.Revocation, error) {
 	return &r, nil
 }
 
-func (c *vcr) Trust(credentialType did.URI, issuer did.URI) error {
+func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
 	return c.trustConfig.AddTrust(credentialType, issuer)
 }
 
-func (c *vcr) Untrust(credentialType did.URI, issuer did.URI) error {
+func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
 	return c.trustConfig.RemoveTrust(credentialType, issuer)
 }
 
@@ -529,7 +531,7 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	return nil
 }
 
-func (c *vcr) isRevoked(ID did.URI) (bool, error) {
+func (c *vcr) isRevoked(ID ssi.URI) (bool, error) {
 	qp := leia.Eq(concept.SubjectField, ID.String())
 	q := leia.New(qp)
 
@@ -577,18 +579,18 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	return qs
 }
 
-func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
+func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI) error {
 	// create proof
-	pr := did.Proof{
+	pr := vc.Proof{
 		Type:               "JsonWebSignature2020",
 		ProofPurpose:       "assertionMethod",
 		VerificationMethod: kid,
-		Created:            vc.IssuanceDate,
+		Created:            credential.IssuanceDate,
 	}
-	vc.Proof = []interface{}{pr}
+	credential.Proof = []interface{}{pr}
 
 	// create correct signing challenge
-	challenge, err := generateCredentialChallenge(*vc)
+	challenge, err := generateCredentialChallenge(*credential)
 	if err != nil {
 		return err
 	}
@@ -601,8 +603,8 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 	// remove payload from sig since a detached jws is required.
 	dsig := toDetachedSignature(sig)
 
-	vc.Proof = []interface{}{
-		did.JSONWebSignature2020Proof{
+	credential.Proof = []interface{}{
+		vc.JSONWebSignature2020Proof{
 			Proof: pr,
 			Jws:   dsig,
 		},
@@ -611,10 +613,10 @@ func (c *vcr) generateProof(vc *did.VerifiableCredential, kid did.URI) error {
 	return nil
 }
 
-func (c *vcr) generateRevocationProof(r *credential.Revocation, kid did.URI) error {
+func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI) error {
 	// create proof
-	r.Proof = &did.JSONWebSignature2020Proof{
-		Proof: did.Proof{
+	r.Proof = &vc.JSONWebSignature2020Proof{
+		Proof: vc.Proof{
 			Type:               "JsonWebSignature2020",
 			ProofPurpose:       "assertionMethod",
 			VerificationMethod: kid,
@@ -638,10 +640,10 @@ func (c *vcr) generateRevocationProof(r *credential.Revocation, kid did.URI) err
 	return nil
 }
 
-func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
-	var proofs = make([]did.JSONWebSignature2020Proof, 1)
+func generateCredentialChallenge(credential vc.VerifiableCredential) ([]byte, error) {
+	var proofs = make([]vc.JSONWebSignature2020Proof, 1)
 
-	if err := vc.UnmarshalProofValue(&proofs); err != nil {
+	if err := credential.UnmarshalProofValue(&proofs); err != nil {
 		return nil, err
 	}
 
@@ -650,8 +652,8 @@ func generateCredentialChallenge(vc did.VerifiableCredential) ([]byte, error) {
 	}
 
 	// payload
-	vc.Proof = nil
-	payload, _ := json.Marshal(vc)
+	credential.Proof = nil
+	payload, _ := json.Marshal(credential)
 
 	// proof
 	proof := proofs[0]

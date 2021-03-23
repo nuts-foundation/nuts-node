@@ -17,10 +17,9 @@ package store
 
 import (
 	"encoding/json"
-	"sync"
-
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"sync"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )

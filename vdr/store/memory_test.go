@@ -16,13 +16,12 @@
 package store
 
 import (
-	"testing"
-	"time"
-
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
 )
 
 func TestMemory_Write(t *testing.T) {

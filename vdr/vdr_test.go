@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	ssi "github.com/nuts-foundation/go-did"
 	"reflect"
 	"testing"
 
@@ -15,7 +16,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/network"
@@ -142,7 +143,7 @@ func TestVDR_Create(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	vm, err := did.NewVerificationMethod(*keyID, did.JsonWebKey2020, did.DID{}, privateKey.PublicKey)
+	vm, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, privateKey.PublicKey)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -170,7 +171,7 @@ func TestVDR_Deactivate(t *testing.T) {
 		network: networkMock,
 	}
 
-	expectedDocument := did.Document{ID: *id, Context: []did.URI{did.DIDContextV1URI()}}
+	expectedDocument := did.Document{ID: *id, Context: []ssi.URI{did.DIDContextV1URI()}}
 	expectedPayload, _ := json.Marshal(expectedDocument)
 
 	currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}

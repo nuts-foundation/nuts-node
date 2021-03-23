@@ -4,10 +4,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"testing"
-
-	"github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func Test_newNamingFnForExistingDID(t *testing.T) {
@@ -49,7 +49,7 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		doc := &did.Document{ID: *id123}
 		publicKey, _ := jwkToPublicKey(t, jwkString)
-		vm, _ := did.NewVerificationMethod(*id123Method, did.JsonWebKey2020, did.DID{}, publicKey)
+		vm, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, did.DID{}, publicKey)
 		doc.AddAuthenticationMethod(vm)
 		assert.Equal(t, vm, doc.Authentication[0].VerificationMethod)
 		assert.Equal(t, vm, doc.VerificationMethod[0])
@@ -83,7 +83,7 @@ func TestNutsDocUpdater_CreateNewAuthenticationMethodForDocument(t *testing.T) {
 		// Prepare a document with an authenticationMethod:
 		document := &did.Document{ID: *id123}
 		keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		vMethod, err := did.NewVerificationMethod(*id123Method, did.JsonWebKey2020, did.DID{}, keyPair.PublicKey)
+		vMethod, err := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, did.DID{}, keyPair.PublicKey)
 		if !assert.NoError(t, err) {
 			return
 		}

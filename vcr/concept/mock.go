@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	go_did "github.com/nuts-foundation/go-did"
+	vc "github.com/nuts-foundation/go-did/vc"
 )
 
 // MockRegistry is a mock of Registry interface.
@@ -78,7 +78,7 @@ func (mr *MockRegistryMockRecorder) QueryFor(concept interface{}) *gomock.Call {
 }
 
 // Transform mocks base method.
-func (m *MockRegistry) Transform(concept string, VC go_did.VerifiableCredential) (Concept, error) {
+func (m *MockRegistry) Transform(concept string, VC vc.VerifiableCredential) (Concept, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Transform", concept, VC)
 	ret0, _ := ret[0].(Concept)

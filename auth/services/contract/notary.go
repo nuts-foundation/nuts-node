@@ -21,14 +21,13 @@ package contract
 import (
 	"errors"
 	"fmt"
-	"time"
-
-	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/services/validator"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
 

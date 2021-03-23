@@ -20,17 +20,18 @@
 package credential
 
 import (
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateID(t *testing.T) {
-	issuer, _ := did.ParseURI(vdr.TestDIDA.String())
+	issuer, _ := ssi.ParseURI(vdr.TestDIDA.String())
 	id := generateID(*issuer)
 
 	if !assert.NotNil(t, id) {
@@ -52,8 +53,8 @@ func TestDefaultBuilder_Type(t *testing.T) {
 
 func TestDefaultBuilder_Fill(t *testing.T) {
 	b := defaultBuilder{vcType: "type"}
-	issuer, _ := did.ParseURI(vdr.TestDIDA.String())
-	vc := &did.VerifiableCredential{
+	issuer, _ := ssi.ParseURI(vdr.TestDIDA.String())
+	subject := &vc.VerifiableCredential{
 		Issuer: *issuer,
 	}
 	defer func() {
@@ -64,37 +65,37 @@ func TestDefaultBuilder_Fill(t *testing.T) {
 		return checkTime
 	}
 
-	b.Fill(vc)
+	b.Fill(subject)
 
 	t.Run("adds context", func(t *testing.T) {
-		assert.True(t, vc.ContainsContext(did.VCContextV1URI()))
-		assert.True(t, vc.ContainsContext(*NutsContextURI))
+		assert.True(t, subject.ContainsContext(vc.VCContextV1URI()))
+		assert.True(t, subject.ContainsContext(*NutsContextURI))
 	})
 
 	t.Run("adds type", func(t *testing.T) {
-		vcType, _ := did.ParseURI("type")
-		assert.True(t, vc.IsType(did.VerifiableCredentialTypeV1URI()))
-		assert.True(t, vc.IsType(*vcType))
+		vcType, _ := ssi.ParseURI("type")
+		assert.True(t, subject.IsType(vc.VerifiableCredentialTypeV1URI()))
+		assert.True(t, subject.IsType(*vcType))
 	})
 
 	t.Run("adds issuanceDate", func(t *testing.T) {
-		assert.NotEqual(t, time.Time{}, vc.IssuanceDate)
+		assert.NotEqual(t, time.Time{}, subject.IssuanceDate)
 	})
 
 	t.Run("adds ID", func(t *testing.T) {
-		assert.NotNil(t, vc.ID)
+		assert.NotNil(t, subject.ID)
 	})
 
 	t.Run("sets time", func(t *testing.T) {
-		assert.Equal(t, checkTime, vc.IssuanceDate)
+		assert.Equal(t, checkTime, subject.IssuanceDate)
 	})
 
 	t.Run("default VC type is not added twice if already present", func(t *testing.T) {
-		vc := &did.VerifiableCredential{
-			Type:   []did.URI{did.VerifiableCredentialTypeV1URI()},
+		subject := &vc.VerifiableCredential{
+			Type:   []ssi.URI{vc.VerifiableCredentialTypeV1URI()},
 			Issuer: *issuer,
 		}
-		b.Fill(vc)
-		assert.Len(t, vc.Type, 2)
+		b.Fill(subject)
+		assert.Len(t, subject.Type, 2)
 	})
 }
