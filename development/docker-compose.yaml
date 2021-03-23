@@ -1,25 +1,14 @@
 version: "3.7"
 services:
-  bootstrap:
+  node1:
     image: &image nutsfoundation/nuts-node:latest
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
-      NUTS_NETWORK_PUBLICADDR: bootstrap:5555
+      NUTS_NETWORK_PUBLICADDR: node1:5555
+    healthcheck:
+      test: "curl -f http://localhost:8080/status || exit 1"
     ports:
-      - 8080:8080
-    healthcheck:
-      test: "curl -f http://localhost:8080/status || exit 1"
-    volumes:
-      - "./nuts.yaml:/opt/nuts/nuts.yaml"
-      - "./truststore.pem:/opt/nuts/truststore.pem"
-      - "./bootstrap/certificate.pem:/opt/nuts/certificate.pem"
-      - "./irma:/opt/nuts/irma:ro"
-  node1:
-    image: *image
-    environment:
-      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
-    healthcheck:
-      test: "curl -f http://localhost:8080/status || exit 1"
+      - 8081:8080
     volumes:
       - "./nuts.yaml:/opt/nuts/nuts.yaml"
       - "./truststore.pem:/opt/nuts/truststore.pem"
@@ -31,8 +20,23 @@ services:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     healthcheck:
       test: "curl -f http://localhost:8080/status || exit 1"
+    ports:
+      - 8082:8080
     volumes:
       - "./nuts.yaml:/opt/nuts/nuts.yaml"
       - "./truststore.pem:/opt/nuts/truststore.pem"
       - "./node2/certificate.pem:/opt/nuts/certificate.pem"
+      - "./irma:/opt/nuts/irma:ro"
+  node3:
+    image: *image
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    healthcheck:
+      test: "curl -f http://localhost:8080/status || exit 1"
+    ports:
+      - 8083:8080
+    volumes:
+      - "./nuts.yaml:/opt/nuts/nuts.yaml"
+      - "./truststore.pem:/opt/nuts/truststore.pem"
+      - "./node3/certificate.pem:/opt/nuts/certificate.pem"
       - "./irma:/opt/nuts/irma:ro"
