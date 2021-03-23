@@ -69,9 +69,9 @@ type GlobalHTTPConfig struct {
 // It will probably contain security related properties in the future (TLS configuration, user/pwd requirements).
 type HTTPConfig struct {
 	// Address holds the interface address the HTTP service must be bound to, in the format of `interface:port` (e.g. localhost:5555).
-	Address     string `koanf:"address"`
+	Address string `koanf:"address"`
 	// CORSEnabled indicates whether CORS (Cross Origin Resource Sharing) is enabled for this HTTP interface.
-	CORSEnabled bool   `koanf:"cors"`
+	CORSEnabled bool `koanf:"cors"`
 }
 
 // NewServerConfig creates a new config with some defaults
@@ -83,10 +83,10 @@ func NewServerConfig() *ServerConfig {
 		Datadir:    defaultDatadir,
 		HTTP: GlobalHTTPConfig{
 			HTTPConfig: HTTPConfig{
-				Address: defaultHTTPInterface,
+				Address:     defaultHTTPInterface,
 				CORSEnabled: defaultHTTPCORSFlag,
 			},
-			AltBinds:   map[string]HTTPConfig{},
+			AltBinds: map[string]HTTPConfig{},
 		},
 	}
 }
