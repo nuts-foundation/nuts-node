@@ -38,9 +38,11 @@ const defaultConfigFile = "nuts.yaml"
 const configFileFlag = "configfile"
 const serverAddressFlag = "http.default.address"
 const datadirFlag = "datadir"
+const httpCORSFlag = "cors"
 const defaultHTTPInterface = ":1323"
 const strictModeFlag = "strictmode"
 const defaultStrictMode = false
+const defaultHTTPCORSFlag = false
 const defaultDatadir = "./data"
 const defaultLogLevel = "info"
 const loggerLevelFlag = "verbosity"
@@ -67,7 +69,9 @@ type GlobalHTTPConfig struct {
 // It will probably contain security related properties in the future (TLS configuration, user/pwd requirements).
 type HTTPConfig struct {
 	// Address holds the interface address the HTTP service must be bound to, in the format of `interface:port` (e.g. localhost:5555).
-	Address string `koanf:"address"`
+	Address     string `koanf:"address"`
+	// CORSEnabled indicates whether CORS (Cross Origin Resource Sharing) is enabled for this HTTP interface.
+	CORSEnabled bool   `koanf:"cors"`
 }
 
 // NewServerConfig creates a new config with some defaults
@@ -78,7 +82,10 @@ func NewServerConfig() *ServerConfig {
 		Strictmode: defaultStrictMode,
 		Datadir:    defaultDatadir,
 		HTTP: GlobalHTTPConfig{
-			HTTPConfig: HTTPConfig{Address: defaultHTTPInterface},
+			HTTPConfig: HTTPConfig{
+				Address: defaultHTTPInterface,
+				CORSEnabled: defaultHTTPCORSFlag,
+			},
 			AltBinds:   map[string]HTTPConfig{},
 		},
 	}
@@ -139,6 +146,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String(serverAddressFlag, defaultHTTPInterface, "Address and port the server will be listening to")
 	flagSet.Bool(strictModeFlag, defaultStrictMode, "When set, insecure settings are forbidden.")
 	flagSet.String(datadirFlag, defaultDatadir, "Directory where the node stores its files.")
+	flagSet.Bool(httpCORSFlag, defaultHTTPCORSFlag, "When set, enables CORS for the default HTTP interface.")
 	return flagSet
 }
 

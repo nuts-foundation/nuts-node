@@ -14,7 +14,7 @@ func Test_MultiEcho_Bind(t *testing.T) {
 		defer ctrl.Finish()
 
 		cfg := NewServerConfig().HTTP.HTTPConfig
-		m := NewMultiEcho(func() EchoServer {
+		m := NewMultiEcho(func(_ HTTPConfig) EchoServer {
 			return NewMockEchoServer(ctrl)
 		}, cfg)
 		err := m.Bind("", cfg)
@@ -28,7 +28,7 @@ func Test_MultiEcho_Start(t *testing.T) {
 		defer ctrl.Finish()
 
 		cfg := NewServerConfig().HTTP.HTTPConfig
-		m := NewMultiEcho(func() EchoServer {
+		m := NewMultiEcho(func(_ HTTPConfig) EchoServer {
 			server := NewMockEchoServer(ctrl)
 			server.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("unable to start"))
 			return server
@@ -60,7 +60,7 @@ func Test_MultiEcho(t *testing.T) {
 	publicServer.EXPECT().Start("public:8080")
 
 	createFnCalled := 0
-	createFn := func() EchoServer {
+	createFn := func(_ HTTPConfig) EchoServer {
 		servers := []EchoServer{defaultServer, internalServer, publicServer}
 		s := servers[createFnCalled]
 		createFnCalled++

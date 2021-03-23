@@ -22,7 +22,7 @@ const defaultEchoGroup = ""
 
 // NewMultiEcho creates a new MultiEcho which uses the given function to create EchoServers. If a route is registered
 // for an unknown group is is bound to the given defaultInterface.
-func NewMultiEcho(creatorFn func() EchoServer, defaultInterface HTTPConfig) *MultiEcho {
+func NewMultiEcho(creatorFn func(cfg HTTPConfig) EchoServer, defaultInterface HTTPConfig) *MultiEcho {
 	instance := &MultiEcho{
 		interfaces: map[string]EchoServer{},
 		groups:     map[string]string{},
@@ -36,7 +36,7 @@ func NewMultiEcho(creatorFn func() EchoServer, defaultInterface HTTPConfig) *Mul
 type MultiEcho struct {
 	interfaces map[string]EchoServer
 	groups     map[string]string
-	creatorFn  func() EchoServer
+	creatorFn  func(cfg HTTPConfig) EchoServer
 }
 
 // Add adds a route to the Echo server.
@@ -61,7 +61,7 @@ func (c *MultiEcho) Bind(group string, interfaceConfig HTTPConfig) error {
 	}
 	c.groups[group] = interfaceConfig.Address
 	if _, addressBound := c.interfaces[interfaceConfig.Address]; !addressBound {
-		c.interfaces[interfaceConfig.Address] = c.creatorFn()
+		c.interfaces[interfaceConfig.Address] = c.creatorFn(interfaceConfig)
 	}
 	return nil
 }

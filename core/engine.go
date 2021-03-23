@@ -41,12 +41,13 @@ func NewSystem() *System {
 		engines: []Engine{},
 		Config:  NewServerConfig(),
 		Routers: []Routable{},
-		EchoCreator: func() EchoServer {
+		EchoCreator: func(cfg HTTPConfig) EchoServer {
 			echoServer := echo.New()
 			echoServer.HideBanner = true
 			echoServer.Use(middleware.Logger())
-			// TODO: We might not want to enable CORS on all endpoints (https://github.com/nuts-foundation/nuts-node/issues/60)
-			echoServer.Use(middleware.CORS())
+			if cfg.CORSEnabled {
+				echoServer.Use(middleware.CORS())
+			}
 			echoServer.Use(DecodeURIPath)
 			return echoServer
 		},
@@ -62,7 +63,7 @@ type System struct {
 	// Routers is used to connect API handlers to the echo server
 	Routers []Routable
 	// EchoCreator is the function that's used to create the echo server/
-	EchoCreator func() EchoServer
+	EchoCreator func(cfg HTTPConfig) EchoServer
 }
 
 // Load loads the config and injects config values into engines
