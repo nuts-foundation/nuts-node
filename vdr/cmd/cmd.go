@@ -28,7 +28,6 @@ import (
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -70,7 +69,7 @@ func createCmd() *cobra.Command {
 		Short: "Registers a new DID",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			doc, err := httpClient(cmd.Flags()).Create()
+			doc, err := httpClient(core.NewClientConfig(cmd.Flags())).Create()
 			if err != nil {
 				return fmt.Errorf("unable to create new DID: %v", err)
 			}
@@ -113,7 +112,7 @@ func updateCmd() *cobra.Command {
 				return fmt.Errorf("failed to parse DID document: %w", err)
 			}
 
-			if _, err = httpClient(cmd.Flags()).Update(id, hash, didDoc); err != nil {
+			if _, err = httpClient(core.NewClientConfig(cmd.Flags())).Update(id, hash, didDoc); err != nil {
 				return fmt.Errorf("failed to update DID document: %w", err)
 			}
 
@@ -131,7 +130,7 @@ func resolveCmd() *cobra.Command {
 		Short: "Resolve a DID document based on its DID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			doc, meta, err := httpClient(cmd.Flags()).Get(args[0])
+			doc, meta, err := httpClient(core.NewClientConfig(cmd.Flags())).Get(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to resolve DID document: %v", err)
 			}
@@ -170,7 +169,7 @@ func deactivateCmd() *cobra.Command {
 				cmd.Println("Deactivation cancelled")
 				return nil
 			}
-			err := httpClient(cmd.Flags()).Deactivate(args[0])
+			err := httpClient(core.NewClientConfig(cmd.Flags())).Deactivate(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to deactivate DID document: %v", err)
 			}
@@ -188,7 +187,7 @@ func addVerificationMethodCmd() *cobra.Command {
 		Short: "Add a verification method key to the DID document.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			verificationMethod, err := httpClient(cmd.Flags()).AddNewVerificationMethod(args[0])
+			verificationMethod, err := httpClient(core.NewClientConfig(cmd.Flags())).AddNewVerificationMethod(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to add a new verification method to DID document: %s", err.Error())
 			}
@@ -207,7 +206,7 @@ func deleteVerificationMethodCmd() *cobra.Command {
 		Short: "Deletes a verification method from the DID document.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := httpClient(cmd.Flags()).DeleteVerificationMethod(args[0], args[1])
+			err := httpClient(core.NewClientConfig(cmd.Flags())).DeleteVerificationMethod(args[0], args[1])
 			if err != nil {
 				return fmt.Errorf("failed to delete the verification method from DID document: %s", err.Error())
 			}
@@ -254,11 +253,7 @@ func readFromStdin() ([]byte, error) {
 }
 
 // httpClient creates a remote client
-func httpClient(set *pflag.FlagSet) api.HTTPClient {
-	config := core.NewClientConfig()
-	if err := config.Load(set); err != nil {
-		logrus.Fatal(err)
-	}
+func httpClient(config core.ClientConfig) api.HTTPClient {
 	return api.HTTPClient{
 		ServerAddress: config.GetAddress(),
 		Timeout:       config.Timeout,

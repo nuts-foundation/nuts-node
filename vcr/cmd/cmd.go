@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -128,10 +127,7 @@ func listUntrustedCmd() *cobra.Command {
 
 // httpClient creates a remote client
 func httpClient(set *pflag.FlagSet) api.HTTPClient {
-	config := core.NewClientConfig()
-	if err := config.Load(set); err != nil {
-		logrus.Fatal(err)
-	}
+	config := core.NewClientConfig(set)
 	return api.HTTPClient{
 		ServerAddress: config.GetAddress(),
 		Timeout:       config.Timeout,

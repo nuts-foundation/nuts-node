@@ -223,7 +223,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		return nil, errors.New("unknown credential type")
 	}
 
-	if len(template.Type) > 1 {
+	if len(template.Type) != 1 {
 		return nil, errors.New("can only issue credential with 1 type")
 	}
 
@@ -264,9 +264,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
-
-	logging.Log().Infof("Verifiable Credential issued: %s", credential.ID)
-
+	logging.Log().Infof("Verifiable Credential issued (id=%s,type=%s)", credential.ID, template.Type[0])
 	return &credential, nil
 }
 
@@ -400,7 +398,7 @@ func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
 
 func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 	// first find it using a query on id.
-	vc, err := c.find(ID)
+	target, err := c.find(ID)
 	if err != nil {
 		// not found and other errors
 		return nil, err
@@ -416,7 +414,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 	}
 
 	// find issuer
-	issuer, err := did.ParseDID(vc.Issuer.String())
+	issuer, err := did.ParseDID(target.Issuer.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract issuer: %w", err)
 	}
@@ -428,7 +426,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 	}
 
 	// set defaults
-	r := credential.BuildRevocation(vc)
+	r := credential.BuildRevocation(target)
 
 	// sign
 	if err = c.generateRevocationProof(&r, kid); err != nil {
@@ -447,17 +445,25 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("failed to publish revocation: %w", err)
 	}
 
-	logging.Log().Infof("Verifiable Credential revoked: %s", vc.ID)
+	logging.Log().Infof("Verifiable Credential revoked (id=%s)", target.ID)
 
 	return &r, nil
 }
 
 func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
-	return c.trustConfig.AddTrust(credentialType, issuer)
+	err := c.trustConfig.AddTrust(credentialType, issuer)
+	if err != nil {
+		logging.Log().Infof("Added trust for Verifiable Credential issuer (type=%s, issuer=%s)", credentialType, issuer)
+	}
+	return err
 }
 
 func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
-	return c.trustConfig.RemoveTrust(credentialType, issuer)
+	err := c.trustConfig.RemoveTrust(credentialType, issuer)
+	if err != nil {
+		logging.Log().Infof("Untrusted for Verifiable Credential issuer (type=%s, issuer=%s)", credentialType, issuer)
+	}
+	return err
 }
 
 func (c *vcr) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {

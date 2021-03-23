@@ -53,7 +53,7 @@ func (conn *connection) close() {
 	defer conn.closeMutex.Unlock()
 	if conn.grpcConn != nil {
 		if err := conn.grpcConn.Close(); err != nil {
-			log.Logger().Errorf("Unable to close client connection (peer=%s): %v", conn.Peer, err)
+			log.Logger().Warnf("Unable to close client connection (peer=%s): %v", conn.Peer, err)
 		}
 		conn.grpcConn = nil
 	}
@@ -73,7 +73,7 @@ func (conn *connection) send(message *transport.NetworkMessage) {
 func (conn connection) sendMessages() {
 	for message := range conn.outMessages {
 		if conn.gate.Send(message) != nil {
-			log.Logger().Errorf("Unable to broadcast message to peer (peer=%s)", conn.Peer)
+			log.Logger().Warnf("Unable to broadcast message to peer (peer=%s)", conn.Peer)
 		}
 	}
 }
@@ -84,13 +84,13 @@ func receiveMessages(gate messageGate, peerId PeerID, receivedMsgQueue messageQu
 		msg, recvErr := gate.Recv()
 		if recvErr != nil {
 			if recvErr == io.EOF {
-				log.Logger().Infof("Peer closed connection: %s", peerId)
+				log.Logger().Infof("Peer closed connection (peer-id=%s)", peerId)
 			} else {
-				log.Logger().Errorf("Peer connection error (peer=%s): %v", peerId, recvErr)
+				log.Logger().Warnf("Peer connection error (peer-id=%s): %v", peerId, recvErr)
 			}
 			break
 		}
-		log.Logger().Tracef("Received message from peer (%s): %s", peerId, msg.String())
+		log.Logger().Tracef("Received message from peer (peer-id=%s): %s", peerId, msg.String())
 		receivedMsgQueue.c <- PeerMessage{
 			Peer:    peerId,
 			Message: msg,

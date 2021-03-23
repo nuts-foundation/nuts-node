@@ -119,7 +119,7 @@ type connector struct {
 }
 
 func (c *connector) connect(ownID PeerID, config *tls.Config) (*connection, error) {
-	log.Logger().Infof("Connecting to peer: %v", c.address)
+	log.Logger().Debugf("Connecting to peer: %v", c.address)
 	cxt := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
 	dialContext, _ := context.WithTimeout(cxt, 5*time.Second)
 	grpcConn, err := c.Dialer(dialContext, c.address,
@@ -132,7 +132,7 @@ func (c *connector) connect(ownID PeerID, config *tls.Config) (*connection, erro
 	client := transport.NewNetworkClient(grpcConn)
 	gate, err := client.Connect(cxt)
 	if err != nil {
-		log.Logger().Errorf("Failed to set up stream (peer address=%s): %v", c.address, err)
+		log.Logger().Warnf("Failed to set up stream (peer address=%s): %v", c.address, err)
 		_ = grpcConn.Close()
 		return nil, err
 	}
@@ -145,12 +145,12 @@ func (c *connector) connect(ownID PeerID, config *tls.Config) (*connection, erro
 		closeMutex: &sync.Mutex{},
 	}
 	if serverHeader, err := gate.Header(); err != nil {
-		log.Logger().Errorf("Error receiving headers from server (peer=%s): %v", c.address, err)
+		log.Logger().Warnf("Error receiving headers from server (peer=%s): %v", c.address, err)
 		_ = grpcConn.Close()
 		return nil, err
 	} else {
 		if serverPeerID, err := peerIDFromMetadata(serverHeader); err != nil {
-			log.Logger().Errorf("Error parsing PeerID header from server (peer=%s): %v", c.address, err)
+			log.Logger().Warnf("Error parsing PeerID header from server (peer=%s): %v", c.address, err)
 			_ = grpcConn.Close()
 			return nil, err
 		} else if serverPeerID == "" {
@@ -161,7 +161,7 @@ func (c *connector) connect(ownID PeerID, config *tls.Config) (*connection, erro
 			conn.ID = serverPeerID
 		}
 	}
-
+	log.Logger().Infof("Connected to peer (id=%s,addr=%s)", conn.ID, c.address)
 	return &conn, nil
 }
 
@@ -198,9 +198,9 @@ func (n *p2pNetwork) Configure(config P2PNetworkConfig) error {
 }
 
 func (n *p2pNetwork) Start() error {
-	log.Logger().Infof("Starting gRPC P2P node (ID: %s)", n.config.PeerID)
+	log.Logger().Debugf("Starting gRPC P2P node (ID: %s)", n.config.PeerID)
 	if n.config.ListenAddress != "" {
-		log.Logger().Infof("Starting gRPC server on %s", n.config.ListenAddress)
+		log.Logger().Debugf("Starting gRPC server on %s", n.config.ListenAddress)
 		var err error
 		// We allow test code to set the listener to allow for in-memory (bufnet) channels
 		var serverOpts = make([]grpc.ServerOption, 0)
@@ -279,9 +279,9 @@ func (n *p2pNetwork) startSendingAndReceiving(conn *connection) {
 func (n *p2pNetwork) connectToNewPeers() {
 	for address := range n.connectorAddChannel {
 		if _, present := n.peersByAddr[address]; present {
-			log.Logger().Infof("Not connecting to peer, already connected (address=%s)", address)
+			log.Logger().Debugf("Not connecting to peer, already connected (address=%s)", address)
 		} else if n.connectors[address] != nil {
-			log.Logger().Infof("Not connecting to peer, already trying to connect (address=%s)", address)
+			log.Logger().Debugf("Not connecting to peer, already trying to connect (address=%s)", address)
 		} else {
 			newConnector := &connector{
 				address: address,
@@ -289,7 +289,7 @@ func (n *p2pNetwork) connectToNewPeers() {
 				Dialer:  n.grpcDialer,
 			}
 			n.connectors[address] = newConnector
-			log.Logger().Infof("Added remote peer (address=%s)", address)
+			log.Logger().Debugf("Added remote peer (address=%s)", address)
 			go func() {
 				for {
 					if n.shouldConnectTo(address) {
@@ -299,12 +299,11 @@ func (n *p2pNetwork) connectToNewPeers() {
 						}
 						if peer, err := newConnector.connect(n.config.PeerID, &tlsConfig); err != nil {
 							waitPeriod := newConnector.backoff.Backoff()
-							log.Logger().Warnf("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), newConnector.address, err)
+							log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), newConnector.address, err)
 							time.Sleep(waitPeriod)
 						} else {
 							n.startSendingAndReceiving(peer)
 							newConnector.backoff.Reset()
-							log.Logger().Infof("Connected to peer (address=%s)", newConnector.address)
 						}
 					}
 					time.Sleep(5 * time.Second)
@@ -319,7 +318,7 @@ func (n p2pNetwork) shouldConnectTo(address string) bool {
 	normalizedAddress := normalizeAddress(address)
 	if normalizedAddress == normalizeAddress(n.getLocalAddress()) {
 		// We're not going to connect to our own node
-		log.Logger().Debug("Not connecting since it's localhost")
+		log.Logger().Trace("Not connecting since it's localhost")
 		return false
 	}
 	var result = true
@@ -366,7 +365,7 @@ func (n p2pNetwork) Connect(stream transport.Network_ConnectServer) error {
 		ID:      peerID,
 		Address: peerCtx.Addr.String(),
 	}
-	log.Logger().Infof("New peer connected: %s", peer)
+	log.Logger().Infof("New peer connected (peer=%s)", peer)
 	// We received our peer's PeerID, now send our own.
 	if err := stream.SendHeader(constructMetadata(n.config.PeerID)); err != nil {
 		return errors2.Wrap(err, "unable to send headers")

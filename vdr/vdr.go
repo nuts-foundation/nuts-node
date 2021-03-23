@@ -119,7 +119,7 @@ func (r VDR) Create() (*did.Document, error) {
 		return nil, fmt.Errorf("could not store did document in network: %w", err)
 	}
 
-	logging.Log().Infof("New DID Document created: %s", doc.ID)
+	logging.Log().Infof("New DID Document created (DID=%s)", doc.ID)
 
 	return doc, nil
 }
@@ -131,7 +131,7 @@ func (r VDR) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document
 
 // Update updates a DID Document based on the DID and current hash
 func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
-	logging.Log().Debugf("Updating DID Document: %s", id)
+	logging.Log().Debugf("Updating DID Document (DID=%s)", id)
 	// TODO: check the integrity / validity of the proposed DID Document.
 	resolverMetadata := &types.ResolveMetadata{
 		Hash:             &current,
@@ -160,9 +160,9 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	keyID := controllers[0].Authentication[0].ID.String()
 	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now(), dag.TimelineIDField(meta.TimelineID), dag.TimelineVersionField(meta.Version+1))
 	if err == nil {
-		logging.Log().Infof("DID Document updated: %s", id)
+		logging.Log().Infof("DID Document updated (DID=%s)", id)
 	} else {
-		logging.Log().WithError(err).Info("unable to update DID document")
+		logging.Log().WithError(err).Warn("Unable to update DID document")
 		if errors.Is(err, crypto.ErrKeyNotFound) {
 			return types.ErrDIDNotManagedByThisNode
 		}

@@ -239,7 +239,7 @@ func (cv *contractVerifier) verifyRequiredAttributes(signedIrmaContract *SignedI
 			disclosedAttributes = append(disclosedAttributes, k)
 		}
 		validationResult.ValidationResult = services.Invalid
-		logging.Log().Infof("missing required attributes in signature. found: %v, needed: %v, disclosed: %v", foundAttributes, requiredAttributes, disclosedAttributes)
+		logging.Log().Warnf("missing required attributes in signature. found: %v, needed: %v, disclosed: %v", foundAttributes, requiredAttributes, disclosedAttributes)
 	}
 
 	return validationResult, nil

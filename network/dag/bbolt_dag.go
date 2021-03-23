@@ -289,7 +289,7 @@ func (dag *bboltDAG) add(transaction Transaction) error {
 				return fmt.Errorf("unable to store forward reference %s->%s: %w", prev, ref, err)
 			}
 			if !exists(transactions, prev) {
-				log.Logger().Debugf("Transaction %s is referring to missing prev %s, marking it as missing", ref, prev)
+				log.Logger().Debugf("Transaction is referring to missing prev, marking it as missing (tx=%s, prev=%s)", ref, prev)
 				if err = missingTransactions.Put(prev.Slice(), []byte{1}); err != nil {
 					return fmt.Errorf("unable to register missing transaction %s: %w", prev, err)
 				}
