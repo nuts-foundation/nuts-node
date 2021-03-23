@@ -29,6 +29,7 @@ import (
 
 const defaultClientTimeout = 10 * time.Second
 const clientTimeoutFlag = "timeout"
+const clientAddressFlag = "address"
 const defaultAddress = "localhost" + defaultHTTPInterface
 
 // ClientConfig has CLI client settings.
@@ -66,7 +67,7 @@ func (cfg ClientConfig) GetAddress() string {
 // ClientConfigFlags returns the flags for configuring the client config.
 func ClientConfigFlags() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("client", pflag.ContinueOnError)
-	flagSet.String(addressFlag, defaultAddress, "Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.")
+	flagSet.String(clientAddressFlag, defaultAddress, "Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.")
 	flagSet.Duration(clientTimeoutFlag, defaultClientTimeout, "Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")
 	return flagSet
 }
