@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	irmaService "github.com/nuts-foundation/nuts-node/auth/services/irma"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/golang/mock/gomock"
 	irma "github.com/privacybydesign/irmago"
@@ -196,7 +195,6 @@ type testContext struct {
 
 	contractService *service
 	signerMock      *contract.MockSigner
-	didResolver     *types.MockResolver
 }
 
 func createContext(t *testing.T) *testContext {
@@ -206,13 +204,10 @@ func createContext(t *testing.T) *testContext {
 	signerMock := contract.NewMockSigner(ctrl)
 	signers["irma"] = signerMock
 
-	didResolver := types.NewMockResolver(ctrl)
 	return &testContext{
 		ctrl:        ctrl,
-		didResolver: didResolver,
 		signerMock:  signerMock,
 		contractService: &service{
-			didResolver: didResolver,
 			signers:     signers,
 		},
 	}

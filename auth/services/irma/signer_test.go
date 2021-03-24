@@ -161,7 +161,6 @@ func TestService_SigningSessionStatus(t *testing.T) {
 
 type mockContext struct {
 	ctrl            *gomock.Controller
-	resolver        *types.MockResolver
 	signer          *crypto.MockJWTSigner
 	vcResolver      *vcr.MockResolver
 	conceptRegistry *concept.MockRegistry
@@ -179,7 +178,7 @@ func serviceWithMocks(t *testing.T) *mockContext {
 
 	vcr := vcr.NewMockResolver(ctrl)
 	conceptRegistry := concept.NewMockRegistry(ctrl)
-	mockResolver := types.NewMockResolver(ctrl)
+	mockResolver := types.NewMockDocResolver(ctrl)
 	mockSigner := crypto.NewMockJWTSigner(ctrl)
 	vcr.EXPECT().Registry().Return(conceptRegistry).AnyTimes()
 
@@ -190,12 +189,12 @@ func serviceWithMocks(t *testing.T) *mockContext {
 		DIDResolver:        mockResolver,
 		VCResolver:         vcr,
 		Signer:             mockSigner,
+		KeyResolver:        types.NewMockKeyResolver(ctrl),
 		ContractTemplates:  contract.StandardContractTemplates,
 	}
 
 	return &mockContext{
 		ctrl:            ctrl,
-		resolver:        mockResolver,
 		signer:          mockSigner,
 		vcResolver:      vcr,
 		conceptRegistry: conceptRegistry,

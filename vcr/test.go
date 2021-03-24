@@ -32,7 +32,7 @@ import (
 )
 
 // keyID matches the keys in /test
-const kid = "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#h22vbXHX7-lRd1qAJnU63liaehb9sAoBS7RavhvfgR8"
+const testKID = "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#h22vbXHX7-lRd1qAJnU63liaehb9sAoBS7RavhvfgR8"
 
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.
@@ -57,20 +57,20 @@ type mockContext struct {
 	crypto *crypto.MockKeyStore
 	tx     *network.MockTransactions
 	vcr    *vcr
-	vdr    *types.MockResolver
+	keyResolver *types.MockKeyResolver
 }
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
-	vdr := types.NewMockResolver(ctrl)
+	keystore := types.NewMockKeyResolver(ctrl)
 
 	return mockContext{
 		ctrl:   ctrl,
 		crypto: crypto,
 		tx:     tx,
-		vcr:    NewVCRInstance(crypto, vdr, tx).(*vcr),
-		vdr:    vdr,
+		vcr:    NewVCRInstance(crypto, keystore, tx).(*vcr),
+		keyResolver: keystore,
 	}
 }

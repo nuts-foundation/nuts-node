@@ -32,7 +32,7 @@ var ErrUpdateOnOutdatedData = errors.New("could not update outdated document")
 var ErrInvalidDID = errors.New("invalid did syntax")
 
 // ErrKeyNotFound is returned when a particular key or type of key is not found.
-var ErrKeyNotFound = errors.New("key not found")
+var ErrKeyNotFound = errors.New("key not found in document")
 
 // ErrDIDNotManagedByThisNode is returned when an operation needs the private key and if is not found on this host
 var ErrDIDNotManagedByThisNode = errors.New("DID document not managed by this node")

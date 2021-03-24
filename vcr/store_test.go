@@ -54,7 +54,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 
 		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-		ctx.vdr.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
 
 		err := ctx.vcr.StoreCredential(target)
 
@@ -93,7 +93,7 @@ func TestVcr_StoreRevocation(t *testing.T) {
 
 		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-		ctx.vdr.EXPECT().ResolveSigningKey(gomock.Any(), gomock.Any()).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), gomock.Any()).Return(pk, nil)
 
 		err := ctx.vcr.StoreRevocation(r)
 

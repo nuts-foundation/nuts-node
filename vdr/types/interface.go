@@ -86,7 +86,12 @@ type KeyResolver interface {
 	ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error)
 	// ResolveAssertionKey look for a valid assertion key for the give DID. If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key is found.
-	ResolveAssertionKey(id did.DID) (ssi.URI, error)
+	ResolveAssertionKeyID(id did.DID) (ssi.URI, error)
+}
+
+// DocKeyAdder adds a new key, wrapped as a VerificationMethod to a DID document.
+type DocKeyAdder interface {
+	AddKey(id did.DID) (*did.VerificationMethod, error)
 }
 
 // Store is the interface that groups all low level VDR DID storage operations.
@@ -101,18 +106,10 @@ type VDR interface {
 	DocResolver
 	DocCreator
 	DocUpdater
+}
+
+type DocManipulator interface {
 	DocDeactivator
-	KeyResolver
 	DocKeyAdder
 }
 
-// DocKeyAdder adds a new key, wrapped as a VerificationMethod to a DID document.
-type DocKeyAdder interface {
-	AddKey(id did.DID) (*did.VerificationMethod, error)
-}
-
-// Resolver interface combines the KeyResolver and DocResolver
-type Resolver interface {
-	DocResolver
-	KeyResolver
-}

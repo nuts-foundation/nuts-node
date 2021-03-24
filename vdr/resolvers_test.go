@@ -33,6 +33,7 @@ var holder = *TestDIDA
 func TestResolveSigningKey(t *testing.T) {
 	resolver := NewTestVDRInstance(io.TestDirectory(t))
 	resolver.Configure(core.ServerConfig{})
+	keyResolver := VDRKeyResolver{VDR: resolver}
 
 	t.Run("ok", func(t *testing.T) {
 		doc, _ := resolver.Create()
@@ -41,7 +42,7 @@ func TestResolveSigningKey(t *testing.T) {
 		doc.AssertionMethod = doc.Authentication
 		resolver.Update(doc.ID, meta.Hash, *doc, nil)
 
-		key, err := resolver.ResolveSigningKey(keyID.String(), nil)
+		key, err := keyResolver.ResolveSigningKey(keyID.String(), nil)
 
 		if !assert.NoError(t, err) {
 			return
@@ -52,7 +53,7 @@ func TestResolveSigningKey(t *testing.T) {
 	t.Run("unable to resolve", func(t *testing.T) {
 		fakeDID, _ := ssi.ParseURI("did:nuts:fake")
 
-		_, err := resolver.ResolveSigningKey(fakeDID.String(), nil)
+		_, err := keyResolver.ResolveSigningKey(fakeDID.String(), nil)
 
 		assert.Error(t, err)
 	})
@@ -61,13 +62,13 @@ func TestResolveSigningKey(t *testing.T) {
 		doc, _ := resolver.Create()
 		keyID := doc.VerificationMethod[0].ID
 
-		_, err := resolver.ResolveSigningKey(keyID.String(), nil)
+		_, err := keyResolver.ResolveSigningKey(keyID.String(), nil)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("invalid key ID", func(t *testing.T) {
-		_, err := resolver.ResolveSigningKey("asdasdsa", nil)
+		_, err := keyResolver.ResolveSigningKey("asdasdsa", nil)
 
 		assert.Error(t, err)
 	})
@@ -76,6 +77,7 @@ func TestResolveSigningKey(t *testing.T) {
 func TestResolveSigningKeyID(t *testing.T) {
 	resolver := NewTestVDRInstance(io.TestDirectory(t))
 	resolver.Configure(core.ServerConfig{})
+	keyResolver := VDRKeyResolver{VDR: resolver}
 
 	t.Run("ok", func(t *testing.T) {
 		doc, _ := resolver.Create()
@@ -84,7 +86,7 @@ func TestResolveSigningKeyID(t *testing.T) {
 		doc.AssertionMethod = doc.Authentication
 		resolver.Update(doc.ID, meta.Hash, *doc, nil)
 
-		actual, err := resolver.ResolveSigningKeyID(doc.ID, nil)
+		actual, err := keyResolver.ResolveSigningKeyID(doc.ID, nil)
 
 		if !assert.NoError(t, err) {
 			return
@@ -94,14 +96,14 @@ func TestResolveSigningKeyID(t *testing.T) {
 
 	t.Run("unable to resolve", func(t *testing.T) {
 
-		_, err := resolver.ResolveSigningKeyID(holder, nil)
+		_, err := keyResolver.ResolveSigningKeyID(holder, nil)
 		assert.Error(t, err)
 	})
 
 	t.Run("signing key not found", func(t *testing.T) {
 		doc, _ := resolver.Create()
 
-		_, err := resolver.ResolveSigningKeyID(doc.ID, nil)
+		_, err := keyResolver.ResolveSigningKeyID(doc.ID, nil)
 
 		assert.Equal(t, types.ErrKeyNotFound, err)
 	})

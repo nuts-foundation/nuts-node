@@ -36,7 +36,7 @@ import (
 
 type contractNotaryService struct {
 	conceptFinder    vcr.ConceptFinder
-	didResolver      types.Resolver
+	keyResolver      types.KeyResolver
 	privateKeyStore  crypto.PrivateKeyStore
 	contractValidity time.Duration
 }
@@ -44,11 +44,11 @@ type contractNotaryService struct {
 var timenow = time.Now
 
 // NewContractNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewContractNotary(finder vcr.ConceptFinder, didResolver types.Resolver, keyStore crypto.PrivateKeyStore, contractValidity time.Duration) services.ContractNotary {
+func NewContractNotary(finder vcr.ConceptFinder, keyResolver types.KeyResolver, keyStore crypto.PrivateKeyStore, contractValidity time.Duration) services.ContractNotary {
 	return &contractNotaryService{
 		conceptFinder:    finder,
 		contractValidity: contractValidity,
-		didResolver:      didResolver,
+		keyResolver:      keyResolver,
 		privateKeyStore:  keyStore,
 	}
 }
@@ -58,7 +58,7 @@ func NewContractNotary(finder vcr.ConceptFinder, didResolver types.Resolver, key
 // If the duration is 0 than the default duration is used.
 func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration) (*contract.Contract, error) {
 	// Test if the org in managed by this node:
-	signingKeyID, err := s.didResolver.ResolveSigningKeyID(orgID, &validFrom)
+	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(orgID, &validFrom)
 	if errors.Is(err, types.ErrNotFound) {
 		return nil, fmt.Errorf("could not draw up contract: organization not found")
 	} else if err != nil {

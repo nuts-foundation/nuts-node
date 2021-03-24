@@ -36,8 +36,8 @@ type Wrapper struct {
 	VDR types.VDR
 }
 
-func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, did string) error {
-	d, err := did2.ParseDID(did)
+func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
+	d, err := did.ParseDID(id)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -96,12 +97,13 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		ContractValidators:    auth.config.ContractValidators,
 	}
 	nameResolver := auth.vcr
-	auth.contractNotary = contract.NewContractNotary(nameResolver, auth.registry, auth.keyStore, contractValidity)
-	auth.contractClient = validator.NewContractInstance(cfg, auth.registry, auth.vcr, auth.keyStore)
+	keyResolver := vdr.VDRKeyResolver{VDR: auth.registry}
+	auth.contractClient = validator.NewContractInstance(cfg, keyResolver, auth.vcr, auth.keyStore)
+	auth.contractNotary = contract.NewContractNotary(nameResolver, keyResolver, auth.keyStore, contractValidity)
 	if err := auth.contractClient.Configure(); err != nil {
 		return err
 	}
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, nameResolver, auth.keyStore, auth.contractClient)
+	auth.oauthClient = oauth.NewOAuthService(auth.registry, keyResolver, nameResolver, auth.keyStore, auth.contractClient)
 	if err := auth.oauthClient.Configure(); err != nil {
 		return err
 	}

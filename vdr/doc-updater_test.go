@@ -90,10 +90,11 @@ func TestNutsDocUpdater_CreateNewAuthenticationMethodForDocument(t *testing.T) {
 		document.AddAuthenticationMethod(vMethod)
 		assert.Equal(t, document.Authentication[0].ID, vMethod.ID)
 
-		err = updater.CreateNewAuthenticationMethodForDocument(document)
+		method, err := updater.CreateNewAuthenticationMethodForDID(document.ID)
 		if !assert.NoError(t, err) {
 			return
 		}
+		document.AddAssertionMethod(method)
 
 		assert.Len(t, document.Authentication, 2)
 		assert.Equal(t, vMethod.ID.String(), document.Authentication[0].ID.String())

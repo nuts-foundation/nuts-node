@@ -36,7 +36,7 @@ func newNamingFnForExistingDID(existingDID did.DID) nutsCrypto.KIDNamingFunc {
 	}
 }
 
-// CreateNewAuthenticationMethodForDocument creates a new VerificationMethod of type JsonWebKey2020 with a freshly generated key
+// CreateNewAuthenticationMethodForDID creates a new VerificationMethod of type JsonWebKey2020 with a freshly generated key
 // and adds it to the provided document
 // FIXME:This method is a bit too high level and should be moved as part of this issue:
 // https://github.com/nuts-foundation/nuts-node/issues/123

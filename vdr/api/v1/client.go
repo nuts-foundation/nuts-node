@@ -127,7 +127,7 @@ func (hb HTTPClient) AddNewVerificationMethod(DID string) (*did.VerificationMeth
 	if err != nil {
 		return nil, err
 	}
-	if err := testResponseCode(http.StatusCreated, response); err != nil {
+	if err := core.TestResponseCode(http.StatusCreated, response); err != nil {
 		return nil, err
 	}
 
