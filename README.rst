@@ -8,7 +8,7 @@ Distributed registry for storing and querying health care providers their vendor
     :alt: Build Status
 
 .. image:: https://readthedocs.org/projects/nuts-node/badge/?version=latest
-    :target: https://nuts-documentation.readthedocs.io/projects/nuts--node/en/latest/?badge=latest
+    :target: https://nuts-node.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
 .. image:: https://codecov.io/gh/nuts-foundation/nuts-node/branch/master/graph/badge.svg?style=svg
@@ -145,7 +145,7 @@ The following options can be configured on the server:
 ============================  ================  =================================================================================================================================================================================
 Key                           Default           Description
 ============================  ================  =================================================================================================================================================================================
-address                       localhost:1323    Address and port the server will be listening to
+address                       \:1323             Address and port the server will be listening to
 configfile                    nuts.yaml         Nuts config file
 datadir                       ./data            Directory where the node stores its files.
 strictmode                    false             When set, insecure settings are forbidden.
