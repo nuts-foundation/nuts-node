@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
@@ -109,15 +110,30 @@ func Test_getGroup(t *testing.T) {
 func TestHttpErrorHandler(t *testing.T) {
 	es, _ := creatorFn(HTTPConfig{}, false)
 	e := es.(*echo.Echo)
-	f := func(c echo.Context) error {
-		return problem.New(problem.Status(http.StatusInternalServerError))
-	}
-	e.Add(http.MethodGet, "/500", f)
 	server := httptest.NewServer(e)
 	client := http.Client{}
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/500", server.URL), nil)
-	resp, err := client.Do(req)
+	t.Run("Problem return", func(t *testing.T) {
+		f := func(c echo.Context) error {
+			return problem.New(problem.Status(http.StatusInternalServerError))
+		}
+		e.Add(http.MethodGet, "/problem", f)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/problem", server.URL), nil)
+		resp, err := client.Do(req)
 
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	})
+
+	t.Run("Error return", func(t *testing.T) {
+		f := func(c echo.Context) error {
+			return errors.New("error")
+		}
+		e.Add(http.MethodGet, "/error", f)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/error", server.URL), nil)
+		resp, err := client.Do(req)
+
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	})
+
 }
