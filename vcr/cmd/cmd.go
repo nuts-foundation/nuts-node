@@ -101,12 +101,7 @@ func listTrustedCmd() *cobra.Command {
 				return fmt.Errorf("unable to get list of trusted issuers: %v", err)
 			}
 
-			builder := strings.Builder{}
-			builder.WriteString("Trusted issuers:")
-			builder.WriteString("\n\n")
-			builder.WriteString(strings.Join(issuers, "\n"))
-
-			cmd.Println(builder.String())
+			cmd.Println(strings.Join(issuers, "\n"))
 			return nil
 		},
 	}
@@ -125,12 +120,7 @@ func listUntrustedCmd() *cobra.Command {
 				return fmt.Errorf("unable to get list of untrusted issuers: %v", err)
 			}
 
-			builder := strings.Builder{}
-			builder.WriteString("Untrusted issuers:")
-			builder.WriteString("\n\n")
-			builder.WriteString(strings.Join(issuers, "\n"))
-
-			cmd.Println(builder.String())
+			cmd.Println(strings.Join(issuers, "\n"))
 			return nil
 		},
 	}
