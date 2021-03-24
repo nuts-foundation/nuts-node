@@ -1353,4 +1353,3 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/:credentialType/untrusted", wrapper.ListUntrusted)
 
 }
-
