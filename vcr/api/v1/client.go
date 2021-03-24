@@ -1,0 +1,137 @@
+/*
+ * Nuts node
+ * Copyright (C) 2021 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+package v1
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"time"
+)
+
+// HTTPClient holds the server address and other basic settings for the http client
+type HTTPClient struct {
+	ServerAddress string
+	Timeout       time.Duration
+}
+
+func (hb HTTPClient) client() ClientInterface {
+	url := hb.ServerAddress
+
+	response, err := NewClientWithResponses(url)
+	if err != nil {
+		panic(err)
+	}
+	return response
+}
+
+func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), hb.Timeout)
+}
+
+// Trust sends a request to the node to trust a specific issuer for a credential type
+func (hb HTTPClient) Trust(credentialType string, issuer string) error {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
+	body := TrustIssuerJSONRequestBody{
+		CredentialType: credentialType,
+		Issuer:         issuer,
+	}
+
+	response, err := hb.client().TrustIssuer(ctx, body)
+	if err != nil {
+		return err
+	}
+
+	return testResponseCode(http.StatusNoContent, response)
+}
+
+// Untrust sends a request to the node to untrust a specific issuer for a credential type
+func (hb HTTPClient) Untrust(credentialType string, issuer string) error {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
+	body := UntrustIssuerJSONRequestBody{
+		CredentialType: credentialType,
+		Issuer:         issuer,
+	}
+
+	response, err := hb.client().UntrustIssuer(ctx, body)
+	if err != nil {
+		return err
+	}
+
+	return testResponseCode(http.StatusNoContent, response)
+}
+
+// Trusted lists the trusted issuers for the given credential type
+func (hb HTTPClient) Trusted(credentialType string) ([]string, error) {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
+	if response, err := hb.client().Trusted(ctx, credentialType); err != nil {
+		return nil, err
+	} else if err := testResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	} else {
+		return readIssuers(response.Body)
+	}
+}
+
+// Untrusted lists the untrusted issuers for the given credential type
+func (hb HTTPClient) Untrusted(credentialType string) ([]string, error) {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
+	if response, err := hb.client().Trusted(ctx, credentialType); err != nil {
+		return nil, err
+	} else if err := testResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	} else {
+		return readIssuers(response.Body)
+	}
+}
+
+func testResponseCode(expectedStatusCode int, response *http.Response) error {
+	if response.StatusCode != expectedStatusCode {
+		responseData, _ := ioutil.ReadAll(response.Body)
+		return fmt.Errorf("VCR returned HTTP %d (expected: %d), response: %s",
+			response.StatusCode, expectedStatusCode, string(responseData))
+	}
+	return nil
+}
+
+func readIssuers(reader io.Reader) ([]string, error) {
+	var data []byte
+	var err error
+
+	if data, err = ioutil.ReadAll(reader); err != nil {
+		return nil, fmt.Errorf("unable to read response: %w", err)
+	}
+	issuers := make([]string, 0)
+	if err = json.Unmarshal(data, &issuers); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(data))
+	}
+	return issuers, nil
+}
