@@ -16,11 +16,11 @@ To connect to an existing Nuts network you need a TLS certificate which authenti
 you can use the `nuts-network-development-ca` to directly issue a certificate for your node. The commands below clone
 the required Git repository, generate a private key and issues a certificate, and combines them into a single file:
 
-```
-git clone https://github.com/nuts-foundation/nuts-development-network-ca
-cd nuts-development-network-ca && ./issue-cert.sh localhost
-cat localhost.key localhost.pem > certificate-and-key.pem
-```
+.. code-block:: shell
+
+  git clone https://github.com/nuts-foundation/nuts-development-network-ca
+  cd nuts-development-network-ca && ./issue-cert.sh localhost
+  cat localhost.key localhost.pem > certificate-and-key.pem
 
 Move `certificate-and-key.pem` to the working directory.
 
@@ -36,13 +36,14 @@ YAML Configuration File
 
 Copy the YAML file below and save it as `nuts.yaml` in the working directory:
 
-```
-datadir: /opt/nuts
-network:
-  truststorefile: /opt/nuts/truststore.pem
-  certfile: /opt/nuts/certificate-and-key.pem
-  certkeyfile: /opt/nuts/certificate-and-key.pem
-```
+.. code-block:: yaml
+
+  datadir: /opt/nuts
+  network:
+    truststorefile: /opt/nuts/truststore.pem
+    certfile: /opt/nuts/certificate-and-key.pem
+    certkeyfile: /opt/nuts/certificate-and-key.pem
+
 
 See :ref:`configuration <nuts-node-config>` for more information on what can be configured.
 
@@ -60,42 +61,45 @@ Docker Compose
 **************
 
 Copy the following YAML file and save it as `docker-compose.yaml` in the working directory.
-```
-version: "3.7"
-services:
-  nuts:
-    image: nutsfoundation/nuts-node:master
-    environment:
-      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
-    ports:
-      - 5555:5555
-      - 1323:1323
-    volumes:
-      - "./certificate-and-key.pem:/opt/nuts/certificate-and-key.pem:ro"
-      - "./truststore.pem:/opt/nuts/truststore.pem:ro"
-      - "./nuts.yaml:/opt/nuts/nuts.yaml:ro"
-      - "./data:/opt/nuts/data:rw"
-```
+
+.. code-block:: yaml
+
+  version: "3.7"
+  services:
+    nuts:
+      image: nutsfoundation/nuts-node:master
+      environment:
+        NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      ports:
+        - 5555:5555
+        - 1323:1323
+      volumes:
+        - "./certificate-and-key.pem:/opt/nuts/certificate-and-key.pem:ro"
+        - "./truststore.pem:/opt/nuts/truststore.pem:ro"
+        - "./nuts.yaml:/opt/nuts/nuts.yaml:ro"
+        - "./data:/opt/nuts/data:rw"
+
 
 Start the service:
-```
-docker-compose up
-```
+
+.. code-block:: shell
+
+  docker-compose up
 
 Without Docker Compose
 **********************
 
 If you want to run without Docker Compose you can use the following command from the working directory:
 
-```
-docker run --name nuts -p 5555:5555 -p 1323:1323 \
-  --mount type=bind,source="$(pwd)"/certificate-and-key.pem,target=/opt/nuts/certificate-and-key.pem,readonly \
-  --mount type=bind,source="$(pwd)"/truststore.pem,target=/opt/nuts/truststore.pem,readonly \
-  --mount type=bind,source="$(pwd)"/nuts.yaml,target=/opt/nuts/nuts.yaml,readonly \
-  --mount type=bind,source="$(pwd)"/data,target=/opt/nuts/data \
-  -e NUTS_CONFIGFILE=/opt/nuts/nuts.yaml \
-  nutsfoundation/nuts-node:master
-```
+.. code-block:: shell
+
+  docker run --name nuts -p 5555:5555 -p 1323:1323 \
+    --mount type=bind,source="$(pwd)"/certificate-and-key.pem,target=/opt/nuts/certificate-and-key.pem,readonly \
+    --mount type=bind,source="$(pwd)"/truststore.pem,target=/opt/nuts/truststore.pem,readonly \
+    --mount type=bind,source="$(pwd)"/nuts.yaml,target=/opt/nuts/nuts.yaml,readonly \
+    --mount type=bind,source="$(pwd)"/data,target=/opt/nuts/data \
+    -e NUTS_CONFIGFILE=/opt/nuts/nuts.yaml \
+    nutsfoundation/nuts-node:master
 
 .. note::
 
