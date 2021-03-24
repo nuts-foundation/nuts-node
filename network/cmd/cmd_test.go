@@ -19,10 +19,13 @@
 package cmd
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -36,17 +39,55 @@ func TestFlagSet(t *testing.T) {
 }
 
 func TestCmd_List(t *testing.T) {
-	cmd := Cmd()
-	response := []interface{}{string(dag.CreateTestTransactionWithJWK(1).Data()), string(dag.CreateTestTransactionWithJWK(2).Data())}
+	t1 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(0) * time.Second), "zfoo/bar")
+	t2 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(60) * time.Second), "bar/foo")
+	t3 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(30) * time.Second), "1foo/bar")
+	response := []interface{}{string(t1.Data()), string(t2.Data()), string(t3.Data())}
 	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
-	os.Setenv("NUTS_ADDRESS", s.URL)
-	defer os.Unsetenv("NUTS_ADDRESS")
-	core.NewServerConfig().Load(cmd)
 	defer s.Close()
 
-	cmd.SetArgs([]string{"list"})
-	err := cmd.Execute()
-	assert.NoError(t, err)
+	t.Run("it lists sorted by time on default", func(t *testing.T) {
+		outBuf := new(bytes.Buffer)
+		cmd := Cmd()
+		os.Setenv("NUTS_ADDRESS", s.URL)
+		defer os.Unsetenv("NUTS_ADDRESS")
+		core.NewServerConfig().Load(cmd)
+		cmd.SetOut(outBuf)
+		cmd.SetArgs([]string{"list"})
+
+		err := cmd.Execute()
+		assert.NoError(t, err)
+		lines := strings.Split(outBuf.String(),"\n")
+		assert.Len(t, lines, 5)
+		hashStr1 := strings.Split(lines[1], "  ")[0]
+		hashStr2 := strings.Split(lines[2], "  ")[0]
+		hashStr3 := strings.Split(lines[3], "  ")[0]
+		assert.Equal(t, t1.Ref().String(), hashStr1)
+		assert.Equal(t, t3.Ref().String(), hashStr2)
+		assert.Equal(t, t2.Ref().String(), hashStr3)
+	})
+
+	t.Run("it sorts by type", func(t *testing.T) {
+		outBuf := new(bytes.Buffer)
+		cmd := Cmd()
+		os.Setenv("NUTS_ADDRESS", s.URL)
+		defer os.Unsetenv("NUTS_ADDRESS")
+		core.NewServerConfig().Load(cmd)
+		cmd.SetOut(outBuf)
+		cmd.SetArgs([]string{"list", "--sort", "type"})
+		err := cmd.Execute()
+		assert.NoError(t, err)
+		lines := strings.Split(outBuf.String(),"\n")
+		assert.Len(t, lines, 5)
+
+		hashStr1 := strings.Split(lines[1], "  ")[0]
+		hashStr2 := strings.Split(lines[2], "  ")[0]
+		hashStr3 := strings.Split(lines[3], "  ")[0]
+		assert.Equal(t, t3.Ref().String(), hashStr1)
+		assert.Equal(t, t2.Ref().String(), hashStr2)
+		assert.Equal(t, t1.Ref().String(), hashStr3)
+	})
+	sortTransactions([]dag.Transaction{}, "foo")
 }
 
 func TestCmd_Get(t *testing.T) {
