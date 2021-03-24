@@ -459,6 +459,46 @@ func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
 	return c.trustConfig.RemoveTrust(credentialType, issuer)
 }
 
+func (c *vcr) Trusted(credentialType ssi.URI) []ssi.URI {
+	return c.trustConfig.List(credentialType)
+}
+
+func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
+	trustMap := make(map[string]bool)
+	untrusted := make([]ssi.URI, 0)
+	for _, trusted := range c.trustConfig.List(credentialType) {
+		trustMap[trusted.String()] = true
+	}
+
+	// match all keys
+	query := leia.New(leia.Prefix(concept.IssuerField, ""))
+
+	// use type specific collection
+	collection := c.store.Collection(credentialType.String())
+
+	// for each key: add to untrusted if not present in trusted
+	err := collection.Iterate(query, func(key []byte, value []byte) error {
+		// we iterate over all issuers->reference pairs
+		issuer := string(key)
+		if _, ok := trustMap[issuer]; !ok {
+			u, err := ssi.ParseURI(issuer)
+			if err != nil {
+				return err
+			}
+			untrusted = append(untrusted, *u)
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, leia.ErrNoIndex) {
+			return nil, ErrInvalidCredential
+		}
+		return nil, err
+	}
+
+	return untrusted, nil
+}
+
 func (c *vcr) Get(conceptName string, subject string) (concept.Concept, error) {
 	q, err := c.Registry().QueryFor(conceptName)
 	if err != nil {

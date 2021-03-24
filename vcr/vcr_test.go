@@ -727,6 +727,74 @@ func TestVcr_Find(t *testing.T) {
 	})
 }
 
+func TestVcr_Untrusted(t *testing.T) {
+	testDir := io.TestDirectory(t)
+	instance := NewTestVCRInstance(testDir)
+	vc := concept.TestVC()
+
+	ct, err := concept.ParseTemplate(concept.ExampleTemplate)
+	if !assert.NoError(t, err) {
+		return
+	}
+	// init template
+	err = instance.registry.Add(ct)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// reindex
+	err = instance.initIndices()
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// add document
+	doc := leia.Document(concept.TestCredential)
+	err = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	t.Run("ok - untrusted", func(t *testing.T) {
+		trusted := instance.Trusted(vc.Type[1])
+		untrusted, err := instance.Untrusted(vc.Type[1])
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, trusted, 0)
+		assert.Len(t, untrusted, 1)
+	})
+
+	t.Run("ok - trusted", func(t *testing.T) {
+		instance.Trust(vc.Type[1], vc.Issuer)
+		defer func() {
+			instance.Untrust(vc.Type[1], vc.Issuer)
+		}()
+		trusted := instance.Trusted(vc.Type[1])
+		untrusted, err := instance.Untrusted(vc.Type[1])
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, trusted, 1)
+		assert.Len(t, untrusted, 0)
+	})
+
+	t.Run("error - unknown type", func(t *testing.T) {
+		unknown := ssi.URI{}
+		_, err := instance.Untrusted(unknown)
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.Equal(t, ErrInvalidCredential, err)
+	})
+}
+
 func TestVcr_verifyRevocation(t *testing.T) {
 	// load revocation
 	r := credential.Revocation{}

@@ -91,29 +91,16 @@ func TestQuery(t *testing.T) {
 		assert.Len(t, q.Parts(), 1)
 	})
 
-	t.Run("addTemplate - adds hardcoded values to query clause", func(t *testing.T) {
+	t.Run("AddClause", func(t *testing.T) {
 		tq := q.parts[0]
+
+		q.AddClause(eq{key: "key", value: "value"})
 
 		if !assert.Len(t, tq.Clauses, 1) {
 			return
 		}
 
 		crit := tq.Clauses[0]
-		assert.Equal(t, TypeField, crit.Key())
-		assert.Equal(t, ExampleType, crit.Seek())
-		assert.Equal(t, ExampleType, crit.Match())
-	})
-
-	t.Run("AddClause", func(t *testing.T) {
-		tq := q.parts[0]
-
-		q.AddClause(eq{key: "key", value: "value"})
-
-		if !assert.Len(t, tq.Clauses, 2) {
-			return
-		}
-
-		crit := tq.Clauses[1]
 		assert.Equal(t, "key", crit.Key())
 		assert.Equal(t, "value", crit.Seek())
 	})

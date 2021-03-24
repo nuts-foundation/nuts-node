@@ -76,12 +76,11 @@ func TestTemplate_parse(t *testing.T) {
 	})
 
 	t.Run("it adds the correct Indices", func(t *testing.T) {
-		assert.Len(t, ct.Indices(), 2)
+		assert.Len(t, ct.Indices(), 3)
 
-		assert.Equal(t, "type", ct.indices[0][0])
-		assert.Equal(t, "human.eyeColour", ct.indices[0][1])
-		assert.Equal(t, "type", ct.indices[1][0])
-		assert.Equal(t, "subject", ct.indices[1][1])
+		assert.Equal(t, "human.eyeColour", ct.indices[0][0])
+		assert.Equal(t, "subject", ct.indices[1][0])
+		assert.Equal(t, "issuer", ct.indices[2][0])
 	})
 
 	t.Run("error - incorrect syntax", func(t *testing.T) {

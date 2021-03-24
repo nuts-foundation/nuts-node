@@ -38,3 +38,5 @@ require (
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.3.0
 )
+
+replace github.com/nuts-foundation/go-leia => ../go-leia

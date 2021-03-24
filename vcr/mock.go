@@ -104,6 +104,86 @@ func (mr *MockWriterMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockWriter)(nil).StoreRevocation), r)
 }
 
+// MockTrustManager is a mock of TrustManager interface.
+type MockTrustManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockTrustManagerMockRecorder
+}
+
+// MockTrustManagerMockRecorder is the mock recorder for MockTrustManager.
+type MockTrustManagerMockRecorder struct {
+	mock *MockTrustManager
+}
+
+// NewMockTrustManager creates a new mock instance.
+func NewMockTrustManager(ctrl *gomock.Controller) *MockTrustManager {
+	mock := &MockTrustManager{ctrl: ctrl}
+	mock.recorder = &MockTrustManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTrustManager) EXPECT() *MockTrustManagerMockRecorder {
+	return m.recorder
+}
+
+// Trust mocks base method.
+func (m *MockTrustManager) Trust(credentialType, issuer ssi.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Trust", credentialType, issuer)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Trust indicates an expected call of Trust.
+func (mr *MockTrustManagerMockRecorder) Trust(credentialType, issuer interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trust", reflect.TypeOf((*MockTrustManager)(nil).Trust), credentialType, issuer)
+}
+
+// Trusted mocks base method.
+func (m *MockTrustManager) Trusted(credentialType ssi.URI) []ssi.URI {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Trusted", credentialType)
+	ret0, _ := ret[0].([]ssi.URI)
+	return ret0
+}
+
+// Trusted indicates an expected call of Trusted.
+func (mr *MockTrustManagerMockRecorder) Trusted(credentialType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trusted", reflect.TypeOf((*MockTrustManager)(nil).Trusted), credentialType)
+}
+
+// Untrust mocks base method.
+func (m *MockTrustManager) Untrust(credentialType, issuer ssi.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Untrust", credentialType, issuer)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Untrust indicates an expected call of Untrust.
+func (mr *MockTrustManagerMockRecorder) Untrust(credentialType, issuer interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrust", reflect.TypeOf((*MockTrustManager)(nil).Untrust), credentialType, issuer)
+}
+
+// Untrusted mocks base method.
+func (m *MockTrustManager) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Untrusted", credentialType)
+	ret0, _ := ret[0].([]ssi.URI)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Untrusted indicates an expected call of Untrusted.
+func (mr *MockTrustManagerMockRecorder) Untrusted(credentialType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrusted", reflect.TypeOf((*MockTrustManager)(nil).Untrusted), credentialType)
+}
+
 // MockVCR is a mock of VCR interface.
 type MockVCR struct {
 	ctrl     *gomock.Controller
@@ -258,6 +338,20 @@ func (mr *MockVCRMockRecorder) Trust(credentialType, issuer interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trust", reflect.TypeOf((*MockVCR)(nil).Trust), credentialType, issuer)
 }
 
+// Trusted mocks base method.
+func (m *MockVCR) Trusted(credentialType ssi.URI) []ssi.URI {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Trusted", credentialType)
+	ret0, _ := ret[0].([]ssi.URI)
+	return ret0
+}
+
+// Trusted indicates an expected call of Trusted.
+func (mr *MockVCRMockRecorder) Trusted(credentialType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trusted", reflect.TypeOf((*MockVCR)(nil).Trusted), credentialType)
+}
+
 // Untrust mocks base method.
 func (m *MockVCR) Untrust(credentialType, issuer ssi.URI) error {
 	m.ctrl.T.Helper()
@@ -270,6 +364,21 @@ func (m *MockVCR) Untrust(credentialType, issuer ssi.URI) error {
 func (mr *MockVCRMockRecorder) Untrust(credentialType, issuer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrust", reflect.TypeOf((*MockVCR)(nil).Untrust), credentialType, issuer)
+}
+
+// Untrusted mocks base method.
+func (m *MockVCR) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Untrusted", credentialType)
+	ret0, _ := ret[0].([]ssi.URI)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Untrusted indicates an expected call of Untrusted.
+func (mr *MockVCRMockRecorder) Untrusted(credentialType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrusted", reflect.TypeOf((*MockVCR)(nil).Untrusted), credentialType)
 }
 
 // Verify mocks base method.

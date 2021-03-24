@@ -187,6 +187,43 @@ func (w *Wrapper) UntrustIssuer(ctx echo.Context) error {
 	})
 }
 
+func (w *Wrapper) Trusted(ctx echo.Context, credentialType string) error {
+	uri, err := ssi.ParseURI(credentialType)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("malformed credential type: %s", err.Error()))
+	}
+
+	trusted := w.R.Trusted(*uri)
+	result := make([]string, len(trusted))
+	for i, t := range trusted {
+		result[i] = t.String()
+	}
+
+	return ctx.JSON(http.StatusOK, result)
+}
+
+func (w *Wrapper) Untrusted(ctx echo.Context, credentialType string) error {
+	uri, err := ssi.ParseURI(credentialType)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("malformed credential type: %s", err.Error()))
+	}
+
+	untrusted, err := w.R.Untrusted(*uri)
+	if err != nil {
+		if errors.Is(err, vcr.ErrInvalidCredential) {
+			return ctx.NoContent(http.StatusNotFound)
+		}
+		return err
+	}
+
+	result := make([]string, len(untrusted))
+	for i, t := range untrusted {
+		result[i] = t.String()
+	}
+
+	return ctx.JSON(http.StatusOK, result)
+}
+
 type trustChangeFunc func(ssi.URI, ssi.URI) error
 
 func changeTrust(ctx echo.Context, f trustChangeFunc) error {

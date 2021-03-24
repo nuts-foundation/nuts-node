@@ -471,6 +471,101 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 	})
 }
 
+func TestWrapper_Trusted(t *testing.T) {
+	credentialType, _ := ssi.ParseURI("type")
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		var capturedList []string
+		ctx.vcr.EXPECT().Trusted(*credentialType).Return([]ssi.URI{*credentialType})
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f1 interface{}, f2 interface{}) error {
+			capturedList = f2.([]string)
+			return nil
+		})
+
+		err := ctx.client.Trusted(ctx.echo, credentialType.String())
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, capturedList, 1)
+		assert.Equal(t, credentialType.String(), capturedList[0])
+	})
+
+	t.Run("error", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
+
+		err := ctx.client.Trusted(ctx.echo, string([]byte{0}))
+
+		assert.NoError(t, err)
+	})
+}
+
+func TestWrapper_Untrusted(t *testing.T) {
+	credentialType, _ := ssi.ParseURI("type")
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		var capturedList []string
+		ctx.vcr.EXPECT().Untrusted(*credentialType).Return([]ssi.URI{*credentialType}, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f1 interface{}, f2 interface{}) error {
+			capturedList = f2.([]string)
+			return nil
+		})
+
+		err := ctx.client.Untrusted(ctx.echo, credentialType.String())
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, capturedList, 1)
+		assert.Equal(t, credentialType.String(), capturedList[0])
+	})
+
+	t.Run("error - malformed input", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
+
+		err := ctx.client.Untrusted(ctx.echo, string([]byte{0}))
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.vcr.EXPECT().Untrusted(*credentialType).Return(nil, vcr.ErrInvalidCredential)
+		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
+
+		err := ctx.client.Untrusted(ctx.echo, credentialType.String())
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - other", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.vcr.EXPECT().Untrusted(*credentialType).Return(nil, errors.New("b00m!"))
+
+		err := ctx.client.Untrusted(ctx.echo, credentialType.String())
+
+		assert.Error(t, err)
+	})
+}
+
 type mockContext struct {
 	ctrl     *gomock.Controller
 	echo     *mock.MockContext

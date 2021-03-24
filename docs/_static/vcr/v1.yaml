@@ -215,6 +215,73 @@ paths:
             text/plain:
               schema:
                 type: string
+  /internal/vcr/v1/trusted/{credentialType}:
+    get:
+      summary: "List all trusted issuers for a given credential type"
+      description: "If an unknown credential is requested, an empty list will be returned"
+      operationId: "trusted"
+      tags:
+        - credential
+      parameters:
+        - name: credentialType
+          in: path
+          description: URL encoded Verifiable Credential Type.
+          required: true
+          example:
+            - "NutsOrganizationCredential"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of trusted issuers is returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DID'
+        "400":
+          description: malformed credential type.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /internal/vcr/v1/untrusted/{credentialType}:
+    get:
+      summary: "List all untrusted issuers for a given credential type"
+      operationId: "untrusted"
+      tags:
+        - credential
+      parameters:
+        - name: credentialType
+          in: path
+          description: URL encoded Verifiable Credential Type.
+          required: true
+          example:
+            - "NutsOrganizationCredential"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of untrusted issuers is returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DID'
+        "400":
+          description: malformed credential type.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "404":
+          description: unknown credential type.
+          content:
+            text/plain:
+              schema:
+                type: string
 components:
   schemas:
     CredentialSubject:
@@ -234,6 +301,10 @@ components:
           description: a credential type
           example: NutsOrganizationCredential
           type: string
+    DID:
+      type: string
+      description: DID according to Nuts specification
+      example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
     KeyValuePair:
       type: object
       description: used search params
@@ -271,8 +342,7 @@ components:
         - date
       properties:
         issuer:
-          type: string
-          description: issuer refers to the party that issued the credential
+          $ref: '#/components/schemas/DID'
         subject:
           type: string
           description: subject refers to the credential identifier that is revoked
@@ -330,9 +400,7 @@ components:
           items:
             type: string
         issuer:
-          description: DID according to Nuts specification
-          example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
-          type: string
+          $ref: '#/components/schemas/DID'
         issuanceDate:
           description: rfc3339 time string when the credential was issued.
           type: string
