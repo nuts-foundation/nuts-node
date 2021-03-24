@@ -119,7 +119,6 @@ func TestTrustConfig_List(t *testing.T) {
 	assert.Equal(t, *d, trusted[0])
 }
 
-
 func TestConfig_AddTrust(t *testing.T) {
 	testDir := io.TestDirectory(t)
 	tc := NewConfig(path.Join(testDir, "test.yaml"))
