@@ -21,6 +21,7 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"testing"
 	"time"
@@ -50,9 +51,12 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "missing claims")
-		assert.Contains(t, err.Error(), "\"status\":400")
+		if !assert.Error(t, err) {
+			return
+		}
+		p := core.ErrorToProblem(err)
+		assert.Equal(t, 400, p.Status)
+		assert.Equal(t, "missing claims", p.Detail)
 	})
 
 	t.Run("Missing kid returns 400", func(t *testing.T) {
@@ -70,9 +74,12 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "missing kid")
-		assert.Contains(t, err.Error(), "\"status\":400")
+		if !assert.Error(t, err) {
+			return
+		}
+		p := core.ErrorToProblem(err)
+		assert.Equal(t, 400, p.Status)
+		assert.Equal(t, "missing kid", p.Detail)
 	})
 
 	t.Run("Sign error returns 400", func(t *testing.T) {
@@ -92,9 +99,12 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "b00m!")
-		assert.Contains(t, err.Error(), "\"status\":400")
+		if !assert.Error(t, err) {
+			return
+		}
+		p := core.ErrorToProblem(err)
+		assert.Equal(t, 400, p.Status)
+		assert.Equal(t, "b00m!", p.Detail)
 	})
 
 	t.Run("All OK returns 200", func(t *testing.T) {
@@ -127,9 +137,12 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "missing body in request")
-		assert.Contains(t, err.Error(), "\"status\":400")
+		if !assert.Error(t, err) {
+			return
+		}
+		p := core.ErrorToProblem(err)
+		assert.Equal(t, 400, p.Status)
+		assert.Equal(t, "missing body in request", p.Detail)
 	})
 }
 
@@ -175,9 +188,13 @@ func TestWrapper_PublicKey(t *testing.T) {
 		//ctx.echo.EXPECT().NoContent(http.StatusNotFound)
 
 		err := ctx.client.PublicKey(ctx.echo, "kid", params)
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "no pubkey found for kid")
-		assert.Contains(t, err.Error(), "\"status\":404")
+
+		if !assert.Error(t, err) {
+			return
+		}
+		p := core.ErrorToProblem(err)
+		assert.Equal(t, 404, p.Status)
+		assert.Equal(t, "no pubkey found for kid", p.Detail)
 	})
 
 	t.Run("PublicKey API call returns 500 for other error", func(t *testing.T) {
@@ -188,8 +205,12 @@ func TestWrapper_PublicKey(t *testing.T) {
 		ctx.keyStore.EXPECT().GetPublicKey("kid", at).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.PublicKey(ctx.echo, "kid", params)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "\"status\":500")
+
+		if !assert.Error(t, err) {
+			return
+		}
+		p := core.ErrorToProblem(err)
+		assert.Equal(t, 500, p.Status)
 	})
 
 	t.Run("error - 400 for incorrect time format", func(t *testing.T) {
@@ -202,9 +223,12 @@ func TestWrapper_PublicKey(t *testing.T) {
 		notAt := "b00m!"
 		err := ctx.client.PublicKey(ctx.echo, "kid", PublicKeyParams{At: &notAt})
 
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "cannot parse 'b00m!' as RFC3339 time format")
-		assert.Contains(t, err.Error(), "\"status\":400")
+		if !assert.Error(t, err) {
+			return
+		}
+		p := core.ErrorToProblem(err)
+		assert.Equal(t, 400, p.Status)
+		assert.Equal(t, "cannot parse 'b00m!' as RFC3339 time format", p.Detail)
 	})
 }
 
