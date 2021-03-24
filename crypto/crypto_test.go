@@ -73,7 +73,7 @@ func TestCrypto_PublicKey(t *testing.T) {
 		_, err := client.GetPublicKey(kid, now.Add(-1))
 
 		if assert.Error(t, err) {
-			assert.True(t, errors.Is(err, ErrKeyNotFound))
+			assert.True(t, errors.Is(err, ErrKeyRevoked))
 		}
 	})
 
@@ -95,7 +95,7 @@ func TestCrypto_PublicKey(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.True(t, errors.Is(err, ErrKeyNotFound), "GetPublicKey should return ErrNotFound after revocation")
+		assert.True(t, errors.Is(err, ErrKeyRevoked), "GetPublicKey should return ErrKeyRevoked after revocation")
 		assert.Nil(t, key)
 	})
 

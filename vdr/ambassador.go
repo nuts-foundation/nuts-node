@@ -241,7 +241,10 @@ func (n ambassador) updateKeysInStore(currentDIDDocument, proposedDIDDocument di
 	for _, vm := range removedVMs {
 		logging.Log().Debugf("revoking public key: %s", vm.ID.String())
 		if err := n.keyStore.RevokePublicKey(vm.ID.String(), signingTime); err != nil {
-			return fmt.Errorf("unable to revoke public key: %w", err)
+			// Ignore already revoked keys. This can happen when the node restarts.
+			if !errors.Is(err, nutsCrypto.ErrKeyRevoked) {
+				return fmt.Errorf("unable to revoke public key: %w", err)
+			}
 		}
 	}
 	return nil

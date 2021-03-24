@@ -175,7 +175,7 @@ func readVerificationMethod(reader io.Reader) (*did.VerificationMethod, error) {
 	}
 	verificationMethod := did.VerificationMethod{}
 	if err = json.Unmarshal(data, &verificationMethod); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal verification method response: %w, %s", err.Error(), string(data))
+		return nil, fmt.Errorf("unable to unmarshal verification method response: %w, %s", err, string(data))
 	}
 	return &verificationMethod, nil
 }

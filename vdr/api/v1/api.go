@@ -33,7 +33,8 @@ import (
 
 // Wrapper is needed to connect the implementation to the echo ServiceWrapper
 type Wrapper struct {
-	VDR types.VDR
+	VDR            types.VDR
+	DocManipulator types.DocManipulator
 }
 
 func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
@@ -47,7 +48,7 @@ func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given update request could not be parsed: %s", err.Error()))
 	}
 
-	vm, err := a.VDR.AddKey(*d)
+	vm, err := a.DocManipulator.AddKey(*d)
 	if err != nil {
 		return handleError(ctx, err, "could not update document: %s")
 	}
@@ -125,7 +126,7 @@ func (a *Wrapper) DeactivateDID(ctx echo.Context, targetDID string) error {
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
 	}
-	err = a.VDR.Deactivate(*id)
+	err = a.DocManipulator.Deactivate(*id)
 	if err != nil {
 		return handleError(ctx, err, "could not deactivate document: %s")
 	}

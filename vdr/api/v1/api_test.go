@@ -266,7 +266,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	did123, _ := did.ParseDID("did:nuts:123")
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Deactivate(*did123).Return(nil)
+		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(nil)
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().NoContent(http.StatusOK)
@@ -287,7 +287,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vdr.EXPECT().Deactivate(*did123).Return(types.ErrNotFound)
+		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrNotFound)
 		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
 
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
@@ -296,7 +296,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 	t.Run("error - document already deactivated", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Deactivate(*did123).Return(types.ErrDeactivated)
+		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrDeactivated)
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().String(http.StatusConflict, "could not deactivate document: the document has been deactivated")
@@ -306,7 +306,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Deactivate(*did123).Return(types.ErrDIDNotManagedByThisNode)
+		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrDIDNotManagedByThisNode)
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().String(http.StatusForbidden, "could not deactivate document: DID document not managed by this node")
@@ -316,21 +316,24 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl   *gomock.Controller
-	echo   *mock.MockContext
-	vdr    *types.MockVDR
-	client *Wrapper
+	ctrl       *gomock.Controller
+	echo       *mock.MockContext
+	vdr        *types.MockVDR
+	docUpdater *types.MockDocManipulator
+	client     *Wrapper
 }
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	vdr := types.NewMockVDR(ctrl)
-	client := &Wrapper{VDR: vdr}
+	docManipulator := types.NewMockDocManipulator(ctrl)
+	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator}
 
 	return mockContext{
-		ctrl:   ctrl,
-		echo:   mock.NewMockContext(ctrl),
-		vdr:    vdr,
-		client: client,
+		ctrl:       ctrl,
+		echo:       mock.NewMockContext(ctrl),
+		vdr:        vdr,
+		client:     client,
+		docUpdater: docManipulator,
 	}
 }
