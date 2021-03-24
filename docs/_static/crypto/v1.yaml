@@ -8,7 +8,8 @@ info:
 paths:
   /internal/crypto/v1/public_key/{kid}:
     get:
-      summary: "get the public key for a given kid. It returns the key in PEM or JWK format. This depends on the accept header used (text/plain vs application/json). If no 'at' parameter is given it'll validate if the public key is valid at the time of the request."
+      summary: "get the public key for a given kid"
+      description: "get the public key for a given kid. returns the key in PEM or JWK format. This depends on the accept header used (text/plain vs application/json). If no 'at' parameter is given it'll validate if the public key is valid at the time of the request."
       operationId: publicKey
       tags:
         - crypto
@@ -69,7 +70,7 @@ paths:
             text/plain:
               schema:
                 example: "aa==.bb==.cc=="
-        '400':
+        '4XX':
           $ref: '../common/error_response.yaml'
         '500':
           $ref: '../common/error_response.yaml'

@@ -305,17 +305,6 @@ type PublicKeyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *JWK
-	JSONDefault  *struct {
-
-		// Detailed description of the error
-		Detail string `json:"detail"`
-
-		// HTTP statuscode
-		Status float32 `json:"status"`
-
-		// General desciption of attempted action
-		Title string `json:"title"`
-	}
 }
 
 // Status returns HTTPResponse.Status
@@ -337,28 +326,6 @@ func (r PublicKeyResponse) StatusCode() int {
 type SignJwtResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *struct {
-
-		// Detailed description of the error
-		Detail string `json:"detail"`
-
-		// HTTP statuscode
-		Status float32 `json:"status"`
-
-		// General desciption of attempted action
-		Title string `json:"title"`
-	}
-	JSON500 *struct {
-
-		// Detailed description of the error
-		Detail string `json:"detail"`
-
-		// HTTP statuscode
-		Status float32 `json:"status"`
-
-		// General desciption of attempted action
-		Title string `json:"title"`
-	}
 }
 
 // Status returns HTTPResponse.Status
@@ -424,23 +391,6 @@ func ParsePublicKeyResponse(rsp *http.Response) (*PublicKeyResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-
-			// Detailed description of the error
-			Detail string `json:"detail"`
-
-			// HTTP statuscode
-			Status float32 `json:"status"`
-
-			// General desciption of attempted action
-			Title string `json:"title"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSONDefault = &dest
-
 	case rsp.StatusCode == 200:
 		// Content-type (text/plain) unsupported
 
@@ -463,40 +413,6 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest struct {
-
-			// Detailed description of the error
-			Detail string `json:"detail"`
-
-			// HTTP statuscode
-			Status float32 `json:"status"`
-
-			// General desciption of attempted action
-			Title string `json:"title"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest struct {
-
-			// Detailed description of the error
-			Detail string `json:"detail"`
-
-			// HTTP statuscode
-			Status float32 `json:"status"`
-
-			// General desciption of attempted action
-			Title string `json:"title"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
 	}
 
 	return response, nil
@@ -504,7 +420,7 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// get the public key for a given kid. It returns the key in PEM or JWK format. This depends on the accept header used (text/plain vs application/json). If no 'at' parameter is given it'll validate if the public key is valid at the time of the request.
+	// get the public key for a given kid
 	// (GET /internal/crypto/v1/public_key/{kid})
 	PublicKey(ctx echo.Context, kid string, params PublicKeyParams) error
 	// sign a JWT payload with the private key of the given kid

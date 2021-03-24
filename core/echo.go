@@ -126,16 +126,15 @@ func creatorFn(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
 	return echoServer, nil
 }
 
-func httpErrorHandler(err error, c echo.Context) {
+func httpErrorHandler(err error, ctx echo.Context) {
 	if prb, ok := err.(*problem.Problem); ok {
 		// todo: connect to module logger
-		if !c.Response().Committed {
-			if _, err := prb.WriteTo(c.Response()); err != nil {
-				//c.Echo().Logger.Error(err)
+		if !ctx.Response().Committed {
+			if _, err := prb.WriteTo(ctx.Response()); err != nil {
+				//ctx.Echo().Logger.Error(err)
 			}
 		}
 	} else {
-		// e is an instance of echo.Echo
-		c.Echo().DefaultHTTPErrorHandler(err, c)
+		ctx.Echo().DefaultHTTPErrorHandler(err, ctx)
 	}
 }
