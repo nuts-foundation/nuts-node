@@ -21,11 +21,12 @@ package concept
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/stretchr/testify/assert"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTemplateString_isValid(t *testing.T) {

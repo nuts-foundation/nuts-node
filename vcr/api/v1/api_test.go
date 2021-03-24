@@ -22,9 +22,10 @@ package v1
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/vc"
 	"net/http"
 	"testing"
+
+	"github.com/nuts-foundation/go-did/vc"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"

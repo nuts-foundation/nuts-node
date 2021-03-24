@@ -20,6 +20,7 @@ package concept
 
 import (
 	"encoding/json"
+
 	"github.com/nuts-foundation/go-did/vc"
 )
 

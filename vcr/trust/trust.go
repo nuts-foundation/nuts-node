@@ -21,10 +21,11 @@ package trust
 
 import (
 	"errors"
-	ssi "github.com/nuts-foundation/go-did"
-	"gopkg.in/yaml.v2"
 	"os"
 	"sync"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"gopkg.in/yaml.v2"
 )
 
 // Config holds the trusted issuers per credential type

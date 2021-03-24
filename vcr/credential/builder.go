@@ -21,9 +21,10 @@ package credential
 
 import (
 	"fmt"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"time"
 
 	"github.com/google/uuid"
 )

@@ -2,8 +2,9 @@ package credential
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNutsOrganizationCredentialSubject(t *testing.T) {

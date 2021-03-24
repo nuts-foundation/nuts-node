@@ -23,10 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/vc"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/nuts-foundation/go-did/vc"
 
 	errors2 "github.com/pkg/errors"
 )

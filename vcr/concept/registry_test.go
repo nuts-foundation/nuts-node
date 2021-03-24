@@ -20,10 +20,11 @@
 package concept
 
 import (
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestRegistry_AddFromString(t *testing.T) {

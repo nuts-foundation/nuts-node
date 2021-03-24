@@ -20,12 +20,13 @@
 package credential
 
 import (
+	"testing"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {

@@ -23,13 +23,14 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-leia"

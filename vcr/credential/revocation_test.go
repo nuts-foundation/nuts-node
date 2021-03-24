@@ -21,12 +21,13 @@ package credential
 
 import (
 	"encoding/json"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBuildRevocation(t *testing.T) {

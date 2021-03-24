@@ -22,8 +22,9 @@ package v1
 import (
 	"errors"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
 	"net/http"
+
+	ssi "github.com/nuts-foundation/go-did"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"

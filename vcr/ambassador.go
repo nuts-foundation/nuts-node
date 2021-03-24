@@ -21,6 +21,7 @@ package vcr
 
 import (
 	"encoding/json"
+
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"

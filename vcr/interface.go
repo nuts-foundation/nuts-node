@@ -22,11 +22,12 @@ package vcr
 import (
 	"embed"
 	"errors"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"time"
 )
 
 //go:embed assets/*
