@@ -9,7 +9,13 @@ paths:
   /internal/crypto/v1/public_key/{kid}:
     get:
       summary: "get the public key for a given kid"
-      description: "get the public key for a given kid. returns the key in PEM or JWK format. This depends on the accept header used (text/plain vs application/json). If no 'at' parameter is given it'll validate if the public key is valid at the time of the request."
+      description: |
+        Get the public key for a given kid. returns the key in PEM or JWK format. This depends on the accept header used (text/plain vs application/json). If no 'at' parameter is given it'll validate if the public key is valid at the time of the request.
+
+        error returns:
+        * 400 - one of the parameters has the wrong format
+        * 404 - public key does not exist
+        * 500 - internal server error
       operationId: publicKey
       tags:
         - crypto
@@ -36,24 +42,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JWK'
-#        '400':
-#          description: "one of the parameters has the wrong format"
-#          content:
-#            text/plain:
-#              example:
-#                "invalid time format"
-#        '404':
-#          description: "not found or key is not valid at the time"
-#          content:
-#            text/plain:
-#              example:
-#                "key not found"
         default:
           $ref: '../common/error_response.yaml'
 
   /internal/crypto/v1/sign_jwt:
     post:
       summary: "sign a JWT payload with the private key of the given kid"
+      description: |
+        Sign a JWT payload with the private key of the given kid
+
+        error returns:
+        * 400 - incorrect input
       operationId: signJwt
       tags:
         - crypto
@@ -70,9 +69,7 @@ paths:
             text/plain:
               schema:
                 example: "aa==.bb==.cc=="
-        '4XX':
-          $ref: '../common/error_response.yaml'
-        '500':
+        default:
           $ref: '../common/error_response.yaml'
 
 components:
