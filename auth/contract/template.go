@@ -43,9 +43,9 @@ const LegalEntityAttr = "legal_entity"
 
 // Template stores al properties of a contract template which can result in a signed contract
 type Template struct {
-	Type                 Type     `json:"type"`
-	Version              Version  `json:"version"`
-	Language             Language `json:"language"`
+	Type     Type     `json:"type"`
+	Version  Version  `json:"version"`
+	Language Language `json:"language"`
 	// Locale contains the locale of the contract in ICU format which consists of:
 	// - the language code (ISO-639-2)
 	// - an underscore (_)
