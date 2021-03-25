@@ -90,7 +90,7 @@ func untrustCmd() *cobra.Command {
 
 func listTrustedCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "trusted [type]",
+		Use:   "list-trusted [type]",
 		Short: "List trusted issuers for given credential type",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -109,7 +109,7 @@ func listTrustedCmd() *cobra.Command {
 
 func listUntrustedCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "untrusted [type]",
+		Use:   "list-untrusted [type]",
 		Short: "List untrusted issuers for given credential type",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

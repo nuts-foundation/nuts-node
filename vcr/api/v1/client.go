@@ -90,13 +90,7 @@ func (hb HTTPClient) Trusted(credentialType string) ([]string, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
 
-	if response, err := hb.client().Trusted(ctx, credentialType); err != nil {
-		return nil, err
-	} else if err := testResponseCode(http.StatusOK, response); err != nil {
-		return nil, err
-	} else {
-		return readIssuers(response.Body)
-	}
+	return handleTrustedResponse(hb.client().Trusted(ctx, credentialType))
 }
 
 // Untrusted lists the untrusted issuers for the given credential type
@@ -104,7 +98,11 @@ func (hb HTTPClient) Untrusted(credentialType string) ([]string, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
 
-	if response, err := hb.client().Trusted(ctx, credentialType); err != nil {
+	return handleTrustedResponse(hb.client().Untrusted(ctx, credentialType))
+}
+
+func handleTrustedResponse(response *http.Response, err error) ([]string, error) {
+	if err != nil {
 		return nil, err
 	} else if err := testResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
