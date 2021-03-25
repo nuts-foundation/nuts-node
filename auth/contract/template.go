@@ -41,6 +41,9 @@ const ActingPartyAttr = "acting_party"
 // LegalEntityAttr contains the key of the legal-entity attribute.
 const LegalEntityAttr = "legal_entity"
 
+// LegalEntityCityAttr contains the key of the legal-entity city attribute.
+const LegalEntityCityAttr = "legal_entity_city"
+
 // Template stores al properties of a contract template which can result in a signed contract
 type Template struct {
 	Type                 Type     `json:"type"`
@@ -68,7 +71,9 @@ var NowFunc = time.Now
 // StandardSignerAttributes defines the standard list of attributes used for a contract.
 // If SignerAttribute name starts with a dot '.', it uses the configured scheme manager
 var StandardSignerAttributes = []string{
-	".gemeente.personalData.firstnames",
+	".gemeente.personalData.initials",
+	".gemeente.personalData.prefix",
+	".gemeente.personalData.familyname",
 	"pbdf.sidn-pbdf.email.email",
 }
 

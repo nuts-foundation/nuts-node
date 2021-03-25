@@ -173,7 +173,7 @@ func TestDummy_VerifyVP(t *testing.T) {
 				Lastname:  "Tester",
 				Birthdate: "1980-01-01",
 				Email:     "tester@example.com",
-				Contract:  "EN:PractitionerLogin:v3 I hereby declare to act on behalf of care org. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00.",
+				Contract:  "EN:PractitionerLogin:v3 I hereby declare to act on behalf of care org located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00.",
 			},
 		}
 
