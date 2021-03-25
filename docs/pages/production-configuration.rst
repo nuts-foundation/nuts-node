@@ -50,6 +50,10 @@ this by allowing you to bind sets of endpoints to a different HTTP port. This is
         # The following binds all endpoints starting with `/public` to `nuts.vendor.nl:443`
         public:
           address: nuts.vendor.nl:443
+          # The following enables cross-domain requests (CORS) from irma.vendor.nl
+          cors:
+            origin:
+              - irma.vendor.nl
         # The following binds all endpoints starting with `/status` to all interfaces on `:80`
         status:
           address: :80
@@ -59,9 +63,9 @@ Cross Origin Resource Sharing (CORS)
 
 In some deployments CORS can be required for the public IRMA authentication endpoints when the user-facing
 authentication page is hosted on a (sub)domain that differs from Nuts Node's IRMA backend. CORS can be enabled on a
-specific HTTP interface by specifying `cors: true`. Although you can enable CORS on the default endpoint it's not advised
-to do so in a production environment, because CORS itself opens up new attack vectors on node administrators and more so
-because when CORS is enabled, it allows requests from all origins using all HTTP methods.
+specific HTTP interface by specifying the domains allowed to make CORS requests as `cors.origin` (see the example above).
+Although you can enable CORS on the default endpoint it's not advised to do so in a production environment,
+because CORS itself opens up new attack vectors on node administrators.
 
 Nuts Network SSL/TLS Deployment Layouts
 ***************************************
