@@ -46,6 +46,12 @@ type Template struct {
 	Type                 Type     `json:"type"`
 	Version              Version  `json:"version"`
 	Language             Language `json:"language"`
+	// Locale contains the locale of the contract in ICU format which consists of:
+	// - the language code (ISO-639-2)
+	// - an underscore (_)
+	// - the country code (ISO-3166)
+	// For example: nl_NL, en_GB, en_US, fr_FR
+	Locale               string   `json:"-"`
 	SignerAttributes     []string `json:"signer_attributes"`
 	SignerDemoAttributes []string `json:"-"`
 	Template             string   `json:"Template"`
@@ -81,8 +87,8 @@ func (c Template) timeLocation() *time.Location {
 // The ValidFrom or ValidTo provided in the vars map will be overwritten.
 // Note: For date calculation the Amsterdam timezone and Dutch locale is used.
 func (c Template) Render(vars map[string]string, validFrom time.Time, validDuration time.Duration) (*Contract, error) {
-	vars[ValidFromAttr] = monday.Format(validFrom.In(c.timeLocation()), timeLayout, monday.LocaleNlNL)
-	vars[ValidToAttr] = monday.Format(validFrom.Add(validDuration).In(c.timeLocation()), timeLayout, monday.LocaleNlNL)
+	vars[ValidFromAttr] = monday.Format(validFrom.In(c.timeLocation()), timeLayout, monday.Locale(c.Locale))
+	vars[ValidToAttr] = monday.Format(validFrom.Add(validDuration).In(c.timeLocation()), timeLayout, monday.Locale(c.Locale))
 
 	rawContractText, err := mustache.Render(c.Template, vars)
 	if err != nil {

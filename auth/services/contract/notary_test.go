@@ -124,7 +124,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		}
 
 		assert.NotNil(t, drawnUpContract)
-		assert.Equal(t, "Organisation Name: CareBears, valid from maandag, 1 januari 0001 00:19:33 to maandag, 1 januari 0001 00:29:33", drawnUpContract.RawContractText)
+		assert.Equal(t, "Organisation Name: CareBears, valid from Monday, 1 January 0001 00:19:33 to Monday, 1 January 0001 00:29:33", drawnUpContract.RawContractText)
 	})
 
 	t.Run("no given duration uses default", func(t *testing.T) {
@@ -141,7 +141,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		}
 
 		assert.NotNil(t, drawnUpContract)
-		assert.Equal(t, "Organisation Name: CareBears, valid from maandag, 1 januari 0001 00:19:33 to maandag, 1 januari 0001 00:34:33", drawnUpContract.RawContractText)
+		assert.Equal(t, "Organisation Name: CareBears, valid from Monday, 1 January 0001 00:19:33 to Monday, 1 January 0001 00:34:33", drawnUpContract.RawContractText)
 	})
 
 	t.Run("no given time uses time.Now()", func(t *testing.T) {
@@ -162,7 +162,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		}
 
 		assert.NotNil(t, drawnUpContract)
-		assert.Equal(t, "Organisation Name: CareBears, valid from maandag, 1 januari 0001 00:19:42 to maandag, 1 januari 0001 00:34:42", drawnUpContract.RawContractText)
+		assert.Equal(t, "Organisation Name: CareBears, valid from Monday, 1 January 0001 00:19:42 to Monday, 1 January 0001 00:34:42", drawnUpContract.RawContractText)
 	})
 
 	t.Run("nok - unknown organization", func(t *testing.T) {
