@@ -53,7 +53,7 @@ func TestClientConfigFlags(t *testing.T) {
 	}()
 	t.Run("no args set", func(t *testing.T) {
 		flags := ClientConfigFlags()
-		address, err := flags.GetString(addressFlag)
+		address, err := flags.GetString(clientAddressFlag)
 		assert.NoError(t, err)
 		duration, err := flags.GetDuration(clientTimeoutFlag)
 		assert.NoError(t, err)
@@ -62,11 +62,11 @@ func TestClientConfigFlags(t *testing.T) {
 	})
 
 	t.Run("args set", func(t *testing.T) {
-		args := []string{"nuts", "--" + addressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms"}
+		args := []string{"nuts", "--" + clientAddressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms"}
 
 		flags := ClientConfigFlags()
 		flags.Parse(args)
-		address, err := flags.GetString(addressFlag)
+		address, err := flags.GetString(clientAddressFlag)
 		assert.NoError(t, err)
 		duration, err := flags.GetDuration(clientTimeoutFlag)
 		assert.NoError(t, err)

@@ -36,7 +36,7 @@ import (
 
 const defaultConfigFile = "nuts.yaml"
 const configFileFlag = "configfile"
-const addressFlag = "address"
+const serverAddressFlag = "http.default.address"
 const datadirFlag = "datadir"
 const defaultHTTPInterface = ":1323"
 const strictModeFlag = "strictmode"
@@ -136,7 +136,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("server", pflag.ContinueOnError)
 	flagSet.String(configFileFlag, defaultConfigFile, "Nuts config file")
 	flagSet.String(loggerLevelFlag, defaultLogLevel, "Log level (trace, debug, info, warn, error)")
-	flagSet.String(addressFlag, defaultHTTPInterface, "Address and port the server will be listening to")
+	flagSet.String(serverAddressFlag, defaultHTTPInterface, "Address and port the server will be listening to")
 	flagSet.Bool(strictModeFlag, defaultStrictMode, "When set, insecure settings are forbidden.")
 	flagSet.String(datadirFlag, defaultDatadir, "Directory where the node stores its files.")
 	return flagSet
