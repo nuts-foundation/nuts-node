@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/net"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -86,7 +85,7 @@ func (w *Wrapper) Search(ctx echo.Context, conceptTemplate string) error {
 
 // Revoke a credential
 func (w *Wrapper) Revoke(ctx echo.Context, id string) error {
-	idURI, err := ssi.ParseURI(net.UnescapePathIfEscaped(id))
+	idURI, err := ssi.ParseURI(id)
 
 	// return 400 for malformed input
 	if err != nil {
@@ -143,7 +142,7 @@ func (w *Wrapper) Create(ctx echo.Context) error {
 
 // Resolve a VC and return its content
 func (w *Wrapper) Resolve(ctx echo.Context, id string) error {
-	idURI, err := ssi.ParseURI(net.UnescapePathIfEscaped(id))
+	idURI, err := ssi.ParseURI(id)
 	// return 400 for malformed input
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse credential ID: %s", err.Error()))

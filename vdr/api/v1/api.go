@@ -28,7 +28,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/net"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -55,7 +54,7 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 
 // GetDID returns a DID document and DID document metadata based on a DID.
 func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
-	d, err := did.ParseDID(net.UnescapePathIfEscaped(targetDID))
+	d, err := did.ParseDID(targetDID)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
 	}
@@ -79,7 +78,7 @@ func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
 
 // UpdateDID updates a DID Document given a DID and DID Document body. It returns the updated DID Document.
 func (a Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
-	d, err := did.ParseDID(net.UnescapePathIfEscaped(targetDID))
+	d, err := did.ParseDID(targetDID)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
 	}
@@ -104,7 +103,7 @@ func (a Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
 // DeactivateDID deactivates a DID Document given a DID.
 // It returns a 200 and an empty body if the deactivation was successful.
 func (a *Wrapper) DeactivateDID(ctx echo.Context, targetDID string) error {
-	id, err := did.ParseDID(net.UnescapePathIfEscaped(targetDID))
+	id, err := did.ParseDID(targetDID)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
 	}
