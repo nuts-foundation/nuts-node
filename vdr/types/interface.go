@@ -91,7 +91,7 @@ type KeyResolver interface {
 
 // DocKeyAdder adds a new key, wrapped as a VerificationMethod to a DID document.
 type DocKeyAdder interface {
-	AddKey(id did.DID) (*did.VerificationMethod, error)
+	AddVerificationMethod(id did.DID) (*did.VerificationMethod, error)
 }
 
 // Store is the interface that groups all low level VDR DID storage operations.
@@ -111,5 +111,6 @@ type VDR interface {
 type DocManipulator interface {
 	DocDeactivator
 	DocKeyAdder
+	RemoveVerificationMethod(id, keyID did.DID) error
+	AddVerificationMethod(id did.DID) (*did.VerificationMethod, error)
 }
-

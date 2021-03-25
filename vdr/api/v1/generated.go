@@ -133,6 +133,9 @@ type ClientInterface interface {
 
 	// AddNewVerificationMethod request
 	AddNewVerificationMethod(ctx context.Context, did string) (*http.Response, error)
+
+	// DeleteVerificationMethod request
+	DeleteVerificationMethod(ctx context.Context, did string, kid string) (*http.Response, error)
 }
 
 func (c *Client) CreateDID(ctx context.Context) (*http.Response, error) {
@@ -212,6 +215,21 @@ func (c *Client) UpdateDID(ctx context.Context, did string, body UpdateDIDJSONRe
 
 func (c *Client) AddNewVerificationMethod(ctx context.Context, did string) (*http.Response, error) {
 	req, err := NewAddNewVerificationMethodRequest(c.Server, did)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteVerificationMethod(ctx context.Context, did string, kid string) (*http.Response, error) {
+	req, err := NewDeleteVerificationMethodRequest(c.Server, did, kid)
 	if err != nil {
 		return nil, err
 	}
@@ -400,6 +418,47 @@ func NewAddNewVerificationMethodRequest(server string, did string) (*http.Reques
 	return req, nil
 }
 
+// NewDeleteVerificationMethodRequest generates requests for DeleteVerificationMethod
+func NewDeleteVerificationMethodRequest(server string, did string, kid string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParam("simple", false, "did", did)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParam("simple", false, "kid", kid)
+	if err != nil {
+		return nil, err
+	}
+
+	queryUrl, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	basePath := fmt.Sprintf("/internal/vdr/v1/did/%s/verificationmethod/%s", pathParam0, pathParam1)
+	if basePath[0] == '/' {
+		basePath = basePath[1:]
+	}
+
+	queryUrl, err = queryUrl.Parse(basePath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryUrl.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // ClientWithResponses builds on ClientInterface to offer response payloads
 type ClientWithResponses struct {
 	ClientInterface
@@ -445,6 +504,9 @@ type ClientWithResponsesInterface interface {
 
 	// AddNewVerificationMethod request
 	AddNewVerificationMethodWithResponse(ctx context.Context, did string) (*AddNewVerificationMethodResponse, error)
+
+	// DeleteVerificationMethod request
+	DeleteVerificationMethodWithResponse(ctx context.Context, did string, kid string) (*DeleteVerificationMethodResponse, error)
 }
 
 type CreateDIDResponse struct {
@@ -552,6 +614,27 @@ func (r AddNewVerificationMethodResponse) StatusCode() int {
 	return 0
 }
 
+type DeleteVerificationMethodResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteVerificationMethodResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteVerificationMethodResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // CreateDIDWithResponse request returning *CreateDIDResponse
 func (c *ClientWithResponses) CreateDIDWithResponse(ctx context.Context) (*CreateDIDResponse, error) {
 	rsp, err := c.CreateDID(ctx)
@@ -603,6 +686,15 @@ func (c *ClientWithResponses) AddNewVerificationMethodWithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseAddNewVerificationMethodResponse(rsp)
+}
+
+// DeleteVerificationMethodWithResponse request returning *DeleteVerificationMethodResponse
+func (c *ClientWithResponses) DeleteVerificationMethodWithResponse(ctx context.Context, did string, kid string) (*DeleteVerificationMethodResponse, error) {
+	rsp, err := c.DeleteVerificationMethod(ctx, did, kid)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteVerificationMethodResponse(rsp)
 }
 
 // ParseCreateDIDResponse parses an HTTP response from a CreateDIDWithResponse call
@@ -700,6 +792,25 @@ func ParseAddNewVerificationMethodResponse(rsp *http.Response) (*AddNewVerificat
 	return response, nil
 }
 
+// ParseDeleteVerificationMethodResponse parses an HTTP response from a DeleteVerificationMethodWithResponse call
+func ParseDeleteVerificationMethodResponse(rsp *http.Response) (*DeleteVerificationMethodResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteVerificationMethodResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Creates a new Nuts DID
@@ -717,6 +828,9 @@ type ServerInterface interface {
 	// Creates a new verificationMethod and adds it to the DID document
 	// (POST /internal/vdr/v1/did/{did}/verificationmethod)
 	AddNewVerificationMethod(ctx echo.Context, did string) error
+	// Delete a specific verification method
+	// (DELETE /internal/vdr/v1/did/{did}/verificationmethod/{kid})
+	DeleteVerificationMethod(ctx echo.Context, did string, kid string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -797,6 +911,30 @@ func (w *ServerInterfaceWrapper) AddNewVerificationMethod(ctx echo.Context) erro
 	return err
 }
 
+// DeleteVerificationMethod converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteVerificationMethod(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameter("simple", false, "did", ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// ------------- Path parameter "kid" -------------
+	var kid string
+
+	err = runtime.BindStyledParameter("simple", false, "kid", ctx.Param("kid"), &kid)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter kid: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.DeleteVerificationMethod(ctx, did, kid)
+	return err
+}
+
 // PATCH: This template file was taken from pkg/codegen/templates/register.tmpl
 
 // This is a simple interface which specifies echo.Route addition functions which
@@ -824,5 +962,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodGet, baseURL+"/internal/vdr/v1/did/:did", wrapper.GetDID)
 	router.Add(http.MethodPut, baseURL+"/internal/vdr/v1/did/:did", wrapper.UpdateDID)
 	router.Add(http.MethodPost, baseURL+"/internal/vdr/v1/did/:did/verificationmethod", wrapper.AddNewVerificationMethod)
+	router.Add(http.MethodDelete, baseURL+"/internal/vdr/v1/did/:did/verificationmethod/:kid", wrapper.DeleteVerificationMethod)
 
 }

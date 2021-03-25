@@ -36,6 +36,23 @@ type Wrapper struct {
 	VDR            types.VDR
 	DocManipulator types.DocManipulator
 }
+func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidStr string) error {
+	id, err := did.ParseDID(didStr)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+	}
+
+	kid, err := did.ParseDID(kidStr)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given kid could not be parsed: %s", err.Error()))
+	}
+
+	err = a.DocManipulator.RemoveVerificationMethod(*id, *kid)
+	if err != nil {
+		return handleError(ctx, err, "could not remove verification method from document: %s")
+	}
+	return ctx.NoContent(http.StatusNoContent)
+}
 
 func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
 	d, err := did.ParseDID(id)
@@ -48,7 +65,7 @@ func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given update request could not be parsed: %s", err.Error()))
 	}
 
-	vm, err := a.DocManipulator.AddKey(*d)
+	vm, err := a.DocManipulator.AddVerificationMethod(*d)
 	if err != nil {
 		return handleError(ctx, err, "could not update document: %s")
 	}
@@ -133,6 +150,9 @@ func (a *Wrapper) DeactivateDID(ctx echo.Context, targetDID string) error {
 	return ctx.NoContent(http.StatusOK)
 }
 
+// handleError make error handling consistent. It accepts the echo context an error and a template.
+// Based on the error the correct status code gets selected
+// The error message is put in the %s location of the errTemplate
 func handleError(ctx echo.Context, err error, errTemplate string) error {
 	if err != nil {
 		if errors.Is(err, types.ErrNotFound) {

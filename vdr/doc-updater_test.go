@@ -1,7 +1,9 @@
 package vdr
 
 import (
-	"encoding/json"
+
+
+"encoding/json"
 	"errors"
 	"testing"
 
@@ -15,6 +17,27 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
+
+// testCtx contains the controller and mocks needed fot testing the NutsDocUpdater
+type testCtx struct {
+	ctrl *gomock.Controller
+	vdrMock *types.MockVDR
+	updater *NutsDocUpdater
+}
+
+func newTestCtx(t *testing.T) testCtx {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	vdrMock :=types.NewMockVDR(ctrl)
+	t.Cleanup(func() {
+		ctrl.Finish()
+	})
+	return testCtx{
+		ctrl : ctrl,
+		vdrMock : vdrMock,
+		updater : &NutsDocUpdater{VDR: vdrMock},
+	}
+}
 
 func Test_newNamingFnForExistingDID(t *testing.T) {
 	existingDID, _ := did.ParseDID("did:nuts:123")
@@ -50,16 +73,19 @@ func Test_newNamingFnForExistingDID(t *testing.T) {
 func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 	id123Method, _ := did.ParseDID("did:nuts:123#method-1")
-	updater := NutsDocUpdater{}
+	doc := &did.Document{ID: *id123}
+	publicKey, _ := jwkToPublicKey(t, jwkString)
+	vm, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, did.DID{}, publicKey)
+	doc.AddAuthenticationMethod(vm)
+	assert.Equal(t, vm, doc.Authentication[0].VerificationMethod)
+	assert.Equal(t, vm, doc.VerificationMethod[0])
 
 	t.Run("ok", func(t *testing.T) {
-		doc := &did.Document{ID: *id123}
-		publicKey, _ := jwkToPublicKey(t, jwkString)
-		vm, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, did.DID{}, publicKey)
-		doc.AddAuthenticationMethod(vm)
-		assert.Equal(t, vm, doc.Authentication[0].VerificationMethod)
-		assert.Equal(t, vm, doc.VerificationMethod[0])
-		err := updater.RemoveVerificationMethod(*id123Method, doc)
+		ctx := newTestCtx(t)
+		ctx.vdrMock.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(doc, &types.DocumentMetadata{}, nil)
+		ctx.vdrMock.EXPECT().Update(*id123, hash.SHA256Hash{}, did.Document{ID: *id123}, nil)
+
+		err := ctx.updater.RemoveVerificationMethod(*id123, *id123Method)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -67,10 +93,21 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 		assert.Empty(t, doc.VerificationMethod)
 	})
 
-	t.Run("trying to remove an unknown verificationMethod", func(t *testing.T) {
-		doc := &did.Document{}
-		err := updater.RemoveVerificationMethod(*id123Method, doc)
+	t.Run("error - verificationMethod is not part of the document", func(t *testing.T) {
+		ctx := newTestCtx(t)
+		ctx.vdrMock.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &types.DocumentMetadata{}, nil)
+
+		err := ctx.updater.RemoveVerificationMethod(*id123, *id123Method)
 		assert.EqualError(t, err, "verificationMethod not found in document")
+	})
+
+	t.Run("error - document is deactivated", func(t *testing.T) {
+		ctx := newTestCtx(t)
+		ctx.vdrMock.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &types.DocumentMetadata{Deactivated: true}, nil)
+
+		err := ctx.updater.RemoveVerificationMethod(*id123, *id123Method)
+		assert.EqualError(t, err, "the document has been deactivated")
+		assert.True(t, errors.Is(err, types.ErrDeactivated))
 	})
 }
 
@@ -87,7 +124,7 @@ func TestNutsDocUpdater_CreateNewAuthenticationMethodForDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		// Prepare a document with an authenticationMethod:
 		document := &did.Document{ID: *id123}
-		method, err := updater.CreateNewAuthenticationMethodForDID(document.ID)
+		method, err := updater.createNewVerificationMethodForDID(document.ID)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -125,7 +162,7 @@ func TestNutsDocUpdater_AddKey(t *testing.T) {
 
 		docUpdater := NutsDocUpdater{VDR: vdrMock, KeyCreator: keyCreator}
 
-		key, err := docUpdater.AddKey(*id)
+		key, err := docUpdater.AddVerificationMethod(*id)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -152,7 +189,7 @@ func TestNutsDocUpdater_AddKey(t *testing.T) {
 
 		docUpdater := NutsDocUpdater{VDR: vdrMock, KeyCreator: keyCreator}
 
-		key, err := docUpdater.AddKey(*id)
+		key, err := docUpdater.AddVerificationMethod(*id)
 		if !assert.Error(t, err) {
 			return
 		}
@@ -170,7 +207,7 @@ func TestNutsDocUpdater_AddKey(t *testing.T) {
 
 		docUpdater := NutsDocUpdater{VDR: vdrMock}
 
-		key, err := docUpdater.AddKey(*id)
+		key, err := docUpdater.AddVerificationMethod(*id)
 		if !assert.Error(t, err) {
 			return
 		}

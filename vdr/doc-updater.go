@@ -11,7 +11,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// NutsDocUpdater contains helper methods to update a nuts document.
+// NutsDocUpdater contains helper methods to update a Nuts DID document.
 type NutsDocUpdater struct {
 	// KeyCreator is used for getting a fresh key and use it to generate the Nuts DID
 	KeyCreator nutsCrypto.KeyCreator
@@ -19,6 +19,7 @@ type NutsDocUpdater struct {
 }
 
 // Deactivate updates the DID Document so it can no longer be updated
+// It removes key material, services and controllers.
 func (u NutsDocUpdater) Deactivate(id did.DID) error {
 	_, meta, err := u.VDR.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
@@ -32,7 +33,9 @@ func (u NutsDocUpdater) Deactivate(id did.DID) error {
 	return u.VDR.Update(id, meta.Hash, emptyDoc, nil)
 }
 
-func (u NutsDocUpdater) AddKey(id did.DID) (*did.VerificationMethod, error) {
+// AddVerificationMethod adds a new key as a VerificationMethod to the document.
+// The key is not used yet and should be manually added to one of the VerificationRelationships
+func (u NutsDocUpdater) AddVerificationMethod(id did.DID) (*did.VerificationMethod, error) {
 	doc, meta, err := u.VDR.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return nil, err
@@ -41,7 +44,7 @@ func (u NutsDocUpdater) AddKey(id did.DID) (*did.VerificationMethod, error) {
 		return nil, types.ErrDeactivated
 	}
 	updater := NutsDocUpdater{KeyCreator: u.KeyCreator}
-	method, err := updater.CreateNewAuthenticationMethodForDID(doc.ID)
+	method, err := updater.createNewVerificationMethodForDID(doc.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -53,11 +56,30 @@ func (u NutsDocUpdater) AddKey(id did.DID) (*did.VerificationMethod, error) {
 	return method, nil
 }
 
-// CreateNewAuthenticationMethodForDID creates a new VerificationMethod of type JsonWebKey2020 with a freshly generated key
-// and adds it to the provided document
-// FIXME:This method is a bit too high level and should be moved as part of this issue:
-// https://github.com/nuts-foundation/nuts-node/issues/123
-func (u NutsDocUpdater) CreateNewAuthenticationMethodForDID(id did.DID) (*did.VerificationMethod, error) {
+// RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
+// When the verificationMethod is used in an assertion or authentication method, it is also removed there.
+func (u NutsDocUpdater) RemoveVerificationMethod(id, keyID did.DID) error {
+	doc, meta, err := u.VDR.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
+	if err != nil {
+		return err
+	}
+	if meta.Deactivated {
+		return types.ErrDeactivated
+	}
+	removedVM := doc.VerificationMethod.Remove(keyID)
+	// Check if it is actually found and removed:
+	if removedVM == nil {
+		return errors.New("verificationMethod not found in document")
+	}
+
+	doc.Authentication.Remove(keyID)
+	doc.AssertionMethod.Remove(keyID)
+	return u.VDR.Update(id, meta.Hash, *doc, nil)
+}
+
+// CreateNewAuthenticationMethodForDocument creates a new VerificationMethod of type JsonWebKey2020
+// with a freshly generated key for a given DID.
+func (u NutsDocUpdater) createNewVerificationMethodForDID(id did.DID) (*did.VerificationMethod, error) {
 	key, keyIDStr, err := u.KeyCreator.New(newNamingFnForExistingDID(id))
 	if err != nil {
 		return nil, err
@@ -66,7 +88,7 @@ func (u NutsDocUpdater) CreateNewAuthenticationMethodForDID(id did.DID) (*did.Ve
 	if err != nil {
 		return nil, err
 	}
-	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key)
+	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, id, key)
 	if err != nil {
 		return nil, err
 	}
@@ -122,19 +144,4 @@ func getVerificationMethodDiff(currentDocument, proposedDocument did.Document) (
 		}
 	}
 	return
-}
-
-// RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
-// When the verificationMethod is used in an assertion or authentication method, it is also removed there.
-func (u NutsDocUpdater) RemoveVerificationMethod(keyID did.DID, document *did.Document) error {
-	removedVM := document.VerificationMethod.Remove(keyID)
-	// Check if it is actually found and removed:
-	if removedVM == nil {
-		return errors.New("verificationMethod not found in document")
-	}
-
-	document.Authentication.Remove(keyID)
-	document.AssertionMethod.Remove(keyID)
-
-	return nil
 }

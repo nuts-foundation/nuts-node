@@ -190,6 +190,49 @@ paths:
             text/plain:
               schema:
                 type: string
+  /internal/vdr/v1/did/{did}/verificationmethod/{kid}:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example:
+          - "did:nuts:1234"
+        schema:
+          type: string
+      - name: kid
+        in: path
+        description: URL encoded DID identifying the verification method.
+        required: true
+        example:
+          - "did:nuts:1234#abc"
+        schema:
+          type: string
+    delete:
+      summary: Delete a specific verification method
+      description: Removes the verification method from the DID Document. Revokes the public key in the keystore.
+      operationId: deleteVerificationMethod
+      responses:
+        "204":
+          description: Verification Method was successfully deleted
+        "403":
+          description: Verification method could not be deleted because the DID is not managed by this node.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "404":
+          description: Corresponding DID document or verification method could not be found.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "500":
+          description: An error occurred while processing the request.
+          content:
+            text/plain:
+              schema:
+                type: string
 components:
   schemas:
     DIDDocument:
