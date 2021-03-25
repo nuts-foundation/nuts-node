@@ -93,7 +93,7 @@ func NewServerConfig() *ServerConfig {
 		Datadir:    defaultDatadir,
 		HTTP: GlobalHTTPConfig{
 			HTTPConfig: HTTPConfig{
-				Address:     defaultHTTPInterface,
+				Address: defaultHTTPInterface,
 			},
 			AltBinds: map[string]HTTPConfig{},
 		},
