@@ -2,13 +2,14 @@ package vdr
 
 import (
 	"crypto"
-	"errors"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"hash/crc32"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // NameResolver defines functions for resolving the name of an entity holding a DID.
@@ -30,46 +31,9 @@ func (d dummyNameResolver) Resolve(input did.DID) (string, error) {
 	return fmt.Sprintf("Company #%d", crc32.ChecksumIEEE([]byte(input.String()))%1000), nil
 }
 
-type DocumentKeyResolver struct {
-	Document did.Document
-}
-
+// VDRKeyResolver implements the KeyResolver interface with a VDR DID store as backend.
 type VDRKeyResolver struct {
 	VDR types.VDR
-}
-
-func (d DocumentKeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
-	if len(d.Document.AssertionMethod) == 0 {
-		return "", types.ErrKeyNotFound
-	}
-	return d.Document.AssertionMethod[0].ID.String(), nil
-}
-
-func (d DocumentKeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
-	var result *did.VerificationRelationship
-	for _, rel := range d.Document.AssertionMethod {
-		if rel.ID.String() == keyID {
-			result = &rel
-		}
-	}
-	if result == nil {
-		return "", types.ErrKeyNotFound
-	}
-	return result.PublicKey()
-}
-
-func (d DocumentKeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
-	if !d.Document.ID.Equals(id) {
-		return ssi.URI{}, errors.New("provided id does not match resolver DID document")
-	}
-	keys := d.Document.AssertionMethod
-	for _, key := range keys {
-		kid := key.ID.String()
-		u, _ := ssi.ParseURI(kid)
-		return *u, nil
-	}
-
-	return ssi.URI{}, types.ErrKeyNotFound
 }
 
 func (r VDRKeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
@@ -79,7 +43,10 @@ func (r VDRKeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) 
 	if err != nil {
 		return "", err
 	}
-	return DocumentKeyResolver{Document: *doc}.ResolveSigningKeyID(holder, validAt)
+	if len(doc.AssertionMethod) == 0 {
+		return "", types.ErrKeyNotFound
+	}
+	return doc.AssertionMethod[0].ID.String(), nil
 }
 
 func (r VDRKeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
@@ -95,9 +62,16 @@ func (r VDRKeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (cry
 	if err != nil {
 		return "", err
 	}
-	return DocumentKeyResolver{
-		Document: *doc,
-	}.ResolveSigningKey(keyID, validAt)
+	var result *did.VerificationRelationship
+	for _, rel := range doc.AssertionMethod {
+		if rel.ID.String() == keyID {
+			result = &rel
+		}
+	}
+	if result == nil {
+		return "", types.ErrKeyNotFound
+	}
+	return result.PublicKey()
 }
 
 func (r VDRKeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
@@ -105,5 +79,12 @@ func (r VDRKeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
 	if err != nil {
 		return ssi.URI{}, err
 	}
-	return DocumentKeyResolver{Document: *doc}.ResolveAssertionKeyID(id)
+	keys := doc.AssertionMethod
+	for _, key := range keys {
+		kid := key.ID.String()
+		u, _ := ssi.ParseURI(kid)
+		return *u, nil
+	}
+
+	return ssi.URI{}, types.ErrKeyNotFound
 }

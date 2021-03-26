@@ -20,12 +20,19 @@
 package vdr
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"testing"
+
+	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 var holder = *TestDIDA
@@ -106,5 +113,52 @@ func TestResolveSigningKeyID(t *testing.T) {
 		_, err := keyResolver.ResolveSigningKeyID(doc.ID, nil)
 
 		assert.Equal(t, types.ErrKeyNotFound, err)
+	})
+}
+
+func TestVDRKeyResolver_ResolveAssertionKeyID(t *testing.T) {
+	t.Run("ok - resolve a known key", func(t *testing.T) {
+		id123, _ := did.ParseDID("did:nuts:123")
+		id123keyID, _ := did.ParseDID("did:nuts:123#abc-method1")
+		doc := &did.Document{ID: *id123}
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		method, _ := did.NewVerificationMethod(*id123keyID, ssi.JsonWebKey2020, *id123, pair.PublicKey)
+		doc.AddAssertionMethod(method)
+
+		ctrl := gomock.NewController(t)
+		vdrResolver := types.NewMockVDR(ctrl)
+		keyResolver := VDRKeyResolver{VDR: vdrResolver}
+		vdrResolver.EXPECT().Resolve(*id123, nil).Return(doc, nil, nil)
+
+		uri, err := keyResolver.ResolveAssertionKeyID(*id123)
+		assert.NoError(t, err)
+		assert.Equal(t, uri.String(), id123keyID.String())
+	})
+
+	t.Run("error - key not part of the document", func(t *testing.T) {
+		id123, _ := did.ParseDID("did:nuts:123")
+		doc := &did.Document{ID: *id123}
+
+		ctrl := gomock.NewController(t)
+		vdrResolver := types.NewMockVDR(ctrl)
+		keyResolver := VDRKeyResolver{VDR: vdrResolver}
+		vdrResolver.EXPECT().Resolve(*id123, nil).Return(doc, nil, nil)
+
+		uri, err := keyResolver.ResolveAssertionKeyID(*id123)
+		assert.EqualError(t, err, "key not found in document")
+		assert.Empty(t, uri.String())
+	})
+
+	t.Run("error - did document not found", func(t *testing.T) {
+		id123, _ := did.ParseDID("did:nuts:123")
+
+		ctrl := gomock.NewController(t)
+		vdrResolver := types.NewMockVDR(ctrl)
+		keyResolver := VDRKeyResolver{VDR: vdrResolver}
+		vdrResolver.EXPECT().Resolve(*id123, nil).Return(nil, nil, types.ErrNotFound)
+
+		uri, err := keyResolver.ResolveAssertionKeyID(*id123)
+		assert.EqualError(t, err, "unable to find the did document")
+		assert.Empty(t, uri.String())
 	})
 }
