@@ -20,6 +20,7 @@ package contract
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 
@@ -27,10 +28,10 @@ import (
 )
 
 func TestContract_RenderTemplate(t *testing.T) {
-	template := &Template{Type: "Simple", Template: "ga je akkoord met {{wat}} van {{valid_from}} tot {{valid_to}}?"}
+	template := &Template{Type: "Simple", Template: "ga je akkoord met {{wat}} van {{valid_from}} tot {{valid_to}}?", Locale: "nl_NL"}
 	result, err := template.Render(map[string]string{"wat": "alles"}, time.Now(), 60*time.Minute)
-	if err != nil {
-		t.Error(err)
+	if !assert.NoError(t, err) {
+		return
 	}
 	amsterdamLocation, _ := time.LoadLocation(AmsterdamTimeZone)
 
