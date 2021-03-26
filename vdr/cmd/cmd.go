@@ -183,9 +183,9 @@ func deactivateCmd() *cobra.Command {
 
 func addVerificationMethodCmd() *cobra.Command {
 	result := &cobra.Command{
-		Use: "addvm [DID]",
+		Use:   "addvm [DID]",
 		Short: "Add a verification method key to the DID document.",
-		Args: cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verificationMethod, err := httpClient(cmd.Flags()).AddNewVerificationMethod(args[0])
 			if err != nil {
@@ -202,9 +202,9 @@ func addVerificationMethodCmd() *cobra.Command {
 
 func deleteVerificationMethodCmd() *cobra.Command {
 	result := &cobra.Command{
-		Use: "delvm [DID] [kid]",
+		Use:   "delvm [DID] [kid]",
 		Short: "Deletes a verification method from the DID document.",
-		Args: cobra.ExactArgs(2),
+		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := httpClient(cmd.Flags()).DeleteVerificationMethod(args[0], args[1])
 			if err != nil {

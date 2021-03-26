@@ -205,10 +205,10 @@ func createContext(t *testing.T) *testContext {
 	signers["irma"] = signerMock
 
 	return &testContext{
-		ctrl:        ctrl,
-		signerMock:  signerMock,
+		ctrl:       ctrl,
+		signerMock: signerMock,
 		contractService: &service{
-			signers:     signers,
+			signers: signers,
 		},
 	}
 }

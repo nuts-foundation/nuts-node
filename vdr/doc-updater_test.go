@@ -1,9 +1,7 @@
 package vdr
 
 import (
-
-
-"encoding/json"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -20,7 +18,7 @@ import (
 
 // testCtx contains the controller and mocks needed fot testing the NutsDocUpdater
 type testCtx struct {
-	ctrl *gomock.Controller
+	ctrl    *gomock.Controller
 	vdrMock *types.MockVDR
 	updater *NutsDocUpdater
 }
@@ -28,14 +26,14 @@ type testCtx struct {
 func newTestCtx(t *testing.T) testCtx {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	vdrMock :=types.NewMockVDR(ctrl)
+	vdrMock := types.NewMockVDR(ctrl)
 	t.Cleanup(func() {
 		ctrl.Finish()
 	})
 	return testCtx{
-		ctrl : ctrl,
-		vdrMock : vdrMock,
-		updater : &NutsDocUpdater{VDR: vdrMock},
+		ctrl:    ctrl,
+		vdrMock: vdrMock,
+		updater: &NutsDocUpdater{VDR: vdrMock},
 	}
 }
 

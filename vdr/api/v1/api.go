@@ -36,6 +36,8 @@ type Wrapper struct {
 	VDR            types.VDR
 	DocManipulator types.DocManipulator
 }
+// DeleteVerificationMethod accepts a DID and a KeyIdentifier of a verificationMethod and calls the DocManipulator
+// to remove the verificationMethod from the given document.
 func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidStr string) error {
 	id, err := did.ParseDID(didStr)
 	if err != nil {
@@ -54,22 +56,18 @@ func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidS
 	return ctx.NoContent(http.StatusNoContent)
 }
 
+// AddNewVerificationMethod accepts a DID and adds a new VerificationMethod to that corresponding document.
 func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
-	d, err := did.ParseDID(id)
+d, err := did.ParseDID(id)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
-	}
-
-	req := DIDUpdateRequest{}
-	if err := ctx.Bind(&req); err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given update request could not be parsed: %s", err.Error()))
 	}
 
 	vm, err := a.DocManipulator.AddVerificationMethod(*d)
 	if err != nil {
 		return handleError(ctx, err, "could not update document: %s")
 	}
-	return ctx.JSON(http.StatusCreated, vm)
+	return ctx.JSON(http.StatusCreated, *vm)
 }
 
 func (a *Wrapper) Routes(router core.EchoRouter) {
@@ -156,7 +154,7 @@ func (a *Wrapper) DeactivateDID(ctx echo.Context, targetDID string) error {
 func handleError(ctx echo.Context, err error, errTemplate string) error {
 	if err != nil {
 		if errors.Is(err, types.ErrNotFound) {
-			return ctx.NoContent(http.StatusNotFound)
+			return ctx.String(http.StatusNotFound, fmt.Sprintf(errTemplate, err.Error()))
 		}
 		if errors.Is(err, types.ErrDIDNotManagedByThisNode) {
 			return ctx.String(http.StatusForbidden, fmt.Sprintf(errTemplate, err.Error()))

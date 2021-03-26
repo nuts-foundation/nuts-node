@@ -25,6 +25,8 @@ import (
 	"time"
 )
 
+// NewEntityErr wraps an error with new error containing the entity ID
+// NewEntityErr(ErrKeyNotFound, id.String())
 func NewEntityErr(err error, id string) error {
 	return fmt.Errorf("%w: id: %s", err, id)
 }

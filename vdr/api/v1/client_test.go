@@ -249,6 +249,13 @@ func TestReadDIDResolutionResult(t *testing.T) {
 	})
 }
 
+func TestReadVerificationMethod(t *testing.T) {
+	t.Run("error - faulty stream", func(t *testing.T) {
+		_, err := readVerificationMethod(errReader{})
+		assert.Error(t, err)
+	})
+}
+
 type errReader struct{}
 
 func (e errReader) Read(_ []byte) (n int, err error) {

@@ -152,10 +152,8 @@ func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
 }
 
 func readDIDDocument(reader io.Reader) (*did.Document, error) {
-	var data []byte
-	var err error
-
-	if data, err = ioutil.ReadAll(reader); err != nil {
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
 		return nil, fmt.Errorf("unable to read DID Document response: %w", err)
 	}
 	document := did.Document{}
@@ -166,10 +164,8 @@ func readDIDDocument(reader io.Reader) (*did.Document, error) {
 }
 
 func readDIDResolutionResult(reader io.Reader) (*DIDResolutionResult, error) {
-	var data []byte
-	var err error
-
-	if data, err = ioutil.ReadAll(reader); err != nil {
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
 		return nil, fmt.Errorf("unable to read DID Resolve response: %w", err)
 	}
 	resolutionResult := DIDResolutionResult{}
@@ -180,10 +176,8 @@ func readDIDResolutionResult(reader io.Reader) (*DIDResolutionResult, error) {
 }
 
 func readVerificationMethod(reader io.Reader) (*did.VerificationMethod, error) {
-	var data []byte
-	var err error
-
-	if data, err = ioutil.ReadAll(reader); err != nil {
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
 		return nil, fmt.Errorf("unable to read DID Resolve response: %w", err)
 	}
 	verificationMethod := did.VerificationMethod{}
