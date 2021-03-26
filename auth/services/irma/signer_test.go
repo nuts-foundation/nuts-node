@@ -68,7 +68,7 @@ func TestSessionPtr_SessionID(t *testing.T) {
 }
 
 func TestService_StartSigningSession(t *testing.T) {
-	correctContractText := "EN:PractitionerLogin:v3 I hereby declare to act on behalf of verpleeghuis De nootjes. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00."
+	correctContractText := "EN:PractitionerLogin:v3 I hereby declare to act on behalf of verpleeghuis De nootjes located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00."
 
 	t.Run("error - malformed contract", func(t *testing.T) {
 		service, ctrl := serviceWithMocks(t)
@@ -114,7 +114,7 @@ func TestService_StartSigningSession(t *testing.T) {
 }
 
 func TestService_SigningSessionStatus(t *testing.T) {
-	correctContractText := "EN:PractitionerLogin:v3 I hereby declare to act on behalf of verpleeghuis De nootjes. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00."
+	correctContractText := "EN:PractitionerLogin:v3 I hereby declare to act on behalf of verpleeghuis De nootjes located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00."
 
 	t.Run("error - session not found", func(t *testing.T) {
 		service, ctrl := serviceWithMocks(t)
@@ -183,14 +183,8 @@ func TestService_SigningSessionStatus(t *testing.T) {
 				Message: correctContractText,
 			},
 		}
-		claims := map[string]interface{}{
-			"iss":  holder.String(),
-			"sig":  "eyJAY29udGV4dCI6IiIsInNpZ25hdHVyZSI6bnVsbCwiaW5kaWNlcyI6bnVsbCwibm9uY2UiOm51bGwsImNvbnRleHQiOm51bGwsIm1lc3NhZ2UiOiJFTjpQcmFjdGl0aW9uZXJMb2dpbjp2MyBJIGhlcmVieSBkZWNsYXJlIHRvIGFjdCBvbiBiZWhhbGYgb2YgdmVycGxlZWdodWlzIERlIG5vb3RqZXMuIFRoaXMgZGVjbGFyYXRpb24gaXMgdmFsaWQgZnJvbSBtYWFuZGFnIDEgb2t0b2JlciAxMjowMDowMCB1bnRpbCBtYWFuZGFnIDEgb2t0b2JlciAxMzowMDowMC4iLCJ0aW1lc3RhbXAiOm51bGx9",
-			"type": "irma",
-			"kid":  keyID.String(),
-		}
 		service.DIDResolver.(*types.MockResolver).EXPECT().ResolveSigningKeyID(holder, gomock.Any()).Return(keyID.String(), nil)
-		service.Signer.(*crypto.MockJWTSigner).EXPECT().SignJWT(claims, gomock.Any()).Return("", errors.New("sign error"))
+		service.Signer.(*crypto.MockJWTSigner).EXPECT().SignJWT(gomock.Any(), gomock.Any()).Return("", errors.New("sign error"))
 
 		_, err := service.SigningSessionStatus("session")
 
@@ -212,7 +206,7 @@ func TestService_SigningSessionStatus(t *testing.T) {
 		}
 		claims := map[string]interface{}{
 			"iss":  holder.String(),
-			"sig":  "eyJAY29udGV4dCI6IiIsInNpZ25hdHVyZSI6bnVsbCwiaW5kaWNlcyI6bnVsbCwibm9uY2UiOm51bGwsImNvbnRleHQiOm51bGwsIm1lc3NhZ2UiOiJFTjpQcmFjdGl0aW9uZXJMb2dpbjp2MyBJIGhlcmVieSBkZWNsYXJlIHRvIGFjdCBvbiBiZWhhbGYgb2YgdmVycGxlZWdodWlzIERlIG5vb3RqZXMuIFRoaXMgZGVjbGFyYXRpb24gaXMgdmFsaWQgZnJvbSBtYWFuZGFnIDEgb2t0b2JlciAxMjowMDowMCB1bnRpbCBtYWFuZGFnIDEgb2t0b2JlciAxMzowMDowMC4iLCJ0aW1lc3RhbXAiOm51bGx9",
+			"sig":  "eyJAY29udGV4dCI6IiIsInNpZ25hdHVyZSI6bnVsbCwiaW5kaWNlcyI6bnVsbCwibm9uY2UiOm51bGwsImNvbnRleHQiOm51bGwsIm1lc3NhZ2UiOiJFTjpQcmFjdGl0aW9uZXJMb2dpbjp2MyBJIGhlcmVieSBkZWNsYXJlIHRvIGFjdCBvbiBiZWhhbGYgb2YgdmVycGxlZWdodWlzIERlIG5vb3RqZXMgbG9jYXRlZCBpbiBDYXJldG93bi4gVGhpcyBkZWNsYXJhdGlvbiBpcyB2YWxpZCBmcm9tIG1hYW5kYWcgMSBva3RvYmVyIDEyOjAwOjAwIHVudGlsIG1hYW5kYWcgMSBva3RvYmVyIDEzOjAwOjAwLiIsInRpbWVzdGFtcCI6bnVsbH0=",
 			"type": "irma",
 			"kid":  keyID.String(),
 		}

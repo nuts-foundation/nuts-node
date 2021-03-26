@@ -37,8 +37,9 @@ import (
 )
 
 const orgName = "CareBears"
+const orgCity = "Caretown"
 
-var orgConceptName = concept.Concept{"organization": concept.Concept{"name": orgName}}
+var orgConcept = concept.Concept{"organization": concept.Concept{"name": orgName, "city": orgCity}}
 
 var orgID = *vdr.TestDIDA
 
@@ -116,7 +117,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 
 		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(true)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, gomock.Any()).AnyTimes().Return(orgConceptName, nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 		if !assert.NoError(t, err) {
@@ -133,7 +134,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 
 		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(true)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, gomock.Any()).AnyTimes().Return(orgConceptName, nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, 0)
 		if !assert.NoError(t, err) {
@@ -150,7 +151,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 
 		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(true)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, gomock.Any()).AnyTimes().Return(orgConceptName, nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		timenow = func() time.Time {
 			return time.Time{}.Add(10 * time.Second)
@@ -226,7 +227,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 
 		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(true)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, gomock.Any()).AnyTimes().Return(orgConceptName, nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		template := contract.Template{
 			Template: "Organisation Name: {{{legal_entity}}, valid from {{valid_from}} to {{valid_to}}",
