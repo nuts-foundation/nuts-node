@@ -14,8 +14,8 @@ func Test_MultiEcho_Bind(t *testing.T) {
 		defer ctrl.Finish()
 
 		cfg := NewServerConfig().HTTP.HTTPConfig
-		m := NewMultiEcho(func() EchoServer {
-			return NewMockEchoServer(ctrl)
+		m := NewMultiEcho(func(_ HTTPConfig) (EchoServer, error) {
+			return NewMockEchoServer(ctrl), nil
 		}, cfg)
 		err := m.Bind("", cfg)
 		assert.EqualError(t, err, "http bind group already exists: ")
@@ -28,10 +28,10 @@ func Test_MultiEcho_Start(t *testing.T) {
 		defer ctrl.Finish()
 
 		cfg := NewServerConfig().HTTP.HTTPConfig
-		m := NewMultiEcho(func() EchoServer {
+		m := NewMultiEcho(func(_ HTTPConfig) (EchoServer, error) {
 			server := NewMockEchoServer(ctrl)
 			server.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("unable to start"))
-			return server
+			return server, nil
 		}, cfg)
 		m.Bind("group2", HTTPConfig{Address: ":8080"})
 		err := m.Start()
@@ -60,11 +60,11 @@ func Test_MultiEcho(t *testing.T) {
 	publicServer.EXPECT().Start("public:8080")
 
 	createFnCalled := 0
-	createFn := func() EchoServer {
+	createFn := func(_ HTTPConfig) (EchoServer, error) {
 		servers := []EchoServer{defaultServer, internalServer, publicServer}
 		s := servers[createFnCalled]
 		createFnCalled++
-		return s
+		return s, nil
 	}
 
 	// Bind interfaces

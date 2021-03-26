@@ -38,6 +38,7 @@ const defaultConfigFile = "nuts.yaml"
 const configFileFlag = "configfile"
 const serverAddressFlag = "http.default.address"
 const datadirFlag = "datadir"
+const httpCORSOriginFlag = "http.default.cors.origin"
 const defaultHTTPInterface = ":1323"
 const strictModeFlag = "strictmode"
 const defaultStrictMode = false
@@ -68,6 +69,19 @@ type GlobalHTTPConfig struct {
 type HTTPConfig struct {
 	// Address holds the interface address the HTTP service must be bound to, in the format of `interface:port` (e.g. localhost:5555).
 	Address string `koanf:"address"`
+	// CORS holds the configuration for Cross Origin Resource Sharing.
+	CORS HTTPCORSConfig `koanf:"cors"`
+}
+
+// HTTPCORSConfig contains configuration for Cross Origin Resource Sharing.
+type HTTPCORSConfig struct {
+	// Origin specifies the AllowOrigin option. If no origins are given CORS is considered to be disabled.
+	Origin []string `koanf:"origin"`
+}
+
+// Enabled returns whether CORS is enabled according to this configuration.
+func (cors HTTPCORSConfig) Enabled() bool {
+	return len(cors.Origin) > 0
 }
 
 // NewServerConfig creates a new config with some defaults
@@ -78,8 +92,10 @@ func NewServerConfig() *ServerConfig {
 		Strictmode: defaultStrictMode,
 		Datadir:    defaultDatadir,
 		HTTP: GlobalHTTPConfig{
-			HTTPConfig: HTTPConfig{Address: defaultHTTPInterface},
-			AltBinds:   map[string]HTTPConfig{},
+			HTTPConfig: HTTPConfig{
+				Address: defaultHTTPInterface,
+			},
+			AltBinds: map[string]HTTPConfig{},
 		},
 	}
 }
@@ -139,6 +155,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String(serverAddressFlag, defaultHTTPInterface, "Address and port the server will be listening to")
 	flagSet.Bool(strictModeFlag, defaultStrictMode, "When set, insecure settings are forbidden.")
 	flagSet.String(datadirFlag, defaultDatadir, "Directory where the node stores its files.")
+	flagSet.StringSlice(httpCORSOriginFlag, nil, "When set, enables CORS from the specified origins for the on default HTTP interface.")
 	return flagSet
 }
 

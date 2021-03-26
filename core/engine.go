@@ -20,10 +20,12 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4/middleware"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/cobra"
@@ -41,14 +43,22 @@ func NewSystem() *System {
 		engines: []Engine{},
 		Config:  NewServerConfig(),
 		Routers: []Routable{},
-		EchoCreator: func() EchoServer {
+		EchoCreator: func(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
 			echoServer := echo.New()
 			echoServer.HideBanner = true
 			echoServer.Use(middleware.Logger())
-			// TODO: We might not want to enable CORS on all endpoints (https://github.com/nuts-foundation/nuts-node/issues/60)
-			echoServer.Use(middleware.CORS())
+			if cfg.CORS.Enabled() {
+				if strictmode {
+					for _, origin := range cfg.CORS.Origin {
+						if strings.TrimSpace(origin) == "*" {
+							return nil, errors.New("wildcard CORS origin is not allowed in strict mode")
+						}
+					}
+				}
+				echoServer.Use(middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: cfg.CORS.Origin}))
+			}
 			echoServer.Use(DecodeURIPath)
-			return echoServer
+			return echoServer, nil
 		},
 	}
 }
@@ -62,7 +72,7 @@ type System struct {
 	// Routers is used to connect API handlers to the echo server
 	Routers []Routable
 	// EchoCreator is the function that's used to create the echo server/
-	EchoCreator func() EchoServer
+	EchoCreator func(cfg HTTPConfig, strictmode bool) (EchoServer, error)
 }
 
 // Load loads the config and injects config values into engines

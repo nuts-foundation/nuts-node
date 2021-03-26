@@ -80,8 +80,8 @@ func Test_serverCmd(t *testing.T) {
 		m := &core.TestEngine{}
 
 		system := core.NewSystem()
-		system.EchoCreator = func() core.EchoServer {
-			return echoServer
+		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
+			return echoServer, nil
 		}
 		system.RegisterEngine(m)
 
@@ -94,10 +94,10 @@ func Test_serverCmd(t *testing.T) {
 	t.Run("defaults and alt binds are used", func(t *testing.T) {
 		var echoServers []*http2.StubEchoServer
 		system := CreateSystem()
-		system.EchoCreator = func() core.EchoServer {
+		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
 			s := &http2.StubEchoServer{}
 			echoServers = append(echoServers, s)
-			return s
+			return s, nil
 		}
 		cmd := testCommand()
 		system.Load(cmd)
@@ -127,8 +127,8 @@ func Test_serverCmd(t *testing.T) {
 		echoServer.EXPECT().Start(gomock.Any()).Return(errors.New("unable to start")).Times(2)
 
 		system := core.NewSystem()
-		system.EchoCreator = func() core.EchoServer {
-			return echoServer
+		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
+			return echoServer, nil
 		}
 		system.Config = core.NewServerConfig()
 		system.Config.Datadir = io.TestDirectory(t)

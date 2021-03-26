@@ -88,8 +88,24 @@ func TestSystem_Configure(t *testing.T) {
 }
 
 func TestSystem_DefaultEchoServer(t *testing.T) {
-	system := NewSystem()
-	assert.NotNil(t, system.EchoCreator())
+	t.Run("no args", func(t *testing.T) {
+		system := NewSystem()
+		server, err := system.EchoCreator(HTTPConfig{}, true)
+		assert.NotNil(t, server)
+		assert.NoError(t, err)
+	})
+	t.Run("enable CORS", func(t *testing.T) {
+		system := NewSystem()
+		server, err := system.EchoCreator(HTTPConfig{CORS: HTTPCORSConfig{[]string{"*"}}}, false)
+		assert.NotNil(t, server)
+		assert.NoError(t, err)
+	})
+	t.Run("enable CORS (* not allowed in strict mode)", func(t *testing.T) {
+		system := NewSystem()
+		server, err := system.EchoCreator(HTTPConfig{CORS: HTTPCORSConfig{[]string{"*"}}}, true)
+		assert.Error(t, err)
+		assert.Nil(t, server)
+	})
 }
 
 func TestSystem_Diagnostics(t *testing.T) {
