@@ -101,7 +101,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 	}
 
 	template := contract.Template{
-		Template: "Organisation Name: {{legal_entity}}, valid from {{valid_from}} to {{valid_to}}",
+		Template: "Organisation Name: {{legal_entity}} in {{legal_entity_city}}, valid from {{valid_from}} to {{valid_to}}",
 	}
 	// Add 1 second so !time.Zero()
 	validFrom := time.Time{}.Add(time.Second)
@@ -125,7 +125,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		}
 
 		assert.NotNil(t, drawnUpContract)
-		assert.Equal(t, "Organisation Name: CareBears, valid from Monday, 1 January 0001 00:19:33 to Monday, 1 January 0001 00:29:33", drawnUpContract.RawContractText)
+		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Monday, 1 January 0001 00:19:33 to Monday, 1 January 0001 00:29:33", drawnUpContract.RawContractText)
 	})
 
 	t.Run("no given duration uses default", func(t *testing.T) {
@@ -142,7 +142,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		}
 
 		assert.NotNil(t, drawnUpContract)
-		assert.Equal(t, "Organisation Name: CareBears, valid from Monday, 1 January 0001 00:19:33 to Monday, 1 January 0001 00:34:33", drawnUpContract.RawContractText)
+		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Monday, 1 January 0001 00:19:33 to Monday, 1 January 0001 00:34:33", drawnUpContract.RawContractText)
 	})
 
 	t.Run("no given time uses time.Now()", func(t *testing.T) {
@@ -163,7 +163,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		}
 
 		assert.NotNil(t, drawnUpContract)
-		assert.Equal(t, "Organisation Name: CareBears, valid from Monday, 1 January 0001 00:19:42 to Monday, 1 January 0001 00:34:42", drawnUpContract.RawContractText)
+		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Monday, 1 January 0001 00:19:42 to Monday, 1 January 0001 00:34:42", drawnUpContract.RawContractText)
 	})
 
 	t.Run("nok - unknown organization", func(t *testing.T) {
@@ -178,6 +178,35 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		}
 		assert.Nil(t, drawnUpContract)
 	})
+
+	t.Run("nok - missing organization name", func(t *testing.T) {
+		ctx := buildContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(true)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"city": orgCity}}, nil)
+
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+
+		assert.Nil(t, drawnUpContract)
+		assert.EqualError(t, err, "could not draw up contract, could not extract organization name: no value for given path")
+	})
+
+	t.Run("nok - missing organization city", func(t *testing.T) {
+		ctx := buildContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.didResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		ctx.privateKeyStore.EXPECT().PrivateKeyExists(keyID.String()).Return(true)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"name": orgName}}, nil)
+
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+
+		assert.Nil(t, drawnUpContract)
+		assert.EqualError(t, err, "could not draw up contract, could not extract organization city: no value for given path")
+	})
+
 
 	t.Run("nok - unknown private key", func(t *testing.T) {
 		ctx := buildContext(t)
