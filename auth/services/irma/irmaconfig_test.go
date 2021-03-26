@@ -1,7 +1,6 @@
 package irma
 
 import (
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,8 +14,11 @@ func TestGetIrmaServer(t *testing.T) {
 	}
 
 	t.Run("when the config in initialized, the server can be fetched", func(t *testing.T) {
-		serverOnce = new(sync.Once)
-		irmaServer, err := GetIrmaServer(validatorConfig)
+		irmaConfig, err := GetIrmaConfig(validatorConfig)
+		if !assert.NoError(t, err) {
+			return
+		}
+		irmaServer, err := GetIrmaServer(validatorConfig, irmaConfig)
 		if !assert.NoError(t, err) {
 			return
 		}

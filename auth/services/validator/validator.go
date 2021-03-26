@@ -188,7 +188,7 @@ func (s *service) configureIrma(config Config) (irmaServer *irmaserver.Server, i
 	if irmaConfig, err = irma.GetIrmaConfig(s.irmaServiceConfig); err != nil {
 		return
 	}
-	if irmaServer, err = irma.GetIrmaServer(s.irmaServiceConfig); err != nil {
+	if irmaServer, err = irma.GetIrmaServer(s.irmaServiceConfig, irmaConfig); err != nil {
 		return
 	}
 	s.irmaServer = irmaServer
