@@ -14,7 +14,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.0 // indirect
 	github.com/jinzhu/gorm v1.9.14 // indirect
 	github.com/knadh/koanf v0.15.0
-	github.com/labstack/echo/v4 v4.1.17
+	github.com/labstack/echo/v4 v4.2.1
 	github.com/lestrrat-go/jwx v1.1.2
 	github.com/magiconair/properties v1.8.4
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect

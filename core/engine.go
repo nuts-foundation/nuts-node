@@ -47,6 +47,7 @@ func NewSystem() *System {
 			echoServer.Use(middleware.Logger())
 			// TODO: We might not want to enable CORS on all endpoints (https://github.com/nuts-foundation/nuts-node/issues/60)
 			echoServer.Use(middleware.CORS())
+			echoServer.Use(DecodeURIPath)
 			return echoServer
 		},
 	}
