@@ -79,8 +79,14 @@ func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID
 		return nil, fmt.Errorf("could not extract organization name: %w", err)
 	}
 
+	orgCity, err := result.GetString(concept.OrganizationCity)
+	if err != nil {
+		return nil, fmt.Errorf("could not extract organization city: %w", err)
+	}
+
 	contractAttrs := map[string]string{
 		contract.LegalEntityAttr: orgName,
+		contract.LegalEntityCityAttr: orgCity,
 	}
 
 	if validDuration == 0 {
