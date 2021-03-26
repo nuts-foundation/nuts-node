@@ -185,6 +185,72 @@ func (mr *MockTrustManagerMockRecorder) Untrusted(credentialType interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrusted", reflect.TypeOf((*MockTrustManager)(nil).Untrusted), credentialType)
 }
 
+// MockResolver is a mock of Resolver interface.
+type MockResolver struct {
+	ctrl     *gomock.Controller
+	recorder *MockResolverMockRecorder
+}
+
+// MockResolverMockRecorder is the mock recorder for MockResolver.
+type MockResolverMockRecorder struct {
+	mock *MockResolver
+}
+
+// NewMockResolver creates a new mock instance.
+func NewMockResolver(ctrl *gomock.Controller) *MockResolver {
+	mock := &MockResolver{ctrl: ctrl}
+	mock.recorder = &MockResolverMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
+	return m.recorder
+}
+
+// Registry mocks base method.
+func (m *MockResolver) Registry() concept.Registry {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Registry")
+	ret0, _ := ret[0].(concept.Registry)
+	return ret0
+}
+
+// Registry indicates an expected call of Registry.
+func (mr *MockResolverMockRecorder) Registry() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockResolver)(nil).Registry))
+}
+
+// Search mocks base method.
+func (m *MockResolver) Search(query concept.Query) ([]vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Search", query)
+	ret0, _ := ret[0].([]vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Search indicates an expected call of Search.
+func (mr *MockResolverMockRecorder) Search(query interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockResolver)(nil).Search), query)
+}
+
+// Verify mocks base method.
+func (m *MockResolver) Verify(vcToVerify vc.VerifiableCredential, at *time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Verify", vcToVerify, at)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Verify indicates an expected call of Verify.
+func (mr *MockResolverMockRecorder) Verify(vcToVerify, at interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockResolver)(nil).Verify), vcToVerify, at)
+}
+
 // MockVCR is a mock of VCR interface.
 type MockVCR struct {
 	ctrl     *gomock.Controller

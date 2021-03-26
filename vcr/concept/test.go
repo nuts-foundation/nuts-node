@@ -44,11 +44,11 @@ const ExampleTemplate = `
 
 const TestCredential = `
 {
-	"id": "did:nuts:1#123",
-	"issuer": "did:nuts:1",
+	"id": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123",
+	"issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
 	"type": ["VerifiableCredential", "HumanCredential"],
 	"credentialSubject": {
-		"id": "did:nuts:2",
+		"id": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW",
 		"human": {
 			"eyeColour": "blue/grey",
 			"hairColour": "fair"
@@ -59,8 +59,8 @@ const TestCredential = `
 
 const TestRevocation = `
 {
-  "issuer": "did:nuts:1",
-  "subject": "did:nuts:1#123",
+  "issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
+  "subject": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123",
   "currentStatus": "Revoked",
   "statusDate": "2021-03-13T16:39:58.496215+01:00"
 }

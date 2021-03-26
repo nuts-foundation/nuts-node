@@ -42,3 +42,8 @@ type NutsOrganizationCredentialSubject struct {
 	ID           string            `json:"id"`
 	Organization map[string]string `json:"organization"`
 }
+
+// BaseCredentialSubject defines the CredentialSubject struct for fields that are shared amongst all CredentialSubjects
+type BaseCredentialSubject struct {
+	ID string `json:"id"`
+}

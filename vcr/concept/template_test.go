@@ -116,10 +116,10 @@ func TestTemplate_transform(t *testing.T) {
 
 		assert.NotNil(t, concept)
 
-		assert.Equal(t, "did:nuts:1#123", concept[IDField])
+		assert.Equal(t, "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123", concept[IDField])
 		assert.Equal(t, ExampleType, concept[TypeField])
-		assert.Equal(t, "did:nuts:1", concept[IssuerField])
-		assert.Equal(t, "did:nuts:2", concept[SubjectField])
+		assert.Equal(t, "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY", concept[IssuerField])
+		assert.Equal(t, "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW", concept[SubjectField])
 
 		ce := concept["human"]
 		assert.NotNil(t, ce)

@@ -76,7 +76,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, "did:nuts:1#123", target.ID.String())
+		assert.Equal(t, "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123", target.ID.String())
 	})
 
 	t.Run("error", func(t *testing.T) {

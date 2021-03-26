@@ -26,13 +26,19 @@ import (
 	"strings"
 
 	"github.com/mdp/qrterminal/v3"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/logging"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/pkg/errors"
 	irmago "github.com/privacybydesign/irmago"
 	"github.com/privacybydesign/irmago/server"
 )
+
+// ErrLegalEntityNotFound indicates that the legalEntity is unknown by its name/city
+var ErrLegalEntityNotFound = errors.New("legalEntity not found")
 
 // SessionPtr should be made private when v0 is removed
 type SessionPtr struct {
@@ -136,6 +142,35 @@ func (v Service) SigningSessionStatus(sessionID string) (contract.SigningSession
 		return result, nil
 	}
 	return nil, services.ErrSessionNotFound
+}
+
+func (v Service) legalEntityFromContract(sic *SignedIrmaContract) (*did.DID, error) {
+	params := sic.contract.Params
+
+	q, err := v.VCResolver.Registry().QueryFor(concept.OrganizationConcept)
+	if err != nil {
+		return nil, err
+	}
+	q.AddClause(concept.Eq(concept.OrganizationName, params[contract.LegalEntityAttr]))
+	q.AddClause(concept.Eq(concept.OrganizationCity, params[contract.LegalEntityCityAttr]))
+
+	c, err := v.VCResolver.Search(q)
+	if err != nil {
+		return nil, err
+	}
+	if len(c) == 0 {
+		return nil, ErrLegalEntityNotFound
+	}
+
+	cs := make([]credential.BaseCredentialSubject, 0)
+	// can't go wrong: it comes from JSON
+	_ = c[0].UnmarshalCredentialSubject(&cs)
+
+	if len(cs) == 0 {
+		return nil, ErrLegalEntityNotFound
+	}
+
+	return did.ParseDID(cs[0].ID)
 }
 
 // SigningSessionResult implements the SigningSessionResult interface and contains the

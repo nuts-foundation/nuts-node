@@ -22,10 +22,12 @@ package v1
 import (
 	"errors"
 	"fmt"
+
 	"net/http"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vdr"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
@@ -38,10 +40,10 @@ import (
 )
 
 func TestWrapper_CreateDID(t *testing.T) {
-	issuer, _ := ssi.ParseURI("did:nuts:1")
+	issuer := vdr.TestDIDA.URI()
 
 	v := vc.VerifiableCredential{
-		Issuer: *issuer,
+		Issuer: issuer,
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -60,7 +62,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, *issuer, vcReturn.Issuer)
+		assert.Equal(t, issuer, vcReturn.Issuer)
 	})
 
 	t.Run("error - parse error", func(t *testing.T) {
@@ -258,7 +260,7 @@ func TestWrapper_Search(t *testing.T) {
 		}
 
 		assert.Len(t, capturedConcept, 1)
-		assert.Equal(t, "did:nuts:1#123", capturedConcept[0]["id"])
+		assert.Equal(t, "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123", capturedConcept[0]["id"])
 		assert.Equal(t, "HumanCredential", capturedConcept[0]["type"])
 	})
 
