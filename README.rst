@@ -153,7 +153,7 @@ http.default.address          \:1323             Address and port the server wil
 **Auth**
 auth.contractvalidators       [irma,uzi,dummy]  sets the different contract validators to use
 auth.irma.autoupdateschemas   true              set if you want automatically update the IRMA schemas every 60 minutes.
-auth.irma.schemamanager       pbdf              IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'.
+auth.irma.schememanager       pbdf              IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'.
 auth.publicurl                                  public URL which can be reached by a users IRMA client
 **Crypto**
 crypto.storage                fs                Storage to use, 'fs' for file system, default: fs

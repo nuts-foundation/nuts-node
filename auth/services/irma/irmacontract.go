@@ -144,10 +144,10 @@ func parseSignerAttributes(strictMode bool, attributes [][]*irma.DisclosedAttrib
 	// take the attributes rawvalue and add them to a list.
 	disclosedAttributes := make(map[string]string, len(attributes[0]))
 	for _, att := range attributes[0] {
-		// Check schemaManager. Only the pdbf root is accepted in strictMode.
-		schemaManager := att.Identifier.Root()
-		if strictMode && schemaManager != "pbdf" {
-			logging.Log().Infof("IRMA schemeManager %s is not valid in strictMode", schemaManager)
+		// Check schemeManager. Only the pdbf root is accepted in strictMode.
+		schemeManager := att.Identifier.Root()
+		if strictMode && schemeManager != "pbdf" {
+			logging.Log().Infof("IRMA schemeManager %s is not valid in strictMode", schemeManager)
 			continue
 		}
 		identifier := att.Identifier.String()

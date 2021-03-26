@@ -15,7 +15,7 @@ const ConfContractValidators = "auth.contractvalidators"
 const ConfAutoUpdateIrmaSchemas = "auth.irma.autoupdateschemas"
 
 // ConfIrmaSchemeManager allows selecting an IRMA scheme manager. During development this can ben irma-demo. Production should be pdfb
-const ConfIrmaSchemeManager = "auth.irma.schemamanager"
+const ConfIrmaSchemeManager = "auth.irma.schememanager"
 
 // FlagSet returns the configuration flags supported by this module.
 func FlagSet() *pflag.FlagSet {
