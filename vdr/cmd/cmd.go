@@ -58,6 +58,8 @@ func Cmd() *cobra.Command {
 
 	cmd.AddCommand(addVerificationMethodCmd())
 
+	cmd.AddCommand(deleteVerificationMethodCmd())
+
 	return cmd
 }
 
@@ -180,9 +182,8 @@ func deactivateCmd() *cobra.Command {
 }
 
 func addVerificationMethodCmd() *cobra.Command {
-	//var keyType string
 	result := &cobra.Command{
-		Use: "addvm [DID] [type]",
+		Use: "addvm [DID]",
 		Short: "Add a verification method key to the DID document.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -190,9 +191,26 @@ func addVerificationMethodCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to add a new verification method to DID document: %s", err.Error())
 			}
-			cmd.Println("New verification method added to the DID document:")
 			bytes, _ := json.MarshalIndent(verificationMethod, "", "  ")
 			cmd.Printf("%s\n", string(bytes))
+			return nil
+		},
+	}
+
+	return result
+}
+
+func deleteVerificationMethodCmd() *cobra.Command {
+	result := &cobra.Command{
+		Use: "delvm [DID] [kid]",
+		Short: "Deletes a verification method from the DID document.",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := httpClient(cmd.Flags()).DeleteVerificationMethod(args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("failed to delete the verification method from DID document: %s", err.Error())
+			}
+			cmd.Println("Verification method deleted from the DID document.")
 			return nil
 		},
 	}

@@ -20,7 +20,11 @@ package cmd
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -51,15 +55,19 @@ func TestEngine_Command(t *testing.T) {
 	}
 
 	buf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
 	inBuf := new(bytes.Buffer)
 
 	newCmd := func(t *testing.T) *cobra.Command {
 		t.Helper()
-		buf.Reset()
-		inBuf.Reset()
+		t.Cleanup(func() {
+			buf.Reset()
+			inBuf.Reset()
+			errBuf.Reset()
+		})
 		command := Cmd()
 		command.SetOut(buf)
-		command.SetErr(buf)
+		command.SetErr(errBuf)
 		command.SetIn(inBuf)
 		return command
 	}
@@ -84,6 +92,7 @@ func TestEngine_Command(t *testing.T) {
 			}
 			document := did.Document{}
 			err = json.Unmarshal(buf.Bytes(), &document)
+			assert.Empty(t, errBuf.Bytes())
 			assert.NoError(t, err)
 		})
 
@@ -101,8 +110,8 @@ func TestEngine_Command(t *testing.T) {
 			if !assert.Error(t, err) {
 				return
 			}
-			assert.Contains(t, buf.String(), "unable to create new DID")
-			assert.Contains(t, buf.String(), "b00m!")
+			assert.Contains(t, errBuf.String(), "unable to create new DID")
+			assert.Contains(t, errBuf.String(), "b00m!")
 		})
 	})
 
@@ -123,6 +132,7 @@ func TestEngine_Command(t *testing.T) {
 			}
 			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 			assert.Contains(t, buf.String(), "version")
+			assert.Empty(t, errBuf.Bytes())
 		})
 
 		t.Run("ok - print metadata only", func(t *testing.T) {
@@ -141,6 +151,7 @@ func TestEngine_Command(t *testing.T) {
 			}
 			assert.NotContains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 			assert.Contains(t, buf.String(), "version")
+			assert.Empty(t, errBuf.Bytes())
 		})
 
 		t.Run("ok - print document only", func(t *testing.T) {
@@ -159,6 +170,7 @@ func TestEngine_Command(t *testing.T) {
 			}
 			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 			assert.NotContains(t, buf.String(), "version")
+			assert.Empty(t, errBuf.Bytes())
 		})
 
 		t.Run("error - not found", func(t *testing.T) {
@@ -175,8 +187,8 @@ func TestEngine_Command(t *testing.T) {
 			if !assert.Error(t, err) {
 				return
 			}
-			assert.Contains(t, buf.String(), "failed to resolve DID document")
-			assert.Contains(t, buf.String(), "not found")
+			assert.Contains(t, errBuf.String(), "failed to resolve DID document")
+			assert.Contains(t, errBuf.String(), "not found")
 		})
 	})
 
@@ -196,6 +208,7 @@ func TestEngine_Command(t *testing.T) {
 				return
 			}
 			assert.Contains(t, buf.String(), "DID document updated")
+			assert.Empty(t, errBuf.Bytes())
 		})
 
 		t.Run("error - incorrect input", func(t *testing.T) {
@@ -211,7 +224,7 @@ func TestEngine_Command(t *testing.T) {
 			if !assert.Error(t, err) {
 				return
 			}
-			assert.Contains(t, buf.String(), "failed to parse DID document")
+			assert.Contains(t, errBuf.String(), "failed to parse DID document")
 		})
 
 		t.Run("error - server error", func(t *testing.T) {
@@ -228,8 +241,8 @@ func TestEngine_Command(t *testing.T) {
 			if !assert.Error(t, err) {
 				return
 			}
-			assert.Contains(t, buf.String(), "failed to update DID document")
-			assert.Contains(t, buf.String(), "invalid")
+			assert.Contains(t, errBuf.String(), "failed to update DID document")
+			assert.Contains(t, errBuf.String(), "invalid")
 		})
 	})
 
@@ -251,6 +264,7 @@ func TestEngine_Command(t *testing.T) {
 			}
 			assert.Contains(t, buf.String(), "This will delete the DID document, are you sure?")
 			assert.Contains(t, buf.String(), "DID document deactivated\n")
+			assert.Empty(t, errBuf.Bytes())
 		})
 		t.Run("ok - stops when the user does not confirm", func(t *testing.T) {
 			cmd := newCmd(t)
@@ -263,6 +277,7 @@ func TestEngine_Command(t *testing.T) {
 				return
 			}
 			assert.Contains(t, buf.String(), "Deactivation cancelled")
+			assert.Empty(t, errBuf.Bytes())
 		})
 
 		t.Run("error - did document not found", func(t *testing.T) {
@@ -280,7 +295,95 @@ func TestEngine_Command(t *testing.T) {
 			if !assert.Error(t, err) {
 				return
 			}
-			assert.Contains(t, buf.String(), "failed to deactivate DID document: server returned HTTP 404 (expected: 200)")
+			assert.Contains(t, errBuf.String(), "failed to deactivate DID document: server returned HTTP 404 (expected: 200)")
+		})
+	})
+
+	t.Run("addVerificationMethod", func(t *testing.T) {
+		id123, _ := did.ParseDID("did:nuts:123")
+		id123Method, _ := did.ParseDID("did:nuts:123#abc-method1")
+
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		verificationMethod, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, *id123, pair.PublicKey)
+
+		t.Run("ok", func(t *testing.T) {
+			cmd := newCmd(t)
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusCreated, ResponseData: verificationMethod})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewClientConfig().Load(cmd.Flags())
+			defer s.Close()
+
+			cmd.SetArgs([]string{"addvm", id123.String()})
+			err := cmd.Execute()
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			if !assert.Contains(t, buf.String(), id123Method.String()) {
+				return
+			}
+			//verificationMethodJson, _ := json.Marshal(verificationMethod)
+			resultingMethod := did.VerificationMethod{}
+			err = json.Unmarshal(buf.Bytes(), &resultingMethod)
+			assert.Equal(t, *verificationMethod, resultingMethod)
+			assert.Empty(t, errBuf.Bytes())
+
+		})
+
+		t.Run("error - did document not found", func(t *testing.T) {
+			cmd := newCmd(t)
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewClientConfig().Load(cmd.Flags())
+			defer s.Close()
+
+			cmd.SetArgs([]string{"addvm", id123.String()})
+
+			err := cmd.Execute()
+			if !assert.Error(t, err) {
+				return
+			}
+			assert.Contains(t, errBuf.String(), "failed to add a new verification method to DID document: server returned HTTP 404 (expected: 201), response: null")
+		})
+	})
+
+	t.Run("deleteVerificationMethod", func(t *testing.T) {
+		id123, _ := did.ParseDID("did:nuts:123")
+		id123Method, _ := did.ParseDID("did:nuts:123#abc-method1")
+
+		t.Run("ok", func(t *testing.T) {
+			cmd := newCmd(t)
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewClientConfig().Load(cmd.Flags())
+			defer s.Close()
+
+			cmd.SetArgs([]string{"delvm", id123.String(), id123Method.String()})
+			err := cmd.Execute()
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Empty(t, errBuf.String())
+		})
+
+		t.Run("error - did document not found", func(t *testing.T) {
+			cmd := newCmd(t)
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound})
+			os.Setenv("NUTS_ADDRESS", s.URL)
+			defer os.Unsetenv("NUTS_ADDRESS")
+			core.NewClientConfig().Load(cmd.Flags())
+			defer s.Close()
+
+			cmd.SetArgs([]string{"delvm", id123.String(), id123Method.String()})
+			err := cmd.Execute()
+			if !assert.Error(t, err) {
+				return
+			}
+			assert.Contains(t, errBuf.String(), "failed to delete the verification method from DID document: server returned HTTP 404 (expected: 204), response: null")
 		})
 	})
 }

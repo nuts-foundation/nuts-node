@@ -134,6 +134,19 @@ func (hb HTTPClient) AddNewVerificationMethod(DID string) (*did.VerificationMeth
 	return readVerificationMethod(response.Body)
 }
 
+// DeleteVerificationMethod deletes a specified verificationMethod from the DID document
+// It expects a status 204 respond from the server, returns an error otherwise
+func (hb HTTPClient) DeleteVerificationMethod(DID, kid string) error {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
+	response, err := hb.client().DeleteVerificationMethod(ctx, DID, kid)
+	if err != nil {
+		return err
+	}
+	return core.TestResponseCode(http.StatusNoContent, response)
+}
+
 func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), hb.Timeout)
 }

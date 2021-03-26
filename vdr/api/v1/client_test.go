@@ -16,12 +16,17 @@
 package v1
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -163,6 +168,69 @@ func TestHTTPClient_Deactivate(t *testing.T) {
 	t.Run("error - server problems", func(t *testing.T) {
 		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
 		err := c.Deactivate(didString)
+		assert.Error(t, err)
+	})
+}
+
+func TestHTTPClient_AddNewVerificationMethod(t *testing.T) {
+	didString := "did:nuts:1"
+	id123, _ := did.ParseDID(didString)
+	id123Method, _ := did.ParseDID("did:nuts:123#abc-method")
+	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	method, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, *id123, pair.PublicKey)
+	methodJSON, _ := json.Marshal(method)
+
+	t.Run("ok", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusCreated, ResponseData: string(methodJSON)})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		// methodResponse, err := c.AddNewVerificationMethod(didString)
+		_, err := c.AddNewVerificationMethod(didString)
+		if !assert.NoError(t, err) {
+			return
+		}
+		// this fails because of https://github.com/nuts-foundation/go-did/issues/33
+		//assert.Equal(t, method, methodResponse)
+	})
+
+	t.Run("error - a non 201 response", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusForbidden})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		_, err := c.AddNewVerificationMethod(didString)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "server returned HTTP 403 (expected: 201), response: null")
+	})
+
+	t.Run("error - server problems", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		_, err := c.AddNewVerificationMethod(didString)
+		assert.Error(t, err)
+	})
+}
+
+func TestHTTPClient_DeleteVerificationMethod(t *testing.T) {
+	didString := "did:nuts:1"
+	didMethodString := "did:nuts:123#abc-method-1"
+
+	t.Run("ok", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.DeleteVerificationMethod(didString, didMethodString)
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+
+	t.Run("error - a non 204 response", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusForbidden})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.DeleteVerificationMethod(didString, didMethodString)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "server returned HTTP 403 (expected: 204), response: null")
+	})
+
+	t.Run("error - server problems", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		err := c.DeleteVerificationMethod(didString, didMethodString)
 		assert.Error(t, err)
 	})
 }
