@@ -84,7 +84,7 @@ func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID
 	}
 
 	contractAttrs := map[string]string{
-		contract.LegalEntityAttr: orgName,
+		contract.LegalEntityAttr:     orgName,
 		contract.LegalEntityCityAttr: orgCity,
 	}
 
