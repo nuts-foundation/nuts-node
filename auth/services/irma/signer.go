@@ -132,7 +132,6 @@ func (v Service) SigningSessionStatus(sessionID string) (contract.SigningSession
 			}
 		}
 		result := SigningSessionResult{SessionResult: *result, NutsAuthToken: token}
-		logging.Log().Info(result.NutsAuthToken)
 		return result, nil
 	}
 	return nil, services.ErrSessionNotFound
