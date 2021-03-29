@@ -31,13 +31,14 @@ func (d dummyNameResolver) Resolve(input did.DID) (string, error) {
 	return fmt.Sprintf("Company #%d", crc32.ChecksumIEEE([]byte(input.String()))%1000), nil
 }
 
-// VDRKeyResolver implements the KeyResolver interface with a VDR DID store as backend.
 type VDRKeyResolver struct {
 	VDR types.VDR
+// KeyResolver implements the KeyResolver interface with a DocResolver as backend
 }
 
 func (r VDRKeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
 	doc, _, err := r.VDR.Resolve(holder, &types.ResolveMetadata{
+// ResolveSigningKeyID resolves the ID of the first valid AssertionMethod for a indicated DID document at a given time.
 		ResolveTime: validAt,
 	})
 	if err != nil {
@@ -50,6 +51,8 @@ func (r VDRKeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) 
 }
 
 func (r VDRKeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
+// ResolveSigningKey resolves the PublicKey of the first valid AssertionMethod for an indicated
+// DID document at a validAt time.
 	kid, err := did.ParseDID(keyID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", keyID, err)
@@ -76,6 +79,7 @@ func (r VDRKeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (cry
 
 func (r VDRKeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
 	doc, _, err := r.VDR.Resolve(id, nil)
+// ResolveAssertionKeyID resolves the id of the first valid AssertionMethod of an indicated DID document in the current state.
 	if err != nil {
 		return ssi.URI{}, err
 	}

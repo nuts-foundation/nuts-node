@@ -74,6 +74,28 @@ type DocDeactivator interface {
 	Deactivate(id did.DID) error
 }
 
+// DocKeyAdder is the interface that defies functionality to add new keys to a DID document.
+type DocKeyAdder interface {
+	// AddVerificationMethod adds a new key, wrapped as a VerificationMethod to a DID document.
+	// It accepts a DID as identifier for the DID document.
+	// It returns an ErrNotFound when the DID document could not be found.
+	// It returns an ErrDeactivated when the DID document has the deactivated state.
+	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
+	AddVerificationMethod(id did.DID) (*did.VerificationMethod, error)
+}
+
+// DocKeyRemover is the interface that defines functionality to remove a key from a DID document.
+type DocKeyRemover interface {
+	// RemoveVerificationMethod removes a VerificationMethod from a DID document.
+	// It accepts the id DID as identifier for the DID document.
+	// It accepts the kid DID as identifier for the VerificationMethod.
+	// It returns an ErrNotFound when the DID document could not be found.
+	// It returns an ErrNotFound when there is no VerificationMethod with the provided kid in the document.
+	// It returns an ErrDeactivated when the DID document has the deactivated state.
+	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
+	RemoveVerificationMethod(id, keyID did.DID) error
+}
+
 // KeyResolver is the interface for resolving keys.
 // This can be used for checking if a signing key is valid at a point in time or to just find a valid key for signing.
 type KeyResolver interface {
@@ -87,11 +109,6 @@ type KeyResolver interface {
 	// ResolveAssertionKey look for a valid assertion key for the give DID. If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key is found.
 	ResolveAssertionKeyID(id did.DID) (ssi.URI, error)
-}
-
-// DocKeyAdder adds a new key, wrapped as a VerificationMethod to a DID document.
-type DocKeyAdder interface {
-	AddVerificationMethod(id did.DID) (*did.VerificationMethod, error)
 }
 
 // Store is the interface that groups all low level VDR DID storage operations.
@@ -108,9 +125,9 @@ type VDR interface {
 	DocUpdater
 }
 
+// DocManipulator contains several higher level methods to alter the state of a DID document.
 type DocManipulator interface {
 	DocDeactivator
 	DocKeyAdder
-	RemoveVerificationMethod(id, keyID did.DID) error
-	AddVerificationMethod(id did.DID) (*did.VerificationMethod, error)
+	DocKeyRemover
 }
