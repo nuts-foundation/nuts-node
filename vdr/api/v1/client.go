@@ -24,6 +24,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
+
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -53,7 +55,7 @@ func (hb HTTPClient) Create() (*did.Document, error) {
 
 	if response, err := hb.client().CreateDID(ctx); err != nil {
 		return nil, err
-	} else if err := testResponseCode(http.StatusOK, response); err != nil {
+	} else if err := core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	} else {
 		return readDIDDocument(response.Body)
@@ -69,7 +71,7 @@ func (hb HTTPClient) Get(DID string) (*DIDDocument, *DIDDocumentMetadata, error)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := testResponseCode(http.StatusOK, response); err != nil {
+	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, nil, err
 	}
 
@@ -93,7 +95,7 @@ func (hb HTTPClient) Update(DID string, current string, next did.Document) (*did
 	if err != nil {
 		return nil, err
 	}
-	if err := testResponseCode(http.StatusOK, response); err != nil {
+	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	}
 
@@ -109,7 +111,7 @@ func (hb HTTPClient) Deactivate(DID string) error {
 	if err != nil {
 		return err
 	}
-	if err := testResponseCode(http.StatusOK, response); err != nil {
+	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
 		return err
 	}
 	return nil
@@ -117,15 +119,6 @@ func (hb HTTPClient) Deactivate(DID string) error {
 
 func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), hb.Timeout)
-}
-
-func testResponseCode(expectedStatusCode int, response *http.Response) error {
-	if response.StatusCode != expectedStatusCode {
-		responseData, _ := ioutil.ReadAll(response.Body)
-		return fmt.Errorf("VDR returned HTTP %d (expected: %d), response: %s",
-			response.StatusCode, expectedStatusCode, string(responseData))
-	}
-	return nil
 }
 
 func readDIDDocument(reader io.Reader) (*did.Document, error) {

@@ -460,8 +460,25 @@ func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
 	return c.trustConfig.RemoveTrust(credentialType, issuer)
 }
 
-func (c *vcr) Trusted(credentialType ssi.URI) []ssi.URI {
-	return c.trustConfig.List(credentialType)
+func (c *vcr) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
+	templates := c.registry.ConceptTemplates()
+	found := false
+
+outer:
+	for _, vs := range templates {
+		for _, v := range vs {
+			if v.VCType() == credentialType.String() {
+				found = true
+				break outer
+			}
+		}
+	}
+
+	if !found {
+		return nil, ErrInvalidCredential
+	}
+
+	return c.trustConfig.List(credentialType), nil
 }
 
 func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {

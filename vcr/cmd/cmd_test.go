@@ -79,7 +79,7 @@ func TestCmd(t *testing.T) {
 					return
 				}
 
-				assert.Contains(t, err.Error(), "VCR returned HTTP 500")
+				assert.Contains(t, err.Error(), "server returned HTTP 500")
 			})
 
 			t.Run("error - not enough args", func(t *testing.T) {
@@ -127,7 +127,7 @@ func TestCmd(t *testing.T) {
 					return
 				}
 
-				assert.Contains(t, err.Error(), "VCR returned HTTP 500")
+				assert.Contains(t, err.Error(), "server returned HTTP 500")
 			})
 
 			t.Run("error - not enough args", func(t *testing.T) {

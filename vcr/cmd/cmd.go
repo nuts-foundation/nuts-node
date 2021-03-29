@@ -50,8 +50,8 @@ func Cmd() *cobra.Command {
 
 func trustCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "trust [type] [DID]",
-		Short: "Trust a DID for given credential type",
+		Use:   "trust [type] [issuer DID]",
+		Short: "Trust VCs of a certain credential type when published by the given issuer.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cType := args[0]
@@ -70,8 +70,8 @@ func trustCmd() *cobra.Command {
 
 func untrustCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "untrust [type] [DID]",
-		Short: "Untrust a DID for given credential type",
+		Use:   "untrust [type] [issuer DID]",
+		Short: "Untrust VCs of a certain credential type when published by the given issuer.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cType := args[0]

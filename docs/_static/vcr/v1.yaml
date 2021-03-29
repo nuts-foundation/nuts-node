@@ -215,11 +215,10 @@ paths:
             text/plain:
               schema:
                 type: string
-  /internal/vcr/v1/trusted/{credentialType}:
+  /internal/vcr/v1/{credentialType}/trusted:
     get:
       summary: "List all trusted issuers for a given credential type"
-      description: "If an unknown credential is requested, an empty list will be returned"
-      operationId: "trusted"
+      operationId: "listTrusted"
       tags:
         - credential
       parameters:
@@ -246,10 +245,16 @@ paths:
             text/plain:
               schema:
                 type: string
-  /internal/vcr/v1/untrusted/{credentialType}:
+        "404":
+          description: unknown credential type.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /internal/vcr/v1/{credentialType}/untrusted:
     get:
       summary: "List all untrusted issuers for a given credential type"
-      operationId: "untrusted"
+      operationId: "listUntrusted"
       tags:
         - credential
       parameters:

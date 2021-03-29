@@ -142,11 +142,12 @@ func (mr *MockTrustManagerMockRecorder) Trust(credentialType, issuer interface{}
 }
 
 // Trusted mocks base method.
-func (m *MockTrustManager) Trusted(credentialType ssi.URI) []ssi.URI {
+func (m *MockTrustManager) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Trusted", credentialType)
 	ret0, _ := ret[0].([]ssi.URI)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Trusted indicates an expected call of Trusted.
@@ -339,11 +340,12 @@ func (mr *MockVCRMockRecorder) Trust(credentialType, issuer interface{}) *gomock
 }
 
 // Trusted mocks base method.
-func (m *MockVCR) Trusted(credentialType ssi.URI) []ssi.URI {
+func (m *MockVCR) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Trusted", credentialType)
 	ret0, _ := ret[0].([]ssi.URI)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Trusted indicates an expected call of Trusted.

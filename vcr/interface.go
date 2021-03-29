@@ -71,12 +71,12 @@ type Writer interface {
 
 // TrustManager bundles all trust related methods in one interface
 type TrustManager interface {
-	// Trust adds trust for a Issuer/CredentialType combination. The added trust is persisted to disk.
+	// Trust adds trust for a Issuer/CredentialType combination.
 	Trust(credentialType ssi.URI, issuer ssi.URI) error
-	// Untrust removes trust for a Issuer/CredentialType combination. The result is persisted to disk.
+	// Untrust removes trust for a Issuer/CredentialType combination.
 	Untrust(credentialType ssi.URI, issuer ssi.URI) error
 	// Trusted returns a list of trusted issuers for given credentialType
-	Trusted(credentialType ssi.URI) []ssi.URI
+	Trusted(credentialType ssi.URI) ([]ssi.URI, error)
 	// Untrusted returns a list of untrusted issuers based on known credentials
 	Untrusted(credentialType ssi.URI) ([]ssi.URI, error)
 }

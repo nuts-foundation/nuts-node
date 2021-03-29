@@ -26,6 +26,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
+	"runtime"
 	"testing"
 	"time"
 
@@ -756,44 +758,55 @@ func TestVcr_Untrusted(t *testing.T) {
 		return
 	}
 
-	t.Run("ok - untrusted", func(t *testing.T) {
-		trusted := instance.Trusted(vc.Type[1])
-		untrusted, err := instance.Untrusted(vc.Type[1])
+	funcs := []func(ssi.URI) ([]ssi.URI, error){
+		instance.Trusted,
+		instance.Untrusted,
+	}
 
-		if !assert.NoError(t, err) {
-			return
-		}
+	outcomes := [][]int{
+		{0, 1},
+		{1, 0},
+	}
 
-		assert.Len(t, trusted, 0)
-		assert.Len(t, untrusted, 1)
-	})
+	for i, fn := range funcs {
+		name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
+		t.Run(name, func(t *testing.T) {
+			t.Run("ok - untrusted", func(t *testing.T) {
+				trusted, err := fn(vc.Type[1])
 
-	t.Run("ok - trusted", func(t *testing.T) {
-		instance.Trust(vc.Type[1], vc.Issuer)
-		defer func() {
-			instance.Untrust(vc.Type[1], vc.Issuer)
-		}()
-		trusted := instance.Trusted(vc.Type[1])
-		untrusted, err := instance.Untrusted(vc.Type[1])
+				if !assert.NoError(t, err) {
+					return
+				}
 
-		if !assert.NoError(t, err) {
-			return
-		}
+				assert.Len(t, trusted, outcomes[i][0])
+			})
 
-		assert.Len(t, trusted, 1)
-		assert.Len(t, untrusted, 0)
-	})
+			t.Run("ok - trusted", func(t *testing.T) {
+				instance.Trust(vc.Type[1], vc.Issuer)
+				defer func() {
+					instance.Untrust(vc.Type[1], vc.Issuer)
+				}()
+				trusted, err := fn(vc.Type[1])
 
-	t.Run("error - unknown type", func(t *testing.T) {
-		unknown := ssi.URI{}
-		_, err := instance.Untrusted(unknown)
+				if !assert.NoError(t, err) {
+					return
+				}
 
-		if !assert.Error(t, err) {
-			return
-		}
+				assert.Len(t, trusted, outcomes[i][1])
+			})
 
-		assert.Equal(t, ErrInvalidCredential, err)
-	})
+			t.Run("error - unknown type", func(t *testing.T) {
+				unknown := ssi.URI{}
+				_, err := fn(unknown)
+
+				if !assert.Error(t, err) {
+					return
+				}
+
+				assert.Equal(t, ErrInvalidCredential, err)
+			})
+		})
+	}
 }
 
 func TestVcr_verifyRevocation(t *testing.T) {

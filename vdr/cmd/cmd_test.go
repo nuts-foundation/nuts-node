@@ -280,7 +280,7 @@ func TestEngine_Command(t *testing.T) {
 			if !assert.Error(t, err) {
 				return
 			}
-			assert.Contains(t, buf.String(), "failed to deactivate DID document: VDR returned HTTP 404 (expected: 200)")
+			assert.Contains(t, buf.String(), "failed to deactivate DID document: server returned HTTP 404 (expected: 200)")
 		})
 	})
 }

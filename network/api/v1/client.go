@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 )
@@ -49,7 +50,7 @@ func (hb HTTPClient) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]by
 	if res.StatusCode == http.StatusNotFound {
 		return nil, nil
 	}
-	if err := testResponseCode(http.StatusOK, res); err != nil {
+	if err := core.TestResponseCode(http.StatusOK, res); err != nil {
 		return nil, err
 	}
 	return ioutil.ReadAll(res.Body)
@@ -74,7 +75,7 @@ func (hb HTTPClient) ListTransactions() ([]dag.Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := testResponseCode(http.StatusOK, res); err != nil {
+	if err := core.TestResponseCode(http.StatusOK, res); err != nil {
 		return nil, err
 	}
 	responseData, err := ioutil.ReadAll(res.Body)
@@ -114,7 +115,7 @@ func testAndParseTransactionResponse(response *http.Response) (dag.Transaction, 
 	if response.StatusCode == http.StatusNotFound {
 		return nil, nil
 	}
-	if err := testResponseCode(http.StatusOK, response); err != nil {
+	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	}
 	responseData, err := ioutil.ReadAll(response.Body)
@@ -122,13 +123,4 @@ func testAndParseTransactionResponse(response *http.Response) (dag.Transaction, 
 		return nil, err
 	}
 	return dag.ParseTransaction(responseData)
-}
-
-func testResponseCode(expectedStatusCode int, response *http.Response) error {
-	if response.StatusCode != expectedStatusCode {
-		responseData, _ := ioutil.ReadAll(response.Body)
-		return fmt.Errorf("network returned HTTP %d (expected: %d), response: %s",
-			response.StatusCode, expectedStatusCode, string(responseData))
-	}
-	return nil
 }

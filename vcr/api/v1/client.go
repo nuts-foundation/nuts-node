@@ -27,6 +27,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -64,7 +66,7 @@ func (hb HTTPClient) Trust(credentialType string, issuer string) error {
 		return err
 	}
 
-	return testResponseCode(http.StatusNoContent, response)
+	return core.TestResponseCode(http.StatusNoContent, response)
 }
 
 // Untrust sends a request to the node to untrust a specific issuer for a credential type
@@ -82,7 +84,7 @@ func (hb HTTPClient) Untrust(credentialType string, issuer string) error {
 		return err
 	}
 
-	return testResponseCode(http.StatusNoContent, response)
+	return core.TestResponseCode(http.StatusNoContent, response)
 }
 
 // Trusted lists the trusted issuers for the given credential type
@@ -90,7 +92,7 @@ func (hb HTTPClient) Trusted(credentialType string) ([]string, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
 
-	return handleTrustedResponse(hb.client().Trusted(ctx, credentialType))
+	return handleTrustedResponse(hb.client().ListTrusted(ctx, credentialType))
 }
 
 // Untrusted lists the untrusted issuers for the given credential type
@@ -98,26 +100,17 @@ func (hb HTTPClient) Untrusted(credentialType string) ([]string, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
 
-	return handleTrustedResponse(hb.client().Untrusted(ctx, credentialType))
+	return handleTrustedResponse(hb.client().ListUntrusted(ctx, credentialType))
 }
 
 func handleTrustedResponse(response *http.Response, err error) ([]string, error) {
 	if err != nil {
 		return nil, err
-	} else if err := testResponseCode(http.StatusOK, response); err != nil {
+	} else if err := core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	} else {
 		return readIssuers(response.Body)
 	}
-}
-
-func testResponseCode(expectedStatusCode int, response *http.Response) error {
-	if response.StatusCode != expectedStatusCode {
-		responseData, _ := ioutil.ReadAll(response.Body)
-		return fmt.Errorf("VCR returned HTTP %d (expected: %d), response: %s",
-			response.StatusCode, expectedStatusCode, string(responseData))
-	}
-	return nil
 }
 
 func readIssuers(reader io.Reader) ([]string, error) {
