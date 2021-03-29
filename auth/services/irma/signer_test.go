@@ -22,7 +22,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
@@ -135,127 +134,6 @@ func TestService_SigningSessionStatus(t *testing.T) {
 		assert.Equal(t, services.ErrSessionNotFound, err)
 	})
 
-	t.Run("error - incorrect contract string", func(t *testing.T) {
-		ctx := serviceWithMocks(t)
-		defer ctx.ctrl.Finish()
-
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
-		irmaMock.sessionResult = &irmaservercore.SessionResult{
-			Token: "token",
-			Signature: &irma.SignedMessage{
-				Message: "not a contract",
-			},
-		}
-
-		_, err := ctx.service.SigningSessionStatus("session")
-
-		assert.Error(t, err)
-		assert.Equal(t, "invalid contract text: could not extract contract version, language and type", err.Error())
-	})
-
-	t.Run("error - unknown org", func(t *testing.T) {
-		ctx := serviceWithMocks(t)
-		defer ctx.ctrl.Finish()
-
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
-		irmaMock.sessionResult = &irmaservercore.SessionResult{
-			Token: "token",
-			Signature: &irma.SignedMessage{
-				Message: correctContractText,
-			},
-		}
-		ctx.conceptRegistry.EXPECT().QueryFor(concept.OrganizationConcept).Return(dummyQuery{}, nil)
-		ctx.vcResolver.EXPECT().Search(gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
-
-		_, err := ctx.service.SigningSessionStatus("session")
-
-		assert.Error(t, err)
-		assert.Equal(t, "could not create JWT for given session: legalEntity not found", err.Error())
-	})
-
-	t.Run("error - org search returns error", func(t *testing.T) {
-		ctx := serviceWithMocks(t)
-		defer ctx.ctrl.Finish()
-
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
-		irmaMock.sessionResult = &irmaservercore.SessionResult{
-			Token: "token",
-			Signature: &irma.SignedMessage{
-				Message: correctContractText,
-			},
-		}
-		ctx.conceptRegistry.EXPECT().QueryFor(concept.OrganizationConcept).Return(dummyQuery{}, nil)
-		ctx.vcResolver.EXPECT().Search(gomock.Any()).Return(nil, errors.New("b00m!"))
-
-		_, err := ctx.service.SigningSessionStatus("session")
-
-		assert.Error(t, err)
-		assert.Equal(t, "could not create JWT for given session: b00m!", err.Error())
-	})
-
-	t.Run("error - missing concept", func(t *testing.T) {
-		ctx := serviceWithMocks(t)
-		defer ctx.ctrl.Finish()
-
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
-		irmaMock.sessionResult = &irmaservercore.SessionResult{
-			Token: "token",
-			Signature: &irma.SignedMessage{
-				Message: correctContractText,
-			},
-		}
-		ctx.conceptRegistry.EXPECT().QueryFor(concept.OrganizationConcept).Return(nil, concept.ErrUnknownConcept)
-
-		_, err := ctx.service.SigningSessionStatus("session")
-
-		assert.Error(t, err)
-		assert.True(t, errors.Is(err, concept.ErrUnknownConcept))
-	})
-
-	t.Run("error - signing error", func(t *testing.T) {
-		ctx := serviceWithMocks(t)
-		defer ctx.ctrl.Finish()
-
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
-		irmaMock.sessionResult = &irmaservercore.SessionResult{
-			Token: "token",
-			Signature: &irma.SignedMessage{
-				Message: correctContractText,
-			},
-		}
-		ctx.conceptRegistry.EXPECT().QueryFor(concept.OrganizationConcept).Return(dummyQuery{}, nil)
-		ctx.vcResolver.EXPECT().Search(gomock.Any()).Return([]vc.VerifiableCredential{concept.TestVC()}, nil)
-		ctx.resolver.EXPECT().ResolveSigningKeyID(holder, gomock.Any()).Return(keyID.String(), nil)
-		ctx.signer.EXPECT().SignJWT(gomock.Any(), gomock.Any()).Return("", errors.New("sign error"))
-
-		_, err := ctx.service.SigningSessionStatus("session")
-
-		assert.Error(t, err)
-		assert.Equal(t, "sign error", err.Error())
-	})
-
-	t.Run("error - no vc.credentialSubject", func(t *testing.T) {
-		ctx := serviceWithMocks(t)
-		defer ctx.ctrl.Finish()
-
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
-		irmaMock.sessionResult = &irmaservercore.SessionResult{
-			Token:  "token",
-			Status: "status",
-			Signature: &irma.SignedMessage{
-				Message: correctContractText,
-			},
-		}
-
-		ctx.conceptRegistry.EXPECT().QueryFor(concept.OrganizationConcept).Return(dummyQuery{}, nil)
-		ctx.vcResolver.EXPECT().Search(gomock.Any()).Return([]vc.VerifiableCredential{{}}, nil)
-
-		_, err := ctx.service.SigningSessionStatus("session")
-
-		assert.Error(t, err)
-		assert.Equal(t, "could not create JWT for given session: legalEntity not found", err.Error())
-	})
-
 	t.Run("ok", func(t *testing.T) {
 		ctx := serviceWithMocks(t)
 		defer ctx.ctrl.Finish()
@@ -268,17 +146,6 @@ func TestService_SigningSessionStatus(t *testing.T) {
 				Message: correctContractText,
 			},
 		}
-		claims := map[string]interface{}{
-			"iss":  holder.String(),
-			"sig":  "eyJAY29udGV4dCI6IiIsInNpZ25hdHVyZSI6bnVsbCwiaW5kaWNlcyI6bnVsbCwibm9uY2UiOm51bGwsImNvbnRleHQiOm51bGwsIm1lc3NhZ2UiOiJFTjpQcmFjdGl0aW9uZXJMb2dpbjp2MyBJIGhlcmVieSBkZWNsYXJlIHRvIGFjdCBvbiBiZWhhbGYgb2YgdmVycGxlZWdodWlzIERlIG5vb3RqZXMgbG9jYXRlZCBpbiBDYXJldG93bi4gVGhpcyBkZWNsYXJhdGlvbiBpcyB2YWxpZCBmcm9tIG1hYW5kYWcgMSBva3RvYmVyIDEyOjAwOjAwIHVudGlsIG1hYW5kYWcgMSBva3RvYmVyIDEzOjAwOjAwLiIsInRpbWVzdGFtcCI6bnVsbH0=",
-			"type": "irma",
-			"kid":  keyID.String(),
-		}
-
-		ctx.conceptRegistry.EXPECT().QueryFor(concept.OrganizationConcept).Return(dummyQuery{}, nil)
-		ctx.vcResolver.EXPECT().Search(gomock.Any()).Return([]vc.VerifiableCredential{concept.TestVC()}, nil)
-		ctx.resolver.EXPECT().ResolveSigningKeyID(holder, gomock.Any()).Return(keyID.String(), nil)
-		ctx.signer.EXPECT().SignJWT(claims, keyID.String()).Return("jwt", nil)
 
 		result, err := ctx.service.SigningSessionStatus("session")
 
