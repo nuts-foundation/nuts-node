@@ -26,12 +26,9 @@ import (
 	"strings"
 
 	"github.com/mdp/qrterminal/v3"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/logging"
 	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/pkg/errors"
 	irmago "github.com/privacybydesign/irmago"
 	"github.com/privacybydesign/irmago/server"
@@ -117,68 +114,15 @@ func (v Service) StartSigningSession(rawContractText string) (contract.SessionPo
 // It returns nil if the session is not found
 func (v Service) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
 	if result := v.IrmaSessionHandler.GetSessionResult(sessionID); result != nil {
-		var (
-			token string
-		)
-		if result.Signature != nil {
-			c, err := contract.ParseContractString(result.Signature.Message, v.ContractTemplates)
-			sic := &SignedIrmaContract{IrmaContract: *result.Signature, contract: c}
-			if err != nil {
-				return nil, err
-			}
-
-			le, err := v.legalEntityFromContract(sic)
-			if err != nil {
-				return nil, fmt.Errorf("could not create JWT for given session: %w", err)
-			}
-
-			token, err = v.CreateIdentityTokenFromIrmaContract(sic, *le)
-			if err != nil {
-				return nil, err
-			}
-		}
-		result := SigningSessionResult{SessionResult: *result, NutsAuthToken: token}
-		logging.Log().Debugf("Created Nuts Auth Token from IRMA contract: %s", result.NutsAuthToken)
-		return result, nil
+		return SigningSessionResult{SessionResult: *result}, nil
 	}
 	return nil, services.ErrSessionNotFound
-}
-
-func (v Service) legalEntityFromContract(sic *SignedIrmaContract) (*did.DID, error) {
-	params := sic.contract.Params
-
-	q, err := v.VCResolver.Registry().QueryFor(concept.OrganizationConcept)
-	if err != nil {
-		return nil, err
-	}
-	q.AddClause(concept.Eq(concept.OrganizationName, params[contract.LegalEntityAttr]))
-	q.AddClause(concept.Eq(concept.OrganizationCity, params[contract.LegalEntityCityAttr]))
-
-	c, err := v.VCResolver.Search(q)
-	if err != nil {
-		return nil, err
-	}
-	if len(c) == 0 {
-		return nil, ErrLegalEntityNotFound
-	}
-
-	cs := make([]credential.BaseCredentialSubject, 0)
-	// can't go wrong: it comes from JSON
-	_ = c[0].UnmarshalCredentialSubject(&cs)
-
-	if len(cs) == 0 {
-		return nil, ErrLegalEntityNotFound
-	}
-
-	return did.ParseDID(cs[0].ID)
 }
 
 // SigningSessionResult implements the SigningSessionResult interface and contains the
 // SigningSessionResult from the IRMA means.
 type SigningSessionResult struct {
 	server.SessionResult
-	// NutsAuthToken contains the JWT if the sessionStatus is DONE
-	NutsAuthToken string `json:"nuts_auth_token"`
 }
 
 // Status returns the IRMA signing status

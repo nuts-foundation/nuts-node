@@ -19,29 +19,23 @@
 package irma
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
-	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	irmaserver2 "github.com/privacybydesign/irmago/server/irmaserver"
 
-	"github.com/nuts-foundation/nuts-node/auth/services"
-
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 
 	irma "github.com/privacybydesign/irmago"
 	irmaserver "github.com/privacybydesign/irmago/server"
 )
-
-// todo rename to verifier
 
 // VerifiablePresentationType is the irma verifiable presentation type
 const VerifiablePresentationType = contract.VPType("NutsIrmaPresentation")
@@ -124,50 +118,6 @@ func (v Service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time
 		DisclosedAttributes: signerAttributes,
 		ContractAttributes:  signedContract.Contract().Params,
 	}, nil
-}
-
-// CreateIdentityTokenFromIrmaContract from a signed irma contract. Returns a JWT signed with the provided legalEntity.
-func (v Service) CreateIdentityTokenFromIrmaContract(contract *SignedIrmaContract, legalEntity did.DID) (string, error) {
-	signature, err := json.Marshal(contract.IrmaContract)
-	encodedSignature := base64.StdEncoding.EncodeToString(signature)
-	if err != nil {
-		return "", err
-	}
-	signingKey, err := v.DIDResolver.ResolveSigningKeyID(legalEntity, nil)
-	if err != nil {
-		return "", err
-	}
-	payload := services.NutsIdentityToken{
-		Signature: encodedSignature,
-		Type:      services.IrmaFormat,
-		KeyID:     signingKey,
-	}
-	claims, err := convertPayloadToClaims(payload)
-	if err != nil {
-		return "", fmt.Errorf("could not construct claims: %w", err)
-	}
-	claims[jwt.IssuerKey] = legalEntity.String()
-	return v.Signer.SignJWT(claims, signingKey)
-}
-
-// convertPayloadToClaims converts a nutsJwt struct to a map of strings so it can be signed with the crypto module
-func convertPayloadToClaims(payload services.NutsIdentityToken) (map[string]interface{}, error) {
-
-	var (
-		jsonString []byte
-		err        error
-		claims     map[string]interface{}
-	)
-
-	if jsonString, err = json.Marshal(payload); err != nil {
-		return nil, fmt.Errorf("could not marshall payload: %w", err)
-	}
-
-	if err := json.Unmarshal(jsonString, &claims); err != nil {
-		return nil, fmt.Errorf("could not unmarshal string: %w", err)
-	}
-
-	return claims, nil
 }
 
 // SessionHandler is an abstraction for the Irma Server, mainly for enabling better testing
