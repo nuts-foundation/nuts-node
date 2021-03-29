@@ -209,10 +209,10 @@ func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 }
 
 // Registry mocks base method.
-func (m *MockResolver) Registry() concept.Registry {
+func (m *MockResolver) Registry() concept.Reader {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Registry")
-	ret0, _ := ret[0].(concept.Registry)
+	ret0, _ := ret[0].(concept.Reader)
 	return ret0
 }
 
@@ -220,6 +220,21 @@ func (m *MockResolver) Registry() concept.Registry {
 func (mr *MockResolverMockRecorder) Registry() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockResolver)(nil).Registry))
+}
+
+// Resolve mocks base method.
+func (m *MockResolver) Resolve(ID ssi.URI) (*vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Resolve", ID)
+	ret0, _ := ret[0].(*vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Resolve indicates an expected call of Resolve.
+func (mr *MockResolverMockRecorder) Resolve(ID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockResolver)(nil).Resolve), ID)
 }
 
 // Search mocks base method.
@@ -235,20 +250,6 @@ func (m *MockResolver) Search(query concept.Query) ([]vc.VerifiableCredential, e
 func (mr *MockResolverMockRecorder) Search(query interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockResolver)(nil).Search), query)
-}
-
-// Verify mocks base method.
-func (m *MockResolver) Verify(vcToVerify vc.VerifiableCredential, at *time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify", vcToVerify, at)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Verify indicates an expected call of Verify.
-func (mr *MockResolverMockRecorder) Verify(vcToVerify, at interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockResolver)(nil).Verify), vcToVerify, at)
 }
 
 // MockVCR is a mock of VCR interface.
@@ -305,10 +306,10 @@ func (mr *MockVCRMockRecorder) Issue(vcToIssue interface{}) *gomock.Call {
 }
 
 // Registry mocks base method.
-func (m *MockVCR) Registry() concept.Registry {
+func (m *MockVCR) Registry() concept.Reader {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Registry")
-	ret0, _ := ret[0].(concept.Registry)
+	ret0, _ := ret[0].(concept.Reader)
 	return ret0
 }
 

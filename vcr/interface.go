@@ -22,7 +22,6 @@ package vcr
 import (
 	"embed"
 	"errors"
-	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -83,14 +82,14 @@ type TrustManager interface {
 
 // Resolver binds all read type of operations into an interface
 type Resolver interface {
-	// Registry returns the concept registry
-	Registry() concept.Registry
+	// Registry returns the concept registry as read-only
+	Registry() concept.Reader
+	// Resolve returns a credential based on its ID.
+	// The credential will still be returned in the case of ErrRevoked and ErrUntrusted.
+	// For other errors, nil is returned
+	Resolve(ID ssi.URI) (*vc.VerifiableCredential, error)
 	// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
 	Search(query concept.Query) ([]vc.VerifiableCredential, error)
-	// Verify checks if a credential is valid and trusted at the given time.
-	// The time check is optional, so credentials can be issued that will become valid.
-	// If valid no error is returned.
-	Verify(vcToVerify vc.VerifiableCredential, at *time.Time) error
 }
 
 // VCR is the interface that covers all functionality of the vcr store.
@@ -99,10 +98,6 @@ type VCR interface {
 	// An optional expirationDate can be given.
 	// VCs are stored when the network has successfully published them.
 	Issue(vcToIssue vc.VerifiableCredential) (*vc.VerifiableCredential, error)
-	// Resolve returns a credential based on its ID.
-	// The credential will still be returned in the case of ErrRevoked and ErrUntrusted.
-	// For other errors, nil is returned
-	Resolve(ID ssi.URI) (*vc.VerifiableCredential, error)
 	// Revoke a credential based on its ID, the Issuer will be resolved automatically.
 	// The statusDate will be set to the current time.
 	// It returns an error if the credential, issuer or private key can not be found.

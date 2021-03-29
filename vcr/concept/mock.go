@@ -11,6 +11,110 @@ import (
 	vc "github.com/nuts-foundation/go-did/vc"
 )
 
+// MockReader is a mock of Reader interface.
+type MockReader struct {
+	ctrl     *gomock.Controller
+	recorder *MockReaderMockRecorder
+}
+
+// MockReaderMockRecorder is the mock recorder for MockReader.
+type MockReaderMockRecorder struct {
+	mock *MockReader
+}
+
+// NewMockReader creates a new mock instance.
+func NewMockReader(ctrl *gomock.Controller) *MockReader {
+	mock := &MockReader{ctrl: ctrl}
+	mock.recorder = &MockReaderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockReader) EXPECT() *MockReaderMockRecorder {
+	return m.recorder
+}
+
+// ConceptTemplates mocks base method.
+func (m *MockReader) ConceptTemplates() map[string][]*Template {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConceptTemplates")
+	ret0, _ := ret[0].(map[string][]*Template)
+	return ret0
+}
+
+// ConceptTemplates indicates an expected call of ConceptTemplates.
+func (mr *MockReaderMockRecorder) ConceptTemplates() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConceptTemplates", reflect.TypeOf((*MockReader)(nil).ConceptTemplates))
+}
+
+// QueryFor mocks base method.
+func (m *MockReader) QueryFor(concept string) (Query, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryFor", concept)
+	ret0, _ := ret[0].(Query)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueryFor indicates an expected call of QueryFor.
+func (mr *MockReaderMockRecorder) QueryFor(concept interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryFor", reflect.TypeOf((*MockReader)(nil).QueryFor), concept)
+}
+
+// Transform mocks base method.
+func (m *MockReader) Transform(concept string, VC vc.VerifiableCredential) (Concept, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Transform", concept, VC)
+	ret0, _ := ret[0].(Concept)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Transform indicates an expected call of Transform.
+func (mr *MockReaderMockRecorder) Transform(concept, VC interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transform", reflect.TypeOf((*MockReader)(nil).Transform), concept, VC)
+}
+
+// MockWriter is a mock of Writer interface.
+type MockWriter struct {
+	ctrl     *gomock.Controller
+	recorder *MockWriterMockRecorder
+}
+
+// MockWriterMockRecorder is the mock recorder for MockWriter.
+type MockWriterMockRecorder struct {
+	mock *MockWriter
+}
+
+// NewMockWriter creates a new mock instance.
+func NewMockWriter(ctrl *gomock.Controller) *MockWriter {
+	mock := &MockWriter{ctrl: ctrl}
+	mock.recorder = &MockWriterMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockWriter) EXPECT() *MockWriterMockRecorder {
+	return m.recorder
+}
+
+// Add mocks base method.
+func (m *MockWriter) Add(conceptTemplate *Template) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Add", conceptTemplate)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Add indicates an expected call of Add.
+func (mr *MockWriterMockRecorder) Add(conceptTemplate interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockWriter)(nil).Add), conceptTemplate)
+}
+
 // MockRegistry is a mock of Registry interface.
 type MockRegistry struct {
 	ctrl     *gomock.Controller

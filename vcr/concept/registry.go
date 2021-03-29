@@ -23,19 +23,29 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 )
 
-// Registry defines the interface for accessing loaded concepts and using the templates
-// to generate queries and transform results.
-type Registry interface {
+// Reader contains all read-only operations for the concept registry
+type Reader interface {
 	// ConceptTemplates returns a mapping of concept names to parsed templates.
 	ConceptTemplates() map[string][]*Template
-	// Add a conceptTemplate to the registry
-	Add(conceptTemplate *Template) error
 	// QueryFor creates a query for the given concept.
 	// The query is preloaded with required fixed values like the type.
 	// It returns ErrUnknownConcept if the concept is not found
 	QueryFor(concept string) (Query, error)
 	// Transform a VerifiableCredential to concept format.
 	Transform(concept string, VC vc.VerifiableCredential) (Concept, error)
+}
+
+// Writer contains state changing operations for the concept registry
+type Writer interface {
+	// Add a conceptTemplate to the registry
+	Add(conceptTemplate *Template) error
+}
+
+// Registry defines the interface for accessing loaded concepts and using the templates
+// to generate queries and transform results.
+type Registry interface {
+	Reader
+	Writer
 }
 
 const (
