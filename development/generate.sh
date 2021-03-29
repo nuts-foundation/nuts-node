@@ -31,9 +31,9 @@ function generateCertificate {
 }
 
 # Generate certificates for nodes. The specified name is both the directory where it will be placed and the hostname for the certificate.
-generateCertificate bootstrap
 generateCertificate node1
 generateCertificate node2
+generateCertificate node3
 
 # Cleanup
 rm ca.key
