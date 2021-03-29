@@ -8,7 +8,7 @@ services:
     healthcheck:
       test: "curl -f http://localhost:8080/status || exit 1"
     ports:
-      - 8081:8080
+      - 8080:8080
     volumes:
       - "./nuts.yaml:/opt/nuts/nuts.yaml"
       - "./truststore.pem:/opt/nuts/truststore.pem"
@@ -21,7 +21,7 @@ services:
     healthcheck:
       test: "curl -f http://localhost:8080/status || exit 1"
     ports:
-      - 8082:8080
+      - 8081:8080
     volumes:
       - "./nuts.yaml:/opt/nuts/nuts.yaml"
       - "./truststore.pem:/opt/nuts/truststore.pem"
@@ -34,7 +34,7 @@ services:
     healthcheck:
       test: "curl -f http://localhost:8080/status || exit 1"
     ports:
-      - 8083:8080
+      - 8082:8080
     volumes:
       - "./nuts.yaml:/opt/nuts/nuts.yaml"
       - "./truststore.pem:/opt/nuts/truststore.pem"
