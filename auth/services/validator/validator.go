@@ -34,7 +34,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
 
-	irmago "github.com/privacybydesign/irmago"
+	"github.com/privacybydesign/irmago"
 	"github.com/privacybydesign/irmago/server/irmaserver"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -109,8 +109,6 @@ func (s *service) Configure() (err error) {
 			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
 			IrmaConfig:         irmaConfig,
 			DIDResolver:        s.didResolver,
-			VCResolver:         s.vcResolver,
-			KeyResolver:        s.keyResolver,
 			Signer:             s.privateKeyStore,
 			IrmaServiceConfig:  s.irmaServiceConfig,
 			ContractTemplates:  contract.StandardContractTemplates,
@@ -172,7 +170,9 @@ func (s *service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Tim
 		return nil, fmt.Errorf("unknown VerifiablePresentation type: %s", t)
 	}
 
-	return s.verifiers[t].VerifyVP(rawVerifiablePresentation, checkTime)
+	vpVerificationResult, err := s.verifiers[t].VerifyVP(rawVerifiablePresentation, checkTime)
+
+	return vpVerificationResult, err
 }
 
 func (s *service) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {

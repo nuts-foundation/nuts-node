@@ -55,6 +55,7 @@ type validationContext struct {
 	jwtBearerToken             jwt.Token
 	jwtBearerTokenClaims       *services.NutsJwtBearerToken
 	actorName                  string
+	actorCity                  string
 	contractVerificationResult *contract.VPVerificationResult
 }
 
@@ -148,7 +149,7 @@ var ErrLegalEntityNotProvided = errors.New("legalEntity not provided")
 
 // checks if the name from the login contract matches with the registered name of the issuer.
 func (s *service) validateActor(context *validationContext) error {
-	if context.contractVerificationResult.ContractAttributes[contract.LegalEntityAttr] != context.actorName {
+	if context.contractVerificationResult.ContractAttributes[contract.LegalEntityAttr] != context.actorName || context.contractVerificationResult.ContractAttributes[contract.LegalEntityCityAttr] != context.actorCity {
 		return errors.New("legal entity mismatch")
 	}
 	return nil
@@ -156,7 +157,7 @@ func (s *service) validateActor(context *validationContext) error {
 
 // check the actor against the registry, according to RFC003 §5.2.1.3
 // - the signing key (KID) must be present as assertionMethod in the issuer's DID.
-// - the actor name which must match the login contract.
+// - the actor name/city which must match the login contract.
 func (s *service) validateIssuer(context *validationContext) error {
 	if _, err := did.ParseDID(context.jwtBearerToken.Issuer()); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
@@ -173,6 +174,9 @@ func (s *service) validateIssuer(context *validationContext) error {
 	}
 	ok := false
 	if context.actorName, ok = orgConcept.GetValue(concept.OrganizationName).(string); !ok {
+		return fmt.Errorf(errInvalidIssuerFmt, errors.New("actor has invalid organization VC"))
+	}
+	if context.actorCity, ok = orgConcept.GetValue(concept.OrganizationCity).(string); !ok {
 		return fmt.Errorf(errInvalidIssuerFmt, errors.New("actor has invalid organization VC"))
 	}
 

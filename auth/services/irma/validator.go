@@ -27,7 +27,6 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	irmaserver2 "github.com/privacybydesign/irmago/server/irmaserver"
@@ -56,9 +55,7 @@ type Service struct {
 	IrmaSessionHandler SessionHandler
 	IrmaConfig         *irma.Configuration
 	IrmaServiceConfig  ValidatorConfig
-	DIDResolver        types.DocResolver
-	VCResolver         vcr.Resolver
-	KeyResolver        types.KeyResolver
+	DIDResolver        types.Resolver
 	Signer             nutsCrypto.JWTSigner
 	ContractTemplates  contract.TemplateStore
 	StrictMode         bool

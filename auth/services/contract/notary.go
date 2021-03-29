@@ -21,13 +21,14 @@ package contract
 import (
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/services/validator"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
 
@@ -100,28 +101,4 @@ func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
 	return drawnUpContract, nil
-}
-
-// ValidateContract checks if a given contract is valid for a given orgID and is valid at a given checkTime.
-func (s *contractNotaryService) ValidateContract(contractToValidate contract.Contract, orgID did.DID, checkTime time.Time) (bool, error) {
-	// TODO: Implement this (https://github.com/nuts-foundation/nuts-node/issues/91)
-	return true, nil
-	//// check if the contract is sound and it is valid at the given checkTime
-	//err := contractToValidate.VerifyForGivenTime(checkTime)
-	//if err != nil {
-	//	return false, err
-	//}
-	//
-	//// check that the legal entity in the contract is the name of the party identified with the given orgID
-	//legalEntityName, ok := contractToValidate.Params[contract.LegalEntityAttr]
-	//if !ok {
-	//	return false, errors.New("legalEntity not part of the contract")
-	//}
-	//foundOrgs, err := s.conceptFinder.Resolve(orgID)
-	//for _, foundOrg := range foundOrgs {
-	//	if foundOrg.Equals(orgID) {
-	//		return true, nil
-	//	}
-	//}
-	//return false, fmt.Errorf("legalEntityName '%s' does not match as the name for legalEntity with id: '%s'", legalEntityName, orgID.String())
 }

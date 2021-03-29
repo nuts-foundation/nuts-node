@@ -187,7 +187,6 @@ func serviceWithMocks(t *testing.T) *mockContext {
 		IrmaSessionHandler: &mockIrmaClient{},
 		IrmaConfig:         irmaConfig,
 		DIDResolver:        mockResolver,
-		VCResolver:         vcr,
 		Signer:             mockSigner,
 		KeyResolver:        types.NewMockKeyResolver(ctrl),
 		ContractTemplates:  contract.StandardContractTemplates,
@@ -200,18 +199,4 @@ func serviceWithMocks(t *testing.T) *mockContext {
 		conceptRegistry: conceptRegistry,
 		service:         service,
 	}
-}
-
-type dummyQuery struct{}
-
-func (d dummyQuery) Concept() string {
-	return "dummy"
-}
-
-func (d dummyQuery) Parts() []*concept.TemplateQuery {
-	return []*concept.TemplateQuery{}
-}
-
-func (d dummyQuery) AddClause(_ concept.Clause) {
-
 }
