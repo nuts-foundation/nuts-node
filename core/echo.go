@@ -107,7 +107,7 @@ func getGroup(path string) string {
 	return ""
 }
 
-func creatorFn(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
+func createEchoServer(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
 	echoServer.Use(middleware.Logger())
@@ -128,13 +128,17 @@ func creatorFn(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
 
 func httpErrorHandler(err error, ctx echo.Context) {
 	if prb, ok := err.(*problem.Problem); ok {
-		// todo: connect to module logger
 		if !ctx.Response().Committed {
 			if _, err := prb.WriteTo(ctx.Response()); err != nil {
-				//ctx.Echo().Logger.Error(err)
+				ctx.Echo().Logger.Error(err)
 			}
 		}
 	} else {
 		ctx.Echo().DefaultHTTPErrorHandler(err, ctx)
 	}
+}
+
+// NewProblem creates a new problem.Problem
+func NewProblem(title string, status int, detail string) *problem.Problem {
+	return problem.New(problem.Title(title), problem.Status(status), problem.Detail(detail))
 }

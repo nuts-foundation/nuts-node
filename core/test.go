@@ -19,7 +19,6 @@
 package core
 
 import (
-	"encoding/json"
 	"github.com/spf13/pflag"
 )
 
@@ -47,20 +46,4 @@ func (i *TestEngine) FlagSet() *pflag.FlagSet {
 
 func (i *TestEngine) Name() string {
 	return "test"
-}
-
-// Problem is a helper struct to Unmarshal problem.Problem
-type Problem struct {
-	Title  string `json:"title"`
-	Status int    `json:"status"`
-	Detail string `json:"detail"`
-}
-
-// ErrorToProblem returns a Problem generated from a problem.Problem
-// problem.Problem doesn't expose its fields
-func ErrorToProblem(err error) Problem {
-	p := Problem{}
-	b, _ := json.Marshal(err)
-	_ = json.Unmarshal(b, &p)
-	return p
 }

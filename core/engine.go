@@ -40,7 +40,7 @@ func NewSystem() *System {
 		engines:     []Engine{},
 		Config:      NewServerConfig(),
 		Routers:     []Routable{},
-		EchoCreator: creatorFn,
+		EchoCreator: createEchoServer,
 	}
 }
 

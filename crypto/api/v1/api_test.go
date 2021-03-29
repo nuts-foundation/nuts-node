@@ -21,7 +21,6 @@ package v1
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"testing"
 	"time"
@@ -33,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/mock"
+	test2 "github.com/nuts-foundation/nuts-node/test"
 )
 
 func TestWrapper_SignJwt(t *testing.T) {
@@ -51,12 +51,10 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		if !assert.Error(t, err) {
-			return
-		}
-		p := core.ErrorToProblem(err)
-		assert.Equal(t, 400, p.Status)
-		assert.Equal(t, "missing claims", p.Detail)
+		test2.AssertErrProblemTitle(t, problemTitleSignJwt, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "missing claims", err)
+
 	})
 
 	t.Run("Missing kid returns 400", func(t *testing.T) {
@@ -74,12 +72,9 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		if !assert.Error(t, err) {
-			return
-		}
-		p := core.ErrorToProblem(err)
-		assert.Equal(t, 400, p.Status)
-		assert.Equal(t, "missing kid", p.Detail)
+		test2.AssertErrProblemTitle(t, problemTitleSignJwt, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "missing kid", err)
 	})
 
 	t.Run("Sign error returns 400", func(t *testing.T) {
@@ -99,12 +94,9 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		if !assert.Error(t, err) {
-			return
-		}
-		p := core.ErrorToProblem(err)
-		assert.Equal(t, 400, p.Status)
-		assert.Equal(t, "b00m!", p.Detail)
+		test2.AssertErrProblemTitle(t, problemTitleSignJwt, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "b00m!", err)
 	})
 
 	t.Run("All OK returns 200", func(t *testing.T) {
@@ -137,12 +129,9 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		if !assert.Error(t, err) {
-			return
-		}
-		p := core.ErrorToProblem(err)
-		assert.Equal(t, 400, p.Status)
-		assert.Equal(t, "missing body in request", p.Detail)
+		test2.AssertErrProblemTitle(t, problemTitleSignJwt, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "missing body in request", err)
 	})
 }
 
@@ -185,16 +174,12 @@ func TestWrapper_PublicKey(t *testing.T) {
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{})
 		ctx.keyStore.EXPECT().GetPublicKey("kid", at).Return(nil, crypto.ErrKeyNotFound)
-		//ctx.echo.EXPECT().NoContent(http.StatusNotFound)
 
 		err := ctx.client.PublicKey(ctx.echo, "kid", params)
 
-		if !assert.Error(t, err) {
-			return
-		}
-		p := core.ErrorToProblem(err)
-		assert.Equal(t, 404, p.Status)
-		assert.Equal(t, "no pubkey found for kid", p.Detail)
+		test2.AssertErrProblemTitle(t, problemTitlePublicKey, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+		test2.AssertErrProblemDetail(t, "no public key found for kid", err)
 	})
 
 	t.Run("PublicKey API call returns 500 for other error", func(t *testing.T) {
@@ -206,11 +191,8 @@ func TestWrapper_PublicKey(t *testing.T) {
 
 		err := ctx.client.PublicKey(ctx.echo, "kid", params)
 
-		if !assert.Error(t, err) {
-			return
-		}
-		p := core.ErrorToProblem(err)
-		assert.Equal(t, 500, p.Status)
+		test2.AssertErrProblemTitle(t, problemTitlePublicKey, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
 	})
 
 	t.Run("error - 400 for incorrect time format", func(t *testing.T) {
@@ -218,17 +200,13 @@ func TestWrapper_PublicKey(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{})
-		//ctx.echo.EXPECT().String(http.StatusBadRequest, "cannot parse 'b00m!' as RFC3339 time format")
 
 		notAt := "b00m!"
 		err := ctx.client.PublicKey(ctx.echo, "kid", PublicKeyParams{At: &notAt})
 
-		if !assert.Error(t, err) {
-			return
-		}
-		p := core.ErrorToProblem(err)
-		assert.Equal(t, 400, p.Status)
-		assert.Equal(t, "cannot parse 'b00m!' as RFC3339 time format", p.Detail)
+		test2.AssertErrProblemTitle(t, problemTitlePublicKey, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "cannot parse 'b00m!' as RFC3339 time format", err)
 	})
 }
 

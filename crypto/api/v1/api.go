@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
-	"schneider.vip/problem"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -56,9 +55,10 @@ func (signRequest SignJwtRequest) validate() error {
 	return nil
 }
 
-func createProblem(title string, status int, detail string) *problem.Problem {
-	return problem.New(problem.Title(title), problem.Status(status), problem.Detail(detail))
-}
+const (
+	problemTitleSignJwt   = "SignJWT failed"
+	problemTitlePublicKey = "Failed to get PublicKey"
+)
 
 // SignJwt handles api calls for signing a Jwt
 func (w *Wrapper) SignJwt(ctx echo.Context) error {
@@ -66,17 +66,17 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	err := ctx.Bind(signRequest)
 	if err != nil {
 		log.Logger().Error(err.Error())
-		return createProblem("SignJWT failed", http.StatusBadRequest, err.Error())
+		return core.NewProblem(problemTitleSignJwt, http.StatusBadRequest, err.Error())
 	}
 
 	if err := signRequest.validate(); err != nil {
-		return createProblem("SignJWT failed", http.StatusBadRequest, err.Error())
+		return core.NewProblem(problemTitleSignJwt, http.StatusBadRequest, err.Error())
 	}
 
 	sig, err := w.C.SignJWT(signRequest.Claims, signRequest.Kid)
 	if err != nil {
 		log.Logger().Error(err.Error())
-		return createProblem("SignJWT failed", http.StatusBadRequest, err.Error())
+		return core.NewProblem(problemTitleSignJwt, http.StatusBadRequest, err.Error())
 	}
 
 	return ctx.String(http.StatusOK, sig)
@@ -92,24 +92,24 @@ func (w *Wrapper) PublicKey(ctx echo.Context, kid string, params PublicKeyParams
 	if params.At != nil {
 		at, err = time.Parse(time.RFC3339, *params.At)
 		if err != nil {
-			return createProblem("Failed to get PublicKey", http.StatusBadRequest, fmt.Sprintf("cannot parse '%s' as RFC3339 time format", *params.At))
+			return core.NewProblem(problemTitlePublicKey, http.StatusBadRequest, fmt.Sprintf("cannot parse '%s' as RFC3339 time format", *params.At))
 		}
 	}
 
 	pubKey, err := w.C.GetPublicKey(kid, at)
 	if err != nil {
 		if errors.Is(err, crypto.ErrKeyNotFound) {
-			return createProblem("Failed to get PublicKey", http.StatusNotFound, fmt.Sprintf("no pubkey found for %s", kid))
+			return core.NewProblem(problemTitlePublicKey, http.StatusNotFound, fmt.Sprintf("no public key found for %s", kid))
 		}
 		log.Logger().Error(err.Error())
-		return createProblem("Failed to get PublicKey", http.StatusInternalServerError, err.Error())
+		return core.NewProblem(problemTitlePublicKey, http.StatusInternalServerError, err.Error())
 	}
 
 	if ct, _, _ := mime.ParseMediaType(acceptHeader); ct == "application/json" {
 		jwk, err := jwk.New(pubKey)
 		if err != nil {
 			log.Logger().Error(err.Error())
-			return createProblem("Failed to get PublicKey", http.StatusInternalServerError, err.Error())
+			return core.NewProblem(problemTitlePublicKey, http.StatusInternalServerError, err.Error())
 		}
 
 		return ctx.JSON(http.StatusOK, jwk)
@@ -119,7 +119,7 @@ func (w *Wrapper) PublicKey(ctx echo.Context, kid string, params PublicKeyParams
 	pub, err := util.PublicKeyToPem(pubKey)
 	if err != nil {
 		log.Logger().Error(err.Error())
-		return createProblem("Failed to get PublicKey", http.StatusInternalServerError, err.Error())
+		return core.NewProblem(problemTitlePublicKey, http.StatusInternalServerError, err.Error())
 	}
 
 	return ctx.String(http.StatusOK, pub)
