@@ -28,7 +28,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	irmaserver2 "github.com/privacybydesign/irmago/server/irmaserver"
@@ -49,6 +49,9 @@ const VerifiablePresentationType = contract.VPType("NutsIrmaPresentation")
 // ContractFormat holds the readable identifier of this signing means.
 const ContractFormat = contract.SigningMeans("irma")
 
+// ErrLegalEntityNotProvided indicates that the legalEntity is missing
+var ErrLegalEntityNotProvided = errors.New("legalEntity not provided")
+
 func init() {
 	jwt.RegisterCustomField("sig", "")
 }
@@ -59,6 +62,7 @@ type Service struct {
 	IrmaConfig         *irma.Configuration
 	IrmaServiceConfig  ValidatorConfig
 	DIDResolver        types.Resolver
+	VCResolver         vcr.Resolver
 	Signer             nutsCrypto.JWTSigner
 	ContractTemplates  contract.TemplateStore
 	StrictMode         bool
@@ -120,11 +124,6 @@ func (v Service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time
 		DisclosedAttributes: signerAttributes,
 		ContractAttributes:  signedContract.Contract().Params,
 	}, nil
-}
-
-func (v Service) legalEntityFromContract(_ *SignedIrmaContract) (*did.DID, error) {
-	// TODO: Implement this (https://github.com/nuts-foundation/nuts-node/issues/84)
-	return vdr.TestDIDA, nil
 }
 
 // CreateIdentityTokenFromIrmaContract from a signed irma contract. Returns a JWT signed with the provided legalEntity.
@@ -195,6 +194,3 @@ func (d *DefaultIrmaSessionHandler) GetSessionResult(token string) *irmaserver.S
 func (d *DefaultIrmaSessionHandler) StartSession(request interface{}, handler irmaserver.SessionHandler) (*irma.Qr, string, error) {
 	return d.I.StartSession(request, handler)
 }
-
-// ErrLegalEntityNotProvided indicates that the legalEntity is missing
-var ErrLegalEntityNotProvided = errors.New("legalEntity not provided")

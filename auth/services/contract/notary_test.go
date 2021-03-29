@@ -207,7 +207,6 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		assert.EqualError(t, err, "could not draw up contract, could not extract organization city: no value for given path")
 	})
 
-
 	t.Run("nok - unknown private key", func(t *testing.T) {
 		ctx := buildContext(t)
 		defer ctx.ctrl.Finish()

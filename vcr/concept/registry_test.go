@@ -108,10 +108,10 @@ func TestRegistry_Transform(t *testing.T) {
 		}
 
 		assert.NotNil(t, c)
-		assert.Equal(t, "did:nuts:1#123", c[IDField])
+		assert.Equal(t, "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123", c[IDField])
 		assert.Equal(t, ExampleType, c[TypeField])
-		assert.Equal(t, "did:nuts:1", c[IssuerField])
-		assert.Equal(t, "did:nuts:2", c[SubjectField])
+		assert.Equal(t, "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY", c[IssuerField])
+		assert.Equal(t, "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW", c[SubjectField])
 
 		cs, ok := c[ExampleConcept]
 		if !assert.True(t, ok) {

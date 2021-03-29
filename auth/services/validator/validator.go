@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
 	"github.com/nuts-foundation/nuts-node/auth/services/x509"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
@@ -68,15 +69,17 @@ type service struct {
 	verifiers         map[contract.VPType]contract.VPVerifier
 	signers           map[contract.SigningMeans]contract.Signer
 	didResolver       types.Resolver
+	vcResolver        vcr.Resolver
 	privateKeyStore   crypto.PrivateKeyStore
 }
 
 // NewContractInstance accepts a Config and several Nuts engines and returns a new instance of services.ContractClient
-func NewContractInstance(config Config, didResolver types.Resolver, privateKeyStore crypto.PrivateKeyStore) services.ContractClient {
+func NewContractInstance(config Config, didResolver types.Resolver, vcResolver vcr.Resolver, privateKeyStore crypto.PrivateKeyStore) services.ContractClient {
 	return &service{
 		config:          config,
 		didResolver:     didResolver,
 		privateKeyStore: privateKeyStore,
+		vcResolver:      vcResolver,
 	}
 }
 
@@ -105,6 +108,7 @@ func (s *service) Configure() (err error) {
 			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
 			IrmaConfig:         irmaConfig,
 			DIDResolver:        s.didResolver,
+			VCResolver:         s.vcResolver,
 			Signer:             s.privateKeyStore,
 			IrmaServiceConfig:  s.irmaServiceConfig,
 			ContractTemplates:  contract.StandardContractTemplates,

@@ -668,7 +668,7 @@ func TestVcr_Find(t *testing.T) {
 	testDir := io.TestDirectory(t)
 	instance := NewTestVCRInstance(testDir)
 	vc := concept.TestVC()
-	subject := "did:nuts:2"
+	subject := "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW"
 
 	ct, err := concept.ParseTemplate(concept.ExampleTemplate)
 	if !assert.NoError(t, err) {

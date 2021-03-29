@@ -37,7 +37,7 @@ import (
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
 	R  vcr.VCR
-	CR concept.Registry
+	CR concept.Reader
 }
 
 // Routes registers the handler to the echo router

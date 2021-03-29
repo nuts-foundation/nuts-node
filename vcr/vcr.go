@@ -73,7 +73,7 @@ type vcr struct {
 	trustConfig *trust.Config
 }
 
-func (c *vcr) Registry() concept.Registry {
+func (c *vcr) Registry() concept.Reader {
 	return c.registry
 }
 
