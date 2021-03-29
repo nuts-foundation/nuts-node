@@ -275,7 +275,7 @@ func TestNewContractNotary(t *testing.T) {
 		vdrInstance := vdr.NewTestVDRInstance(testDir)
 		instance := NewContractNotary(
 			vcr.NewTestVCRInstance(testDir),
-			vdr.VDRKeyResolver{VDR: vdrInstance},
+			vdr.KeyResolver{DocResolver: vdrInstance},
 			crypto.NewTestCryptoInstance(testDir),
 			60*time.Minute,
 		)

@@ -40,7 +40,7 @@ var holder = *TestDIDA
 func TestResolveSigningKey(t *testing.T) {
 	resolver := NewTestVDRInstance(io.TestDirectory(t))
 	resolver.Configure(core.ServerConfig{})
-	keyResolver := VDRKeyResolver{VDR: resolver}
+	keyResolver := KeyResolver{DocResolver: resolver}
 
 	t.Run("ok", func(t *testing.T) {
 		doc, _ := resolver.Create()
@@ -84,7 +84,7 @@ func TestResolveSigningKey(t *testing.T) {
 func TestResolveSigningKeyID(t *testing.T) {
 	resolver := NewTestVDRInstance(io.TestDirectory(t))
 	resolver.Configure(core.ServerConfig{})
-	keyResolver := VDRKeyResolver{VDR: resolver}
+	keyResolver := KeyResolver{DocResolver: resolver}
 
 	t.Run("ok", func(t *testing.T) {
 		doc, _ := resolver.Create()
@@ -127,7 +127,7 @@ func TestVDRKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 		vdrResolver := types.NewMockVDR(ctrl)
-		keyResolver := VDRKeyResolver{VDR: vdrResolver}
+		keyResolver := KeyResolver{DocResolver: vdrResolver}
 		vdrResolver.EXPECT().Resolve(*id123, nil).Return(doc, nil, nil)
 
 		uri, err := keyResolver.ResolveAssertionKeyID(*id123)
@@ -141,7 +141,7 @@ func TestVDRKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 		vdrResolver := types.NewMockVDR(ctrl)
-		keyResolver := VDRKeyResolver{VDR: vdrResolver}
+		keyResolver := KeyResolver{DocResolver: vdrResolver}
 		vdrResolver.EXPECT().Resolve(*id123, nil).Return(doc, nil, nil)
 
 		uri, err := keyResolver.ResolveAssertionKeyID(*id123)
@@ -154,7 +154,7 @@ func TestVDRKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 		vdrResolver := types.NewMockVDR(ctrl)
-		keyResolver := VDRKeyResolver{VDR: vdrResolver}
+		keyResolver := KeyResolver{DocResolver: vdrResolver}
 		vdrResolver.EXPECT().Resolve(*id123, nil).Return(nil, nil, types.ErrNotFound)
 
 		uri, err := keyResolver.ResolveAssertionKeyID(*id123)
