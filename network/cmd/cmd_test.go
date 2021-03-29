@@ -39,9 +39,9 @@ func TestFlagSet(t *testing.T) {
 }
 
 func TestCmd_List(t *testing.T) {
-	t1 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(0) * time.Second), "zfoo/bar")
-	t2 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(60) * time.Second), "bar/foo")
-	t3 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(30) * time.Second), "1foo/bar")
+	t1 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(0)*time.Second), "zfoo/bar")
+	t2 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(60)*time.Second), "bar/foo")
+	t3 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(30)*time.Second), "1foo/bar")
 	response := []interface{}{string(t1.Data()), string(t2.Data()), string(t3.Data())}
 	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
 	defer s.Close()
@@ -57,7 +57,7 @@ func TestCmd_List(t *testing.T) {
 
 		err := cmd.Execute()
 		assert.NoError(t, err)
-		lines := strings.Split(outBuf.String(),"\n")
+		lines := strings.Split(outBuf.String(), "\n")
 		assert.Len(t, lines, 5)
 		hashStr1 := strings.Split(lines[1], "  ")[0]
 		hashStr2 := strings.Split(lines[2], "  ")[0]
@@ -77,7 +77,7 @@ func TestCmd_List(t *testing.T) {
 		cmd.SetArgs([]string{"list", "--sort", "type"})
 		err := cmd.Execute()
 		assert.NoError(t, err)
-		lines := strings.Split(outBuf.String(),"\n")
+		lines := strings.Split(outBuf.String(), "\n")
 		assert.Len(t, lines, 5)
 
 		hashStr1 := strings.Split(lines[1], "  ")[0]

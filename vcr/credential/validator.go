@@ -22,8 +22,9 @@ package credential
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/vc"
 	"strings"
+
+	"github.com/nuts-foundation/go-did/vc"
 )
 
 // Validator is the interface specific VC verification.

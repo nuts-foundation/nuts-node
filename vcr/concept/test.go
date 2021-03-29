@@ -20,6 +20,7 @@ package concept
 
 import (
 	"encoding/json"
+
 	"github.com/nuts-foundation/go-did/vc"
 )
 
@@ -29,12 +30,12 @@ const ExampleType = "HumanCredential"
 const ExampleTemplate = `
 {
 	"id": "<<id>>",
-	"issuer": "<<issuer>>",
-	"type": "HumanCredential@{1_1},{2_1}",
+	"issuer": "<<issuer>>@{3}",
+	"type": "HumanCredential",
 	"credentialSubject": {
-		"id": "<<subject>>@{2_2}",
+		"id": "<<subject>>@{2}",
 		"human": {
-			"eyeColour": "<<human.eyeColour>>@{1_2}",
+			"eyeColour": "<<human.eyeColour>>@{1}",
 			"hairColour": "<<human.hairColour>>"
 		}
 	}

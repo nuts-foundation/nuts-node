@@ -28,6 +28,9 @@ type CredentialIssuer struct {
 	Issuer string `json:"issuer"`
 }
 
+// DID defines model for DID.
+type DID string
+
 // KeyValuePair defines model for KeyValuePair.
 type KeyValuePair struct {
 
@@ -181,6 +184,12 @@ type ClientInterface interface {
 	SearchWithBody(ctx context.Context, concept string, contentType string, body io.Reader) (*http.Response, error)
 
 	Search(ctx context.Context, concept string, body SearchJSONRequestBody) (*http.Response, error)
+
+	// ListTrusted request
+	ListTrusted(ctx context.Context, credentialType string) (*http.Response, error)
+
+	// ListUntrusted request
+	ListUntrusted(ctx context.Context, credentialType string) (*http.Response, error)
 }
 
 func (c *Client) UntrustIssuerWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error) {
@@ -320,6 +329,36 @@ func (c *Client) SearchWithBody(ctx context.Context, concept string, contentType
 
 func (c *Client) Search(ctx context.Context, concept string, body SearchJSONRequestBody) (*http.Response, error) {
 	req, err := NewSearchRequest(c.Server, concept, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListTrusted(ctx context.Context, credentialType string) (*http.Response, error) {
+	req, err := NewListTrustedRequest(c.Server, credentialType)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListUntrusted(ctx context.Context, credentialType string) (*http.Response, error) {
+	req, err := NewListUntrustedRequest(c.Server, credentialType)
 	if err != nil {
 		return nil, err
 	}
@@ -564,6 +603,74 @@ func NewSearchRequestWithBody(server string, concept string, contentType string,
 	return req, nil
 }
 
+// NewListTrustedRequest generates requests for ListTrusted
+func NewListTrustedRequest(server string, credentialType string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParam("simple", false, "credentialType", credentialType)
+	if err != nil {
+		return nil, err
+	}
+
+	queryUrl, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	basePath := fmt.Sprintf("/internal/vcr/v1/%s/trusted", pathParam0)
+	if basePath[0] == '/' {
+		basePath = basePath[1:]
+	}
+
+	queryUrl, err = queryUrl.Parse(basePath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryUrl.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListUntrustedRequest generates requests for ListUntrusted
+func NewListUntrustedRequest(server string, credentialType string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParam("simple", false, "credentialType", credentialType)
+	if err != nil {
+		return nil, err
+	}
+
+	queryUrl, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	basePath := fmt.Sprintf("/internal/vcr/v1/%s/untrusted", pathParam0)
+	if basePath[0] == '/' {
+		basePath = basePath[1:]
+	}
+
+	queryUrl, err = queryUrl.Parse(basePath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryUrl.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // ClientWithResponses builds on ClientInterface to offer response payloads
 type ClientWithResponses struct {
 	ClientInterface
@@ -618,6 +725,12 @@ type ClientWithResponsesInterface interface {
 	SearchWithBodyWithResponse(ctx context.Context, concept string, contentType string, body io.Reader) (*SearchResponse, error)
 
 	SearchWithResponse(ctx context.Context, concept string, body SearchJSONRequestBody) (*SearchResponse, error)
+
+	// ListTrusted request
+	ListTrustedWithResponse(ctx context.Context, credentialType string) (*ListTrustedResponse, error)
+
+	// ListUntrusted request
+	ListUntrustedWithResponse(ctx context.Context, credentialType string) (*ListUntrustedResponse, error)
 }
 
 type UntrustIssuerResponse struct {
@@ -747,6 +860,50 @@ func (r SearchResponse) StatusCode() int {
 	return 0
 }
 
+type ListTrustedResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]DID
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTrustedResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTrustedResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListUntrustedResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]DID
+}
+
+// Status returns HTTPResponse.Status
+func (r ListUntrustedResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListUntrustedResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // UntrustIssuerWithBodyWithResponse request with arbitrary body returning *UntrustIssuerResponse
 func (c *ClientWithResponses) UntrustIssuerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*UntrustIssuerResponse, error) {
 	rsp, err := c.UntrustIssuerWithBody(ctx, contentType, body)
@@ -831,6 +988,24 @@ func (c *ClientWithResponses) SearchWithResponse(ctx context.Context, concept st
 		return nil, err
 	}
 	return ParseSearchResponse(rsp)
+}
+
+// ListTrustedWithResponse request returning *ListTrustedResponse
+func (c *ClientWithResponses) ListTrustedWithResponse(ctx context.Context, credentialType string) (*ListTrustedResponse, error) {
+	rsp, err := c.ListTrusted(ctx, credentialType)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTrustedResponse(rsp)
+}
+
+// ListUntrustedWithResponse request returning *ListUntrustedResponse
+func (c *ClientWithResponses) ListUntrustedWithResponse(ctx context.Context, credentialType string) (*ListUntrustedResponse, error) {
+	rsp, err := c.ListUntrusted(ctx, credentialType)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListUntrustedResponse(rsp)
 }
 
 // ParseUntrustIssuerResponse parses an HTTP response from a UntrustIssuerWithResponse call
@@ -954,6 +1129,58 @@ func ParseSearchResponse(rsp *http.Response) (*SearchResponse, error) {
 	return response, nil
 }
 
+// ParseListTrustedResponse parses an HTTP response from a ListTrustedWithResponse call
+func ParseListTrustedResponse(rsp *http.Response) (*ListTrustedResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTrustedResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []DID
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListUntrustedResponse parses an HTTP response from a ListUntrustedWithResponse call
+func ParseListUntrustedResponse(rsp *http.Response) (*ListUntrustedResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListUntrustedResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []DID
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Remove trust in an issuer/credentialType combination
@@ -974,6 +1201,12 @@ type ServerInterface interface {
 	// Search for a concept. A concept is backed by 1 or more VCs
 	// (POST /internal/vcr/v1/{concept})
 	Search(ctx echo.Context, concept string) error
+	// List all trusted issuers for a given credential type
+	// (GET /internal/vcr/v1/{credentialType}/trusted)
+	ListTrusted(ctx echo.Context, credentialType string) error
+	// List all untrusted issuers for a given credential type
+	// (GET /internal/vcr/v1/{credentialType}/untrusted)
+	ListUntrusted(ctx echo.Context, credentialType string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -1056,6 +1289,38 @@ func (w *ServerInterfaceWrapper) Search(ctx echo.Context) error {
 	return err
 }
 
+// ListTrusted converts echo context to params.
+func (w *ServerInterfaceWrapper) ListTrusted(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "credentialType" -------------
+	var credentialType string
+
+	err = runtime.BindStyledParameter("simple", false, "credentialType", ctx.Param("credentialType"), &credentialType)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter credentialType: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.ListTrusted(ctx, credentialType)
+	return err
+}
+
+// ListUntrusted converts echo context to params.
+func (w *ServerInterfaceWrapper) ListUntrusted(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "credentialType" -------------
+	var credentialType string
+
+	err = runtime.BindStyledParameter("simple", false, "credentialType", ctx.Param("credentialType"), &credentialType)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter credentialType: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.ListUntrusted(ctx, credentialType)
+	return err
+}
+
 // PATCH: This template file was taken from pkg/codegen/templates/register.tmpl
 
 // This is a simple interface which specifies echo.Route addition functions which
@@ -1084,5 +1349,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v1/vc/:id", wrapper.Revoke)
 	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/vc/:id", wrapper.Resolve)
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/:concept", wrapper.Search)
+	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/:credentialType/trusted", wrapper.ListTrusted)
+	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/:credentialType/untrusted", wrapper.ListUntrusted)
 
 }

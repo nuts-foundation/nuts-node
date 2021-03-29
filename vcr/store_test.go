@@ -22,9 +22,10 @@ package vcr
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"github.com/nuts-foundation/go-did/vc"
 	"io/ioutil"
 	"testing"
+
+	"github.com/nuts-foundation/go-did/vc"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"

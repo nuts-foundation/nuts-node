@@ -22,13 +22,13 @@ package v1
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -73,7 +73,7 @@ func (hb HTTPClient) GetPublicKey(kid string, validAt *string) (jwk.Key, error) 
 	if err != nil {
 		return nil, err
 	}
-	if err := testResponseCode(http.StatusOK, response); err != nil {
+	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	}
 	jwkSet, err := jwk.ParseReader(response.Body)
@@ -82,13 +82,4 @@ func (hb HTTPClient) GetPublicKey(kid string, validAt *string) (jwk.Key, error) 
 	}
 	key, _ := jwkSet.Get(0)
 	return key, nil
-}
-
-func testResponseCode(expectedStatusCode int, response *http.Response) error {
-	if response.StatusCode != expectedStatusCode {
-		responseData, _ := ioutil.ReadAll(response.Body)
-		return fmt.Errorf("server returned HTTP %d (expected: %d), response: %s",
-			response.StatusCode, expectedStatusCode, string(responseData))
-	}
-	return nil
 }

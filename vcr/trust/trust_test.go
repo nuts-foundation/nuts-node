@@ -20,12 +20,13 @@
 package trust
 
 import (
+	"path"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
-	"path"
-	"testing"
 )
 
 const nutsTestCredential = "NutsOrganizationCredential"
@@ -102,6 +103,21 @@ func TestTrustConfig_IsTrusted(t *testing.T) {
 
 		assert.False(t, tc.IsTrusted(*c, *d))
 	})
+}
+
+func TestTrustConfig_List(t *testing.T) {
+	tc := NewConfig("../test/issuers.yaml")
+	d, _ := ssi.ParseURI("did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv")
+	c, _ := ssi.ParseURI(nutsTestCredential)
+
+	err := tc.Load()
+	if !assert.NoError(t, err) {
+		return
+	}
+	trusted := tc.List(*c)
+
+	assert.Len(t, trusted, 1)
+	assert.Equal(t, *d, trusted[0])
 }
 
 func TestConfig_AddTrust(t *testing.T) {

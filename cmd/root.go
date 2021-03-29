@@ -20,14 +20,15 @@
 package cmd
 
 import (
+	"io"
+	"os"
+
 	"github.com/nuts-foundation/nuts-node/auth"
 	authExperimentalAPI "github.com/nuts-foundation/nuts-node/auth/api/experimental"
 	authIrmaAPI "github.com/nuts-foundation/nuts-node/auth/api/irma"
 	authV1API "github.com/nuts-foundation/nuts-node/auth/api/v0"
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core/status"
-	"io"
-	"os"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -38,6 +39,7 @@ import (
 	networkCmd "github.com/nuts-foundation/nuts-node/network/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	credApi "github.com/nuts-foundation/nuts-node/vcr/api/v1"
+	vcrCmd "github.com/nuts-foundation/nuts-node/vcr/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrApi "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
@@ -188,6 +190,7 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		status.Cmd(),
 		cryptoCmd.Cmd(),
 		networkCmd.Cmd(),
+		vcrCmd.Cmd(),
 		vdrCmd.Cmd(),
 	}
 	clientFlags := core.ClientConfigFlags()

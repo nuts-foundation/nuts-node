@@ -25,17 +25,17 @@ An example concept mapping template looks like this:
     {
         "id": "<<id>>",
         "issuer": "<<issuer>>",
-        "type": "ExampleCredential@{1_1},{2_1}",
+        "type": "ExampleCredential",
         "credentialSubject": {
-            "id": "<<subject>>@{2_2}",
+            "id": "<<subject>>@{2}",
             "company": {
-                "name": "<<company.name>>@{1_2}",
+                "name": "<<company.name>>@{1}",
                 "city": "<<company.city>>"
             }
         }
     }
 
-it follows the syntax of a Verifiable Credential. Only the parts of the credential that are mapped or have a fixed value are in the template.
+it follows the syntax of a Verifiable Credential. Only the parts of the credential that are mapped (and type) are in the template.
 The example template above introduces the `company` concept. That name must also be used in the APIs.
 A concept is automatically derived from any *conceptValue* with a `.` in it. Any field that is encapsulated between `<<` and `>>` is called a *conceptValue*.
 This *conceptValue* is also used in the APIs and CLI. It can be used as JSON like:
@@ -72,14 +72,6 @@ The following template only defines the generic fields. The generic fields are r
         }
     }
 
-Fixed values
-============
-
-The example also contains a field that is not encapsulated, the `type` field with `ExampleCredential` as value. For the `type` field this is always the case.
-When searching for a credential, the fixed value will always be added.
-So, if you search for `company.name=X` through the API, the underlying query to the DB will add `type=ExampleCredential` to that query.
-This will happen for all fixed values. This is important to know because it will influence which indexes are required.
-
 Indices
 =======
 
@@ -95,7 +87,6 @@ In the concept templates, we use the `@{1_1},{2_1}` syntax for this. The full re
 Every entry between `{` and `}` represents an index. It contains multiple numbers that it represents a compound index.
 The second number is the place in the compound index. Every combination of numbers must be unique.
 The indices are dependent on the use case. For example: revoking requires an index on `issuer` and `id` (to find all issued and to revoke).
-Searching requires an index on `type` combined with the fields that will be used in the search query (`company.name` in this example).
 
 Restrictions
 ============

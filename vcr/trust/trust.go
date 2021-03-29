@@ -21,10 +21,11 @@ package trust
 
 import (
 	"errors"
-	ssi "github.com/nuts-foundation/go-did"
-	"gopkg.in/yaml.v2"
 	"os"
 	"sync"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"gopkg.in/yaml.v2"
 )
 
 // Config holds the trusted issuers per credential type
@@ -78,6 +79,17 @@ func (tc *Config) save() error {
 	}
 
 	return os.WriteFile(tc.filename, data, 0644)
+}
+
+// List returns all trusted issuers for the given type
+func (tc *Config) List(credentialType ssi.URI) []ssi.URI {
+	stringList := tc.issuersPerType[credentialType.String()]
+	uriList := make([]ssi.URI, len(stringList))
+	for i, e := range stringList {
+		u, _ := ssi.ParseURI(e)
+		uriList[i] = *u
+	}
+	return uriList
 }
 
 // IsTrusted returns true when the given issuer is in the trusted issuers list of the given credentialType

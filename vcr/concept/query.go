@@ -50,14 +50,6 @@ func (q *query) addTemplate(template *Template) {
 		template: template,
 	}
 
-	// add all hardcoded values
-	for k, v := range template.fixedValues {
-		tq.Clauses = append(tq.Clauses, eq{
-			key:   k,
-			value: v,
-		})
-	}
-
 	q.parts = append(q.parts, &tq)
 }
 

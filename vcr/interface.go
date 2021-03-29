@@ -22,11 +22,12 @@ package vcr
 import (
 	"embed"
 	"errors"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"time"
 )
 
 //go:embed assets/*
@@ -68,6 +69,18 @@ type Writer interface {
 	StoreRevocation(r credential.Revocation) error
 }
 
+// TrustManager bundles all trust related methods in one interface
+type TrustManager interface {
+	// Trust adds trust for a Issuer/CredentialType combination.
+	Trust(credentialType ssi.URI, issuer ssi.URI) error
+	// Untrust removes trust for a Issuer/CredentialType combination.
+	Untrust(credentialType ssi.URI, issuer ssi.URI) error
+	// Trusted returns a list of trusted issuers for given credentialType
+	Trusted(credentialType ssi.URI) ([]ssi.URI, error)
+	// Untrusted returns a list of untrusted issuers based on known credentials
+	Untrusted(credentialType ssi.URI) ([]ssi.URI, error)
+}
+
 // VCR is the interface that covers all functionality of the vcr store.
 type VCR interface {
 	// Issue creates and publishes a new VC.
@@ -90,12 +103,8 @@ type VCR interface {
 	Revoke(ID ssi.URI) (*credential.Revocation, error)
 	// Registry returns the concept registry
 	Registry() concept.Registry
-	// Trust adds trust for a Issuer/CredentialType combination. The added trust is persisted to disk.
-	Trust(credentialType ssi.URI, issuer ssi.URI) error
-	// Untrust removes trust for a Issuer/CredentialType combination. The result is persisted to disk.
-	Untrust(credentialType ssi.URI, issuer ssi.URI) error
 
 	ConceptFinder
-
+	TrustManager
 	Writer
 }

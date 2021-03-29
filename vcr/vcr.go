@@ -23,12 +23,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
 	"io/fs"
 	"path"
 	"strings"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
@@ -457,6 +458,63 @@ func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
 
 func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
 	return c.trustConfig.RemoveTrust(credentialType, issuer)
+}
+
+func (c *vcr) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
+	templates := c.registry.ConceptTemplates()
+	found := false
+
+outer:
+	for _, vs := range templates {
+		for _, v := range vs {
+			if v.VCType() == credentialType.String() {
+				found = true
+				break outer
+			}
+		}
+	}
+
+	if !found {
+		return nil, ErrInvalidCredential
+	}
+
+	return c.trustConfig.List(credentialType), nil
+}
+
+func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
+	trustMap := make(map[string]bool)
+	untrusted := make([]ssi.URI, 0)
+	for _, trusted := range c.trustConfig.List(credentialType) {
+		trustMap[trusted.String()] = true
+	}
+
+	// match all keys
+	query := leia.New(leia.Prefix(concept.IssuerField, ""))
+
+	// use type specific collection
+	collection := c.store.Collection(credentialType.String())
+
+	// for each key: add to untrusted if not present in trusted
+	err := collection.Iterate(query, func(key []byte, value []byte) error {
+		// we iterate over all issuers->reference pairs
+		issuer := string(key)
+		if _, ok := trustMap[issuer]; !ok {
+			u, err := ssi.ParseURI(issuer)
+			if err != nil {
+				return err
+			}
+			untrusted = append(untrusted, *u)
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, leia.ErrNoIndex) {
+			return nil, ErrInvalidCredential
+		}
+		return nil, err
+	}
+
+	return untrusted, nil
 }
 
 func (c *vcr) Get(conceptName string, subject string) (concept.Concept, error) {

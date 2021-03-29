@@ -22,8 +22,9 @@ package v1
 import (
 	"errors"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
 	"net/http"
+
+	ssi "github.com/nuts-foundation/go-did"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -185,6 +186,49 @@ func (w *Wrapper) UntrustIssuer(ctx echo.Context) error {
 	return changeTrust(ctx, func(cType ssi.URI, issuer ssi.URI) error {
 		return w.R.Untrust(cType, issuer)
 	})
+}
+
+func (w *Wrapper) ListTrusted(ctx echo.Context, credentialType string) error {
+	uri, err := ssi.ParseURI(credentialType)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("malformed credential type: %s", err.Error()))
+	}
+
+	trusted, err := w.R.Trusted(*uri)
+	if err != nil {
+		if errors.Is(err, vcr.ErrInvalidCredential) {
+			return ctx.NoContent(http.StatusNotFound)
+		}
+		return err
+	}
+	result := make([]string, len(trusted))
+	for i, t := range trusted {
+		result[i] = t.String()
+	}
+
+	return ctx.JSON(http.StatusOK, result)
+}
+
+func (w *Wrapper) ListUntrusted(ctx echo.Context, credentialType string) error {
+	uri, err := ssi.ParseURI(credentialType)
+	if err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("malformed credential type: %s", err.Error()))
+	}
+
+	untrusted, err := w.R.Untrusted(*uri)
+	if err != nil {
+		if errors.Is(err, vcr.ErrInvalidCredential) {
+			return ctx.NoContent(http.StatusNotFound)
+		}
+		return err
+	}
+
+	result := make([]string, len(untrusted))
+	for i, t := range untrusted {
+		result[i] = t.String()
+	}
+
+	return ctx.JSON(http.StatusOK, result)
 }
 
 type trustChangeFunc func(ssi.URI, ssi.URI) error

@@ -21,8 +21,9 @@ package vcr
 
 import (
 	"errors"
-	"github.com/nuts-foundation/go-did/vc"
 	"testing"
+
+	"github.com/nuts-foundation/go-did/vc"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"

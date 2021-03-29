@@ -23,13 +23,16 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
+	"runtime"
 	"testing"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-leia"
@@ -725,6 +728,85 @@ func TestVcr_Find(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, err, ErrNotFound)
 	})
+}
+
+func TestVcr_Untrusted(t *testing.T) {
+	testDir := io.TestDirectory(t)
+	instance := NewTestVCRInstance(testDir)
+	vc := concept.TestVC()
+
+	ct, err := concept.ParseTemplate(concept.ExampleTemplate)
+	if !assert.NoError(t, err) {
+		return
+	}
+	// init template
+	err = instance.registry.Add(ct)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// reindex
+	err = instance.initIndices()
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// add document
+	doc := leia.Document(concept.TestCredential)
+	err = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	funcs := []func(ssi.URI) ([]ssi.URI, error){
+		instance.Trusted,
+		instance.Untrusted,
+	}
+
+	outcomes := [][]int{
+		{0, 1},
+		{1, 0},
+	}
+
+	for i, fn := range funcs {
+		name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
+		t.Run(name, func(t *testing.T) {
+			t.Run("ok - untrusted", func(t *testing.T) {
+				trusted, err := fn(vc.Type[1])
+
+				if !assert.NoError(t, err) {
+					return
+				}
+
+				assert.Len(t, trusted, outcomes[i][0])
+			})
+
+			t.Run("ok - trusted", func(t *testing.T) {
+				instance.Trust(vc.Type[1], vc.Issuer)
+				defer func() {
+					instance.Untrust(vc.Type[1], vc.Issuer)
+				}()
+				trusted, err := fn(vc.Type[1])
+
+				if !assert.NoError(t, err) {
+					return
+				}
+
+				assert.Len(t, trusted, outcomes[i][1])
+			})
+
+			t.Run("error - unknown type", func(t *testing.T) {
+				unknown := ssi.URI{}
+				_, err := fn(unknown)
+
+				if !assert.Error(t, err) {
+					return
+				}
+
+				assert.Equal(t, ErrInvalidCredential, err)
+			})
+		})
+	}
 }
 
 func TestVcr_verifyRevocation(t *testing.T) {

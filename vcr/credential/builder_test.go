@@ -20,10 +20,11 @@
 package credential
 
 import (
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
 	"testing"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/vdr"

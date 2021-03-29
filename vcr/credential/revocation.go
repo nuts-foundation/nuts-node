@@ -20,9 +20,10 @@
 package credential
 
 import (
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"time"
 )
 
 // Revocation defines a proof that a VC has been revoked by it's issuer.
