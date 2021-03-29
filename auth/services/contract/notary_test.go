@@ -300,17 +300,3 @@ func buildContext(t *testing.T) *testContext {
 	ctx.notary = notary
 	return ctx
 }
-
-type dummyQuery struct{}
-
-func (d dummyQuery) Concept() string {
-	return "dummy"
-}
-
-func (d dummyQuery) Parts() []*concept.TemplateQuery {
-	return []*concept.TemplateQuery{}
-}
-
-func (d dummyQuery) AddClause(_ concept.Clause) {
-
-}

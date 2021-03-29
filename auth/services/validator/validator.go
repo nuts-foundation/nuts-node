@@ -170,9 +170,7 @@ func (s *service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Tim
 		return nil, fmt.Errorf("unknown VerifiablePresentation type: %s", t)
 	}
 
-	vpVerificationResult, err := s.verifiers[t].VerifyVP(rawVerifiablePresentation, checkTime)
-
-	return vpVerificationResult, err
+	return s.verifiers[t].VerifyVP(rawVerifiablePresentation, checkTime)
 }
 
 func (s *service) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
