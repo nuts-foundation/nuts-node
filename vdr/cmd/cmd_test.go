@@ -35,6 +35,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 )
 
@@ -300,27 +301,24 @@ func TestEngine_Command(t *testing.T) {
 	})
 
 	t.Run("addVerificationMethod", func(t *testing.T) {
-		id123, _ := did.ParseDID("did:nuts:123")
-		id123Method, _ := did.ParseDID("did:nuts:123#abc-method1")
-
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		verificationMethod, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, *id123, pair.PublicKey)
+		verificationMethod, _ := did.NewVerificationMethod(*vdr.TestMethodDIDA, ssi.JsonWebKey2020, *vdr.TestDIDA, pair.PublicKey)
 
 		t.Run("ok", func(t *testing.T) {
 			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusCreated, ResponseData: verificationMethod})
+			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: verificationMethod})
 			os.Setenv("NUTS_ADDRESS", s.URL)
 			defer os.Unsetenv("NUTS_ADDRESS")
 			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
-			cmd.SetArgs([]string{"addvm", id123.String()})
+			cmd.SetArgs([]string{"addvm", vdr.TestDIDA.String()})
 			err := cmd.Execute()
 
 			if !assert.NoError(t, err) {
 				return
 			}
-			if !assert.Contains(t, buf.String(), id123Method.String()) {
+			if !assert.Contains(t, buf.String(), vdr.TestMethodDIDA.String()) {
 				return
 			}
 			// Fixme: disabled because of https://github.com/nuts-foundation/go-did/pull/34
@@ -339,7 +337,7 @@ func TestEngine_Command(t *testing.T) {
 			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
-			cmd.SetArgs([]string{"addvm", id123.String()})
+			cmd.SetArgs([]string{"addvm", vdr.TestDIDA.String()})
 
 			err := cmd.Execute()
 			if !assert.Error(t, err) {
@@ -350,9 +348,6 @@ func TestEngine_Command(t *testing.T) {
 	})
 
 	t.Run("deleteVerificationMethod", func(t *testing.T) {
-		id123, _ := did.ParseDID("did:nuts:123")
-		id123Method, _ := did.ParseDID("did:nuts:123#abc-method1")
-
 		t.Run("ok", func(t *testing.T) {
 			cmd := newCmd(t)
 			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
@@ -361,7 +356,7 @@ func TestEngine_Command(t *testing.T) {
 			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
-			cmd.SetArgs([]string{"delvm", id123.String(), id123Method.String()})
+			cmd.SetArgs([]string{"delvm", vdr.TestDIDA.String(), vdr.TestMethodDIDA.String()})
 			err := cmd.Execute()
 
 			if !assert.NoError(t, err) {
@@ -378,7 +373,7 @@ func TestEngine_Command(t *testing.T) {
 			core.NewClientConfig().Load(cmd.Flags())
 			defer s.Close()
 
-			cmd.SetArgs([]string{"delvm", id123.String(), id123Method.String()})
+			cmd.SetArgs([]string{"delvm", vdr.TestDIDA.String(), vdr.TestMethodDIDA.String()})
 			err := cmd.Execute()
 			if !assert.Error(t, err) {
 				return
