@@ -103,7 +103,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	if err := auth.contractClient.Configure(); err != nil {
 		return err
 	}
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, keyResolver, nameResolver, auth.keyStore, auth.contractClient)
+	auth.oauthClient = oauth.NewOAuthService(auth.registry, nameResolver, auth.keyStore, auth.contractClient)
 	if err := auth.oauthClient.Configure(); err != nil {
 		return err
 	}
