@@ -73,18 +73,24 @@ func TestEngine_Command(t *testing.T) {
 		return command
 	}
 
+	newCmdWithServer := func(t *testing.T, handler http2.Handler) *cobra.Command {
+		cmd := newCmd(t)
+		s := httptest.NewServer(handler)
+		assert.NoError(t, os.Setenv("NUTS_ADDRESS", s.URL), "unable to set the NUTS_ADDRESS env var")
+		t.Cleanup(func() {
+			s.Close()
+			assert.NoError(t, os.Unsetenv("NUTS_ADDRESS"))
+		})
+
+		return cmd
+	}
+
 	t.Run("create-did", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
-
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			cmd.SetArgs([]string{"create-did"})
-			err := cmd.Execute()
 
+			err := cmd.Execute()
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -98,16 +104,10 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - server error", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "b00m!"})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
-
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "b00m!"})
 			cmd.SetArgs([]string{"create-did"})
-			err := cmd.Execute()
 
+			err := cmd.Execute()
 			if !assert.Error(t, err) {
 				return
 			}
@@ -118,16 +118,10 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("resolve", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
-
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			cmd.SetArgs([]string{"resolve", "did"})
-			err := cmd.Execute()
 
+			err := cmd.Execute()
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -137,16 +131,10 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("ok - print metadata only", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
-
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			cmd.SetArgs([]string{"resolve", "did", "--metadata"})
-			err := cmd.Execute()
 
+			err := cmd.Execute()
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -156,16 +144,10 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("ok - print document only", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
-
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			cmd.SetArgs([]string{"resolve", "did", "--document"})
-			err := cmd.Execute()
 
+			err := cmd.Execute()
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -175,16 +157,10 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - not found", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
-
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"})
 			cmd.SetArgs([]string{"resolve", "did"})
-			err := cmd.Execute()
 
+			err := cmd.Execute()
 			if !assert.Error(t, err) {
 				return
 			}
@@ -195,13 +171,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("update", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
-
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
 			err := cmd.Execute()
 
@@ -213,12 +183,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - incorrect input", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			cmd.SetArgs([]string{"update", "did", "hash", "../test/syntax_error.json"})
 
 			err := cmd.Execute()
@@ -229,13 +194,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - server error", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "invalid"})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
-
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "invalid"})
 			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
 
 			err := cmd.Execute()
@@ -249,12 +208,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("deactivate", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK})
 
 			inBuf.Write([]byte{'y', '\n'})
 			cmd.SetArgs([]string{"deactivate", "did"})
@@ -282,12 +236,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - did document not found", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
 
 			inBuf.Write([]byte{'y', '\n'})
 			cmd.SetArgs([]string{"deactivate", "did"})
@@ -305,12 +254,7 @@ func TestEngine_Command(t *testing.T) {
 		verificationMethod, _ := did.NewVerificationMethod(*vdr.TestMethodDIDA, ssi.JsonWebKey2020, *vdr.TestDIDA, pair.PublicKey)
 
 		t.Run("ok", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: verificationMethod})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: verificationMethod})
 
 			cmd.SetArgs([]string{"addvm", vdr.TestDIDA.String()})
 			err := cmd.Execute()
@@ -330,12 +274,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - did document not found", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
 
 			cmd.SetArgs([]string{"addvm", vdr.TestDIDA.String()})
 
@@ -349,13 +288,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("deleteVerificationMethod", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
-
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNoContent})
 			cmd.SetArgs([]string{"delvm", vdr.TestDIDA.String(), vdr.TestMethodDIDA.String()})
 			err := cmd.Execute()
 
@@ -366,12 +299,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - did document not found", func(t *testing.T) {
-			cmd := newCmd(t)
-			s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound})
-			os.Setenv("NUTS_ADDRESS", s.URL)
-			defer os.Unsetenv("NUTS_ADDRESS")
-			core.NewClientConfig().Load(cmd.Flags())
-			defer s.Close()
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
 
 			cmd.SetArgs([]string{"delvm", vdr.TestDIDA.String(), vdr.TestMethodDIDA.String()})
 			err := cmd.Execute()
