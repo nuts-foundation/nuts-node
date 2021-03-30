@@ -158,9 +158,9 @@ func TestNutsDocUpdater_AddKey(t *testing.T) {
 			updatedDocument = doc
 		})
 
-		docUpdater := NutsDocUpdater{VDR: vdrMock, KeyCreator: keyCreator}
+		var keyAdder types.DocKeyAdder = NutsDocUpdater{VDR: vdrMock, KeyCreator: keyCreator}
 
-		key, err := docUpdater.AddVerificationMethod(*id)
+		key, err := keyAdder.AddVerificationMethod(*id)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -185,9 +185,9 @@ func TestNutsDocUpdater_AddKey(t *testing.T) {
 		vdrMock.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil)
 		vdrMock.EXPECT().Update(*id, currentHash, gomock.Any(), nil).Return(types.ErrNotFound)
 
-		docUpdater := NutsDocUpdater{VDR: vdrMock, KeyCreator: keyCreator}
+		var keyAdder types.DocKeyAdder = NutsDocUpdater{VDR: vdrMock, KeyCreator: keyCreator}
 
-		key, err := docUpdater.AddVerificationMethod(*id)
+		key, err := keyAdder.AddVerificationMethod(*id)
 		if !assert.Error(t, err) {
 			return
 		}
@@ -203,9 +203,9 @@ func TestNutsDocUpdater_AddKey(t *testing.T) {
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		vdrMock.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash, Deactivated: true}, nil)
 
-		docUpdater := NutsDocUpdater{VDR: vdrMock}
+		var keyAdder types.DocKeyAdder = NutsDocUpdater{VDR: vdrMock}
 
-		key, err := docUpdater.AddVerificationMethod(*id)
+		key, err := keyAdder.AddVerificationMethod(*id)
 		if !assert.Error(t, err) {
 			return
 		}

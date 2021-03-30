@@ -27,7 +27,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 
 	"io"
-	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -152,7 +151,7 @@ func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
 }
 
 func readDIDDocument(reader io.Reader) (*did.Document, error) {
-	data, err := ioutil.ReadAll(reader)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read DID Document response: %w", err)
 	}
@@ -164,7 +163,7 @@ func readDIDDocument(reader io.Reader) (*did.Document, error) {
 }
 
 func readDIDResolutionResult(reader io.Reader) (*DIDResolutionResult, error) {
-	data, err := ioutil.ReadAll(reader)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read DID Resolve response: %w", err)
 	}
@@ -176,7 +175,7 @@ func readDIDResolutionResult(reader io.Reader) (*DIDResolutionResult, error) {
 }
 
 func readVerificationMethod(reader io.Reader) (*did.VerificationMethod, error) {
-	data, err := ioutil.ReadAll(reader)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read DID Resolve response: %w", err)
 	}

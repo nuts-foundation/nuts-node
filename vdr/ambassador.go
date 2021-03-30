@@ -26,6 +26,8 @@ import (
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/sirupsen/logrus"
+
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -232,17 +234,19 @@ func (n ambassador) updateKeysInStore(currentDIDDocument, proposedDIDDocument di
 		if err != nil {
 			return fmt.Errorf("could not parse public key from verificationMethod: %w", err)
 		}
-		logging.Log().Debugf("adding new public key: %s", vm.ID.String())
-		if err := n.keyStore.AddPublicKey(vm.ID.String(), pKey, signingTime); err != nil {
+		logging.Log().WithFields(logrus.Fields{"kid": vm.ID.String()}).Debug("adding new public key")
+		if err = n.keyStore.AddPublicKey(vm.ID.String(), pKey, signingTime); err != nil {
 			return fmt.Errorf("unable to add new public key: %w", err)
 		}
 
 	}
 	for _, vm := range removedVMs {
-		logging.Log().Debugf("revoking public key: %s", vm.ID.String())
+		logging.Log().WithFields(logrus.Fields{"kid": vm.ID.String()}).Debug("revoking public key")
 		if err := n.keyStore.RevokePublicKey(vm.ID.String(), signingTime); err != nil {
-			// Ignore already revoked keys. This can happen when the node restarts.
-			if !errors.Is(err, nutsCrypto.ErrKeyRevoked) {
+			if errors.Is(err, nutsCrypto.ErrKeyRevoked) {
+				// Ignore already revoked keys. This can happen when the node restarts.
+				logging.Log().WithFields(logrus.Fields{"kid": vm.ID.String()}).Debug("key already revoked")
+			} else {
 				return fmt.Errorf("unable to revoke public key: %w", err)
 			}
 		}

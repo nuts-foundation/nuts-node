@@ -23,13 +23,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"strings"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"io/ioutil"
-	"os"
-	"strings"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
@@ -94,7 +95,7 @@ func updateCmd() *cobra.Command {
 			var err error
 			if len(args) == 3 {
 				// read from file
-				bytes, err = ioutil.ReadFile(args[2])
+				bytes, err = os.ReadFile(args[2])
 				if err != nil {
 					return fmt.Errorf("failed to read file %s: %w", args[2], err)
 				}
@@ -249,7 +250,7 @@ func readFromStdin() ([]byte, error) {
 	if fi.Mode()&os.ModeNamedPipe == 0 {
 		return nil, errors.New("expected piped input")
 	}
-	return ioutil.ReadAll(bufio.NewReader(os.Stdin))
+	return io.ReadAll(bufio.NewReader(os.Stdin))
 }
 
 // httpClient creates a remote client
