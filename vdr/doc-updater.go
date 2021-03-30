@@ -16,7 +16,7 @@ type DocUpdater struct {
 	// KeyCreator is used for getting a fresh key and use it to generate the Nuts DID
 	KeyCreator nutsCrypto.KeyCreator
 	// VDR is used for resolving before and updating DID documents after the operation has been performed
-	VDR        types.VDR
+	VDR types.VDR
 }
 
 // Deactivate updates the DID Document so it can no longer be updated

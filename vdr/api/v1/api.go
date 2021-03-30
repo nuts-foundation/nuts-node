@@ -36,6 +36,7 @@ type Wrapper struct {
 	VDR            types.VDR
 	DocManipulator types.DocManipulator
 }
+
 // DeleteVerificationMethod accepts a DID and a KeyIdentifier of a verificationMethod and calls the DocManipulator
 // to remove the verificationMethod from the given document.
 func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidStr string) error {
@@ -58,7 +59,7 @@ func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidS
 
 // AddNewVerificationMethod accepts a DID and adds a new VerificationMethod to that corresponding document.
 func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
-d, err := did.ParseDID(id)
+	d, err := did.ParseDID(id)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
 	}
