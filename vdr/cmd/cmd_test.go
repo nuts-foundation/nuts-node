@@ -345,7 +345,7 @@ func TestEngine_Command(t *testing.T) {
 			if !assert.Error(t, err) {
 				return
 			}
-			assert.Contains(t, errBuf.String(), "failed to add a new verification method to DID document: server returned HTTP 404 (expected: 201), response: null")
+			assert.Contains(t, errBuf.String(), "failed to add a new verification method to DID document: server returned HTTP 404 (expected: 200), response: null")
 		})
 	})
 

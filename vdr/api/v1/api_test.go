@@ -307,7 +307,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123).Return(newMethod, nil)
 
 		var createdMethodResult did.VerificationMethod
-		ctx.echo.EXPECT().JSON(http.StatusCreated, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			createdMethodResult = f2.(did.VerificationMethod)
 			return nil
 		})

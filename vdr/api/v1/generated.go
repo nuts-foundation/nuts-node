@@ -825,7 +825,7 @@ type ServerInterface interface {
 	// Updates a Nuts DID document.
 	// (PUT /internal/vdr/v1/did/{did})
 	UpdateDID(ctx echo.Context, did string) error
-	// Creates a new verificationMethod and adds it to the DID document
+	// Creates and adds a new verificationMethod to the DID document.
 	// (POST /internal/vdr/v1/did/{did}/verificationmethod)
 	AddNewVerificationMethod(ctx echo.Context, did string) error
 	// Delete a specific verification method

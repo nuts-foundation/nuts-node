@@ -13,7 +13,7 @@ paths:
       tags:
         - DID
       responses:
-        "201":
+        "200":
           description: "New DID has been created successfully. Returns the DID document."
           content:
             application/json+did-document:
@@ -161,12 +161,13 @@ paths:
         schema:
           type: string
     post:
-      summary: Creates a new verificationMethod and adds it to the DID document
+      summary: Creates and adds a new verificationMethod to the DID document.
+      description: It create a new private public keypair. The public key is wrapped in  verificationMethod. This method is added to the DID Document.
       operationId: addNewVerificationMethod
       tags:
         - DID
       responses:
-        "201":
+        "200":
           description: "New verification method has been created and added successfully. Returns the DID document."
           content:
             application/json+did-document:
@@ -210,7 +211,10 @@ paths:
           type: string
     delete:
       summary: Delete a specific verification method
-      description: Removes the verification method from the DID Document. Revokes the public key in the keystore.
+      description: |
+        Removes the verification method from the DID Document.
+        Revokes the public key with the corresponding key-id.
+        Note: Other verification methods with different key-ids with the same private key will still be valid.
       operationId: deleteVerificationMethod
       responses:
         "204":

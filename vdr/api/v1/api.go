@@ -67,7 +67,7 @@ d, err := did.ParseDID(id)
 	if err != nil {
 		return handleError(ctx, err, "could not update document: %s")
 	}
-	return ctx.JSON(http.StatusCreated, *vm)
+	return ctx.JSON(http.StatusOK, *vm)
 }
 
 func (a *Wrapper) Routes(router core.EchoRouter) {
