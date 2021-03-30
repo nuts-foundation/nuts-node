@@ -11,16 +11,17 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// NutsDocUpdater contains helper methods to update a Nuts DID document.
-type NutsDocUpdater struct {
+// DocUpdater contains helper methods to update a Nuts DID document.
+type DocUpdater struct {
 	// KeyCreator is used for getting a fresh key and use it to generate the Nuts DID
 	KeyCreator nutsCrypto.KeyCreator
+	// VDR is used for resolving before and updating DID documents after the operation has been performed
 	VDR        types.VDR
 }
 
 // Deactivate updates the DID Document so it can no longer be updated
 // It removes key material, services and controllers.
-func (u NutsDocUpdater) Deactivate(id did.DID) error {
+func (u DocUpdater) Deactivate(id did.DID) error {
 	_, meta, err := u.VDR.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return err
@@ -35,7 +36,7 @@ func (u NutsDocUpdater) Deactivate(id did.DID) error {
 
 // AddVerificationMethod adds a new key as a VerificationMethod to the document.
 // The key is not used yet and should be manually added to one of the VerificationRelationships
-func (u NutsDocUpdater) AddVerificationMethod(id did.DID) (*did.VerificationMethod, error) {
+func (u DocUpdater) AddVerificationMethod(id did.DID) (*did.VerificationMethod, error) {
 	doc, meta, err := u.VDR.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return nil, err
@@ -43,8 +44,7 @@ func (u NutsDocUpdater) AddVerificationMethod(id did.DID) (*did.VerificationMeth
 	if meta.Deactivated {
 		return nil, types.ErrDeactivated
 	}
-	updater := NutsDocUpdater{KeyCreator: u.KeyCreator}
-	method, err := updater.createNewVerificationMethodForDID(doc.ID)
+	method, err := u.createNewVerificationMethodForDID(doc.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (u NutsDocUpdater) AddVerificationMethod(id did.DID) (*did.VerificationMeth
 
 // RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
 // When the verificationMethod is used in an assertion or authentication method, it is also removed there.
-func (u NutsDocUpdater) RemoveVerificationMethod(id, keyID did.DID) error {
+func (u DocUpdater) RemoveVerificationMethod(id, keyID did.DID) error {
 	doc, meta, err := u.VDR.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return err
@@ -79,7 +79,7 @@ func (u NutsDocUpdater) RemoveVerificationMethod(id, keyID did.DID) error {
 
 // CreateNewAuthenticationMethodForDocument creates a new VerificationMethod of type JsonWebKey2020
 // with a freshly generated key for a given DID.
-func (u NutsDocUpdater) createNewVerificationMethodForDID(id did.DID) (*did.VerificationMethod, error) {
+func (u DocUpdater) createNewVerificationMethodForDID(id did.DID) (*did.VerificationMethod, error) {
 	key, keyIDStr, err := u.KeyCreator.New(newNamingFnForExistingDID(id))
 	if err != nil {
 		return nil, err

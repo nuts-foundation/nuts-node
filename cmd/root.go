@@ -158,7 +158,7 @@ func CreateSystem() *core.System {
 	// add engine specific routes
 	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})
 	system.RegisterRoutes(&networkApi.Wrapper{Service: networkInstance})
-	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance, DocManipulator: vdr.NutsDocUpdater{VDR: vdrInstance, KeyCreator: cryptoInstance}})
+	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance, DocManipulator: vdr.DocUpdater{VDR: vdrInstance, KeyCreator: cryptoInstance}})
 	system.RegisterRoutes(&credApi.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
