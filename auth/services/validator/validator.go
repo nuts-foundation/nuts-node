@@ -108,9 +108,6 @@ func (s *service) Configure() (err error) {
 		irmaService := irma.Service{
 			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
 			IrmaConfig:         irmaConfig,
-			DIDResolver:        s.didResolver,
-			VCResolver:         s.vcResolver,
-			KeyResolver:        s.keyResolver,
 			Signer:             s.privateKeyStore,
 			IrmaServiceConfig:  s.irmaServiceConfig,
 			ContractTemplates:  contract.StandardContractTemplates,

@@ -54,7 +54,7 @@ var custodianDID = *vdr.TestDIDB
 var custodianDIDDocument = getCustodianDIDDocument()
 var actorSigningKeyID = getActorSigningKey()
 var custodianSigningKeyID = getCustodianSigningKey()
-var orgConceptName = concept.Concept{"organization": concept.Concept{"name": "Carebears"}}
+var orgConceptName = concept.Concept{"organization": concept.Concept{"name": "Carebears", "city": "Caretown"}}
 
 func getActorSigningKey() *ssi.URI {
 	serviceID, _ := ssi.ParseURI(actorDID.String() + "#signing-key")
@@ -169,7 +169,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(&contract.VPVerificationResult{
 			Validity:            contract.Valid,
 			DisclosedAttributes: map[string]string{"name": "Henk de Vries"},
-			ContractAttributes:  map[string]string{"legal_entity": "Carebears"},
+			ContractAttributes:  map[string]string{"legal_entity": "Carebears", "legal_entity_city": "Caretown"},
 		}, nil)
 
 		tokenCtx := validContext()

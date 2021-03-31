@@ -448,10 +448,6 @@ github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443 h1:+2OJrU8cmOs
 github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443/go.mod h1:JbxfV1Iifij2yhRjXai0oFrbpxszXHRx1E5RuM26o4Y=
 github.com/nishanths/exhaustive v0.0.0-20200525081945-8e46705b6132 h1:NjznefjSrral0MiR4KlB41io/d3OklvhcgQUdfZTqJE=
 github.com/nishanths/exhaustive v0.0.0-20200525081945-8e46705b6132/go.mod h1:wBEpHwM2OdmeNpdCvRPUlkEbBuaFmcK4Wv8Q7FuGW3c=
-github.com/nuts-foundation/go-did v0.0.0-20210322161533-d5dd217f4e2b h1:hSwJZhPBmhi/Uiu+11V+UUsPIyHSJhYE/8LvUwfH+IY=
-github.com/nuts-foundation/go-did v0.0.0-20210322161533-d5dd217f4e2b/go.mod h1:Xqmd6ILZj41nNovodxnb4F+JgcKmIz+XGpLw6m6fZnU=
-github.com/nuts-foundation/go-did v0.0.0-20210330120537-4e1659d40401 h1:bTgDzYBF/lOmAq9cPPxwY6COkQyiJrOWKk/860ycsYs=
-github.com/nuts-foundation/go-did v0.0.0-20210330120537-4e1659d40401/go.mod h1:Xqmd6ILZj41nNovodxnb4F+JgcKmIz+XGpLw6m6fZnU=
 github.com/nuts-foundation/go-did v0.0.0-20210331072910-c246e14ed80f h1:WB7Mx6Jyxr/uLEb3mGVuxXntjzHnHiNl+2pCPuHqOiY=
 github.com/nuts-foundation/go-did v0.0.0-20210331072910-c246e14ed80f/go.mod h1:Xqmd6ILZj41nNovodxnb4F+JgcKmIz+XGpLw6m6fZnU=
 github.com/nuts-foundation/go-leia v0.4.0 h1:BdjZ3k2Wi3d25TCJBWZlD0Il8ox3uHVWP1ECvSdd0BM=
@@ -482,12 +478,8 @@ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
-github.com/privacybydesign/gabi v0.0.0-20200823153621-467696543652 h1:cglj/IsZVPAWPf90gZ6N9uFo+Wc7h0bmC6k/6bgAKuw=
-github.com/privacybydesign/gabi v0.0.0-20200823153621-467696543652/go.mod h1:HQ6L5rKBY7qaqcheK6zpaVf7fhGWD0PvUAXJTDws+0M=
 github.com/privacybydesign/gabi v0.0.0-20210311130659-b4e094b964d8 h1:nDH/LwI33DuTBcFGXtrPg/rVviwqeypayf3RKGbyUsk=
 github.com/privacybydesign/gabi v0.0.0-20210311130659-b4e094b964d8/go.mod h1:HQ6L5rKBY7qaqcheK6zpaVf7fhGWD0PvUAXJTDws+0M=
-github.com/privacybydesign/irmago v0.6.2-0.20210226102726-35c6768789c6 h1:lBnclne5t24aMqzrTe2oXjImUKW1qLbbWj9HXezp5aA=
-github.com/privacybydesign/irmago v0.6.2-0.20210226102726-35c6768789c6/go.mod h1:Vml9NoGIDVnFVbXd6tvyiHlB/dbqN2yfYYctKLlkQQE=
 github.com/privacybydesign/irmago v0.7.0 h1:J3DtCOeOjXsdValQJ5g80SQ5p+ua31OIdrOi0zmz0Lc=
 github.com/privacybydesign/irmago v0.7.0/go.mod h1:I6JbDXy+VQPyNyMka8LHL1pF68BS5Ssh5XHku666U3w=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=

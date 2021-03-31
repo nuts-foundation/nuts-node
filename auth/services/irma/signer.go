@@ -34,9 +34,6 @@ import (
 	"github.com/privacybydesign/irmago/server"
 )
 
-// ErrLegalEntityNotFound indicates that the legalEntity is unknown by its name/city
-var ErrLegalEntityNotFound = errors.New("legalEntity not found")
-
 // SessionPtr should be made private when v0 is removed
 type SessionPtr struct {
 	ID         string

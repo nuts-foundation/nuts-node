@@ -43,63 +43,7 @@ var orgConcept = concept.Concept{"organization": concept.Concept{"name": orgName
 
 var orgID = *vdr.TestDIDA
 
-func Test_contractNotaryService_ValidateContract(t *testing.T) {
-	// TODO: Re-enable this test (https://github.com/nuts-foundation/nuts-node/issues/91)
-	t.SkipNow()
-	t.Run("it could validate a valid contract", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		nameResolver := vcr.NewMockConceptFinder(ctrl)
-
-		nameResolver.EXPECT().Get(concept.OrganizationConcept, orgID).Return(orgName, "", nil)
-
-		cns := contractNotaryService{conceptFinder: nameResolver}
-
-		contractTemplate, err := contract.StandardContractTemplates.FindFromRawContractText("EN:PractitionerLogin:v3")
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		contractToCheck, err := contractTemplate.Render(map[string]string{
-			contract.LegalEntityAttr: orgName,
-		}, time.Now().Add(-10*time.Minute), 20*time.Minute)
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		ok, err := cns.ValidateContract(*contractToCheck, orgID, time.Now())
-		assert.True(t, ok)
-		assert.NoError(t, err)
-	})
-}
-
 func Test_contractNotaryService_DrawUpContract(t *testing.T) {
-	type testContext struct {
-		ctrl            *gomock.Controller
-		nameResolver    *vcr.MockConceptFinder
-		keyResolver     *types.MockKeyResolver
-		privateKeyStore *crypto.MockPrivateKeyStore
-		notary          contractNotaryService
-	}
-	buildContext := func(t *testing.T) *testContext {
-		ctrl := gomock.NewController(t)
-		ctx := &testContext{
-			ctrl:            ctrl,
-			nameResolver:    vcr.NewMockConceptFinder(ctrl),
-			keyResolver:     types.NewMockKeyResolver(ctrl),
-			privateKeyStore: crypto.NewMockPrivateKeyStore(ctrl),
-		}
-		notary := contractNotaryService{
-			conceptFinder:    ctx.nameResolver,
-			keyResolver:      ctx.keyResolver,
-			privateKeyStore:  ctx.privateKeyStore,
-			contractValidity: 15 * time.Minute,
-		}
-		ctx.notary = notary
-		return ctx
-	}
-
 	template := contract.Template{
 		Template: "Organisation Name: {{legal_entity}} in {{legal_entity_city}}, valid from {{valid_from}} to {{valid_to}}",
 	}
@@ -294,4 +238,30 @@ func TestNewContractNotary(t *testing.T) {
 		assert.NotNil(t, service.keyResolver)
 		assert.NotNil(t, service.contractValidity)
 	})
+}
+
+type testContext struct {
+	ctrl            *gomock.Controller
+	nameResolver    *vcr.MockConceptFinder
+	keyResolver     *types.MockKeyResolver
+	privateKeyStore *crypto.MockPrivateKeyStore
+	notary          contractNotaryService
+}
+
+func buildContext(t *testing.T) *testContext {
+	ctrl := gomock.NewController(t)
+	ctx := &testContext{
+		ctrl:            ctrl,
+		nameResolver:    vcr.NewMockConceptFinder(ctrl),
+		keyResolver:     types.NewMockKeyResolver(ctrl),
+		privateKeyStore: crypto.NewMockPrivateKeyStore(ctrl),
+	}
+	notary := contractNotaryService{
+		keyResolver:      ctx.keyResolver,
+		privateKeyStore:  ctx.privateKeyStore,
+		conceptFinder:    ctx.nameResolver,
+		contractValidity: 15 * time.Minute,
+	}
+	ctx.notary = notary
+	return ctx
 }
