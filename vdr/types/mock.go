@@ -226,19 +226,19 @@ func (m *MockKeyResolver) EXPECT() *MockKeyResolverMockRecorder {
 	return m.recorder
 }
 
-// ResolveAssertionKey mocks base method.
-func (m *MockKeyResolver) ResolveAssertionKey(id did.DID) (go_did.URI, error) {
+// ResolveAssertionKeyID mocks base method.
+func (m *MockKeyResolver) ResolveAssertionKeyID(id did.DID) (go_did.URI, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveAssertionKey", id)
+	ret := m.ctrl.Call(m, "ResolveAssertionKeyID", id)
 	ret0, _ := ret[0].(go_did.URI)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
-func (mr *MockKeyResolverMockRecorder) ResolveAssertionKey(id interface{}) *gomock.Call {
+// ResolveAssertionKeyID indicates an expected call of ResolveAssertionKeyID.
+func (mr *MockKeyResolverMockRecorder) ResolveAssertionKeyID(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockKeyResolver)(nil).ResolveAssertionKey), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKeyID", reflect.TypeOf((*MockKeyResolver)(nil).ResolveAssertionKeyID), id)
 }
 
 // ResolveSigningKey mocks base method.
@@ -269,6 +269,44 @@ func (m *MockKeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time
 func (mr *MockKeyResolverMockRecorder) ResolveSigningKeyID(holder, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveSigningKeyID", reflect.TypeOf((*MockKeyResolver)(nil).ResolveSigningKeyID), holder, validAt)
+}
+
+// MockDocKeyAdder is a mock of DocKeyAdder interface.
+type MockDocKeyAdder struct {
+	ctrl     *gomock.Controller
+	recorder *MockDocKeyAdderMockRecorder
+}
+
+// MockDocKeyAdderMockRecorder is the mock recorder for MockDocKeyAdder.
+type MockDocKeyAdderMockRecorder struct {
+	mock *MockDocKeyAdder
+}
+
+// NewMockDocKeyAdder creates a new mock instance.
+func NewMockDocKeyAdder(ctrl *gomock.Controller) *MockDocKeyAdder {
+	mock := &MockDocKeyAdder{ctrl: ctrl}
+	mock.recorder = &MockDocKeyAdderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockDocKeyAdder) EXPECT() *MockDocKeyAdderMockRecorder {
+	return m.recorder
+}
+
+// AddVerificationMethod mocks base method.
+func (m *MockDocKeyAdder) AddVerificationMethod(id did.DID) (*did.VerificationMethod, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddVerificationMethod", id)
+	ret0, _ := ret[0].(*did.VerificationMethod)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddVerificationMethod indicates an expected call of AddVerificationMethod.
+func (mr *MockDocKeyAdderMockRecorder) AddVerificationMethod(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVerificationMethod", reflect.TypeOf((*MockDocKeyAdder)(nil).AddVerificationMethod), id)
 }
 
 // MockStore is a mock of Store interface.
@@ -376,20 +414,6 @@ func (mr *MockVDRMockRecorder) Create() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create))
 }
 
-// Deactivate mocks base method.
-func (m *MockVDR) Deactivate(id did.DID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Deactivate", id)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Deactivate indicates an expected call of Deactivate.
-func (mr *MockVDRMockRecorder) Deactivate(id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockVDR)(nil).Deactivate), id)
-}
-
 // Resolve mocks base method.
 func (m *MockVDR) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
 	m.ctrl.T.Helper()
@@ -406,51 +430,6 @@ func (mr *MockVDRMockRecorder) Resolve(id, metadata interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVDR)(nil).Resolve), id, metadata)
 }
 
-// ResolveAssertionKey mocks base method.
-func (m *MockVDR) ResolveAssertionKey(id did.DID) (go_did.URI, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveAssertionKey", id)
-	ret0, _ := ret[0].(go_did.URI)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
-func (mr *MockVDRMockRecorder) ResolveAssertionKey(id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockVDR)(nil).ResolveAssertionKey), id)
-}
-
-// ResolveSigningKey mocks base method.
-func (m *MockVDR) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveSigningKey", keyID, validAt)
-	ret0, _ := ret[0].(crypto.PublicKey)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResolveSigningKey indicates an expected call of ResolveSigningKey.
-func (mr *MockVDRMockRecorder) ResolveSigningKey(keyID, validAt interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveSigningKey", reflect.TypeOf((*MockVDR)(nil).ResolveSigningKey), keyID, validAt)
-}
-
-// ResolveSigningKeyID mocks base method.
-func (m *MockVDR) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveSigningKeyID", holder, validAt)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResolveSigningKeyID indicates an expected call of ResolveSigningKeyID.
-func (mr *MockVDRMockRecorder) ResolveSigningKeyID(holder, validAt interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveSigningKeyID", reflect.TypeOf((*MockVDR)(nil).ResolveSigningKeyID), holder, validAt)
-}
-
 // Update mocks base method.
 func (m *MockVDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
@@ -465,86 +444,68 @@ func (mr *MockVDRMockRecorder) Update(id, current, next, metadata interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockVDR)(nil).Update), id, current, next, metadata)
 }
 
-// MockResolver is a mock of Resolver interface.
-type MockResolver struct {
+// MockDocManipulator is a mock of DocManipulator interface.
+type MockDocManipulator struct {
 	ctrl     *gomock.Controller
-	recorder *MockResolverMockRecorder
+	recorder *MockDocManipulatorMockRecorder
 }
 
-// MockResolverMockRecorder is the mock recorder for MockResolver.
-type MockResolverMockRecorder struct {
-	mock *MockResolver
+// MockDocManipulatorMockRecorder is the mock recorder for MockDocManipulator.
+type MockDocManipulatorMockRecorder struct {
+	mock *MockDocManipulator
 }
 
-// NewMockResolver creates a new mock instance.
-func NewMockResolver(ctrl *gomock.Controller) *MockResolver {
-	mock := &MockResolver{ctrl: ctrl}
-	mock.recorder = &MockResolverMockRecorder{mock}
+// NewMockDocManipulator creates a new mock instance.
+func NewMockDocManipulator(ctrl *gomock.Controller) *MockDocManipulator {
+	mock := &MockDocManipulator{ctrl: ctrl}
+	mock.recorder = &MockDocManipulatorMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
+func (m *MockDocManipulator) EXPECT() *MockDocManipulatorMockRecorder {
 	return m.recorder
 }
 
-// Resolve mocks base method.
-func (m *MockResolver) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
+// AddVerificationMethod mocks base method.
+func (m *MockDocManipulator) AddVerificationMethod(id did.DID) (*did.VerificationMethod, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Resolve", id, metadata)
-	ret0, _ := ret[0].(*did.Document)
-	ret1, _ := ret[1].(*DocumentMetadata)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// Resolve indicates an expected call of Resolve.
-func (mr *MockResolverMockRecorder) Resolve(id, metadata interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockResolver)(nil).Resolve), id, metadata)
-}
-
-// ResolveAssertionKey mocks base method.
-func (m *MockResolver) ResolveAssertionKey(id did.DID) (go_did.URI, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveAssertionKey", id)
-	ret0, _ := ret[0].(go_did.URI)
+	ret := m.ctrl.Call(m, "AddVerificationMethod", id)
+	ret0, _ := ret[0].(*did.VerificationMethod)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
-func (mr *MockResolverMockRecorder) ResolveAssertionKey(id interface{}) *gomock.Call {
+// AddVerificationMethod indicates an expected call of AddVerificationMethod.
+func (mr *MockDocManipulatorMockRecorder) AddVerificationMethod(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockResolver)(nil).ResolveAssertionKey), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).AddVerificationMethod), id)
 }
 
-// ResolveSigningKey mocks base method.
-func (m *MockResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
+// Deactivate mocks base method.
+func (m *MockDocManipulator) Deactivate(id did.DID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveSigningKey", keyID, validAt)
-	ret0, _ := ret[0].(crypto.PublicKey)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "Deactivate", id)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
-// ResolveSigningKey indicates an expected call of ResolveSigningKey.
-func (mr *MockResolverMockRecorder) ResolveSigningKey(keyID, validAt interface{}) *gomock.Call {
+// Deactivate indicates an expected call of Deactivate.
+func (mr *MockDocManipulatorMockRecorder) Deactivate(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveSigningKey", reflect.TypeOf((*MockResolver)(nil).ResolveSigningKey), keyID, validAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocManipulator)(nil).Deactivate), id)
 }
 
-// ResolveSigningKeyID mocks base method.
-func (m *MockResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
+// RemoveVerificationMethod mocks base method.
+func (m *MockDocManipulator) RemoveVerificationMethod(id, keyID did.DID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveSigningKeyID", holder, validAt)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "RemoveVerificationMethod", id, keyID)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
-// ResolveSigningKeyID indicates an expected call of ResolveSigningKeyID.
-func (mr *MockResolverMockRecorder) ResolveSigningKeyID(holder, validAt interface{}) *gomock.Call {
+// RemoveVerificationMethod indicates an expected call of RemoveVerificationMethod.
+func (mr *MockDocManipulatorMockRecorder) RemoveVerificationMethod(id, keyID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveSigningKeyID", reflect.TypeOf((*MockResolver)(nil).ResolveSigningKeyID), holder, validAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).RemoveVerificationMethod), id, keyID)
 }

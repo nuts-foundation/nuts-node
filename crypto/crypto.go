@@ -120,18 +120,18 @@ func (client *Crypto) PrivateKeyExists(kid string) bool {
 
 // GetPublicKey loads the key from storage
 // It returns ErrKeyNotFound when the key could not be found in storage
-// It returns ErrKeyNotFound when the key is not valid on the provided validationTime
+// It returns ErrKeyRevoked when the key is not valid on the provided validationTime
 func (client *Crypto) GetPublicKey(kid string, validationTime time.Time) (crypto.PublicKey, error) {
 	pke, err := client.Storage.GetPublicKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return nil, ErrKeyNotFound
+			return nil, NewEntityErr(ErrKeyNotFound, kid)
 		}
 		return nil, err
 	}
 
 	if !pke.Period.Contains(validationTime) {
-		return nil, ErrKeyNotFound
+		return nil, NewEntityErr(ErrKeyRevoked, kid)
 	}
 
 	var unknown interface{}

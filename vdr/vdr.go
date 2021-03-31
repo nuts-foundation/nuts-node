@@ -27,16 +27,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/sirupsen/logrus"
+
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
 
@@ -173,20 +173,6 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 
 func isDeactivated(document *did.Document) bool {
 	return len(document.Controller) == 0 && len(document.Authentication) == 0
-}
-
-// Deactivate updates the DID Document so it can no longer be updated
-func (r *VDR) Deactivate(id did.DID) error {
-	_, meta, err := r.store.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
-	if err != nil {
-		return err
-	}
-	// A deactivated DID resolves to an empty DID document.
-	emptyDoc := did.Document{
-		Context: []ssi.URI{did.DIDContextV1URI()},
-		ID:      id,
-	}
-	return r.Update(id, meta.Hash, emptyDoc, nil)
 }
 
 // resolveControllers accepts a list of documents and finds their controllers

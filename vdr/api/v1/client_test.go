@@ -16,22 +16,27 @@
 package v1
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTPClient_Create(t *testing.T) {
-	id, _ := did.ParseDID("did:nuts:1")
 	didDoc := did.Document{
-		ID: *id,
+		ID: *vdr.TestDIDA,
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -59,10 +64,8 @@ func TestHTTPClient_Create(t *testing.T) {
 }
 
 func TestHttpClient_Get(t *testing.T) {
-	didString := "did:nuts:1"
-	id, _ := did.ParseDID(didString)
 	didDoc := did.Document{
-		ID: *id,
+		ID: *vdr.TestDIDA,
 	}
 	meta := types.DocumentMetadata{}
 
@@ -73,7 +76,7 @@ func TestHttpClient_Get(t *testing.T) {
 		}
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: resolutionResult})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		doc, meta, err := c.Get(didString)
+		doc, meta, err := c.Get(vdr.TestDIDA.String())
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -85,7 +88,7 @@ func TestHttpClient_Get(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 
-		_, _, err := c.Get(didString)
+		_, _, err := c.Get(vdr.TestDIDA.String())
 
 		assert.Error(t, err)
 	})
@@ -94,30 +97,28 @@ func TestHttpClient_Get(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 
-		_, _, err := c.Get(didString)
+		_, _, err := c.Get(vdr.TestDIDA.String())
 
 		assert.Error(t, err)
 	})
 
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
-		_, _, err := c.Get(didString)
+		_, _, err := c.Get(vdr.TestDIDA.String())
 		assert.Error(t, err)
 	})
 }
 
 func TestHTTPClient_Update(t *testing.T) {
-	didString := "did:nuts:1"
-	id, _ := did.ParseDID(didString)
 	didDoc := did.Document{
-		ID: *id,
+		ID: *vdr.TestDIDA,
 	}
 	hash := "0000000000000000000000000000000000000000"
 
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		doc, err := c.Update(didString, hash, didDoc)
+		doc, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -128,7 +129,7 @@ func TestHTTPClient_Update(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 
-		_, err := c.Update(didString, hash, didDoc)
+		_, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
 
 		assert.Error(t, err)
 	})
@@ -137,24 +138,23 @@ func TestHTTPClient_Update(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 
-		_, err := c.Update(didString, hash, didDoc)
+		_, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
-		_, err := c.Update(didString, hash, didDoc)
+		_, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
 		assert.Error(t, err)
 	})
 }
 func TestHTTPClient_Deactivate(t *testing.T) {
-	didString := "did:nuts:1"
 
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		err := c.Deactivate(didString)
+		err := c.Deactivate(vdr.TestDIDA.String())
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -162,7 +162,64 @@ func TestHTTPClient_Deactivate(t *testing.T) {
 
 	t.Run("error - server problems", func(t *testing.T) {
 		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
-		err := c.Deactivate(didString)
+		err := c.Deactivate(vdr.TestDIDA.String())
+		assert.Error(t, err)
+	})
+}
+
+func TestHTTPClient_AddNewVerificationMethod(t *testing.T) {
+	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	method, _ := did.NewVerificationMethod(*vdr.TestMethodDIDA, ssi.JsonWebKey2020, *vdr.TestDIDA, pair.PublicKey)
+	methodJSON, _ := json.Marshal(method)
+
+	t.Run("ok", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: string(methodJSON)})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		// methodResponse, err := c.AddNewVerificationMethod(didString)
+		_, err := c.AddNewVerificationMethod(vdr.TestDIDA.String())
+		if !assert.NoError(t, err) {
+			return
+		}
+		// this fails because of https://github.com/nuts-foundation/go-did/issues/33
+		//assert.Equal(t, method, methodResponse)
+	})
+
+	t.Run("error - a non 200 response", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusForbidden})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		_, err := c.AddNewVerificationMethod(vdr.TestDIDA.String())
+		assert.Error(t, err)
+		assert.EqualError(t, err, "server returned HTTP 403 (expected: 200), response: null")
+	})
+
+	t.Run("error - server problems", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		_, err := c.AddNewVerificationMethod(vdr.TestDIDA.String())
+		assert.Error(t, err)
+	})
+}
+
+func TestHTTPClient_DeleteVerificationMethod(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.DeleteVerificationMethod(vdr.TestDIDA.String(), vdr.TestMethodDIDA.String())
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+
+	t.Run("error - a non 204 response", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusForbidden})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.DeleteVerificationMethod(vdr.TestDIDA.String(), vdr.TestMethodDIDA.String())
+		assert.Error(t, err)
+		assert.EqualError(t, err, "server returned HTTP 403 (expected: 204), response: null")
+	})
+
+	t.Run("error - server problems", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		err := c.DeleteVerificationMethod(vdr.TestDIDA.String(), vdr.TestMethodDIDA.String())
 		assert.Error(t, err)
 	})
 }
@@ -177,6 +234,13 @@ func TestReadDIDDocument(t *testing.T) {
 func TestReadDIDResolutionResult(t *testing.T) {
 	t.Run("error - faulty stream", func(t *testing.T) {
 		_, err := readDIDResolutionResult(errReader{})
+		assert.Error(t, err)
+	})
+}
+
+func TestReadVerificationMethod(t *testing.T) {
+	t.Run("error - faulty stream", func(t *testing.T) {
+		_, err := readVerificationMethod(errReader{})
 		assert.Error(t, err)
 	})
 }

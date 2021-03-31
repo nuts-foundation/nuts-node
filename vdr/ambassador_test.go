@@ -1095,7 +1095,7 @@ func Test_ambassador_updateKeysInStore(t *testing.T) {
 		assert.EqualError(t, err, "unable to add new public key: key already exists")
 	})
 
-	t.Run("error - revoking key failed", func(t *testing.T) {
+	t.Run("ok - revoking already revoked key should succeed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -1117,6 +1117,31 @@ func Test_ambassador_updateKeysInStore(t *testing.T) {
 		keyStoreMock.EXPECT().RevokePublicKey(vm.ID.String(), timeNow).Return(crypto.ErrKeyRevoked)
 
 		err = sut.updateKeysInStore(current, proposed, timeNow)
-		assert.EqualError(t, err, "unable to revoke public key: key is revoked")
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - revoking key failed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyStoreMock := crypto.NewMockPublicKeyStore(ctrl)
+
+		sut := ambassador{keyStore: keyStoreMock}
+
+		current := did.Document{}
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		timeNow := time.Now()
+		vm, err := did.NewVerificationMethod(did.DID{}, ssi.JsonWebKey2020, did.DID{}, pair.PublicKey)
+		if !assert.NoError(t, err,
+			"unexpected error while generating a new verificationMethod") {
+			return
+		}
+		current.AddAuthenticationMethod(vm)
+
+		proposed := did.Document{}
+		keyStoreMock.EXPECT().RevokePublicKey(vm.ID.String(), timeNow).Return(crypto.ErrKeyNotFound)
+
+		err = sut.updateKeysInStore(current, proposed, timeNow)
+		assert.EqualError(t, err, "unable to revoke public key: key not found")
 	})
 }

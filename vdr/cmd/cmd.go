@@ -23,13 +23,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"strings"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"io/ioutil"
-	"os"
-	"strings"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
@@ -55,6 +56,10 @@ func Cmd() *cobra.Command {
 	cmd.AddCommand(updateCmd())
 
 	cmd.AddCommand(deactivateCmd())
+
+	cmd.AddCommand(addVerificationMethodCmd())
+
+	cmd.AddCommand(deleteVerificationMethodCmd())
 
 	return cmd
 }
@@ -90,7 +95,7 @@ func updateCmd() *cobra.Command {
 			var err error
 			if len(args) == 3 {
 				// read from file
-				bytes, err = ioutil.ReadFile(args[2])
+				bytes, err = os.ReadFile(args[2])
 				if err != nil {
 					return fmt.Errorf("failed to read file %s: %w", args[2], err)
 				}
@@ -177,6 +182,43 @@ func deactivateCmd() *cobra.Command {
 	return result
 }
 
+func addVerificationMethodCmd() *cobra.Command {
+	result := &cobra.Command{
+		Use:   "addvm [DID]",
+		Short: "Add a verification method key to the DID document.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			verificationMethod, err := httpClient(cmd.Flags()).AddNewVerificationMethod(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to add a new verification method to DID document: %s", err.Error())
+			}
+			bytes, _ := json.MarshalIndent(verificationMethod, "", "  ")
+			cmd.Printf("%s\n", string(bytes))
+			return nil
+		},
+	}
+
+	return result
+}
+
+func deleteVerificationMethodCmd() *cobra.Command {
+	result := &cobra.Command{
+		Use:   "delvm [DID] [kid]",
+		Short: "Deletes a verification method from the DID document.",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := httpClient(cmd.Flags()).DeleteVerificationMethod(args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("failed to delete the verification method from DID document: %s", err.Error())
+			}
+			cmd.Println("Verification method deleted from the DID document.")
+			return nil
+		},
+	}
+
+	return result
+}
+
 func askYesNo(question string, cmd *cobra.Command) (answer bool) {
 	reader := bufio.NewReader(cmd.InOrStdin())
 	question += "[yes/no]: "
@@ -208,7 +250,7 @@ func readFromStdin() ([]byte, error) {
 	if fi.Mode()&os.ModeNamedPipe == 0 {
 		return nil, errors.New("expected piped input")
 	}
-	return ioutil.ReadAll(bufio.NewReader(os.Stdin))
+	return io.ReadAll(bufio.NewReader(os.Stdin))
 }
 
 // httpClient creates a remote client

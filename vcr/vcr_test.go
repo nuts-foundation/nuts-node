@@ -250,7 +250,7 @@ func TestVcr_Issue(t *testing.T) {
 		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
-		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
+		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
@@ -299,7 +299,7 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(ssi.URI{}, errors.New("b00m!"))
+		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.URI{}, errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
 
@@ -339,7 +339,7 @@ func TestVcr_Issue(t *testing.T) {
 
 		cred := validNutsOrganizationCredential()
 		cred.CredentialSubject = make([]interface{}, 0)
-		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
+		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
 
 		_, err := instance.Issue(*cred)
@@ -354,7 +354,7 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
+		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("", errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
@@ -368,7 +368,7 @@ func TestVcr_Issue(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
-		ctx.vdr.EXPECT().ResolveAssertionKey(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
+		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
@@ -402,7 +402,7 @@ func TestVcr_Verify(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, nil).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
 
 		err := instance.Verify(subject, nil)
 
@@ -434,7 +434,7 @@ func TestVcr_Verify(t *testing.T) {
 		vc2 := subject
 		vc2.IssuanceDate = time.Now()
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, nil).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
 
 		err := instance.Verify(vc2, nil)
 
@@ -454,7 +454,7 @@ func TestVcr_Verify(t *testing.T) {
 		pr[0].Created = time.Now()
 		vc2.Proof = []interface{}{pr[0]}
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, nil).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
 
 		err := instance.Verify(vc2, nil)
 
@@ -547,7 +547,7 @@ func TestVcr_Verify(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, nil).Return(nil, errors.New("b00m!"))
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(nil, errors.New("b00m!"))
 
 		err := instance.Verify(subject, nil)
 
@@ -560,7 +560,7 @@ func TestVcr_Verify(t *testing.T) {
 		defer ctx.ctrl.Finish()
 		at := subject.IssuanceDate.Add(-1 * time.Minute)
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
 
 		err := instance.Verify(subject, &at)
 
@@ -592,7 +592,7 @@ func TestVcr_Revoke(t *testing.T) {
 		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
-		ctx.vdr.EXPECT().ResolveAssertionKey(gomock.Any()).Return(vc.Issuer, nil)
+		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
 		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vc.Issuer.String()).Return("hdr..sig", nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			revocationDocumentType,
@@ -827,7 +827,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
 
 		err := instance.verifyRevocation(r)
 
@@ -883,7 +883,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		r2 := r
 		r2.Reason = "sig fails"
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
 
 		err := instance.verifyRevocation(r2)
 
@@ -907,7 +907,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 
-		ctx.vdr.EXPECT().ResolveSigningKey(kid, gomock.Any()).Return(nil, errors.New("b00m!"))
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		err := instance.verifyRevocation(r)
 

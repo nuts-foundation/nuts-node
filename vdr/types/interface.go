@@ -64,16 +64,6 @@ type DocUpdater interface {
 	Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error
 }
 
-// DocDeactivator is the interface that defines functions to deactivate DID Docs
-// Deactivation will be done in such a way that a DID doc cannot be used / activated anymore.
-type DocDeactivator interface {
-	// Since the deactivation is definitive, no version is required
-	// If the DID Document is not found ErrNotFound is returned
-	// If the DID Document is not managed by this node, ErrDIDNotManagedByThisNode is returned
-	// If the DID Document is already deactivated ErrDeactivated is returned
-	Deactivate(id did.DID) error
-}
-
 // KeyResolver is the interface for resolving keys.
 // This can be used for checking if a signing key is valid at a point in time or to just find a valid key for signing.
 type KeyResolver interface {
@@ -86,7 +76,7 @@ type KeyResolver interface {
 	ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error)
 	// ResolveAssertionKey look for a valid assertion key for the give DID. If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key is found.
-	ResolveAssertionKey(id did.DID) (ssi.URI, error)
+	ResolveAssertionKeyID(id did.DID) (ssi.URI, error)
 }
 
 // Store is the interface that groups all low level VDR DID storage operations.
@@ -101,12 +91,31 @@ type VDR interface {
 	DocResolver
 	DocCreator
 	DocUpdater
-	DocDeactivator
-	KeyResolver
 }
 
-// Resolver interface combines the KeyResolver and DocResolver
-type Resolver interface {
-	DocResolver
-	KeyResolver
+// DocManipulator groups several higher level methods to alter the state of a DID document.
+type DocManipulator interface {
+	// Deactivate deactivates a DID document
+	// Deactivation will be done in such a way that a DID doc cannot be used / activated anymore.
+	// Since the deactivation is definitive, no version is required
+	// If the DID Document is not found ErrNotFound is returned
+	// If the DID Document is not managed by this node, ErrDIDNotManagedByThisNode is returned
+	// If the DID Document is already deactivated ErrDeactivated is returned
+	Deactivate(id did.DID) error
+
+	// RemoveVerificationMethod removes a VerificationMethod from a DID document.
+	// It accepts the id DID as identifier for the DID document.
+	// It accepts the kid DID as identifier for the VerificationMethod.
+	// It returns an ErrNotFound when the DID document could not be found.
+	// It returns an ErrNotFound when there is no VerificationMethod with the provided kid in the document.
+	// It returns an ErrDeactivated when the DID document has the deactivated state.
+	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
+	RemoveVerificationMethod(id, keyID did.DID) error
+
+	// AddVerificationMethod generates a new key and adds it, wrapped as a VerificationMethod, to a DID document.
+	// It accepts a DID as identifier for the DID document.
+	// It returns an ErrNotFound when the DID document could not be found.
+	// It returns an ErrDeactivated when the DID document has the deactivated state.
+	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
+	AddVerificationMethod(id did.DID) (*did.VerificationMethod, error)
 }

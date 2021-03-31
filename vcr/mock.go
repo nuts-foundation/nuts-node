@@ -6,7 +6,6 @@ package vcr
 
 import (
 	reflect "reflect"
-	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
@@ -448,18 +447,4 @@ func (m *MockVCR) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 func (mr *MockVCRMockRecorder) Untrusted(credentialType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrusted", reflect.TypeOf((*MockVCR)(nil).Untrusted), credentialType)
-}
-
-// Verify mocks base method.
-func (m *MockVCR) Verify(vcToVerify vc.VerifiableCredential, at *time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify", vcToVerify, at)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Verify indicates an expected call of Verify.
-func (mr *MockVCRMockRecorder) Verify(vcToVerify, at interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVCR)(nil).Verify), vcToVerify, at)
 }

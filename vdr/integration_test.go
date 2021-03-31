@@ -1,15 +1,17 @@
 package vdr
 
 import (
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
-	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
+	"errors"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"testing"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -143,7 +145,8 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// Check if the key has been removed from the keyStore
 	key, err = nutsCrypto.GetPublicKey(docAAuthenticationKeyID, time.Now())
-	assert.EqualError(t, err, "key not found",
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, crypto.ErrKeyRevoked),
 		"expected authenticationKey of documentA to be removed from the keyStore")
 
 	// Update and check DocumentA with a new service:
@@ -175,9 +178,11 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// Update document B with a new authentication key which replaces the first one:
 	oldAuthKeyDocB := resolvedDocB.Authentication[0].ID
-	docUpdater := NutsDocUpdater{keyCreator: nutsCrypto}
-	err = docUpdater.CreateNewAuthenticationMethodForDocument(docB)
+	docUpdater := DocUpdater{KeyCreator: nutsCrypto, VDR: *vdr}
+	method, err := docUpdater.createNewVerificationMethodForDID(docB.ID)
 	assert.NoError(t, err)
+	assert.NotNil(t, method)
+	docB.AddAuthenticationMethod(method)
 	docB.Authentication.Remove(oldAuthKeyDocB)
 	docB.VerificationMethod.Remove(oldAuthKeyDocB)
 	err = vdr.Update(docB.ID, metadataDocB.Hash, *docB, nil)
@@ -194,13 +199,13 @@ func TestVDRIntegration_Test(t *testing.T) {
 	assert.Len(t, resolvedDocB.Authentication, 1)
 	assert.NotEqual(t, oldAuthKeyDocB, resolvedDocB.Authentication[0].ID)
 
-	// Check if the key has been removed from the keyStore
+	// Check if the key has been revoked from the keyStore
 	key, err = nutsCrypto.GetPublicKey(oldAuthKeyDocB.String(), time.Now())
-	assert.EqualError(t, err, "key not found",
+	assert.True(t, errors.Is(err, crypto.ErrKeyRevoked),
 		"expected authenticationKey of documentB to be removed from the keyStore")
 
 	// deactivate document B
-	err = vdr.Deactivate(docB.ID)
+	err = docUpdater.Deactivate(docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
 
@@ -210,7 +215,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected document B to not have any authentication methods after deactivation")
 
 	// try to deactivate the document again
-	err = vdr.Deactivate(docB.ID)
+	err = docUpdater.Deactivate(docB.ID)
 	assert.EqualError(t, err, "the document has been deactivated",
 		"expected an error when trying to deactivate an already deactivated document")
 

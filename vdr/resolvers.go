@@ -3,14 +3,22 @@ package vdr
 import (
 	"crypto"
 	"fmt"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"time"
 )
 
-func (r *VDR) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
-	doc, _, err := r.Resolve(holder, &types.ResolveMetadata{
+// KeyResolver implements the KeyResolver interface with a DocResolver as backend
+type KeyResolver struct {
+	DocResolver types.DocResolver
+}
+
+// ResolveSigningKeyID resolves the ID of the first valid AssertionMethod for a indicated DID document at a given time.
+func (r KeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
+	doc, _, err := r.DocResolver.Resolve(holder, &types.ResolveMetadata{
 		ResolveTime: validAt,
 	})
 	if err != nil {
@@ -22,14 +30,16 @@ func (r *VDR) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, e
 	return doc.AssertionMethod[0].ID.String(), nil
 }
 
-func (r *VDR) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
+// ResolveSigningKey resolves the PublicKey of the first valid AssertionMethod for an indicated
+// DID document at a validAt time.
+func (r KeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
 	kid, err := did.ParseDID(keyID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", keyID, err)
 	}
 	holder := *kid
 	holder.Fragment = ""
-	doc, _, err := r.Resolve(holder, &types.ResolveMetadata{
+	doc, _, err := r.DocResolver.Resolve(holder, &types.ResolveMetadata{
 		ResolveTime: validAt,
 	})
 	if err != nil {
@@ -47,19 +57,17 @@ func (r *VDR) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.Public
 	return result.PublicKey()
 }
 
-func (r *VDR) ResolveAssertionKey(id did.DID) (ssi.URI, error) {
-	doc, _, err := r.Resolve(id, nil)
+// ResolveAssertionKeyID resolves the id of the first valid AssertionMethod of an indicated DID document in the current state.
+func (r KeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
+	doc, _, err := r.DocResolver.Resolve(id, nil)
 	if err != nil {
 		return ssi.URI{}, err
 	}
-
 	keys := doc.AssertionMethod
 	for _, key := range keys {
 		kid := key.ID.String()
-		if r.keyStore.PrivateKeyExists(kid) {
-			u, _ := ssi.ParseURI(kid)
-			return *u, nil
-		}
+		u, _ := ssi.ParseURI(kid)
+		return *u, nil
 	}
 
 	return ssi.URI{}, types.ErrKeyNotFound

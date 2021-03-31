@@ -48,12 +48,12 @@ import (
 )
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(signer crypto.JWSSigner, docResolver vdr.Resolver, network network.Transactions) VCR {
+func NewVCRInstance(signer crypto.JWSSigner, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
 	r := &vcr{
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
 		signer:      signer,
-		docResolver: docResolver,
+		keyResolver: keyResolver,
 		network:     network,
 	}
 
@@ -67,7 +67,7 @@ type vcr struct {
 	config      Config
 	store       leia.Store
 	signer      crypto.JWSSigner
-	docResolver vdr.Resolver
+	keyResolver vdr.KeyResolver
 	ambassador  Ambassador
 	network     network.Transactions
 	trustConfig *trust.Config
@@ -240,7 +240,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	}
 
 	// resolve an assertionMethod key for issuer
-	kid, err := c.docResolver.ResolveAssertionKey(*issuer)
+	kid, err := c.keyResolver.ResolveAssertionKeyID(*issuer)
 	if err != nil {
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
@@ -364,7 +364,7 @@ func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
 	}
 
 	// find key
-	pk, err := c.docResolver.ResolveSigningKey(proof.VerificationMethod.String(), at)
+	pk, err := c.keyResolver.ResolveSigningKey(proof.VerificationMethod.String(), at)
 	if err != nil {
 		return err
 	}
@@ -422,7 +422,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 	}
 
 	// resolve an assertionMethod key for issuer
-	kid, err := c.docResolver.ResolveAssertionKey(*issuer)
+	kid, err := c.keyResolver.ResolveAssertionKeyID(*issuer)
 	if err != nil {
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
@@ -573,7 +573,7 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	}
 
 	// find key
-	pk, err := c.docResolver.ResolveSigningKey(r.Proof.VerificationMethod.String(), &r.Date)
+	pk, err := c.keyResolver.ResolveSigningKey(r.Proof.VerificationMethod.String(), &r.Date)
 	if err != nil {
 		return err
 	}

@@ -30,6 +30,9 @@ import (
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core/status"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	cryptoApi "github.com/nuts-foundation/nuts-node/crypto/api/v1"
@@ -43,8 +46,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrApi "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 var stdOutWriter io.Writer = os.Stdout
@@ -148,7 +149,8 @@ func CreateSystem() *core.System {
 	cryptoInstance := crypto.NewCryptoInstance()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), cryptoInstance)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
-	credentialInstance := vcr.NewVCRInstance(cryptoInstance, vdrInstance, networkInstance)
+	keyResolver := vdr.KeyResolver{DocResolver: vdrInstance}
+	credentialInstance := vcr.NewVCRInstance(cryptoInstance, keyResolver, networkInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, credentialInstance, cryptoInstance)
@@ -156,7 +158,7 @@ func CreateSystem() *core.System {
 	// add engine specific routes
 	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})
 	system.RegisterRoutes(&networkApi.Wrapper{Service: networkInstance})
-	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance})
+	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance, DocManipulator: vdr.DocUpdater{VDR: vdrInstance, KeyCreator: cryptoInstance}})
 	system.RegisterRoutes(&credApi.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))

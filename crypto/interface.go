@@ -21,8 +21,15 @@ package crypto
 import (
 	"crypto"
 	"errors"
+	"fmt"
 	"time"
 )
+
+// NewEntityErr wraps an error with new error containing the entity ID
+// NewEntityErr(ErrKeyNotFound, id.String())
+func NewEntityErr(err error, id string) error {
+	return fmt.Errorf("%w: id: %s", err, id)
+}
 
 // ErrKeyNotFound is returned when the key should not exists but does
 var ErrKeyNotFound = errors.New("key not found")

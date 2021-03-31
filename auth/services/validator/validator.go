@@ -68,16 +68,17 @@ type service struct {
 	irmaServer        *irmaserver.Server
 	verifiers         map[contract.VPType]contract.VPVerifier
 	signers           map[contract.SigningMeans]contract.Signer
-	didResolver       types.Resolver
+	didResolver       types.DocResolver
 	vcResolver        vcr.Resolver
+	keyResolver       types.KeyResolver
 	privateKeyStore   crypto.PrivateKeyStore
 }
 
 // NewContractInstance accepts a Config and several Nuts engines and returns a new instance of services.ContractClient
-func NewContractInstance(config Config, didResolver types.Resolver, vcResolver vcr.Resolver, privateKeyStore crypto.PrivateKeyStore) services.ContractClient {
+func NewContractInstance(config Config, keyResolver types.KeyResolver, vcResolver vcr.Resolver, privateKeyStore crypto.PrivateKeyStore) services.ContractClient {
 	return &service{
 		config:          config,
-		didResolver:     didResolver,
+		keyResolver:     keyResolver,
 		privateKeyStore: privateKeyStore,
 		vcResolver:      vcResolver,
 	}
@@ -109,6 +110,7 @@ func (s *service) Configure() (err error) {
 			IrmaConfig:         irmaConfig,
 			DIDResolver:        s.didResolver,
 			VCResolver:         s.vcResolver,
+			KeyResolver:        s.keyResolver,
 			Signer:             s.privateKeyStore,
 			IrmaServiceConfig:  s.irmaServiceConfig,
 			ContractTemplates:  contract.StandardContractTemplates,

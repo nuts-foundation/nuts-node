@@ -27,7 +27,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 
 	"io"
-	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -117,15 +116,43 @@ func (hb HTTPClient) Deactivate(DID string) error {
 	return nil
 }
 
+// AddNewVerificationMethod creates a new verificationMethod and adds it to the DID document
+// It expects a status 200 response from the server, returns an error otherwise
+func (hb HTTPClient) AddNewVerificationMethod(DID string) (*did.VerificationMethod, error) {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
+	response, err := hb.client().AddNewVerificationMethod(ctx, DID)
+	if err != nil {
+		return nil, err
+	}
+	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	}
+
+	return readVerificationMethod(response.Body)
+}
+
+// DeleteVerificationMethod deletes a specified verificationMethod from the DID document
+// It expects a status 204 response from the server, returns an error otherwise
+func (hb HTTPClient) DeleteVerificationMethod(DID, kid string) error {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
+	response, err := hb.client().DeleteVerificationMethod(ctx, DID, kid)
+	if err != nil {
+		return err
+	}
+	return core.TestResponseCode(http.StatusNoContent, response)
+}
+
 func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), hb.Timeout)
 }
 
 func readDIDDocument(reader io.Reader) (*did.Document, error) {
-	var data []byte
-	var err error
-
-	if data, err = ioutil.ReadAll(reader); err != nil {
+	data, err := io.ReadAll(reader)
+	if err != nil {
 		return nil, fmt.Errorf("unable to read DID Document response: %w", err)
 	}
 	document := did.Document{}
@@ -136,10 +163,8 @@ func readDIDDocument(reader io.Reader) (*did.Document, error) {
 }
 
 func readDIDResolutionResult(reader io.Reader) (*DIDResolutionResult, error) {
-	var data []byte
-	var err error
-
-	if data, err = ioutil.ReadAll(reader); err != nil {
+	data, err := io.ReadAll(reader)
+	if err != nil {
 		return nil, fmt.Errorf("unable to read DID Resolve response: %w", err)
 	}
 	resolutionResult := DIDResolutionResult{}
@@ -147,4 +172,16 @@ func readDIDResolutionResult(reader io.Reader) (*DIDResolutionResult, error) {
 		return nil, fmt.Errorf("unable to unmarshal DID Resolve response: %w", err)
 	}
 	return &resolutionResult, nil
+}
+
+func readVerificationMethod(reader io.Reader) (*did.VerificationMethod, error) {
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read DID Resolve response: %w", err)
+	}
+	verificationMethod := did.VerificationMethod{}
+	if err = json.Unmarshal(data, &verificationMethod); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal verification method response: %w, %s", err, string(data))
+	}
+	return &verificationMethod, nil
 }
