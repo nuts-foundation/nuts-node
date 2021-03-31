@@ -117,7 +117,7 @@ func (hb HTTPClient) Deactivate(DID string) error {
 }
 
 // AddNewVerificationMethod creates a new verificationMethod and adds it to the DID document
-// It expects a status 201 respond from the server, returns an error otherwise
+// It expects a status 200 response from the server, returns an error otherwise
 func (hb HTTPClient) AddNewVerificationMethod(DID string) (*did.VerificationMethod, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
@@ -134,7 +134,7 @@ func (hb HTTPClient) AddNewVerificationMethod(DID string) (*did.VerificationMeth
 }
 
 // DeleteVerificationMethod deletes a specified verificationMethod from the DID document
-// It expects a status 204 respond from the server, returns an error otherwise
+// It expects a status 204 response from the server, returns an error otherwise
 func (hb HTTPClient) DeleteVerificationMethod(DID, kid string) error {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
