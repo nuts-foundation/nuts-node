@@ -20,9 +20,9 @@
 package v1
 
 import (
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -70,7 +70,7 @@ func TestHttpClient_GetPublicKey(t *testing.T) {
 		assert.NotNil(t, res)
 	})
 	t.Run("error - server returned non-JWK", func(t *testing.T) {
-		csrBytes, _ := ioutil.ReadFile("../test/broken.pem")
+		csrBytes, _ := os.ReadFile("../test/broken.pem")
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: csrBytes})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		res, err := c.GetPublicKey("kid", nil)

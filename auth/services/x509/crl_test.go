@@ -4,10 +4,10 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -27,7 +27,7 @@ func NewMockCrlService(urls []string) (*mockCrlService, error) {
 		}
 		certName := url.Path[strings.LastIndex(url.Path, "/")+1:]
 
-		rawCrl, err := ioutil.ReadFile(fmt.Sprintf("../../test/certs/%s", certName))
+		rawCrl, err := os.ReadFile(fmt.Sprintf("../../test/certs/%s", certName))
 		if err != nil {
 			return nil, err
 		}

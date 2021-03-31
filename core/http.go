@@ -21,13 +21,13 @@ package core
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 )
 
 func TestResponseCode(expectedStatusCode int, response *http.Response) error {
 	if response.StatusCode != expectedStatusCode {
-		responseData, _ := ioutil.ReadAll(response.Body)
+		responseData, _ := io.ReadAll(response.Body)
 		return fmt.Errorf("server returned HTTP %d (expected: %d), response: %s",
 			response.StatusCode, expectedStatusCode, string(responseData))
 	}

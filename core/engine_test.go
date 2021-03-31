@@ -22,7 +22,7 @@ package core
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -210,7 +210,7 @@ func TestDecodeURIPath(t *testing.T) {
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 		defer rec.Result().Body.Close()
-		bodyBytes, _ := ioutil.ReadAll(rec.Result().Body)
+		bodyBytes, _ := io.ReadAll(rec.Result().Body)
 		assert.Equal(t, encodedParam, string(bodyBytes))
 	})
 
@@ -227,7 +227,7 @@ func TestDecodeURIPath(t *testing.T) {
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 		defer rec.Result().Body.Close()
-		bodyBytes, _ := ioutil.ReadAll(rec.Result().Body)
+		bodyBytes, _ := io.ReadAll(rec.Result().Body)
 		assert.Equal(t, rawParam, string(bodyBytes))
 	})
 }

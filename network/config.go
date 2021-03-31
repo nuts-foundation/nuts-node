@@ -3,7 +3,7 @@ package network
 import (
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 // Config holds the config for Transactions
@@ -35,7 +35,7 @@ func DefaultConfig() Config {
 
 func (c Config) loadTrustStore() (*x509.CertPool, error) {
 	trustStore := x509.NewCertPool()
-	data, err := ioutil.ReadFile(c.TrustStoreFile)
+	data, err := os.ReadFile(c.TrustStoreFile)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read trust store (file=%s): %w", c.TrustStoreFile, err)
 	}

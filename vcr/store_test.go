@@ -22,28 +22,29 @@ package vcr
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/vc"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestVcr_StoreCredential(t *testing.T) {
 	// load VC
 	target := vc.VerifiableCredential{}
-	vcJSON, _ := ioutil.ReadFile("test/vc.json")
+	vcJSON, _ := os.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &target)
 
 	// load pub key
 	pke := storage.PublicKeyEntry{}
-	pkeJSON, _ := ioutil.ReadFile("test/public.json")
+	pkeJSON, _ := os.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
 	var pk = new(ecdsa.PublicKey)
 	pke.JWK().Raw(pk)
@@ -77,12 +78,12 @@ func TestVcr_StoreCredential(t *testing.T) {
 func TestVcr_StoreRevocation(t *testing.T) {
 	// load VC
 	r := credential.Revocation{}
-	rJSON, _ := ioutil.ReadFile("test/revocation.json")
+	rJSON, _ := os.ReadFile("test/revocation.json")
 	json.Unmarshal(rJSON, &r)
 
 	// load pub key
 	pke := storage.PublicKeyEntry{}
-	pkeJSON, _ := ioutil.ReadFile("test/public.json")
+	pkeJSON, _ := os.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
 	var pk = new(ecdsa.PublicKey)
 	pke.JWK().Raw(pk)
