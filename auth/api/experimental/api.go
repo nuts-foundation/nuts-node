@@ -22,10 +22,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"time"
+
+	"github.com/nuts-foundation/go-did/did"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/labstack/echo/v4"
 
@@ -43,7 +46,8 @@ var _ ServerInterface = (*Wrapper)(nil)
 //
 // This is the experimental API. It is used to tests APIs is the wild.
 type Wrapper struct {
-	Auth auth.AuthenticationServices
+	Auth             auth.AuthenticationServices
+	OwnershipChecker types.OwnershipChecker
 }
 
 // Routes registers the Echo routes for the API.
@@ -188,6 +192,12 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	orgID, err := did.ParseDID(string(params.LegalEntity))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid value for param legalEntity: '%s'", params.LegalEntity))
+	}
+
+	// Check if org is managed by this node
+	err = w.OwnershipChecker.OwnedByThisNode(*orgID)
+	if err != nil {
+		return err
 	}
 
 	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(*template, *orgID, vf, validDuration)

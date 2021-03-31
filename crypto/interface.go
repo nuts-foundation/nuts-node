@@ -73,12 +73,15 @@ type PublicKeyStore interface {
 	RevokePublicKey(kid string, validTo time.Time) error
 }
 
-// PrivateKeyStore defines the functions for working with private keys.
-type PrivateKeyStore interface {
+type PrivateKeyChecker interface {
 	// PrivateKeyExists returns if the specified private key exists.
 	// If an error occurs, false is also returned
 	PrivateKeyExists(kid string) bool
+}
 
+// PrivateKeyStore defines the functions for working with private keys.
+type PrivateKeyStore interface {
+	PrivateKeyChecker
 	KeyCreator
 	JWSSigner
 	JWTSigner

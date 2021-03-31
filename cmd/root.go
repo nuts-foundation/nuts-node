@@ -155,15 +155,24 @@ func CreateSystem() *core.System {
 	metricsEngine := core.NewMetricsEngine()
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, credentialInstance, cryptoInstance)
 
+	ownershipChecker := vdr.OwnershipChecker{
+		KeyResolver: keyResolver,
+		KeyChecker:  cryptoInstance,
+	}
+
 	// add engine specific routes
 	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})
 	system.RegisterRoutes(&networkApi.Wrapper{Service: networkInstance})
-	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance, DocManipulator: vdr.DocUpdater{VDR: vdrInstance, KeyCreator: cryptoInstance}})
+	system.RegisterRoutes(&vdrApi.Wrapper{
+		VDR:              vdrInstance,
+		DocManipulator:   vdr.DocUpdater{VDR: vdrInstance, KeyCreator: cryptoInstance},
+		OwnershipChecker: ownershipChecker,
+	})
 	system.RegisterRoutes(&credApi.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authV1API.Wrapper{Auth: authInstance})
-	system.RegisterRoutes(&authExperimentalAPI.Wrapper{Auth: authInstance})
+	system.RegisterRoutes(&authExperimentalAPI.Wrapper{Auth: authInstance, OwnershipChecker: ownershipChecker})
 	system.RegisterRoutes(&authIrmaAPI.Wrapper{Auth: authInstance})
 
 	// Register engines

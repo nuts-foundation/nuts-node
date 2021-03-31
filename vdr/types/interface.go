@@ -93,6 +93,12 @@ type VDR interface {
 	DocUpdater
 }
 
+type OwnershipChecker interface {
+	// Checks if the node manages the DID document by checking for the private key.
+	// Returns ErrDIDNotManagedByThisNode when the document is not managed by this node
+	OwnedByThisNode(id did.DID) error
+}
+
 // DocManipulator groups several higher level methods to alter the state of a DID document.
 type DocManipulator interface {
 	// Deactivate deactivates a DID document

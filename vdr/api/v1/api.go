@@ -33,9 +33,15 @@ import (
 
 // Wrapper is needed to connect the implementation to the echo ServiceWrapper
 type Wrapper struct {
-	VDR            types.VDR
-	DocManipulator types.DocManipulator
+	VDR              types.VDR
+	DocManipulator   types.DocManipulator
+	OwnershipChecker types.OwnershipChecker
 }
+
+const (
+	deactivateErrTemplate = "could not deactivate document :%s"
+	updateErrTemplate     = "could not update document: %s"
+)
 
 // DeleteVerificationMethod accepts a DID and a KeyIdentifier of a verificationMethod and calls the DocManipulator
 // to remove the verificationMethod from the given document.
@@ -43,6 +49,11 @@ func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidS
 	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+	}
+	// Check if org is managed by this node
+	err = a.OwnershipChecker.OwnedByThisNode(*id)
+	if err != nil {
+		return err
 	}
 
 	kid, err := did.ParseDID(kidStr)
@@ -58,13 +69,18 @@ func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidS
 }
 
 // AddNewVerificationMethod accepts a DID and adds a new VerificationMethod to that corresponding document.
-func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
-	d, err := did.ParseDID(id)
+func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, didStr string) error {
+	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
 	}
+	// Check if org is managed by this node
+	err = a.OwnershipChecker.OwnedByThisNode(*id)
+	if err != nil {
+		return err
+	}
 
-	vm, err := a.DocManipulator.AddVerificationMethod(*d)
+	vm, err := a.DocManipulator.AddVerificationMethod(*id)
 	if err != nil {
 		return handleError(ctx, err, "could not update document: %s")
 	}
@@ -112,10 +128,15 @@ func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
 }
 
 // UpdateDID updates a DID Document given a DID and DID Document body. It returns the updated DID Document.
-func (a Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
-	d, err := did.ParseDID(targetDID)
+func (a Wrapper) UpdateDID(ctx echo.Context, didStr string) error {
+	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+	}
+	// Check if org is managed by this node
+	err = a.OwnershipChecker.OwnedByThisNode(*id)
+	if err != nil {
+		return handleError(ctx, err, updateErrTemplate)
 	}
 
 	req := DIDUpdateRequest{}
@@ -128,23 +149,28 @@ func (a Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given hash is not valid: %s", err.Error()))
 	}
 
-	err = a.VDR.Update(*d, h, req.Document, nil)
+	err = a.VDR.Update(*id, h, req.Document, nil)
 	if err != nil {
-		return handleError(ctx, err, "could not update document: %s")
+		return handleError(ctx, err, updateErrTemplate)
 	}
 	return ctx.JSON(http.StatusOK, req.Document)
 }
 
 // DeactivateDID deactivates a DID Document given a DID.
 // It returns a 200 and an empty body if the deactivation was successful.
-func (a *Wrapper) DeactivateDID(ctx echo.Context, targetDID string) error {
-	id, err := did.ParseDID(targetDID)
+func (a *Wrapper) DeactivateDID(ctx echo.Context, didStr string) error {
+	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
 	}
+	// Check if org is managed by this node
+	err = a.OwnershipChecker.OwnedByThisNode(*id)
+	if err != nil {
+		return handleError(ctx, err, deactivateErrTemplate)
+	}
 	err = a.DocManipulator.Deactivate(*id)
 	if err != nil {
-		return handleError(ctx, err, "could not deactivate document: %s")
+		return handleError(ctx, err, deactivateErrTemplate)
 	}
 	return ctx.NoContent(http.StatusOK)
 }
