@@ -21,7 +21,7 @@ package core
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -48,7 +48,7 @@ func TestNewMetricsEngine(t *testing.T) {
 		e.ServeHTTP(rec, req)
 		defer rec.Result().Body.Close()
 
-		bodyBytes, _ := ioutil.ReadAll(rec.Result().Body)
+		bodyBytes, _ := io.ReadAll(rec.Result().Body)
 
 		fmt.Println(string(bodyBytes))
 

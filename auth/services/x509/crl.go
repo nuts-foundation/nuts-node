@@ -4,7 +4,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 )
@@ -34,7 +34,7 @@ func (h HTTPCRLService) GetCRL(url string) (*pkix.CertificateList, error) {
 		return nil, fmt.Errorf("failed to retrieve CRL: '%s' statuscode: %s", url, resp.Status)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("could not read the crl response body: %w", err)
 	}

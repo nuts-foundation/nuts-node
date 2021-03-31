@@ -20,9 +20,10 @@ package status
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
-	"io/ioutil"
+	"io"
 	"net/http"
+
+	"github.com/spf13/cobra"
 
 	"github.com/nuts-foundation/nuts-node/core"
 )
@@ -45,7 +46,7 @@ func Cmd() *cobra.Command {
 			if response.StatusCode != http.StatusOK {
 				return fmt.Errorf("unexpected HTTP response code (url=%s): %d", targetURL, response.StatusCode)
 			}
-			bytes, _ := ioutil.ReadAll(response.Body)
+			bytes, _ := io.ReadAll(response.Body)
 			cmd.Println(string(bytes))
 			return nil
 		},

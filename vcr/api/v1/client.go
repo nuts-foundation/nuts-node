@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -117,7 +116,7 @@ func readIssuers(reader io.Reader) ([]string, error) {
 	var data []byte
 	var err error
 
-	if data, err = ioutil.ReadAll(reader); err != nil {
+	if data, err = io.ReadAll(reader); err != nil {
 		return nil, fmt.Errorf("unable to read response: %w", err)
 	}
 	issuers := make([]string, 0)

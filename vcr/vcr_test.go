@@ -23,7 +23,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -36,13 +35,14 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-leia"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestVCR_Configure(t *testing.T) {
@@ -387,12 +387,12 @@ func TestVcr_Issue(t *testing.T) {
 func TestVcr_Verify(t *testing.T) {
 	// load VC
 	subject := vc.VerifiableCredential{}
-	vcJSON, _ := ioutil.ReadFile("test/vc.json")
+	vcJSON, _ := os.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &subject)
 
 	// oad pub key
 	pke := storage.PublicKeyEntry{}
-	pkeJSON, _ := ioutil.ReadFile("test/public.json")
+	pkeJSON, _ := os.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
 	var pk = new(ecdsa.PublicKey)
 	pke.JWK().Raw(pk)
@@ -571,17 +571,17 @@ func TestVcr_Verify(t *testing.T) {
 func TestVcr_Revoke(t *testing.T) {
 	// load VC
 	vc := vc.VerifiableCredential{}
-	vcJSON, _ := ioutil.ReadFile("test/vc.json")
+	vcJSON, _ := os.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &vc)
 
 	// load example revocation
 	r := credential.Revocation{}
-	rJSON, _ := ioutil.ReadFile("test/revocation.json")
+	rJSON, _ := os.ReadFile("test/revocation.json")
 	json.Unmarshal(rJSON, &r)
 
 	// load pub key
 	pke := storage.PublicKeyEntry{}
-	pkeJSON, _ := ioutil.ReadFile("test/public.json")
+	pkeJSON, _ := os.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
 	var pk = new(ecdsa.PublicKey)
 	pke.JWK().Raw(pk)
@@ -812,12 +812,12 @@ func TestVcr_Untrusted(t *testing.T) {
 func TestVcr_verifyRevocation(t *testing.T) {
 	// load revocation
 	r := credential.Revocation{}
-	rJSON, _ := ioutil.ReadFile("test/revocation.json")
+	rJSON, _ := os.ReadFile("test/revocation.json")
 	json.Unmarshal(rJSON, &r)
 
 	// Load pub key
 	pke := storage.PublicKeyEntry{}
-	pkeJSON, _ := ioutil.ReadFile("test/public.json")
+	pkeJSON, _ := os.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
 	var pk = new(ecdsa.PublicKey)
 	pke.JWK().Raw(pk)

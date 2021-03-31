@@ -22,7 +22,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/pem"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto/test"
@@ -86,28 +86,28 @@ func TestCrypto_pemToPublicKey(t *testing.T) {
 
 func TestPemToSigner(t *testing.T) {
 	t.Run("Convert ED25519 key", func(t *testing.T) {
-		pem, _ := ioutil.ReadFile("../test/ed25519.sk")
+		pem, _ := os.ReadFile("../test/ed25519.sk")
 		signer, err := PemToPrivateKey(pem)
 		assert.NoError(t, err)
 		assert.NotNil(t, signer)
 	})
 
 	t.Run("Convert EC key", func(t *testing.T) {
-		pem, _ := ioutil.ReadFile("../test/ec.sk")
+		pem, _ := os.ReadFile("../test/ec.sk")
 		signer, err := PemToPrivateKey(pem)
 		assert.NoError(t, err)
 		assert.NotNil(t, signer)
 	})
 
 	t.Run("Convert RSA key", func(t *testing.T) {
-		pem, _ := ioutil.ReadFile("../test/rsa.sk")
+		pem, _ := os.ReadFile("../test/rsa.sk")
 		signer, err := PemToPrivateKey(pem)
 		assert.NoError(t, err)
 		assert.NotNil(t, signer)
 	})
 
 	t.Run("Convert PKIX key", func(t *testing.T) {
-		pem, _ := ioutil.ReadFile("../test/sk.pem")
+		pem, _ := os.ReadFile("../test/sk.pem")
 		signer, err := PemToPrivateKey(pem)
 		assert.NoError(t, err)
 		assert.NotNil(t, signer)

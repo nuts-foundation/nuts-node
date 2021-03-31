@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -151,7 +150,7 @@ func (fsc *fileSystemBackend) SavePublicKey(kid string, entry PublicKeyEntry) er
 
 func (fsc fileSystemBackend) readEntry(kid string, entryType entryType) ([]byte, error) {
 	filePath := fsc.getEntryPath(kid, entryType)
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, &fileOpenError{kid: kid, filePath: filePath, err: ErrNotFound}

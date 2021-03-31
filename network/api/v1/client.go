@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -53,7 +53,7 @@ func (hb HTTPClient) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]by
 	if err := core.TestResponseCode(http.StatusOK, res); err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(res.Body)
+	return io.ReadAll(res.Body)
 }
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
@@ -78,7 +78,7 @@ func (hb HTTPClient) ListTransactions() ([]dag.Transaction, error) {
 	if err := core.TestResponseCode(http.StatusOK, res); err != nil {
 		return nil, err
 	}
-	responseData, err := ioutil.ReadAll(res.Body)
+	responseData, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func testAndParseTransactionResponse(response *http.Response) (dag.Transaction, 
 	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	}
-	responseData, err := ioutil.ReadAll(response.Body)
+	responseData, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
 	}
