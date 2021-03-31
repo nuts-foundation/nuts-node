@@ -265,10 +265,9 @@ func TestEngine_Command(t *testing.T) {
 			if !assert.Contains(t, buf.String(), vdr.TestMethodDIDA.String()) {
 				return
 			}
-			// Fixme: disabled because of https://github.com/nuts-foundation/go-did/pull/34
-			//resultingMethod := did.VerificationMethod{}
-			//err = json.Unmarshal(buf.Bytes(), &resultingMethod)
-			//assert.Equal(t, *verificationMethod, resultingMethod)
+			resultingMethod := did.VerificationMethod{}
+			err = json.Unmarshal(buf.Bytes(), &resultingMethod)
+			assert.Equal(t, *verificationMethod, resultingMethod)
 			assert.Empty(t, errBuf.Bytes())
 
 		})
