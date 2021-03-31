@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -178,7 +177,6 @@ func serviceWithMocks(t *testing.T) *mockContext {
 
 	vcr := vcr.NewMockResolver(ctrl)
 	conceptRegistry := concept.NewMockRegistry(ctrl)
-	mockResolver := types.NewMockDocResolver(ctrl)
 	mockSigner := crypto.NewMockJWTSigner(ctrl)
 	vcr.EXPECT().Registry().Return(conceptRegistry).AnyTimes()
 
@@ -186,9 +184,7 @@ func serviceWithMocks(t *testing.T) *mockContext {
 	service := &Service{
 		IrmaSessionHandler: &mockIrmaClient{},
 		IrmaConfig:         irmaConfig,
-		DIDResolver:        mockResolver,
 		Signer:             mockSigner,
-		KeyResolver:        types.NewMockKeyResolver(ctrl),
 		ContractTemplates:  contract.StandardContractTemplates,
 	}
 

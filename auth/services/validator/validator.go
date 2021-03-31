@@ -34,7 +34,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
 
-	"github.com/privacybydesign/irmago"
+	irmago "github.com/privacybydesign/irmago"
 	"github.com/privacybydesign/irmago/server/irmaserver"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -108,7 +108,6 @@ func (s *service) Configure() (err error) {
 		irmaService := irma.Service{
 			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
 			IrmaConfig:         irmaConfig,
-			DIDResolver:        s.didResolver,
 			Signer:             s.privateKeyStore,
 			IrmaServiceConfig:  s.irmaServiceConfig,
 			ContractTemplates:  contract.StandardContractTemplates,

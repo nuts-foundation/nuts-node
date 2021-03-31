@@ -44,34 +44,6 @@ var orgConcept = concept.Concept{"organization": concept.Concept{"name": orgName
 var orgID = *vdr.TestDIDA
 
 func Test_contractNotaryService_DrawUpContract(t *testing.T) {
-<<<<<<< HEAD
-	type testContext struct {
-		ctrl            *gomock.Controller
-		nameResolver    *vcr.MockConceptFinder
-		keyResolver     *types.MockKeyResolver
-		privateKeyStore *crypto.MockPrivateKeyStore
-		notary          contractNotaryService
-	}
-	buildContext := func(t *testing.T) *testContext {
-		ctrl := gomock.NewController(t)
-		ctx := &testContext{
-			ctrl:            ctrl,
-			nameResolver:    vcr.NewMockConceptFinder(ctrl),
-			keyResolver:     types.NewMockKeyResolver(ctrl),
-			privateKeyStore: crypto.NewMockPrivateKeyStore(ctrl),
-		}
-		notary := contractNotaryService{
-			conceptFinder:    ctx.nameResolver,
-			keyResolver:      ctx.keyResolver,
-			privateKeyStore:  ctx.privateKeyStore,
-			contractValidity: 15 * time.Minute,
-		}
-		ctx.notary = notary
-		return ctx
-	}
-=======
->>>>>>> Removed validation from notary
-
 	template := contract.Template{
 		Template: "Organisation Name: {{legal_entity}} in {{legal_entity_city}}, valid from {{valid_from}} to {{valid_to}}",
 	}
@@ -271,28 +243,21 @@ func TestNewContractNotary(t *testing.T) {
 type testContext struct {
 	ctrl            *gomock.Controller
 	nameResolver    *vcr.MockConceptFinder
-	vcResolver      *vcr.MockResolver
-	didResolver     *types.MockResolver
-	conceptRegistry *concept.MockReader
+	keyResolver     *types.MockKeyResolver
 	privateKeyStore *crypto.MockPrivateKeyStore
 	notary          contractNotaryService
 }
 
 func buildContext(t *testing.T) *testContext {
 	ctrl := gomock.NewController(t)
-	vcResolver := vcr.NewMockResolver(ctrl)
-	conceptRegistry := concept.NewMockReader(ctrl)
-	vcResolver.EXPECT().Registry().Return(conceptRegistry).AnyTimes()
 	ctx := &testContext{
 		ctrl:            ctrl,
 		nameResolver:    vcr.NewMockConceptFinder(ctrl),
-		vcResolver:      vcResolver,
-		didResolver:     types.NewMockResolver(ctrl),
+		keyResolver:     types.NewMockKeyResolver(ctrl),
 		privateKeyStore: crypto.NewMockPrivateKeyStore(ctrl),
-		conceptRegistry: conceptRegistry,
 	}
 	notary := contractNotaryService{
-		didResolver:      ctx.didResolver,
+		keyResolver:      ctx.keyResolver,
 		privateKeyStore:  ctx.privateKeyStore,
 		conceptFinder:    ctx.nameResolver,
 		contractValidity: 15 * time.Minute,
