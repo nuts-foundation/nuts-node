@@ -19,6 +19,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Set version
+        id: version
+        shell: bash
+        run: |
+          echo "::set-output name=git_commit::$(git rev-list -1 HEAD)"
+          echo "::set-output name=git_branch::$(git symbolic-ref --short HEAD)"
+          echo "::set-output name=git_version::$(git name-rev --tags --name-only $(git rev-parse HEAD))"
+
+      - name: Another step
+        run: |
+          echo "Commit: ${{ steps.version.outputs.git_commit }}"
+          echo "Branch: ${{ steps.version.outputs.git_branch }}"
+          echo "Version: ${{ steps.version.outputs.git_version }}"
+
       - name: Docker meta
         id: docker_meta
         uses: crazy-max/ghaction-docker-meta@v1
@@ -42,6 +56,10 @@ jobs:
 
       - name: Build and push
         uses: docker/build-push-action@v2
+        env:
+          GIT_COMMIT=${{ steps.version.outputs.git_commit }}
+          GIT_BRANCH=${{ steps.version.outputs.git_branch }}
+          GIT_VERSION=${{ steps.version.outputs.git_version }}
         with:
           context: .
           file: Dockerfile

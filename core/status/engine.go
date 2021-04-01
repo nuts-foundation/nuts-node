@@ -21,10 +21,11 @@ package status
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/labstack/echo/v4"
 )
@@ -79,6 +80,9 @@ func (s *status) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{
 		&core.GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(s.listAllEngines(), ",")},
 		&core.GenericDiagnosticResult{Title: "Uptime", Outcome: time.Now().Sub(s.startTime).String()},
+		&core.GenericDiagnosticResult{Title: "Version", Outcome: core.Version()},
+		&core.GenericDiagnosticResult{Title: "Git commit", Outcome: core.GitCommit},
+		&core.GenericDiagnosticResult{Title: "OS/Arch", Outcome: core.OSArch()},
 	}
 }
 

@@ -20,6 +20,7 @@
 package cmd
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -96,8 +97,9 @@ func createServerCommand(system *core.System) *cobra.Command {
 }
 
 func startServer(system *core.System) error {
-	logrus.Info("Starting server with config:")
-	logrus.Info(system.Config.PrintConfig())
+	logrus.Info("Starting server")
+	logrus.Info(fmt.Sprintf("Build info: \n%s", core.BuildInfo()))
+	logrus.Info(fmt.Sprintf("Config: \n%s", system.Config.PrintConfig()))
 
 	// check config on all engines
 	if err := system.Configure(); err != nil {

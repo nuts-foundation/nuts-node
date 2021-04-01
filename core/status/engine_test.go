@@ -32,13 +32,22 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 	t.Run("diagnostics() returns engine list", func(t *testing.T) {
 		system := NewStatusEngine(system)
 		ds := system.(*status).Diagnostics()
-		assert.Len(t, ds, 2)
+		assert.Len(t, ds, 5)
 		// Registered engines
 		assert.Equal(t, "Registered engines", ds[0].Name())
 		assert.Equal(t, "Status,Metrics", ds[0].String())
 		// Uptime
 		assert.Equal(t, "Uptime", ds[1].Name())
 		assert.NotEmpty(t, ds[1].String())
+		// Version
+		assert.Equal(t, "Version", ds[2].Name())
+		assert.Equal(t, core.Version(), ds[2].String())
+		// Commit
+		assert.Equal(t, "Git commit", ds[3].Name())
+		assert.Empty(t, ds[3].String())
+		// Os/Arg
+		assert.Equal(t, "OS/Arch", ds[4].Name())
+		assert.Equal(t, core.OSArch(), ds[4].String())
 	})
 
 	t.Run("diagnosticsOverview() renders text output of diagnostics", func(t *testing.T) {
