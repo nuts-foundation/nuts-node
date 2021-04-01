@@ -44,7 +44,7 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 		assert.Equal(t, core.Version(), ds[2].String())
 		// Commit
 		assert.Equal(t, "Git commit", ds[3].Name())
-		assert.Empty(t, ds[3].String())
+		assert.Equal(t, "0", ds[3].String())
 		// Os/Arg
 		assert.Equal(t, "OS/Arch", ds[4].Name())
 		assert.Equal(t, core.OSArch(), ds[4].String())
