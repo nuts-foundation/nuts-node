@@ -23,8 +23,8 @@ jobs:
         id: version
         shell: bash
         run: |
-          echo "::set-output name=git_commit::$(git rev-list -1 HEAD)"
-          echo "::set-output name=git_branch::$(git symbolic-ref --short HEAD)"
+          echo "::set-output name=git_commit::$(echo ${GITHUB_SHA})"
+          echo "::set-output name=git_branch::$(echo ${GITHUB_REF#refs/heads/})"
           echo "::set-output name=git_version::$(git name-rev --tags --name-only $(git rev-parse HEAD))"
 
       - name: Another step
