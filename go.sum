@@ -452,6 +452,8 @@ github.com/nuts-foundation/go-did v0.0.0-20210331072910-c246e14ed80f h1:WB7Mx6Jy
 github.com/nuts-foundation/go-did v0.0.0-20210331072910-c246e14ed80f/go.mod h1:Xqmd6ILZj41nNovodxnb4F+JgcKmIz+XGpLw6m6fZnU=
 github.com/nuts-foundation/go-leia v0.4.0 h1:BdjZ3k2Wi3d25TCJBWZlD0Il8ox3uHVWP1ECvSdd0BM=
 github.com/nuts-foundation/go-leia v0.4.0/go.mod h1:VMmOAg9I6kRUGY9eRNgeQqyj5vyx+oAteKWfVXzcTQs=
+github.com/nuts-foundation/go-leia v0.4.1 h1:BKmWhTkc9RzDGvJ1UeR99igiSx2JXVNaEYcNPO7bOyQ=
+github.com/nuts-foundation/go-leia v0.4.1/go.mod h1:VMmOAg9I6kRUGY9eRNgeQqyj5vyx+oAteKWfVXzcTQs=
 github.com/ockam-network/did v0.1.3 h1:qJGdccOV4bLfsS/eFM+Aj+CdCRJKNMxbmJevQclw44k=
 github.com/ockam-network/did v0.1.3/go.mod h1:ZsbTIuVGt8OrQEbqWrSztUISN4joeMabdsinbLubbzw=
 github.com/oklog/run v1.0.0/go.mod h1:dlhp/R75TPv97u0XWUtDeV/lRKWPKSdTuV0TZvrmrQA=
