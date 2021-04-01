@@ -66,4 +66,3 @@ jobs:
             GIT_VERSION=${{ steps.version.outputs.git_version }}
             GIT_COMMIT=${{ steps.version.outputs.git_commit }}
             GIT_BRANCH=${{ steps.version.outputs.git_branch }}
-            

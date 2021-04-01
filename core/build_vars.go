@@ -27,11 +27,14 @@ import (
 
 // GitCommit holds the latest git commit hash for this build.
 var GitCommit string
+
 // GitVersion holds the tagged version belonging to the git commit.
 var GitVersion string
+
 // GitBranch holds the branch from where the binary is built.
 var GitBranch string = "development"
 
+// Version gives the current version according to the git tag or the branch if there's no tag.
 func Version() string {
 	if GitVersion != "" && GitVersion != "undefined" {
 		return GitVersion
@@ -39,6 +42,7 @@ func Version() string {
 	return GitBranch
 }
 
+// OSArch returns the OS and Arch
 func OSArch() string {
 	return fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 }
