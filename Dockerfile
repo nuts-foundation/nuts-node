@@ -4,6 +4,10 @@ FROM golang:1.16-alpine as builder
 ARG TARGETARCH
 ARG TARGETOS
 
+ARG GIT_COMMIT=0
+ARG GIT_BRANCH=master
+ARG GIT_VERSION=undefined
+
 LABEL maintainer="wout.slakhorst@nuts.nl"
 
 RUN apk update \
@@ -21,7 +25,7 @@ COPY go.sum .
 RUN go mod download && go mod verify
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s" -o /opt/nuts/nuts
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine 3.12.x
 FROM alpine:3.12

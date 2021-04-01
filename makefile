@@ -47,3 +47,17 @@ test:
 	go test ./...
 
 update-docs: gen-docs gen-readme
+
+build:
+	export OUTPUT="$(OUTPUT:=$(shell pwd))"
+	export GIT_COMMIT="$(shell git rev-list -1 HEAD)"
+	export GIT_BRANCH="$(shell git symbolic-ref --short HEAD)"
+	export GIT_VERSION="$(shell git name-rev --tags --name-only $(shell git rev-parse HEAD))"
+	go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o $(OUTPUT)
+
+docker:
+	export OUTPUT="$(OUTPUT:=$(shell pwd))"
+	export GIT_COMMIT="$(shell git rev-list -1 HEAD)"
+	export GIT_BRANCH="$(shell git symbolic-ref --short HEAD)"
+	export GIT_VERSION="$(shell git name-rev --tags --name-only $(shell git rev-parse HEAD))"
+	docker build --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg GIT_BRANCH=${GIT_BRANCH} --build-arg GIT_VERSION=${GIT_VERSION} -t nutsfoundation/nuts-node:latest .
