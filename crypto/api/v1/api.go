@@ -75,8 +75,11 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 
 	sig, err := w.C.SignJWT(signRequest.Claims, signRequest.Kid)
 	if err != nil {
+		if errors.Is(err, crypto.ErrKeyNotFound) {
+			return core.NewProblem(problemTitleSignJwt, http.StatusBadRequest, fmt.Sprintf("no private key found for %s", signRequest.Kid))
+		}
 		log.Logger().Error(err.Error())
-		return core.NewProblem(problemTitleSignJwt, http.StatusBadRequest, err.Error())
+		return core.NewProblem(problemTitleSignJwt, http.StatusInternalServerError, err.Error())
 	}
 
 	return ctx.String(http.StatusOK, sig)

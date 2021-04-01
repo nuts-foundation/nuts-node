@@ -77,7 +77,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 		test2.AssertErrProblemDetail(t, "missing kid", err)
 	})
 
-	t.Run("Sign error returns 400", func(t *testing.T) {
+	t.Run("Missing private key returns 400", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
@@ -90,12 +90,34 @@ func TestWrapper_SignJwt(t *testing.T) {
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal(jsonData, f)
 		})
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), "unknown").Return("", errors.New("b00m!"))
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), "unknown").Return("", crypto.ErrKeyNotFound)
 
 		err := ctx.client.SignJwt(ctx.echo)
 
 		test2.AssertErrProblemTitle(t, problemTitleSignJwt, err)
 		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "no private key found for unknown", err)
+	})
+
+	t.Run("Sign error returns 500", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		jsonRequest := SignJwtRequest{
+			Kid:    "kid",
+			Claims: map[string]interface{}{"iss": "nuts"},
+		}
+		jsonData, _ := json.Marshal(jsonRequest)
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal(jsonData, f)
+		})
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), "kid").Return("", errors.New("b00m!"))
+
+		err := ctx.client.SignJwt(ctx.echo)
+
+		test2.AssertErrProblemTitle(t, problemTitleSignJwt, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
 		test2.AssertErrProblemDetail(t, "b00m!", err)
 	})
 
