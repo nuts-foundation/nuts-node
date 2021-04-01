@@ -20,12 +20,9 @@
 package core
 
 import (
-	"errors"
 	"fmt"
-	"github.com/labstack/echo/v4/middleware"
 	"net/url"
 	"os"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/cobra"
@@ -40,26 +37,10 @@ type Routable interface {
 // NewSystem creates a new, empty System.
 func NewSystem() *System {
 	return &System{
-		engines: []Engine{},
-		Config:  NewServerConfig(),
-		Routers: []Routable{},
-		EchoCreator: func(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
-			echoServer := echo.New()
-			echoServer.HideBanner = true
-			echoServer.Use(middleware.Logger())
-			if cfg.CORS.Enabled() {
-				if strictmode {
-					for _, origin := range cfg.CORS.Origin {
-						if strings.TrimSpace(origin) == "*" {
-							return nil, errors.New("wildcard CORS origin is not allowed in strict mode")
-						}
-					}
-				}
-				echoServer.Use(middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: cfg.CORS.Origin}))
-			}
-			echoServer.Use(DecodeURIPath)
-			return echoServer, nil
-		},
+		engines:     []Engine{},
+		Config:      NewServerConfig(),
+		Routers:     []Routable{},
+		EchoCreator: createEchoServer,
 	}
 }
 

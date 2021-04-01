@@ -420,7 +420,7 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// get the public key for a given kid. It returns the key in PEM or JWK format. This depends on the accept header used (text/plain vs application/json). If no 'at' parameter is given it'll validate if the public key is valid at the time of the request.
+	// get the public key for a given kid
 	// (GET /internal/crypto/v1/public_key/{kid})
 	PublicKey(ctx echo.Context, kid string, params PublicKeyParams) error
 	// sign a JWT payload with the private key of the given kid

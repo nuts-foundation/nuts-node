@@ -1,10 +1,16 @@
 package core
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/golang/mock/gomock"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
+	"io"
 	"net/http"
+	"net/http/httptest"
+	"schneider.vip/problem"
 	"testing"
 )
 
@@ -101,4 +107,46 @@ func Test_getGroup(t *testing.T) {
 	assert.Equal(t, "internal", getGroup("internal/"))
 	assert.Equal(t, "", getGroup(""))
 	assert.Equal(t, "", getGroup("/"))
+}
+
+func TestHttpErrorHandler(t *testing.T) {
+	es, _ := createEchoServer(HTTPConfig{}, false)
+	e := es.(*echo.Echo)
+	server := httptest.NewServer(e)
+	client := http.Client{}
+
+	t.Run("Problem return", func(t *testing.T) {
+		prb := NewProblem("problem title", http.StatusInternalServerError, "problem detail")
+		f := func(c echo.Context) error {
+			return prb
+		}
+		e.Add(http.MethodGet, "/problem", f)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/problem", server.URL), nil)
+		resp, err := client.Do(req)
+
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+		assert.Equal(t, problem.ContentTypeJSON, resp.Header.Get("Content-Type"))
+
+		// Validate response body with expected problem
+		prbBytes, _ := json.Marshal(prb)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, prbBytes, bodyBytes)
+	})
+
+	t.Run("Error return", func(t *testing.T) {
+		f := func(c echo.Context) error {
+			return errors.New("error")
+		}
+		e.Add(http.MethodGet, "/error", f)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/error", server.URL), nil)
+		resp, err := client.Do(req)
+
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	})
+
 }

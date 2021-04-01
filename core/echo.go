@@ -1,8 +1,11 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"schneider.vip/problem"
 	"strings"
 	"sync"
 )
@@ -102,4 +105,40 @@ func getGroup(path string) string {
 		}
 	}
 	return ""
+}
+
+func createEchoServer(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
+	echoServer := echo.New()
+	echoServer.HideBanner = true
+	echoServer.Use(middleware.Logger())
+	echoServer.HTTPErrorHandler = httpErrorHandler
+	if cfg.CORS.Enabled() {
+		if strictmode {
+			for _, origin := range cfg.CORS.Origin {
+				if strings.TrimSpace(origin) == "*" {
+					return nil, errors.New("wildcard CORS origin is not allowed in strict mode")
+				}
+			}
+		}
+		echoServer.Use(middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: cfg.CORS.Origin}))
+	}
+	echoServer.Use(DecodeURIPath)
+	return echoServer, nil
+}
+
+func httpErrorHandler(err error, ctx echo.Context) {
+	if prb, ok := err.(*problem.Problem); ok {
+		if !ctx.Response().Committed {
+			if _, err := prb.WriteTo(ctx.Response()); err != nil {
+				ctx.Echo().Logger.Error(err)
+			}
+		}
+	} else {
+		ctx.Echo().DefaultHTTPErrorHandler(err, ctx)
+	}
+}
+
+// NewProblem creates a new problem.Problem
+func NewProblem(title string, status int, detail string) *problem.Problem {
+	return problem.New(problem.Title(title), problem.Status(status), problem.Detail(detail))
 }

@@ -18,7 +18,9 @@
 
 package core
 
-import "github.com/spf13/pflag"
+import (
+	"github.com/spf13/pflag"
+)
 
 type TestEngineConfig struct {
 	Key     string `koanf:"key"`

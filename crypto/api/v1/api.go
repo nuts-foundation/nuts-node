@@ -55,24 +55,28 @@ func (signRequest SignJwtRequest) validate() error {
 	return nil
 }
 
+const (
+	problemTitleSignJwt   = "SignJWT failed"
+	problemTitlePublicKey = "Failed to get PublicKey"
+)
+
 // SignJwt handles api calls for signing a Jwt
 func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	var signRequest = &SignJwtRequest{}
 	err := ctx.Bind(signRequest)
 	if err != nil {
 		log.Logger().Error(err.Error())
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return core.NewProblem(problemTitleSignJwt, http.StatusBadRequest, err.Error())
 	}
 
 	if err := signRequest.validate(); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return core.NewProblem(problemTitleSignJwt, http.StatusBadRequest, err.Error())
 	}
 
 	sig, err := w.C.SignJWT(signRequest.Claims, signRequest.Kid)
-
 	if err != nil {
 		log.Logger().Error(err.Error())
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return core.NewProblem(problemTitleSignJwt, http.StatusBadRequest, err.Error())
 	}
 
 	return ctx.String(http.StatusOK, sig)
@@ -88,25 +92,24 @@ func (w *Wrapper) PublicKey(ctx echo.Context, kid string, params PublicKeyParams
 	if params.At != nil {
 		at, err = time.Parse(time.RFC3339, *params.At)
 		if err != nil {
-			return ctx.String(http.StatusBadRequest, fmt.Sprintf("cannot parse '%s' as RFC3339 time format", *params.At))
+			return core.NewProblem(problemTitlePublicKey, http.StatusBadRequest, fmt.Sprintf("cannot parse '%s' as RFC3339 time format", *params.At))
 		}
 	}
 
 	pubKey, err := w.C.GetPublicKey(kid, at)
 	if err != nil {
 		if errors.Is(err, crypto.ErrKeyNotFound) {
-			return ctx.NoContent(http.StatusNotFound)
+			return core.NewProblem(problemTitlePublicKey, http.StatusNotFound, fmt.Sprintf("no public key found for %s", kid))
 		}
 		log.Logger().Error(err.Error())
-		return err
+		return core.NewProblem(problemTitlePublicKey, http.StatusInternalServerError, err.Error())
 	}
 
-	// starts with so we can ignore any +
 	if ct, _, _ := mime.ParseMediaType(acceptHeader); ct == "application/json" {
 		jwk, err := jwk.New(pubKey)
 		if err != nil {
 			log.Logger().Error(err.Error())
-			return err
+			return core.NewProblem(problemTitlePublicKey, http.StatusInternalServerError, err.Error())
 		}
 
 		return ctx.JSON(http.StatusOK, jwk)
@@ -116,7 +119,7 @@ func (w *Wrapper) PublicKey(ctx echo.Context, kid string, params PublicKeyParams
 	pub, err := util.PublicKeyToPem(pubKey)
 	if err != nil {
 		log.Logger().Error(err.Error())
-		return err
+		return core.NewProblem(problemTitlePublicKey, http.StatusInternalServerError, err.Error())
 	}
 
 	return ctx.String(http.StatusOK, pub)
