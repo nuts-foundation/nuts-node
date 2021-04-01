@@ -47,6 +47,7 @@ func OSArch() string {
 	return fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 }
 
+// BuildInfo returns a formatted version of the current branch/tag/version/os/arch
 func BuildInfo() string {
 	b := strings.Builder{}
 	b.WriteString("Git version: ")
