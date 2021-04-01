@@ -26,7 +26,7 @@ import (
 )
 
 // GitCommit holds the latest git commit hash for this build.
-var GitCommit string
+var GitCommit string = "0"
 
 // GitVersion holds the tagged version belonging to the git commit.
 var GitVersion string
