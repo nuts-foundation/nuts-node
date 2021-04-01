@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	problem2 "schneider.vip/problem"
+	"testing"
 )
 
 // problem is a helper struct to Unmarshal problem.Problem
@@ -41,12 +42,12 @@ func errorToProblem(err error) problem {
 }
 
 // AssertErrIsProblem asserts err is a *problem.Problem
-func AssertErrIsProblem(t assert.TestingT, err error) bool {
+func AssertErrIsProblem(t *testing.T, err error) bool {
 	return assert.IsType(t, &problem2.Problem{}, err, "err is not a *problem.Problem")
 }
 
 // AssertErrProblemTitle asserts err is a *problem.Problem with the specified title
-func AssertErrProblemTitle(t assert.TestingT, title string, err error) bool {
+func AssertErrProblemTitle(t *testing.T, title string, err error) bool {
 	if !AssertErrIsProblem(t, err) {
 		return false
 	}
@@ -55,7 +56,7 @@ func AssertErrProblemTitle(t assert.TestingT, title string, err error) bool {
 }
 
 // AssertErrProblemStatusCode asserts err is a *problem.Problem with the specified status code
-func AssertErrProblemStatusCode(t assert.TestingT, code int, err error) bool {
+func AssertErrProblemStatusCode(t *testing.T, code int, err error) bool {
 	if !AssertErrIsProblem(t, err) {
 		return false
 	}
@@ -64,7 +65,7 @@ func AssertErrProblemStatusCode(t assert.TestingT, code int, err error) bool {
 }
 
 // AssertErrProblemDetail asserts err is a *problem.Problem with the specified detail
-func AssertErrProblemDetail(t assert.TestingT, detail string, err error) bool {
+func AssertErrProblemDetail(t *testing.T, detail string, err error) bool {
 	if !AssertErrIsProblem(t, err) {
 		return false
 	}

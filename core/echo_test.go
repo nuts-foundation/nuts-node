@@ -7,7 +7,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"schneider.vip/problem"
@@ -116,8 +116,9 @@ func TestHttpErrorHandler(t *testing.T) {
 	client := http.Client{}
 
 	t.Run("Problem return", func(t *testing.T) {
+		prb := NewProblem("problem title", http.StatusInternalServerError, "problem detail")
 		f := func(c echo.Context) error {
-			return NewProblem("problem title", http.StatusInternalServerError, "problem detail")
+			return prb
 		}
 		e.Add(http.MethodGet, "/problem", f)
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/problem", server.URL), nil)
@@ -128,9 +129,8 @@ func TestHttpErrorHandler(t *testing.T) {
 		assert.Equal(t, problem.ContentTypeJSON, resp.Header.Get("Content-Type"))
 
 		// Validate response body with expected problem
-		prb := NewProblem("problem title", http.StatusInternalServerError, "problem detail")
 		prbBytes, _ := json.Marshal(prb)
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
 		if !assert.NoError(t, err) {
 			return
 		}
