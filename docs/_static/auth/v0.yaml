@@ -3,7 +3,7 @@ info:
   title: Nuts Service API Proxy
   version: 0.0.1
 paths:
-  /auth/contract/{contractType}:
+  /public/auth/v1/contract/{contractType}:
     get:
       operationId: getContractByType
       summary: Get a contract by type and version
@@ -40,7 +40,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Contract"
-  /auth/accesstoken:
+  /public/auth/v1/accesstoken:
     post:
       operationId: createAccessToken
       summary: |
@@ -84,7 +84,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccessTokenRequestFailedResponse"
-  /auth/accesstoken/verify:
+  /internal/auth/v1/accesstoken/verify:
     head:
       operationId: verifyAccessToken
       summary: |
@@ -103,7 +103,7 @@ paths:
           description: The access token is valid. It has been signed by this server.
         '403':
           description: The given access token is invalid or couldn't be verified.
-  /auth/jwtbearertoken:
+  /public/auth/v1/bearertoken:
     post:
       operationId: createJwtBearerToken
       summary: Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
@@ -122,7 +122,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JwtBearerTokenResponse"
-  /auth/token_introspection:
+  /internal/auth/v1/bearertoken/verify:
     post:
       operationId: introspectAccessToken
       summary: Introspection endpoint to retrieve information from an Access Token as described by RFC7662
