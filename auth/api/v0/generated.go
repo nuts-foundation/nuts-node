@@ -37,17 +37,26 @@ type AccessTokenResponse struct {
 type Contract struct {
 
 	// Language of the contract in all caps
-	Language           Language  `json:"language"`
-	SignerAttributes   *[]string `json:"signer_attributes,omitempty"`
-	Template           *string   `json:"template,omitempty"`
-	TemplateAttributes *[]string `json:"template_attributes,omitempty"`
+	Language           ContractLanguage `json:"language"`
+	SignerAttributes   *[]string        `json:"signer_attributes,omitempty"`
+	Template           *string          `json:"template,omitempty"`
+	TemplateAttributes *[]string        `json:"template_attributes,omitempty"`
 
 	// Type of which contract to sign
-	Type Type `json:"type"`
+	Type ContractType `json:"type"`
 
 	// Version of the contract
-	Version Version `json:"version"`
+	Version ContractVersion `json:"version"`
 }
+
+// ContractLanguage defines model for ContractLanguage.
+type ContractLanguage string
+
+// ContractType defines model for ContractType.
+type ContractType string
+
+// ContractVersion defines model for ContractVersion.
+type ContractVersion string
 
 // CreateAccessTokenRequest defines model for CreateAccessTokenRequest.
 type CreateAccessTokenRequest struct {
@@ -72,16 +81,10 @@ type CreateJwtBearerTokenRequest struct {
 	Subject *string `json:"subject,omitempty"`
 }
 
-// ErrorString defines model for ErrorString.
-type ErrorString string
-
 // JwtBearerTokenResponse defines model for JwtBearerTokenResponse.
 type JwtBearerTokenResponse struct {
 	BearerToken string `json:"bearer_token"`
 }
-
-// Language defines model for Language.
-type Language string
 
 // TokenIntrospectionRequest defines model for TokenIntrospectionRequest.
 type TokenIntrospectionRequest struct {
@@ -131,12 +134,6 @@ type TokenIntrospectionResponse struct {
 	// Jwt encoded user identity.
 	Usi *string `json:"usi,omitempty"`
 }
-
-// Type defines model for Type.
-type Type string
-
-// Version defines model for Version.
-type Version string
 
 // CreateAccessTokenJSONBody defines parameters for CreateAccessToken.
 type CreateAccessTokenJSONBody CreateAccessTokenRequest

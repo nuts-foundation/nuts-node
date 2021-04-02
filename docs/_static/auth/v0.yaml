@@ -144,15 +144,15 @@ paths:
                 $ref: "#/components/schemas/TokenIntrospectionResponse"
 components:
   schemas:
-    Type:
+    ContractType:
       type: string
       description: "Type of which contract to sign"
       example: "BehandelaarLogin"
-    Language:
+    ContractLanguage:
       type: string
       description: "Language of the contract in all caps"
       example: "NL"
-    Version:
+    ContractVersion:
       type: string
       description: "Version of the contract"
       example: "v3"
@@ -167,11 +167,11 @@ components:
         - language
       properties:
         type:
-          $ref: "#/components/schemas/Type"
+          $ref: "#/components/schemas/ContractType"
         language:
-          $ref: "#/components/schemas/Language"
+          $ref: "#/components/schemas/ContractLanguage"
         version:
-          $ref: "#/components/schemas/Version"
+          $ref: "#/components/schemas/ContractVersion"
         signer_attributes:
           example:
           type: array
@@ -195,11 +195,11 @@ components:
         - legalEntity
       properties:
         type:
-          $ref: "#/components/schemas/Type"
+          $ref: "#/components/schemas/ContractType"
         language:
-          $ref: "#/components/schemas/Language"
+          $ref: "#/components/schemas/ContractLanguage"
         version:
-          $ref: "#/components/schemas/Version"
+          $ref: "#/components/schemas/ContractVersion"
         legalEntity:
           $ref: "#/components/schemas/LegalEntity"
         valid_from:

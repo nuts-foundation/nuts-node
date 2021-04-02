@@ -52,11 +52,11 @@ func TestWrapper_NutsAuthGetContractByType(t *testing.T) {
 
 		a := contract.StandardContractTemplates.Get(contract.Type(cType), contract.Language(cLanguage), contract.Version(cVersion))
 		answer := Contract{
-			Language:           Language(a.Language),
+			Language:           ContractLanguage(a.Language),
 			Template:           &a.Template,
 			TemplateAttributes: &a.TemplateAttributes,
-			Type:               Type(a.Type),
-			Version:            Version(a.Version),
+			Type:               ContractType(a.Type),
+			Version:            ContractVersion(a.Version),
 		}
 
 		ctx.echoMock.EXPECT().JSON(http.StatusOK, answer)

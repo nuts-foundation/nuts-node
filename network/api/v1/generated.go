@@ -7,7 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -371,7 +371,7 @@ func (c *ClientWithResponses) GetTransactionPayloadWithResponse(ctx context.Cont
 
 // ParseListTransactionsResponse parses an HTTP response from a ListTransactionsWithResponse call
 func ParseListTransactionsResponse(rsp *http.Response) (*ListTransactionsResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
@@ -397,7 +397,7 @@ func ParseListTransactionsResponse(rsp *http.Response) (*ListTransactionsRespons
 
 // ParseGetTransactionResponse parses an HTTP response from a GetTransactionWithResponse call
 func ParseGetTransactionResponse(rsp *http.Response) (*GetTransactionResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
@@ -416,7 +416,7 @@ func ParseGetTransactionResponse(rsp *http.Response) (*GetTransactionResponse, e
 
 // ParseGetTransactionPayloadResponse parses an HTTP response from a GetTransactionPayloadWithResponse call
 func ParseGetTransactionPayloadResponse(rsp *http.Response) (*GetTransactionPayloadResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err

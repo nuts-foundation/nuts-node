@@ -76,11 +76,11 @@ func (api *Wrapper) GetContractByType(ctx echo.Context, contractType string, par
 
 	// convert internal data types to generated api types
 	answer := Contract{
-		Language:           Language(authContract.Language),
+		Language:           ContractLanguage(authContract.Language),
 		Template:           &authContract.Template,
 		TemplateAttributes: &authContract.TemplateAttributes,
-		Type:               Type(authContract.Type),
-		Version:            Version(authContract.Version),
+		Type:               ContractType(authContract.Type),
+		Version:            ContractVersion(authContract.Version),
 	}
 
 	return ctx.JSON(http.StatusOK, answer)
