@@ -1,7 +1,6 @@
 package irma
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/nuts-foundation/nuts-node/auth/logging"
@@ -13,7 +12,7 @@ import (
 )
 
 // IrmaMountPath contains location the irma webserver will mount
-const IrmaMountPath = "/auth/irmaclient"
+const IrmaMountPath = "/public/auth/irmaclient"
 
 // GetIrmaConfig creates and returns an IRMA config.
 // The config sets the given irma path or a temporary folder. Then it downloads the schemas.
@@ -38,7 +37,7 @@ func GetIrmaConfig(validatorConfig ValidatorConfig) (irmaConfig *irma.Configurat
 func GetIrmaServer(validatorConfig ValidatorConfig, irmaConfig *irma.Configuration) (*irmaserver.Server, error) {
 	config := &server.Configuration{
 		IrmaConfiguration:    irmaConfig,
-		URL:                  fmt.Sprintf("%s"+IrmaMountPath, validatorConfig.PublicURL),
+		URL:                  validatorConfig.PublicURL + IrmaMountPath,
 		Logger:               logging.Log().Logger,
 		SchemesPath:          validatorConfig.IrmaConfigPath,
 		DisableSchemesUpdate: !validatorConfig.AutoUpdateIrmaSchemas,
