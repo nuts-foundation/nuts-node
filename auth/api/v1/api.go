@@ -159,7 +159,6 @@ func (w Wrapper) GetSignSessionStatus(ctx echo.Context, sessionID string) error 
 	return ctx.JSON(http.StatusOK, response)
 }
 
-
 // GetContractByType handles the http request for finding a contract by type.
 func (w Wrapper) GetContractByType(ctx echo.Context, contractType string, params GetContractByTypeParams) error {
 	// convert generated data types to internal types
