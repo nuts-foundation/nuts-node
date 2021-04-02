@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package experimental
+package v1
 
 import (
 	"encoding/json"
@@ -39,12 +39,15 @@ import (
 
 var _ ServerInterface = (*Wrapper)(nil)
 
+const errOauthInvalidRequest = "invalid_request"
+const errOauthInvalidGrant = "invalid_grant"
+const errOauthUnsupportedGrant = "unsupported_grant_type"
+const bearerTokenHeaderPrefix = "bearer "
+
 // Wrapper bridges the generated api types and http logic to the internal types and logic.
 // It checks required parameters and message body. It converts data from api to internal types.
 // Then passes the internal formats to the AuthenticationServices. Converts internal results back to the generated
 // Api types. Handles errors and returns the correct http response. It does not perform any business logic.
-//
-// This is the experimental API. It is used to tests APIs is the wild.
 type Wrapper struct {
 	Auth auth.AuthenticationServices
 }
@@ -262,12 +265,6 @@ func (w Wrapper) CreateJwtBearerToken(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, JwtBearerTokenResponse{BearerToken: response.BearerToken})
 }
 
-
-const errOauthInvalidRequest = "invalid_request"
-const errOauthInvalidGrant = "invalid_grant"
-const errOauthUnsupportedGrant = "unsupported_grant_type"
-
-
 // CreateAccessToken handles the http request (from a remote vendor's Nuts node) for creating an access token for accessing
 // resources of the local vendor's EPD/XIS. It consumes a JWT Bearer token.
 // It consumes and checks the JWT and returns a smaller sessionToken
@@ -302,8 +299,6 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context, params CreateAccessTokenPar
 	return ctx.JSON(http.StatusOK, response)
 }
 
-const bearerPrefix = "bearer "
-
 // VerifyAccessToken handles the http request (from the vendor's EPD/XIS) for verifying an access token received from a remote Nuts node.
 func (w Wrapper) VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error {
 	if len(params.Authorization) == 0 {
@@ -311,13 +306,13 @@ func (w Wrapper) VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenPar
 		return ctx.NoContent(http.StatusForbidden)
 	}
 
-	index := strings.Index(strings.ToLower(params.Authorization), bearerPrefix)
+	index := strings.Index(strings.ToLower(params.Authorization), bearerTokenHeaderPrefix)
 	if index != 0 {
 		logging.Log().Warn("Authorization does not contain bearer token")
 		return ctx.NoContent(http.StatusForbidden)
 	}
 
-	token := params.Authorization[len(bearerPrefix):]
+	token := params.Authorization[len(bearerTokenHeaderPrefix):]
 
 	_, err := w.Auth.OAuthClient().IntrospectAccessToken(token)
 	if err != nil {

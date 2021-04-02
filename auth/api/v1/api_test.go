@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package experimental
+package v1
 
 import (
 	"encoding/json"

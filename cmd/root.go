@@ -25,8 +25,8 @@ import (
 	"os"
 
 	"github.com/nuts-foundation/nuts-node/auth"
-	authExperimentalAPI "github.com/nuts-foundation/nuts-node/auth/api/experimental"
 	authIrmaAPI "github.com/nuts-foundation/nuts-node/auth/api/irma"
+	authAPI "github.com/nuts-foundation/nuts-node/auth/api/v1"
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core/status"
 
@@ -163,7 +163,7 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&credApi.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
-	system.RegisterRoutes(&authExperimentalAPI.Wrapper{Auth: authInstance})
+	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&authIrmaAPI.Wrapper{Auth: authInstance})
 
 	// Register engines
