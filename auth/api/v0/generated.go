@@ -135,6 +135,11 @@ type TokenIntrospectionResponse struct {
 	Usi *string `json:"usi,omitempty"`
 }
 
+// VerifyAccessTokenParams defines parameters for VerifyAccessToken.
+type VerifyAccessTokenParams struct {
+	Authorization string `json:"Authorization"`
+}
+
 // CreateAccessTokenJSONBody defines parameters for CreateAccessToken.
 type CreateAccessTokenJSONBody CreateAccessTokenRequest
 
@@ -144,10 +149,8 @@ type CreateAccessTokenParams struct {
 	XNutsLegalEntity *string `json:"X-Nuts-LegalEntity,omitempty"`
 }
 
-// VerifyAccessTokenParams defines parameters for VerifyAccessToken.
-type VerifyAccessTokenParams struct {
-	Authorization string `json:"Authorization"`
-}
+// CreateJwtBearerTokenJSONBody defines parameters for CreateJwtBearerToken.
+type CreateJwtBearerTokenJSONBody CreateJwtBearerTokenRequest
 
 // GetContractByTypeParams defines parameters for GetContractByType.
 type GetContractByTypeParams struct {
@@ -157,9 +160,6 @@ type GetContractByTypeParams struct {
 	Language *string `json:"language,omitempty"`
 }
 
-// CreateJwtBearerTokenJSONBody defines parameters for CreateJwtBearerToken.
-type CreateJwtBearerTokenJSONBody CreateJwtBearerTokenRequest
-
 // CreateAccessTokenRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody CreateAccessTokenJSONBody
 
@@ -168,30 +168,70 @@ type CreateJwtBearerTokenJSONRequestBody CreateJwtBearerTokenJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Verifies the access token given in the Authorization header (as bearer token). If it's a valid access token issued by this server, it'll return a 200 status code.
+	// If it cannot be verified it'll return 403. Note that it'll not return the contents of the access token. The introspection API is for that.
+	// (HEAD /internal/auth/v1/accesstoken/verify)
+	VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error
+	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+	// (POST /internal/auth/v1/bearertoken/verify)
+	IntrospectAccessToken(ctx echo.Context) error
 	// Create an access token based on the OAuth JWT Bearer flow.
 	// This endpoint must be available to the outside world for other applications to request access tokens.
 	// It requires a two-way TLS connection. The client certificate must be a sibling of the signing certificate of the given JWT.
 	// The client certificate must be passed using a X-Ssl-Client-Cert header, PEM encoded and urlescaped.
-	// (POST /auth/accesstoken)
+	// (POST /public/auth/v1/accesstoken)
 	CreateAccessToken(ctx echo.Context, params CreateAccessTokenParams) error
-	// Verifies the access token given in the Authorization header (as bearer token). If it's a valid access token issued by this server, it'll return a 200 status code.
-	// If it cannot be verified it'll return 403. Note that it'll not return the contents of the access token. The introspection API is for that.
-	// (HEAD /auth/accesstoken/verify)
-	VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error
-	// Get a contract by type and version
-	// (GET /auth/contract/{contractType})
-	GetContractByType(ctx echo.Context, contractType string, params GetContractByTypeParams) error
 	// Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
-	// (POST /auth/jwtbearertoken)
+	// (POST /public/auth/v1/bearertoken)
 	CreateJwtBearerToken(ctx echo.Context) error
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
-	// (POST /auth/token_introspection)
-	IntrospectAccessToken(ctx echo.Context) error
+	// Get a contract by type and version
+	// (GET /public/auth/v1/contract/{contractType})
+	GetContractByType(ctx echo.Context, contractType string, params GetContractByTypeParams) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// VerifyAccessToken converts echo context to params.
+func (w *ServerInterfaceWrapper) VerifyAccessToken(ctx echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params VerifyAccessTokenParams
+
+	headers := ctx.Request().Header
+	// ------------- Required header parameter "Authorization" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Authorization")]; found {
+		var Authorization string
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for Authorization, got %d", n))
+		}
+
+		err = runtime.BindStyledParameter("simple", false, "Authorization", valueList[0], &Authorization)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter Authorization: %s", err))
+		}
+
+		params.Authorization = Authorization
+	} else {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Header parameter Authorization is required, but not found"))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.VerifyAccessToken(ctx, params)
+	return err
+}
+
+// IntrospectAccessToken converts echo context to params.
+func (w *ServerInterfaceWrapper) IntrospectAccessToken(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.IntrospectAccessToken(ctx)
+	return err
 }
 
 // CreateAccessToken converts echo context to params.
@@ -240,34 +280,12 @@ func (w *ServerInterfaceWrapper) CreateAccessToken(ctx echo.Context) error {
 	return err
 }
 
-// VerifyAccessToken converts echo context to params.
-func (w *ServerInterfaceWrapper) VerifyAccessToken(ctx echo.Context) error {
+// CreateJwtBearerToken converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateJwtBearerToken(ctx echo.Context) error {
 	var err error
 
-	// Parameter object where we will unmarshal all parameters from the context
-	var params VerifyAccessTokenParams
-
-	headers := ctx.Request().Header
-	// ------------- Required header parameter "Authorization" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("Authorization")]; found {
-		var Authorization string
-		n := len(valueList)
-		if n != 1 {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for Authorization, got %d", n))
-		}
-
-		err = runtime.BindStyledParameter("simple", false, "Authorization", valueList[0], &Authorization)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter Authorization: %s", err))
-		}
-
-		params.Authorization = Authorization
-	} else {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Header parameter Authorization is required, but not found"))
-	}
-
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.VerifyAccessToken(ctx, params)
+	err = w.Handler.CreateJwtBearerToken(ctx)
 	return err
 }
 
@@ -303,24 +321,6 @@ func (w *ServerInterfaceWrapper) GetContractByType(ctx echo.Context) error {
 	return err
 }
 
-// CreateJwtBearerToken converts echo context to params.
-func (w *ServerInterfaceWrapper) CreateJwtBearerToken(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.CreateJwtBearerToken(ctx)
-	return err
-}
-
-// IntrospectAccessToken converts echo context to params.
-func (w *ServerInterfaceWrapper) IntrospectAccessToken(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.IntrospectAccessToken(ctx)
-	return err
-}
-
 // PATCH: This template file was taken from pkg/codegen/templates/register.tmpl
 
 // This is a simple interface which specifies echo.Route addition functions which
@@ -343,10 +343,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodPost, baseURL+"/auth/accesstoken", wrapper.CreateAccessToken)
-	router.Add(http.MethodHead, baseURL+"/auth/accesstoken/verify", wrapper.VerifyAccessToken)
-	router.Add(http.MethodGet, baseURL+"/auth/contract/:contractType", wrapper.GetContractByType)
-	router.Add(http.MethodPost, baseURL+"/auth/jwtbearertoken", wrapper.CreateJwtBearerToken)
-	router.Add(http.MethodPost, baseURL+"/auth/token_introspection", wrapper.IntrospectAccessToken)
+	router.Add(http.MethodHead, baseURL+"/internal/auth/v1/accesstoken/verify", wrapper.VerifyAccessToken)
+	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/bearertoken/verify", wrapper.IntrospectAccessToken)
+	router.Add(http.MethodPost, baseURL+"/public/auth/v1/accesstoken", wrapper.CreateAccessToken)
+	router.Add(http.MethodPost, baseURL+"/public/auth/v1/bearertoken", wrapper.CreateJwtBearerToken)
+	router.Add(http.MethodGet, baseURL+"/public/auth/v1/contract/:contractType", wrapper.GetContractByType)
 
 }

@@ -103,7 +103,7 @@ paths:
           description: The access token is valid. It has been signed by this server.
         '403':
           description: The given access token is invalid or couldn't be verified.
-  /public/auth/v1/bearertoken:
+  /internal/auth/v1/bearertoken:
     post:
       operationId: createJwtBearerToken
       summary: Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field

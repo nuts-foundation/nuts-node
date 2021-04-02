@@ -149,16 +149,16 @@ type VerifySignatureJSONRequestBody VerifySignatureJSONBody
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Draw up a contract using a specified contract template, language and version
-	// (PUT /internal/auth/experimental/contract/drawup)
+	// (PUT /internal/auth/v1/contract/drawup)
 	DrawUpContract(ctx echo.Context) error
 	// Create a signing session for a supported means.
-	// (POST /internal/auth/experimental/signature/session)
+	// (POST /internal/auth/v1/signature/session)
 	CreateSignSession(ctx echo.Context) error
 	// Get the current status of a signing session
-	// (GET /internal/auth/experimental/signature/session/{sessionID})
+	// (GET /internal/auth/v1/signature/session/{sessionID})
 	GetSignSessionStatus(ctx echo.Context, sessionID string) error
 	// Verify a signature in the form of a verifiable presentation
-	// (PUT /internal/auth/experimental/signature/verify)
+	// (PUT /internal/auth/v1/signature/verify)
 	VerifySignature(ctx echo.Context) error
 }
 
@@ -232,9 +232,9 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodPut, baseURL+"/internal/auth/experimental/contract/drawup", wrapper.DrawUpContract)
-	router.Add(http.MethodPost, baseURL+"/internal/auth/experimental/signature/session", wrapper.CreateSignSession)
-	router.Add(http.MethodGet, baseURL+"/internal/auth/experimental/signature/session/:sessionID", wrapper.GetSignSessionStatus)
-	router.Add(http.MethodPut, baseURL+"/internal/auth/experimental/signature/verify", wrapper.VerifySignature)
+	router.Add(http.MethodPut, baseURL+"/internal/auth/v1/contract/drawup", wrapper.DrawUpContract)
+	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/signature/session", wrapper.CreateSignSession)
+	router.Add(http.MethodGet, baseURL+"/internal/auth/v1/signature/session/:sessionID", wrapper.GetSignSessionStatus)
+	router.Add(http.MethodPut, baseURL+"/internal/auth/v1/signature/verify", wrapper.VerifySignature)
 
 }
