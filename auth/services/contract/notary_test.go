@@ -216,13 +216,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 func TestNewContractNotary(t *testing.T) {
 	t.Run("adds all services", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
-		vdrInstance := vdr.NewTestVDRInstance(testDir)
-		instance := NewContractNotary(
-			vcr.NewTestVCRInstance(testDir),
-			vdr.KeyResolver{DocResolver: vdrInstance},
-			crypto.NewTestCryptoInstance(testDir),
-			60*time.Minute,
-		)
+		instance := NewContractNotary(vcr.NewTestVCRInstance(testDir), 60*time.Minute)
 
 		if !assert.NotNil(t, instance) {
 			return
@@ -233,9 +227,7 @@ func TestNewContractNotary(t *testing.T) {
 			return
 		}
 
-		assert.NotNil(t, service.privateKeyStore)
 		assert.NotNil(t, service.conceptFinder)
-		assert.NotNil(t, service.keyResolver)
 		assert.NotNil(t, service.contractValidity)
 	})
 }
@@ -257,8 +249,6 @@ func buildContext(t *testing.T) *testContext {
 		privateKeyStore: crypto.NewMockPrivateKeyStore(ctrl),
 	}
 	notary := contractNotaryService{
-		keyResolver:      ctx.keyResolver,
-		privateKeyStore:  ctx.privateKeyStore,
 		conceptFinder:    ctx.nameResolver,
 		contractValidity: 15 * time.Minute,
 	}

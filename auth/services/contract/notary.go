@@ -19,38 +19,30 @@
 package contract
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/auth/services/validator"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 )
 
 type contractNotaryService struct {
 	conceptFinder    vcr.ConceptFinder
-	keyResolver      types.KeyResolver
-	privateKeyStore  crypto.PrivateKeyStore
 	contractValidity time.Duration
 }
 
 var timenow = time.Now
 
 // NewContractNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewContractNotary(finder vcr.ConceptFinder, keyResolver types.KeyResolver, keyStore crypto.PrivateKeyStore, contractValidity time.Duration) services.ContractNotary {
+func NewContractNotary(finder vcr.ConceptFinder, contractValidity time.Duration) services.ContractNotary {
 	return &contractNotaryService{
 		conceptFinder:    finder,
 		contractValidity: contractValidity,
-		keyResolver:      keyResolver,
-		privateKeyStore:  keyStore,
 	}
 }
 
@@ -58,18 +50,6 @@ func NewContractNotary(finder vcr.ConceptFinder, keyResolver types.KeyResolver, 
 // If validFrom is zero, the current time is used.
 // If the duration is 0 than the default duration is used.
 func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration) (*contract.Contract, error) {
-	// Test if the org in managed by this node:
-	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(orgID, &validFrom)
-	if errors.Is(err, types.ErrNotFound) {
-		return nil, fmt.Errorf("could not draw up contract: organization not found")
-	} else if err != nil {
-		return nil, fmt.Errorf("could not draw up contract: %w", err)
-	}
-
-	if !s.privateKeyStore.PrivateKeyExists(signingKeyID) {
-		return nil, fmt.Errorf("could not draw up contract: organization is not managed by this node: %w", validator.ErrMissingOrganizationKey)
-	}
-
 	// DrawUpContract draws up a contract for a specific organisation from a template
 	result, err := s.conceptFinder.Get(concept.OrganizationConcept, orgID.String())
 	if err != nil {
