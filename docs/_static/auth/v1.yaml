@@ -1,9 +1,64 @@
 openapi: 3.0.0
 info:
-  title: Nuts Service API Proxy
-  version: 0.0.1
+  title: Nuts Auth Service API
+  version: 1.0.0
+
 paths:
-  /auth/contract/{contractType}:
+  /internal/auth/v1/signature/session:
+    post:
+      operationId: createSignSession
+      summary: Create a signing session for a supported means.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSignSessionRequest"
+      responses:
+        201:
+          description: When the signing session was successfully created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateSignSessionResponse"
+  /internal/auth/v1/signature/session/{sessionID}:
+    get:
+      operationId: getSignSessionStatus
+      summary: Get the current status of a signing session
+      parameters:
+        - name: sessionID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: When the session is found. Contains the current session status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetSignSessionStatusResponse"
+        404:
+          description: When the session could not be found.
+  /internal/auth/v1/signature/verify:
+    put:
+      operationId: verifySignature
+      summary: Verify a signature in the form of a verifiable presentation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignatureVerificationRequest"
+      responses:
+        200:
+          description: "When the verification could be performed. The response contains the verification result. Note: This status code does not indicate the validity of the signature."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignatureVerificationResponse"
+
+  /public/auth/v1/contract/{contractType}:
     get:
       operationId: getContractByType
       summary: Get a contract by type and version
@@ -33,14 +88,55 @@ paths:
           content:
             text/plain:
               schema:
-                $ref: "#/components/schemas/ErrorString"
+                type: string
         '200':
           description: Returns the contract of this type, version and language
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Contract"
-  /auth/accesstoken:
+  /internal/auth/v1/contract/drawup:
+    put:
+      operationId: drawUpContract
+      summary: Draw up a contract using a specified contract template, language and version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DrawUpContractRequest"
+      responses:
+        200:
+          description: When the contract was drawn up successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractResponse"
+        404:
+          description: When the combination of template, language and version was not found.
+
+  /internal/auth/v1/bearertoken:
+    post:
+      operationId: createJwtBearerToken
+      summary: Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJwtBearerTokenRequest"
+      responses:
+        '200':
+          description: Successfull request. Responds with JWT encoded Bearer Token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JwtBearerTokenResponse"
+
+
+  /public/auth/v1/accesstoken:
     post:
       operationId: createAccessToken
       summary: |
@@ -84,7 +180,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccessTokenRequestFailedResponse"
-  /auth/accesstoken/verify:
+  /internal/auth/v1/accesstoken/verify:
     head:
       operationId: verifyAccessToken
       summary: |
@@ -103,26 +199,7 @@ paths:
           description: The access token is valid. It has been signed by this server.
         '403':
           description: The given access token is invalid or couldn't be verified.
-  /auth/jwtbearertoken:
-    post:
-      operationId: createJwtBearerToken
-      summary: Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
-      tags:
-        - auth
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateJwtBearerTokenRequest"
-      responses:
-        '200':
-          description: Successfull request. Responds with JWT encoded Bearer Token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JwtBearerTokenResponse"
-  /auth/token_introspection:
+  /internal/auth/v1/accesstoken/introspect:
     post:
       operationId: introspectAccessToken
       summary: Introspection endpoint to retrieve information from an Access Token as described by RFC7662
@@ -142,26 +219,128 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TokenIntrospectionResponse"
+
 components:
   schemas:
-    ErrorString:
+    #
+    # Everthing related to sessions and signing
+    #
+    CreateSignSessionRequest:
+      required:
+        - means
+        - payload
+        - params
+      properties:
+        means:
+          type: string
+          enum: [ irma, dummy ]
+          example: irma
+        params:
+          type: object
+          description: Params are passed to the means. Should be documented in the means documentation.
+        payload:
+          type: string
+          description: Base64 encoded payload what needs to be signed.
+    CreateSignSessionResponse:
+      required:
+        - sessionID
+        - sessionPtr
+        - means
+      properties:
+        sessionID:
+          description: Unique identifier of this sign session.
+          type: string
+        sessionPtr:
+          description: A pointer to a sign session. This is an opaque value which only has meaning in the context of the signing means. Can be an URL, base64 encoded image of a QRCode etc.
+          type: object
+        means:
+          description: The means this session uses to sign.
+          type: string
+          enum: [ irma, dummy ]
+          example: irma
+    GetSignSessionStatusResponse:
+      required:
+        - status
+      properties:
+        status:
+          description: Status indicates the status of the signing proces. Values depend on the implementation of the signing means.
+          type: string
+        verifiablePresentation:
+          $ref: "#/components/schemas/VerifiablePresentation"
+    VerifiablePresentation:
+      description: If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
+      type: object
+      required:
+        - "@context"
+        - type
+        - proof
+      properties:
+        "@context":
+          type: array
+          items:
+            type: string
+        type:
+          type: array
+          items:
+            type: string
+        proof:
+          type: object
+    SignatureVerificationRequest:
+      type: object
+      required:
+        - VerifiablePresentation
+      properties:
+        VerifiablePresentation:
+          $ref: "#/components/schemas/VerifiablePresentation"
+        checkTime:
+          description: Moment in time to check the validity of the signature. If omitted, the current time is used.
+          type: string
+          example: "2019-06-24T14:32:00+02:00"
+    SignatureVerificationResponse:
+      description: Contains the signature verification result.
+      type: object
+      required:
+        - validity
+      properties:
+        validity:
+          type: boolean
+          description: Indicates the validity of the signature.
+        vpType:
+          description: Type of Verifiable credential.
+          example: NutsDelegation
+          type: string
+        issuerAttributes:
+          description: Key vale pairs containing the attributes of the issuer.
+          type: object
+          example:
+            uziNr: 9000382
+            firstName: Henk
+            lastName: de Vries
+        credentials:
+          description: Key value pairs containing claims and their values.
+          type: object
+          example:
+            organisation: Zorgcentrum de Oosterlanden
+            validFrom: 2020-12-16T10:57:00
+            validTo: 2020-12-16T12:57:00
+    #
+    # Everything related to Contracts
+    #
+    ContractType:
       type: string
-      description: "A plain text error message"
-    Type:
-      type: string
-      description: "Type of which contract to sign"
+      description: Type of which contract to sign.
       example: "BehandelaarLogin"
-    Language:
+    ContractLanguage:
       type: string
-      description: "Language of the contract in all caps"
+      description: Language of the contract in all caps.
       example: "NL"
-    Version:
+    ContractVersion:
       type: string
-      description: "Version of the contract"
-      example: "v3"
+      description: Version of the contract.
+      example: "v1"
     LegalEntity:
       type: string
-      description: "Identifier of the legalEntity as registered in the Nuts registry"
+      description: Identifier of the legalEntity as registered in the Nuts registry.
       example: "urn:oid:2.16.840.1.113883.2.4.6.1:48000000"
     Contract:
       required:
@@ -170,11 +349,11 @@ components:
         - language
       properties:
         type:
-          $ref: "#/components/schemas/Type"
+          $ref: "#/components/schemas/ContractType"
         language:
-          $ref: "#/components/schemas/Language"
+          $ref: "#/components/schemas/ContractLanguage"
         version:
-          $ref: "#/components/schemas/Version"
+          $ref: "#/components/schemas/ContractVersion"
         signer_attributes:
           example:
           type: array
@@ -198,11 +377,11 @@ components:
         - legalEntity
       properties:
         type:
-          $ref: "#/components/schemas/Type"
+          $ref: "#/components/schemas/ContractType"
         language:
-          $ref: "#/components/schemas/Language"
+          $ref: "#/components/schemas/ContractLanguage"
         version:
-          $ref: "#/components/schemas/Version"
+          $ref: "#/components/schemas/ContractVersion"
         legalEntity:
           $ref: "#/components/schemas/LegalEntity"
         valid_from:
@@ -213,190 +392,81 @@ components:
           type: string
           description: "ValidTo describes the time until this contract should be considered valid"
           example: "2019-12-24T14:32:00+02:00"
-    CreateSessionResult:
-      description: CreateSessionResult contains the results needed to setup an irma flow
+    ContractResponse:
       required:
-        - qr_code_info
-        - session_id
-      properties:
-        qr_code_info:
-          $ref: "#/components/schemas/IrmaQR"
-        session_id:
-          type: string
-          description: a session identifier
-    IrmaQR:
-      description: Qr contains the data of an IRMA session QR (as generated by irma_js), suitable for NewSession()
-      required:
-        - u
-        - irmaqr
-      properties:
-        u:
-          type: string
-          description: Server with which to perform the session (URL)
-        irmaqr:
-          type: string
-          enum: [disclosing, signing, issuing]
-    ValidationRequest:
-      description: Validate validity of session token
-      required:
-        - contract_format
-        - contract_string
-        - acting_party_cn
-      properties:
-        contract_format:
-          description: ContractFormat specifies the type of format used for the contract
-          type: string
-          enum: [irma, JWT]
-        contract_string:
-          description: Base64 encoded contracts, either Irma signature or a JWT
-          type: string
-    ValidationResult:
-      required:
-        - validation_result
-        - contract_format
-        - signer_attributes
-      properties:
-        validation_result:
-          type: string
-          enum: [VALID, INVALID]
-        contract_format:
-          type: string
-        signer_attributes:
-          type: object
-          example: {
-            "irma-demo.MijnOverheid.ageLower.over12": "yes",
-            "irma-demo.MijnOverheid.fullName": "present"}
-    SessionResult:
-      description: result of irma signature request, including disclosed attributes or errors
-      required:
-        - token
-        - status
+        - message
         - type
+        - version
+        - language
       properties:
-        token:
+        message:
           type: string
-          description: the token originally given in the request
-        status:
-          type: string
-          enum: [INITIALIZED, CONNECTED, CANCELLED, DONE, TIMEOUT]
+          description: The contract message.
+          example: I hereby declare that Pro Gen - Italia should be make requests in my name
         type:
-          type: string
-        proofStatus:
-          type: string
-          enum: [VALID, INVALID, INVALID_TIMESTAMP, UNMATCHED_REQUEST, MISSING_ATTRIBUTES, EXPIRED]
-        disclosed:
-          type: array
-          items:
-            $ref: "#/components/schemas/DisclosedAttribute"
-        signature:
-          $ref: "#/components/schemas/SignedMessage"
-        error:
-          $ref: "#/components/schemas/RemoteError"
-        nuts_auth_token:
-          type: string
-          description: Base64 encoded JWT that can be used as Bearer Token
-    DisclosedAttribute:
+          $ref: "#/components/schemas/ContractType"
+        language:
+          $ref: "#/components/schemas/ContractLanguage"
+        version:
+          $ref: "#/components/schemas/ContractVersion"
+    DrawUpContractRequest:
       required:
-        - value
-        - identifier
-        - status
+        - type
+        - version
+        - language
+        - legalEntity
       properties:
-        rawvalue:
+        type:
+          $ref: "#/components/schemas/ContractType"
+        language:
+          $ref: "#/components/schemas/ContractLanguage"
+        version:
+          $ref: "#/components/schemas/ContractVersion"
+        legalEntity:
+          $ref: "#/components/schemas/LegalEntity"
+        validFrom:
           type: string
-        value:
-          type: object
-        identifier:
+          description: validFrom describes the time from which this contract should be considered valid. Current time is used when omitted.
+          example: "2019-06-24T14:32:00+02:00"
+        validDuration:
           type: string
-        status:
+          description: "The duration this contract is valid, starting from validFrom or current time if validFrom is omitted. Uses this node default when omitted. Valid time units are: 's', 'm', 'h'"
+          example: "2h"
+    #
+    # Everything related to JWT Bearer Tokens
+    #
+    CreateJwtBearerTokenRequest:
+      description: Request for a JWT Bearer Token. The Bearer Token can be used during a Access Token Request in the assertion field
+      required:
+        - custodian
+        - actor
+        - identity
+        - scope
+      properties:
+        subject:
           type: string
-          enum: [PRESENT, EXTRA, MISSING, INVALID_VALUE]
-    RemoteError:
-      properties:
-        status:
-          type: integer
-        error:
+        custodian:
           type: string
-        description:
+        actor:
           type: string
-        message:
+        identity:
           type: string
-        stacktrace:
+          description: |
+            Base64 encoded IRMA contract conaining the identity of the performer
+        scope:
           type: string
-    SignedMessage:
+          description: Space-delimited list of strings. For what kind of operations can the access token be used? Scopes will be specified for each use-case
+          example: nuts-sso nuts-patient-transfer
+    JwtBearerTokenResponse:
+      description: Response with a JWT Bearer Token. It contains a JWT, signed with the private key of the requestor software vendor. Using the RS256 signing algorithm.
+      required:
+        - bearer_token
       properties:
-        signature:
-          type: array
-          items:
-            $ref: "#/components/schemas/Proof"
-        indices:
-          type: array
-          items:
-            type: array
-            items:
-              $ref: "#/components/schemas/DisclosedAttributeIndex"
-        nonce:
-          type: number
-        context:
-          type: number
-        message:
+        bearer_token:
           type: string
-        timestamp:
-          $ref: "#/components/schemas/Timestamp"
-    Proof:
-      oneOf:
-        - $ref: "#/components/schemas/ProofU"
-        - $ref: "#/components/schemas/ProofS"
-        - $ref: "#/components/schemas/ProofD"
-        - $ref: "#/components/schemas/ProofP"
-    DisclosedAttributeIndex:
-      properties:
-        cred:
-          type: integer
-        attr:
-          type: integer
-    Timestamp:
-      properties:
-        time:
-          type: integer
-          format: int64
-    ProofU:
-      properties:
-        U:
-          type: number
-        c:
-          type: number
-        v_prime_response:
-          type: number
-        s_response:
-          type: number
-    ProofP:
-      properties:
-        P:
-          type: number
-        c:
-          type: number
-        s_response:
-          type: number
-    ProofS:
-      properties:
-        c:
-          type: number
-        e_response:
-          type: number
-    ProofD:
-      properties:
-        c:
-          type: number
-        A:
-          type: number
-        e_response:
-          type: number
-        v_response:
-          type: number
-        a_responses:
-          type: object
-        a_disclosed:
-          type: object
+    #
+    # Everything related to Access Tokens
+    #
     CreateAccessTokenRequest:
       description: Request as described in RFC7523 section 2.1
       required:
@@ -447,35 +517,6 @@ components:
             Human-readable ASCII text providing
             additional information, used to assist the client developer in
             understanding the error that occurred.
-          type: string
-    CreateJwtBearerTokenRequest:
-      description: Request for a JWT Bearer Token. The Bearer Token can be used during a Access Token Request in the assertion field
-      required:
-        - custodian
-        - actor
-        - identity
-        - scope
-      properties:
-        subject:
-          type: string
-        custodian:
-          type: string
-        actor:
-          type: string
-        identity:
-          type: string
-          description: |
-            Base64 encoded IRMA contract conaining the identity of the performer
-        scope:
-          type: string
-          description: Space-delimited list of strings. For what kind of operations can the access token be used? Scopes will be specified for each use-case
-          example: nuts-sso nuts-patient-transfer
-    JwtBearerTokenResponse:
-      description: Response with a JWT Bearer Token. It contains a JWT, signed with the private key of the requestor software vendor. Using the RS256 signing algorithm.
-      required:
-        - bearer_token
-      properties:
-        bearer_token:
           type: string
     TokenIntrospectionRequest:
       description: Token introspection request as described in RFC7662 section 2.1

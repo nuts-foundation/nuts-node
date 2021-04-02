@@ -16,15 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package experimental
+package v1
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/auth/logging"
 	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -36,12 +39,15 @@ import (
 
 var _ ServerInterface = (*Wrapper)(nil)
 
+const errOauthInvalidRequest = "invalid_request"
+const errOauthInvalidGrant = "invalid_grant"
+const errOauthUnsupportedGrant = "unsupported_grant_type"
+const bearerTokenHeaderPrefix = "bearer "
+
 // Wrapper bridges the generated api types and http logic to the internal types and logic.
 // It checks required parameters and message body. It converts data from api to internal types.
 // Then passes the internal formats to the AuthenticationServices. Converts internal results back to the generated
 // Api types. Handles errors and returns the correct http response. It does not perform any business logic.
-//
-// This is the experimental API. It is used to tests APIs is the wild.
 type Wrapper struct {
 	Auth auth.AuthenticationServices
 }
@@ -153,6 +159,39 @@ func (w Wrapper) GetSignSessionStatus(ctx echo.Context, sessionID string) error 
 	return ctx.JSON(http.StatusOK, response)
 }
 
+// GetContractByType handles the http request for finding a contract by type.
+func (w Wrapper) GetContractByType(ctx echo.Context, contractType string, params GetContractByTypeParams) error {
+	// convert generated data types to internal types
+	var (
+		contractLanguage contract.Language
+		contractVersion  contract.Version
+	)
+	if params.Language != nil {
+		contractLanguage = contract.Language(*params.Language)
+	}
+
+	if params.Version != nil {
+		contractVersion = contract.Version(*params.Version)
+	}
+
+	// get contract
+	authContract := contract.StandardContractTemplates.Get(contract.Type(contractType), contractLanguage, contractVersion)
+	if authContract == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "could not found contract template")
+	}
+
+	// convert internal data types to generated api types
+	answer := Contract{
+		Language:           ContractLanguage(authContract.Language),
+		Template:           &authContract.Template,
+		TemplateAttributes: &authContract.TemplateAttributes,
+		Type:               ContractType(authContract.Type),
+		Version:            ContractVersion(authContract.Version),
+	}
+
+	return ctx.JSON(http.StatusOK, answer)
+}
+
 // DrawUpContract handles the http request for drawing up a contract for a given contract template identified by type, language and version.
 func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	params := new(DrawUpContractRequest)
@@ -202,7 +241,125 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 		Version:  ContractVersion(drawnUpContract.Template.Version),
 	}
 	return ctx.JSON(http.StatusOK, response)
+}
 
+// CreateJwtBearerToken handles the http request (from from the vendor's EPD/XIS) for creating a JWT bearer token which can be used to retrieve an access token from a remote Nuts node.
+func (w Wrapper) CreateJwtBearerToken(ctx echo.Context) error {
+	requestBody := &CreateJwtBearerTokenRequest{}
+	if err := ctx.Bind(requestBody); err != nil {
+		return err
+	}
+
+	request := services.CreateJwtBearerTokenRequest{
+		Actor:         requestBody.Actor,
+		Custodian:     requestBody.Custodian,
+		IdentityToken: &requestBody.Identity,
+		Subject:       requestBody.Subject,
+	}
+	response, err := w.Auth.OAuthClient().CreateJwtBearerToken(request)
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, err.Error())
+	}
+
+	return ctx.JSON(http.StatusOK, JwtBearerTokenResponse{BearerToken: response.BearerToken})
+}
+
+// CreateAccessToken handles the http request (from a remote vendor's Nuts node) for creating an access token for accessing
+// resources of the local vendor's EPD/XIS. It consumes a JWT Bearer token.
+// It consumes and checks the JWT and returns a smaller sessionToken
+func (w Wrapper) CreateAccessToken(ctx echo.Context, params CreateAccessTokenParams) (err error) {
+	// Can't use echo.Bind() here since it requires extra tags on generated code
+	request := new(CreateAccessTokenRequest)
+	request.Assertion = ctx.FormValue("assertion")
+	request.GrantType = ctx.FormValue("grant_type")
+
+	if request.GrantType != auth.JwtBearerGrantType {
+		errDesc := fmt.Sprintf("grant_type must be: '%s'", auth.JwtBearerGrantType)
+		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthUnsupportedGrant, ErrorDescription: errDesc}
+		return ctx.JSON(http.StatusBadRequest, errorResponse)
+	}
+
+	const jwtPattern = `^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$`
+	if matched, err := regexp.Match(jwtPattern, []byte(request.Assertion)); !matched || err != nil {
+		errDesc := "Assertion must be a valid encoded jwt"
+		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthInvalidGrant, ErrorDescription: errDesc}
+		return ctx.JSON(http.StatusBadRequest, errorResponse)
+	}
+
+	catRequest := services.CreateAccessTokenRequest{RawJwtBearerToken: request.Assertion}
+	acResponse, err := w.Auth.OAuthClient().CreateAccessToken(catRequest)
+	if err != nil {
+		errDesc := err.Error()
+		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthInvalidRequest, ErrorDescription: errDesc}
+		return ctx.JSON(http.StatusBadRequest, errorResponse)
+	}
+	response := AccessTokenResponse{AccessToken: acResponse.AccessToken}
+
+	return ctx.JSON(http.StatusOK, response)
+}
+
+// VerifyAccessToken handles the http request (from the vendor's EPD/XIS) for verifying an access token received from a remote Nuts node.
+func (w Wrapper) VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error {
+	if len(params.Authorization) == 0 {
+		logging.Log().Warn("No authorization header given")
+		return ctx.NoContent(http.StatusForbidden)
+	}
+
+	index := strings.Index(strings.ToLower(params.Authorization), bearerTokenHeaderPrefix)
+	if index != 0 {
+		logging.Log().Warn("Authorization does not contain bearer token")
+		return ctx.NoContent(http.StatusForbidden)
+	}
+
+	token := params.Authorization[len(bearerTokenHeaderPrefix):]
+
+	_, err := w.Auth.OAuthClient().IntrospectAccessToken(token)
+	if err != nil {
+		logging.Log().WithError(err).Warn("Error while inspecting access token")
+		return ctx.NoContent(http.StatusForbidden)
+	}
+
+	return ctx.NoContent(200)
+}
+
+// IntrospectAccessToken handles the http request (from the vendor's EPD/XIS) for introspecting an access token received from a remote Nuts node.
+func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
+	token := ctx.FormValue("token")
+
+	introspectionResponse := TokenIntrospectionResponse{
+		Active: false,
+	}
+
+	if len(token) == 0 {
+		return ctx.JSON(http.StatusOK, introspectionResponse)
+	}
+
+	claims, err := w.Auth.OAuthClient().IntrospectAccessToken(token)
+	if err != nil {
+		logging.Log().WithError(err).Debug("Error while inspecting access token")
+		return ctx.JSON(http.StatusOK, introspectionResponse)
+	}
+
+	exp := int(claims.Expiration)
+	iat := int(claims.IssuedAt)
+
+	introspectionResponse = TokenIntrospectionResponse{
+		Active:     true,
+		Sub:        &claims.Subject,
+		Iss:        &claims.Issuer,
+		Aud:        &claims.Audience,
+		Exp:        &exp,
+		Iat:        &iat,
+		Sid:        claims.SubjectID,
+		Scope:      &claims.Scope,
+		Name:       &claims.Name,
+		GivenName:  &claims.GivenName,
+		Prefix:     &claims.Prefix,
+		FamilyName: &claims.FamilyName,
+		Email:      &claims.Email,
+	}
+
+	return ctx.JSON(http.StatusOK, introspectionResponse)
 }
 
 // convertToMap converts an object to a map[string]interface{} using json conversion
