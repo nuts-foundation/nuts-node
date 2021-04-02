@@ -367,12 +367,13 @@ func convertToMap(obj interface{}, target interface{}) (err error) {
 	var jsonStr []byte
 	jsonStr, err = json.Marshal(obj)
 	if err != nil {
-		fmt.Errorf("could not convert value to json: %w", err)
+		err = fmt.Errorf("could not convert value to json: %w", err)
+		return
 	}
 
 	err = json.Unmarshal(jsonStr, target)
 	if err != nil {
-		fmt.Errorf("could not convert json string to key value map: %w", err)
+		err = fmt.Errorf("could not convert json string to key value map: %w", err)
 	}
 	return
 }
