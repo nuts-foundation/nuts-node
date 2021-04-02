@@ -11,6 +11,22 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// Contract defines model for Contract.
+type Contract struct {
+
+	// Language of the contract in all caps.
+	Language           ContractLanguage `json:"language"`
+	SignerAttributes   *[]string        `json:"signer_attributes,omitempty"`
+	Template           *string          `json:"template,omitempty"`
+	TemplateAttributes *[]string        `json:"template_attributes,omitempty"`
+
+	// Type of which contract to sign.
+	Type ContractType `json:"type"`
+
+	// Version of the contract.
+	Version ContractVersion `json:"version"`
+}
+
 // ContractLanguage defines model for ContractLanguage.
 type ContractLanguage string
 
@@ -137,6 +153,14 @@ type CreateSignSessionJSONBody CreateSignSessionRequest
 // VerifySignatureJSONBody defines parameters for VerifySignature.
 type VerifySignatureJSONBody SignatureVerificationRequest
 
+// GetContractByTypeParams defines parameters for GetContractByType.
+type GetContractByTypeParams struct {
+
+	// The version of this contract. If omitted, the most recent version will be returned
+	Version  *string `json:"version,omitempty"`
+	Language *string `json:"language,omitempty"`
+}
+
 // DrawUpContractRequestBody defines body for DrawUpContract for application/json ContentType.
 type DrawUpContractJSONRequestBody DrawUpContractJSONBody
 
@@ -160,6 +184,9 @@ type ServerInterface interface {
 	// Verify a signature in the form of a verifiable presentation
 	// (PUT /internal/auth/v1/signature/verify)
 	VerifySignature(ctx echo.Context) error
+	// Get a contract by type and version
+	// (GET /public/auth/v1/contract/{contractType})
+	GetContractByType(ctx echo.Context, contractType string, params GetContractByTypeParams) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -210,6 +237,38 @@ func (w *ServerInterfaceWrapper) VerifySignature(ctx echo.Context) error {
 	return err
 }
 
+// GetContractByType converts echo context to params.
+func (w *ServerInterfaceWrapper) GetContractByType(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "contractType" -------------
+	var contractType string
+
+	err = runtime.BindStyledParameter("simple", false, "contractType", ctx.Param("contractType"), &contractType)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter contractType: %s", err))
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetContractByTypeParams
+	// ------------- Optional query parameter "version" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "version", ctx.QueryParams(), &params.Version)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter version: %s", err))
+	}
+
+	// ------------- Optional query parameter "language" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "language", ctx.QueryParams(), &params.Language)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter language: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.GetContractByType(ctx, contractType, params)
+	return err
+}
+
 // PATCH: This template file was taken from pkg/codegen/templates/register.tmpl
 
 // This is a simple interface which specifies echo.Route addition functions which
@@ -236,5 +295,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/signature/session", wrapper.CreateSignSession)
 	router.Add(http.MethodGet, baseURL+"/internal/auth/v1/signature/session/:sessionID", wrapper.GetSignSessionStatus)
 	router.Add(http.MethodPut, baseURL+"/internal/auth/v1/signature/verify", wrapper.VerifySignature)
+	router.Add(http.MethodGet, baseURL+"/public/auth/v1/contract/:contractType", wrapper.GetContractByType)
 
 }

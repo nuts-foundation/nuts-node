@@ -27,62 +27,14 @@ import (
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/sirupsen/logrus"
 
 	"github.com/golang/mock/gomock"
-	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestWrapper_NutsAuthGetContractByType(t *testing.T) {
-	t.Run("get known contact", func(t *testing.T) {
-		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
-
-		cType := "PractitionerLogin"
-		cVersion := "v3"
-		cLanguage := "EN"
-		params := GetContractByTypeParams{
-			Version:  &cVersion,
-			Language: &cLanguage,
-		}
-
-		a := contract.StandardContractTemplates.Get(contract.Type(cType), contract.Language(cLanguage), contract.Version(cVersion))
-		answer := Contract{
-			Language:           ContractLanguage(a.Language),
-			Template:           &a.Template,
-			TemplateAttributes: &a.TemplateAttributes,
-			Type:               ContractType(a.Type),
-			Version:            ContractVersion(a.Version),
-		}
-
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, answer)
-
-		wrapper := Wrapper{Auth: ctx.authMock}
-		err := wrapper.GetContractByType(ctx.echoMock, cType, params)
-
-		assert.Nil(t, err)
-	})
-
-	t.Run("get an unknown contract", func(t *testing.T) {
-		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
-
-		cType := "UnknownContract"
-		params := GetContractByTypeParams{}
-
-		wrapper := Wrapper{Auth: ctx.authMock}
-		err := wrapper.GetContractByType(ctx.echoMock, cType, params)
-
-		assert.IsType(t, &echo.HTTPError{}, err)
-		httpError := err.(*echo.HTTPError)
-		assert.Equal(t, http.StatusNotFound, httpError.Code)
-
-	})
-}
 
 type OAuthErrorMatcher struct {
 	x AccessTokenRequestFailedResponse

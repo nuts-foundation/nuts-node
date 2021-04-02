@@ -57,6 +57,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SignatureVerificationResponse"
+
+  /public/auth/v1/contract/{contractType}:
+    get:
+      operationId: getContractByType
+      summary: Get a contract by type and version
+      tags:
+        - auth
+      parameters:
+        - name: contractType
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          description: The version of this contract. If omitted, the most recent version will be returned
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: language
+          in: query
+          required: false
+          schema:
+            type: string
+            default: nl
+      responses:
+        '404':
+          description: if no contract exists
+          content:
+            text/plain:
+              schema:
+                type: string
+        '200':
+          description: Returns the contract of this type, version and language
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
   /internal/auth/v1/contract/drawup:
     put:
       operationId: drawUpContract
@@ -199,7 +237,56 @@ components:
       type: string
       description: Identifier of the legalEntity as registered in the Nuts registry.
       example: "urn:oid:2.16.840.1.113883.2.4.6.1:48000000"
-
+    Contract:
+      required:
+        - type
+        - version
+        - language
+      properties:
+        type:
+          $ref: "#/components/schemas/ContractType"
+        language:
+          $ref: "#/components/schemas/ContractLanguage"
+        version:
+          $ref: "#/components/schemas/ContractVersion"
+        signer_attributes:
+          example:
+          type: array
+          items:
+            type: string
+        template:
+          type: string
+          example: ik verklaar dat ${acting_party} namens mij request mag maken
+        template_attributes:
+          type: array
+          items:
+            type: string
+          example: [ "irma-demo.MijnOverheid.ageLower.over12",
+                     "irma-demo.MijnOverheid.fullName"
+          ]
+    ContractSigningRequest:
+      required:
+        - type
+        - version
+        - language
+        - legalEntity
+      properties:
+        type:
+          $ref: "#/components/schemas/ContractType"
+        language:
+          $ref: "#/components/schemas/ContractLanguage"
+        version:
+          $ref: "#/components/schemas/ContractVersion"
+        legalEntity:
+          $ref: "#/components/schemas/LegalEntity"
+        valid_from:
+          type: string
+          description: "ValidFrom describes the time from which this contract should be considered valid"
+          example: "2019-06-24T14:32:00+02:00"
+        valid_to:
+          type: string
+          description: "ValidTo describes the time until this contract should be considered valid"
+          example: "2019-12-24T14:32:00+02:00"
     ContractResponse:
       required:
         - message

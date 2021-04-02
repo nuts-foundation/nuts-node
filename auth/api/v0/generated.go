@@ -33,31 +33,6 @@ type AccessTokenResponse struct {
 	TokenType string `json:"token_type"`
 }
 
-// Contract defines model for Contract.
-type Contract struct {
-
-	// Language of the contract in all caps
-	Language           ContractLanguage `json:"language"`
-	SignerAttributes   *[]string        `json:"signer_attributes,omitempty"`
-	Template           *string          `json:"template,omitempty"`
-	TemplateAttributes *[]string        `json:"template_attributes,omitempty"`
-
-	// Type of which contract to sign
-	Type ContractType `json:"type"`
-
-	// Version of the contract
-	Version ContractVersion `json:"version"`
-}
-
-// ContractLanguage defines model for ContractLanguage.
-type ContractLanguage string
-
-// ContractType defines model for ContractType.
-type ContractType string
-
-// ContractVersion defines model for ContractVersion.
-type ContractVersion string
-
 // CreateAccessTokenRequest defines model for CreateAccessTokenRequest.
 type CreateAccessTokenRequest struct {
 
@@ -140,6 +115,9 @@ type VerifyAccessTokenParams struct {
 	Authorization string `json:"Authorization"`
 }
 
+// CreateJwtBearerTokenJSONBody defines parameters for CreateJwtBearerToken.
+type CreateJwtBearerTokenJSONBody CreateJwtBearerTokenRequest
+
 // CreateAccessTokenJSONBody defines parameters for CreateAccessToken.
 type CreateAccessTokenJSONBody CreateAccessTokenRequest
 
@@ -149,22 +127,11 @@ type CreateAccessTokenParams struct {
 	XNutsLegalEntity *string `json:"X-Nuts-LegalEntity,omitempty"`
 }
 
-// CreateJwtBearerTokenJSONBody defines parameters for CreateJwtBearerToken.
-type CreateJwtBearerTokenJSONBody CreateJwtBearerTokenRequest
-
-// GetContractByTypeParams defines parameters for GetContractByType.
-type GetContractByTypeParams struct {
-
-	// The version of this contract. If omitted, the most recent version will be returned
-	Version  *string `json:"version,omitempty"`
-	Language *string `json:"language,omitempty"`
-}
+// CreateJwtBearerTokenRequestBody defines body for CreateJwtBearerToken for application/json ContentType.
+type CreateJwtBearerTokenJSONRequestBody CreateJwtBearerTokenJSONBody
 
 // CreateAccessTokenRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody CreateAccessTokenJSONBody
-
-// CreateJwtBearerTokenRequestBody defines body for CreateJwtBearerToken for application/json ContentType.
-type CreateJwtBearerTokenJSONRequestBody CreateJwtBearerTokenJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -172,6 +139,9 @@ type ServerInterface interface {
 	// If it cannot be verified it'll return 403. Note that it'll not return the contents of the access token. The introspection API is for that.
 	// (HEAD /internal/auth/v1/accesstoken/verify)
 	VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error
+	// Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
+	// (POST /internal/auth/v1/bearertoken)
+	CreateJwtBearerToken(ctx echo.Context) error
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
 	// (POST /internal/auth/v1/bearertoken/verify)
 	IntrospectAccessToken(ctx echo.Context) error
@@ -181,12 +151,6 @@ type ServerInterface interface {
 	// The client certificate must be passed using a X-Ssl-Client-Cert header, PEM encoded and urlescaped.
 	// (POST /public/auth/v1/accesstoken)
 	CreateAccessToken(ctx echo.Context, params CreateAccessTokenParams) error
-	// Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
-	// (POST /public/auth/v1/bearertoken)
-	CreateJwtBearerToken(ctx echo.Context) error
-	// Get a contract by type and version
-	// (GET /public/auth/v1/contract/{contractType})
-	GetContractByType(ctx echo.Context, contractType string, params GetContractByTypeParams) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -222,6 +186,15 @@ func (w *ServerInterfaceWrapper) VerifyAccessToken(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.VerifyAccessToken(ctx, params)
+	return err
+}
+
+// CreateJwtBearerToken converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateJwtBearerToken(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.CreateJwtBearerToken(ctx)
 	return err
 }
 
@@ -280,47 +253,6 @@ func (w *ServerInterfaceWrapper) CreateAccessToken(ctx echo.Context) error {
 	return err
 }
 
-// CreateJwtBearerToken converts echo context to params.
-func (w *ServerInterfaceWrapper) CreateJwtBearerToken(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.CreateJwtBearerToken(ctx)
-	return err
-}
-
-// GetContractByType converts echo context to params.
-func (w *ServerInterfaceWrapper) GetContractByType(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "contractType" -------------
-	var contractType string
-
-	err = runtime.BindStyledParameter("simple", false, "contractType", ctx.Param("contractType"), &contractType)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter contractType: %s", err))
-	}
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params GetContractByTypeParams
-	// ------------- Optional query parameter "version" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "version", ctx.QueryParams(), &params.Version)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter version: %s", err))
-	}
-
-	// ------------- Optional query parameter "language" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "language", ctx.QueryParams(), &params.Language)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter language: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetContractByType(ctx, contractType, params)
-	return err
-}
-
 // PATCH: This template file was taken from pkg/codegen/templates/register.tmpl
 
 // This is a simple interface which specifies echo.Route addition functions which
@@ -344,9 +276,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.Add(http.MethodHead, baseURL+"/internal/auth/v1/accesstoken/verify", wrapper.VerifyAccessToken)
+	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/bearertoken", wrapper.CreateJwtBearerToken)
 	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/bearertoken/verify", wrapper.IntrospectAccessToken)
 	router.Add(http.MethodPost, baseURL+"/public/auth/v1/accesstoken", wrapper.CreateAccessToken)
-	router.Add(http.MethodPost, baseURL+"/public/auth/v1/bearertoken", wrapper.CreateJwtBearerToken)
-	router.Add(http.MethodGet, baseURL+"/public/auth/v1/contract/:contractType", wrapper.GetContractByType)
 
 }

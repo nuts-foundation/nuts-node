@@ -29,7 +29,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 )
 
@@ -52,39 +51,6 @@ const errOauthInvalidRequest = "invalid_request"
 const errOauthInvalidGrant = "invalid_grant"
 const errOauthUnsupportedGrant = "unsupported_grant_type"
 
-// GetContractByType calls the engines GetContractByType and translate the answer to
-// the API format and returns the the answer back to the HTTP stack
-func (api *Wrapper) GetContractByType(ctx echo.Context, contractType string, params GetContractByTypeParams) error {
-	// convert generated data types to internal types
-	var (
-		contractLanguage contract.Language
-		contractVersion  contract.Version
-	)
-	if params.Language != nil {
-		contractLanguage = contract.Language(*params.Language)
-	}
-
-	if params.Version != nil {
-		contractVersion = contract.Version(*params.Version)
-	}
-
-	// get contract
-	authContract := contract.StandardContractTemplates.Get(contract.Type(contractType), contractLanguage, contractVersion)
-	if authContract == nil {
-		return echo.NewHTTPError(http.StatusNotFound, "could not found contract template")
-	}
-
-	// convert internal data types to generated api types
-	answer := Contract{
-		Language:           ContractLanguage(authContract.Language),
-		Template:           &authContract.Template,
-		TemplateAttributes: &authContract.TemplateAttributes,
-		Type:               ContractType(authContract.Type),
-		Version:            ContractVersion(authContract.Version),
-	}
-
-	return ctx.JSON(http.StatusOK, answer)
-}
 
 // CreateAccessToken handles the api call to create an access token.
 // It consumes and checks the JWT and returns a smaller sessionToken
