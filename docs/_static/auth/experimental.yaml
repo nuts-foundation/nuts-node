@@ -115,8 +115,116 @@ paths:
         404:
           description: When the combination of template, language and version was not found.
 
+  /internal/auth/v1/bearertoken:
+    post:
+      operationId: createJwtBearerToken
+      summary: Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJwtBearerTokenRequest"
+      responses:
+        '200':
+          description: Successfull request. Responds with JWT encoded Bearer Token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JwtBearerTokenResponse"
+
+
+  /public/auth/v1/accesstoken:
+    post:
+      operationId: createAccessToken
+      summary: |
+        Create an access token based on the OAuth JWT Bearer flow.
+        This endpoint must be available to the outside world for other applications to request access tokens.
+        It requires a two-way TLS connection. The client certificate must be a sibling of the signing certificate of the given JWT.
+        The client certificate must be passed using a X-Ssl-Client-Cert header, PEM encoded and urlescaped.
+      tags:
+        - auth
+      parameters:
+        - name: X-Ssl-Client-Cert
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-Nuts-LegalEntity
+          in: header
+          required: false
+          deprecated: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/CreateAccessTokenRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccessTokenRequest"
+      responses:
+        '200':
+          description: The posted JWT is valid. Responds with access token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessTokenResponse"
+        '400':
+          description: The posted JWT is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessTokenRequestFailedResponse"
+  /internal/auth/v1/accesstoken/verify:
+    head:
+      operationId: verifyAccessToken
+      summary: |
+        Verifies the access token given in the Authorization header (as bearer token). If it's a valid access token issued by this server, it'll return a 200 status code.
+        If it cannot be verified it'll return 403. Note that it'll not return the contents of the access token. The introspection API is for that.
+      tags:
+        - auth
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The access token is valid. It has been signed by this server.
+        '403':
+          description: The given access token is invalid or couldn't be verified.
+  /internal/auth/v1/accesstoken/introspect:
+    post:
+      operationId: introspectAccessToken
+      summary: Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+      tags:
+        - auth
+        - private
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/TokenIntrospectionRequest"
+      responses:
+        '200':
+          description: An Introspection response as described in RFC7662 section 2.2
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenIntrospectionResponse"
+
 components:
   schemas:
+    #
+    # Everthing related to sessions and signing
+    #
     CreateSignSessionRequest:
       required:
         - means
@@ -133,7 +241,6 @@ components:
         payload:
           type: string
           description: Base64 encoded payload what needs to be signed.
-
     CreateSignSessionResponse:
       required:
         - sessionID
@@ -151,7 +258,6 @@ components:
           type: string
           enum: [ irma, dummy ]
           example: irma
-
     GetSignSessionStatusResponse:
       required:
         - status
@@ -161,7 +267,6 @@ components:
           type: string
         verifiablePresentation:
           $ref: "#/components/schemas/VerifiablePresentation"
-
     VerifiablePresentation:
       description: If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
       type: object
@@ -180,7 +285,6 @@ components:
             type: string
         proof:
           type: object
-
     SignatureVerificationRequest:
       type: object
       required:
@@ -192,7 +296,6 @@ components:
           description: Moment in time to check the validity of the signature. If omitted, the current time is used.
           type: string
           example: "2019-06-24T14:32:00+02:00"
-
     SignatureVerificationResponse:
       description: Contains the signature verification result.
       type: object
@@ -220,7 +323,9 @@ components:
             organisation: Zorgcentrum de Oosterlanden
             validFrom: 2020-12-16T10:57:00
             validTo: 2020-12-16T12:57:00
-
+    #
+    # Everything related to Contracts
+    #
     ContractType:
       type: string
       description: Type of which contract to sign.
@@ -304,7 +409,6 @@ components:
           $ref: "#/components/schemas/ContractLanguage"
         version:
           $ref: "#/components/schemas/ContractVersion"
-
     DrawUpContractRequest:
       required:
         - type
@@ -328,3 +432,159 @@ components:
           type: string
           description: "The duration this contract is valid, starting from validFrom or current time if validFrom is omitted. Uses this node default when omitted. Valid time units are: 's', 'm', 'h'"
           example: "2h"
+    #
+    # Everything related to JWT Bearer Tokens
+    #
+    CreateJwtBearerTokenRequest:
+      description: Request for a JWT Bearer Token. The Bearer Token can be used during a Access Token Request in the assertion field
+      required:
+        - custodian
+        - actor
+        - identity
+        - scope
+      properties:
+        subject:
+          type: string
+        custodian:
+          type: string
+        actor:
+          type: string
+        identity:
+          type: string
+          description: |
+            Base64 encoded IRMA contract conaining the identity of the performer
+        scope:
+          type: string
+          description: Space-delimited list of strings. For what kind of operations can the access token be used? Scopes will be specified for each use-case
+          example: nuts-sso nuts-patient-transfer
+    JwtBearerTokenResponse:
+      description: Response with a JWT Bearer Token. It contains a JWT, signed with the private key of the requestor software vendor. Using the RS256 signing algorithm.
+      required:
+        - bearer_token
+      properties:
+        bearer_token:
+          type: string
+    #
+    # Everything related to Access Tokens
+    #
+    CreateAccessTokenRequest:
+      description: Request as described in RFC7523 section 2.1
+      required:
+        - grant_type
+        - assertion
+      properties:
+        grant_type:
+          type: string
+          description: always must contain the value "urn:ietf:params:oauth:grant-type:jwt-bearer"
+          example: urn:ietf:params:oauth:grant-type:jwt-bearer
+        assertion:
+          type: string
+          description: Base64 encoded JWT following rfc7523 and the Nuts documentation
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ1cm46b2lkOjIuMTYuODQwLjEuMTEzODgzLjIuNC42LjE6NDgwMDAwMDAiLCJzdWIiOiJ1cm46b2lkOjIuMTYuODQwLjEuMTEzODgzLjIuNC42LjE6MTI0ODEyNDgiLCJzaWQiOiJ1cm46b2lkOjIuMTYuODQwLjEuMTEzODgzLjIuNC42LjM6OTk5OTk5MCIsImF1ZCI6Imh0dHBzOi8vdGFyZ2V0X3Rva2VuX2VuZHBvaW50IiwidXNpIjoiYmFzZTY0IGVuY29kZWQgc2lnbmF0dXJlIiwiZXhwIjoxNTc4MTEwNDgxLCJpYXQiOjE1Nzg5MTA0ODEsImp0aSI6IjEyMy00NTYtNzg5In0.76XtU81IyR3Ak_2fgrYsuLcvxndf0eedT1mFPa-rPXk"
+    AccessTokenResponse:
+      description: Successful response as described in rfc6749 section 5.1
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          description: |
+            The access token issued by the authorization server.
+            Could be a signed JWT or a random number. It should not have a meaning to the client.
+          type: string
+          example:
+            "12345"
+        token_type:
+          description: The type of the token issued
+          type: string
+          example: "nuts_session_token"
+        expires_in:
+          type: number
+          description: The lifetime in seconds of the access token.
+          example: 15
+    AccessTokenRequestFailedResponse:
+      description: Error response when access token request fails as described in rfc6749 sectionn 5.2
+      required:
+        - error
+        - error_description
+      properties:
+        error:
+          type: string
+          enum: [invalid_request, invalid_grant, unsupported_grant_type]
+        error_description:
+          description: >
+            Human-readable ASCII text providing
+            additional information, used to assist the client developer in
+            understanding the error that occurred.
+          type: string
+    TokenIntrospectionRequest:
+      description: Token introspection request as described in RFC7662 section 2.1
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          example:
+            eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhaWQiOiJ1cm46b2lkOjIuMTYuODQwLjEuMTEzODgzLjIuNC42LjE6MDAwMDAwMDAiLCJleHAiOjE1ODE0MTI2NjcsImlhdCI6MTU4MTQxMTc2NywiaXNzIjoidXJuOm9pZDoyLjE2Ljg0MC4xLjExMzg4My4yLjQuNi4xOjAwMDAwMDAxIiwic2lkIjoidXJuOm9pZDoyLjE2Ljg0MC4xLjExMzg4My4yLjQuNi4zOjk5OTk5OTk5MCIsInN1YiI6IiJ9.OhniTJcPS45nhJVqXfxsngG5eYS_0BvqFg-96zaWFO90I_5_N9Eg_k7NmIF5eNZ9Xutl1aqSxlSp80EX07Gmk8uzZO9PEReo0YZxnNQV-Zeq1njCMmfdwusmiczFlwcBi5Bl1xYGmLrxP7NcAoljmDgMgmLH0xaKfP4VVim6snPkPHqBdSzAgSrrc-cgVDLl-9V2obPB1HiVsFMYfbHEIb4MPsnPRnSGavYHTxt34mHbRsS8BvoBy3v6VNYaewLr6yz-_Zstrnr4I_wxtYbSiPJUeVQHcD-a9Ck53BdjspnhVHZ4IFVvuNrpflVaB1A7P3A2xZ7G_a8gF_SHMynYSA
+    TokenIntrospectionResponse:
+      description: Token introspection response as described in RFC7662 section 2.2
+      required:
+        - active
+      properties:
+        active:
+          type: boolean
+          description: |
+            True if the token is active, false if the token is expired, malformed etc.
+        scope:
+          type: string
+        iss:
+          type: string
+          description: |
+            The subject (not a Nuts subject) contains the URN of the custodian.
+          example: "urn:oid:2.16.840.1.113883.2.4.6.1:48000000"
+        sub:
+          type: string
+          description: |
+            The subject is always the acting party, thus the care organization requesting access to data.
+          example: "urn:oid:2.16.840.1.113883.2.4.6.1:12481248"
+        sid:
+          type: string
+          description: The Nuts subject id, patient identifier in the form of an oid encoded BSN.
+          example: "urn:oid:2.16.840.1.113883.2.4.6.3:9999990"
+        aud:
+          type: string
+          description: |
+            As per rfc7523 https://tools.ietf.org/html/rfc7523>, the aud must be the
+            token endpoint. This can be taken from the Nuts registry.
+          example: "https://target_token_endpoint"
+        usi:
+          type: string
+          description: Jwt encoded user identity.
+        osi:
+          type: string
+          description: encoded ops signature. (TBD)
+        exp:
+          type: integer
+        iat:
+          type: integer
+        name:
+          type: string
+          description: End-User's full name in displayable form including all name parts, possibly including titles and suffixes, ordered according to the End-User's locale and preferences.
+          example: Willeke de Bruijn
+        family_name:
+          type: string
+          description: Surname(s) or last name(s) of the End-User.
+          example: Bruijn
+        prefix:
+          type: string
+          description: Surname prefix
+          example: de
+        given_name:
+          type: string
+          description: Given name(s) or first name(s) of the End-User.
+          example: Willeke
+        email:
+          type: string
+          description: End-User's preferred e-mail address. Should be a personal email and can be used to uniquely identify a user. Just like the email used for an account.
+          example: w.debruijn@example.org

@@ -43,80 +43,10 @@ type CreateAccessTokenRequest struct {
 	GrantType string `json:"grant_type"`
 }
 
-// CreateJwtBearerTokenRequest defines model for CreateJwtBearerTokenRequest.
-type CreateJwtBearerTokenRequest struct {
-	Actor     string `json:"actor"`
-	Custodian string `json:"custodian"`
-
-	// Base64 encoded IRMA contract conaining the identity of the performer
-	Identity string `json:"identity"`
-
-	// Space-delimited list of strings. For what kind of operations can the access token be used? Scopes will be specified for each use-case
-	Scope   string  `json:"scope"`
-	Subject *string `json:"subject,omitempty"`
-}
-
-// JwtBearerTokenResponse defines model for JwtBearerTokenResponse.
-type JwtBearerTokenResponse struct {
-	BearerToken string `json:"bearer_token"`
-}
-
-// TokenIntrospectionRequest defines model for TokenIntrospectionRequest.
-type TokenIntrospectionRequest struct {
-	Token string `json:"token"`
-}
-
-// TokenIntrospectionResponse defines model for TokenIntrospectionResponse.
-type TokenIntrospectionResponse struct {
-
-	// True if the token is active, false if the token is expired, malformed etc.
-	Active bool `json:"active"`
-
-	// As per rfc7523 https://tools.ietf.org/html/rfc7523>, the aud must be the
-	// token endpoint. This can be taken from the Nuts registry.
-	Aud *string `json:"aud,omitempty"`
-
-	// End-User's preferred e-mail address. Should be a personal email and can be used to uniquely identify a user. Just like the email used for an account.
-	Email *string `json:"email,omitempty"`
-	Exp   *int    `json:"exp,omitempty"`
-
-	// Surname(s) or last name(s) of the End-User.
-	FamilyName *string `json:"family_name,omitempty"`
-
-	// Given name(s) or first name(s) of the End-User.
-	GivenName *string `json:"given_name,omitempty"`
-	Iat       *int    `json:"iat,omitempty"`
-
-	// The subject (not a Nuts subject) contains the URN of the custodian.
-	Iss *string `json:"iss,omitempty"`
-
-	// End-User's full name in displayable form including all name parts, possibly including titles and suffixes, ordered according to the End-User's locale and preferences.
-	Name *string `json:"name,omitempty"`
-
-	// encoded ops signature. (TBD)
-	Osi *string `json:"osi,omitempty"`
-
-	// Surname prefix
-	Prefix *string `json:"prefix,omitempty"`
-	Scope  *string `json:"scope,omitempty"`
-
-	// The Nuts subject id, patient identifier in the form of an oid encoded BSN.
-	Sid *string `json:"sid,omitempty"`
-
-	// The subject is always the acting party, thus the care organization requesting access to data.
-	Sub *string `json:"sub,omitempty"`
-
-	// Jwt encoded user identity.
-	Usi *string `json:"usi,omitempty"`
-}
-
 // VerifyAccessTokenParams defines parameters for VerifyAccessToken.
 type VerifyAccessTokenParams struct {
 	Authorization string `json:"Authorization"`
 }
-
-// CreateJwtBearerTokenJSONBody defines parameters for CreateJwtBearerToken.
-type CreateJwtBearerTokenJSONBody CreateJwtBearerTokenRequest
 
 // CreateAccessTokenJSONBody defines parameters for CreateAccessToken.
 type CreateAccessTokenJSONBody CreateAccessTokenRequest
@@ -127,9 +57,6 @@ type CreateAccessTokenParams struct {
 	XNutsLegalEntity *string `json:"X-Nuts-LegalEntity,omitempty"`
 }
 
-// CreateJwtBearerTokenRequestBody defines body for CreateJwtBearerToken for application/json ContentType.
-type CreateJwtBearerTokenJSONRequestBody CreateJwtBearerTokenJSONBody
-
 // CreateAccessTokenRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody CreateAccessTokenJSONBody
 
@@ -139,12 +66,6 @@ type ServerInterface interface {
 	// If it cannot be verified it'll return 403. Note that it'll not return the contents of the access token. The introspection API is for that.
 	// (HEAD /internal/auth/v1/accesstoken/verify)
 	VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error
-	// Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
-	// (POST /internal/auth/v1/bearertoken)
-	CreateJwtBearerToken(ctx echo.Context) error
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
-	// (POST /internal/auth/v1/bearertoken/verify)
-	IntrospectAccessToken(ctx echo.Context) error
 	// Create an access token based on the OAuth JWT Bearer flow.
 	// This endpoint must be available to the outside world for other applications to request access tokens.
 	// It requires a two-way TLS connection. The client certificate must be a sibling of the signing certificate of the given JWT.
@@ -186,24 +107,6 @@ func (w *ServerInterfaceWrapper) VerifyAccessToken(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.VerifyAccessToken(ctx, params)
-	return err
-}
-
-// CreateJwtBearerToken converts echo context to params.
-func (w *ServerInterfaceWrapper) CreateJwtBearerToken(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.CreateJwtBearerToken(ctx)
-	return err
-}
-
-// IntrospectAccessToken converts echo context to params.
-func (w *ServerInterfaceWrapper) IntrospectAccessToken(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.IntrospectAccessToken(ctx)
 	return err
 }
 
@@ -276,8 +179,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.Add(http.MethodHead, baseURL+"/internal/auth/v1/accesstoken/verify", wrapper.VerifyAccessToken)
-	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/bearertoken", wrapper.CreateJwtBearerToken)
-	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/bearertoken/verify", wrapper.IntrospectAccessToken)
 	router.Add(http.MethodPost, baseURL+"/public/auth/v1/accesstoken", wrapper.CreateAccessToken)
 
 }
