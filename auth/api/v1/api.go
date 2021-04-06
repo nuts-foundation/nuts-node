@@ -363,16 +363,13 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 }
 
 // convertToMap converts an object to a map[string]interface{} using json conversion
-func convertToMap(obj interface{}, target interface{}) (err error) {
-	var jsonStr []byte
-	jsonStr, err = json.Marshal(obj)
+func convertToMap(obj interface{}, target interface{}) error {
+	jsonStr, err := json.Marshal(obj)
 	if err != nil {
-		fmt.Errorf("could not convert value to json: %w", err)
+		return fmt.Errorf("could not convert value to json: %w", err)
 	}
-
-	err = json.Unmarshal(jsonStr, target)
-	if err != nil {
-		fmt.Errorf("could not convert json string to key value map: %w", err)
+	if err := json.Unmarshal(jsonStr, target); err != nil {
+		return fmt.Errorf("could not convert json string to key value map: %w", err)
 	}
-	return
+	return nil
 }
