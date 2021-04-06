@@ -164,7 +164,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			*p = didUpdate
 			return nil
 		})
-		ctx.echo.EXPECT().String(http.StatusNotFound, "could not update document: unable to find the did document")
+		ctx.echo.EXPECT().String(http.StatusNotFound, "could not update DID document: unable to find the DID document")
 		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrNotFound)
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
@@ -224,7 +224,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.echo.EXPECT().String(http.StatusConflict, "could not update document: the document has been deactivated")
+		ctx.echo.EXPECT().String(http.StatusConflict, "could not update DID document: the DID document has been deactivated")
 		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDeactivated)
 
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
@@ -240,7 +240,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.echo.EXPECT().String(http.StatusForbidden, "could not update document: DID document not managed by this node")
+		ctx.echo.EXPECT().String(http.StatusForbidden, "could not update DID document: DID document not managed by this node")
 		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
 
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
@@ -271,7 +271,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 		ctx := newMockContext(t)
 
 		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrNotFound)
-		ctx.echo.EXPECT().String(http.StatusNotFound, "could not deactivate document: unable to find the did document")
+		ctx.echo.EXPECT().String(http.StatusNotFound, "could not deactivate DID document: unable to find the DID document")
 
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 		assert.NoError(t, err)
@@ -281,7 +281,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrDeactivated)
 
-		ctx.echo.EXPECT().String(http.StatusConflict, "could not deactivate document: the document has been deactivated")
+		ctx.echo.EXPECT().String(http.StatusConflict, "could not deactivate DID document: the DID document has been deactivated")
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 		assert.NoError(t, err)
 	})
@@ -290,7 +290,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrDIDNotManagedByThisNode)
 
-		ctx.echo.EXPECT().String(http.StatusForbidden, "could not deactivate document: DID document not managed by this node")
+		ctx.echo.EXPECT().String(http.StatusForbidden, "could not deactivate DID document: DID document not managed by this node")
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 		assert.NoError(t, err)
 	})
@@ -328,7 +328,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123).Return(nil, errors.New("something went wrong"))
 
-		ctx.echo.EXPECT().String(http.StatusInternalServerError, "could not update document: something went wrong")
+		ctx.echo.EXPECT().String(http.StatusInternalServerError, "could not update DID document: something went wrong")
 		err := ctx.client.AddNewVerificationMethod(ctx.echo, did123.String())
 		assert.NoError(t, err)
 	})
@@ -383,7 +383,7 @@ func Test_handleError(t *testing.T) {
 
 	t.Run("not found error causes 404", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().String(http.StatusNotFound, "template: unable to find the did document")
+		ctx.echo.EXPECT().String(http.StatusNotFound, "template: unable to find the DID document")
 		err := handleError(ctx.echo, types.ErrNotFound, "template: %s")
 		assert.NoError(t, err)
 	})
@@ -395,7 +395,7 @@ func Test_handleError(t *testing.T) {
 	})
 	t.Run("deactivated error causes 409", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().String(http.StatusConflict, "template: the document has been deactivated")
+		ctx.echo.EXPECT().String(http.StatusConflict, "template: the DID document has been deactivated")
 		err := handleError(ctx.echo, types.ErrDeactivated, "template: %s")
 		assert.NoError(t, err)
 	})

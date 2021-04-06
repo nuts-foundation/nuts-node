@@ -82,7 +82,7 @@ func TestVDR_Update(t *testing.T) {
 		}
 		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
-		assert.EqualError(t, err, "the document has been deactivated")
+		assert.EqualError(t, err, "the DID document has been deactivated")
 	})
 	t.Run("error - could not resolve current document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -100,7 +100,7 @@ func TestVDR_Update(t *testing.T) {
 		}
 		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
-		assert.EqualError(t, err, "unable to find the did document")
+		assert.EqualError(t, err, "unable to find the DID document")
 	})
 
 	t.Run("error - document not managed by this node", func(t *testing.T) {
@@ -330,7 +330,7 @@ func TestVDR_resolveControllers1(t *testing.T) {
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
 		docs, err := sut.resolveControllers([]did.Document{docB})
-		assert.EqualError(t, err, "unable to resolve controllers: unable to find the did document")
+		assert.EqualError(t, err, "unable to resolve controllers: unable to find the DID document")
 		assert.Len(t, docs, 0)
 	})
 
@@ -351,7 +351,7 @@ func TestVDR_resolveControllers1(t *testing.T) {
 		)
 
 		docs, err := sut.resolveControllers([]did.Document{docA})
-		assert.EqualError(t, err, "unable to resolve controllers: unable to find the did document")
+		assert.EqualError(t, err, "unable to resolve controllers: unable to find the DID document")
 		assert.Len(t, docs, 0)
 	})
 }

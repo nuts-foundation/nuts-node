@@ -26,25 +26,25 @@ import (
 )
 
 // ErrUpdateOnOutdatedData is returned when a concurrent update is done on a DID document.
-var ErrUpdateOnOutdatedData = errors.New("could not update outdated document")
+var ErrUpdateOnOutdatedData = errors.New("could not update outdated DID document")
 
 // ErrInvalidDID The DID supplied to the DID resolution function does not conform to valid syntax.
-var ErrInvalidDID = errors.New("invalid did syntax")
+var ErrInvalidDID = errors.New("invalid DID syntax")
 
 // ErrKeyNotFound is returned when a particular key or type of key is not found.
-var ErrKeyNotFound = errors.New("key not found in document")
+var ErrKeyNotFound = errors.New("key not found in DID document")
 
 // ErrDIDNotManagedByThisNode is returned when an operation needs the private key and if is not found on this host
 var ErrDIDNotManagedByThisNode = errors.New("DID document not managed by this node")
 
 // ErrNotFound The DID resolver was unable to find the DID document resulting from this resolution request.
-var ErrNotFound = errors.New("unable to find the did document")
+var ErrNotFound = errors.New("unable to find the DID document")
 
 // ErrDeactivated The DID supplied to the DID resolution function has been deactivated.
-var ErrDeactivated = errors.New("the document has been deactivated")
+var ErrDeactivated = errors.New("the DID document has been deactivated")
 
 // ErrDIDAlreadyExists is returned when a DID already exists.
-var ErrDIDAlreadyExists = errors.New("did document already exists in the store")
+var ErrDIDAlreadyExists = errors.New("DID document already exists in the store")
 
 // DocumentMetadata holds the metadata of a DID document
 type DocumentMetadata struct {
