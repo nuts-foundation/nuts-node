@@ -66,7 +66,7 @@ func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
 
 	vm, err := a.DocManipulator.AddVerificationMethod(*d)
 	if err != nil {
-		return handleError(ctx, err, "could not update document: %s")
+		return handleError(ctx, err, "could not update DID document: %s")
 	}
 	return ctx.JSON(http.StatusOK, *vm)
 }
@@ -130,7 +130,7 @@ func (a Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
 
 	err = a.VDR.Update(*d, h, req.Document, nil)
 	if err != nil {
-		return handleError(ctx, err, "could not update document: %s")
+		return handleError(ctx, err, "could not update DID document: %s")
 	}
 	return ctx.JSON(http.StatusOK, req.Document)
 }
@@ -144,7 +144,7 @@ func (a *Wrapper) DeactivateDID(ctx echo.Context, targetDID string) error {
 	}
 	err = a.DocManipulator.Deactivate(*id)
 	if err != nil {
-		return handleError(ctx, err, "could not deactivate document: %s")
+		return handleError(ctx, err, "could not deactivate DID document: %s")
 	}
 	return ctx.NoContent(http.StatusOK)
 }

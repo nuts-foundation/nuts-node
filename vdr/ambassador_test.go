@@ -81,7 +81,7 @@ func Test_ambassador_resolveDIDControllers(t *testing.T) {
 		got, err := am.resolveDIDControllers(nextDoc)
 		assert.Empty(t, got)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unable to resolve document controller: unable to find the did document")
+		assert.Contains(t, err.Error(), "unable to resolve document controller: unable to find the DID document")
 	})
 }
 
@@ -505,7 +505,7 @@ func Test_ambassador_callback(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.EqualError(t, err, "unable to update did document: unable to find the did document")
+		assert.EqualError(t, err, "unable to update did document: unable to find the DID document")
 	})
 
 	t.Run("nok - current DID document has different timelineID than the new one", func(t *testing.T) {

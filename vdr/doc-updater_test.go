@@ -104,7 +104,7 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 		ctx.vdrMock.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &types.DocumentMetadata{Deactivated: true}, nil)
 
 		err := ctx.updater.RemoveVerificationMethod(*id123, *id123Method)
-		assert.EqualError(t, err, "the document has been deactivated")
+		assert.EqualError(t, err, "the DID document has been deactivated")
 		assert.True(t, errors.Is(err, types.ErrDeactivated))
 	})
 }

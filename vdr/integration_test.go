@@ -216,7 +216,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// try to deactivate the document again
 	err = docUpdater.Deactivate(docB.ID)
-	assert.EqualError(t, err, "the document has been deactivated",
+	assert.EqualError(t, err, "the DID document has been deactivated",
 		"expected an error when trying to deactivate an already deactivated document")
 
 	// try to update document A should fail since it no longer has an active controller

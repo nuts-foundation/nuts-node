@@ -145,7 +145,7 @@ func TestVDRKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 		vdrResolver.EXPECT().Resolve(*id123, nil).Return(doc, nil, nil)
 
 		uri, err := keyResolver.ResolveAssertionKeyID(*id123)
-		assert.EqualError(t, err, "key not found in document")
+		assert.EqualError(t, err, "key not found in DID document")
 		assert.Empty(t, uri.String())
 	})
 
@@ -158,7 +158,7 @@ func TestVDRKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 		vdrResolver.EXPECT().Resolve(*id123, nil).Return(nil, nil, types.ErrNotFound)
 
 		uri, err := keyResolver.ResolveAssertionKeyID(*id123)
-		assert.EqualError(t, err, "unable to find the did document")
+		assert.EqualError(t, err, "unable to find the DID document")
 		assert.Empty(t, uri.String())
 	})
 }
