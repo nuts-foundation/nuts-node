@@ -81,14 +81,15 @@ func createServerCommand(system *core.System) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "server",
 		Short: "Starts the Nuts server",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			// Load all config and add generic options
 			if err := system.Load(cmd); err != nil {
-				logrus.Fatal(err)
+				return err
 			}
 			if err := startServer(system); err != nil {
-				logrus.Fatal(err)
+				return err
 			}
+			return nil
 		},
 	}
 	addFlagSets(cmd)
@@ -126,7 +127,7 @@ func startServer(system *core.System) error {
 
 	defer func() {
 		if err := system.Shutdown(); err != nil {
-			logrus.Fatal(err)
+			logrus.Error("Error shutting down system:", err)
 		}
 	}()
 	if err := echoServer.Start(); err != nil {

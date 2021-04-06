@@ -28,7 +28,7 @@ func GetIrmaConfig(validatorConfig ValidatorConfig) (irmaConfig *irma.Configurat
 		return
 	}
 
-	logging.Log().Info("Loading IRMA schemas...")
+	logging.Log().Debug("Loading IRMA schemas...")
 	return irmaConfig, irmaConfig.ParseFolder()
 }
 
@@ -43,7 +43,7 @@ func GetIrmaServer(validatorConfig ValidatorConfig, irmaConfig *irma.Configurati
 		DisableSchemesUpdate: !validatorConfig.AutoUpdateIrmaSchemas,
 	}
 
-	logging.Log().Infof("Initializing IRMA library (baseURL=%s)...", config.URL)
+	logging.Log().Debugf("Initializing IRMA library (baseURL=%s)...", config.URL)
 
 	return irmaserver.New(config)
 }

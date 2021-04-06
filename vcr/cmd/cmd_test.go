@@ -26,7 +26,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/core"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -145,7 +144,6 @@ func TestCmd(t *testing.T) {
 func setupServer(cmd *cobra.Command, statusCode int, responseData interface{}) *httptest.Server {
 	s := httptest.NewServer(http2.Handler{StatusCode: statusCode, ResponseData: responseData})
 	os.Setenv("NUTS_ADDRESS", s.URL)
-	core.NewClientConfig().Load(cmd.Flags())
 	return s
 }
 

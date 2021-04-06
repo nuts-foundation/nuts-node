@@ -154,7 +154,7 @@ func (n *Network) ListTransactions() ([]dag.Transaction, error) {
 // If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
 func (n *Network) CreateTransaction(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, fieldOpts ...dag.FieldOpt) (dag.Transaction, error) {
 	payloadHash := hash.SHA256Sum(payload)
-	log.Logger().Infof("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), signingKeyID)
+	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), signingKeyID)
 	// Create transaction
 	prevs := n.graph.Heads()
 	unsignedTransaction, err := dag.NewTransaction(payloadHash, payloadType, prevs, fieldOpts...)
@@ -180,6 +180,7 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, signingK
 	if err = n.payloadStore.WritePayload(payloadHash, payload); err != nil {
 		return nil, fmt.Errorf("unable to store payload of newly created transaction: %w", err)
 	}
+	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), payloadType, len(payload))
 	return transaction, nil
 }
 

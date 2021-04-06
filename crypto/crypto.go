@@ -25,6 +25,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"path"
 	"time"
 
@@ -106,6 +107,7 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, e
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
 		return nil, "", fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
+	log.Logger().Infof("Generated new key pair (id=%s)", kid)
 	return keyPair.PublicKey, kid, nil
 }
 
@@ -189,5 +191,10 @@ func (client *Crypto) RevokePublicKey(kid string, validTo time.Time) error {
 		return ErrKeyRevoked
 	}
 	pkeyEntry.Period.End = &validTo
-	return client.Storage.SavePublicKey(kid, pkeyEntry)
+
+	err = client.Storage.SavePublicKey(kid, pkeyEntry)
+	if err == nil {
+		log.Logger().Infof("Public key revoked (kid=%s,validTo=%s)", kid, validTo)
+	}
+	return err
 }

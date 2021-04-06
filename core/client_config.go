@@ -20,6 +20,7 @@
 package core
 
 import (
+	"github.com/sirupsen/logrus"
 	"strings"
 	"time"
 
@@ -37,22 +38,24 @@ type ClientConfig struct {
 	Address   string        `koanf:"address"`
 	Verbosity string        `koanf:"verbosity"`
 	Timeout   time.Duration `koanf:"timeout"`
-	configMap *koanf.Koanf
 }
 
-// NewClientConfig creates a new CLI client config with default values set.
-func NewClientConfig() *ClientConfig {
-	return &ClientConfig{
-		configMap: koanf.New(defaultDelimiter),
+// DefaultClientConfig creates a new CLI client config with default values set.
+func DefaultClientConfig() ClientConfig {
+	return ClientConfig{
 		Address:   defaultAddress,
 		Verbosity: defaultLogLevel,
 		Timeout:   defaultClientTimeout,
 	}
 }
 
-// Load loads the client config from environment variables and commandline params.
-func (cfg *ClientConfig) Load(set *pflag.FlagSet) error {
-	return loadConfigIntoStruct(set, cfg, koanf.New(defaultDelimiter))
+// NewClientConfig creates a ClientConfig and loads the values from the given flags.
+func NewClientConfig(flags *pflag.FlagSet) ClientConfig {
+	cfg := DefaultClientConfig()
+	if err := loadConfigIntoStruct(flags, &cfg, koanf.New(defaultDelimiter)); err != nil {
+		logrus.Fatal(err)
+	}
+	return cfg
 }
 
 // GetAddress normalizes and gets the address of the remote server

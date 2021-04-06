@@ -312,11 +312,11 @@ func TestEngine_Command(t *testing.T) {
 
 func Test_httpClient(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		client := httpClient(core.ClientConfigFlags())
+		client := httpClient(core.DefaultClientConfig())
 		assert.Equal(t, "http://localhost:1323", client.ServerAddress)
 	})
 	t.Run("invalid address", func(t *testing.T) {
-		client := httpClient(core.ClientConfigFlags())
+		client := httpClient(core.DefaultClientConfig())
 		assert.Equal(t, "http://localhost:1323", client.ServerAddress)
 	})
 }

@@ -59,7 +59,7 @@ func (n ambassador) Configure() {
 // The VCR is used to verify the contents of the credential.
 // payload should be a json encoded vc.VerifiableCredential
 func (n ambassador) vcCallback(tx dag.SubscriberTransaction, payload []byte) error {
-	logging.Log().Debugf("Processing Verifiable Credential received from Nuts Network: ref=%s", tx.Ref())
+	logging.Log().Debugf("Processing VC received from Nuts Network (ref=%s)", tx.Ref())
 
 	target := vc.VerifiableCredential{}
 	if err := json.Unmarshal(payload, &target); err != nil {
@@ -74,7 +74,7 @@ func (n ambassador) vcCallback(tx dag.SubscriberTransaction, payload []byte) err
 // The VCR is used to verify the contents of the revocation.
 // payload should be a json encoded Revocation
 func (n ambassador) rCallback(tx dag.SubscriberTransaction, payload []byte) error {
-	logging.Log().Debugf("Processing Credential revocation received from Nuts Network: ref=%s", tx.Ref())
+	logging.Log().Debugf("Processing VC revocation received from Nuts Network (ref=%s)", tx.Ref())
 
 	r := credential.Revocation{}
 	if err := json.Unmarshal(payload, &r); err != nil {

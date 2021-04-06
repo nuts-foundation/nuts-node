@@ -69,7 +69,7 @@ func (p protocol) queryTransactionList(peer p2p.PeerID) {
 	msg := createMessage()
 	msg.Message = &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{}}
 	if err := p.p2pNetwork.Send(peer, &msg); err != nil {
-		log.Logger().Errorf("Unable to query peer for hash list (peer=%s): %v", peer, err)
+		log.Logger().Warnf("Unable to query peer for hash list (peer=%s): %v", peer, err)
 	}
 }
 
@@ -92,7 +92,8 @@ func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport
 	if transaction, err := p.graph.GetByPayloadHash(payloadHash); err != nil {
 		log.Logger().Errorf("Error while looking up transaction to write payload (payloadHash=%s): %v", payloadHash, err)
 	} else if transaction == nil {
-		log.Logger().Warnf("Received transaction payload for transaction we don't have (payloadHash=%s)", payloadHash)
+		// This might mean an attacker is sending us unsolicited document payloads
+		log.Logger().Infof("Received transaction payload for transaction we don't have (payloadHash=%s)", payloadHash)
 	} else if hasPayload, err := p.payloadStore.IsPresent(payloadHash); err != nil {
 		log.Logger().Errorf("Error while checking whether we already have payload (payloadHash=%s): %v", payloadHash, err)
 	} else if hasPayload {
@@ -120,7 +121,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer p2p.PeerID, query *transpo
 			return err
 		}
 	} else {
-		log.Logger().Warnf("Peer queried us for transaction payload, but seems like we don't have it (peer=%s,payloadHash=%s)", peer, payloadHash)
+		log.Logger().Infof("Peer queried us for transaction payload, but seems like we don't have it (peer=%s,payloadHash=%s)", peer, payloadHash)
 	}
 	return nil
 }

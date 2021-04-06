@@ -19,10 +19,8 @@
 package cmd
 
 import (
-	"fmt"
 	"sort"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -31,7 +29,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
 // FlagSet contains flags relevant for the VDR instance
@@ -76,12 +73,12 @@ func payloadCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			data, err := httpClient(cmd.Flags()).GetTransactionPayload(hash)
+			data, err := httpClient(core.NewClientConfig(cmd.Flags())).GetTransactionPayload(hash)
 			if err != nil {
 				return err
 			}
 			if data == nil {
-				log.Logger().Warnf("Transaction or contents not found: %s", hash)
+				cmd.PrintErrf("Transaction or contents not found: %s", hash)
 				return nil
 			}
 			println(string(data))
@@ -100,15 +97,15 @@ func getCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			transaction, err := httpClient(cmd.Flags()).GetTransaction(hash)
+			transaction, err := httpClient(core.NewClientConfig(cmd.Flags())).GetTransaction(hash)
 			if err != nil {
 				return err
 			}
 			if transaction == nil {
-				log.Logger().Warnf("Transaction not found: %s", hash)
+				cmd.PrintErrf("Transaction not found: %s", hash)
 				return nil
 			}
-			fmt.Printf("Transaction %s:\n  Type: %s\n  Timestamp: %s\n", transaction.Ref(), transaction.PayloadType(), transaction.SigningTime())
+			cmd.Printf("Transaction %s:\n  Type: %s\n  Timestamp: %s\n", transaction.Ref(), transaction.PayloadType(), transaction.SigningTime())
 			return nil
 		},
 	}
@@ -123,7 +120,7 @@ func listCommand() *cobra.Command {
 		Use:   "list",
 		Short: "Lists the transactions on the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			transactions, err := httpClient(cmd.Flags()).ListTransactions()
+			transactions, err := httpClient(core.NewClientConfig(cmd.Flags())).ListTransactions()
 			if err != nil {
 				return err
 			}
@@ -151,11 +148,7 @@ func sortTransactions(transactions []dag.Transaction, sortFlag string) {
 }
 
 // httpClient creates a remote client
-func httpClient(set *pflag.FlagSet) v1.HTTPClient {
-	config := core.NewClientConfig()
-	if err := config.Load(set); err != nil {
-		logrus.Fatal(err)
-	}
+func httpClient(config core.ClientConfig) v1.HTTPClient {
 	return v1.HTTPClient{
 		ServerAddress: config.GetAddress(),
 		Timeout:       config.Timeout,
