@@ -90,3 +90,7 @@ type P2PNetworkConfig struct {
 	ServerCert tls.Certificate
 	TrustStore *x509.CertPool
 }
+
+func (cfg P2PNetworkConfig) tlsEnabled() bool {
+	return cfg.TrustStore != nil
+}

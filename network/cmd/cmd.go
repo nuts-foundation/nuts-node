@@ -40,7 +40,7 @@ func FlagSet() *pflag.FlagSet {
 		"(outbound connections can still be made).")
 	flagSet.String("network.publicaddr", defs.PublicAddr, "Public address (of this node) other nodes can use to connect to it. If set, it is registered on the nodelist.")
 	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "Comma-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
-	flagSet.Bool("network.enabletls", defs.EnableTLS, "Whether to enable TLS for inbound gRPC connections. "+
+	flagSet.Bool("network.enabletls", defs.EnableTLS, "Whether to enable TLS for incoming and outgoing gRPC connections. "+
 		"If set to `true` (which is default) `certfile` and `certkeyfile` MUST be configured.")
 	flagSet.String("network.certfile", defs.CertFile, "PEM file containing the server certificate for the gRPC server. "+
 		"Required when `enableTLS` is `true`.")

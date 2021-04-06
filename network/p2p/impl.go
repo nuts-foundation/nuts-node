@@ -118,14 +118,18 @@ type connector struct {
 	Dialer
 }
 
-func (c *connector) connect(ownID PeerID, config *tls.Config) (*connection, error) {
+func (c *connector) connect(ownID PeerID, tlsConfig *tls.Config) (*connection, error) {
 	log.Logger().Debugf("Connecting to peer: %v", c.address)
 	cxt := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
 	dialContext, _ := context.WithTimeout(cxt, 5*time.Second)
-	grpcConn, err := c.Dialer(dialContext, c.address,
-		grpc.WithBlock(), // Dial should block until connection succeeded (or time-out expired)
-		grpc.WithTransportCredentials(credentials.NewTLS(config)), // TLS authentication
-		grpc.WithReturnConnectionError())                          // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
+	dialOptions := []grpc.DialOption{
+		grpc.WithBlock(),                 // Dial should block until connection succeeded (or time-out expired)
+		grpc.WithReturnConnectionError(), // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
+	}
+	if tlsConfig != nil {
+		dialOptions = append(dialOptions, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // TLS authentication
+	}
+	grpcConn, err := c.Dialer(dialContext, c.address, dialOptions...)
 	if err != nil {
 		return nil, errors2.Wrap(err, "unable to connect")
 	}
@@ -209,9 +213,7 @@ func (n *p2pNetwork) Start() error {
 			if err != nil {
 				return err
 			}
-			if n.config.ServerCert.PrivateKey == nil {
-				log.Logger().Info("TLS is disabled on gRPC server side! Make sure SSL/TLS offloading is properly configured.")
-			} else {
+			if n.config.tlsEnabled() {
 				serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(&tls.Config{
 					Certificates: []tls.Certificate{n.config.ServerCert},
 					ClientAuth:   tls.RequireAndVerifyClientCert,
@@ -293,11 +295,14 @@ func (n *p2pNetwork) connectToNewPeers() {
 			go func() {
 				for {
 					if n.shouldConnectTo(address) {
-						tlsConfig := tls.Config{
-							Certificates: []tls.Certificate{n.config.ClientCert},
-							RootCAs:      n.config.TrustStore,
+						var tlsConfig *tls.Config
+						if n.config.tlsEnabled() {
+							tlsConfig = &tls.Config{
+								Certificates: []tls.Certificate{n.config.ClientCert},
+								RootCAs:      n.config.TrustStore,
+							}
 						}
-						if peer, err := newConnector.connect(n.config.PeerID, &tlsConfig); err != nil {
+						if peer, err := newConnector.connect(n.config.PeerID, tlsConfig); err != nil {
 							waitPeriod := newConnector.backoff.Backoff()
 							log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), newConnector.address, err)
 							time.Sleep(waitPeriod)
