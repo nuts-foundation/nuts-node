@@ -455,7 +455,7 @@ components:
             Base64 encoded IRMA contract conaining the identity of the performer
         service:
           type: string
-          description: The service for which this access-token can be used. The right ouath endpoint is selected based on the service.
+          description: The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
           example: nuts-patient-transfer
     JwtBearerTokenResponse:
       description: Response with a JWT Bearer Token. It contains a JWT, signed with the private key of the requestor software vendor.
