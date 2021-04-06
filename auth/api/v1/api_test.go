@@ -387,7 +387,7 @@ func TestWrapper_CreateJwtBearerToken(t *testing.T) {
 			Custodian: "urn:oid:2.16.840.1.113883.2.4.6.1:12481248",
 			Subject:   &subj,
 			Identity:  "irma-token",
-			Scope:     "nuts-sso",
+			Service:   "nuts-sso",
 		}
 		bindPostBody(ctx, body)
 		response := JwtBearerTokenResponse{
@@ -399,6 +399,7 @@ func TestWrapper_CreateJwtBearerToken(t *testing.T) {
 			Custodian:     body.Custodian,
 			IdentityToken: &body.Identity,
 			Subject:       body.Subject,
+			Service:       "nuts-sso",
 		}
 
 		ctx.oauthClientMock.EXPECT().CreateJwtBearerToken(expectedRequest).Return(&services.JwtBearerTokenResult{BearerToken: response.BearerToken}, nil)

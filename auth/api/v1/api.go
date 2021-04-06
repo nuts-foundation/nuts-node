@@ -254,6 +254,7 @@ func (w Wrapper) CreateJwtBearerToken(ctx echo.Context) error {
 		Actor:         requestBody.Actor,
 		Custodian:     requestBody.Custodian,
 		IdentityToken: &requestBody.Identity,
+		Service:       requestBody.Service,
 		Subject:       requestBody.Subject,
 	}
 	response, err := w.Auth.OAuthClient().CreateJwtBearerToken(request)

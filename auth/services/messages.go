@@ -31,6 +31,7 @@ type CreateJwtBearerTokenRequest struct {
 	Actor         string
 	Custodian     string
 	IdentityToken *string
+	Service       string
 	Subject       *string
 }
 
