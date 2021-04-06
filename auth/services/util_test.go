@@ -1,8 +1,8 @@
 package services
 
 import (
-	ssi "github.com/nuts-foundation/go-did"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"testing"
 
 	"github.com/golang/mock/gomock"

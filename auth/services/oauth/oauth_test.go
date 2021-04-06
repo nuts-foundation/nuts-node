@@ -88,7 +88,7 @@ func getCustodianDIDDocument() *did.Document {
 	})
 	doc.Service = append(doc.Service, did.Service{
 		Type: "nuts-sso",
-		ServiceEndpoint: map[string]string {
+		ServiceEndpoint: map[string]string{
 			"oauth": fmt.Sprintf("%s?type=oauth", id.String()),
 		},
 	})
