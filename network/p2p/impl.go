@@ -128,6 +128,8 @@ func (c *connector) connect(ownID PeerID, tlsConfig *tls.Config) (*connection, e
 	}
 	if tlsConfig != nil {
 		dialOptions = append(dialOptions, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // TLS authentication
+	} else {
+		dialOptions = append(dialOptions, grpc.WithInsecure()) // No TLS, requires 'insecure' flag
 	}
 	grpcConn, err := c.Dialer(dialContext, c.address, dialOptions...)
 	if err != nil {
