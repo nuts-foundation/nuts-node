@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
