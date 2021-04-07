@@ -286,7 +286,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		cfg, err := cxt.network.buildP2PConfig("")
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
-		assert.NotNil(t, cfg.ClientCert.PrivateKey)
+		assert.Nil(t, cfg.ClientCert.PrivateKey)
 		assert.Nil(t, cfg.ServerCert.PrivateKey)
 	})
 	t.Run("ok - gRPC server not bound", func(t *testing.T) {
