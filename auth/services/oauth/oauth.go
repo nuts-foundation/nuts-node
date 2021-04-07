@@ -127,9 +127,9 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 	}
 
 	// validate the endpoint in aud, according to RFC003 §5.2.1.6
-	// the aud field must have the identifier of the endpoint registered by the vendor of this node!
-	// this is needed to prevent relay attacks.
-	// todo: implement when services and endpoints in registry have been implemented (https://github.com/nuts-foundation/nuts-registry/issues/156)
+	if err := s.validateAud(&context); err != nil {
+		return nil, err
+	}
 
 	// validate the legal base, according to RFC003 §5.2.1.7 if sid is present
 	if err = s.validateLegalBase(context.jwtBearerTokenClaims); err != nil {
@@ -152,6 +152,29 @@ func (s *service) validateActor(context *validationContext) error {
 	if context.contractVerificationResult.ContractAttributes[contract.LegalEntityAttr] != context.actorName || context.contractVerificationResult.ContractAttributes[contract.LegalEntityCityAttr] != context.actorCity {
 		return errors.New("legal entity mismatch")
 	}
+	return nil
+}
+
+// check if the aud service identifier matches the oauth endpoint of the requested scope
+func (s *service) validateAud(context *validationContext) error {
+	if len(context.jwtBearerToken.Audience()) != 1 {
+		return errors.New("aud does not contain a single URI")
+	}
+	audience := context.jwtBearerToken.Audience()[0]
+	scope := context.jwtBearerTokenClaims.Scope
+	// parsing is already done in a previous check
+	subject, _ := did.ParseDID(context.jwtBearerToken.Subject())
+	iat := context.jwtBearerToken.IssuedAt()
+
+	uri, _, err := services.ResolveServiceURL(s.didResolver, *subject, scope, services.OAuthEndpointType, &iat)
+	if err != nil {
+		return err
+	}
+
+	if audience != uri.String() {
+		return errors.New("aud does not contain correct endpoint identifier for subject")
+	}
+
 	return nil
 }
 
