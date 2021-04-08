@@ -52,8 +52,8 @@ type NutsJwtBearerToken struct {
 	UserIdentity *string `json:"usi,omitempty"`
 	SubjectID    *string `json:"sid,omitempty"`
 	// Service defines the use-case for which an access token is required
-	Service string `json:"service"`
-	KeyID   string `json:"-"`
+	Service      string  `json:"service"`
+	KeyID        string  `json:"-"`
 }
 
 // NutsAccessToken is a OAuth 2.0 access token which provides context to a request.
