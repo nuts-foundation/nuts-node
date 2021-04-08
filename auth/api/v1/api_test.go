@@ -22,13 +22,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/sirupsen/logrus"
 
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
@@ -387,7 +388,7 @@ func TestWrapper_CreateJwtBearerToken(t *testing.T) {
 			Custodian: "urn:oid:2.16.840.1.113883.2.4.6.1:12481248",
 			Subject:   &subj,
 			Identity:  "irma-token",
-			Service:   "nuts-sso",
+			Service:   "service",
 		}
 		bindPostBody(ctx, body)
 		response := JwtBearerTokenResponse{
@@ -399,7 +400,7 @@ func TestWrapper_CreateJwtBearerToken(t *testing.T) {
 			Custodian:     body.Custodian,
 			IdentityToken: &body.Identity,
 			Subject:       body.Subject,
-			Service:       "nuts-sso",
+			Service:       "service",
 		}
 
 		ctx.oauthClientMock.EXPECT().CreateJwtBearerToken(expectedRequest).Return(&services.JwtBearerTokenResult{BearerToken: response.BearerToken}, nil)
@@ -585,7 +586,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		iat := 1581411767
 		iss := "urn:oid:2.16.840.1.113883.2.4.6.1:00000001"
 		sid := "urn:oid:2.16.840.1.113883.2.4.6.3:999999990"
-		scope := "nuts-sso"
+		service := "service"
 
 		ctx.oauthClientMock.EXPECT().IntrospectAccessToken(request.Token).Return(
 			&services.NutsAccessToken{
@@ -595,7 +596,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 				Issuer:     iss,
 				Subject:    aid,
 				SubjectID:  &sid,
-				Scope:      scope,
+				Service:    service,
 			}, nil)
 
 		emptyStr := ""
@@ -608,7 +609,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			Sid:    &sid,
 			Sub:    &aid,
 			//Uid:    &uid,
-			Scope:      &scope,
+			Service:    &service,
 			Email:      &emptyStr,
 			GivenName:  &emptyStr,
 			Prefix:     &emptyStr,

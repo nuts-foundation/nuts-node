@@ -226,8 +226,8 @@ type TokenIntrospectionResponse struct {
 	Osi *string `json:"osi,omitempty"`
 
 	// Surname prefix
-	Prefix *string `json:"prefix,omitempty"`
-	Scope  *string `json:"scope,omitempty"`
+	Prefix  *string `json:"prefix,omitempty"`
+	Service *string `json:"service,omitempty"`
 
 	// The Nuts subject id, patient identifier in the form of an oid encoded BSN.
 	Sid *string `json:"sid,omitempty"`

@@ -352,7 +352,7 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		Exp:        &exp,
 		Iat:        &iat,
 		Sid:        claims.SubjectID,
-		Scope:      &claims.Scope,
+		Service:    &claims.Service,
 		Name:       &claims.Name,
 		GivenName:  &claims.GivenName,
 		Prefix:     &claims.Prefix,

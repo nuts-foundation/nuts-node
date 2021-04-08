@@ -625,7 +625,7 @@ func validContext() *validationContext {
 		UserIdentity: &usi,
 		SubjectID:    &sid,
 		KeyID:        actorSigningKeyID.String(),
-		Scope:        "service",
+		Service:      "service",
 	}
 	hdrs := map[string]interface{}{
 		jwt.AudienceKey:   serviceID.String(),

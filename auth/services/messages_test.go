@@ -2,8 +2,9 @@ package services
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNutsAccessToken_FromMap(t *testing.T) {
@@ -21,7 +22,7 @@ func TestNutsAccessToken_FromMap(t *testing.T) {
 }
 
 func TestNutsJwtBearerToken_FromMap(t *testing.T) {
-	expected := NutsJwtBearerToken{Scope: "scope"}
+	expected := NutsJwtBearerToken{Service: "service"}
 	m, _ := expected.AsMap()
 	var actual NutsJwtBearerToken
 	err := actual.FromMap(m)

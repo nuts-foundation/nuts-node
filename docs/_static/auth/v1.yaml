@@ -540,7 +540,7 @@ components:
           type: boolean
           description: |
             True if the token is active, false if the token is expired, malformed etc.
-        scope:
+        service:
           type: string
         iss:
           type: string
