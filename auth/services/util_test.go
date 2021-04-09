@@ -2,8 +2,9 @@ package services
 
 import (
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
 	"testing"
+
+	ssi "github.com/nuts-foundation/go-did"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
@@ -19,14 +20,14 @@ func TestResolveEndpointURL(t *testing.T) {
 	serviceType := "service"
 	expectedURI, _ := ssi.ParseURI("http://nuts.nl")
 	oauthService := did.Service{Type: OAuthEndpointType, ServiceEndpoint: expectedURI.String()}
-	compoundService := did.Service{Type: serviceType, ServiceEndpoint: compoundService{OAuthEndpointType: fmt.Sprintf("%s?type=oauth", endpointDIDDoc.String())}}
+	cService := did.Service{Type: serviceType, ServiceEndpoint: compoundService{OAuthEndpointType: fmt.Sprintf("%s?type=oauth", endpointDIDDoc.String())}}
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		resolver := types.NewMockDocResolver(ctrl)
-		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{compoundService}}, nil, nil)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{cService}}, nil, nil)
 		resolver.EXPECT().Resolve(endpointDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{oauthService}}, nil, nil)
 
 		_, endpointURL, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
@@ -100,7 +101,7 @@ func TestResolveEndpointURL(t *testing.T) {
 		defer ctrl.Finish()
 
 		resolver := types.NewMockDocResolver(ctrl)
-		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{compoundService}}, nil, nil)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{cService}}, nil, nil)
 		resolver.EXPECT().Resolve(endpointDIDDoc, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
 		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
