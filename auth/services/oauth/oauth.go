@@ -166,7 +166,7 @@ func (s *service) validateAud(context *validationContext) error {
 	subject, _ := did.ParseDID(context.jwtBearerToken.Subject())
 	iat := context.jwtBearerToken.IssuedAt()
 
-	uri, _, err := services.ResolveServiceURL(s.didResolver, *subject, scope, services.OAuthEndpointType, &iat)
+	uri, _, err := services.ResolveCompoundServiceURL(s.didResolver, *subject, scope, services.OAuthEndpointType, &iat)
 	if err != nil {
 		return err
 	}
