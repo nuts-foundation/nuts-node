@@ -92,8 +92,8 @@ type CreateJwtBearerTokenRequest struct {
 	// Base64 encoded IRMA contract conaining the identity of the performer
 	Identity string `json:"identity"`
 
-	// Space-delimited list of strings. For what kind of operations can the access token be used? Scopes will be specified for each use-case
-	Scope   string  `json:"scope"`
+	// For which service can the access token be used? The right endpoint is selected based on the service.
+	Service string  `json:"service"`
 	Subject *string `json:"subject,omitempty"`
 }
 
@@ -155,7 +155,10 @@ type GetSignSessionStatusResponse struct {
 
 // JwtBearerTokenResponse defines model for JwtBearerTokenResponse.
 type JwtBearerTokenResponse struct {
-	BearerToken string `json:"bearer_token"`
+
+	// The URL that corresponds to the oauth endpoint of the selected service.
+	AuthorizationServerEndpoint string `json:"authorization_server_endpoint"`
+	BearerToken                 string `json:"bearer_token"`
 }
 
 // LegalEntity defines model for LegalEntity.

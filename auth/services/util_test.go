@@ -1,8 +1,10 @@
 package services
 
 import (
-	ssi "github.com/nuts-foundation/go-did"
+	"fmt"
 	"testing"
+
+	ssi "github.com/nuts-foundation/go-did"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
@@ -11,28 +13,123 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var holder = *vdr.TestDIDA
+var serviceDIDDoc = *vdr.TestDIDA
+var endpointDIDDoc = *vdr.TestDIDB
 
 func TestResolveEndpointURL(t *testing.T) {
+	serviceType := "service"
+	expectedURI, _ := ssi.ParseURI("http://nuts.nl")
+	oauthService := did.Service{Type: OAuthEndpointType, ServiceEndpoint: expectedURI.String()}
+	cService := did.Service{Type: serviceType, ServiceEndpoint: compoundService{OAuthEndpointType: fmt.Sprintf("%s?type=oauth", endpointDIDDoc.String())}}
+
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		expectedURI, _ := ssi.ParseURI("http://nuts.nl")
-		s := did.Service{Type: "oauth", ServiceEndpoint: expectedURI.String()}
 		resolver := types.NewMockDocResolver(ctrl)
-		resolver.EXPECT().Resolve(holder, gomock.Any()).Return(&did.Document{Service: []did.Service{s}}, nil, nil)
-		_, endpointURL, err := ResolveEndpointURL(resolver, holder, "oauth", nil)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{cService}}, nil, nil)
+		resolver.EXPECT().Resolve(endpointDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{oauthService}}, nil, nil)
+
+		_, endpointURL, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+
 		assert.NoError(t, err)
 		assert.Equal(t, expectedURI.String(), endpointURL)
 	})
-	t.Run("unable to resolve", func(t *testing.T) {
+
+	t.Run("error - unable to resolve service did doc", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		resolver := types.NewMockDocResolver(ctrl)
-		resolver.EXPECT().Resolve(holder, gomock.Any()).Return(nil, nil, types.ErrNotFound)
-		_, _, err := ResolveEndpointURL(resolver, holder, "oauth", nil)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - no services in did Doc", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resolver := types.NewMockDocResolver(ctrl)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{}}, nil, nil)
+
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - compound service without required type", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resolver := types.NewMockDocResolver(ctrl)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundService{"not_oauth": fmt.Sprintf("%s?type=oauth", endpointDIDDoc.String())}}}}, nil, nil)
+
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - compound service with incorrect URI reference", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resolver := types.NewMockDocResolver(ctrl)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundService{"oauth": string([]byte{0})}}}}, nil, nil)
+
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - compound service with incorrect DID reference", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resolver := types.NewMockDocResolver(ctrl)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundService{"oauth": "not_a_did"}}}}, nil, nil)
+
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - unknown endpoint service ref", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resolver := types.NewMockDocResolver(ctrl)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{cService}}, nil, nil)
+		resolver.EXPECT().Resolve(endpointDIDDoc, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - no type in endpoint ref", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resolver := types.NewMockDocResolver(ctrl)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundService{"oauth": "did:nuts:1"}}}}, nil, nil)
+
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - too many types in endpoint ref", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resolver := types.NewMockDocResolver(ctrl)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundService{"oauth": "did:nuts:1?type=a&type=b"}}}}, nil, nil)
+
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+
 		assert.Error(t, err)
 	})
 }

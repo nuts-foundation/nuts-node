@@ -86,6 +86,12 @@ func getCustodianDIDDocument() *did.Document {
 		ID:   *serviceID,
 		Type: "oauth",
 	})
+	doc.Service = append(doc.Service, did.Service{
+		Type: "nuts-sso",
+		ServiceEndpoint: map[string]string{
+			"oauth": fmt.Sprintf("%s?type=oauth", id.String()),
+		},
+	})
 	return &doc
 }
 
@@ -393,13 +399,14 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		Actor:         actorDID.String(),
 		Subject:       &sid,
 		IdentityToken: &usi,
+		Service:       "nuts-sso",
 	}
 
 	t.Run("create a JwtBearerToken", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(custodianDIDDocument, nil, nil)
+		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(custodianDIDDocument, nil, nil).AnyTimes()
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(actorDID, gomock.Any()).MinTimes(1).Return(actorSigningKeyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), actorSigningKeyID.String()).Return("token", nil)
 
@@ -443,7 +450,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(custodianDIDDocument, nil, nil)
+		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(custodianDIDDocument, nil, nil).AnyTimes()
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(actorDID, gomock.Any()).MinTimes(1).Return(actorSigningKeyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), actorSigningKeyID.String()).Return("", errors.New("boom!"))
 

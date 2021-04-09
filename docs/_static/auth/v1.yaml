@@ -441,7 +441,7 @@ components:
         - custodian
         - actor
         - identity
-        - scope
+        - service
       properties:
         subject:
           type: string
@@ -453,16 +453,20 @@ components:
           type: string
           description: |
             Base64 encoded IRMA contract conaining the identity of the performer
-        scope:
+        service:
           type: string
-          description: Space-delimited list of strings. For what kind of operations can the access token be used? Scopes will be specified for each use-case
-          example: nuts-sso nuts-patient-transfer
+          description: The service for which this access-token can be used. The right ouath endpoint is selected based on the service.
+          example: nuts-patient-transfer
     JwtBearerTokenResponse:
-      description: Response with a JWT Bearer Token. It contains a JWT, signed with the private key of the requestor software vendor. Using the RS256 signing algorithm.
+      description: Response with a JWT Bearer Token. It contains a JWT, signed with the private key of the requestor software vendor.
       required:
         - bearer_token
+        - authorization_server_endpoint
       properties:
         bearer_token:
+          type: string
+        authorization_server_endpoint:
+          description: The URL that corresponds to the oauth endpoint of the selected service.
           type: string
     #
     # Everything related to Access Tokens
