@@ -19,7 +19,7 @@ func TestResolveEndpointURL(t *testing.T) {
 	serviceType := "service"
 	expectedURI, _ := ssi.ParseURI("http://nuts.nl")
 	oauthService := did.Service{Type: OAuthEndpointType, ServiceEndpoint: expectedURI.String()}
-	compoundService := did.Service{Type: serviceType, ServiceEndpoint: compoundServiceType{OAuthEndpointType: fmt.Sprintf("%s?type=oauth", endpointDIDDoc.String())}}
+	compoundService := did.Service{Type: serviceType, ServiceEndpoint: compoundService{OAuthEndpointType: fmt.Sprintf("%s?type=oauth", endpointDIDDoc.String())}}
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -29,7 +29,7 @@ func TestResolveEndpointURL(t *testing.T) {
 		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{compoundService}}, nil, nil)
 		resolver.EXPECT().Resolve(endpointDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{oauthService}}, nil, nil)
 
-		_, endpointURL, err := ResolveServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+		_, endpointURL, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expectedURI.String(), endpointURL)
@@ -42,7 +42,7 @@ func TestResolveEndpointURL(t *testing.T) {
 		resolver := types.NewMockDocResolver(ctrl)
 		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
-		_, _, err := ResolveServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
 
 		assert.Error(t, err)
 	})
@@ -54,7 +54,7 @@ func TestResolveEndpointURL(t *testing.T) {
 		resolver := types.NewMockDocResolver(ctrl)
 		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{}}, nil, nil)
 
-		_, _, err := ResolveServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
 
 		assert.Error(t, err)
 	})
@@ -64,9 +64,9 @@ func TestResolveEndpointURL(t *testing.T) {
 		defer ctrl.Finish()
 
 		resolver := types.NewMockDocResolver(ctrl)
-		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundServiceType{"not_oauth": fmt.Sprintf("%s?type=oauth", endpointDIDDoc.String())}}}}, nil, nil)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundService{"not_oauth": fmt.Sprintf("%s?type=oauth", endpointDIDDoc.String())}}}}, nil, nil)
 
-		_, _, err := ResolveServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
 
 		assert.Error(t, err)
 	})
@@ -76,9 +76,9 @@ func TestResolveEndpointURL(t *testing.T) {
 		defer ctrl.Finish()
 
 		resolver := types.NewMockDocResolver(ctrl)
-		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundServiceType{"oauth": string([]byte{0})}}}}, nil, nil)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundService{"oauth": string([]byte{0})}}}}, nil, nil)
 
-		_, _, err := ResolveServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
 
 		assert.Error(t, err)
 	})
@@ -88,9 +88,9 @@ func TestResolveEndpointURL(t *testing.T) {
 		defer ctrl.Finish()
 
 		resolver := types.NewMockDocResolver(ctrl)
-		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundServiceType{"oauth": "not_a_did"}}}}, nil, nil)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundService{"oauth": "not_a_did"}}}}, nil, nil)
 
-		_, _, err := ResolveServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
 
 		assert.Error(t, err)
 	})
@@ -103,7 +103,7 @@ func TestResolveEndpointURL(t *testing.T) {
 		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{compoundService}}, nil, nil)
 		resolver.EXPECT().Resolve(endpointDIDDoc, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
-		_, _, err := ResolveServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
 
 		assert.Error(t, err)
 	})
@@ -113,9 +113,9 @@ func TestResolveEndpointURL(t *testing.T) {
 		defer ctrl.Finish()
 
 		resolver := types.NewMockDocResolver(ctrl)
-		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundServiceType{"oauth": "did:nuts:1"}}}}, nil, nil)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundService{"oauth": "did:nuts:1"}}}}, nil, nil)
 
-		_, _, err := ResolveServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
 
 		assert.Error(t, err)
 	})
@@ -125,9 +125,9 @@ func TestResolveEndpointURL(t *testing.T) {
 		defer ctrl.Finish()
 
 		resolver := types.NewMockDocResolver(ctrl)
-		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundServiceType{"oauth": "did:nuts:1?type=a&type=b"}}}}, nil, nil)
+		resolver.EXPECT().Resolve(serviceDIDDoc, gomock.Any()).Return(&did.Document{Service: []did.Service{{Type: serviceType, ServiceEndpoint: compoundService{"oauth": "did:nuts:1?type=a&type=b"}}}}, nil, nil)
 
-		_, _, err := ResolveServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
+		_, _, err := ResolveCompoundServiceURL(resolver, serviceDIDDoc, serviceType, OAuthEndpointType, nil)
 
 		assert.Error(t, err)
 	})

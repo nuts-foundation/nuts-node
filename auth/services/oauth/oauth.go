@@ -233,7 +233,7 @@ func (s *service) CreateJwtBearerToken(request services.CreateJwtBearerTokenRequ
 		return nil, err
 	}
 
-	endpointID, _, err := services.ResolveServiceURL(s.didResolver, *custodian, request.Service, services.OAuthEndpointType, nil)
+	endpointID, _, err := services.ResolveCompoundServiceURL(s.didResolver, *custodian, request.Service, services.OAuthEndpointType, nil)
 	if err != nil {
 		return nil, err
 	}
