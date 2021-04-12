@@ -128,7 +128,7 @@ func Test_ambassador_callback(t *testing.T) {
 	payloadHash := hash.SHA256Sum([]byte("payload"))
 	ref := hash.SHA256Sum([]byte("ref"))
 
-	newSubscriberDoc := func() subscriberTransaction {
+	newSubscriberTx := func() subscriberTransaction {
 		return subscriberTransaction{
 			signingKeyID:    "validKeyID123",
 			signingTime:     signingTime,
@@ -170,7 +170,7 @@ func Test_ambassador_callback(t *testing.T) {
 			return
 		}
 
-		subDoc := newSubscriberDoc()
+		subDoc := newSubscriberTx()
 		subDoc.signingKey = signingKey
 		subDoc.signingKeyID = ""
 
@@ -214,7 +214,7 @@ func Test_ambassador_callback(t *testing.T) {
 			return
 		}
 
-		subDoc := newSubscriberDoc()
+		subDoc := newSubscriberTx()
 		subDoc.signingKey = signingKey
 		subDoc.signingKeyID = ""
 
@@ -256,7 +256,7 @@ func Test_ambassador_callback(t *testing.T) {
 			return
 		}
 
-		subDoc := newSubscriberDoc()
+		subDoc := newSubscriberTx()
 		subDoc.signingKey = signingKey
 		subDoc.signingKeyID = ""
 
@@ -275,14 +275,22 @@ func Test_ambassador_callback(t *testing.T) {
 	})
 
 	t.Run("nok - invalid payload", func(t *testing.T) {
-		subDoc := newSubscriberDoc()
+		subDoc := newSubscriberTx()
 		am := ambassador{}
 		err := am.callback(subDoc, []byte("}"))
 		assert.EqualError(t, err, "unable to unmarshall did document from network payload: invalid character '}' looking for beginning of value")
 	})
 
+	t.Run("nok - incorrect payloadType", func(t *testing.T) {
+		subDoc := newSubscriberTx()
+		subDoc.payloadType = ""
+		am := ambassador{}
+		err := am.callback(subDoc, []byte{})
+		assert.EqualError(t, err, "callback could not process new DID Document: wrong payload type for this subscriber. Can handle: application/did+json, got: ")
+	})
+
 	t.Run("nok - DID document invalid according to W3C spec", func(t *testing.T) {
-		subDoc := newSubscriberDoc()
+		subDoc := newSubscriberTx()
 		am := ambassador{}
 
 		// Document is missing context
@@ -330,7 +338,7 @@ func Test_ambassador_callback(t *testing.T) {
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		signingKey, _ := jwk.New(pair.PublicKey)
 		signingKey.Set(jwk.KeyIDKey, "kid123")
-		subDoc := newSubscriberDoc()
+		subDoc := newSubscriberTx()
 		subDoc.signingKeyID = ""
 		subDoc.signingKey = signingKey
 
@@ -364,7 +372,7 @@ func Test_ambassador_callback(t *testing.T) {
 		didDocPayload, _ := json.Marshal(didDocument)
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
-		subDoc := newSubscriberDoc()
+		subDoc := newSubscriberTx()
 		subDoc.signingKeyID = didDocument.Authentication[0].ID.String()
 		subDoc.payloadHash = payloadHash
 
@@ -421,7 +429,7 @@ func Test_ambassador_callback(t *testing.T) {
 		didDocPayload, _ := json.Marshal(didDocument)
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
-		subDoc := newSubscriberDoc()
+		subDoc := newSubscriberTx()
 		subDoc.signingKeyID = didDocument.Authentication[0].ID.String()
 		subDoc.payloadHash = payloadHash
 
@@ -503,7 +511,7 @@ func Test_ambassador_callback(t *testing.T) {
 		didDocControllerPayload, _ := json.Marshal(didDocumentController)
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
-		subDoc := newSubscriberDoc()
+		subDoc := newSubscriberTx()
 		subDoc.signingKeyID = didDocumentController.Authentication[0].ID.String()
 		subDoc.payloadHash = payloadHash
 
@@ -590,7 +598,7 @@ func Test_ambassador_callback(t *testing.T) {
 		didDocControllerPayload, _ := json.Marshal(didDocumentController)
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
-		subDoc := newSubscriberDoc()
+		subDoc := newSubscriberTx()
 		subDoc.signingKeyID = keyID
 		subDoc.payloadHash = payloadHash
 
