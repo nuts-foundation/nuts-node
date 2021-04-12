@@ -50,10 +50,6 @@ var ErrDIDAlreadyExists = errors.New("DID document already exists in the store")
 type DocumentMetadata struct {
 	Created time.Time  `json:"created"`
 	Updated *time.Time `json:"updated,omitempty"`
-	// Version contains the semantic version of the DID document.
-	Version int `json:"version"`
-	// TimelineID contains the hash of the JWS envelope of the first version of the DID document.
-	TimelineID hash.SHA256Hash `json:"timelineID"`
 	// Hash of DID document bytes. Is equal to payloadHash in network layer.
 	Hash hash.SHA256Hash `json:"hash"`
 	// Deactivated indicates if the document is deactivated

@@ -51,8 +51,6 @@ func ParseTransaction(input []byte) (Transaction, error) {
 		parseSigningTime,
 		parseVersion,
 		parsePrevious,
-		parseTimelineID,
-		parseTimelineVersion,
 	}
 
 	result := &transaction{}
@@ -162,41 +160,6 @@ func parsePrevious(transaction *transaction, headers jws.Headers, _ *jws.Message
 				transaction.prevs = append(transaction.prevs, prev)
 			}
 		}
-		return nil
-	}
-}
-
-// parseTimelineID parses, validates and sets the transaction timeline ID field.
-func parseTimelineID(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	if tidAsInterf, _ := headers.Get(timelineIDHeader); tidAsInterf != nil {
-		if tidAsString, ok := tidAsInterf.(string); !ok {
-			return transactionValidationError(invalidHeaderErrFmt, timelineIDHeader)
-		} else if timelineID, err := hash.ParseHex(tidAsString); err != nil {
-			return transactionValidationError(invalidHeaderErrFmt+": %w", timelineIDHeader, err)
-		} else {
-			transaction.timelineID = timelineID
-		}
-	}
-	return nil
-}
-
-// parseTimelineVersion parses, validates and sets the transaction timeline version field. Timeline ID must be present when
-// timeline version is present.
-func parseTimelineVersion(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	tivAsInterf, _ := headers.Get(timelineVersionHeader)
-	if tivAsInterf == nil {
-		return nil
-	}
-	if tiv, ok := tivAsInterf.(float64); !ok {
-		return transactionValidationError(invalidHeaderErrFmt, timelineVersionHeader)
-	} else if tiv < 0 {
-		return transactionValidationError(invalidHeaderErrFmt, timelineVersionHeader)
-	} else if transaction.timelineID.Empty() {
-		return transactionValidationError("%s specified without %s header", timelineVersionHeader, timelineIDHeader)
-	} else if tiv != float64(int(tiv)) {
-		return transactionValidationError(invalidHeaderErrFmt, timelineVersionHeader)
-	} else {
-		transaction.timelineVersion = int(tiv)
 		return nil
 	}
 }

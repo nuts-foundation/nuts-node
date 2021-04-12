@@ -7,9 +7,10 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
-	ssi "github.com/nuts-foundation/go-did"
 	"testing"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
 
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -85,49 +86,39 @@ func Test_ambassador_resolveDIDControllers(t *testing.T) {
 	})
 }
 
-type subscriberDocument struct {
+type subscriberTransaction struct {
 	signingKey      jwk.Key
 	signingKeyID    string
 	signingTime     time.Time
 	ref             hash.SHA256Hash
-	timelineID      hash.SHA256Hash
-	timelineVersion int
 	payloadHash     hash.SHA256Hash
 	payloadType     string
 }
 
-func (s subscriberDocument) SigningKey() jwk.Key {
+func (s subscriberTransaction) SigningKey() jwk.Key {
 	return s.signingKey
 }
 
-func (s subscriberDocument) SigningKeyID() string {
+func (s subscriberTransaction) SigningKeyID() string {
 	return s.signingKeyID
 }
 
-func (s subscriberDocument) SigningTime() time.Time {
+func (s subscriberTransaction) SigningTime() time.Time {
 	return s.signingTime
 }
 
-func (s subscriberDocument) Ref() hash.SHA256Hash {
+func (s subscriberTransaction) Ref() hash.SHA256Hash {
 	return s.ref
 }
 
-func (s subscriberDocument) TimelineID() hash.SHA256Hash {
-	return s.timelineID
-}
-
-func (s subscriberDocument) TimelineVersion() int {
-	return s.timelineVersion
-}
-
-func (s subscriberDocument) PayloadHash() hash.SHA256Hash {
+func (s subscriberTransaction) PayloadHash() hash.SHA256Hash {
 	return s.payloadHash
 }
 
-func (s subscriberDocument) PayloadType() string {
+func (s subscriberTransaction) PayloadType() string {
 	return s.payloadType
 }
-func (s subscriberDocument) SigningAlgorithm() string {
+func (s subscriberTransaction) SigningAlgorithm() string {
 	panic("implement me")
 }
 
@@ -135,15 +126,13 @@ func Test_ambassador_callback(t *testing.T) {
 	signingTime := time.Now()
 	createdAt := time.Now().Add(-10 * time.Hour * 24)
 	payloadHash := hash.SHA256Sum([]byte("payload"))
-	timelineID := hash.SHA256Sum([]byte("timeline"))
 	ref := hash.SHA256Sum([]byte("ref"))
 
-	newSubscriberDoc := func() subscriberDocument {
-		return subscriberDocument{
+	newSubscriberDoc := func() subscriberTransaction {
+		return subscriberTransaction{
 			signingKeyID:    "validKeyID123",
 			signingTime:     signingTime,
 			ref:             ref,
-			timelineVersion: 0,
 			payloadHash:     payloadHash,
 			payloadType:     didDocumentType,
 		}
@@ -192,14 +181,13 @@ func Test_ambassador_callback(t *testing.T) {
 		expectedMetadata := types.DocumentMetadata{
 			Created:    signingTime,
 			Updated:    nil,
-			Version:    0,
-			TimelineID: ref,
 			Hash:       payloadHash,
 		}
 		var rawKey crypto2.PublicKey
 		signingKey.Raw(&rawKey)
 
 		keyStoreMock.EXPECT().AddPublicKey(signingKey.KeyID(), rawKey, subDoc.signingTime)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 		didStoreMock.EXPECT().Write(expectedDocument, expectedMetadata)
 
 		err = am.callback(subDoc, didDocPayload)
@@ -240,12 +228,11 @@ func Test_ambassador_callback(t *testing.T) {
 		expectedMetadata := types.DocumentMetadata{
 			Created:    signingTime,
 			Updated:    nil,
-			Version:    0,
-			TimelineID: ref,
 			Hash:       payloadHash,
 		}
 
 		keyStoreMock.EXPECT().AddPublicKey(signingKey.KeyID(), rawKey, subDoc.signingTime).Return(crypto.ErrKeyAlreadyExists)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 		didStoreMock.EXPECT().Write(expectedDocument, expectedMetadata)
 
 		err = am.callback(subDoc, didDocPayload)
@@ -281,6 +268,7 @@ func Test_ambassador_callback(t *testing.T) {
 		signingKey.Raw(&rawKey)
 
 		keyStoreMock.EXPECT().AddPublicKey(signingKey.KeyID(), rawKey, subDoc.signingTime).Return(errors.New("failed"))
+		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
 		err = am.callback(subDoc, didDocPayload)
 		assert.Error(t, err)
@@ -288,8 +276,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("nok - invalid payload", func(t *testing.T) {
 		subDoc := newSubscriberDoc()
-		subDoc.timelineID = timelineID
-		subDoc.timelineVersion = 1
 		am := ambassador{}
 		err := am.callback(subDoc, []byte("}"))
 		assert.EqualError(t, err, "unable to unmarshall did document from network payload: invalid character '}' looking for beginning of value")
@@ -297,8 +283,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("nok - DID document invalid according to W3C spec", func(t *testing.T) {
 		subDoc := newSubscriberDoc()
-		subDoc.timelineID = timelineID
-		subDoc.timelineVersion = 1
 		am := ambassador{}
 
 		// Document is missing context
@@ -312,17 +296,25 @@ func Test_ambassador_callback(t *testing.T) {
 	})
 
 	t.Run("create nok - fails without embedded key", func(t *testing.T) {
-		am := ambassador{}
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		didStoreMock := types.NewMockStore(ctrl)
+		am := ambassador{didStore: didStoreMock}
 
-		subDoc := subscriberDocument{
+		id, _ := did.ParseDID("did:foo:bar")
+		emptyDIDDocument := did.Document{ID: *id, Context: []ssi.URI{did.DIDContextV1URI()}}
+		didDocumentBytes, _ := emptyDIDDocument.MarshalJSON()
+		subDoc := subscriberTransaction{
 			signingKeyID:    "key-1",
 			signingTime:     signingTime,
 			ref:             ref,
-			timelineVersion: 0,
 			payloadHash:     payloadHash,
 			payloadType:     didDocumentType,
 		}
-		err := am.callback(subDoc, []byte("{}"))
+
+		didStoreMock.EXPECT().Resolve(*id, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+
+		err := am.callback(subDoc, didDocumentBytes)
 		if !assert.Error(t, err) {
 			return
 		}
@@ -330,7 +322,10 @@ func Test_ambassador_callback(t *testing.T) {
 	})
 
 	t.Run("create nok - fails when signing key is missing from authenticationMethods", func(t *testing.T) {
-		am := ambassador{}
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		didStoreMock := types.NewMockStore(ctrl)
+		am := ambassador{didStore: didStoreMock}
 
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		signingKey, _ := jwk.New(pair.PublicKey)
@@ -341,6 +336,8 @@ func Test_ambassador_callback(t *testing.T) {
 
 		doc, _, _ := newDidDoc()
 		docBytes, _ := doc.MarshalJSON()
+
+		didStoreMock.EXPECT().Resolve(doc.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
 		err := am.callback(subDoc, docBytes)
 		if !assert.Error(t, err) {
@@ -369,8 +366,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 		subDoc := newSubscriberDoc()
 		subDoc.signingKeyID = didDocument.Authentication[0].ID.String()
-		subDoc.timelineVersion = 1
-		subDoc.timelineID = timelineID
 		subDoc.payloadHash = payloadHash
 
 		storedDocument := did.Document{}
@@ -385,8 +380,6 @@ func Test_ambassador_callback(t *testing.T) {
 		currentMetadata := &types.DocumentMetadata{
 			Created:    createdAt,
 			Updated:    nil,
-			Version:    0,
-			TimelineID: timelineID,
 			Hash:       currentPayloadHash,
 		}
 
@@ -394,15 +387,13 @@ func Test_ambassador_callback(t *testing.T) {
 		expectedNextMetadata := types.DocumentMetadata{
 			Created:     createdAt,
 			Updated:     &signingTime,
-			Version:     1,
-			TimelineID:  timelineID,
 			Hash:        payloadHash,
 			Deactivated: true,
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
-		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&storedDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(3).Return(&storedDocument, currentMetadata, nil)
 		keyStore.EXPECT().GetPublicKey(didDocument.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
 		keyStore.EXPECT().RevokePublicKey(storedDocument.Authentication[0].ID.String(), gomock.Any())
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
@@ -432,8 +423,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 		subDoc := newSubscriberDoc()
 		subDoc.signingKeyID = didDocument.Authentication[0].ID.String()
-		subDoc.timelineVersion = 1
-		subDoc.timelineID = timelineID
 		subDoc.payloadHash = payloadHash
 
 		expectedDocument := did.Document{}
@@ -445,8 +434,6 @@ func Test_ambassador_callback(t *testing.T) {
 		currentMetadata := &types.DocumentMetadata{
 			Created:    createdAt,
 			Updated:    nil,
-			Version:    0,
-			TimelineID: timelineID,
 			Hash:       currentPayloadHash,
 		}
 
@@ -454,14 +441,12 @@ func Test_ambassador_callback(t *testing.T) {
 		expectedNextMetadata := types.DocumentMetadata{
 			Created:    createdAt,
 			Updated:    &signingTime,
-			Version:    1,
-			TimelineID: timelineID,
 			Hash:       payloadHash,
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
-		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(3).Return(&expectedDocument, currentMetadata, nil)
 		keyStore.EXPECT().GetPublicKey(didDocument.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
@@ -476,105 +461,6 @@ func Test_ambassador_callback(t *testing.T) {
 	t.Run("ok - update with a new authentication key", func(t *testing.T) {
 		// old key should be removed
 		// new key should be present
-
-	})
-
-	t.Run("nok - update with missing timelineID", func(t *testing.T) {
-		subDoc := newSubscriberDoc()
-		subDoc.timelineVersion = 5
-		am := ambassador{}
-		err := am.callback(subDoc, []byte("{}"))
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.EqualError(t, err, "callback could not process new DID Document: timelineVersion for new documents must be absent or equal to 0")
-	})
-
-	t.Run("nok - update of unknown DID Transaction", func(t *testing.T) {
-		subDoc := newSubscriberDoc()
-		subDoc.timelineVersion = 5
-		subDoc.timelineID = timelineID
-		am := ambassador{
-			didStore: didStoreMock{err: types.ErrNotFound},
-		}
-
-		doc, _, _ := newDidDoc()
-		docBytes, _ := doc.MarshalJSON()
-
-		err := am.callback(subDoc, docBytes)
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.EqualError(t, err, "unable to update did document: unable to find the DID document")
-	})
-
-	t.Run("nok - current DID document has different timelineID than the new one", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		didStoreMock := types.NewMockStore(ctrl)
-		am := ambassador{
-			didStore: didStoreMock,
-		}
-
-		subDoc := newSubscriberDoc()
-		subDoc.timelineVersion = 5
-		subDoc.timelineID = timelineID
-
-		// The current DID Document which will be resolved
-		currentDIDDocument := did.Document{}
-
-		newDIDDocument, _, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
-		didDocPayload, _ := json.Marshal(newDIDDocument)
-
-		// This is the metadata of the current version of the document which will be returned by the resolver
-		currentMetadata := &types.DocumentMetadata{
-			TimelineID: timelineID,
-			Version:    subDoc.timelineVersion + 1,
-		}
-		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, nil).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
-
-		err = am.callback(subDoc, didDocPayload)
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.EqualError(t, err, "unable to update did document: timeline version of current document is greater or equal to the new version")
-	})
-
-	t.Run("nok - update of document with outdated version", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		didStoreMock := types.NewMockStore(ctrl)
-		am := ambassador{
-			didStore: didStoreMock,
-		}
-
-		subDoc := newSubscriberDoc()
-		subDoc.timelineVersion = 5
-		subDoc.timelineID = timelineID
-
-		// The current DID Document which will be resolved
-		currentDIDDocument := did.Document{}
-
-		newDIDDocument, _, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
-		didDocPayload, _ := json.Marshal(newDIDDocument)
-
-		// This is the metadata of the current version of the document which will be returned by the resolver
-		currentMetadata := &types.DocumentMetadata{
-			TimelineID: hash.SHA256Sum([]byte("wrong timeline")),
-		}
-		didStoreMock.EXPECT().Resolve(newDIDDocument.ID, nil).Times(1).Return(&currentDIDDocument, currentMetadata, nil)
-
-		err = am.callback(subDoc, didDocPayload)
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.EqualError(t, err, "timelineIDs of new and current DID documents must match")
 
 	})
 
@@ -619,8 +505,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 		subDoc := newSubscriberDoc()
 		subDoc.signingKeyID = didDocumentController.Authentication[0].ID.String()
-		subDoc.timelineVersion = 1
-		subDoc.timelineID = timelineID
 		subDoc.payloadHash = payloadHash
 
 		// Convert back into a fresh doc because that will set the references correct
@@ -637,8 +521,6 @@ func Test_ambassador_callback(t *testing.T) {
 		currentMetadata := &types.DocumentMetadata{
 			Created:    createdAt,
 			Updated:    nil,
-			Version:    0,
-			TimelineID: timelineID,
 			Hash:       currentPayloadHash,
 		}
 
@@ -646,14 +528,12 @@ func Test_ambassador_callback(t *testing.T) {
 		expectedNextMetadata := types.DocumentMetadata{
 			Created:    createdAt,
 			Updated:    &signingTime,
-			Version:    1,
-			TimelineID: timelineID,
 			Hash:       payloadHash,
 		}
 
 		gomock.InOrder(
 			// expect a resolve for previous versions of the did document
-			didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(1).Return(&expectedDocument, currentMetadata, nil),
+			didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil),
 			// expect a resolve for the did documents controller
 			didStoreMock.EXPECT().Resolve(didDocumentController.ID, nil).Times(1).Return(&expectedController, nil, nil),
 		)
@@ -712,8 +592,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 		subDoc := newSubscriberDoc()
 		subDoc.signingKeyID = keyID
-		subDoc.timelineVersion = 1
-		subDoc.timelineID = timelineID
 		subDoc.payloadHash = payloadHash
 
 		// Convert back into a fresh doc because that will set the references correct
@@ -730,13 +608,11 @@ func Test_ambassador_callback(t *testing.T) {
 		currentMetadata := &types.DocumentMetadata{
 			Created:    createdAt,
 			Updated:    nil,
-			Version:    0,
-			TimelineID: timelineID,
 			Hash:       currentPayloadHash,
 		}
 
 		// expect a resolve for previous versions of the did document
-		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(1).Return(&expectedDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
 		// expect a resolve for the did documents controller
 		didStoreMock.EXPECT().Resolve(didDocumentController.ID, nil).Times(1).Return(&expectedController, nil, nil)
 
@@ -757,7 +633,6 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	signingKey, _ := jwk.New(pair.PublicKey)
 	signingKey.Set(jwk.KeyIDKey, "kid123")
 	payloadHash := hash.SHA256Sum([]byte("payload"))
-	timelineID := hash.SHA256Sum([]byte("timeline"))
 	ref := hash.SHA256Sum([]byte("ref"))
 
 	tests := []struct {
@@ -766,110 +641,65 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 		wantedErr error
 	}{
 		{"ok - valid create document",
-			subscriberDocument{
+			subscriberTransaction{
 				signingKeyID:    "",
 				signingTime:     signingTime,
 				signingKey:      signingKey,
 				ref:             ref,
-				timelineVersion: 0,
 				payloadHash:     payloadHash,
 				payloadType:     didDocumentType,
 			},
 			nil,
 		},
 		{"ok - valid update document",
-			subscriberDocument{
+			subscriberTransaction{
 				signingKeyID:    "kid123",
 				signingTime:     signingTime,
 				ref:             ref,
-				timelineVersion: 1,
-				timelineID:      timelineID,
 				payloadHash:     payloadHash,
 				payloadType:     didDocumentType,
 			},
 			nil,
 		},
 		{"nok - payload rejects invalid payload type",
-			subscriberDocument{
+			subscriberTransaction{
 				signingKeyID:    "",
 				signingTime:     signingTime,
 				ref:             ref,
-				timelineVersion: 0,
 				payloadHash:     payloadHash,
 				payloadType:     "application/xml",
 			},
 			errors.New("wrong payload type for this subscriber. Can handle: application/did+json, got: application/xml"),
 		},
 		{"nok - missing payload hash",
-			subscriberDocument{
+			subscriberTransaction{
 				signingKeyID:    "",
 				signingTime:     signingTime,
 				ref:             ref,
-				timelineVersion: 0,
 				payloadType:     didDocumentType,
 			},
 			errors.New("payloadHash must be provided"),
 		},
 		{"nok - missing signingTime",
-			subscriberDocument{
+			subscriberTransaction{
 				signingKeyID:    "",
 				signingKey:      signingKey,
 				ref:             ref,
-				timelineVersion: 0,
 				payloadHash:     payloadHash,
 				payloadType:     didDocumentType,
 			},
 			errors.New("signingTime must be set and in the past"),
 		},
 		{"nok - signingTime in the future",
-			subscriberDocument{
+			subscriberTransaction{
 				signingKeyID:    "",
 				signingTime:     signingTime.Add(10 * time.Minute),
 				signingKey:      signingKey,
 				ref:             ref,
-				timelineVersion: 0,
 				payloadHash:     payloadHash,
 				payloadType:     didDocumentType,
 			},
 			errors.New("signingTime must be set and in the past"),
-		},
-		{
-			"nok - create with timelineVersion != 0",
-			subscriberDocument{
-				signingKeyID:    "",
-				signingTime:     signingTime,
-				signingKey:      signingKey,
-				ref:             ref,
-				timelineVersion: 1,
-				payloadHash:     payloadHash,
-				payloadType:     didDocumentType,
-			},
-			errors.New("timelineVersion for new documents must be absent or equal to 0"),
-		},
-		{
-			"nok - create with keyid instead of embedded signingKey",
-			subscriberDocument{
-				signingKeyID:    "kid123",
-				signingTime:     signingTime,
-				ref:             ref,
-				timelineVersion: 0,
-				payloadHash:     payloadHash,
-				payloadType:     didDocumentType,
-			},
-			errors.New("signingKey for new DID Documents must be set"),
-		},
-		{
-			"nok - update with timelineVersion == 0",
-			subscriberDocument{
-				signingKeyID:    "kid123",
-				signingTime:     signingTime,
-				ref:             ref,
-				timelineVersion: 0,
-				timelineID:      timelineID,
-				payloadHash:     payloadHash,
-				payloadType:     didDocumentType,
-			},
-			errors.New("timelineVersion for updates must be greater than 0"),
 		},
 	}
 	for _, tt := range tests {

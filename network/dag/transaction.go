@@ -37,8 +37,6 @@ const currentVersion = 1
 const signingTimeHeader = "sigt"
 const versionHeader = "ver"
 const previousHeader = "prevs"
-const timelineIDHeader = "tid"
-const timelineVersionHeader = "tiv"
 
 var allowedAlgos = []jwa.SignatureAlgorithm{jwa.ES256, jwa.ES384, jwa.ES512, jwa.PS256, jwa.PS384, jwa.PS512}
 
@@ -52,7 +50,6 @@ var invalidHeaderErrFmt = "invalid %s header"
 // UnsignedTransaction holds the base properties of a transaction which can be signed to create a Transaction.
 type UnsignedTransaction interface {
 	NetworkHeader
-	Timeline
 	PayloadReferencer
 }
 
@@ -79,17 +76,7 @@ type NetworkHeader interface {
 type SubscriberTransaction interface {
 	Signable
 	Referenceable
-	Timeline
 	PayloadReferencer
-}
-
-// Timeline contains a set of methods to work with network transaction timeline information
-type Timeline interface {
-	// TimelineID returns the timeline ID of the transaction.
-	TimelineID() hash.SHA256Hash
-	// TimelineVersion returns the timeline version of the transaction.
-	// If the returned version is < 1 the timeline version is not set.
-	TimelineVersion() int
 }
 
 // Signable groups a set of functions to access information about a implementors signature.
@@ -149,20 +136,6 @@ func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SH
 // FieldOpt defines a function for specifying fields on a transaction.
 type FieldOpt func(target *transaction)
 
-// TimelineVersionField adds the timeline version field to a transaction.
-func TimelineVersionField(version int) FieldOpt {
-	return func(target *transaction) {
-		target.timelineVersion = version
-	}
-}
-
-// TimelineIDField adds the timeline ID field to a transaction.
-func TimelineIDField(id hash.SHA256Hash) FieldOpt {
-	return func(target *transaction) {
-		target.timelineID = id
-	}
-}
-
 // ValidatePayloadType checks whether the payload type is valid according to RFC004.
 func ValidatePayloadType(payloadType string) bool {
 	return strings.Contains(payloadType, "/")
@@ -177,8 +150,6 @@ type transaction struct {
 	signingTime      time.Time
 	signingAlgorithm jwa.SignatureAlgorithm
 	version          Version
-	timelineID       hash.SHA256Hash
-	timelineVersion  int
 
 	data []byte
 	ref  hash.SHA256Hash
@@ -226,14 +197,6 @@ func (d transaction) Ref() hash.SHA256Hash {
 
 func (d transaction) Version() Version {
 	return d.version
-}
-
-func (d transaction) TimelineID() hash.SHA256Hash {
-	return d.timelineID
-}
-
-func (d transaction) TimelineVersion() int {
-	return d.timelineVersion
 }
 
 func (d *transaction) setData(data []byte) {

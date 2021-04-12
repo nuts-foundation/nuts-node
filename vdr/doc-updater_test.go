@@ -235,7 +235,7 @@ func TestNutsDocUpdater_Deactivate(t *testing.T) {
 	currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 	currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
 
-	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any(), gomock.Any())
+	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any())
 	gomock.InOrder(
 		didStoreMock.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil),
 		didStoreMock.EXPECT().Resolve(*id, &types.ResolveMetadata{Hash: &currentHash, AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil),
