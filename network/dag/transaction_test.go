@@ -68,11 +68,11 @@ func Test_transaction_Getters(t *testing.T) {
 	prev1, _ := hash2.ParseHex("3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986")
 	prev2, _ := hash2.ParseHex("b3f2c3c396da1a949d214e4c2fe0fc9fb5f2a68ff1860df4ef10c9835e62e7c1")
 	tx := transaction{
-		prevs:           []hash2.SHA256Hash{prev1, prev2},
-		payload:         payload,
-		payloadType:     "foo/bar",
-		signingTime:     time.Unix(1023323333, 0),
-		version:         10,
+		prevs:       []hash2.SHA256Hash{prev1, prev2},
+		payload:     payload,
+		payloadType: "foo/bar",
+		signingTime: time.Unix(1023323333, 0),
+		version:     10,
 	}
 	tx.setData([]byte{1, 2, 3})
 

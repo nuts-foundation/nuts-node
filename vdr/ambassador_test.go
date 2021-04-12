@@ -87,12 +87,12 @@ func Test_ambassador_resolveDIDControllers(t *testing.T) {
 }
 
 type subscriberTransaction struct {
-	signingKey      jwk.Key
-	signingKeyID    string
-	signingTime     time.Time
-	ref             hash.SHA256Hash
-	payloadHash     hash.SHA256Hash
-	payloadType     string
+	signingKey   jwk.Key
+	signingKeyID string
+	signingTime  time.Time
+	ref          hash.SHA256Hash
+	payloadHash  hash.SHA256Hash
+	payloadType  string
 }
 
 func (s subscriberTransaction) SigningKey() jwk.Key {
@@ -130,11 +130,11 @@ func Test_ambassador_callback(t *testing.T) {
 
 	newSubscriberTx := func() subscriberTransaction {
 		return subscriberTransaction{
-			signingKeyID:    "validKeyID123",
-			signingTime:     signingTime,
-			ref:             ref,
-			payloadHash:     payloadHash,
-			payloadType:     didDocumentType,
+			signingKeyID: "validKeyID123",
+			signingTime:  signingTime,
+			ref:          ref,
+			payloadHash:  payloadHash,
+			payloadType:  didDocumentType,
 		}
 	}
 
@@ -179,9 +179,9 @@ func Test_ambassador_callback(t *testing.T) {
 		json.Unmarshal(didDocPayload, &expectedDocument)
 
 		expectedMetadata := types.DocumentMetadata{
-			Created:    signingTime,
-			Updated:    nil,
-			Hash:       payloadHash,
+			Created: signingTime,
+			Updated: nil,
+			Hash:    payloadHash,
 		}
 		var rawKey crypto2.PublicKey
 		signingKey.Raw(&rawKey)
@@ -226,9 +226,9 @@ func Test_ambassador_callback(t *testing.T) {
 		signingKey.Raw(&rawKey)
 
 		expectedMetadata := types.DocumentMetadata{
-			Created:    signingTime,
-			Updated:    nil,
-			Hash:       payloadHash,
+			Created: signingTime,
+			Updated: nil,
+			Hash:    payloadHash,
 		}
 
 		keyStoreMock.EXPECT().AddPublicKey(signingKey.KeyID(), rawKey, subDoc.signingTime).Return(crypto.ErrKeyAlreadyExists)
@@ -313,11 +313,11 @@ func Test_ambassador_callback(t *testing.T) {
 		emptyDIDDocument := did.Document{ID: *id, Context: []ssi.URI{did.DIDContextV1URI()}}
 		didDocumentBytes, _ := emptyDIDDocument.MarshalJSON()
 		subDoc := subscriberTransaction{
-			signingKeyID:    "key-1",
-			signingTime:     signingTime,
-			ref:             ref,
-			payloadHash:     payloadHash,
-			payloadType:     didDocumentType,
+			signingKeyID: "key-1",
+			signingTime:  signingTime,
+			ref:          ref,
+			payloadHash:  payloadHash,
+			payloadType:  didDocumentType,
 		}
 
 		didStoreMock.EXPECT().Resolve(*id, gomock.Any()).Return(nil, nil, types.ErrNotFound)
@@ -386,9 +386,9 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
 		currentMetadata := &types.DocumentMetadata{
-			Created:    createdAt,
-			Updated:    nil,
-			Hash:       currentPayloadHash,
+			Created: createdAt,
+			Updated: nil,
+			Hash:    currentPayloadHash,
 		}
 
 		// This is the metadata that will be written during the update
@@ -440,16 +440,16 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
 		currentMetadata := &types.DocumentMetadata{
-			Created:    createdAt,
-			Updated:    nil,
-			Hash:       currentPayloadHash,
+			Created: createdAt,
+			Updated: nil,
+			Hash:    currentPayloadHash,
 		}
 
 		// This is the metadata that will be written during the update
 		expectedNextMetadata := types.DocumentMetadata{
-			Created:    createdAt,
-			Updated:    &signingTime,
-			Hash:       payloadHash,
+			Created: createdAt,
+			Updated: &signingTime,
+			Hash:    payloadHash,
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
@@ -527,16 +527,16 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
 		currentMetadata := &types.DocumentMetadata{
-			Created:    createdAt,
-			Updated:    nil,
-			Hash:       currentPayloadHash,
+			Created: createdAt,
+			Updated: nil,
+			Hash:    currentPayloadHash,
 		}
 
 		// This is the metadata that will be written during the update
 		expectedNextMetadata := types.DocumentMetadata{
-			Created:    createdAt,
-			Updated:    &signingTime,
-			Hash:       payloadHash,
+			Created: createdAt,
+			Updated: &signingTime,
+			Hash:    payloadHash,
 		}
 
 		gomock.InOrder(
@@ -614,9 +614,9 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
 		currentMetadata := &types.DocumentMetadata{
-			Created:    createdAt,
-			Updated:    nil,
-			Hash:       currentPayloadHash,
+			Created: createdAt,
+			Updated: nil,
+			Hash:    currentPayloadHash,
 		}
 
 		// expect a resolve for previous versions of the did document
@@ -650,62 +650,62 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	}{
 		{"ok - valid create document",
 			subscriberTransaction{
-				signingKeyID:    "",
-				signingTime:     signingTime,
-				signingKey:      signingKey,
-				ref:             ref,
-				payloadHash:     payloadHash,
-				payloadType:     didDocumentType,
+				signingKeyID: "",
+				signingTime:  signingTime,
+				signingKey:   signingKey,
+				ref:          ref,
+				payloadHash:  payloadHash,
+				payloadType:  didDocumentType,
 			},
 			nil,
 		},
 		{"ok - valid update document",
 			subscriberTransaction{
-				signingKeyID:    "kid123",
-				signingTime:     signingTime,
-				ref:             ref,
-				payloadHash:     payloadHash,
-				payloadType:     didDocumentType,
+				signingKeyID: "kid123",
+				signingTime:  signingTime,
+				ref:          ref,
+				payloadHash:  payloadHash,
+				payloadType:  didDocumentType,
 			},
 			nil,
 		},
 		{"nok - payload rejects invalid payload type",
 			subscriberTransaction{
-				signingKeyID:    "",
-				signingTime:     signingTime,
-				ref:             ref,
-				payloadHash:     payloadHash,
-				payloadType:     "application/xml",
+				signingKeyID: "",
+				signingTime:  signingTime,
+				ref:          ref,
+				payloadHash:  payloadHash,
+				payloadType:  "application/xml",
 			},
 			errors.New("wrong payload type for this subscriber. Can handle: application/did+json, got: application/xml"),
 		},
 		{"nok - missing payload hash",
 			subscriberTransaction{
-				signingKeyID:    "",
-				signingTime:     signingTime,
-				ref:             ref,
-				payloadType:     didDocumentType,
+				signingKeyID: "",
+				signingTime:  signingTime,
+				ref:          ref,
+				payloadType:  didDocumentType,
 			},
 			errors.New("payloadHash must be provided"),
 		},
 		{"nok - missing signingTime",
 			subscriberTransaction{
-				signingKeyID:    "",
-				signingKey:      signingKey,
-				ref:             ref,
-				payloadHash:     payloadHash,
-				payloadType:     didDocumentType,
+				signingKeyID: "",
+				signingKey:   signingKey,
+				ref:          ref,
+				payloadHash:  payloadHash,
+				payloadType:  didDocumentType,
 			},
 			errors.New("signingTime must be set and in the past"),
 		},
 		{"nok - signingTime in the future",
 			subscriberTransaction{
-				signingKeyID:    "",
-				signingTime:     signingTime.Add(10 * time.Minute),
-				signingKey:      signingKey,
-				ref:             ref,
-				payloadHash:     payloadHash,
-				payloadType:     didDocumentType,
+				signingKeyID: "",
+				signingTime:  signingTime.Add(10 * time.Minute),
+				signingKey:   signingKey,
+				ref:          ref,
+				payloadHash:  payloadHash,
+				payloadType:  didDocumentType,
 			},
 			errors.New("signingTime must be set and in the past"),
 		},

@@ -140,8 +140,8 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	}
 
 	documentMetadata := types.DocumentMetadata{
-		Created:    transaction.SigningTime(),
-		Hash:       transaction.PayloadHash(),
+		Created: transaction.SigningTime(),
+		Hash:    transaction.PayloadHash(),
 	}
 	return n.didStore.Write(proposedDIDDocument, documentMetadata)
 }

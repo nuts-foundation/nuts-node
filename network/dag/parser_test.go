@@ -217,12 +217,12 @@ func TestParseTransaction(t *testing.T) {
 func makeJWSHeaders(key crypto.Signer, kid string, embedKey bool) jws.Headers {
 	prev, _ := hash.ParseHex("bedcd5bfb50af622be56c4aec7ac5da64745686b362afc7e615ea89b0705b8f8")
 	headerMap := map[string]interface{}{
-		jws.AlgorithmKey:      jwa.ES256,
-		jws.ContentTypeKey:    "foo/bar",
-		jws.CriticalKey:       []string{signingTimeHeader, versionHeader, previousHeader},
-		signingTimeHeader:     time.Now().UTC().Unix(),
-		versionHeader:         1,
-		previousHeader:        []string{prev.String()},
+		jws.AlgorithmKey:   jwa.ES256,
+		jws.ContentTypeKey: "foo/bar",
+		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader},
+		signingTimeHeader:  time.Now().UTC().Unix(),
+		versionHeader:      1,
+		previousHeader:     []string{prev.String()},
 	}
 	if embedKey {
 		keyAsJWS, _ := jwk.New(key.Public())
