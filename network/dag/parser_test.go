@@ -60,8 +60,6 @@ func TestParseTransaction(t *testing.T) {
 		assert.Equal(t, "foo/bar", transaction.PayloadType())
 		assert.Equal(t, time.UTC, transaction.SigningTime().Location())
 		assert.Equal(t, headers.PrivateParams()[previousHeader].([]string)[0], transaction.Previous()[0].String())
-		assert.Equal(t, headers.PrivateParams()[timelineIDHeader].(string), transaction.TimelineID().String())
-		assert.Equal(t, headers.PrivateParams()[timelineVersionHeader].(int), transaction.TimelineVersion())
 		assert.NotNil(t, transaction.Data())
 		assert.False(t, transaction.Ref().Empty())
 	})
@@ -205,77 +203,6 @@ func TestParseTransaction(t *testing.T) {
 		assert.Nil(t, transaction)
 		assert.EqualError(t, err, "transaction validation failed: signing algorithm not allowed: RS256")
 	})
-	t.Run("error - invalid tid header", func(t *testing.T) {
-		headers := makeJWSHeaders(key, "123", true)
-		headers.Set(timelineIDHeader, "not a valid hash")
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
-
-		transaction, err := ParseTransaction(signature)
-
-		assert.Nil(t, transaction)
-		assert.Contains(t, err.Error(), "transaction validation failed: invalid tid header")
-	})
-	t.Run("error - invalid tid header (not a string)", func(t *testing.T) {
-		headers := makeJWSHeaders(key, "123", true)
-		headers.Set(timelineIDHeader, 5)
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
-
-		transaction, err := ParseTransaction(signature)
-
-		assert.Nil(t, transaction)
-		assert.Contains(t, err.Error(), "transaction validation failed: invalid tid header")
-	})
-	t.Run("error - invalid tiv header (not a numeric value)", func(t *testing.T) {
-		headers := makeJWSHeaders(key, "123", true)
-		headers.Set(timelineVersionHeader, "not a numeric value")
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
-
-		transaction, err := ParseTransaction(signature)
-
-		assert.Nil(t, transaction)
-		assert.Contains(t, err.Error(), "transaction validation failed: invalid tiv header")
-	})
-	t.Run("error - invalid tiv header (not a numeric value)", func(t *testing.T) {
-		headers := makeJWSHeaders(key, "123", true)
-		headers.Set(timelineVersionHeader, "not a numeric value")
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
-
-		transaction, err := ParseTransaction(signature)
-
-		assert.Nil(t, transaction)
-		assert.Contains(t, err.Error(), "transaction validation failed: invalid tiv header")
-	})
-	t.Run("error - invalid tiv header (value smaller than 0)", func(t *testing.T) {
-		headers := makeJWSHeaders(key, "123", true)
-		headers.Set(timelineVersionHeader, -1)
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
-
-		transaction, err := ParseTransaction(signature)
-
-		assert.Nil(t, transaction)
-		assert.Contains(t, err.Error(), "transaction validation failed: invalid tiv header")
-	})
-	t.Run("error - invalid tiv header (value non-integer)", func(t *testing.T) {
-		headers := makeJWSHeaders(key, "123", true)
-		headers.Set(timelineVersionHeader, 1.5)
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
-
-		transaction, err := ParseTransaction(signature)
-
-		assert.Nil(t, transaction)
-		assert.Contains(t, err.Error(), "transaction validation failed: invalid tiv header")
-	})
-
-	t.Run("error - tiv header without tid", func(t *testing.T) {
-		headers := makeJWSHeaders(key, "123", true)
-		delete(headers.PrivateParams(), timelineIDHeader)
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
-
-		transaction, err := ParseTransaction(signature)
-
-		assert.Nil(t, transaction)
-		assert.Contains(t, err.Error(), "transaction validation failed: tiv specified without tid header")
-	})
 	t.Run("error - invalid payload", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		signature, _ := jws.Sign([]byte("not a valid hash"), headers.Algorithm(), key, jws.WithHeaders(headers))
@@ -289,16 +216,13 @@ func TestParseTransaction(t *testing.T) {
 
 func makeJWSHeaders(key crypto.Signer, kid string, embedKey bool) jws.Headers {
 	prev, _ := hash.ParseHex("bedcd5bfb50af622be56c4aec7ac5da64745686b362afc7e615ea89b0705b8f8")
-	timelineID, _ := hash.ParseHex("a7da489976d0047490617adb4f7a1f27f7af8b52a5176fd002ffe471863520ab")
 	headerMap := map[string]interface{}{
-		jws.AlgorithmKey:      jwa.ES256,
-		jws.ContentTypeKey:    "foo/bar",
-		jws.CriticalKey:       []string{signingTimeHeader, versionHeader, previousHeader},
-		signingTimeHeader:     time.Now().UTC().Unix(),
-		versionHeader:         1,
-		previousHeader:        []string{prev.String()},
-		timelineIDHeader:      timelineID.String(),
-		timelineVersionHeader: 1,
+		jws.AlgorithmKey:   jwa.ES256,
+		jws.ContentTypeKey: "foo/bar",
+		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader},
+		signingTimeHeader:  time.Now().UTC().Unix(),
+		versionHeader:      1,
+		previousHeader:     []string{prev.String()},
 	}
 	if embedKey {
 		keyAsJWS, _ := jwk.New(key.Public())

@@ -19,11 +19,12 @@
 package types
 
 import (
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCopy(t *testing.T) {
@@ -31,17 +32,14 @@ func TestCopy(t *testing.T) {
 	timeNow := time.Now()
 	timeLater := time.Now().Add(time.Hour * +24)
 	h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
-	hTime, _ := hash.ParseHex("542d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 
 	meta := DocumentMetadata{
 		Created:     timeBefore,
 		Updated:     &timeNow,
-		Version:     5,
-		TimelineID:  hTime,
 		Hash:        h,
 		Deactivated: false,
 	}
-	numFields := 6
+	numFields := 4
 
 	t.Run("returns error if metadata can be manipulated", func(t *testing.T) {
 		var metaCopy DocumentMetadata

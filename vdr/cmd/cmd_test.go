@@ -24,14 +24,15 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
@@ -126,7 +127,6 @@ func TestEngine_Command(t *testing.T) {
 				return
 			}
 			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
-			assert.Contains(t, buf.String(), "version")
 			assert.Empty(t, errBuf.Bytes())
 		})
 
@@ -139,7 +139,6 @@ func TestEngine_Command(t *testing.T) {
 				return
 			}
 			assert.NotContains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
-			assert.Contains(t, buf.String(), "version")
 			assert.Empty(t, errBuf.Bytes())
 		})
 

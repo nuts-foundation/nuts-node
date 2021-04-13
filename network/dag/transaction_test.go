@@ -65,17 +65,14 @@ func TestNewTransaction(t *testing.T) {
 
 func Test_transaction_Getters(t *testing.T) {
 	payload, _ := hash2.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
-	timelineID, _ := hash2.ParseHex("f33b5cae968cb88f157999b3551ab0863d2a8f0b")
 	prev1, _ := hash2.ParseHex("3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986")
 	prev2, _ := hash2.ParseHex("b3f2c3c396da1a949d214e4c2fe0fc9fb5f2a68ff1860df4ef10c9835e62e7c1")
 	tx := transaction{
-		prevs:           []hash2.SHA256Hash{prev1, prev2},
-		payload:         payload,
-		payloadType:     "foo/bar",
-		signingTime:     time.Unix(1023323333, 0),
-		version:         10,
-		timelineID:      timelineID,
-		timelineVersion: 10,
+		prevs:       []hash2.SHA256Hash{prev1, prev2},
+		payload:     payload,
+		payloadType: "foo/bar",
+		signingTime: time.Unix(1023323333, 0),
+		version:     10,
 	}
 	tx.setData([]byte{1, 2, 3})
 
@@ -84,8 +81,6 @@ func Test_transaction_Getters(t *testing.T) {
 	assert.Equal(t, tx.payloadType, tx.PayloadType())
 	assert.Equal(t, tx.signingTime, tx.SigningTime())
 	assert.Equal(t, tx.version, tx.Version())
-	assert.Equal(t, tx.timelineID, tx.TimelineID())
-	assert.Equal(t, tx.timelineVersion, tx.TimelineVersion())
 	assert.Equal(t, tx.data, tx.Data())
 	assert.False(t, tx.Ref().Empty())
 }

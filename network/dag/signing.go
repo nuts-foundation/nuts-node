@@ -89,13 +89,6 @@ func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time
 		headerMap[jws.KeyIDKey] = d.kid
 	}
 
-	if !input.TimelineID().Empty() {
-		headerMap[timelineIDHeader] = input.TimelineID()
-		if input.TimelineVersion() > 0 {
-			headerMap[timelineVersionHeader] = input.TimelineVersion()
-		}
-	}
-
 	data, err := d.signer.SignJWS([]byte(input.PayloadHash().String()), headerMap, d.kid)
 	if err != nil {
 		return nil, fmt.Errorf(errSigningTransactionFmt, err)
