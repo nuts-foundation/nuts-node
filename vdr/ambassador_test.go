@@ -20,6 +20,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -208,6 +209,7 @@ func Test_ambassador_callback(t *testing.T) {
 		var rawKey crypto2.PublicKey
 		signingKey.Raw(&rawKey)
 
+		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 		didStoreMock.EXPECT().Write(expectedDocument, expectedMetadata)
 
 		err = am.callback(subDoc, didDocPayload)
@@ -251,6 +253,7 @@ func Test_ambassador_callback(t *testing.T) {
 			Hash:    payloadHash,
 		}
 
+		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 		didStoreMock.EXPECT().Write(expectedDocument, expectedMetadata)
 
 		err = am.callback(subDoc, didDocPayload)
@@ -384,7 +387,7 @@ func Test_ambassador_callback(t *testing.T) {
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
-		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&storedDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(3).Return(&storedDocument, currentMetadata, nil)
 		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.Authentication[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
 
@@ -436,7 +439,7 @@ func Test_ambassador_callback(t *testing.T) {
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
-		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(3).Return(&expectedDocument, currentMetadata, nil)
 		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.Authentication[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
