@@ -33,7 +33,7 @@ type DocResolver interface {
 	// Resolve returns a DID Document for the provided DID.
 	// If metadata is not provided the latest version is returned.
 	// If metadata is provided then the result is filtered or scoped on that metadata.
-	// It returns ErrNotFound if there are corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata
+	// It returns ErrNotFound if there are no corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata
 	Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error)
 }
 

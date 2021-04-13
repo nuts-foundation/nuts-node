@@ -93,7 +93,12 @@ func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) erro
 		return fmt.Errorf("callback could not process new DID Document, DID Document integrity check failed: %w", err)
 	}
 
-	if isUpdate(tx) {
+	isUpdate, err := n.isUpdate(nextDIDDocument)
+	if err != nil {
+		return fmt.Errorf("callback could not process new DID Document, failed to resolve current DID Document: %w", err)
+	}
+
+	if isUpdate {
 		return n.handleUpdateDIDDocument(tx, nextDIDDocument)
 	}
 	return n.handleCreateDIDDocument(tx, nextDIDDocument)
@@ -101,6 +106,9 @@ func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) erro
 
 func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
 	// Check if the transaction was signed by the same key as is embedded in the DID Document`s authenticationMethod:
+	if transaction.SigningKey() == nil {
+		return fmt.Errorf("callback could not process new DID Document: signingKey for new DID Documents must be set")
+	}
 
 	// Create key thumbprint from the transactions signingKey embedded in the header
 	signingKeyThumbprint, err := transaction.SigningKey().Thumbprint(thumbprintAlg)
@@ -124,10 +132,8 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	}
 
 	documentMetadata := types.DocumentMetadata{
-		Created:    transaction.SigningTime(),
-		Version:    newDocumentVersion,
-		TimelineID: transaction.Ref(),
-		Hash:       transaction.PayloadHash(),
+		Created: transaction.SigningTime(),
+		Hash:    transaction.PayloadHash(),
 	}
 	return n.didStore.Write(proposedDIDDocument, documentMetadata)
 }
@@ -137,13 +143,6 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
 	if err != nil {
 		return fmt.Errorf("unable to update did document: %w", err)
-	}
-	// Check if the new document is actual newer by comparing timeline versions
-	if currentDIDMeta.Version >= document.TimelineVersion() {
-		return fmt.Errorf("unable to update did document: timeline version of current document is greater or equal to the new version")
-	}
-	if !currentDIDMeta.TimelineID.Equals(document.TimelineID()) {
-		return fmt.Errorf("timelineIDs of new and current DID documents must match")
 	}
 
 	// Resolve controllers of current version (could be the same document)
@@ -201,8 +200,6 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 	documentMetadata := types.DocumentMetadata{
 		Created:     currentDIDMeta.Created,
 		Updated:     &updatedAt,
-		Version:     document.TimelineVersion(),
-		TimelineID:  document.TimelineID(),
 		Hash:        document.PayloadHash(),
 		Deactivated: isDeactivated(&proposedDIDDocument),
 	}
@@ -226,32 +223,6 @@ func checkSubscriberTransactionIntegrity(transaction dag.SubscriberTransaction) 
 	// Signing time should be set and lay in the past:
 	if transaction.SigningTime().IsZero() || transaction.SigningTime().After(time.Now()) {
 		return fmt.Errorf("signingTime must be set and in the past")
-	}
-
-	if isUpdate(transaction) {
-		// For a DID Document update TimelineID must be set
-		if transaction.TimelineID().Empty() {
-			return fmt.Errorf("timelineID must be set for updates")
-		}
-
-		if transaction.TimelineVersion() <= newDocumentVersion {
-			return fmt.Errorf("timelineVersion for updates must be greater than %d", newDocumentVersion)
-		}
-
-	} else {
-		// For a new DID Document TimelineID must be nil
-		if !transaction.TimelineID().Empty() {
-			return fmt.Errorf("timelineID for new documents must be absent")
-		}
-
-		if transaction.TimelineVersion() != newDocumentVersion {
-			return fmt.Errorf("timelineVersion for new documents must be absent or equal to %d", newDocumentVersion)
-		}
-
-		// For new DID Documents the signing key must be embedded in the network transaction
-		if transaction.SigningKey() == nil {
-			return fmt.Errorf("signingKey for new DID Documents must be set")
-		}
 	}
 
 	return nil
@@ -313,8 +284,19 @@ func verifyDocumentEntryID(owner did.DID, entryID ssi.URI, knownIDs map[string]b
 	return nil
 }
 
-func isUpdate(transaction dag.SubscriberTransaction) bool {
-	return !transaction.TimelineID().Empty()
+func (n ambassador) isUpdate(doc did.Document) (bool, error) {
+	_, _, err := n.didStore.Resolve(doc.ID, nil)
+	result := true
+
+	if err == types.ErrNotFound {
+		return false, nil
+	}
+
+	if err != nil {
+		result = false
+	}
+
+	return result, err
 }
 
 // resolveDIDControllers tries to resolve the controllers for a given DID Document

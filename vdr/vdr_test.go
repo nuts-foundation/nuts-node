@@ -50,13 +50,10 @@ func TestVDR_Update(t *testing.T) {
 			Hash:             &currentHash,
 			AllowDeactivated: true,
 		}
-		resolvedMetadata := types.DocumentMetadata{
-			TimelineID: hash.SHA256Sum([]byte("timeline")),
-			Version:    1,
-		}
+		resolvedMetadata := types.DocumentMetadata{}
 		expectedPayload, _ := json.Marshal(nextDIDDocument)
 		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any(), gomock.Any())
+		networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any())
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
 		assert.NoError(t, err)
 	})
@@ -77,10 +74,7 @@ func TestVDR_Update(t *testing.T) {
 			Hash:             &currentHash,
 			AllowDeactivated: true,
 		}
-		resolvedMetadata := types.DocumentMetadata{
-			TimelineID: hash.SHA256Sum([]byte("timeline")),
-			Version:    1,
-		}
+		resolvedMetadata := types.DocumentMetadata{}
 		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
 		assert.EqualError(t, err, "the DID document has been deactivated")
@@ -118,7 +112,7 @@ func TestVDR_Update(t *testing.T) {
 		currentDIDDocument := nextDIDDocument
 		currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
 		didStoreMock.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
-		networkMock.EXPECT().CreateTransaction(gomock.Any(), gomock.Any(), gomock.Any(), nil, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, crypto.ErrKeyNotFound)
+		networkMock.EXPECT().CreateTransaction(gomock.Any(), gomock.Any(), gomock.Any(), nil, gomock.Any()).Return(nil, crypto.ErrKeyNotFound)
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "DID document not managed by this node")

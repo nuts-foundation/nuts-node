@@ -35,7 +35,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
@@ -131,7 +131,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		Hash:             &current,
 		AllowDeactivated: true,
 	}
-	currentDIDDocument, meta, err := r.store.Resolve(id, resolverMetadata)
+	currentDIDDocument, _, err := r.store.Resolve(id, resolverMetadata)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	}
 
 	keyID := controllers[0].Authentication[0].ID.String()
-	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now(), dag.TimelineIDField(meta.TimelineID), dag.TimelineVersionField(meta.Version+1))
+	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now())
 	if err == nil {
 		logging.Log().Infof("DID Document updated (DID=%s)", id)
 	} else {

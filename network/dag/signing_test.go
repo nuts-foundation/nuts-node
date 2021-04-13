@@ -77,13 +77,4 @@ func TestTransactionSigner(t *testing.T) {
 		assert.Nil(t, signedTransaction2)
 		assert.EqualError(t, err, "transaction is already signed")
 	})
-	t.Run("tid en tiv set", func(t *testing.T) {
-		tid := hash2.SHA256Sum([]byte("!!!"))
-		tiv := 2
-		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs, TimelineIDField(tid), TimelineVersionField(tiv))
-		signedTransaction, err := NewTransactionSigner(crypto.NewTestSigner(), kid).Sign(tx, time.Now())
-		assert.NoError(t, err)
-		assert.Equal(t, tid, signedTransaction.TimelineID())
-		assert.Equal(t, tiv, signedTransaction.TimelineVersion())
-	})
 }
