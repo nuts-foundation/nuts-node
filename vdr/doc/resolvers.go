@@ -102,7 +102,7 @@ func (r KeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
 	return ssi.URI{}, types.ErrKeyNotFound
 }
 
-func (r KeyResolver) ResolvePublicKey(kid string, validAt time.Time) (crypto.PublicKey, error) {
+func (r KeyResolver) ResolvePublicKey(kid string, validAt *time.Time) (crypto.PublicKey, error) {
 	did, err := did.ParseDID(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)
@@ -110,7 +110,7 @@ func (r KeyResolver) ResolvePublicKey(kid string, validAt time.Time) (crypto.Pub
 	didCopy := *did
 	didCopy.Fragment = ""
 	doc, _, err := r.Store.Resolve(didCopy, &types.ResolveMetadata{
-		ResolveTime: &validAt,
+		ResolveTime: validAt,
 	})
 	if err != nil {
 		return nil, err

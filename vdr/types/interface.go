@@ -81,7 +81,7 @@ type KeyResolver interface {
 	// ResolvePublicKey loads the key from a DID Document
 	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
 	// It returns ErrNotFound when the DID Document can't be found.
-	ResolvePublicKey(kid string, validAt time.Time) (crypto.PublicKey, error)
+	ResolvePublicKey(kid string, validAt *time.Time) (crypto.PublicKey, error)
 }
 
 // Store is the interface that groups all low level VDR DID storage operations.

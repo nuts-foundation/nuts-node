@@ -31,7 +31,8 @@ func (d transactionVerifier) Verify(input Transaction) error {
 			return err
 		}
 	} else {
-		pk, err := d.resolver.ResolvePublicKey(input.SigningKeyID(), input.SigningTime())
+		signingTime := input.SigningTime()
+		pk, err := d.resolver.ResolvePublicKey(input.SigningKeyID(), &signingTime)
 		if err != nil {
 			return fmt.Errorf("unable to verify transaction signature, can't resolve key (kid=%s): %w", input.SigningKeyID(), err)
 		}

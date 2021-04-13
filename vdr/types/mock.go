@@ -205,7 +205,7 @@ func (mr *MockKeyResolverMockRecorder) ResolveAssertionKeyID(id interface{}) *go
 }
 
 // ResolvePublicKey mocks base method.
-func (m *MockKeyResolver) ResolvePublicKey(kid string, validAt time.Time) (crypto.PublicKey, error) {
+func (m *MockKeyResolver) ResolvePublicKey(kid string, validAt *time.Time) (crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolvePublicKey", kid, validAt)
 	ret0, _ := ret[0].(crypto.PublicKey)
@@ -352,20 +352,6 @@ func (m *MockVDR) Create() (*did.Document, error) {
 func (mr *MockVDRMockRecorder) Create() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create))
-}
-
-// Store mocks base method.
-func (m *MockVDR) Store() Store {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Store")
-	ret0, _ := ret[0].(Store)
-	return ret0
-}
-
-// Store indicates an expected call of Store.
-func (mr *MockVDRMockRecorder) Store() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Store", reflect.TypeOf((*MockVDR)(nil).Store))
 }
 
 // Update mocks base method.

@@ -31,18 +31,18 @@ type StaticKeyResolver struct {
 	Key crypto.PublicKey
 }
 
-func (s StaticKeyResolver) ResolvePublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
+func (s StaticKeyResolver) ResolvePublicKey(_ string, _ *time.Time) (crypto.PublicKey, error) {
 	return s.Key, nil
 }
 
-func (s StaticKeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
+func (s StaticKeyResolver) ResolveSigningKeyID(_ did.DID, _ *time.Time) (string, error) {
 	panic("implement me")
 }
 
-func (s StaticKeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
+func (s StaticKeyResolver) ResolveSigningKey(_ string, _ *time.Time) (crypto.PublicKey, error) {
 	panic("implement me")
 }
 
-func (s StaticKeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
+func (s StaticKeyResolver) ResolveAssertionKeyID(_ did.DID) (ssi.URI, error) {
 	panic("implement me")
 }

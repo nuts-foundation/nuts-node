@@ -72,7 +72,6 @@ func TestResolveSigningKey(t *testing.T) {
 	})
 }
 
-
 func TestResolveSigningKeyID(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
@@ -155,6 +154,71 @@ func TestVDRKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 
 		_, err = keyResolver.ResolveAssertionKeyID(*did2)
 
+		assert.Equal(t, types.ErrKeyNotFound, err)
+	})
+}
+
+func TestResolver_Resolve(t *testing.T) {
+	didStore := store.NewMemoryStore()
+	resolver := Resolver{Store: didStore}
+	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
+	docCreator := Creator{KeyCreator: keyCreator}
+	doc, _ := docCreator.Create()
+	doc.AddAssertionMethod(doc.VerificationMethod[0])
+	didStore.Write(*doc, types.DocumentMetadata{})
+
+	t.Run("ok", func(t *testing.T) {
+		resultDoc, _, err := resolver.Resolve(doc.ID, nil)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, doc.ID, resultDoc.ID)
+	})
+}
+
+func TestKeyResolver_ResolvePublicKey(t *testing.T) {
+	didStore := store.NewMemoryStore()
+	keyResolver := KeyResolver{Store: didStore}
+	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
+	docCreator := Creator{KeyCreator: keyCreator}
+	doc, _ := docCreator.Create()
+	doc.AddAssertionMethod(doc.VerificationMethod[0])
+	didStore.Write(*doc, types.DocumentMetadata{})
+
+	t.Run("ok", func(t *testing.T) {
+		key, err := keyResolver.ResolvePublicKey(kid, nil)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.NotNil(t, key)
+	})
+
+	t.Run("error - invalid kid", func(t *testing.T) {
+		key, err := keyResolver.ResolvePublicKey("not_a_did", nil)
+
+		assert.Error(t, err)
+		assert.Nil(t, key)
+	})
+
+	t.Run("error - unknown did", func(t *testing.T) {
+		_, err := keyResolver.ResolvePublicKey("did:nuts:a", nil)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Equal(t, types.ErrNotFound, err)
+	})
+
+	t.Run("error - unknown key in document", func(t *testing.T) {
+		_, err := keyResolver.ResolvePublicKey(kid[:len(kid)-2], nil)
+
+		if !assert.Error(t, err) {
+			return
+		}
 		assert.Equal(t, types.ErrKeyNotFound, err)
 	})
 }

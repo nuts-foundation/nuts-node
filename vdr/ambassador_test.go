@@ -392,7 +392,7 @@ func Test_ambassador_callback(t *testing.T) {
 		signingKey.Raw(&pKey)
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&storedDocument, currentMetadata, nil)
-		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.Authentication[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
 
 		err = am.callback(subDoc, didDocPayload)
@@ -450,7 +450,7 @@ func Test_ambassador_callback(t *testing.T) {
 		signingKey.Raw(&pKey)
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
-		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.Authentication[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
 		err = am.callback(subDoc, didDocPayload)
@@ -645,7 +645,7 @@ func Test_ambassador_callback(t *testing.T) {
 			didStoreMock.EXPECT().Resolve(didDocumentController.ID, nil).Times(1).Return(&expectedController, nil, nil),
 		)
 
-		keyStoreMock.EXPECT().ResolvePublicKey(didDocumentController.Authentication[0].ID.String(), subDoc.signingTime).Return(pKey, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(didDocumentController.Authentication[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
 		err = am.callback(subDoc, didDocPayload)
@@ -726,7 +726,7 @@ func Test_ambassador_callback(t *testing.T) {
 		// expect a resolve for the did documents controller
 		didStoreMock.EXPECT().Resolve(didDocumentController.ID, nil).Times(1).Return(&expectedController, nil, nil)
 
-		keyStoreMock.EXPECT().ResolvePublicKey(keyID, subDoc.signingTime).Return(pKey, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(keyID, &subDoc.signingTime).Return(pKey, nil)
 
 		err = am.callback(subDoc, didDocPayload)
 		assert.EqualError(t, err, "network document not signed by one of its controllers")
