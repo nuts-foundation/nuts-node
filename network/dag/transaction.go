@@ -74,6 +74,7 @@ type NetworkHeader interface {
 
 // SubscriberTransaction contains a subset of the Transaction methods which are only relevant to subscribers.
 type SubscriberTransaction interface {
+	NetworkHeader
 	Signable
 	Referenceable
 	PayloadReferencer

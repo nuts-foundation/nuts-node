@@ -24,6 +24,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
+// AnyPayloadType is a wildcard that matches with any payload type.
+const AnyPayloadType = "*"
+
 var errRootAlreadyExists = errors.New("root transaction already exists")
 
 // DAG is a directed acyclic graph consisting of nodes (transactions) referring to preceding nodes.
@@ -56,7 +59,8 @@ type DAG interface {
 // Publisher defines the interface for types that publish Nuts Network transactions.
 type Publisher interface {
 	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
-	//the `receiver` function is called.
+	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
+	// to all payload types.
 	Subscribe(payloadType string, receiver Receiver)
 	// Start starts the publisher.
 	Start()

@@ -43,6 +43,7 @@ type protocol struct {
 	// Cache statistics to avoid having to lock precious resources
 	peerConsistencyHashStatistic peerConsistencyHashStatistic
 	newPeerHashChannel           chan PeerHash
+	blox                         *DAGBlocks
 
 	advertHashesInterval time.Duration
 	// peerID contains our own peer ID which can be logged for debugging purposes
@@ -60,6 +61,7 @@ func NewProtocol() Protocol {
 		peerHashes:                   make(map[p2p.PeerID][]hash.SHA256Hash),
 		newPeerHashChannel:           make(chan PeerHash, 100),
 		peerConsistencyHashStatistic: newPeerConsistencyHashStatistic(),
+		blox:                         NewDAGBlocks(3),
 	}
 	return p
 }

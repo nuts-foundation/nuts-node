@@ -30,10 +30,11 @@ import (
 
 func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.AdvertHashes) {
 	log.Logger().Tracef("Received adverted hash from peer: %s", peer)
-	peerHeads := make([]hash.SHA256Hash, len(advertHash.Hashes))
-	for i, h := range advertHash.Hashes {
-		peerHeads[i] = hash.FromSlice(h)
-	}
+	// TODO
+	peerHeads := []hash.SHA256Hash{}//make([]hash.SHA256Hash, len(advertHash.Hashes))
+	//for i, h := range advertHash.Hashes {
+	//	peerHeads[i] = hash.FromSlice(h)
+	//}
 	peerHash := PeerHash{
 		Peer:   peer,
 		Hashes: peerHeads,
@@ -81,7 +82,7 @@ func (p protocol) advertHashes() {
 		slices[i] = head.Slice()
 	}
 	log.Logger().Tracef("Broadcasting heads: %v", heads)
-	msg.Message = &transport.NetworkMessage_AdvertHashes{AdvertHashes: &transport.AdvertHashes{Hashes: slices}}
+	msg.Message = &transport.NetworkMessage_AdvertHashes{AdvertHashes: &transport.AdvertHashes{}} // TODO
 	p.p2pNetwork.Broadcast(&msg)
 }
 
@@ -121,6 +122,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer p2p.PeerID, query *transpo
 			return err
 		}
 	} else {
+		// TODO: Send empty response message when we don't have the payload
 		log.Logger().Infof("Peer queried us for transaction payload, but seems like we don't have it (peer=%s,payloadHash=%s)", peer, payloadHash)
 	}
 	return nil

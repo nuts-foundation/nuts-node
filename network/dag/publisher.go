@@ -69,10 +69,6 @@ func (s *replayingDAGPublisher) publish(startAt hash.SHA256Hash) {
 }
 
 func (s *replayingDAGPublisher) publishTransaction(transaction Transaction) bool {
-	receiver := s.subscribers[transaction.PayloadType()]
-	if receiver == nil {
-		return true
-	}
 	payload, err := s.payloadStore.ReadPayload(transaction.PayloadHash())
 	if err != nil {
 		log.Logger().Errorf("Unable to read payload to publish DAG: (ref=%s) %v", transaction.Ref(), err)
@@ -82,8 +78,16 @@ func (s *replayingDAGPublisher) publishTransaction(transaction Transaction) bool
 		// We haven't got the payload, break of processing for this branch
 		return false
 	}
-	if err := receiver(transaction, payload); err != nil {
-		log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
+	callSubscribers := func(subscribedType string) {
+		receiver := s.subscribers[subscribedType]
+		if receiver == nil {
+			return
+		}
+		if err := receiver(transaction, payload); err != nil {
+			log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
+		}
 	}
+	callSubscribers(transaction.PayloadType())
+	callSubscribers(AnyPayloadType)
 	return true
 }
