@@ -96,7 +96,12 @@ func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) erro
 		return fmt.Errorf("callback could not process new DID Document, DID Document integrity check failed: %w", err)
 	}
 
-	if n.isUpdate(nextDIDDocument) {
+	isUpdate, err := n.isUpdate(nextDIDDocument)
+	if err != nil {
+		return fmt.Errorf("callback could not process new DID Document, failed to resolve current DID Document: %w", err)
+	}
+
+	if isUpdate {
 		return n.handleUpdateDIDDocument(tx, nextDIDDocument)
 	}
 	return n.handleCreateDIDDocument(tx, nextDIDDocument)
@@ -325,10 +330,19 @@ func verifyDocumentEntryID(owner did.DID, entryID ssi.URI, knownIDs map[string]b
 	return nil
 }
 
-func (n ambassador) isUpdate(doc did.Document) bool {
+func (n ambassador) isUpdate(doc did.Document) (bool, error) {
 	_, _, err := n.didStore.Resolve(doc.ID, nil)
+	result := true
 
-	return err == nil
+	if err == types.ErrNotFound {
+		return false, nil
+	}
+
+	if err != nil {
+		result = false
+	}
+
+	return result, err
 }
 
 // resolveDIDControllers tries to resolve the controllers for a given DID Document
