@@ -160,7 +160,7 @@ func CreateSystem() *core.System {
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, keyResolver, networkInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance.Store(), credentialInstance, cryptoInstance)
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), store, credentialInstance, cryptoInstance)
 
 	// add engine specific routes
 	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})

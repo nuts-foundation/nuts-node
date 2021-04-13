@@ -95,10 +95,6 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{}
 }
 
-func (r VDR) Store() types.Store {
-	return r.store
-}
-
 // Create generates a new DID Document
 func (r VDR) Create() (*did.Document, error) {
 	logging.Log().Debug("Creating new DID Document.")
