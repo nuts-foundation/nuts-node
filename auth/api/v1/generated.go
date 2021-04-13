@@ -92,7 +92,7 @@ type CreateJwtBearerTokenRequest struct {
 	// Base64 encoded IRMA contract conaining the identity of the performer
 	Identity string `json:"identity"`
 
-	// For which service can the access token be used? The right endpoint is selected based on the service.
+	// The service for which this access-token can be used. The right ouath endpoint is selected based on the service.
 	Service string  `json:"service"`
 	Subject *string `json:"subject,omitempty"`
 }

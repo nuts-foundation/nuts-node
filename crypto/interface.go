@@ -50,17 +50,8 @@ type KeyCreator interface {
 	New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error)
 }
 
-// KeyResolver defines the functions for retrieving keys.
-type KeyResolver interface {
-	// GetPublicKey returns the PublicKey if it was valid on the given validationTime
-	// If a key is missing, a ErrKeyNotFound is returned.
-	GetPublicKey(kid string, validationTime time.Time) (crypto.PublicKey, error)
-}
-
 // PublicKeyStore defines the functions for retrieving and storing public keys.
 type PublicKeyStore interface {
-	KeyResolver
-
 	// AddPublicKey stores a public key with a given kid and valid from date
 	// The valid from determines the start of the period this key is valid
 	// It returns an ErrKeyAlreadyExists if the key already exists

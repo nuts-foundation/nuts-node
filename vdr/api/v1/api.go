@@ -22,8 +22,9 @@ package v1
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
 	"net/http"
+
+	"github.com/nuts-foundation/go-did/did"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -35,6 +36,7 @@ import (
 type Wrapper struct {
 	VDR            types.VDR
 	DocManipulator types.DocManipulator
+	DocResolver    types.DocResolver
 }
 
 // DeleteVerificationMethod accepts a DID and a KeyIdentifier of a verificationMethod and calls the DocManipulator
@@ -95,7 +97,7 @@ func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
 	}
 
 	// no params in the API for now
-	doc, meta, err := a.VDR.Resolve(*d, nil)
+	doc, meta, err := a.DocResolver.Resolve(*d, nil)
 	if err != nil {
 		if errors.Is(err, types.ErrNotFound) {
 			return ctx.NoContent(http.StatusNotFound)

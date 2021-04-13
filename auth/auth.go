@@ -12,7 +12,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -28,7 +28,7 @@ type Auth struct {
 	contractClient services.ContractClient
 	contractNotary services.ContractNotary
 	keyStore       crypto.KeyStore
-	registry       types.VDR
+	registry       types.Store
 	vcr            vcr.VCR
 }
 
@@ -53,7 +53,7 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, registry types.VDR, vcr vcr.VCR, keyStore crypto.KeyStore) *Auth {
+func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.KeyStore) *Auth {
 	return &Auth{
 		config:   config,
 		registry: registry,
@@ -97,7 +97,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		ContractValidators:    auth.config.ContractValidators,
 	}
 	nameResolver := auth.vcr
-	keyResolver := vdr.KeyResolver{DocResolver: auth.registry}
+	keyResolver := doc.KeyResolver{Store: auth.registry}
 	auth.contractClient = validator.NewContractInstance(cfg, keyResolver, auth.vcr, auth.keyStore)
 	auth.contractNotary = contract.NewContractNotary(nameResolver, keyResolver, auth.keyStore, contractValidity)
 	if err := auth.contractClient.Configure(); err != nil {

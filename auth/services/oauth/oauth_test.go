@@ -630,7 +630,7 @@ var createContext = func(t *testing.T) *testContext {
 		nameResolver:       nameResolver,
 		didResolver:        didResolver,
 		oauthService: &service{
-			didResolver:     didResolver,
+			docResolver:     didResolver,
 			keyResolver:     keyResolver,
 			contractClient:  contractClientMock,
 			privateKeyStore: privateKeyStore,

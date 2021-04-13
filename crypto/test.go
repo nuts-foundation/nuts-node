@@ -30,14 +30,6 @@ func StringNamingFunc(name string) KIDNamingFunc {
 	}
 }
 
-type StaticKeyResolver struct {
-	Key crypto.PublicKey
-}
-
-func (s StaticKeyResolver) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
-	return s.Key, nil
-}
-
 func NewTestSigner() *TestSigner {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return &TestSigner{Key: key}

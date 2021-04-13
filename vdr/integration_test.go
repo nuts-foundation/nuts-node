@@ -1,15 +1,15 @@
 package vdr
 
 import (
-	"errors"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"testing"
-	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
@@ -44,14 +44,20 @@ func TestVDRIntegration_Test(t *testing.T) {
 	nutsCrypto := crypto.NewCryptoInstance()
 	nutsCrypto.Configure(nutsConfig)
 
+	// DID Store
+	didStore := store.NewMemoryStore()
+
 	// Startup the network layer
-	nutsNetwork := network.NewNetworkInstance(network.DefaultConfig(), nutsCrypto)
+	nutsNetwork := network.NewNetworkInstance(network.DefaultConfig(), nutsCrypto, doc.KeyResolver{Store: didStore})
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
 
 	// Init the VDR
-	vdr := NewVDR(DefaultConfig(), nutsCrypto, nutsNetwork)
+	vdr := NewVDR(DefaultConfig(), nutsCrypto, nutsNetwork, didStore)
 	vdr.Configure(nutsConfig)
+
+	// DocResolver
+	docResolver := doc.Resolver{Store: didStore}
 
 	// === End of setup ===
 
@@ -65,7 +71,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docAID := docA.ID
 
 	// Check if the document can be found in the store
-	docA, metadataDocA, err := vdr.Resolve(docA.ID, nil)
+	docA, metadataDocA, err := docResolver.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -73,14 +79,6 @@ func TestVDRIntegration_Test(t *testing.T) {
 	assert.NotNil(t, docA)
 	assert.NotNil(t, metadataDocA)
 	assert.Equal(t, docAID, docA.ID)
-
-	// Check if the public key is added to the store
-	docAAuthenticationKeyID := docA.Authentication[0].ID.String()
-	key, err := nutsCrypto.GetPublicKey(docAAuthenticationKeyID, time.Now())
-	assert.NoError(t, err,
-		"unable to get the public key of document a from the keyStore")
-	assert.NotNil(t, key,
-		"key should be stored in the public key store")
 
 	// Try to update the document with a service
 	serviceID, _ := url.Parse(docA.ID.String() + "#service-1")
@@ -99,7 +97,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 
 	// Resolve the document and check it contents
-	docA, metadataDocA, err = vdr.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = docResolver.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err,
 		"unable to resolve updated document") {
 		return
@@ -116,7 +114,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 	assert.NotNil(t, docB,
 		"a new document should have been created")
-	resolvedDocB, metadataDocB, err := vdr.Resolve(docB.ID, nil)
+	resolvedDocB, metadataDocB, err := docResolver.Resolve(docB.ID, nil)
 	assert.NoError(t, err,
 		"unexpected error while resolving documentB")
 
@@ -132,7 +130,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 
 	// Resolve and check DocumentA
-	docA, metadataDocA, err = vdr.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = docResolver.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err,
 		"unable to resolve updated documentA") {
 		return
@@ -142,12 +140,6 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	assert.Empty(t, docA.Authentication,
 		"expected documentA to have no authenticationMethods")
-
-	// Check if the key has been removed from the keyStore
-	key, err = nutsCrypto.GetPublicKey(docAAuthenticationKeyID, time.Now())
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, crypto.ErrKeyRevoked),
-		"expected authenticationKey of documentA to be removed from the keyStore")
 
 	// Update and check DocumentA with a new service:
 	serviceID, _ = url.Parse(docA.ID.String() + "#service-2")
@@ -164,7 +156,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		return
 	}
 	// Resolve and check if the service has been added
-	docA, metadataDocA, err = vdr.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = docResolver.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err,
 		"unable to resolve updated documentA") {
 		return
@@ -178,7 +170,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// Update document B with a new authentication key which replaces the first one:
 	oldAuthKeyDocB := resolvedDocB.Authentication[0].ID
-	docUpdater := DocUpdater{KeyCreator: nutsCrypto, VDR: *vdr}
+	docUpdater := DocUpdater{KeyCreator: nutsCrypto, VDR: *vdr, DocResolver: docResolver}
 	method, err := docUpdater.createNewVerificationMethodForDID(docB.ID)
 	assert.NoError(t, err)
 	assert.NotNil(t, method)
@@ -192,24 +184,19 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 
 	// Resolve document B and check if the key has been updated
-	resolvedDocB, metadataDocB, err = vdr.Resolve(docB.ID, nil)
+	resolvedDocB, metadataDocB, err = docResolver.Resolve(docB.ID, nil)
 	assert.NoError(t, err,
 		"expected DocumentB to be resolved without error")
 
 	assert.Len(t, resolvedDocB.Authentication, 1)
 	assert.NotEqual(t, oldAuthKeyDocB, resolvedDocB.Authentication[0].ID)
 
-	// Check if the key has been revoked from the keyStore
-	key, err = nutsCrypto.GetPublicKey(oldAuthKeyDocB.String(), time.Now())
-	assert.True(t, errors.Is(err, crypto.ErrKeyRevoked),
-		"expected authenticationKey of documentB to be removed from the keyStore")
-
 	// deactivate document B
 	err = docUpdater.Deactivate(docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
 
-	docB, metadataDocB, err = vdr.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
+	docB, metadataDocB, err = docResolver.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
 	assert.NoError(t, err)
 	assert.Len(t, docB.Authentication, 0,
 		"expected document B to not have any authentication methods after deactivation")

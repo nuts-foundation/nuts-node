@@ -31,7 +31,7 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -43,7 +43,7 @@ const errInvalidIssuerKeyFmt = "invalid jwt.issuer key ID: %w"
 const errInvalidSubjectFmt = "invalid jwt.subject: %w"
 
 type service struct {
-	didResolver     types.DocResolver
+	docResolver     types.DocResolver
 	conceptFinder   vcr.ConceptFinder
 	keyResolver     types.KeyResolver
 	privateKeyStore nutsCrypto.PrivateKeyStore
@@ -60,10 +60,10 @@ type validationContext struct {
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(didResolver types.DocResolver, conceptFinder vcr.ConceptFinder, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
+func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
 	return &service{
-		didResolver:     didResolver,
-		keyResolver:     vdr.KeyResolver{DocResolver: didResolver},
+		docResolver:     doc.Resolver{Store: store},
+		keyResolver:     doc.KeyResolver{Store: store},
 		contractClient:  contractClient,
 		conceptFinder:   conceptFinder,
 		privateKeyStore: privateKeyStore,
@@ -233,7 +233,7 @@ func (s *service) CreateJwtBearerToken(request services.CreateJwtBearerTokenRequ
 		return nil, err
 	}
 
-	endpointID, _, err := services.ResolveCompoundServiceURL(s.didResolver, *custodian, request.Service, services.OAuthEndpointType, nil)
+	endpointID, _, err := services.ResolveCompoundServiceURL(s.docResolver, *custodian, request.Service, services.OAuthEndpointType, nil)
 	if err != nil {
 		return nil, err
 	}

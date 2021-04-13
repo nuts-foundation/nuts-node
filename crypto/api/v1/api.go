@@ -21,17 +21,12 @@ package v1
 import (
 	"errors"
 	"fmt"
-	"mime"
 	"net/http"
-	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/jwk"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
 // Wrapper implements the generated interface from oapi-codegen
@@ -83,47 +78,4 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	}
 
 	return ctx.String(http.StatusOK, sig)
-}
-
-// PublicKey returns a public key for the given kid. The urn represents a legal entity. The api returns the public key either in PEM or JWK format.
-// It uses the accept header to determine this. Default is PEM (text/plain), only when application/json is requested will it return JWK.
-func (w *Wrapper) PublicKey(ctx echo.Context, kid string, params PublicKeyParams) error {
-	acceptHeader := ctx.Request().Header.Get(echo.HeaderAccept)
-
-	at := time.Now()
-	var err error
-	if params.At != nil {
-		at, err = time.Parse(time.RFC3339, *params.At)
-		if err != nil {
-			return core.NewProblem(problemTitlePublicKey, http.StatusBadRequest, fmt.Sprintf("cannot parse '%s' as RFC3339 time format", *params.At))
-		}
-	}
-
-	pubKey, err := w.C.GetPublicKey(kid, at)
-	if err != nil {
-		if errors.Is(err, crypto.ErrKeyNotFound) {
-			return core.NewProblem(problemTitlePublicKey, http.StatusNotFound, fmt.Sprintf("no public key found for %s", kid))
-		}
-		log.Logger().Error(err.Error())
-		return core.NewProblem(problemTitlePublicKey, http.StatusInternalServerError, err.Error())
-	}
-
-	if ct, _, _ := mime.ParseMediaType(acceptHeader); ct == "application/json" {
-		jwk, err := jwk.New(pubKey)
-		if err != nil {
-			log.Logger().Error(err.Error())
-			return core.NewProblem(problemTitlePublicKey, http.StatusInternalServerError, err.Error())
-		}
-
-		return ctx.JSON(http.StatusOK, jwk)
-	}
-
-	// backwards compatible PEM format is the default
-	pub, err := util.PublicKeyToPem(pubKey)
-	if err != nil {
-		log.Logger().Error(err.Error())
-		return core.NewProblem(problemTitlePublicKey, http.StatusInternalServerError, err.Error())
-	}
-
-	return ctx.String(http.StatusOK, pub)
 }

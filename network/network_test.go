@@ -34,17 +34,19 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/proto"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
 
 type networkTestContext struct {
-	network    *Network
-	p2pNetwork *p2p.MockP2PNetwork
-	protocol   *proto.MockProtocol
-	graph      *dag.MockDAG
-	payload    *dag.MockPayloadStore
-	keyStore   *crypto.MockKeyStore
-	publisher  *dag.MockPublisher
+	network     *Network
+	p2pNetwork  *p2p.MockP2PNetwork
+	protocol    *proto.MockProtocol
+	graph       *dag.MockDAG
+	payload     *dag.MockPayloadStore
+	keyStore    *crypto.MockKeyStore
+	publisher   *dag.MockPublisher
+	keyResolver *types.MockKeyResolver
 }
 
 func TestNetwork_ListTransactions(t *testing.T) {
@@ -323,20 +325,22 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	networkConfig.PublicAddr = "foo:8080"
 	networkConfig.EnableTLS = true
 	keyStore := crypto.NewMockKeyStore(ctrl)
-	network := NewNetworkInstance(networkConfig, keyStore)
+	keyResolver := types.NewMockKeyResolver(ctrl)
+	network := NewNetworkInstance(networkConfig, keyStore, keyResolver)
 	network.p2pNetwork = p2pNetwork
 	network.protocol = protocol
 	network.graph = graph
 	network.payloadStore = payload
 	network.publisher = publisher
 	return &networkTestContext{
-		network:    network,
-		p2pNetwork: p2pNetwork,
-		protocol:   protocol,
-		graph:      graph,
-		payload:    payload,
-		publisher:  publisher,
-		keyStore:   keyStore,
+		network:     network,
+		p2pNetwork:  p2pNetwork,
+		protocol:    protocol,
+		graph:       graph,
+		payload:     payload,
+		publisher:   publisher,
+		keyStore:    keyStore,
+		keyResolver: keyResolver,
 	}
 }
 

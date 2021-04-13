@@ -1,6 +1,6 @@
 /*
  * Nuts node
- * Copyright (C) 2021. Nuts community
+ * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,26 +14,35 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
  */
 
-package cmd
+package doc
 
 import (
-	"fmt"
+	"crypto"
+	"time"
 
-	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/spf13/pflag"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 )
 
-// ConfigStorage is used as --crypto.storage config flag
-const ConfigStorage string = "crypto.storage"
+type StaticKeyResolver struct {
+	Key crypto.PublicKey
+}
 
-// FlagSet returns the configuration flags for crypto
-func FlagSet() *pflag.FlagSet {
-	flags := pflag.NewFlagSet("crypto", pflag.ContinueOnError)
+func (s StaticKeyResolver) ResolvePublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
+	return s.Key, nil
+}
 
-	defs := crypto2.DefaultCryptoConfig()
-	flags.String(ConfigStorage, defs.Storage, fmt.Sprintf("Storage to use, 'fs' for file system, default: %s", defs.Storage))
+func (s StaticKeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
+	panic("implement me")
+}
 
-	return flags
+func (s StaticKeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
+	panic("implement me")
+}
+
+func (s StaticKeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
+	panic("implement me")
 }

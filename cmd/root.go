@@ -29,6 +29,8 @@ import (
 	authAPI "github.com/nuts-foundation/nuts-node/auth/api/v1"
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core/status"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -149,18 +151,22 @@ func CreateSystem() *core.System {
 	system := core.NewSystem()
 	// Create instances
 	cryptoInstance := crypto.NewCryptoInstance()
-	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), cryptoInstance)
-	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance)
-	keyResolver := vdr.KeyResolver{DocResolver: vdrInstance}
+	store := store.NewMemoryStore()
+	keyResolver := doc.KeyResolver{Store: store}
+	docResolver := doc.Resolver{Store: store}
+
+	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), cryptoInstance, keyResolver)
+	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, store)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, keyResolver, networkInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, credentialInstance, cryptoInstance)
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance.Store(), credentialInstance, cryptoInstance)
 
 	// add engine specific routes
 	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})
 	system.RegisterRoutes(&networkApi.Wrapper{Service: networkInstance})
-	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance, DocManipulator: vdr.DocUpdater{VDR: vdrInstance, KeyCreator: cryptoInstance}})
+
+	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: vdr.DocUpdater{DocResolver: docResolver, VDR: vdrInstance, KeyCreator: cryptoInstance}})
 	system.RegisterRoutes(&credApi.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
@@ -191,7 +197,6 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 	// Register client commands
 	clientCommands := []*cobra.Command{
 		status.Cmd(),
-		cryptoCmd.Cmd(),
 		networkCmd.Cmd(),
 		vcrCmd.Cmd(),
 		vdrCmd.Cmd(),

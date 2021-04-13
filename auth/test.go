@@ -3,13 +3,13 @@ package auth
 import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 )
 
 func NewTestAuthInstance(testDirectory string) *Auth {
 	return NewAuthInstance(
 		TestConfig(),
-		vdr.NewTestVDRInstance(testDirectory),
+		store.NewMemoryStore(),
 		vcr.NewTestVCRInstance(testDirectory),
 		crypto.NewTestCryptoInstance(testDirectory),
 	)
