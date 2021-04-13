@@ -95,9 +95,6 @@ type Store interface {
 type VDR interface {
 	DocCreator
 	DocUpdater
-
-	// Store returns an initialized store
-	Store() Store
 }
 
 // DocManipulator groups several higher level methods to alter the state of a DID document.
