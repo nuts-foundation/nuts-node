@@ -354,6 +354,20 @@ func (mr *MockVDRMockRecorder) Create() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create))
 }
 
+// Store mocks base method.
+func (m *MockVDR) Store() Store {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Store")
+	ret0, _ := ret[0].(Store)
+	return ret0
+}
+
+// Store indicates an expected call of Store.
+func (mr *MockVDRMockRecorder) Store() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Store", reflect.TypeOf((*MockVDR)(nil).Store))
+}
+
 // Update mocks base method.
 func (m *MockVDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()
