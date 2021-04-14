@@ -17,9 +17,10 @@ package store
 
 import (
 	"encoding/json"
+	"sync"
+
 	"github.com/nuts-foundation/go-did/did"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-	"sync"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
@@ -67,7 +68,7 @@ type memoryEntry struct {
 }
 
 func (me memoryEntry) isDeactivated() bool {
-	return len(me.document.Controller) == 0 && len(me.document.Authentication) == 0
+	return len(me.document.Controller) == 0 && len(me.document.CapabilityInvocation) == 0
 }
 
 // Resolve implements the Resolver.

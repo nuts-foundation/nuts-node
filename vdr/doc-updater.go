@@ -74,6 +74,7 @@ func (u DocUpdater) RemoveVerificationMethod(id, keyID did.DID) error {
 		return errors.New("verificationMethod not found in document")
 	}
 
+	doc.CapabilityInvocation.Remove(keyID)
 	doc.Authentication.Remove(keyID)
 	doc.AssertionMethod.Remove(keyID)
 	return u.VDR.Update(id, meta.Hash, *doc, nil)

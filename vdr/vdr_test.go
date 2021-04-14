@@ -6,12 +6,10 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
-	"reflect"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
-
-	"github.com/sirupsen/logrus"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -39,11 +37,12 @@ func TestVDR_Update(t *testing.T) {
 		didStoreMock := types.NewMockStore(ctrl)
 		networkMock := network.NewMockTransactions(ctrl)
 		vdr := VDR{
-			store:   didStoreMock,
-			network: networkMock,
+			store:          didStoreMock,
+			didDocResolver: doc.Resolver{Store: didStoreMock},
+			network:        networkMock,
 		}
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
-		currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
+		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 
 		nextDIDDocument := did.Document{}
 		expectedResolverMetadata := &types.ResolveMetadata{
@@ -64,8 +63,9 @@ func TestVDR_Update(t *testing.T) {
 		didStoreMock := types.NewMockStore(ctrl)
 		networkMock := network.NewMockTransactions(ctrl)
 		vdr := VDR{
-			store:   didStoreMock,
-			network: networkMock,
+			store:          didStoreMock,
+			didDocResolver: doc.Resolver{Store: didStoreMock},
+			network:        networkMock,
 		}
 		currentDIDDocument := did.Document{ID: *id}
 
@@ -85,8 +85,9 @@ func TestVDR_Update(t *testing.T) {
 		didStoreMock := types.NewMockStore(ctrl)
 		networkMock := network.NewMockTransactions(ctrl)
 		vdr := VDR{
-			store:   didStoreMock,
-			network: networkMock,
+			store:          didStoreMock,
+			didDocResolver: doc.Resolver{Store: didStoreMock},
+			network:        networkMock,
 		}
 		nextDIDDocument := did.Document{}
 		expectedResolverMetadata := &types.ResolveMetadata{
@@ -105,12 +106,13 @@ func TestVDR_Update(t *testing.T) {
 		networkMock := network.NewMockTransactions(ctrl)
 
 		vdr := VDR{
-			store:   didStoreMock,
-			network: networkMock,
+			store:          didStoreMock,
+			didDocResolver: doc.Resolver{Store: didStoreMock},
+			network:        networkMock,
 		}
 		nextDIDDocument := did.Document{ID: *id}
 		currentDIDDocument := nextDIDDocument
-		currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
+		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		didStoreMock.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
 		networkMock.EXPECT().CreateTransaction(gomock.Any(), gomock.Any(), gomock.Any(), nil, gomock.Any()).Return(nil, crypto.ErrKeyNotFound)
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
@@ -141,7 +143,7 @@ func TestVDR_Create(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	nextDIDDocument.AddAuthenticationMethod(vm)
+	nextDIDDocument.AddCapabilityInvocation(vm)
 
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
 	didCreator.EXPECT().Create().Return(&nextDIDDocument, nil)
@@ -167,186 +169,4 @@ func TestVDR_Configure(t *testing.T) {
 	vdr := NewVDR(cfg, nil, tx, nil)
 	err := vdr.Configure(core.ServerConfig{})
 	assert.NoError(t, err)
-}
-
-func TestVDR_resolveControllers(t *testing.T) {
-	type fields struct {
-		config            Config
-		store             types.Store
-		network           network.Transactions
-		OnChange          func(registry *VDR)
-		networkAmbassador Ambassador
-		_logger           *logrus.Entry
-		didDocCreator     types.DocCreator
-		keyStore          crypto.KeyStore
-	}
-	type args struct {
-		input []did.Document
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []did.Document
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &VDR{
-				config:            tt.fields.config,
-				store:             tt.fields.store,
-				network:           tt.fields.network,
-				OnChange:          tt.fields.OnChange,
-				networkAmbassador: tt.fields.networkAmbassador,
-				_logger:           tt.fields._logger,
-				didDocCreator:     tt.fields.didDocCreator,
-				keyStore:          tt.fields.keyStore,
-			}
-			got, err := r.resolveControllers(tt.args.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("resolveControllers() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("resolveControllers() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestVDR_resolveControllers1(t *testing.T) {
-	id123, _ := did.ParseDID("did:nuts:123")
-	id123Method1, _ := did.ParseDID("did:nuts:123#method-1")
-	id456, _ := did.ParseDID("did:nuts:456")
-	id456Method1, _ := did.ParseDID("did:nuts:456#method-1")
-	t.Run("emtpy input", func(t *testing.T) {
-		sut := VDR{}
-		docs, err := sut.resolveControllers([]did.Document{})
-		assert.NoError(t, err)
-		assert.Len(t, docs, 0,
-			"expected an empty list")
-	})
-
-	t.Run("doc is its own controller", func(t *testing.T) {
-		sut := VDR{}
-		doc := did.Document{ID: *id123}
-		doc.AddAuthenticationMethod(&did.VerificationMethod{ID: *id123Method1})
-		docs, err := sut.resolveControllers([]did.Document{doc})
-		assert.NoError(t, err)
-		assert.Len(t, docs, 1,
-			"expected the document")
-		assert.Equal(t, doc, docs[0])
-	})
-
-	t.Run("doc is deactivated", func(t *testing.T) {
-		sut := VDR{}
-		doc := did.Document{ID: *id123}
-		docs, err := sut.resolveControllers([]did.Document{doc})
-		assert.NoError(t, err)
-		assert.Len(t, docs, 0,
-			"expected an empty list when the document is deactivated")
-	})
-
-	t.Run("docA is controller of docB", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		store := types.NewMockStore(ctrl)
-
-		sut := VDR{store: store}
-		docA := did.Document{ID: *id123}
-		docA.AddAuthenticationMethod(&did.VerificationMethod{ID: *id123Method1})
-
-		store.EXPECT().Resolve(*id123, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
-
-		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
-
-		docs, err := sut.resolveControllers([]did.Document{docB})
-		assert.NoError(t, err)
-		assert.Len(t, docs, 1)
-		assert.Equal(t, docA, docs[0],
-			"expected docA to be resolved as controller for docB")
-	})
-
-	t.Run("docA and docB are both the controllers of docB", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		store := types.NewMockStore(ctrl)
-
-		sut := VDR{store: store}
-		docA := did.Document{ID: *id123}
-		docA.AddAuthenticationMethod(&did.VerificationMethod{ID: *id123Method1})
-
-		store.EXPECT().Resolve(*id123, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
-
-		docB := did.Document{ID: *id456, Controller: []did.DID{*id123, *id456}}
-		docB.AddAuthenticationMethod(&did.VerificationMethod{ID: *id456Method1})
-
-		docs, err := sut.resolveControllers([]did.Document{docB})
-		assert.NoError(t, err)
-		assert.Len(t, docs, 2)
-		assert.Equal(t, []did.Document{docB, docA}, docs,
-			"expected docA and docB to be resolved as controller of docB")
-	})
-
-	t.Run("docA is controller of docB, docA has explicit self link in Controllers", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		store := types.NewMockStore(ctrl)
-
-		sut := VDR{store: store}
-		docA := did.Document{ID: *id123, Controller: []did.DID{*id123}}
-		docA.AddAuthenticationMethod(&did.VerificationMethod{ID: *id123Method1})
-
-		store.EXPECT().Resolve(*id123, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
-
-		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
-
-		docs, err := sut.resolveControllers([]did.Document{docB})
-		assert.NoError(t, err)
-		assert.Len(t, docs, 1)
-		assert.Equal(t, docA, docs[0],
-			"expected docA to be resolved as controller for docB")
-	})
-
-	t.Run("error - Resolve can not find the document", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		store := types.NewMockStore(ctrl)
-
-		sut := VDR{store: store}
-		store.EXPECT().Resolve(*id123, gomock.Any()).Return(nil, nil, types.ErrNotFound)
-
-		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
-
-		docs, err := sut.resolveControllers([]did.Document{docB})
-		assert.EqualError(t, err, "unable to resolve controllers: unable to find the DID document")
-		assert.Len(t, docs, 0)
-	})
-
-	t.Run("error - third controller could not be found", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		store := types.NewMockStore(ctrl)
-
-		sut := VDR{store: store}
-		id789, _ := did.ParseDID("did:nuts:789")
-		docA := did.Document{ID: *id123, Controller: []did.DID{*id456}}
-		docB := did.Document{ID: *id456, Controller: []did.DID{*id789}}
-
-		gomock.InOrder(
-			store.EXPECT().Resolve(*id456, gomock.Any()).Return(&docB, &types.DocumentMetadata{}, nil),
-			store.EXPECT().Resolve(*id789, gomock.Any()).Return(nil, nil, types.ErrNotFound),
-		)
-
-		docs, err := sut.resolveControllers([]did.Document{docA})
-		assert.EqualError(t, err, "unable to resolve controllers: unable to find the DID document")
-		assert.Len(t, docs, 0)
-	})
 }

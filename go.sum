@@ -450,6 +450,8 @@ github.com/nishanths/exhaustive v0.0.0-20200525081945-8e46705b6132 h1:NjznefjSrr
 github.com/nishanths/exhaustive v0.0.0-20200525081945-8e46705b6132/go.mod h1:wBEpHwM2OdmeNpdCvRPUlkEbBuaFmcK4Wv8Q7FuGW3c=
 github.com/nuts-foundation/go-did v0.0.0-20210331072910-c246e14ed80f h1:WB7Mx6Jyxr/uLEb3mGVuxXntjzHnHiNl+2pCPuHqOiY=
 github.com/nuts-foundation/go-did v0.0.0-20210331072910-c246e14ed80f/go.mod h1:Xqmd6ILZj41nNovodxnb4F+JgcKmIz+XGpLw6m6fZnU=
+github.com/nuts-foundation/go-did v0.0.0-20210406065435-ed072ef7b317 h1:CCG0I1W4WP7idYGHHjCNtpHLBQA3BWGMN/qIIJvheYU=
+github.com/nuts-foundation/go-did v0.0.0-20210406065435-ed072ef7b317/go.mod h1:Xqmd6ILZj41nNovodxnb4F+JgcKmIz+XGpLw6m6fZnU=
 github.com/nuts-foundation/go-leia v0.4.0 h1:BdjZ3k2Wi3d25TCJBWZlD0Il8ox3uHVWP1ECvSdd0BM=
 github.com/nuts-foundation/go-leia v0.4.0/go.mod h1:VMmOAg9I6kRUGY9eRNgeQqyj5vyx+oAteKWfVXzcTQs=
 github.com/nuts-foundation/go-leia v0.4.1 h1:BKmWhTkc9RzDGvJ1UeR99igiSx2JXVNaEYcNPO7bOyQ=

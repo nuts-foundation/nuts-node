@@ -51,6 +51,7 @@ type ambassador struct {
 	networkClient network.Transactions
 	didStore      types.Store
 	keyResolver   types.KeyResolver
+	docResolver   types.DocResolver
 }
 
 // NewAmbassador creates a new Ambassador,
@@ -59,6 +60,7 @@ func NewAmbassador(networkClient network.Transactions, didStore types.Store) Amb
 		networkClient: networkClient,
 		didStore:      didStore,
 		keyResolver:   doc.KeyResolver{Store: didStore},
+		docResolver:   doc.Resolver{Store: didStore},
 	}
 }
 
@@ -117,7 +119,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	}
 
 	// Check if signingKey is one of the keys embedded in the authenticationMethod
-	didDocumentAuthKeys := proposedDIDDocument.Authentication
+	didDocumentAuthKeys := proposedDIDDocument.CapabilityInvocation
 	if documentKey, err := n.findKeyByThumbprint(signingKeyThumbprint, didDocumentAuthKeys); documentKey == nil || err != nil {
 		if err != nil {
 			return err
@@ -146,11 +148,11 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 	}
 
 	// Resolve controllers of current version (could be the same document)
-	didControllers, err := n.resolveDIDControllers(currentDIDDocument)
+	didControllers, err := n.docResolver.ResolveControllers([]did.Document{*currentDIDDocument})
 
 	var controllerVerificationRelationships []did.VerificationRelationship
 	for _, didCtrl := range didControllers {
-		for _, auth := range didCtrl.Authentication {
+		for _, auth := range didCtrl.CapabilityInvocation {
 			controllerVerificationRelationships = append(controllerVerificationRelationships, auth)
 		}
 	}
@@ -297,26 +299,6 @@ func (n ambassador) isUpdate(doc did.Document) (bool, error) {
 	}
 
 	return result, err
-}
-
-// resolveDIDControllers tries to resolve the controllers for a given DID Document
-// If no controllers are present, the current version of the document will be resolved
-// If a controller could not be found, it will return an error
-func (n ambassador) resolveDIDControllers(didDocument *did.Document) ([]*did.Document, error) {
-	var didControllers []*did.Document
-	docsToResolve := didDocument.Controller
-	if len(docsToResolve) == 0 {
-		docsToResolve = append(docsToResolve, didDocument.ID)
-	}
-
-	for _, ctrlDID := range docsToResolve {
-		controllerDoc, _, err := n.didStore.Resolve(ctrlDID, nil)
-		if err != nil {
-			return nil, fmt.Errorf("unable to resolve document controller: %w", err)
-		}
-		didControllers = append(didControllers, controllerDoc)
-	}
-	return didControllers, nil
 }
 
 // findKeyByThumbprint accepts a SHA256 generated thumbprint and tries to find it in a provided list of did.VerificationRelationship s.
