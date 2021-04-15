@@ -56,7 +56,7 @@ func resolveCompoundService(doc did.Document, serviceType string) (compoundServi
 		}
 	}
 	if len(services) != 1 {
-		return cs, fmt.Errorf("incorrect number of services (did=%s, service=%s)", doc.ID, serviceType)
+		return cs, fmt.Errorf("incorrect number of services, expected 1, found: %d (did=%s, service=%s)", doc.ID, serviceType)
 	}
 
 	services[0].UnmarshalServiceEndpoint(&cs)
@@ -77,7 +77,7 @@ func resolveEndpointURL(resolver types.DocResolver, serviceURI ssi.URI, validAt 
 		return ssi.URI{}, "", fmt.Errorf("incorrect type selector in service reference: %s", serviceURI.String())
 	}
 	if len(typeQuery) != 1 {
-		return ssi.URI{}, "", fmt.Errorf("incorrect type selector in service reference: %s", serviceURI.String())
+		return ssi.URI{}, "", fmt.Errorf("incorrect type query param in service reference: expected 1, found: %s", serviceURI.String())
 	}
 
 	doc, _, err := resolver.Resolve(*serviceDID, &types.ResolveMetadata{ResolveTime: validAt})
