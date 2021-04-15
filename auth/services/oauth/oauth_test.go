@@ -302,7 +302,7 @@ func TestService_validateAud(t *testing.T) {
 		tokenCtx := validContext()
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
 
-		err := ctx.oauthService.validateAud(tokenCtx)
+		err := ctx.oauthService.validateAudience(tokenCtx)
 
 		assert.NoError(t, err)
 	})
@@ -313,7 +313,7 @@ func TestService_validateAud(t *testing.T) {
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.AudienceKey, []string{})
 
-		err := ctx.oauthService.validateAud(tokenCtx)
+		err := ctx.oauthService.validateAudience(tokenCtx)
 
 		if !assert.Error(t, err) {
 			return
@@ -328,7 +328,7 @@ func TestService_validateAud(t *testing.T) {
 		tokenCtx := validContext()
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
-		err := ctx.oauthService.validateAud(tokenCtx)
+		err := ctx.oauthService.validateAudience(tokenCtx)
 
 		if !assert.Error(t, err) {
 			return
@@ -344,7 +344,7 @@ func TestService_validateAud(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.AudienceKey, []string{"not_the_right_audience"})
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
 
-		err := ctx.oauthService.validateAud(tokenCtx)
+		err := ctx.oauthService.validateAudience(tokenCtx)
 
 		if !assert.Error(t, err) {
 			return

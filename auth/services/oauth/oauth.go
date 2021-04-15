@@ -127,7 +127,7 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 	}
 
 	// validate the endpoint in aud, according to RFC003 §5.2.1.6
-	if err := s.validateAud(&context); err != nil {
+	if err := s.validateAudience(&context); err != nil {
 		return nil, err
 	}
 
@@ -156,7 +156,7 @@ func (s *service) validateActor(context *validationContext) error {
 }
 
 // check if the aud service identifier matches the oauth endpoint of the requested scope
-func (s *service) validateAud(context *validationContext) error {
+func (s *service) validateAudience(context *validationContext) error {
 	if len(context.jwtBearerToken.Audience()) != 1 {
 		return errors.New("aud does not contain a single URI")
 	}
