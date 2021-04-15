@@ -70,7 +70,7 @@ func (me memoryEntry) isDeactivated() bool {
 	return len(me.document.Controller) == 0 && len(me.document.Authentication) == 0
 }
 
-// Resolve implements the DocResolver.
+// Resolve implements the Resolver.
 // Resolves a DID document and returns a deep copy of the data in memory.
 func (m *memory) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (*did.Document, *vdr.DocumentMetadata, error) {
 	m.mutex.Lock()

@@ -15,16 +15,16 @@ import (
 type DocUpdater struct {
 	// KeyCreator is used for getting a fresh key and use it to generate the Nuts DID
 	KeyCreator nutsCrypto.KeyCreator
-	// VDR is used for resolving before and updating DID documents after the operation has been performed
+	// VDR is used for updating/publishing DID documents after the operation has been performed
 	VDR types.VDR
-	// DocResolver is used for resolving DID Documents
-	DocResolver types.DocResolver
+	// Resolver is used for resolving DID Documents
+	Resolver types.DocResolver
 }
 
 // Deactivate updates the DID Document so it can no longer be updated
 // It removes key material, services and controllers.
 func (u DocUpdater) Deactivate(id did.DID) error {
-	_, meta, err := u.DocResolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
+	_, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (u DocUpdater) Deactivate(id did.DID) error {
 // AddVerificationMethod adds a new key as a VerificationMethod to the document.
 // The key is not used yet and should be manually added to one of the VerificationRelationships
 func (u DocUpdater) AddVerificationMethod(id did.DID) (*did.VerificationMethod, error) {
-	doc, meta, err := u.DocResolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
+	doc, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (u DocUpdater) AddVerificationMethod(id did.DID) (*did.VerificationMethod, 
 // RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
 // When the verificationMethod is used in an assertion or authentication method, it is also removed there.
 func (u DocUpdater) RemoveVerificationMethod(id, keyID did.DID) error {
-	doc, meta, err := u.DocResolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
+	doc, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return err
 	}

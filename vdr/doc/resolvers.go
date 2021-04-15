@@ -31,7 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// Resolver implements the DocResolver interface with a types.Store as backend
+// Resolver implements the Resolver interface with a types.Store as backend
 type Resolver struct {
 	Store types.Store
 }

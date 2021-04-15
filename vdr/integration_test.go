@@ -56,7 +56,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	vdr := NewVDR(DefaultConfig(), nutsCrypto, nutsNetwork, didStore)
 	vdr.Configure(nutsConfig)
 
-	// DocResolver
+	// Resolver
 	docResolver := doc.Resolver{Store: didStore}
 
 	// === End of setup ===
@@ -170,7 +170,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// Update document B with a new authentication key which replaces the first one:
 	oldAuthKeyDocB := resolvedDocB.Authentication[0].ID
-	docUpdater := DocUpdater{KeyCreator: nutsCrypto, VDR: *vdr, DocResolver: docResolver}
+	docUpdater := DocUpdater{KeyCreator: nutsCrypto, VDR: *vdr, Resolver: docResolver}
 	method, err := docUpdater.createNewVerificationMethodForDID(docB.ID)
 	assert.NoError(t, err)
 	assert.NotNil(t, method)

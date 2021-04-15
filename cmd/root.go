@@ -166,7 +166,7 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})
 	system.RegisterRoutes(&networkApi.Wrapper{Service: networkInstance})
 
-	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: vdr.DocUpdater{DocResolver: docResolver, VDR: vdrInstance, KeyCreator: cryptoInstance}})
+	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: vdr.DocUpdater{Resolver: docResolver, VDR: vdrInstance, KeyCreator: cryptoInstance}})
 	system.RegisterRoutes(&credApi.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))

@@ -41,7 +41,7 @@ func newTestCtx(t *testing.T) testCtx {
 		ctrl:        ctrl,
 		vdrMock:     vdrMock,
 		docResolver: docResolver,
-		updater:     &DocUpdater{VDR: vdrMock, KeyCreator: kc, DocResolver: docResolver},
+		updater:     &DocUpdater{VDR: vdrMock, KeyCreator: kc, Resolver: docResolver},
 	}
 }
 
@@ -215,7 +215,7 @@ func TestNutsDocUpdater_Deactivate(t *testing.T) {
 		store:   didStoreMock,
 		network: networkMock,
 	}
-	updater := DocUpdater{VDR: &vdr, DocResolver: doc.Resolver{Store: didStoreMock}}
+	updater := DocUpdater{VDR: &vdr, Resolver: doc.Resolver{Store: didStoreMock}}
 
 	expectedDocument := did.Document{ID: *id, Context: []ssi.URI{did.DIDContextV1URI()}}
 	expectedPayload, _ := json.Marshal(expectedDocument)
