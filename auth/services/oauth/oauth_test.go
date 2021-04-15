@@ -87,7 +87,7 @@ func getCustodianDIDDocument() *did.Document {
 		Type: "oauth",
 	})
 	doc.Service = append(doc.Service, did.Service{
-		Type: "nuts-sso",
+		Type: "service",
 		ServiceEndpoint: map[string]string{
 			"oauth": fmt.Sprintf("%s?type=oauth", id.String()),
 		},
@@ -167,9 +167,11 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	t.Run("valid - with legal base", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
+
 		ctx.keyResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
 		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
+		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
 		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), custodianSigningKeyID.String()).Return("expectedAT", nil)
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(&contract.VPVerificationResult{
@@ -293,6 +295,65 @@ func TestService_validateSubject(t *testing.T) {
 	})
 }
 
+func TestService_validateAud(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+		tokenCtx := validContext()
+		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
+
+		err := ctx.oauthService.validateAudience(tokenCtx)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - no audience", func(t *testing.T) {
+		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Set(jwt.AudienceKey, []string{})
+
+		err := ctx.oauthService.validateAudience(tokenCtx)
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.EqualError(t, err, "aud does not contain a single URI")
+	})
+
+	t.Run("error - resolve returns error", func(t *testing.T) {
+		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+		tokenCtx := validContext()
+		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+
+		err := ctx.oauthService.validateAudience(tokenCtx)
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.Equal(t, types.ErrNotFound, err)
+	})
+
+	t.Run("error - wrong audience", func(t *testing.T) {
+		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Set(jwt.AudienceKey, []string{"not_the_right_audience"})
+		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
+
+		err := ctx.oauthService.validateAudience(tokenCtx)
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.EqualError(t, err, "aud does not contain correct endpoint identifier for subject")
+	})
+}
+
 func TestOAuthService_parseAndValidateJwtBearerToken(t *testing.T) {
 	ctx := createContext(t)
 	defer ctx.ctrl.Finish()
@@ -399,7 +460,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		Actor:         actorDID.String(),
 		Subject:       &sid,
 		IdentityToken: &usi,
-		Service:       "nuts-sso",
+		Service:       "service",
 	}
 
 	t.Run("create a JwtBearerToken", func(t *testing.T) {
@@ -557,15 +618,17 @@ func TestAuth_Configure(t *testing.T) {
 }
 
 func validContext() *validationContext {
+	serviceID, _ := ssi.ParseURI(custodianDID.String() + "#service-id")
 	sid := "subject"
 	usi := base64.StdEncoding.EncodeToString([]byte("irma identity token"))
 	claims := services.NutsJwtBearerToken{
 		UserIdentity: &usi,
 		SubjectID:    &sid,
 		KeyID:        actorSigningKeyID.String(),
+		Scope:        "service",
 	}
 	hdrs := map[string]interface{}{
-		jwt.AudienceKey:   "endpoint",
+		jwt.AudienceKey:   serviceID.String(),
 		jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
 		jwt.JwtIDKey:      "a005e81c-6749-4967-b01c-495228fcafb4",
 		jwt.IssuedAtKey:   time.Now().UTC(),
