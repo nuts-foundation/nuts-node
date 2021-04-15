@@ -14,27 +14,13 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/labstack/echo/v4"
 )
-
-// JWK defines model for JWK.
-type JWK map[string]interface{}
-
-// PublicKey defines model for PublicKey.
-type PublicKey string
 
 // SignJwtRequest defines model for SignJwtRequest.
 type SignJwtRequest struct {
 	Claims map[string]interface{} `json:"claims"`
 	Kid    string                 `json:"kid"`
-}
-
-// PublicKeyParams defines parameters for PublicKey.
-type PublicKeyParams struct {
-
-	// time when the public key must be valid. In RFC3339 format (https://tools.ietf.org/html/rfc3339)
-	At *string `json:"at,omitempty"`
 }
 
 // SignJwtJSONBody defines parameters for SignJwt.
@@ -116,28 +102,10 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// PublicKey request
-	PublicKey(ctx context.Context, kid string, params *PublicKeyParams) (*http.Response, error)
-
 	// SignJwt request  with any body
 	SignJwtWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error)
 
 	SignJwt(ctx context.Context, body SignJwtJSONRequestBody) (*http.Response, error)
-}
-
-func (c *Client) PublicKey(ctx context.Context, kid string, params *PublicKeyParams) (*http.Response, error) {
-	req, err := NewPublicKeyRequest(c.Server, kid, params)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if c.RequestEditor != nil {
-		err = c.RequestEditor(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return c.Client.Do(req)
 }
 
 func (c *Client) SignJwtWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error) {
@@ -168,60 +136,6 @@ func (c *Client) SignJwt(ctx context.Context, body SignJwtJSONRequestBody) (*htt
 		}
 	}
 	return c.Client.Do(req)
-}
-
-// NewPublicKeyRequest generates requests for PublicKey
-func NewPublicKeyRequest(server string, kid string, params *PublicKeyParams) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParam("simple", false, "kid", kid)
-	if err != nil {
-		return nil, err
-	}
-
-	queryUrl, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	basePath := fmt.Sprintf("/internal/crypto/v1/public_key/%s", pathParam0)
-	if basePath[0] == '/' {
-		basePath = basePath[1:]
-	}
-
-	queryUrl, err = queryUrl.Parse(basePath)
-	if err != nil {
-		return nil, err
-	}
-
-	queryValues := queryUrl.Query()
-
-	if params.At != nil {
-
-		if queryFrag, err := runtime.StyleParam("form", true, "at", *params.At); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
-				}
-			}
-		}
-
-	}
-
-	queryUrl.RawQuery = queryValues.Encode()
-
-	req, err := http.NewRequest("GET", queryUrl.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
 }
 
 // NewSignJwtRequest calls the generic SignJwt builder with application/json body
@@ -292,35 +206,10 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// PublicKey request
-	PublicKeyWithResponse(ctx context.Context, kid string, params *PublicKeyParams) (*PublicKeyResponse, error)
-
 	// SignJwt request  with any body
 	SignJwtWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*SignJwtResponse, error)
 
 	SignJwtWithResponse(ctx context.Context, body SignJwtJSONRequestBody) (*SignJwtResponse, error)
-}
-
-type PublicKeyResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *JWK
-}
-
-// Status returns HTTPResponse.Status
-func (r PublicKeyResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r PublicKeyResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
 }
 
 type SignJwtResponse struct {
@@ -344,15 +233,6 @@ func (r SignJwtResponse) StatusCode() int {
 	return 0
 }
 
-// PublicKeyWithResponse request returning *PublicKeyResponse
-func (c *ClientWithResponses) PublicKeyWithResponse(ctx context.Context, kid string, params *PublicKeyParams) (*PublicKeyResponse, error) {
-	rsp, err := c.PublicKey(ctx, kid, params)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePublicKeyResponse(rsp)
-}
-
 // SignJwtWithBodyWithResponse request with arbitrary body returning *SignJwtResponse
 func (c *ClientWithResponses) SignJwtWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*SignJwtResponse, error) {
 	rsp, err := c.SignJwtWithBody(ctx, contentType, body)
@@ -368,35 +248,6 @@ func (c *ClientWithResponses) SignJwtWithResponse(ctx context.Context, body Sign
 		return nil, err
 	}
 	return ParseSignJwtResponse(rsp)
-}
-
-// ParsePublicKeyResponse parses an HTTP response from a PublicKeyWithResponse call
-func ParsePublicKeyResponse(rsp *http.Response) (*PublicKeyResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &PublicKeyResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest JWK
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case rsp.StatusCode == 200:
-		// Content-type (text/plain) unsupported
-
-	}
-
-	return response, nil
 }
 
 // ParseSignJwtResponse parses an HTTP response from a SignJwtWithResponse call
@@ -420,9 +271,6 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// get the public key for a given kid
-	// (GET /internal/crypto/v1/public_key/{kid})
-	PublicKey(ctx echo.Context, kid string, params PublicKeyParams) error
 	// sign a JWT payload with the private key of the given kid
 	// (POST /internal/crypto/v1/sign_jwt)
 	SignJwt(ctx echo.Context) error
@@ -431,31 +279,6 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
-}
-
-// PublicKey converts echo context to params.
-func (w *ServerInterfaceWrapper) PublicKey(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "kid" -------------
-	var kid string
-
-	err = runtime.BindStyledParameter("simple", false, "kid", ctx.Param("kid"), &kid)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter kid: %s", err))
-	}
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params PublicKeyParams
-	// ------------- Optional query parameter "at" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "at", ctx.QueryParams(), &params.At)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter at: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.PublicKey(ctx, kid, params)
-	return err
 }
 
 // SignJwt converts echo context to params.
@@ -489,7 +312,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodGet, baseURL+"/internal/crypto/v1/public_key/:kid", wrapper.PublicKey)
 	router.Add(http.MethodPost, baseURL+"/internal/crypto/v1/sign_jwt", wrapper.SignJwt)
 
 }

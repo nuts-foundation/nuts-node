@@ -153,7 +153,7 @@ func TestVDR_Create(t *testing.T) {
 
 func TestNewVDR(t *testing.T) {
 	cfg := Config{}
-	vdr := NewVDR(cfg, nil, nil)
+	vdr := NewVDR(cfg, nil, nil, nil)
 	assert.IsType(t, &VDR{}, vdr)
 	assert.Equal(t, vdr.config, cfg)
 }
@@ -164,7 +164,7 @@ func TestVDR_Configure(t *testing.T) {
 	// Make sure configuring VDR subscribes to network
 	tx.EXPECT().Subscribe(gomock.Any(), gomock.Any())
 	cfg := Config{}
-	vdr := NewVDR(cfg, nil, tx)
+	vdr := NewVDR(cfg, nil, tx, nil)
 	err := vdr.Configure(core.ServerConfig{})
 	assert.NoError(t, err)
 }

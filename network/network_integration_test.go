@@ -208,7 +208,7 @@ func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Ne
 	instance := &Network{
 		p2pNetwork: p2p.NewP2PNetwork(),
 		protocol:   proto.NewProtocol(),
-		keyStore:   keyStore,
+		jwsSigner:  keyStore,
 		config: Config{
 			GrpcAddr:             fmt.Sprintf(":%d", nameToPort(name)),
 			PublicAddr:           fmt.Sprintf("localhost:%d", nameToPort(name)),

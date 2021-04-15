@@ -77,7 +77,7 @@ func TestWrapper_GetDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.vdr.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
 		err := ctx.client.GetDID(ctx.echo, id.String())
 
 		if !assert.NoError(t, err) {
@@ -99,7 +99,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		ctx := newMockContext(t)
 
 		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
-		ctx.vdr.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
 		err := ctx.client.GetDID(ctx.echo, id.String())
 
 		assert.NoError(t, err)
@@ -108,7 +108,7 @@ func TestWrapper_GetDID(t *testing.T) {
 	t.Run("error - other", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vdr.EXPECT().Resolve(*id, nil).Return(nil, nil, errors.New("b00m!"))
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, errors.New("b00m!"))
 		err := ctx.client.GetDID(ctx.echo, id.String())
 
 		assert.Error(t, err)
@@ -408,11 +408,12 @@ func Test_handleError(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl       *gomock.Controller
-	echo       *mock.MockContext
-	vdr        *types.MockVDR
-	docUpdater *types.MockDocManipulator
-	client     *Wrapper
+	ctrl        *gomock.Controller
+	echo        *mock.MockContext
+	vdr         *types.MockVDR
+	docResolver *types.MockDocResolver
+	docUpdater  *types.MockDocManipulator
+	client      *Wrapper
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -420,16 +421,18 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	vdr := types.NewMockVDR(ctrl)
 	docManipulator := types.NewMockDocManipulator(ctrl)
-	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator}
+	docResolver := types.NewMockDocResolver(ctrl)
+	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator, DocResolver: docResolver}
 
 	t.Cleanup(func() {
 		ctrl.Finish()
 	})
 	return mockContext{
-		ctrl:       ctrl,
-		echo:       mock.NewMockContext(ctrl),
-		vdr:        vdr,
-		client:     client,
-		docUpdater: docManipulator,
+		ctrl:        ctrl,
+		echo:        mock.NewMockContext(ctrl),
+		vdr:         vdr,
+		client:      client,
+		docResolver: docResolver,
+		docUpdater:  docManipulator,
 	}
 }

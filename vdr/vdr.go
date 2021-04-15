@@ -30,11 +30,11 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
@@ -58,15 +58,14 @@ type VDR struct {
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions) *VDR {
-	store := store.NewMemoryStore()
+func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store types.Store) *VDR {
 	return &VDR{
 		config:            config,
 		network:           networkClient,
 		_logger:           logging.Log(),
 		store:             store,
-		didDocCreator:     NutsDocCreator{keyCreator: cryptoClient},
-		networkAmbassador: NewAmbassador(networkClient, store, cryptoClient),
+		didDocCreator:     doc.Creator{KeyCreator: cryptoClient},
+		networkAmbassador: NewAmbassador(networkClient, store),
 		keyStore:          cryptoClient,
 	}
 }
@@ -121,11 +120,6 @@ func (r VDR) Create() (*did.Document, error) {
 	logging.Log().Infof("New DID Document created (DID=%s)", doc.ID)
 
 	return doc, nil
-}
-
-// Resolve resolves a DID Document based on the DID.
-func (r VDR) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
-	return r.store.Resolve(id, metadata)
 }
 
 // Update updates a DID Document based on the DID and current hash

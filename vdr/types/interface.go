@@ -75,9 +75,13 @@ type KeyResolver interface {
 	// ResolveSigningKey looks up a specific signing key and returns it as crypto.PublicKey. If the key can't be found
 	// or isn't meant for signing an error is returned.
 	ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error)
-	// ResolveAssertionKey look for a valid assertion key for the give DID. If multiple keys are valid, the first one is returned.
+	// ResolveAssertionKeyID look for a valid assertion key for the give DID. If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key is found.
 	ResolveAssertionKeyID(id did.DID) (ssi.URI, error)
+	// ResolvePublicKey loads the key from a DID Document
+	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
+	// It returns ErrNotFound when the DID Document can't be found.
+	ResolvePublicKey(kid string, validAt *time.Time) (crypto.PublicKey, error)
 }
 
 // Store is the interface that groups all low level VDR DID storage operations.
@@ -89,7 +93,6 @@ type Store interface {
 
 // VDR defines the public end facing methods for the Verifiable Data Registry.
 type VDR interface {
-	DocResolver
 	DocCreator
 	DocUpdater
 }

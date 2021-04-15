@@ -22,11 +22,13 @@ import (
 	crypto2 "crypto"
 	"crypto/tls"
 	"fmt"
-	"github.com/pkg/errors"
 	"os"
 	"path"
 	"path/filepath"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/pkg/errors"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -55,16 +57,18 @@ type Network struct {
 	graph        dag.DAG
 	publisher    dag.Publisher
 	payloadStore dag.PayloadStore
-	keyStore     crypto.KeyStore
+	jwsSigner    crypto.JWSSigner
+	keyResolver  types.KeyResolver
 }
 
 // NewNetworkInstance creates a new Network engine instance.
-func NewNetworkInstance(config Config, keyStore crypto.KeyStore) *Network {
+func NewNetworkInstance(config Config, jwsSigner crypto.JWSSigner, keyResolver types.KeyResolver) *Network {
 	result := &Network{
-		config:     config,
-		keyStore:   keyStore,
-		p2pNetwork: p2p.NewP2PNetwork(),
-		protocol:   proto.NewProtocol(),
+		config:      config,
+		jwsSigner:   jwsSigner,
+		keyResolver: keyResolver,
+		p2pNetwork:  p2p.NewP2PNetwork(),
+		protocol:    proto.NewProtocol(),
 	}
 	return result
 }
@@ -83,7 +87,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	peerID := p2p.PeerID(uuid.New().String())
-	n.protocol.Configure(n.p2pNetwork, n.graph, n.payloadStore, dag.NewTransactionSignatureVerifier(n.keyStore), time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
+	n.protocol.Configure(n.p2pNetwork, n.graph, n.payloadStore, dag.NewTransactionSignatureVerifier(n.keyResolver), time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
 	networkConfig, p2pErr := n.buildP2PConfig(peerID)
 	if p2pErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", p2pErr)
@@ -165,9 +169,9 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, signingK
 	var transaction dag.Transaction
 	var signer dag.TransactionSigner
 	if attachKey != nil {
-		signer = dag.NewAttachedJWKTransactionSigner(n.keyStore, signingKeyID, attachKey)
+		signer = dag.NewAttachedJWKTransactionSigner(n.jwsSigner, signingKeyID, attachKey)
 	} else {
-		signer = dag.NewTransactionSigner(n.keyStore, signingKeyID)
+		signer = dag.NewTransactionSigner(n.jwsSigner, signingKeyID)
 	}
 	transaction, err = signer.Sign(unsignedTransaction, timestamp)
 	if err != nil {

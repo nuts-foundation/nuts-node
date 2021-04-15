@@ -6,7 +6,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // TransactionSignatureVerifier defines functions to verify transaction signatures.
@@ -16,12 +16,12 @@ type TransactionSignatureVerifier interface {
 
 // NewTransactionSignatureVerifier creates a TransactionSignatureVerifier that uses the given KeyResolver to resolves
 // keys that aren't embedded in the transaction.
-func NewTransactionSignatureVerifier(resolver crypto.KeyResolver) TransactionSignatureVerifier {
+func NewTransactionSignatureVerifier(resolver types.KeyResolver) TransactionSignatureVerifier {
 	return &transactionVerifier{resolver: resolver}
 }
 
 type transactionVerifier struct {
-	resolver crypto.KeyResolver
+	resolver types.KeyResolver
 }
 
 func (d transactionVerifier) Verify(input Transaction) error {
@@ -31,7 +31,8 @@ func (d transactionVerifier) Verify(input Transaction) error {
 			return err
 		}
 	} else {
-		pk, err := d.resolver.GetPublicKey(input.SigningKeyID(), input.SigningTime())
+		signingTime := input.SigningTime()
+		pk, err := d.resolver.ResolvePublicKey(input.SigningKeyID(), &signingTime)
 		if err != nil {
 			return fmt.Errorf("unable to verify transaction signature, can't resolve key (kid=%s): %w", input.SigningKeyID(), err)
 		}

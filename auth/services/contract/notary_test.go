@@ -28,6 +28,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/golang/mock/gomock"
@@ -216,10 +218,9 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 func TestNewContractNotary(t *testing.T) {
 	t.Run("adds all services", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
-		vdrInstance := vdr.NewTestVDRInstance(testDir)
 		instance := NewContractNotary(
 			vcr.NewTestVCRInstance(testDir),
-			vdr.KeyResolver{DocResolver: vdrInstance},
+			doc.KeyResolver{Store: store.NewMemoryStore()},
 			crypto.NewTestCryptoInstance(testDir),
 			60*time.Minute,
 		)

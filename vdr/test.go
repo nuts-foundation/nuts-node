@@ -4,6 +4,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 )
 
 // Two TestDIDs which can be used during testing:
@@ -21,7 +22,8 @@ var TestMethodDIDB, _ = did.ParseDID(TestDIDB.String() + "#abc-method-2")
 
 func NewTestVDRInstance(testDirectory string) *VDR {
 	config := TestVDRConfig()
-	return NewVDR(config, crypto.NewTestCryptoInstance(testDirectory), network.NewTestNetworkInstance(testDirectory))
+	didStore := store.NewMemoryStore()
+	return NewVDR(config, crypto.NewTestCryptoInstance(testDirectory), network.NewTestNetworkInstance(testDirectory), didStore)
 }
 
 func TestVDRConfig() Config {

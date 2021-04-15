@@ -5,7 +5,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
+
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -60,7 +61,7 @@ func testInstance(t *testing.T, cfg Config) *Auth {
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
 	vcrInstance := vcr.NewTestVCRInstance(testDirectory)
-	return NewAuthInstance(cfg, vdr.NewTestVDRInstance(testDirectory), vcrInstance, cryptoInstance)
+	return NewAuthInstance(cfg, store.NewMemoryStore(), vcrInstance, cryptoInstance)
 }
 
 func TestAuth_Name(t *testing.T) {

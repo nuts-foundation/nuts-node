@@ -20,10 +20,11 @@ package v1
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
@@ -38,32 +39,12 @@ func (t *testServerInterface) GenerateKeyPair(_ echo.Context) error {
 	return t.err
 }
 
-func (t *testServerInterface) PublicKey(_ echo.Context, _ string, _ PublicKeyParams) error {
-	return t.err
-}
-
 func (t *testServerInterface) SignJwt(_ echo.Context) error {
 	return t.err
 }
 
 var siws = []*ServerInterfaceWrapper{
 	serverInterfaceWrapper(nil), serverInterfaceWrapper(errors.New("Server error")),
-}
-
-func TestServerInterfaceWrapper_PublicKey(t *testing.T) {
-	for _, siw := range siws {
-		t.Run("PublicKey call returns expected error", func(t *testing.T) {
-			req := httptest.NewRequest(echo.GET, "/", nil)
-			rec := httptest.NewRecorder()
-			c := echo.New().NewContext(req, rec)
-			c.SetParamNames("kid")
-			c.SetParamValues("1")
-
-			err := siw.PublicKey(c)
-			tsi := siw.Handler.(*testServerInterface)
-			assert.Equal(t, tsi.err, err)
-		})
-	}
 }
 
 func TestServerInterfaceWrapper_SignJwt(t *testing.T) {
@@ -87,7 +68,6 @@ func TestRegisterHandlers(t *testing.T) {
 		echo := core.NewMockEchoRouter(ctrl)
 
 		echo.EXPECT().Add(http.MethodPost, "/internal/crypto/v1/sign_jwt", gomock.Any())
-		echo.EXPECT().Add(http.MethodGet, "/internal/crypto/v1/public_key/:kid", gomock.Any())
 
 		RegisterHandlers(echo, &testServerInterface{})
 	})

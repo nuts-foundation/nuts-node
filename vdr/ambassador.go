@@ -23,17 +23,14 @@ import (
 	"bytes"
 	"crypto"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/sirupsen/logrus"
-
-	"time"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vdr/logging"
@@ -53,15 +50,15 @@ type Ambassador interface {
 type ambassador struct {
 	networkClient network.Transactions
 	didStore      types.Store
-	keyStore      nutsCrypto.PublicKeyStore
+	keyResolver   types.KeyResolver
 }
 
 // NewAmbassador creates a new Ambassador,
-func NewAmbassador(networkClient network.Transactions, didStore types.Store, publicKeyStore nutsCrypto.PublicKeyStore) Ambassador {
+func NewAmbassador(networkClient network.Transactions, didStore types.Store) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,
-		keyStore:      publicKeyStore,
+		keyResolver:   doc.KeyResolver{Store: didStore},
 	}
 }
 
@@ -134,16 +131,6 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 		return err
 	}
 
-	// Since we use an in-memory DID store, DIDs are re-registered on every startup. However, the keystore is persistent
-	// so when it's registered again an error is returned. If that happens, we just ignore the error.
-	// TODO: this implementation is quite naive since the public key might actually differ or have a different validation
-	// period, which isn't taken into consideration. Should be fixed as part of https://github.com/nuts-foundation/nuts-node/issues/109
-	// since then we don't need to do this check any more.
-	err = n.keyStore.AddPublicKey(transaction.SigningKey().KeyID(), rawKey, transaction.SigningTime())
-	if err != nil && !errors.Is(err, nutsCrypto.ErrKeyAlreadyExists) {
-		return err
-	}
-
 	documentMetadata := types.DocumentMetadata{
 		Created: transaction.SigningTime(),
 		Hash:    transaction.PayloadHash(),
@@ -170,7 +157,8 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 
 	// In an update, only the keyID is provided in the network document. Resolve the key from the key store
 	// This should succeed since the signature of the network document has already been verified.
-	pKey, err := n.keyStore.GetPublicKey(document.SigningKeyID(), document.SigningTime())
+	signingTime := document.SigningTime()
+	pKey, err := n.keyResolver.ResolvePublicKey(document.SigningKeyID(), &signingTime)
 	if err != nil {
 		return fmt.Errorf("unable to resolve signingkey: %w", err)
 	}
@@ -191,10 +179,6 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 	}
 	if keyToSign == nil {
 		return fmt.Errorf("network document not signed by one of its controllers")
-	}
-
-	if err := n.updateKeysInStore(*currentDIDDocument, proposedDIDDocument, document.SigningTime()); err != nil {
-		return err
 	}
 
 	// TODO: perform all these tests:
@@ -220,36 +204,6 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 		Deactivated: isDeactivated(&proposedDIDDocument),
 	}
 	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
-}
-
-// updateKeysInStore is a helper function for updating keys in the keystore.
-// It creates a diff of the verificationMethods of the current and proposed document.
-// It Revokes missing keys and adds new ones.
-func (n ambassador) updateKeysInStore(currentDIDDocument, proposedDIDDocument did.Document, signingTime time.Time) error {
-	newVMs, removedVMs := getVerificationMethodDiff(currentDIDDocument, proposedDIDDocument)
-	for _, vm := range newVMs {
-		pKey, err := vm.PublicKey()
-		if err != nil {
-			return fmt.Errorf("could not parse public key from verificationMethod: %w", err)
-		}
-		logging.Log().WithFields(logrus.Fields{"kid": vm.ID.String()}).Debug("adding new public key")
-		if err = n.keyStore.AddPublicKey(vm.ID.String(), pKey, signingTime); err != nil {
-			return fmt.Errorf("unable to add new public key: %w", err)
-		}
-
-	}
-	for _, vm := range removedVMs {
-		logging.Log().WithFields(logrus.Fields{"kid": vm.ID.String()}).Debug("revoking public key")
-		if err := n.keyStore.RevokePublicKey(vm.ID.String(), signingTime); err != nil {
-			if errors.Is(err, nutsCrypto.ErrKeyRevoked) {
-				// Ignore already revoked keys. This can happen when the node restarts.
-				logging.Log().WithFields(logrus.Fields{"kid": vm.ID.String()}).Debug("key already revoked")
-			} else {
-				return fmt.Errorf("unable to revoke public key: %w", err)
-			}
-		}
-	}
-	return nil
 }
 
 // checkSubscriberTransactionIntegrity performs basic integrity checks on the SubscriberTransaction fields

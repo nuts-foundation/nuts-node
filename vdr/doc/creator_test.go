@@ -1,4 +1,23 @@
-package vdr
+/*
+ * Nuts node
+ * Copyright (C) 2021 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+package doc
 
 import (
 	"crypto"
@@ -36,6 +55,7 @@ func (m *mockKeyCreator) New(namingFunc nutsCrypto.KIDNamingFunc) (crypto.Public
 	return rawKey, kid, nil
 }
 
+var kid = "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"
 var jwkString = `{"crv":"P-256","kid":"did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
 
 func TestDocCreator_Create(t *testing.T) {
@@ -44,7 +64,7 @@ func TestDocCreator_Create(t *testing.T) {
 			t:      t,
 			jwkStr: jwkString,
 		}
-		sut := NutsDocCreator{keyCreator: kc}
+		sut := Creator{KeyCreator: kc}
 		t.Run("ok", func(t *testing.T) {
 			doc, err := sut.Create()
 			assert.NoError(t, err,
@@ -74,7 +94,7 @@ func TestDocCreator_Create(t *testing.T) {
 		defer ctrl.Finish()
 		creator := nutsCrypto.NewMockKeyCreator(ctrl)
 		creator.EXPECT().New(gomock.Any()).Return(nil, "foobar", nil)
-		sut := NutsDocCreator{keyCreator: creator}
+		sut := Creator{KeyCreator: creator}
 		doc, err := sut.Create()
 		assert.EqualError(t, err, "input length is less than 7")
 		assert.Nil(t, doc)
@@ -84,7 +104,7 @@ func TestDocCreator_Create(t *testing.T) {
 		defer ctrl.Finish()
 		creator := nutsCrypto.NewMockKeyCreator(ctrl)
 		creator.EXPECT().New(gomock.Any()).Return("asdasdsad", "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", nil)
-		sut := NutsDocCreator{keyCreator: creator}
+		sut := Creator{KeyCreator: creator}
 		doc, err := sut.Create()
 		assert.EqualError(t, err, "invalid key type 'string' for jwk.New")
 		assert.Nil(t, doc)
