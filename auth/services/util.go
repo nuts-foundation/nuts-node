@@ -56,7 +56,7 @@ func resolveCompoundService(doc did.Document, serviceType string) (compoundServi
 		}
 	}
 	if len(services) != 1 {
-		return cs, fmt.Errorf("incorrect number of services, expected 1, found: %d (did=%s, service=%s)", doc.ID, serviceType)
+		return cs, fmt.Errorf("incorrect number of services, expected 1, found: %d (did=%s, service=%s)", len(services), doc.ID, serviceType)
 	}
 
 	services[0].UnmarshalServiceEndpoint(&cs)
