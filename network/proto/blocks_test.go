@@ -40,14 +40,6 @@ func tc(transactions []tx, heads ...string) testCase {
 }
 
 // Test cases visualized with https://asciiflow.com/
-
-/*
-     │        │
-┌───┐ │  ┌───┐ │  ┌───┐
-│ A ├─┼─►│ B ├─┼─►│ C │
-└───┘ │  └───┘ │  └───┘
-     │        │
-*/
 func testCases() []testCase {
 	return []testCase{
 		/*
@@ -168,10 +160,9 @@ func testCases() []testCase {
 }
 
 func TestBlocks(t *testing.T) {
-	numberOfBlocks := 3
 	for _, tc := range testCases() {
 		t.Run(tc.name, func(t *testing.T) {
-			blocks := NewDAGBlocks(numberOfBlocks)
+			blocks := NewDAGBlocks().(*trackingDAGBlocks)
 			txs := make(map[string]dag.Transaction, 0)
 			latestTXAge := 0
 			for _, currTX := range tc.txs {
@@ -210,7 +201,6 @@ func TestBlocks(t *testing.T) {
 				if !assert.NoError(t, err) {
 					return
 				}
-				//println(blocks.String())
 			}
 			println(blocks.String())
 			for dayNum := 0; dayNum < latestTXAge + 1; dayNum++ {

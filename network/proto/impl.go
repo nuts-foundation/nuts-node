@@ -43,7 +43,7 @@ type protocol struct {
 	// Cache statistics to avoid having to lock precious resources
 	peerConsistencyHashStatistic peerConsistencyHashStatistic
 	newPeerHashChannel           chan PeerHash
-	blox                         *DAGBlocks
+	blocks                       DAGBlocks
 
 	advertHashesInterval time.Duration
 	// peerID contains our own peer ID which can be logged for debugging purposes
@@ -61,18 +61,19 @@ func NewProtocol() Protocol {
 		peerHashes:                   make(map[p2p.PeerID][]hash.SHA256Hash),
 		newPeerHashChannel:           make(chan PeerHash, 100),
 		peerConsistencyHashStatistic: newPeerConsistencyHashStatistic(),
-		blox:                         NewDAGBlocks(3),
+		blocks:                       NewDAGBlocks(),
 	}
 	return p
 }
 
-func (p *protocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
+func (p *protocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
 	p.p2pNetwork = p2pNetwork
 	p.graph = graph
 	p.payloadStore = payloadStore
 	p.advertHashesInterval = advertHashesInterval
 	p.signatureVerifier = verifier
 	p.peerID = peerID
+	publisher.Subscribe(dag.AnyPayloadType, p.blocks.AddTransaction)
 }
 
 func (p *protocol) Start() {

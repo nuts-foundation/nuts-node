@@ -10,6 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	core "github.com/nuts-foundation/nuts-node/core"
+	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	p2p "github.com/nuts-foundation/nuts-node/network/p2p"
 )
@@ -38,15 +39,15 @@ func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 }
 
 // Configure mocks base method.
-func (m *MockProtocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
+func (m *MockProtocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Configure", p2pNetwork, graph, payloadStore, verifier, advertHashesInterval, peerID)
+	m.ctrl.Call(m, "Configure", p2pNetwork, graph, publisher, payloadStore, verifier, advertHashesInterval, peerID)
 }
 
 // Configure indicates an expected call of Configure.
-func (mr *MockProtocolMockRecorder) Configure(p2pNetwork, graph, payloadStore, verifier, advertHashesInterval, peerID interface{}) *gomock.Call {
+func (mr *MockProtocolMockRecorder) Configure(p2pNetwork, graph, publisher, payloadStore, verifier, advertHashesInterval, peerID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), p2pNetwork, graph, payloadStore, verifier, advertHashesInterval, peerID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), p2pNetwork, graph, publisher, payloadStore, verifier, advertHashesInterval, peerID)
 }
 
 // Diagnostics mocks base method.
@@ -122,4 +123,69 @@ func (m *MockPeerHashQueue) Get() *PeerHash {
 func (mr *MockPeerHashQueueMockRecorder) Get() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockPeerHashQueue)(nil).Get))
+}
+
+// MockDAGBlocks is a mock of DAGBlocks interface.
+type MockDAGBlocks struct {
+	ctrl     *gomock.Controller
+	recorder *MockDAGBlocksMockRecorder
+}
+
+// MockDAGBlocksMockRecorder is the mock recorder for MockDAGBlocks.
+type MockDAGBlocksMockRecorder struct {
+	mock *MockDAGBlocks
+}
+
+// NewMockDAGBlocks creates a new mock instance.
+func NewMockDAGBlocks(ctrl *gomock.Controller) *MockDAGBlocks {
+	mock := &MockDAGBlocks{ctrl: ctrl}
+	mock.recorder = &MockDAGBlocksMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockDAGBlocks) EXPECT() *MockDAGBlocksMockRecorder {
+	return m.recorder
+}
+
+// AddTransaction mocks base method.
+func (m *MockDAGBlocks) AddTransaction(tx dag.SubscriberTransaction, arg1 []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddTransaction", tx, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddTransaction indicates an expected call of AddTransaction.
+func (mr *MockDAGBlocksMockRecorder) AddTransaction(tx, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTransaction", reflect.TypeOf((*MockDAGBlocks)(nil).AddTransaction), tx, arg1)
+}
+
+// Heads mocks base method.
+func (m *MockDAGBlocks) Heads() [][]hash.SHA256Hash {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Heads")
+	ret0, _ := ret[0].([][]hash.SHA256Hash)
+	return ret0
+}
+
+// Heads indicates an expected call of Heads.
+func (mr *MockDAGBlocksMockRecorder) Heads() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Heads", reflect.TypeOf((*MockDAGBlocks)(nil).Heads))
+}
+
+// String mocks base method.
+func (m *MockDAGBlocks) String() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "String")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// String indicates an expected call of String.
+func (mr *MockDAGBlocksMockRecorder) String() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockDAGBlocks)(nil).String))
 }

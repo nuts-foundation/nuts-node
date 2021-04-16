@@ -113,6 +113,14 @@ func (s subscriberTransaction) Version() dag.Version {
 	panic("implement me")
 }
 
+func (s subscriberDocument) Previous() []hash.SHA256Hash {
+	panic("implement me")
+}
+
+func (s subscriberDocument) Version() dag.Version {
+	panic("implement me")
+}
+
 func Test_ambassador_callback(t *testing.T) {
 	signingTime := time.Now()
 	createdAt := time.Now().Add(-10 * time.Hour * 24)

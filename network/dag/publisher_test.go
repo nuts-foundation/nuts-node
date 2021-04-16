@@ -61,8 +61,10 @@ func TestReplayingPublisher(t *testing.T) {
 
 func TestReplayingPublisher_publishTransaction(t *testing.T) {
 	t.Run("no subscribers", func(t *testing.T) {
-		publisher, ctrl, _ := createPublisher(t)
+		publisher, ctrl, store := createPublisher(t)
 		defer ctrl.Finish()
+
+		store.EXPECT().ReadPayload(gomock.Any()).Return([]byte{1, 2, 3}, nil)
 
 		publisher.publishTransaction(CreateTestTransactionWithJWK(1))
 	})

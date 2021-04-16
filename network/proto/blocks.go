@@ -9,44 +9,24 @@ import (
 	"time"
 )
 
-func NewDAGBlocks(numberOfBlocks int) *DAGBlocks {
-	result := &DAGBlocks{make([]*block, numberOfBlocks)}
+const numberOfBlocks = 3
+
+// NewDAGBlocks creates a new tracking DAGBlocks structure.
+func NewDAGBlocks() DAGBlocks {
+	result := &trackingDAGBlocks{make([]*block, numberOfBlocks)}
 	for i := 0; i < len(result.blocks); i++ {
 		result.blocks[i] = &block{heads: map[hash.SHA256Hash]*head{}}
 	}
-	result.updateBlockTimestamps(time.Now())
+	result.updateTimestamps(time.Now())
 	return result
 }
 
-type DAGBlocks struct {
+// trackingDAGBlocks is a DAGBlocks implementation tracks the DAG block heads in a memory friendly way. It works by
+// storing the known heads of a block and the distance (in blocks) to the next TX (by which it is prev'd) so it can be
+// unmarked as head when the next TX is moved into the historic block. When midnight passes (and thus blocks change)
+// it shifts all TXs one block to the left, ultimately into the leftmost historic block.
+type trackingDAGBlocks struct {
 	blocks []*block
-}
-
-func (blox DAGBlocks) String() string {
-	lines := make([]string, len(blox.blocks))
-	for i := 0; i < len(lines); i++ {
-		lines[i] = fmt.Sprintf("  [%d] %v", i, *blox.blocks[i])
-	}
-	return fmt.Sprintf("blocks:\n%s", strings.Join(lines, "\n"))
-}
-
-func (blox *DAGBlocks) heads() [][]hash.SHA256Hash {
-	result := make([][]hash.SHA256Hash, 0)
-	for blockNum, b := range blox.blocks {
-		var heads []hash.SHA256Hash
-		for ref, _ := range b.heads {
-			if blockNum < len(blox.blocks) {
-				heads = append(heads, ref)
-			}
-		}
-		result = append(result, heads)
-	}
-	return result
-}
-
-func (blox *DAGBlocks) Heads() [][]hash.SHA256Hash {
-	blox.update(time.Now())
-	return blox.heads()
 }
 
 type block struct {
@@ -62,32 +42,42 @@ type head struct {
 	blockDate time.Time
 }
 
-func (b block) String() string {
-	if len(b.heads) > 0 {
-		items := make([]string, 0, len(b.heads))
-		for ref, head := range b.heads {
-			items = append(items, fmt.Sprintf("%s:%d", ref, head.distance))
+// heads calculates the block heads, without updating the structure first. Only for internal use and testing.
+func (blx *trackingDAGBlocks) heads() [][]hash.SHA256Hash {
+	result := make([][]hash.SHA256Hash, 0)
+	for blockNum, b := range blx.blocks {
+		var heads []hash.SHA256Hash
+		for ref, _ := range b.heads {
+			if blockNum < len(blx.blocks) {
+				heads = append(heads, ref)
+			}
 		}
-		return strings.Join(items, ", ")
+		result = append(result, heads)
 	}
-	return "(empty)"
+	return result
+}
+
+// Heads returns the block heads.
+func (blx *trackingDAGBlocks) Heads() [][]hash.SHA256Hash {
+	blx.update(time.Now())
+	return blx.heads()
 }
 
 // AddTransaction adds a transaction to the DAG blocks structure. It MUST with the transactions in order, so it's
 // typically called using a sequential DAG subscriber. So given TXs `A <- B <- [C, D]` call order is A, B, C, D (or A, B, D, C).
-func (blox *DAGBlocks) AddTransaction(tx dag.SubscriberTransaction, _ []byte) error {
-	blox.update(time.Now())
+func (blx *trackingDAGBlocks) AddTransaction(tx dag.SubscriberTransaction, _ []byte) error {
+	blx.update(time.Now())
 	// Determine block the TX is part of
-	blockIdx := len(blox.blocks) - 1
-	for i := 0; i < len(blox.blocks)-1; i++ {
+	blockIdx := len(blx.blocks) - 1
+	for i := 0; i < len(blx.blocks)-1; i++ {
 		// Lower blocks are earlier, so when the TXs time is before the start time of the next block, this is the block
 		// the TX is part of.
-		if tx.SigningTime().Before(blox.blocks[i+1].start) {
+		if tx.SigningTime().Before(blx.blocks[i+1].start) {
 			blockIdx = i
 			break
 		}
 	}
-	txBlock := blox.blocks[blockIdx]
+	txBlock := blx.blocks[blockIdx]
 	// Prevs of this TX in this block were previously heads (prev'd by another branch within this block) but now
 	// the current TX will be the new head. So we 'un-head' all prevs and mark the current TX as head. This works as long
 	// as this func is called with TXs in order.
@@ -111,7 +101,7 @@ func (blox *DAGBlocks) AddTransaction(tx dag.SubscriberTransaction, _ []byte) er
 	// the head isn't a head any more.
 	for i := 0; i <= blockIdx; i++ {
 		for _, currPrev := range tx.Previous() {
-			if head, ok := blox.blocks[i].heads[currPrev]; ok {
+			if head, ok := blx.blocks[i].heads[currPrev]; ok {
 				newDistance := int(txBlockDate.Sub(head.blockDate).Hours() / 24)
 				if newDistance < head.distance {
 					head.distance = newDistance
@@ -122,21 +112,20 @@ func (blox *DAGBlocks) AddTransaction(tx dag.SubscriberTransaction, _ []byte) er
 	return nil
 }
 
-// getBlocks returns a slice containing the heads of the DAG as blocks. The entry at index 0 contains the current block,
-// the entry at 1 contains yesterday's block, etc. The last entry is special because it contains all heads leading up
-// and including that block.
-func (blox *DAGBlocks) update(now time.Time) {
-	numBlocks := len(blox.blocks)
-
-	if !blox.updateBlockTimestamps(now) {
+// update first updates the timestamps on the blocks and then redistributes the transactions into the correct blocks.
+// It must be called before any interaction (reading the heads, adding a transaction) with the structure. Callers must
+// make sure it's never called with an older timestamp (a timestamp which lies before the timestamp it was last called with).
+func (blx *trackingDAGBlocks) update(now time.Time) {
+	if !blx.updateTimestamps(now) {
+		// Blocks timestamps not updated, nothing to do.
 		return
 	}
-
 	// Block timestamps were updated, now move the TXs to their new blocks. This will generally mean shift 1 block to the
 	// left, except for TXs with are already in the leftmost block and TXs that are in the current block and remain there
 	// (because the signing time lies in the future).
+	numBlocks := len(blx.blocks)
 	for i := 0; i < numBlocks; i++ {
-		curr := blox.blocks[i]
+		curr := blx.blocks[i]
 		// For the left-most block:
 		//  - decrement `distance`
 		//  - when `distance` reaches zero, the unmark the TX as block head
@@ -151,8 +140,10 @@ func (blox *DAGBlocks) update(now time.Time) {
 				}
 			}
 		}
+		// Move TXs in the block to the right to the this block, unless the TX's signing time is in the future
+		// (which can actually only be the case for the current day's block).
 		if i < numBlocks-1 {
-			next := blox.blocks[i+1]
+			next := blx.blocks[i+1]
 			for ref, head := range next.heads {
 				if head.signingTime.Before(next.start) {
 					curr.heads[ref] = head
@@ -163,20 +154,41 @@ func (blox *DAGBlocks) update(now time.Time) {
 	}
 }
 
-func (blox *DAGBlocks) updateBlockTimestamps(now time.Time) bool {
+// updateTimestamps updates the timestamps of the blocks using the given time. If there's already transactions in the
+// blocks they must be redistributed (so they end up in the correct block) after this function has been called.
+func (blx *trackingDAGBlocks) updateTimestamps(now time.Time) bool {
 	t := startOfDay(now)
 	changed := false
-	for idx, currBlock := range blox.blocks {
+	for idx, currBlock := range blx.blocks {
 		if idx == 0 {
 			continue
 		}
-		newDate := t.AddDate(0, 0, idx-len(blox.blocks)+1)
+		newDate := t.AddDate(0, 0, idx-len(blx.blocks)+1)
 		if !newDate.Equal(currBlock.start) {
 			currBlock.start = newDate
 			changed = true
 		}
 	}
 	return changed
+}
+
+func (blx trackingDAGBlocks) String() string {
+	lines := make([]string, len(blx.blocks))
+	for i := 0; i < len(lines); i++ {
+		lines[i] = fmt.Sprintf("  [%d] %v", i, *blx.blocks[i])
+	}
+	return fmt.Sprintf("blocks:\n%s", strings.Join(lines, "\n"))
+}
+
+func (b block) String() string {
+	if len(b.heads) > 0 {
+		items := make([]string, 0, len(b.heads))
+		for ref, head := range b.heads {
+			items = append(items, fmt.Sprintf("%s:%d", ref, head.distance))
+		}
+		return strings.Join(items, ", ")
+	}
+	return "(empty)"
 }
 
 func startOfDay(now time.Time) time.Time {

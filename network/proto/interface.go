@@ -42,7 +42,7 @@ var ErrUnsupportedProtocolVersion = errors.New("unsupported protocol version")
 type Protocol interface {
 	core.Diagnosable
 	// Configure configures the Protocol. Must be called before Start().
-	Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID)
+	Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID)
 	// Starts the Protocol (sending and receiving of messages).
 	Start()
 	// Stops the Protocol.
@@ -62,6 +62,19 @@ type PeerHash struct {
 	Peer p2p.PeerID
 	// Hashes holds the hashes we received.
 	Hashes []hash.SHA256Hash
+}
+
+// DAGBlocks defines the API for algorithms that determine the head transactions for DAG blocks.
+type DAGBlocks interface {
+	// String returns the state of the algorithm as string.
+	String() string
+	// Heads returns a slice containing the heads of the DAG blocks. The first dimension contains the blocks
+	// (historic block at [0], current block at [len(blocks) - 1]). The second dimension contains the actual heads.
+	Heads() [][]hash.SHA256Hash
+	// AddTransaction adds a transaction to the DAG blocks structure. It MUST be called in actual transactions order,
+	// So given TXs `A <- B <- [C, D]` call order is A, B, C, D (or A, B, D, C).
+	// It will typically be called using a sequential DAG subscriber.
+	AddTransaction(tx dag.SubscriberTransaction, _ []byte) error
 }
 
 type chanPeerHashQueue struct {
