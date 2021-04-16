@@ -291,6 +291,8 @@ func claimsFromRequest(request services.CreateJwtBearerTokenRequest, audience st
 	result[jwt.IssuerKey] = request.Actor
 	result[jwt.NotBeforeKey] = 0
 	result[jwt.SubjectKey] = request.Custodian
+	result[jwt.SubjectKey] = request.Custodian
+	result[services.JWTService] = request.Service
 	return result
 }
 
