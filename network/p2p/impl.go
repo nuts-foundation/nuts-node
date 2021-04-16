@@ -340,17 +340,13 @@ func (n p2pNetwork) shouldConnectTo(address string) bool {
 }
 
 func (n p2pNetwork) getLocalAddress() string {
-	if n.config.PublicAddress != "" {
-		return n.config.PublicAddress
-	} else {
-		if strings.HasPrefix(n.config.ListenAddress, ":") {
+	if strings.HasPrefix(n.config.ListenAddress, ":") {
 			// Interface's address not included in listening address (e.g. :5555), so prepend with localhost
 			return "localhost" + n.config.ListenAddress
 		} else {
 			// Interface's address included in listening address (e.g. localhost:5555), so return as-is.
 			return n.config.ListenAddress
 		}
-	}
 }
 
 func (n p2pNetwork) isRunning() bool {

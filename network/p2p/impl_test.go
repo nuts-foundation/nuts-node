@@ -134,8 +134,4 @@ func Test_p2pNetwork_GetLocalAddress(t *testing.T) {
 		network.config.ListenAddress = ":555"
 		assert.Equal(t, "localhost:555", network.getLocalAddress())
 	})
-	t.Run("ok - public address configured", func(t *testing.T) {
-		network.config.PublicAddress = "test:1234"
-		assert.Equal(t, "test:1234", network.getLocalAddress())
-	})
 }

@@ -37,11 +37,10 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 	return newInstance
 }
 
-// NewTestNetworkInstance creates new network config with a test directory as data path.
+// TestNetworkConfig creates new network config with a test directory as data path.
 func TestNetworkConfig() Config {
 	config := DefaultConfig()
 	config.GrpcAddr = ":5555"
 	config.EnableTLS = false
-	config.PublicAddr = "test:5555"
 	return config
 }
