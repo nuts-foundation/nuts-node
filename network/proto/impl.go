@@ -143,7 +143,7 @@ func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
 	case *transport.NetworkMessage_AdvertHashes:
 		p.handleAdvertHashes(peer, msg.AdvertHashes)
 	case *transport.NetworkMessage_TransactionListQuery:
-		return p.handleTransactionListQuery(peer)
+		return p.handleTransactionListQuery(peer, msg.TransactionListQuery.BlockDate)
 	case *transport.NetworkMessage_TransactionList:
 		return p.handleTransactionList(peer, msg.TransactionList)
 	case *transport.NetworkMessage_TransactionPayloadQuery:

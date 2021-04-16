@@ -96,7 +96,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	peerID := p2p.PeerID(uuid.New().String())
-	n.protocol.Configure(n.p2pNetwork, n.graph, n.payloadStore, dag.NewTransactionSignatureVerifier(n.keyResolver), time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
+	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, dag.NewTransactionSignatureVerifier(n.keyResolver), time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
 	networkConfig, p2pErr := n.buildP2PConfig(peerID)
 	if p2pErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", p2pErr)

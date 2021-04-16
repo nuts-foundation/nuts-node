@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/sirupsen/logrus"
+	"time"
 )
 
 func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.AdvertHashes) {
@@ -74,8 +75,8 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 			if err != nil {
 				log.Logger().Errorf("Error while checking peer head on local DAG (ref=%s): %v", peerHeadHash, err)
 			} else if !headIsPresentOnLocalDAG {
-				log.Logger().Infof("Peer has head which is not present on our DAG, querying block transactions (peer=%s)", peer)
-				go p.queryTransactionList(peer)
+				log.Logger().Infof("Peer has head which is not present on our DAG, querying block's transactions (peer=%s, tx=%s, blockDate=%s)", peer, peerHeadHash, localBlock.Start)
+				go p.queryTransactionList(peer, localBlock.Start)
 			}
 		}
 	}
@@ -84,9 +85,9 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 	// p.newPeerHashChannel <- peerHash
 }
 
-func (p protocol) queryTransactionList(peer p2p.PeerID) {
+func (p protocol) queryTransactionList(peer p2p.PeerID, blockDate time.Time) {
 	msg := createMessage()
-	msg.Message = &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{}}
+	msg.Message = &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: uint32(blockDate.UTC().Unix())}}
 	if err := p.p2pNetwork.Send(peer, &msg); err != nil {
 		log.Logger().Warnf("Unable to query peer for hash list (peer=%s): %v", peer, err)
 	}
@@ -214,9 +215,32 @@ func (p *protocol) checkTransactionOnLocalNode(peer p2p.PeerID, transactionRef h
 	return nil
 }
 
-func (p *protocol) handleTransactionListQuery(peer p2p.PeerID) error {
-	log.Logger().Tracef("Received transaction list query from peer (peer=%s)", peer)
-	transactions, err := p.graph.All()
+func (p *protocol) handleTransactionListQuery(peer p2p.PeerID, blockDateInt uint32) error {
+	var startDate time.Time
+	var endDate time.Time
+	if blockDateInt == 0 {
+		logrus.Warnf("Peer didn't specify date of the block to be queried, ignoring (peer=%s).", peer)
+		// Historic block is queried, query from start up to the first block
+		// endDate = p.blocks.Get()[1].Start
+		return nil
+	} else {
+		startDate = time.Unix(int64(blockDateInt), 0).UTC()
+		endDate = startDate.AddDate(0, 0, 1)
+	}
+
+	log.Logger().Tracef("Received transaction list query from peer (peer=%s,from=%s,to=%s)", peer, startDate, endDate)
+	transactions := make([]dag.Transaction, 0)
+	// TODO: Replace this with something more optimized (maybe go-leia with a range query on signing time?)
+	root, err := p.graph.Root()
+	if err != nil {
+		return err
+	}
+	err = p.graph.Walk(dag.NewBFSWalkerAlgorithm(), func(tx dag.Transaction) bool {
+		if !tx.SigningTime().Before(startDate) && tx.SigningTime().Before(endDate) {
+			transactions = append(transactions, tx)
+		}
+		return true
+	}, root)
 	if err != nil {
 		return err
 	}
