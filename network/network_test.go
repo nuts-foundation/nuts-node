@@ -322,7 +322,6 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	networkConfig.TrustStoreFile = "test/truststore.pem"
 	networkConfig.CertFile = "test/certificate-and-key.pem"
 	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
-	networkConfig.PublicAddr = "foo:8080"
 	networkConfig.EnableTLS = true
 	keyStore := crypto.NewMockKeyStore(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)

@@ -211,7 +211,6 @@ func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Ne
 		jwsSigner:  keyStore,
 		config: Config{
 			GrpcAddr:             fmt.Sprintf(":%d", nameToPort(name)),
-			PublicAddr:           fmt.Sprintf("localhost:%d", nameToPort(name)),
 			CertFile:             "test/certificate-and-key.pem",
 			CertKeyFile:          "test/certificate-and-key.pem",
 			TrustStoreFile:       "test/truststore.pem",

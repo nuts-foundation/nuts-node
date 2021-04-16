@@ -13,7 +13,6 @@ type Config struct {
 	// EnableTLS specifies whether to enable TLS for incoming connections.
 	EnableTLS bool `koanf:"enabletls"`
 	// Public address of this nodes other nodes can use to connect to this node.
-	PublicAddr     string   `koanf:"publicaddr"`
 	BootstrapNodes []string `koanf:"bootstrapnodes"`
 	CertFile       string   `koanf:"certfile"`
 	CertKeyFile    string   `koanf:"certkeyfile"`

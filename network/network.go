@@ -207,7 +207,6 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.P2PNetworkConfig, error) {
 	cfg := p2p.P2PNetworkConfig{
 		ListenAddress:  n.config.GrpcAddr,
-		PublicAddress:  n.config.PublicAddr,
 		BootstrapNodes: n.config.BootstrapNodes,
 		PeerID:         peerID,
 	}
