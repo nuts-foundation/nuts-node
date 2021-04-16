@@ -23,7 +23,7 @@ func FlagSet() *pflag.FlagSet {
 
 	defs := auth.DefaultConfig()
 	flags.String(ConfIrmaSchemeManager, defs.Irma.SchemeManager, "IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'.")
-	flags.String(ConfPublicURL, defs.PublicURL, "public URL which can be reached by a users IRMA client")
+	flags.String(ConfPublicURL, defs.PublicURL, "public URL which can be reached by a users IRMA client, this should include the scheme and domain: https://example.com. Additional paths should only be added if some sort of url-rewriting is done in a reverse-proxy.")
 	flags.Bool(ConfAutoUpdateIrmaSchemas, defs.Irma.AutoUpdateSchemas, "set if you want automatically update the IRMA schemas every 60 minutes.")
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
 
