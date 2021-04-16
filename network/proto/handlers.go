@@ -20,13 +20,12 @@ package proto
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	log "github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/sirupsen/logrus"
 )
 
 func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.AdvertHashes) {
@@ -41,7 +40,7 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 		return
 	}
 	// Block count is spec'd, so they must not differ.
-	if len(localBlocks) - 1 != len(advertHash.Blocks) {
+	if len(localBlocks)-1 != len(advertHash.Blocks) {
 		log.Logger().Warnf("Peer's number of block differs which is not supported, broadcast is ignored (peer=%s)", peer)
 		return
 	}
@@ -53,7 +52,7 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 
 	for i := 1; i < len(localBlocks); i++ {
 		localBlock := localBlocks[i]
-		peerBlock := advertHash.Blocks[i - 1]
+		peerBlock := advertHash.Blocks[i-1]
 		for _, peerHead := range peerBlock.Hashes {
 			peerHeadHash := hash.FromSlice(peerHead)
 			headMatches := false
@@ -96,13 +95,13 @@ func (p protocol) queryTransactionList(peer p2p.PeerID) {
 func (p protocol) advertHashes() {
 	msg := createMessage()
 	blocks := p.blocks.Get()
-	protoBlocks := make([]*transport.BlockHashes, len(blocks) - 1)
+	protoBlocks := make([]*transport.BlockHashes, len(blocks)-1)
 	for blockIdx, currBlock := range blocks {
 		// First block = historic block, which isn't added in full but as XOR of its heads
 		if blockIdx > 0 {
-			protoBlocks[blockIdx - 1] = &transport.BlockHashes{Hashes: make([][]byte, len(currBlock.Heads))}
+			protoBlocks[blockIdx-1] = &transport.BlockHashes{Hashes: make([][]byte, len(currBlock.Heads))}
 			for headIdx, currHead := range currBlock.Heads {
-				protoBlocks[blockIdx - 1].Hashes[headIdx] = currHead.Slice()
+				protoBlocks[blockIdx-1].Hashes[headIdx] = currHead.Slice()
 			}
 		}
 	}
@@ -119,7 +118,6 @@ func (p protocol) advertHashes() {
 	}}
 	p.p2pNetwork.Broadcast(&msg)
 }
-
 
 func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport.TransactionPayload) {
 	payloadHash := hash.FromSlice(contents.PayloadHash)

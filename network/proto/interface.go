@@ -83,11 +83,3 @@ type DAGBlock struct {
 	// Heads contains the heads of the block.
 	Heads []hash.SHA256Hash
 }
-
-type chanPeerHashQueue struct {
-	c chan *PeerHash
-}
-
-func (q chanPeerHashQueue) Get() *PeerHash {
-	return <-q.c
-}

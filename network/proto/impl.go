@@ -161,3 +161,11 @@ func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
 func createMessage() transport.NetworkMessage {
 	return transport.NetworkMessage{}
 }
+
+type chanPeerHashQueue struct {
+	c chan *PeerHash
+}
+
+func (q chanPeerHashQueue) Get() *PeerHash {
+	return <-q.c
+}
