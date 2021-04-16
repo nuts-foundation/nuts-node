@@ -19,7 +19,6 @@
 package proto
 
 import (
-	"encoding/hex"
 	"fmt"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -50,13 +49,6 @@ func prev(name string) []string {
 	return []string{name}
 }
 
-func tc(transactions []tx, heads ...string) testCase {
-	return testCase{
-		txs:   transactions,
-		heads: heads,
-	}
-}
-
 // Test cases visualized with https://asciiflow.com/
 func testCases() []testCase {
 	return []testCase{
@@ -81,12 +73,12 @@ func testCases() []testCase {
 			},
 		},
 		/*
-		      │        │
-		┌───┐ │  ┌───┐ │  ┌───┐  ┌───┐
-		│ A ├─┼─►│ B ├─┼─►│ C ├─►│ D │
-		└───┘ │  └───┘ │  └───┘  └───┘
-		      │        │
-		 */
+			      │        │
+			┌───┐ │  ┌───┐ │  ┌───┐  ┌───┐
+			│ A ├─┼─►│ B ├─┼─►│ C ├─►│ D │
+			└───┘ │  └───┘ │  └───┘  └───┘
+			      │        │
+		*/
 		{
 			name: "simple + D",
 			txs: []tx{
@@ -102,14 +94,14 @@ func testCases() []testCase {
 			},
 		},
 		/*
-		      │        │
-		┌───┐ │  ┌───┐ │  ┌───┐
-		│ A ├─┼─►│ B ├─┼─►│ C │
-		└─┬─┘ │  └───┘ │  └───┘
-		  │   │        │
-		  │   │        │  ┌───┐
-		  └───┼────────┼─►│ D │
-		      │        │  └───┘
+			      │        │
+			┌───┐ │  ┌───┐ │  ┌───┐
+			│ A ├─┼─►│ B ├─┼─►│ C │
+			└─┬─┘ │  └───┘ │  └───┘
+			  │   │        │
+			  │   │        │  ┌───┐
+			  └───┼────────┼─►│ D │
+			      │        │  └───┘
 		*/
 		{
 			name: "long branch from history",
@@ -150,15 +142,15 @@ func testCases() []testCase {
 			},
 		},
 		/*
-		      │        │
-		┌───┐ │  ┌───┐ │  ┌───┐  ┌───┐
-		│ A ├─┼─►│ B ├─┼─►│ C ├─►│ D │
-		└───┘ │  └─┬─┘ │  └───┘  └───┘
-		      │    │   │
-		      │  ┌─▼─┐ │
-		      │  │ E │ │
-		      │  └───┘ │
-		 */
+			      │        │
+			┌───┐ │  ┌───┐ │  ┌───┐  ┌───┐
+			│ A ├─┼─►│ B ├─┼─►│ C ├─►│ D │
+			└───┘ │  └─┬─┘ │  └───┘  └───┘
+			      │    │   │
+			      │  ┌─▼─┐ │
+			      │  │ E │ │
+			      │  └───┘ │
+		*/
 		{
 			name: "simple + D + branch",
 			txs: []tx{
@@ -184,19 +176,6 @@ func TestBlocks(t *testing.T) {
 			txs := make(map[string]dag.Transaction, 0)
 			latestTXAge := 0
 			for _, currTX := range tc.txs {
-				// Derive ref from name
-				ref := hash.SHA256Hash{}
-				nameAsHex := currTX.name
-				if len(nameAsHex) % 2 == 1 {
-					nameAsHex = "0" + nameAsHex
-				}
-				bts, err := hex.DecodeString(nameAsHex)
-				if !assert.NoError(t, err) {
-					return
-				}
-				for i, b := range bts {
-					ref[i] = b
-				}
 				// Resolve prevs
 				prevs := make([]hash.SHA256Hash, 0)
 				for _, prev := range currTX.prevs {
@@ -207,21 +186,21 @@ func TestBlocks(t *testing.T) {
 				}
 				// Make TX
 				tx := testTX{
-					ref:  ref,
+					data: []byte(currTX.name),
 					prev: prevs,
-					sigt: time.Now().AddDate(0, 0, currTX.time - numberOfBlocks + 1),
+					sigt: time.Now().AddDate(0, 0, currTX.time-numberOfBlocks+1),
 				}
 				if currTX.time > latestTXAge {
 					latestTXAge = currTX.time
 				}
 				txs[currTX.name] = tx
-				err = blocks.AddTransaction(&tx, nil)
+				err := blocks.AddTransaction(&tx, nil)
 				if !assert.NoError(t, err) {
 					return
 				}
 			}
 			println(blocks.String())
-			for dayNum := 0; dayNum < latestTXAge + 1; dayNum++ {
+			for dayNum := 0; dayNum < latestTXAge+1; dayNum++ {
 				// Assert blocks
 				expectedBlockHeads := strings.Split(tc.heads[dayNum], ", ")
 				for blockNum, blockHeadsConcatted := range expectedBlockHeads {
@@ -237,8 +216,8 @@ func TestBlocks(t *testing.T) {
 					}
 				}
 
-				println(fmt.Sprintf("Blocks after %d day(s) pass:", dayNum+ 1))
-				blocks.update(time.Now().AddDate(0, 0, dayNum+ 1))
+				println(fmt.Sprintf("Blocks after %d day(s) pass:", dayNum+1))
+				blocks.update(time.Now().AddDate(0, 0, dayNum+1))
 				println(blocks.String())
 			}
 		})
@@ -249,30 +228,32 @@ func TestDAGBlock_XORHeads(t *testing.T) {
 	t.Run("single head", func(t *testing.T) {
 		expected := hash.SHA256Sum([]byte("Hello, World!"))
 		blx := DAGBlock{Heads: []hash.SHA256Hash{expected}}
-		assert.Equal(t, blx.XORHeads(), expected)
-	})
-	t.Run("multiple heads", func(t *testing.T) {
-		h1 := hash.SHA256Sum([]byte("Hello, World!"))
-		h2 := hash.SHA256Sum([]byte("Hello, Universe!"))
-		h3 := hash.SHA256Sum([]byte("Hello, Everything Else!"))
-		expected, _ := hash.ParseHex("13735eb0bd447040661e1ca7f428e051ecaad15ea73e52e532423215f6836bb5")
-		blx := DAGBlock{Heads: []hash.SHA256Hash{h1, h2, h3}}
-		assert.Equal(t, blx.XORHeads(), expected)
+		assert.Equal(t, blx.XOR(), expected)
 	})
 	t.Run("no heads", func(t *testing.T) {
 		blx := DAGBlock{Heads: []hash.SHA256Hash{}}
-		assert.Equal(t, blx.XORHeads(), hash.EmptyHash())
+		assert.Equal(t, blx.XOR(), hash.EmptyHash())
 	})
 }
 
+func TestMultiXOR(t *testing.T) {
+	h1 := hash.SHA256Sum([]byte("Hello, World!"))
+	h2 := hash.SHA256Sum([]byte("Hello, Universe!"))
+	h3 := hash.SHA256Sum([]byte("Hello, Everything Else!"))
+	expected, _ := hash.ParseHex("13735eb0bd447040661e1ca7f428e051ecaad15ea73e52e532423215f6836bb5")
+	actual := hash.EmptyHash()
+	multiXOR(&actual, h1, h2, h3)
+	assert.Equal(t, actual, expected)
+}
+
 type testTX struct {
-	ref hash.SHA256Hash
+	data []byte
 	prev []hash.SHA256Hash
 	sigt time.Time
 }
 
 func (t testTX) Ref() hash.SHA256Hash {
-	return t.ref
+	return hash.SHA256Sum(t.data)
 }
 
 func (t testTX) Previous() []hash.SHA256Hash {
@@ -296,7 +277,7 @@ func (t testTX) TimelineVersion() int {
 }
 
 func (t testTX) PayloadHash() hash.SHA256Hash {
-	panic("implement me")
+	return hash.SHA256Sum(t.Ref().Slice())
 }
 
 func (t testTX) PayloadType() string {
@@ -320,5 +301,5 @@ func (t testTX) MarshalJSON() ([]byte, error) {
 }
 
 func (t testTX) Data() []byte {
-	panic("implement me")
+	return t.data
 }

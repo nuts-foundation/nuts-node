@@ -57,7 +57,7 @@ func extractFlagsForEngine(configKey string, flagSet *pflag.FlagSet) *pflag.Flag
 
 func generatePartitionedConfigOptionsDocs(fileName string, flags map[string]*pflag.FlagSet) {
 	sortedKeys := make([]string, 0)
-	for key, _ := range flags {
+	for key := range flags {
 		sortedKeys = append(sortedKeys, key)
 	}
 	sort.Strings(sortedKeys)

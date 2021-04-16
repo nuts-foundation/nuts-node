@@ -42,26 +42,25 @@ var ErrUnsupportedProtocolVersion = errors.New("unsupported protocol version")
 type Protocol interface {
 	core.Diagnosable
 	// Configure configures the Protocol. Must be called before Start().
-	Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID)
+	Configure(p2pNetwork p2p.Interface, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID)
 	// Starts the Protocol (sending and receiving of messages).
 	Start()
 	// Stops the Protocol.
 	Stop()
 }
 
-// PeerHashQueue is a queue which contains the hashes adverted by our peers. It's a FILO queue, since
-// the hashes represent append-only data structures which means the last one is most recent.
-type PeerHashQueue interface {
-	// Get blocks until there's an PeerHash available and returns it.
-	Get() *PeerHash
+// PeerOmnihashQueue is a queue which contains the omnihashes (DAG reduced to a single hash) from our peers.
+type PeerOmnihashQueue interface {
+	// Get blocks until there's an PeerOmnihash available and returns it.
+	Get() *PeerOmnihash
 }
 
-// PeerHash describes a hash we received from a peer.
-type PeerHash struct {
+// PeerOmnihash describes a peer and its DAG reduced to a single hash.
+type PeerOmnihash struct {
 	// Peer holds the ID of the peer we got the hash from.
 	Peer p2p.PeerID
-	// Hashes holds the hashes we received.
-	Hashes []hash.SHA256Hash
+	// Hash holds the actual hash.
+	Hash hash.SHA256Hash
 }
 
 // DAGBlocks defines the API for algorithms that determine the head transactions for DAG blocks.

@@ -27,10 +27,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_p2pNetwork_Configure(t *testing.T) {
+func Test_interface_Configure(t *testing.T) {
 	t.Run("ok - configure registers bootstrap nodes", func(t *testing.T) {
-		network := NewP2PNetwork()
-		err := network.Configure(P2PNetworkConfig{
+		network := NewInterface()
+		err := network.Configure(InterfaceConfig{
 			PeerID:         "foo",
 			ListenAddress:  "0.0.0.0:555",
 			BootstrapNodes: []string{"foo:555", "bar:5554"},
@@ -39,11 +39,11 @@ func Test_p2pNetwork_Configure(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Len(t, network.(*p2pNetwork).connectorAddChannel, 2)
+		assert.Len(t, network.(*grpcInterface).connectorAddChannel, 2)
 	})
 	t.Run("ok - ssl offloading", func(t *testing.T) {
-		network := NewP2PNetwork()
-		err := network.Configure(P2PNetworkConfig{
+		network := NewInterface()
+		err := network.Configure(InterfaceConfig{
 			PeerID:         "foo",
 			ListenAddress:  "0.0.0.0:555",
 			BootstrapNodes: []string{"foo:555", "bar:5554"},
@@ -51,17 +51,17 @@ func Test_p2pNetwork_Configure(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Len(t, network.(*p2pNetwork).connectorAddChannel, 2)
+		assert.Len(t, network.(*grpcInterface).connectorAddChannel, 2)
 	})
 }
 
-func Test_p2pNetwork_Start(t *testing.T) {
+func Test_interface_Start(t *testing.T) {
 	waitForGRPCStart := func() {
 		time.Sleep(100 * time.Millisecond) // Wait a moment for gRPC server setup goroutines to run
 	}
 	t.Run("ok - gRPC server not bound", func(t *testing.T) {
-		network := NewP2PNetwork().(*p2pNetwork)
-		err := network.Configure(P2PNetworkConfig{
+		network := NewInterface().(*grpcInterface)
+		err := network.Configure(InterfaceConfig{
 			PeerID:     "foo",
 			TrustStore: x509.NewCertPool(),
 		})
@@ -77,9 +77,9 @@ func Test_p2pNetwork_Start(t *testing.T) {
 		}
 	})
 	t.Run("ok - gRPC server bound, TLS enabled", func(t *testing.T) {
-		network := NewP2PNetwork().(*p2pNetwork)
+		network := NewInterface().(*grpcInterface)
 		serverCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
-		err := network.Configure(P2PNetworkConfig{
+		err := network.Configure(InterfaceConfig{
 			PeerID:        "foo",
 			ServerCert:    serverCert,
 			ListenAddress: ":5555",
@@ -97,8 +97,8 @@ func Test_p2pNetwork_Start(t *testing.T) {
 		}
 	})
 	t.Run("ok - gRPC server bound, TLS disabled", func(t *testing.T) {
-		network := NewP2PNetwork().(*p2pNetwork)
-		err := network.Configure(P2PNetworkConfig{
+		network := NewInterface().(*grpcInterface)
+		err := network.Configure(InterfaceConfig{
 			PeerID:        "foo",
 			ListenAddress: ":5555",
 			TrustStore:    x509.NewCertPool(),
@@ -116,9 +116,9 @@ func Test_p2pNetwork_Start(t *testing.T) {
 	})
 }
 
-func Test_p2pNetwork_GetLocalAddress(t *testing.T) {
-	network := NewP2PNetwork().(*p2pNetwork)
-	err := network.Configure(P2PNetworkConfig{
+func Test_interface_GetLocalAddress(t *testing.T) {
+	network := NewInterface().(*grpcInterface)
+	err := network.Configure(InterfaceConfig{
 		PeerID:         "foo",
 		ListenAddress:  "0.0.0.0:555",
 		BootstrapNodes: []string{"foo:555", "bar:5554"},

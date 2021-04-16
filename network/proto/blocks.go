@@ -49,16 +49,10 @@ func MutexWrapDAGBlocks(underlying DAGBlocks) DAGBlocks {
 	}
 }
 
-// XORHeads calculates a hash over all heads using bitwise XOR.
-func (b DAGBlock) XORHeads() hash.SHA256Hash {
+// XOR calculates a hash over all heads using bitwise XOR.
+func (b DAGBlock) XOR() hash.SHA256Hash {
 	var result hash.SHA256Hash
-	if len(b.Heads) == 0 {
-		return result
-	}
-	result = b.Heads[0]
-	for i := 1; i < len(b.Heads); i++ {
-		xor(&result, result, b.Heads[i])
-	}
+	multiXOR(&result, b.Heads...)
 	return result
 }
 
@@ -106,12 +100,12 @@ type head struct {
 	blockDate time.Time
 }
 
-// heads calculates the block heads, without updating the structure first. Only for internal use and testing.
+// heads calculates the block heads, without updating the structure first. Only for internal use and testting.
 func (blx *trackingDAGBlocks) heads() []DAGBlock {
 	result := make([]DAGBlock, 0)
 	for blockNum, currBlock := range blx.blocks {
 		resultBlock := DAGBlock{Start: currBlock.start}
-		for ref, _ := range currBlock.heads {
+		for ref := range currBlock.heads {
 			if blockNum < len(blx.blocks) {
 				resultBlock.Heads = append(resultBlock.Heads, ref)
 			}
@@ -190,29 +184,37 @@ func (blx *trackingDAGBlocks) update(now time.Time) {
 	numBlocks := len(blx.blocks)
 	for i := 0; i < numBlocks; i++ {
 		curr := blx.blocks[i]
-		// For the left-most block:
-		//  - decrement `distance`
-		//  - when `distance` reaches zero, the unmark the TX as block head
 		if i == 0 {
-			for ref, head := range curr.heads {
-				if head.distance != math.MaxInt64 {
-					head.distance--
-					if head.distance == 0 {
-						// Next TX of the head TX now falls within this block, so unmark it as block head
-						delete(curr.heads, ref)
-					}
-				}
-			}
+			updateTXBlockDistances(curr)
 		}
-		// Move TXs in the block to the right to the this block, unless the TX's signing time is in the future
-		// (which can actually only be the case for the current day's block).
 		if i < numBlocks-1 {
 			next := blx.blocks[i+1]
-			for ref, head := range next.heads {
-				if head.signingTime.Before(next.start) {
-					curr.heads[ref] = head
-					delete(next.heads, ref)
-				}
+			blx.leftShiftTXs(curr, next)
+		}
+	}
+}
+
+// leftShiftTXs shifts the transactions in the left block to the right block, but only if the signing time puts it into
+// the left block (which can be the case for TXs in current day's block).
+func (blx *trackingDAGBlocks) leftShiftTXs(left *block, right *block) {
+	for ref, head := range right.heads {
+		if head.signingTime.Before(right.start) {
+			left.heads[ref] = head
+			delete(right.heads, ref)
+		}
+	}
+}
+
+// updateTXBlockDistances updates the historic block:
+// - decrement `distance`
+// - when `distance` reaches zero, the unmark the TX as block head
+func updateTXBlockDistances(historicBlock *block) {
+	for ref, head := range historicBlock.heads {
+		if head.distance != math.MaxInt64 {
+			head.distance--
+			if head.distance == 0 {
+				// Next TX of the head TX now falls within this block, so unmark it as block head
+				delete(historicBlock.heads, ref)
 			}
 		}
 	}
@@ -262,5 +264,15 @@ func startOfDay(now time.Time) time.Time {
 func xor(dest *hash.SHA256Hash, left, right hash.SHA256Hash) {
 	for i := 0; i < len(left); i++ {
 		dest[i] = left[i] ^ right[i]
+	}
+}
+
+func multiXOR(dest *hash.SHA256Hash, hashes ...hash.SHA256Hash) {
+	if len(hashes) == 0 {
+		return
+	}
+	*dest = hashes[0]
+	for i := 1; i < len(hashes); i++ {
+		xor(dest, *dest, hashes[i])
 	}
 }

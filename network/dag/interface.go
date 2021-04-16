@@ -20,6 +20,7 @@ package dag
 
 import (
 	"errors"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
@@ -40,15 +41,14 @@ type DAG interface {
 	// Walk visits every node of the DAG, starting at the given hash working its way down each level until every leaf is visited.
 	// when startAt is an empty hash, the walker starts at the root node.
 	Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error
+	// FindBetween finds all transactions which signing time lies between startInclude and endExclusive.
+	FindBetween(startInclusive time.Time, endExclusive time.Time) ([]Transaction, error)
 	// Root returns the root hash of the DAG. If there's no root an empty hash is returned. If an error occurs, it is returned.
 	Root() (hash.SHA256Hash, error)
 	// Get retrieves a specific transaction from the DAG. If it isn't found, nil is returned.
 	Get(ref hash.SHA256Hash) (Transaction, error)
 	// GetByPayloadHash retrieves all transactions that refer to the specified payload.
 	GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Transaction, error)
-	// All retrieves all transactions from the DAG.
-	// TODO: This should go when there's a more optimized network protocol
-	All() ([]Transaction, error)
 	// IsPresent checks whether the specified transaction exists on the DAG.
 	IsPresent(ref hash.SHA256Hash) (bool, error)
 	// Heads returns all unmerged heads, which are transactions where no other transactions point to as `prev`. To be used
@@ -108,4 +108,14 @@ type Observer func(subject interface{})
 // Observable defines the interfaces for types that can be observed.
 type Observable interface {
 	RegisterObserver(observer Observer)
+}
+
+// MinTime returns the minimum value for time.Time
+func MinTime() time.Time {
+	return time.Time{}
+}
+
+// MaxTime returns the maximum value for time.Time
+func MaxTime() time.Time {
+	return time.Unix(1<<63-62135596801, 999999999)
 }

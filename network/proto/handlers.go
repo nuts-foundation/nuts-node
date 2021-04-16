@@ -29,13 +29,41 @@ import (
 	"time"
 )
 
+func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
+	peer := peerMsg.Peer
+	networkMessage := peerMsg.Message
+	switch msg := networkMessage.Message.(type) {
+	case *transport.NetworkMessage_AdvertHashes:
+		if msg.AdvertHashes != nil {
+			p.handleAdvertHashes(peer, msg.AdvertHashes)
+		}
+	case *transport.NetworkMessage_TransactionListQuery:
+		if msg.TransactionListQuery != nil {
+			return p.handleTransactionListQuery(peer, msg.TransactionListQuery.BlockDate)
+		}
+	case *transport.NetworkMessage_TransactionList:
+		if msg.TransactionList != nil {
+			return p.handleTransactionList(peer, msg.TransactionList)
+		}
+	case *transport.NetworkMessage_TransactionPayloadQuery:
+		if msg.TransactionPayloadQuery != nil && msg.TransactionPayloadQuery.PayloadHash != nil {
+			return p.handleTransactionPayloadQuery(peer, msg.TransactionPayloadQuery)
+		}
+	case *transport.NetworkMessage_TransactionPayload:
+		if msg.TransactionPayload != nil && msg.TransactionPayload.PayloadHash != nil && msg.TransactionPayload.Data != nil {
+			p.handleTransactionPayload(peer, msg.TransactionPayload)
+		}
+	}
+	return nil
+}
+
 func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.AdvertHashes) {
 	log.Logger().Tracef("Received adverted hashes from peer: %s", peer)
 
 	localBlocks := p.blocks.Get()
 	// We could theoretically support clock skew of peers (compared to the local clock), but we can also just wait for
 	// the blocks to synchronize which is way easier. It could just lead to a little synchronization delay at midnight.
-	if getBlockTimestamp(getCurrentBlock(localBlocks)) != advertHash.CurrentBlockDate {
+	if getBlockTimestamp(getCurrentBlock(localBlocks).Start) != advertHash.CurrentBlockDate {
 		// Log level is INFO which might prove to be too verbose, but we'll have to find out in an actual network.
 		log.Logger().Infof("Peer's current block date differs (probably due to clock skew) which is not supported, broadcast is ignored (peer=%s)", peer)
 		return
@@ -45,15 +73,35 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 		log.Logger().Warnf("Peer's number of block differs which is not supported, broadcast is ignored (peer=%s)", peer)
 		return
 	}
-	localHistoryHash := getHistoricBlock(localBlocks).XORHeads()
+	// Compare historic block
+	localHistoryHash := getHistoricBlock(localBlocks).XOR()
 	if !localHistoryHash.Equals(hash.FromSlice(advertHash.HistoricHash)) {
 		log.Logger().Warnf("Peer's historic block differs, broadcast is ignored (peer=%s)", peer)
 		return
 	}
+	// Finally, check the rest of the blocks
+	p.checkPeerBlocks(peer, advertHash.Blocks, localBlocks[1:])
 
-	for i := 1; i < len(localBlocks); i++ {
+	// Calculate peer's omnihash and propagate it
+	omnihash := hash.FromSlice(advertHash.HistoricHash)
+	for _, blck := range advertHash.Blocks {
+		for _, head := range blck.Hashes {
+			xor(&omnihash, omnihash, hash.FromSlice(head))
+		}
+	}
+	p.peerOmnihashChannel <- PeerOmnihash{
+		Peer: peer,
+		Hash: omnihash,
+	}
+}
+
+// checkPeerBlocks compares the blocks we've received from a peer with the ones of the local DAG. If it finds heads in the
+// peer blocks that aren't present on the local DAG is will query that block's transactions.
+// localBlocks must not include the historic block.
+func (p *protocol) checkPeerBlocks(peer p2p.PeerID, peerBlocks []*transport.BlockHashes, localBlocks []DAGBlock) {
+	for i := 0; i < len(peerBlocks); i++ {
 		localBlock := localBlocks[i]
-		peerBlock := advertHash.Blocks[i-1]
+		peerBlock := peerBlocks[i]
 		for _, peerHead := range peerBlock.Hashes {
 			peerHeadHash := hash.FromSlice(peerHead)
 			headMatches := false
@@ -76,48 +124,10 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 				log.Logger().Errorf("Error while checking peer head on local DAG (ref=%s): %v", peerHeadHash, err)
 			} else if !headIsPresentOnLocalDAG {
 				log.Logger().Infof("Peer has head which is not present on our DAG, querying block's transactions (peer=%s, tx=%s, blockDate=%s)", peer, peerHeadHash, localBlock.Start)
-				go p.queryTransactionList(peer, localBlock.Start)
+				p.sender.sendTransactionListQuery(peer, localBlock.Start)
 			}
 		}
 	}
-
-	// TODO: Update to XOR of all heads?
-	// p.newPeerHashChannel <- peerHash
-}
-
-func (p protocol) queryTransactionList(peer p2p.PeerID, blockDate time.Time) {
-	msg := createMessage()
-	msg.Message = &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: uint32(blockDate.UTC().Unix())}}
-	if err := p.p2pNetwork.Send(peer, &msg); err != nil {
-		log.Logger().Warnf("Unable to query peer for hash list (peer=%s): %v", peer, err)
-	}
-}
-
-func (p protocol) advertHashes() {
-	msg := createMessage()
-	blocks := p.blocks.Get()
-	protoBlocks := make([]*transport.BlockHashes, len(blocks)-1)
-	for blockIdx, currBlock := range blocks {
-		// First block = historic block, which isn't added in full but as XOR of its heads
-		if blockIdx > 0 {
-			protoBlocks[blockIdx-1] = &transport.BlockHashes{Hashes: make([][]byte, len(currBlock.Heads))}
-			for headIdx, currHead := range currBlock.Heads {
-				protoBlocks[blockIdx-1].Hashes[headIdx] = currHead.Slice()
-			}
-		}
-	}
-	if log.Logger().Level >= logrus.TraceLevel {
-		// DAGBlock.String() is expensive
-		log.Logger().Tracef("Broadcasting heads: %s", blocks)
-	}
-	historicBlock := getHistoricBlock(blocks) // First block is historic block
-	currentBlock := getCurrentBlock(blocks)   // Last block is current block
-	msg.Message = &transport.NetworkMessage_AdvertHashes{AdvertHashes: &transport.AdvertHashes{
-		Blocks:           protoBlocks,
-		HistoricHash:     historicBlock.XORHeads().Slice(),
-		CurrentBlockDate: getBlockTimestamp(currentBlock),
-	}}
-	p.p2pNetwork.Broadcast(&msg)
 }
 
 func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport.TransactionPayload) {
@@ -126,7 +136,7 @@ func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport
 	// TODO: Maybe this should be asynchronous since writing the transaction contents might be I/O heavy?
 	if transaction, err := p.graph.GetByPayloadHash(payloadHash); err != nil {
 		log.Logger().Errorf("Error while looking up transaction to write payload (payloadHash=%s): %v", payloadHash, err)
-	} else if transaction == nil {
+	} else if len(transaction) == 0 {
 		// This might mean an attacker is sending us unsolicited document payloads
 		log.Logger().Infof("Received transaction payload for transaction we don't have (payloadHash=%s)", payloadHash)
 	} else if hasPayload, err := p.payloadStore.IsPresent(payloadHash); err != nil {
@@ -135,8 +145,6 @@ func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport
 		log.Logger().Debugf("Received payload we already have (payloadHash=%s)", payloadHash)
 	} else if err := p.payloadStore.WritePayload(payloadHash, contents.Data); err != nil {
 		log.Logger().Errorf("Error while writing payload for transaction (hash=%s): %v", payloadHash, err)
-	} else {
-		// TODO: Publish change to subscribers
 	}
 }
 
@@ -144,25 +152,19 @@ func (p *protocol) handleTransactionPayloadQuery(peer p2p.PeerID, query *transpo
 	payloadHash := hash.FromSlice(query.PayloadHash)
 	log.Logger().Tracef("Received transaction payload query from peer (peer=%s, payloadHash=%s)", peer, payloadHash)
 	// TODO: Maybe this should be asynchronous since loading transaction contents might be I/O heavy?
-	if data, err := p.payloadStore.ReadPayload(payloadHash); err != nil {
+	data, err := p.payloadStore.ReadPayload(payloadHash)
+	if err != nil {
 		return err
-	} else if data != nil {
-		responseMsg := createMessage()
-		responseMsg.Message = &transport.NetworkMessage_TransactionPayload{TransactionPayload: &transport.TransactionPayload{
-			PayloadHash: payloadHash.Slice(),
-			Data:        data,
-		}}
-		if err := p.p2pNetwork.Send(peer, &responseMsg); err != nil {
-			return err
-		}
-	} else {
-		// TODO: Send empty response message when we don't have the payload
-		log.Logger().Infof("Peer queried us for transaction payload, but seems like we don't have it (peer=%s,payloadHash=%s)", peer, payloadHash)
 	}
+	if data == nil {
+		log.Logger().Debugf("Peer queried us for transaction payload, but seems like we don't have it (peer=%s,payloadHash=%s)", peer, payloadHash)
+	}
+	p.sender.sendTransactionPayload(peer, payloadHash, data)
 	return nil
 }
 
 func (p *protocol) handleTransactionList(peer p2p.PeerID, transactionList *transport.TransactionList) error {
+	// TODO: Only process transaction list if we actually queried it
 	log.Logger().Tracef("Received transaction list from peer (peer=%s)", peer)
 	for _, current := range transactionList.Transactions {
 		transactionRef := hash.FromSlice(current.Hash)
@@ -206,11 +208,7 @@ func (p *protocol) checkTransactionOnLocalNode(peer p2p.PeerID, transactionRef h
 		// TODO: Currently we send the query to the peer that sent us the hash, but this peer might not have the
 		//   transaction contents. We need a smarter way to get it from a peer who does.
 		log.Logger().Infof("Received transaction hash from peer that we don't have yet or we're missing its contents, will query it (peer=%s,hash=%s)", peer, transactionRef)
-		responseMsg := createMessage()
-		responseMsg.Message = &transport.NetworkMessage_TransactionPayloadQuery{
-			TransactionPayloadQuery: &transport.TransactionPayloadQuery{PayloadHash: transaction.PayloadHash().Slice()},
-		}
-		return p.p2pNetwork.Send(peer, &responseMsg)
+		p.sender.sendTransactionPayloadQuery(peer, transaction.PayloadHash())
 	}
 	return nil
 }
@@ -223,46 +221,55 @@ func (p *protocol) handleTransactionListQuery(peer p2p.PeerID, blockDateInt uint
 		// Historic block is queried, query from start up to the first block
 		// endDate = p.blocks.Get()[1].Start
 		return nil
-	} else {
-		startDate = time.Unix(int64(blockDateInt), 0).UTC()
-		endDate = startDate.AddDate(0, 0, 1)
 	}
-
+	startDate = time.Unix(int64(blockDateInt), 0).UTC()
+	endDate = startDate.AddDate(0, 0, 1)
 	log.Logger().Tracef("Received transaction list query from peer (peer=%s,from=%s,to=%s)", peer, startDate, endDate)
-	transactions := make([]dag.Transaction, 0)
-	// TODO: Replace this with something more optimized (maybe go-leia with a range query on signing time?)
-	root, err := p.graph.Root()
+	txs, err := p.graph.FindBetween(startDate, endDate)
 	if err != nil {
 		return err
 	}
-	err = p.graph.Walk(dag.NewBFSWalkerAlgorithm(), func(tx dag.Transaction) bool {
-		if !tx.SigningTime().Before(startDate) && tx.SigningTime().Before(endDate) {
-			transactions = append(transactions, tx)
+	p.sender.sendTransactionList(peer, txs)
+	return nil
+}
+
+func createAdvertHashesMessage(blocks []DAGBlock) *transport.NetworkMessage_AdvertHashes {
+	protoBlocks := make([]*transport.BlockHashes, len(blocks)-1)
+	for blockIdx, currBlock := range blocks {
+		// First block = historic block, which isn't added in full but as XOR of its heads
+		if blockIdx > 0 {
+			protoBlocks[blockIdx-1] = &transport.BlockHashes{Hashes: make([][]byte, len(currBlock.Heads))}
+			for headIdx, currHead := range currBlock.Heads {
+				protoBlocks[blockIdx-1].Hashes[headIdx] = currHead.Slice()
+			}
 		}
-		return true
-	}, root)
-	if err != nil {
-		return err
 	}
-	tl := &transport.TransactionList{
-		Transactions: make([]*transport.Transaction, len(transactions)),
+	if log.Logger().Level >= logrus.TraceLevel {
+		// DAGBlock.String() is expensive
+		log.Logger().Tracef("Broadcasting heads: %s", blocks)
 	}
+	historicBlock := getHistoricBlock(blocks) // First block is historic block
+	currentBlock := getCurrentBlock(blocks)   // Last block is current block
+	return &transport.NetworkMessage_AdvertHashes{AdvertHashes: &transport.AdvertHashes{
+		Blocks:           protoBlocks,
+		HistoricHash:     historicBlock.XOR().Slice(),
+		CurrentBlockDate: getBlockTimestamp(currentBlock.Start),
+	}}
+}
+
+func toNetworkTransactions(transactions []dag.Transaction) []*transport.Transaction {
+	result := make([]*transport.Transaction, len(transactions))
 	for i, transaction := range transactions {
-		tl.Transactions[i] = &transport.Transaction{
+		result[i] = &transport.Transaction{
 			Hash: transaction.Ref().Slice(),
 			Data: transaction.Data(),
 		}
 	}
-	msg := createMessage()
-	msg.Message = &transport.NetworkMessage_TransactionList{TransactionList: tl}
-	if err := p.p2pNetwork.Send(peer, &msg); err != nil {
-		return err
-	}
-	return nil
+	return result
 }
 
-func getBlockTimestamp(currentBlock DAGBlock) uint32 {
-	return uint32(currentBlock.Start.UTC().Unix())
+func getBlockTimestamp(timestamp time.Time) uint32 {
+	return uint32(timestamp.UTC().Unix())
 }
 
 func getCurrentBlock(blocks []DAGBlock) DAGBlock {

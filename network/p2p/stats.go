@@ -24,26 +24,32 @@ import (
 	"strings"
 )
 
+// NumberOfPeersStatistic contains node's number of peers it's connected to.
 type NumberOfPeersStatistic struct {
 	NumberOfPeers int
 }
 
+// Name returns the name of the statistic.
 func (n NumberOfPeersStatistic) Name() string {
 	return "[P2P Network] Connected peers #"
 }
 
+// String returns the statistic as string.
 func (n NumberOfPeersStatistic) String() string {
 	return fmt.Sprintf("%d", n.NumberOfPeers)
 }
 
+// PeersStatistic contains the node's peers it's connected to.
 type PeersStatistic struct {
 	Peers []Peer
 }
 
+// Name returns the name of the statistic.
 func (p PeersStatistic) Name() string {
 	return "[P2P Network] Connected peers"
 }
 
+// String returns the statistic as string.
 func (p PeersStatistic) String() string {
 	addrs := make([]string, len(p.Peers))
 	for i, peer := range p.Peers {
@@ -56,14 +62,17 @@ func (p PeersStatistic) String() string {
 	return strings.Join(addrs, " ")
 }
 
+// OwnPeerIDStatistic contains the node's own peer ID.
 type OwnPeerIDStatistic struct {
 	peerID PeerID
 }
 
+// Name returns the name of the statistic.
 func (o OwnPeerIDStatistic) Name() string {
 	return "[P2P Network] Peer ID of local node"
 }
 
+// String returns the statistic as string.
 func (o OwnPeerIDStatistic) String() string {
 	return o.peerID.String()
 }

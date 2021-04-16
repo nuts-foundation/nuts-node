@@ -38,7 +38,7 @@ func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 }
 
 // Configure mocks base method.
-func (m *MockProtocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
+func (m *MockProtocol) Configure(p2pNetwork p2p.Interface, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Configure", p2pNetwork, graph, publisher, payloadStore, verifier, advertHashesInterval, peerID)
 }
@@ -87,41 +87,41 @@ func (mr *MockProtocolMockRecorder) Stop() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockProtocol)(nil).Stop))
 }
 
-// MockPeerHashQueue is a mock of PeerHashQueue interface.
-type MockPeerHashQueue struct {
+// MockPeerOmnihashQueue is a mock of PeerOmnihashQueue interface.
+type MockPeerOmnihashQueue struct {
 	ctrl     *gomock.Controller
-	recorder *MockPeerHashQueueMockRecorder
+	recorder *MockPeerOmnihashQueueMockRecorder
 }
 
-// MockPeerHashQueueMockRecorder is the mock recorder for MockPeerHashQueue.
-type MockPeerHashQueueMockRecorder struct {
-	mock *MockPeerHashQueue
+// MockPeerOmnihashQueueMockRecorder is the mock recorder for MockPeerOmnihashQueue.
+type MockPeerOmnihashQueueMockRecorder struct {
+	mock *MockPeerOmnihashQueue
 }
 
-// NewMockPeerHashQueue creates a new mock instance.
-func NewMockPeerHashQueue(ctrl *gomock.Controller) *MockPeerHashQueue {
-	mock := &MockPeerHashQueue{ctrl: ctrl}
-	mock.recorder = &MockPeerHashQueueMockRecorder{mock}
+// NewMockPeerOmnihashQueue creates a new mock instance.
+func NewMockPeerOmnihashQueue(ctrl *gomock.Controller) *MockPeerOmnihashQueue {
+	mock := &MockPeerOmnihashQueue{ctrl: ctrl}
+	mock.recorder = &MockPeerOmnihashQueueMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockPeerHashQueue) EXPECT() *MockPeerHashQueueMockRecorder {
+func (m *MockPeerOmnihashQueue) EXPECT() *MockPeerOmnihashQueueMockRecorder {
 	return m.recorder
 }
 
 // Get mocks base method.
-func (m *MockPeerHashQueue) Get() *PeerHash {
+func (m *MockPeerOmnihashQueue) Get() *PeerOmnihash {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get")
-	ret0, _ := ret[0].(*PeerHash)
+	ret0, _ := ret[0].(*PeerOmnihash)
 	return ret0
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockPeerHashQueueMockRecorder) Get() *gomock.Call {
+func (mr *MockPeerOmnihashQueueMockRecorder) Get() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockPeerHashQueue)(nil).Get))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockPeerOmnihashQueue)(nil).Get))
 }
 
 // MockDAGBlocks is a mock of DAGBlocks interface.

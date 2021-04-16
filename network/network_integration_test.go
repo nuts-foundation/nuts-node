@@ -103,7 +103,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	// Now assert that all nodes have received all transactions
 	waitForTransactions := func(node string, graph dag.DAG) bool {
 		return waitFor(t, func() (bool, error) {
-			if docs, err := graph.All(); err != nil {
+			if docs, err := graph.FindBetween(dag.MinTime(), dag.MaxTime()); err != nil {
 				return false, err
 			} else {
 				return len(docs) == expectedDocLogSize, nil
@@ -206,7 +206,7 @@ func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Ne
 	mutex.Unlock()
 	// Create Network instance
 	instance := &Network{
-		p2pNetwork: p2p.NewP2PNetwork(),
+		p2pNetwork: p2p.NewInterface(),
 		protocol:   proto.NewProtocol(),
 		jwsSigner:  keyStore,
 		config: Config{

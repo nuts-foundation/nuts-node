@@ -113,11 +113,11 @@ func (s subscriberTransaction) Version() dag.Version {
 	panic("implement me")
 }
 
-func (s subscriberDocument) Previous() []hash.SHA256Hash {
+func (s subscriberTransaction) Previous() []hash.SHA256Hash {
 	panic("implement me")
 }
 
-func (s subscriberDocument) Version() dag.Version {
+func (s subscriberTransaction) Version() dag.Version {
 	panic("implement me")
 }
 

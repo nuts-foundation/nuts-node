@@ -38,12 +38,14 @@ import (
 	grpcPeer "google.golang.org/grpc/peer"
 )
 
-type Dialer func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error)
+type dialer func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error)
 
 const connectingQueueChannelSize = 100
+const eventChannelSize = 100
+const messageBacklogChannelSize = 100
 
-type p2pNetwork struct {
-	config P2PNetworkConfig
+type grpcInterface struct {
+	config InterfaceConfig
 
 	grpcServer *grpc.Server
 	listener   net.Listener
@@ -52,21 +54,28 @@ type p2pNetwork struct {
 	connectors map[string]*connector
 	// connectorAddChannel is used to communicate addresses of remote peers to connect to.
 	connectorAddChannel chan string
+	// Event channels which are listened to by, peers connects/disconnects
+	peerConnectedChannel    chan Peer
+	peerDisconnectedChannel chan Peer
 	// conns is the list of active connections. Access MUST be wrapped in locking using connsMutex.
 	conns map[PeerID]*connection
 	// peersByAddr access MUST be wrapped in locking using connsMutex.
 	peersByAddr      map[string]PeerID
 	connsMutex       *sync.Mutex
 	receivedMessages messageQueue
-	grpcDialer       Dialer
+	grpcDialer       dialer
 	configured       bool
 }
 
-func (n p2pNetwork) Configured() bool {
+func (n grpcInterface) EventChannels() (peerConnected chan Peer, peerDisconnected chan Peer) {
+	return n.peerConnectedChannel, n.peerDisconnectedChannel
+}
+
+func (n grpcInterface) Configured() bool {
 	return n.configured
 }
 
-func (n p2pNetwork) Diagnostics() []core.DiagnosticResult {
+func (n grpcInterface) Diagnostics() []core.DiagnosticResult {
 	peers := n.Peers()
 	return []core.DiagnosticResult{
 		NumberOfPeersStatistic{NumberOfPeers: len(peers)},
@@ -75,7 +84,7 @@ func (n p2pNetwork) Diagnostics() []core.DiagnosticResult {
 	}
 }
 
-func (n *p2pNetwork) Peers() []Peer {
+func (n *grpcInterface) Peers() []Peer {
 	var result []Peer
 	n.connsMutex.Lock()
 	defer n.connsMutex.Unlock()
@@ -85,7 +94,7 @@ func (n *p2pNetwork) Peers() []Peer {
 	return result
 }
 
-func (n *p2pNetwork) Broadcast(message *transport.NetworkMessage) {
+func (n *grpcInterface) Broadcast(message *transport.NetworkMessage) {
 	n.connsMutex.Lock()
 	defer n.connsMutex.Unlock()
 	for _, conn := range n.conns {
@@ -93,20 +102,20 @@ func (n *p2pNetwork) Broadcast(message *transport.NetworkMessage) {
 	}
 }
 
-func (n p2pNetwork) ReceivedMessages() MessageQueue {
+func (n grpcInterface) ReceivedMessages() MessageQueue {
 	return n.receivedMessages
 }
 
-func (n p2pNetwork) Send(peerId PeerID, message *transport.NetworkMessage) error {
+func (n grpcInterface) Send(peerID PeerID, message *transport.NetworkMessage) error {
 	// TODO: Can't we optimize this so that we don't need this lock? Maybe by (secretly) embedding a pointer to the peer in the peer ID?
 	var conn *connection
 	n.connsMutex.Lock()
 	{
 		defer n.connsMutex.Unlock()
-		conn = n.conns[peerId]
+		conn = n.conns[peerID]
 	}
 	if conn == nil {
-		return fmt.Errorf("unknown peer: %s", peerId)
+		return fmt.Errorf("unknown peer: %s", peerID)
 	}
 	conn.outMessages <- message
 	return nil
@@ -115,10 +124,10 @@ func (n p2pNetwork) Send(peerId PeerID, message *transport.NetworkMessage) error
 type connector struct {
 	address string
 	backoff Backoff
-	Dialer
+	dialer
 }
 
-func (c *connector) connect(ownID PeerID, tlsConfig *tls.Config) (*connection, error) {
+func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*connection, error) {
 	log.Logger().Debugf("Connecting to peer: %v", c.address)
 	cxt := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
 	dialContext, _ := context.WithTimeout(cxt, 5*time.Second)
@@ -131,55 +140,63 @@ func (c *connector) connect(ownID PeerID, tlsConfig *tls.Config) (*connection, e
 	} else {
 		dialOptions = append(dialOptions, grpc.WithInsecure()) // No TLS, requires 'insecure' flag
 	}
-	grpcConn, err := c.Dialer(dialContext, c.address, dialOptions...)
+	grpcConn, err := c.dialer(dialContext, c.address, dialOptions...)
 	if err != nil {
 		return nil, errors2.Wrap(err, "unable to connect")
 	}
 	client := transport.NewNetworkClient(grpcConn)
-	gate, err := client.Connect(cxt)
+	messenger, err := client.Connect(cxt)
 	if err != nil {
-		log.Logger().Warnf("Failed to set up stream (peer address=%s): %v", c.address, err)
+		log.Logger().Warnf("Failed to set up stream (addr=%s): %v", c.address, err)
 		_ = grpcConn.Close()
 		return nil, err
 	}
 
 	conn := connection{
-		Peer:       Peer{Address: c.address},
-		grpcConn:   grpcConn,
-		client:     client,
-		gate:       gate,
-		closeMutex: &sync.Mutex{},
+		Peer:      Peer{Address: c.address},
+		grpcConn:  grpcConn,
+		client:    client,
+		messenger: messenger,
+		mux:       &sync.Mutex{},
 	}
-	if serverHeader, err := gate.Header(); err != nil {
-		log.Logger().Warnf("Error receiving headers from server (peer=%s): %v", c.address, err)
+	serverPeerID, err := c.readHeaders(messenger, grpcConn)
+	if err != nil {
+		log.Logger().Warnf("Error reading headers from server, closing connection (addr=%s): %v", c.address, err)
 		_ = grpcConn.Close()
 		return nil, err
-	} else {
-		if serverPeerID, err := peerIDFromMetadata(serverHeader); err != nil {
-			log.Logger().Warnf("Error parsing PeerID header from server (peer=%s): %v", c.address, err)
-			_ = grpcConn.Close()
-			return nil, err
-		} else if serverPeerID == "" {
-			log.Logger().Warnf("Server didn't send a peer ID, dropping connection (peer=%s)", c.address)
-			_ = grpcConn.Close()
-			return nil, err
-		} else {
-			conn.ID = serverPeerID
-		}
 	}
+	conn.ID = serverPeerID
 	log.Logger().Infof("Connected to peer (id=%s,addr=%s)", conn.ID, c.address)
 	return &conn, nil
 }
 
-func NewP2PNetwork() P2PNetwork {
-	return &p2pNetwork{
-		conns:               make(map[PeerID]*connection, 0),
-		peersByAddr:         make(map[string]PeerID, 0),
-		connectors:          make(map[string]*connector, 0),
-		connectorAddChannel: make(chan string, connectingQueueChannelSize), // TODO: Does this number make sense?
-		connsMutex:          &sync.Mutex{},
-		receivedMessages:    messageQueue{c: make(chan PeerMessage, 100)}, // TODO: Does this number make sense?
-		grpcDialer:          grpc.DialContext,
+func (c *connector) readHeaders(gate transport.Network_ConnectClient, grpcConn *grpc.ClientConn) (PeerID, error) {
+	serverHeader, err := gate.Header()
+	if err != nil {
+		return "", err
+	}
+	serverPeerID, err := peerIDFromMetadata(serverHeader)
+	if err != nil {
+		return "", fmt.Errorf("unable to parse PeerID: %w", err)
+	}
+	if serverPeerID == "" {
+		return "", errors.New("server didn't sent a PeerID")
+	}
+	return serverPeerID, nil
+}
+
+// NewInterface creates an interface to be used connect to peers in the network and exchange messages.
+func NewInterface() Interface {
+	return &grpcInterface{
+		conns:                   make(map[PeerID]*connection, 0),
+		peersByAddr:             make(map[string]PeerID, 0),
+		connectors:              make(map[string]*connector, 0),
+		connectorAddChannel:     make(chan string, connectingQueueChannelSize),
+		peerConnectedChannel:    make(chan Peer, eventChannelSize),
+		peerDisconnectedChannel: make(chan Peer, eventChannelSize),
+		connsMutex:              &sync.Mutex{},
+		receivedMessages:        messageQueue{c: make(chan PeerMessage, messageBacklogChannelSize)},
+		grpcDialer:              grpc.DialContext,
 	}
 }
 
@@ -191,7 +208,7 @@ func (m messageQueue) Get() PeerMessage {
 	return <-m.c
 }
 
-func (n *p2pNetwork) Configure(config P2PNetworkConfig) error {
+func (n *grpcInterface) Configure(config InterfaceConfig) error {
 	if config.PeerID == "" {
 		return errors.New("PeerID is empty")
 	}
@@ -203,7 +220,7 @@ func (n *p2pNetwork) Configure(config P2PNetworkConfig) error {
 	return nil
 }
 
-func (n *p2pNetwork) Start() error {
+func (n *grpcInterface) Start() error {
 	log.Logger().Debugf("Starting gRPC P2P node (ID: %s)", n.config.PeerID)
 	if n.config.ListenAddress != "" {
 		log.Logger().Debugf("Starting gRPC server on %s", n.config.ListenAddress)
@@ -238,7 +255,7 @@ func (n *p2pNetwork) Start() error {
 	return nil
 }
 
-func (n *p2pNetwork) Stop() error {
+func (n *grpcInterface) Stop() error {
 	// Stop server
 	if n.grpcServer != nil {
 		n.grpcServer.Stop()
@@ -260,7 +277,7 @@ func (n *p2pNetwork) Stop() error {
 	return nil
 }
 
-func (n p2pNetwork) ConnectToPeer(address string) bool {
+func (n grpcInterface) ConnectToPeer(address string) bool {
 	if n.shouldConnectTo(address) && len(n.connectorAddChannel) < connectingQueueChannelSize {
 		n.connectorAddChannel <- address
 		return true
@@ -268,19 +285,17 @@ func (n p2pNetwork) ConnectToPeer(address string) bool {
 	return false
 }
 
-func (n *p2pNetwork) startSendingAndReceiving(conn *connection) {
+func (n *grpcInterface) startSendingAndReceiving(conn *connection) {
 	conn.outMessages = make(chan *transport.NetworkMessage, 10) // TODO: Does this number make sense? Should also be configurable?
 	go conn.sendMessages()
 	n.registerConnection(conn)
-	// TODO: Check PeerID sent by peer
-	receiveMessages(conn.gate, conn.ID, n.receivedMessages)
-	conn.close()
+	conn.receiveMessages(n.receivedMessages)
 	// When we reach this line, receiveMessages has exited which means the connection has been closed.
 	n.unregisterConnection(conn)
 }
 
 // connectToNewPeers reads from connectorAddChannel to start connecting to new peers
-func (n *p2pNetwork) connectToNewPeers() {
+func (n *grpcInterface) connectToNewPeers() {
 	for address := range n.connectorAddChannel {
 		if _, present := n.peersByAddr[address]; present {
 			log.Logger().Debugf("Not connecting to peer, already connected (address=%s)", address)
@@ -290,38 +305,40 @@ func (n *p2pNetwork) connectToNewPeers() {
 			newConnector := &connector{
 				address: address,
 				backoff: defaultBackoff(),
-				Dialer:  n.grpcDialer,
+				dialer:  n.grpcDialer,
 			}
 			n.connectors[address] = newConnector
 			log.Logger().Debugf("Added remote peer (address=%s)", address)
-			go func() {
-				for {
-					if n.shouldConnectTo(address) {
-						var tlsConfig *tls.Config
-						if n.config.tlsEnabled() {
-							tlsConfig = &tls.Config{
-								Certificates: []tls.Certificate{n.config.ClientCert},
-								RootCAs:      n.config.TrustStore,
-							}
-						}
-						if peer, err := newConnector.connect(n.config.PeerID, tlsConfig); err != nil {
-							waitPeriod := newConnector.backoff.Backoff()
-							log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), newConnector.address, err)
-							time.Sleep(waitPeriod)
-						} else {
-							n.startSendingAndReceiving(peer)
-							newConnector.backoff.Reset()
-						}
-					}
-					time.Sleep(5 * time.Second)
-				}
-			}()
+			go n.startConnecting(newConnector)
 		}
 	}
 }
 
+func (n *grpcInterface) startConnecting(newConnector *connector) {
+	for {
+		if n.shouldConnectTo(newConnector.address) {
+			var tlsConfig *tls.Config
+			if n.config.tlsEnabled() {
+				tlsConfig = &tls.Config{
+					Certificates: []tls.Certificate{n.config.ClientCert},
+					RootCAs:      n.config.TrustStore,
+				}
+			}
+			if peer, err := newConnector.doConnect(n.config.PeerID, tlsConfig); err != nil {
+				waitPeriod := newConnector.backoff.Backoff()
+				log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), newConnector.address, err)
+				time.Sleep(waitPeriod)
+			} else {
+				n.startSendingAndReceiving(peer)
+				newConnector.backoff.Reset()
+			}
+		}
+		time.Sleep(5 * time.Second)
+	}
+}
+
 // shouldConnectTo checks whether we should connect to the given node.
-func (n p2pNetwork) shouldConnectTo(address string) bool {
+func (n grpcInterface) shouldConnectTo(address string) bool {
 	normalizedAddress := normalizeAddress(address)
 	if normalizedAddress == normalizeAddress(n.getLocalAddress()) {
 		// We're not going to connect to our own node
@@ -339,7 +356,7 @@ func (n p2pNetwork) shouldConnectTo(address string) bool {
 	return result
 }
 
-func (n p2pNetwork) getLocalAddress() string {
+func (n grpcInterface) getLocalAddress() string {
 	if strings.HasPrefix(n.config.ListenAddress, ":") {
 		// Interface's address not included in listening address (e.g. :5555), so prepend with localhost
 		return "localhost" + n.config.ListenAddress
@@ -349,11 +366,11 @@ func (n p2pNetwork) getLocalAddress() string {
 	}
 }
 
-func (n p2pNetwork) isRunning() bool {
+func (n grpcInterface) isRunning() bool {
 	return n.grpcServer != nil
 }
 
-func (n p2pNetwork) Connect(stream transport.Network_ConnectServer) error {
+func (n grpcInterface) Connect(stream transport.Network_ConnectServer) error {
 	peerCtx, _ := grpcPeer.FromContext(stream.Context())
 	log.Logger().Tracef("New peer connected from %s", peerCtx.Addr)
 	md, ok := metadata.FromIncomingContext(stream.Context())
@@ -374,23 +391,24 @@ func (n p2pNetwork) Connect(stream transport.Network_ConnectServer) error {
 		return errors2.Wrap(err, "unable to send headers")
 	}
 	conn := &connection{
-		Peer:       peer,
-		gate:       stream,
-		closeMutex: &sync.Mutex{},
+		Peer:      peer,
+		messenger: stream,
+		mux:       &sync.Mutex{},
 	}
 	n.startSendingAndReceiving(conn)
 	return nil
 }
 
-func (n *p2pNetwork) registerConnection(conn *connection) {
+func (n *grpcInterface) registerConnection(conn *connection) {
 	n.connsMutex.Lock()
 	defer n.connsMutex.Unlock()
 
 	n.conns[conn.ID] = conn
 	n.peersByAddr[normalizeAddress(conn.Address)] = conn.ID
+	n.peerConnectedChannel <- conn.Peer
 }
 
-func (n *p2pNetwork) unregisterConnection(conn *connection) {
+func (n *grpcInterface) unregisterConnection(conn *connection) {
 	n.connsMutex.Lock()
 	defer n.connsMutex.Unlock()
 
@@ -401,4 +419,5 @@ func (n *p2pNetwork) unregisterConnection(conn *connection) {
 
 	delete(n.conns, conn.ID)
 	delete(n.peersByAddr, normalizeAddress(conn.Address))
+	n.peerDisconnectedChannel <- conn.Peer
 }

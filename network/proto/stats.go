@@ -20,62 +20,44 @@ package proto
 
 import (
 	"fmt"
-	"sort"
-	"strings"
-	"sync"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
+	"sort"
+	"strings"
 )
 
-func newPeerConsistencyHashStatistic() peerConsistencyHashStatistic {
-	return peerConsistencyHashStatistic{
-		peerHashes: new(map[p2p.PeerID][]hash.SHA256Hash),
-		mux:        &sync.Mutex{},
+func newPeerOmnihashStatistic(input map[p2p.PeerID]hash.SHA256Hash) peerOmnihashStatistic {
+	var inputCopy = make(map[p2p.PeerID]hash.SHA256Hash, len(input))
+	for k, v := range input {
+		inputCopy[k] = v.Clone()
 	}
+	return peerOmnihashStatistic{peerHashes: inputCopy}
 }
 
-type peerConsistencyHashStatistic struct {
-	peerHashes *map[p2p.PeerID][]hash.SHA256Hash
-	mux        *sync.Mutex
+type peerOmnihashStatistic struct {
+	peerHashes map[p2p.PeerID]hash.SHA256Hash
 }
 
-func (d peerConsistencyHashStatistic) Name() string {
-	return "[Protocol] Peer hashes"
+func (d peerOmnihashStatistic) Name() string {
+	return "[Protocol] Peer omnihashes"
 }
 
-func (d peerConsistencyHashStatistic) String() string {
-	d.mux.Lock()
-	defer d.mux.Unlock()
-	var groupedByHash = make(map[string][]string)
-	for peer, hashes := range *d.peerHashes {
-		for _, hash := range hashes {
-			groupedByHash[hash.String()] = append(groupedByHash[hash.String()], string(peer))
-		}
+func (d peerOmnihashStatistic) String() string {
+	var groupedByHash = make(map[hash.SHA256Hash][]string)
+	for peer, h := range d.peerHashes {
+		groupedByHash[h] = append(groupedByHash[h], peer.String())
 	}
 	var items []string
-	for hash, peers := range groupedByHash {
+	for h, peers := range groupedByHash {
 		// Sort for stable order (easier for humans to understand)
 		sort.Slice(peers, func(i, j int) bool {
 			return peers[i] > peers[j]
 		})
-		items = append(items, fmt.Sprintf("%s={%s}", hash, strings.Join(peers, ", ")))
+		items = append(items, fmt.Sprintf("%s={%s}", h, strings.Join(peers, ", ")))
 	}
 	// Sort for stable order (easier for humans to understand)
 	sort.Slice(items, func(i, j int) bool {
 		return items[i] > items[j]
 	})
 	return strings.Join(items, ", ")
-}
-
-func (d peerConsistencyHashStatistic) copyFrom(input map[p2p.PeerID][]hash.SHA256Hash) {
-	d.mux.Lock()
-	defer d.mux.Unlock()
-	var newMap = make(map[p2p.PeerID][]hash.SHA256Hash, len(input))
-	for k, v := range input {
-		cp := make([]hash.SHA256Hash, len(v))
-		copy(cp, v)
-		newMap[k] = cp
-	}
-	*d.peerHashes = newMap
 }

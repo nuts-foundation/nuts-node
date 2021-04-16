@@ -40,7 +40,7 @@ import (
 
 type networkTestContext struct {
 	network     *Network
-	p2pNetwork  *p2p.MockP2PNetwork
+	p2pNetwork  *p2p.MockInterface
 	protocol    *proto.MockProtocol
 	graph       *dag.MockDAG
 	payload     *dag.MockPayloadStore
@@ -54,7 +54,7 @@ func TestNetwork_ListTransactions(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.graph.EXPECT().All().Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
+		cxt.graph.EXPECT().FindBetween(gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
 		docs, err := cxt.network.ListTransactions()
 		assert.Len(t, docs, 1)
 		assert.NoError(t, err)
@@ -342,7 +342,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 }
 
 func createNetwork(ctrl *gomock.Controller) *networkTestContext {
-	p2pNetwork := p2p.NewMockP2PNetwork(ctrl)
+	p2pNetwork := p2p.NewMockInterface(ctrl)
 	protocol := proto.NewMockProtocol(ctrl)
 	graph := dag.NewMockDAG(ctrl)
 	payload := dag.NewMockPayloadStore(ctrl)

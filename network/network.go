@@ -52,7 +52,7 @@ const (
 // Network implements Transactions interface and Engine functions.
 type Network struct {
 	config       Config
-	p2pNetwork   p2p.P2PNetwork
+	p2pNetwork   p2p.Interface
 	protocol     proto.Protocol
 	graph        dag.DAG
 	publisher    dag.Publisher
@@ -76,7 +76,7 @@ func NewNetworkInstance(config Config, jwsSigner crypto.JWSSigner, keyResolver t
 		config:      config,
 		jwsSigner:   jwsSigner,
 		keyResolver: keyResolver,
-		p2pNetwork:  p2p.NewP2PNetwork(),
+		p2pNetwork:  p2p.NewInterface(),
 		protocol:    proto.NewProtocol(),
 	}
 	return result
@@ -160,7 +160,7 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 
 // ListTransactions returns all transactions known to this Network instance.
 func (n *Network) ListTransactions() ([]dag.Transaction, error) {
-	return n.graph.All()
+	return n.graph.FindBetween(dag.MinTime(), dag.MaxTime())
 }
 
 // CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
@@ -217,8 +217,8 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 	return results
 }
 
-func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.P2PNetworkConfig, error) {
-	cfg := p2p.P2PNetworkConfig{
+func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.InterfaceConfig, error) {
+	cfg := p2p.InterfaceConfig{
 		ListenAddress:  n.config.GrpcAddr,
 		BootstrapNodes: n.config.BootstrapNodes,
 		PeerID:         peerID,
