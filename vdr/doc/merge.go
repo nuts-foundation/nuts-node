@@ -31,8 +31,8 @@ import (
 // ErrDiffID is returned when a merge is done on documents that do not share the same ID
 var ErrDiffID = errors.New("no matching IDs")
 
-// Merge merges two DID Documents that share the same ID
-func Merge(docA did.Document, docB did.Document) (*did.Document, error) {
+// MergeConflicted merges two DID Documents that share the same ID
+func MergeConflicted(docA did.Document, docB did.Document) (*did.Document, error) {
 	result := &did.Document{}
 	docs := []did.Document{docA, docB}
 
