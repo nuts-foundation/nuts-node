@@ -34,12 +34,13 @@ func TestCopy(t *testing.T) {
 	h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 
 	meta := DocumentMetadata{
-		Created:     timeBefore,
-		Updated:     &timeNow,
-		Hash:        h,
-		Deactivated: false,
+		Created:      timeBefore,
+		Updated:      &timeNow,
+		Hash:         h,
+		Deactivated:  false,
+		Transactions: []hash.SHA256Hash{hash.EmptyHash()},
 	}
-	numFields := 4
+	numFields := 5
 
 	t.Run("returns error if metadata can be manipulated", func(t *testing.T) {
 		var metaCopy DocumentMetadata
@@ -51,10 +52,21 @@ func TestCopy(t *testing.T) {
 		// Updated
 		metaCopy = meta.Copy()
 		*metaCopy.Updated = timeLater
+		metaCopy.Transactions = []hash.SHA256Hash{}
 		assert.False(t, reflect.DeepEqual(meta, metaCopy))
 
 		// if this test fails, please make sure the Copy() method is updated as well!
 		assert.Equal(t, numFields, reflect.TypeOf(DocumentMetadata{}).NumField())
 
+	})
+}
+
+func TestDocumentMetadata_IsConflicted(t *testing.T) {
+	t.Run("true", func(t *testing.T) {
+		assert.True(t, DocumentMetadata{Transactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}.IsConflicted())
+	})
+
+	t.Run("false", func(t *testing.T) {
+		assert.False(t, DocumentMetadata{}.IsConflicted())
 	})
 }

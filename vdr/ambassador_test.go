@@ -65,6 +65,54 @@ func (d didStoreMock) Update(id did.DID, current hash.SHA256Hash, next did.Docum
 	panic("implement me")
 }
 
+func (d didStoreMock) Iterate(fn types.DocIterator) error {
+	panic("implement me")
+}
+
+func Test_ambassador_resolveDIDControllers(t *testing.T) {
+	n := ambassador{
+		didStore: didStoreMock{},
+	}
+	t.Run("ok - document has no controllers, it should return the doc", func(t *testing.T) {
+		id, err := did.ParseDID("did:nuts:123")
+		if !assert.NoError(t, err) {
+			return
+		}
+		nextDoc := &did.Document{ID: *id}
+		got, err := n.resolveDIDControllers(nextDoc)
+		assert.Len(t, got, 1)
+		assert.NoError(t, err)
+		assert.Equal(t, "did:nuts:123", got[0].ID.String())
+	})
+
+	t.Run("ok - document has controllers, it should return the controllers", func(t *testing.T) {
+		id, _ := did.ParseDID("did:nuts:123")
+		ctrlID1, _ := did.ParseDID("did:nuts:abc")
+		ctrlID2, _ := did.ParseDID("did:nuts:456")
+		nextDoc := &did.Document{ID: *id, Controller: []did.DID{*ctrlID1, *ctrlID2}}
+
+		got, err := n.resolveDIDControllers(nextDoc)
+		assert.Len(t, got, 2)
+		assert.NoError(t, err)
+		assert.Equal(t, "did:nuts:abc", got[0].ID.String())
+		assert.Equal(t, "did:nuts:456", got[1].ID.String())
+	})
+
+	t.Run("nok - document has unknown controllers, it should return an error", func(t *testing.T) {
+		am := ambassador{
+			didStore: didStoreMock{err: types.ErrNotFound},
+		}
+		id, _ := did.ParseDID("did:nuts:123")
+		ctrlID1, _ := did.ParseDID("did:nuts:abc")
+		ctrlID2, _ := did.ParseDID("did:nuts:456")
+		nextDoc := &did.Document{ID: *id, Controller: []did.DID{*ctrlID1, *ctrlID2}}
+		got, err := am.resolveDIDControllers(nextDoc)
+		assert.Empty(t, got)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unable to resolve document controller: unable to find the DID document")
+	})
+}
+
 type subscriberTransaction struct {
 	signingKey   jwk.Key
 	signingKeyID string
@@ -158,9 +206,10 @@ func Test_ambassador_callback(t *testing.T) {
 		json.Unmarshal(didDocPayload, &expectedDocument)
 
 		expectedMetadata := types.DocumentMetadata{
-			Created: signingTime,
-			Updated: nil,
-			Hash:    payloadHash,
+			Created:      signingTime,
+			Updated:      nil,
+			Hash:         payloadHash,
+			Transactions: []hash.SHA256Hash{subDoc.Ref()},
 		}
 		var rawKey crypto2.PublicKey
 		signingKey.Raw(&rawKey)
@@ -204,9 +253,10 @@ func Test_ambassador_callback(t *testing.T) {
 		signingKey.Raw(&rawKey)
 
 		expectedMetadata := types.DocumentMetadata{
-			Created: signingTime,
-			Updated: nil,
-			Hash:    payloadHash,
+			Created:      signingTime,
+			Updated:      nil,
+			Hash:         payloadHash,
+			Transactions: []hash.SHA256Hash{subDoc.Ref()},
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
@@ -337,10 +387,11 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// This is the metadata that will be written during the update
 		expectedNextMetadata := types.DocumentMetadata{
-			Created:     createdAt,
-			Updated:     &signingTime,
-			Hash:        payloadHash,
-			Deactivated: true,
+			Created:      createdAt,
+			Updated:      &signingTime,
+			Hash:         payloadHash,
+			Deactivated:  true,
+			Transactions: []hash.SHA256Hash{subDoc.Ref()},
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
@@ -393,9 +444,10 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// This is the metadata that will be written during the update
 		expectedNextMetadata := types.DocumentMetadata{
-			Created: createdAt,
-			Updated: &signingTime,
-			Hash:    payloadHash,
+			Created:      createdAt,
+			Updated:      &signingTime,
+			Hash:         payloadHash,
+			Transactions: []hash.SHA256Hash{subDoc.Ref()},
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
@@ -482,9 +534,10 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// This is the metadata that will be written during the update
 		expectedNextMetadata := types.DocumentMetadata{
-			Created: createdAt,
-			Updated: &signingTime,
-			Hash:    payloadHash,
+			Created:      createdAt,
+			Updated:      &signingTime,
+			Hash:         payloadHash,
+			Transactions: []hash.SHA256Hash{subDoc.Ref()},
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
