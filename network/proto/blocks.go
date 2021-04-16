@@ -6,6 +6,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"math"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -21,12 +22,57 @@ func NewDAGBlocks() DAGBlocks {
 	return result
 }
 
+// MutexWrapDAGBlocks wraps a DAGBlocks in a DAGBlocks implementation that secures access with a mutex,
+// allowing concurrent access.
+func MutexWrapDAGBlocks(underlying DAGBlocks) DAGBlocks {
+	return &muxDAGBlocks{
+		Underlying: underlying,
+		mux:        &sync.Mutex{},
+	}
+}
+
+// XORHeads calculates a hash over all heads using bitwise XOR.
+func (b DAGBlock) XORHeads() hash.SHA256Hash {
+	var result hash.SHA256Hash
+	if len(b.Heads) == 0 {
+		return result
+	}
+	result = b.Heads[0]
+	for i := 1; i < len(b.Heads); i++ {
+		xor(&result, result, b.Heads[i])
+	}
+	return result
+}
+
 // trackingDAGBlocks is a DAGBlocks implementation tracks the DAG block heads in a memory friendly way. It works by
 // storing the known heads of a block and the distance (in blocks) to the next TX (by which it is prev'd) so it can be
 // unmarked as head when the next TX is moved into the historic block. When midnight passes (and thus blocks change)
 // it shifts all TXs one block to the left, ultimately into the leftmost historic block.
 type trackingDAGBlocks struct {
 	blocks []*block
+}
+
+type muxDAGBlocks struct {
+	Underlying DAGBlocks
+	mux        *sync.Mutex
+}
+
+func (m muxDAGBlocks) String() string {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	return m.Underlying.String()
+}
+
+func (m muxDAGBlocks) Get() []DAGBlock {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	return m.Underlying.Get()
+}
+
+func (m muxDAGBlocks) AddTransaction(tx dag.SubscriberTransaction, payload []byte) error {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	return m.Underlying.AddTransaction(tx, payload)
 }
 
 type block struct {
@@ -43,22 +89,22 @@ type head struct {
 }
 
 // heads calculates the block heads, without updating the structure first. Only for internal use and testing.
-func (blx *trackingDAGBlocks) heads() [][]hash.SHA256Hash {
-	result := make([][]hash.SHA256Hash, 0)
-	for blockNum, b := range blx.blocks {
-		var heads []hash.SHA256Hash
-		for ref, _ := range b.heads {
+func (blx *trackingDAGBlocks) heads() []DAGBlock {
+	result := make([]DAGBlock, 0)
+	for blockNum, currBlock := range blx.blocks {
+		resultBlock := DAGBlock{Start: currBlock.start}
+		for ref, _ := range currBlock.heads {
 			if blockNum < len(blx.blocks) {
-				heads = append(heads, ref)
+				resultBlock.Heads = append(resultBlock.Heads, ref)
 			}
 		}
-		result = append(result, heads)
+		result = append(result, resultBlock)
 	}
 	return result
 }
 
 // Heads returns the block heads.
-func (blx *trackingDAGBlocks) Heads() [][]hash.SHA256Hash {
+func (blx *trackingDAGBlocks) Get() []DAGBlock {
 	blx.update(time.Now())
 	return blx.heads()
 }
@@ -92,9 +138,9 @@ func (blx *trackingDAGBlocks) AddTransaction(tx dag.SubscriberTransaction, _ []b
 		}
 	}
 	txBlock.heads[tx.Ref()] = &head{
-		distance: math.MaxInt64,
+		distance:    math.MaxInt64,
 		signingTime: tx.SigningTime(),
-		blockDate: txBlockDate,
+		blockDate:   txBlockDate,
 	}
 	// Find prevs is this TX that are currently heads in the previous blocks and set the shortest distance. When the blocks
 	// are updated and the "next TX's" block distance reaches zero, that means the next TX is in the same block and thus
@@ -193,4 +239,10 @@ func (b block) String() string {
 
 func startOfDay(now time.Time) time.Time {
 	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+}
+
+func xor(dest *hash.SHA256Hash, left, right hash.SHA256Hash) {
+	for i := 0; i < len(left); i++ {
+		dest[i] = left[i] ^ right[i]
+	}
 }

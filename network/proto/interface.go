@@ -68,13 +68,20 @@ type PeerHash struct {
 type DAGBlocks interface {
 	// String returns the state of the algorithm as string.
 	String() string
-	// Heads returns a slice containing the heads of the DAG blocks. The first dimension contains the blocks
-	// (historic block at [0], current block at [len(blocks) - 1]). The second dimension contains the actual heads.
-	Heads() [][]hash.SHA256Hash
+	// Heads returns a slice containing the DAG blocks left-to-right (historic block at [0], current block at [len(blocks) - 1]).
+	Get() []DAGBlock
 	// AddTransaction adds a transaction to the DAG blocks structure. It MUST be called in actual transactions order,
 	// So given TXs `A <- B <- [C, D]` call order is A, B, C, D (or A, B, D, C).
 	// It will typically be called using a sequential DAG subscriber.
 	AddTransaction(tx dag.SubscriberTransaction, _ []byte) error
+}
+
+// DAGBlock is a DAG block.
+type DAGBlock struct {
+	// Start contains the start time of the block.
+	Start time.Time
+	// Heads contains the heads of the block.
+	Heads []hash.SHA256Hash
 }
 
 type chanPeerHashQueue struct {

@@ -211,10 +211,10 @@ func TestBlocks(t *testing.T) {
 					for _, blockHead := range blockHeads {
 						heads := blocks.heads()
 						if strings.TrimSpace(blockHead) == "" {
-							assert.Empty(t, heads[blockNum])
+							assert.Empty(t, heads[blockNum].Heads)
 						} else {
 							ref := txs[blockHead].Ref()
-							assert.Contains(t, heads[blockNum], ref)
+							assert.Contains(t, heads[blockNum].Heads, ref)
 						}
 					}
 				}
@@ -225,6 +225,26 @@ func TestBlocks(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDAGBlock_XORHeads(t *testing.T) {
+	t.Run("single head", func(t *testing.T) {
+		expected := hash.SHA256Sum([]byte("Hello, World!"))
+		blx := DAGBlock{Heads: []hash.SHA256Hash{expected}}
+		assert.Equal(t, blx.XORHeads(), expected)
+	})
+	t.Run("multiple heads", func(t *testing.T) {
+		h1 := hash.SHA256Sum([]byte("Hello, World!"))
+		h2 := hash.SHA256Sum([]byte("Hello, Universe!"))
+		h3 := hash.SHA256Sum([]byte("Hello, Everything Else!"))
+		expected, _ := hash.ParseHex("13735eb0bd447040661e1ca7f428e051ecaad15ea73e52e532423215f6836bb5")
+		blx := DAGBlock{Heads: []hash.SHA256Hash{h1, h2, h3}}
+		assert.Equal(t, blx.XORHeads(), expected)
+	})
+	t.Run("no heads", func(t *testing.T) {
+		blx := DAGBlock{Heads: []hash.SHA256Hash{}}
+		assert.Equal(t, blx.XORHeads(), hash.EmptyHash())
+	})
 }
 
 type testTX struct {

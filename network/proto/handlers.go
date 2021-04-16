@@ -20,6 +20,7 @@ package proto
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -29,41 +30,59 @@ import (
 )
 
 func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.AdvertHashes) {
-	log.Logger().Tracef("Received adverted hash from peer: %s", peer)
-	// TODO
-	peerHeads := []hash.SHA256Hash{}//make([]hash.SHA256Hash, len(advertHash.Hashes))
-	//for i, h := range advertHash.Hashes {
-	//	peerHeads[i] = hash.FromSlice(h)
-	//}
-	peerHash := PeerHash{
-		Peer:   peer,
-		Hashes: peerHeads,
-	}
-	p.newPeerHashChannel <- peerHash
+	log.Logger().Tracef("Received adverted hashes from peer: %s", peer)
 
-	heads := p.graph.Heads()
-	for _, peerHead := range peerHeads {
-		headMatches := false
-		for _, head := range heads {
-			if peerHead.Equals(head) {
-				headMatches = true
-				break
+	localBlocks := p.blocks.Get()
+	// We could theoretically support clock skew of peers (compared to the local clock), but we can also just wait for
+	// the blocks to synchronize which is way easier. It could just lead to a little synchronization delay at midnight.
+	if getBlockTimestamp(getCurrentBlock(localBlocks)) != advertHash.CurrentBlockDate {
+		// Log level is INFO which might prove to be too verbose, but we'll have to find out in an actual network.
+		log.Logger().Infof("Peer's current block date differs (probably due to clock skew) which is not supported, broadcast is ignored (peer=%s)", peer)
+		return
+	}
+	// Block count is spec'd, so they must not differ.
+	if len(localBlocks) - 1 != len(advertHash.Blocks) {
+		log.Logger().Warnf("Peer's number of block differs which is not supported, broadcast is ignored (peer=%s)", peer)
+		return
+	}
+	localHistoryHash := getHistoricBlock(localBlocks).XORHeads()
+	if !localHistoryHash.Equals(hash.FromSlice(advertHash.HistoricHash)) {
+		log.Logger().Warnf("Peer's historic block differs, broadcast is ignored (peer=%s)", peer)
+		return
+	}
+
+	for i := 1; i < len(localBlocks); i++ {
+		localBlock := localBlocks[i]
+		peerBlock := advertHash.Blocks[i - 1]
+		for _, peerHead := range peerBlock.Hashes {
+			peerHeadHash := hash.FromSlice(peerHead)
+			headMatches := false
+			for _, localHead := range localBlock.Heads {
+				if peerHeadHash.Equals(localHead) {
+					headMatches = true
+					break
+				}
+			}
+			if headMatches {
+				continue
+			}
+			// peerHead is not one of our heads in the same block, which either means:
+			// - Peer has a TX we don't have
+			// - We have a TX our peer doesn't have
+			// To find out which is the case we check whether we have the peer's head as TX on our DAG.
+			// If not, we're missing the peer's TX on our DAG and should query the block.
+			headIsPresentOnLocalDAG, err := p.graph.IsPresent(peerHeadHash)
+			if err != nil {
+				log.Logger().Errorf("Error while checking peer head on local DAG (ref=%s): %v", peerHeadHash, err)
+			} else if !headIsPresentOnLocalDAG {
+				log.Logger().Infof("Peer has head which is not present on our DAG, querying block transactions (peer=%s)", peer)
+				go p.queryTransactionList(peer)
 			}
 		}
-		if headMatches {
-			continue
-		}
-		// We might not have our peer's head as head of our own DAG, but our peer might be out of date,
-		// missing transactions we do have. In that case, the head should be present on our DAG. If it's not,
-		// we're missing a transaction on the DAG and should query it.
-		headIsPresentOnLocalDAG, err := p.graph.IsPresent(peerHead)
-		if err != nil {
-			log.Logger().Errorf("Error while checking peer head on local DAG (ref=%s): %v", peerHead, err)
-		} else if !headIsPresentOnLocalDAG {
-			log.Logger().Infof("Peer has head which is not present on our DAG, querying transaction list (peer=%s)", peer)
-			go p.queryTransactionList(peer)
-		}
 	}
+
+	// TODO: Update to XOR of all heads?
+	// p.newPeerHashChannel <- peerHash
 }
 
 func (p protocol) queryTransactionList(peer p2p.PeerID) {
@@ -76,15 +95,31 @@ func (p protocol) queryTransactionList(peer p2p.PeerID) {
 
 func (p protocol) advertHashes() {
 	msg := createMessage()
-	heads := p.graph.Heads()
-	slices := make([][]byte, len(heads))
-	for i, head := range heads {
-		slices[i] = head.Slice()
+	blocks := p.blocks.Get()
+	protoBlocks := make([]*transport.BlockHashes, len(blocks) - 1)
+	for blockIdx, currBlock := range blocks {
+		// First block = historic block, which isn't added in full but as XOR of its heads
+		if blockIdx > 0 {
+			protoBlocks[blockIdx - 1] = &transport.BlockHashes{Hashes: make([][]byte, len(currBlock.Heads))}
+			for headIdx, currHead := range currBlock.Heads {
+				protoBlocks[blockIdx - 1].Hashes[headIdx] = currHead.Slice()
+			}
+		}
 	}
-	log.Logger().Tracef("Broadcasting heads: %v", heads)
-	msg.Message = &transport.NetworkMessage_AdvertHashes{AdvertHashes: &transport.AdvertHashes{}} // TODO
+	if log.Logger().Level >= logrus.TraceLevel {
+		// DAGBlock.String() is expensive
+		log.Logger().Tracef("Broadcasting heads: %s", blocks)
+	}
+	historicBlock := getHistoricBlock(blocks) // First block is historic block
+	currentBlock := getCurrentBlock(blocks)   // Last block is current block
+	msg.Message = &transport.NetworkMessage_AdvertHashes{AdvertHashes: &transport.AdvertHashes{
+		Blocks:           protoBlocks,
+		HistoricHash:     historicBlock.XORHeads().Slice(),
+		CurrentBlockDate: getBlockTimestamp(currentBlock),
+	}}
 	p.p2pNetwork.Broadcast(&msg)
 }
+
 
 func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport.TransactionPayload) {
 	payloadHash := hash.FromSlice(contents.PayloadHash)
@@ -202,4 +237,16 @@ func (p *protocol) handleTransactionListQuery(peer p2p.PeerID) error {
 		return err
 	}
 	return nil
+}
+
+func getBlockTimestamp(currentBlock DAGBlock) uint32 {
+	return uint32(currentBlock.Start.UTC().Unix())
+}
+
+func getCurrentBlock(blocks []DAGBlock) DAGBlock {
+	return blocks[len(blocks)-1]
+}
+
+func getHistoricBlock(blocks []DAGBlock) DAGBlock {
+	return blocks[0]
 }

@@ -10,7 +10,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	core "github.com/nuts-foundation/nuts-node/core"
-	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	p2p "github.com/nuts-foundation/nuts-node/network/p2p"
 )
@@ -162,18 +161,18 @@ func (mr *MockDAGBlocksMockRecorder) AddTransaction(tx, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTransaction", reflect.TypeOf((*MockDAGBlocks)(nil).AddTransaction), tx, arg1)
 }
 
-// Heads mocks base method.
-func (m *MockDAGBlocks) Heads() [][]hash.SHA256Hash {
+// Get mocks base method.
+func (m *MockDAGBlocks) Get() []DAGBlock {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Heads")
-	ret0, _ := ret[0].([][]hash.SHA256Hash)
+	ret := m.ctrl.Call(m, "Get")
+	ret0, _ := ret[0].([]DAGBlock)
 	return ret0
 }
 
-// Heads indicates an expected call of Heads.
-func (mr *MockDAGBlocksMockRecorder) Heads() *gomock.Call {
+// Get indicates an expected call of Get.
+func (mr *MockDAGBlocksMockRecorder) Get() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Heads", reflect.TypeOf((*MockDAGBlocks)(nil).Heads))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockDAGBlocks)(nil).Get))
 }
 
 // String mocks base method.

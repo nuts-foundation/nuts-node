@@ -61,7 +61,7 @@ func NewProtocol() Protocol {
 		peerHashes:                   make(map[p2p.PeerID][]hash.SHA256Hash),
 		newPeerHashChannel:           make(chan PeerHash, 100),
 		peerConsistencyHashStatistic: newPeerConsistencyHashStatistic(),
-		blocks:                       NewDAGBlocks(),
+		blocks:                       MutexWrapDAGBlocks(NewDAGBlocks()),
 	}
 	return p
 }
