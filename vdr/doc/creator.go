@@ -112,7 +112,7 @@ func (n Creator) Create() (*did.Document, error) {
 		ID:      didID,
 	}
 
-	doc.AddAuthenticationMethod(verificationMethod)
+	doc.AddCapabilityInvocation(verificationMethod)
 
 	return doc, nil
 }

@@ -82,8 +82,8 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 	doc := &did.Document{ID: *id123}
 	publicKey, _ := jwkToPublicKey(t, jwkString)
 	vm, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, did.DID{}, publicKey)
-	doc.AddAuthenticationMethod(vm)
-	assert.Equal(t, vm, doc.Authentication[0].VerificationMethod)
+	doc.AddCapabilityInvocation(vm)
+	assert.Equal(t, vm, doc.CapabilityInvocation[0].VerificationMethod)
 	assert.Equal(t, vm, doc.VerificationMethod[0])
 
 	t.Run("ok", func(t *testing.T) {
@@ -95,7 +95,7 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Empty(t, doc.Authentication)
+		assert.Empty(t, doc.CapabilityInvocation)
 		assert.Empty(t, doc.VerificationMethod)
 	})
 
@@ -134,12 +134,12 @@ func TestNutsDocUpdater_CreateNewAuthenticationMethodForDID(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		document.AddAuthenticationMethod(method)
+		document.AddCapabilityInvocation(method)
 
 		assert.NotNil(t, method)
-		assert.Len(t, document.Authentication, 1)
-		assert.Equal(t, method.ID.String(), document.Authentication[0].ID.String())
-		assert.Equal(t, "did:nuts:123#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", document.Authentication[0].ID.String())
+		assert.Len(t, document.CapabilityInvocation, 1)
+		assert.Equal(t, method.ID.String(), document.CapabilityInvocation[0].ID.String())
+		assert.Equal(t, "did:nuts:123#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", document.CapabilityInvocation[0].ID.String())
 	})
 
 }
@@ -153,7 +153,7 @@ func TestNutsDocUpdater_AddKey(t *testing.T) {
 		ctx := newTestCtx(t)
 
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
-		currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
+		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil)
 		var updatedDocument did.Document
 		ctx.vdrMock.EXPECT().Update(*id, currentHash, gomock.Any(), nil).Do(func(_ did.DID, _ interface{}, doc did.Document, _ interface{}) {
@@ -175,7 +175,7 @@ func TestNutsDocUpdater_AddKey(t *testing.T) {
 		ctx := newTestCtx(t)
 
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
-		currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
+		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil)
 		ctx.vdrMock.EXPECT().Update(*id, currentHash, gomock.Any(), nil).Return(types.ErrNotFound)
 
@@ -212,8 +212,9 @@ func TestNutsDocUpdater_Deactivate(t *testing.T) {
 	didStoreMock := types.NewMockStore(ctrl)
 	networkMock := network.NewMockTransactions(ctrl)
 	vdr := VDR{
-		store:   didStoreMock,
-		network: networkMock,
+		store:          didStoreMock,
+		didDocResolver: doc.Resolver{Store: didStoreMock},
+		network:        networkMock,
 	}
 	updater := DocUpdater{VDR: &vdr, Resolver: doc.Resolver{Store: didStoreMock}}
 
@@ -221,7 +222,7 @@ func TestNutsDocUpdater_Deactivate(t *testing.T) {
 	expectedPayload, _ := json.Marshal(expectedDocument)
 
 	currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
-	currentDIDDocument.AddAuthenticationMethod(&did.VerificationMethod{ID: *keyID})
+	currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 
 	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any())
 	gomock.InOrder(

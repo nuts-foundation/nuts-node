@@ -31,6 +31,7 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -54,6 +55,7 @@ type VDR struct {
 	networkAmbassador Ambassador
 	_logger           *logrus.Entry
 	didDocCreator     types.DocCreator
+	didDocResolver    types.DocResolver
 	keyStore          crypto.KeyStore
 }
 
@@ -65,6 +67,7 @@ func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.T
 		_logger:           logging.Log(),
 		store:             store,
 		didDocCreator:     doc.Creator{KeyCreator: cryptoClient},
+		didDocResolver:    doc.Resolver{Store: store},
 		networkAmbassador: NewAmbassador(networkClient, store),
 		keyStore:          cryptoClient,
 	}
@@ -107,8 +110,8 @@ func (r VDR) Create() (*did.Document, error) {
 		return nil, err
 	}
 
-	keyID := doc.Authentication[0].ID.String()
-	key, err := doc.Authentication[0].PublicKey()
+	keyID := doc.CapabilityInvocation[0].ID.String()
+	key, err := doc.CapabilityInvocation[0].PublicKey()
 	if err != nil {
 		return nil, err
 	}
@@ -134,10 +137,10 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	if err != nil {
 		return err
 	}
-	if isDeactivated(currentDIDDocument) {
+	if store.IsDeactivated(*currentDIDDocument) {
 		return types.ErrDeactivated
 	}
-	controllers, err := r.resolveControllers([]did.Document{*currentDIDDocument})
+	controllers, err := r.didDocResolver.ResolveControllers(*currentDIDDocument)
 	if err != nil {
 		return fmt.Errorf("error while finding controllers for document: %w", err)
 	}
@@ -150,7 +153,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return err
 	}
 
-	keyID := controllers[0].Authentication[0].ID.String()
+	keyID := controllers[0].CapabilityInvocation[0].ID.String()
 	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now())
 	if err == nil {
 		logging.Log().Infof("DID Document updated (DID=%s)", id)
@@ -162,61 +165,4 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	}
 
 	return err
-}
-
-func isDeactivated(document *did.Document) bool {
-	return len(document.Controller) == 0 && len(document.Authentication) == 0
-}
-
-// resolveControllers accepts a list of documents and finds their controllers
-// The resulting list are documents who control themselves
-func (r *VDR) resolveControllers(input []did.Document) ([]did.Document, error) {
-	// end of the chain
-	if len(input) == 0 {
-		return input, nil
-	}
-
-	var leaves []did.Document
-	var refsToResolve []did.DID
-	var nodes []did.Document
-
-	// for each input document, find its controllers or add the doc itself if its controls itself
-	for _, doc := range input {
-		if len(doc.Controller) == 0 && len(doc.Authentication) > 0 {
-			// no controller -> doc is its own controller
-			leaves = append(leaves, doc)
-			continue
-		}
-		for _, ctrlDID := range doc.Controller {
-			if doc.ID.Equals(ctrlDID) {
-				if len(doc.Authentication) > 0 {
-					// doc is its own controller
-					leaves = append(leaves, doc)
-				}
-			} else {
-				// add did to be resolved later
-				refsToResolve = append(refsToResolve, ctrlDID)
-			}
-		}
-	}
-	// resolve all unresolved docs
-	// TODO: check for recursions in controllers. Behaviour must be described in spec:
-	// nuts-foundation/nuts-specification#39
-	for _, ref := range refsToResolve {
-		node, _, err := r.store.Resolve(ref, nil)
-		if err != nil {
-			return nil, fmt.Errorf("unable to resolve controllers: %w", err)
-		}
-		nodes = append(nodes, *node)
-	}
-	newLeaves, err := r.resolveControllers(nodes)
-	if err != nil {
-		return nil, err
-	}
-	// Merge local leaves and new found leaves
-	for _, leave := range newLeaves {
-		leaves = append(leaves, leave)
-	}
-
-	return leaves, nil
 }

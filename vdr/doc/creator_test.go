@@ -80,9 +80,9 @@ func TestDocCreator_Create(t *testing.T) {
 			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", doc.VerificationMethod[0].ID.String(),
 				"verificationMethod should have the correct id")
 
-			assert.Len(t, doc.Authentication, 1,
+			assert.Len(t, doc.CapabilityInvocation, 1,
 				"it should have 1 authenticationMethod")
-			assert.Equal(t, doc.Authentication[0].VerificationMethod, doc.VerificationMethod[0],
+			assert.Equal(t, doc.CapabilityInvocation[0].VerificationMethod, doc.VerificationMethod[0],
 				"the assertionMethod should be a pointer to the verificationMethod")
 
 			assert.Empty(t, doc.AssertionMethod,

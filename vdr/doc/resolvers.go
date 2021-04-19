@@ -31,13 +31,59 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// Resolver implements the Resolver interface with a types.Store as backend
+// Resolver implements the DocResolver interface with a types.Store as backend
 type Resolver struct {
 	Store types.Store
 }
 
 func (d Resolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
 	return d.Store.Resolve(id, metadata)
+}
+
+func (d Resolver) ResolveControllers(doc did.Document) ([]did.Document, error) {
+	var leaves []did.Document
+	var refsToResolve []did.DID
+
+	if len(doc.Controller) == 0 && len(doc.CapabilityInvocation) > 0 {
+		// no controller -> doc is its own controller
+		leaves = append(leaves, doc)
+	} else {
+		for _, ctrlDID := range doc.Controller {
+			if doc.ID.Equals(ctrlDID) {
+				if len(doc.CapabilityInvocation) > 0 {
+					// doc is its own controller
+					leaves = append(leaves, doc)
+				}
+			} else {
+				// add did to be resolved later
+				refsToResolve = append(refsToResolve, ctrlDID)
+			}
+		}
+	}
+
+	// resolve all unresolved docs
+	for _, ref := range refsToResolve {
+		node, _, err := d.Store.Resolve(ref, nil)
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve controllers: %w", err)
+		}
+		leaves = append(leaves, *node)
+	}
+
+	// filter deactivated
+	j := 0
+	for _, leaf := range leaves {
+		if !isDeactivated(leaf) {
+			leaves[j] = leaf
+			j++
+		}
+	}
+
+	return leaves[:j], nil
+}
+
+func isDeactivated(document did.Document) bool {
+	return len(document.Controller) == 0 && len(document.CapabilityInvocation) == 0
 }
 
 // KeyResolver implements the KeyResolver interface with a types.Store as backend

@@ -121,7 +121,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// Update the controller of DocumentA with DocumentB
 	// And remove it's own authenticationMethod
 	docA.Controller = []did.DID{docB.ID}
-	docA.Authentication = []did.VerificationRelationship{}
+	docA.CapabilityInvocation = []did.VerificationRelationship{}
 	docA.VerificationMethod = []*did.VerificationMethod{}
 	err = vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
 	if !assert.NoError(t, err,
@@ -138,8 +138,8 @@ func TestVDRIntegration_Test(t *testing.T) {
 	assert.Equal(t, []did.DID{docB.ID}, docA.Controller,
 		"expected updated documentA to have documentB as its controller")
 
-	assert.Empty(t, docA.Authentication,
-		"expected documentA to have no authenticationMethods")
+	assert.Empty(t, docA.CapabilityInvocation,
+		"expected documentA to have no CapabilityInvocation")
 
 	// Update and check DocumentA with a new service:
 	serviceID, _ = url.Parse(docA.ID.String() + "#service-2")
@@ -169,17 +169,17 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"news service of document a does not contain expected values")
 
 	// Update document B with a new authentication key which replaces the first one:
-	oldAuthKeyDocB := resolvedDocB.Authentication[0].ID
+	oldAuthKeyDocB := resolvedDocB.CapabilityInvocation[0].ID
 	docUpdater := DocUpdater{KeyCreator: nutsCrypto, VDR: *vdr, Resolver: docResolver}
 	method, err := docUpdater.createNewVerificationMethodForDID(docB.ID)
 	assert.NoError(t, err)
 	assert.NotNil(t, method)
-	docB.AddAuthenticationMethod(method)
-	docB.Authentication.Remove(oldAuthKeyDocB)
+	docB.AddCapabilityInvocation(method)
+	docB.CapabilityInvocation.Remove(oldAuthKeyDocB)
 	docB.VerificationMethod.Remove(oldAuthKeyDocB)
 	err = vdr.Update(docB.ID, metadataDocB.Hash, *docB, nil)
 	if !assert.NoError(t, err,
-		"unable to update documentB with a new authenticationMethod") {
+		"unable to update documentB with a new CapabilityInvocation") {
 		return
 	}
 
@@ -188,8 +188,8 @@ func TestVDRIntegration_Test(t *testing.T) {
 	assert.NoError(t, err,
 		"expected DocumentB to be resolved without error")
 
-	assert.Len(t, resolvedDocB.Authentication, 1)
-	assert.NotEqual(t, oldAuthKeyDocB, resolvedDocB.Authentication[0].ID)
+	assert.Len(t, resolvedDocB.CapabilityInvocation, 1)
+	assert.NotEqual(t, oldAuthKeyDocB, resolvedDocB.CapabilityInvocation[0].ID)
 
 	// deactivate document B
 	err = docUpdater.Deactivate(docB.ID)
@@ -198,8 +198,8 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	docB, metadataDocB, err = docResolver.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
 	assert.NoError(t, err)
-	assert.Len(t, docB.Authentication, 0,
-		"expected document B to not have any authentication methods after deactivation")
+	assert.Len(t, docB.CapabilityInvocation, 0,
+		"expected document B to not have any CapabilityInvocation methods after deactivation")
 
 	// try to deactivate the document again
 	err = docUpdater.Deactivate(docB.ID)
