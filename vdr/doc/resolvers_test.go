@@ -282,13 +282,12 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		docA := did.Document{ID: *docAID}
 		docA.Controller = []did.DID{docA.ID, docB.ID, docC.ID}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: docAIDCapInv})
-		store.EXPECT().Resolve(docA.ID, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
 
 		docs, err := resolver.ResolveControllers([]did.Document{docA})
 		assert.NoError(t, err)
 		assert.Len(t, docs, 2)
-		assert.Equal(t, []did.Document{docA, docC}, docs,
-			"expected only docA and docC to be resolved as controller of docA")
+		assert.Contains(t, docs, docA, "expected docA to be resolved as controller of docA")
+		assert.Contains(t, docs, docC, "expected docC to be resolved as controller of docA")
 	})
 
 	t.Run("docA is controller of docB, docA has explicit self link in Controllers", func(t *testing.T) {

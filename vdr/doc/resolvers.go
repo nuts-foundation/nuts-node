@@ -80,9 +80,9 @@ func (d Resolver) ResolveControllers(input []did.Document) ([]did.Document, erro
 
 	// filter deactivated
 	j := 0
-	for i, doc := range leaves {
+	for _, doc := range leaves {
 		if !isDeactivated(doc) {
-			leaves[i] = doc
+			leaves[j] = doc
 			j++
 		}
 	}
