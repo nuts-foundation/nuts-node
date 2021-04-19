@@ -35,9 +35,8 @@ type DocResolver interface {
 	// If metadata is provided then the result is filtered or scoped on that metadata.
 	// It returns ErrNotFound if there are no corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata
 	Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error)
-	// ResolveControllers accepts a list of documents and finds their controllers
-	// The resulting list are documents who control themselves
-	ResolveControllers(input []did.Document) ([]did.Document, error)
+	// ResolveControllers finds the DID Document controllers
+	ResolveControllers(input did.Document) ([]did.Document, error)
 }
 
 // DocCreator is the interface that wraps the Create method
@@ -89,7 +88,7 @@ type KeyResolver interface {
 
 // Store is the interface that groups all low level VDR DID storage operations.
 type Store interface {
-	// Resolve returns a DID Document for the provided DID.
+	// Resolve returns the DID Document for the provided DID.
 	// If metadata is not provided the latest version is returned.
 	// If metadata is provided then the result is filtered or scoped on that metadata.
 	// It returns ErrNotFound if there are no corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata

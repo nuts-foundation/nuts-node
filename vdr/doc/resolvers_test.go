@@ -186,7 +186,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	id456Method1, _ := did.ParseDID("did:nuts:456#method-1")
 	t.Run("emtpy input", func(t *testing.T) {
 		resolver := Resolver{}
-		docs, err := resolver.ResolveControllers([]did.Document{})
+		docs, err := resolver.ResolveControllers(did.Document{})
 		assert.NoError(t, err)
 		assert.Len(t, docs, 0,
 			"expected an empty list")
@@ -196,7 +196,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		resolver := Resolver{}
 		doc := did.Document{ID: *id123}
 		doc.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
-		docs, err := resolver.ResolveControllers([]did.Document{doc})
+		docs, err := resolver.ResolveControllers(doc)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 1,
 			"expected the document")
@@ -206,7 +206,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	t.Run("doc is deactivated", func(t *testing.T) {
 		resolver := Resolver{}
 		doc := did.Document{ID: *id123}
-		docs, err := resolver.ResolveControllers([]did.Document{doc})
+		docs, err := resolver.ResolveControllers(doc)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 0,
 			"expected an empty list when the document is deactivated")
@@ -226,7 +226,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
-		docs, err := resolver.ResolveControllers([]did.Document{docB})
+		docs, err := resolver.ResolveControllers(docB)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 1)
 		assert.Equal(t, docA, docs[0],
@@ -248,7 +248,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123, *id456}}
 		docB.AddCapabilityInvocation(&did.VerificationMethod{ID: *id456Method1})
 
-		docs, err := resolver.ResolveControllers([]did.Document{docB})
+		docs, err := resolver.ResolveControllers(docB)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 2)
 		assert.Equal(t, []did.Document{docB, docA}, docs,
@@ -283,7 +283,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		docA.Controller = []did.DID{docA.ID, docB.ID, docC.ID}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: docAIDCapInv})
 
-		docs, err := resolver.ResolveControllers([]did.Document{docA})
+		docs, err := resolver.ResolveControllers(docA)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 2)
 		assert.Contains(t, docs, docA, "expected docA to be resolved as controller of docA")
@@ -304,7 +304,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
-		docs, err := resolver.ResolveControllers([]did.Document{docB})
+		docs, err := resolver.ResolveControllers(docB)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 1)
 		assert.Equal(t, docA, docs[0],
@@ -322,7 +322,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
-		docs, err := resolver.ResolveControllers([]did.Document{docB})
+		docs, err := resolver.ResolveControllers(docB)
 		assert.EqualError(t, err, "unable to resolve controllers: unable to find the DID document")
 		assert.Len(t, docs, 0)
 	})

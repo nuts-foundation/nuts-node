@@ -346,7 +346,7 @@ func Test_ambassador_callback(t *testing.T) {
 		signingKey.Raw(&pKey)
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&storedDocument, currentMetadata, nil)
-		resolverMock.EXPECT().ResolveControllers([]did.Document{didDocument}).Return([]did.Document{didDocument}, nil)
+		resolverMock.EXPECT().ResolveControllers(didDocument).Return([]did.Document{didDocument}, nil)
 		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
 
@@ -401,7 +401,7 @@ func Test_ambassador_callback(t *testing.T) {
 		signingKey.Raw(&pKey)
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
-		resolverMock.EXPECT().ResolveControllers([]did.Document{didDocument}).Return([]did.Document{didDocument}, nil)
+		resolverMock.EXPECT().ResolveControllers(didDocument).Return([]did.Document{didDocument}, nil)
 		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
@@ -488,7 +488,7 @@ func Test_ambassador_callback(t *testing.T) {
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
-		resolverMock.EXPECT().ResolveControllers([]did.Document{didDocument}).Return([]did.Document{didDocumentController}, nil)
+		resolverMock.EXPECT().ResolveControllers(didDocument).Return([]did.Document{didDocumentController}, nil)
 		keyStoreMock.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
@@ -566,7 +566,7 @@ func Test_ambassador_callback(t *testing.T) {
 		// expect a resolve for previous versions of the did document
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
 		// expect a resolve for the did documents controller
-		resolverMock.EXPECT().ResolveControllers([]did.Document{didDocument}).Return([]did.Document{didDocumentController}, nil)
+		resolverMock.EXPECT().ResolveControllers(didDocument).Return([]did.Document{didDocumentController}, nil)
 
 		keyStoreMock.EXPECT().ResolvePublicKey(keyID, &subDoc.signingTime).Return(pKey, nil)
 

@@ -28,6 +28,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
@@ -118,7 +119,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 		return fmt.Errorf("unable to generate network transaction signing key thumbprint: %w", err)
 	}
 
-	// Check if signingKey is one of the keys embedded in the authenticationMethod
+	// Check if signingKey is one of the keys embedded in the CapabilityInvocation
 	didDocumentAuthKeys := proposedDIDDocument.CapabilityInvocation
 	if documentKey, err := n.findKeyByThumbprint(signingKeyThumbprint, didDocumentAuthKeys); documentKey == nil || err != nil {
 		if err != nil {
@@ -148,12 +149,12 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 	}
 
 	// Resolve controllers of current version (could be the same document)
-	didControllers, err := n.docResolver.ResolveControllers([]did.Document{*currentDIDDocument})
+	didControllers, err := n.docResolver.ResolveControllers(*currentDIDDocument)
 
 	var controllerVerificationRelationships []did.VerificationRelationship
 	for _, didCtrl := range didControllers {
-		for _, auth := range didCtrl.CapabilityInvocation {
-			controllerVerificationRelationships = append(controllerVerificationRelationships, auth)
+		for _, capInv := range didCtrl.CapabilityInvocation {
+			controllerVerificationRelationships = append(controllerVerificationRelationships, capInv)
 		}
 	}
 
@@ -203,7 +204,7 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 		Created:     currentDIDMeta.Created,
 		Updated:     &updatedAt,
 		Hash:        document.PayloadHash(),
-		Deactivated: isDeactivated(&proposedDIDDocument),
+		Deactivated: store.IsDeactivated(proposedDIDDocument),
 	}
 	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 }

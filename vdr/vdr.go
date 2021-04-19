@@ -31,6 +31,7 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -136,10 +137,10 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	if err != nil {
 		return err
 	}
-	if isDeactivated(currentDIDDocument) {
+	if store.IsDeactivated(*currentDIDDocument) {
 		return types.ErrDeactivated
 	}
-	controllers, err := r.didDocResolver.ResolveControllers([]did.Document{*currentDIDDocument})
+	controllers, err := r.didDocResolver.ResolveControllers(*currentDIDDocument)
 	if err != nil {
 		return fmt.Errorf("error while finding controllers for document: %w", err)
 	}
@@ -164,8 +165,4 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	}
 
 	return err
-}
-
-func isDeactivated(document *did.Document) bool {
-	return len(document.Controller) == 0 && len(document.CapabilityInvocation) == 0
 }

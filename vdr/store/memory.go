@@ -68,7 +68,7 @@ type memoryEntry struct {
 }
 
 func (me memoryEntry) isDeactivated() bool {
-	return len(me.document.Controller) == 0 && len(me.document.CapabilityInvocation) == 0
+	return IsDeactivated(me.document)
 }
 
 // Resolve implements the Resolver.

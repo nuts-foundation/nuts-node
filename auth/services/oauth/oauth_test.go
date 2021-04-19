@@ -26,7 +26,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
+
 	"testing"
 	"time"
 
@@ -693,7 +696,7 @@ var createContext = func(t *testing.T) *testContext {
 		nameResolver:       nameResolver,
 		didResolver:        didResolver,
 		oauthService: &service{
-			docResolver:     didResolver,
+			docResolver:     doc.Resolver{didResolver},
 			keyResolver:     keyResolver,
 			contractClient:  contractClientMock,
 			privateKeyStore: privateKeyStore,

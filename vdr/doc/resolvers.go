@@ -41,22 +41,14 @@ func (d Resolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Doc
 }
 
 // ResolveControllers accepts a list of documents and finds their controllers
-func (d Resolver) ResolveControllers(input []did.Document) ([]did.Document, error) {
-	// end of the chain
-	if len(input) == 0 {
-		return input, nil
-	}
-
+func (d Resolver) ResolveControllers(doc did.Document) ([]did.Document, error) {
 	var leaves []did.Document
 	var refsToResolve []did.DID
 
-	// for each input document, find its controllers or add the doc itself if its controls itself
-	for _, doc := range input {
-		if len(doc.Controller) == 0 && len(doc.CapabilityInvocation) > 0 {
-			// no controller -> doc is its own controller
-			leaves = append(leaves, doc)
-			continue
-		}
+	if len(doc.Controller) == 0 && len(doc.CapabilityInvocation) > 0 {
+		// no controller -> doc is its own controller
+		leaves = append(leaves, doc)
+	} else {
 		for _, ctrlDID := range doc.Controller {
 			if doc.ID.Equals(ctrlDID) {
 				if len(doc.CapabilityInvocation) > 0 {
@@ -69,6 +61,7 @@ func (d Resolver) ResolveControllers(input []did.Document) ([]did.Document, erro
 			}
 		}
 	}
+
 	// resolve all unresolved docs
 	for _, ref := range refsToResolve {
 		node, _, err := d.Store.Resolve(ref, nil)
@@ -80,9 +73,9 @@ func (d Resolver) ResolveControllers(input []did.Document) ([]did.Document, erro
 
 	// filter deactivated
 	j := 0
-	for _, doc := range leaves {
-		if !isDeactivated(doc) {
-			leaves[j] = doc
+	for _, leaf := range leaves {
+		if !isDeactivated(leaf) {
+			leaves[j] = leaf
 			j++
 		}
 	}
