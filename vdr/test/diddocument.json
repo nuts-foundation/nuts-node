@@ -1,5 +1,5 @@
 {
-  "authentication": ["did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7#aQgahRFAhdStcQyD6R25fFYslo4JZXuqYUySTtXB_Lo"],
+  "capabilityInvocation": ["did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7#aQgahRFAhdStcQyD6R25fFYslo4JZXuqYUySTtXB_Lo"],
   "context": "https://www.w3.org/ns/did/v1",
   "id": "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7",
   "verificationMethod": [

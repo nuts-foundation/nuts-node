@@ -28,6 +28,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
@@ -51,6 +52,7 @@ type ambassador struct {
 	networkClient network.Transactions
 	didStore      types.Store
 	keyResolver   types.KeyResolver
+	docResolver   types.DocResolver
 }
 
 // NewAmbassador creates a new Ambassador,
@@ -59,6 +61,7 @@ func NewAmbassador(networkClient network.Transactions, didStore types.Store) Amb
 		networkClient: networkClient,
 		didStore:      didStore,
 		keyResolver:   doc.KeyResolver{Store: didStore},
+		docResolver:   doc.Resolver{Store: didStore},
 	}
 }
 
@@ -116,8 +119,8 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 		return fmt.Errorf("unable to generate network transaction signing key thumbprint: %w", err)
 	}
 
-	// Check if signingKey is one of the keys embedded in the authenticationMethod
-	didDocumentAuthKeys := proposedDIDDocument.Authentication
+	// Check if signingKey is one of the keys embedded in the CapabilityInvocation
+	didDocumentAuthKeys := proposedDIDDocument.CapabilityInvocation
 	if documentKey, err := n.findKeyByThumbprint(signingKeyThumbprint, didDocumentAuthKeys); documentKey == nil || err != nil {
 		if err != nil {
 			return err
@@ -146,12 +149,12 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 	}
 
 	// Resolve controllers of current version (could be the same document)
-	didControllers, err := n.resolveDIDControllers(currentDIDDocument)
+	didControllers, err := n.docResolver.ResolveControllers(*currentDIDDocument)
 
 	var controllerVerificationRelationships []did.VerificationRelationship
 	for _, didCtrl := range didControllers {
-		for _, auth := range didCtrl.Authentication {
-			controllerVerificationRelationships = append(controllerVerificationRelationships, auth)
+		for _, capInv := range didCtrl.CapabilityInvocation {
+			controllerVerificationRelationships = append(controllerVerificationRelationships, capInv)
 		}
 	}
 
@@ -201,7 +204,7 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 		Created:     currentDIDMeta.Created,
 		Updated:     &updatedAt,
 		Hash:        document.PayloadHash(),
-		Deactivated: isDeactivated(&proposedDIDDocument),
+		Deactivated: store.IsDeactivated(proposedDIDDocument),
 	}
 	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 }
@@ -297,26 +300,6 @@ func (n ambassador) isUpdate(doc did.Document) (bool, error) {
 	}
 
 	return result, err
-}
-
-// resolveDIDControllers tries to resolve the controllers for a given DID Document
-// If no controllers are present, the current version of the document will be resolved
-// If a controller could not be found, it will return an error
-func (n ambassador) resolveDIDControllers(didDocument *did.Document) ([]*did.Document, error) {
-	var didControllers []*did.Document
-	docsToResolve := didDocument.Controller
-	if len(docsToResolve) == 0 {
-		docsToResolve = append(docsToResolve, didDocument.ID)
-	}
-
-	for _, ctrlDID := range docsToResolve {
-		controllerDoc, _, err := n.didStore.Resolve(ctrlDID, nil)
-		if err != nil {
-			return nil, fmt.Errorf("unable to resolve document controller: %w", err)
-		}
-		didControllers = append(didControllers, controllerDoc)
-	}
-	return didControllers, nil
 }
 
 // findKeyByThumbprint accepts a SHA256 generated thumbprint and tries to find it in a provided list of did.VerificationRelationship s.
