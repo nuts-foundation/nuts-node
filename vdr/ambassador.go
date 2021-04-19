@@ -136,9 +136,9 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	}
 
 	documentMetadata := types.DocumentMetadata{
-		Created:      transaction.SigningTime(),
-		Hash:         transaction.PayloadHash(),
-		Transactions: []hash.SHA256Hash{transaction.Ref()},
+		Created:            transaction.SigningTime(),
+		Hash:               transaction.PayloadHash(),
+		SourceTransactions: []hash.SHA256Hash{transaction.Ref()},
 	}
 	return n.didStore.Write(proposedDIDDocument, documentMetadata)
 }
@@ -208,7 +208,7 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 		Hash:        document.PayloadHash(),
 		Deactivated: store.IsDeactivated(proposedDIDDocument),
 		// todo: when conflicted this will change
-		Transactions: []hash.SHA256Hash{document.Ref()},
+		SourceTransactions: []hash.SHA256Hash{document.Ref()},
 	}
 	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 }

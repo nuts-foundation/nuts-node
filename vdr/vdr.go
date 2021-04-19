@@ -96,7 +96,7 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	// return # conflicted docs
 	count := 0
-	r.store.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
+	r.store.Iterate(func(_ did.Document, metadata types.DocumentMetadata) error {
 		if metadata.IsConflicted() {
 			count++
 		}

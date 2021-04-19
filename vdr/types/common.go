@@ -52,8 +52,9 @@ type DocumentMetadata struct {
 	Updated *time.Time `json:"updated,omitempty"`
 	// Hash of DID document bytes. Is equal to payloadHash in network layer.
 	Hash hash.SHA256Hash `json:"hash"`
-	// Transactions points to the transaction(s) that created this DID Document. If multiple transactions are listed, the DID Document is conflicted
-	Transactions []hash.SHA256Hash `json:"txs"`
+	// SourceTransactions points to the transaction(s) that created the current version of this DID Document.
+	// If multiple transactions are listed, the DID Document is conflicted
+	SourceTransactions []hash.SHA256Hash `json:"txs"`
 	// Deactivated indicates if the document is deactivated
 	Deactivated bool `json:"deactivated"`
 }
@@ -69,7 +70,7 @@ func (m DocumentMetadata) Copy() DocumentMetadata {
 
 // IsConflicted returns if a DID Document is conflicted
 func (m DocumentMetadata) IsConflicted() bool {
-	return len(m.Transactions) > 1
+	return len(m.SourceTransactions) > 1
 }
 
 // ResolveMetadata contains metadata for the resolver.

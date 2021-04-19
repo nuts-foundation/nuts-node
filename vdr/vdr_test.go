@@ -375,7 +375,7 @@ func TestVDR_Diagnostics(t *testing.T) {
 		s := store.NewMemoryStore()
 		vdr := NewVDR(Config{}, nil, nil, s)
 		doc := did.Document{ID: *TestDIDA}
-		metadata := types.DocumentMetadata{Transactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
+		metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
 		s.Write(doc, metadata)
 		results := vdr.Diagnostics()
 

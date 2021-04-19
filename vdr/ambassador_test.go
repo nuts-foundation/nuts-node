@@ -206,10 +206,10 @@ func Test_ambassador_callback(t *testing.T) {
 		json.Unmarshal(didDocPayload, &expectedDocument)
 
 		expectedMetadata := types.DocumentMetadata{
-			Created:      signingTime,
-			Updated:      nil,
-			Hash:         payloadHash,
-			Transactions: []hash.SHA256Hash{subDoc.Ref()},
+			Created:            signingTime,
+			Updated:            nil,
+			Hash:               payloadHash,
+			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
 		}
 		var rawKey crypto2.PublicKey
 		signingKey.Raw(&rawKey)
@@ -253,10 +253,10 @@ func Test_ambassador_callback(t *testing.T) {
 		signingKey.Raw(&rawKey)
 
 		expectedMetadata := types.DocumentMetadata{
-			Created:      signingTime,
-			Updated:      nil,
-			Hash:         payloadHash,
-			Transactions: []hash.SHA256Hash{subDoc.Ref()},
+			Created:            signingTime,
+			Updated:            nil,
+			Hash:               payloadHash,
+			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
@@ -387,11 +387,11 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// This is the metadata that will be written during the update
 		expectedNextMetadata := types.DocumentMetadata{
-			Created:      createdAt,
-			Updated:      &signingTime,
-			Hash:         payloadHash,
-			Deactivated:  true,
-			Transactions: []hash.SHA256Hash{subDoc.Ref()},
+			Created:            createdAt,
+			Updated:            &signingTime,
+			Hash:               payloadHash,
+			Deactivated:        true,
+			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
@@ -444,10 +444,10 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// This is the metadata that will be written during the update
 		expectedNextMetadata := types.DocumentMetadata{
-			Created:      createdAt,
-			Updated:      &signingTime,
-			Hash:         payloadHash,
-			Transactions: []hash.SHA256Hash{subDoc.Ref()},
+			Created:            createdAt,
+			Updated:            &signingTime,
+			Hash:               payloadHash,
+			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
@@ -534,10 +534,10 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// This is the metadata that will be written during the update
 		expectedNextMetadata := types.DocumentMetadata{
-			Created:      createdAt,
-			Updated:      &signingTime,
-			Hash:         payloadHash,
-			Transactions: []hash.SHA256Hash{subDoc.Ref()},
+			Created:            createdAt,
+			Updated:            &signingTime,
+			Hash:               payloadHash,
+			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
