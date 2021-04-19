@@ -255,6 +255,42 @@ func TestResolver_ResolveControllers(t *testing.T) {
 			"expected docA and docB to be resolved as controller of docB")
 	})
 
+	t.Run("docA, docB and docC are controllers of docA, docB is deactivated", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		store := types.NewMockStore(ctrl)
+
+		resolver := Resolver{Store: store}
+		// Doc B is deactivated
+		docBID, _ := did.ParseDID("did:nuts:B")
+		docB := did.Document{ID: *docBID}
+		store.EXPECT().Resolve(docB.ID, gomock.Any()).Return(&docB, &types.DocumentMetadata{}, nil)
+
+		// Doc C is active
+		docCID, _ := did.ParseDID("did:nuts:C")
+		docCIDCapInv := *docCID
+		docCIDCapInv.Fragment = "cap-inv"
+		docC := did.Document{ID: *docCID}
+		docC.AddCapabilityInvocation(&did.VerificationMethod{ID: docCIDCapInv})
+		store.EXPECT().Resolve(docC.ID, gomock.Any()).Return(&docC, &types.DocumentMetadata{}, nil)
+
+		// Doc A is active
+		docAID, _ := did.ParseDID("did:nuts:A")
+		docAIDCapInv := *docAID
+		docAIDCapInv.Fragment = "cap-inv"
+		docA := did.Document{ID: *docAID}
+		docA.Controller = []did.DID{docA.ID, docB.ID, docC.ID}
+		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: docAIDCapInv})
+		store.EXPECT().Resolve(docA.ID, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
+
+		docs, err := resolver.ResolveControllers([]did.Document{docA})
+		assert.NoError(t, err)
+		assert.Len(t, docs, 2)
+		assert.Equal(t, []did.Document{docA, docC}, docs,
+			"expected only docA and docC to be resolved as controller of docA")
+	})
+
 	t.Run("docA is controller of docB, docA has explicit self link in Controllers", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
