@@ -1,0 +1,66 @@
+.. _configure-node:
+
+Setting up your node for a network
+##################################
+
+After you managed to start your node using either :ref:`docker <running-docker>` or :ref:`native <running-native>` it's time to connect to a network.
+
+Prerequisites
+*************
+
+The following is needed to connect a Nuts node to a network:
+
+1. A runnable node.
+2. The public address of one or more remote nodes you'd like to use as bootstrap nodes.
+3. A TLS client- and server certificate which is accepted by the other nodes in the network (e.g. PKIoverheid).
+4. A truststore containing the CA trust anchors for TLS certificates the network you're connecting to accepts (e.g. PKIoverheid).
+
+To connect to the development network you can use the `nuts-development-network-ca` by cloning `https://github.com/nuts-foundation/nuts-development-network-ca`.
+That project contains scripts to generate certificates, and a truststore.
+
+Configuring
+***********
+
+1. Configure the bootstrap nodes using `network.bootstrapnodes`.
+2. Configure TLS using `network.certfile`, `network.certkeyfile` and `network.truststorefile`.
+
+See :ref:`configuration reference <nuts-node-config>` for a detailed explanation on how to exactly configure the Nuts node.
+
+
+.. note::
+
+    You _can_ start the node without configuring the network, but it won't connect and thus exchange data with other
+    nodes.
+
+YAML Configuration File
+=======================
+
+If you're using a YAML file to configure your node, the following snippet shows an example for the network related configuration:
+
+.. code-block:: yaml
+
+  network:
+    truststorefile: /path/to/truststore.pem
+    certfile: /path/to/certificate-and-key.pem
+    certkeyfile: /path/to/certificate-and-key.pem
+    bootstrapnodes: example.com:5555
+
+Node TLS Certificate
+====================
+
+To connect to an existing Nuts network you need a TLS certificate which authenticates your node. For the development network
+you can use the `nuts-network-development-ca` to directly issue a certificate for your node. The commands below clone
+the required Git repository, generate a private key and issues a certificate, and combines them into a single file:
+
+.. code-block:: shell
+
+  git clone https://github.com/nuts-foundation/nuts-development-network-ca
+  cd nuts-development-network-ca && ./issue-cert.sh localhost
+  cat localhost.key localhost.pem > certificate-and-key.pem
+
+.. note::
+
+    If you want peers to be able to connect to your node, replace `localhost` with the correct hostname.
+
+Note that the Git repository contains the Certificate Authority certificate (`ca.pem`) which will function as truststore.
+Copy this file as `truststore.pem` into the working directory.

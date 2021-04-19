@@ -6,41 +6,43 @@ Getting Started with native binary
 The Nuts executable this project provides can be used to both run a Nuts server (a.k.a. node) and administer a running
 node remotely. This chapter explains how to run a server using the native binary.
 
-Prerequisites
-*************
+Building
+********
 
-The following is needed to run a Nuts node:
+Since no precompiled binaries exist (yet), you'll have to build the binary for your platform.
 
-1. Nuts executable for your platform.
-2. If connecting to an existing network: the public address of one or more remote nodes you'd like to use as bootstrap nodes.
-3. A TLS client- and server certificate which is accepted by the other nodes in the network (e.g. PKIoverheid).
-4. A truststore containing the CA trust anchors for TLS certificates the network you're connecting to accepts (e.g. PKIoverheid).
-5. The public address of your Nuts node remote nodes can connect to.
+First check out the project using:
 
-To connect to the development network you can use the `nuts-development-network-ca` by cloning `https://github.com/nuts-foundation/nuts-development-network-ca`.
+.. code-block:: shell
 
-Configuring
-***********
+    git clone https://github.com/nuts-foundation/nuts-node
+    cd nuts-node
 
-First you need to configure your Nuts node;
+Then create the executable using the `make` command:
 
-1. Configure the bootstrap nodes using `network.bootstrapnodes`.
-2. Configure TLS using `network.certfile`, `network.certkeyfile` and `network.truststorefile`.
-3. Configure the public address of your node using `network.publicaddr`.
+.. code-block:: shell
 
-See :ref:`configuration <nuts-node-config>` for a detailed explanation on how to exactly configure the Nuts node.
+    make build
 
+Or if make is not available:
 
-.. note::
+.. code-block:: shell
 
-    You _can_ start the node without configuring the network, but it won't connect and thus exchange data with other
-    nodes.
+    go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=GIT_COMMIT' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=GIT_BRANCH' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=GIT_VERSION'" -o /path/to/nuts
+
+Make sure `GIT_COMMIT`, `GIT_BRANCH` and `GIT_VERSION` are set as environment variables.
+These variables help identifying an administrator and other nodes what version your node is using.
+If this isn't important then replace `GIT_COMMIT` with `0`, `GIT_BRANCH` with `master` and `GIT_VERSION` with `undefined`.
 
 Starting
 ********
 
 Start the server using the `server` command:
 
-    $ nuts server
+.. code-block:: shell
+
+    nuts server
+
+Now continue with the :ref:`configuration <configure-node>`.
 
 
