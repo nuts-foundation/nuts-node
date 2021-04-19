@@ -155,18 +155,18 @@ func (s *service) validateActor(context *validationContext) error {
 	return nil
 }
 
-// check if the aud service identifier matches the oauth endpoint of the requested scope
+// check if the aud service identifier matches the oauth endpoint of the requested service
 func (s *service) validateAudience(context *validationContext) error {
 	if len(context.jwtBearerToken.Audience()) != 1 {
 		return errors.New("aud does not contain a single URI")
 	}
 	audience := context.jwtBearerToken.Audience()[0]
-	scope := context.jwtBearerTokenClaims.Scope
+	service := context.jwtBearerTokenClaims.Service
 	// parsing is already done in a previous check
 	subject, _ := did.ParseDID(context.jwtBearerToken.Subject())
 	iat := context.jwtBearerToken.IssuedAt()
 
-	uri, _, err := services.ResolveCompoundServiceURL(s.docResolver, *subject, scope, services.OAuthEndpointType, &iat)
+	uri, _, err := services.ResolveCompoundServiceURL(s.docResolver, *subject, service, services.OAuthEndpointType, &iat)
 	if err != nil {
 		return err
 	}
@@ -354,7 +354,7 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 	issueTime := time.Now()
 	at := services.NutsAccessToken{
 		SubjectID: bearerTokenClaims.SubjectID,
-		Scope:     bearerTokenClaims.Scope,
+		Service:   bearerTokenClaims.Service,
 		// based on
 		// https://privacybydesign.foundation/attribute-index/en/pbdf.gemeente.personalData.html
 		// https://privacybydesign.foundation/attribute-index/en/pbdf.pbdf.email.html

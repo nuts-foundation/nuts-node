@@ -51,8 +51,9 @@ type NutsJwtBearerToken struct {
 	// Base64 encoded VerifiablePresentation
 	UserIdentity *string `json:"usi,omitempty"`
 	SubjectID    *string `json:"sid,omitempty"`
-	Scope        string  `json:"scope"`
-	KeyID        string  `json:"-"`
+	// Service defines the use-case for which an access token is required
+	Service string `json:"service"`
+	KeyID   string `json:"-"`
 }
 
 // NutsAccessToken is a OAuth 2.0 access token which provides context to a request.
@@ -60,7 +61,7 @@ type NutsJwtBearerToken struct {
 // stripped from the proof to make it compact.
 type NutsAccessToken struct {
 	SubjectID  *string `json:"sid"`
-	Scope      string  `json:"scope"`
+	Service    string  `json:"service"`
 	Name       string  `json:"name"`
 	GivenName  string  `json:"given_name"`
 	Prefix     string  `json:"prefix"`

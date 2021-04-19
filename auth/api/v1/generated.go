@@ -92,7 +92,7 @@ type CreateJwtBearerTokenRequest struct {
 	// Base64 encoded IRMA contract conaining the identity of the performer
 	Identity string `json:"identity"`
 
-	// The service for which this access-token can be used. The right ouath endpoint is selected based on the service.
+	// The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
 	Service string  `json:"service"`
 	Subject *string `json:"subject,omitempty"`
 }
@@ -226,8 +226,8 @@ type TokenIntrospectionResponse struct {
 	Osi *string `json:"osi,omitempty"`
 
 	// Surname prefix
-	Prefix *string `json:"prefix,omitempty"`
-	Scope  *string `json:"scope,omitempty"`
+	Prefix  *string `json:"prefix,omitempty"`
+	Service *string `json:"service,omitempty"`
 
 	// The Nuts subject id, patient identifier in the form of an oid encoded BSN.
 	Sid *string `json:"sid,omitempty"`
