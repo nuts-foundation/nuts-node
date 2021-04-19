@@ -94,7 +94,21 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 
 // Diagnostics returns the diagnostics for this engine
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
-	return []core.DiagnosticResult{}
+	// return # conflicted docs
+	count := 0
+	r.store.Iterate(func(_ did.Document, metadata types.DocumentMetadata) error {
+		if metadata.IsConflicted() {
+			count++
+		}
+		return nil
+	})
+
+	return []core.DiagnosticResult{
+		&core.GenericDiagnosticResult{
+			Title:   "# Conflicted DID Documents",
+			Outcome: fmt.Sprintf("%d", count),
+		},
+	}
 }
 
 // Create generates a new DID Document

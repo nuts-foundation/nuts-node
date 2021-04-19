@@ -27,6 +27,7 @@ import (
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 
@@ -135,8 +136,9 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	}
 
 	documentMetadata := types.DocumentMetadata{
-		Created: transaction.SigningTime(),
-		Hash:    transaction.PayloadHash(),
+		Created:            transaction.SigningTime(),
+		Hash:               transaction.PayloadHash(),
+		SourceTransactions: []hash.SHA256Hash{transaction.Ref()},
 	}
 	return n.didStore.Write(proposedDIDDocument, documentMetadata)
 }
@@ -205,6 +207,8 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 		Updated:     &updatedAt,
 		Hash:        document.PayloadHash(),
 		Deactivated: store.IsDeactivated(proposedDIDDocument),
+		// todo: when conflicted this will change
+		SourceTransactions: []hash.SHA256Hash{document.Ref()},
 	}
 	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 }

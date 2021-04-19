@@ -10,6 +10,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -169,4 +170,31 @@ func TestVDR_Configure(t *testing.T) {
 	vdr := NewVDR(cfg, nil, tx, nil)
 	err := vdr.Configure(core.ServerConfig{})
 	assert.NoError(t, err)
+}
+
+func TestVDR_Diagnostics(t *testing.T) {
+	t.Run("ok - no conflicts", func(t *testing.T) {
+		s := store.NewMemoryStore()
+		vdr := NewVDR(Config{}, nil, nil, s)
+		results := vdr.Diagnostics()
+
+		if !assert.Len(t, results, 1) {
+			return
+		}
+		assert.Equal(t, "0", results[0].String())
+	})
+
+	t.Run("ok - 1 conflict", func(t *testing.T) {
+		s := store.NewMemoryStore()
+		vdr := NewVDR(Config{}, nil, nil, s)
+		doc := did.Document{ID: *TestDIDA}
+		metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
+		s.Write(doc, metadata)
+		results := vdr.Diagnostics()
+
+		if !assert.Len(t, results, 1) {
+			return
+		}
+		assert.Equal(t, "1", results[0].String())
+	})
 }

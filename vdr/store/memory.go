@@ -220,3 +220,17 @@ func (m *memory) Update(id did.DID, current hash.SHA256Hash, next did.Document, 
 
 	return nil
 }
+
+func (m *memory) Iterate(fn vdr.DocIterator) error {
+	for _, entryList := range m.store {
+		entry, err := entryList.last()
+		if err != nil {
+			return err
+		}
+
+		if err = fn(entry.document, entry.metadata); err != nil {
+			return err
+		}
+	}
+	return nil
+}

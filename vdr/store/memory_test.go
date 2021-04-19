@@ -16,12 +16,14 @@
 package store
 
 import (
+	"errors"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestMemory_Write(t *testing.T) {
@@ -223,5 +225,68 @@ func TestMemory_Update(t *testing.T) {
 
 		err = store.Update(*did1, h, doc, &meta)
 		assert.Equal(t, types.ErrDeactivated, err)
+	})
+}
+
+func TestMemory_Iterate(t *testing.T) {
+	store := NewMemoryStore()
+	did1, _ := did.ParseDID("did:nuts:1")
+	doc := did.Document{
+		ID: *did1,
+	}
+	meta := types.DocumentMetadata{}
+	counter := func(count *int) types.DocIterator {
+		return func(doc did.Document, metadata types.DocumentMetadata) error {
+			*count++
+			return nil
+		}
+	}
+
+	t.Run("no hits", func(t *testing.T) {
+		count := 0
+		fn := counter(&count)
+
+		err := store.Iterate(fn)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, 0, count)
+	})
+
+	t.Run("hit", func(t *testing.T) {
+		_ = store.Write(doc, meta)
+		count := 0
+		fn := counter(&count)
+
+		err := store.Iterate(fn)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, 1, count)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		fn := func(doc did.Document, metadata types.DocumentMetadata) error {
+			return errors.New("b00m!")
+		}
+
+		err := store.Iterate(fn)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - no last entry", func(t *testing.T) {
+		s := NewMemoryStore()
+		s.(*memory).store["a"] = versionedEntryList{}
+		fn := func(doc did.Document, metadata types.DocumentMetadata) error {
+			return nil
+		}
+
+		err := s.Iterate(fn)
+
+		assert.Error(t, err)
+		assert.Equal(t, types.ErrNotFound, err)
 	})
 }

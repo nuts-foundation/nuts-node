@@ -287,6 +287,20 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
 }
 
+// Iterate mocks base method.
+func (m *MockStore) Iterate(fn DocIterator) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Iterate", fn)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Iterate indicates an expected call of Iterate.
+func (mr *MockStoreMockRecorder) Iterate(fn interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Iterate", reflect.TypeOf((*MockStore)(nil).Iterate), fn)
+}
+
 // Resolve mocks base method.
 func (m *MockStore) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
 	m.ctrl.T.Helper()
