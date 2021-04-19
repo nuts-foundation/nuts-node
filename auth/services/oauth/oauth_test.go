@@ -537,6 +537,7 @@ func Test_claimsFromRequest(t *testing.T) {
 			Actor:         actorDID.String(),
 			Subject:       &sid,
 			IdentityToken: &usi,
+			Service:       "service",
 		}
 		audience := "aud"
 		timeFunc = func() time.Time {
@@ -556,6 +557,7 @@ func Test_claimsFromRequest(t *testing.T) {
 		assert.Equal(t, request.Custodian, claims[jwt.SubjectKey])
 		assert.Equal(t, *request.IdentityToken, claims["usi"])
 		assert.Equal(t, *request.Subject, claims["sid"])
+		assert.Equal(t, request.Service, claims[services.JWTService])
 	})
 }
 
