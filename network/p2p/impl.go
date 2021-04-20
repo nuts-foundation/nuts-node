@@ -78,9 +78,9 @@ func (n grpcInterface) Configured() bool {
 func (n grpcInterface) Diagnostics() []core.DiagnosticResult {
 	peers := n.Peers()
 	return []core.DiagnosticResult{
-		NumberOfPeersStatistic{NumberOfPeers: len(peers)},
-		PeersStatistic{Peers: peers},
-		OwnPeerIDStatistic{peerID: n.config.PeerID},
+		numberOfPeersStatistic{numberOfPeers: len(peers)},
+		peersStatistic{peers: peers},
+		ownPeerIDStatistic{peerID: n.config.PeerID},
 	}
 }
 
@@ -232,6 +232,8 @@ func (n *grpcInterface) Start() error {
 			if err != nil {
 				return err
 			}
+			// Set ListenAddress to actual interface address resolved by `Listen()`
+			n.config.ListenAddress = n.listener.Addr().String()
 			if n.config.tlsEnabled() {
 				serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(&tls.Config{
 					Certificates: []tls.Certificate{n.config.ServerCert},
@@ -333,7 +335,6 @@ func (n *grpcInterface) startConnecting(newConnector *connector) {
 				newConnector.backoff.Reset()
 			}
 		}
-		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -345,15 +346,14 @@ func (n grpcInterface) shouldConnectTo(address string) bool {
 		log.Logger().Trace("Not connecting since it's localhost")
 		return false
 	}
-	var result = true
+	var alreadyConnected = true
 	n.connsMutex.Lock()
 	defer n.connsMutex.Unlock()
-	if _, present := n.peersByAddr[normalizedAddress]; present {
+	if _, alreadyConnected = n.peersByAddr[normalizedAddress]; alreadyConnected {
 		// We're not going to connect to a node we're already connected to
 		log.Logger().Tracef("Not connecting since we're already connected (address=%s)", normalizedAddress)
-		result = false
 	}
-	return result
+	return !alreadyConnected
 }
 
 func (n grpcInterface) getLocalAddress() string {
@@ -364,10 +364,6 @@ func (n grpcInterface) getLocalAddress() string {
 		// Interface's address included in listening address (e.g. localhost:5555), so return as-is.
 		return n.config.ListenAddress
 	}
-}
-
-func (n grpcInterface) isRunning() bool {
-	return n.grpcServer != nil
 }
 
 func (n grpcInterface) Connect(stream transport.Network_ConnectServer) error {

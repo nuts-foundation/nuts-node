@@ -24,35 +24,35 @@ import (
 	"strings"
 )
 
-// NumberOfPeersStatistic contains node's number of peers it's connected to.
-type NumberOfPeersStatistic struct {
-	NumberOfPeers int
+// numberOfPeersStatistic contains node's number of peers it's connected to.
+type numberOfPeersStatistic struct {
+	numberOfPeers int
 }
 
 // Name returns the name of the statistic.
-func (n NumberOfPeersStatistic) Name() string {
+func (n numberOfPeersStatistic) Name() string {
 	return "[P2P Network] Connected peers #"
 }
 
 // String returns the statistic as string.
-func (n NumberOfPeersStatistic) String() string {
-	return fmt.Sprintf("%d", n.NumberOfPeers)
+func (n numberOfPeersStatistic) String() string {
+	return fmt.Sprintf("%d", n.numberOfPeers)
 }
 
-// PeersStatistic contains the node's peers it's connected to.
-type PeersStatistic struct {
-	Peers []Peer
+// peersStatistic contains the node's peers it's connected to.
+type peersStatistic struct {
+	peers []Peer
 }
 
 // Name returns the name of the statistic.
-func (p PeersStatistic) Name() string {
+func (p peersStatistic) Name() string {
 	return "[P2P Network] Connected peers"
 }
 
 // String returns the statistic as string.
-func (p PeersStatistic) String() string {
-	addrs := make([]string, len(p.Peers))
-	for i, peer := range p.Peers {
+func (p peersStatistic) String() string {
+	addrs := make([]string, len(p.peers))
+	for i, peer := range p.peers {
 		addrs[i] = peer.String()
 	}
 	// Sort for stable order (easier for humans to understand)
@@ -62,17 +62,17 @@ func (p PeersStatistic) String() string {
 	return strings.Join(addrs, " ")
 }
 
-// OwnPeerIDStatistic contains the node's own peer ID.
-type OwnPeerIDStatistic struct {
+// ownPeerIDStatistic contains the node's own peer ID.
+type ownPeerIDStatistic struct {
 	peerID PeerID
 }
 
 // Name returns the name of the statistic.
-func (o OwnPeerIDStatistic) Name() string {
+func (o ownPeerIDStatistic) Name() string {
 	return "[P2P Network] Peer ID of local node"
 }
 
 // String returns the statistic as string.
-func (o OwnPeerIDStatistic) String() string {
+func (o ownPeerIDStatistic) String() string {
 	return o.peerID.String()
 }
