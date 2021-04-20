@@ -86,6 +86,7 @@ type KeyResolver interface {
 	ResolvePublicKey(kid string, validAt *time.Time) (crypto.PublicKey, error)
 }
 
+// DocIterator is the function type for iterating over the all current DID Documents in the store
 type DocIterator func(doc did.Document, metadata DocumentMetadata) error
 
 // Store is the interface that groups all low level VDR DID storage operations.
