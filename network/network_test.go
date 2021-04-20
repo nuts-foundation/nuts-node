@@ -196,7 +196,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		_, err = cxt.network.CreateTransaction(payloadType, payload, "signing-key", privateKey.PublicKey, time.Now())
+		_, err = cxt.network.CreateTransaction(payloadType, payload, "signing-key", privateKey.PublicKey, time.Now(), []hash.SHA256Hash{})
 		assert.NoError(t, err)
 	})
 	t.Run("detached key", func(t *testing.T) {
@@ -218,7 +218,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		_, err = cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, time.Now())
+		_, err = cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, time.Now(), []hash.SHA256Hash{})
 		assert.NoError(t, err)
 	})
 }

@@ -77,6 +77,7 @@ type SubscriberTransaction interface {
 	Signable
 	Referenceable
 	PayloadReferencer
+	NetworkHeader
 }
 
 // Signable groups a set of functions to access information about a implementors signature.
@@ -110,7 +111,7 @@ type Transaction interface {
 
 // NewTransaction creates a new unsigned transaction. Parameters payload and payloadType can't be empty, but prevs is optional.
 // Prevs must not contain empty or invalid hashes.
-func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash, additionalFields ...FieldOpt) (UnsignedTransaction, error) {
+func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash) (UnsignedTransaction, error) {
 	if !ValidatePayloadType(payloadType) {
 		return nil, errInvalidPayloadType
 	}
@@ -127,14 +128,8 @@ func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SH
 	if len(prevs) > 0 {
 		result.prevs = append(prevs)
 	}
-	for _, field := range additionalFields {
-		field(&result)
-	}
 	return &result, nil
 }
-
-// FieldOpt defines a function for specifying fields on a transaction.
-type FieldOpt func(target *transaction)
 
 // ValidatePayloadType checks whether the payload type is valid according to RFC004.
 func ValidatePayloadType(payloadType string) bool {

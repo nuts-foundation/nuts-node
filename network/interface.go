@@ -38,7 +38,7 @@ type Transactions interface {
 	GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error)
 	// CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
 	// If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
-	CreateTransaction(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, fieldsOpts ...dag.FieldOpt) (dag.Transaction, error)
+	CreateTransaction(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error)
 	// ListTransactions returns all transactions known to this Network instance.
 	ListTransactions() ([]dag.Transaction, error)
 }

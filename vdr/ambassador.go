@@ -24,8 +24,9 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -201,24 +202,53 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.SubscriberTransacti
 	// 		Add public key to key store
 	// if verificationMethod is removed:
 	//		Mark keyID as expired since the updatedAt time from new DID document
-
 	// make a diff of the controllers
 	// 	if controller is added
 	//		check if it is known.
+	// check if the transactions contains all SourceTransactions
+	missedTransactions := missingTransactions(currentDIDMeta.SourceTransactions, transaction.Previous())
+	sourceTransactions := append(missedTransactions, transaction.Ref())
+	if len(missedTransactions) != 0 {
+		mergedDoc, err := doc.MergeDocuments(*currentDIDDocument, proposedDIDDocument)
+		if err != nil {
+			return fmt.Errorf("unable to merge conflicted DID Document: %w", err)
+		}
+		proposedDIDDocument = *mergedDoc
+	}
+
 	updatedAt := transaction.SigningTime()
 	documentMetadata := types.DocumentMetadata{
 		Created:     currentDIDMeta.Created,
 		Updated:     &updatedAt,
 		Hash:        transaction.PayloadHash(),
 		Deactivated: store.IsDeactivated(proposedDIDDocument),
-		// todo: when conflicted this will change
-		SourceTransactions: []hash.SHA256Hash{transaction.Ref()},
+		SourceTransactions: sourceTransactions,
 	}
 	err = n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 	if err == nil {
 		log.Logger().Infof("DID document updated (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	}
 	return err
+}
+
+// missingTransactions does: current - incoming. Non conflicted updates will have an empty slice
+func missingTransactions(current []hash.SHA256Hash, incoming []hash.SHA256Hash) []hash.SHA256Hash {
+	j := 0
+	for _, h := range current {
+		found := false
+		for _, h2 := range incoming {
+			if h.Equals(h2) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			current[j] = h
+			j++
+		}
+	}
+
+	return current[:j]
 }
 
 // checkSubscriberTransactionIntegrity performs basic integrity checks on the SubscriberTransaction fields

@@ -129,7 +129,7 @@ func (r VDR) Create() (*did.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, key, time.Now())
+	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, key, time.Now(), []hash.SHA256Hash{})
 	if err != nil {
 		return nil, fmt.Errorf("could not store did document in network: %w", err)
 	}
@@ -147,7 +147,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		Hash:             &current,
 		AllowDeactivated: true,
 	}
-	currentDIDDocument, _, err := r.store.Resolve(id, resolverMetadata)
+	currentDIDDocument, currentMeta, err := r.store.Resolve(id, resolverMetadata)
 	if err != nil {
 		return err
 	}
@@ -168,7 +168,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	}
 
 	keyID := controllers[0].CapabilityInvocation[0].ID.String()
-	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now())
+	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now(), currentMeta.SourceTransactions)
 	if err == nil {
 		logging.Log().Infof("DID Document updated (DID=%s)", id)
 	} else {

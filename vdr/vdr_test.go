@@ -53,7 +53,7 @@ func TestVDR_Update(t *testing.T) {
 		resolvedMetadata := types.DocumentMetadata{}
 		expectedPayload, _ := json.Marshal(nextDIDDocument)
 		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any())
+		networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any())
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
 		assert.NoError(t, err)
 	})
@@ -115,7 +115,7 @@ func TestVDR_Update(t *testing.T) {
 		currentDIDDocument := nextDIDDocument
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		didStoreMock.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
-		networkMock.EXPECT().CreateTransaction(gomock.Any(), gomock.Any(), gomock.Any(), nil, gomock.Any()).Return(nil, crypto.ErrKeyNotFound)
+		networkMock.EXPECT().CreateTransaction(gomock.Any(), gomock.Any(), gomock.Any(), nil, gomock.Any(), gomock.Any()).Return(nil, crypto.ErrKeyNotFound)
 		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "DID document not managed by this node")
@@ -148,7 +148,7 @@ func TestVDR_Create(t *testing.T) {
 
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
 	didCreator.EXPECT().Create().Return(&nextDIDDocument, nil)
-	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), &privateKey.PublicKey, gomock.Any())
+	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), &privateKey.PublicKey, gomock.Any(), gomock.Any())
 	didDoc, err := vdr.Create()
 	assert.NoError(t, err)
 	assert.NotNil(t, didDoc)
