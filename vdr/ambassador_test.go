@@ -76,7 +76,7 @@ type subscriberTransaction struct {
 	ref          hash.SHA256Hash
 	payloadHash  hash.SHA256Hash
 	payloadType  string
-	prevs		 []hash.SHA256Hash
+	prevs        []hash.SHA256Hash
 }
 
 func (s subscriberTransaction) SigningKey() jwk.Key {
@@ -615,8 +615,8 @@ func Test_ambassador_callback(t *testing.T) {
 		}
 		didMetadata := types.DocumentMetadata{
 			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
-			Hash: hash.EmptyHash(),
-			Created: signingTime,
+			Hash:               hash.EmptyHash(),
+			Created:            signingTime,
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)

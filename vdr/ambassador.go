@@ -218,10 +218,10 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.SubscriberTransacti
 
 	updatedAt := transaction.SigningTime()
 	documentMetadata := types.DocumentMetadata{
-		Created:     currentDIDMeta.Created,
-		Updated:     &updatedAt,
-		Hash:        transaction.PayloadHash(),
-		Deactivated: store.IsDeactivated(proposedDIDDocument),
+		Created:            currentDIDMeta.Created,
+		Updated:            &updatedAt,
+		Hash:               transaction.PayloadHash(),
+		Deactivated:        store.IsDeactivated(proposedDIDDocument),
 		SourceTransactions: sourceTransactions,
 	}
 	err = n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
