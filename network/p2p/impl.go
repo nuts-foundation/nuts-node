@@ -264,23 +264,26 @@ func (n *grpcInterface) Start() error {
 func (n *grpcInterface) Stop() error {
 	n.serverMutex.Lock()
 	defer n.serverMutex.Unlock()
-	// Stop server
+	// Stop client
+	close(n.connectorAddChannel)
+	n.connsMutex.Lock()
+	{
+		defer n.connsMutex.Unlock()
+		for _, peer := range n.conns {
+			peer.close()
+		}
+	}
+	// Stop gRPC server
 	if n.grpcServer != nil {
 		n.grpcServer.Stop()
 		n.grpcServer = nil
 	}
+	// Stop TCP listener
 	if n.listener != nil {
 		if err := n.listener.Close(); err != nil {
 			log.Logger().Warn("Error while closing server listener: ", err)
 		}
 		n.listener = nil
-	}
-	close(n.connectorAddChannel)
-	// Stop client
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-	for _, peer := range n.conns {
-		peer.close()
 	}
 	return nil
 }
