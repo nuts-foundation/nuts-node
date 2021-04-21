@@ -47,8 +47,9 @@ const messageBacklogChannelSize = 100
 type grpcInterface struct {
 	config InterfaceConfig
 
-	grpcServer *grpc.Server
-	listener   net.Listener
+	grpcServer  *grpc.Server
+	serverMutex *sync.Mutex
+	listener    net.Listener
 
 	// connectors contains the list of peers we're currently trying to connect to.
 	connectors map[string]*connector
@@ -195,6 +196,7 @@ func NewInterface() Interface {
 		peerConnectedChannel:    make(chan Peer, eventChannelSize),
 		peerDisconnectedChannel: make(chan Peer, eventChannelSize),
 		connsMutex:              &sync.Mutex{},
+		serverMutex:             &sync.Mutex{},
 		receivedMessages:        messageQueue{c: make(chan PeerMessage, messageBacklogChannelSize)},
 		grpcDialer:              grpc.DialContext,
 	}
@@ -221,6 +223,8 @@ func (n *grpcInterface) Configure(config InterfaceConfig) error {
 }
 
 func (n *grpcInterface) Start() error {
+	n.serverMutex.Lock()
+	defer n.serverMutex.Unlock()
 	log.Logger().Debugf("Starting gRPC P2P node (ID: %s)", n.config.PeerID)
 	if n.config.ListenAddress != "" {
 		log.Logger().Debugf("Starting gRPC server on %s", n.config.ListenAddress)
@@ -258,6 +262,8 @@ func (n *grpcInterface) Start() error {
 }
 
 func (n *grpcInterface) Stop() error {
+	n.serverMutex.Lock()
+	defer n.serverMutex.Unlock()
 	// Stop server
 	if n.grpcServer != nil {
 		n.grpcServer.Stop()
