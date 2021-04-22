@@ -25,8 +25,6 @@ func Test_ProtocolLifecycle(t *testing.T) {
 }
 
 func Test_Protocol_Diagnostics(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
 	instance := NewProtocol().(*protocol)
 
 	instance.peerOmnihashChannel = make(chan PeerOmnihash, 1)

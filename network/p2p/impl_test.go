@@ -20,6 +20,7 @@ package p2p
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"testing"
 	"time"
 
@@ -177,4 +178,36 @@ func Test_interface_GetLocalAddress(t *testing.T) {
 		network.config.ListenAddress = ":555"
 		assert.Equal(t, "localhost:555", network.getLocalAddress())
 	})
+}
+
+func Test_interface_Send(t *testing.T) {
+	const peerID = "foobar"
+	t.Run("ok", func(t *testing.T) {
+		network := NewInterface().(*grpcInterface)
+		conn := createConnection(Peer{ID: peerID}, nil)
+		assert.Empty(t, conn.outMessages)
+		network.conns[peerID] = conn
+		err := network.Send(peerID, &transport.NetworkMessage{})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Len(t, conn.outMessages, 1)
+	})
+	t.Run("unknown peer", func(t *testing.T) {
+		network := NewInterface().(*grpcInterface)
+		err := network.Send(peerID, &transport.NetworkMessage{})
+		assert.EqualError(t, err, "unknown peer: foobar")
+	})
+}
+
+func Test_interface_Broadcast(t *testing.T) {
+	const peer1ID = "foobar1"
+	const peer2ID = "foobar2"
+	network := NewInterface().(*grpcInterface)
+	network.conns[peer1ID] = createConnection(Peer{ID: peer1ID}, nil)
+	network.conns[peer2ID] = createConnection(Peer{ID: peer2ID}, nil)
+	network.Broadcast(&transport.NetworkMessage{})
+	for _, conn := range network.conns {
+		assert.Len(t, conn.outMessages, 1)
+	}
 }
