@@ -31,8 +31,8 @@ import (
 // ErrDiffID is returned when a merge is done on documents that do not share the same ID
 var ErrDiffID = errors.New("no matching IDs")
 
-// MergeConflicted merges two DID Documents that share the same ID
-func MergeConflicted(docA did.Document, docB did.Document) (*did.Document, error) {
+// MergeDocuments merges two DID Documents that share the same ID
+func MergeDocuments(docA did.Document, docB did.Document) (*did.Document, error) {
 	result := &did.Document{}
 	docs := []did.Document{docA, docB}
 
@@ -73,7 +73,7 @@ func mergeBasics(docs []did.Document, result *did.Document) {
 	}
 }
 
-// mergeServices merges keys based upon their ID. The ID is derived from the public key.
+// mergeKeys merges keys based upon their ID. The ID is derived from the public key.
 func mergeKeys(docs []did.Document, result *did.Document) {
 	// VerificationMethod holds the actual keys
 	verificationMethods := map[string]*did.VerificationMethod{}

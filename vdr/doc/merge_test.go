@@ -129,7 +129,7 @@ func TestMerge(t *testing.T) {
 	}
 
 	t.Run("error no matching IDs", func(t *testing.T) {
-		_, err := MergeConflicted(did.Document{ID: *didA}, did.Document{ID: *didB})
+		_, err := MergeDocuments(did.Document{ID: *didA}, did.Document{ID: *didB})
 
 		if !assert.Error(t, err) {
 			return
@@ -141,7 +141,7 @@ func TestMerge(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		for _, test := range tests {
 			t.Run(test.title, func(t *testing.T) {
-				r, err := MergeConflicted(test.docA, test.docB)
+				r, err := MergeDocuments(test.docA, test.docB)
 
 				if !assert.NoError(t, err) {
 					return
