@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -88,4 +89,16 @@ func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) er
 	ctx.Response().WriteHeader(http.StatusOK)
 	_, err = ctx.Response().Writer.Write(data)
 	return err
+}
+
+// RenderGraph visualizes the DAG as Graphviz/dot graph
+func (a Wrapper) RenderGraph(ctx echo.Context) error {
+	visitor := dag.NewDotGraphVisitor(dag.ShowShortRefLabelStyle)
+	err := a.Service.Walk(visitor.Accept)
+	if err != nil {
+		log.Logger().Errorf("Error while rendering graph: %v", err)
+		return ctx.String(http.StatusInternalServerError, err.Error())
+	}
+	ctx.Response().Header().Set(echo.HeaderContentType, "text/vnd.graphviz")
+	return ctx.String(http.StatusOK, visitor.Render())
 }

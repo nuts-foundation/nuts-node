@@ -70,3 +70,19 @@ paths:
               example:
         "404":
           description: "Transaction (or payload) wasn't found"
+  /internal/network/v1/diagnostics/graph:
+    get:
+      summary: "Visualizes the DAG as a graph"
+      description: >
+        Walks the DAG as subscribers of the DAG do, rendering it as graph. By default it renders in Graphviz format,
+        which can be rendered to an image using `dot`.
+      operationId: "renderGraph"
+      tags:
+        - transactions
+      responses:
+        "200":
+          description: "Graph successfully rendered"
+          content:
+            text/vnd.graphviz:
+              schema:
+                type: string
