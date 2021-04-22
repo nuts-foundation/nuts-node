@@ -45,6 +45,9 @@ type JwtBearerTokenResult struct {
 	BearerToken string
 }
 
+// JWTService is the field used to denote the selected service in the JWT
+const JWTService = "service"
+
 // NutsJwtBearerToken contains the deserialized Jwt Bearer Token as defined in rfc7523. It contains a NutsIdentity token which can be
 // verified by the authorization server.
 type NutsJwtBearerToken struct {
