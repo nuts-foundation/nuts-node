@@ -85,7 +85,7 @@ func (p *protocol) Configure(p2pNetwork p2p.Interface, graph dag.DAG, publisher 
 func (p *protocol) Start() {
 	go p.consumeMessages(p.p2pNetwork.ReceivedMessages())
 	peerConnected, peerDisconnected := p.p2pNetwork.EventChannels()
-	go p.updateDiagnostics(peerConnected, peerDisconnected)
+	go p.startUpdatingDiagnostics(peerConnected, peerDisconnected)
 	go p.startAdvertingHashes()
 }
 
@@ -103,30 +103,34 @@ func (p protocol) startAdvertingHashes() {
 	}
 }
 
+func (p *protocol) startUpdatingDiagnostics(peerConnected chan p2p.Peer, peerDisconnected chan p2p.Peer) {
+	for {
+		p.updateDiagnostics(peerConnected, peerDisconnected)
+	}
+}
+
 func (p *protocol) updateDiagnostics(peerConnected chan p2p.Peer, peerDisconnected chan p2p.Peer) {
 	withLock := func(fn func()) {
 		p.peerOmnihashMutex.Lock()
 		defer p.peerOmnihashMutex.Unlock()
 		fn()
 	}
-	for {
-		select {
-		case peer := <-peerConnected:
-			withLock(func() {
-				p.peerOmnihashes[peer.ID] = hash.EmptyHash()
-			})
-			break
-		case peer := <-peerDisconnected:
-			withLock(func() {
-				delete(p.peerOmnihashes, peer.ID)
-			})
-			break
-		case peerOmnihash := <-p.peerOmnihashChannel:
-			withLock(func() {
-				p.peerOmnihashes[peerOmnihash.Peer] = peerOmnihash.Hash
-			})
-			break
-		}
+	select {
+	case peer := <-peerConnected:
+		withLock(func() {
+			p.peerOmnihashes[peer.ID] = hash.EmptyHash()
+		})
+		break
+	case peer := <-peerDisconnected:
+		withLock(func() {
+			delete(p.peerOmnihashes, peer.ID)
+		})
+		break
+	case peerOmnihash := <-p.peerOmnihashChannel:
+		withLock(func() {
+			p.peerOmnihashes[peerOmnihash.Peer] = peerOmnihash.Hash
+		})
+		break
 	}
 }
 
