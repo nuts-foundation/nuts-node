@@ -314,7 +314,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
 			test2.AssertErrProblemTitle(t, problemTitleDrawUpContract, err)
-			test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+			test2.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
 			test2.AssertErrProblemDetail(t, "no contract found for given combination of type, version, and language", err)
 		})
 

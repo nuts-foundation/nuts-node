@@ -261,7 +261,7 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	if template == nil {
 		err = errors.New("no contract found for given combination of type, version, and language")
 		logging.Log().WithError(err).Error(problemTitleDrawUpContract)
-		return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error()) // todo: should this be 404 as in GetContractByType()
+		return core.NewProblem(problemTitleDrawUpContract, http.StatusNotFound, err.Error())
 	}
 	orgID, err := did.ParseDID(string(params.LegalEntity))
 	if err != nil {
