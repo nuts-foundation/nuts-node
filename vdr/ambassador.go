@@ -109,7 +109,7 @@ func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) erro
 }
 
 func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
-	// Check if the transaction was signed by the same key as is embedded in the DID Document`s authenticationMethod:
+	// Check if the transaction was signed by the same key as is embedded in the DID Document`s capabilityInvocation:
 	if transaction.SigningKey() == nil {
 		return fmt.Errorf("callback could not process new DID Document: signingKey for new DID Documents must be set")
 	}
@@ -121,12 +121,12 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	}
 
 	// Check if signingKey is one of the keys embedded in the CapabilityInvocation
-	didDocumentAuthKeys := proposedDIDDocument.CapabilityInvocation
-	if documentKey, err := n.findKeyByThumbprint(signingKeyThumbprint, didDocumentAuthKeys); documentKey == nil || err != nil {
+	didDocumentCapInvKeys := proposedDIDDocument.CapabilityInvocation
+	if documentKey, err := n.findKeyByThumbprint(signingKeyThumbprint, didDocumentCapInvKeys); documentKey == nil || err != nil {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("key used to sign transaction must be be part of DID Document authentication")
+		return fmt.Errorf("key used to sign transaction must be be part of DID Document capabilityInvocation")
 	}
 
 	var rawKey crypto.PublicKey
@@ -177,7 +177,7 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 		return fmt.Errorf("unable to generate network document signing key thumbprint: %w", err)
 	}
 
-	// Check if the signingKey is listed as a valid authenticationMethod in one of the controllers
+	// Check if the signingKey is listed as a valid capabilityInvocation in one of the controllers
 	keyToSign, err := n.findKeyByThumbprint(signingKeyThumbprint, controllerVerificationRelationships)
 	if err != nil {
 		return fmt.Errorf("unable to find signingKey by thumprint in controllers: %w", err)
@@ -187,8 +187,8 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 	}
 
 	// TODO: perform all these tests:
-	// Take authenticationMethod keys from the controllers
-	// Check if network signingKeyID is one of authenticationMethods of the controller
+	// Take capabilityInvocation keys from the controllers
+	// Check if network signingKeyID is one of capabilityInvocations of the controller
 	//
 	// For each verificationMethod in the next version document
 	// 		check if the provided key thumbprint matches the corresponding thumbprint in the key store

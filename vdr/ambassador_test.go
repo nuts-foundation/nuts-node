@@ -299,7 +299,7 @@ func Test_ambassador_callback(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t, "key used to sign transaction must be be part of DID Document authentication", err.Error())
+		assert.Equal(t, "key used to sign transaction must be be part of DID Document capabilityInvocation", err.Error())
 	})
 	t.Run("update ok - with a deactivated document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
