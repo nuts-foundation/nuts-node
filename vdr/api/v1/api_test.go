@@ -98,7 +98,7 @@ func TestWrapper_GetDID(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
+		ctx.echo.EXPECT().String(http.StatusNotFound, "DID document not found")
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
 		err := ctx.client.GetDID(ctx.echo, id.String())
 

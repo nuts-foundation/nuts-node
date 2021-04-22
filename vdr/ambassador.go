@@ -24,6 +24,7 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -106,6 +107,7 @@ func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) erro
 }
 
 func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
+	logging.Log().Debugf("Handling DID document creation (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	// Check if the transaction was signed by the same key as is embedded in the DID Document`s capabilityInvocation:
 	if transaction.SigningKey() == nil {
 		return fmt.Errorf("callback could not process new DID Document: signingKey for new DID Documents must be set")
@@ -137,10 +139,15 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 		Hash:               transaction.PayloadHash(),
 		SourceTransactions: []hash.SHA256Hash{transaction.Ref()},
 	}
-	return n.didStore.Write(proposedDIDDocument, documentMetadata)
+	err = n.didStore.Write(proposedDIDDocument, documentMetadata)
+	if err == nil {
+		log.Logger().Infof("DID document registered (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+	}
+	return err
 }
 
-func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
+func (n *ambassador) handleUpdateDIDDocument(transaction dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
+	logging.Log().Debugf("Handling DID document update (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	// Resolve latest version of DID Document
 	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
 	if err != nil {
@@ -159,8 +166,8 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 
 	// In an update, only the keyID is provided in the network document. Resolve the key from the key store
 	// This should succeed since the signature of the network document has already been verified.
-	signingTime := document.SigningTime()
-	pKey, err := n.keyResolver.ResolvePublicKey(document.SigningKeyID(), &signingTime)
+	signingTime := transaction.SigningTime()
+	pKey, err := n.keyResolver.ResolvePublicKey(transaction.SigningKeyID(), &signingTime)
 	if err != nil {
 		return fmt.Errorf("unable to resolve signingkey: %w", err)
 	}
@@ -198,16 +205,20 @@ func (n *ambassador) handleUpdateDIDDocument(document dag.SubscriberTransaction,
 	// make a diff of the controllers
 	// 	if controller is added
 	//		check if it is known.
-	updatedAt := document.SigningTime()
+	updatedAt := transaction.SigningTime()
 	documentMetadata := types.DocumentMetadata{
 		Created:     currentDIDMeta.Created,
 		Updated:     &updatedAt,
-		Hash:        document.PayloadHash(),
+		Hash:        transaction.PayloadHash(),
 		Deactivated: store.IsDeactivated(proposedDIDDocument),
 		// todo: when conflicted this will change
-		SourceTransactions: []hash.SHA256Hash{document.Ref()},
+		SourceTransactions: []hash.SHA256Hash{transaction.Ref()},
 	}
-	return n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
+	err = n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
+	if err == nil {
+		log.Logger().Infof("DID document updated (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+	}
+	return err
 }
 
 // checkSubscriberTransactionIntegrity performs basic integrity checks on the SubscriberTransaction fields

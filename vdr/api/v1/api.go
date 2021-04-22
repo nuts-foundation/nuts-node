@@ -100,7 +100,7 @@ func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
 	doc, meta, err := a.DocResolver.Resolve(*d, nil)
 	if err != nil {
 		if errors.Is(err, types.ErrNotFound) {
-			return ctx.NoContent(http.StatusNotFound)
+			return ctx.String(http.StatusNotFound, "DID document not found")
 		}
 		return err
 	}
