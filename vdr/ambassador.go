@@ -66,9 +66,6 @@ func NewAmbassador(networkClient network.Transactions, didStore types.Store) Amb
 	}
 }
 
-// newDocumentVersion contains the version number that a new Network Documents have.
-const newDocumentVersion = 0
-
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n *ambassador) Configure() {
 	n.networkClient.Subscribe(didDocumentType, n.callback)
