@@ -8,6 +8,7 @@ ignore:
   - "**/mock.go"
   - "**/*_mock.go"
   - "docs/**/*.go"
+  - "network/transport/*.go" # generated sources
   - "**/*.pb.go"
   - "**/bindata.go"
   - "**/bindata/**.go"

@@ -20,6 +20,7 @@ gen-mocks:
 	mockgen -destination=network/proto/mock.go -package=proto -source=network/proto/interface.go Protocol
 	mockgen -destination=network/proto/senders_mock.go -package=proto -source=network/proto/senders.go messageSender
 	mockgen -destination=network/p2p/mock.go -package=p2p -source=network/p2p/interface.go P2PNetwork
+	mockgen -destination=network/p2p/connection_mock.go -package=p2p -source=network/p2p/connection.go senderReceiver
 	mockgen -destination=network/mock.go -package=network -source=network/interface.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go DAG PayloadStore
 	mockgen -destination=network/dag/sigverifier_mock.go -package=dag -source=network/dag/sigverifier.go

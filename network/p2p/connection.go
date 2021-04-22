@@ -32,14 +32,22 @@ type senderReceiver interface {
 	Recv() (*transport.NetworkMessage, error)
 }
 
+func createConnection(peer Peer, messenger senderReceiver) *connection {
+	return &connection{
+		Peer:        peer,
+		messenger:   messenger,
+		outMessages: make(chan *transport.NetworkMessage, 10),
+		mux:         &sync.Mutex{},
+	}
+}
+
 // connection represents a bidirectional connection with a peer.
 type connection struct {
 	Peer
 	// messenger is used to send and receive messages
 	messenger senderReceiver
-	// grpcConn and client are only filled for peers where we're the connecting party
+	// grpcConn is only filled for peers where we're the connecting party
 	grpcConn *grpc.ClientConn
-	client   transport.NetworkClient
 	// outMessages contains the messages we want to send to the peer.
 	//   According to the docs it's unsafe to simultaneously call stream.Send() from multiple goroutines so we put them
 	//   on a channel so that each peer can have its own goroutine sending messages (consuming messages from this channel)
@@ -73,7 +81,7 @@ func (conn *connection) send(message *transport.NetworkMessage) {
 func (conn connection) sendMessages() {
 	for message := range conn.outMessages {
 		if conn.messenger.Send(message) != nil {
-			log.Logger().Warnf("Unable to broadcast message to peer (peer=%s)", conn.Peer)
+			log.Logger().Warnf("Unable to send message to peer (peer=%s)", conn.Peer)
 		}
 	}
 }

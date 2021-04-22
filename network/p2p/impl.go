@@ -153,22 +153,20 @@ func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*connection,
 		return nil, err
 	}
 
-	conn := connection{
-		Peer:      Peer{Address: c.address},
-		grpcConn:  grpcConn,
-		client:    client,
-		messenger: messenger,
-		mux:       &sync.Mutex{},
-	}
 	serverPeerID, err := c.readHeaders(messenger, grpcConn)
 	if err != nil {
 		log.Logger().Warnf("Error reading headers from server, closing connection (addr=%s): %v", c.address, err)
 		_ = grpcConn.Close()
 		return nil, err
 	}
-	conn.ID = serverPeerID
+	conn := createConnection(Peer{
+		ID:      serverPeerID,
+		Address: c.address,
+	}, messenger)
+	conn.grpcConn = grpcConn
+
 	log.Logger().Infof("Connected to peer (id=%s,addr=%s)", conn.ID, c.address)
-	return &conn, nil
+	return conn, nil
 }
 
 func (c *connector) readHeaders(gate transport.Network_ConnectClient, grpcConn *grpc.ClientConn) (PeerID, error) {
@@ -395,12 +393,7 @@ func (n grpcInterface) Connect(stream transport.Network_ConnectServer) error {
 	if err := stream.SendHeader(constructMetadata(n.config.PeerID)); err != nil {
 		return errors2.Wrap(err, "unable to send headers")
 	}
-	conn := &connection{
-		Peer:      peer,
-		messenger: stream,
-		mux:       &sync.Mutex{},
-	}
-	n.startSendingAndReceiving(conn)
+	n.startSendingAndReceiving(createConnection(peer, stream))
 	return nil
 }
 
