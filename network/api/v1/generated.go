@@ -153,7 +153,7 @@ func NewListTransactionsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/api/transaction")
+	basePath := fmt.Sprintf("/internal/network/v1/transaction")
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -187,7 +187,7 @@ func NewGetTransactionRequest(server string, ref string) (*http.Request, error) 
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/api/transaction/%s", pathParam0)
+	basePath := fmt.Sprintf("/internal/network/v1/transaction/%s", pathParam0)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -221,7 +221,7 @@ func NewGetTransactionPayloadRequest(server string, ref string) (*http.Request, 
 		return nil, err
 	}
 
-	basePath := fmt.Sprintf("/api/transaction/%s/payload", pathParam0)
+	basePath := fmt.Sprintf("/internal/network/v1/transaction/%s/payload", pathParam0)
 	if basePath[0] == '/' {
 		basePath = basePath[1:]
 	}
@@ -436,13 +436,13 @@ func ParseGetTransactionPayloadResponse(rsp *http.Response) (*GetTransactionPayl
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Lists the transactions on the DAG
-	// (GET /api/transaction)
+	// (GET /internal/network/v1/transaction)
 	ListTransactions(ctx echo.Context) error
 	// Retrieves a transaction
-	// (GET /api/transaction/{ref})
+	// (GET /internal/network/v1/transaction/{ref})
 	GetTransaction(ctx echo.Context, ref string) error
 	// Gets the transaction payload
-	// (GET /api/transaction/{ref}/payload)
+	// (GET /internal/network/v1/transaction/{ref}/payload)
 	GetTransactionPayload(ctx echo.Context, ref string) error
 }
 
@@ -514,8 +514,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodGet, baseURL+"/api/transaction", wrapper.ListTransactions)
-	router.Add(http.MethodGet, baseURL+"/api/transaction/:ref", wrapper.GetTransaction)
-	router.Add(http.MethodGet, baseURL+"/api/transaction/:ref/payload", wrapper.GetTransactionPayload)
+	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction", wrapper.ListTransactions)
+	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref", wrapper.GetTransaction)
+	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref/payload", wrapper.GetTransactionPayload)
 
 }

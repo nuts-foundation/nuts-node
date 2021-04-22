@@ -6,7 +6,7 @@ info:
   license:
     name: GPLv3
 paths:
-  /api/transaction:
+  /internal/network/v1/transaction:
     get:
       summary: "Lists the transactions on the DAG"
       description: >
@@ -25,7 +25,7 @@ paths:
                 type: array
                 items:
                   type: string
-  /api/transaction/{ref}:
+  /internal/network/v1/transaction/{ref}:
     parameters:
       - name: ref
         in: path
@@ -48,7 +48,7 @@ paths:
                 type: string
         "404":
           description: "Transaction wasn't found in the transaction log"
-  /api/transaction/{ref}/payload:
+  /internal/network/v1/transaction/{ref}/payload:
     parameters:
       - name: ref
         in: path
