@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	test2 "github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"reflect"
 	"testing"
@@ -32,7 +33,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/golang/mock/gomock"
-	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 
 	pkg2 "github.com/nuts-foundation/nuts-node/auth"
@@ -153,10 +153,10 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 		ctx.contractClientMock.EXPECT().SigningSessionStatus(signingSessionID).Return(nil, services.ErrSessionNotFound)
 
 		err := ctx.wrapper.GetSignSessionStatus(ctx.echoMock, signingSessionID)
-		assert.IsType(t, &echo.HTTPError{}, err)
-		httpError := err.(*echo.HTTPError)
-		assert.Equal(t, http.StatusNotFound, httpError.Code)
-		assert.Equal(t, "no active signing session for sessionID: '123' found", httpError.Message)
+
+		test2.AssertErrProblemTitle(t, problemTitleSignSessionStatus, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+		test2.AssertErrProblemDetail(t, "failed to get session status for 123, reason: session not found", err)
 	})
 
 	t.Run("nok - unable to build a VP", func(t *testing.T) {
@@ -166,15 +166,15 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 		signingSessionID := "123"
 		signingSessionResult := contract.NewMockSigningSessionResult(ctx.ctrl)
 
-		signingSessionResult.EXPECT().VerifiablePresentation().Return(nil, errors.New("could not build VP"))
+		signingSessionResult.EXPECT().VerifiablePresentation().Return(nil, errors.New("missing key"))
 
 		ctx.contractClientMock.EXPECT().SigningSessionStatus(signingSessionID).Return(signingSessionResult, nil)
 
 		err := ctx.wrapper.GetSignSessionStatus(ctx.echoMock, signingSessionID)
-		assert.IsType(t, &echo.HTTPError{}, err)
-		httpError := err.(*echo.HTTPError)
-		assert.Equal(t, http.StatusInternalServerError, httpError.Code)
-		assert.Equal(t, "error while building verifiable presentation: could not build VP", httpError.Message)
+
+		test2.AssertErrProblemTitle(t, problemTitleSignSessionStatus, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
+		test2.AssertErrProblemDetail(t, "error while building verifiable presentation: missing key", err)
 	})
 }
 
@@ -218,10 +218,9 @@ func TestWrapper_GetContractByType(t *testing.T) {
 		wrapper := Wrapper{Auth: ctx.authMock}
 		err := wrapper.GetContractByType(ctx.echoMock, cType, params)
 
-		assert.IsType(t, &echo.HTTPError{}, err)
-		httpError := err.(*echo.HTTPError)
-		assert.Equal(t, http.StatusNotFound, httpError.Code)
-
+		test2.AssertErrProblemTitle(t, problemTitleGetContract, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+		test2.AssertErrProblemDetail(t, "could not find contract template", err)
 	})
 }
 
@@ -269,7 +268,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			ctx := createContext(t)
 			defer ctx.ctrl.Finish()
 
-			validFrom := "invalid date"
+			validFrom := "02 Jan 2010"
 
 			params := DrawUpContractRequest{
 				ValidFrom: &validFrom,
@@ -278,10 +277,9 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
-			assert.IsType(t, &echo.HTTPError{}, err)
-			httpError := err.(*echo.HTTPError)
-			assert.Equal(t, http.StatusBadRequest, httpError.Code)
-			assert.Equal(t, "could not parse validFrom: parsing time \"invalid date\" as \"2006-01-02T15:04:05-07:00\": cannot parse \"invalid date\" as \"2006\"", httpError.Message)
+			test2.AssertErrProblemTitle(t, problemTitleDrawUpContract, err)
+			test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+			test2.AssertErrProblemDetail(t, "could not parse validFrom: parsing time \"02 Jan 2010\" as \"2006-01-02T15:04:05-07:00\": cannot parse \"an 2010\" as \"2006\"", err)
 		})
 
 		t.Run("invalid formatted duration", func(t *testing.T) {
@@ -297,10 +295,9 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
-			assert.IsType(t, &echo.HTTPError{}, err)
-			httpError := err.(*echo.HTTPError)
-			assert.Equal(t, http.StatusBadRequest, httpError.Code)
-			assert.Equal(t, "could not parse validDuration: time: unknown unit \" minutes\" in duration \"15 minutes\"", httpError.Message)
+			test2.AssertErrProblemTitle(t, problemTitleDrawUpContract, err)
+			test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+			test2.AssertErrProblemDetail(t, "could not parse validDuration: time: unknown unit \" minutes\" in duration \"15 minutes\"", err)
 		})
 
 		t.Run("unknown contract", func(t *testing.T) {
@@ -316,10 +313,9 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
-			assert.IsType(t, &echo.HTTPError{}, err)
-			httpError := err.(*echo.HTTPError)
-			assert.Equal(t, http.StatusNotFound, httpError.Code)
-			assert.Equal(t, "no contract found for given combination of type, version and language", httpError.Message)
+			test2.AssertErrProblemTitle(t, problemTitleDrawUpContract, err)
+			test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+			test2.AssertErrProblemDetail(t, "no contract found for given combination of type, version, and language", err)
 		})
 
 		t.Run("malformed orgID", func(t *testing.T) {
@@ -336,10 +332,9 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
-			assert.IsType(t, &echo.HTTPError{}, err)
-			httpError := err.(*echo.HTTPError)
-			assert.Equal(t, http.StatusBadRequest, httpError.Code)
-			assert.Equal(t, "invalid value for param legalEntity: 'ZorgId:15'", httpError.Message)
+			test2.AssertErrProblemTitle(t, problemTitleDrawUpContract, err)
+			test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+			test2.AssertErrProblemDetail(t, "invalid value 'ZorgId:15' for param legalEntity: input does not begin with 'did:' prefix", err)
 		})
 
 	})
@@ -360,10 +355,9 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 		err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
-		assert.IsType(t, &echo.HTTPError{}, err)
-		httpError := err.(*echo.HTTPError)
-		assert.Equal(t, http.StatusBadRequest, httpError.Code)
-		assert.Equal(t, "error while drawing up the contract: unknown error while drawing up the contract", httpError.Message)
+		test2.AssertErrProblemTitle(t, problemTitleDrawUpContract, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "unknown error while drawing up the contract", err)
 	})
 }
 
@@ -439,7 +433,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		errorResponse := AccessTokenRequestFailedResponse{ErrorDescription: errorDescription, Error: errOauthUnsupportedGrant}
 		expectError(ctx, errorResponse)
 
-		err := ctx.wrapper.CreateAccessToken(ctx.echoMock, CreateAccessTokenParams{})
+		err := ctx.wrapper.CreateAccessToken(ctx.echoMock)
 
 		assert.Nil(t, err)
 	})
@@ -455,7 +449,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		errorResponse := AccessTokenRequestFailedResponse{ErrorDescription: errorDescription, Error: errOauthInvalidGrant}
 		expectError(ctx, errorResponse)
 
-		err := ctx.wrapper.CreateAccessToken(ctx.echoMock, CreateAccessTokenParams{})
+		err := ctx.wrapper.CreateAccessToken(ctx.echoMock)
 
 		assert.Nil(t, err)
 	})
@@ -472,7 +466,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		expectError(ctx, errorResponse)
 
 		ctx.oauthClientMock.EXPECT().CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, fmt.Errorf("oh boy"))
-		err := ctx.wrapper.CreateAccessToken(ctx.echoMock, CreateAccessTokenParams{XSslClientCert: "cert"})
+		err := ctx.wrapper.CreateAccessToken(ctx.echoMock)
 
 		assert.Nil(t, err)
 	})
@@ -490,7 +484,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		apiResponse := AccessTokenResponse{AccessToken: pkgResponse.AccessToken}
 		expectStatusOK(ctx, apiResponse)
 
-		err := ctx.wrapper.CreateAccessToken(ctx.echoMock, CreateAccessTokenParams{})
+		err := ctx.wrapper.CreateAccessToken(ctx.echoMock)
 
 		assert.Nil(t, err)
 
@@ -702,10 +696,9 @@ func TestWrapper_CreateSignSession(t *testing.T) {
 
 		err := ctx.wrapper.CreateSignSession(ctx.echoMock)
 
-		assert.IsType(t, &echo.HTTPError{}, err)
-		httpError := err.(*echo.HTTPError)
-		assert.Equal(t, http.StatusBadRequest, httpError.Code)
-		assert.Equal(t, "unable to create sign challenge: some error", httpError.Message)
+		test2.AssertErrProblemTitle(t, problemTitleCreateSignSession, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "unable to create sign challenge: some error", err)
 	})
 }
 
@@ -837,7 +830,9 @@ func TestWrapper_VerifySignature(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t, "code=400, message=could not parse checkTime: parsing time \"invalid formatted timestamp\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"invalid formatted timestamp\" as \"2006\"", err.Error())
+		test2.AssertErrProblemTitle(t, problemTitleVerifySignature, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "could not parse checkTime: parsing time \"invalid formatted timestamp\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"invalid formatted timestamp\" as \"2006\"", err)
 	})
 
 	t.Run("nok - verification returns an error", func(t *testing.T) {
@@ -856,6 +851,8 @@ func TestWrapper_VerifySignature(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t, `code=400, message=unable to verify the verifiable presentation: verification error`, err.Error())
+		test2.AssertErrProblemTitle(t, problemTitleVerifySignature, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "unable to verify the verifiable presentation: verification error", err)
 	})
 }

@@ -51,8 +51,7 @@ func (signRequest SignJwtRequest) validate() error {
 }
 
 const (
-	problemTitleSignJwt   = "SignJWT failed"
-	problemTitlePublicKey = "Failed to get PublicKey"
+	problemTitleSignJwt = "SignJWT failed"
 )
 
 // SignJwt handles api calls for signing a Jwt

@@ -22,9 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/auth/logging"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"regexp"
 	"strings"
@@ -32,17 +29,29 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/auth/logging"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 var _ ServerInterface = (*Wrapper)(nil)
 
-const errOauthInvalidRequest = "invalid_request"
-const errOauthInvalidGrant = "invalid_grant"
-const errOauthUnsupportedGrant = "unsupported_grant_type"
-const bearerTokenHeaderPrefix = "bearer "
+const (
+	errOauthInvalidRequest   = "invalid_request"
+	errOauthInvalidGrant     = "invalid_grant"
+	errOauthUnsupportedGrant = "unsupported_grant_type"
+	bearerTokenHeaderPrefix  = "bearer "
+
+	problemTitleVerifySignature      = "signature verification failed"
+	problemTitleCreateSignSession    = "sign session creation failed"
+	problemTitleCreateJwtBearerToken = "token creation failed"
+	problemTitleDrawUpContract       = "contract creation failed"
+	problemTitleGetContract          = "could not get contract"
+	problemTitleSignSessionStatus    = "could not get session status"
+)
 
 // Wrapper bridges the generated api types and http logic to the internal types and logic.
 // It checks required parameters and message body. It converts data from api to internal types.
@@ -62,23 +71,31 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 func (w Wrapper) VerifySignature(ctx echo.Context) error {
 	requestParams := new(SignatureVerificationRequest)
 	if err := ctx.Bind(requestParams); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("could not parse request body: %s", err.Error()))
+		err = fmt.Errorf("could not parse request body: %w", err)
+		logging.Log().WithError(err).Warn()
+		return core.NewProblem(problemTitleVerifySignature, http.StatusBadRequest, err.Error())
 	}
 	rawVP, err := json.Marshal(requestParams.VerifiablePresentation)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("unable to convert the verifiable presentation: %s", err.Error()))
+		err = fmt.Errorf("unable to convert the verifiable presentation: %w", err)
+		logging.Log().WithError(err).Error(problemTitleVerifySignature)
+		return core.NewProblem(problemTitleVerifySignature, http.StatusInternalServerError, err.Error())
 	}
 
 	checkTime := time.Now()
 	if requestParams.CheckTime != nil {
 		checkTime, err = time.Parse(time.RFC3339, *requestParams.CheckTime)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("could not parse checkTime: %s", err.Error()))
+			err = fmt.Errorf("could not parse checkTime: %w", err)
+			logging.Log().WithError(err).Warn(problemTitleVerifySignature)
+			return core.NewProblem(problemTitleVerifySignature, http.StatusBadRequest, err.Error())
 		}
 	}
 	validationResult, err := w.Auth.ContractClient().VerifyVP(rawVP, &checkTime)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("unable to verify the verifiable presentation: %s", err.Error()))
+		err = fmt.Errorf("unable to verify the verifiable presentation: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleVerifySignature)
+		return core.NewProblem(problemTitleVerifySignature, http.StatusBadRequest, err.Error())
 	}
 	// Convert internal validationResult to api SignatureVerificationResponse
 	response := SignatureVerificationResponse{}
@@ -109,7 +126,9 @@ func (w Wrapper) VerifySignature(ctx echo.Context) error {
 func (w Wrapper) CreateSignSession(ctx echo.Context) error {
 	requestParams := new(CreateSignSessionRequest)
 	if err := ctx.Bind(requestParams); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("could not parse request body: %s", err.Error()))
+		err = fmt.Errorf("could not parse request body: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleCreateSignSession)
+		return core.NewProblem(problemTitleCreateSignSession, http.StatusBadRequest, err.Error())
 	}
 	createSessionRequest := services.CreateSessionRequest{
 		SigningMeans: contract.SigningMeans(requestParams.Means),
@@ -117,13 +136,17 @@ func (w Wrapper) CreateSignSession(ctx echo.Context) error {
 	}
 	sessionPtr, err := w.Auth.ContractClient().CreateSigningSession(createSessionRequest)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("unable to create sign challenge: %s", err.Error()))
+		err = fmt.Errorf("unable to create sign challenge: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleCreateSignSession)
+		return core.NewProblem(problemTitleCreateSignSession, http.StatusBadRequest, err.Error())
 	}
 
 	var keyValPointer map[string]interface{}
 	err = convertToMap(sessionPtr, &keyValPointer)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("unable to build sessionPointer: %s", err.Error()))
+		err = fmt.Errorf("unable to build sessionPointer: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleCreateSignSession)
+		return core.NewProblem(problemTitleCreateSignSession, http.StatusBadRequest, err.Error())
 	}
 
 	response := CreateSignSessionResponse{
@@ -138,21 +161,27 @@ func (w Wrapper) CreateSignSession(ctx echo.Context) error {
 func (w Wrapper) GetSignSessionStatus(ctx echo.Context, sessionID string) error {
 	sessionStatus, err := w.Auth.ContractClient().SigningSessionStatus(sessionID)
 	if err != nil {
+		err = fmt.Errorf("failed to get session status for %s, reason: %w", sessionID, err)
+		logging.Log().WithError(err).Error(problemTitleSignSessionStatus)
 		if errors.Is(err, services.ErrSessionNotFound) {
-			return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("no active signing session for sessionID: '%s' found", sessionID))
+			return core.NewProblem(problemTitleSignSessionStatus, http.StatusNotFound, err.Error())
 		}
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("unable to retrieve a session status: %s", err.Error()))
+		return core.NewProblem(problemTitleSignSessionStatus, http.StatusInternalServerError, err.Error())
 	}
 	vp, err := sessionStatus.VerifiablePresentation()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("error while building verifiable presentation: %s", err.Error()))
+		err = fmt.Errorf("error while building verifiable presentation: %w", err)
+		logging.Log().WithError(err).Error(problemTitleSignSessionStatus)
+		return core.NewProblem(problemTitleSignSessionStatus, http.StatusInternalServerError, err.Error())
 	}
 	var apiVp *VerifiablePresentation
 	if vp != nil {
 		apiVp = &VerifiablePresentation{}
 		err = convertToMap(vp, apiVp)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("unable to convert verifiable presentation: %s", err.Error()))
+			err = fmt.Errorf("unable to convert verifiable presentation: %w", err)
+			logging.Log().WithError(err).Error(problemTitleSignSessionStatus)
+			return core.NewProblem(problemTitleSignSessionStatus, http.StatusInternalServerError, err.Error())
 		}
 	}
 	response := GetSignSessionStatusResponse{Status: sessionStatus.Status(), VerifiablePresentation: apiVp}
@@ -177,7 +206,9 @@ func (w Wrapper) GetContractByType(ctx echo.Context, contractType string, params
 	// get contract
 	authContract := contract.StandardContractTemplates.Get(contract.Type(contractType), contractLanguage, contractVersion)
 	if authContract == nil {
-		return echo.NewHTTPError(http.StatusNotFound, "could not found contract template")
+		err := errors.New("could not find contract template")
+		logging.Log().WithError(err).Error(problemTitleGetContract)
+		return core.NewProblem(problemTitleGetContract, http.StatusNotFound, err.Error())
 	}
 
 	// convert internal data types to generated api types
@@ -196,7 +227,9 @@ func (w Wrapper) GetContractByType(ctx echo.Context, contractType string, params
 func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	params := new(DrawUpContractRequest)
 	if err := ctx.Bind(params); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("could not parse request body: %s", err.Error()))
+		err = fmt.Errorf("could not parse request body: %w", err)
+		logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+		return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error())
 	}
 
 	var (
@@ -207,7 +240,9 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	if params.ValidFrom != nil {
 		vf, err = time.Parse("2006-01-02T15:04:05-07:00", *params.ValidFrom)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("could not parse validFrom: %s", err.Error()))
+			err = fmt.Errorf("could not parse validFrom: %w", err)
+			logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+			return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error())
 		}
 	} else {
 		vf = time.Now()
@@ -216,22 +251,29 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	if params.ValidDuration != nil {
 		validDuration, err = time.ParseDuration(*params.ValidDuration)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("could not parse validDuration: %s", err.Error()))
+			err = fmt.Errorf("could not parse validDuration: %w", err)
+			logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+			return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error())
 		}
 	}
 
 	template := contract.StandardContractTemplates.Get(contract.Type(params.Type), contract.Language(params.Language), contract.Version(params.Version))
 	if template == nil {
-		return echo.NewHTTPError(http.StatusNotFound, "no contract found for given combination of type, version and language")
+		err = errors.New("no contract found for given combination of type, version, and language")
+		logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+		return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error()) // todo: should this be 404 as in GetContractByType()
 	}
 	orgID, err := did.ParseDID(string(params.LegalEntity))
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid value for param legalEntity: '%s'", params.LegalEntity))
+		err = fmt.Errorf("invalid value '%s' for param legalEntity: %w", params.LegalEntity, err)
+		logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+		return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error())
 	}
 
 	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(*template, *orgID, vf, validDuration)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("error while drawing up the contract: %s", err.Error()))
+		logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+		return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error())
 	}
 
 	response := ContractResponse{
@@ -247,7 +289,9 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 func (w Wrapper) CreateJwtBearerToken(ctx echo.Context) error {
 	requestBody := &CreateJwtBearerTokenRequest{}
 	if err := ctx.Bind(requestBody); err != nil {
-		return err
+		err = fmt.Errorf("could not parse request body: %w", err)
+		logging.Log().WithError(err).Error(problemTitleCreateJwtBearerToken)
+		return core.NewProblem(problemTitleCreateJwtBearerToken, http.StatusBadRequest, err.Error())
 	}
 
 	request := services.CreateJwtBearerTokenRequest{
@@ -259,7 +303,8 @@ func (w Wrapper) CreateJwtBearerToken(ctx echo.Context) error {
 	}
 	response, err := w.Auth.OAuthClient().CreateJwtBearerToken(request)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, err.Error())
+		logging.Log().WithError(err).Warn(problemTitleCreateJwtBearerToken)
+		return core.NewProblem(problemTitleCreateJwtBearerToken, http.StatusBadRequest, err.Error())
 	}
 
 	return ctx.JSON(http.StatusOK, JwtBearerTokenResponse{BearerToken: response.BearerToken})
@@ -268,7 +313,8 @@ func (w Wrapper) CreateJwtBearerToken(ctx echo.Context) error {
 // CreateAccessToken handles the http request (from a remote vendor's Nuts node) for creating an access token for accessing
 // resources of the local vendor's EPD/XIS. It consumes a JWT Bearer token.
 // It consumes and checks the JWT and returns a smaller sessionToken
-func (w Wrapper) CreateAccessToken(ctx echo.Context, params CreateAccessTokenParams) (err error) {
+// The errors returns for this API do not follow RFC7807 but follow the oauth framework error response: RFC6749 (https://tools.ietf.org/html/rfc6749#page-45)
+func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 	// Can't use echo.Bind() here since it requires extra tags on generated code
 	request := new(CreateAccessTokenRequest)
 	request.Assertion = ctx.FormValue("assertion")

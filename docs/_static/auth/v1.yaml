@@ -8,6 +8,11 @@ paths:
     post:
       operationId: createSignSession
       summary: Create a signing session for a supported means.
+      description: |
+        Create a signing session for a supported means.
+
+        error returns:
+        * 400 - ??
       requestBody:
         required: true
         content:
@@ -21,10 +26,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CreateSignSessionResponse"
+        default:
+          $ref: '../common/error_response.yaml'
+
   /internal/auth/v1/signature/session/{sessionID}:
     get:
       operationId: getSignSessionStatus
       summary: Get the current status of a signing session
+      description: |
+        Get the current status of a signing session
+
+        error returns:
+        * 404 - session could not be found
+        * 500 - internal server error
       parameters:
         - name: sessionID
           in: path
@@ -38,12 +52,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GetSignSessionStatusResponse"
-        404:
-          description: When the session could not be found.
+        default:
+          $ref: '../common/error_response.yaml'
+
   /internal/auth/v1/signature/verify:
     put:
       operationId: verifySignature
       summary: Verify a signature in the form of a verifiable presentation
+      description: |
+        Verify a signature in the form of a verifiable presentation
+
+        error returns:
+        * 400 - one of the parameters has the wrong format
+        * 500 - internal server error
       requestBody:
         required: true
         content:
@@ -57,11 +78,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SignatureVerificationResponse"
+        default:
+          $ref: '../common/error_response.yaml'
 
   /public/auth/v1/contract/{contractType}:
     get:
       operationId: getContractByType
       summary: Get a contract by type and version
+      description: |
+        Get contract by type and version
+
+        error returns:
+        * 404 - contract does not exists
       tags:
         - auth
       parameters:
@@ -83,22 +111,25 @@ paths:
             type: string
             default: nl
       responses:
-        '404':
-          description: if no contract exists
-          content:
-            text/plain:
-              schema:
-                type: string
         '200':
           description: Returns the contract of this type, version and language
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Contract"
+        default:
+          $ref: '../common/error_response.yaml'
+
   /internal/auth/v1/contract/drawup:
     put:
       operationId: drawUpContract
       summary: Draw up a contract using a specified contract template, language and version
+      description: |
+        Draw up a contract using a specified contract template, language and version
+
+        error returns:
+        * 400 - one of the parameters has the wrong format
+        * 404 - ?? Invalid template ??
       requestBody:
         required: true
         content:
@@ -112,13 +143,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContractResponse"
-        404:
-          description: When the combination of template, language and version was not found.
+        default:
+          $ref: '../common/error_response.yaml'
 
   /internal/auth/v1/bearertoken:
     post:
       operationId: createJwtBearerToken
-      summary: Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
+      summary: Create a JWT Bearer Token
+      description: |
+        Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
+
+        error returns:
+        * 400 - ??
       tags:
         - auth
       requestBody:
@@ -134,30 +170,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JwtBearerTokenResponse"
+        default:
+          $ref: '../common/error_response.yaml'
 
-
-  /public/auth/v1/accesstoken:
+  /n2n/auth/v1/accesstoken:
     post:
       operationId: createAccessToken
-      summary: |
+      summary: Create an access token based on the OAuth JWT Bearer flow.
+      description: |
         Create an access token based on the OAuth JWT Bearer flow.
-        This endpoint must be available to the outside world for other applications to request access tokens.
-        It requires a two-way TLS connection. The client certificate must be a sibling of the signing certificate of the given JWT.
-        The client certificate must be passed using a X-Ssl-Client-Cert header, PEM encoded and urlescaped.
+        This endpoint must be available to other nodes for other applications to request access tokens.
+        It requires a two-way TLS connection according to the network agreement.
+
+        error returns:
+        * Follows the oauth framework error response: RFC6749
       tags:
         - auth
-      parameters:
-        - name: X-Ssl-Client-Cert
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: X-Nuts-LegalEntity
-          in: header
-          required: false
-          deprecated: true
-          schema:
-            type: string
       requestBody:
         required: true
         content:
@@ -180,12 +208,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccessTokenRequestFailedResponse"
+
   /internal/auth/v1/accesstoken/verify:
     head:
       operationId: verifyAccessToken
-      summary: |
+      summary: Verifies the provided access token
+      description: |
         Verifies the access token given in the Authorization header (as bearer token). If it's a valid access token issued by this server, it'll return a 200 status code.
-        If it cannot be verified it'll return 403. Note that it'll not return the contents of the access token. The introspection API is for that.
+
+        error returns:
+        * 403 - Token cannot be verified. Note that the contents of the access token are not returned. The introspection API is for that.
       tags:
         - auth
       parameters:
@@ -199,6 +231,7 @@ paths:
           description: The access token is valid. It has been signed by this server.
         '403':
           description: The given access token is invalid or couldn't be verified.
+
   /internal/auth/v1/accesstoken/introspect:
     post:
       operationId: introspectAccessToken
