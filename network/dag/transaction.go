@@ -110,7 +110,7 @@ type Transaction interface {
 }
 
 // NewTransaction creates a new unsigned transaction. Parameters payload and payloadType can't be empty, but prevs is optional.
-// Prevs must not contain empty or invalid hashes.
+// Prevs must not contain empty or invalid hashes. Duplicate prevs will be removed when given.
 func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash) (UnsignedTransaction, error) {
 	if !ValidatePayloadType(payloadType) {
 		return nil, errInvalidPayloadType
@@ -120,13 +120,29 @@ func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SH
 			return nil, errInvalidPrevs
 		}
 	}
+
+	// deduplicate prevs
+	deduplicated := make([]hash.SHA256Hash, 0)
+	for _, prev := range prevs {
+		found := false
+		for _, dd := range deduplicated {
+			if dd.Equals(prev) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			deduplicated = append(deduplicated, prev)
+		}
+	}
+
 	result := transaction{
 		payload:     payload,
 		payloadType: payloadType,
 		version:     currentVersion,
 	}
-	if len(prevs) > 0 {
-		result.prevs = append(prevs)
+	if len(deduplicated) > 0 {
+		result.prevs = append(deduplicated)
 	}
 	return &result, nil
 }

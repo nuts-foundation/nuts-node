@@ -33,9 +33,9 @@ import (
 
 func TestNewTransaction(t *testing.T) {
 	payloadHash, _ := hash2.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
-	t.Run("ok", func(t *testing.T) {
-		hash, _ := hash2.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
+	hash, _ := hash2.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 
+	t.Run("ok", func(t *testing.T) {
 		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash})
 
 		if !assert.NoError(t, err) {
@@ -45,6 +45,14 @@ func TestNewTransaction(t *testing.T) {
 		assert.Equal(t, transaction.PayloadHash(), payloadHash)
 		assert.Equal(t, []hash2.SHA256Hash{hash}, transaction.Previous())
 		assert.Equal(t, Version(1), transaction.Version())
+	})
+	t.Run("ok - with duplicates", func(t *testing.T) {
+		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash, hash})
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, []hash2.SHA256Hash{hash}, transaction.Previous())
 	})
 	t.Run("error - type empty", func(t *testing.T) {
 		transaction, err := NewTransaction(payloadHash, "", nil)

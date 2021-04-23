@@ -863,7 +863,7 @@ func Test_missingTransactions(t *testing.T) {
 
 		diff := missingTransactions(current, incoming)
 
-		assert.Len(t, diff, 0)
+		assert.Empty(t, diff)
 	})
 
 	t.Run("non-conflicted updated without ref", func(t *testing.T) {
@@ -882,7 +882,7 @@ func Test_missingTransactions(t *testing.T) {
 
 		diff := missingTransactions(current, incoming)
 
-		assert.Len(t, diff, 0)
+		assert.Empty(t, diff)
 	})
 }
 

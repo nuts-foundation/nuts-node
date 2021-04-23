@@ -177,7 +177,7 @@ func TestNetwork_Configure(t *testing.T) {
 
 func TestNetwork_CreateTransaction(t *testing.T) {
 	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	t.Run("attach key", func(t *testing.T) {
+	t.Run("ok - attach key", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		payload := []byte("Hello, World!")
@@ -199,7 +199,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		_, err = cxt.network.CreateTransaction(payloadType, payload, "signing-key", privateKey.PublicKey, time.Now(), []hash.SHA256Hash{})
 		assert.NoError(t, err)
 	})
-	t.Run("detached key", func(t *testing.T) {
+	t.Run("ok - detached key", func(t *testing.T) {
 		payload := []byte("Hello, World!")
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -218,8 +218,37 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		_, err = cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, time.Now(), []hash.SHA256Hash{})
+		tx, err := cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, time.Now(), []hash.SHA256Hash{})
 		assert.NoError(t, err)
+		assert.Len(t, tx.Previous(), 0)
+	})
+	t.Run("ok - additional prevs", func(t *testing.T) {
+		prev, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
+		payload := []byte("Hello, World!")
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl)
+		cxt.p2pNetwork.EXPECT().Start()
+		cxt.p2pNetwork.EXPECT().Configured().Return(true)
+		cxt.protocol.EXPECT().Start()
+		cxt.graph.EXPECT().Heads().Return(nil)
+		cxt.graph.EXPECT().Add(gomock.Any())
+		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
+		cxt.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Eq("signing-key")).DoAndReturn(func(payload []byte, protectedHeaders map[string]interface{}, kid interface{}) (string, error) {
+			return crypto.NewTestSigner().SignJWS(payload, protectedHeaders, "")
+		})
+		cxt.publisher.EXPECT().Start()
+		err := cxt.network.Start()
+		if !assert.NoError(t, err) {
+			return
+		}
+		tx, err := cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, time.Now(), []hash.SHA256Hash{prev})
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Len(t, tx.Previous(), 1)
+		assert.Equal(t, prev, tx.Previous()[0])
 	})
 }
 
