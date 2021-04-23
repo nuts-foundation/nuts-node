@@ -12,7 +12,7 @@ paths:
         Create a signing session for a supported means.
 
         error returns:
-        * 400 - ??
+        * 400 - one of the parameters has the wrong format
       requestBody:
         required: true
         content:
@@ -154,7 +154,7 @@ paths:
         Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
 
         error returns:
-        * 400 - ??
+        * 400 - one of the parameters has the wrong format
       tags:
         - auth
       requestBody:

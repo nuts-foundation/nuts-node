@@ -72,7 +72,7 @@ func (w Wrapper) VerifySignature(ctx echo.Context) error {
 	requestParams := new(SignatureVerificationRequest)
 	if err := ctx.Bind(requestParams); err != nil {
 		err = fmt.Errorf("could not parse request body: %w", err)
-		logging.Log().WithError(err).Warn()
+		logging.Log().WithError(err).Warn(problemTitleVerifySignature)
 		return core.NewProblem(problemTitleVerifySignature, http.StatusBadRequest, err.Error())
 	}
 	rawVP, err := json.Marshal(requestParams.VerifiablePresentation)
@@ -162,10 +162,11 @@ func (w Wrapper) GetSignSessionStatus(ctx echo.Context, sessionID string) error 
 	sessionStatus, err := w.Auth.ContractClient().SigningSessionStatus(sessionID)
 	if err != nil {
 		err = fmt.Errorf("failed to get session status for %s, reason: %w", sessionID, err)
-		logging.Log().WithError(err).Error(problemTitleSignSessionStatus)
 		if errors.Is(err, services.ErrSessionNotFound) {
+			logging.Log().WithError(err).Warn(problemTitleSignSessionStatus)
 			return core.NewProblem(problemTitleSignSessionStatus, http.StatusNotFound, err.Error())
 		}
+		logging.Log().WithError(err).Error(problemTitleSignSessionStatus)
 		return core.NewProblem(problemTitleSignSessionStatus, http.StatusInternalServerError, err.Error())
 	}
 	vp, err := sessionStatus.VerifiablePresentation()
@@ -207,7 +208,7 @@ func (w Wrapper) GetContractByType(ctx echo.Context, contractType string, params
 	authContract := contract.StandardContractTemplates.Get(contract.Type(contractType), contractLanguage, contractVersion)
 	if authContract == nil {
 		err := errors.New("could not find contract template")
-		logging.Log().WithError(err).Error(problemTitleGetContract)
+		logging.Log().WithError(err).Info(problemTitleGetContract)
 		return core.NewProblem(problemTitleGetContract, http.StatusNotFound, err.Error())
 	}
 
@@ -228,7 +229,7 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	params := new(DrawUpContractRequest)
 	if err := ctx.Bind(params); err != nil {
 		err = fmt.Errorf("could not parse request body: %w", err)
-		logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+		logging.Log().WithError(err).Warn(problemTitleDrawUpContract)
 		return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error())
 	}
 
@@ -241,7 +242,7 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 		vf, err = time.Parse("2006-01-02T15:04:05-07:00", *params.ValidFrom)
 		if err != nil {
 			err = fmt.Errorf("could not parse validFrom: %w", err)
-			logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+			logging.Log().WithError(err).Warn(problemTitleDrawUpContract)
 			return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error())
 		}
 	} else {
@@ -252,7 +253,7 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 		validDuration, err = time.ParseDuration(*params.ValidDuration)
 		if err != nil {
 			err = fmt.Errorf("could not parse validDuration: %w", err)
-			logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+			logging.Log().WithError(err).Warn(problemTitleDrawUpContract)
 			return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error())
 		}
 	}
@@ -260,19 +261,19 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	template := contract.StandardContractTemplates.Get(contract.Type(params.Type), contract.Language(params.Language), contract.Version(params.Version))
 	if template == nil {
 		err = errors.New("no contract found for given combination of type, version, and language")
-		logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+		logging.Log().WithError(err).Warn(problemTitleDrawUpContract)
 		return core.NewProblem(problemTitleDrawUpContract, http.StatusNotFound, err.Error())
 	}
 	orgID, err := did.ParseDID(string(params.LegalEntity))
 	if err != nil {
 		err = fmt.Errorf("invalid value '%s' for param legalEntity: %w", params.LegalEntity, err)
-		logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+		logging.Log().WithError(err).Warn(problemTitleDrawUpContract)
 		return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error())
 	}
 
 	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(*template, *orgID, vf, validDuration)
 	if err != nil {
-		logging.Log().WithError(err).Error(problemTitleDrawUpContract)
+		logging.Log().WithError(err).Warn(problemTitleDrawUpContract)
 		return core.NewProblem(problemTitleDrawUpContract, http.StatusBadRequest, err.Error())
 	}
 
@@ -290,7 +291,7 @@ func (w Wrapper) CreateJwtBearerToken(ctx echo.Context) error {
 	requestBody := &CreateJwtBearerTokenRequest{}
 	if err := ctx.Bind(requestBody); err != nil {
 		err = fmt.Errorf("could not parse request body: %w", err)
-		logging.Log().WithError(err).Error(problemTitleCreateJwtBearerToken)
+		logging.Log().WithError(err).Warn(problemTitleCreateJwtBearerToken)
 		return core.NewProblem(problemTitleCreateJwtBearerToken, http.StatusBadRequest, err.Error())
 	}
 
