@@ -39,7 +39,7 @@ func (s *replayingDAGPublisher) TransactionAdded(transaction interface{}) {
 
 func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver) {
 	oldSubscriber := s.subscribers[payloadType]
-	s.subscribers[payloadType] = func(transaction SubscriberTransaction, payload []byte) error {
+	s.subscribers[payloadType] = func(transaction Transaction, payload []byte) error {
 		// Chain subscribers in case there's more than 1
 		if oldSubscriber != nil {
 			if err := oldSubscriber(transaction, payload); err != nil {

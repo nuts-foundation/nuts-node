@@ -48,7 +48,7 @@ const defaultTimeout = 2 * time.Second
 const payloadType = "test/transaction"
 
 var mutex = sync.Mutex{}
-var receivedTransactions = make(map[string][]dag.SubscriberTransaction, 0)
+var receivedTransactions = make(map[string][]dag.Transaction, 0)
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
@@ -173,7 +173,7 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 }
 
 func resetIntegrationTest(testDirectory string) {
-	receivedTransactions = make(map[string][]dag.SubscriberTransaction, 0)
+	receivedTransactions = make(map[string][]dag.Transaction, 0)
 }
 
 func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key crypto.PublicKey, sender *Network, receivers ...string) bool {
@@ -224,7 +224,7 @@ func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Ne
 	if err := instance.Start(); err != nil {
 		return nil, err
 	}
-	instance.Subscribe(payloadType, func(transaction dag.SubscriberTransaction, payload []byte) error {
+	instance.Subscribe(payloadType, func(transaction dag.Transaction, payload []byte) error {
 		mutex.Lock()
 		defer mutex.Unlock()
 		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)

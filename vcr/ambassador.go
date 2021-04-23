@@ -58,7 +58,7 @@ func (n ambassador) Configure() {
 // vcCallback gets called when new Verifiable Credentials are received by the network. All checks on the signature are already performed.
 // The VCR is used to verify the contents of the credential.
 // payload should be a json encoded vc.VerifiableCredential
-func (n ambassador) vcCallback(tx dag.SubscriberTransaction, payload []byte) error {
+func (n ambassador) vcCallback(tx dag.Transaction, payload []byte) error {
 	logging.Log().Debugf("Processing VC received from Nuts Network (ref=%s)", tx.Ref())
 
 	target := vc.VerifiableCredential{}
@@ -73,7 +73,7 @@ func (n ambassador) vcCallback(tx dag.SubscriberTransaction, payload []byte) err
 // rCallback gets called when new credential revocations are received by the network. All checks on the signature are already performed.
 // The VCR is used to verify the contents of the revocation.
 // payload should be a json encoded Revocation
-func (n ambassador) rCallback(tx dag.SubscriberTransaction, payload []byte) error {
+func (n ambassador) rCallback(tx dag.Transaction, payload []byte) error {
 	logging.Log().Debugf("Processing VC revocation received from Nuts Network (ref=%s)", tx.Ref())
 
 	r := credential.Revocation{}

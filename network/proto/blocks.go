@@ -72,7 +72,7 @@ func (m muxDAGBlocks) Get() []DAGBlock {
 	return m.Underlying.Get()
 }
 
-func (m muxDAGBlocks) AddTransaction(tx dag.SubscriberTransaction, payload []byte) error {
+func (m muxDAGBlocks) AddTransaction(tx dag.Transaction, payload []byte) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	return m.Underlying.AddTransaction(tx, payload)
@@ -114,7 +114,7 @@ func (blx *trackingDAGBlocks) Get() []DAGBlock {
 
 // AddTransaction adds a transaction to the DAG blocks structure. It MUST with the transactions in order, so it's
 // typically called using a sequential DAG subscriber. So given TXs `A <- B <- [C, D]` call order is A, B, C, D (or A, B, D, C).
-func (blx *trackingDAGBlocks) AddTransaction(tx dag.SubscriberTransaction, _ []byte) error {
+func (blx *trackingDAGBlocks) AddTransaction(tx dag.Transaction, _ []byte) error {
 	blx.update(time.Now())
 	// Determine block the TX is part of
 	blockIdx := len(blx.blocks) - 1

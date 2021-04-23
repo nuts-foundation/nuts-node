@@ -72,7 +72,7 @@ type DAGBlocks interface {
 	// AddTransaction adds a transaction to the DAG blocks structure. It MUST be called in actual transactions order,
 	// So given TXs `A <- B <- [C, D]` call order is A, B, C, D (or A, B, D, C).
 	// It will typically be called using a sequential DAG subscriber.
-	AddTransaction(tx dag.SubscriberTransaction, _ []byte) error
+	AddTransaction(tx dag.Transaction, _ []byte) error
 }
 
 // DAGBlock is a DAG block.

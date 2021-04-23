@@ -72,15 +72,6 @@ type NetworkHeader interface {
 	Version() Version
 }
 
-// SubscriberTransaction contains a subset of the Transaction methods which are only relevant to subscribers.
-type SubscriberTransaction interface {
-	NetworkHeader
-	Signable
-	Referenceable
-	PayloadReferencer
-	NetworkHeader
-}
-
 // Signable groups a set of functions to access information about a implementors signature.
 type Signable interface {
 	// SigningKey returns the key that was used to sign the transaction as JWK.

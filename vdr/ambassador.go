@@ -84,9 +84,9 @@ var thumbprintAlg = crypto.SHA256
 // This method will check the integrity of the DID document related to the public key used to sign the network tr.
 // The rules are based on the Nuts RFC006
 // payload should be a json encoded did.document
-func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) error {
+func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 	logging.Log().Debugf("Processing DID document received from Nuts Network (ref=%s)", tx.Ref())
-	if err := checkSubscriberTransactionIntegrity(tx); err != nil {
+	if err := checkTransactionIntegrity(tx); err != nil {
 		return fmt.Errorf("callback could not process new DID Document: %w", err)
 	}
 
@@ -111,7 +111,7 @@ func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) erro
 	return n.handleCreateDIDDocument(tx, nextDIDDocument)
 }
 
-func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
+func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
 	logging.Log().Debugf("Handling DID document creation (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	// Check if the DID matches the fingerprint of the tx signing key:
 	if transaction.SigningKey() == nil {
@@ -147,7 +147,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	return err
 }
 
-func (n *ambassador) handleUpdateDIDDocument(transaction dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
+func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
 	logging.Log().Debugf("Handling DID document update (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	// Resolve latest version of DID Document
 	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
@@ -251,10 +251,10 @@ func missingTransactions(current []hash.SHA256Hash, incoming []hash.SHA256Hash) 
 	return current[:j]
 }
 
-// checkSubscriberTransactionIntegrity performs basic integrity checks on the SubscriberTransaction fields
+// checkTransactionIntegrity performs basic integrity checks on the Transaction fields
 // Some checks may look redundant because they are performed in the callers, this method has the sole
 // responsibility to ensure integrity, while the other may have not.
-func checkSubscriberTransactionIntegrity(transaction dag.SubscriberTransaction) error {
+func checkTransactionIntegrity(transaction dag.Transaction) error {
 	// check the payload type:
 	if transaction.PayloadType() != didDocumentType {
 		return fmt.Errorf("wrong payload type for this subscriber. Can handle: %s, got: %s", didDocumentType, transaction.PayloadType())

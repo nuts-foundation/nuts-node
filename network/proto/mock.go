@@ -148,7 +148,7 @@ func (m *MockDAGBlocks) EXPECT() *MockDAGBlocksMockRecorder {
 }
 
 // AddTransaction mocks base method.
-func (m *MockDAGBlocks) AddTransaction(tx dag.SubscriberTransaction, arg1 []byte) error {
+func (m *MockDAGBlocks) AddTransaction(tx dag.Transaction, arg1 []byte) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddTransaction", tx, arg1)
 	ret0, _ := ret[0].(error)

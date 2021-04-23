@@ -172,7 +172,7 @@ func testCases() []testCase {
 func TestBlocks(t *testing.T) {
 	for _, tc := range testCases() {
 		t.Run(tc.name, func(t *testing.T) {
-			blocks := NewDAGBlocks().(*trackingDAGBlocks)
+			blocks := NewDAGBlocks().(*muxDAGBlocks).Underlying.(*trackingDAGBlocks)
 			txs := make(map[string]dag.Transaction, 0)
 			latestTXAge := 0
 			for _, currTX := range tc.txs {
