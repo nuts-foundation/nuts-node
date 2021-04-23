@@ -92,6 +92,28 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 	})
 }
 
+func TestApiWrapper_RenderGraph(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	t.Run("ok", func(t *testing.T) {
+		var networkClient = network.NewMockTransactions(mockCtrl)
+		e, wrapper := initMockEcho(networkClient)
+		networkClient.EXPECT().Walk(gomock.Any())
+
+		req := httptest.NewRequest(echo.GET, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetPath("/graph")
+
+		err := wrapper.RenderGraph(c)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "text/vnd.graphviz", rec.Header().Get("Content-Type"))
+		assert.NotEmpty(t, rec.Body.String())
+	})
+}
+
 func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()

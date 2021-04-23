@@ -41,4 +41,6 @@ type Transactions interface {
 	CreateTransaction(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, fieldsOpts ...dag.FieldOpt) (dag.Transaction, error)
 	// ListTransactions returns all transactions known to this Network instance.
 	ListTransactions() ([]dag.Transaction, error)
+	// Walk walks the DAG starting at the root, calling `visitor` for every transaction.
+	Walk(visitor dag.Visitor) error
 }

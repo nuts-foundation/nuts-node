@@ -89,6 +89,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// RenderGraph request
+	RenderGraph(ctx context.Context) (*http.Response, error)
+
 	// ListTransactions request
 	ListTransactions(ctx context.Context) (*http.Response, error)
 
@@ -97,6 +100,21 @@ type ClientInterface interface {
 
 	// GetTransactionPayload request
 	GetTransactionPayload(ctx context.Context, ref string) (*http.Response, error)
+}
+
+func (c *Client) RenderGraph(ctx context.Context) (*http.Response, error) {
+	req, err := NewRenderGraphRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) ListTransactions(ctx context.Context) (*http.Response, error) {
@@ -142,6 +160,33 @@ func (c *Client) GetTransactionPayload(ctx context.Context, ref string) (*http.R
 		}
 	}
 	return c.Client.Do(req)
+}
+
+// NewRenderGraphRequest generates requests for RenderGraph
+func NewRenderGraphRequest(server string) (*http.Request, error) {
+	var err error
+
+	queryUrl, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	basePath := fmt.Sprintf("/internal/network/v1/diagnostics/graph")
+	if basePath[0] == '/' {
+		basePath = basePath[1:]
+	}
+
+	queryUrl, err = queryUrl.Parse(basePath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryUrl.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewListTransactionsRequest generates requests for ListTransactions
@@ -268,6 +313,9 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// RenderGraph request
+	RenderGraphWithResponse(ctx context.Context) (*RenderGraphResponse, error)
+
 	// ListTransactions request
 	ListTransactionsWithResponse(ctx context.Context) (*ListTransactionsResponse, error)
 
@@ -276,6 +324,27 @@ type ClientWithResponsesInterface interface {
 
 	// GetTransactionPayload request
 	GetTransactionPayloadWithResponse(ctx context.Context, ref string) (*GetTransactionPayloadResponse, error)
+}
+
+type RenderGraphResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r RenderGraphResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RenderGraphResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type ListTransactionsResponse struct {
@@ -342,6 +411,15 @@ func (r GetTransactionPayloadResponse) StatusCode() int {
 	return 0
 }
 
+// RenderGraphWithResponse request returning *RenderGraphResponse
+func (c *ClientWithResponses) RenderGraphWithResponse(ctx context.Context) (*RenderGraphResponse, error) {
+	rsp, err := c.RenderGraph(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenderGraphResponse(rsp)
+}
+
 // ListTransactionsWithResponse request returning *ListTransactionsResponse
 func (c *ClientWithResponses) ListTransactionsWithResponse(ctx context.Context) (*ListTransactionsResponse, error) {
 	rsp, err := c.ListTransactions(ctx)
@@ -367,6 +445,25 @@ func (c *ClientWithResponses) GetTransactionPayloadWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseGetTransactionPayloadResponse(rsp)
+}
+
+// ParseRenderGraphResponse parses an HTTP response from a RenderGraphWithResponse call
+func ParseRenderGraphResponse(rsp *http.Response) (*RenderGraphResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RenderGraphResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	}
+
+	return response, nil
 }
 
 // ParseListTransactionsResponse parses an HTTP response from a ListTransactionsWithResponse call
@@ -435,6 +532,9 @@ func ParseGetTransactionPayloadResponse(rsp *http.Response) (*GetTransactionPayl
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Visualizes the DAG as a graph
+	// (GET /internal/network/v1/diagnostics/graph)
+	RenderGraph(ctx echo.Context) error
 	// Lists the transactions on the DAG
 	// (GET /internal/network/v1/transaction)
 	ListTransactions(ctx echo.Context) error
@@ -449,6 +549,15 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// RenderGraph converts echo context to params.
+func (w *ServerInterfaceWrapper) RenderGraph(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.RenderGraph(ctx)
+	return err
 }
 
 // ListTransactions converts echo context to params.
@@ -514,6 +623,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.Add(http.MethodGet, baseURL+"/internal/network/v1/diagnostics/graph", wrapper.RenderGraph)
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction", wrapper.ListTransactions)
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref", wrapper.GetTransaction)
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref/payload", wrapper.GetTransactionPayload)

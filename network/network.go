@@ -61,6 +61,15 @@ type Network struct {
 	keyResolver  types.KeyResolver
 }
 
+// Walk walks the DAG starting at the root, passing every transaction to `visitor`.
+func (n *Network) Walk(visitor dag.Visitor) error {
+	root, err := n.graph.Root()
+	if err != nil {
+		return err
+	}
+	return n.graph.Walk(dag.NewBFSWalkerAlgorithm(), visitor, root)
+}
+
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(config Config, jwsSigner crypto.JWSSigner, keyResolver types.KeyResolver) *Network {
 	result := &Network{
