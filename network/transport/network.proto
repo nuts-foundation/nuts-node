@@ -55,9 +55,11 @@ message Header {
 message AdvertHashes {
     // currentBlockDate contains a Unix timestamp at which the current block started (UTC).
     uint32 currentBlockDate = 1;
-    // blocks contains the the current block and the previous blocks. The first entry is the current block.
+    // blocks contains the DAG blocks (as specified in RFC005) except the historic block. The historic block's hash
+    // is specified in the `historicHash` field. In this `blocks` field the first entry is the oldest block (after the
+    // historic block), the last entry is the current block.
     repeated BlockHashes blocks = 2;
-    // historicHash contains the XOR of all head hashes leading up to the last block.
+    // historicHash contains the XOR of all head hashes leading up to (but not including) the first block.
     bytes historicHash = 3;
 }
 
@@ -69,13 +71,13 @@ message BlockHashes {
 
 // TransactionListQuery is a message used to query a peer's TransactionList.
 message TransactionListQuery {
-    // blockDate specifies which block to query the transactions for.
+    // blockDate specifies start date of the block (as Unix timestamp, in UTC) which is queried.
     uint32 blockDate = 1;
 }
 
 // TransactionList is the response message for TransactionListQuery.
 message TransactionList {
-    // blockDate which block the transactions belong to.
+    // blockDate specifies start date of the block (as Unix timestamp, in UTC) which the transactions belong to.
     uint32 blockDate = 1;
     // transactions contains the peer's transactions for the specified block.
     repeated Transaction transactions = 10;

@@ -31,7 +31,14 @@ import (
 
 type testCase struct {
 	name  string
+	// txs contains the transactions to be added
 	txs   []tx
+	// heads contains the expected block head transactions. They're specified by transaction name as specified in `txs`.
+	// The heads expected in a block are comma separated, so `A, B, C` means 3 blocks with A in the historic block,
+	// B in the next block, C in the current block. If there should be multiple heads they can be specified separated
+	// with a space, for example `A B, , C` (historic block=A and B, next one=empty, current=C).
+	// Every entry in the slice represents a "day" passed. If there's 2 entries, it emulates the passing of 1 day.
+	// If there's 3 entries, it emulates the passing of 2 days. The first entry is the initial state.
 	heads []string
 }
 
@@ -241,9 +248,22 @@ func TestMultiXOR(t *testing.T) {
 	h2 := hash.SHA256Sum([]byte("Hello, Universe!"))
 	h3 := hash.SHA256Sum([]byte("Hello, Everything Else!"))
 	expected, _ := hash.ParseHex("13735eb0bd447040661e1ca7f428e051ecaad15ea73e52e532423215f6836bb5")
-	actual := hash.EmptyHash()
-	multiXOR(&actual, h1, h2, h3)
-	assert.Equal(t, actual, expected)
+
+	cases := [][]hash.SHA256Hash{
+		{h1, h2, h3},
+		{h1, h3, h2},
+		{h3, h2, h1},
+		{h3, h1, h2},
+		{h2, h1, h3},
+		{h2, h3, h1},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%v", c), func(t *testing.T) {
+			actual := hash.EmptyHash()
+			multiXOR(&actual, c...)
+			assert.Equal(t, actual, expected)
+		})
+	}
 }
 
 type testTX struct {

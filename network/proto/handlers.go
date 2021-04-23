@@ -82,7 +82,7 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 	// Finally, check the rest of the blocks
 	p.checkPeerBlocks(peer, advertHash.Blocks, localBlocks[1:])
 
-	// Calculate peer's omnihash and propagate it
+	// Calculate peer's omnihash and propagate it for diagnostic purposes.
 	omnihash := hash.FromSlice(advertHash.HistoricHash)
 	for _, blck := range advertHash.Blocks {
 		for _, head := range blck.Hashes {
@@ -151,7 +151,6 @@ func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport
 func (p *protocol) handleTransactionPayloadQuery(peer p2p.PeerID, query *transport.TransactionPayloadQuery) error {
 	payloadHash := hash.FromSlice(query.PayloadHash)
 	log.Logger().Tracef("Received transaction payload query from peer (peer=%s, payloadHash=%s)", peer, payloadHash)
-	// TODO: Maybe this should be asynchronous since loading transaction contents might be I/O heavy?
 	data, err := p.payloadStore.ReadPayload(payloadHash)
 	if err != nil {
 		return err
@@ -222,7 +221,7 @@ func (p *protocol) handleTransactionListQuery(peer p2p.PeerID, blockDateInt uint
 		// endDate = p.blocks.Get()[1].Start
 		return nil
 	}
-	startDate = time.Unix(int64(blockDateInt), 0).UTC()
+	startDate = time.Unix(int64(blockDateInt), 0)
 	endDate = startDate.AddDate(0, 0, 1)
 	log.Logger().Tracef("Received transaction list query from peer (peer=%s,from=%s,to=%s)", peer, startDate, endDate)
 	txs, err := p.graph.FindBetween(startDate, endDate)
@@ -244,10 +243,7 @@ func createAdvertHashesMessage(blocks []DAGBlock) *transport.NetworkMessage_Adve
 			}
 		}
 	}
-	if log.Logger().Level >= logrus.TraceLevel {
-		// DAGBlock.String() is expensive
-		log.Logger().Tracef("Broadcasting heads: %s", blocks)
-	}
+	log.Logger().Tracef("Broadcasting heads: %s", blocks)
 	historicBlock := getHistoricBlock(blocks) // First block is historic block
 	currentBlock := getCurrentBlock(blocks)   // Last block is current block
 	return &transport.NetworkMessage_AdvertHashes{AdvertHashes: &transport.AdvertHashes{
@@ -269,7 +265,7 @@ func toNetworkTransactions(transactions []dag.Transaction) []*transport.Transact
 }
 
 func getBlockTimestamp(timestamp time.Time) uint32 {
-	return uint32(timestamp.UTC().Unix())
+	return uint32(timestamp.Unix())
 }
 
 func getCurrentBlock(blocks []DAGBlock) DAGBlock {
