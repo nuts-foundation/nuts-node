@@ -27,12 +27,12 @@ import (
 	"google.golang.org/grpc"
 )
 
-type senderReceiver interface {
+type grpcMessenger interface {
 	Send(message *transport.NetworkMessage) error
 	Recv() (*transport.NetworkMessage, error)
 }
 
-func createConnection(peer Peer, messenger senderReceiver) *connection {
+func createConnection(peer Peer, messenger grpcMessenger) *connection {
 	return &connection{
 		Peer:        peer,
 		messenger:   messenger,
@@ -45,7 +45,7 @@ func createConnection(peer Peer, messenger senderReceiver) *connection {
 type connection struct {
 	Peer
 	// messenger is used to send and receive messages
-	messenger senderReceiver
+	messenger grpcMessenger
 	// grpcConn is only filled for peers where we're the connecting party
 	grpcConn *grpc.ClientConn
 	// outMessages contains the messages we want to send to the peer.

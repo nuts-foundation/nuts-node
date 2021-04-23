@@ -78,16 +78,15 @@ func (s *replayingDAGPublisher) publishTransaction(transaction Transaction) bool
 		// We haven't got the payload, break of processing for this branch
 		return false
 	}
-	callSubscribers := func(subscribedType string) {
-		receiver := s.subscribers[subscribedType]
+
+	for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
+		receiver := s.subscribers[payloadType]
 		if receiver == nil {
-			return
+			continue
 		}
 		if err := receiver(transaction, payload); err != nil {
 			log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
 		}
 	}
-	callSubscribers(transaction.PayloadType())
-	callSubscribers(AnyPayloadType)
 	return true
 }

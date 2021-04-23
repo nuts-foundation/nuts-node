@@ -115,7 +115,7 @@ func MinTime() time.Time {
 	return time.Time{}
 }
 
-// MaxTime returns the maximum value for time.Time
+// MaxTime returns the maximum value for time.Time. Taken from https://stackoverflow.com/questions/25065055/what-is-the-maximum-time-time-in-go
 func MaxTime() time.Time {
 	return time.Unix(1<<63-62135596801, 999999999)
 }

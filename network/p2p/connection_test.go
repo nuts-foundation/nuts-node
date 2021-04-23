@@ -21,7 +21,7 @@ func Test_connection_close(t *testing.T) {
 func Test_connection_send(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	messenger := NewMocksenderReceiver(ctrl)
+	messenger := NewMockgrpcMessenger(ctrl)
 
 	// Signal waitgroup when a message is sent
 	wg := sync.WaitGroup{}
@@ -45,7 +45,7 @@ func Test_connection_receive(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	messenger := NewMocksenderReceiver(ctrl)
+	messenger := NewMockgrpcMessenger(ctrl)
 	messenger.EXPECT().Recv().Return(&transport.NetworkMessage{}, nil)
 	messenger.EXPECT().Recv().Return(&transport.NetworkMessage{}, nil)
 	messenger.EXPECT().Recv().Return(nil, errors.New("connection closed"))

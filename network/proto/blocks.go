@@ -37,16 +37,7 @@ func NewDAGBlocks() DAGBlocks {
 		result.blocks[i] = &block{heads: map[hash.SHA256Hash]*head{}}
 	}
 	result.updateTimestamps(time.Now())
-	return result
-}
-
-// MutexWrapDAGBlocks wraps a DAGBlocks in a DAGBlocks implementation that secures access with a mutex,
-// allowing concurrent access.
-func MutexWrapDAGBlocks(underlying DAGBlocks) DAGBlocks {
-	return &muxDAGBlocks{
-		Underlying: underlying,
-		mux:        &sync.Mutex{},
-	}
+	return &muxDAGBlocks{Underlying: result, mux: &sync.Mutex{}}
 }
 
 // XOR calculates a hash over all heads using bitwise XOR.

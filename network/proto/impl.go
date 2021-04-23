@@ -66,7 +66,7 @@ func NewProtocol() Protocol {
 		peerOmnihashes:      make(map[p2p.PeerID]hash.SHA256Hash),
 		peerOmnihashChannel: make(chan PeerOmnihash, 100),
 		peerOmnihashMutex:   &sync.Mutex{},
-		blocks:              MutexWrapDAGBlocks(NewDAGBlocks()),
+		blocks:              NewDAGBlocks(),
 	}
 	return p
 }
