@@ -266,12 +266,6 @@ type VerifySignatureJSONBody SignatureVerificationRequest
 // CreateAccessTokenJSONBody defines parameters for CreateAccessToken.
 type CreateAccessTokenJSONBody CreateAccessTokenRequest
 
-// CreateAccessTokenParams defines parameters for CreateAccessToken.
-type CreateAccessTokenParams struct {
-	XSslClientCert   string  `json:"X-Ssl-Client-Cert"`
-	XNutsLegalEntity *string `json:"X-Nuts-LegalEntity,omitempty"`
-}
-
 // GetContractByTypeParams defines parameters for GetContractByType.
 type GetContractByTypeParams struct {
 
@@ -300,11 +294,10 @@ type ServerInterface interface {
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
 	// (POST /internal/auth/v1/accesstoken/introspect)
 	IntrospectAccessToken(ctx echo.Context) error
-	// Verifies the access token given in the Authorization header (as bearer token). If it's a valid access token issued by this server, it'll return a 200 status code.
-	// If it cannot be verified it'll return 403. Note that it'll not return the contents of the access token. The introspection API is for that.
+	// Verifies the provided access token
 	// (HEAD /internal/auth/v1/accesstoken/verify)
 	VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error
-	// Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
+	// Create a JWT Bearer Token
 	// (POST /internal/auth/v1/bearertoken)
 	CreateJwtBearerToken(ctx echo.Context) error
 	// Draw up a contract using a specified contract template, language and version
@@ -320,11 +313,8 @@ type ServerInterface interface {
 	// (PUT /internal/auth/v1/signature/verify)
 	VerifySignature(ctx echo.Context) error
 	// Create an access token based on the OAuth JWT Bearer flow.
-	// This endpoint must be available to the outside world for other applications to request access tokens.
-	// It requires a two-way TLS connection. The client certificate must be a sibling of the signing certificate of the given JWT.
-	// The client certificate must be passed using a X-Ssl-Client-Cert header, PEM encoded and urlescaped.
-	// (POST /public/auth/v1/accesstoken)
-	CreateAccessToken(ctx echo.Context, params CreateAccessTokenParams) error
+	// (POST /n2n/auth/v1/accesstoken)
+	CreateAccessToken(ctx echo.Context) error
 	// Get a contract by type and version
 	// (GET /public/auth/v1/contract/{contractType})
 	GetContractByType(ctx echo.Context, contractType string, params GetContractByTypeParams) error
@@ -431,45 +421,8 @@ func (w *ServerInterfaceWrapper) VerifySignature(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) CreateAccessToken(ctx echo.Context) error {
 	var err error
 
-	// Parameter object where we will unmarshal all parameters from the context
-	var params CreateAccessTokenParams
-
-	headers := ctx.Request().Header
-	// ------------- Required header parameter "X-Ssl-Client-Cert" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-Ssl-Client-Cert")]; found {
-		var XSslClientCert string
-		n := len(valueList)
-		if n != 1 {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-Ssl-Client-Cert, got %d", n))
-		}
-
-		err = runtime.BindStyledParameter("simple", false, "X-Ssl-Client-Cert", valueList[0], &XSslClientCert)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-Ssl-Client-Cert: %s", err))
-		}
-
-		params.XSslClientCert = XSslClientCert
-	} else {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Header parameter X-Ssl-Client-Cert is required, but not found"))
-	}
-	// ------------- Optional header parameter "X-Nuts-LegalEntity" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-Nuts-LegalEntity")]; found {
-		var XNutsLegalEntity string
-		n := len(valueList)
-		if n != 1 {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-Nuts-LegalEntity, got %d", n))
-		}
-
-		err = runtime.BindStyledParameter("simple", false, "X-Nuts-LegalEntity", valueList[0], &XNutsLegalEntity)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-Nuts-LegalEntity: %s", err))
-		}
-
-		params.XNutsLegalEntity = &XNutsLegalEntity
-	}
-
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.CreateAccessToken(ctx, params)
+	err = w.Handler.CreateAccessToken(ctx)
 	return err
 }
 
@@ -534,7 +487,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/signature/session", wrapper.CreateSignSession)
 	router.Add(http.MethodGet, baseURL+"/internal/auth/v1/signature/session/:sessionID", wrapper.GetSignSessionStatus)
 	router.Add(http.MethodPut, baseURL+"/internal/auth/v1/signature/verify", wrapper.VerifySignature)
-	router.Add(http.MethodPost, baseURL+"/public/auth/v1/accesstoken", wrapper.CreateAccessToken)
+	router.Add(http.MethodPost, baseURL+"/n2n/auth/v1/accesstoken", wrapper.CreateAccessToken)
 	router.Add(http.MethodGet, baseURL+"/public/auth/v1/contract/:contractType", wrapper.GetContractByType)
 
 }
