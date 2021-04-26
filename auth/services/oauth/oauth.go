@@ -46,7 +46,7 @@ type service struct {
 	docResolver     types.DocResolver
 	conceptFinder   vcr.ConceptFinder
 	keyResolver     types.KeyResolver
-	privateKeyStore nutsCrypto.PrivateKeyStore
+	privateKeyStore nutsCrypto.Accessor
 	contractClient  services.ContractClient
 }
 
@@ -60,7 +60,7 @@ type validationContext struct {
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, privateKeyStore nutsCrypto.PrivateKeyStore, contractClient services.ContractClient) services.OAuthClient {
+func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, privateKeyStore nutsCrypto.Accessor, contractClient services.ContractClient) services.OAuthClient {
 	return &service{
 		docResolver:     doc.Resolver{Store: store},
 		keyResolver:     doc.KeyResolver{Store: store},

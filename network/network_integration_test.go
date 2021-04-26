@@ -61,16 +61,16 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 
 	// Start 3 nodes: bootstrap, node1 and node2. Node 1 and 2 connect to the bootstrap node and should discover
 	// each other that way.
-	bootstrap, err := startNode("bootstrap", path.Join(testDirectory, "bootstrap"), cryptoInstance)
+	bootstrap, err := startNode("bootstrap", path.Join(testDirectory, "bootstrap"))
 	if !assert.NoError(t, err) {
 		return
 	}
-	node1, err := startNode("node1", path.Join(testDirectory, "node1"), cryptoInstance)
+	node1, err := startNode("node1", path.Join(testDirectory, "node1"))
 	if !assert.NoError(t, err) {
 		return
 	}
 	node1.p2pNetwork.ConnectToPeer(nameToAddress("bootstrap"))
-	node2, err := startNode("node2", path.Join(testDirectory, "node2"), cryptoInstance)
+	node2, err := startNode("node2", path.Join(testDirectory, "node2"))
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -89,13 +89,13 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	}
 
 	// Publish first transaction on node1 and we expect in to come out on node2 and bootstrap
-	if !addTransactionAndWaitForItToArrive(t, "doc1", key, node1, "node2", "bootstrap") {
+	if !addTransactionAndWaitForItToArrive(t, "doc1", key, cryptoInstance, node1, "node2", "bootstrap") {
 		return
 	}
 	expectedDocLogSize++
 
 	// Now the graph has a root, and node2 can publish a transaction
-	if !addTransactionAndWaitForItToArrive(t, "doc2", key, node2, "node1", "bootstrap") {
+	if !addTransactionAndWaitForItToArrive(t, "doc2", key, cryptoInstance, node2, "node1", "bootstrap") {
 		return
 	}
 	expectedDocLogSize++
@@ -133,11 +133,11 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 	// 1. first transaction is OK, must be received
 	// 2. second transaction has an invalid signature, must be rejected
 	// 3. third transaction is OK, must be  received (to deal with timing issues)
-	node1, err := startNode("node1", path.Join(testDirectory, "node1"), cryptoInstance)
+	node1, err := startNode("node1", path.Join(testDirectory, "node1"))
 	if !assert.NoError(t, err) {
 		return
 	}
-	node2, err := startNode("node2", path.Join(testDirectory, "node2"), cryptoInstance)
+	node2, err := startNode("node2", path.Join(testDirectory, "node2"))
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -147,7 +147,7 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 		node1.Shutdown()
 	}()
 	// Send first OK transaction and wait for it to be received
-	if !addTransactionAndWaitForItToArrive(t, "first transaction", key, node1, "node2") {
+	if !addTransactionAndWaitForItToArrive(t, "first transaction", key, cryptoInstance, node1, "node2") {
 		return
 	}
 
@@ -159,7 +159,7 @@ func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
 	node1.payloadStore.WritePayload(hash.SHA256Sum(payload), payload)
 	_ = node1.graph.Add(craftedTransaction)
 	// Send third OK transaction
-	if !addTransactionAndWaitForItToArrive(t, "third transaction", key, node2, "node1") {
+	if !addTransactionAndWaitForItToArrive(t, "third transaction", key, cryptoInstance, node2, "node1") {
 		return
 	}
 	// Assert node2 only processed the first and last transaction, node1 all 3
@@ -176,8 +176,8 @@ func resetIntegrationTest(testDirectory string) {
 	receivedTransactions = make(map[string][]dag.SubscriberTransaction, 0)
 }
 
-func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key crypto.PublicKey, sender *Network, receivers ...string) bool {
-	expectedTransaction, err := sender.CreateTransaction(payloadType, []byte(payload), "key", key, time.Now(), []hash.SHA256Hash{})
+func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key crypto.PublicKey, keystore nutsCrypto.Accessor, sender *Network, receivers ...string) bool {
+	expectedTransaction, err := sender.CreateTransaction(payloadType, []byte(payload), "key", key, keystore, time.Now(), []hash.SHA256Hash{})
 	if !assert.NoError(t, err) {
 		return true
 	}
@@ -198,7 +198,7 @@ func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key crypto
 	return true
 }
 
-func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Network, error) {
+func startNode(name string, directory string) (*Network, error) {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
 	core.NewServerConfig().Load(&cobra.Command{})
@@ -208,7 +208,6 @@ func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Ne
 	instance := &Network{
 		p2pNetwork: p2p.NewP2PNetwork(),
 		protocol:   proto.NewProtocol(),
-		jwsSigner:  keyStore,
 		config: Config{
 			GrpcAddr:             fmt.Sprintf(":%d", nameToPort(name)),
 			CertFile:             "test/certificate-and-key.pem",

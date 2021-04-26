@@ -71,11 +71,11 @@ type service struct {
 	didResolver       types.DocResolver
 	vcResolver        vcr.Resolver
 	keyResolver       types.KeyResolver
-	privateKeyStore   crypto.PrivateKeyStore
+	privateKeyStore   crypto.Accessor
 }
 
 // NewContractInstance accepts a Config and several Nuts engines and returns a new instance of services.ContractClient
-func NewContractInstance(config Config, keyResolver types.KeyResolver, vcResolver vcr.Resolver, privateKeyStore crypto.PrivateKeyStore) services.ContractClient {
+func NewContractInstance(config Config, keyResolver types.KeyResolver, vcResolver vcr.Resolver, privateKeyStore crypto.Accessor) services.ContractClient {
 	return &service{
 		config:          config,
 		keyResolver:     keyResolver,

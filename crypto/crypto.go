@@ -25,13 +25,11 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"path"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 
@@ -90,6 +88,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 	return nil
 }
 
+
 // New generates a new key pair.
 // Stores the private key, returns the public key
 // If a key is overwritten is handled by the storage implementation.
@@ -120,81 +119,7 @@ func (client *Crypto) PrivateKeyExists(kid string) bool {
 	return client.Storage.PrivateKeyExists(kid)
 }
 
-// GetPublicKey loads the key from storage
-// It returns ErrKeyNotFound when the key could not be found in storage
-// It returns ErrKeyRevoked when the key is not valid on the provided validationTime
-func (client *Crypto) GetPublicKey(kid string, validationTime time.Time) (crypto.PublicKey, error) {
-	pke, err := client.Storage.GetPublicKey(kid)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			return nil, NewEntityErr(ErrKeyNotFound, kid)
-		}
-		return nil, err
-	}
-
-	if !pke.Period.Contains(validationTime) {
-		return nil, NewEntityErr(ErrKeyRevoked, kid)
-	}
-
-	var unknown interface{}
-	if err := pke.JWK().Raw(&unknown); err != nil {
-		return nil, err
-	}
-	return unknown.(crypto.PublicKey), nil
+func (client *Crypto) Signer(kid string) (crypto.Signer, error) {
+	return client.Storage.GetPrivateKey(kid)
 }
 
-// AddPublicKey save the public key to storage
-// For validity the provided validFrom time is used.
-// The key is valid until the end time which can be set using the RevokePublicKey method.
-// It returns ErrKeyAlreadyExists when the key already exists
-func (client *Crypto) AddPublicKey(kid string, publicKey crypto.PublicKey, validFrom time.Time) error {
-	if kid == "" {
-		return fmt.Errorf("could not add public key: kid cannot be empty")
-	}
-	key, err := jwk.New(publicKey)
-	if err != nil {
-		return err
-	}
-	// check if key already exists
-	pkeyEntry, err := client.Storage.GetPublicKey(kid)
-	if err != nil {
-		if !errors.Is(err, storage.ErrNotFound) {
-			return fmt.Errorf("could not add public key: unable to check key existance: %w", err)
-		}
-	}
-	if pkeyEntry.Key != nil {
-		return ErrKeyAlreadyExists
-	}
-
-	publicKeyEntry := storage.PublicKeyEntry{
-		Period: core.Period{Begin: validFrom},
-	}
-	if err := publicKeyEntry.FromJWK(key); err != nil {
-		return err
-	}
-
-	return client.Storage.SavePublicKey(kid, publicKeyEntry)
-}
-
-// RevokePublicKey revokes the key indicated by the kid from the given time by setting the end time on the PublicKeyEntry
-// Returns ErrKeyNotFound when the indicated key is not present in the storage
-// Returns ErrKeyRevoked when the end time on the PublicKeyEntry is already set
-func (client *Crypto) RevokePublicKey(kid string, validTo time.Time) error {
-	pkeyEntry, err := client.Storage.GetPublicKey(kid)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			return ErrKeyNotFound
-		}
-		return err
-	}
-	if pkeyEntry.Period.End != nil {
-		return ErrKeyRevoked
-	}
-	pkeyEntry.Period.End = &validTo
-
-	err = client.Storage.SavePublicKey(kid, pkeyEntry)
-	if err == nil {
-		log.Logger().Infof("Public key revoked (kid=%s,validTo=%s)", kid, validTo)
-	}
-	return err
-}

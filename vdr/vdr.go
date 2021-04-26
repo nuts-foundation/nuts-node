@@ -54,19 +54,19 @@ type VDR struct {
 	OnChange          func(registry *VDR)
 	networkAmbassador Ambassador
 	_logger           *logrus.Entry
-	didDocCreator     types.DocCreator
+	didDocCreator     doc.Creator
 	didDocResolver    types.DocResolver
-	keyStore          crypto.KeyStore
+	keyStore          crypto.Accessor
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store types.Store) *VDR {
+func NewVDR(config Config, cryptoClient crypto.Accessor, networkClient network.Transactions, store types.Store) *VDR {
 	return &VDR{
 		config:            config,
 		network:           networkClient,
 		_logger:           logging.Log(),
 		store:             store,
-		didDocCreator:     doc.Creator{KeyCreator: cryptoClient},
+		didDocCreator:     doc.Creator{KeyStore: cryptoClient},
 		didDocResolver:    doc.Resolver{Store: store},
 		networkAmbassador: NewAmbassador(networkClient, store),
 		keyStore:          cryptoClient,
@@ -112,9 +112,9 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 }
 
 // Create generates a new DID Document
-func (r VDR) Create() (*did.Document, error) {
+func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, error) {
 	logging.Log().Debug("Creating new DID Document.")
-	doc, err := r.didDocCreator.Create()
+	doc, keystore, kid, pub, err := r.didDocCreator.Create(options)
 	if err != nil {
 		return nil, fmt.Errorf("could not create did document: %w", err)
 	}
@@ -124,12 +124,7 @@ func (r VDR) Create() (*did.Document, error) {
 		return nil, err
 	}
 
-	keyID := doc.CapabilityInvocation[0].ID.String()
-	key, err := doc.CapabilityInvocation[0].PublicKey()
-	if err != nil {
-		return nil, err
-	}
-	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, key, time.Now(), []hash.SHA256Hash{})
+	_, err = r.network.CreateTransaction(didDocumentType, payload, kid, pub, keystore, time.Now(), []hash.SHA256Hash{})
 	if err != nil {
 		return nil, fmt.Errorf("could not store did document in network: %w", err)
 	}
@@ -168,7 +163,8 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	}
 
 	keyID := controllers[0].CapabilityInvocation[0].ID.String()
-	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, time.Now(), currentMeta.SourceTransactions)
+
+	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, r.keyStore, time.Now(), currentMeta.SourceTransactions)
 	if err == nil {
 		logging.Log().Infof("DID Document updated (DID=%s)", id)
 	} else {

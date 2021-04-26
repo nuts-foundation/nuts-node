@@ -259,6 +259,7 @@ func TestVcr_Issue(t *testing.T) {
 			nil,
 			gomock.Any(),
 			gomock.Any(),
+			gomock.Any(),
 		).Return(nil, nil)
 
 		issued, err := instance.Issue(*cred)
@@ -376,6 +377,7 @@ func TestVcr_Issue(t *testing.T) {
 			gomock.Any(),
 			vdr.TestDIDA.String(),
 			nil,
+			gomock.Any(),
 			gomock.Any(),
 			gomock.Any(),
 		).Return(nil, errors.New("b00m!"))
@@ -601,6 +603,7 @@ func TestVcr_Revoke(t *testing.T) {
 			gomock.Any(),
 			vc.Issuer.String(),
 			nil,
+			gomock.Any(),
 			gomock.Any(),
 			gomock.Any(),
 		)

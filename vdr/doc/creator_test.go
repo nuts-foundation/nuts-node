@@ -64,7 +64,7 @@ func TestDocCreator_Create(t *testing.T) {
 			t:      t,
 			jwkStr: jwkString,
 		}
-		sut := Creator{KeyCreator: kc}
+		sut := Creator{KeyStore: kc}
 		t.Run("ok", func(t *testing.T) {
 			doc, err := sut.Create()
 			assert.NoError(t, err,
@@ -94,7 +94,7 @@ func TestDocCreator_Create(t *testing.T) {
 		defer ctrl.Finish()
 		creator := nutsCrypto.NewMockKeyCreator(ctrl)
 		creator.EXPECT().New(gomock.Any()).Return(nil, "foobar", nil)
-		sut := Creator{KeyCreator: creator}
+		sut := Creator{KeyStore: creator}
 		doc, err := sut.Create()
 		assert.EqualError(t, err, "input length is less than 7")
 		assert.Nil(t, doc)
@@ -104,7 +104,7 @@ func TestDocCreator_Create(t *testing.T) {
 		defer ctrl.Finish()
 		creator := nutsCrypto.NewMockKeyCreator(ctrl)
 		creator.EXPECT().New(gomock.Any()).Return("asdasdsad", "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", nil)
-		sut := Creator{KeyCreator: creator}
+		sut := Creator{KeyStore: creator}
 		doc, err := sut.Create()
 		assert.EqualError(t, err, "invalid key type 'string' for jwk.New")
 		assert.Nil(t, doc)

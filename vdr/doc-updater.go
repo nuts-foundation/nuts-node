@@ -14,7 +14,7 @@ import (
 // DocUpdater contains helper methods to update a Nuts DID document.
 type DocUpdater struct {
 	// KeyCreator is used for getting a fresh key and use it to generate the Nuts DID
-	KeyCreator nutsCrypto.KeyCreator
+	KeyCreator nutsCrypto.Accessor
 	// VDR is used for updating/publishing DID documents after the operation has been performed
 	VDR types.VDR
 	// Resolver is used for resolving DID Documents
@@ -98,7 +98,7 @@ func (u DocUpdater) createNewVerificationMethodForDID(id did.DID) (*did.Verifica
 	return method, nil
 }
 
-// newNamingFnForExistingDID returns a KIDNamingFunc that can be used as param in the KeyCreator.New function.
+// newNamingFnForExistingDID returns a KIDNamingFunc that can be used as param in the Accessor.New function.
 // It wraps the KIDNamingFunc with the context of the DID of the document.
 // It returns a keyID in the form of the documents DID with the new keys thumbprint as fragment.
 func newNamingFnForExistingDID(existingDID did.DID) nutsCrypto.KIDNamingFunc {

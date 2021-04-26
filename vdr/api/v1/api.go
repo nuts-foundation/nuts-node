@@ -25,6 +25,7 @@ import (
 	"net/http"
 
 	"github.com/nuts-foundation/go-did/did"
+	doc2 "github.com/nuts-foundation/nuts-node/vdr/doc"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -79,7 +80,46 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 
 // CreateDID creates a new DID Document and returns it.
 func (a Wrapper) CreateDID(ctx echo.Context) error {
-	doc, err := a.VDR.Create()
+	req := DIDCreateRequest{}
+	if err := ctx.Bind(&req); err != nil {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("create request could not be parsed: %s", err.Error()))
+	}
+
+	options := doc2.DefaultCreationOptions()
+	if req.Controllers != nil {
+		for _, c := range *req.Controllers {
+			id, err := did.ParseDID(c)
+			if err != nil {
+				return ctx.String(http.StatusBadRequest, fmt.Sprintf("controller entry (%s) could not be parsed: %s", c, err.Error()))
+			}
+			options.Controllers = append(options.Controllers, *id)
+		}
+	}
+
+	if req.Authentication != nil && *req.Authentication {
+		options.Authentication = true
+	}
+	if req.AssertionMethod != nil && !*req.AssertionMethod {
+		options.Authentication = false
+	}
+	if req.CapablilityDelegation != nil && *req.CapablilityDelegation {
+		options.CapablilityDelegation = true
+	}
+	if req.CapablilityInvocation != nil && !*req.CapablilityInvocation {
+		options.CapablilityInvocation = false
+	}
+	if req.KeyAgreement != nil && !*req.KeyAgreement {
+		options.KeyAgreement = false
+	}
+	if req.SelfControl != nil && !*req.SelfControl {
+		options.SelfControl = false
+	}
+
+	if options.SelfControl && !options.CapablilityInvocation {
+		return ctx.String(http.StatusBadRequest, fmt.Sprintf("create request has invalid combination of options: SelfControl = true and CapablilityInvocation = false"))
+	}
+
+	doc, err := a.VDR.Create(options)
 	// if this operation leads to an error, it may return a 500
 	if err != nil {
 		return err

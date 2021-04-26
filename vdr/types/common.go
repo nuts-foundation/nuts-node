@@ -22,6 +22,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
@@ -81,4 +82,34 @@ type ResolveMetadata struct {
 	Hash *hash.SHA256Hash
 	// Allow DIDs which are deactivated
 	AllowDeactivated bool
+}
+
+
+// DIDCreationOptions defines options for creating a DID Document.
+type DIDCreationOptions struct {
+
+	// Controllers lists the DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
+	// the newly generated DID will be added to the list of controllers.
+	Controllers []did.DID
+
+	// AssertionMethod indicates if the generated key pair can be used for assertions.
+	AssertionMethod bool
+
+	// Authentication indicates if the generated key pair can be used for authentication.
+	Authentication bool
+
+	// CapablilityDelegation indicates if the generated key pair can be used for altering DID Documents.
+	// In combination with selfControl = true, the key can be used to alter the new DID Document.
+	// Defaults to true when not given.
+	CapablilityDelegation bool
+
+	// CapablilityInvocation indicates if the generated key pair can be used for capability invocations.
+	CapablilityInvocation bool
+
+	// KeyAgreement indicates if the generated key pair can be used for Key agreements.
+	KeyAgreement bool
+
+	// SelfControl indicates wether the generated DID Document can be altered with its own capabilityInvocation key.
+	// Defaults to true when not given.
+	SelfControl bool
 }
