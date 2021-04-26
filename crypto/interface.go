@@ -22,7 +22,6 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"time"
 )
 
 // NewEntityErr wraps an error with new error containing the entity ID
@@ -34,12 +33,6 @@ func NewEntityErr(err error, id string) error {
 // ErrKeyNotFound is returned when the key should not exists but does
 var ErrKeyNotFound = errors.New("key not found")
 
-// ErrKeyRevoked is returned in situations that operations require an active key
-var ErrKeyRevoked = errors.New("key is revoked")
-
-// ErrKeyAlreadyExists is return in situations where a key should not exists but does
-var ErrKeyAlreadyExists = errors.New("key already exists")
-
 // KIDNamingFunc is a function passed to New() which generates the kid for the pub/priv key
 type KIDNamingFunc func(key crypto.PublicKey) (string, error)
 
@@ -50,22 +43,8 @@ type KeyCreator interface {
 	New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error)
 }
 
-// PublicKeyStore defines the functions for retrieving and storing public keys.
-type PublicKeyStore interface {
-	// AddPublicKey stores a public key with a given kid and valid from date
-	// The valid from determines the start of the period this key is valid
-	// It returns an ErrKeyAlreadyExists if the key already exists
-	AddPublicKey(kid string, publicKey crypto.PublicKey, validFrom time.Time) error
-
-	// RevokePublicKey revokes a public key.
-	// The validTo time determines end of the period the key was valid
-	// It returns an ErrKeyNotFound when the key could not be found
-	// It returns an ErrKeyRevoked error when the key was already revoked
-	RevokePublicKey(kid string, validTo time.Time) error
-}
-
-// PrivateKeyStore defines the functions for working with private keys.
-type PrivateKeyStore interface {
+// KeyStore defines the functions for working with private keys.
+type KeyStore interface {
 	// PrivateKeyExists returns if the specified private key exists.
 	// If an error occurs, false is also returned
 	PrivateKeyExists(kid string) bool
@@ -73,12 +52,6 @@ type PrivateKeyStore interface {
 	KeyCreator
 	JWSSigner
 	JWTSigner
-}
-
-// KeyStore defines the functions that can be called by a Cmd, Direct or via rest call.
-type KeyStore interface {
-	PublicKeyStore
-	PrivateKeyStore
 }
 
 // JWSSigner defines the functions for signing JSON Web Signatures.

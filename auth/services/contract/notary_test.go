@@ -245,7 +245,7 @@ type testContext struct {
 	ctrl            *gomock.Controller
 	nameResolver    *vcr.MockConceptFinder
 	keyResolver     *types.MockKeyResolver
-	privateKeyStore *crypto.MockPrivateKeyStore
+	privateKeyStore *crypto.MockKeyStore
 	notary          contractNotaryService
 }
 
@@ -255,7 +255,7 @@ func buildContext(t *testing.T) *testContext {
 		ctrl:            ctrl,
 		nameResolver:    vcr.NewMockConceptFinder(ctrl),
 		keyResolver:     types.NewMockKeyResolver(ctrl),
-		privateKeyStore: crypto.NewMockPrivateKeyStore(ctrl),
+		privateKeyStore: crypto.NewMockKeyStore(ctrl),
 	}
 	notary := contractNotaryService{
 		keyResolver:      ctx.keyResolver,

@@ -675,7 +675,7 @@ func signToken(context *validationContext) {
 type testContext struct {
 	ctrl               *gomock.Controller
 	contractClientMock *services.MockContractClient
-	privateKeyStore    *crypto.MockPrivateKeyStore
+	privateKeyStore    *crypto.MockKeyStore
 	nameResolver       *vcr.MockConceptFinder
 	didResolver        *types.MockStore
 	keyResolver        *types.MockKeyResolver
@@ -686,7 +686,7 @@ var createContext = func(t *testing.T) *testContext {
 	ctrl := gomock.NewController(t)
 
 	contractClientMock := services.NewMockContractClient(ctrl)
-	privateKeyStore := crypto.NewMockPrivateKeyStore(ctrl)
+	privateKeyStore := crypto.NewMockKeyStore(ctrl)
 	nameResolver := vcr.NewMockConceptFinder(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	didResolver := types.NewMockStore(ctrl)
