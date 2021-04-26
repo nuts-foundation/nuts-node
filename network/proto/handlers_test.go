@@ -41,8 +41,8 @@ func TestProtocol_HandleAdvertedHashes(t *testing.T) {
 		ctx.graph().EXPECT().IsPresent(gomock.Any()).Return(false, nil)
 		blocks := toBlocks(ctx.transactions)
 		currentBlock := blocks[len(blocks)-1]
-		currentBlock.Heads[0] = hash.SHA256Sum([]byte{1, 2, 3}) // mutilate the head of the current block
-		ctx.sender().EXPECT().sendTransactionListQuery(peer, currentBlock.Start)
+		currentBlock.heads[0] = hash.SHA256Sum([]byte{1, 2, 3}) // mutilate the head of the current block
+		ctx.sender().EXPECT().sendTransactionListQuery(peer, currentBlock.start)
 		msg := createAdvertHashesMessage(blocks)
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
@@ -52,16 +52,16 @@ func TestProtocol_HandleAdvertedHashes(t *testing.T) {
 		ctx := newContext(t)
 		blocks := toBlocks(ctx.transactions)
 		currentBlock := blocks[len(blocks)-1]
-		currentBlock.Heads = []hash.SHA256Hash{} // mutilate the head of the current block
+		currentBlock.heads = []hash.SHA256Hash{} // mutilate the head of the current block
 		msg := createAdvertHashesMessage(blocks)
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
 		ctx.assertNewOmnihash()
 	})
 	t.Run("current block date differs (temporary protocol error)", func(t *testing.T) {
-		msg := createAdvertHashesMessage([]DAGBlock{{
-			Start: time.Now(),
-			Heads: nil,
+		msg := createAdvertHashesMessage([]dagBlock{{
+			start: time.Now(),
+			heads: nil,
 		}})
 		ctx := newContext(t)
 		err := ctx.handle(msg)
@@ -69,9 +69,9 @@ func TestProtocol_HandleAdvertedHashes(t *testing.T) {
 		ctx.assertNoNewOmnihashes()
 	})
 	t.Run("number of blocks differ (protocol error)", func(t *testing.T) {
-		msg := createAdvertHashesMessage([]DAGBlock{{
-			Start: startOfDay(time.Now()),
-			Heads: nil,
+		msg := createAdvertHashesMessage([]dagBlock{{
+			start: startOfDay(time.Now()),
+			heads: nil,
 		}})
 		ctx := newContext(t)
 		err := ctx.handle(msg)
@@ -81,7 +81,7 @@ func TestProtocol_HandleAdvertedHashes(t *testing.T) {
 	t.Run("historic block differs (unhappy flow, network split)", func(t *testing.T) {
 		ctx := newContext(t)
 		blocks := toBlocks(ctx.transactions)
-		blocks[0].Heads[0] = hash.SHA256Sum([]byte{1, 2, 3})
+		blocks[0].heads[0] = hash.SHA256Sum([]byte{1, 2, 3})
 		msg := createAdvertHashesMessage(blocks)
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
@@ -293,14 +293,14 @@ func Test_checkTransactionOnLocalNode(t *testing.T) {
 	})
 }
 
-func toBlocks(txs []testTX) []DAGBlock {
-	blx := NewDAGBlocks()
+func toBlocks(txs []testTX) []dagBlock {
+	blx := newDAGBlocks()
 	for _, tx := range txs {
-		if err := blx.AddTransaction(&tx, nil); err != nil {
+		if err := blx.addTransaction(&tx, nil); err != nil {
 			panic(err)
 		}
 	}
-	return blx.Get()
+	return blx.get()
 }
 
 func toTransactions(txs []testTX) []dag.Transaction {
@@ -372,7 +372,7 @@ func (ctx testContext) assertNewOmnihash() {
 
 func (ctx testContext) handle(msg interface{}) error {
 	for _, tx := range ctx.transactions {
-		if err := ctx.instance.blocks.AddTransaction(&tx, nil); err != nil {
+		if err := ctx.instance.blocks.addTransaction(&tx, nil); err != nil {
 			panic(err)
 		}
 	}

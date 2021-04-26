@@ -179,7 +179,7 @@ func testCases() []testCase {
 func TestBlocks(t *testing.T) {
 	for _, tc := range testCases() {
 		t.Run(tc.name, func(t *testing.T) {
-			blocks := NewDAGBlocks().(*muxDAGBlocks).Underlying.(*trackingDAGBlocks)
+			blocks := newDAGBlocks().(*trackingDAGBlocks)
 			txs := make(map[string]dag.Transaction, 0)
 			latestTXAge := 0
 			for _, currTX := range tc.txs {
@@ -201,7 +201,7 @@ func TestBlocks(t *testing.T) {
 					latestTXAge = currTX.time
 				}
 				txs[currTX.name] = tx
-				err := blocks.AddTransaction(&tx, nil)
+				err := blocks.addTransaction(&tx, nil)
 				if !assert.NoError(t, err) {
 					return
 				}
@@ -213,18 +213,18 @@ func TestBlocks(t *testing.T) {
 				for blockNum, blockHeadsConcatted := range expectedBlockHeads {
 					blockHeads := strings.Split(strings.TrimSpace(blockHeadsConcatted), " ")
 					for _, blockHead := range blockHeads {
-						heads := blocks.heads()
+						heads := blocks.internalHeads()
 						if strings.TrimSpace(blockHead) == "" {
-							assert.Empty(t, heads[blockNum].Heads)
+							assert.Empty(t, heads[blockNum].heads)
 						} else {
 							ref := txs[blockHead].Ref()
-							assert.Contains(t, heads[blockNum].Heads, ref)
+							assert.Contains(t, heads[blockNum].heads, ref)
 						}
 					}
 				}
 
 				println(fmt.Sprintf("Blocks after %d day(s) pass:", dayNum+1))
-				blocks.update(time.Now().AddDate(0, 0, dayNum+1))
+				blocks.internalUpdate(time.Now().AddDate(0, 0, dayNum+1))
 				println(blocks.String())
 			}
 		})
@@ -234,12 +234,12 @@ func TestBlocks(t *testing.T) {
 func TestDAGBlock_XORHeads(t *testing.T) {
 	t.Run("single head", func(t *testing.T) {
 		expected := hash.SHA256Sum([]byte("Hello, World!"))
-		blx := DAGBlock{Heads: []hash.SHA256Hash{expected}}
-		assert.Equal(t, blx.XOR(), expected)
+		blx := dagBlock{heads: []hash.SHA256Hash{expected}}
+		assert.Equal(t, blx.xor(), expected)
 	})
 	t.Run("no heads", func(t *testing.T) {
-		blx := DAGBlock{Heads: []hash.SHA256Hash{}}
-		assert.Equal(t, blx.XOR(), hash.EmptyHash())
+		blx := dagBlock{heads: []hash.SHA256Hash{}}
+		assert.Equal(t, blx.xor(), hash.EmptyHash())
 	})
 }
 

@@ -60,10 +60,10 @@ func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
 func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.AdvertHashes) {
 	log.Logger().Tracef("Received adverted hashes from peer: %s", peer)
 
-	localBlocks := p.blocks.Get()
+	localBlocks := p.blocks.get()
 	// We could theoretically support clock skew of peers (compared to the local clock), but we can also just wait for
 	// the blocks to synchronize which is way easier. It could just lead to a little synchronization delay at midnight.
-	if getBlockTimestamp(getCurrentBlock(localBlocks).Start) != advertHash.CurrentBlockDate {
+	if getBlockTimestamp(getCurrentBlock(localBlocks).start) != advertHash.CurrentBlockDate {
 		// Log level is INFO which might prove to be too verbose, but we'll have to find out in an actual network.
 		log.Logger().Infof("Peer's current block date differs (probably due to clock skew) which is not supported, broadcast is ignored (peer=%s)", peer)
 		return
@@ -74,7 +74,7 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 		return
 	}
 	// Compare historic block
-	localHistoryHash := getHistoricBlock(localBlocks).XOR()
+	localHistoryHash := getHistoricBlock(localBlocks).xor()
 	if !localHistoryHash.Equals(hash.FromSlice(advertHash.HistoricHash)) {
 		log.Logger().Warnf("Peer's historic block differs, broadcast is ignored (peer=%s)", peer)
 		return
@@ -98,14 +98,14 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 // checkPeerBlocks compares the blocks we've received from a peer with the ones of the local DAG. If it finds heads in the
 // peer blocks that aren't present on the local DAG is will query that block's transactions.
 // localBlocks must not include the historic block.
-func (p *protocol) checkPeerBlocks(peer p2p.PeerID, peerBlocks []*transport.BlockHashes, localBlocks []DAGBlock) {
+func (p *protocol) checkPeerBlocks(peer p2p.PeerID, peerBlocks []*transport.BlockHashes, localBlocks []dagBlock) {
 	for i := 0; i < len(peerBlocks); i++ {
 		localBlock := localBlocks[i]
 		peerBlock := peerBlocks[i]
 		for _, peerHead := range peerBlock.Hashes {
 			peerHeadHash := hash.FromSlice(peerHead)
 			headMatches := false
-			for _, localHead := range localBlock.Heads {
+			for _, localHead := range localBlock.heads {
 				if peerHeadHash.Equals(localHead) {
 					headMatches = true
 					break
@@ -123,8 +123,8 @@ func (p *protocol) checkPeerBlocks(peer p2p.PeerID, peerBlocks []*transport.Bloc
 			if err != nil {
 				log.Logger().Errorf("Error while checking peer head on local DAG (ref=%s): %v", peerHeadHash, err)
 			} else if !headIsPresentOnLocalDAG {
-				log.Logger().Infof("Peer has head which is not present on our DAG, querying block's transactions (peer=%s, tx=%s, blockDate=%s)", peer, peerHeadHash, localBlock.Start)
-				p.sender.sendTransactionListQuery(peer, localBlock.Start)
+				log.Logger().Infof("Peer has head which is not present on our DAG, querying block's transactions (peer=%s, tx=%s, blockDate=%s)", peer, peerHeadHash, localBlock.start)
+				p.sender.sendTransactionListQuery(peer, localBlock.start)
 			}
 		}
 	}
@@ -217,7 +217,7 @@ func (p *protocol) handleTransactionListQuery(peer p2p.PeerID, blockDateInt uint
 	if blockDateInt == 0 {
 		logrus.Warnf("Peer didn't specify date of the block to be queried, ignoring (peer=%s).", peer)
 		// Historic block is queried, query from start up to the first block
-		// endDate = p.blocks.Get()[1].Start
+		// endDate = p.blocks.get()[1].start
 		return nil
 	}
 	startDate = time.Unix(int64(blockDateInt), 0)
@@ -231,24 +231,24 @@ func (p *protocol) handleTransactionListQuery(peer p2p.PeerID, blockDateInt uint
 	return nil
 }
 
-func createAdvertHashesMessage(blocks []DAGBlock) *transport.NetworkMessage_AdvertHashes {
+func createAdvertHashesMessage(blocks []dagBlock) *transport.NetworkMessage_AdvertHashes {
 	protoBlocks := make([]*transport.BlockHashes, len(blocks)-1)
 	for blockIdx, currBlock := range blocks {
 		// First block = historic block, which isn't added in full but as XOR of its heads
 		if blockIdx > 0 {
-			protoBlocks[blockIdx-1] = &transport.BlockHashes{Hashes: make([][]byte, len(currBlock.Heads))}
-			for headIdx, currHead := range currBlock.Heads {
+			protoBlocks[blockIdx-1] = &transport.BlockHashes{Hashes: make([][]byte, len(currBlock.heads))}
+			for headIdx, currHead := range currBlock.heads {
 				protoBlocks[blockIdx-1].Hashes[headIdx] = currHead.Slice()
 			}
 		}
 	}
-	log.Logger().Tracef("Broadcasting heads: %s", blocks)
+	log.Logger().Tracef("Broadcasting heads: %v", blocks)
 	historicBlock := getHistoricBlock(blocks) // First block is historic block
 	currentBlock := getCurrentBlock(blocks)   // Last block is current block
 	return &transport.NetworkMessage_AdvertHashes{AdvertHashes: &transport.AdvertHashes{
 		Blocks:           protoBlocks,
-		HistoricHash:     historicBlock.XOR().Slice(),
-		CurrentBlockDate: getBlockTimestamp(currentBlock.Start),
+		HistoricHash:     historicBlock.xor().Slice(),
+		CurrentBlockDate: getBlockTimestamp(currentBlock.start),
 	}}
 }
 
@@ -267,10 +267,10 @@ func getBlockTimestamp(timestamp time.Time) uint32 {
 	return uint32(timestamp.Unix())
 }
 
-func getCurrentBlock(blocks []DAGBlock) DAGBlock {
+func getCurrentBlock(blocks []dagBlock) dagBlock {
 	return blocks[len(blocks)-1]
 }
 
-func getHistoricBlock(blocks []DAGBlock) DAGBlock {
+func getHistoricBlock(blocks []dagBlock) dagBlock {
 	return blocks[0]
 }

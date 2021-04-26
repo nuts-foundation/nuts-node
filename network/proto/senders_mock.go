@@ -38,7 +38,7 @@ func (m *MockmessageSender) EXPECT() *MockmessageSenderMockRecorder {
 }
 
 // broadcastAdvertHashes mocks base method.
-func (m *MockmessageSender) broadcastAdvertHashes(blocks []DAGBlock) {
+func (m *MockmessageSender) broadcastAdvertHashes(blocks []dagBlock) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "broadcastAdvertHashes", blocks)
 }

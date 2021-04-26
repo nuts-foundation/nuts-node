@@ -124,59 +124,31 @@ func (mr *MockPeerOmnihashQueueMockRecorder) Get() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockPeerOmnihashQueue)(nil).Get))
 }
 
-// MockDAGBlocks is a mock of DAGBlocks interface.
-type MockDAGBlocks struct {
+// MockdagBlocks is a mock of dagBlocks interface.
+type MockdagBlocks struct {
 	ctrl     *gomock.Controller
-	recorder *MockDAGBlocksMockRecorder
+	recorder *MockdagBlocksMockRecorder
 }
 
-// MockDAGBlocksMockRecorder is the mock recorder for MockDAGBlocks.
-type MockDAGBlocksMockRecorder struct {
-	mock *MockDAGBlocks
+// MockdagBlocksMockRecorder is the mock recorder for MockdagBlocks.
+type MockdagBlocksMockRecorder struct {
+	mock *MockdagBlocks
 }
 
-// NewMockDAGBlocks creates a new mock instance.
-func NewMockDAGBlocks(ctrl *gomock.Controller) *MockDAGBlocks {
-	mock := &MockDAGBlocks{ctrl: ctrl}
-	mock.recorder = &MockDAGBlocksMockRecorder{mock}
+// NewMockdagBlocks creates a new mock instance.
+func NewMockdagBlocks(ctrl *gomock.Controller) *MockdagBlocks {
+	mock := &MockdagBlocks{ctrl: ctrl}
+	mock.recorder = &MockdagBlocksMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockDAGBlocks) EXPECT() *MockDAGBlocksMockRecorder {
+func (m *MockdagBlocks) EXPECT() *MockdagBlocksMockRecorder {
 	return m.recorder
 }
 
-// AddTransaction mocks base method.
-func (m *MockDAGBlocks) AddTransaction(tx dag.Transaction, arg1 []byte) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddTransaction", tx, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddTransaction indicates an expected call of AddTransaction.
-func (mr *MockDAGBlocksMockRecorder) AddTransaction(tx, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTransaction", reflect.TypeOf((*MockDAGBlocks)(nil).AddTransaction), tx, arg1)
-}
-
-// Get mocks base method.
-func (m *MockDAGBlocks) Get() []DAGBlock {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get")
-	ret0, _ := ret[0].([]DAGBlock)
-	return ret0
-}
-
-// Get indicates an expected call of Get.
-func (mr *MockDAGBlocksMockRecorder) Get() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockDAGBlocks)(nil).Get))
-}
-
 // String mocks base method.
-func (m *MockDAGBlocks) String() string {
+func (m *MockdagBlocks) String() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "String")
 	ret0, _ := ret[0].(string)
@@ -184,7 +156,35 @@ func (m *MockDAGBlocks) String() string {
 }
 
 // String indicates an expected call of String.
-func (mr *MockDAGBlocksMockRecorder) String() *gomock.Call {
+func (mr *MockdagBlocksMockRecorder) String() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockDAGBlocks)(nil).String))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockdagBlocks)(nil).String))
+}
+
+// addTransaction mocks base method.
+func (m *MockdagBlocks) addTransaction(tx dag.Transaction, arg1 []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "addTransaction", tx, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// addTransaction indicates an expected call of addTransaction.
+func (mr *MockdagBlocksMockRecorder) addTransaction(tx, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "addTransaction", reflect.TypeOf((*MockdagBlocks)(nil).addTransaction), tx, arg1)
+}
+
+// get mocks base method.
+func (m *MockdagBlocks) get() []dagBlock {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "get")
+	ret0, _ := ret[0].([]dagBlock)
+	return ret0
+}
+
+// get indicates an expected call of get.
+func (mr *MockdagBlocksMockRecorder) get() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "get", reflect.TypeOf((*MockdagBlocks)(nil).get))
 }

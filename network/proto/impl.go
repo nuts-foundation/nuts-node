@@ -45,7 +45,7 @@ type protocol struct {
 	peerOmnihashes    map[p2p.PeerID]hash.SHA256Hash
 	peerOmnihashMutex *sync.Mutex
 
-	blocks DAGBlocks
+	blocks dagBlocks
 
 	advertHashesInterval time.Duration
 	// peerID contains our own peer ID which can be logged for debugging purposes
@@ -66,7 +66,7 @@ func NewProtocol() Protocol {
 		peerOmnihashes:      make(map[p2p.PeerID]hash.SHA256Hash),
 		peerOmnihashChannel: make(chan PeerOmnihash, 100),
 		peerOmnihashMutex:   &sync.Mutex{},
-		blocks:              NewDAGBlocks(),
+		blocks:              newDAGBlocks(),
 	}
 	return p
 }
@@ -79,7 +79,7 @@ func (p *protocol) Configure(p2pNetwork p2p.Interface, graph dag.DAG, publisher 
 	p.signatureVerifier = verifier
 	p.peerID = peerID
 	p.sender = defaultMessageSender{p2p: p.p2pNetwork}
-	publisher.Subscribe(dag.AnyPayloadType, p.blocks.AddTransaction)
+	publisher.Subscribe(dag.AnyPayloadType, p.blocks.addTransaction)
 }
 
 func (p *protocol) Start() {
@@ -98,7 +98,7 @@ func (p protocol) startAdvertingHashes() {
 	for {
 		select {
 		case <-ticker.C:
-			p.sender.broadcastAdvertHashes(p.blocks.Get())
+			p.sender.broadcastAdvertHashes(p.blocks.get())
 		}
 	}
 }

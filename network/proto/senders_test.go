@@ -21,8 +21,8 @@ func createMessageSender(t *testing.T) (defaultMessageSender, *p2p.MockInterface
 func Test_defaultMessageSender_broadcastAdvertHashes(t *testing.T) {
 	sender, mock := createMessageSender(t)
 	mock.EXPECT().Broadcast(gomock.Any())
-	sender.broadcastAdvertHashes([]DAGBlock{{
-		Start: time.Now(),
+	sender.broadcastAdvertHashes([]dagBlock{{
+		start: time.Now(),
 	}})
 }
 

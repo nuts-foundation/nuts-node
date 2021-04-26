@@ -12,7 +12,7 @@ import (
 // messageSender provides a domain-specific abstraction for sending messages to the network. It aids testing and
 // implementation of non-functional requirements like throttling.
 type messageSender interface {
-	broadcastAdvertHashes(blocks []DAGBlock)
+	broadcastAdvertHashes(blocks []dagBlock)
 	sendTransactionListQuery(peer p2p.PeerID, blockDate time.Time)
 	sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction)
 	sendTransactionPayloadQuery(peer p2p.PeerID, payloadHash hash.SHA256Hash)
@@ -29,7 +29,7 @@ func (s defaultMessageSender) doSend(peer p2p.PeerID, envelope *transport.Networ
 	}
 }
 
-func (s defaultMessageSender) broadcastAdvertHashes(blocks []DAGBlock) {
+func (s defaultMessageSender) broadcastAdvertHashes(blocks []dagBlock) {
 	envelope := createEnvelope()
 	envelope.Message = createAdvertHashesMessage(blocks)
 	s.p2p.Broadcast(&envelope)
