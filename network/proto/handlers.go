@@ -133,7 +133,6 @@ func (p *protocol) checkPeerBlocks(peer p2p.PeerID, peerBlocks []*transport.Bloc
 func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport.TransactionPayload) {
 	payloadHash := hash.FromSlice(contents.PayloadHash)
 	log.Logger().Infof("Received transaction payload from peer (peer=%s,payloadHash=%s,len=%d)", peer, payloadHash, len(contents.Data))
-	// TODO: Maybe this should be asynchronous since writing the transaction contents might be I/O heavy?
 	if transaction, err := p.graph.GetByPayloadHash(payloadHash); err != nil {
 		log.Logger().Errorf("Error while looking up transaction to write payload (payloadHash=%s): %v", payloadHash, err)
 	} else if len(transaction) == 0 {

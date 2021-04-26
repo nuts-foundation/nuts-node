@@ -108,7 +108,6 @@ func (n grpcInterface) ReceivedMessages() MessageQueue {
 }
 
 func (n grpcInterface) Send(peerID PeerID, message *transport.NetworkMessage) error {
-	// TODO: Can't we optimize this so that we don't need this lock? Maybe by (secretly) embedding a pointer to the peer in the peer ID?
 	var conn *connection
 	n.connsMutex.Lock()
 	{
@@ -398,15 +397,19 @@ func (n grpcInterface) Connect(stream transport.Network_ConnectServer) error {
 }
 
 func (n *grpcInterface) registerConnection(conn *connection) {
+	normalizedAddress := normalizeAddress(conn.Address)
+
 	n.connsMutex.Lock()
 	defer n.connsMutex.Unlock()
 
 	n.conns[conn.ID] = conn
-	n.peersByAddr[normalizeAddress(conn.Address)] = conn.ID
+	n.peersByAddr[normalizedAddress] = conn.ID
 	n.peerConnectedChannel <- conn.Peer
 }
 
 func (n *grpcInterface) unregisterConnection(conn *connection) {
+	normalizedAddress := normalizeAddress(conn.Address)
+
 	n.connsMutex.Lock()
 	defer n.connsMutex.Unlock()
 
@@ -416,6 +419,6 @@ func (n *grpcInterface) unregisterConnection(conn *connection) {
 	}
 
 	delete(n.conns, conn.ID)
-	delete(n.peersByAddr, normalizeAddress(conn.Address))
+	delete(n.peersByAddr, normalizedAddress)
 	n.peerDisconnectedChannel <- conn.Peer
 }

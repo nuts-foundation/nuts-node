@@ -46,7 +46,7 @@ func (b *backoff) Reset() {
 }
 
 func (b *backoff) Backoff() time.Duration {
-	// TODO: Might want to add jitter (e.g. https://github.com/grpc/grpc/blob/master/doc/connection-backoff.md)
+	// Jitter could be added to add a bit of randomness to the backoff value (e.g. https://github.com/grpc/grpc/blob/master/doc/connection-backoff.md)
 	if b.value < b.min {
 		b.value = b.min
 	} else {
