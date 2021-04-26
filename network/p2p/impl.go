@@ -43,6 +43,7 @@ type dialer func(ctx context.Context, target string, opts ...grpc.DialOption) (c
 const connectingQueueChannelSize = 100
 const eventChannelSize = 100
 const messageBacklogChannelSize = 100
+const maxMessageSizeInBytes = 1024 * 512
 
 type grpcInterface struct {
 	config InterfaceConfig
@@ -134,6 +135,10 @@ func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*connection,
 	dialOptions := []grpc.DialOption{
 		grpc.WithBlock(),                 // Dial should block until connection succeeded (or time-out expired)
 		grpc.WithReturnConnectionError(), // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(maxMessageSizeInBytes),
+			grpc.MaxCallSendMsgSize(maxMessageSizeInBytes),
+		),
 	}
 	if tlsConfig != nil {
 		dialOptions = append(dialOptions, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // TLS authentication
@@ -225,23 +230,24 @@ func (n *grpcInterface) Start() error {
 	log.Logger().Debugf("Starting gRPC P2P node (ID: %s)", n.config.PeerID)
 	if n.config.ListenAddress != "" {
 		log.Logger().Debugf("Starting gRPC server on %s", n.config.ListenAddress)
+		serverOpts := []grpc.ServerOption{
+			grpc.MaxRecvMsgSize(maxMessageSizeInBytes),
+			grpc.MaxSendMsgSize(maxMessageSizeInBytes),
+		}
 		var err error
-		// We allow test code to set the listener to allow for in-memory (bufnet) channels
-		var serverOpts = make([]grpc.ServerOption, 0)
-		if n.listener == nil {
-			n.listener, err = net.Listen("tcp", n.config.ListenAddress)
-			if err != nil {
-				return err
-			}
-			// Set ListenAddress to actual interface address resolved by `Listen()`
-			n.config.ListenAddress = n.listener.Addr().String()
-			if n.config.tlsEnabled() {
-				serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(&tls.Config{
-					Certificates: []tls.Certificate{n.config.ServerCert},
-					ClientAuth:   tls.RequireAndVerifyClientCert,
-					ClientCAs:    n.config.TrustStore,
-				})))
-			}
+		n.listener, err = net.Listen("tcp", n.config.ListenAddress)
+		if err != nil {
+			return err
+		}
+		// Set ListenAddress to actual interface address resolved by `Listen()`
+		n.config.ListenAddress = n.listener.Addr().String()
+		// Configure TLS if enabled
+		if n.config.tlsEnabled() {
+			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(&tls.Config{
+				Certificates: []tls.Certificate{n.config.ServerCert},
+				ClientAuth:   tls.RequireAndVerifyClientCert,
+				ClientCAs:    n.config.TrustStore,
+			})))
 		}
 		n.grpcServer = grpc.NewServer(serverOpts...)
 		transport.RegisterNetworkServer(n.grpcServer, n)
