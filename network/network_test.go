@@ -44,7 +44,7 @@ type networkTestContext struct {
 	protocol    *proto.MockProtocol
 	graph       *dag.MockDAG
 	payload     *dag.MockPayloadStore
-	keyStore    *crypto.MockKeyStore
+	keyStore    *crypto.MockAccessor
 	publisher   *dag.MockPublisher
 	keyResolver *types.MockKeyResolver
 }
@@ -196,7 +196,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		_, err = cxt.network.CreateTransaction(payloadType, payload, "signing-key", privateKey.PublicKey, time.Now(), []hash.SHA256Hash{})
+		_, err = cxt.network.CreateTransaction(payloadType, payload, "signing-key", privateKey.PublicKey, cxt.keyStore, time.Now(), []hash.SHA256Hash{})
 		assert.NoError(t, err)
 	})
 	t.Run("ok - detached key", func(t *testing.T) {
@@ -218,7 +218,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, time.Now(), []hash.SHA256Hash{})
+		tx, err := cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, cxt.keyStore, time.Now(), []hash.SHA256Hash{})
 		assert.NoError(t, err)
 		assert.Len(t, tx.Previous(), 0)
 	})
@@ -242,7 +242,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, time.Now(), []hash.SHA256Hash{prev})
+		tx, err := cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, cxt.keyStore, time.Now(), []hash.SHA256Hash{prev})
 
 		if !assert.NoError(t, err) {
 			return
@@ -352,9 +352,9 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	networkConfig.CertFile = "test/certificate-and-key.pem"
 	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
 	networkConfig.EnableTLS = true
-	keyStore := crypto.NewMockKeyStore(ctrl)
+	keyStore := crypto.NewMockAccessor(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
-	network := NewNetworkInstance(networkConfig, keyStore, keyResolver)
+	network := NewNetworkInstance(networkConfig, keyResolver)
 	network.p2pNetwork = p2pNetwork
 	network.protocol = protocol
 	network.graph = graph

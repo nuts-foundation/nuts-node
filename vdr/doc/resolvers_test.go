@@ -35,7 +35,7 @@ func TestResolveSigningKey(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
 	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
-	docCreator := Creator{KeyCreator: keyCreator}
+	docCreator := Creator{KeyStore: keyCreator}
 	doc, _ := docCreator.Create()
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
 	didStore.Write(*doc, types.DocumentMetadata{})
@@ -77,7 +77,7 @@ func TestResolveSigningKeyID(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
 	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
-	docCreator := Creator{KeyCreator: keyCreator}
+	docCreator := Creator{KeyStore: keyCreator}
 	doc, _ := docCreator.Create()
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
 	didStore.Write(*doc, types.DocumentMetadata{})
@@ -120,7 +120,7 @@ func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
 	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
-	docCreator := Creator{KeyCreator: keyCreator}
+	docCreator := Creator{KeyStore: keyCreator}
 	doc, _ := docCreator.Create()
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
 	didStore.Write(*doc, types.DocumentMetadata{})
@@ -163,7 +163,7 @@ func TestResolver_Resolve(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	resolver := Resolver{Store: didStore}
 	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
-	docCreator := Creator{KeyCreator: keyCreator}
+	docCreator := Creator{KeyStore: keyCreator}
 	doc, _ := docCreator.Create()
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
 	didStore.Write(*doc, types.DocumentMetadata{})
@@ -332,7 +332,7 @@ func TestKeyResolver_ResolvePublicKey(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
 	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
-	docCreator := Creator{KeyCreator: keyCreator}
+	docCreator := Creator{KeyStore: keyCreator}
 	doc, _ := docCreator.Create()
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
 	didStore.Write(*doc, types.DocumentMetadata{})

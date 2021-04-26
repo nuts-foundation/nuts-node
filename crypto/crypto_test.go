@@ -33,7 +33,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCrypto_KeyExistsFor(t *testing.T) {
+func TestCrypto_PrivateKeyExists(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"

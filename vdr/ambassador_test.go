@@ -139,7 +139,7 @@ func Test_ambassador_callback(t *testing.T) {
 			t:      t,
 			jwkStr: string(keyStr),
 		}
-		docCreator := doc.Creator{KeyCreator: kc}
+		docCreator := doc.Creator{KeyStore: kc}
 		didDocument, err := docCreator.Create()
 		signingKey.Set(jwk.KeyIDKey, didDocument.CapabilityInvocation[0].ID.String())
 		return *didDocument, signingKey, err
@@ -756,7 +756,7 @@ func newDidDoc(t *testing.T) (did.Document, jwk.Key, error) {
 		t:      t,
 		jwkStr: string(keyStr),
 	}
-	docCreator := doc.Creator{KeyCreator: kc}
+	docCreator := doc.Creator{KeyStore: kc}
 	didDocument, err := docCreator.Create()
 	if err != nil {
 		return did.Document{}, nil, err

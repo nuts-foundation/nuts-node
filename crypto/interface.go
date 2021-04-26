@@ -21,14 +21,7 @@ package crypto
 import (
 	"crypto"
 	"errors"
-	"fmt"
 )
-
-// NewEntityErr wraps an error with new error containing the entity ID
-// NewEntityErr(ErrKeyNotFound, id.String())
-func NewEntityErr(err error, id string) error {
-	return fmt.Errorf("%w: id: %s", err, id)
-}
 
 // ErrKeyNotFound is returned when the key should not exists but does
 var ErrKeyNotFound = errors.New("key not found")
@@ -48,23 +41,27 @@ type KeyStore interface {
 	// PrivateKeyExists returns if the specified private key exists.
 	// If an error occurs, false is also returned
 	PrivateKeyExists(kid string) bool
+	// New generates a keypair and returns the public key.
+	// the KIDNamingFunc will provide the kid. priv/pub keys are appended with a postfix and stored
+	New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error)
+	// Signer TODO
+	Signer(kid string) (crypto.Signer, error)
 
-	KeyCreator
 	JWSSigner
 	JWTSigner
 }
 
 // JWSSigner defines the functions for signing JSON Web Signatures.
 type JWSSigner interface {
-	// SignJWS creates a signed JWS using the indicated key.
-	// It contains protected headers and a payload.
-	// Returns ErrKeyNotFound when indicated private key is not present.
-	SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error)
+       // SignJWS creates a signed JWS using the indicated key.
+       // It contains protected headers and a payload.
+       // Returns ErrKeyNotFound when indicated private key is not present.
+       SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error)
 }
 
 // JWTSigner is the interface used to sign authorization tokens.
 type JWTSigner interface {
-	// SignJWT creates a signed JWT using the indicated key and map of claims.
-	// Returns ErrKeyNotFound when indicated private key is not present.
-	SignJWT(claims map[string]interface{}, kid string) (string, error)
+       // SignJWT creates a signed JWT using the indicated key and map of claims.
+       // Returns ErrKeyNotFound when indicated private key is not present.
+       SignJWT(claims map[string]interface{}, kid string) (string, error)
 }

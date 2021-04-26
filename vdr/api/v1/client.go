@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 
@@ -52,7 +53,7 @@ func (hb HTTPClient) Create() (*did.Document, error) {
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
 
-	if response, err := hb.client().CreateDID(ctx); err != nil {
+	if response, err := hb.client().CreateDID(ctx, CreateDIDJSONRequestBody{}); err != nil {
 		return nil, err
 	} else if err := core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, err

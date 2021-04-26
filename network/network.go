@@ -57,7 +57,6 @@ type Network struct {
 	graph        dag.DAG
 	publisher    dag.Publisher
 	payloadStore dag.PayloadStore
-	jwsSigner    crypto.JWSSigner
 	keyResolver  types.KeyResolver
 }
 
@@ -71,10 +70,9 @@ func (n *Network) Walk(visitor dag.Visitor) error {
 }
 
 // NewNetworkInstance creates a new Network engine instance.
-func NewNetworkInstance(config Config, jwsSigner crypto.JWSSigner, keyResolver types.KeyResolver) *Network {
+func NewNetworkInstance(config Config, keyResolver types.KeyResolver) *Network {
 	result := &Network{
 		config:      config,
-		jwsSigner:   jwsSigner,
 		keyResolver: keyResolver,
 		p2pNetwork:  p2p.NewP2PNetwork(),
 		protocol:    proto.NewProtocol(),
@@ -165,7 +163,7 @@ func (n *Network) ListTransactions() ([]dag.Transaction, error) {
 
 // CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
 // If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
-func (n *Network) CreateTransaction(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
+func (n *Network) CreateTransaction(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, jwsSigner crypto.JWSSigner, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
 	payloadHash := hash.SHA256Sum(payload)
 	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), signingKeyID)
 
@@ -182,9 +180,9 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, signingK
 	var transaction dag.Transaction
 	var signer dag.TransactionSigner
 	if attachKey != nil {
-		signer = dag.NewAttachedJWKTransactionSigner(n.jwsSigner, signingKeyID, attachKey)
+		signer = dag.NewAttachedJWKTransactionSigner(jwsSigner, signingKeyID, attachKey)
 	} else {
-		signer = dag.NewTransactionSigner(n.jwsSigner, signingKeyID)
+		signer = dag.NewTransactionSigner(jwsSigner, signingKeyID)
 	}
 	transaction, err = signer.Sign(unsignedTransaction, timestamp)
 	if err != nil {

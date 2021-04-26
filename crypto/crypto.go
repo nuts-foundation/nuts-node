@@ -29,7 +29,6 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
-
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 
@@ -88,6 +87,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 	return nil
 }
 
+
 // New generates a new key pair.
 // Stores the private key, returns the public key
 // If a key is overwritten is handled by the storage implementation.
@@ -116,4 +116,8 @@ func generateECKeyPair() (*ecdsa.PrivateKey, error) {
 // PrivateKeyExists checks storage for an entry for the given legal entity and returns true if it exists
 func (client *Crypto) PrivateKeyExists(kid string) bool {
 	return client.Storage.PrivateKeyExists(kid)
+}
+
+func (client *Crypto) Signer(kid string) (crypto.Signer, error) {
+	return client.Storage.GetPrivateKey(kid)
 }
