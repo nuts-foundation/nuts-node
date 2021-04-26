@@ -77,6 +77,7 @@ type SubscriberTransaction interface {
 	Signable
 	Referenceable
 	PayloadReferencer
+	NetworkHeader
 }
 
 // Signable groups a set of functions to access information about a implementors signature.
@@ -109,8 +110,8 @@ type Transaction interface {
 }
 
 // NewTransaction creates a new unsigned transaction. Parameters payload and payloadType can't be empty, but prevs is optional.
-// Prevs must not contain empty or invalid hashes.
-func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash, additionalFields ...FieldOpt) (UnsignedTransaction, error) {
+// Prevs must not contain empty or invalid hashes. Duplicate prevs will be removed when given.
+func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash) (UnsignedTransaction, error) {
 	if !ValidatePayloadType(payloadType) {
 		return nil, errInvalidPayloadType
 	}
@@ -119,22 +120,32 @@ func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SH
 			return nil, errInvalidPrevs
 		}
 	}
+
+	// deduplicate prevs
+	deduplicated := make([]hash.SHA256Hash, 0)
+	for _, prev := range prevs {
+		found := false
+		for _, dd := range deduplicated {
+			if dd.Equals(prev) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			deduplicated = append(deduplicated, prev)
+		}
+	}
+
 	result := transaction{
 		payload:     payload,
 		payloadType: payloadType,
 		version:     currentVersion,
 	}
-	if len(prevs) > 0 {
-		result.prevs = append(prevs)
-	}
-	for _, field := range additionalFields {
-		field(&result)
+	if len(deduplicated) > 0 {
+		result.prevs = append(deduplicated)
 	}
 	return &result, nil
 }
-
-// FieldOpt defines a function for specifying fields on a transaction.
-type FieldOpt func(target *transaction)
 
 // ValidatePayloadType checks whether the payload type is valid according to RFC004.
 func ValidatePayloadType(payloadType string) bool {

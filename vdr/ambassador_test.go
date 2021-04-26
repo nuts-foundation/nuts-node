@@ -76,6 +76,7 @@ type subscriberTransaction struct {
 	ref          hash.SHA256Hash
 	payloadHash  hash.SHA256Hash
 	payloadType  string
+	prevs        []hash.SHA256Hash
 }
 
 func (s subscriberTransaction) SigningKey() jwk.Key {
@@ -102,6 +103,14 @@ func (s subscriberTransaction) PayloadType() string {
 	return s.payloadType
 }
 func (s subscriberTransaction) SigningAlgorithm() string {
+	panic("implement me")
+}
+
+func (s subscriberTransaction) Previous() []hash.SHA256Hash {
+	return s.prevs
+}
+
+func (s subscriberTransaction) Version() dag.Version {
 	panic("implement me")
 }
 
@@ -586,6 +595,58 @@ func Test_ambassador_callback(t *testing.T) {
 	t.Run("nok - create where keyID of authentication key matches but thumbprints not", func(t *testing.T) {
 
 	})
+
+	t.Run("ok - updating a DID Document that results in a conflict", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		didStoreMock := types.NewMockStore(ctrl)
+		keyStoreMock := types.NewMockKeyResolver(ctrl)
+
+		am := ambassador{
+			didStore:    didStoreMock,
+			keyResolver: keyStoreMock,
+			docResolver: doc.Resolver{Store: didStoreMock},
+		}
+
+		didDocument, signingKey, err := newDidDoc()
+		if !assert.NoError(t, err) {
+			return
+		}
+		didMetadata := types.DocumentMetadata{
+			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
+			Hash:               hash.EmptyHash(),
+			Created:            signingTime,
+		}
+		var pKey crypto2.PublicKey
+		signingKey.Raw(&pKey)
+
+		subDoc := newSubscriberTx()
+		subDoc.signingKey = signingKey
+		subDoc.signingKeyID = signingKey.KeyID()
+		subDoc.signingTime = signingTime
+
+		didDocPayload, _ := json.Marshal(didDocument)
+		expectedDocument := did.Document{}
+		json.Unmarshal(didDocPayload, &expectedDocument)
+
+		var rawKey crypto2.PublicKey
+		signingKey.Raw(&rawKey)
+
+		expectedMetadata := types.DocumentMetadata{
+			Created:            signingTime,
+			Updated:            &signingTime,
+			Hash:               payloadHash,
+			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), subDoc.Ref()},
+		}
+
+		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(&didDocument, &didMetadata, nil).Times(2)
+		keyStoreMock.EXPECT().ResolvePublicKey(signingKey.KeyID(), gomock.Any()).Return(pKey, nil)
+		didStoreMock.EXPECT().Update(didDocument.ID, hash.EmptyHash(), expectedDocument, &expectedMetadata).Return(nil)
+
+		err = am.callback(subDoc, didDocPayload)
+		assert.NoError(t, err)
+	})
 }
 
 func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
@@ -789,6 +850,40 @@ func Test_checkDIDDocumentIntegrity(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_missingTransactions(t *testing.T) {
+	h1 := hash.SHA256Sum([]byte("hash1"))
+	h2 := hash.SHA256Sum([]byte("hash2"))
+	h3 := hash.SHA256Sum([]byte("hash3"))
+
+	t.Run("non-conflicted updated as expected", func(t *testing.T) {
+		current := []hash.SHA256Hash{h1}
+		incoming := []hash.SHA256Hash{h1, h2}
+
+		diff := missingTransactions(current, incoming)
+
+		assert.Empty(t, diff)
+	})
+
+	t.Run("non-conflicted updated without ref", func(t *testing.T) {
+		current := []hash.SHA256Hash{h1}
+		incoming := []hash.SHA256Hash{h2}
+
+		diff := missingTransactions(current, incoming)
+
+		assert.Len(t, diff, 1)
+		assert.Equal(t, current, diff)
+	})
+
+	t.Run("conflicted resolved", func(t *testing.T) {
+		current := []hash.SHA256Hash{h1, h2}
+		incoming := []hash.SHA256Hash{h1, h2, h3}
+
+		diff := missingTransactions(current, incoming)
+
+		assert.Empty(t, diff)
+	})
 }
 
 func jwkToPublicKey(t *testing.T, jwkStr string) (crypto2.PublicKey, error) {
