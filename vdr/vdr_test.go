@@ -26,11 +26,11 @@ const expectedPayloadType = "application/did+json"
 
 // testCtx contains the controller and mocks needed fot testing the DocUpdater
 type vdrTestCtx struct {
-	ctrl            *gomock.Controller
-	vdr             types.VDR
-	mockStore       *types.MockStore
-	mockNetwork     *network.MockTransactions
-	mockKeyStore    *crypto.MockKeyStore
+	ctrl         *gomock.Controller
+	vdr          types.VDR
+	mockStore    *types.MockStore
+	mockNetwork  *network.MockTransactions
+	mockKeyStore *crypto.MockKeyStore
 }
 
 func newVDRTestCtx(t *testing.T) vdrTestCtx {
@@ -50,11 +50,11 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		didDocCreator:  doc.Creator{KeyStore: mockKeyStore},
 	}
 	return vdrTestCtx{
-		ctrl:            ctrl,
-		vdr:         vdr,
-		mockStore:   mockStore,
-		mockNetwork:    mockNetwork,
-		mockKeyStore:         mockKeyStore,
+		ctrl:         ctrl,
+		vdr:          vdr,
+		mockStore:    mockStore,
+		mockNetwork:  mockNetwork,
+		mockKeyStore: mockKeyStore,
 	}
 }
 

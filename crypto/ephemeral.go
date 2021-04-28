@@ -31,8 +31,8 @@ func NewEphemeralKey(namingFunc KIDNamingFunc) (KeySelector, error) {
 		return nil, err
 	}
 
-	return keySelector {
+	return keySelector{
 		privateKey: key,
-		kid: kid,
+		kid:        kid,
 	}, nil
 }

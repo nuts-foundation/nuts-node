@@ -87,7 +87,6 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-
 // New generates a new key pair.
 // Stores the private key, returns the public key
 // If a key is overwritten is handled by the storage implementation.
@@ -108,7 +107,7 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (KeySelector, error) {
 	log.Logger().Infof("Generated new key pair (id=%s)", kid)
 	return keySelector{
 		privateKey: keyPair,
-		kid: kid,
+		kid:        kid,
 	}, nil
 }
 
@@ -134,7 +133,6 @@ func (client *Crypto) Signer(kid string) (KeySelector, error) {
 		kid:        kid,
 	}, nil
 }
-
 
 type keySelector struct {
 	privateKey crypto.Signer

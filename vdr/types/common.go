@@ -84,7 +84,6 @@ type ResolveMetadata struct {
 	AllowDeactivated bool
 }
 
-
 // DIDCreationOptions defines options for creating a DID Document.
 type DIDCreationOptions struct {
 

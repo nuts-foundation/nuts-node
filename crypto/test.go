@@ -34,7 +34,7 @@ func NewTestKey(kid string) KeySelector {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return keySelector{
 		privateKey: key,
-		kid: kid,
+		kid:        kid,
 	}
 }
 

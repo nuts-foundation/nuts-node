@@ -24,14 +24,14 @@ type TransactionSigner interface {
 // of the used key.
 func NewTransactionSigner(key crypto.KeySelector, attach bool) TransactionSigner {
 	return &transactionSigner{
-		key: key,
+		key:    key,
 		attach: attach,
 	}
 }
 
 type transactionSigner struct {
 	attach bool
-	key crypto.KeySelector
+	key    crypto.KeySelector
 }
 
 func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time) (Transaction, error) {

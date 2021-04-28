@@ -450,8 +450,6 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 
 	payload, _ := json.Marshal(r)
 
-
-
 	_, err = c.network.CreateTransaction(revocationDocumentType, payload, key, false, r.Date, []hash.SHA256Hash{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish revocation: %w", err)

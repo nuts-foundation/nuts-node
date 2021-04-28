@@ -45,7 +45,6 @@ type Creator struct {
 	KeyStore nutsCrypto.KeyCreator
 }
 
-
 // DefaultCreationOptions returns the default DIDCreationOptions: no controllers, CapablilityInvocation = true, AssertionMethod = true and SelfControl = true
 func DefaultCreationOptions() vdr.DIDCreationOptions {
 	return vdr.DIDCreationOptions{
@@ -126,8 +125,8 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 
 	// create the bare document
 	doc := &did.Document{
-		Context: []ssi.URI{did.DIDContextV1URI()},
-		ID:      didID,
+		Context:    []ssi.URI{did.DIDContextV1URI()},
+		ID:         didID,
 		Controller: options.Controllers,
 	}
 
