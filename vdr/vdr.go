@@ -54,7 +54,7 @@ type VDR struct {
 	OnChange          func(registry *VDR)
 	networkAmbassador Ambassador
 	_logger           *logrus.Entry
-	didDocCreator     doc.Creator
+	didDocCreator     types.DocCreator
 	didDocResolver    types.DocResolver
 	keyStore          crypto.KeyStore
 }
@@ -112,26 +112,26 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 }
 
 // Create generates a new DID Document
-func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, error) {
+func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.KeySelector, error) {
 	logging.Log().Debug("Creating new DID Document.")
 	doc, key, err := r.didDocCreator.Create(options)
 	if err != nil {
-		return nil, fmt.Errorf("could not create did document: %w", err)
+		return nil, nil, fmt.Errorf("could not create did document: %w", err)
 	}
 
 	payload, err := json.Marshal(doc)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	_, err = r.network.CreateTransaction(didDocumentType, payload, key, true, time.Now(), []hash.SHA256Hash{})
 	if err != nil {
-		return nil, fmt.Errorf("could not store did document in network: %w", err)
+		return nil, nil, fmt.Errorf("could not store did document in network: %w", err)
 	}
 
 	logging.Log().Infof("New DID Document created (DID=%s)", doc.ID)
 
-	return doc, nil
+	return doc, key, nil
 }
 
 // Update updates a DID Document based on the DID and current hash

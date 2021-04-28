@@ -62,7 +62,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// === End of setup ===
 
 	// Start with a first and fresh document named DocumentA.
-	docA, err := vdr.Create(doc.DefaultCreationOptions())
+	docA, _, err := vdr.Create(doc.DefaultCreationOptions())
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -107,7 +107,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
-	docB, err := vdr.Create(doc.DefaultCreationOptions())
+	docB, _, err := vdr.Create(doc.DefaultCreationOptions())
 	if !assert.NoError(t, err,
 		"unexpected error while creating DocumentB") {
 		return

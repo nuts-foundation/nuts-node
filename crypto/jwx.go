@@ -162,7 +162,7 @@ func SignJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 	if headers.JWK() != nil {
 		var jwkAsPrivateKey crypto.Signer
 		if err := headers.JWK().Raw(&jwkAsPrivateKey); err == nil {
-			// `err != nil` is good in this case, because that means the key is not assignable to crypto.Resolve,
+			// `err != nil` is good in this case, because that means the key is not assignable to crypto.Signer,
 			// which is the interface implemented by all private key types.
 			return "", errors.New("refusing to sign JWS with private key in JWK header")
 		}

@@ -144,10 +144,11 @@ func TestVDR_Create(t *testing.T) {
 	ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
 	ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, key, true, gomock.Any(), gomock.Any())
 
-	didDoc, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+	didDoc, key, err := ctx.vdr.Create(doc.DefaultCreationOptions())
 
 	assert.NoError(t, err)
 	assert.NotNil(t, didDoc)
+	assert.NotNil(t, key)
 }
 
 func TestNewVDR(t *testing.T) {

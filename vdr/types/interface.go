@@ -24,6 +24,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
@@ -44,7 +45,7 @@ type DocCreator interface {
 	// The ID in the provided DID document will be ignored and a new one will be generated.
 	// If something goes wrong an error is returned.
 	// Implementors should generate private key and store it in a secure backend
-	Create(options DIDCreationOptions) (*did.Document, error)
+	Create(options DIDCreationOptions) (*did.Document, crypto2.KeySelector, error)
 }
 
 // DocWriter is the interface that groups al the DID Document write methods

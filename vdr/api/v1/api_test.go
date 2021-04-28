@@ -48,7 +48,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 			didDocReturn = f2.(did.Document)
 			return nil
 		})
-		ctx.vdr.EXPECT().Create(gomock.Any()).Return(didDoc, nil)
+		ctx.vdr.EXPECT().Create(gomock.Any()).Return(didDoc, nil, nil)
 		err := ctx.client.CreateDID(ctx.echo)
 
 		if !assert.NoError(t, err) {
@@ -66,7 +66,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 			*p = didCreateRequest
 			return nil
 		})
-		ctx.vdr.EXPECT().Create(gomock.Any()).Return(nil, errors.New("b00m!"))
+		ctx.vdr.EXPECT().Create(gomock.Any()).Return(nil, nil, errors.New("b00m!"))
 		err := ctx.client.CreateDID(ctx.echo)
 
 		assert.Error(t, err)

@@ -6,8 +6,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 
-	"time"
-
 	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/sirupsen/logrus"
@@ -36,16 +34,4 @@ func NewTestKey(kid string) KeySelector {
 		privateKey: key,
 		kid:        kid,
 	}
-}
-
-type TestSigner struct {
-	Key crypto.Signer
-}
-
-func (t TestSigner) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
-	return t.Key.Public(), nil
-}
-
-func (t *TestSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, _ string) (string, error) {
-	return SignJWS(payload, protectedHeaders, t.Key)
 }

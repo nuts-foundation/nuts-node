@@ -119,7 +119,7 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("create request has invalid combination of options: SelfControl = true and CapablilityInvocation = false"))
 	}
 
-	doc, err := a.VDR.Create(options)
+	doc, _, err := a.VDR.Create(options)
 	// if this operation leads to an error, it may return a 500
 	if err != nil {
 		return err
