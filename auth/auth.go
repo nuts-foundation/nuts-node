@@ -27,7 +27,7 @@ type Auth struct {
 	oauthClient    services.OAuthClient
 	contractClient services.ContractClient
 	contractNotary services.ContractNotary
-	keyStore       crypto.Accessor
+	keyStore       crypto.KeyStore
 	registry       types.Store
 	vcr            vcr.VCR
 }
@@ -53,7 +53,7 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.Accessor) *Auth {
+func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.KeyStore) *Auth {
 	return &Auth{
 		config:   config,
 		registry: registry,

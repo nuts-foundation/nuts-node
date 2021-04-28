@@ -19,10 +19,6 @@
 package network
 
 import (
-	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"fmt"
 	"hash/crc32"
 	"path"
@@ -53,10 +49,7 @@ var receivedTransactions = make(map[string][]dag.SubscriberTransaction, 0)
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest(testDirectory)
-	cryptoInstance := nutsCrypto.NewTestCryptoInstance(testDirectory)
-	key, _, _ := cryptoInstance.New(func(key crypto.PublicKey) (string, error) {
-		return "key", nil
-	})
+	key := nutsCrypto.NewTestKey("key")
 	expectedDocLogSize := 0
 
 	// Start 3 nodes: bootstrap, node1 and node2. Node 1 and 2 connect to the bootstrap node and should discover
@@ -89,13 +82,13 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	}
 
 	// Publish first transaction on node1 and we expect in to come out on node2 and bootstrap
-	if !addTransactionAndWaitForItToArrive(t, "doc1", key, cryptoInstance, node1, "node2", "bootstrap") {
+	if !addTransactionAndWaitForItToArrive(t, "doc1", key, node1, "node2", "bootstrap") {
 		return
 	}
 	expectedDocLogSize++
 
 	// Now the graph has a root, and node2 can publish a transaction
-	if !addTransactionAndWaitForItToArrive(t, "doc2", key, cryptoInstance, node2, "node1", "bootstrap") {
+	if !addTransactionAndWaitForItToArrive(t, "doc2", key, node2, "node1", "bootstrap") {
 		return
 	}
 	expectedDocLogSize++
@@ -120,64 +113,12 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	fmt.Printf("%v\n", node2.Diagnostics())
 }
 
-func TestNetworkIntegration_SignatureIncorrect(t *testing.T) {
-	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest(testDirectory)
-
-	cryptoInstance := nutsCrypto.NewTestCryptoInstance(testDirectory)
-	key, _, _ := cryptoInstance.New(func(key crypto.PublicKey) (string, error) {
-		return "key", nil
-	})
-
-	// Start node 1 and node 2. Node 1 adds 3 transactions:
-	// 1. first transaction is OK, must be received
-	// 2. second transaction has an invalid signature, must be rejected
-	// 3. third transaction is OK, must be  received (to deal with timing issues)
-	node1, err := startNode("node1", path.Join(testDirectory, "node1"))
-	if !assert.NoError(t, err) {
-		return
-	}
-	node2, err := startNode("node2", path.Join(testDirectory, "node2"))
-	if !assert.NoError(t, err) {
-		return
-	}
-	node2.p2pNetwork.ConnectToPeer(nameToAddress("node1"))
-	defer func() {
-		node2.Shutdown()
-		node1.Shutdown()
-	}()
-	// Send first OK transaction and wait for it to be received
-	if !addTransactionAndWaitForItToArrive(t, "first transaction", key, cryptoInstance, node1, "node2") {
-		return
-	}
-
-	// Send second transaction which has an invalid signature (included JWK is incorrect), should be rejected
-	attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	payload := []byte("second transaction")
-	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), payloadType, []hash.SHA256Hash{receivedTransactions["node2"][0].Ref()})
-	craftedTransaction, _ := dag.NewAttachedJWKTransactionSigner(cryptoInstance, "key", attackerKey.PublicKey).Sign(unsignedTransaction, time.Now())
-	node1.payloadStore.WritePayload(hash.SHA256Sum(payload), payload)
-	_ = node1.graph.Add(craftedTransaction)
-	// Send third OK transaction
-	if !addTransactionAndWaitForItToArrive(t, "third transaction", key, cryptoInstance, node2, "node1") {
-		return
-	}
-	// Assert node2 only processed the first and last transaction, node1 all 3
-	assert.Len(t, receivedTransactions["node2"], 2)
-	assert.Len(t, receivedTransactions["node1"], 3)
-	for _, d := range receivedTransactions["node2"] {
-		if d.Ref().Equals(craftedTransaction.Ref()) {
-			t.Error("Node 2 processed the crafted transaction.")
-		}
-	}
-}
-
-func resetIntegrationTest(testDirectory string) {
+func resetIntegrationTest(_ string) {
 	receivedTransactions = make(map[string][]dag.SubscriberTransaction, 0)
 }
 
-func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key crypto.PublicKey, keystore nutsCrypto.Accessor, sender *Network, receivers ...string) bool {
-	expectedTransaction, err := sender.CreateTransaction(payloadType, []byte(payload), "key", key, keystore, time.Now(), []hash.SHA256Hash{})
+func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCrypto.KeySelector, sender *Network, receivers ...string) bool {
+	expectedTransaction, err := sender.CreateTransaction(payloadType, []byte(payload), key, true, time.Now(), []hash.SHA256Hash{})
 	if !assert.NoError(t, err) {
 		return true
 	}

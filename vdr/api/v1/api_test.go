@@ -38,11 +38,17 @@ func TestWrapper_CreateDID(t *testing.T) {
 		ctx := newMockContext(t)
 
 		var didDocReturn did.Document
+		didCreateRequest := DIDCreateRequest{}
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*DIDCreateRequest)
+			*p = didCreateRequest
+			return nil
+		})
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			didDocReturn = f2.(did.Document)
 			return nil
 		})
-		ctx.vdr.EXPECT().Create().Return(didDoc, nil)
+		ctx.vdr.EXPECT().Create(gomock.Any()).Return(didDoc, nil)
 		err := ctx.client.CreateDID(ctx.echo)
 
 		if !assert.NoError(t, err) {
@@ -54,7 +60,13 @@ func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("error - 500", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vdr.EXPECT().Create().Return(nil, errors.New("b00m!"))
+		didCreateRequest := DIDCreateRequest{}
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*DIDCreateRequest)
+			*p = didCreateRequest
+			return nil
+		})
+		ctx.vdr.EXPECT().Create(gomock.Any()).Return(nil, errors.New("b00m!"))
 		err := ctx.client.CreateDID(ctx.echo)
 
 		assert.Error(t, err)

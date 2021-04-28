@@ -7,22 +7,23 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/golang/mock/gomock"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // testCtx contains the controller and mocks needed fot testing the DocUpdater
 type testCtx struct {
-	ctrl        *gomock.Controller
-	vdrMock     *types.MockVDR
-	docResolver *types.MockDocResolver
-	updater     *DocUpdater
+	ctrl            *gomock.Controller
+	mockVDR         *types.MockVDR
+	mockDocResolver *types.MockDocResolver
+	mockKeyStore    *crypto.MockKeyStore
+	updater         *DocUpdater
 }
 
 func newTestCtx(t *testing.T) testCtx {
@@ -30,18 +31,17 @@ func newTestCtx(t *testing.T) testCtx {
 	ctrl := gomock.NewController(t)
 	vdrMock := types.NewMockVDR(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
+	mockKeyStore := crypto.NewMockKeyStore(ctrl)
 	t.Cleanup(func() {
 		ctrl.Finish()
 	})
-	kc := &mockKeyCreator{
-		t:      t,
-		jwkStr: jwkString,
-	}
+	kc := &mockKeyCreator{kid: "did:nuts:123"}
 	return testCtx{
-		ctrl:        ctrl,
-		vdrMock:     vdrMock,
-		docResolver: docResolver,
-		updater:     &DocUpdater{VDR: vdrMock, KeyCreator: kc, Resolver: docResolver},
+		ctrl:            ctrl,
+		mockVDR:         vdrMock,
+		mockDocResolver: docResolver,
+		mockKeyStore:    mockKeyStore,
+		updater:         &DocUpdater{VDR: vdrMock, KeyCreator: kc, Resolver: docResolver},
 	}
 }
 
@@ -53,8 +53,8 @@ func Test_newNamingFnForExistingDID(t *testing.T) {
 	}
 
 	t.Run("it creates a new did", func(t *testing.T) {
-		rawKey, err := jwkToPublicKey(t, jwkString)
-		keyID, err := fn(rawKey)
+		key := crypto.NewTestKey("kid")
+		keyID, err := fn(key.Public())
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -66,8 +66,6 @@ func Test_newNamingFnForExistingDID(t *testing.T) {
 
 		assert.Equal(t, newDID.ID, existingDID.ID,
 			"expected the base to be the same as the existing DID")
-		assert.Equal(t, newDID.Fragment, "J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE",
-			"expected the fragment to be derived from the public key")
 	})
 	t.Run("error on empty key", func(t *testing.T) {
 		keyID, err := fn(nil)
@@ -80,7 +78,7 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 	id123Method, _ := did.ParseDID("did:nuts:123#method-1")
 	doc := &did.Document{ID: *id123}
-	publicKey, _ := jwkToPublicKey(t, jwkString)
+	publicKey := crypto.NewTestKey("did:nuts:123").Public()
 	vm, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, did.DID{}, publicKey)
 	doc.AddCapabilityInvocation(vm)
 	assert.Equal(t, vm, doc.CapabilityInvocation[0].VerificationMethod)
@@ -88,8 +86,8 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestCtx(t)
-		ctx.docResolver.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(doc, &types.DocumentMetadata{}, nil)
-		ctx.vdrMock.EXPECT().Update(*id123, hash.SHA256Hash{}, did.Document{ID: *id123}, nil)
+		ctx.mockDocResolver.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(doc, &types.DocumentMetadata{}, nil)
+		ctx.mockVDR.EXPECT().Update(*id123, hash.SHA256Hash{}, did.Document{ID: *id123}, nil)
 
 		err := ctx.updater.RemoveVerificationMethod(*id123, *id123Method)
 		if !assert.NoError(t, err) {
@@ -101,7 +99,7 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 
 	t.Run("error - verificationMethod is not part of the document", func(t *testing.T) {
 		ctx := newTestCtx(t)
-		ctx.docResolver.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &types.DocumentMetadata{}, nil)
+		ctx.mockDocResolver.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &types.DocumentMetadata{}, nil)
 
 		err := ctx.updater.RemoveVerificationMethod(*id123, *id123Method)
 		assert.EqualError(t, err, "verificationMethod not found in document")
@@ -109,7 +107,7 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 
 	t.Run("error - document is deactivated", func(t *testing.T) {
 		ctx := newTestCtx(t)
-		ctx.docResolver.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &types.DocumentMetadata{Deactivated: true}, nil)
+		ctx.mockDocResolver.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &types.DocumentMetadata{Deactivated: true}, nil)
 
 		err := ctx.updater.RemoveVerificationMethod(*id123, *id123Method)
 		assert.EqualError(t, err, "the DID document has been deactivated")
@@ -120,12 +118,8 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 func TestNutsDocUpdater_CreateNewAuthenticationMethodForDID(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 
-	keyCreator := &mockKeyCreator{
-		t:      t,
-		jwkStr: jwkString,
-	}
-
-	updater := DocUpdater{KeyCreator: keyCreator}
+	kc := &mockKeyCreator{kid: "did:nuts:123#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"}
+	updater := DocUpdater{KeyCreator: kc}
 
 	t.Run("ok", func(t *testing.T) {
 		// Prepare a document with an authenticationMethod:
@@ -154,9 +148,9 @@ func TestNutsDocUpdater_AddKey(t *testing.T) {
 
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil)
+		ctx.mockDocResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil)
 		var updatedDocument did.Document
-		ctx.vdrMock.EXPECT().Update(*id, currentHash, gomock.Any(), nil).Do(func(_ did.DID, _ interface{}, doc did.Document, _ interface{}) {
+		ctx.mockVDR.EXPECT().Update(*id, currentHash, gomock.Any(), nil).Do(func(_ did.DID, _ interface{}, doc did.Document, _ interface{}) {
 			updatedDocument = doc
 		})
 
@@ -176,8 +170,8 @@ func TestNutsDocUpdater_AddKey(t *testing.T) {
 
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil)
-		ctx.vdrMock.EXPECT().Update(*id, currentHash, gomock.Any(), nil).Return(types.ErrNotFound)
+		ctx.mockDocResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil)
+		ctx.mockVDR.EXPECT().Update(*id, currentHash, gomock.Any(), nil).Return(types.ErrNotFound)
 
 		key, err := ctx.updater.AddVerificationMethod(*id)
 		if !assert.Error(t, err) {
@@ -191,7 +185,7 @@ func TestNutsDocUpdater_AddKey(t *testing.T) {
 		ctx := newTestCtx(t)
 
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
-		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash, Deactivated: true}, nil)
+		ctx.mockDocResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash, Deactivated: true}, nil)
 
 		key, err := ctx.updater.AddVerificationMethod(*id)
 		if !assert.Error(t, err) {
@@ -207,16 +201,8 @@ func TestNutsDocUpdater_Deactivate(t *testing.T) {
 	keyID, _ := did.ParseDID("did:nuts:123#key-1")
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	didStoreMock := types.NewMockStore(ctrl)
-	networkMock := network.NewMockTransactions(ctrl)
-	vdr := VDR{
-		store:          didStoreMock,
-		didDocResolver: doc.Resolver{Store: didStoreMock},
-		network:        networkMock,
-	}
-	updater := DocUpdater{VDR: &vdr, Resolver: doc.Resolver{Store: didStoreMock}}
+	ctx := newVDRTestCtx(t)
+	updater := DocUpdater{VDR: ctx.vdr, Resolver: doc.Resolver{Store: ctx.mockStore}, KeyCreator: ctx.mockKeyStore}
 
 	expectedDocument := did.Document{ID: *id, Context: []ssi.URI{did.DIDContextV1URI()}}
 	expectedPayload, _ := json.Marshal(expectedDocument)
@@ -224,10 +210,12 @@ func TestNutsDocUpdater_Deactivate(t *testing.T) {
 	currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 	currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 
-	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any())
+	key := crypto.NewTestKey(keyID.String())
+	ctx.mockKeyStore.EXPECT().Signer(keyID.String()).Return(key, nil)
+	ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, key, false, gomock.Any(), gomock.Any())
 	gomock.InOrder(
-		didStoreMock.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil),
-		didStoreMock.EXPECT().Resolve(*id, &types.ResolveMetadata{Hash: &currentHash, AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil),
+		ctx.mockStore.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil),
+		ctx.mockStore.EXPECT().Resolve(*id, &types.ResolveMetadata{Hash: &currentHash, AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil),
 	)
 
 	err := updater.Deactivate(*id)

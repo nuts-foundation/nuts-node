@@ -155,7 +155,7 @@ func TestService_VerifyVP(t *testing.T) {
 	})
 }
 
-func defaultValidator(t *testing.T) (Service, crypto.Accessor) {
+func defaultValidator(t *testing.T) (Service, crypto.KeyStore) {
 	t.Helper()
 	address := "localhost:1323"
 	serviceConfig := ValidatorConfig{

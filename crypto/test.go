@@ -30,9 +30,12 @@ func StringNamingFunc(name string) KIDNamingFunc {
 	}
 }
 
-func NewTestSigner() *TestSigner {
+func NewTestKey(kid string) KeySelector {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	return &TestSigner{Key: key}
+	return keySelector{
+		privateKey: key,
+		kid: kid,
+	}
 }
 
 type TestSigner struct {
@@ -44,5 +47,5 @@ func (t TestSigner) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error
 }
 
 func (t *TestSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, _ string) (string, error) {
-	return signJWS(payload, protectedHeaders, t.Key)
+	return SignJWSWithKey(payload, protectedHeaders, t.Key)
 }

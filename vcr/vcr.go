@@ -48,11 +48,11 @@ import (
 )
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(signer crypto.JWSSigner, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
 	r := &vcr{
 		config:      DefaultConfig(),
 		registry:    concept.NewRegistry(),
-		signer:      signer,
+		keyStore:    keyStore,
 		keyResolver: keyResolver,
 		network:     network,
 	}
@@ -66,7 +66,7 @@ type vcr struct {
 	registry    concept.Registry
 	config      Config
 	store       leia.Store
-	signer      crypto.JWSSigner
+	keyStore    crypto.KeyStore
 	keyResolver vdr.KeyResolver
 	ambassador  Ambassador
 	network     network.Transactions
@@ -245,11 +245,16 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
 
+	key, err := c.keyStore.Signer(kid.String())
+	if err != nil {
+		return nil, fmt.Errorf("could not resolve kid: %w", err)
+	}
+
 	// set defaults
 	builder.Fill(&credential)
 
 	// sign
-	if err := c.generateProof(&credential, kid); err != nil {
+	if err := c.generateProof(&credential, kid, key); err != nil {
 		return nil, fmt.Errorf("failed to generate credential proof: %w", err)
 	}
 
@@ -260,7 +265,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 
 	payload, _ := json.Marshal(credential)
 
-	_, err = c.network.CreateTransaction(vcDocumentType, payload, kid.String(), nil, c.signer, credential.IssuanceDate, []hash.SHA256Hash{})
+	_, err = c.network.CreateTransaction(vcDocumentType, payload, key, false, credential.IssuanceDate, []hash.SHA256Hash{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
@@ -425,11 +430,16 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
 
+	key, err := c.keyStore.Signer(kid.String())
+	if err != nil {
+		return nil, fmt.Errorf("could not resolve kid: %w", err)
+	}
+
 	// set defaults
 	r := credential.BuildRevocation(target)
 
 	// sign
-	if err = c.generateRevocationProof(&r, kid); err != nil {
+	if err = c.generateRevocationProof(&r, kid, key); err != nil {
 		return nil, fmt.Errorf("failed to generate revocation proof: %w", err)
 	}
 
@@ -440,7 +450,9 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 
 	payload, _ := json.Marshal(r)
 
-	_, err = c.network.CreateTransaction(revocationDocumentType, payload, kid.String(), nil, c.signer, r.Date, []hash.SHA256Hash{})
+
+
+	_, err = c.network.CreateTransaction(revocationDocumentType, payload, key, false, r.Date, []hash.SHA256Hash{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish revocation: %w", err)
 	}
@@ -643,7 +655,7 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	return qs
 }
 
-func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI) error {
+func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, key crypto.KeySelector) error {
 	// create proof
 	pr := vc.Proof{
 		Type:               "JsonWebSignature2020",
@@ -659,7 +671,7 @@ func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI) er
 		return err
 	}
 
-	sig, err := c.signer.SignJWS(challenge, detachedJWSHeaders(), kid.String())
+	sig, err := crypto.SignJWSWithKey(challenge, detachedJWSHeaders(), key.Signer())
 	if err != nil {
 		return err
 	}
@@ -677,7 +689,7 @@ func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI) er
 	return nil
 }
 
-func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI) error {
+func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI, key crypto.KeySelector) error {
 	// create proof
 	r.Proof = &vc.JSONWebSignature2020Proof{
 		Proof: vc.Proof{
@@ -691,7 +703,7 @@ func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI) err
 	// create correct signing challenge
 	challenge := generateRevocationChallenge(*r)
 
-	sig, err := c.signer.SignJWS(challenge, detachedJWSHeaders(), kid.String())
+	sig, err := crypto.SignJWSWithKey(challenge, detachedJWSHeaders(), key.Signer())
 	if err != nil {
 		return err
 	}

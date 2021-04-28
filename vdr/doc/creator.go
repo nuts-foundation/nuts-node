@@ -42,7 +42,7 @@ const NutsDIDMethodName = "nuts"
 // Creator implements the DocCreator interface and can create Nuts DID Documents.
 type Creator struct {
 	// KeyStore is used for getting a fresh key and use it to generate the Nuts DID
-	KeyStore nutsCrypto.Accessor
+	KeyStore nutsCrypto.KeyCreator
 }
 
 
@@ -101,20 +101,23 @@ func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
 // The key is added to the verificationMethod list and referred to from the Authentication list
 // todo options validation
 // todo return values
-func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCrypto.Accessor, string, crypto.PublicKey, error) {
+// todo interface
+func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCrypto.KeySelector, error) {
 	// First, generate a new keyPair with the correct kid
-	keyStore := n.KeyStore
+	var key nutsCrypto.KeySelector
+	var err error
 	if options.SelfControl {
-		keyStore = nutsCrypto.NewEphemeralKeyStore()
+		key, err = n.KeyStore.New(didKIDNamingFunc)
+	} else {
+		key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
+	}
+	if err != nil {
+		return nil, nil, err
 	}
 
-	publicKey, kidStr, err := keyStore.New(didKIDNamingFunc)
+	keyID, err := did.ParseDID(key.KID())
 	if err != nil {
-		return nil, nil, "", nil, err
-	}
-	keyID, err := did.ParseDID(kidStr)
-	if err != nil {
-		return nil, nil, "", nil, err
+		return nil, nil, err
 	}
 
 	// The Document DID will be the keyIDStr without the fragment:
@@ -125,30 +128,33 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 	doc := &did.Document{
 		Context: []ssi.URI{did.DIDContextV1URI()},
 		ID:      didID,
+		Controller: options.Controllers,
 	}
 
 	var verificationMethod *did.VerificationMethod
 	if options.SelfControl {
 		// Add VerificationMethod using generated key
-		verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, publicKey)
+		verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
 		if err != nil {
-			return nil, nil, "", nil, err
+			return nil, nil, err
 		}
-		// also set as controller
-		doc.Controller = append(doc.Controller, didID)
+		if len(options.Controllers) > 0 {
+			// also set as controller
+			doc.Controller = append(doc.Controller, didID)
+		}
 	} else {
 		// Generate new key for other key capabilities, store the private key
-		capPub, capKidStr, err := n.KeyStore.New(didKIDNamingFunc)
+		capKey, err := n.KeyStore.New(didKIDNamingFunc)
 		if err != nil {
-			return nil, nil, "", nil, err
+			return nil, nil, err
 		}
-		capKeyID, err := did.ParseDID(capKidStr)
+		capKeyID, err := did.ParseDID(capKey.KID())
 		if err != nil {
-			return nil, nil, "", nil, err
+			return nil, nil, err
 		}
-		verificationMethod, err = did.NewVerificationMethod(*capKeyID, ssi.JsonWebKey2020, did.DID{}, capPub)
+		verificationMethod, err = did.NewVerificationMethod(*capKeyID, ssi.JsonWebKey2020, did.DID{}, capKey.Public())
 		if err != nil {
-			return nil, nil, "", nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -169,11 +175,6 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 		doc.AddKeyAgreement(verificationMethod)
 	}
 
-	// controllers
-	for _, c := range options.Controllers {
-		doc.Controller = append(doc.Controller, c)
-	}
-
 	// return the doc and the keyCreator that created the private key
-	return doc, keyStore, kidStr, publicKey, nil
+	return doc, key, nil
 }

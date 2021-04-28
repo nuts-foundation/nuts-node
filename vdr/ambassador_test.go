@@ -26,47 +26,12 @@ import (
 
 // mockKeyCreator can create new keys based on a predefined key
 type mockKeyCreator struct {
-	// jwkStr hold the predefined key in a json web key string
-	jwkStr string
-	t      *testing.T
+	kid string
 }
 
 // New uses a predefined ECDSA key and calls the namingFunc to get the kid
-func (m *mockKeyCreator) New(namingFunc crypto.KIDNamingFunc) (crypto2.PublicKey, string, error) {
-	rawKey, err := jwkToPublicKey(m.t, m.jwkStr)
-	if err != nil {
-		return nil, "", err
-	}
-	kid, err := namingFunc(rawKey)
-	if err != nil {
-		return nil, "", err
-	}
-	return rawKey, kid, nil
-}
-
-var jwkString = `{"crv":"P-256","kid":"did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
-
-type didStoreMock struct {
-	err error
-}
-
-func (d didStoreMock) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
-	if d.err != nil {
-		return nil, nil, d.err
-	}
-	return &did.Document{ID: id}, &types.DocumentMetadata{}, nil
-}
-
-func (d didStoreMock) Write(document did.Document, metadata types.DocumentMetadata) error {
-	panic("implement me")
-}
-
-func (d didStoreMock) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *types.DocumentMetadata) error {
-	panic("implement me")
-}
-
-func (d didStoreMock) Iterate(fn types.DocIterator) error {
-	panic("implement me")
+func (m *mockKeyCreator) New(_ crypto.KIDNamingFunc) (crypto.KeySelector, error) {
+	return crypto.NewTestKey(m.kid), nil
 }
 
 type subscriberTransaction struct {
@@ -114,6 +79,8 @@ func (s subscriberTransaction) Version() dag.Version {
 	panic("implement me")
 }
 
+const signingKeyID = "did:nuts:123#validKeyID123"
+
 func Test_ambassador_callback(t *testing.T) {
 	signingTime := time.Now()
 	createdAt := time.Now().Add(-10 * time.Hour * 24)
@@ -122,27 +89,12 @@ func Test_ambassador_callback(t *testing.T) {
 
 	newSubscriberTx := func() subscriberTransaction {
 		return subscriberTransaction{
-			signingKeyID: "validKeyID123",
+			signingKeyID: signingKeyID,
 			signingTime:  signingTime,
 			ref:          ref,
 			payloadHash:  payloadHash,
 			payloadType:  didDocumentType,
 		}
-	}
-
-	newDidDoc := func() (did.Document, jwk.Key, error) {
-		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		signingKey, _ := jwk.New(pair.PublicKey)
-		keyStr, _ := json.Marshal(signingKey)
-
-		kc := &mockKeyCreator{
-			t:      t,
-			jwkStr: string(keyStr),
-		}
-		docCreator := doc.Creator{KeyStore: kc}
-		didDocument, err := docCreator.Create()
-		signingKey.Set(jwk.KeyIDKey, didDocument.CapabilityInvocation[0].ID.String())
-		return *didDocument, signingKey, err
 	}
 
 	t.Run("create ok - a new document", func(t *testing.T) {
@@ -176,8 +128,6 @@ func Test_ambassador_callback(t *testing.T) {
 			Hash:               payloadHash,
 			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
 		}
-		var rawKey crypto2.PublicKey
-		signingKey.Raw(&rawKey)
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 		didStoreMock.EXPECT().Write(expectedDocument, expectedMetadata)
@@ -362,9 +312,9 @@ func Test_ambassador_callback(t *testing.T) {
 		signingKey.Raw(&pKey)
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&storedDocument, currentMetadata, nil)
-		resolverMock.EXPECT().ResolveControllers(didDocument).Return([]did.Document{didDocument}, nil)
-		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
-		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
+		resolverMock.EXPECT().ResolveControllers(storedDocument).Return([]did.Document{storedDocument}, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
+		didStoreMock.EXPECT().Update(storedDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
 
 		err = am.callback(subDoc, didDocPayload)
 		assert.NoError(t, err)
@@ -418,7 +368,7 @@ func Test_ambassador_callback(t *testing.T) {
 		signingKey.Raw(&pKey)
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
-		resolverMock.EXPECT().ResolveControllers(didDocument).Return([]did.Document{didDocument}, nil)
+		resolverMock.EXPECT().ResolveControllers(expectedDocument).Return([]did.Document{expectedDocument}, nil)
 		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
@@ -506,7 +456,7 @@ func Test_ambassador_callback(t *testing.T) {
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
-		resolverMock.EXPECT().ResolveControllers(didDocument).Return([]did.Document{didDocumentController}, nil)
+		resolverMock.EXPECT().ResolveControllers(expectedDocument).Return([]did.Document{didDocumentController}, nil)
 		keyStoreMock.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
@@ -584,7 +534,7 @@ func Test_ambassador_callback(t *testing.T) {
 		// expect a resolve for previous versions of the did document
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
 		// expect a resolve for the did documents controller
-		resolverMock.EXPECT().ResolveControllers(didDocument).Return([]did.Document{didDocumentController}, nil)
+		resolverMock.EXPECT().ResolveControllers(expectedDocument).Return([]did.Document{didDocumentController}, nil)
 
 		keyStoreMock.EXPECT().ResolvePublicKey(keyID, &subDoc.signingTime).Return(pKey, nil)
 
@@ -747,17 +697,11 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	}
 }
 
-func newDidDoc(t *testing.T) (did.Document, jwk.Key, error) {
-	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	signingKey, _ := jwk.New(pair.PublicKey)
-	keyStr, _ := json.Marshal(signingKey)
-
-	kc := &mockKeyCreator{
-		t:      t,
-		jwkStr: string(keyStr),
-	}
+func newDidDoc() (did.Document, jwk.Key, error) {
+	kc := &mockKeyCreator{signingKeyID}
 	docCreator := doc.Creator{KeyStore: kc}
-	didDocument, err := docCreator.Create()
+	didDocument, key, err := docCreator.Create(doc.DefaultCreationOptions())
+	signingKey, _ := jwk.New(key.Public())
 	if err != nil {
 		return did.Document{}, nil, err
 	}
@@ -784,24 +728,24 @@ func Test_checkDIDDocumentIntegrity(t *testing.T) {
 		wantedErr error
 	}{
 		{"ok - valid document", func(t *testing.T, a *args) {
-			didDoc, _, _ := newDidDoc(t)
+			didDoc, _, _ := newDidDoc()
 			a.doc = didDoc
 		}, nil},
 		//
 		// Verification methods
 		//
 		{"nok - verificationMethod ID has no fragment", func(t *testing.T, a *args) {
-			didDoc, _, _ := newDidDoc(t)
+			didDoc, _, _ := newDidDoc()
 			didDoc.VerificationMethod[0].ID.Fragment = ""
 			a.doc = didDoc
 		}, errors.New("invalid verificationMethod: ID must have a fragment")},
 		{"nok - verificationMethod ID has wrong prefix", func(t *testing.T, a *args) {
-			didDoc, _, _ := newDidDoc(t)
+			didDoc, _, _ := newDidDoc()
 			didDoc.VerificationMethod[0].ID.ID = "foo:123"
 			a.doc = didDoc
 		}, errors.New("invalid verificationMethod: ID must have document prefix")},
 		{"nok - verificationMethod with duplicate id", func(t *testing.T, a *args) {
-			didDoc, _, _ := newDidDoc(t)
+			didDoc, _, _ := newDidDoc()
 			method := didDoc.VerificationMethod[0]
 			didDoc.VerificationMethod = append(didDoc.VerificationMethod, method)
 			a.doc = didDoc
@@ -810,18 +754,18 @@ func Test_checkDIDDocumentIntegrity(t *testing.T) {
 		// Services
 		//
 		{"nok - service with duplicate id", func(t *testing.T, a *args) {
-			didDoc, _, _ := newDidDoc(t)
+			didDoc, _, _ := newDidDoc()
 			svc := didDoc.Service[0]
 			didDoc.Service = append(didDoc.Service, svc)
 			a.doc = didDoc
 		}, errors.New("invalid service: ID must be unique")},
 		{"nok - service ID has no fragment", func(t *testing.T, a *args) {
-			didDoc, _, _ := newDidDoc(t)
+			didDoc, _, _ := newDidDoc()
 			didDoc.Service[0].ID.Fragment = ""
 			a.doc = didDoc
 		}, errors.New("invalid service: ID must have a fragment")},
 		{"nok - service ID has wrong prefix", func(t *testing.T, a *args) {
-			didDoc, _, _ := newDidDoc(t)
+			didDoc, _, _ := newDidDoc()
 			uri, _ := ssi.ParseURI("did:foo:123#foobar")
 			didDoc.Service[0].ID = *uri
 			a.doc = didDoc
@@ -884,18 +828,4 @@ func Test_missingTransactions(t *testing.T) {
 
 		assert.Empty(t, diff)
 	})
-}
-
-func jwkToPublicKey(t *testing.T, jwkStr string) (crypto2.PublicKey, error) {
-	t.Helper()
-	keySet, err := jwk.ParseString(jwkStr)
-	if !assert.NoError(t, err) {
-		return nil, err
-	}
-	key, _ := keySet.Get(0)
-	var rawKey crypto2.PublicKey
-	if err = key.Raw(&rawKey); err != nil {
-		return nil, err
-	}
-	return rawKey, nil
 }

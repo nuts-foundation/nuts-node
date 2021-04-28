@@ -19,7 +19,6 @@
 package network
 
 import (
-	crypto2 "crypto"
 	"crypto/tls"
 	"fmt"
 	"os"
@@ -163,9 +162,9 @@ func (n *Network) ListTransactions() ([]dag.Transaction, error) {
 
 // CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
 // If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
-func (n *Network) CreateTransaction(payloadType string, payload []byte, signingKeyID string, attachKey crypto2.PublicKey, jwsSigner crypto.JWSSigner, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
+func (n *Network) CreateTransaction(payloadType string, payload []byte, key crypto.KeySelector, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
 	payloadHash := hash.SHA256Sum(payload)
-	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), signingKeyID)
+	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), key.KID())
 
 	// Create transaction
 	prevs := n.graph.Heads()
@@ -179,11 +178,7 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, signingK
 	// Sign it
 	var transaction dag.Transaction
 	var signer dag.TransactionSigner
-	if attachKey != nil {
-		signer = dag.NewAttachedJWKTransactionSigner(jwsSigner, signingKeyID, attachKey)
-	} else {
-		signer = dag.NewTransactionSigner(jwsSigner, signingKeyID)
-	}
+	signer = dag.NewTransactionSigner(key, attachKey)
 	transaction, err = signer.Sign(unsignedTransaction, timestamp)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign newly created transaction: %w", err)

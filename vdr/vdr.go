@@ -56,11 +56,11 @@ type VDR struct {
 	_logger           *logrus.Entry
 	didDocCreator     doc.Creator
 	didDocResolver    types.DocResolver
-	keyStore          crypto.Accessor
+	keyStore          crypto.KeyStore
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.Accessor, networkClient network.Transactions, store types.Store) *VDR {
+func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store types.Store) *VDR {
 	return &VDR{
 		config:            config,
 		network:           networkClient,
@@ -114,7 +114,7 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 // Create generates a new DID Document
 func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, error) {
 	logging.Log().Debug("Creating new DID Document.")
-	doc, keystore, kid, pub, err := r.didDocCreator.Create(options)
+	doc, key, err := r.didDocCreator.Create(options)
 	if err != nil {
 		return nil, fmt.Errorf("could not create did document: %w", err)
 	}
@@ -124,7 +124,7 @@ func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, error) {
 		return nil, err
 	}
 
-	_, err = r.network.CreateTransaction(didDocumentType, payload, kid, pub, keystore, time.Now(), []hash.SHA256Hash{})
+	_, err = r.network.CreateTransaction(didDocumentType, payload, key, true, time.Now(), []hash.SHA256Hash{})
 	if err != nil {
 		return nil, fmt.Errorf("could not store did document in network: %w", err)
 	}
@@ -162,9 +162,15 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return err
 	}
 
-	keyID := controllers[0].CapabilityInvocation[0].ID.String()
+	key, err := r.keyStore.Signer(controllers[0].CapabilityInvocation[0].ID.String())
+	if err != nil {
+		if errors.Is(err, crypto.ErrKeyNotFound) {
+			return types.ErrDIDNotManagedByThisNode
+		}
+		return fmt.Errorf("could not find key from controller: %w", err)
+	}
 
-	_, err = r.network.CreateTransaction(didDocumentType, payload, keyID, nil, r.keyStore, time.Now(), currentMeta.SourceTransactions)
+	_, err = r.network.CreateTransaction(didDocumentType, payload, key, false, time.Now(), currentMeta.SourceTransactions)
 	if err == nil {
 		logging.Log().Infof("DID Document updated (DID=%s)", id)
 	} else {

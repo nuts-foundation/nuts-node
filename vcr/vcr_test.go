@@ -32,6 +32,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-leia"
@@ -251,13 +252,12 @@ func TestVcr_Issue(t *testing.T) {
 			Type: "test",
 		}
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
+		ctx.crypto.EXPECT().Signer(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
 			gomock.Any(),
-			vdr.TestDIDA.String(),
-			nil,
 			gomock.Any(),
+			false,
 			gomock.Any(),
 			gomock.Any(),
 		).Return(nil, nil)
@@ -279,7 +279,7 @@ func TestVcr_Issue(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, "hdr..sig", proof[0].Jws)
+		assert.Contains(t, proof[0].Jws, "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..")
 	})
 
 	t.Run("error - too many types", func(t *testing.T) {
@@ -342,7 +342,7 @@ func TestVcr_Issue(t *testing.T) {
 		cred := validNutsOrganizationCredential()
 		cred.CredentialSubject = make([]interface{}, 0)
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
+		ctx.crypto.EXPECT().Signer(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 
 		_, err := instance.Issue(*cred)
 
@@ -350,14 +350,14 @@ func TestVcr_Issue(t *testing.T) {
 		assert.True(t, errors.Is(err, credential.ErrValidation))
 	})
 
-	t.Run("error - signing failed", func(t *testing.T) {
+	t.Run("error - getting signer failed", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("", errors.New("b00m!"))
+		ctx.crypto.EXPECT().Signer(vdr.TestDIDA.String()).Return(nil, errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
 
@@ -368,16 +368,16 @@ func TestVcr_Issue(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		defer ctx.ctrl.Finish()
+		key := crypto.NewTestKey("kid")
 
 		cred := validNutsOrganizationCredential()
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
+		ctx.crypto.EXPECT().Signer(vdr.TestDIDA.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
 			gomock.Any(),
-			vdr.TestDIDA.String(),
-			nil,
-			gomock.Any(),
+			key,
+			false,
 			gomock.Any(),
 			gomock.Any(),
 		).Return(nil, errors.New("b00m!"))
@@ -593,17 +593,18 @@ func TestVcr_Revoke(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
+		key := crypto.NewTestKey("kid")
+
 		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vc.Issuer.String()).Return("hdr..sig", nil)
+		ctx.crypto.EXPECT().Signer(vc.Issuer.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			revocationDocumentType,
 			gomock.Any(),
-			vc.Issuer.String(),
-			nil,
-			gomock.Any(),
+			key,
+			false,
 			gomock.Any(),
 			gomock.Any(),
 		)
@@ -614,7 +615,7 @@ func TestVcr_Revoke(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, "hdr..sig", r.Proof.Jws)
+		assert.Contains(t, r.Proof.Jws, "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..")
 	})
 
 	t.Run("error - not found", func(t *testing.T) {

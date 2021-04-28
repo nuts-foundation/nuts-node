@@ -14,7 +14,7 @@ import (
 // DocUpdater contains helper methods to update a Nuts DID document.
 type DocUpdater struct {
 	// KeyCreator is used for getting a fresh key and use it to generate the Nuts DID
-	KeyCreator nutsCrypto.Accessor
+	KeyCreator nutsCrypto.KeyCreator
 	// VDR is used for updating/publishing DID documents after the operation has been performed
 	VDR types.VDR
 	// Resolver is used for resolving DID Documents
@@ -83,22 +83,22 @@ func (u DocUpdater) RemoveVerificationMethod(id, keyID did.DID) error {
 // CreateNewAuthenticationMethodForDocument creates a new VerificationMethod of type JsonWebKey2020
 // with a freshly generated key for a given DID.
 func (u DocUpdater) createNewVerificationMethodForDID(id did.DID) (*did.VerificationMethod, error) {
-	key, keyIDStr, err := u.KeyCreator.New(newNamingFnForExistingDID(id))
+	key, err := u.KeyCreator.New(newNamingFnForExistingDID(id))
 	if err != nil {
 		return nil, err
 	}
-	keyID, err := did.ParseDID(keyIDStr)
+	keyID, err := did.ParseDID(key.KID())
 	if err != nil {
 		return nil, err
 	}
-	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, id, key)
+	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, id, key.Public())
 	if err != nil {
 		return nil, err
 	}
 	return method, nil
 }
 
-// newNamingFnForExistingDID returns a KIDNamingFunc that can be used as param in the Accessor.New function.
+// newNamingFnForExistingDID returns a KIDNamingFunc that can be used as param in the KeyStore.New function.
 // It wraps the KIDNamingFunc with the context of the DID of the document.
 // It returns a keyID in the form of the documents DID with the new keys thumbprint as fragment.
 func newNamingFnForExistingDID(existingDID did.DID) nutsCrypto.KIDNamingFunc {

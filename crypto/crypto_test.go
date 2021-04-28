@@ -53,17 +53,18 @@ func TestCrypto_New(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		kid := "kid"
-		publicKey, returnKid, err := client.New(StringNamingFunc(kid))
+		key, err := client.New(StringNamingFunc(kid))
 		assert.NoError(t, err)
-		assert.NotNil(t, publicKey)
-		assert.Equal(t, kid, returnKid)
+		assert.NotNil(t, key.Signer())
+		assert.NotNil(t, key.Public())
+		assert.Equal(t, kid, key.KID())
 	})
 
 	t.Run("error - NamingFunction returns err", func(t *testing.T) {
 		errorNamingFunc := func(key crypto.PublicKey) (string, error) {
 			return "", errors.New("b00m!")
 		}
-		_, _, err := client.New(errorNamingFunc)
+		_, err := client.New(errorNamingFunc)
 		assert.Error(t, err)
 	})
 
@@ -74,9 +75,8 @@ func TestCrypto_New(t *testing.T) {
 		storageMock.EXPECT().SavePrivateKey(gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
 		client := &Crypto{Storage: storageMock}
-		key, name, err := client.New(StringNamingFunc("123"))
+		key, err := client.New(StringNamingFunc("123"))
 		assert.Nil(t, key)
-		assert.Empty(t, name)
 		assert.Error(t, err)
 		assert.Equal(t, "could not create new keypair: could not save private key: foo", err.Error())
 	})

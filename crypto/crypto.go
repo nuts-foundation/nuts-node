@@ -92,21 +92,24 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 // Stores the private key, returns the public key
 // If a key is overwritten is handled by the storage implementation.
 // (it's considered bad practise to reuse a kid for different keys)
-func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error) {
+func (client *Crypto) New(namingFunc KIDNamingFunc) (KeySelector, error) {
 	keyPair, err := generateECKeyPair()
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	kid, err := namingFunc(keyPair.Public())
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
-		return nil, "", fmt.Errorf("could not create new keypair: could not save private key: %w", err)
+		return nil, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
 	log.Logger().Infof("Generated new key pair (id=%s)", kid)
-	return keyPair.PublicKey, kid, nil
+	return keySelector{
+		privateKey: keyPair,
+		kid: kid,
+	}, nil
 }
 
 func generateECKeyPair() (*ecdsa.PrivateKey, error) {
@@ -118,6 +121,34 @@ func (client *Crypto) PrivateKeyExists(kid string) bool {
 	return client.Storage.PrivateKeyExists(kid)
 }
 
-func (client *Crypto) Signer(kid string) (crypto.Signer, error) {
-	return client.Storage.GetPrivateKey(kid)
+func (client *Crypto) Signer(kid string) (KeySelector, error) {
+	keypair, err := client.Storage.GetPrivateKey(kid)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, ErrKeyNotFound
+		}
+		return nil, err
+	}
+	return keySelector{
+		privateKey: keypair,
+		kid:        kid,
+	}, nil
+}
+
+
+type keySelector struct {
+	privateKey crypto.Signer
+	kid        string
+}
+
+func (e keySelector) Signer() crypto.Signer {
+	return e.privateKey
+}
+
+func (e keySelector) KID() string {
+	return e.kid
+}
+
+func (e keySelector) Public() crypto.PublicKey {
+	return e.privateKey.Public()
 }

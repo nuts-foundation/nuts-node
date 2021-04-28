@@ -19,73 +19,20 @@
 
 package crypto
 
-import (
-	"crypto"
-	"crypto/ecdsa"
-
-	"github.com/lestrrat-go/jwx/jwk"
-)
-
-// NewEphemeralKeyStore returns a Accessor with a single key for single use.
-func NewEphemeralKeyStore() Accessor {
+// NewEphemeralKey returns a KeySelector with a single key for single use.
+func NewEphemeralKey(namingFunc KIDNamingFunc) (KeySelector, error) {
 	key, err := generateECKeyPair()
-	return &ephemeralKeyStore {
-		privateKey: key,
-		err: err,
-	}
-}
-
-type ephemeralKeyStore struct {
-	privateKey *ecdsa.PrivateKey
-	kid        string
-	err        error
-}
-
-func (e ephemeralKeyStore) PrivateKeyExists(kid string) bool {
-	return e.kid == kid
-}
-
-func (e *ephemeralKeyStore) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error) {
-	if e.err != nil {
-		return nil, "", e.err
-	}
-
-	pub := e.privateKey.Public()
-	e.kid, e.err = namingFunc(pub)
-
-	return pub, e.kid, e.err
-}
-
-func (e *ephemeralKeyStore) Signer(kid string) (crypto.Signer, error) {
-	if e.kid == kid {
-		return e.privateKey, nil
-	}
-
-	return nil, ErrKeyNotFound
-}
-
-// SignJWS creates a signed JWS (in compact form using) the given key (private key must be present), protected headers and payload.
-func (e *ephemeralKeyStore) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
-	if kid != kid {
-		return "", ErrKeyNotFound
-	}
-
-	return signJWS(payload, protectedHeaders, e.privateKey)
-}
-
-func (e ephemeralKeyStore) SignJWT(claims map[string]interface{}, kid string) (string, error) {
-	if kid != kid {
-		return "", ErrKeyNotFound
-	}
-
-	key, err := jwkKey(e.privateKey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	if err = key.Set(jwk.KeyIDKey, kid); err != nil {
-		return "", err
+	kid, err := namingFunc(key.PublicKey)
+	if err != nil {
+		return nil, err
 	}
 
-	return SignJWT(key, claims, nil)
+	return keySelector {
+		privateKey: key,
+		kid: kid,
+	}, nil
 }

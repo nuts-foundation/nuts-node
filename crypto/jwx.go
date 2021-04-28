@@ -78,7 +78,7 @@ func (client *Crypto) SignJWS(payload []byte, protectedHeaders map[string]interf
 		}
 		return "", fmt.Errorf("error while signing JWS, can't get private key: %w", err)
 	}
-	return signJWS(payload, protectedHeaders, privateKey)
+	return SignJWSWithKey(payload, protectedHeaders, privateKey)
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
@@ -157,7 +157,7 @@ func ParseJWT(tokenString string, f PublicKeyFunc) (jwt.Token, error) {
 	return jwt.ParseString(tokenString, jwt.WithVerify(alg, key), jwt.WithValidate(true))
 }
 
-func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer) (string, error) {
+func SignJWSWithKey(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer) (string, error) {
 	headers := jws.NewHeaders()
 	for key, value := range protectedHeaders {
 		if err := headers.Set(key, value); err != nil {

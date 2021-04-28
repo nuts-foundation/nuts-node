@@ -1,9 +1,6 @@
 package vdr
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -27,21 +24,48 @@ import (
 
 const expectedPayloadType = "application/did+json"
 
+// testCtx contains the controller and mocks needed fot testing the DocUpdater
+type vdrTestCtx struct {
+	ctrl            *gomock.Controller
+	vdr             types.VDR
+	mockStore       *types.MockStore
+	mockNetwork     *network.MockTransactions
+	mockKeyStore    *crypto.MockKeyStore
+}
+
+func newVDRTestCtx(t *testing.T) vdrTestCtx {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	mockStore := types.NewMockStore(ctrl)
+	mockNetwork := network.NewMockTransactions(ctrl)
+	mockKeyStore := crypto.NewMockKeyStore(ctrl)
+	t.Cleanup(func() {
+		ctrl.Finish()
+	})
+	vdr := VDR{
+		store:          mockStore,
+		didDocResolver: doc.Resolver{Store: mockStore},
+		network:        mockNetwork,
+		keyStore:       mockKeyStore,
+		didDocCreator:  doc.Creator{KeyStore: mockKeyStore},
+	}
+	return vdrTestCtx{
+		ctrl:            ctrl,
+		vdr:         vdr,
+		mockStore:   mockStore,
+		mockNetwork:    mockNetwork,
+		mockKeyStore:         mockKeyStore,
+	}
+}
+
 func TestVDR_Update(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
 	keyID, _ := did.ParseDID("did:nuts:123#key-1")
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
 
 	t.Run("ok", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		didStoreMock := types.NewMockStore(ctrl)
-		networkMock := network.NewMockTransactions(ctrl)
-		vdr := VDR{
-			store:          didStoreMock,
-			didDocResolver: doc.Resolver{Store: didStoreMock},
-			network:        networkMock,
-		}
+		ctx := newVDRTestCtx(t)
+
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 
@@ -52,22 +76,17 @@ func TestVDR_Update(t *testing.T) {
 		}
 		resolvedMetadata := types.DocumentMetadata{}
 		expectedPayload, _ := json.Marshal(nextDIDDocument)
-		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), nil, gomock.Any(), gomock.Any())
-		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
+		ctx.mockKeyStore.EXPECT().Signer(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
+		ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, gomock.Any(), false, gomock.Any(), gomock.Any())
+
+		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
+
 		assert.NoError(t, err)
 	})
 
 	t.Run("error - no controller for document", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		didStoreMock := types.NewMockStore(ctrl)
-		networkMock := network.NewMockTransactions(ctrl)
-		vdr := VDR{
-			store:          didStoreMock,
-			didDocResolver: doc.Resolver{Store: didStoreMock},
-			network:        networkMock,
-		}
+		ctx := newVDRTestCtx(t)
 		currentDIDDocument := did.Document{ID: *id}
 
 		nextDIDDocument := did.Document{}
@@ -76,47 +95,32 @@ func TestVDR_Update(t *testing.T) {
 			AllowDeactivated: true,
 		}
 		resolvedMetadata := types.DocumentMetadata{}
-		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
+		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
 		assert.EqualError(t, err, "the DID document has been deactivated")
 	})
 	t.Run("error - could not resolve current document", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		didStoreMock := types.NewMockStore(ctrl)
-		networkMock := network.NewMockTransactions(ctrl)
-		vdr := VDR{
-			store:          didStoreMock,
-			didDocResolver: doc.Resolver{Store: didStoreMock},
-			network:        networkMock,
-		}
+		ctx := newVDRTestCtx(t)
 		nextDIDDocument := did.Document{}
 		expectedResolverMetadata := &types.ResolveMetadata{
 			Hash:             &currentHash,
 			AllowDeactivated: true,
 		}
-		didStoreMock.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
-		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
+		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
 		assert.EqualError(t, err, "unable to find the DID document")
 	})
 
 	t.Run("error - document not managed by this node", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		didStoreMock := types.NewMockStore(ctrl)
-		networkMock := network.NewMockTransactions(ctrl)
-
-		vdr := VDR{
-			store:          didStoreMock,
-			didDocResolver: doc.Resolver{Store: didStoreMock},
-			network:        networkMock,
-		}
+		ctx := newVDRTestCtx(t)
 		nextDIDDocument := did.Document{ID: *id}
 		currentDIDDocument := nextDIDDocument
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		didStoreMock.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
-		networkMock.EXPECT().CreateTransaction(gomock.Any(), gomock.Any(), gomock.Any(), nil, gomock.Any(), gomock.Any()).Return(nil, crypto.ErrKeyNotFound)
-		err := vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		ctx.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
+		ctx.mockKeyStore.EXPECT().Signer(keyID.String()).Return(nil, crypto.ErrKeyNotFound)
+
+		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
+
 		assert.Error(t, err)
 		assert.EqualError(t, err, "DID document not managed by this node")
 		assert.True(t, errors.Is(err, types.ErrDIDNotManagedByThisNode),
@@ -124,32 +128,24 @@ func TestVDR_Update(t *testing.T) {
 	})
 }
 func TestVDR_Create(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	networkMock := network.NewMockTransactions(ctrl)
-	didCreator := types.NewMockDocCreator(ctrl)
-
-	vdr := VDR{
-		network:       networkMock,
-		didDocCreator: didCreator,
-	}
+	ctx := newVDRTestCtx(t)
+	key := crypto.NewTestKey("did:nuts:123#key-1")
 	id, _ := did.ParseDID("did:nuts:123")
-	keyID, _ := did.ParseDID(id.String() + "#key-1")
-	nextDIDDocument := did.Document{ID: *id}
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if !assert.NoError(t, err) {
-		return
-	}
-	vm, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, privateKey.PublicKey)
+	keyID, _ := did.ParseDID(key.KID())
+	nextDIDDocument := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: *id}
+	vm, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
 	if !assert.NoError(t, err) {
 		return
 	}
 	nextDIDDocument.AddCapabilityInvocation(vm)
-
+	nextDIDDocument.AddAssertionMethod(vm)
 	expectedPayload, _ := json.Marshal(nextDIDDocument)
-	didCreator.EXPECT().Create().Return(&nextDIDDocument, nil)
-	networkMock.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, keyID.String(), &privateKey.PublicKey, gomock.Any(), gomock.Any())
-	didDoc, err := vdr.Create()
+
+	ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
+	ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, key, true, gomock.Any(), gomock.Any())
+
+	didDoc, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+
 	assert.NoError(t, err)
 	assert.NotNil(t, didDoc)
 }

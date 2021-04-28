@@ -33,7 +33,7 @@ type KIDNamingFunc func(key crypto.PublicKey) (string, error)
 type KeyCreator interface {
 	// New generates a keypair and returns the public key.
 	// the KIDNamingFunc will provide the kid. priv/pub keys are appended with a postfix and stored
-	New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error)
+	New(namingFunc KIDNamingFunc) (KeySelector, error)
 }
 
 // KeyStore defines the functions for working with private keys.
@@ -41,11 +41,10 @@ type KeyStore interface {
 	// PrivateKeyExists returns if the specified private key exists.
 	// If an error occurs, false is also returned
 	PrivateKeyExists(kid string) bool
-	// New generates a keypair and returns the public key.
-	// the KIDNamingFunc will provide the kid. priv/pub keys are appended with a postfix and stored
-	New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error)
 	// Signer TODO
-	Signer(kid string) (crypto.Signer, error)
+	Signer(kid string) (KeySelector, error)
+
+	KeyCreator
 
 	JWSSigner
 	JWTSigner
@@ -64,4 +63,13 @@ type JWTSigner interface {
        // SignJWT creates a signed JWT using the indicated key and map of claims.
        // Returns ErrKeyNotFound when indicated private key is not present.
        SignJWT(claims map[string]interface{}, kid string) (string, error)
+}
+
+type KeySelector interface {
+	// Signer TODO
+	Signer() crypto.Signer
+
+	KID() string
+
+	Public() crypto.PublicKey
 }

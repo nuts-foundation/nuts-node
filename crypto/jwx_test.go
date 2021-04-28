@@ -130,7 +130,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	key, _, _ := client.New(StringNamingFunc(kid))
+	key, _ := client.New(StringNamingFunc(kid))
 
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, kid)
@@ -141,7 +141,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		}
 
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
-			return key, nil
+			return key.Public(), nil
 		})
 
 		if !assert.NoError(t, err) {
@@ -161,7 +161,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 func TestCrypto_SignJWS(t *testing.T) {
 	client := createCrypto(t)
 	kid := "kid"
-	publicKey, _, _ := client.New(StringNamingFunc(kid))
+	key, _ := client.New(StringNamingFunc(kid))
 
 	t.Run("ok", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
@@ -180,7 +180,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 		fooValue, _ := sig[0].ProtectedHeaders().Get("foo")
 		assert.Equal(t, "bar", fooValue.(string))
 		// Sanity check: verify signature
-		actualPayload, err := jws.Verify([]byte(signature), sig[0].ProtectedHeaders().Algorithm(), publicKey)
+		actualPayload, err := jws.Verify([]byte(signature), sig[0].ProtectedHeaders().Algorithm(), key.Public())
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -189,7 +189,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 	t.Run("public key as JWK", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
 
-		publicKeyAsJWK, _ := jwk.New(publicKey)
+		publicKeyAsJWK, _ := jwk.New(key.Public())
 		hdrs := map[string]interface{}{"jwk": publicKeyAsJWK}
 		signature, err := client.SignJWS(payload, hdrs, kid)
 		assert.NoError(t, err)

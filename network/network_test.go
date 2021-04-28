@@ -19,9 +19,6 @@
 package network
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"errors"
 	"testing"
 	"time"
@@ -44,7 +41,7 @@ type networkTestContext struct {
 	protocol    *proto.MockProtocol
 	graph       *dag.MockDAG
 	payload     *dag.MockPayloadStore
-	keyStore    *crypto.MockAccessor
+	keyStore    *crypto.MockKeyStore
 	publisher   *dag.MockPublisher
 	keyResolver *types.MockKeyResolver
 }
@@ -176,7 +173,7 @@ func TestNetwork_Configure(t *testing.T) {
 }
 
 func TestNetwork_CreateTransaction(t *testing.T) {
-	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	key := crypto.NewTestKey("signing-key")
 	t.Run("ok - attach key", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -188,15 +185,13 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
-		cxt.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Eq("signing-key")).DoAndReturn(func(payload []byte, protectedHeaders map[string]interface{}, kid interface{}) (string, error) {
-			return crypto.NewTestSigner().SignJWS(payload, protectedHeaders, "")
-		})
+
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
 		}
-		_, err = cxt.network.CreateTransaction(payloadType, payload, "signing-key", privateKey.PublicKey, cxt.keyStore, time.Now(), []hash.SHA256Hash{})
+		_, err = cxt.network.CreateTransaction(payloadType, payload, key, true, time.Now(), []hash.SHA256Hash{})
 		assert.NoError(t, err)
 	})
 	t.Run("ok - detached key", func(t *testing.T) {
@@ -210,15 +205,12 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
-		cxt.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Eq("signing-key")).DoAndReturn(func(payload []byte, protectedHeaders map[string]interface{}, kid interface{}) (string, error) {
-			return crypto.NewTestSigner().SignJWS(payload, protectedHeaders, "")
-		})
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
 		}
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, cxt.keyStore, time.Now(), []hash.SHA256Hash{})
+		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{})
 		assert.NoError(t, err)
 		assert.Len(t, tx.Previous(), 0)
 	})
@@ -234,15 +226,12 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
-		cxt.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Eq("signing-key")).DoAndReturn(func(payload []byte, protectedHeaders map[string]interface{}, kid interface{}) (string, error) {
-			return crypto.NewTestSigner().SignJWS(payload, protectedHeaders, "")
-		})
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
 		}
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, "signing-key", nil, cxt.keyStore, time.Now(), []hash.SHA256Hash{prev})
+		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{prev})
 
 		if !assert.NoError(t, err) {
 			return
@@ -352,7 +341,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	networkConfig.CertFile = "test/certificate-and-key.pem"
 	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
 	networkConfig.EnableTLS = true
-	keyStore := crypto.NewMockAccessor(ctrl)
+	keyStore := crypto.NewMockKeyStore(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	network := NewNetworkInstance(networkConfig, keyResolver)
 	network.p2pNetwork = p2pNetwork
