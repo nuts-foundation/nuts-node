@@ -64,7 +64,7 @@ type Presentation struct {
 	Proof Proof
 }
 
-// Proof holds the Proof generated from the dummy Signer
+// Proof holds the Proof generated from the dummy Resolve
 type Proof struct {
 	// Proof type, mandatory
 	Type string

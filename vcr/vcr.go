@@ -245,7 +245,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
 
-	key, err := c.keyStore.Signer(kid.String())
+	key, err := c.keyStore.Resolve(kid.String())
 	if err != nil {
 		return nil, fmt.Errorf("could not resolve kid: %w", err)
 	}
@@ -430,7 +430,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
 
-	key, err := c.keyStore.Signer(kid.String())
+	key, err := c.keyStore.Resolve(kid.String())
 	if err != nil {
 		return nil, fmt.Errorf("could not resolve kid: %w", err)
 	}

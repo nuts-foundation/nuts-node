@@ -41,8 +41,8 @@ type KeyStore interface {
 	// PrivateKeyExists returns if the specified private key exists.
 	// If an error occurs, false is also returned
 	PrivateKeyExists(kid string) bool
-	// Signer returns a KeySelector for the given KID. ErrKeyNotFound is returned for an unknown KID.
-	Signer(kid string) (KeySelector, error)
+	// Resolve returns a KeySelector for the given KID. ErrKeyNotFound is returned for an unknown KID.
+	Resolve(kid string) (KeySelector, error)
 
 	KeyCreator
 	JWTSigner

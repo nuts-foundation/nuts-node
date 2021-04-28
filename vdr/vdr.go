@@ -162,7 +162,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return err
 	}
 
-	key, err := r.keyStore.Signer(controllers[0].CapabilityInvocation[0].ID.String())
+	key, err := r.keyStore.Resolve(controllers[0].CapabilityInvocation[0].ID.String())
 	if err != nil {
 		if errors.Is(err, crypto.ErrKeyNotFound) {
 			return types.ErrDIDNotManagedByThisNode

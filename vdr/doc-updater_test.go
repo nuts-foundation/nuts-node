@@ -211,7 +211,7 @@ func TestNutsDocUpdater_Deactivate(t *testing.T) {
 	currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 
 	key := crypto.NewTestKey(keyID.String())
-	ctx.mockKeyStore.EXPECT().Signer(keyID.String()).Return(key, nil)
+	ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(key, nil)
 	ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, key, false, gomock.Any(), gomock.Any())
 	gomock.InOrder(
 		ctx.mockStore.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil),

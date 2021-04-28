@@ -101,19 +101,19 @@ func (mr *MockKeyStoreMockRecorder) PrivateKeyExists(kid interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrivateKeyExists", reflect.TypeOf((*MockKeyStore)(nil).PrivateKeyExists), kid)
 }
 
-// SignJWS mocks base method.
-func (m *MockKeyStore) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
+// Resolve mocks base method.
+func (m *MockKeyStore) Resolve(kid string) (KeySelector, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SignJWS", payload, protectedHeaders, kid)
-	ret0, _ := ret[0].(string)
+	ret := m.ctrl.Call(m, "Resolve", kid)
+	ret0, _ := ret[0].(KeySelector)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// SignJWS indicates an expected call of SignJWS.
-func (mr *MockKeyStoreMockRecorder) SignJWS(payload, protectedHeaders, kid interface{}) *gomock.Call {
+// Resolve indicates an expected call of Resolve.
+func (mr *MockKeyStoreMockRecorder) Resolve(kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWS", reflect.TypeOf((*MockKeyStore)(nil).SignJWS), payload, protectedHeaders, kid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockKeyStore)(nil).Resolve), kid)
 }
 
 // SignJWT mocks base method.
@@ -129,59 +129,6 @@ func (m *MockKeyStore) SignJWT(claims map[string]interface{}, kid string) (strin
 func (mr *MockKeyStoreMockRecorder) SignJWT(claims, kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWT", reflect.TypeOf((*MockKeyStore)(nil).SignJWT), claims, kid)
-}
-
-// Signer mocks base method.
-func (m *MockKeyStore) Signer(kid string) (KeySelector, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Signer", kid)
-	ret0, _ := ret[0].(KeySelector)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Signer indicates an expected call of Signer.
-func (mr *MockKeyStoreMockRecorder) Signer(kid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Signer", reflect.TypeOf((*MockKeyStore)(nil).Signer), kid)
-}
-
-// MockJWSSigner is a mock of JWSSigner interface.
-type MockJWSSigner struct {
-	ctrl     *gomock.Controller
-	recorder *MockJWSSignerMockRecorder
-}
-
-// MockJWSSignerMockRecorder is the mock recorder for MockJWSSigner.
-type MockJWSSignerMockRecorder struct {
-	mock *MockJWSSigner
-}
-
-// NewMockJWSSigner creates a new mock instance.
-func NewMockJWSSigner(ctrl *gomock.Controller) *MockJWSSigner {
-	mock := &MockJWSSigner{ctrl: ctrl}
-	mock.recorder = &MockJWSSignerMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockJWSSigner) EXPECT() *MockJWSSignerMockRecorder {
-	return m.recorder
-}
-
-// SignJWS mocks base method.
-func (m *MockJWSSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SignJWS", payload, protectedHeaders, kid)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SignJWS indicates an expected call of SignJWS.
-func (mr *MockJWSSignerMockRecorder) SignJWS(payload, protectedHeaders, kid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWS", reflect.TypeOf((*MockJWSSigner)(nil).SignJWS), payload, protectedHeaders, kid)
 }
 
 // MockJWTSigner is a mock of JWTSigner interface.

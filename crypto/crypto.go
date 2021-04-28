@@ -120,7 +120,7 @@ func (client *Crypto) PrivateKeyExists(kid string) bool {
 	return client.Storage.PrivateKeyExists(kid)
 }
 
-func (client *Crypto) Signer(kid string) (KeySelector, error) {
+func (client *Crypto) Resolve(kid string) (KeySelector, error) {
 	keypair, err := client.Storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {

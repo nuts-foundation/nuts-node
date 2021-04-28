@@ -252,7 +252,7 @@ func TestVcr_Issue(t *testing.T) {
 			Type: "test",
 		}
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().Signer(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
 			gomock.Any(),
@@ -342,7 +342,7 @@ func TestVcr_Issue(t *testing.T) {
 		cred := validNutsOrganizationCredential()
 		cred.CredentialSubject = make([]interface{}, 0)
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().Signer(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 
 		_, err := instance.Issue(*cred)
 
@@ -357,7 +357,7 @@ func TestVcr_Issue(t *testing.T) {
 
 		cred := validNutsOrganizationCredential()
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().Signer(vdr.TestDIDA.String()).Return(nil, errors.New("b00m!"))
+		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(nil, errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
 
@@ -372,7 +372,7 @@ func TestVcr_Issue(t *testing.T) {
 
 		cred := validNutsOrganizationCredential()
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().Signer(vdr.TestDIDA.String()).Return(key, nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
 			gomock.Any(),
@@ -599,7 +599,7 @@ func TestVcr_Revoke(t *testing.T) {
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
-		ctx.crypto.EXPECT().Signer(vc.Issuer.String()).Return(key, nil)
+		ctx.crypto.EXPECT().Resolve(vc.Issuer.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			revocationDocumentType,
 			gomock.Any(),

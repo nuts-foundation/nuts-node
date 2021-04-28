@@ -77,7 +77,7 @@ func TestVDR_Update(t *testing.T) {
 		resolvedMetadata := types.DocumentMetadata{}
 		expectedPayload, _ := json.Marshal(nextDIDDocument)
 		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		ctx.mockKeyStore.EXPECT().Signer(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
+		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
 		ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, gomock.Any(), false, gomock.Any(), gomock.Any())
 
 		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
@@ -117,7 +117,7 @@ func TestVDR_Update(t *testing.T) {
 		currentDIDDocument := nextDIDDocument
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
-		ctx.mockKeyStore.EXPECT().Signer(keyID.String()).Return(nil, crypto.ErrKeyNotFound)
+		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrKeyNotFound)
 
 		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
 
