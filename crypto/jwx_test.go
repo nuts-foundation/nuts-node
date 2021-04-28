@@ -158,7 +158,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	})
 }
 
-func TestCrypto_SignJWS(t *testing.T) {
+func TestSignJWS(t *testing.T) {
 	client := createCrypto(t)
 	kid := "kid"
 	key, _ := client.New(StringNamingFunc(kid))
@@ -166,7 +166,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
 		hdrs := map[string]interface{}{"foo": "bar"}
-		signature, err := client.SignJWS(payload, hdrs, kid)
+		signature, err := SignJWS(payload, hdrs, key.Signer())
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -191,7 +191,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 
 		publicKeyAsJWK, _ := jwk.New(key.Public())
 		hdrs := map[string]interface{}{"jwk": publicKeyAsJWK}
-		signature, err := client.SignJWS(payload, hdrs, kid)
+		signature, err := SignJWS(payload, hdrs, key.Signer())
 		assert.NoError(t, err)
 		assert.NotEmpty(t, signature)
 	})
@@ -201,20 +201,14 @@ func TestCrypto_SignJWS(t *testing.T) {
 		privateKey, _ := client.Storage.GetPrivateKey(kid)
 		privateKeyAsJWK, _ := jwk.New(privateKey)
 		hdrs := map[string]interface{}{"jwk": privateKeyAsJWK}
-		signature, err := client.SignJWS(payload, hdrs, kid)
+		signature, err := SignJWS(payload, hdrs, key.Signer())
 		assert.EqualError(t, err, "refusing to sign JWS with private key in JWK header")
 		assert.Empty(t, signature)
 	})
 	t.Run("invalid header", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
-		signature, err := client.SignJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, kid)
+		signature, err := SignJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, key.Signer())
 		assert.EqualError(t, err, "unable to set header jwk: invalid value for jwk key: string")
-		assert.Empty(t, signature)
-	})
-	t.Run("unknown key", func(t *testing.T) {
-		payload := []byte{1, 2, 3}
-		signature, err := client.SignJWS(payload, map[string]interface{}{}, "unknown")
-		assert.True(t, errors.Is(err, ErrKeyNotFound))
 		assert.Empty(t, signature)
 	})
 }

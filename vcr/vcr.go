@@ -669,7 +669,7 @@ func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, ke
 		return err
 	}
 
-	sig, err := crypto.SignJWSWithKey(challenge, detachedJWSHeaders(), key.Signer())
+	sig, err := crypto.SignJWS(challenge, detachedJWSHeaders(), key.Signer())
 	if err != nil {
 		return err
 	}
@@ -701,7 +701,7 @@ func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI, key
 	// create correct signing challenge
 	challenge := generateRevocationChallenge(*r)
 
-	sig, err := crypto.SignJWSWithKey(challenge, detachedJWSHeaders(), key.Signer())
+	sig, err := crypto.SignJWS(challenge, detachedJWSHeaders(), key.Signer())
 	if err != nil {
 		return err
 	}

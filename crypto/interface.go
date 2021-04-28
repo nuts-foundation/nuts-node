@@ -41,21 +41,11 @@ type KeyStore interface {
 	// PrivateKeyExists returns if the specified private key exists.
 	// If an error occurs, false is also returned
 	PrivateKeyExists(kid string) bool
-	// Signer TODO
+	// Signer returns a KeySelector for the given KID. ErrKeyNotFound is returned for an unknown KID.
 	Signer(kid string) (KeySelector, error)
 
 	KeyCreator
-
-	JWSSigner
 	JWTSigner
-}
-
-// JWSSigner defines the functions for signing JSON Web Signatures.
-type JWSSigner interface {
-	// SignJWS creates a signed JWS using the indicated key.
-	// It contains protected headers and a payload.
-	// Returns ErrKeyNotFound when indicated private key is not present.
-	SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error)
 }
 
 // JWTSigner is the interface used to sign authorization tokens.
@@ -65,11 +55,12 @@ type JWTSigner interface {
 	SignJWT(claims map[string]interface{}, kid string) (string, error)
 }
 
+// KeySelector is a helper interface which holds a crypto.Signer, KID and public key for a key.
 type KeySelector interface {
-	// Signer TODO
+	// Signer returns a crypto.Signer.
 	Signer() crypto.Signer
-
+	// KID returns the KID for the selected key.
 	KID() string
-
+	// Public returns the public key. This is a shirt-hand for Signer().Public()
 	Public() crypto.PublicKey
 }

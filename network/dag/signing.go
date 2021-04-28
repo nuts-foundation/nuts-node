@@ -73,7 +73,7 @@ func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time
 		headerMap[jws.KeyIDKey] = d.key.KID()
 	}
 
-	data, err := crypto.SignJWSWithKey([]byte(input.PayloadHash().String()), headerMap, d.key.Signer())
+	data, err := crypto.SignJWS([]byte(input.PayloadHash().String()), headerMap, d.key.Signer())
 	if err != nil {
 		return nil, fmt.Errorf(errSigningTransactionFmt, err)
 	}

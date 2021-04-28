@@ -47,5 +47,5 @@ func (t TestSigner) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error
 }
 
 func (t *TestSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, _ string) (string, error) {
-	return SignJWSWithKey(payload, protectedHeaders, t.Key)
+	return SignJWS(payload, protectedHeaders, t.Key)
 }
