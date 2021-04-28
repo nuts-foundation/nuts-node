@@ -211,6 +211,15 @@ func TestSignJWS(t *testing.T) {
 		assert.EqualError(t, err, "unable to set header jwk: invalid value for jwk key: string")
 		assert.Empty(t, signature)
 	})
+	t.Run("invalid key", func(t *testing.T) {
+		payload := []byte{1, 2, 3}
+
+		publicKeyAsJWK, _ := jwk.New(key.Public())
+		hdrs := map[string]interface{}{"jwk": publicKeyAsJWK}
+		signature, err := SignJWS(payload, hdrs, nil)
+		assert.EqualError(t, err, "jwk.New requires a non-nil key")
+		assert.Empty(t, signature)
+	})
 }
 
 func TestCrypto_convertHeaders(t *testing.T) {
@@ -247,6 +256,17 @@ func TestSignatureAlgorithm(t *testing.T) {
 		_, err := SignatureAlgorithm(nil)
 
 		assert.Error(t, err)
+	})
+
+	t.Run("unsupported key", func(t *testing.T) {
+		ecKey224, _ := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+		_, err := SignatureAlgorithm(ecKey224)
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.Equal(t, ErrUnsupportedSigningKey, err)
 	})
 
 	tests := []struct {

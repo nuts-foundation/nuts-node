@@ -82,6 +82,28 @@ func TestCrypto_New(t *testing.T) {
 	})
 }
 
+func TestCrypto_Resolve(t *testing.T) {
+	client := createCrypto(t)
+	kid := "kid"
+	key, _ := client.New(StringNamingFunc(kid))
+
+	t.Run("ok", func(t *testing.T) {
+		resolvedKey, err := client.Resolve("kid")
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, key, resolvedKey)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		_, err := client.Resolve("no kidding")
+
+		assert.Equal(t, ErrKeyNotFound, err)
+	})
+}
+
 func TestCrypto_Configure(t *testing.T) {
 	directory := io.TestDirectory(t)
 	cfg := core.ServerConfig{Datadir: directory}

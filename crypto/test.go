@@ -28,6 +28,12 @@ func StringNamingFunc(name string) KIDNamingFunc {
 	}
 }
 
+func ErrorNamingFunc(err error) KIDNamingFunc {
+	return func(key crypto.PublicKey) (string, error) {
+		return "", err
+	}
+}
+
 func NewTestKey(kid string) KeySelector {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return keySelector{
