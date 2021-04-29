@@ -48,7 +48,7 @@ func (mr *MockAdapterMockRecorder) Broadcast(message interface{}) *gomock.Call {
 }
 
 // Configure mocks base method.
-func (m *MockAdapter) Configure(config InterfaceConfig) error {
+func (m *MockAdapter) Configure(config AdapterConfig) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Configure", config)
 	ret0, _ := ret[0].(error)

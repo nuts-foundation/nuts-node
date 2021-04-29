@@ -45,8 +45,8 @@ const eventChannelSize = 100
 const messageBacklogChannelSize = 100
 const maxMessageSizeInBytes = 1024 * 512
 
-type grpcInterface struct {
-	config InterfaceConfig
+type a struct {
+	config AdapterConfig
 
 	grpcServer  *grpc.Server
 	serverMutex *sync.Mutex
@@ -69,15 +69,15 @@ type grpcInterface struct {
 	configured       bool
 }
 
-func (n grpcInterface) EventChannels() (peerConnected chan Peer, peerDisconnected chan Peer) {
+func (n a) EventChannels() (peerConnected chan Peer, peerDisconnected chan Peer) {
 	return n.peerConnectedChannel, n.peerDisconnectedChannel
 }
 
-func (n grpcInterface) Configured() bool {
+func (n a) Configured() bool {
 	return n.configured
 }
 
-func (n grpcInterface) Diagnostics() []core.DiagnosticResult {
+func (n a) Diagnostics() []core.DiagnosticResult {
 	peers := n.Peers()
 	return []core.DiagnosticResult{
 		numberOfPeersStatistic{numberOfPeers: len(peers)},
@@ -86,7 +86,7 @@ func (n grpcInterface) Diagnostics() []core.DiagnosticResult {
 	}
 }
 
-func (n *grpcInterface) Peers() []Peer {
+func (n *a) Peers() []Peer {
 	var result []Peer
 	n.connsMutex.Lock()
 	defer n.connsMutex.Unlock()
@@ -96,7 +96,7 @@ func (n *grpcInterface) Peers() []Peer {
 	return result
 }
 
-func (n *grpcInterface) Broadcast(message *transport.NetworkMessage) {
+func (n *a) Broadcast(message *transport.NetworkMessage) {
 	n.connsMutex.Lock()
 	defer n.connsMutex.Unlock()
 	for _, conn := range n.conns {
@@ -104,11 +104,11 @@ func (n *grpcInterface) Broadcast(message *transport.NetworkMessage) {
 	}
 }
 
-func (n grpcInterface) ReceivedMessages() MessageQueue {
+func (n a) ReceivedMessages() MessageQueue {
 	return n.receivedMessages
 }
 
-func (n grpcInterface) Send(peerID PeerID, message *transport.NetworkMessage) error {
+func (n a) Send(peerID PeerID, message *transport.NetworkMessage) error {
 	var conn *connection
 	n.connsMutex.Lock()
 	{
@@ -188,9 +188,9 @@ func (c *connector) readHeaders(gate transport.Network_ConnectClient, grpcConn *
 	return serverPeerID, nil
 }
 
-// NewInterface creates an interface to be used connect to peers in the network and exchange messages.
-func NewInterface() Adapter {
-	return &grpcInterface{
+// NewAdapter creates an interface to be used connect to peers in the network and exchange messages.
+func NewAdapter() Adapter {
+	return &a{
 		conns:                   make(map[PeerID]*connection, 0),
 		peersByAddr:             make(map[string]PeerID, 0),
 		connectors:              make(map[string]*connector, 0),
@@ -212,7 +212,7 @@ func (m messageQueue) Get() PeerMessage {
 	return <-m.c
 }
 
-func (n *grpcInterface) Configure(config InterfaceConfig) error {
+func (n *a) Configure(config AdapterConfig) error {
 	if config.PeerID == "" {
 		return errors.New("PeerID is empty")
 	}
@@ -224,7 +224,7 @@ func (n *grpcInterface) Configure(config InterfaceConfig) error {
 	return nil
 }
 
-func (n *grpcInterface) Start() error {
+func (n *a) Start() error {
 	n.serverMutex.Lock()
 	defer n.serverMutex.Unlock()
 	log.Logger().Debugf("Starting gRPC P2P node (ID: %s)", n.config.PeerID)
@@ -264,7 +264,7 @@ func (n *grpcInterface) Start() error {
 	return nil
 }
 
-func (n *grpcInterface) Stop() error {
+func (n *a) Stop() error {
 	n.serverMutex.Lock()
 	defer n.serverMutex.Unlock()
 	// Stop client
@@ -291,7 +291,7 @@ func (n *grpcInterface) Stop() error {
 	return nil
 }
 
-func (n grpcInterface) ConnectToPeer(address string) bool {
+func (n a) ConnectToPeer(address string) bool {
 	if n.shouldConnectTo(address) && len(n.connectorAddChannel) < connectingQueueChannelSize {
 		n.connectorAddChannel <- address
 		return true
@@ -299,7 +299,7 @@ func (n grpcInterface) ConnectToPeer(address string) bool {
 	return false
 }
 
-func (n *grpcInterface) startSendingAndReceiving(conn *connection) {
+func (n *a) startSendingAndReceiving(conn *connection) {
 	conn.outMessages = make(chan *transport.NetworkMessage, 10) // TODO: Does this number make sense? Should also be configurable?
 	go conn.sendMessages()
 	n.registerConnection(conn)
@@ -309,7 +309,7 @@ func (n *grpcInterface) startSendingAndReceiving(conn *connection) {
 }
 
 // connectToNewPeers reads from connectorAddChannel to start connecting to new peers
-func (n *grpcInterface) connectToNewPeers() {
+func (n *a) connectToNewPeers() {
 	for address := range n.connectorAddChannel {
 		if _, present := n.peersByAddr[address]; present {
 			log.Logger().Debugf("Not connecting to peer, already connected (address=%s)", address)
@@ -328,7 +328,7 @@ func (n *grpcInterface) connectToNewPeers() {
 	}
 }
 
-func (n *grpcInterface) startConnecting(newConnector *connector) {
+func (n *a) startConnecting(newConnector *connector) {
 	for {
 		if n.shouldConnectTo(newConnector.address) {
 			var tlsConfig *tls.Config
@@ -351,7 +351,7 @@ func (n *grpcInterface) startConnecting(newConnector *connector) {
 }
 
 // shouldConnectTo checks whether we should connect to the given node.
-func (n grpcInterface) shouldConnectTo(address string) bool {
+func (n a) shouldConnectTo(address string) bool {
 	normalizedAddress := normalizeAddress(address)
 	if normalizedAddress == normalizeAddress(n.getLocalAddress()) {
 		// We're not going to connect to our own node
@@ -368,7 +368,7 @@ func (n grpcInterface) shouldConnectTo(address string) bool {
 	return !alreadyConnected
 }
 
-func (n grpcInterface) getLocalAddress() string {
+func (n a) getLocalAddress() string {
 	if strings.HasPrefix(n.config.ListenAddress, ":") {
 		// Interface's address not included in listening address (e.g. :5555), so prepend with localhost
 		return "localhost" + n.config.ListenAddress
@@ -378,7 +378,7 @@ func (n grpcInterface) getLocalAddress() string {
 	}
 }
 
-func (n grpcInterface) Connect(stream transport.Network_ConnectServer) error {
+func (n a) Connect(stream transport.Network_ConnectServer) error {
 	peerCtx, _ := grpcPeer.FromContext(stream.Context())
 	log.Logger().Tracef("New peer connected from %s", peerCtx.Addr)
 	md, ok := metadata.FromIncomingContext(stream.Context())
@@ -402,7 +402,7 @@ func (n grpcInterface) Connect(stream transport.Network_ConnectServer) error {
 	return nil
 }
 
-func (n *grpcInterface) registerConnection(conn *connection) {
+func (n *a) registerConnection(conn *connection) {
 	normalizedAddress := normalizeAddress(conn.Address)
 
 	n.connsMutex.Lock()
@@ -413,7 +413,7 @@ func (n *grpcInterface) registerConnection(conn *connection) {
 	n.peerConnectedChannel <- conn.Peer
 }
 
-func (n *grpcInterface) unregisterConnection(conn *connection) {
+func (n *a) unregisterConnection(conn *connection) {
 	normalizedAddress := normalizeAddress(conn.Address)
 
 	n.connsMutex.Lock()

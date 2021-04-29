@@ -206,7 +206,7 @@ func startNode(name string, directory string, keyStore nutsCrypto.KeyStore) (*Ne
 	mutex.Unlock()
 	// Create Network instance
 	instance := &Network{
-		p2pNetwork: p2p.NewInterface(),
+		p2pNetwork: p2p.NewAdapter(),
 		protocol:   proto.NewProtocol(),
 		jwsSigner:  keyStore,
 		config: Config{

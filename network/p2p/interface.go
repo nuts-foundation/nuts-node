@@ -31,7 +31,7 @@ import (
 type Adapter interface {
 	core.Diagnosable
 	// Configure configures the Adapter. Must be called before Start().
-	Configure(config InterfaceConfig) error
+	Configure(config AdapterConfig) error
 	// Configured returns whether the system is configured or not
 	Configured() bool
 	// Start starts the P2P network on the local node.
@@ -90,8 +90,8 @@ type PeerMessage struct {
 	Message *transport.NetworkMessage
 }
 
-// InterfaceConfig contains configuration for the P2P interface.
-type InterfaceConfig struct {
+// AdapterConfig contains configuration for the P2P adapter.
+type AdapterConfig struct {
 	// PeerID contains the ID of the local node.
 	PeerID PeerID
 	// ListenAddress specifies the socket address the gRPC server should listen on.
@@ -107,6 +107,6 @@ type InterfaceConfig struct {
 	TrustStore *x509.CertPool
 }
 
-func (cfg InterfaceConfig) tlsEnabled() bool {
+func (cfg AdapterConfig) tlsEnabled() bool {
 	return cfg.TrustStore != nil
 }

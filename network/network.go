@@ -76,7 +76,7 @@ func NewNetworkInstance(config Config, jwsSigner crypto.JWSSigner, keyResolver t
 		config:      config,
 		jwsSigner:   jwsSigner,
 		keyResolver: keyResolver,
-		p2pNetwork:  p2p.NewInterface(),
+		p2pNetwork:  p2p.NewAdapter(),
 		protocol:    proto.NewProtocol(),
 	}
 	return result
@@ -217,8 +217,8 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 	return results
 }
 
-func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.InterfaceConfig, error) {
-	cfg := p2p.InterfaceConfig{
+func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) {
+	cfg := p2p.AdapterConfig{
 		ListenAddress:  n.config.GrpcAddr,
 		BootstrapNodes: n.config.BootstrapNodes,
 		PeerID:         peerID,

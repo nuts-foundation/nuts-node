@@ -33,8 +33,8 @@ func waitForGRPCStart() {
 
 func Test_interface_Configure(t *testing.T) {
 	t.Run("ok - configure registers bootstrap nodes", func(t *testing.T) {
-		network := NewInterface()
-		err := network.Configure(InterfaceConfig{
+		network := NewAdapter()
+		err := network.Configure(AdapterConfig{
 			PeerID:         "foo",
 			ListenAddress:  "127.0.0.1:0",
 			BootstrapNodes: []string{"foo:555", "bar:5554"},
@@ -42,12 +42,12 @@ func Test_interface_Configure(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Len(t, network.(*grpcInterface).connectorAddChannel, 2)
+		assert.Len(t, network.(*a).connectorAddChannel, 2)
 		assert.True(t, network.Configured())
 	})
 	t.Run("ok - ssl offloading", func(t *testing.T) {
-		network := NewInterface()
-		err := network.Configure(InterfaceConfig{
+		network := NewAdapter()
+		err := network.Configure(AdapterConfig{
 			PeerID:         "foo",
 			ListenAddress:  "127.0.0.1:0",
 			BootstrapNodes: []string{"foo:555", "bar:5554"},
@@ -55,20 +55,20 @@ func Test_interface_Configure(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Len(t, network.(*grpcInterface).connectorAddChannel, 2)
+		assert.Len(t, network.(*a).connectorAddChannel, 2)
 		assert.True(t, network.Configured())
 	})
 	t.Run("error - no peer ID", func(t *testing.T) {
-		network := NewInterface()
-		err := network.Configure(InterfaceConfig{})
+		network := NewAdapter()
+		err := network.Configure(AdapterConfig{})
 		assert.Error(t, err)
 	})
 }
 
 func Test_interface_Start(t *testing.T) {
 	t.Run("ok - gRPC server not bound", func(t *testing.T) {
-		network := NewInterface().(*grpcInterface)
-		err := network.Configure(InterfaceConfig{
+		network := NewAdapter().(*a)
+		err := network.Configure(AdapterConfig{
 			PeerID:     "foo",
 			TrustStore: x509.NewCertPool(),
 		})
@@ -84,9 +84,9 @@ func Test_interface_Start(t *testing.T) {
 		}
 	})
 	t.Run("ok - gRPC server bound, TLS enabled", func(t *testing.T) {
-		network := NewInterface().(*grpcInterface)
+		network := NewAdapter().(*a)
 		serverCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
-		err := network.Configure(InterfaceConfig{
+		err := network.Configure(AdapterConfig{
 			PeerID:        "foo",
 			ServerCert:    serverCert,
 			ListenAddress: "127.0.0.1:0",
@@ -104,8 +104,8 @@ func Test_interface_Start(t *testing.T) {
 		}
 	})
 	t.Run("ok - gRPC server bound, TLS disabled", func(t *testing.T) {
-		network := NewInterface().(*grpcInterface)
-		err := network.Configure(InterfaceConfig{
+		network := NewAdapter().(*a)
+		err := network.Configure(AdapterConfig{
 			PeerID:        "foo",
 			ListenAddress: "127.0.0.1:0",
 			TrustStore:    x509.NewCertPool(),
@@ -124,8 +124,8 @@ func Test_interface_Start(t *testing.T) {
 }
 
 func Test_interface_ConnectToPeer(t *testing.T) {
-	network := NewInterface().(*grpcInterface)
-	network.Configure(InterfaceConfig{
+	network := NewAdapter().(*a)
+	network.Configure(AdapterConfig{
 		PeerID:        "foo",
 		ListenAddress: "127.0.0.1:0",
 	})
@@ -156,13 +156,13 @@ func Test_interface_ConnectToPeer(t *testing.T) {
 }
 
 func Test_interface_Diagnostics(t *testing.T) {
-	network := NewInterface()
+	network := NewAdapter()
 	assert.Len(t, network.Diagnostics(), 3)
 }
 
 func Test_interface_GetLocalAddress(t *testing.T) {
-	network := NewInterface().(*grpcInterface)
-	err := network.Configure(InterfaceConfig{
+	network := NewAdapter().(*a)
+	err := network.Configure(AdapterConfig{
 		PeerID:         "foo",
 		ListenAddress:  "127.0.0.1:0",
 		BootstrapNodes: []string{"foo:555", "bar:5554"},
@@ -183,7 +183,7 @@ func Test_interface_GetLocalAddress(t *testing.T) {
 func Test_interface_Send(t *testing.T) {
 	const peerID = "foobar"
 	t.Run("ok", func(t *testing.T) {
-		network := NewInterface().(*grpcInterface)
+		network := NewAdapter().(*a)
 		conn := createConnection(Peer{ID: peerID}, nil)
 		assert.Empty(t, conn.outMessages)
 		network.conns[peerID] = conn
@@ -194,7 +194,7 @@ func Test_interface_Send(t *testing.T) {
 		assert.Len(t, conn.outMessages, 1)
 	})
 	t.Run("unknown peer", func(t *testing.T) {
-		network := NewInterface().(*grpcInterface)
+		network := NewAdapter().(*a)
 		err := network.Send(peerID, &transport.NetworkMessage{})
 		assert.EqualError(t, err, "unknown peer: foobar")
 	})
@@ -203,7 +203,7 @@ func Test_interface_Send(t *testing.T) {
 func Test_interface_Broadcast(t *testing.T) {
 	const peer1ID = "foobar1"
 	const peer2ID = "foobar2"
-	network := NewInterface().(*grpcInterface)
+	network := NewAdapter().(*a)
 	network.conns[peer1ID] = createConnection(Peer{ID: peer1ID}, nil)
 	network.conns[peer2ID] = createConnection(Peer{ID: peer2ID}, nil)
 	network.Broadcast(&transport.NetworkMessage{})
