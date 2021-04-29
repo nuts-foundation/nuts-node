@@ -10,10 +10,9 @@ import (
 	"testing"
 	"time"
 
-	ssi "github.com/nuts-foundation/go-did"
-
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 
@@ -286,7 +285,7 @@ func Test_ambassador_callback(t *testing.T) {
 		assert.Equal(t, "callback could not process new DID Document: signingKey for new DID Documents must be set", err.Error())
 	})
 
-	t.Run("create nok - fails when signing key is missing from authenticationMethods", func(t *testing.T) {
+	t.Run("create nok - fails when DID does not matches signing key", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		didStoreMock := types.NewMockStore(ctrl)
@@ -308,7 +307,7 @@ func Test_ambassador_callback(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t, "key used to sign transaction must be be part of DID Document capabilityInvocation", err.Error())
+		assert.Equal(t, ErrThumbprintMismatch, err)
 	})
 	t.Run("update ok - with a deactivated document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

@@ -23,10 +23,12 @@ import (
 	"bytes"
 	"crypto"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/log"
+	"github.com/shengdoushi/base58"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -43,6 +45,9 @@ import (
 
 // didDocumentType contains network transaction mime-type to identify a DID Document in the network.
 const didDocumentType = "application/did+json"
+
+// ErrThumbprintMismatch is returned when a transaction publishing a new DID is signed with a different key than the DID is generated from
+var ErrThumbprintMismatch = errors.New("thumbprint of signing key does not match DID")
 
 // Ambassador acts as integration point between VDR and network by sending DID Documents network and process
 // DID Documents received through the network.
@@ -109,7 +114,7 @@ func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) erro
 
 func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
 	logging.Log().Debugf("Handling DID document creation (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
-	// Check if the transaction was signed by the same key as is embedded in the DID Document`s capabilityInvocation:
+	// Check if the DID matches the fingerprint of the tx signing key:
 	if transaction.SigningKey() == nil {
 		return fmt.Errorf("callback could not process new DID Document: signingKey for new DID Documents must be set")
 	}
@@ -117,16 +122,12 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	// Create key thumbprint from the transactions signingKey embedded in the header
 	signingKeyThumbprint, err := transaction.SigningKey().Thumbprint(thumbprintAlg)
 	if err != nil {
-		return fmt.Errorf("unable to generate network transaction signing key thumbprint: %w", err)
+		return fmt.Errorf("unable to generate thumbprint for network transaction signing key: %w", err)
 	}
 
-	// Check if signingKey is one of the keys embedded in the CapabilityInvocation
-	didDocumentCapInvKeys := proposedDIDDocument.CapabilityInvocation
-	if documentKey, err := n.findKeyByThumbprint(signingKeyThumbprint, didDocumentCapInvKeys); documentKey == nil || err != nil {
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf("key used to sign transaction must be be part of DID Document capabilityInvocation")
+	// Check if signingKeyThumbprint equals the DID
+	if proposedDIDDocument.ID.ID != base58.Encode(signingKeyThumbprint, base58.BitcoinAlphabet) {
+		return ErrThumbprintMismatch
 	}
 
 	var rawKey crypto.PublicKey
