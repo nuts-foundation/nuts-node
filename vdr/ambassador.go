@@ -27,11 +27,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/shengdoushi/base58"
-
 	ssi "github.com/nuts-foundation/go-did"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 
@@ -120,13 +119,13 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	}
 
 	// Create key thumbprint from the transactions signingKey embedded in the header
-	signingKeyThumbprint, err := transaction.SigningKey().Thumbprint(thumbprintAlg)
+	signingKeyThumbprint, err := nutsCrypto.Thumbprint(transaction.SigningKey())
 	if err != nil {
 		return fmt.Errorf("unable to generate thumbprint for network transaction signing key: %w", err)
 	}
 
 	// Check if signingKeyThumbprint equals the DID
-	if proposedDIDDocument.ID.ID != base58.Encode(signingKeyThumbprint, base58.BitcoinAlphabet) {
+	if proposedDIDDocument.ID.ID != signingKeyThumbprint {
 		return ErrThumbprintMismatch
 	}
 

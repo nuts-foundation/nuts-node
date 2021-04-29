@@ -130,7 +130,7 @@ func Test_didKidNamingFunc(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t, "could not generate kid: invalid key type", err.Error())
+		assert.Equal(t, "could not generate kid: invalid key type 'doc.unknownPublicKey' for jwk.New", err.Error())
 		assert.Empty(t, keyID)
 
 	})

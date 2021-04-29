@@ -26,8 +26,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/shengdoushi/base58"
-
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
@@ -49,14 +47,13 @@ func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
 	// generate idString
 	jwKey, err := jwk.New(pKey)
 	if err != nil {
-		return "", fmt.Errorf("could not generate kid: invalid key type")
+		return "", fmt.Errorf("could not generate kid: %w", err)
 	}
 
-	pkHash, err := jwKey.Thumbprint(crypto.SHA256)
+	idString, err := nutsCrypto.Thumbprint(jwKey)
 	if err != nil {
 		return "", err
 	}
-	idString := base58.Encode(pkHash[:], base58.BitcoinAlphabet)
 
 	// generate kid fragment
 	err = jwk.AssignKeyID(jwKey)
