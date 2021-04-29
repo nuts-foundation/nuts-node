@@ -372,10 +372,9 @@ func (n a) getLocalAddress() string {
 	if strings.HasPrefix(n.config.ListenAddress, ":") {
 		// Interface's address not included in listening address (e.g. :5555), so prepend with localhost
 		return "localhost" + n.config.ListenAddress
-	} else {
-		// Interface's address included in listening address (e.g. localhost:5555), so return as-is.
-		return n.config.ListenAddress
 	}
+	// Interface's address included in listening address (e.g. localhost:5555), so return as-is.
+	return n.config.ListenAddress
 }
 
 func (n a) Connect(stream transport.Network_ConnectServer) error {
