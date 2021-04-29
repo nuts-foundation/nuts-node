@@ -23,113 +23,15 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 
-	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestCrypto_PublicKey(t *testing.T) {
-	client := createCrypto(t)
-
-	kid := "kid"
-	ec := test.GenerateECKey()
-
-	now := time.Now()
-	if !assert.NoError(t, client.AddPublicKey(kid, ec.Public(), now)) {
-		return
-	}
-
-	t.Run("Public key is returned from storage", func(t *testing.T) {
-		pub, err := client.GetPublicKey(kid, now)
-
-		assert.Nil(t, err)
-		assert.NotEmpty(t, pub)
-	})
-
-	t.Run("error - unknown", func(t *testing.T) {
-		_, err := client.GetPublicKey("unknown", now)
-
-		if assert.Error(t, err) {
-			assert.True(t, errors.Is(err, ErrKeyNotFound))
-		}
-	})
-
-	t.Run("error - key exists", func(t *testing.T) {
-		err := client.AddPublicKey(kid, ec.Public(), now)
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.True(t, errors.Is(err, ErrKeyAlreadyExists))
-	})
-
-	t.Run("error - kid not valid at time", func(t *testing.T) {
-		_, err := client.GetPublicKey(kid, now.Add(-1))
-
-		if assert.Error(t, err) {
-			assert.True(t, errors.Is(err, ErrKeyRevoked))
-		}
-	})
-
-	t.Run("error - saving an empty key", func(t *testing.T) {
-		err := client.AddPublicKey(kid, nil, now)
-		assert.Error(t, err)
-	})
-
-	t.Run("revoke a key", func(t *testing.T) {
-		// Create a fresh key to prevent revocation of the shared test key
-		kid := "kid revoke a key"
-		if !assert.NoError(t, client.AddPublicKey(kid, ec.Public(), now)) {
-			return
-		}
-		if !assert.NoError(t, client.RevokePublicKey(kid, now)) {
-			return
-		}
-		key, err := client.GetPublicKey(kid, now.Add(10*time.Second))
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.True(t, errors.Is(err, ErrKeyRevoked), "GetPublicKey should return ErrKeyRevoked after revocation")
-		assert.Nil(t, key)
-	})
-
-	t.Run("error - revoke an already revoked key", func(t *testing.T) {
-		// Create a fresh key to prevent revocation of the shared test key
-		kid := "kid revoke a revoked key"
-		if !assert.NoError(t, client.AddPublicKey(kid, ec.Public(), now)) {
-			return
-		}
-
-		if !assert.NoError(t, client.RevokePublicKey(kid, now)) {
-			return
-		}
-
-		err := client.RevokePublicKey(kid, now)
-		assert.True(t, errors.Is(err, ErrKeyRevoked))
-	})
-
-	t.Run("error - revoke unknown key", func(t *testing.T) {
-		kid := "kid of unknown key"
-		err := client.RevokePublicKey(kid, now)
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.True(t, errors.Is(err, ErrKeyNotFound), "it should return a ErrKeyNotFound")
-
-	})
-
-	t.Run("error - kid should be set", func(t *testing.T) {
-		err := client.AddPublicKey("", ec.Public(), now)
-		assert.Error(t, err, "it should return an error")
-		assert.Equal(t, "could not add public key: kid cannot be empty", err.Error())
-	})
-}
 
 func TestCrypto_KeyExistsFor(t *testing.T) {
 	client := createCrypto(t)

@@ -38,14 +38,14 @@ import (
 type contractNotaryService struct {
 	conceptFinder    vcr.ConceptFinder
 	keyResolver      types.KeyResolver
-	privateKeyStore  crypto.PrivateKeyStore
+	privateKeyStore  crypto.KeyStore
 	contractValidity time.Duration
 }
 
 var timenow = time.Now
 
 // NewContractNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewContractNotary(finder vcr.ConceptFinder, keyResolver types.KeyResolver, keyStore crypto.PrivateKeyStore, contractValidity time.Duration) services.ContractNotary {
+func NewContractNotary(finder vcr.ConceptFinder, keyResolver types.KeyResolver, keyStore crypto.KeyStore, contractValidity time.Duration) services.ContractNotary {
 	return &contractNotaryService{
 		conceptFinder:    finder,
 		contractValidity: contractValidity,

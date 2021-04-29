@@ -7,7 +7,6 @@ package crypto
 import (
 	crypto "crypto"
 	reflect "reflect"
-	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 )
@@ -51,140 +50,6 @@ func (mr *MockKeyCreatorMockRecorder) New(namingFunc interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockKeyCreator)(nil).New), namingFunc)
 }
 
-// MockPublicKeyStore is a mock of PublicKeyStore interface.
-type MockPublicKeyStore struct {
-	ctrl     *gomock.Controller
-	recorder *MockPublicKeyStoreMockRecorder
-}
-
-// MockPublicKeyStoreMockRecorder is the mock recorder for MockPublicKeyStore.
-type MockPublicKeyStoreMockRecorder struct {
-	mock *MockPublicKeyStore
-}
-
-// NewMockPublicKeyStore creates a new mock instance.
-func NewMockPublicKeyStore(ctrl *gomock.Controller) *MockPublicKeyStore {
-	mock := &MockPublicKeyStore{ctrl: ctrl}
-	mock.recorder = &MockPublicKeyStoreMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockPublicKeyStore) EXPECT() *MockPublicKeyStoreMockRecorder {
-	return m.recorder
-}
-
-// AddPublicKey mocks base method.
-func (m *MockPublicKeyStore) AddPublicKey(kid string, publicKey crypto.PublicKey, validFrom time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddPublicKey", kid, publicKey, validFrom)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddPublicKey indicates an expected call of AddPublicKey.
-func (mr *MockPublicKeyStoreMockRecorder) AddPublicKey(kid, publicKey, validFrom interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPublicKey", reflect.TypeOf((*MockPublicKeyStore)(nil).AddPublicKey), kid, publicKey, validFrom)
-}
-
-// RevokePublicKey mocks base method.
-func (m *MockPublicKeyStore) RevokePublicKey(kid string, validTo time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RevokePublicKey", kid, validTo)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RevokePublicKey indicates an expected call of RevokePublicKey.
-func (mr *MockPublicKeyStoreMockRecorder) RevokePublicKey(kid, validTo interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokePublicKey", reflect.TypeOf((*MockPublicKeyStore)(nil).RevokePublicKey), kid, validTo)
-}
-
-// MockPrivateKeyStore is a mock of PrivateKeyStore interface.
-type MockPrivateKeyStore struct {
-	ctrl     *gomock.Controller
-	recorder *MockPrivateKeyStoreMockRecorder
-}
-
-// MockPrivateKeyStoreMockRecorder is the mock recorder for MockPrivateKeyStore.
-type MockPrivateKeyStoreMockRecorder struct {
-	mock *MockPrivateKeyStore
-}
-
-// NewMockPrivateKeyStore creates a new mock instance.
-func NewMockPrivateKeyStore(ctrl *gomock.Controller) *MockPrivateKeyStore {
-	mock := &MockPrivateKeyStore{ctrl: ctrl}
-	mock.recorder = &MockPrivateKeyStoreMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockPrivateKeyStore) EXPECT() *MockPrivateKeyStoreMockRecorder {
-	return m.recorder
-}
-
-// New mocks base method.
-func (m *MockPrivateKeyStore) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "New", namingFunc)
-	ret0, _ := ret[0].(crypto.PublicKey)
-	ret1, _ := ret[1].(string)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// New indicates an expected call of New.
-func (mr *MockPrivateKeyStoreMockRecorder) New(namingFunc interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockPrivateKeyStore)(nil).New), namingFunc)
-}
-
-// PrivateKeyExists mocks base method.
-func (m *MockPrivateKeyStore) PrivateKeyExists(kid string) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PrivateKeyExists", kid)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// PrivateKeyExists indicates an expected call of PrivateKeyExists.
-func (mr *MockPrivateKeyStoreMockRecorder) PrivateKeyExists(kid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrivateKeyExists", reflect.TypeOf((*MockPrivateKeyStore)(nil).PrivateKeyExists), kid)
-}
-
-// SignJWS mocks base method.
-func (m *MockPrivateKeyStore) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SignJWS", payload, protectedHeaders, kid)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SignJWS indicates an expected call of SignJWS.
-func (mr *MockPrivateKeyStoreMockRecorder) SignJWS(payload, protectedHeaders, kid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWS", reflect.TypeOf((*MockPrivateKeyStore)(nil).SignJWS), payload, protectedHeaders, kid)
-}
-
-// SignJWT mocks base method.
-func (m *MockPrivateKeyStore) SignJWT(claims map[string]interface{}, kid string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SignJWT", claims, kid)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SignJWT indicates an expected call of SignJWT.
-func (mr *MockPrivateKeyStoreMockRecorder) SignJWT(claims, kid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWT", reflect.TypeOf((*MockPrivateKeyStore)(nil).SignJWT), claims, kid)
-}
-
 // MockKeyStore is a mock of KeyStore interface.
 type MockKeyStore struct {
 	ctrl     *gomock.Controller
@@ -206,20 +71,6 @@ func NewMockKeyStore(ctrl *gomock.Controller) *MockKeyStore {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockKeyStore) EXPECT() *MockKeyStoreMockRecorder {
 	return m.recorder
-}
-
-// AddPublicKey mocks base method.
-func (m *MockKeyStore) AddPublicKey(kid string, publicKey crypto.PublicKey, validFrom time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddPublicKey", kid, publicKey, validFrom)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddPublicKey indicates an expected call of AddPublicKey.
-func (mr *MockKeyStoreMockRecorder) AddPublicKey(kid, publicKey, validFrom interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPublicKey", reflect.TypeOf((*MockKeyStore)(nil).AddPublicKey), kid, publicKey, validFrom)
 }
 
 // New mocks base method.
@@ -250,20 +101,6 @@ func (m *MockKeyStore) PrivateKeyExists(kid string) bool {
 func (mr *MockKeyStoreMockRecorder) PrivateKeyExists(kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrivateKeyExists", reflect.TypeOf((*MockKeyStore)(nil).PrivateKeyExists), kid)
-}
-
-// RevokePublicKey mocks base method.
-func (m *MockKeyStore) RevokePublicKey(kid string, validTo time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RevokePublicKey", kid, validTo)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RevokePublicKey indicates an expected call of RevokePublicKey.
-func (mr *MockKeyStoreMockRecorder) RevokePublicKey(kid, validTo interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokePublicKey", reflect.TypeOf((*MockKeyStore)(nil).RevokePublicKey), kid, validTo)
 }
 
 // SignJWS mocks base method.
