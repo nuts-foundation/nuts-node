@@ -119,8 +119,10 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 		return nil, nil, err
 	}
 
-	// impossible to generate error
-	keyID, _ := did.ParseDID(key.KID())
+	keyID, err := did.ParseDID(key.KID())
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// The Document DID will be the keyIDStr without the fragment:
 	didID := *keyID
@@ -150,8 +152,10 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 		if err != nil {
 			return nil, nil, err
 		}
-		// impossible to generate error
-		capKeyID, _ := did.ParseDID(capKey.KID())
+		capKeyID, err := did.ParseDID(capKey.KID())
+		if err != nil {
+			return nil, nil, err
+		}
 		verificationMethod, err = did.NewVerificationMethod(*capKeyID, ssi.JsonWebKey2020, did.DID{}, capKey.Public())
 		if err != nil {
 			return nil, nil, err
