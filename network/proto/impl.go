@@ -31,7 +31,7 @@ import (
 
 // protocol is thread-safe when callers use the Protocol interface
 type protocol struct {
-	p2pNetwork        p2p.Interface
+	p2pNetwork        p2p.Adapter
 	graph             dag.DAG
 	payloadStore      dag.PayloadStore
 	signatureVerifier dag.TransactionSignatureVerifier
@@ -71,7 +71,7 @@ func NewProtocol() Protocol {
 	return p
 }
 
-func (p *protocol) Configure(p2pNetwork p2p.Interface, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
+func (p *protocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
 	p.p2pNetwork = p2pNetwork
 	p.graph = graph
 	p.payloadStore = payloadStore

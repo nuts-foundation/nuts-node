@@ -27,10 +27,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
-// Interface defines the API for the P2P layer, used to connect to peers and exchange messages.
-type Interface interface {
+// Adapter defines the API for the P2P layer, used to connect to peers and exchange messages.
+type Adapter interface {
 	core.Diagnosable
-	// Configure configures the Interface. Must be called before Start().
+	// Configure configures the Adapter. Must be called before Start().
 	Configure(config InterfaceConfig) error
 	// Configured returns whether the system is configured or not
 	Configured() bool
@@ -41,7 +41,7 @@ type Interface interface {
 	// AddRemoteNode adds a remote node to the local node's view of the network, so it can become one of our peers.
 	// If we'll try to connect to the remote node, true is returned, otherwise false.
 	ConnectToPeer(address string) bool
-	// ReceivedMessages returns a queue containing all messages received from our peers. It must be drained, because when its buffer is full the producer (Interface) is blocked.
+	// ReceivedMessages returns a queue containing all messages received from our peers. It must be drained, because when its buffer is full the producer (Adapter) is blocked.
 	ReceivedMessages() MessageQueue
 	// Send sends a message to a specific peer.
 	Send(peer PeerID, message *transport.NetworkMessage) error

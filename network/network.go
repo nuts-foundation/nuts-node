@@ -52,7 +52,7 @@ const (
 // Network implements Transactions interface and Engine functions.
 type Network struct {
 	config       Config
-	p2pNetwork   p2p.Interface
+	p2pNetwork   p2p.Adapter
 	protocol     proto.Protocol
 	graph        dag.DAG
 	publisher    dag.Publisher

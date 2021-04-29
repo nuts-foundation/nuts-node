@@ -32,6 +32,7 @@ import (
 func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
 	peer := peerMsg.Peer
 	networkMessage := peerMsg.Message
+	log.Logger().Tracef("Received message from peer (peer=%s,msg=%T)", peer, networkMessage)
 	switch msg := networkMessage.Message.(type) {
 	case *transport.NetworkMessage_AdvertHashes:
 		if msg.AdvertHashes != nil {

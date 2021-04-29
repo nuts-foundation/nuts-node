@@ -20,7 +20,7 @@ type messageSender interface {
 }
 
 type defaultMessageSender struct {
-	p2p p2p.Interface
+	p2p p2p.Adapter
 }
 
 func (s defaultMessageSender) doSend(peer p2p.PeerID, envelope *transport.NetworkMessage) {

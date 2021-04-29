@@ -189,7 +189,7 @@ func (c *connector) readHeaders(gate transport.Network_ConnectClient, grpcConn *
 }
 
 // NewInterface creates an interface to be used connect to peers in the network and exchange messages.
-func NewInterface() Interface {
+func NewInterface() Adapter {
 	return &grpcInterface{
 		conns:                   make(map[PeerID]*connection, 0),
 		peersByAddr:             make(map[string]PeerID, 0),

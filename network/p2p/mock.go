@@ -12,43 +12,43 @@ import (
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
 )
 
-// MockInterface is a mock of Interface interface.
-type MockInterface struct {
+// MockAdapter is a mock of Adapter interface.
+type MockAdapter struct {
 	ctrl     *gomock.Controller
-	recorder *MockInterfaceMockRecorder
+	recorder *MockAdapterMockRecorder
 }
 
-// MockInterfaceMockRecorder is the mock recorder for MockInterface.
-type MockInterfaceMockRecorder struct {
-	mock *MockInterface
+// MockAdapterMockRecorder is the mock recorder for MockAdapter.
+type MockAdapterMockRecorder struct {
+	mock *MockAdapter
 }
 
-// NewMockInterface creates a new mock instance.
-func NewMockInterface(ctrl *gomock.Controller) *MockInterface {
-	mock := &MockInterface{ctrl: ctrl}
-	mock.recorder = &MockInterfaceMockRecorder{mock}
+// NewMockAdapter creates a new mock instance.
+func NewMockAdapter(ctrl *gomock.Controller) *MockAdapter {
+	mock := &MockAdapter{ctrl: ctrl}
+	mock.recorder = &MockAdapterMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockInterface) EXPECT() *MockInterfaceMockRecorder {
+func (m *MockAdapter) EXPECT() *MockAdapterMockRecorder {
 	return m.recorder
 }
 
 // Broadcast mocks base method.
-func (m *MockInterface) Broadcast(message *transport.NetworkMessage) {
+func (m *MockAdapter) Broadcast(message *transport.NetworkMessage) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Broadcast", message)
 }
 
 // Broadcast indicates an expected call of Broadcast.
-func (mr *MockInterfaceMockRecorder) Broadcast(message interface{}) *gomock.Call {
+func (mr *MockAdapterMockRecorder) Broadcast(message interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Broadcast", reflect.TypeOf((*MockInterface)(nil).Broadcast), message)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Broadcast", reflect.TypeOf((*MockAdapter)(nil).Broadcast), message)
 }
 
 // Configure mocks base method.
-func (m *MockInterface) Configure(config InterfaceConfig) error {
+func (m *MockAdapter) Configure(config InterfaceConfig) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Configure", config)
 	ret0, _ := ret[0].(error)
@@ -56,13 +56,13 @@ func (m *MockInterface) Configure(config InterfaceConfig) error {
 }
 
 // Configure indicates an expected call of Configure.
-func (mr *MockInterfaceMockRecorder) Configure(config interface{}) *gomock.Call {
+func (mr *MockAdapterMockRecorder) Configure(config interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockInterface)(nil).Configure), config)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockAdapter)(nil).Configure), config)
 }
 
 // Configured mocks base method.
-func (m *MockInterface) Configured() bool {
+func (m *MockAdapter) Configured() bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Configured")
 	ret0, _ := ret[0].(bool)
@@ -70,13 +70,13 @@ func (m *MockInterface) Configured() bool {
 }
 
 // Configured indicates an expected call of Configured.
-func (mr *MockInterfaceMockRecorder) Configured() *gomock.Call {
+func (mr *MockAdapterMockRecorder) Configured() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configured", reflect.TypeOf((*MockInterface)(nil).Configured))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configured", reflect.TypeOf((*MockAdapter)(nil).Configured))
 }
 
 // ConnectToPeer mocks base method.
-func (m *MockInterface) ConnectToPeer(address string) bool {
+func (m *MockAdapter) ConnectToPeer(address string) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConnectToPeer", address)
 	ret0, _ := ret[0].(bool)
@@ -84,13 +84,13 @@ func (m *MockInterface) ConnectToPeer(address string) bool {
 }
 
 // ConnectToPeer indicates an expected call of ConnectToPeer.
-func (mr *MockInterfaceMockRecorder) ConnectToPeer(address interface{}) *gomock.Call {
+func (mr *MockAdapterMockRecorder) ConnectToPeer(address interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectToPeer", reflect.TypeOf((*MockInterface)(nil).ConnectToPeer), address)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectToPeer", reflect.TypeOf((*MockAdapter)(nil).ConnectToPeer), address)
 }
 
 // Diagnostics mocks base method.
-func (m *MockInterface) Diagnostics() []core.DiagnosticResult {
+func (m *MockAdapter) Diagnostics() []core.DiagnosticResult {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Diagnostics")
 	ret0, _ := ret[0].([]core.DiagnosticResult)
@@ -98,13 +98,13 @@ func (m *MockInterface) Diagnostics() []core.DiagnosticResult {
 }
 
 // Diagnostics indicates an expected call of Diagnostics.
-func (mr *MockInterfaceMockRecorder) Diagnostics() *gomock.Call {
+func (mr *MockAdapterMockRecorder) Diagnostics() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockInterface)(nil).Diagnostics))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockAdapter)(nil).Diagnostics))
 }
 
 // EventChannels mocks base method.
-func (m *MockInterface) EventChannels() (chan Peer, chan Peer) {
+func (m *MockAdapter) EventChannels() (chan Peer, chan Peer) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "EventChannels")
 	ret0, _ := ret[0].(chan Peer)
@@ -113,13 +113,13 @@ func (m *MockInterface) EventChannels() (chan Peer, chan Peer) {
 }
 
 // EventChannels indicates an expected call of EventChannels.
-func (mr *MockInterfaceMockRecorder) EventChannels() *gomock.Call {
+func (mr *MockAdapterMockRecorder) EventChannels() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EventChannels", reflect.TypeOf((*MockInterface)(nil).EventChannels))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EventChannels", reflect.TypeOf((*MockAdapter)(nil).EventChannels))
 }
 
 // Peers mocks base method.
-func (m *MockInterface) Peers() []Peer {
+func (m *MockAdapter) Peers() []Peer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Peers")
 	ret0, _ := ret[0].([]Peer)
@@ -127,13 +127,13 @@ func (m *MockInterface) Peers() []Peer {
 }
 
 // Peers indicates an expected call of Peers.
-func (mr *MockInterfaceMockRecorder) Peers() *gomock.Call {
+func (mr *MockAdapterMockRecorder) Peers() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peers", reflect.TypeOf((*MockInterface)(nil).Peers))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peers", reflect.TypeOf((*MockAdapter)(nil).Peers))
 }
 
 // ReceivedMessages mocks base method.
-func (m *MockInterface) ReceivedMessages() MessageQueue {
+func (m *MockAdapter) ReceivedMessages() MessageQueue {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReceivedMessages")
 	ret0, _ := ret[0].(MessageQueue)
@@ -141,13 +141,13 @@ func (m *MockInterface) ReceivedMessages() MessageQueue {
 }
 
 // ReceivedMessages indicates an expected call of ReceivedMessages.
-func (mr *MockInterfaceMockRecorder) ReceivedMessages() *gomock.Call {
+func (mr *MockAdapterMockRecorder) ReceivedMessages() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceivedMessages", reflect.TypeOf((*MockInterface)(nil).ReceivedMessages))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceivedMessages", reflect.TypeOf((*MockAdapter)(nil).ReceivedMessages))
 }
 
 // Send mocks base method.
-func (m *MockInterface) Send(peer PeerID, message *transport.NetworkMessage) error {
+func (m *MockAdapter) Send(peer PeerID, message *transport.NetworkMessage) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", peer, message)
 	ret0, _ := ret[0].(error)
@@ -155,13 +155,13 @@ func (m *MockInterface) Send(peer PeerID, message *transport.NetworkMessage) err
 }
 
 // Send indicates an expected call of Send.
-func (mr *MockInterfaceMockRecorder) Send(peer, message interface{}) *gomock.Call {
+func (mr *MockAdapterMockRecorder) Send(peer, message interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockInterface)(nil).Send), peer, message)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockAdapter)(nil).Send), peer, message)
 }
 
 // Start mocks base method.
-func (m *MockInterface) Start() error {
+func (m *MockAdapter) Start() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Start")
 	ret0, _ := ret[0].(error)
@@ -169,13 +169,13 @@ func (m *MockInterface) Start() error {
 }
 
 // Start indicates an expected call of Start.
-func (mr *MockInterfaceMockRecorder) Start() *gomock.Call {
+func (mr *MockAdapterMockRecorder) Start() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockInterface)(nil).Start))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockAdapter)(nil).Start))
 }
 
 // Stop mocks base method.
-func (m *MockInterface) Stop() error {
+func (m *MockAdapter) Stop() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Stop")
 	ret0, _ := ret[0].(error)
@@ -183,9 +183,9 @@ func (m *MockInterface) Stop() error {
 }
 
 // Stop indicates an expected call of Stop.
-func (mr *MockInterfaceMockRecorder) Stop() *gomock.Call {
+func (mr *MockAdapterMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockInterface)(nil).Stop))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockAdapter)(nil).Stop))
 }
 
 // MockMessageQueue is a mock of MessageQueue interface.

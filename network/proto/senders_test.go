@@ -8,12 +8,12 @@ import (
 	"time"
 )
 
-func createMessageSender(t *testing.T) (defaultMessageSender, *p2p.MockInterface) {
+func createMessageSender(t *testing.T) (defaultMessageSender, *p2p.MockAdapter) {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(func() {
 		ctrl.Finish()
 	})
-	p2pInterface := p2p.NewMockInterface(ctrl)
+	p2pInterface := p2p.NewMockAdapter(ctrl)
 	sender := defaultMessageSender{p2p: p2pInterface}
 	return sender, p2pInterface
 }
