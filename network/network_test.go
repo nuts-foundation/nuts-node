@@ -228,8 +228,8 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.p2pNetwork.EXPECT().Start()
-		cxt.p2pNetwork.EXPECT().Configured().Return(true)
+		cxt.p2pAdapter.EXPECT().Start()
+		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
@@ -342,7 +342,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 }
 
 func createNetwork(ctrl *gomock.Controller) *networkTestContext {
-	p2pNetwork := p2p.NewMockAdapter(ctrl)
+	p2pAdapter := p2p.NewMockAdapter(ctrl)
 	protocol := proto.NewMockProtocol(ctrl)
 	graph := dag.NewMockDAG(ctrl)
 	payload := dag.NewMockPayloadStore(ctrl)
@@ -355,14 +355,14 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	keyStore := crypto.NewMockKeyStore(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	network := NewNetworkInstance(networkConfig, keyStore, keyResolver)
-	network.p2pNetwork = p2pNetwork
+	network.p2pNetwork = p2pAdapter
 	network.protocol = protocol
 	network.graph = graph
 	network.payloadStore = payload
 	network.publisher = publisher
 	return &networkTestContext{
 		network:     network,
-		p2pAdapter:  p2pNetwork,
+		p2pAdapter:  p2pAdapter,
 		protocol:    protocol,
 		graph:       graph,
 		payload:     payload,

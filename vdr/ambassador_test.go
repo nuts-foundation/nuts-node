@@ -106,15 +106,7 @@ func (s testTransaction) SigningAlgorithm() string {
 }
 
 func (s testTransaction) Previous() []hash.SHA256Hash {
-	panic("implement me")
-}
-
-func (s subscriberTransaction) Previous() []hash.SHA256Hash {
 	return s.prevs
-}
-
-func (s subscriberTransaction) Version() dag.Version {
-	panic("implement me")
 }
 
 func (s testTransaction) Version() dag.Version {
