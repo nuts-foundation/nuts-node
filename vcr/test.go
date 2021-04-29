@@ -65,6 +65,9 @@ func newMockContext(t *testing.T) mockContext {
 	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
 	keystore := types.NewMockKeyResolver(ctrl)
+	t.Cleanup(func() {
+		ctrl.Finish()
+	})
 
 	return mockContext{
 		ctrl:        ctrl,

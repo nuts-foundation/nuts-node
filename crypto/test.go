@@ -41,3 +41,22 @@ func NewTestKey(kid string) KeySelector {
 		kid:        kid,
 	}
 }
+
+// TestKeySelector is a KeySelector impl for testing purposes
+type TestKeySelector struct {
+	PrivateKey crypto.Signer
+	Kid string
+}
+
+func (t TestKeySelector) Signer() crypto.Signer {
+	return t.PrivateKey
+}
+
+func (t TestKeySelector) KID() string {
+	return t.Kid
+}
+
+func (t TestKeySelector) Public() crypto.PublicKey {
+	return t.PrivateKey.Public()
+}
+
