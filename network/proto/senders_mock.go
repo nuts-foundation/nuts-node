@@ -50,7 +50,7 @@ func (mr *MockmessageSenderMockRecorder) broadcastAdvertHashes(blocks interface{
 }
 
 // sendTransactionList mocks base method.
-func (m *MockmessageSender) sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction) {
+func (m *MockmessageSender) sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, date time.Time) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "sendTransactionList", peer, transactions)
 }

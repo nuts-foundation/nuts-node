@@ -14,7 +14,7 @@ import (
 type messageSender interface {
 	broadcastAdvertHashes(blocks []dagBlock)
 	sendTransactionListQuery(peer p2p.PeerID, blockDate time.Time)
-	sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction)
+	sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, date time.Time)
 	sendTransactionPayloadQuery(peer p2p.PeerID, payloadHash hash.SHA256Hash)
 	sendTransactionPayload(peer p2p.PeerID, payloadHash hash.SHA256Hash, data []byte)
 }
@@ -40,16 +40,16 @@ func (s defaultMessageSender) sendTransactionListQuery(peer p2p.PeerID, blockDat
 	// TODO: timestamp=0 becomes disallowed when https://github.com/nuts-foundation/nuts-specification/issues/57 is implemented
 	timestamp := int64(0)
 	if !blockDate.IsZero() {
-		timestamp = blockDate.UTC().Unix()
+		timestamp = blockDate.Unix()
 	}
 	envelope.Message = &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: uint32(timestamp)}}
 	s.doSend(peer, &envelope)
 }
 
-func (s defaultMessageSender) sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction) {
+func (s defaultMessageSender) sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, blockDate time.Time) {
 	envelope := createEnvelope()
 	tl := toNetworkTransactions(transactions)
-	envelope.Message = &transport.NetworkMessage_TransactionList{TransactionList: &transport.TransactionList{Transactions: tl}}
+	envelope.Message = &transport.NetworkMessage_TransactionList{TransactionList: &transport.TransactionList{Transactions: tl, BlockDate: uint32(blockDate.Unix())}}
 	s.doSend(peer, &envelope)
 }
 

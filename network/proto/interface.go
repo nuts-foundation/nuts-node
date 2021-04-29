@@ -62,4 +62,3 @@ type PeerOmnihash struct {
 	// Hash holds the actual hash.
 	Hash hash.SHA256Hash
 }
-
