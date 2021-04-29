@@ -100,7 +100,7 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 		options.Authentication = true
 	}
 	if req.AssertionMethod != nil && !*req.AssertionMethod {
-		options.Authentication = false
+		options.AssertionMethod = false
 	}
 	if req.CapablilityDelegation != nil && *req.CapablilityDelegation {
 		options.CapabilityDelegation = true
@@ -108,8 +108,8 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 	if req.CapablilityInvocation != nil && !*req.CapablilityInvocation {
 		options.CapabilityInvocation = false
 	}
-	if req.KeyAgreement != nil && !*req.KeyAgreement {
-		options.KeyAgreement = false
+	if req.KeyAgreement != nil && *req.KeyAgreement {
+		options.KeyAgreement = true
 	}
 	if req.SelfControl != nil && !*req.SelfControl {
 		options.SelfControl = false

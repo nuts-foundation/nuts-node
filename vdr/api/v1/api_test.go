@@ -22,6 +22,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/mock"
@@ -34,7 +35,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 		ID: *id,
 	}
 
-	t.Run("ok", func(t *testing.T) {
+	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
 
 		var didDocReturn did.Document
@@ -57,6 +58,74 @@ func TestWrapper_CreateDID(t *testing.T) {
 		assert.Equal(t, *id, didDocReturn.ID)
 	})
 
+	t.Run("ok - non defaults", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		var didDocReturn did.Document
+		varTrue := true
+		varFalse := false
+		controllers := []string{"did:nuts:2"}
+		didCreateRequest := DIDCreateRequest{
+			AssertionMethod:       &varFalse,
+			Authentication:        &varTrue,
+			CapablilityDelegation: &varTrue,
+			CapablilityInvocation: &varFalse,
+			KeyAgreement:          &varTrue,
+			SelfControl:           &varFalse,
+			Controllers: 		   &controllers,
+		}
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*DIDCreateRequest)
+			*p = didCreateRequest
+			return nil
+		})
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
+			didDocReturn = f2.(did.Document)
+			return nil
+		})
+		ctx.vdr.EXPECT().Create(gomock.Any()).Return(didDoc, nil, nil)
+		err := ctx.client.CreateDID(ctx.echo)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, *id, didDocReturn.ID)
+	})
+
+	t.Run("error - invalid controller DID", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		controllers := []string{"not_a_did"}
+		didCreateRequest := DIDCreateRequest{
+			Controllers: &controllers,
+		}
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*DIDCreateRequest)
+			*p = didCreateRequest
+			return nil
+		})
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any()).Return(nil)
+		err := ctx.client.CreateDID(ctx.echo)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - invalid options", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		didCreateRequest := DIDCreateRequest{}
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*DIDCreateRequest)
+			*p = didCreateRequest
+			return nil
+		})
+		ctx.vdr.EXPECT().Create(gomock.Any()).Return(nil, nil, doc.ErrInvalidOptions)
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any()).Return(nil)
+		err := ctx.client.CreateDID(ctx.echo)
+
+		assert.NoError(t, err)
+	})
+
 	t.Run("error - 500", func(t *testing.T) {
 		ctx := newMockContext(t)
 
@@ -70,6 +139,16 @@ func TestWrapper_CreateDID(t *testing.T) {
 		err := ctx.client.CreateDID(ctx.echo)
 
 		assert.Error(t, err)
+	})
+
+	t.Run("error - bind fails", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
+		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any()).Return(nil)
+		err := ctx.client.CreateDID(ctx.echo)
+
+		assert.NoError(t, err)
 	})
 }
 
