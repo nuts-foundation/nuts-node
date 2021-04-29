@@ -21,17 +21,11 @@ package doc
 
 import (
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/sha256"
-	"errors"
 	"fmt"
 
 	ssi "github.com/nuts-foundation/go-did"
 
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/shengdoushi/base58"
-
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
@@ -47,28 +41,21 @@ type Creator struct {
 
 // didKIDNamingFunc is a function used to name a key used in newly generated DID Documents
 func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
-	ecPKey, ok := pKey.(*ecdsa.PublicKey)
-	if !ok {
-		return "", errors.New("could not generate kid: invalid key type")
-	}
-
-	if ecPKey.Curve == nil {
-		return "", errors.New("could not generate kid: empty key curve")
-	}
-
 	// according to RFC006:
 	// --------------------
 
 	// generate idString
-	pkBytes := elliptic.Marshal(ecPKey.Curve, ecPKey.X, ecPKey.Y)
-	pkHash := sha256.Sum256(pkBytes)
-	idString := base58.Encode(pkHash[:], base58.BitcoinAlphabet)
-
-	// generate kid fragment
 	jwKey, err := jwk.New(pKey)
+	if err != nil {
+		return "", fmt.Errorf("could not generate kid: %w", err)
+	}
+
+	idString, err := nutsCrypto.Thumbprint(jwKey)
 	if err != nil {
 		return "", err
 	}
+
+	// generate kid fragment
 	err = jwk.AssignKeyID(jwKey)
 	if err != nil {
 		return "", err
