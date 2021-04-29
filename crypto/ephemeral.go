@@ -26,7 +26,7 @@ func NewEphemeralKey(namingFunc KIDNamingFunc) (KeySelector, error) {
 		return nil, err
 	}
 
-	kid, err := namingFunc(key.PublicKey)
+	kid, err := namingFunc(&key.PublicKey)
 	if err != nil {
 		return nil, err
 	}

@@ -45,16 +45,16 @@ type Creator struct {
 	KeyStore nutsCrypto.KeyCreator
 }
 
-// DefaultCreationOptions returns the default DIDCreationOptions: no controllers, CapablilityInvocation = true, AssertionMethod = true and SelfControl = true
+// DefaultCreationOptions returns the default DIDCreationOptions: no controllers, CapabilityInvocation = true, AssertionMethod = true and SelfControl = true
 func DefaultCreationOptions() vdr.DIDCreationOptions {
 	return vdr.DIDCreationOptions{
-		Controllers:           []did.DID{},
-		AssertionMethod:       true,
-		Authentication:        false,
-		CapablilityDelegation: false,
-		CapablilityInvocation: true,
-		KeyAgreement:          false,
-		SelfControl:           true,
+		Controllers:          []did.DID{},
+		AssertionMethod:      true,
+		Authentication:       false,
+		CapabilityDelegation: false,
+		CapabilityInvocation: true,
+		KeyAgreement:         false,
+		SelfControl:          true,
 	}
 }
 
@@ -96,15 +96,20 @@ func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
 	return kid.String(), nil
 }
 
+// ErrInvalidOptions is returned when the given options have an invalid combination
+var ErrInvalidOptions = errors.New("create request has invalid combination of options: SelfControl = true and CapabilityInvocation = false")
+
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
-// todo options validation
-// todo return values
-// todo interface
 func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCrypto.KeySelector, error) {
-	// First, generate a new keyPair with the correct kid
 	var key nutsCrypto.KeySelector
 	var err error
+
+	if options.SelfControl && !options.CapabilityInvocation {
+		return nil, nil, ErrInvalidOptions
+	}
+
+	// First, generate a new keyPair with the correct kid
 	if options.SelfControl {
 		key, err = n.KeyStore.New(didKIDNamingFunc)
 	} else {
@@ -158,10 +163,10 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 	}
 
 	// set all methods
-	if options.CapablilityDelegation {
+	if options.CapabilityDelegation {
 		doc.AddCapabilityDelegation(verificationMethod)
 	}
-	if options.CapablilityInvocation {
+	if options.CapabilityInvocation {
 		doc.AddCapabilityInvocation(verificationMethod)
 	}
 	if options.Authentication {

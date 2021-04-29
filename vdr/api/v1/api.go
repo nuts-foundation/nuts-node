@@ -103,10 +103,10 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 		options.Authentication = false
 	}
 	if req.CapablilityDelegation != nil && *req.CapablilityDelegation {
-		options.CapablilityDelegation = true
+		options.CapabilityDelegation = true
 	}
 	if req.CapablilityInvocation != nil && !*req.CapablilityInvocation {
-		options.CapablilityInvocation = false
+		options.CapabilityInvocation = false
 	}
 	if req.KeyAgreement != nil && !*req.KeyAgreement {
 		options.KeyAgreement = false
@@ -115,13 +115,12 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 		options.SelfControl = false
 	}
 
-	if options.SelfControl && !options.CapablilityInvocation {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("create request has invalid combination of options: SelfControl = true and CapablilityInvocation = false"))
-	}
-
 	doc, _, err := a.VDR.Create(options)
 	// if this operation leads to an error, it may return a 500
 	if err != nil {
+		if errors.Is(err, doc2.ErrInvalidOptions) {
+			return ctx.String(http.StatusBadRequest, err.Error())
+		}
 		return err
 	}
 

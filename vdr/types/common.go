@@ -97,13 +97,13 @@ type DIDCreationOptions struct {
 	// Authentication indicates if the generated key pair can be used for authentication.
 	Authentication bool
 
-	// CapablilityDelegation indicates if the generated key pair can be used for altering DID Documents.
+	// CapabilityDelegation indicates if the generated key pair can be used for altering DID Documents.
 	// In combination with selfControl = true, the key can be used to alter the new DID Document.
 	// Defaults to true when not given.
-	CapablilityDelegation bool
+	CapabilityDelegation bool
 
-	// CapablilityInvocation indicates if the generated key pair can be used for capability invocations.
-	CapablilityInvocation bool
+	// CapabilityInvocation indicates if the generated key pair can be used for capability invocations.
+	CapabilityInvocation bool
 
 	// KeyAgreement indicates if the generated key pair can be used for Key agreements.
 	KeyAgreement bool

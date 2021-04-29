@@ -100,7 +100,7 @@ func TestVcr_StoreRevocation(t *testing.T) {
 
 	t.Run("error - validation", func(t *testing.T) {
 		ctx := newMockContext(t)
-	
+
 		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
