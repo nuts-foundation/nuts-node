@@ -37,7 +37,12 @@ func (s defaultMessageSender) broadcastAdvertHashes(blocks []dagBlock) {
 
 func (s defaultMessageSender) sendTransactionListQuery(peer p2p.PeerID, blockDate time.Time) {
 	envelope := createEnvelope()
-	envelope.Message = &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: uint32(blockDate.UTC().Unix())}}
+	// TODO: timestamp=0 becomes disallowed when https://github.com/nuts-foundation/nuts-specification/issues/57 is implemented
+	timestamp := int64(0)
+	if !blockDate.IsZero() {
+		timestamp = blockDate.UTC().Unix()
+	}
+	envelope.Message = &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: uint32(timestamp)}}
 	s.doSend(peer, &envelope)
 }
 

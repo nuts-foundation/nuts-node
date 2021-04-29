@@ -75,9 +75,12 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 		return
 	}
 	// Compare historic block
-	localHistoryHash := getHistoricBlock(localBlocks).xor()
+	historicBlock := getHistoricBlock(localBlocks)
+	localHistoryHash := historicBlock.xor()
 	if !localHistoryHash.Equals(hash.FromSlice(advertHash.HistoricHash)) {
-		log.Logger().Warnf("Peer's historic block differs, broadcast is ignored (peer=%s)", peer)
+		// TODO: Disallowed when https://github.com/nuts-foundation/nuts-specification/issues/57 is implemented
+		log.Logger().Infof("Peer's historic block differs which will be sync-ed for now, but will be disallowed in the future (peer=%s)", peer)
+		p.sender.sendTransactionListQuery(peer, time.Time{})
 		return
 	}
 	// Finally, check the rest of the blocks
@@ -216,13 +219,14 @@ func (p *protocol) handleTransactionListQuery(peer p2p.PeerID, blockDateInt uint
 	var startDate time.Time
 	var endDate time.Time
 	if blockDateInt == 0 {
-		logrus.Warnf("Peer didn't specify date of the block to be queried, ignoring (peer=%s).", peer)
+		// TODO: Disallowed when https://github.com/nuts-foundation/nuts-specification/issues/57 is implemented
+		logrus.Infof("Peer queries historic block which is supported for now, but will be disallowed in the future (peer=%s)", peer)
 		// Historic block is queried, query from start up to the first block
-		// endDate = p.blocks.get()[1].start
-		return nil
+		endDate = p.blocks.get()[1].start
+	} else {
+		startDate = time.Unix(int64(blockDateInt), 0)
+		endDate = startDate.AddDate(0, 0, 1)
 	}
-	startDate = time.Unix(int64(blockDateInt), 0)
-	endDate = startDate.AddDate(0, 0, 1)
 	log.Logger().Tracef("Received transaction list query from peer (peer=%s,from=%s,to=%s)", peer, startDate, endDate)
 	txs, err := p.graph.FindBetween(startDate, endDate)
 	if err != nil {

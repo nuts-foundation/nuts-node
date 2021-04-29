@@ -78,8 +78,9 @@ func TestProtocol_HandleAdvertedHashes(t *testing.T) {
 		assert.NoError(t, err)
 		ctx.assertNoNewOmnihashes()
 	})
-	t.Run("historic block differs (unhappy flow, network split)", func(t *testing.T) {
+	t.Run("historic block differs (queries historic block for now)", func(t *testing.T) {
 		ctx := newContext(t)
+		ctx.sender().EXPECT().sendTransactionListQuery(peer, time.Time{})
 		blocks := toBlocks(ctx.transactions)
 		blocks[0].heads[0] = hash.SHA256Sum([]byte{1, 2, 3})
 		msg := createAdvertHashesMessage(blocks)
@@ -94,14 +95,10 @@ func TestProtocol_HandleTransactionListQuery(t *testing.T) {
 		err := newContext(t).handle(&transport.NetworkMessage_TransactionListQuery{})
 		assert.NoError(t, err)
 	})
-	t.Run("body empty (faulty use of protocol)", func(t *testing.T) {
-		msg := &transport.NetworkMessage_TransactionListQuery{}
-		msg.TransactionListQuery = &transport.TransactionListQuery{}
-		err := newContext(t).handle(msg)
-		assert.NoError(t, err)
-	})
-	t.Run("supplied block date is zero (faulty use of protocol)", func(t *testing.T) {
+	t.Run("supplied block date is zero, requests historic block (allowed for now)", func(t *testing.T) {
 		ctx := newContext(t)
+		ctx.graph().EXPECT().FindBetween(time.Time{}, ctx.instance.blocks.get()[1].start)
+		ctx.sender().EXPECT().sendTransactionList(peer, gomock.Any())
 		msg := &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: 0}}
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
