@@ -243,7 +243,7 @@ func TestBBoltDAG_Diagnostics(t *testing.T) {
 	sort.Strings(lines)
 	actual := strings.Join(lines, "\n")
 	assert.Equal(t, `[DAG] Heads: [`+doc1.Ref().String()+`]
-[DAG] Number of transactions: 2
+[DAG] Number of transactions: 1
 [DAG] Stored transaction size (bytes): 8192`, actual)
 }
 

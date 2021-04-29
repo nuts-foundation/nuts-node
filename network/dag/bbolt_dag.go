@@ -108,7 +108,10 @@ func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 	transactionNum := 0
 	_ = dag.db.View(func(tx *bbolt.Tx) error {
 		if bucket := tx.Bucket([]byte(transactionsBucket)); bucket != nil {
-			transactionNum = bucket.Stats().KeyN
+			// There's an extra entry in the Bucket for the root transaction,
+			// which is just a reference to the actual root transaction. So we subtract 1 from the number of keys to get
+			// the real number of TXs
+			transactionNum = bucket.Stats().KeyN - 1
 		}
 		return nil
 	})
