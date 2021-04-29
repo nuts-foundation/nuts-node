@@ -92,23 +92,31 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 // If a key is overwritten is handled by the storage implementation.
 // (it's considered bad practise to reuse a kid for different keys)
 func (client *Crypto) New(namingFunc KIDNamingFunc) (KeySelector, error) {
-	keyPair, err := generateECKeyPair()
-	if err != nil {
-		return nil, err
-	}
-
-	kid, err := namingFunc(keyPair.Public())
+	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
 	if err != nil {
 		return nil, err
 	}
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
 		return nil, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
-	log.Logger().Infof("Generated new key pair (id=%s)", kid)
 	return keySelector{
 		privateKey: keyPair,
 		kid:        kid,
 	}, nil
+}
+
+func generateKeyPairAndKID(namingFunc KIDNamingFunc) (*ecdsa.PrivateKey, string, error) {
+	keyPair, err := generateECKeyPair()
+	if err != nil {
+		return nil, "", err
+	}
+
+	kid, err := namingFunc(keyPair.Public())
+	if err != nil {
+		return nil, "", err
+	}
+	log.Logger().Infof("Generated new key pair (id=%s)", kid)
+	return keyPair, kid, nil
 }
 
 func generateECKeyPair() (*ecdsa.PrivateKey, error) {

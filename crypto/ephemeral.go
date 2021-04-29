@@ -21,18 +21,13 @@ package crypto
 
 // NewEphemeralKey returns a KeySelector with a single key for single use.
 func NewEphemeralKey(namingFunc KIDNamingFunc) (KeySelector, error) {
-	key, err := generateECKeyPair()
-	if err != nil {
-		return nil, err
-	}
-
-	kid, err := namingFunc(&key.PublicKey)
+	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
 	if err != nil {
 		return nil, err
 	}
 
 	return keySelector{
-		privateKey: key,
+		privateKey: keyPair,
 		kid:        kid,
 	}, nil
 }
