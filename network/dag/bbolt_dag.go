@@ -21,6 +21,7 @@ package dag
 import (
 	"bytes"
 	"fmt"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -166,8 +167,9 @@ func (dag bboltDAG) Heads() []hash.SHA256Hash {
 	return result
 }
 
-func (dag bboltDAG) All() ([]Transaction, error) {
+func (dag *bboltDAG) FindBetween(startInclusive time.Time, endExclusive time.Time) ([]Transaction, error) {
 	result := make([]Transaction, 0)
+	// TODO: Replace this with something more optimized (maybe go-leia with a range query on signing time?)
 	err := dag.db.View(func(tx *bbolt.Tx) error {
 		if transactions := tx.Bucket([]byte(transactionsBucket)); transactions != nil {
 			cursor := transactions.Cursor()
@@ -179,7 +181,9 @@ func (dag bboltDAG) All() ([]Transaction, error) {
 				if err != nil {
 					return fmt.Errorf("unable to parse transaction %s: %w", ref, err)
 				}
-				result = append(result, transaction)
+				if !transaction.SigningTime().Before(startInclusive) && transaction.SigningTime().Before(endExclusive) {
+					result = append(result, transaction)
+				}
 			}
 			return nil
 		}

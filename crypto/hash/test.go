@@ -19,5 +19,5 @@ func (h hashMatcher) Matches(x interface{}) bool {
 }
 
 func (h hashMatcher) String() string {
-	return "Hashes matches: " + h.expected.String()
+	return "Hash matches: " + h.expected.String()
 }

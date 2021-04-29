@@ -39,7 +39,7 @@ func (s *replayingDAGPublisher) TransactionAdded(transaction interface{}) {
 
 func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver) {
 	oldSubscriber := s.subscribers[payloadType]
-	s.subscribers[payloadType] = func(transaction SubscriberTransaction, payload []byte) error {
+	s.subscribers[payloadType] = func(transaction Transaction, payload []byte) error {
 		// Chain subscribers in case there's more than 1
 		if oldSubscriber != nil {
 			if err := oldSubscriber(transaction, payload); err != nil {
@@ -69,10 +69,6 @@ func (s *replayingDAGPublisher) publish(startAt hash.SHA256Hash) {
 }
 
 func (s *replayingDAGPublisher) publishTransaction(transaction Transaction) bool {
-	receiver := s.subscribers[transaction.PayloadType()]
-	if receiver == nil {
-		return true
-	}
 	payload, err := s.payloadStore.ReadPayload(transaction.PayloadHash())
 	if err != nil {
 		log.Logger().Errorf("Unable to read payload to publish DAG: (ref=%s) %v", transaction.Ref(), err)
@@ -82,8 +78,15 @@ func (s *replayingDAGPublisher) publishTransaction(transaction Transaction) bool
 		// We haven't got the payload, break of processing for this branch
 		return false
 	}
-	if err := receiver(transaction, payload); err != nil {
-		log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
+
+	for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
+		receiver := s.subscribers[payloadType]
+		if receiver == nil {
+			continue
+		}
+		if err := receiver(transaction, payload); err != nil {
+			log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
+		}
 	}
 	return true
 }

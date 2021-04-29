@@ -22,6 +22,10 @@ import (
 	"crypto"
 	"encoding/binary"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/test/io"
+	"go.etcd.io/bbolt"
+	"path"
+	"testing"
 	"time"
 
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
@@ -96,4 +100,17 @@ func graphG() []Transaction {
 	g := CreateTestTransactionWithJWK(6, docs[3].Ref(), docs[5].Ref())
 	docs = append(docs, g)
 	return docs
+}
+
+func createBBoltDB(testDirectory string) *bbolt.DB {
+	db, err := bbolt.Open(path.Join(testDirectory, "dag.db"), 0600, bbolt.DefaultOptions)
+	if err != nil {
+		panic(err)
+	}
+	return db
+}
+
+func CreateDAG(t *testing.T) DAG {
+	testDirectory := io.TestDirectory(t)
+	return NewBBoltDAG(createBBoltDB(testDirectory))
 }

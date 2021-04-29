@@ -68,7 +68,7 @@ func (d didStoreMock) Iterate(fn types.DocIterator) error {
 	panic("implement me")
 }
 
-type subscriberTransaction struct {
+type testTransaction struct {
 	signingKey   jwk.Key
 	signingKeyID string
 	signingTime  time.Time
@@ -78,38 +78,46 @@ type subscriberTransaction struct {
 	prevs        []hash.SHA256Hash
 }
 
-func (s subscriberTransaction) SigningKey() jwk.Key {
+func (s testTransaction) SigningKey() jwk.Key {
 	return s.signingKey
 }
 
-func (s subscriberTransaction) SigningKeyID() string {
+func (s testTransaction) SigningKeyID() string {
 	return s.signingKeyID
 }
 
-func (s subscriberTransaction) SigningTime() time.Time {
+func (s testTransaction) SigningTime() time.Time {
 	return s.signingTime
 }
 
-func (s subscriberTransaction) Ref() hash.SHA256Hash {
+func (s testTransaction) Ref() hash.SHA256Hash {
 	return s.ref
 }
 
-func (s subscriberTransaction) PayloadHash() hash.SHA256Hash {
+func (s testTransaction) PayloadHash() hash.SHA256Hash {
 	return s.payloadHash
 }
 
-func (s subscriberTransaction) PayloadType() string {
+func (s testTransaction) PayloadType() string {
 	return s.payloadType
 }
-func (s subscriberTransaction) SigningAlgorithm() string {
+func (s testTransaction) SigningAlgorithm() string {
 	panic("implement me")
 }
 
-func (s subscriberTransaction) Previous() []hash.SHA256Hash {
+func (s testTransaction) Previous() []hash.SHA256Hash {
 	return s.prevs
 }
 
-func (s subscriberTransaction) Version() dag.Version {
+func (s testTransaction) Version() dag.Version {
+	panic("implement me")
+}
+
+func (s testTransaction) MarshalJSON() ([]byte, error) {
+	panic("implement me")
+}
+
+func (s testTransaction) Data() []byte {
 	panic("implement me")
 }
 
@@ -119,8 +127,8 @@ func Test_ambassador_callback(t *testing.T) {
 	payloadHash := hash.SHA256Sum([]byte("payload"))
 	ref := hash.SHA256Sum([]byte("ref"))
 
-	newSubscriberTx := func() subscriberTransaction {
-		return subscriberTransaction{
+	newSubscriberTx := func() testTransaction {
+		return testTransaction{
 			signingKeyID: "validKeyID123",
 			signingTime:  signingTime,
 			ref:          ref,
@@ -268,7 +276,7 @@ func Test_ambassador_callback(t *testing.T) {
 		id, _ := did.ParseDID("did:foo:bar")
 		emptyDIDDocument := did.Document{ID: *id, Context: []ssi.URI{did.DIDContextV1URI()}}
 		didDocumentBytes, _ := emptyDIDDocument.MarshalJSON()
-		subDoc := subscriberTransaction{
+		subDoc := testTransaction{
 			signingKeyID: "key-1",
 			signingTime:  signingTime,
 			ref:          ref,
@@ -658,11 +666,11 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		args      dag.SubscriberTransaction
+		args      dag.Transaction
 		wantedErr error
 	}{
 		{"ok - valid create document",
-			subscriberTransaction{
+			testTransaction{
 				signingKeyID: "",
 				signingTime:  signingTime,
 				signingKey:   signingKey,
@@ -673,7 +681,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 			nil,
 		},
 		{"ok - valid update document",
-			subscriberTransaction{
+			testTransaction{
 				signingKeyID: "kid123",
 				signingTime:  signingTime,
 				ref:          ref,
@@ -683,7 +691,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 			nil,
 		},
 		{"nok - payload rejects invalid payload type",
-			subscriberTransaction{
+			testTransaction{
 				signingKeyID: "",
 				signingTime:  signingTime,
 				ref:          ref,
@@ -693,7 +701,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 			errors.New("wrong payload type for this subscriber. Can handle: application/did+json, got: application/xml"),
 		},
 		{"nok - missing payload hash",
-			subscriberTransaction{
+			testTransaction{
 				signingKeyID: "",
 				signingTime:  signingTime,
 				ref:          ref,
@@ -702,7 +710,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 			errors.New("payloadHash must be provided"),
 		},
 		{"nok - missing signingTime",
-			subscriberTransaction{
+			testTransaction{
 				signingKeyID: "",
 				signingKey:   signingKey,
 				ref:          ref,
@@ -712,7 +720,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 			errors.New("signingTime must be set and in the past"),
 		},
 		{"nok - signingTime in the future",
-			subscriberTransaction{
+			testTransaction{
 				signingKeyID: "",
 				signingTime:  signingTime.Add(10 * time.Minute),
 				signingKey:   signingKey,
@@ -725,7 +733,7 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := checkSubscriberTransactionIntegrity(tt.args); err != nil || tt.wantedErr != nil {
+			if err := checkTransactionIntegrity(tt.args); err != nil || tt.wantedErr != nil {
 				if err == nil {
 					if tt.wantedErr != nil {
 						t.Error("expected an error, got nothing")

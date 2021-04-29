@@ -50,6 +50,9 @@ type NetworkMessage struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// Below are the messages that can be sent/received using the NetworkMessage. A NetworkMessage MAY contain multiple
+	// messages.
+	//
 	// Types that are assignable to Message:
 	//	*NetworkMessage_AdvertHashes
 	//	*NetworkMessage_TransactionListQuery
@@ -167,19 +170,73 @@ func (*NetworkMessage_TransactionPayloadQuery) isNetworkMessage_Message() {}
 
 func (*NetworkMessage_TransactionPayload) isNetworkMessage_Message() {}
 
-// Actual messages go here
+// Headers contains protocol metadata.
+type Header struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// version contains the protocol version of the sent message.
+	Version uint32 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+}
+
+func (x *Header) Reset() {
+	*x = Header{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_network_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Header) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Header) ProtoMessage() {}
+
+func (x *Header) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_network_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Header.ProtoReflect.Descriptor instead.
+func (*Header) Descriptor() ([]byte, []int) {
+	return file_transport_network_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Header) GetVersion() uint32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+// AdvertHashes is a message broadcast for inform peers of the node's DAG state.
 type AdvertHashes struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Hashes [][]byte `protobuf:"bytes,1,rep,name=hashes,proto3" json:"hashes,omitempty"`
+	// currentBlockDate contains a Unix timestamp at which the current block started (UTC).
+	CurrentBlockDate uint32 `protobuf:"varint,1,opt,name=currentBlockDate,proto3" json:"currentBlockDate,omitempty"`
+	// blocks contains the the current block and the previous blocks. The first entry is the current block.
+	Blocks []*BlockHashes `protobuf:"bytes,2,rep,name=blocks,proto3" json:"blocks,omitempty"`
+	// historicHash contains the XOR of all head hashes leading up to the last block.
+	HistoricHash []byte `protobuf:"bytes,3,opt,name=historicHash,proto3" json:"historicHash,omitempty"`
 }
 
 func (x *AdvertHashes) Reset() {
 	*x = AdvertHashes{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_transport_network_proto_msgTypes[1]
+		mi := &file_transport_network_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -192,7 +249,7 @@ func (x *AdvertHashes) String() string {
 func (*AdvertHashes) ProtoMessage() {}
 
 func (x *AdvertHashes) ProtoReflect() protoreflect.Message {
-	mi := &file_transport_network_proto_msgTypes[1]
+	mi := &file_transport_network_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -205,27 +262,93 @@ func (x *AdvertHashes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdvertHashes.ProtoReflect.Descriptor instead.
 func (*AdvertHashes) Descriptor() ([]byte, []int) {
-	return file_transport_network_proto_rawDescGZIP(), []int{1}
+	return file_transport_network_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *AdvertHashes) GetHashes() [][]byte {
+func (x *AdvertHashes) GetCurrentBlockDate() uint32 {
+	if x != nil {
+		return x.CurrentBlockDate
+	}
+	return 0
+}
+
+func (x *AdvertHashes) GetBlocks() []*BlockHashes {
+	if x != nil {
+		return x.Blocks
+	}
+	return nil
+}
+
+func (x *AdvertHashes) GetHistoricHash() []byte {
+	if x != nil {
+		return x.HistoricHash
+	}
+	return nil
+}
+
+// BlockHashes contains the head's hashes of a block.
+type BlockHashes struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// hashes contains the hashes of the heads in this block.
+	Hashes [][]byte `protobuf:"bytes,1,rep,name=hashes,proto3" json:"hashes,omitempty"`
+}
+
+func (x *BlockHashes) Reset() {
+	*x = BlockHashes{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_network_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *BlockHashes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BlockHashes) ProtoMessage() {}
+
+func (x *BlockHashes) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_network_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BlockHashes.ProtoReflect.Descriptor instead.
+func (*BlockHashes) Descriptor() ([]byte, []int) {
+	return file_transport_network_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *BlockHashes) GetHashes() [][]byte {
 	if x != nil {
 		return x.Hashes
 	}
 	return nil
 }
 
-// Message to ask for a peer's hash list
+// TransactionListQuery is a message used to query a peer's TransactionList.
 type TransactionListQuery struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+
+	// blockDate specifies which block to query the transactions for.
+	BlockDate uint32 `protobuf:"varint,1,opt,name=blockDate,proto3" json:"blockDate,omitempty"`
 }
 
 func (x *TransactionListQuery) Reset() {
 	*x = TransactionListQuery{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_transport_network_proto_msgTypes[2]
+		mi := &file_transport_network_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -238,7 +361,7 @@ func (x *TransactionListQuery) String() string {
 func (*TransactionListQuery) ProtoMessage() {}
 
 func (x *TransactionListQuery) ProtoReflect() protoreflect.Message {
-	mi := &file_transport_network_proto_msgTypes[2]
+	mi := &file_transport_network_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -251,22 +374,32 @@ func (x *TransactionListQuery) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionListQuery.ProtoReflect.Descriptor instead.
 func (*TransactionListQuery) Descriptor() ([]byte, []int) {
-	return file_transport_network_proto_rawDescGZIP(), []int{2}
+	return file_transport_network_proto_rawDescGZIP(), []int{4}
 }
 
-// Message to inform a peer of our hash list
+func (x *TransactionListQuery) GetBlockDate() uint32 {
+	if x != nil {
+		return x.BlockDate
+	}
+	return 0
+}
+
+// TransactionList is the response message for TransactionListQuery.
 type TransactionList struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Transactions []*Transaction `protobuf:"bytes,1,rep,name=transactions,proto3" json:"transactions,omitempty"`
+	// blockDate which block the transactions belong to.
+	BlockDate uint32 `protobuf:"varint,1,opt,name=blockDate,proto3" json:"blockDate,omitempty"`
+	// transactions contains the peer's transactions for the specified block.
+	Transactions []*Transaction `protobuf:"bytes,10,rep,name=transactions,proto3" json:"transactions,omitempty"`
 }
 
 func (x *TransactionList) Reset() {
 	*x = TransactionList{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_transport_network_proto_msgTypes[3]
+		mi := &file_transport_network_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -279,7 +412,7 @@ func (x *TransactionList) String() string {
 func (*TransactionList) ProtoMessage() {}
 
 func (x *TransactionList) ProtoReflect() protoreflect.Message {
-	mi := &file_transport_network_proto_msgTypes[3]
+	mi := &file_transport_network_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -292,7 +425,14 @@ func (x *TransactionList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionList.ProtoReflect.Descriptor instead.
 func (*TransactionList) Descriptor() ([]byte, []int) {
-	return file_transport_network_proto_rawDescGZIP(), []int{3}
+	return file_transport_network_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *TransactionList) GetBlockDate() uint32 {
+	if x != nil {
+		return x.BlockDate
+	}
+	return 0
 }
 
 func (x *TransactionList) GetTransactions() []*Transaction {
@@ -302,19 +442,22 @@ func (x *TransactionList) GetTransactions() []*Transaction {
 	return nil
 }
 
+// Transaction represents a transaction on the DAG.
 type Transaction struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// hash contains the reference of the transaction, as specified by RFC004.
 	Hash []byte `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
+	// data contains the data of the transaction, which is a JWS as specified by RFC004.
 	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 }
 
 func (x *Transaction) Reset() {
 	*x = Transaction{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_transport_network_proto_msgTypes[4]
+		mi := &file_transport_network_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -327,7 +470,7 @@ func (x *Transaction) String() string {
 func (*Transaction) ProtoMessage() {}
 
 func (x *Transaction) ProtoReflect() protoreflect.Message {
-	mi := &file_transport_network_proto_msgTypes[4]
+	mi := &file_transport_network_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -340,7 +483,7 @@ func (x *Transaction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Transaction.ProtoReflect.Descriptor instead.
 func (*Transaction) Descriptor() ([]byte, []int) {
-	return file_transport_network_proto_rawDescGZIP(), []int{4}
+	return file_transport_network_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Transaction) GetHash() []byte {
@@ -357,19 +500,20 @@ func (x *Transaction) GetData() []byte {
 	return nil
 }
 
-// Message to ask for a peer for a specific transaction
+// TransactionPayloadQuery is a message used to query the payload of a transaction.
 type TransactionPayloadQuery struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// payloadHash contains the SHA-256 hash of the payload which the node would like to receive, as specified by RFC004.
 	PayloadHash []byte `protobuf:"bytes,1,opt,name=payloadHash,proto3" json:"payloadHash,omitempty"`
 }
 
 func (x *TransactionPayloadQuery) Reset() {
 	*x = TransactionPayloadQuery{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_transport_network_proto_msgTypes[5]
+		mi := &file_transport_network_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -382,7 +526,7 @@ func (x *TransactionPayloadQuery) String() string {
 func (*TransactionPayloadQuery) ProtoMessage() {}
 
 func (x *TransactionPayloadQuery) ProtoReflect() protoreflect.Message {
-	mi := &file_transport_network_proto_msgTypes[5]
+	mi := &file_transport_network_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,7 +539,7 @@ func (x *TransactionPayloadQuery) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionPayloadQuery.ProtoReflect.Descriptor instead.
 func (*TransactionPayloadQuery) Descriptor() ([]byte, []int) {
-	return file_transport_network_proto_rawDescGZIP(), []int{5}
+	return file_transport_network_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *TransactionPayloadQuery) GetPayloadHash() []byte {
@@ -405,19 +549,22 @@ func (x *TransactionPayloadQuery) GetPayloadHash() []byte {
 	return nil
 }
 
+// TransactionPayload is the response message for TransactionPayloadQuery.
 type TransactionPayload struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// payloadHash contains the SHA-256 hash of the payload, as specified by RFC004.
 	PayloadHash []byte `protobuf:"bytes,1,opt,name=payloadHash,proto3" json:"payloadHash,omitempty"`
-	Data        []byte `protobuf:"bytes,10,opt,name=data,proto3" json:"data,omitempty"`
+	// data contains the actual payload.
+	Data []byte `protobuf:"bytes,10,opt,name=data,proto3" json:"data,omitempty"`
 }
 
 func (x *TransactionPayload) Reset() {
 	*x = TransactionPayload{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_transport_network_proto_msgTypes[6]
+		mi := &file_transport_network_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -430,7 +577,7 @@ func (x *TransactionPayload) String() string {
 func (*TransactionPayload) ProtoMessage() {}
 
 func (x *TransactionPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_transport_network_proto_msgTypes[6]
+	mi := &file_transport_network_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -443,7 +590,7 @@ func (x *TransactionPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionPayload.ProtoReflect.Descriptor instead.
 func (*TransactionPayload) Descriptor() ([]byte, []int) {
-	return file_transport_network_proto_rawDescGZIP(), []int{6}
+	return file_transport_network_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *TransactionPayload) GetPayloadHash() []byte {
@@ -492,13 +639,28 @@ var file_transport_network_proto_rawDesc = []byte{
 	0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64,
 	0x48, 0x00, 0x52, 0x12, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50,
 	0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x42, 0x09, 0x0a, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67,
-	0x65, 0x4a, 0x04, 0x08, 0x01, 0x10, 0x64, 0x22, 0x26, 0x0a, 0x0c, 0x41, 0x64, 0x76, 0x65, 0x72,
-	0x74, 0x48, 0x61, 0x73, 0x68, 0x65, 0x73, 0x12, 0x16, 0x0a, 0x06, 0x68, 0x61, 0x73, 0x68, 0x65,
-	0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x06, 0x68, 0x61, 0x73, 0x68, 0x65, 0x73, 0x22,
-	0x16, 0x0a, 0x14, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4c, 0x69,
-	0x73, 0x74, 0x51, 0x75, 0x65, 0x72, 0x79, 0x22, 0x4d, 0x0a, 0x0f, 0x54, 0x72, 0x61, 0x6e, 0x73,
-	0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4c, 0x69, 0x73, 0x74, 0x12, 0x3a, 0x0a, 0x0c, 0x74, 0x72,
-	0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b,
+	0x65, 0x4a, 0x04, 0x08, 0x01, 0x10, 0x64, 0x22, 0x22, 0x0a, 0x06, 0x48, 0x65, 0x61, 0x64, 0x65,
+	0x72, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0d, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x8e, 0x01, 0x0a, 0x0c,
+	0x41, 0x64, 0x76, 0x65, 0x72, 0x74, 0x48, 0x61, 0x73, 0x68, 0x65, 0x73, 0x12, 0x2a, 0x0a, 0x10,
+	0x63, 0x75, 0x72, 0x72, 0x65, 0x6e, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x44, 0x61, 0x74, 0x65,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x10, 0x63, 0x75, 0x72, 0x72, 0x65, 0x6e, 0x74, 0x42,
+	0x6c, 0x6f, 0x63, 0x6b, 0x44, 0x61, 0x74, 0x65, 0x12, 0x2e, 0x0a, 0x06, 0x62, 0x6c, 0x6f, 0x63,
+	0x6b, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x74, 0x72, 0x61, 0x6e, 0x73,
+	0x70, 0x6f, 0x72, 0x74, 0x2e, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x61, 0x73, 0x68, 0x65, 0x73,
+	0x52, 0x06, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x12, 0x22, 0x0a, 0x0c, 0x68, 0x69, 0x73, 0x74,
+	0x6f, 0x72, 0x69, 0x63, 0x48, 0x61, 0x73, 0x68, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0c,
+	0x68, 0x69, 0x73, 0x74, 0x6f, 0x72, 0x69, 0x63, 0x48, 0x61, 0x73, 0x68, 0x22, 0x25, 0x0a, 0x0b,
+	0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x61, 0x73, 0x68, 0x65, 0x73, 0x12, 0x16, 0x0a, 0x06, 0x68,
+	0x61, 0x73, 0x68, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x06, 0x68, 0x61, 0x73,
+	0x68, 0x65, 0x73, 0x22, 0x34, 0x0a, 0x14, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69,
+	0x6f, 0x6e, 0x4c, 0x69, 0x73, 0x74, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x1c, 0x0a, 0x09, 0x62,
+	0x6c, 0x6f, 0x63, 0x6b, 0x44, 0x61, 0x74, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x09,
+	0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x44, 0x61, 0x74, 0x65, 0x22, 0x6b, 0x0a, 0x0f, 0x54, 0x72, 0x61,
+	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4c, 0x69, 0x73, 0x74, 0x12, 0x1c, 0x0a, 0x09,
+	0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x44, 0x61, 0x74, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52,
+	0x09, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x44, 0x61, 0x74, 0x65, 0x12, 0x3a, 0x0a, 0x0c, 0x74, 0x72,
+	0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0x0a, 0x20, 0x03, 0x28, 0x0b,
 	0x32, 0x16, 0x2e, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x70, 0x6f, 0x72, 0x74, 0x2e, 0x54, 0x72, 0x61,
 	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x0c, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61,
 	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x22, 0x35, 0x0a, 0x0b, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61,
@@ -537,30 +699,33 @@ func file_transport_network_proto_rawDescGZIP() []byte {
 	return file_transport_network_proto_rawDescData
 }
 
-var file_transport_network_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_transport_network_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_transport_network_proto_goTypes = []interface{}{
 	(*NetworkMessage)(nil),          // 0: transport.NetworkMessage
-	(*AdvertHashes)(nil),            // 1: transport.AdvertHashes
-	(*TransactionListQuery)(nil),    // 2: transport.TransactionListQuery
-	(*TransactionList)(nil),         // 3: transport.TransactionList
-	(*Transaction)(nil),             // 4: transport.Transaction
-	(*TransactionPayloadQuery)(nil), // 5: transport.TransactionPayloadQuery
-	(*TransactionPayload)(nil),      // 6: transport.TransactionPayload
+	(*Header)(nil),                  // 1: transport.Header
+	(*AdvertHashes)(nil),            // 2: transport.AdvertHashes
+	(*BlockHashes)(nil),             // 3: transport.BlockHashes
+	(*TransactionListQuery)(nil),    // 4: transport.TransactionListQuery
+	(*TransactionList)(nil),         // 5: transport.TransactionList
+	(*Transaction)(nil),             // 6: transport.Transaction
+	(*TransactionPayloadQuery)(nil), // 7: transport.TransactionPayloadQuery
+	(*TransactionPayload)(nil),      // 8: transport.TransactionPayload
 }
 var file_transport_network_proto_depIdxs = []int32{
-	1, // 0: transport.NetworkMessage.advertHashes:type_name -> transport.AdvertHashes
-	2, // 1: transport.NetworkMessage.TransactionListQuery:type_name -> transport.TransactionListQuery
-	3, // 2: transport.NetworkMessage.TransactionList:type_name -> transport.TransactionList
-	5, // 3: transport.NetworkMessage.transactionPayloadQuery:type_name -> transport.TransactionPayloadQuery
-	6, // 4: transport.NetworkMessage.transactionPayload:type_name -> transport.TransactionPayload
-	4, // 5: transport.TransactionList.transactions:type_name -> transport.Transaction
-	0, // 6: transport.Network.Connect:input_type -> transport.NetworkMessage
-	0, // 7: transport.Network.Connect:output_type -> transport.NetworkMessage
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	2, // 0: transport.NetworkMessage.advertHashes:type_name -> transport.AdvertHashes
+	4, // 1: transport.NetworkMessage.TransactionListQuery:type_name -> transport.TransactionListQuery
+	5, // 2: transport.NetworkMessage.TransactionList:type_name -> transport.TransactionList
+	7, // 3: transport.NetworkMessage.transactionPayloadQuery:type_name -> transport.TransactionPayloadQuery
+	8, // 4: transport.NetworkMessage.transactionPayload:type_name -> transport.TransactionPayload
+	3, // 5: transport.AdvertHashes.blocks:type_name -> transport.BlockHashes
+	6, // 6: transport.TransactionList.transactions:type_name -> transport.Transaction
+	0, // 7: transport.Network.Connect:input_type -> transport.NetworkMessage
+	0, // 8: transport.Network.Connect:output_type -> transport.NetworkMessage
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_transport_network_proto_init() }
@@ -582,7 +747,7 @@ func file_transport_network_proto_init() {
 			}
 		}
 		file_transport_network_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AdvertHashes); i {
+			switch v := v.(*Header); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -594,7 +759,7 @@ func file_transport_network_proto_init() {
 			}
 		}
 		file_transport_network_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionListQuery); i {
+			switch v := v.(*AdvertHashes); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -606,7 +771,7 @@ func file_transport_network_proto_init() {
 			}
 		}
 		file_transport_network_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionList); i {
+			switch v := v.(*BlockHashes); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -618,7 +783,7 @@ func file_transport_network_proto_init() {
 			}
 		}
 		file_transport_network_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Transaction); i {
+			switch v := v.(*TransactionListQuery); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -630,7 +795,7 @@ func file_transport_network_proto_init() {
 			}
 		}
 		file_transport_network_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionPayloadQuery); i {
+			switch v := v.(*TransactionList); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -642,6 +807,30 @@ func file_transport_network_proto_init() {
 			}
 		}
 		file_transport_network_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Transaction); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_network_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TransactionPayloadQuery); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_network_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*TransactionPayload); i {
 			case 0:
 				return &v.state
@@ -667,7 +856,7 @@ func file_transport_network_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_transport_network_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

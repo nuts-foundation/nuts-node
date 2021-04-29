@@ -40,7 +40,7 @@ import (
 
 type networkTestContext struct {
 	network     *Network
-	p2pNetwork  *p2p.MockP2PNetwork
+	p2pAdapter  *p2p.MockAdapter
 	protocol    *proto.MockProtocol
 	graph       *dag.MockDAG
 	payload     *dag.MockPayloadStore
@@ -54,7 +54,7 @@ func TestNetwork_ListTransactions(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.graph.EXPECT().All().Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
+		cxt.graph.EXPECT().FindBetween(gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
 		docs, err := cxt.network.ListTransactions()
 		assert.Len(t, docs, 1)
 		assert.NoError(t, err)
@@ -112,7 +112,7 @@ func TestNetwork_Diagnostics(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.protocol.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
-		cxt.p2pNetwork.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
+		cxt.p2pAdapter.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
 		diagnostics := cxt.network.Diagnostics()
 		assert.Len(t, diagnostics, 4)
 	})
@@ -123,8 +123,8 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
-		cxt.p2pNetwork.EXPECT().Configure(gomock.Any())
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.p2pAdapter.EXPECT().Configure(gomock.Any())
 		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
@@ -134,7 +134,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.network.config.CertKeyFile = ""
 		cxt.network.config.CertFile = ""
 		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
@@ -146,7 +146,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.network.config.TrustStoreFile = ""
 		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
@@ -157,8 +157,8 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
-		cxt.p2pNetwork.EXPECT().Configure(gomock.Any())
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.p2pAdapter.EXPECT().Configure(gomock.Any())
 		cxt.network.config.TrustStoreFile = ""
 		cxt.network.config.EnableTLS = false
 		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
@@ -182,8 +182,8 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		defer ctrl.Finish()
 		payload := []byte("Hello, World!")
 		cxt := createNetwork(ctrl)
-		cxt.p2pNetwork.EXPECT().Start()
-		cxt.p2pNetwork.EXPECT().Configured().Return(true)
+		cxt.p2pAdapter.EXPECT().Start()
+		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
@@ -204,8 +204,8 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.p2pNetwork.EXPECT().Start()
-		cxt.p2pNetwork.EXPECT().Configured().Return(true)
+		cxt.p2pAdapter.EXPECT().Start()
+		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
@@ -228,8 +228,8 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.p2pNetwork.EXPECT().Start()
-		cxt.p2pNetwork.EXPECT().Configured().Return(true)
+		cxt.p2pAdapter.EXPECT().Start()
+		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
@@ -257,8 +257,8 @@ func TestNetwork_Start(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.p2pNetwork.EXPECT().Start()
-		cxt.p2pNetwork.EXPECT().Configured().Return(true)
+		cxt.p2pAdapter.EXPECT().Start()
+		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
@@ -268,7 +268,7 @@ func TestNetwork_Start(t *testing.T) {
 	})
 	t.Run("ok - offline", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.p2pNetwork.EXPECT().Configured().Return(false)
+		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
@@ -283,13 +283,13 @@ func TestNetwork_Shutdown(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.p2pNetwork.EXPECT().Stop()
+		cxt.p2pAdapter.EXPECT().Stop()
 		err := cxt.network.Shutdown()
 		assert.NoError(t, err)
 	})
 	t.Run("error - stop returns error", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.p2pNetwork.EXPECT().Stop().Return(errors.New("failed"))
+		cxt.p2pAdapter.EXPECT().Stop().Return(errors.New("failed"))
 		err := cxt.network.Shutdown()
 		assert.EqualError(t, err, "failed")
 	})
@@ -342,7 +342,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 }
 
 func createNetwork(ctrl *gomock.Controller) *networkTestContext {
-	p2pNetwork := p2p.NewMockP2PNetwork(ctrl)
+	p2pAdapter := p2p.NewMockAdapter(ctrl)
 	protocol := proto.NewMockProtocol(ctrl)
 	graph := dag.NewMockDAG(ctrl)
 	payload := dag.NewMockPayloadStore(ctrl)
@@ -355,14 +355,14 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	keyStore := crypto.NewMockKeyStore(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	network := NewNetworkInstance(networkConfig, keyStore, keyResolver)
-	network.p2pNetwork = p2pNetwork
+	network.p2pNetwork = p2pAdapter
 	network.protocol = protocol
 	network.graph = graph
 	network.payloadStore = payload
 	network.publisher = publisher
 	return &networkTestContext{
 		network:     network,
-		p2pNetwork:  p2pNetwork,
+		p2pAdapter:  p2pAdapter,
 		protocol:    protocol,
 		graph:       graph,
 		payload:     payload,

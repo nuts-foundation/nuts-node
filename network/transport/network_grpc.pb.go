@@ -18,6 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NetworkClient interface {
+	// Connect is used to setup a bidirectional streaming gRPC connection over which network messages can be sent.
 	Connect(ctx context.Context, opts ...grpc.CallOption) (Network_ConnectClient, error)
 }
 
@@ -64,6 +65,7 @@ func (x *networkConnectClient) Recv() (*NetworkMessage, error) {
 // All implementations should embed UnimplementedNetworkServer
 // for forward compatibility
 type NetworkServer interface {
+	// Connect is used to setup a bidirectional streaming gRPC connection over which network messages can be sent.
 	Connect(Network_ConnectServer) error
 }
 

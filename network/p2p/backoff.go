@@ -22,8 +22,15 @@ import (
 	"time"
 )
 
+// Backoff defines an API for delaying calls (or connections) to a remote system when its unresponsive,
+// to avoid flooding both local and remote system. When a call fails Backoff() must be called,
+// which returns the waiting time before the action should be retried.
+// When the call succeeds Reset() and the Backoff is stored for re-use, Reset() should be called to make sure to reset
+// the internal counters.
 type Backoff interface {
+	// Reset resets the internal counters of the Backoff and should be called after a successful call.
 	Reset()
+	// Backoff returns the waiting time before the call should be retried, and should be called after a failed call.
 	Backoff() time.Duration
 }
 
@@ -39,7 +46,7 @@ func (b *backoff) Reset() {
 }
 
 func (b *backoff) Backoff() time.Duration {
-	// TODO: Might want to add jitter (e.g. https://github.com/grpc/grpc/blob/master/doc/connection-backoff.md)
+	// Jitter could be added to add a bit of randomness to the backoff value (e.g. https://github.com/grpc/grpc/blob/master/doc/connection-backoff.md)
 	if b.value < b.min {
 		b.value = b.min
 	} else {
