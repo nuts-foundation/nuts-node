@@ -128,27 +128,49 @@ func TestVDR_Update(t *testing.T) {
 	})
 }
 func TestVDR_Create(t *testing.T) {
-	ctx := newVDRTestCtx(t)
-	key := crypto.NewTestKey("did:nuts:123#key-1")
-	id, _ := did.ParseDID("did:nuts:123")
-	keyID, _ := did.ParseDID(key.KID())
-	nextDIDDocument := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: *id}
-	vm, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
-	if !assert.NoError(t, err) {
-		return
-	}
-	nextDIDDocument.AddCapabilityInvocation(vm)
-	nextDIDDocument.AddAssertionMethod(vm)
-	expectedPayload, _ := json.Marshal(nextDIDDocument)
+	t.Run("ok", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+		key := crypto.NewTestKey("did:nuts:123#key-1")
+		id, _ := did.ParseDID("did:nuts:123")
+		keyID, _ := did.ParseDID(key.KID())
+		nextDIDDocument := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: *id}
+		vm, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
+		if !assert.NoError(t, err) {
+			return
+		}
+		nextDIDDocument.AddCapabilityInvocation(vm)
+		nextDIDDocument.AddAssertionMethod(vm)
+		expectedPayload, _ := json.Marshal(nextDIDDocument)
 
-	ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
-	ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, key, true, gomock.Any(), gomock.Any())
+		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
+		ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, key, true, gomock.Any(), gomock.Any())
 
-	didDoc, key, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+		didDoc, key, err := ctx.vdr.Create(doc.DefaultCreationOptions())
 
-	assert.NoError(t, err)
-	assert.NotNil(t, didDoc)
-	assert.NotNil(t, key)
+		assert.NoError(t, err)
+		assert.NotNil(t, didDoc)
+		assert.NotNil(t, key)
+	})
+
+	t.Run("error - doc creation", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(nil, errors.New("b00m!"))
+
+		_, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+
+		assert.EqualError(t, err, "could not create did document: b00m!")
+	})
+
+	t.Run("error - transaction failed", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+		key := crypto.NewTestKey("did:nuts:123#key-1")
+		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
+		ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, gomock.Any(), key, true, gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
+
+		_, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+
+		assert.EqualError(t, err, "could not store did document in network: b00m!")
+	})
 }
 
 func TestNewVDR(t *testing.T) {
