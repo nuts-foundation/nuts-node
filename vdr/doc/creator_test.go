@@ -72,16 +72,16 @@ func TestCreator_Create(t *testing.T) {
 		creator := Creator{KeyStore: kc}
 		t.Run("defaults", func(t *testing.T) {
 			doc, key, err := creator.Create(defaultOptions)
-			assert.NoError(t, err,"create should not return an error")
-			assert.NotNil(t, doc,"create should return a document")
-			assert.NotNil(t, key,"create should return a KeySelector")
-			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS", doc.ID.String(),"the DID Doc should have the expected id")
-			assert.Len(t, doc.VerificationMethod, 1,"it should have one verificationMethod")
+			assert.NoError(t, err, "create should not return an error")
+			assert.NotNil(t, doc, "create should return a document")
+			assert.NotNil(t, key, "create should return a KeySelector")
+			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS", doc.ID.String(), "the DID Doc should have the expected id")
+			assert.Len(t, doc.VerificationMethod, 1, "it should have one verificationMethod")
 			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", doc.VerificationMethod[0].ID.String(),
 				"verificationMethod should have the correct id")
-			assert.Len(t, doc.CapabilityInvocation, 1,"it should have 1 CapabilityInvocation")
-			assert.Equal(t, doc.CapabilityInvocation[0].VerificationMethod, doc.VerificationMethod[0],"the assertionMethod should be a pointer to the verificationMethod")
-			assert.Len(t, doc.AssertionMethod, 1,"it should have 1 AssertionMethod")
+			assert.Len(t, doc.CapabilityInvocation, 1, "it should have 1 CapabilityInvocation")
+			assert.Equal(t, doc.CapabilityInvocation[0].VerificationMethod, doc.VerificationMethod[0], "the assertionMethod should be a pointer to the verificationMethod")
+			assert.Len(t, doc.AssertionMethod, 1, "it should have 1 AssertionMethod")
 		})
 
 		t.Run("all keys", func(t *testing.T) {

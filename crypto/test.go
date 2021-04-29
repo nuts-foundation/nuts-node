@@ -45,7 +45,7 @@ func NewTestKey(kid string) KeySelector {
 // TestKeySelector is a KeySelector impl for testing purposes
 type TestKeySelector struct {
 	PrivateKey crypto.Signer
-	Kid string
+	Kid        string
 }
 
 func (t TestKeySelector) Signer() crypto.Signer {
@@ -59,4 +59,3 @@ func (t TestKeySelector) KID() string {
 func (t TestKeySelector) Public() crypto.PublicKey {
 	return t.PrivateKey.Public()
 }
-
