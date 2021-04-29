@@ -60,7 +60,7 @@ func newDAGBlocks() dagBlocks {
 	for i := 0; i < len(result.blocks); i++ {
 		result.blocks[i] = &blockTracker{heads: map[hash.SHA256Hash]*head{}}
 	}
-	result.updateTimestamps(time.Now())
+	result.internalUpdateTimestamps(time.Now())
 	return result
 }
 
@@ -95,8 +95,8 @@ type head struct {
 	blockDate time.Time
 }
 
-// internalHeads calculates the block heads, without updating the structure first. Only for internal use and testing.
-func (blx *trackingDAGBlocks) internalHeads() []dagBlock {
+// internalGet calculates the block heads, without updating the structure first. Only for internal use and testing.
+func (blx *trackingDAGBlocks) internalGet() []dagBlock {
 	result := make([]dagBlock, 0)
 	for blockNum, currBlock := range blx.blocks {
 		resultBlock := dagBlock{start: currBlock.start}
@@ -115,7 +115,7 @@ func (blx *trackingDAGBlocks) get() []dagBlock {
 	blx.mux.Lock()
 	defer blx.mux.Unlock()
 	blx.internalUpdate(time.Now())
-	return blx.internalHeads()
+	return blx.internalGet()
 }
 
 // AddTransaction adds a transaction to the DAG blocks structure. It MUST be called for transactions in order,
@@ -125,6 +125,11 @@ func (blx *trackingDAGBlocks) addTransaction(tx dag.Transaction, _ []byte) error
 	blx.mux.Lock()
 	defer blx.mux.Unlock()
 	blx.internalUpdate(time.Now())
+	blx.internalAddTransaction(tx)
+	return nil
+}
+
+func (blx *trackingDAGBlocks) internalAddTransaction(tx dag.Transaction) {
 	// Determine block the TX is part of
 	blockIdx := len(blx.blocks) - 1
 	for i := 0; i < len(blx.blocks)-1; i++ {
@@ -167,14 +172,13 @@ func (blx *trackingDAGBlocks) addTransaction(tx dag.Transaction, _ []byte) error
 			}
 		}
 	}
-	return nil
 }
 
 // internalUpdate first updates the timestamps on the blocks and then redistributes the transactions into the correct blocks.
 // It must be called before any interaction (reading the heads, adding a transaction) with the structure.
 // Callers must make sure it's never called with an older timestamp (a timestamp which lies before the timestamp it was last called with).
 func (blx *trackingDAGBlocks) internalUpdate(now time.Time) {
-	if !blx.updateTimestamps(now) {
+	if !blx.internalUpdateTimestamps(now) {
 		// Day didn't pass since last call so block timestamps are not updated -> nothing to do.
 		return
 	}
@@ -220,9 +224,9 @@ func updateTXBlockDistances(historicBlock *blockTracker) {
 	}
 }
 
-// updateTimestamps updates the timestamps of the blocks using the given time.
+// internalUpdateTimestamps updates the timestamps of the blocks using the given time.
 // If there's already transactions in the blocks they must be redistributed (so they end up in the correct block) after this function has been called.
-func (blx *trackingDAGBlocks) updateTimestamps(now time.Time) bool {
+func (blx *trackingDAGBlocks) internalUpdateTimestamps(now time.Time) bool {
 	t := startOfDay(now)
 	changed := false
 	for idx, currBlock := range blx.blocks {

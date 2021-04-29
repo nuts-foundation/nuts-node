@@ -30,9 +30,9 @@ import (
 )
 
 type testCase struct {
-	name  string
+	name string
 	// txs contains the transactions to be added
-	txs   []tx
+	txs []tx
 	// heads contains the expected block head transactions. They're specified by transaction name as specified in `txs`.
 	// The heads expected in a block are comma separated, so `A, B, C` means 3 blocks with A in the historic block,
 	// B in the next block, C in the current block. If there should be multiple heads they can be specified separated
@@ -213,7 +213,7 @@ func TestBlocks(t *testing.T) {
 				for blockNum, blockHeadsConcatted := range expectedBlockHeads {
 					blockHeads := strings.Split(strings.TrimSpace(blockHeadsConcatted), " ")
 					for _, blockHead := range blockHeads {
-						heads := blocks.internalHeads()
+						heads := blocks.internalGet()
 						if strings.TrimSpace(blockHead) == "" {
 							assert.Empty(t, heads[blockNum].heads)
 						} else {
@@ -229,6 +229,30 @@ func TestBlocks(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("end of DST (daylight saving time)", func(t *testing.T) {
+		// DST ends at October 31th, 2021 at 03:00
+		blocks := newDAGBlocks().(*trackingDAGBlocks)
+
+		loc, _ := time.LoadLocation("Europe/Amsterdam")
+		now := time.Date(2021, 10, 31, 1, 0, 0, 0, loc)
+		blocks.internalUpdateTimestamps(now)
+
+		// TX just before DST ends
+		tx1 := testTX{sigt: time.Date(2021, 10, 31, 2, 0, 0, 0, loc), data: []byte{2}}
+		blocks.internalAddTransaction(tx1)
+		// TX just after DST ends
+		tx2 := testTX{sigt: time.Date(2021, 10, 31, 3, 0, 1, 0, loc), data: []byte{3}, prev: []hash.SHA256Hash{tx1.Ref()}}
+		blocks.internalAddTransaction(tx2)
+
+		// Assert
+		blocks.internalUpdate(now)
+		actual := blocks.internalGet()
+		assert.Empty(t, actual[0].heads)
+		assert.Empty(t, actual[1].heads)
+		assert.Len(t, actual[2].heads, 1)
+		assert.Equal(t, tx2.Ref(), actual[2].heads[0])
+	})
 }
 
 func TestDAGBlock_XORHeads(t *testing.T) {
