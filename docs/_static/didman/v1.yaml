@@ -21,7 +21,7 @@ paths:
       description: |
         To distinguish from compound services, this type of service will be called an endpoint.
         In the Nuts specs this type of service is called a concrete service.
-        
+
         Add an endpoint with a type and URL to a DID Document. The API will convert it to a DID service with the serviceEndpoint set to a URL.
         This API will also check if an endpoint with the same type already exists. This API is not meant to add compound services.
 
