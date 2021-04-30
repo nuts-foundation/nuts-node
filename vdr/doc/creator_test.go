@@ -43,7 +43,7 @@ type mockKeyCreator struct {
 }
 
 // New uses a predefined ECDSA key and calls the namingFunc to get the kid
-func (m *mockKeyCreator) New(namingFunc nutsCrypto.KIDNamingFunc) (nutsCrypto.KeySelector, error) {
+func (m *mockKeyCreator) New(namingFunc nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
 	return nutsCrypto.NewTestKey(m.kid), nil
 }
 
@@ -74,7 +74,7 @@ func TestCreator_Create(t *testing.T) {
 			doc, key, err := creator.Create(defaultOptions)
 			assert.NoError(t, err, "create should not return an error")
 			assert.NotNil(t, doc, "create should return a document")
-			assert.NotNil(t, key, "create should return a KeySelector")
+			assert.NotNil(t, key, "create should return a Key")
 			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS", doc.ID.String(), "the DID Doc should have the expected id")
 			assert.Len(t, doc.VerificationMethod, 1, "it should have one verificationMethod")
 			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", doc.VerificationMethod[0].ID.String(),

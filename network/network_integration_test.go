@@ -117,7 +117,7 @@ func resetIntegrationTest(_ string) {
 	receivedTransactions = make(map[string][]dag.SubscriberTransaction, 0)
 }
 
-func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCrypto.KeySelector, sender *Network, receivers ...string) bool {
+func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCrypto.Key, sender *Network, receivers ...string) bool {
 	expectedTransaction, err := sender.CreateTransaction(payloadType, []byte(payload), key, true, time.Now(), []hash.SHA256Hash{})
 	if !assert.NoError(t, err) {
 		return true

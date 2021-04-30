@@ -40,11 +40,11 @@ func TestCrypto_PrivateKeyExists(t *testing.T) {
 	client.New(StringNamingFunc(kid))
 
 	t.Run("returns true for existing key", func(t *testing.T) {
-		assert.True(t, client.PrivateKeyExists(kid))
+		assert.True(t, client.Exists(kid))
 	})
 
 	t.Run("returns false for non-existing key", func(t *testing.T) {
-		assert.False(t, client.PrivateKeyExists("unknown"))
+		assert.False(t, client.Exists("unknown"))
 	})
 }
 

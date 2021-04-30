@@ -38,7 +38,7 @@ func (m *MockTransactions) EXPECT() *MockTransactionsMockRecorder {
 }
 
 // CreateTransaction mocks base method.
-func (m *MockTransactions) CreateTransaction(payloadType string, payload []byte, key crypto.KeySelector, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
+func (m *MockTransactions) CreateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateTransaction", payloadType, payload, key, attachKey, timestamp, additionalPrevs)
 	ret0, _ := ret[0].(dag.Transaction)

@@ -653,7 +653,7 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	return qs
 }
 
-func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, key crypto.KeySelector) error {
+func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, key crypto.Key) error {
 	// create proof
 	pr := vc.Proof{
 		Type:               "JsonWebSignature2020",
@@ -687,7 +687,7 @@ func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, ke
 	return nil
 }
 
-func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI, key crypto.KeySelector) error {
+func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI, key crypto.Key) error {
 	// create proof
 	r.Proof = &vc.JSONWebSignature2020Proof{
 		Proof: vc.Proof{

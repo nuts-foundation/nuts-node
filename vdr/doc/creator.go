@@ -101,8 +101,8 @@ var ErrInvalidOptions = errors.New("create request has invalid combination of op
 
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
-func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCrypto.KeySelector, error) {
-	var key nutsCrypto.KeySelector
+func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
+	var key nutsCrypto.Key
 	var err error
 
 	if options.SelfControl && !options.CapabilityInvocation {

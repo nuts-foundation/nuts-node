@@ -19,8 +19,8 @@
 
 package crypto
 
-// NewEphemeralKey returns a KeySelector with a single key for single use.
-func NewEphemeralKey(namingFunc KIDNamingFunc) (KeySelector, error) {
+// NewEphemeralKey returns a Key for single use.
+func NewEphemeralKey(namingFunc KIDNamingFunc) (Key, error) {
 	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
 	if err != nil {
 		return nil, err

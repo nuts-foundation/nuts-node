@@ -66,7 +66,7 @@ func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
 
-	if !s.privateKeyStore.PrivateKeyExists(signingKeyID) {
+	if !s.privateKeyStore.Exists(signingKeyID) {
 		return nil, fmt.Errorf("could not draw up contract: organization is not managed by this node: %w", validator.ErrMissingOrganizationKey)
 	}
 

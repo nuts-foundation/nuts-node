@@ -40,7 +40,7 @@ type Transactions interface {
 	// If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
 	// The created transaction refers to the current HEADs of the DAG. Additional references can be given through additionalPrevs.
 	// This is used to update entities that are mutable. By referring to the previous transaction of an entity, conflicts through parallel updates can be detected.
-	CreateTransaction(payloadType string, payload []byte, key crypto.KeySelector, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error)
+	CreateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error)
 	// ListTransactions returns all transactions known to this Network instance.
 	ListTransactions() ([]dag.Transaction, error)
 	// Walk walks the DAG starting at the root, calling `visitor` for every transaction.

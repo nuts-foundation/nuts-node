@@ -218,7 +218,7 @@ func (s *service) validateSubject(context *validationContext) error {
 	if err != nil {
 		return err
 	}
-	if !s.privateKeyStore.PrivateKeyExists(signingKeyID) {
+	if !s.privateKeyStore.Exists(signingKeyID) {
 		return fmt.Errorf("subject.vendor: %s is not managed by this node", subject)
 	}
 
@@ -315,7 +315,7 @@ func (s *service) parseAndValidateJwtBearerToken(context *validationContext) err
 // IntrospectAccessToken fills the fields in NutsAccessToken from the given Jwt Access Token
 func (s *service) IntrospectAccessToken(accessToken string) (*services.NutsAccessToken, error) {
 	token, err := nutsCrypto.ParseJWT(accessToken, func(kid string) (crypto.PublicKey, error) {
-		if !s.privateKeyStore.PrivateKeyExists(kid) {
+		if !s.privateKeyStore.Exists(kid) {
 			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
 		}
 		return s.keyResolver.ResolveSigningKey(kid, nil)

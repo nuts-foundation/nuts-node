@@ -31,18 +31,18 @@ type KIDNamingFunc func(key crypto.PublicKey) (string, error)
 
 // KeyCreator is the interface for creating key pairs.
 type KeyCreator interface {
-	// New generates a keypair and returns the public key.
-	// the KIDNamingFunc will provide the kid. priv/pub keys are appended with a postfix and stored
-	New(namingFunc KIDNamingFunc) (KeySelector, error)
+	// New generates a keypair and returns a Key.
+	// the KIDNamingFunc will provide the kid.
+	New(namingFunc KIDNamingFunc) (Key, error)
 }
 
 // KeyStore defines the functions for working with private keys.
 type KeyStore interface {
-	// PrivateKeyExists returns if the specified private key exists.
+	// Exists returns if the specified private key exists.
 	// If an error occurs, false is also returned
-	PrivateKeyExists(kid string) bool
-	// Resolve returns a KeySelector for the given KID. ErrKeyNotFound is returned for an unknown KID.
-	Resolve(kid string) (KeySelector, error)
+	Exists(kid string) bool
+	// Resolve returns a Key for the given KID. ErrKeyNotFound is returned for an unknown KID.
+	Resolve(kid string) (Key, error)
 
 	KeyCreator
 	JWTSigner
@@ -55,12 +55,12 @@ type JWTSigner interface {
 	SignJWT(claims map[string]interface{}, kid string) (string, error)
 }
 
-// KeySelector is a helper interface which holds a crypto.Signer, KID and public key for a key.
-type KeySelector interface {
+// Key is a helper interface which holds a crypto.Signer, KID and public key for a key.
+type Key interface {
 	// Signer returns a crypto.Signer.
 	Signer() crypto.Signer
-	// KID returns the KID for the selected key.
+	// KID returns the unique ID for this key.
 	KID() string
-	// Public returns the public key. This is a shirt-hand for Signer().Public()
+	// Public returns the public key. This is a short-hand for Signer().Public()
 	Public() crypto.PublicKey
 }

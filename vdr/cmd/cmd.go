@@ -65,17 +65,14 @@ func Cmd() *cobra.Command {
 
 func createCmd() *cobra.Command {
 	// needs to be initialized for pflags, values will be overwritten with defaults from pflag
-	trueVal := true
-	falseVal := false
-	var sliceVar []string
 	var createRequest = api.DIDCreateRequest{
-		AssertionMethod:      &trueVal,
-		Authentication:       &falseVal,
-		CapabilityDelegation: &falseVal,
-		CapabilityInvocation: &falseVal,
-		Controllers:          &sliceVar,
-		KeyAgreement:         &falseVal,
-		SelfControl:          &trueVal,
+		AssertionMethod:      new(bool),
+		Authentication:       new(bool),
+		CapabilityDelegation: new(bool),
+		CapabilityInvocation: new(bool),
+		Controllers:          new([]string),
+		KeyAgreement:         new(bool),
+		SelfControl:          new(bool),
 	}
 
 	result := &cobra.Command{

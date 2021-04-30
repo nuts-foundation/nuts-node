@@ -25,7 +25,7 @@ import (
 	"net/http"
 
 	"github.com/nuts-foundation/go-did/did"
-	doc2 "github.com/nuts-foundation/nuts-node/vdr/doc"
+	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/doc"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -85,7 +85,7 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("create request could not be parsed: %s", err.Error()))
 	}
 
-	options := doc2.DefaultCreationOptions()
+	options := vdrDoc.DefaultCreationOptions()
 	if req.Controllers != nil {
 		for _, c := range *req.Controllers {
 			id, err := did.ParseDID(c)
@@ -96,29 +96,29 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 		}
 	}
 
-	if req.Authentication != nil && *req.Authentication {
-		options.Authentication = true
+	if req.Authentication != nil {
+		options.Authentication = *req.Authentication
 	}
-	if req.AssertionMethod != nil && !*req.AssertionMethod {
-		options.AssertionMethod = false
+	if req.AssertionMethod != nil {
+		options.AssertionMethod = *req.AssertionMethod
 	}
-	if req.CapabilityDelegation != nil && *req.CapabilityDelegation {
-		options.CapabilityDelegation = true
+	if req.CapabilityDelegation != nil {
+		options.CapabilityDelegation = *req.CapabilityDelegation
 	}
-	if req.CapabilityInvocation != nil && !*req.CapabilityInvocation {
-		options.CapabilityInvocation = false
+	if req.CapabilityInvocation != nil {
+		options.CapabilityInvocation = *req.CapabilityInvocation
 	}
 	if req.KeyAgreement != nil && *req.KeyAgreement {
-		options.KeyAgreement = true
+		options.KeyAgreement = *req.KeyAgreement
 	}
-	if req.SelfControl != nil && !*req.SelfControl {
-		options.SelfControl = false
+	if req.SelfControl != nil {
+		options.SelfControl = *req.SelfControl
 	}
 
 	doc, _, err := a.VDR.Create(options)
 	// if this operation leads to an error, it may return a 500
 	if err != nil {
-		if errors.Is(err, doc2.ErrInvalidOptions) {
+		if errors.Is(err, vdrDoc.ErrInvalidOptions) {
 			return ctx.String(http.StatusBadRequest, err.Error())
 		}
 		return err

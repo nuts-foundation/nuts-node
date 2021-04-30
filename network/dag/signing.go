@@ -22,7 +22,7 @@ type TransactionSigner interface {
 // NewTransactionSigner creates a TransactionSigner that signs the transaction using the given key.
 // The public key is included in the signed transaction if attach == true. If not attached, the `kid` header is added which refers to the ID
 // of the used key.
-func NewTransactionSigner(key crypto.KeySelector, attach bool) TransactionSigner {
+func NewTransactionSigner(key crypto.Key, attach bool) TransactionSigner {
 	return &transactionSigner{
 		key:    key,
 		attach: attach,
@@ -31,7 +31,7 @@ func NewTransactionSigner(key crypto.KeySelector, attach bool) TransactionSigner
 
 type transactionSigner struct {
 	attach bool
-	key    crypto.KeySelector
+	key    crypto.Key
 }
 
 func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time) (Transaction, error) {

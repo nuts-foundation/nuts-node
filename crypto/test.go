@@ -34,7 +34,7 @@ func ErrorNamingFunc(err error) KIDNamingFunc {
 	}
 }
 
-func NewTestKey(kid string) KeySelector {
+func NewTestKey(kid string) Key {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return keySelector{
 		privateKey: key,
@@ -42,7 +42,7 @@ func NewTestKey(kid string) KeySelector {
 	}
 }
 
-// TestKeySelector is a KeySelector impl for testing purposes
+// TestKeySelector is a Key impl for testing purposes
 type TestKeySelector struct {
 	PrivateKey crypto.Signer
 	Kid        string

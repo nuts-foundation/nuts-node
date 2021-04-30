@@ -91,7 +91,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 // Stores the private key, returns the public key
 // If a key is overwritten is handled by the storage implementation.
 // (it's considered bad practise to reuse a kid for different keys)
-func (client *Crypto) New(namingFunc KIDNamingFunc) (KeySelector, error) {
+func (client *Crypto) New(namingFunc KIDNamingFunc) (Key, error) {
 	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
 	if err != nil {
 		return nil, err
@@ -124,11 +124,11 @@ func generateECKeyPair() (*ecdsa.PrivateKey, error) {
 }
 
 // PrivateKeyExists checks storage for an entry for the given legal entity and returns true if it exists
-func (client *Crypto) PrivateKeyExists(kid string) bool {
+func (client *Crypto) Exists(kid string) bool {
 	return client.Storage.PrivateKeyExists(kid)
 }
 
-func (client *Crypto) Resolve(kid string) (KeySelector, error) {
+func (client *Crypto) Resolve(kid string) (Key, error) {
 	keypair, err := client.Storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {

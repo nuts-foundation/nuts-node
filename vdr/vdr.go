@@ -112,7 +112,7 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 }
 
 // Create generates a new DID Document
-func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.KeySelector, error) {
+func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	logging.Log().Debug("Creating new DID Document.")
 	doc, key, err := r.didDocCreator.Create(options)
 	if err != nil {
@@ -167,7 +167,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		if errors.Is(err, crypto.ErrKeyNotFound) {
 			return types.ErrDIDNotManagedByThisNode
 		}
-		return fmt.Errorf("could not find key from controller: %w", err)
+		return fmt.Errorf("could not find capabilityInvocation key for controller: %w", err)
 	}
 
 	_, err = r.network.CreateTransaction(didDocumentType, payload, key, false, time.Now(), currentMeta.SourceTransactions)

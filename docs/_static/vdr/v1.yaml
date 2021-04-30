@@ -383,8 +383,8 @@ components:
       properties:
         controllers:
           description: |
-            List of DIDs that can control the new DID Document. If selfControl = true and controllers is not empty.
-            The newly generated DID will be added to the list of controllers.
+            List of DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
+            the newly generated DID will be added to the list of controllers.
           type: array
           items:
             type: string
@@ -415,7 +415,7 @@ components:
           default: false
         selfControl:
           type: boolean
-          description: wether the generated DID Document can be altered with its own capabilityInvocation key.
+          description: whether the generated DID Document can be altered with its own capabilityInvocation key.
           default: true
 
 

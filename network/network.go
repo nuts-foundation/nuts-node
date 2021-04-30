@@ -162,7 +162,7 @@ func (n *Network) ListTransactions() ([]dag.Transaction, error) {
 
 // CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
 // If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
-func (n *Network) CreateTransaction(payloadType string, payload []byte, key crypto.KeySelector, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
+func (n *Network) CreateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
 	payloadHash := hash.SHA256Sum(payload)
 	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), key.KID())
 

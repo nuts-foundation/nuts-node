@@ -30,7 +30,7 @@ type mockKeyCreator struct {
 }
 
 // New uses a predefined ECDSA key and calls the namingFunc to get the kid
-func (m *mockKeyCreator) New(_ crypto.KIDNamingFunc) (crypto.KeySelector, error) {
+func (m *mockKeyCreator) New(_ crypto.KIDNamingFunc) (crypto.Key, error) {
 	return crypto.NewTestKey(m.kid), nil
 }
 

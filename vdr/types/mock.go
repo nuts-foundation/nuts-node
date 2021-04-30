@@ -94,11 +94,11 @@ func (m *MockDocCreator) EXPECT() *MockDocCreatorMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockDocCreator) Create(options DIDCreationOptions) (*did.Document, crypto0.KeySelector, error) {
+func (m *MockDocCreator) Create(options DIDCreationOptions) (*did.Document, crypto0.Key, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", options)
 	ret0, _ := ret[0].(*did.Document)
-	ret1, _ := ret[1].(crypto0.KeySelector)
+	ret1, _ := ret[1].(crypto0.Key)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
@@ -371,11 +371,11 @@ func (m *MockVDR) EXPECT() *MockVDRMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockVDR) Create(options DIDCreationOptions) (*did.Document, crypto0.KeySelector, error) {
+func (m *MockVDR) Create(options DIDCreationOptions) (*did.Document, crypto0.Key, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", options)
 	ret0, _ := ret[0].(*did.Document)
-	ret1, _ := ret[1].(crypto0.KeySelector)
+	ret1, _ := ret[1].(crypto0.Key)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
