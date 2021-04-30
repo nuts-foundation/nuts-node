@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/mock"
@@ -201,6 +202,118 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
 		test.AssertErrProblemDetail(t, didman.ErrDuplicateService.Error(), err)
+	})
+
+	t.Run("error - other", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*EndpointCreateRequest)
+			*p = request
+			return nil
+		})
+		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("b00m!"))
+
+		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
+
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
+	})
+}
+
+func TestWrapper_DeleteService(t *testing.T) {
+	id := "did:nuts:1#1"
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		var parsedURI ssi.URI
+		ctx.didman.EXPECT().DeleteService(gomock.Any()).DoAndReturn(
+			func(id interface{}) error {
+				parsedURI = id.(ssi.URI)
+				return nil
+			})
+		ctx.echo.EXPECT().NoContent(http.StatusNoContent).Return(nil)
+
+		err := ctx.wrapper.DeleteService(ctx.echo, id)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, id, parsedURI.String())
+	})
+
+	t.Run("error - incorrect uri", func(t *testing.T) {
+		ctx := newMockContext(t)
+		err := ctx.wrapper.DeleteService(ctx.echo, ":")
+
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemDetail(t, "failed to parse URI: parse \":\": missing protocol scheme", err)
+	})
+
+	t.Run("error - DID not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().DeleteService(gomock.Any()).Return(types.ErrNotFound)
+
+		err := ctx.wrapper.DeleteService(ctx.echo, id)
+
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+	})
+
+	t.Run("error - in use", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().DeleteService(gomock.Any()).Return(didman.ErrServiceInUse)
+
+		err := ctx.wrapper.DeleteService(ctx.echo, id)
+
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
+	})
+
+	t.Run("error - deactivated", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().DeleteService(gomock.Any()).Return(types.ErrDeactivated)
+
+		err := ctx.wrapper.DeleteService(ctx.echo, id)
+
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
+		test.AssertErrProblemDetail(t, types.ErrDeactivated.Error(), err)
+	})
+
+	t.Run("error - not managed", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().DeleteService(gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
+
+		err := ctx.wrapper.DeleteService(ctx.echo, id)
+
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemDetail(t, types.ErrDIDNotManagedByThisNode.Error(), err)
+	})
+
+	t.Run("error - other", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().DeleteService(gomock.Any()).Return(errors.New("b00m!"))
+
+		err := ctx.wrapper.DeleteService(ctx.echo, id)
+
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
 	})
 }
 

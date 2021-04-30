@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 )
 
@@ -47,4 +48,18 @@ func (m *MockDidman) AddEndpoint(id did.DID, serviceType string, u url.URL) erro
 func (mr *MockDidmanMockRecorder) AddEndpoint(id, serviceType, u interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEndpoint", reflect.TypeOf((*MockDidman)(nil).AddEndpoint), id, serviceType, u)
+}
+
+// DeleteService mocks base method.
+func (m *MockDidman) DeleteService(id ssi.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteService", id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteService indicates an expected call of DeleteService.
+func (mr *MockDidmanMockRecorder) DeleteService(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockDidman)(nil).DeleteService), id)
 }

@@ -20,6 +20,7 @@
 package didman
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -36,17 +37,18 @@ import (
 )
 
 func TestDidman_Name(t *testing.T) {
-	instance := NewDidmanInstance(nil, nil).(core.Named)
+	instance := NewDidmanInstance(nil, nil, nil).(core.Named)
 
 	assert.Equal(t, ModuleName, instance.Name())
 }
 
 func TestNewDidmanInstance(t *testing.T) {
 	ctx := newMockContext(t)
-	instance := NewDidmanInstance(ctx.docResolver, ctx.vdr).(*didman)
+	instance := NewDidmanInstance(ctx.docResolver, ctx.store, ctx.vdr).(*didman)
 
 	assert.NotNil(t, instance)
 	assert.Equal(t, ctx.docResolver, instance.docResolver)
+	assert.Equal(t, ctx.store, instance.store)
 	assert.Equal(t, ctx.vdr, instance.vdr)
 }
 
@@ -85,9 +87,6 @@ func TestDidman_AddEndpoint(t *testing.T) {
 
 		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
-		if !assert.Error(t, err) {
-			return
-		}
 		assert.Equal(t, returnError, err)
 	})
 
@@ -101,22 +100,77 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		_ = ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
-		if !assert.Error(t, err) {
-			return
-		}
 		assert.Equal(t, ErrDuplicateService, err)
 	})
 
 	t.Run("error - DID not found", func(t *testing.T) {
 		ctx := newMockContext(t)
-		instance := NewDidmanInstance(ctx.docResolver, ctx.vdr)
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
 
-		err := instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		if !assert.Error(t, err) {
 			return
 		}
+		assert.Equal(t, types.ErrNotFound, err)
+	})
+}
+
+func TestDidman_DeleteService(t *testing.T) {
+	didDocStr := `{"service":[{"id":"did:nuts:123#1", "serviceEndpoint": "https://api.example.com"}]}`
+	didDoc := &did.Document{}
+	id, _ := did.ParseDID("did:nuts:123")
+	json.Unmarshal([]byte(didDocStr), didDoc)
+	uri, _ := ssi.ParseURI("did:nuts:123#1")
+	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		var newDoc did.Document
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
+		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).DoAndReturn(
+			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
+				newDoc = doc.(did.Document)
+				return nil
+			})
+
+		err := ctx.instance.DeleteService(*uri)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Len(t, newDoc.Service, 0)
+	})
+
+	t.Run("error - in use", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		ctx.store.EXPECT().Iterate(gomock.Any()).Return(ErrServiceInUse)
+
+		err := ctx.instance.DeleteService(*uri)
+
+		assert.Equal(t, ErrServiceInUse, err)
+	})
+
+	t.Run("error - update failed", func(t *testing.T) {
+		ctx := newMockContext(t)
+		returnError := errors.New("b00m!")
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
+		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).Return(returnError)
+
+		err := ctx.instance.DeleteService(*uri)
+
+		assert.Equal(t, returnError, err)
+	})
+
+	t.Run("error - DID not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
+
+		err := ctx.instance.DeleteService(*uri)
+
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 }
@@ -132,9 +186,30 @@ func TestConstructService(t *testing.T) {
 	assert.Equal(t, *expectedID, service.ID)
 }
 
+func TestReferencesService(t *testing.T) {
+	t.Run("false", func(t *testing.T) {
+		didDocStr := `{"service":[{"id":"did:nuts:1234#1", "serviceEndpoint": {"ref":"did:nuts:123#2"}}]}`
+		didDoc := did.Document{}
+		json.Unmarshal([]byte(didDocStr), &didDoc)
+		uri, _ := ssi.ParseURI("did:nuts:123#1")
+
+		assert.False(t, referencesService(didDoc, *uri))
+	})
+
+	t.Run("true", func(t *testing.T) {
+		didDocStr := `{"service":[{"id":"did:nuts:1234#1", "serviceEndpoint": {"ref":"did:nuts:123#1"}}]}`
+		didDoc := did.Document{}
+		json.Unmarshal([]byte(didDocStr), &didDoc)
+		uri, _ := ssi.ParseURI("did:nuts:123#1")
+
+		assert.True(t, referencesService(didDoc, *uri))
+	})
+}
+
 type mockContext struct {
 	ctrl        *gomock.Controller
 	docResolver *types.MockDocResolver
+	store       *types.MockStore
 	vdr         *types.MockVDR
 	instance    Didman
 }
@@ -145,12 +220,14 @@ func newMockContext(t *testing.T) mockContext {
 		ctrl.Finish()
 	})
 	docResolver := types.NewMockDocResolver(ctrl)
+	store := types.NewMockStore(ctrl)
 	vdr := types.NewMockVDR(ctrl)
-	instance := NewDidmanInstance(docResolver, vdr)
+	instance := NewDidmanInstance(docResolver, store, vdr)
 
 	return mockContext{
 		ctrl:        ctrl,
 		docResolver: docResolver,
+		store:       store,
 		vdr:         vdr,
 		instance:    instance,
 	}

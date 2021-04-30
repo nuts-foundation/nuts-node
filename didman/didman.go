@@ -35,19 +35,23 @@ const ModuleName = "Didman"
 
 // ErrDuplicateService is returned when a DID Document already contains a service for the given type
 var ErrDuplicateService = errors.New("service type already defined")
+
 // ErrServiceInUse is returned when a service is deleted but in use by other services
 var ErrServiceInUse = errors.New("service is referenced by 1 or more services")
+
 // ErrServiceNotFound is returned when the service is not found on a DID
 var ErrServiceNotFound = errors.New("service not found in DID Document")
 
 type didman struct {
 	docResolver types.DocResolver
-	vdr         types.Store
+	store       types.Store
+	vdr         types.VDR
 }
 
-func NewDidmanInstance(docResolver types.DocResolver, vdr types.Store) Didman {
+func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR) Didman {
 	return &didman{
 		docResolver: docResolver,
+		store:       store,
 		vdr:         vdr,
 	}
 }
@@ -76,30 +80,39 @@ func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) error {
 	return d.vdr.Update(id, meta.Hash, *doc, nil)
 }
 
-func (d *didman) DeleteService(id ssi.URI) error {
+func (d *didman) DeleteService(serviceId ssi.URI) error {
+	id, err := did.ParseDID(serviceId.String())
+	if err != nil {
+		return err
+	}
+	id.Fragment = ""
 
-	doc, meta, err := d.docResolver.Resolve(id, nil)
+	doc, meta, err := d.docResolver.Resolve(*id, nil)
 	if err != nil {
 		return err
 	}
 
 	// check for existing use
-	err := d.vdr.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
-
+	if err = d.store.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
+		if referencesService(doc, serviceId) {
+			return ErrServiceInUse
+		}
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
 	// remove service
+	j := 0
 	for _, s := range doc.Service {
-		if s.Type == serviceType {
-			return ErrDuplicateService
+		if s.ID != serviceId {
+			doc.Service[j] = s
+			j++
 		}
 	}
+	doc.Service = doc.Service[:j]
 
-	return d.vdr.Update(id, meta.Hash, *doc, nil)
+	return d.vdr.Update(*id, meta.Hash, *doc, nil)
 }
 
 func constructService(id did.DID, serviceType string, u url.URL) did.Service {
@@ -117,4 +130,22 @@ func constructService(id did.DID, serviceType string, u url.URL) did.Service {
 	service.ID = d
 
 	return service
+}
+
+type compoundService map[string]string
+
+func referencesService(doc did.Document, serviceId ssi.URI) bool {
+	id := serviceId.String()
+	for _, s := range doc.Service {
+		cs := compoundService{}
+		// ignore structures that can not be parsed to compound endpoints
+		if err := s.UnmarshalServiceEndpoint(&cs); err == nil {
+			for _, v := range cs {
+				if v == id {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

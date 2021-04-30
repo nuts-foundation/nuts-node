@@ -387,7 +387,7 @@ func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Add a concrete service to a DID Document.
+	// Add an endpoint to a DID Document.
 	// (POST /internal/didman/v1/did/{did}/endpoint)
 	AddEndpoint(ctx echo.Context, did string) error
 	// Remove a service from a DID Document.

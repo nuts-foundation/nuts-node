@@ -89,6 +89,7 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 		if errors.Is(err, didman.ErrDuplicateService) {
 			return core.NewProblem(problemTitleAddEndpoint, http.StatusConflict, err.Error())
 		}
+		return core.NewProblem(problemTitleAddEndpoint, http.StatusInternalServerError, err.Error())
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
@@ -107,12 +108,16 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 		if errors.Is(err, types.ErrNotFound) {
 			return core.NewProblem(problemTitleDeleteService, http.StatusNotFound, err.Error())
 		}
-		if errors.Is(err, didman.ErrServiceNotFound) {
-			return core.NewProblem(problemTitleDeleteService, http.StatusNotFound, err.Error())
+		if errors.Is(err, types.ErrDIDNotManagedByThisNode) {
+			return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, types.ErrDeactivated) {
+			return core.NewProblem(problemTitleAddEndpoint, http.StatusConflict, err.Error())
 		}
 		if errors.Is(err, didman.ErrServiceInUse) {
 			return core.NewProblem(problemTitleDeleteService, http.StatusConflict, err.Error())
 		}
+		return core.NewProblem(problemTitleAddEndpoint, http.StatusInternalServerError, err.Error())
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
