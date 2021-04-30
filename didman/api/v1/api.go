@@ -84,6 +84,9 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 		if errors.Is(err, types.ErrDeactivated) {
 			return core.NewProblem(problemTitleAddEndpoint, http.StatusConflict, err.Error())
 		}
+		if errors.Is(err, didman.ErrDuplicateService) {
+			return core.NewProblem(problemTitleAddEndpoint, http.StatusConflict, err.Error())
+		}
 	}
 
 	return ctx.NoContent(http.StatusNoContent)

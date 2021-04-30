@@ -57,16 +57,15 @@ func TestDidman_AddEndpoint(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		doc := &did.Document{}
-		instance := NewDidmanInstance(ctx.docResolver, ctx.vdr)
 		var newDoc did.Document
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(doc, meta, nil)
 		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
 			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
 				newDoc = doc.(did.Document)
 				return nil
-		})
+			})
 
-		err := instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		if !assert.NoError(t, err) {
 			return
@@ -80,12 +79,11 @@ func TestDidman_AddEndpoint(t *testing.T) {
 	t.Run("error - update failed", func(t *testing.T) {
 		ctx := newMockContext(t)
 		doc := &did.Document{}
-		instance := NewDidmanInstance(ctx.docResolver, ctx.vdr)
 		returnError := errors.New("b00m!")
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(doc, meta, nil)
 		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
 
-		err := instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		if !assert.Error(t, err) {
 			return
@@ -96,13 +94,12 @@ func TestDidman_AddEndpoint(t *testing.T) {
 	t.Run("error - duplicate service", func(t *testing.T) {
 		ctx := newMockContext(t)
 		doc := &did.Document{}
-		instance := NewDidmanInstance(ctx.docResolver, ctx.vdr)
 		returnError := errors.New("b00m!")
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(doc, meta, nil).Times(2)
 		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
 
-		_ = instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
-		err := instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_ = ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		if !assert.Error(t, err) {
 			return
@@ -139,6 +136,7 @@ type mockContext struct {
 	ctrl        *gomock.Controller
 	docResolver *types.MockDocResolver
 	vdr         *types.MockVDR
+	instance    Didman
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -148,10 +146,12 @@ func newMockContext(t *testing.T) mockContext {
 	})
 	docResolver := types.NewMockDocResolver(ctrl)
 	vdr := types.NewMockVDR(ctrl)
+	instance := NewDidmanInstance(docResolver, vdr)
 
 	return mockContext{
 		ctrl:        ctrl,
 		docResolver: docResolver,
 		vdr:         vdr,
+		instance:    instance,
 	}
 }
