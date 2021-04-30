@@ -12,6 +12,7 @@ paths:
       description: |
         The DID Document will be created according to the given request. If a combination of options is not allowed, a 400 is returned.
         The default values for selfControl, assertionMethod and capabilityInvocation are true. The default for controllers is an empty list. All other options default to false.
+        Only a single keypair will be generated. All enabled methods will reuse the same key pair. A seperate keypair will be generated to generate the DID if SelfControl is false.
       operationId: "createDID"
       requestBody:
         required: true
@@ -391,26 +392,30 @@ components:
             example: "did:nuts:128903fjgfslcnmgpe84"
         assertionMethod:
           type: boolean
-          description: indicates if the generated key pair can be used for assertions. Defaults to true.
+          description: indicates if the generated key pair can be used for assertions.
+          default: true
         authentication:
           type: boolean
           description: indicates if the generated key pair can be used for authentication.
-        capablilityDelegation:
+          default: false
+        capabilityInvocation:
           type: boolean
           description: |
             indicates if the generated key pair can be used for altering DID Documents.
             In combination with selfControl = true, the key can be used to alter the new DID Document.
             Defaults to true when not given.
-        capablilityInvocation:
+            default: true
+        capabilityDelegation:
           type: boolean
-          description: indicates if the generated key pair can be used for capability invocations.
+          description: indicates if the generated key pair can be used for capability delegations.
+          default: false
         keyAgreement:
           type: boolean
           description: indicates if the generated key pair can be used for Key agreements.
+          default: false
         selfControl:
           type: boolean
-          description: |
-            wether the generated DID Document can be altered with its own capabilityInvocation key.
-            Defaults to true when not given.
+          description: wether the generated DID Document can be altered with its own capabilityInvocation key.
+          default: true
 
 

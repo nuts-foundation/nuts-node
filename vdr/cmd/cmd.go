@@ -64,12 +64,26 @@ func Cmd() *cobra.Command {
 }
 
 func createCmd() *cobra.Command {
-	return &cobra.Command{
+	// needs to be initialized for pflags, values will be overwritten with defaults from pflag
+	trueVal := true
+	falseVal := false
+	var sliceVar []string
+	var createRequest = api.DIDCreateRequest{
+		AssertionMethod:      &trueVal,
+		Authentication:       &falseVal,
+		CapabilityDelegation: &falseVal,
+		CapabilityInvocation: &falseVal,
+		Controllers:          &sliceVar,
+		KeyAgreement:         &falseVal,
+		SelfControl:          &trueVal,
+	}
+
+	result := &cobra.Command{
 		Use:   "create-did",
 		Short: "Registers a new DID",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			doc, err := httpClient(core.NewClientConfig(cmd.Flags())).Create()
+			doc, err := httpClient(core.NewClientConfig(cmd.Flags())).Create(createRequest)
 			if err != nil {
 				return fmt.Errorf("unable to create new DID: %v", err)
 			}
@@ -78,6 +92,16 @@ func createCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	result.Flags().BoolVar(createRequest.AssertionMethod, "assertionMethod", true, "Pass 'false' to disable assertionMethod capabilities.")
+	result.Flags().BoolVar(createRequest.Authentication, "authentication", false, "Pass 'true' to enable authentication capabilities.")
+	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", false, "Pass 'true' to enable capabilityDelegation capabilities.")
+	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", true, "Pass 'false' to disable capabilityInvocation capabilities.")
+	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", false, "Pass 'true' to enable keyAgreement capabilities.")
+	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", true, "Pass 'false' to disable DID Document control.")
+	result.Flags().StringSliceVar(createRequest.Controllers, "controllers", []string{}, "Comma-separated list of DIDs that can control the generated DID Document.")
+
+	return result
 }
 
 func updateCmd() *cobra.Command {

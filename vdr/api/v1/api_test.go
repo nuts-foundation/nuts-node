@@ -66,13 +66,13 @@ func TestWrapper_CreateDID(t *testing.T) {
 		varFalse := false
 		controllers := []string{"did:nuts:2"}
 		didCreateRequest := DIDCreateRequest{
-			AssertionMethod:       &varFalse,
-			Authentication:        &varTrue,
-			CapablilityDelegation: &varTrue,
-			CapablilityInvocation: &varFalse,
-			KeyAgreement:          &varTrue,
-			SelfControl:           &varFalse,
-			Controllers: 		   &controllers,
+			AssertionMethod:      &varFalse,
+			Authentication:       &varTrue,
+			CapabilityDelegation: &varTrue,
+			CapabilityInvocation: &varFalse,
+			KeyAgreement:         &varTrue,
+			SelfControl:          &varFalse,
+			Controllers:          &controllers,
 		}
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			p := f.(*DIDCreateRequest)

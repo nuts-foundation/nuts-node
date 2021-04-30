@@ -102,10 +102,10 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 	if req.AssertionMethod != nil && !*req.AssertionMethod {
 		options.AssertionMethod = false
 	}
-	if req.CapablilityDelegation != nil && *req.CapablilityDelegation {
+	if req.CapabilityDelegation != nil && *req.CapabilityDelegation {
 		options.CapabilityDelegation = true
 	}
-	if req.CapablilityInvocation != nil && !*req.CapablilityInvocation {
+	if req.CapabilityInvocation != nil && !*req.CapabilityInvocation {
 		options.CapabilityInvocation = false
 	}
 	if req.KeyAgreement != nil && *req.KeyAgreement {

@@ -21,19 +21,20 @@ import (
 // DIDCreateRequest defines model for DIDCreateRequest.
 type DIDCreateRequest struct {
 
-	// indicates if the generated key pair can be used for assertions. Defaults to true.
+	// indicates if the generated key pair can be used for assertions.
 	AssertionMethod *bool `json:"assertionMethod,omitempty"`
 
 	// indicates if the generated key pair can be used for authentication.
 	Authentication *bool `json:"authentication,omitempty"`
 
+	// indicates if the generated key pair can be used for capability delegations.
+	CapabilityDelegation *bool `json:"capabilityDelegation,omitempty"`
+
 	// indicates if the generated key pair can be used for altering DID Documents.
 	// In combination with selfControl = true, the key can be used to alter the new DID Document.
 	// Defaults to true when not given.
-	CapablilityDelegation *bool `json:"capablilityDelegation,omitempty"`
-
-	// indicates if the generated key pair can be used for capability invocations.
-	CapablilityInvocation *bool `json:"capablilityInvocation,omitempty"`
+	// default: true
+	CapabilityInvocation *bool `json:"capabilityInvocation,omitempty"`
 
 	// List of DIDs that can control the new DID Document. If selfControl = true and controllers is not empty.
 	// The newly generated DID will be added to the list of controllers.
@@ -43,7 +44,6 @@ type DIDCreateRequest struct {
 	KeyAgreement *bool `json:"keyAgreement,omitempty"`
 
 	// wether the generated DID Document can be altered with its own capabilityInvocation key.
-	// Defaults to true when not given.
 	SelfControl *bool `json:"selfControl,omitempty"`
 }
 
