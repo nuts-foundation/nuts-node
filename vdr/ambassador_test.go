@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -23,14 +24,23 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// mockKeyCreator can create new keys based on a predefined key
+// mockKeyCreator creates a single new key
 type mockKeyCreator struct {
-	kid string
+	key crypto.Key
 }
 
-// New uses a predefined ECDSA key and calls the namingFunc to get the kid
-func (m *mockKeyCreator) New(_ crypto.KIDNamingFunc) (crypto.Key, error) {
-	return crypto.NewTestKey(m.kid), nil
+// New creates a new valid key with the correct KID
+func (m *mockKeyCreator) New(fn crypto.KIDNamingFunc) (crypto.Key, error) {
+	if m.key == nil {
+		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		kid, _ := fn(privateKey.Public())
+
+		m.key = &crypto.TestKey{
+			PrivateKey: privateKey,
+			Kid:        kid,
+		}
+	}
+	return m.key, nil
 }
 
 type testTransaction struct {
@@ -549,10 +559,6 @@ func Test_ambassador_callback(t *testing.T) {
 		assert.EqualError(t, err, "network document not signed by one of its controllers")
 	})
 
-	t.Run("nok - create where keyID of authentication key matches but thumbprints not", func(t *testing.T) {
-
-	})
-
 	t.Run("ok - updating a DID Document that results in a conflict", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -705,10 +711,14 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 }
 
 func newDidDoc() (did.Document, jwk.Key, error) {
-	kc := &mockKeyCreator{signingKeyID}
+	kc := &mockKeyCreator{}
 	docCreator := doc.Creator{KeyStore: kc}
 	didDocument, key, err := docCreator.Create(doc.DefaultCreationOptions())
 	signingKey, _ := jwk.New(key.Public())
+	thumbStr, _ := crypto.Thumbprint(signingKey)
+	didStr := fmt.Sprintf("did:nuts:%s", thumbStr)
+	id, _ := did.ParseDID(didStr)
+	didDocument.ID = *id
 	if err != nil {
 		return did.Document{}, nil, err
 	}

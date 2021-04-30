@@ -35,7 +35,7 @@ func newTestCtx(t *testing.T) testCtx {
 	t.Cleanup(func() {
 		ctrl.Finish()
 	})
-	kc := &mockKeyCreator{kid: "did:nuts:123"}
+	kc := &mockKeyCreator{}
 	return testCtx{
 		ctrl:            ctrl,
 		mockVDR:         vdrMock,
@@ -118,7 +118,7 @@ func TestNutsDocUpdater_RemoveVerificationMethod(t *testing.T) {
 func TestNutsDocUpdater_CreateNewAuthenticationMethodForDID(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 
-	kc := &mockKeyCreator{kid: "did:nuts:123#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"}
+	kc := &mockKeyCreator{}
 	updater := DocUpdater{KeyCreator: kc}
 
 	t.Run("ok", func(t *testing.T) {
@@ -133,7 +133,7 @@ func TestNutsDocUpdater_CreateNewAuthenticationMethodForDID(t *testing.T) {
 		assert.NotNil(t, method)
 		assert.Len(t, document.CapabilityInvocation, 1)
 		assert.Equal(t, method.ID.String(), document.CapabilityInvocation[0].ID.String())
-		assert.Equal(t, "did:nuts:123#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", document.CapabilityInvocation[0].ID.String())
+		assert.Equal(t, kc.key.KID(), document.CapabilityInvocation[0].ID.String())
 	})
 
 }

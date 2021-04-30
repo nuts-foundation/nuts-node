@@ -911,7 +911,7 @@ func TestVcr_generateProof(t *testing.T) {
 		vc := validNutsOrganizationCredential()
 		testDir := io.TestDirectory(t)
 		instance := NewTestVCRInstance(testDir)
-		key := crypto.TestKeySelector{}
+		key := crypto.TestKey{}
 		kid, _ := ssi.ParseURI(testKID)
 
 		err := instance.generateProof(vc, *kid, key)
@@ -932,7 +932,7 @@ func TestVcr_generateRevocationProof(t *testing.T) {
 		// default stuff
 		testDir := io.TestDirectory(t)
 		instance := NewTestVCRInstance(testDir)
-		key := crypto.TestKeySelector{}
+		key := crypto.TestKey{}
 		kid, _ := ssi.ParseURI(testKID)
 
 		err := instance.generateRevocationProof(&r, *kid, key)

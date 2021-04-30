@@ -42,20 +42,20 @@ func NewTestKey(kid string) Key {
 	}
 }
 
-// TestKeySelector is a Key impl for testing purposes
-type TestKeySelector struct {
+// TestKey is a Key impl for testing purposes
+type TestKey struct {
 	PrivateKey crypto.Signer
 	Kid        string
 }
 
-func (t TestKeySelector) Signer() crypto.Signer {
+func (t TestKey) Signer() crypto.Signer {
 	return t.PrivateKey
 }
 
-func (t TestKeySelector) KID() string {
+func (t TestKey) KID() string {
 	return t.Kid
 }
 
-func (t TestKeySelector) Public() crypto.PublicKey {
+func (t TestKey) Public() crypto.PublicKey {
 	return t.PrivateKey.Public()
 }
