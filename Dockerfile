@@ -27,11 +27,10 @@ RUN go mod download && go mod verify
 COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
-# alpine 3.12.x
-FROM alpine:3.12
+# alpine 3.13.x
+FROM alpine:3.13
 RUN apk update \
   && apk add --no-cache \
-             ca-certificates=20191127-r4 \
              tzdata \
              curl \
   && update-ca-certificates
