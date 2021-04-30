@@ -31,6 +31,7 @@ import (
 	"github.com/shengdoushi/base58"
 )
 
+// ModuleName contains the name of this module: Didman
 const ModuleName = "Didman"
 
 // ErrDuplicateService is returned when a DID Document already contains a service for the given type
@@ -48,6 +49,7 @@ type didman struct {
 	vdr         types.VDR
 }
 
+// NewDidmanInstance creates a new didman instance with services set
 func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR) Didman {
 	return &didman{
 		docResolver: docResolver,
@@ -80,8 +82,8 @@ func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) error {
 	return d.vdr.Update(id, meta.Hash, *doc, nil)
 }
 
-func (d *didman) DeleteService(serviceId ssi.URI) error {
-	id, err := did.ParseDID(serviceId.String())
+func (d *didman) DeleteService(serviceID ssi.URI) error {
+	id, err := did.ParseDID(serviceID.String())
 	if err != nil {
 		return err
 	}
@@ -94,7 +96,7 @@ func (d *didman) DeleteService(serviceId ssi.URI) error {
 
 	// check for existing use
 	if err = d.store.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
-		if referencesService(doc, serviceId) {
+		if referencesService(doc, serviceID) {
 			return ErrServiceInUse
 		}
 		return nil
@@ -105,7 +107,7 @@ func (d *didman) DeleteService(serviceId ssi.URI) error {
 	// remove service
 	j := 0
 	for _, s := range doc.Service {
-		if s.ID != serviceId {
+		if s.ID != serviceID {
 			doc.Service[j] = s
 			j++
 		}
@@ -134,8 +136,8 @@ func constructService(id did.DID, serviceType string, u url.URL) did.Service {
 
 type compoundService map[string]string
 
-func referencesService(doc did.Document, serviceId ssi.URI) bool {
-	id := serviceId.String()
+func referencesService(doc did.Document, serviceID ssi.URI) bool {
+	id := serviceID.String()
 	for _, s := range doc.Service {
 		cs := compoundService{}
 		// ignore structures that can not be parsed to compound endpoints

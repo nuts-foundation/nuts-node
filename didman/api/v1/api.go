@@ -43,10 +43,13 @@ type Wrapper struct {
 	Didman didman.Didman
 }
 
+// Routes registers the routes from the open api spec to the echo router.
 func (w *Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, w)
 }
 
+// AddEndpoint handles calls to add a service. It only checks params and sets the correct return status code.
+// didman.AddEndpoint does the heavy lifting.
 func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 	request := EndpointCreateRequest{}
 	if err := ctx.Bind(&request); err != nil {
@@ -95,6 +98,8 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 	return ctx.NoContent(http.StatusNoContent)
 }
 
+// DeleteService handles calls to delete a service. It only checks params and sets the correct return status code.
+// didman.DeleteService does the heavy lifting.
 func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 	id, err := ssi.ParseURI(uriStr)
 	if err != nil {
