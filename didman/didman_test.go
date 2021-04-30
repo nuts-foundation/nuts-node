@@ -21,10 +21,12 @@ package didman
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -120,6 +122,17 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		}
 		assert.Equal(t, types.ErrNotFound, err)
 	})
+}
+
+func TestConstructService(t *testing.T) {
+	u, _ := url.Parse("https://api.example.com/v1")
+	expectedID, _ := ssi.ParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
+
+	service := constructService(*vdr.TestDIDA, "type", *u)
+
+	assert.Equal(t, "type", service.Type)
+	assert.Equal(t, u.String(), service.ServiceEndpoint)
+	assert.Equal(t, *expectedID, service.ID)
 }
 
 type mockContext struct {
