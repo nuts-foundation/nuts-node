@@ -29,6 +29,7 @@ import (
 	authAPI "github.com/nuts-foundation/nuts-node/auth/api/v1"
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core/status"
+	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 
@@ -37,16 +38,17 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	cryptoApi "github.com/nuts-foundation/nuts-node/crypto/api/v1"
+	cryptoAPI "github.com/nuts-foundation/nuts-node/crypto/api/v1"
 	cryptoCmd "github.com/nuts-foundation/nuts-node/crypto/cmd"
+	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
 	"github.com/nuts-foundation/nuts-node/network"
-	networkApi "github.com/nuts-foundation/nuts-node/network/api/v1"
+	networkAPI "github.com/nuts-foundation/nuts-node/network/api/v1"
 	networkCmd "github.com/nuts-foundation/nuts-node/network/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	credApi "github.com/nuts-foundation/nuts-node/vcr/api/v1"
+	credAPI "github.com/nuts-foundation/nuts-node/vcr/api/v1"
 	vcrCmd "github.com/nuts-foundation/nuts-node/vcr/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	vdrApi "github.com/nuts-foundation/nuts-node/vdr/api/v1"
+	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
 )
 
@@ -162,16 +164,19 @@ func CreateSystem() *core.System {
 	metricsEngine := core.NewMetricsEngine()
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), store, credentialInstance, cryptoInstance)
 
-	// add engine specific routes
-	system.RegisterRoutes(&cryptoApi.Wrapper{C: cryptoInstance})
-	system.RegisterRoutes(&networkApi.Wrapper{Service: networkInstance})
+	didmanInstance := didman.NewDidmanInstance(docResolver, vdrInstance)
 
-	system.RegisterRoutes(&vdrApi.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: vdr.DocUpdater{Resolver: docResolver, VDR: vdrInstance, KeyCreator: cryptoInstance}})
-	system.RegisterRoutes(&credApi.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
+	// add engine specific routes
+	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance})
+	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
+
+	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: vdr.DocUpdater{Resolver: docResolver, VDR: vdrInstance, KeyCreator: cryptoInstance}})
+	system.RegisterRoutes(&credAPI.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&authIrmaAPI.Wrapper{Auth: authInstance})
+	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 
 	// Register engines
 	system.RegisterEngine(statusEngine)
@@ -181,6 +186,7 @@ func CreateSystem() *core.System {
 	system.RegisterEngine(vdrInstance)
 	system.RegisterEngine(credentialInstance)
 	system.RegisterEngine(authInstance)
+	system.RegisterEngine(didmanInstance)
 	return system
 }
 
