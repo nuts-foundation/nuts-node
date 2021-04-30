@@ -227,9 +227,11 @@ type AdvertHashes struct {
 
 	// currentBlockDate contains a Unix timestamp at which the current block started (UTC).
 	CurrentBlockDate uint32 `protobuf:"varint,1,opt,name=currentBlockDate,proto3" json:"currentBlockDate,omitempty"`
-	// blocks contains the the current block and the previous blocks. The first entry is the current block.
+	// blocks contains the DAG blocks (as specified in RFC005) except the historic block. The historic block's hash
+	// is specified in the `historicHash` field. In this `blocks` field the first entry is the oldest block (after the
+	// historic block), the last entry is the current block.
 	Blocks []*BlockHashes `protobuf:"bytes,2,rep,name=blocks,proto3" json:"blocks,omitempty"`
-	// historicHash contains the XOR of all head hashes leading up to the last block.
+	// historicHash contains the XOR of all head hashes leading up to (but not including) the first block.
 	HistoricHash []byte `protobuf:"bytes,3,opt,name=historicHash,proto3" json:"historicHash,omitempty"`
 }
 
@@ -341,7 +343,7 @@ type TransactionListQuery struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// blockDate specifies which block to query the transactions for.
+	// blockDate specifies start date of the block (as Unix timestamp, in UTC) which is queried.
 	BlockDate uint32 `protobuf:"varint,1,opt,name=blockDate,proto3" json:"blockDate,omitempty"`
 }
 
@@ -390,7 +392,7 @@ type TransactionList struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// blockDate which block the transactions belong to.
+	// blockDate specifies start date of the block (as Unix timestamp, in UTC) which the transactions belong to.
 	BlockDate uint32 `protobuf:"varint,1,opt,name=blockDate,proto3" json:"blockDate,omitempty"`
 	// transactions contains the peer's transactions for the specified block.
 	Transactions []*Transaction `protobuf:"bytes,10,rep,name=transactions,proto3" json:"transactions,omitempty"`

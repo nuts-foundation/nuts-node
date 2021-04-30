@@ -3,14 +3,15 @@ package proto
 import (
 	"errors"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 const peer = p2p.PeerID("test-peer")
@@ -98,7 +99,7 @@ func TestProtocol_HandleTransactionListQuery(t *testing.T) {
 	t.Run("supplied block date is zero, requests historic block (allowed for now)", func(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().FindBetween(time.Time{}, ctx.instance.blocks.get()[1].start)
-		ctx.sender().EXPECT().sendTransactionList(peer, gomock.Any())
+		ctx.sender().EXPECT().sendTransactionList(peer, gomock.Any(), gomock.Any())
 		msg := &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: 0}}
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
@@ -106,7 +107,7 @@ func TestProtocol_HandleTransactionListQuery(t *testing.T) {
 	t.Run("respond with transaction list (happy flow)", func(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().FindBetween(gomock.Any(), gomock.Any())
-		ctx.sender().EXPECT().sendTransactionList(peer, gomock.Any())
+		ctx.sender().EXPECT().sendTransactionList(peer, gomock.Any(), gomock.Any())
 		msg := &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: getBlockTimestamp(time.Now())}}
 		err := ctx.handle(msg)
 		assert.NoError(t, err)

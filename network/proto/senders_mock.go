@@ -52,13 +52,13 @@ func (mr *MockmessageSenderMockRecorder) broadcastAdvertHashes(blocks interface{
 // sendTransactionList mocks base method.
 func (m *MockmessageSender) sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, date time.Time) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "sendTransactionList", peer, transactions)
+	m.ctrl.Call(m, "sendTransactionList", peer, transactions, date)
 }
 
 // sendTransactionList indicates an expected call of sendTransactionList.
-func (mr *MockmessageSenderMockRecorder) sendTransactionList(peer, transactions interface{}) *gomock.Call {
+func (mr *MockmessageSenderMockRecorder) sendTransactionList(peer, transactions, date interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionList", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionList), peer, transactions)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionList", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionList), peer, transactions, date)
 }
 
 // sendTransactionListQuery mocks base method.
