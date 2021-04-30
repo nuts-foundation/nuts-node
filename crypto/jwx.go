@@ -31,6 +31,7 @@ import (
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/shengdoushi/base58"
 )
 
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
@@ -243,4 +244,13 @@ func SignatureAlgorithm(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
 	default:
 		return "", fmt.Errorf(`invalid key type '%T' for jwk.New`, key)
 	}
+}
+
+// Thumbprint generates a Nuts compatible thumbprint: Base58(SHA256(rfc7638-json))
+func Thumbprint(key jwk.Key) (string, error) {
+	pkHash, err := key.Thumbprint(crypto.SHA256)
+	if err != nil {
+		return "", err
+	}
+	return base58.Encode(pkHash[:], base58.BitcoinAlphabet), nil
 }

@@ -27,30 +27,38 @@ import (
 	"google.golang.org/grpc"
 )
 
-type messageGate interface {
+type grpcMessenger interface {
 	Send(message *transport.NetworkMessage) error
 	Recv() (*transport.NetworkMessage, error)
+}
+
+func createConnection(peer Peer, messenger grpcMessenger) *connection {
+	return &connection{
+		Peer:        peer,
+		messenger:   messenger,
+		outMessages: make(chan *transport.NetworkMessage, 10),
+		mux:         &sync.Mutex{},
+	}
 }
 
 // connection represents a bidirectional connection with a peer.
 type connection struct {
 	Peer
-	// gate is used to send and receive messages
-	gate messageGate
-	// grpcConn and client are only filled for peers where we're the connecting party
+	// messenger is used to send and receive messages
+	messenger grpcMessenger
+	// grpcConn is only filled for peers where we're the connecting party
 	grpcConn *grpc.ClientConn
-	client   transport.NetworkClient
 	// outMessages contains the messages we want to send to the peer.
 	//   According to the docs it's unsafe to simultaneously call stream.Send() from multiple goroutines so we put them
 	//   on a channel so that each peer can have its own goroutine sending messages (consuming messages from this channel)
 	outMessages chan *transport.NetworkMessage
-	// closeMutex the close() function since race conditions can trigger panics
-	closeMutex *sync.Mutex
+	// mux is used to secure access to the internals of this struct since they're accessed concurrently
+	mux *sync.Mutex
 }
 
 func (conn *connection) close() {
-	conn.closeMutex.Lock()
-	defer conn.closeMutex.Unlock()
+	conn.mux.Lock()
+	defer conn.mux.Unlock()
 	if conn.grpcConn != nil {
 		if err := conn.grpcConn.Close(); err != nil {
 			log.Logger().Warnf("Unable to close client connection (peer=%s): %v", conn.Peer, err)
@@ -64,36 +72,37 @@ func (conn *connection) close() {
 }
 
 func (conn *connection) send(message *transport.NetworkMessage) {
-	conn.closeMutex.Lock()
-	defer conn.closeMutex.Unlock()
+	conn.mux.Lock()
+	defer conn.mux.Unlock()
 	conn.outMessages <- message
 }
 
 // sendMessages (blocking) reads messages from its outMessages channel and sends them to the peer until the channel is closed.
 func (conn connection) sendMessages() {
 	for message := range conn.outMessages {
-		if conn.gate.Send(message) != nil {
-			log.Logger().Warnf("Unable to broadcast message to peer (peer=%s)", conn.Peer)
+		if conn.messenger.Send(message) != nil {
+			log.Logger().Warnf("Unable to send message to peer (peer=%s)", conn.Peer)
 		}
 	}
 }
 
 // receiveMessages (blocking) reads messages from the peer until it disconnects or the network is stopped.
-func receiveMessages(gate messageGate, peerId PeerID, receivedMsgQueue messageQueue) {
+func (conn *connection) receiveMessages(receivedMsgQueue messageQueue) {
 	for {
-		msg, recvErr := gate.Recv()
+		msg, recvErr := conn.messenger.Recv()
 		if recvErr != nil {
 			if recvErr == io.EOF {
-				log.Logger().Infof("Peer closed connection (peer-id=%s)", peerId)
+				log.Logger().Infof("Peer closed connection (peer-id=%s)", conn.ID)
 			} else {
-				log.Logger().Warnf("Peer connection error (peer-id=%s): %v", peerId, recvErr)
+				log.Logger().Warnf("Peer connection error (peer-id=%s): %v", conn.ID, recvErr)
 			}
 			break
 		}
-		log.Logger().Tracef("Received message from peer (peer-id=%s): %s", peerId, msg.String())
+		log.Logger().Tracef("Received message from peer (peer-id=%s): %s", conn.ID, msg.String())
 		receivedMsgQueue.c <- PeerMessage{
-			Peer:    peerId,
+			Peer:    conn.ID,
 			Message: msg,
 		}
 	}
+	conn.close()
 }

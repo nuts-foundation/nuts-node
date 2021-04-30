@@ -15,11 +15,8 @@ exclude_patterns:
   - "**/mock.go"
   - "**/*_mock.go"
   - "docs/**/*.go"
+  - "network/transport/*.go" # generated sources
   - "**/*.pb.go"
-  # Until network protocol implementation has been spec and optionally replace, ignore those sources
-  - "network/p2p/**/*.go"
-  - "network/proto/**/*.go"
-
 plugins:
   gofmt:
     enabled: true

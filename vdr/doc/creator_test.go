@@ -24,8 +24,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
-	"errors"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -47,8 +45,8 @@ func (m *mockKeyCreator) New(namingFunc nutsCrypto.KIDNamingFunc) (nutsCrypto.Ke
 	return nutsCrypto.NewTestKey(m.kid), nil
 }
 
-var kid = "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"
-var jwkString = `{"crv":"P-256","kid":"did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
+var kid = "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"
+var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
 
 func TestDefaultCreationOptions(t *testing.T) {
 	ops := DefaultCreationOptions()
@@ -75,9 +73,9 @@ func TestCreator_Create(t *testing.T) {
 			assert.NoError(t, err, "create should not return an error")
 			assert.NotNil(t, doc, "create should return a document")
 			assert.NotNil(t, key, "create should return a Key")
-			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS", doc.ID.String(), "the DID Doc should have the expected id")
+			assert.Equal(t, "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn", doc.ID.String(), "the DID Doc should have the expected id")
 			assert.Len(t, doc.VerificationMethod, 1, "it should have one verificationMethod")
-			assert.Equal(t, "did:nuts:ARRW2e42qyVjQZiACk4Up3mzpshZdJBDBPWsuFQPcDiS#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", doc.VerificationMethod[0].ID.String(),
+			assert.Equal(t, "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", doc.VerificationMethod[0].ID.String(),
 				"verificationMethod should have the correct id")
 			assert.Len(t, doc.CapabilityInvocation, 1, "it should have 1 CapabilityInvocation")
 			assert.Equal(t, doc.CapabilityInvocation[0].VerificationMethod, doc.VerificationMethod[0], "the assertionMethod should be a pointer to the verificationMethod")
@@ -231,24 +229,17 @@ func Test_didKidNamingFunc(t *testing.T) {
 	})
 
 	t.Run("nok - wrong key type", func(t *testing.T) {
-		privateKey := rsa.PrivateKey{}
-		keyID, err := didKIDNamingFunc(privateKey.PublicKey)
+		keyID, err := didKIDNamingFunc(unknownPublicKey{})
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t, "could not generate kid: invalid key type", err.Error())
+		assert.Equal(t, "could not generate kid: invalid key type 'doc.unknownPublicKey' for jwk.New", err.Error())
 		assert.Empty(t, keyID)
 
-	})
-
-	t.Run("nok - empty key", func(t *testing.T) {
-		pubKey := &ecdsa.PublicKey{}
-		keyID, err := didKIDNamingFunc(pubKey)
-		assert.Error(t, err)
-		assert.Equal(t, "could not generate kid: empty key curve", err.Error())
-		assert.Empty(t, keyID)
 	})
 }
+
+type unknownPublicKey struct{}
 
 func jwkToPublicKey(t *testing.T, jwkStr string) (crypto.PublicKey, error) {
 	t.Helper()

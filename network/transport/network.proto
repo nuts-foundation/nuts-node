@@ -22,6 +22,7 @@ option go_package = "github.com/nuts-foundation/nuts-node/network/transport";
 package transport;
 
 service Network {
+    // Connect is used to setup a bidirectional streaming gRPC connection over which network messages can be sent.
     rpc Connect (stream NetworkMessage) returns (stream NetworkMessage) {
     }
 }
@@ -33,6 +34,8 @@ message NetworkMessage {
     // Fields numbered 1-99 are reserved for protocol metadata
     reserved 1 to 99;
 
+    // Below are the messages that can be sent/received using the NetworkMessage. A NetworkMessage MAY contain multiple
+    // messages.
     oneof message {
         AdvertHashes advertHashes = 100;
         TransactionListQuery TransactionListQuery = 101;
@@ -42,31 +45,62 @@ message NetworkMessage {
     }
 }
 
-// Actual messages go here
+// Headers contains protocol metadata.
+message Header {
+    // version contains the protocol version of the sent message.
+    uint32 version = 1;
+}
+
+// AdvertHashes is a message broadcast for inform peers of the node's DAG state.
 message AdvertHashes {
-   repeated bytes hashes = 1;
+    // currentBlockDate contains a Unix timestamp at which the current block started (UTC).
+    uint32 currentBlockDate = 1;
+    // blocks contains the DAG blocks (as specified in RFC005) except the historic block. The historic block's hash
+    // is specified in the `historicHash` field. In this `blocks` field the first entry is the oldest block (after the
+    // historic block), the last entry is the current block.
+    repeated BlockHashes blocks = 2;
+    // historicHash contains the XOR of all head hashes leading up to (but not including) the first block.
+    bytes historicHash = 3;
 }
 
-// Message to ask for a peer's hash list
+// BlockHashes contains the head's hashes of a block.
+message BlockHashes {
+    // hashes contains the hashes of the heads in this block.
+    repeated bytes hashes = 1;
+}
+
+// TransactionListQuery is a message used to query a peer's TransactionList.
 message TransactionListQuery {
+    // blockDate specifies start date of the block (as Unix timestamp, in UTC) which is queried.
+    uint32 blockDate = 1;
 }
 
-// Message to inform a peer of our hash list
+// TransactionList is the response message for TransactionListQuery.
 message TransactionList {
-    repeated Transaction transactions = 1;
+    // blockDate specifies start date of the block (as Unix timestamp, in UTC) which the transactions belong to.
+    uint32 blockDate = 1;
+    // transactions contains the peer's transactions for the specified block.
+    repeated Transaction transactions = 10;
 }
 
+// Transaction represents a transaction on the DAG.
 message Transaction {
+    // hash contains the reference of the transaction, as specified by RFC004.
     bytes hash = 1;
+    // data contains the data of the transaction, which is a JWS as specified by RFC004.
     bytes data = 2;
 }
 
-// Message to ask for a peer for a specific transaction
+// TransactionPayloadQuery is a message used to query the payload of a transaction.
 message TransactionPayloadQuery {
+    // payloadHash contains the SHA-256 hash of the payload which the node would like to receive, as specified by RFC004.
     bytes payloadHash = 1;
 }
 
+// TransactionPayload is the response message for TransactionPayloadQuery.
 message TransactionPayload {
+    // payloadHash contains the SHA-256 hash of the payload, as specified by RFC004.
     bytes payloadHash = 1;
+    // data contains the actual payload.
     bytes data = 10;
 }

@@ -6,6 +6,7 @@ package dag
 
 import (
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -52,19 +53,19 @@ func (mr *MockDAGMockRecorder) Add(transactions ...interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockDAG)(nil).Add), transactions...)
 }
 
-// All mocks base method.
-func (m *MockDAG) All() ([]Transaction, error) {
+// FindBetween mocks base method.
+func (m *MockDAG) FindBetween(startInclusive, endExclusive time.Time) ([]Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "All")
+	ret := m.ctrl.Call(m, "FindBetween", startInclusive, endExclusive)
 	ret0, _ := ret[0].([]Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// All indicates an expected call of All.
-func (mr *MockDAGMockRecorder) All() *gomock.Call {
+// FindBetween indicates an expected call of FindBetween.
+func (mr *MockDAGMockRecorder) FindBetween(startInclusive, endExclusive interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "All", reflect.TypeOf((*MockDAG)(nil).All))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetween", reflect.TypeOf((*MockDAG)(nil).FindBetween), startInclusive, endExclusive)
 }
 
 // Get mocks base method.

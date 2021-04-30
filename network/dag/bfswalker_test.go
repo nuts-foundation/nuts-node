@@ -9,7 +9,7 @@ import (
 
 func TestBFSWalkerAlgorithm(t *testing.T) {
 	t.Run("ok - walk graph F", func(t *testing.T) {
-		graph := createDAG(t)
+		graph := CreateDAG(t)
 		graph.Add(graphF()...)
 		visitor := trackingVisitor{}
 
@@ -23,7 +23,7 @@ func TestBFSWalkerAlgorithm(t *testing.T) {
 	})
 
 	t.Run("ok - walk graph G", func(t *testing.T) {
-		graph := createDAG(t)
+		graph := CreateDAG(t)
 		graph.Add(graphG()...)
 		visitor := trackingVisitor{}
 		root, _ := graph.Root()
@@ -40,7 +40,7 @@ func TestBFSWalkerAlgorithm(t *testing.T) {
 		//.................D    E
 		//.......................\
 		//........................F
-		graph := createDAG(t)
+		graph := CreateDAG(t)
 		visitor := trackingVisitor{}
 		docs := graphF()
 		graph.Add(docs[0], docs[1], docs[3], docs[4], docs[5])
@@ -59,7 +59,7 @@ func TestBFSWalkerAlgorithm(t *testing.T) {
 		//.................D    E
 		//.......................\
 		//........................F
-		graph := createDAG(t)
+		graph := CreateDAG(t)
 		docs := graphG()
 		graph.Add(docs...)
 		docC := docs[2]
@@ -92,7 +92,7 @@ func TestBFSWalkerAlgorithm(t *testing.T) {
 	})
 
 	t.Run("ok - empty graph", func(t *testing.T) {
-		graph := createDAG(t)
+		graph := CreateDAG(t)
 		visitor := trackingVisitor{}
 
 		root, _ := graph.Root()

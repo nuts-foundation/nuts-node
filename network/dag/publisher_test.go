@@ -2,11 +2,10 @@ package dag
 
 import (
 	"errors"
-	"testing"
-
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestReplayingPublisher(t *testing.T) {
@@ -18,7 +17,7 @@ func TestReplayingPublisher(t *testing.T) {
 		publisher := NewReplayingDAGPublisher(payloadStore, dag).(*replayingDAGPublisher)
 		received := false
 		transaction := CreateTestTransactionWithJWK(1)
-		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
+		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
 			received = true
 			return nil
@@ -48,7 +47,7 @@ func TestReplayingPublisher(t *testing.T) {
 
 		publisher := NewReplayingDAGPublisher(payloadStore, dag).(*replayingDAGPublisher)
 		received := false
-		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
+		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
 			received = true
 			return nil
@@ -61,8 +60,10 @@ func TestReplayingPublisher(t *testing.T) {
 
 func TestReplayingPublisher_publishTransaction(t *testing.T) {
 	t.Run("no subscribers", func(t *testing.T) {
-		publisher, ctrl, _ := createPublisher(t)
+		publisher, ctrl, store := createPublisher(t)
 		defer ctrl.Finish()
+
+		store.EXPECT().ReadPayload(gomock.Any()).Return([]byte{1, 2, 3}, nil)
 
 		publisher.publishTransaction(CreateTestTransactionWithJWK(1))
 	})
@@ -74,7 +75,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		store.EXPECT().ReadPayload(transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 
 		received := false
-		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
+		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
 			received = true
 			return nil
@@ -90,7 +91,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		store.EXPECT().ReadPayload(transaction.PayloadHash()).Return(nil, nil)
 
 		received := false
-		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
+		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
 			received = true
 			return nil
@@ -112,7 +113,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		store.EXPECT().ReadPayload(transaction.PayloadHash()).Return(nil, errors.New("failed"))
 
 		received := false
-		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
+		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			received = true
 			return nil
 		})
@@ -127,7 +128,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		store.EXPECT().ReadPayload(transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 
 		calls := 0
-		receiver := func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
+		receiver := func(actualTransaction Transaction, actualPayload []byte) error {
 			calls++
 			return nil
 		}
@@ -144,7 +145,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		transaction := CreateTestTransactionWithJWK(1)
 		store.EXPECT().ReadPayload(transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 		calls := 0
-		receiver := func(actualTransaction SubscriberTransaction, actualPayload []byte) error {
+		receiver := func(actualTransaction Transaction, actualPayload []byte) error {
 			calls++
 			return errors.New("failed")
 		}

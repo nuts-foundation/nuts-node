@@ -24,29 +24,35 @@ import (
 	"strings"
 )
 
-type NumberOfPeersStatistic struct {
-	NumberOfPeers int
+// numberOfPeersStatistic contains node's number of peers it's connected to.
+type numberOfPeersStatistic struct {
+	numberOfPeers int
 }
 
-func (n NumberOfPeersStatistic) Name() string {
+// Name returns the name of the statistic.
+func (n numberOfPeersStatistic) Name() string {
 	return "[P2P Network] Connected peers #"
 }
 
-func (n NumberOfPeersStatistic) String() string {
-	return fmt.Sprintf("%d", n.NumberOfPeers)
+// String returns the statistic as string.
+func (n numberOfPeersStatistic) String() string {
+	return fmt.Sprintf("%d", n.numberOfPeers)
 }
 
-type PeersStatistic struct {
-	Peers []Peer
+// peersStatistic contains the node's peers it's connected to.
+type peersStatistic struct {
+	peers []Peer
 }
 
-func (p PeersStatistic) Name() string {
+// Name returns the name of the statistic.
+func (p peersStatistic) Name() string {
 	return "[P2P Network] Connected peers"
 }
 
-func (p PeersStatistic) String() string {
-	addrs := make([]string, len(p.Peers))
-	for i, peer := range p.Peers {
+// String returns the statistic as string.
+func (p peersStatistic) String() string {
+	addrs := make([]string, len(p.peers))
+	for i, peer := range p.peers {
 		addrs[i] = peer.String()
 	}
 	// Sort for stable order (easier for humans to understand)
@@ -56,14 +62,17 @@ func (p PeersStatistic) String() string {
 	return strings.Join(addrs, " ")
 }
 
-type OwnPeerIDStatistic struct {
+// ownPeerIDStatistic contains the node's own peer ID.
+type ownPeerIDStatistic struct {
 	peerID PeerID
 }
 
-func (o OwnPeerIDStatistic) Name() string {
+// Name returns the name of the statistic.
+func (o ownPeerIDStatistic) Name() string {
 	return "[P2P Network] Peer ID of local node"
 }
 
-func (o OwnPeerIDStatistic) String() string {
+// String returns the statistic as string.
+func (o ownPeerIDStatistic) String() string {
 	return o.peerID.String()
 }

@@ -51,7 +51,7 @@ const (
 // Network implements Transactions interface and Engine functions.
 type Network struct {
 	config       Config
-	p2pNetwork   p2p.P2PNetwork
+	p2pNetwork   p2p.Adapter
 	protocol     proto.Protocol
 	graph        dag.DAG
 	publisher    dag.Publisher
@@ -73,7 +73,7 @@ func NewNetworkInstance(config Config, keyResolver types.KeyResolver) *Network {
 	result := &Network{
 		config:      config,
 		keyResolver: keyResolver,
-		p2pNetwork:  p2p.NewP2PNetwork(),
+		p2pNetwork:  p2p.NewAdapter(),
 		protocol:    proto.NewProtocol(),
 	}
 	return result
@@ -93,7 +93,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	peerID := p2p.PeerID(uuid.New().String())
-	n.protocol.Configure(n.p2pNetwork, n.graph, n.payloadStore, dag.NewTransactionSignatureVerifier(n.keyResolver), time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
+	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, dag.NewTransactionSignatureVerifier(n.keyResolver), time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
 	networkConfig, p2pErr := n.buildP2PConfig(peerID)
 	if p2pErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", p2pErr)
@@ -157,7 +157,7 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 
 // ListTransactions returns all transactions known to this Network instance.
 func (n *Network) ListTransactions() ([]dag.Transaction, error) {
-	return n.graph.All()
+	return n.graph.FindBetween(dag.MinTime(), dag.MaxTime())
 }
 
 // CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
@@ -210,8 +210,8 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 	return results
 }
 
-func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.P2PNetworkConfig, error) {
-	cfg := p2p.P2PNetworkConfig{
+func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) {
+	cfg := p2p.AdapterConfig{
 		ListenAddress:  n.config.GrpcAddr,
 		BootstrapNodes: n.config.BootstrapNodes,
 		PeerID:         peerID,

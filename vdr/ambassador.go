@@ -23,13 +23,14 @@ import (
 	"bytes"
 	"crypto"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto/log"
-
 	ssi "github.com/nuts-foundation/go-did"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 
@@ -43,6 +44,9 @@ import (
 
 // didDocumentType contains network transaction mime-type to identify a DID Document in the network.
 const didDocumentType = "application/did+json"
+
+// ErrThumbprintMismatch is returned when a transaction publishing a new DID is signed with a different key than the DID is generated from
+var ErrThumbprintMismatch = errors.New("thumbprint of signing key does not match DID")
 
 // Ambassador acts as integration point between VDR and network by sending DID Documents network and process
 // DID Documents received through the network.
@@ -80,9 +84,9 @@ var thumbprintAlg = crypto.SHA256
 // This method will check the integrity of the DID document related to the public key used to sign the network tr.
 // The rules are based on the Nuts RFC006
 // payload should be a json encoded did.document
-func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) error {
+func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 	logging.Log().Debugf("Processing DID document received from Nuts Network (ref=%s)", tx.Ref())
-	if err := checkSubscriberTransactionIntegrity(tx); err != nil {
+	if err := checkTransactionIntegrity(tx); err != nil {
 		return fmt.Errorf("callback could not process new DID Document: %w", err)
 	}
 
@@ -107,26 +111,22 @@ func (n *ambassador) callback(tx dag.SubscriberTransaction, payload []byte) erro
 	return n.handleCreateDIDDocument(tx, nextDIDDocument)
 }
 
-func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
+func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
 	logging.Log().Debugf("Handling DID document creation (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
-	// Check if the transaction was signed by the same key as is embedded in the DID Document`s capabilityInvocation:
+	// Check if the DID matches the fingerprint of the tx signing key:
 	if transaction.SigningKey() == nil {
 		return fmt.Errorf("callback could not process new DID Document: signingKey for new DID Documents must be set")
 	}
 
 	// Create key thumbprint from the transactions signingKey embedded in the header
-	signingKeyThumbprint, err := transaction.SigningKey().Thumbprint(thumbprintAlg)
+	signingKeyThumbprint, err := nutsCrypto.Thumbprint(transaction.SigningKey())
 	if err != nil {
-		return fmt.Errorf("unable to generate network transaction signing key thumbprint: %w", err)
+		return fmt.Errorf("unable to generate thumbprint for network transaction signing key: %w", err)
 	}
 
-	// Check if signingKey is one of the keys embedded in the CapabilityInvocation
-	didDocumentCapInvKeys := proposedDIDDocument.CapabilityInvocation
-	if documentKey, err := n.findKeyByThumbprint(signingKeyThumbprint, didDocumentCapInvKeys); documentKey == nil || err != nil {
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf("key used to sign transaction must be be part of DID Document capabilityInvocation")
+	// Check if signingKeyThumbprint equals the DID
+	if proposedDIDDocument.ID.ID != signingKeyThumbprint {
+		return ErrThumbprintMismatch
 	}
 
 	var rawKey crypto.PublicKey
@@ -147,7 +147,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.SubscriberTransacti
 	return err
 }
 
-func (n *ambassador) handleUpdateDIDDocument(transaction dag.SubscriberTransaction, proposedDIDDocument did.Document) error {
+func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
 	logging.Log().Debugf("Handling DID document update (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	// Resolve latest version of DID Document
 	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
@@ -251,10 +251,10 @@ func missingTransactions(current []hash.SHA256Hash, incoming []hash.SHA256Hash) 
 	return current[:j]
 }
 
-// checkSubscriberTransactionIntegrity performs basic integrity checks on the SubscriberTransaction fields
+// checkTransactionIntegrity performs basic integrity checks on the Transaction fields
 // Some checks may look redundant because they are performed in the callers, this method has the sole
 // responsibility to ensure integrity, while the other may have not.
-func checkSubscriberTransactionIntegrity(transaction dag.SubscriberTransaction) error {
+func checkTransactionIntegrity(transaction dag.Transaction) error {
 	// check the payload type:
 	if transaction.PayloadType() != didDocumentType {
 		return fmt.Errorf("wrong payload type for this subscriber. Can handle: %s, got: %s", didDocumentType, transaction.PayloadType())

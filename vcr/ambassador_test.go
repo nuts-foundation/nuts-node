@@ -56,7 +56,7 @@ func TestAmbassador_Configure(t *testing.T) {
 func TestAmbassador_vcCallback(t *testing.T) {
 	payload := []byte(concept.TestCredential)
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), vcDocumentType, nil)
-	stx := tx.(dag.SubscriberTransaction)
+	stx := tx.(dag.Transaction)
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -108,7 +108,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 func TestAmbassador_rCallback(t *testing.T) {
 	payload := []byte("{\"subject\":\"did:nuts:1#123\"}")
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), revocationDocumentType, nil)
-	stx := tx.(dag.SubscriberTransaction)
+	stx := tx.(dag.Transaction)
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

@@ -19,6 +19,7 @@
 package proto
 
 import (
+	"sync"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -26,23 +27,25 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	log "github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
 // protocol is thread-safe when callers use the Protocol interface
 type protocol struct {
-	p2pNetwork        p2p.P2PNetwork
+	p2pNetwork        p2p.Adapter
 	graph             dag.DAG
 	payloadStore      dag.PayloadStore
 	signatureVerifier dag.TransactionSignatureVerifier
+	sender            messageSender
 	// TODO: What if no-one is actually listening to this queue? Maybe we should create it when someone asks for it (lazy initialization)?
 	receivedPeerHashes        *chanPeerHashQueue
 	receivedTransactionHashes *chanPeerHashQueue
-	peerHashes                map[p2p.PeerID][]hash.SHA256Hash
 
-	// Cache statistics to avoid having to lock precious resources
-	peerConsistencyHashStatistic peerConsistencyHashStatistic
-	newPeerHashChannel           chan PeerHash
+	peerOmnihashChannel chan PeerOmnihash
+	// peerOmnihashes contains the omnihashes of our peers. Access must be protected using peerOmnihashMutex
+	peerOmnihashes    map[p2p.PeerID]hash.SHA256Hash
+	peerOmnihashMutex *sync.Mutex
+
+	blocks dagBlocks
 
 	advertHashesInterval time.Duration
 	// peerID contains our own peer ID which can be logged for debugging purposes
@@ -50,32 +53,39 @@ type protocol struct {
 }
 
 func (p *protocol) Diagnostics() []core.DiagnosticResult {
+	p.peerOmnihashMutex.Lock()
+	defer p.peerOmnihashMutex.Unlock()
 	return []core.DiagnosticResult{
-		&p.peerConsistencyHashStatistic,
+		newPeerOmnihashStatistic(p.peerOmnihashes),
 	}
 }
 
+// NewProtocol creates a new instance of Protocol
 func NewProtocol() Protocol {
 	p := &protocol{
-		peerHashes:                   make(map[p2p.PeerID][]hash.SHA256Hash),
-		newPeerHashChannel:           make(chan PeerHash, 100),
-		peerConsistencyHashStatistic: newPeerConsistencyHashStatistic(),
+		peerOmnihashes:      make(map[p2p.PeerID]hash.SHA256Hash),
+		peerOmnihashChannel: make(chan PeerOmnihash, 100),
+		peerOmnihashMutex:   &sync.Mutex{},
+		blocks:              newDAGBlocks(),
 	}
 	return p
 }
 
-func (p *protocol) Configure(p2pNetwork p2p.P2PNetwork, graph dag.DAG, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
+func (p *protocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
 	p.p2pNetwork = p2pNetwork
 	p.graph = graph
 	p.payloadStore = payloadStore
 	p.advertHashesInterval = advertHashesInterval
 	p.signatureVerifier = verifier
 	p.peerID = peerID
+	p.sender = defaultMessageSender{p2p: p.p2pNetwork}
+	publisher.Subscribe(dag.AnyPayloadType, p.blocks.addTransaction)
 }
 
 func (p *protocol) Start() {
 	go p.consumeMessages(p.p2pNetwork.ReceivedMessages())
-	go p.updateDiagnostics()
+	peerConnected, peerDisconnected := p.p2pNetwork.EventChannels()
+	go p.startUpdatingDiagnostics(peerConnected, peerDisconnected)
 	go p.startAdvertingHashes()
 }
 
@@ -88,39 +98,39 @@ func (p protocol) startAdvertingHashes() {
 	for {
 		select {
 		case <-ticker.C:
-			p.advertHashes()
+			p.sender.broadcastAdvertHashes(p.blocks.get())
 		}
 	}
 }
 
-func (p *protocol) updateDiagnostics() {
-	// TODO: When to exit the loop?
-	ticker := time.NewTicker(2 * time.Second)
+func (p *protocol) startUpdatingDiagnostics(peerConnected chan p2p.Peer, peerDisconnected chan p2p.Peer) {
 	for {
-		select {
-		case <-ticker.C:
-			// TODO: Make this garbage collection less dumb. Maybe we should be notified of disconnects rather than looping each time
-			connectedPeers := p.p2pNetwork.Peers()
-			var changed = false
-			for peerId := range p.peerHashes {
-				var present = false
-				for _, connectedPeer := range connectedPeers {
-					if peerId == connectedPeer.ID {
-						present = true
-					}
-				}
-				if !present {
-					delete(p.peerHashes, peerId)
-					changed = true
-				}
-			}
-			if changed {
-				p.peerConsistencyHashStatistic.copyFrom(p.peerHashes)
-			}
-		case peerHash := <-p.newPeerHashChannel:
-			p.peerHashes[peerHash.Peer] = peerHash.Hashes
-			p.peerConsistencyHashStatistic.copyFrom(p.peerHashes)
-		}
+		p.updateDiagnostics(peerConnected, peerDisconnected)
+	}
+}
+
+func (p *protocol) updateDiagnostics(peerConnected chan p2p.Peer, peerDisconnected chan p2p.Peer) {
+	withLock := func(fn func()) {
+		p.peerOmnihashMutex.Lock()
+		defer p.peerOmnihashMutex.Unlock()
+		fn()
+	}
+	select {
+	case peer := <-peerConnected:
+		withLock(func() {
+			p.peerOmnihashes[peer.ID] = hash.EmptyHash()
+		})
+		break
+	case peer := <-peerDisconnected:
+		withLock(func() {
+			delete(p.peerOmnihashes, peer.ID)
+		})
+		break
+	case peerOmnihash := <-p.peerOmnihashChannel:
+		withLock(func() {
+			p.peerOmnihashes[peerOmnihash.Peer] = peerOmnihash.Hash
+		})
+		break
 	}
 }
 
@@ -133,28 +143,10 @@ func (p protocol) consumeMessages(queue p2p.MessageQueue) {
 	}
 }
 
-func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
-	peer := peerMsg.Peer
-	networkMessage := peerMsg.Message
-	switch msg := networkMessage.Message.(type) {
-	case *transport.NetworkMessage_AdvertHashes:
-		p.handleAdvertHashes(peer, msg.AdvertHashes)
-	case *transport.NetworkMessage_TransactionListQuery:
-		return p.handleTransactionListQuery(peer)
-	case *transport.NetworkMessage_TransactionList:
-		return p.handleTransactionList(peer, msg.TransactionList)
-	case *transport.NetworkMessage_TransactionPayloadQuery:
-		if msg.TransactionPayloadQuery.PayloadHash != nil {
-			return p.handleTransactionPayloadQuery(peer, msg.TransactionPayloadQuery)
-		}
-	case *transport.NetworkMessage_TransactionPayload:
-		if msg.TransactionPayload.PayloadHash != nil && msg.TransactionPayload.Data != nil {
-			p.handleTransactionPayload(peer, msg.TransactionPayload)
-		}
-	}
-	return nil
+type chanPeerHashQueue struct {
+	c chan *PeerOmnihash
 }
 
-func createMessage() transport.NetworkMessage {
-	return transport.NetworkMessage{}
+func (q chanPeerHashQueue) Get() *PeerOmnihash {
+	return <-q.c
 }
