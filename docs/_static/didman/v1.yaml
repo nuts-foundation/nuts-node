@@ -34,7 +34,7 @@ paths:
               $ref: '#/components/schemas/EndpointCreateRequest'
       responses:
         "204":
-          description: "The given type and URL have been added as service to the DID Document".
+          description: The given type and URL have been added as service to the DID Document
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/service/{id}:
@@ -55,7 +55,7 @@ paths:
       operationId: "deleteEndpoint"
       responses:
         "204":
-          description: "The service has been removed".
+          description: The service has been removed
         default:
           $ref: '../common/error_response.yaml'
 components:
