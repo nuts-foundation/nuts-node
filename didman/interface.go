@@ -22,6 +22,7 @@ package didman
 import (
 	"net/url"
 
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 )
 
@@ -29,4 +30,8 @@ import (
 type Didman interface {
 	// AddEndpoint adds a service to a DID Document. The serviceEndpoint is set to the given URL.
 	AddEndpoint(id did.DID, serviceType string, u url.URL) error
+	// DeleteService removes a service from a DID Document.
+	// It returns ErrServiceInUse if the service is referenced by other services.
+	// It returns ErrServiceNotFound if the service can't be found in the DID Document.
+	DeleteService(id ssi.URI) error
 }

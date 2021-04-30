@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
@@ -35,6 +36,7 @@ import (
 )
 
 const problemTitleAddEndpoint = "Adding Endpoint failed"
+const problemTitleDeleteService = "Deleting Service failed"
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
@@ -92,6 +94,26 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 	return ctx.NoContent(http.StatusNoContent)
 }
 
-func (w *Wrapper) DeleteService(ctx echo.Context, id string) error {
-	panic("implement me")
+func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
+	id, err := ssi.ParseURI(uriStr)
+	if err != nil {
+		err = fmt.Errorf("failed to parse URI: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleDeleteService)
+		return core.NewProblem(problemTitleDeleteService, http.StatusBadRequest, err.Error())
+	}
+
+	if err = w.Didman.DeleteService(*id); err != nil {
+		logging.Log().WithError(err).Warn(problemTitleDeleteService)
+		if errors.Is(err, types.ErrNotFound) {
+			return core.NewProblem(problemTitleDeleteService, http.StatusNotFound, err.Error())
+		}
+		if errors.Is(err, didman.ErrServiceNotFound) {
+			return core.NewProblem(problemTitleDeleteService, http.StatusNotFound, err.Error())
+		}
+		if errors.Is(err, didman.ErrServiceInUse) {
+			return core.NewProblem(problemTitleDeleteService, http.StatusConflict, err.Error())
+		}
+	}
+
+	return ctx.NoContent(http.StatusNoContent)
 }

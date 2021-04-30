@@ -33,14 +33,19 @@ import (
 
 const ModuleName = "Didman"
 
+// ErrDuplicateService is returned when a DID Document already contains a service for the given type
 var ErrDuplicateService = errors.New("service type already defined")
+// ErrServiceInUse is returned when a service is deleted but in use by other services
+var ErrServiceInUse = errors.New("service is referenced by 1 or more services")
+// ErrServiceNotFound is returned when the service is not found on a DID
+var ErrServiceNotFound = errors.New("service not found in DID Document")
 
 type didman struct {
 	docResolver types.DocResolver
-	vdr         types.VDR
+	vdr         types.Store
 }
 
-func NewDidmanInstance(docResolver types.DocResolver, vdr types.VDR) Didman {
+func NewDidmanInstance(docResolver types.DocResolver, vdr types.Store) Didman {
 	return &didman{
 		docResolver: docResolver,
 		vdr:         vdr,
@@ -67,6 +72,32 @@ func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) error {
 	// construct service with correct ID
 	service := constructService(id, serviceType, u)
 	doc.Service = append(doc.Service, service)
+
+	return d.vdr.Update(id, meta.Hash, *doc, nil)
+}
+
+func (d *didman) DeleteService(id ssi.URI) error {
+
+	doc, meta, err := d.docResolver.Resolve(id, nil)
+	if err != nil {
+		return err
+	}
+
+	// check for existing use
+	err := d.vdr.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// remove service
+	for _, s := range doc.Service {
+		if s.Type == serviceType {
+			return ErrDuplicateService
+		}
+	}
 
 	return d.vdr.Update(id, meta.Hash, *doc, nil)
 }
