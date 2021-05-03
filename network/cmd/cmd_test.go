@@ -91,24 +91,28 @@ func TestCmd_List(t *testing.T) {
 }
 
 func TestCmd_Get(t *testing.T) {
-	cmd := Cmd()
-	response := dag.CreateTestTransactionWithJWK(1)
-	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
-	s := httptest.NewServer(handler)
-	os.Setenv("NUTS_ADDRESS", s.URL)
-	defer os.Unsetenv("NUTS_ADDRESS")
-	core.NewServerConfig().Load(cmd)
-	defer s.Close()
-
 	t.Run("ok", func(t *testing.T) {
+		cmd := Cmd()
+		response := dag.CreateTestTransactionWithJWK(1, hash.SHA256Sum([]byte{1, 2, 3}))
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
+		s := httptest.NewServer(handler)
+		os.Setenv("NUTS_ADDRESS", s.URL)
+		defer os.Unsetenv("NUTS_ADDRESS")
+		core.NewServerConfig().Load(cmd)
+		defer s.Close()
 		cmd.SetArgs([]string{"get", response.Ref().String()})
 		err := cmd.Execute()
 		assert.NoError(t, err)
 	})
 	t.Run("not found", func(t *testing.T) {
-		handler.StatusCode = http.StatusNotFound
-		handler.ResponseData = []byte("not found")
-		cmd.SetArgs([]string{"get", response.Ref().String()})
+		cmd := Cmd()
+		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"}
+		s := httptest.NewServer(handler)
+		os.Setenv("NUTS_ADDRESS", s.URL)
+		defer os.Unsetenv("NUTS_ADDRESS")
+		core.NewServerConfig().Load(cmd)
+		defer s.Close()
+		cmd.SetArgs([]string{"get", hash.SHA256Sum([]byte{1, 2, 3}).String()})
 		err := cmd.Execute()
 		assert.NoError(t, err)
 	})
