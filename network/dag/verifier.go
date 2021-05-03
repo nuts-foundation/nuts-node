@@ -1,68 +1,66 @@
 package dag
 
 import (
+	crypto2 "crypto"
+	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jws"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// Verifier defines the API of a DAG verifier, used to check the integrity of a DAG that's been loaded from disk.
+// Verifier defines the API of a DAG verifier, used to check the validity of a transaction.
 type Verifier interface {
-	// Verify checks the integrity of the DAG, returning an error when it failed.
-	Verify() error
+	// Verify checks the integrity of the given transaction.
+	Verify(tx Transaction, graph DAG) error
 }
 
-// NewVerifier creates a new DAG verifier.
-func NewVerifier(graph DAG, publisher Publisher, verifier TransactionSignatureVerifier) Verifier {
-	instance := &defaultVerifier{verifier: verifier, graph: graph}
-	publisher.Subscribe(AnyPayloadType, instance.verifyTransactionSignature)
-	return instance
+// NewTransactionSignatureVerifier creates a transaction verifier that checks the signature of the transaction.
+// It uses the given KeyResolver to resolves keys that aren't embedded in the transaction.
+func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
+	return &transactionVerifier{resolver: resolver}
 }
 
-type defaultVerifier struct {
-	verifier TransactionSignatureVerifier
-	graph    DAG
-	finished bool
-	failure  error
+type transactionVerifier struct {
+	resolver types.KeyResolver
 }
 
-func (v *defaultVerifier) Verify() error {
-	if !v.finished {
-		if v.failure == nil {
-			v.failure = v.verifyTransactions()
+func (d transactionVerifier) Verify(input Transaction, _ DAG) error {
+	var signingKey crypto2.PublicKey
+	if input.SigningKey() != nil {
+		if err := input.SigningKey().Raw(&signingKey); err != nil {
+			return err
 		}
-		v.finished = true
+	} else {
+		signingTime := input.SigningTime()
+		pk, err := d.resolver.ResolvePublicKey(input.SigningKeyID(), &signingTime)
+		if err != nil {
+			return fmt.Errorf("unable to verify transaction signature, can't resolve key (kid=%s): %w", input.SigningKeyID(), err)
+		}
+		signingKey = pk
 	}
-	if v.failure != nil {
-		return fmt.Errorf("DAG verification failed: %w", v.failure)
-	}
-	return nil
+	// TODO: jws.Verify parses the JWS again, which we already did when parsing the transaction. If we want to optimize
+	// this we need to implement a custom verifier.
+	_, err := jws.Verify(input.Data(), jwa.SignatureAlgorithm(input.SigningAlgorithm()), signingKey)
+	return err
 }
 
-func (v *defaultVerifier) verifyTransactionSignature(tx Transaction, _ []byte) error {
-	if v.failure != nil || v.finished {
-		// If we already encountered a failure or POST is already finished,
-		// we don't need to waste CPU cycles checking transaction signatures.
-		return nil
-	}
-	if err := v.verifier.Verify(tx); err != nil {
-		v.failure = err
-	}
-	return nil
+// NewPrevTransactionsVerifier creates a transaction verifier that asserts that all previous transactions are known.
+func NewPrevTransactionsVerifier() Verifier {
+	return &prevTransactionsVerifier{}
 }
 
-func (v *defaultVerifier) verifyTransactions() error {
-	transactions, err := v.graph.FindBetween(MinTime(), MaxTime())
-	if err != nil {
-		return err
-	}
-	for _, tx := range transactions {
-		for _, prev := range tx.Previous() {
-			present, err := v.graph.IsPresent(prev)
-			if err != nil {
-				return err
-			}
-			if !present {
-				return fmt.Errorf("transaction is referring to non-existing previous transaction (tx=%s,prev=%s)", tx.Ref(), prev)
-			}
+type prevTransactionsVerifier struct {
+}
+
+func (v *prevTransactionsVerifier) Verify(tx Transaction, graph DAG) error {
+	for _, prev := range tx.Previous() {
+		present, err := graph.IsPresent(prev)
+		if err != nil {
+			return err
+		}
+		if !present {
+			return errors.New("transaction is referring to non-existing previous transaction")
 		}
 	}
 	return nil

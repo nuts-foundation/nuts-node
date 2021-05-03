@@ -34,15 +34,15 @@ func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
 }
 
 // Verify mocks base method.
-func (m *MockVerifier) Verify() error {
+func (m *MockVerifier) Verify(tx Transaction, graph DAG) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify")
+	ret := m.ctrl.Call(m, "Verify", tx, graph)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Verify indicates an expected call of Verify.
-func (mr *MockVerifierMockRecorder) Verify() *gomock.Call {
+func (mr *MockVerifierMockRecorder) Verify(tx, graph interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVerifier)(nil).Verify))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVerifier)(nil).Verify), tx, graph)
 }

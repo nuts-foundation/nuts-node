@@ -168,6 +168,20 @@ func (mr *MockDAGMockRecorder) Root() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Root", reflect.TypeOf((*MockDAG)(nil).Root))
 }
 
+// Verify mocks base method.
+func (m *MockDAG) Verify() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Verify")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Verify indicates an expected call of Verify.
+func (mr *MockDAGMockRecorder) Verify() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockDAG)(nil).Verify))
+}
+
 // Walk mocks base method.
 func (m *MockDAG) Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error {
 	m.ctrl.T.Helper()

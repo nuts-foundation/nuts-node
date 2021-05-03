@@ -52,8 +52,22 @@ const rootsTransactionKey = "roots"
 const headsBucket = "heads"
 
 type bboltDAG struct {
-	db        *bbolt.DB
-	observers []Observer
+	db          *bbolt.DB
+	observers   []Observer
+	txVerifiers []Verifier
+}
+
+func (dag *bboltDAG) Verify() error {
+	transactions, err := dag.FindBetween(MinTime(), MaxTime())
+	if err != nil {
+		return err
+	}
+	for _, tx := range transactions {
+		if err := dag.verifyTX(tx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type headsStatistic struct {
@@ -94,8 +108,8 @@ func (d dataSizeStatistic) String() string {
 }
 
 // NewBBoltDAG creates a etcd/bbolt backed DAG using the given database.
-func NewBBoltDAG(db *bbolt.DB) DAG {
-	return &bboltDAG{db: db}
+func NewBBoltDAG(db *bbolt.DB, txVerifiers ...Verifier) DAG {
+	return &bboltDAG{db: db, txVerifiers: txVerifiers}
 }
 
 func (dag *bboltDAG) RegisterObserver(observer Observer) {
@@ -267,7 +281,19 @@ func isPresent(db *bbolt.DB, bucketName string, key []byte) (bool, error) {
 	return result, err
 }
 
+func (dag *bboltDAG) verifyTX(tx Transaction) error {
+	for _, verifier := range dag.txVerifiers {
+		if err := verifier.Verify(tx, dag); err != nil {
+			return fmt.Errorf("transaction verification failed (tx=%s): %w", tx.Ref(), err)
+		}
+	}
+	return nil
+}
+
 func (dag *bboltDAG) add(transaction Transaction) error {
+	if err := dag.verifyTX(transaction); err != nil {
+		return err
+	}
 	ref := transaction.Ref()
 	refSlice := ref.Slice()
 	err := dag.db.Update(func(tx *bbolt.Tx) error {

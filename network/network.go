@@ -57,7 +57,6 @@ type Network struct {
 	publisher    dag.Publisher
 	payloadStore dag.PayloadStore
 	keyResolver  types.KeyResolver
-	verifier     dag.Verifier
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -90,13 +89,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if bboltErr != nil {
 		return fmt.Errorf("unable to create BBolt database: %w", bboltErr)
 	}
-	n.graph = dag.NewBBoltDAG(db)
+	n.graph = dag.NewBBoltDAG(db, dag.NewTransactionSignatureVerifier(n.keyResolver), dag.NewPrevTransactionsVerifier())
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
-	signatureVerifier := dag.NewTransactionSignatureVerifier(n.keyResolver)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
-	n.verifier = dag.NewVerifier(n.graph, n.publisher, signatureVerifier)
 	peerID := p2p.PeerID(uuid.New().String())
-	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, signatureVerifier, time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
+	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
 	networkConfig, p2pErr := n.buildP2PConfig(peerID)
 	if p2pErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", p2pErr)
@@ -134,7 +131,7 @@ func (n *Network) Start() error {
 	}
 	n.protocol.Start()
 	n.publisher.Start()
-	if err := n.verifier.Verify(); err != nil {
+	if err := n.graph.Verify(); err != nil {
 		return err
 	}
 
