@@ -22,6 +22,7 @@ gen-mocks:
 	mockgen -destination=network/p2p/mock.go -package=p2p -source=network/p2p/interface.go P2PNetwork
 	mockgen -destination=network/p2p/connection_mock.go -package=p2p -source=network/p2p/connection.go grpcMessenger
 	mockgen -destination=network/mock.go -package=network -source=network/interface.go
+	mockgen -destination=network/post_mock.go -package=network -source=network/post.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go DAG PayloadStore
 	mockgen -destination=network/dag/sigverifier_mock.go -package=dag -source=network/dag/sigverifier.go
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
