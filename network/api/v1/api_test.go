@@ -18,6 +18,7 @@
 package v1
 
 import (
+	test2 "github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -69,9 +70,9 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 		c.SetParamValues("1234")
 
 		err := wrapper.GetTransaction(c)
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusBadRequest, rec.Code)
-		assert.Equal(t, "incorrect hash length (2)", rec.Body.String())
+		test2.AssertErrProblemTitle(t, problemTitleGetTransaction, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "incorrect hash length (2)", err)
 	})
 	t.Run("not found", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
@@ -86,9 +87,9 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 		c.SetParamValues(transaction.Ref().String())
 
 		err := wrapper.GetTransaction(c)
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusNotFound, rec.Code)
-		assert.Equal(t, "transaction not found", rec.Body.String())
+		test2.AssertErrProblemTitle(t, problemTitleGetTransaction, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+		test2.AssertErrProblemDetail(t, "transaction not found", err)
 	})
 }
 
@@ -150,9 +151,9 @@ func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 		c.SetParamValues(transaction.Ref().String())
 
 		err := wrapper.GetTransactionPayload(c)
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusNotFound, rec.Code)
-		assert.Equal(t, "transaction or contents not found", rec.Body.String())
+		test2.AssertErrProblemTitle(t, problemTitleGetTransactionPayload, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+		test2.AssertErrProblemDetail(t, "transaction or contents not found", err)
 	})
 	t.Run("invalid hash", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
@@ -166,9 +167,9 @@ func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 		c.SetParamValues("1234")
 
 		err := wrapper.GetTransactionPayload(c)
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusBadRequest, rec.Code)
-		assert.Equal(t, "incorrect hash length (2)", rec.Body.String())
+		test2.AssertErrProblemTitle(t, problemTitleGetTransactionPayload, err)
+		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test2.AssertErrProblemDetail(t, "incorrect hash length (2)", err)
 	})
 }
 

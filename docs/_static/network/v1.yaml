@@ -25,6 +25,8 @@ paths:
                 type: array
                 items:
                   type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/network/v1/transaction/{ref}:
     parameters:
       - name: ref
@@ -48,6 +50,8 @@ paths:
                 type: string
         "404":
           description: "Transaction wasn't found in the transaction log"
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/network/v1/transaction/{ref}/payload:
     parameters:
       - name: ref
@@ -70,6 +74,8 @@ paths:
               example:
         "404":
           description: "Transaction (or payload) wasn't found"
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/network/v1/diagnostics/graph:
     get:
       summary: "Visualizes the DAG as a graph"
@@ -86,3 +92,5 @@ paths:
             text/vnd.graphviz:
               schema:
                 type: string
+        default:
+          $ref: '../common/error_response.yaml'
