@@ -57,7 +57,7 @@ type Network struct {
 	publisher    dag.Publisher
 	payloadStore dag.PayloadStore
 	keyResolver  types.KeyResolver
-	post         powerOnSelfTest
+	verifier     dag.Verifier
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -94,7 +94,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	signatureVerifier := dag.NewTransactionSignatureVerifier(n.keyResolver)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
-	n.post = newPowerOnSelfTest(n.graph, n.publisher, signatureVerifier)
+	n.verifier = dag.NewVerifier(n.graph, n.publisher, signatureVerifier)
 	peerID := p2p.PeerID(uuid.New().String())
 	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, signatureVerifier, time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
 	networkConfig, p2pErr := n.buildP2PConfig(peerID)
@@ -134,7 +134,7 @@ func (n *Network) Start() error {
 	}
 	n.protocol.Start()
 	n.publisher.Start()
-	if err := n.post.perform(); err != nil {
+	if err := n.verifier.Verify(); err != nil {
 		return err
 	}
 

@@ -44,7 +44,7 @@ type networkTestContext struct {
 	keyStore    *crypto.MockKeyStore
 	publisher   *dag.MockPublisher
 	keyResolver *types.MockKeyResolver
-	post        *MockpowerOnSelfTest
+	verifier    *dag.MockVerifier
 }
 
 func TestNetwork_ListTransactions(t *testing.T) {
@@ -183,7 +183,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.post.EXPECT().perform()
+		cxt.verifier.EXPECT().Verify()
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
@@ -204,7 +204,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.post.EXPECT().perform()
+		cxt.verifier.EXPECT().Verify()
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
@@ -226,7 +226,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.post.EXPECT().perform()
+		cxt.verifier.EXPECT().Verify()
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
@@ -254,7 +254,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.publisher.EXPECT().Start()
-		cxt.post.EXPECT().perform()
+		cxt.verifier.EXPECT().Verify()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
@@ -264,7 +264,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
-		cxt.post.EXPECT().perform()
+		cxt.verifier.EXPECT().Verify()
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
@@ -275,7 +275,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
-		cxt.post.EXPECT().perform().Return(errors.New("failed"))
+		cxt.verifier.EXPECT().Verify().Return(errors.New("failed"))
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		assert.EqualError(t, err, "failed")
@@ -364,7 +364,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	network.graph = graph
 	network.payloadStore = payload
 	network.publisher = publisher
-	network.post = post
+	network.verifier = verifier
 	return &networkTestContext{
 		network:     network,
 		p2pAdapter:  p2pAdapter,
@@ -374,7 +374,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 		publisher:   publisher,
 		keyStore:    keyStore,
 		keyResolver: keyResolver,
-		post:        post,
+		verifier:    verifier,
 	}
 }
 
