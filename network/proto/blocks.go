@@ -88,7 +88,7 @@ type blockTracker struct {
 type head struct {
 	// distance contains number of blocks to the next TX that refers to this TX as 'prev'. If the next TX is in the next
 	// block, distance will be 1. If `distance is 0, it means the next TX is in the same block. It is initialized
-	// to math.MaxInt64, meaning no next TX.
+	// to math.MaxInt32, meaning no next TX.
 	distance    int32
 	signingTime time.Time
 	// blockDate contains the signing time at start of the block
