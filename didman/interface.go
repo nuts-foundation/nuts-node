@@ -29,9 +29,12 @@ import (
 // Didman groups all high-level methods for manipulating DID Documents
 type Didman interface {
 	// AddEndpoint adds a service to a DID Document. The serviceEndpoint is set to the given URL.
+	// It returns ErrDuplicateService if a service with the given type already exists.
+	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	AddEndpoint(id did.DID, serviceType string, u url.URL) error
 	// DeleteService removes a service from a DID Document.
 	// It returns ErrServiceInUse if the service is referenced by other services.
 	// It returns ErrServiceNotFound if the service can't be found in the DID Document.
+	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	DeleteService(id ssi.URI) error
 }
