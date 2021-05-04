@@ -110,7 +110,7 @@ func createBBoltDB(testDirectory string) *bbolt.DB {
 	return db
 }
 
-func CreateDAG(t *testing.T) DAG {
+func CreateDAG(t *testing.T, verifiers ...Verifier) DAG {
 	testDirectory := io.TestDirectory(t)
-	return NewBBoltDAG(createBBoltDB(testDirectory))
+	return NewBBoltDAG(createBBoltDB(testDirectory), verifiers...)
 }

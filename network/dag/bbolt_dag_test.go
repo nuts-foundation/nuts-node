@@ -19,6 +19,8 @@
 package dag
 
 import (
+	"errors"
+	"github.com/golang/mock/gomock"
 	"sort"
 	"strings"
 	"testing"
@@ -147,6 +149,22 @@ func TestBBoltDAG_Add(t *testing.T) {
 			return
 		}
 		assert.Regexp(t, "0, (1, 2|2, 1), (3, 4|4, 3), 5", visitor.JoinRefsAsString())
+	})
+	t.Run("error - verifier failed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		verifier := NewMockVerifier(ctrl)
+		graph := CreateDAG(t, verifier)
+		tx := CreateTestTransactionWithJWK(0)
+
+		verifier.EXPECT().Verify(tx, graph).Return(errors.New("failed"))
+		err := graph.Add(tx)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "transaction verification failed")
+		present, err := graph.IsPresent(tx.Ref())
+		assert.NoError(t, err)
+		assert.False(t, present)
 	})
 	t.Run("error - cyclic graph", func(t *testing.T) {
 		t.Skip("Algorithm for detecting cycles is not yet decided on")

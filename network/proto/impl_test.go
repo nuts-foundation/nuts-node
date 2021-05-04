@@ -18,8 +18,7 @@ func Test_ProtocolLifecycle(t *testing.T) {
 	publisher := dag.NewMockPublisher(mockCtrl)
 	publisher.EXPECT().Subscribe("*", gomock.Any())
 
-	instance.Configure(p2p.NewAdapter(), dag.NewMockDAG(mockCtrl), publisher,
-		dag.NewMockPayloadStore(mockCtrl), dag.NewMockTransactionSignatureVerifier(mockCtrl), time.Second*2, "local")
+	instance.Configure(p2p.NewAdapter(), dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), time.Second*2, "local")
 	instance.Start()
 	instance.Stop()
 }
