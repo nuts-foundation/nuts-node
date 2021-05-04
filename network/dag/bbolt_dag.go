@@ -20,7 +20,9 @@ package dag
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -31,6 +33,11 @@ import (
 
 // transactionsBucket is the name of the Bolt bucket that holds the actual transactions as JSON.
 const transactionsBucket = "documents"
+
+// rootDistanceBucket is the name of the Bolt bucket that holds the distances of a transaction to the DAG root. The root
+// transaction has a distance of 0, the second = 1, the third = 2. A transaction's distance is the max. previous' transaction
+// distance + 1.
+const rootDistanceBucket = "rootdistances"
 
 // missingTransactionsBucket is the name of the Bolt bucket that holds the references of the transactions we're having prevs
 // to, but are missing (and will be added later, hopefully).
@@ -185,10 +192,15 @@ func (dag bboltDAG) Heads() []hash.SHA256Hash {
 }
 
 func (dag *bboltDAG) FindBetween(startInclusive time.Time, endExclusive time.Time) ([]Transaction, error) {
-	result := make([]Transaction, 0)
+	type entry struct {
+		Transaction
+		uint64
+	}
+	entries := make([]entry, 0)
 	// TODO: Replace this with something more optimized (maybe go-leia with a range query on signing time?)
 	err := dag.db.View(func(tx *bbolt.Tx) error {
 		if transactions := tx.Bucket([]byte(transactionsBucket)); transactions != nil {
+			rootDistances := tx.Bucket([]byte(rootDistanceBucket))
 			cursor := transactions.Cursor()
 			for ref, transactionBytes := cursor.First(); transactionBytes != nil; ref, transactionBytes = cursor.Next() {
 				if bytes.Equal(ref, []byte(rootsTransactionKey)) {
@@ -199,13 +211,23 @@ func (dag *bboltDAG) FindBetween(startInclusive time.Time, endExclusive time.Tim
 					return fmt.Errorf("unable to parse transaction %s: %w", ref, err)
 				}
 				if !transaction.SigningTime().Before(startInclusive) && transaction.SigningTime().Before(endExclusive) {
-					result = append(result, transaction)
+					entries = append(entries, entry{
+						Transaction: transaction,
+						uint64:      bytesToUint64(rootDistances.Get(transaction.Ref().Slice())),
+					})
 				}
 			}
-			return nil
 		}
 		return nil
 	})
+	// Sort on root distance (which equals DAG walking order)
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].uint64 < entries[j].uint64
+	})
+	result := make([]Transaction, len(entries))
+	for i, curr := range entries {
+		result[i] = curr.Transaction
+	}
 	return result, err
 }
 
@@ -297,7 +319,7 @@ func (dag *bboltDAG) add(transaction Transaction) error {
 	ref := transaction.Ref()
 	refSlice := ref.Slice()
 	err := dag.db.Update(func(tx *bbolt.Tx) error {
-		transactions, nexts, missingTransactions, payloadIndex, heads, err := getBuckets(tx)
+		transactions, nexts, missingTransactions, payloadIndex, heads, rootDistances, err := getBuckets(tx)
 		if err != nil {
 			return err
 		}
@@ -316,7 +338,8 @@ func (dag *bboltDAG) add(transaction Transaction) error {
 		if err := transactions.Put(refSlice, transaction.Data()); err != nil {
 			return err
 		}
-		// Store forward references ([C -> prev A, B] is stored as [A -> C, B -> C])
+		// Store forward references ([C -> prev A, B] is stored as [A -> C, B -> C]) and determine root distance
+		prevRootDistance := uint64(0)
 		for _, prev := range transaction.Previous() {
 			if err := dag.registerNextRef(nexts, prev, ref); err != nil {
 				return fmt.Errorf("unable to store forward reference %s->%s: %w", prev, ref, err)
@@ -330,8 +353,22 @@ func (dag *bboltDAG) add(transaction Transaction) error {
 			if err := heads.Delete(prev.Slice()); err != nil {
 				return fmt.Errorf("unable to remove earlier head: %w", err)
 			}
+			thisPrevRootDistance := bytesToUint64(rootDistances.Get(prev.Slice()))
+			if thisPrevRootDistance > prevRootDistance {
+				prevRootDistance = thisPrevRootDistance
+			}
+		}
+		// If there's previous transactions, rootDistance=prev.distance + 1. If there are no previous transactions it means it's the root transaction and rootDistance=0.
+		rootDistance := uint64(0)
+		if len(transaction.Previous()) > 0 {
+			rootDistance = prevRootDistance + 1
+		}
+		if err := rootDistances.Put(refSlice, uint64ToBytes(rootDistance)); err != nil {
+			return err
 		}
 		// See if this is a head
+		// TODO: missingTransactions shouldn't be supported (any more) when missing previous transaction aren't allowed (any more)
+		// Should be removed in future.
 		if len(missingTransactions.Get(refSlice)) == 0 {
 			// This is not a previously missing transaction, so it is a head (for now)
 			if err := heads.Put(refSlice, []byte{1}); err != nil {
@@ -352,7 +389,7 @@ func (dag *bboltDAG) add(transaction Transaction) error {
 	return err
 }
 
-func getBuckets(tx *bbolt.Tx) (transactions, nexts, missingTransactions, payloadIndex, heads *bbolt.Bucket, err error) {
+func getBuckets(tx *bbolt.Tx) (transactions, nexts, missingTransactions, payloadIndex, heads *bbolt.Bucket, rootDistances *bbolt.Bucket, err error) {
 	if transactions, err = tx.CreateBucketIfNotExists([]byte(transactionsBucket)); err != nil {
 		return
 	}
@@ -366,6 +403,9 @@ func getBuckets(tx *bbolt.Tx) (transactions, nexts, missingTransactions, payload
 		return
 	}
 	if heads, err = tx.CreateBucketIfNotExists([]byte(headsBucket)); err != nil {
+		return
+	}
+	if rootDistances, err = tx.CreateBucketIfNotExists([]byte(rootDistanceBucket)); err != nil {
 		return
 	}
 	return
@@ -434,4 +474,17 @@ func notifyObservers(observers []Observer, subject interface{}) {
 	for _, observer := range observers {
 		observer(subject)
 	}
+}
+
+func bytesToUint64(input []byte) uint64 {
+	if len(input) == 0 {
+		return 0
+	}
+	return binary.LittleEndian.Uint64(input)
+}
+
+func uint64ToBytes(input uint64) []byte {
+	out := make([]byte, 8)
+	binary.LittleEndian.PutUint64(out, input)
+	return out
 }
