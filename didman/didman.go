@@ -27,6 +27,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/didman/logging"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/shengdoushi/base58"
 )
@@ -63,6 +64,7 @@ func (d *didman) Name() string {
 }
 
 func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) error {
+	logging.Log().Debugf("Adding endpoint (did: %s, type: %s, url: %s)", id.String(), serviceType, u.String())
 	doc, meta, err := d.docResolver.Resolve(id, nil)
 	if err != nil {
 		return err
@@ -79,10 +81,15 @@ func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) error {
 	service := constructService(id, serviceType, u)
 	doc.Service = append(doc.Service, service)
 
-	return d.vdr.Update(id, meta.Hash, *doc, nil)
+	err = d.vdr.Update(id, meta.Hash, *doc, nil)
+	if err == nil {
+		logging.Log().Infof("Endpoint added (did: %s, type: %s, url: %s)", id.String(), serviceType, u.String())
+	}
+	return err
 }
 
 func (d *didman) DeleteService(serviceID ssi.URI) error {
+	logging.Log().Debugf("Deleting service (id: %s)", serviceID.String())
 	id, err := did.ParseDID(serviceID.String())
 	if err != nil {
 		return err
@@ -114,7 +121,11 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 	}
 	doc.Service = doc.Service[:j]
 
-	return d.vdr.Update(*id, meta.Hash, *doc, nil)
+	err = d.vdr.Update(*id, meta.Hash, *doc, nil)
+	if err == nil {
+		logging.Log().Infof("Service removed (id: %s)", serviceID.String())
+	}
+	return err
 }
 
 func constructService(id did.DID, serviceType string, u url.URL) did.Service {
@@ -134,12 +145,10 @@ func constructService(id did.DID, serviceType string, u url.URL) did.Service {
 	return service
 }
 
-type compoundService map[string]string
-
 func referencesService(doc did.Document, serviceID ssi.URI) bool {
 	id := serviceID.String()
 	for _, s := range doc.Service {
-		cs := compoundService{}
+		cs := types.CompoundService{}
 		// ignore structures that can not be parsed to compound endpoints
 		if err := s.UnmarshalServiceEndpoint(&cs); err == nil {
 			for _, v := range cs {

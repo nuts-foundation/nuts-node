@@ -114,15 +114,15 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 			return core.NewProblem(problemTitleDeleteService, http.StatusNotFound, err.Error())
 		}
 		if errors.Is(err, types.ErrDIDNotManagedByThisNode) {
-			return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+			return core.NewProblem(problemTitleDeleteService, http.StatusBadRequest, err.Error())
 		}
 		if errors.Is(err, types.ErrDeactivated) {
-			return core.NewProblem(problemTitleAddEndpoint, http.StatusConflict, err.Error())
+			return core.NewProblem(problemTitleDeleteService, http.StatusConflict, err.Error())
 		}
 		if errors.Is(err, didman.ErrServiceInUse) {
 			return core.NewProblem(problemTitleDeleteService, http.StatusConflict, err.Error())
 		}
-		return core.NewProblem(problemTitleAddEndpoint, http.StatusInternalServerError, err.Error())
+		return core.NewProblem(problemTitleDeleteService, http.StatusInternalServerError, err.Error())
 	}
 
 	return ctx.NoContent(http.StatusNoContent)

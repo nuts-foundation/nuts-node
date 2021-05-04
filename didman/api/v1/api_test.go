@@ -87,6 +87,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, "invalid value for type", err)
+		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
 	})
 
 	t.Run("error - incorrect endpoint", func(t *testing.T) {
@@ -103,6 +104,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, "invalid value for endpoint: parse \":\": missing protocol scheme", err)
+		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
 	})
 
 	t.Run("error - incorrect did", func(t *testing.T) {
@@ -119,6 +121,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, "failed to parse DID: input length is less than 7", err)
+		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
 	})
 
 	t.Run("error - DID not found", func(t *testing.T) {
@@ -136,6 +139,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
 	})
 
 	t.Run("error - incorrect post body", func(t *testing.T) {
@@ -148,6 +152,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
 	})
 
 	t.Run("error - deactivated", func(t *testing.T) {
@@ -166,6 +171,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
 		test.AssertErrProblemDetail(t, types.ErrDeactivated.Error(), err)
+		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
 	})
 
 	t.Run("error - not managed", func(t *testing.T) {
@@ -184,6 +190,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, types.ErrDIDNotManagedByThisNode.Error(), err)
+		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
 	})
 
 	t.Run("error - duplicate", func(t *testing.T) {
@@ -202,6 +209,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
 		test.AssertErrProblemDetail(t, didman.ErrDuplicateService.Error(), err)
+		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -219,6 +227,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
+		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
 	})
 }
 
@@ -251,6 +260,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
 		test.AssertErrProblemDetail(t, "failed to parse URI: parse \":\": missing protocol scheme", err)
 	})
 
@@ -264,6 +274,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
 	})
 
 	t.Run("error - in use", func(t *testing.T) {
@@ -276,6 +287,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
+		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
 	})
 
 	t.Run("error - deactivated", func(t *testing.T) {
@@ -289,6 +301,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
 		test.AssertErrProblemDetail(t, types.ErrDeactivated.Error(), err)
+		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
 	})
 
 	t.Run("error - not managed", func(t *testing.T) {
@@ -302,6 +315,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, types.ErrDIDNotManagedByThisNode.Error(), err)
+		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -314,6 +328,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
+		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
 	})
 }
 
