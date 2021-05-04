@@ -1,0 +1,84 @@
+openapi: "3.0.0"
+info:
+  title: Nuts DID Manager API spec
+  description: API specification for DID management helper APIs. The goal of this API is to help administrative interfaces to manage DIDs.
+  version: 1.0.0
+  license:
+    name: GPLv3
+paths:
+  /internal/didman/v1/did/{did}/endpoint:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example:
+          - "did:nuts:1234"
+        schema:
+          type: string
+    post:
+      summary: Add an endpoint to a DID Document.
+      description: |
+        To distinguish from compound services, this type of service will be called an endpoint.
+        In the Nuts specs this type of service is called a concrete service.
+
+        Add an endpoint with a type and URL to a DID Document. The API will convert it to a DID service with the serviceEndpoint set to a URL.
+        This API will also check if an endpoint with the same type already exists. This API is not meant to add compound services.
+
+        error returns:
+        * 400 - incorrect input
+        * 404 - unknown DID
+        * 409 - a service with the same type already exists
+      operationId: "addEndpoint"
+      tags:
+        - DID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EndpointCreateRequest'
+      responses:
+        "204":
+          description: The given type and URL have been added as service to the DID Document
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/didman/v1/service/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: URL encoded service ID.
+        required: true
+        example:
+          - "did:nuts:1234#service-x"
+        schema:
+          type: string
+    delete:
+      summary: Remove a service from a DID Document.
+      description: |
+        Remove a service from a DID Document.
+
+        error returns:
+        * 404 - unknown DID
+        * 409 - the service is referenced by other services
+      operationId: "deleteService"
+      responses:
+        "204":
+          description: The service has been removed
+        default:
+          $ref: '../common/error_response.yaml'
+components:
+  schemas:
+    EndpointCreateRequest:
+      type: object
+      description: A combination of type and URL.
+      required:
+        - type
+        - endpoint
+      properties:
+        type:
+          description: type of the endpoint. May be freely choosen.
+          type: string
+        endpoint:
+          description: A URL.
+          type: string

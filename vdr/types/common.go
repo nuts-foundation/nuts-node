@@ -84,6 +84,10 @@ type ResolveMetadata struct {
 	AllowDeactivated bool
 }
 
+
+// CompoundService is a service type that can be used as target for github.com/nuts-foundation/go-did/did/document.go#UnmarshalServiceEndpoint
+type CompoundService map[string]string
+
 // DIDCreationOptions defines options for creating a DID Document.
 type DIDCreationOptions struct {
 

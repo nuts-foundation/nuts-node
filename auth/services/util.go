@@ -45,10 +45,8 @@ func ResolveCompoundServiceURL(resolver types.DocResolver, holder did.DID, servi
 	return uri, url, nil
 }
 
-type compoundService map[string]string
-
-func resolveCompoundService(doc did.Document, serviceType string) (compoundService, error) {
-	cs := compoundService{}
+func resolveCompoundService(doc did.Document, serviceType string) (types.CompoundService, error) {
+	cs := types.CompoundService{}
 	var services []did.Service
 	for _, service := range doc.Service {
 		if service.Type == serviceType {

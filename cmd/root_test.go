@@ -3,11 +3,12 @@ package cmd
 import (
 	"bytes"
 	"errors"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/spf13/cobra"
 	"net/http"
 	"os"
 	"testing"
+
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/spf13/cobra"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -145,7 +146,7 @@ func Test_CreateSystem(t *testing.T) {
 	system.VisitEngines(func(engine core.Engine) {
 		numEngines++
 	})
-	assert.Equal(t, 7, numEngines)
+	assert.Equal(t, 8, numEngines)
 }
 
 func testCommand() *cobra.Command {
