@@ -5,11 +5,11 @@
 package network
 
 import (
-	crypto "crypto"
 	reflect "reflect"
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
+	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 )
@@ -38,18 +38,18 @@ func (m *MockTransactions) EXPECT() *MockTransactionsMockRecorder {
 }
 
 // CreateTransaction mocks base method.
-func (m *MockTransactions) CreateTransaction(payloadType string, payload []byte, signingKeyID string, attachKey crypto.PublicKey, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
+func (m *MockTransactions) CreateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateTransaction", payloadType, payload, signingKeyID, attachKey, timestamp, additionalPrevs)
+	ret := m.ctrl.Call(m, "CreateTransaction", payloadType, payload, key, attachKey, timestamp, additionalPrevs)
 	ret0, _ := ret[0].(dag.Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateTransaction indicates an expected call of CreateTransaction.
-func (mr *MockTransactionsMockRecorder) CreateTransaction(payloadType, payload, signingKeyID, attachKey, timestamp, additionalPrevs interface{}) *gomock.Call {
+func (mr *MockTransactionsMockRecorder) CreateTransaction(payloadType, payload, key, attachKey, timestamp, additionalPrevs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), payloadType, payload, signingKeyID, attachKey, timestamp, additionalPrevs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), payloadType, payload, key, attachKey, timestamp, additionalPrevs)
 }
 
 // GetTransaction mocks base method.

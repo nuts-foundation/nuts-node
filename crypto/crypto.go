@@ -29,7 +29,6 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
-
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 
@@ -92,7 +91,21 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 // Stores the private key, returns the public key
 // If a key is overwritten is handled by the storage implementation.
 // (it's considered bad practise to reuse a kid for different keys)
-func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, error) {
+func (client *Crypto) New(namingFunc KIDNamingFunc) (Key, error) {
+	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
+	if err != nil {
+		return nil, err
+	}
+	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
+		return nil, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
+	}
+	return keySelector{
+		privateKey: keyPair,
+		kid:        kid,
+	}, nil
+}
+
+func generateKeyPairAndKID(namingFunc KIDNamingFunc) (*ecdsa.PrivateKey, string, error) {
 	keyPair, err := generateECKeyPair()
 	if err != nil {
 		return nil, "", err
@@ -102,11 +115,8 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (crypto.PublicKey, string, e
 	if err != nil {
 		return nil, "", err
 	}
-	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
-		return nil, "", fmt.Errorf("could not create new keypair: could not save private key: %w", err)
-	}
 	log.Logger().Infof("Generated new key pair (id=%s)", kid)
-	return keyPair.PublicKey, kid, nil
+	return keyPair, kid, nil
 }
 
 func generateECKeyPair() (*ecdsa.PrivateKey, error) {
@@ -114,6 +124,37 @@ func generateECKeyPair() (*ecdsa.PrivateKey, error) {
 }
 
 // PrivateKeyExists checks storage for an entry for the given legal entity and returns true if it exists
-func (client *Crypto) PrivateKeyExists(kid string) bool {
+func (client *Crypto) Exists(kid string) bool {
 	return client.Storage.PrivateKeyExists(kid)
+}
+
+func (client *Crypto) Resolve(kid string) (Key, error) {
+	keypair, err := client.Storage.GetPrivateKey(kid)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, ErrKeyNotFound
+		}
+		return nil, err
+	}
+	return keySelector{
+		privateKey: keypair,
+		kid:        kid,
+	}, nil
+}
+
+type keySelector struct {
+	privateKey crypto.Signer
+	kid        string
+}
+
+func (e keySelector) Signer() crypto.Signer {
+	return e.privateKey
+}
+
+func (e keySelector) KID() string {
+	return e.kid
+}
+
+func (e keySelector) Public() crypto.PublicKey {
+	return e.privateKey.Public()
 }

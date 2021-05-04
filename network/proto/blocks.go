@@ -88,8 +88,8 @@ type blockTracker struct {
 type head struct {
 	// distance contains number of blocks to the next TX that refers to this TX as 'prev'. If the next TX is in the next
 	// block, distance will be 1. If `distance is 0, it means the next TX is in the same block. It is initialized
-	// to math.MaxInt64, meaning no next TX.
-	distance    int
+	// to math.MaxInt32, meaning no next TX.
+	distance    int32
 	signingTime time.Time
 	// blockDate contains the signing time at start of the block
 	blockDate time.Time
@@ -155,7 +155,7 @@ func (blx *trackingDAGBlocks) internalAddTransaction(tx dag.Transaction) {
 		}
 	}
 	txBlock.heads[tx.Ref()] = &head{
-		distance:    math.MaxInt64,
+		distance:    math.MaxInt32,
 		signingTime: tx.SigningTime(),
 		blockDate:   txBlockDate,
 	}
@@ -165,7 +165,7 @@ func (blx *trackingDAGBlocks) internalAddTransaction(tx dag.Transaction) {
 	for i := 0; i <= blockIdx; i++ {
 		for _, currPrev := range tx.Previous() {
 			if head, ok := blx.blocks[i].heads[currPrev]; ok {
-				newDistance := int(txBlockDate.Sub(head.blockDate).Hours() / 24)
+				newDistance := int32(txBlockDate.Sub(head.blockDate).Hours() / 24)
 				if newDistance < head.distance {
 					head.distance = newDistance
 				}
@@ -214,7 +214,7 @@ func (blx *trackingDAGBlocks) leftShiftTXs(left *blockTracker, right *blockTrack
 // - when `distance` reaches zero, the unmark the TX as block head
 func updateTXBlockDistances(historicBlock *blockTracker) {
 	for ref, head := range historicBlock.heads {
-		if head.distance != math.MaxInt64 {
+		if head.distance != math.MaxInt32 {
 			head.distance--
 			if head.distance == 0 {
 				// Next TX of the head TX now falls within this block, so unmark it as block head

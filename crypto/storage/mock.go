@@ -67,7 +67,7 @@ func (mr *MockStorageMockRecorder) GetPublicKey(kid interface{}) *gomock.Call {
 // PrivateKeyExists mocks base method.
 func (m *MockStorage) PrivateKeyExists(kid string) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PrivateKeyExists", kid)
+	ret := m.ctrl.Call(m, "Exists", kid)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
@@ -75,7 +75,7 @@ func (m *MockStorage) PrivateKeyExists(kid string) bool {
 // PrivateKeyExists indicates an expected call of PrivateKeyExists.
 func (mr *MockStorageMockRecorder) PrivateKeyExists(kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrivateKeyExists", reflect.TypeOf((*MockStorage)(nil).PrivateKeyExists), kid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockStorage)(nil).PrivateKeyExists), kid)
 }
 
 // SavePrivateKey mocks base method.

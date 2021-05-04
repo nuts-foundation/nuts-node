@@ -18,6 +18,35 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// DIDCreateRequest defines model for DIDCreateRequest.
+type DIDCreateRequest struct {
+
+	// indicates if the generated key pair can be used for assertions.
+	AssertionMethod *bool `json:"assertionMethod,omitempty"`
+
+	// indicates if the generated key pair can be used for authentication.
+	Authentication *bool `json:"authentication,omitempty"`
+
+	// indicates if the generated key pair can be used for capability delegations.
+	CapabilityDelegation *bool `json:"capabilityDelegation,omitempty"`
+
+	// indicates if the generated key pair can be used for altering DID Documents.
+	// In combination with selfControl = true, the key can be used to alter the new DID Document.
+	// Defaults to true when not given.
+	// default: true
+	CapabilityInvocation *bool `json:"capabilityInvocation,omitempty"`
+
+	// List of DIDs that can control the new DID Document. If selfControl = true and controllers is not empty.
+	// The newly generated DID will be added to the list of controllers.
+	Controllers *[]string `json:"controllers,omitempty"`
+
+	// indicates if the generated key pair can be used for Key agreements.
+	KeyAgreement *bool `json:"keyAgreement,omitempty"`
+
+	// wether the generated DID Document can be altered with its own capabilityInvocation key.
+	SelfControl *bool `json:"selfControl,omitempty"`
+}
+
 // DIDResolutionResult defines model for DIDResolutionResult.
 type DIDResolutionResult struct {
 
@@ -38,8 +67,14 @@ type DIDUpdateRequest struct {
 	Document DIDDocument `json:"document"`
 }
 
+// CreateDIDJSONBody defines parameters for CreateDID.
+type CreateDIDJSONBody DIDCreateRequest
+
 // UpdateDIDJSONBody defines parameters for UpdateDID.
 type UpdateDIDJSONBody DIDUpdateRequest
+
+// CreateDIDRequestBody defines body for CreateDID for application/json ContentType.
+type CreateDIDJSONRequestBody CreateDIDJSONBody
 
 // UpdateDIDRequestBody defines body for UpdateDID for application/json ContentType.
 type UpdateDIDJSONRequestBody UpdateDIDJSONBody
@@ -117,8 +152,10 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// CreateDID request
-	CreateDID(ctx context.Context) (*http.Response, error)
+	// CreateDID request  with any body
+	CreateDIDWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error)
+
+	CreateDID(ctx context.Context, body CreateDIDJSONRequestBody) (*http.Response, error)
 
 	// DeactivateDID request
 	DeactivateDID(ctx context.Context, did string) (*http.Response, error)
@@ -138,8 +175,23 @@ type ClientInterface interface {
 	DeleteVerificationMethod(ctx context.Context, did string, kid string) (*http.Response, error)
 }
 
-func (c *Client) CreateDID(ctx context.Context) (*http.Response, error) {
-	req, err := NewCreateDIDRequest(c.Server)
+func (c *Client) CreateDIDWithBody(ctx context.Context, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := NewCreateDIDRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if c.RequestEditor != nil {
+		err = c.RequestEditor(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateDID(ctx context.Context, body CreateDIDJSONRequestBody) (*http.Response, error) {
+	req, err := NewCreateDIDRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -243,8 +295,19 @@ func (c *Client) DeleteVerificationMethod(ctx context.Context, did string, kid s
 	return c.Client.Do(req)
 }
 
-// NewCreateDIDRequest generates requests for CreateDID
-func NewCreateDIDRequest(server string) (*http.Request, error) {
+// NewCreateDIDRequest calls the generic CreateDID builder with application/json body
+func NewCreateDIDRequest(server string, body CreateDIDJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateDIDRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateDIDRequestWithBody generates requests for CreateDID with any type of body
+func NewCreateDIDRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	queryUrl, err := url.Parse(server)
@@ -262,11 +325,12 @@ func NewCreateDIDRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryUrl.String(), nil)
+	req, err := http.NewRequest("POST", queryUrl.String(), body)
 	if err != nil {
 		return nil, err
 	}
 
+	req.Header.Add("Content-Type", contentType)
 	return req, nil
 }
 
@@ -488,8 +552,10 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// CreateDID request
-	CreateDIDWithResponse(ctx context.Context) (*CreateDIDResponse, error)
+	// CreateDID request  with any body
+	CreateDIDWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*CreateDIDResponse, error)
+
+	CreateDIDWithResponse(ctx context.Context, body CreateDIDJSONRequestBody) (*CreateDIDResponse, error)
 
 	// DeactivateDID request
 	DeactivateDIDWithResponse(ctx context.Context, did string) (*DeactivateDIDResponse, error)
@@ -512,6 +578,7 @@ type ClientWithResponsesInterface interface {
 type CreateDIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON400      *string
 }
 
 // Status returns HTTPResponse.Status
@@ -635,9 +702,17 @@ func (r DeleteVerificationMethodResponse) StatusCode() int {
 	return 0
 }
 
-// CreateDIDWithResponse request returning *CreateDIDResponse
-func (c *ClientWithResponses) CreateDIDWithResponse(ctx context.Context) (*CreateDIDResponse, error) {
-	rsp, err := c.CreateDID(ctx)
+// CreateDIDWithBodyWithResponse request with arbitrary body returning *CreateDIDResponse
+func (c *ClientWithResponses) CreateDIDWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader) (*CreateDIDResponse, error) {
+	rsp, err := c.CreateDIDWithBody(ctx, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDIDResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateDIDWithResponse(ctx context.Context, body CreateDIDJSONRequestBody) (*CreateDIDResponse, error) {
+	rsp, err := c.CreateDID(ctx, body)
 	if err != nil {
 		return nil, err
 	}
@@ -711,6 +786,13 @@ func ParseCreateDIDResponse(rsp *http.Response) (*CreateDIDResponse, error) {
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
 	}
 
 	return response, nil

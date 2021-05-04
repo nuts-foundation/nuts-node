@@ -70,18 +70,6 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 	return
 }
 
-// SignJWS creates a signed JWS (in compact form using) the given key (private key must be present), protected headers and payload.
-func (client *Crypto) SignJWS(payload []byte, protectedHeaders map[string]interface{}, kid string) (string, error) {
-	privateKey, err := client.Storage.GetPrivateKey(kid)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			return "", ErrKeyNotFound
-		}
-		return "", fmt.Errorf("error while signing JWS, can't get private key: %w", err)
-	}
-	return signJWS(payload, protectedHeaders, privateKey)
-}
-
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
 	key, err = jwk.New(signer)
 	if err != nil {
@@ -158,7 +146,7 @@ func ParseJWT(tokenString string, f PublicKeyFunc) (jwt.Token, error) {
 	return jwt.ParseString(tokenString, jwt.WithVerify(alg, key), jwt.WithValidate(true))
 }
 
-func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer) (string, error) {
+func SignJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer) (string, error) {
 	headers := jws.NewHeaders()
 	for key, value := range protectedHeaders {
 		if err := headers.Set(key, value); err != nil {

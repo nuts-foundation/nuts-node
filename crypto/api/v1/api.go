@@ -31,7 +31,7 @@ import (
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
-	C crypto.KeyStore
+	C crypto.JWTSigner
 }
 
 func (w *Wrapper) Routes(router core.EchoRouter) {

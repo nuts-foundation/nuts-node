@@ -34,9 +34,9 @@ import (
 func TestResolveSigningKey(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
-	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
-	docCreator := Creator{KeyCreator: keyCreator}
-	doc, _ := docCreator.Create()
+	keyCreator := &mockKeyCreator{kid: kid}
+	docCreator := Creator{KeyStore: keyCreator}
+	doc, _, _ := docCreator.Create(DefaultCreationOptions())
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
 	didStore.Write(*doc, types.DocumentMetadata{})
 
@@ -76,9 +76,9 @@ func TestResolveSigningKey(t *testing.T) {
 func TestResolveSigningKeyID(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
-	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
-	docCreator := Creator{KeyCreator: keyCreator}
-	doc, _ := docCreator.Create()
+	keyCreator := &mockKeyCreator{kid: kid}
+	docCreator := Creator{KeyStore: keyCreator}
+	doc, _, _ := docCreator.Create(DefaultCreationOptions())
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
 	didStore.Write(*doc, types.DocumentMetadata{})
 
@@ -119,9 +119,9 @@ func TestResolveSigningKeyID(t *testing.T) {
 func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
-	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
-	docCreator := Creator{KeyCreator: keyCreator}
-	doc, _ := docCreator.Create()
+	keyCreator := &mockKeyCreator{kid: kid}
+	docCreator := Creator{KeyStore: keyCreator}
+	doc, _, _ := docCreator.Create(DefaultCreationOptions())
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
 	didStore.Write(*doc, types.DocumentMetadata{})
 
@@ -162,9 +162,9 @@ func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 func TestResolver_Resolve(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	resolver := Resolver{Store: didStore}
-	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
-	docCreator := Creator{KeyCreator: keyCreator}
-	doc, _ := docCreator.Create()
+	keyCreator := &mockKeyCreator{kid: kid}
+	docCreator := Creator{KeyStore: keyCreator}
+	doc, _, _ := docCreator.Create(DefaultCreationOptions())
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
 	didStore.Write(*doc, types.DocumentMetadata{})
 
@@ -331,9 +331,9 @@ func TestResolver_ResolveControllers(t *testing.T) {
 func TestKeyResolver_ResolvePublicKey(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
-	keyCreator := &mockKeyCreator{t: t, jwkStr: jwkString}
-	docCreator := Creator{KeyCreator: keyCreator}
-	doc, _ := docCreator.Create()
+	keyCreator := &mockKeyCreator{kid: kid}
+	docCreator := Creator{KeyStore: keyCreator}
+	doc, _, _ := docCreator.Create(DefaultCreationOptions())
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
 	didStore.Write(*doc, types.DocumentMetadata{})
 

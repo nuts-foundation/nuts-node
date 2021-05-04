@@ -99,7 +99,7 @@ func TestProtocol_HandleTransactionListQuery(t *testing.T) {
 	t.Run("supplied block date is zero, requests historic block (allowed for now)", func(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().FindBetween(time.Time{}, ctx.instance.blocks.get()[1].start)
-		ctx.sender().EXPECT().sendTransactionList(peer, gomock.Any(), gomock.Any())
+		ctx.sender().EXPECT().sendTransactionList(peer, gomock.Any(), time.Time{})
 		msg := &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: 0}}
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
