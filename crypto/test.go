@@ -6,8 +6,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 
-	"time"
-
 	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/sirupsen/logrus"
@@ -30,19 +28,34 @@ func StringNamingFunc(name string) KIDNamingFunc {
 	}
 }
 
-func NewTestSigner() *TestSigner {
+func ErrorNamingFunc(err error) KIDNamingFunc {
+	return func(key crypto.PublicKey) (string, error) {
+		return "", err
+	}
+}
+
+func NewTestKey(kid string) Key {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	return &TestSigner{Key: key}
+	return keySelector{
+		privateKey: key,
+		kid:        kid,
+	}
 }
 
-type TestSigner struct {
-	Key crypto.Signer
+// TestKey is a Key impl for testing purposes
+type TestKey struct {
+	PrivateKey crypto.Signer
+	Kid        string
 }
 
-func (t TestSigner) GetPublicKey(_ string, _ time.Time) (crypto.PublicKey, error) {
-	return t.Key.Public(), nil
+func (t TestKey) Signer() crypto.Signer {
+	return t.PrivateKey
 }
 
-func (t *TestSigner) SignJWS(payload []byte, protectedHeaders map[string]interface{}, _ string) (string, error) {
-	return signJWS(payload, protectedHeaders, t.Key)
+func (t TestKey) KID() string {
+	return t.Kid
+}
+
+func (t TestKey) Public() crypto.PublicKey {
+	return t.PrivateKey.Public()
 }

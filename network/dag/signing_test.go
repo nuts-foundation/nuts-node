@@ -28,8 +28,8 @@ func TestTransactionSigner(t *testing.T) {
 			return
 		}
 
-		signer := crypto.NewTestSigner()
-		signedTx, err := NewAttachedJWKTransactionSigner(signer, kid, key.Public()).Sign(tx, moment)
+		signer := crypto.NewTestKey(kid)
+		signedTx, err := NewTransactionSigner(signer, true).Sign(tx, moment)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -54,8 +54,8 @@ func TestTransactionSigner(t *testing.T) {
 			return
 		}
 
-		signer := crypto.NewTestSigner()
-		signedTx, err := NewTransactionSigner(signer, kid).Sign(tx, moment)
+		signer := crypto.NewTestKey(kid)
+		signedTx, err := NewTransactionSigner(signer, false).Sign(tx, moment)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -65,13 +65,13 @@ func TestTransactionSigner(t *testing.T) {
 	})
 	t.Run("signing time is zero", func(t *testing.T) {
 		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs)
-		signedTransaction, err := NewTransactionSigner(crypto.NewTestSigner(), kid).Sign(tx, time.Time{})
+		signedTransaction, err := NewTransactionSigner(crypto.NewTestKey(kid), false).Sign(tx, time.Time{})
 		assert.Empty(t, signedTransaction)
 		assert.EqualError(t, err, "signing time is zero")
 	})
 	t.Run("already signed", func(t *testing.T) {
 		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs)
-		signer := NewTransactionSigner(crypto.NewTestSigner(), kid)
+		signer := NewTransactionSigner(crypto.NewTestKey(kid), false)
 		signedTransaction, _ := signer.Sign(tx, time.Now())
 		signedTransaction2, err := signer.Sign(signedTransaction, time.Now())
 		assert.Nil(t, signedTransaction2)

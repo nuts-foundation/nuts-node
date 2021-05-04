@@ -32,6 +32,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-leia"
@@ -244,19 +245,18 @@ func TestVcr_Issue(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
 		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
 			gomock.Any(),
-			vdr.TestDIDA.String(),
-			nil,
+			gomock.Any(),
+			false,
 			gomock.Any(),
 			gomock.Any(),
 		).Return(nil, nil)
@@ -278,13 +278,12 @@ func TestVcr_Issue(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, "hdr..sig", proof[0].Jws)
+		assert.Contains(t, proof[0].Jws, "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..")
 	})
 
 	t.Run("error - too many types", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
 		cred.Type = append(cred.Type, cred.Type[0])
@@ -297,7 +296,6 @@ func TestVcr_Issue(t *testing.T) {
 	t.Run("error - unknown DID", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.URI{}, errors.New("b00m!"))
@@ -310,7 +308,6 @@ func TestVcr_Issue(t *testing.T) {
 	t.Run("error - issuer not a DID", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
 		cred.Issuer = ssi.URI{}
@@ -323,7 +320,6 @@ func TestVcr_Issue(t *testing.T) {
 	t.Run("error - credential type unknown", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
 		cred.Type = []ssi.URI{}
@@ -336,12 +332,11 @@ func TestVcr_Issue(t *testing.T) {
 	t.Run("error - invalid credential", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
 		cred.CredentialSubject = make([]interface{}, 0)
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 
 		_, err := instance.Issue(*cred)
 
@@ -349,14 +344,13 @@ func TestVcr_Issue(t *testing.T) {
 		assert.True(t, errors.Is(err, credential.ErrValidation))
 	})
 
-	t.Run("error - signing failed", func(t *testing.T) {
+	t.Run("error - getting signer failed", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		cred := validNutsOrganizationCredential()
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("", errors.New("b00m!"))
+		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(nil, errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
 
@@ -366,16 +360,16 @@ func TestVcr_Issue(t *testing.T) {
 	t.Run("error - tx failed", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
+		key := crypto.NewTestKey("kid")
 
 		cred := validNutsOrganizationCredential()
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vdr.TestDIDA.String()).Return("hdr.pay.sig", nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
 			gomock.Any(),
-			vdr.TestDIDA.String(),
-			nil,
+			key,
+			false,
 			gomock.Any(),
 			gomock.Any(),
 		).Return(nil, errors.New("b00m!"))
@@ -402,7 +396,6 @@ func TestVcr_Verify(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
 
@@ -414,7 +407,6 @@ func TestVcr_Verify(t *testing.T) {
 	t.Run("error - invalid vm", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		vc2 := subject
 		pr := make([]vc.JSONWebSignature2020Proof, 0)
@@ -432,7 +424,6 @@ func TestVcr_Verify(t *testing.T) {
 	t.Run("error - wrong hashed payload", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		vc2 := subject
 		vc2.IssuanceDate = time.Now()
 
@@ -449,7 +440,6 @@ func TestVcr_Verify(t *testing.T) {
 	t.Run("error - wrong hashed proof", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		vc2 := subject
 		pr := make([]vc.JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
@@ -469,7 +459,6 @@ func TestVcr_Verify(t *testing.T) {
 	t.Run("error - unknown credential", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		err := instance.Verify(vc.VerifiableCredential{}, nil)
 
@@ -482,7 +471,6 @@ func TestVcr_Verify(t *testing.T) {
 	t.Run("error - invalid credential", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		uri, _ := ssi.ParseURI(credential.NutsOrganizationCredentialType)
 
 		err := instance.Verify(vc.VerifiableCredential{Type: []ssi.URI{*uri}}, nil)
@@ -496,7 +484,6 @@ func TestVcr_Verify(t *testing.T) {
 	t.Run("error - no proof", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		vc2 := subject
 		vc2.Proof = []interface{}{}
 
@@ -511,7 +498,6 @@ func TestVcr_Verify(t *testing.T) {
 	t.Run("error - wrong jws in proof", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		vc2 := subject
 		pr := make([]vc.JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
@@ -529,7 +515,6 @@ func TestVcr_Verify(t *testing.T) {
 	t.Run("error - wrong base64 encoding in jws", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		vc2 := subject
 		pr := make([]vc.JSONWebSignature2020Proof, 0)
 		vc2.UnmarshalProofValue(&pr)
@@ -547,7 +532,6 @@ func TestVcr_Verify(t *testing.T) {
 	t.Run("error - resolving key", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(nil, errors.New("b00m!"))
 
@@ -559,7 +543,6 @@ func TestVcr_Verify(t *testing.T) {
 	t.Run("error - not valid yet", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		at := subject.IssuanceDate.Add(-1 * time.Minute)
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
@@ -590,17 +573,18 @@ func TestVcr_Revoke(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
+		key := crypto.NewTestKey("kid")
+
 		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
-		ctx.crypto.EXPECT().SignJWS(gomock.Any(), gomock.Any(), vc.Issuer.String()).Return("hdr..sig", nil)
+		ctx.crypto.EXPECT().Resolve(vc.Issuer.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			revocationDocumentType,
 			gomock.Any(),
-			vc.Issuer.String(),
-			nil,
+			key,
+			false,
 			gomock.Any(),
 			gomock.Any(),
 		)
@@ -611,30 +595,13 @@ func TestVcr_Revoke(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, "hdr..sig", r.Proof.Jws)
+		assert.Contains(t, r.Proof.Jws, "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..")
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-
-		_, err := ctx.vcr.Revoke(ssi.URI{})
-
-		if !assert.Error(t, err) {
-			return
-		}
-
-		assert.Equal(t, ErrNotFound, err)
-	})
-
-	t.Run("error - not found", func(t *testing.T) {
-		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
-		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-		ctx.vcr.writeCredential(vc)
 
 		_, err := ctx.vcr.Revoke(ssi.URI{})
 
@@ -647,7 +614,6 @@ func TestVcr_Revoke(t *testing.T) {
 
 	t.Run("error - already revoked", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
@@ -664,6 +630,24 @@ func TestVcr_Revoke(t *testing.T) {
 		}
 
 		assert.Equal(t, ErrRevoked, err)
+	})
+
+	t.Run("error - key resolve returns error", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
+		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.vcr.writeCredential(vc)
+		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
+		ctx.crypto.EXPECT().Resolve(vc.Issuer.String()).Return(nil, crypto.ErrKeyNotFound)
+
+		_, err := ctx.vcr.Revoke(*vc.ID)
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.True(t, errors.Is(err, crypto.ErrKeyNotFound))
 	})
 }
 
@@ -828,7 +812,6 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
 
@@ -840,7 +823,6 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("error - invalid issuer", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		issuer, _ := ssi.ParseURI(r.Issuer.String() + "2")
 		r2 := r
 		r2.Issuer = *issuer
@@ -854,7 +836,6 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("error - invalid vm", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		vm, _ := ssi.ParseURI(r.Issuer.String() + "2")
 		r2 := r
 		p := *r2.Proof
@@ -870,7 +851,6 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("error - invalid revocation", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		r2 := r
 		r2.Issuer = ssi.URI{}
 
@@ -882,7 +862,6 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("error - invalid signature", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		r2 := r
 		r2.Reason = "sig fails"
 
@@ -896,7 +875,6 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("error - incorrect signature", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		r2 := r
 		r2.Proof = &vc.JSONWebSignature2020Proof{}
 
@@ -908,7 +886,6 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("error - resolving key", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(nil, errors.New("b00m!"))
 
@@ -920,13 +897,49 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("error - incorrect base64 encoded sig", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		defer ctx.ctrl.Finish()
 		r2 := r
 		r2.Proof.Jws = "====..===="
 
 		err := instance.verifyRevocation(r2)
 
 		assert.Error(t, err)
+	})
+}
+
+func TestVcr_generateProof(t *testing.T) {
+	t.Run("incorrect key", func(t *testing.T) {
+		vc := validNutsOrganizationCredential()
+		testDir := io.TestDirectory(t)
+		instance := NewTestVCRInstance(testDir)
+		key := crypto.TestKey{}
+		kid, _ := ssi.ParseURI(testKID)
+
+		err := instance.generateProof(vc, *kid, key)
+
+		if !assert.Error(t, err) {
+			return
+		}
+	})
+}
+
+func TestVcr_generateRevocationProof(t *testing.T) {
+	t.Run("incorrect key", func(t *testing.T) {
+		// load revocation
+		r := credential.Revocation{}
+		rJSON, _ := os.ReadFile("test/revocation.json")
+		json.Unmarshal(rJSON, &r)
+
+		// default stuff
+		testDir := io.TestDirectory(t)
+		instance := NewTestVCRInstance(testDir)
+		key := crypto.TestKey{}
+		kid, _ := ssi.ParseURI(testKID)
+
+		err := instance.generateRevocationProof(&r, *kid, key)
+
+		if !assert.Error(t, err) {
+			return
+		}
 	})
 }
 

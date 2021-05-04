@@ -12,6 +12,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
+	crypto0 "github.com/nuts-foundation/nuts-node/crypto"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
@@ -93,18 +94,19 @@ func (m *MockDocCreator) EXPECT() *MockDocCreatorMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockDocCreator) Create() (*did.Document, error) {
+func (m *MockDocCreator) Create(options DIDCreationOptions) (*did.Document, crypto0.Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create")
+	ret := m.ctrl.Call(m, "Create", options)
 	ret0, _ := ret[0].(*did.Document)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(crypto0.Key)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockDocCreatorMockRecorder) Create() *gomock.Call {
+func (mr *MockDocCreatorMockRecorder) Create(options interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockDocCreator)(nil).Create))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockDocCreator)(nil).Create), options)
 }
 
 // MockDocWriter is a mock of DocWriter interface.
@@ -369,18 +371,19 @@ func (m *MockVDR) EXPECT() *MockVDRMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockVDR) Create() (*did.Document, error) {
+func (m *MockVDR) Create(options DIDCreationOptions) (*did.Document, crypto0.Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create")
+	ret := m.ctrl.Call(m, "Create", options)
 	ret0, _ := ret[0].(*did.Document)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(crypto0.Key)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockVDRMockRecorder) Create() *gomock.Call {
+func (mr *MockVDRMockRecorder) Create(options interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), options)
 }
 
 // Update mocks base method.

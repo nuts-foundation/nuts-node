@@ -1,7 +1,6 @@
 package dag
 
 import (
-	crypto2 "crypto"
 	"errors"
 	"fmt"
 
@@ -20,34 +19,19 @@ type TransactionSigner interface {
 	Sign(input UnsignedTransaction, signingTime time.Time) (Transaction, error)
 }
 
-// NewAttachedJWKTransactionSigner creates a TransactionSigner that signs the transaction using the given key.
-// The public key (identified by `kid`) is added to the signed transaction as `jwk` header. The public key is resolved
-// using the given resolver and the `kid` parameter.
-func NewAttachedJWKTransactionSigner(jwsSigner crypto.JWSSigner, kid string, key crypto2.PublicKey) TransactionSigner {
-	return &transactionSigner{
-		signer: jwsSigner,
-		kid:    kid,
-		attach: true,
-		key:    key,
-	}
-}
-
 // NewTransactionSigner creates a TransactionSigner that signs the transaction using the given key.
-// The public key is not included in the signed transaction, instead the `kid` header is added which must refer to the ID
+// The public key is included in the signed transaction if attach == true. If not attached, the `kid` header is added which refers to the ID
 // of the used key.
-func NewTransactionSigner(jwsSigner crypto.JWSSigner, kid string) TransactionSigner {
+func NewTransactionSigner(key crypto.Key, attach bool) TransactionSigner {
 	return &transactionSigner{
-		signer: jwsSigner,
-		kid:    kid,
-		attach: false,
+		key:    key,
+		attach: attach,
 	}
 }
 
 type transactionSigner struct {
 	attach bool
-	kid    string
-	signer crypto.JWSSigner
-	key    crypto2.PublicKey
+	key    crypto.Key
 }
 
 func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time) (Transaction, error) {
@@ -62,11 +46,11 @@ func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time
 	var key jwk.Key
 	var err error
 	if d.attach {
-		key, err = jwk.New(d.key)
+		key, err = jwk.New(d.key.Public())
 		if err != nil {
 			return nil, fmt.Errorf(errSigningTransactionFmt, err)
 		}
-		key.Set(jwk.KeyIDKey, d.kid)
+		key.Set(jwk.KeyIDKey, d.key.KID())
 	}
 
 	prevsAsString := make([]string, len(input.Previous()))
@@ -86,10 +70,10 @@ func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time
 		headerMap[jws.JWKKey] = key
 	} else {
 		headerMap[jws.CriticalKey] = append(headerMap[jws.CriticalKey].([]string), jws.KeyIDKey)
-		headerMap[jws.KeyIDKey] = d.kid
+		headerMap[jws.KeyIDKey] = d.key.KID()
 	}
 
-	data, err := d.signer.SignJWS([]byte(input.PayloadHash().String()), headerMap, d.kid)
+	data, err := crypto.SignJWS([]byte(input.PayloadHash().String()), headerMap, d.key.Signer())
 	if err != nil {
 		return nil, fmt.Errorf(errSigningTransactionFmt, err)
 	}

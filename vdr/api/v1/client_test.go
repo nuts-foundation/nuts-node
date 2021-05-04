@@ -42,7 +42,7 @@ func TestHTTPClient_Create(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		doc, err := c.Create()
+		doc, err := c.Create(DIDCreateRequest{})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -52,13 +52,13 @@ func TestHTTPClient_Create(t *testing.T) {
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		_, err := c.Create()
+		_, err := c.Create(DIDCreateRequest{})
 		assert.Error(t, err)
 	})
 
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
-		_, err := c.Create()
+		_, err := c.Create(DIDCreateRequest{})
 		assert.Error(t, err)
 	})
 }

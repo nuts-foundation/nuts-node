@@ -9,7 +9,17 @@ paths:
   /internal/vdr/v1/did:
     post:
       summary: Creates a new Nuts DID
+      description: |
+        The DID Document will be created according to the given request. If a combination of options is not allowed, a 400 is returned.
+        The default values for selfControl, assertionMethod and capabilityInvocation are true. The default for controllers is an empty list. All other options default to false.
+        Only a single keypair will be generated. All enabled methods will reuse the same key pair. A seperate keypair will be generated to generate the DID if SelfControl is false.
       operationId: "createDID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DIDCreateRequest'
       tags:
         - DID
       responses:
@@ -19,6 +29,12 @@ paths:
             application/json+did-document:
               schema:
                 $ref: '#/components/schemas/DIDDocument'
+        "400":
+          description: "Conflicting options given."
+          content:
+            application/json:
+              schema:
+                type: string
         "500":
           description: An error occurred while processing the request.
           content:
@@ -363,3 +379,43 @@ components:
           description: The type of the key.
           example: "JsonWebKey2020"
           type: string
+    DIDCreateRequest:
+      properties:
+        controllers:
+          description: |
+            List of DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
+            the newly generated DID will be added to the list of controllers.
+          type: array
+          items:
+            type: string
+            description: DID according to Nuts specification
+            example: "did:nuts:128903fjgfslcnmgpe84"
+        assertionMethod:
+          type: boolean
+          description: indicates if the generated key pair can be used for assertions.
+          default: true
+        authentication:
+          type: boolean
+          description: indicates if the generated key pair can be used for authentication.
+          default: false
+        capabilityInvocation:
+          type: boolean
+          description: |
+            indicates if the generated key pair can be used for altering DID Documents.
+            In combination with selfControl = true, the key can be used to alter the new DID Document.
+            Defaults to true when not given.
+            default: true
+        capabilityDelegation:
+          type: boolean
+          description: indicates if the generated key pair can be used for capability delegations.
+          default: false
+        keyAgreement:
+          type: boolean
+          description: indicates if the generated key pair can be used for Key agreements.
+          default: false
+        selfControl:
+          type: boolean
+          description: whether the generated DID Document can be altered with its own capabilityInvocation key.
+          default: true
+
+

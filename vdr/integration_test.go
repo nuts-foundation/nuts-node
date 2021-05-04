@@ -48,7 +48,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	didStore := store.NewMemoryStore()
 
 	// Startup the network layer
-	nutsNetwork := network.NewNetworkInstance(network.DefaultConfig(), nutsCrypto, doc.KeyResolver{Store: didStore})
+	nutsNetwork := network.NewNetworkInstance(network.DefaultConfig(), doc.KeyResolver{Store: didStore})
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
 
@@ -62,7 +62,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// === End of setup ===
 
 	// Start with a first and fresh document named DocumentA.
-	docA, err := vdr.Create()
+	docA, _, err := vdr.Create(doc.DefaultCreationOptions())
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -107,7 +107,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
-	docB, err := vdr.Create()
+	docB, _, err := vdr.Create(doc.DefaultCreationOptions())
 	if !assert.NoError(t, err,
 		"unexpected error while creating DocumentB") {
 		return
@@ -121,6 +121,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// Update the controller of DocumentA with DocumentB
 	// And remove it's own authenticationMethod
 	docA.Controller = []did.DID{docB.ID}
+	docA.AssertionMethod = []did.VerificationRelationship{}
 	docA.CapabilityInvocation = []did.VerificationRelationship{}
 	docA.VerificationMethod = []*did.VerificationMethod{}
 	err = vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
@@ -175,6 +176,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, method)
 	docB.AddCapabilityInvocation(method)
+	docB.AssertionMethod.Remove(oldAuthKeyDocB)
 	docB.CapabilityInvocation.Remove(oldAuthKeyDocB)
 	docB.VerificationMethod.Remove(oldAuthKeyDocB)
 	err = vdr.Update(docB.ID, metadataDocB.Hash, *docB, nil)

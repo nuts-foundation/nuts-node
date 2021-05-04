@@ -21,9 +21,11 @@ package doc
 
 import (
 	"crypto"
+	"errors"
 	"fmt"
 
 	ssi "github.com/nuts-foundation/go-did"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
@@ -35,8 +37,21 @@ const NutsDIDMethodName = "nuts"
 
 // Creator implements the DocCreator interface and can create Nuts DID Documents.
 type Creator struct {
-	// KeyCreator is used for getting a fresh key and use it to generate the Nuts DID
-	KeyCreator nutsCrypto.KeyCreator
+	// KeyStore is used for getting a fresh key and use it to generate the Nuts DID
+	KeyStore nutsCrypto.KeyCreator
+}
+
+// DefaultCreationOptions returns the default DIDCreationOptions: no controllers, CapabilityInvocation = true, AssertionMethod = true and SelfControl = true
+func DefaultCreationOptions() vdr.DIDCreationOptions {
+	return vdr.DIDCreationOptions{
+		Controllers:          []did.DID{},
+		AssertionMethod:      true,
+		Authentication:       false,
+		CapabilityDelegation: false,
+		CapabilityInvocation: true,
+		KeyAgreement:         false,
+		SelfControl:          true,
+	}
 }
 
 // didKIDNamingFunc is a function used to name a key used in newly generated DID Documents
@@ -70,36 +85,89 @@ func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
 	return kid.String(), nil
 }
 
+// ErrInvalidOptions is returned when the given options have an invalid combination
+var ErrInvalidOptions = errors.New("create request has invalid combination of options: SelfControl = true and CapabilityInvocation = false")
+
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
-func (n Creator) Create() (*did.Document, error) {
-	// First, generate a new keyPair with the correct kid
-	key, keyIDStr, err := n.KeyCreator.New(didKIDNamingFunc)
-	if err != nil {
-		return nil, fmt.Errorf("unable to build did: %w", err)
+func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
+	var key nutsCrypto.Key
+	var err error
+
+	if options.SelfControl && !options.CapabilityInvocation {
+		return nil, nil, ErrInvalidOptions
 	}
 
-	keyID, err := did.ParseDID(keyIDStr)
+	// First, generate a new keyPair with the correct kid
+	if options.SelfControl {
+		key, err = n.KeyStore.New(didKIDNamingFunc)
+	} else {
+		key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
+	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	keyID, err := did.ParseDID(key.KID())
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// The Document DID will be the keyIDStr without the fragment:
 	didID := *keyID
 	didID.Fragment = ""
 
-	// Build the AuthenticationMethod and add it to the document
-	verificationMethod, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key)
-	if err != nil {
-		return nil, err
-	}
-
+	// create the bare document
 	doc := &did.Document{
-		Context: []ssi.URI{did.DIDContextV1URI()},
-		ID:      didID,
+		Context:    []ssi.URI{did.DIDContextV1URI()},
+		ID:         didID,
+		Controller: options.Controllers,
 	}
 
-	doc.AddCapabilityInvocation(verificationMethod)
+	var verificationMethod *did.VerificationMethod
+	if options.SelfControl {
+		// Add VerificationMethod using generated key
+		verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(options.Controllers) > 0 {
+			// also set as controller
+			doc.Controller = append(doc.Controller, didID)
+		}
+	} else {
+		// Generate new key for other key capabilities, store the private key
+		capKey, err := n.KeyStore.New(didKIDNamingFunc)
+		if err != nil {
+			return nil, nil, err
+		}
+		capKeyID, err := did.ParseDID(capKey.KID())
+		if err != nil {
+			return nil, nil, err
+		}
+		verificationMethod, err = did.NewVerificationMethod(*capKeyID, ssi.JsonWebKey2020, did.DID{}, capKey.Public())
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 
-	return doc, nil
+	// set all methods
+	if options.CapabilityDelegation {
+		doc.AddCapabilityDelegation(verificationMethod)
+	}
+	if options.CapabilityInvocation {
+		doc.AddCapabilityInvocation(verificationMethod)
+	}
+	if options.Authentication {
+		doc.AddAuthenticationMethod(verificationMethod)
+	}
+	if options.AssertionMethod {
+		doc.AddAssertionMethod(verificationMethod)
+	}
+	if options.KeyAgreement {
+		doc.AddKeyAgreement(verificationMethod)
+	}
+
+	// return the doc and the keyCreator that created the private key
+	return doc, key, nil
 }

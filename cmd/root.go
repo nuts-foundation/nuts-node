@@ -155,7 +155,7 @@ func CreateSystem() *core.System {
 	keyResolver := doc.KeyResolver{Store: store}
 	docResolver := doc.Resolver{Store: store}
 
-	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), cryptoInstance, keyResolver)
+	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, store)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, keyResolver, networkInstance)
 	statusEngine := status.NewStatusEngine(system)

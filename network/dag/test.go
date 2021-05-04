@@ -44,8 +44,8 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, paylo
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], payloadNum)
 	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevs)
-	signer := crypto2.NewTestSigner()
-	signedTransaction, err := NewAttachedJWKTransactionSigner(signer, fmt.Sprintf("%d", payloadNum), signer.Key.Public()).Sign(unsignedTransaction, signingTime)
+	signer := crypto2.NewTestKey(fmt.Sprintf("%d", payloadNum))
+	signedTransaction, err := NewTransactionSigner(signer, true).Sign(unsignedTransaction, signingTime)
 	if err != nil {
 		panic(err)
 	}
@@ -58,13 +58,13 @@ func CreateTestTransaction(num uint32, prevs ...hash.SHA256Hash) (Transaction, s
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
 	unsignedTransaction, _ := NewTransaction(payloadHash, "foo/bar", prevs)
-	signer := crypto2.NewTestSigner()
 	kid := fmt.Sprintf("%d", num)
-	signedTransaction, err := NewTransactionSigner(signer, kid).Sign(unsignedTransaction, time.Now())
+	signer := crypto2.NewTestKey(kid)
+	signedTransaction, err := NewTransactionSigner(signer, false).Sign(unsignedTransaction, time.Now())
 	if err != nil {
 		panic(err)
 	}
-	return signedTransaction, kid, signer.Key.Public()
+	return signedTransaction, kid, signer.Public()
 }
 
 // graphF creates the following graph:
