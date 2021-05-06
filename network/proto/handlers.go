@@ -294,4 +294,3 @@ func getCurrentBlock(blocks []dagBlock) dagBlock {
 func getHistoricBlock(blocks []dagBlock) dagBlock {
 	return blocks[0]
 }
-
