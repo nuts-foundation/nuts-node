@@ -9,8 +9,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// ErrPreviousTransactionMissing indicates one or more of the previous transcations (which the transaction refers to)
-// is misisng.
+// ErrPreviousTransactionMissing indicates one or more of the previous transactions (which the transaction refers to)
+// is missing.
 var ErrPreviousTransactionMissing = errors.New("transaction is referring to non-existing previous transaction")
 
 // Verifier defines the API of a DAG verifier, used to check the validity of a transaction.
