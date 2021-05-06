@@ -181,13 +181,16 @@ func (p *protocol) handleTransactionList(peer p2p.PeerID, transactionList *trans
 				return errors.New("received transaction hash doesn't match transaction bytes")
 			}
 			err := p.checkTransactionOnLocalNode(peer, transactionRef, current.Data)
+			// No error = OK, added to DAG. Remove from list
 			if err == nil {
 				transactionProcessed = true
-				transactions = append(transactions[:i], transactions[i+1:]...) // remove current tx from slice
+				transactions = append(transactions[:i], transactions[i+1:]...)
 				i--
-			} else if !errors.Is(err, dag.ErrPreviousTransactionMissing) {
-				// If transaction is missing a previous transaction it should be retried later since transactions
-				// might have been received out of order. In any other case the response is invalid, so we return.
+				continue
+			}
+			// If transaction is missing a previous transaction it should be retried later since transactions
+			// might have been received out of order. In any other case the response is invalid, so we return.
+			if !errors.Is(err, dag.ErrPreviousTransactionMissing) {
 				return err
 			}
 		}
