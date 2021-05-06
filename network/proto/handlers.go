@@ -195,9 +195,6 @@ func (p *protocol) checkTransactionOnLocalNode(peer p2p.PeerID, transactionRef h
 	if present, err := p.graph.IsPresent(transactionRef); err != nil {
 		return err
 	} else if !present {
-		if err := p.signatureVerifier.Verify(transaction); err != nil {
-			return fmt.Errorf("not adding received transaction to DAG, invalid signature (ref=%s): %w", transaction.Ref(), err)
-		}
 		if err := p.graph.Add(transaction); err != nil {
 			return fmt.Errorf("unable to add received transaction to DAG: %w", err)
 		}

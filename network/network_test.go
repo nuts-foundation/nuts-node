@@ -120,7 +120,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.p2pAdapter.EXPECT().Configure(gomock.Any())
 		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
@@ -131,7 +131,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.network.config.CertKeyFile = ""
 		cxt.network.config.CertFile = ""
 		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
@@ -143,7 +143,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.network.config.TrustStoreFile = ""
 		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
@@ -154,7 +154,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+		cxt.protocol.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		cxt.p2pAdapter.EXPECT().Configure(gomock.Any())
 		cxt.network.config.TrustStoreFile = ""
 		cxt.network.config.EnableTLS = false
@@ -182,6 +182,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
+		cxt.graph.EXPECT().Verify()
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
@@ -202,6 +203,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
+		cxt.graph.EXPECT().Verify()
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
@@ -223,6 +225,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
+		cxt.graph.EXPECT().Verify()
 		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
@@ -242,13 +245,14 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 }
 
 func TestNetwork_Start(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
+		cxt.graph.EXPECT().Verify()
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
@@ -256,27 +260,43 @@ func TestNetwork_Start(t *testing.T) {
 		}
 	})
 	t.Run("ok - offline", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
+		cxt.graph.EXPECT().Verify()
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
 		}
 	})
+	t.Run("error - DAG verification failed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl)
+		cxt.p2pAdapter.EXPECT().Configured().Return(false)
+		cxt.protocol.EXPECT().Start()
+		cxt.graph.EXPECT().Verify().Return(errors.New("failed"))
+		cxt.publisher.EXPECT().Start()
+		err := cxt.network.Start()
+		assert.EqualError(t, err, "failed")
+	})
 }
 
 func TestNetwork_Shutdown(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.p2pAdapter.EXPECT().Stop()
 		err := cxt.network.Shutdown()
 		assert.NoError(t, err)
 	})
 	t.Run("error - stop returns error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.p2pAdapter.EXPECT().Stop().Return(errors.New("failed"))
 		err := cxt.network.Shutdown()
@@ -285,9 +305,9 @@ func TestNetwork_Shutdown(t *testing.T) {
 }
 
 func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	t.Run("ok - TLS enabled", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.network.config.GrpcAddr = ":5555"
 		cxt.network.config.EnableTLS = true
@@ -300,6 +320,8 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		assert.NotNil(t, cfg.ServerCert.PrivateKey)
 	})
 	t.Run("ok - TLS disabled", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.network.config.GrpcAddr = ":5555"
 		cxt.network.config.EnableTLS = false
@@ -310,6 +332,8 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		assert.Nil(t, cfg.ServerCert.PrivateKey)
 	})
 	t.Run("ok - gRPC server not bound", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.network.config.GrpcAddr = ""
 		cxt.network.config.EnableTLS = true
@@ -320,6 +344,8 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		assert.Nil(t, cfg.ServerCert.PrivateKey)
 	})
 	t.Run("error - unable to load key pair from file", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.network.config.CertFile = "test/non-existent.pem"
 		cxt.network.config.CertKeyFile = "test/non-existent.pem"

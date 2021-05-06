@@ -42,7 +42,7 @@ var ErrUnsupportedProtocolVersion = errors.New("unsupported protocol version")
 type Protocol interface {
 	core.Diagnosable
 	// Configure configures the Protocol. Must be called before Start().
-	Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID)
+	Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, advertHashesInterval time.Duration, peerID p2p.PeerID)
 	// Starts the Protocol (sending and receiving of messages).
 	Start()
 	// Stops the Protocol.

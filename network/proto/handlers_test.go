@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -265,23 +264,11 @@ func Test_checkTransactionOnLocalNode(t *testing.T) {
 	})
 	t.Run("tx not present  (alt. flow)", func(t *testing.T) {
 		ctx := newContext(t)
-		sigVerifier := dag.NewMockTransactionSignatureVerifier(ctx.mockCtrl)
-		ctx.instance.signatureVerifier = sigVerifier
 		ctx.graph().EXPECT().IsPresent(tx.Ref()).Return(false, nil)
-		sigVerifier.EXPECT().Verify(gomock.Any())
 		ctx.graph().EXPECT().Add(tx)
 		ctx.sender().EXPECT().sendTransactionPayloadQuery(peer, tx.PayloadHash())
 		err := ctx.instance.checkTransactionOnLocalNode(peer, tx.Ref(), tx.Data())
 		assert.NoError(t, err)
-	})
-	t.Run("invalid signature", func(t *testing.T) {
-		ctx := newContext(t)
-		sigVerifier := dag.NewMockTransactionSignatureVerifier(ctx.mockCtrl)
-		ctx.instance.signatureVerifier = sigVerifier
-		ctx.graph().EXPECT().IsPresent(tx.Ref()).Return(false, nil)
-		sigVerifier.EXPECT().Verify(gomock.Any()).Return(errors.New("signature invalid"))
-		err := ctx.instance.checkTransactionOnLocalNode(peer, tx.Ref(), tx.Data())
-		assert.Contains(t, err.Error(), "signature invalid")
 	})
 	t.Run("invalid transaction", func(t *testing.T) {
 		ctx := newContext(t)

@@ -54,6 +54,8 @@ type DAG interface {
 	// Heads returns all unmerged heads, which are transactions where no other transactions point to as `prev`. To be used
 	// as `prevs` parameter when adding a new transaction.
 	Heads() []hash.SHA256Hash
+	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
+	Verify() error
 }
 
 // Publisher defines the interface for types that publish Nuts Network transactions.

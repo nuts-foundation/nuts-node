@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"errors"
 	"sort"
 	"strings"
 	"testing"
@@ -147,6 +148,20 @@ func TestBBoltDAG_Add(t *testing.T) {
 			return
 		}
 		assert.Regexp(t, "0, (1, 2|2, 1), (3, 4|4, 3), 5", visitor.JoinRefsAsString())
+	})
+	t.Run("error - verifier failed", func(t *testing.T) {
+		graph := CreateDAG(t, func(_ Transaction, _ DAG) error {
+			return errors.New("failed")
+		})
+		tx := CreateTestTransactionWithJWK(0)
+
+		err := graph.Add(tx)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "transaction verification failed")
+		present, err := graph.IsPresent(tx.Ref())
+		assert.NoError(t, err)
+		assert.False(t, present)
 	})
 	t.Run("error - cyclic graph", func(t *testing.T) {
 		t.Skip("Algorithm for detecting cycles is not yet decided on")

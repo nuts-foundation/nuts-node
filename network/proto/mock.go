@@ -38,15 +38,15 @@ func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 }
 
 // Configure mocks base method.
-func (m *MockProtocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, verifier dag.TransactionSignatureVerifier, advertHashesInterval time.Duration, peerID p2p.PeerID) {
+func (m *MockProtocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, advertHashesInterval time.Duration, peerID p2p.PeerID) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Configure", p2pNetwork, graph, publisher, payloadStore, verifier, advertHashesInterval, peerID)
+	m.ctrl.Call(m, "Configure", p2pNetwork, graph, publisher, payloadStore, advertHashesInterval, peerID)
 }
 
 // Configure indicates an expected call of Configure.
-func (mr *MockProtocolMockRecorder) Configure(p2pNetwork, graph, publisher, payloadStore, verifier, advertHashesInterval, peerID interface{}) *gomock.Call {
+func (mr *MockProtocolMockRecorder) Configure(p2pNetwork, graph, publisher, payloadStore, advertHashesInterval, peerID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), p2pNetwork, graph, publisher, payloadStore, verifier, advertHashesInterval, peerID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), p2pNetwork, graph, publisher, payloadStore, advertHashesInterval, peerID)
 }
 
 // Diagnostics mocks base method.

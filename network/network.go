@@ -89,11 +89,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if bboltErr != nil {
 		return fmt.Errorf("unable to create BBolt database: %w", bboltErr)
 	}
-	n.graph = dag.NewBBoltDAG(db)
+	n.graph = dag.NewBBoltDAG(db, dag.NewTransactionSignatureVerifier(n.keyResolver), dag.NewPrevTransactionsVerifier())
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	peerID := p2p.PeerID(uuid.New().String())
-	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, dag.NewTransactionSignatureVerifier(n.keyResolver), time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
+	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
 	networkConfig, p2pErr := n.buildP2PConfig(peerID)
 	if p2pErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", p2pErr)
@@ -120,7 +120,7 @@ func (n *Network) Config() interface{} {
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	if n.p2pNetwork.Configured() {
-		// It's possible that the Nuts node isn't bootstrapped (e.g. Node CA certificate missing) but that shouldn't
+		// It's possible that the Nuts node isn't bootstrapped (e.g. TLS configuration incomplete) but that shouldn't
 		// prevent it from starting. In that case the network will be in 'offline mode', meaning it can be read from
 		// and written to, but it will not try to connect to other peers.
 		if err := n.p2pNetwork.Start(); err != nil {
@@ -131,6 +131,10 @@ func (n *Network) Start() error {
 	}
 	n.protocol.Start()
 	n.publisher.Start()
+	if err := n.graph.Verify(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

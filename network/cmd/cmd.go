@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -104,7 +105,11 @@ func getCommand() *cobra.Command {
 				cmd.PrintErrf("Transaction not found: %s", hash)
 				return nil
 			}
-			cmd.Printf("Transaction %s:\n  Type: %s\n  Timestamp: %s\n", transaction.Ref(), transaction.PayloadType(), transaction.SigningTime())
+			var prevs []string
+			for _, prev := range transaction.Previous() {
+				prevs = append(prevs, prev.String())
+			}
+			cmd.Printf("Transaction %s:\n  Type: %s\n  Timestamp: %s\n  Prevs: %s\n", transaction.Ref(), transaction.PayloadType(), transaction.SigningTime(), strings.Join(prevs, " "))
 			return nil
 		},
 	}
