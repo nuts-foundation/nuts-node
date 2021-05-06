@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -130,12 +131,58 @@ func TestProtocol_HandleTransactionList(t *testing.T) {
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
 	})
-	t.Run("non-empty list, all match (happy flow)", func(t *testing.T) {
+	t.Run("non-empty list (happy flow)", func(t *testing.T) {
 		ctx := newContext(t)
+		tx, _, _ := dag.CreateTestTransaction(1)
+		ctx.graph().EXPECT().IsPresent(tx.Ref()).Return(true, nil)
+		ctx.payloadStore().EXPECT().IsPresent(tx.PayloadHash()).Return(true, nil)
 		msg := &transport.NetworkMessage_TransactionList{
 			TransactionList: &transport.TransactionList{
 				BlockDate:    getBlockTimestamp(time.Now()),
-				Transactions: toNetworkTransactions(toTransactions(ctx.transactions)),
+				Transactions: toNetworkTransactions([]dag.Transaction{tx}),
+			},
+		}
+		err := ctx.handle(msg)
+		assert.NoError(t, err)
+	})
+	t.Run("remove from slice", func(t *testing.T) {
+		slice := []string{"a"}
+		idx := 0
+		slice = append(slice[:idx], slice[idx + 1:]...)
+		fmt.Printf("%v\n", slice)
+	})
+	t.Run("non-empty list, processing error", func(t *testing.T) {
+		ctx := newContext(t)
+		tx1, _, _ := dag.CreateTestTransaction(1)
+		ctx.graph().EXPECT().IsPresent(tx1.Ref()).Return(false, nil)
+		ctx.graph().EXPECT().Add(tx1).Return(errors.New("failed"))
+		msg := &transport.NetworkMessage_TransactionList{
+			TransactionList: &transport.TransactionList{
+				BlockDate:    getBlockTimestamp(time.Now()),
+				Transactions: toNetworkTransactions([]dag.Transaction{tx1}),
+			},
+		}
+		err := ctx.handle(msg)
+		assert.Contains(t, err.Error(), "unable to add received transaction to DAG")
+	})
+	t.Run("non-empty list, missing prevs", func(t *testing.T) {
+		ctx := newContext(t)
+		// TX(1) should be processed properly
+		// TX(2) is unprocessable because its previous TXs are missing
+		// TX(3) should be processed properly
+		tx1, _, _ := dag.CreateTestTransaction(1)
+		ctx.graph().EXPECT().IsPresent(tx1.Ref()).MinTimes(1).Return(true, nil)
+		ctx.payloadStore().EXPECT().IsPresent(tx1.PayloadHash()).Return(true, nil)
+		tx2, _, _ := dag.CreateTestTransaction(1)
+		ctx.graph().EXPECT().IsPresent(tx2.Ref()).MinTimes(1).Return(false, nil)
+		ctx.graph().EXPECT().Add(tx2).MinTimes(1).Return(fmt.Errorf("error: %w", dag.ErrPreviousTransactionMissing))
+		tx3, _, _ := dag.CreateTestTransaction(1)
+		ctx.graph().EXPECT().IsPresent(tx3.Ref()).MinTimes(1).Return(true, nil)
+		ctx.payloadStore().EXPECT().IsPresent(tx3.PayloadHash()).Return(true, nil)
+		msg := &transport.NetworkMessage_TransactionList{
+			TransactionList: &transport.TransactionList{
+				BlockDate:    getBlockTimestamp(time.Now()),
+				Transactions: toNetworkTransactions([]dag.Transaction{tx1, tx2, tx3}),
 			},
 		}
 		err := ctx.handle(msg)

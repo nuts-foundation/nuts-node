@@ -9,6 +9,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
+var ErrPreviousTransactionMissing = errors.New("transaction is referring to non-existing previous transaction")
+
 // Verifier defines the API of a DAG verifier, used to check the validity of a transaction.
 type Verifier func(tx Transaction, graph DAG) error
 
@@ -45,7 +47,7 @@ func NewPrevTransactionsVerifier() Verifier {
 				return err
 			}
 			if !present {
-				return errors.New("transaction is referring to non-existing previous transaction")
+				return ErrPreviousTransactionMissing
 			}
 		}
 		return nil

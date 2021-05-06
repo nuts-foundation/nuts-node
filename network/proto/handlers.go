@@ -19,6 +19,7 @@
 package proto
 
 import (
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -169,15 +170,31 @@ func (p *protocol) handleTransactionList(peer p2p.PeerID, transactionList *trans
 	// TODO: Only process transaction list if we actually queried it
 	// TODO: Do something with blockDate
 	log.Logger().Tracef("Received transaction list from peer (peer=%s)", peer)
-	for _, current := range transactionList.Transactions {
-		transactionRef := hash.FromSlice(current.Hash)
-		if !transactionRef.Equals(hash.SHA256Sum(current.Data)) {
-			log.Logger().Warn("Received transaction hash doesn't match transaction bytes, skipping.")
-			continue
+	transactions := transactionList.Transactions
+	transactionProcessed := true
+	for transactionProcessed {
+		transactionProcessed = false
+		for i := 0; i < len(transactions); i++ {
+			current := transactions[i]
+			transactionRef := hash.FromSlice(current.Hash)
+			if !transactionRef.Equals(hash.SHA256Sum(current.Data)) {
+				return errors.New("received transaction hash doesn't match transaction bytes")
+			}
+			err := p.checkTransactionOnLocalNode(peer, transactionRef, current.Data)
+			if err == nil {
+				transactionProcessed = true
+				transactions = append(transactions[:i], transactions[i+1:]...) // remove current tx from slice
+				i--
+			} else if !errors.Is(err, dag.ErrPreviousTransactionMissing) {
+				// If transaction is missing a previous transaction it should be retried later since transactions
+				// might have been received out of order. In any other case the response is invalid, so we return.
+				return err
+			}
 		}
-		if err := p.checkTransactionOnLocalNode(peer, transactionRef, current.Data); err != nil {
-			log.Logger().Errorf("Error while checking peer transaction on local node (peer=%s, transaction=%s): %v", peer, transactionRef, err)
-		}
+	}
+	// There may be transactions left that couldn't be processed
+	for _, tx := range transactions {
+		log.Logger().Warnf("Received unprocessable transaction because previous transactions are missing (peer=%s,tx=%s)", peer, hash.FromSlice(tx.Hash))
 	}
 	return nil
 }
@@ -196,7 +213,7 @@ func (p *protocol) checkTransactionOnLocalNode(peer p2p.PeerID, transactionRef h
 		return err
 	} else if !present {
 		if err := p.graph.Add(transaction); err != nil {
-			return fmt.Errorf("unable to add received transaction to DAG: %w", err)
+			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
 		}
 		queryContents = true
 	} else if payloadPresent, err := p.payloadStore.IsPresent(transaction.PayloadHash()); err != nil {
@@ -277,3 +294,4 @@ func getCurrentBlock(blocks []dagBlock) dagBlock {
 func getHistoricBlock(blocks []dagBlock) dagBlock {
 	return blocks[0]
 }
+
