@@ -13,6 +13,9 @@ paths:
         Lists all transactions on the DAG. Since this call returns all transactions on the DAG, care should be taken when there
         are many of them.
         TODO: By then we'd need a more elaborate querying interface (ranging over timestamps/hashes, pagination, filtering, etc).
+
+        error returns:
+        * 500 - internal server error
       operationId: "listTransactions"
       tags:
         - transactions
@@ -25,6 +28,8 @@ paths:
                 type: array
                 items:
                   type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/network/v1/transaction/{ref}:
     parameters:
       - name: ref
@@ -36,6 +41,13 @@ paths:
           type: string
     get:
       summary: "Retrieves a transaction"
+      description: |
+        Retrieves a transaction.
+
+        error returns:
+        * 400 - invalid transaction reference
+        * 404 - transaction not found
+        * 500 - internal server error
       operationId: "getTransaction"
       tags:
         - transactions
@@ -46,8 +58,8 @@ paths:
             application/jose:
               schema:
                 type: string
-        "404":
-          description: "Transaction wasn't found in the transaction log"
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/network/v1/transaction/{ref}/payload:
     parameters:
       - name: ref
@@ -60,6 +72,13 @@ paths:
     get:
       summary: "Gets the transaction payload"
       operationId: "getTransactionPayload"
+      description: |
+        Gets the transaction payload.
+
+        error returns:
+        * 400 - invalid transaction reference
+        * 404 - transaction or payload not found
+        * 500 - internal server error
       tags:
         - transactions
       responses:
@@ -68,14 +87,17 @@ paths:
           content:
             application/octet-stream:
               example:
-        "404":
-          description: "Transaction (or payload) wasn't found"
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/network/v1/diagnostics/graph:
     get:
       summary: "Visualizes the DAG as a graph"
       description: >
         Walks the DAG as subscribers of the DAG do, rendering it as graph. By default it renders in Graphviz format,
         which can be rendered to an image using `dot`.
+
+        error returns:
+        * 500 - internal server error
       operationId: "renderGraph"
       tags:
         - transactions
@@ -86,3 +108,5 @@ paths:
             text/vnd.graphviz:
               schema:
                 type: string
+        default:
+          $ref: '../common/error_response.yaml'
