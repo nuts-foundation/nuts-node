@@ -44,7 +44,6 @@ type networkTestContext struct {
 	keyStore    *crypto.MockKeyStore
 	publisher   *dag.MockPublisher
 	keyResolver *types.MockKeyResolver
-	verifier    *dag.MockVerifier
 }
 
 func TestNetwork_ListTransactions(t *testing.T) {

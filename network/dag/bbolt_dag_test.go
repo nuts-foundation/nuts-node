@@ -20,7 +20,6 @@ package dag
 
 import (
 	"errors"
-	"github.com/golang/mock/gomock"
 	"sort"
 	"strings"
 	"testing"
@@ -151,13 +150,11 @@ func TestBBoltDAG_Add(t *testing.T) {
 		assert.Regexp(t, "0, (1, 2|2, 1), (3, 4|4, 3), 5", visitor.JoinRefsAsString())
 	})
 	t.Run("error - verifier failed", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		verifier := NewMockVerifier(ctrl)
-		graph := CreateDAG(t, verifier)
+		graph := CreateDAG(t, func(_ Transaction, _ DAG) error {
+			return errors.New("failed")
+		})
 		tx := CreateTestTransactionWithJWK(0)
 
-		verifier.EXPECT().Verify(tx, graph).Return(errors.New("failed"))
 		err := graph.Add(tx)
 
 		assert.Error(t, err)

@@ -283,7 +283,7 @@ func isPresent(db *bbolt.DB, bucketName string, key []byte) (bool, error) {
 
 func (dag *bboltDAG) verifyTX(tx Transaction) error {
 	for _, verifier := range dag.txVerifiers {
-		if err := verifier.Verify(tx, dag); err != nil {
+		if err := verifier(tx, dag); err != nil {
 			return fmt.Errorf("transaction verification failed (tx=%s): %w", tx.Ref(), err)
 		}
 	}
