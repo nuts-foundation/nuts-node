@@ -85,6 +85,7 @@ func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) er
 	}
 	data, err := a.Service.GetTransactionPayload(hash)
 	if err != nil {
+		log.Logger().Errorf("Error while retrieving transaction payload (hash=%s): %v", hash, err)
 		return core.NewProblem(problemTitleGetTransactionPayload, http.StatusInternalServerError, err.Error())
 	}
 	if data == nil {
