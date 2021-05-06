@@ -41,7 +41,7 @@ type DAG interface {
 	// Walk visits every node of the DAG, starting at the given hash working its way down each level until every leaf is visited.
 	// when startAt is an empty hash, the walker starts at the root node.
 	Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error
-	// FindBetween finds all transactions which signing time lies between startInclude and endExclusive. It returns them in DAG walking order.
+	// FindBetween finds all transactions which signing time lies between startInclude and endExclusive.
 	FindBetween(startInclusive time.Time, endExclusive time.Time) ([]Transaction, error)
 	// Root returns the root hash of the DAG. If there's no root an empty hash is returned. If an error occurs, it is returned.
 	Root() (hash.SHA256Hash, error)
