@@ -262,7 +262,8 @@ func (b blockTracker) String() string {
 }
 
 func startOfDay(now time.Time) time.Time {
-	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	nowUTC := now.In(time.UTC)
+	return time.Date(nowUTC.Year(), nowUTC.Month(), nowUTC.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 func xor(dest *hash.SHA256Hash, left, right hash.SHA256Hash) {
