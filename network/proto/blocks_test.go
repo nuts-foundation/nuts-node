@@ -253,6 +253,13 @@ func TestBlocks(t *testing.T) {
 		assert.Len(t, actual[2].heads, 1)
 		assert.Equal(t, tx2.Ref(), actual[2].heads[0])
 	})
+	t.Run("empty DAG", func(t *testing.T) {
+		blocks := newDAGBlocks().(*trackingDAGBlocks)
+		blocks.internalUpdate(time.Date(2021, 10, 10, 10, 11,0, 0, time.FixedZone("Europe/Amsterdam", 5)))
+		actual := blocks.internalGet()
+		assert.Len(t, actual, numberOfBlocks)
+		assert.Equal(t, "2021-10-10 00:00:00 +0000 UTC", getCurrentBlock(actual).start.String())
+	})
 }
 
 func TestDAGBlock_XORHeads(t *testing.T) {
