@@ -156,6 +156,8 @@ func (d *didman) UpdateContactInformation(id did.DID, information ContactInforma
 	serviceEndpoint := map[string]interface{}{}
 	json.Unmarshal(contactJson, &serviceEndpoint)
 	contactService.ServiceEndpoint = serviceEndpoint
+	serviceID := generateIDForService(doc.ID, contactService)
+	contactService.ID = serviceID
 
 	doc.Service = append(doc.Service, contactService)
 
@@ -163,7 +165,7 @@ func (d *didman) UpdateContactInformation(id did.DID, information ContactInforma
 	if err == nil {
 		logging.Log().Infof("Contact Information Endpoint added (did: %s)", id.String())
 	}
-	return nil, err
+	return &information, err
 }
 
 // GetContactInformation tries to find the ContactInformation for the indicated DID document.

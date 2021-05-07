@@ -37,6 +37,7 @@ import (
 
 const problemTitleAddEndpoint = "Adding Endpoint failed"
 const problemTitleDeleteService = "Deleting Service failed"
+const problemTitleUpdateContactInformation = "Updating contact information failed"
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
@@ -130,33 +131,25 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 
 func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) error {
 	contactInfo := ContactInformation{}
-	ctx.Bind(&contactInfo)
+	if err := ctx.Bind(&contactInfo); err != nil {
+		err = fmt.Errorf("failed to parse ContactInformation: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleUpdateContactInformation)
+		return core.NewProblem(problemTitleUpdateContactInformation, http.StatusBadRequest, err.Error())
+	}
 	id, err := did.ParseDID(didStr)
 	if err != nil {
 		err = fmt.Errorf("failed to parse DID: %w", err)
-		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
-		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+		logging.Log().WithError(err).Warn(problemTitleUpdateContactInformation)
+		return core.NewProblem(problemTitleUpdateContactInformation, http.StatusBadRequest, err.Error())
 	}
-	newContactInfo, err := w.Didman.UpdateContactInformation(*id, didman.ContactInformation{
-		Email:   contactInfo.Email,
-		Name:    contactInfo.Name,
-		Phone:   contactInfo.Phone,
-		Website: contactInfo.Website,
-	})
+	newContactInfo, err := w.Didman.UpdateContactInformation(*id, contactInfo)
 	if err != nil {
 		err = fmt.Errorf("failed to update DID with contact information: %w", err)
-		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
-		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+		logging.Log().WithError(err).Warn(problemTitleUpdateContactInformation)
+		return core.NewProblem(problemTitleUpdateContactInformation, http.StatusBadRequest, err.Error())
 	}
 
-	response := ContactInformation{
-		Name:    newContactInfo.Name,
-		Email:   newContactInfo.Email,
-		Phone:   newContactInfo.Phone,
-		Website: newContactInfo.Website,
-	}
-
-	return ctx.JSON(http.StatusOK, response)
+	return ctx.JSON(http.StatusOK, newContactInfo)
 }
 
 func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
@@ -174,13 +167,5 @@ func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
 		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
 	}
 
-	response := ContactInformation{
-		Name:    contactInfo.Name,
-		Email:   contactInfo.Email,
-		Phone:   contactInfo.Phone,
-		Website: contactInfo.Website,
-	}
-
-	return ctx.JSON(http.StatusOK, response)
+	return ctx.JSON(http.StatusOK, contactInfo)
 }
-

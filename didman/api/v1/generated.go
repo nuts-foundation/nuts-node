@@ -18,22 +18,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// A set of contact information entries
-type ContactInformation struct {
-
-	// email address for normal priority support
-	Email string `json:"email"`
-
-	// The commonly known name of the service provider
-	Name string `json:"name"`
-
-	// phoneNumber for high priority support
-	Phone string `json:"phone"`
-
-	// URL of the public website of this Service Provider. Can point to a Nuts specific page with more information about the node and how to contact.
-	Website string `json:"website"`
-}
-
 // A combination of type and URL.
 type EndpointCreateRequest struct {
 
