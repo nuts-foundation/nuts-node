@@ -1,8 +1,8 @@
 package v1
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/core"
-	"golang.org/x/net/context"
 	"net/http"
 	"time"
 )
