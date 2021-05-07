@@ -130,11 +130,40 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 }
 
 func (d *didman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
-	_, _, err := d.docResolver.Resolve(id, nil)
+	doc, meta, err := d.docResolver.Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}
-	panic("implement me")
+
+	// check for existing contact information and remove it
+	i := 0
+	for _, s := range doc.Service {
+		if s.Type != ContactInformationServiceType {
+			doc.Service[i] = s
+			i++
+		}
+	}
+	doc.Service = doc.Service[0:i]
+
+	// construct service with correct ID
+	contactService := did.Service{
+		ID:              ssi.URI{},
+		Type:            ContactInformationServiceType,
+	}
+
+	// Convert contact information to serviceEndpoint:
+	contactJson, _ := json.Marshal(information)
+	serviceEndpoint := map[string]interface{}{}
+	json.Unmarshal(contactJson, &serviceEndpoint)
+	contactService.ServiceEndpoint = serviceEndpoint
+
+	doc.Service = append(doc.Service, contactService)
+
+	err = d.vdr.Update(id, meta.Hash, *doc, nil)
+	if err == nil {
+		logging.Log().Infof("Contact Information Endpoint added (did: %s)", id.String())
+	}
+	return nil, err
 }
 
 // GetContactInformation tries to find the ContactInformation for the indicated DID document.
@@ -172,14 +201,18 @@ func constructService(id did.DID, serviceType string, u url.URL) did.Service {
 	}
 
 	service.ID = ssi.URI{}
+	d := generateIDForService(id, service)
+	service.ID = d
 
+	return service
+}
+
+func generateIDForService(id did.DID, service did.Service) ssi.URI {
 	bytes, _ := json.Marshal(service)
 	shaBytes := sha256.Sum256(bytes)
 	d := id.URI()
 	d.Fragment = base58.Encode(shaBytes[:], base58.BitcoinAlphabet)
-	service.ID = d
-
-	return service
+	return d
 }
 
 func referencesService(doc did.Document, serviceID ssi.URI) bool {
