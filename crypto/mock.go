@@ -72,6 +72,20 @@ func (m *MockKeyStore) EXPECT() *MockKeyStoreMockRecorder {
 	return m.recorder
 }
 
+// Exists mocks base method.
+func (m *MockKeyStore) Exists(kid string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Exists", kid)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Exists indicates an expected call of Exists.
+func (mr *MockKeyStoreMockRecorder) Exists(kid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockKeyStore)(nil).Exists), kid)
+}
+
 // New mocks base method.
 func (m *MockKeyStore) New(namingFunc KIDNamingFunc) (Key, error) {
 	m.ctrl.T.Helper()
@@ -85,20 +99,6 @@ func (m *MockKeyStore) New(namingFunc KIDNamingFunc) (Key, error) {
 func (mr *MockKeyStoreMockRecorder) New(namingFunc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockKeyStore)(nil).New), namingFunc)
-}
-
-// PrivateKeyExists mocks base method.
-func (m *MockKeyStore) Exists(kid string) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exists", kid)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// PrivateKeyExists indicates an expected call of PrivateKeyExists.
-func (mr *MockKeyStoreMockRecorder) PrivateKeyExists(kid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockKeyStore)(nil).Exists), kid)
 }
 
 // Resolve mocks base method.
