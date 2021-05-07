@@ -26,7 +26,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 )
 
-
+// ContactInformationServiceType contains the DID service type used for services that contain node contact information.
 const ContactInformationServiceType = "node-contact-info"
 
 // Didman groups all high-level methods for manipulating DID Documents
@@ -49,15 +49,15 @@ type Didman interface {
 // ContactInformation contains set of contact information entries
 type ContactInformation struct {
 
-	// email address for normal priority support
+	// Email contains the email address for normal priority support
 	Email string `json:"email"`
 
-	// The commonly known name of the service provider
+	// Name contains the commonly known name of the service provider
 	Name string `json:"name"`
 
-	// phoneNumber for high priority support
+	// Phone contains a phone number for high priority support
 	Phone string `json:"phone"`
 
-	// URL of the public website of this Service Provider. Can point to a Nuts specific page with more information about the node and how to contact.
+	// Website contains the URL of the public website of this Service Provider. Can point to a Nuts specific page with more information about the node and how to contact.
 	Website string `json:"website"`
 }

@@ -23,6 +23,8 @@ func (h HTTPClient) client() ClientInterface {
 	return response
 }
 
+// GetContactInformation retrieves the contact information registered on the given DID. If the DID does not exist,
+// an error is returned. If the DID does exist but has no contact information nothing is returned.
 func (h HTTPClient) GetContactInformation(did string) (*ContactInformation, error) {
 	ctx, cancel := h.withTimeout()
 	defer cancel()
@@ -45,6 +47,8 @@ func (h HTTPClient) GetContactInformation(did string) (*ContactInformation, erro
 	return result.JSON200, nil
 }
 
+// UpdateContactInformation (over)writes the contact information on given DID.
+// If the DID does not exist an error is returned.
 func (h HTTPClient) UpdateContactInformation(did string, information ContactInformation) error {
 	ctx, cancel := h.withTimeout()
 	defer cancel()
