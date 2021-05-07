@@ -145,9 +145,35 @@ func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) erro
 	}
 
 	response := ContactInformation{
-		EmergencyPhone: newContactInfo.EmergencyPhone,
-		SupportEmail:   newContactInfo.SupportEmail,
-		SupportPhone:   &newContactInfo.SupportPhone,
+		Name:    newContactInfo.Name,
+		Email:   newContactInfo.Email,
+		Phone:   newContactInfo.Phone,
+		Website: newContactInfo.Website,
+	}
+
+	return ctx.JSON(http.StatusOK, response)
+}
+
+func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
+	id, err := did.ParseDID(didStr)
+	if err != nil {
+		err = fmt.Errorf("failed to parse DID: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
+		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+	}
+
+	contactInfo, err := w.Didman.GetContactInformation(*id)
+	if err != nil {
+		err = fmt.Errorf("failed to extract contactinformation from DID: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
+		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+	}
+
+	response := ContactInformation{
+		Name:    contactInfo.Name,
+		Email:   contactInfo.Email,
+		Phone:   contactInfo.Phone,
+		Website: contactInfo.Website,
 	}
 
 	return ctx.JSON(http.StatusOK, response)

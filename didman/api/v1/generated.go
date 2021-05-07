@@ -21,14 +21,17 @@ import (
 // A set of contact information entries
 type ContactInformation struct {
 
-	// 24/7 available support phone number in case of emergency
-	EmergencyPhone string `json:"emergencyPhone"`
-
 	// email address for normal priority support
-	SupportEmail string `json:"supportEmail"`
+	Email string `json:"email"`
 
-	// phoneNumber for normal priority support
-	SupportPhone *string `json:"supportPhone,omitempty"`
+	// The commonly known name of the service provider
+	Name string `json:"name"`
+
+	// phoneNumber for high priority support
+	Phone string `json:"phone"`
+
+	// URL of the public website of this Service Provider. Can point to a Nuts specific page with more information about the node and how to contact.
+	Website string `json:"website"`
 }
 
 // A combination of type and URL.
@@ -126,6 +129,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetContactInformation request
+	GetContactInformation(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// UpdateContactInformation request  with any body
 	UpdateContactInformationWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -138,6 +144,18 @@ type ClientInterface interface {
 
 	// DeleteService request
 	DeleteService(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) GetContactInformation(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetContactInformationRequest(c.Server, did)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) UpdateContactInformationWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -198,6 +216,40 @@ func (c *Client) DeleteService(ctx context.Context, id string, reqEditors ...Req
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewGetContactInformationRequest generates requests for GetContactInformation
+func NewGetContactInformationRequest(server string, did string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/didman/v1/did/%s/contactinfo", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewUpdateContactInformationRequest calls the generic UpdateContactInformation builder with application/json body
@@ -371,6 +423,9 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetContactInformation request
+	GetContactInformationWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetContactInformationResponse, error)
+
 	// UpdateContactInformation request  with any body
 	UpdateContactInformationWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateContactInformationResponse, error)
 
@@ -383,6 +438,28 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteService request
 	DeleteServiceWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error)
+}
+
+type GetContactInformationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ContactInformation
+}
+
+// Status returns HTTPResponse.Status
+func (r GetContactInformationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetContactInformationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type UpdateContactInformationResponse struct {
@@ -449,6 +526,15 @@ func (r DeleteServiceResponse) StatusCode() int {
 	return 0
 }
 
+// GetContactInformationWithResponse request returning *GetContactInformationResponse
+func (c *ClientWithResponses) GetContactInformationWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetContactInformationResponse, error) {
+	rsp, err := c.GetContactInformation(ctx, did, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetContactInformationResponse(rsp)
+}
+
 // UpdateContactInformationWithBodyWithResponse request with arbitrary body returning *UpdateContactInformationResponse
 func (c *ClientWithResponses) UpdateContactInformationWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateContactInformationResponse, error) {
 	rsp, err := c.UpdateContactInformationWithBody(ctx, did, contentType, body, reqEditors...)
@@ -490,6 +576,32 @@ func (c *ClientWithResponses) DeleteServiceWithResponse(ctx context.Context, id 
 		return nil, err
 	}
 	return ParseDeleteServiceResponse(rsp)
+}
+
+// ParseGetContactInformationResponse parses an HTTP response from a GetContactInformationWithResponse call
+func ParseGetContactInformationResponse(rsp *http.Response) (*GetContactInformationResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetContactInformationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ContactInformation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseUpdateContactInformationResponse parses an HTTP response from a UpdateContactInformationWithResponse call
@@ -558,6 +670,9 @@ func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+
+	// (GET /internal/didman/v1/did/{did}/contactinfo)
+	GetContactInformation(ctx echo.Context, did string) error
 	// Add a predetermined DID Service with real life contact information
 	// (PUT /internal/didman/v1/did/{did}/contactinfo)
 	UpdateContactInformation(ctx echo.Context, did string) error
@@ -572,6 +687,22 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// GetContactInformation converts echo context to params.
+func (w *ServerInterfaceWrapper) GetContactInformation(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.GetContactInformation(ctx, did)
+	return err
 }
 
 // UpdateContactInformation converts echo context to params.
@@ -644,6 +775,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.Add(http.MethodGet, baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.GetContactInformation)
 	router.Add(http.MethodPut, baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.UpdateContactInformation)
 	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/endpoint", wrapper.AddEndpoint)
 	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/service/:id", wrapper.DeleteService)

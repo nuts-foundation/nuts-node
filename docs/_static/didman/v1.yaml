@@ -16,6 +16,17 @@ paths:
           - "did:nuts:1234"
         schema:
           type: string
+    get:
+      operationId: getContactInformation
+      responses:
+        "200":
+          description: The actual Contact Information of the DID document.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactInformation'
+        default:
+          $ref: '../common/error_response.yaml'
     put:
       summary: Add a predetermined DID Service with real life contact information
       description: |
@@ -119,16 +130,20 @@ components:
       type: object
       description: A set of contact information entries
       required:
-        - emergencyPhone
-        - supportEmail
+        - name
+        - phone
+        - email
+        - website
       properties:
-        emergencyPhone:
+        name:
           type: string
-          description: 24/7 available support phone number in case of emergency
-        supportPhone:
+          description: The commonly known name of the service provider
+        phone:
           type: string
-          description: phoneNumber for normal priority support
-        supportEmail:
+          description: phoneNumber for high priority support
+        email:
           type: string
           description: email address for normal priority support
-
+        website:
+          type: string
+          description: URL of the public website of this Service Provider. Can point to a Nuts specific page with more information about the node and how to contact.

@@ -39,17 +39,21 @@ type Didman interface {
 	DeleteService(id ssi.URI) error
 
 	UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error)
+
+	GetContactInformation(id did.DID) (*ContactInformation, error)
 }
 
 // ContactInformation contains set of contact information entries
 type ContactInformation struct {
-
-	// 24/7 available support phone number in case of emergency
-	EmergencyPhone string
-
 	// email address for normal priority support
-	SupportEmail string
+	Email string
 
-	// phoneNumber for normal priority support
-	SupportPhone string
+	// The commonly known name of the service provider
+	Name string
+
+	// phoneNumber for high priority support
+	Phone string
+
+	// URL of the public website of this Service Provider. Can point to a Nuts specific page with more information about the node and how to contact.
+	Website string
 }

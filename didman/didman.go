@@ -129,6 +129,14 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 }
 
 func (d *didman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
+	_, _, err := d.docResolver.Resolve(id, nil)
+	if err != nil {
+		return nil, err
+	}
+	panic("implement me")
+}
+
+func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) {
 	panic("implement me")
 }
 
