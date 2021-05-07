@@ -6,6 +6,39 @@ info:
   license:
     name: GPLv3
 paths:
+  /internal/didman/v1/did/{did}/contactinfo:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example:
+          - "did:nuts:1234"
+        schema:
+          type: string
+    put:
+      summary: Add a predetermined DID Service with real life contact information
+      description: |
+        In case of emergency or support questions a service provider operating a nuts node should
+        provide contact inforamtion such as an emergency phone number and support email address.
+
+        There is at most one contact-information service per DID.
+      operationId: updateSupportInforamtion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactInformation'
+      responses:
+        "200":
+          description: The given type and URL have been added as service to the DID Document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactInformation'
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/endpoint:
     parameters:
       - name: did
@@ -82,3 +115,20 @@ components:
         endpoint:
           description: A URL.
           type: string
+    ContactInformation:
+      type: object
+      description: A set of contact information entries
+      required:
+        - emergencyPhone
+        - supportEmail
+      properties:
+        emergencyPhone:
+          type: string
+          description: 24/7 available support phone number in case of emergency
+        supportPhone:
+          type: string
+          description: phoneNumber for normal priority support
+        supportEmail:
+          type: string
+          description: email address for normal priority support
+
