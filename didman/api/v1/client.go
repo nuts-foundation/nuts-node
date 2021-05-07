@@ -1,8 +1,8 @@
 package v1
 
 import (
-	"context"
-	"io"
+	"github.com/nuts-foundation/nuts-node/core"
+	"golang.org/x/net/context"
 	"net/http"
 	"time"
 )
@@ -13,27 +13,54 @@ type HTTPClient struct {
 	Timeout       time.Duration
 }
 
-func (H HTTPClient) GetContactInformation(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	panic("implement me")
+func (h HTTPClient) client() ClientInterface {
+	url := h.ServerAddress
+
+	response, err := NewClientWithResponses(url)
+	if err != nil {
+		panic(err)
+	}
+	return response
 }
 
-func (H HTTPClient) UpdateContactInformationWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	panic("implement me")
+func (h HTTPClient) GetContactInformation(did string) (*ContactInformation, error) {
+	ctx, cancel := h.withTimeout()
+	defer cancel()
+
+	response, err := h.client().GetContactInformation(ctx, did)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode == http.StatusNotFound {
+		// DID has no contact information
+		return nil, nil
+	}
+	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	}
+	result, err := ParseGetContactInformationResponse(response)
+	if err != nil {
+		return nil, err
+	}
+	return result.JSON200, nil
 }
 
-func (H HTTPClient) UpdateContactInformation(ctx context.Context, did string, body UpdateContactInformationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	panic("implement me")
+func (h HTTPClient) UpdateContactInformation(did string, information ContactInformation) error {
+	ctx, cancel := h.withTimeout()
+	defer cancel()
+
+	response, err := h.client().UpdateContactInformation(ctx, did, UpdateContactInformationJSONRequestBody{
+		Email:   information.Email,
+		Name:    information.Name,
+		Phone:   information.Phone,
+		Website: information.Website,
+	})
+	if err != nil {
+		return err
+	}
+	return core.TestResponseCode(http.StatusOK, response)
 }
 
-func (H HTTPClient) AddEndpointWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	panic("implement me")
+func (h HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), h.Timeout)
 }
-
-func (H HTTPClient) AddEndpoint(ctx context.Context, did string, body AddEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	panic("implement me")
-}
-
-func (H HTTPClient) DeleteService(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	panic("implement me")
-}
-
