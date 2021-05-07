@@ -117,7 +117,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(nil, errors.New("identity validation failed"))
 		ctx.keyResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
-		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(true)
+		ctx.privateKeyStore.EXPECT().Exists(custodianSigningKeyID.String()).Return(true)
 
 		tokenCtx := validContext()
 		signToken(tokenCtx)
@@ -152,7 +152,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
-		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(true)
+		ctx.privateKeyStore.EXPECT().Exists(custodianSigningKeyID.String()).Return(true)
 		ctx.keyResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(&contract.VPVerificationResult{Validity: contract.Invalid}, nil)
@@ -175,7 +175,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
 		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
-		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(true)
+		ctx.privateKeyStore.EXPECT().Exists(custodianSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), custodianSigningKeyID.String()).Return("expectedAT", nil)
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(&contract.VPVerificationResult{
 			Validity:            contract.Valid,
@@ -264,7 +264,7 @@ func TestService_validateSubject(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, custodianDID.String())
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
-		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(true)
+		ctx.privateKeyStore.EXPECT().Exists(custodianSigningKeyID.String()).Return(true)
 
 		err := ctx.oauthService.validateSubject(tokenCtx)
 		assert.NoError(t, err)
@@ -289,7 +289,7 @@ func TestService_validateSubject(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, custodianDID.String())
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
-		ctx.privateKeyStore.EXPECT().PrivateKeyExists(custodianSigningKeyID.String()).Return(false)
+		ctx.privateKeyStore.EXPECT().Exists(custodianSigningKeyID.String()).Return(false)
 
 		err := ctx.oauthService.validateSubject(tokenCtx)
 		if assert.NotNil(t, err) {
@@ -568,7 +568,7 @@ func TestOAuthService_IntrospectAccessToken(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
-		ctx.privateKeyStore.EXPECT().PrivateKeyExists(actorSigningKeyID.String()).Return(true)
+		ctx.privateKeyStore.EXPECT().Exists(actorSigningKeyID.String()).Return(true)
 
 		// First build an access token
 		tokenCtx := validContext()
@@ -585,7 +585,7 @@ func TestOAuthService_IntrospectAccessToken(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.privateKeyStore.EXPECT().PrivateKeyExists(actorSigningKeyID.String()).Return(false)
+		ctx.privateKeyStore.EXPECT().Exists(actorSigningKeyID.String()).Return(false)
 
 		// First build an access token
 		tokenCtx := validContext()
@@ -600,7 +600,7 @@ func TestOAuthService_IntrospectAccessToken(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.privateKeyStore.EXPECT().PrivateKeyExists(actorSigningKeyID.String()).Return(true)
+		ctx.privateKeyStore.EXPECT().Exists(actorSigningKeyID.String()).Return(true)
 		ctx.keyResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(nil, types.ErrNotFound)
 
 		// First build an access token
