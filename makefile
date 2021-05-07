@@ -28,7 +28,7 @@ gen-mocks:
 	mockgen -destination=auth/mock.go -package=auth -source=auth/interface.go
 	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go
 	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
-	mockgen -destination=didman/mock.go -package=didman -source=didman/interface.go
+	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
 
 gen-api:
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 docs/_static/crypto/v1.yaml | gofmt > crypto/api/v1/generated.go
