@@ -127,3 +127,29 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 
 	return ctx.NoContent(http.StatusNoContent)
 }
+
+func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) error {
+	contactInfo := ContactInformation{}
+	ctx.Bind(&contactInfo)
+	id, err := did.ParseDID(didStr)
+	if err != nil {
+		err = fmt.Errorf("failed to parse DID: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
+		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+	}
+	newContactInfo, err := w.Didman.UpdateContactInformation(*id, didman.ContactInformation{})
+	if err != nil {
+		err = fmt.Errorf("failed to update DID with contact information: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
+		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+	}
+
+	response := ContactInformation{
+		EmergencyPhone: newContactInfo.EmergencyPhone,
+		SupportEmail:   newContactInfo.SupportEmail,
+		SupportPhone:   &newContactInfo.SupportPhone,
+	}
+
+	return ctx.JSON(http.StatusOK, response)
+}
+

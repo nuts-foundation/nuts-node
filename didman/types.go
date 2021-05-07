@@ -37,4 +37,19 @@ type Didman interface {
 	// It returns ErrServiceNotFound if the service can't be found in the DID Document.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	DeleteService(id ssi.URI) error
+
+	UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error)
+}
+
+// ContactInformation contains set of contact information entries
+type ContactInformation struct {
+
+	// 24/7 available support phone number in case of emergency
+	EmergencyPhone string
+
+	// email address for normal priority support
+	SupportEmail string
+
+	// phoneNumber for normal priority support
+	SupportPhone string
 }

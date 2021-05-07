@@ -128,6 +128,10 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 	return err
 }
 
+func (d *didman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
+	panic("implement me")
+}
+
 func constructService(id did.DID, serviceType string, u url.URL) did.Service {
 	service := did.Service{
 		Type:            serviceType,

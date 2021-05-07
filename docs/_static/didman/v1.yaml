@@ -23,7 +23,7 @@ paths:
         provide contact inforamtion such as an emergency phone number and support email address.
 
         There is at most one contact-information service per DID.
-      operationId: updateSupportInforamtion
+      operationId: updateContactInformation
       requestBody:
         required: true
         content:

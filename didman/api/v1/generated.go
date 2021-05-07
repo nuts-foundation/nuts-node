@@ -41,14 +41,14 @@ type EndpointCreateRequest struct {
 	Type string `json:"type"`
 }
 
-// UpdateSupportInforamtionJSONBody defines parameters for UpdateSupportInforamtion.
-type UpdateSupportInforamtionJSONBody ContactInformation
+// UpdateContactInformationJSONBody defines parameters for UpdateContactInformation.
+type UpdateContactInformationJSONBody ContactInformation
 
 // AddEndpointJSONBody defines parameters for AddEndpoint.
 type AddEndpointJSONBody EndpointCreateRequest
 
-// UpdateSupportInforamtionJSONRequestBody defines body for UpdateSupportInforamtion for application/json ContentType.
-type UpdateSupportInforamtionJSONRequestBody UpdateSupportInforamtionJSONBody
+// UpdateContactInformationJSONRequestBody defines body for UpdateContactInformation for application/json ContentType.
+type UpdateContactInformationJSONRequestBody UpdateContactInformationJSONBody
 
 // AddEndpointJSONRequestBody defines body for AddEndpoint for application/json ContentType.
 type AddEndpointJSONRequestBody AddEndpointJSONBody
@@ -126,10 +126,10 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// UpdateSupportInforamtion request  with any body
-	UpdateSupportInforamtionWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// UpdateContactInformation request  with any body
+	UpdateContactInformationWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	UpdateSupportInforamtion(ctx context.Context, did string, body UpdateSupportInforamtionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	UpdateContactInformation(ctx context.Context, did string, body UpdateContactInformationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AddEndpoint request  with any body
 	AddEndpointWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -140,8 +140,8 @@ type ClientInterface interface {
 	DeleteService(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) UpdateSupportInforamtionWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUpdateSupportInforamtionRequestWithBody(c.Server, did, contentType, body)
+func (c *Client) UpdateContactInformationWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateContactInformationRequestWithBody(c.Server, did, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -152,8 +152,8 @@ func (c *Client) UpdateSupportInforamtionWithBody(ctx context.Context, did strin
 	return c.Client.Do(req)
 }
 
-func (c *Client) UpdateSupportInforamtion(ctx context.Context, did string, body UpdateSupportInforamtionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUpdateSupportInforamtionRequest(c.Server, did, body)
+func (c *Client) UpdateContactInformation(ctx context.Context, did string, body UpdateContactInformationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateContactInformationRequest(c.Server, did, body)
 	if err != nil {
 		return nil, err
 	}
@@ -200,19 +200,19 @@ func (c *Client) DeleteService(ctx context.Context, id string, reqEditors ...Req
 	return c.Client.Do(req)
 }
 
-// NewUpdateSupportInforamtionRequest calls the generic UpdateSupportInforamtion builder with application/json body
-func NewUpdateSupportInforamtionRequest(server string, did string, body UpdateSupportInforamtionJSONRequestBody) (*http.Request, error) {
+// NewUpdateContactInformationRequest calls the generic UpdateContactInformation builder with application/json body
+func NewUpdateContactInformationRequest(server string, did string, body UpdateContactInformationJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewUpdateSupportInforamtionRequestWithBody(server, did, "application/json", bodyReader)
+	return NewUpdateContactInformationRequestWithBody(server, did, "application/json", bodyReader)
 }
 
-// NewUpdateSupportInforamtionRequestWithBody generates requests for UpdateSupportInforamtion with any type of body
-func NewUpdateSupportInforamtionRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+// NewUpdateContactInformationRequestWithBody generates requests for UpdateContactInformation with any type of body
+func NewUpdateContactInformationRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -371,10 +371,10 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// UpdateSupportInforamtion request  with any body
-	UpdateSupportInforamtionWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSupportInforamtionResponse, error)
+	// UpdateContactInformation request  with any body
+	UpdateContactInformationWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateContactInformationResponse, error)
 
-	UpdateSupportInforamtionWithResponse(ctx context.Context, did string, body UpdateSupportInforamtionJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSupportInforamtionResponse, error)
+	UpdateContactInformationWithResponse(ctx context.Context, did string, body UpdateContactInformationJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateContactInformationResponse, error)
 
 	// AddEndpoint request  with any body
 	AddEndpointWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddEndpointResponse, error)
@@ -385,14 +385,14 @@ type ClientWithResponsesInterface interface {
 	DeleteServiceWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error)
 }
 
-type UpdateSupportInforamtionResponse struct {
+type UpdateContactInformationResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *ContactInformation
 }
 
 // Status returns HTTPResponse.Status
-func (r UpdateSupportInforamtionResponse) Status() string {
+func (r UpdateContactInformationResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -400,7 +400,7 @@ func (r UpdateSupportInforamtionResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r UpdateSupportInforamtionResponse) StatusCode() int {
+func (r UpdateContactInformationResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -449,21 +449,21 @@ func (r DeleteServiceResponse) StatusCode() int {
 	return 0
 }
 
-// UpdateSupportInforamtionWithBodyWithResponse request with arbitrary body returning *UpdateSupportInforamtionResponse
-func (c *ClientWithResponses) UpdateSupportInforamtionWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSupportInforamtionResponse, error) {
-	rsp, err := c.UpdateSupportInforamtionWithBody(ctx, did, contentType, body, reqEditors...)
+// UpdateContactInformationWithBodyWithResponse request with arbitrary body returning *UpdateContactInformationResponse
+func (c *ClientWithResponses) UpdateContactInformationWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateContactInformationResponse, error) {
+	rsp, err := c.UpdateContactInformationWithBody(ctx, did, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseUpdateSupportInforamtionResponse(rsp)
+	return ParseUpdateContactInformationResponse(rsp)
 }
 
-func (c *ClientWithResponses) UpdateSupportInforamtionWithResponse(ctx context.Context, did string, body UpdateSupportInforamtionJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSupportInforamtionResponse, error) {
-	rsp, err := c.UpdateSupportInforamtion(ctx, did, body, reqEditors...)
+func (c *ClientWithResponses) UpdateContactInformationWithResponse(ctx context.Context, did string, body UpdateContactInformationJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateContactInformationResponse, error) {
+	rsp, err := c.UpdateContactInformation(ctx, did, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseUpdateSupportInforamtionResponse(rsp)
+	return ParseUpdateContactInformationResponse(rsp)
 }
 
 // AddEndpointWithBodyWithResponse request with arbitrary body returning *AddEndpointResponse
@@ -492,15 +492,15 @@ func (c *ClientWithResponses) DeleteServiceWithResponse(ctx context.Context, id 
 	return ParseDeleteServiceResponse(rsp)
 }
 
-// ParseUpdateSupportInforamtionResponse parses an HTTP response from a UpdateSupportInforamtionWithResponse call
-func ParseUpdateSupportInforamtionResponse(rsp *http.Response) (*UpdateSupportInforamtionResponse, error) {
+// ParseUpdateContactInformationResponse parses an HTTP response from a UpdateContactInformationWithResponse call
+func ParseUpdateContactInformationResponse(rsp *http.Response) (*UpdateContactInformationResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &UpdateSupportInforamtionResponse{
+	response := &UpdateContactInformationResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -560,7 +560,7 @@ func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, err
 type ServerInterface interface {
 	// Add a predetermined DID Service with real life contact information
 	// (PUT /internal/didman/v1/did/{did}/contactinfo)
-	UpdateSupportInforamtion(ctx echo.Context, did string) error
+	UpdateContactInformation(ctx echo.Context, did string) error
 	// Add an endpoint to a DID Document.
 	// (POST /internal/didman/v1/did/{did}/endpoint)
 	AddEndpoint(ctx echo.Context, did string) error
@@ -574,8 +574,8 @@ type ServerInterfaceWrapper struct {
 	Handler ServerInterface
 }
 
-// UpdateSupportInforamtion converts echo context to params.
-func (w *ServerInterfaceWrapper) UpdateSupportInforamtion(ctx echo.Context) error {
+// UpdateContactInformation converts echo context to params.
+func (w *ServerInterfaceWrapper) UpdateContactInformation(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "did" -------------
 	var did string
@@ -586,7 +586,7 @@ func (w *ServerInterfaceWrapper) UpdateSupportInforamtion(ctx echo.Context) erro
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.UpdateSupportInforamtion(ctx, did)
+	err = w.Handler.UpdateContactInformation(ctx, did)
 	return err
 }
 
@@ -644,7 +644,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodPut, baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.UpdateSupportInforamtion)
+	router.Add(http.MethodPut, baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.UpdateContactInformation)
 	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/endpoint", wrapper.AddEndpoint)
 	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/service/:id", wrapper.DeleteService)
 
