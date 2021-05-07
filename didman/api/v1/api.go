@@ -37,6 +37,8 @@ import (
 
 const problemTitleAddEndpoint = "Adding Endpoint failed"
 const problemTitleDeleteService = "Deleting Service failed"
+const problemTitleUpdateContactInformation = "Updating contact information failed"
+const problemTitleGetContactInformation = "Getting node's contact information failed"
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
@@ -126,4 +128,65 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
+}
+
+// UpdateContactInformation handles requests for updating contact information for a specific DID.
+// It parses the did path param and and unmarshalls the request body and passes them to didman.UpdateContactInformation.
+func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) error {
+	id, err := did.ParseDID(didStr)
+	if err != nil {
+		err = fmt.Errorf("failed to parse DID: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleUpdateContactInformation)
+		return core.NewProblem(problemTitleUpdateContactInformation, http.StatusBadRequest, err.Error())
+	}
+
+	contactInfo := ContactInformation{}
+	if err = ctx.Bind(&contactInfo); err != nil {
+		err = fmt.Errorf("failed to parse ContactInformation: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleUpdateContactInformation)
+		return core.NewProblem(problemTitleUpdateContactInformation, http.StatusBadRequest, err.Error())
+	}
+	newContactInfo, err := w.Didman.UpdateContactInformation(*id, contactInfo)
+	if err != nil {
+		if errors.Is(err, types.ErrNotFound) {
+			return core.NewProblem(problemTitleUpdateContactInformation, http.StatusNotFound, err.Error())
+		}
+		if errors.Is(err, types.ErrDIDNotManagedByThisNode) {
+			return core.NewProblem(problemTitleUpdateContactInformation, http.StatusBadRequest, err.Error())
+		}
+		if errors.Is(err, types.ErrDeactivated) {
+			return core.NewProblem(problemTitleUpdateContactInformation, http.StatusConflict, err.Error())
+		}
+		err = fmt.Errorf("failed to update DID with contact information: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleUpdateContactInformation)
+		return core.NewProblem(problemTitleUpdateContactInformation, http.StatusInternalServerError, err.Error())
+	}
+
+	return ctx.JSON(http.StatusOK, newContactInfo)
+}
+
+// GetContactInformation handles requests for contact information for a specific DID.
+// It parses the did path param and passes it to didman.GetContactInformation.
+func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
+	id, err := did.ParseDID(didStr)
+	if err != nil {
+		err = fmt.Errorf("failed to parse DID: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleGetContactInformation)
+		return core.NewProblem(problemTitleGetContactInformation, http.StatusBadRequest, err.Error())
+	}
+
+	contactInfo, err := w.Didman.GetContactInformation(*id)
+	if err != nil {
+		if errors.Is(err, types.ErrNotFound) {
+			return core.NewProblem(problemTitleGetContactInformation, http.StatusNotFound, err.Error())
+		}
+		err = fmt.Errorf("failed to extract contactinformation from DID: %w", err)
+		logging.Log().WithError(err).Warn(problemTitleGetContactInformation)
+		return core.NewProblem(problemTitleGetContactInformation, http.StatusInternalServerError, err.Error())
+	}
+	if contactInfo == nil {
+		return core.NewProblem(problemTitleGetContactInformation, http.StatusNotFound, "contact information for DID not found")
+	}
+
+	return ctx.JSON(http.StatusOK, contactInfo)
 }

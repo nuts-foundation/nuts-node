@@ -23,6 +23,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -128,6 +129,72 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 	return err
 }
 
+func (d *didman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
+	doc, meta, err := d.docResolver.Resolve(id, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// check for existing contact information and remove it
+	i := 0
+	for _, s := range doc.Service {
+		if s.Type != ContactInformationServiceType {
+			doc.Service[i] = s
+			i++
+		}
+	}
+	doc.Service = doc.Service[0:i]
+
+	// construct service with correct ID
+	contactService := did.Service{
+		Type:            ContactInformationServiceType,
+		ServiceEndpoint: information,
+	}
+	serviceID := generateIDForService(doc.ID, contactService)
+	contactService.ID = serviceID
+
+	doc.Service = append(doc.Service, contactService)
+
+	err = d.vdr.Update(id, meta.Hash, *doc, nil)
+	if err == nil {
+		logging.Log().Infof("Contact Information Endpoint added (did: %s)", id.String())
+	}
+	return &information, err
+}
+
+// GetContactInformation tries to find the ContactInformation for the indicated DID document.
+// Returns nil, nil when no contactInformation for the DID was found.
+func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) {
+	doc, _, err := d.docResolver.Resolve(id, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	contactServices := filterContactInfoServices(doc)
+	if len(contactServices) > 1 {
+		return nil, fmt.Errorf("multiple contact information services found")
+	}
+	if len(contactServices) == 1 {
+		information := &ContactInformation{}
+		err = contactServices[0].UnmarshalServiceEndpoint(information)
+		if err != nil {
+			return nil, fmt.Errorf("unable to unmarshall contact info service endpoint: %w", err)
+		}
+		return information, nil
+	}
+	return nil, nil
+}
+
+func filterContactInfoServices(doc *did.Document) []did.Service {
+	var contactServices []did.Service
+	for _, service := range doc.Service {
+		if service.Type == ContactInformationServiceType {
+			contactServices = append(contactServices, service)
+		}
+	}
+	return contactServices
+}
+
 func constructService(id did.DID, serviceType string, u url.URL) did.Service {
 	service := did.Service{
 		Type:            serviceType,
@@ -135,14 +202,18 @@ func constructService(id did.DID, serviceType string, u url.URL) did.Service {
 	}
 
 	service.ID = ssi.URI{}
+	d := generateIDForService(id, service)
+	service.ID = d
 
+	return service
+}
+
+func generateIDForService(id did.DID, service did.Service) ssi.URI {
 	bytes, _ := json.Marshal(service)
 	shaBytes := sha256.Sum256(bytes)
 	d := id.URI()
 	d.Fragment = base58.Encode(shaBytes[:], base58.BitcoinAlphabet)
-	service.ID = d
-
-	return service
+	return d
 }
 
 func referencesService(doc did.Document, serviceID ssi.URI) bool {

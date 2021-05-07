@@ -6,6 +6,50 @@ info:
   license:
     name: GPLv3
 paths:
+  /internal/didman/v1/did/{did}/contactinfo:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example:
+          - "did:nuts:1234"
+        schema:
+          type: string
+    get:
+      operationId: getContactInformation
+      responses:
+        "200":
+          description: The actual Contact Information of the DID document.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactInformation'
+        default:
+          $ref: '../common/error_response.yaml'
+    put:
+      summary: Add a predetermined DID Service with real life contact information
+      description: |
+        In case of emergency or support questions a service provider operating a nuts node should
+        provide contact inforamtion such as an emergency phone number and support email address.
+
+        There is at most one contact-information service per DID.
+      operationId: updateContactInformation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactInformation'
+      responses:
+        "200":
+          description: The given type and URL have been added as service to the DID Document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactInformation'
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/endpoint:
     parameters:
       - name: did
@@ -82,3 +126,24 @@ components:
         endpoint:
           description: A URL.
           type: string
+    ContactInformation:
+      type: object
+      description: A set of contact information entries
+      required:
+        - name
+        - phone
+        - email
+        - website
+      properties:
+        name:
+          type: string
+          description: The commonly known name of the service provider
+        phone:
+          type: string
+          description: phoneNumber for high priority support
+        email:
+          type: string
+          description: email address for normal priority support
+        website:
+          type: string
+          description: URL of the public website of this Service Provider. Can point to a Nuts specific page with more information about the node and how to contact.

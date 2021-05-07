@@ -21,6 +21,7 @@ package v1
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
@@ -329,6 +330,191 @@ func TestWrapper_DeleteService(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
 		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
+	})
+}
+
+func TestWrapper_UpdateContactInformation(t *testing.T) {
+	idStr := "did:nuts:1"
+	id, _ := did.ParseDID(idStr)
+
+	request := ContactInformation{
+		Name:    "TestSoft NL",
+		Email:   "nuts-node@example.com",
+		Phone:   "0031611122235",
+		Website: "www.example.com",
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*ContactInformation)
+			*p = request
+			return nil
+		})
+
+		ctx.didman.EXPECT().UpdateContactInformation(*id, request).Return(&request, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, &request)
+
+		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+
+	t.Run("error - incorrect DID", func(t *testing.T) {
+		invalidDIDStr := "nuts:123"
+		ctx := newMockContext(t)
+		err := ctx.wrapper.UpdateContactInformation(ctx.echo, invalidDIDStr)
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemTitle(t, problemTitleUpdateContactInformation, err)
+		test.AssertErrProblemDetail(t, "failed to parse DID: input does not begin with 'did:' prefix", err)
+	})
+
+	t.Run("error - unknown DID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*ContactInformation)
+			*p = request
+			return nil
+		})
+
+		ctx.didman.EXPECT().UpdateContactInformation(*id, request).Return(nil, types.ErrNotFound)
+
+		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+
+		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+		test.AssertErrProblemTitle(t, problemTitleUpdateContactInformation, err)
+		test.AssertErrProblemDetail(t, "unable to find the DID document", err)
+	})
+	t.Run("error - deactivated", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*ContactInformation)
+			*p = request
+			return nil
+		})
+		ctx.didman.EXPECT().UpdateContactInformation(*id, request).Return(nil, types.ErrDeactivated)
+
+		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+
+		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
+		test.AssertErrProblemTitle(t, problemTitleUpdateContactInformation, err)
+		test.AssertErrProblemDetail(t, "the DID document has been deactivated", err)
+	})
+
+	t.Run("error - not managed", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*ContactInformation)
+			*p = request
+			return nil
+		})
+		ctx.didman.EXPECT().UpdateContactInformation(*id, request).Return(nil, types.ErrDIDNotManagedByThisNode)
+
+		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+
+		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemTitle(t, problemTitleUpdateContactInformation, err)
+		test.AssertErrProblemDetail(t, "DID document not managed by this node", err)
+	})
+	t.Run("error - other problem", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*ContactInformation)
+			*p = request
+			return nil
+		})
+
+		ctx.didman.EXPECT().UpdateContactInformation(*id, request).Return(nil, fmt.Errorf("other problem"))
+
+		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+
+		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
+		test.AssertErrProblemTitle(t, problemTitleUpdateContactInformation, err)
+		test.AssertErrProblemDetail(t, "failed to update DID with contact information: other problem", err)
+	})
+}
+
+func TestWrapper_GetContactInformation(t *testing.T) {
+	idStr := "did:nuts:1"
+	id, _ := did.ParseDID(idStr)
+
+	contactInformation := ContactInformation{
+		Name:    "TestSoft NL",
+		Email:   "nuts-node@example.com",
+		Phone:   "0031611122235",
+		Website: "www.example.com",
+	}
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().GetContactInformation(*id).Return(&contactInformation, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, &contactInformation)
+		err := ctx.wrapper.GetContactInformation(ctx.echo, idStr)
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - invalid DID", func(t *testing.T) {
+		invalidDIDStr := "nuts:123"
+		ctx := newMockContext(t)
+		err := ctx.wrapper.GetContactInformation(ctx.echo, invalidDIDStr)
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+
+		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemTitle(t, problemTitleGetContactInformation, err)
+		test.AssertErrProblemDetail(t, "failed to parse DID: input does not begin with 'did:' prefix", err)
+	})
+	t.Run("error - DID not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().GetContactInformation(*id).Return(nil, types.ErrNotFound)
+		err := ctx.wrapper.GetContactInformation(ctx.echo, idStr)
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+
+		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+		test.AssertErrProblemTitle(t, problemTitleGetContactInformation, err)
+		test.AssertErrProblemDetail(t, "unable to find the DID document", err)
+	})
+	t.Run("error - contact information not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().GetContactInformation(*id).Return(nil, nil)
+		err := ctx.wrapper.GetContactInformation(ctx.echo, idStr)
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+
+		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+		test.AssertErrProblemTitle(t, problemTitleGetContactInformation, err)
+		test.AssertErrProblemDetail(t, "contact information for DID not found", err)
+	})
+	t.Run("error - other error", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().GetContactInformation(*id).Return(nil, fmt.Errorf("other error"))
+		err := ctx.wrapper.GetContactInformation(ctx.echo, idStr)
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+
+		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
+		test.AssertErrProblemTitle(t, problemTitleGetContactInformation, err)
+		test.AssertErrProblemDetail(t, "failed to extract contactinformation from DID: other error", err)
 	})
 }
 

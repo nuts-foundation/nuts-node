@@ -33,14 +33,14 @@ type Handler struct {
 }
 
 func (h Handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
-	writer.WriteHeader(h.StatusCode)
-
 	var bytes []byte
 	if s, ok := h.ResponseData.(string); ok {
 		bytes = []byte(s)
 	} else {
+		writer.Header().Add("Content-Type", "application/json")
 		bytes, _ = json.Marshal(h.ResponseData)
 	}
 
+	writer.WriteHeader(h.StatusCode)
 	writer.Write(bytes)
 }

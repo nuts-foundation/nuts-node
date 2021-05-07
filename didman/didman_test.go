@@ -175,6 +175,134 @@ func TestDidman_DeleteService(t *testing.T) {
 	})
 }
 
+func TestDidman_UpdateContactInformation(t *testing.T) {
+	didDoc := &did.Document{}
+	id, _ := did.ParseDID("did:nuts:123")
+	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
+	expected := ContactInformation{
+		Email:   "email",
+		Name:    "name",
+		Phone:   "phone",
+		Website: "website",
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+
+		var actualDocument did.Document
+		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).Do(func(_ did.DID, _ hash.SHA256Hash, doc did.Document, _ *types.DocumentMetadata) {
+			actualDocument = doc
+		})
+		actual, err := ctx.instance.UpdateContactInformation(*id, expected)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, expected, *actual)
+		services := filterContactInfoServices(&actualDocument)
+		assert.Len(t, services, 1)
+		actualInfo := ContactInformation{}
+		services[0].UnmarshalServiceEndpoint(&actualInfo)
+		assert.NotEmpty(t, services[0].ID)
+		assert.Equal(t, "node-contact-info", services[0].Type)
+		assert.Equal(t, expected, actualInfo)
+	})
+	t.Run("replaces existing, mixed with other services", func(t *testing.T) {
+		ctx := newMockContext(t)
+		didDoc := &did.Document{}
+		didDoc.Service = append(didDoc.Service, did.Service{
+			Type: "node-contact-info",
+			ServiceEndpoint: ContactInformation{
+				Email:   "before",
+				Name:    "before",
+				Phone:   "before",
+				Website: "before",
+			},
+		}, did.Service{
+			Type:            "other-type",
+			ServiceEndpoint: "foobar",
+		})
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		var actualDocument did.Document
+		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).Do(func(_ did.DID, _ hash.SHA256Hash, doc did.Document, _ *types.DocumentMetadata) {
+			actualDocument = doc
+		})
+		actual, err := ctx.instance.UpdateContactInformation(*id, expected)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, expected, *actual)
+		services := filterContactInfoServices(&actualDocument)
+		assert.Len(t, services, 1)
+		actualInfo := ContactInformation{}
+		services[0].UnmarshalServiceEndpoint(&actualInfo)
+		assert.NotEmpty(t, services[0].ID)
+		assert.Equal(t, "node-contact-info", services[0].Type)
+		assert.Equal(t, expected, actualInfo)
+	})
+}
+
+func TestDidman_GetContactInformation(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
+	expected := ContactInformation{
+		Email:   "email",
+		Name:    "name",
+		Phone:   "phone",
+		Website: "website",
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		didDoc := &did.Document{Service: []did.Service{{
+			Type:            "node-contact-info",
+			ServiceEndpoint: expected,
+		}}}
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		actual, err := ctx.instance.GetContactInformation(*id)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, *actual)
+	})
+	t.Run("no contact info", func(t *testing.T) {
+		ctx := newMockContext(t)
+		didDoc := &did.Document{}
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		actual, err := ctx.instance.GetContactInformation(*id)
+		assert.NoError(t, err)
+		assert.Nil(t, actual)
+	})
+	t.Run("error - can't resolve DID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrInvalidDID)
+		actual, err := ctx.instance.GetContactInformation(*id)
+		assert.Error(t, err)
+		assert.Nil(t, actual)
+	})
+	t.Run("error - invalid contact info", func(t *testing.T) {
+		ctx := newMockContext(t)
+		didDoc := &did.Document{Service: []did.Service{{
+			Type:            "node-contact-info",
+			ServiceEndpoint: "hello, world!",
+		}}}
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		actual, err := ctx.instance.GetContactInformation(*id)
+		assert.Error(t, err)
+		assert.Nil(t, actual)
+	})
+	t.Run("error - multiple contact info services", func(t *testing.T) {
+		ctx := newMockContext(t)
+		svc := did.Service{
+			Type:            "node-contact-info",
+			ServiceEndpoint: expected,
+		}
+		didDoc := &did.Document{Service: []did.Service{svc, svc}}
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		actual, err := ctx.instance.GetContactInformation(*id)
+		assert.EqualError(t, err, "multiple contact information services found")
+		assert.Nil(t, actual)
+	})
+}
+
 func TestConstructService(t *testing.T) {
 	u, _ := url.Parse("https://api.example.com/v1")
 	expectedID, _ := ssi.ParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
