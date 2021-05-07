@@ -147,15 +147,9 @@ func (d *didman) UpdateContactInformation(id did.DID, information ContactInforma
 
 	// construct service with correct ID
 	contactService := did.Service{
-		ID:              ssi.URI{},
 		Type:            ContactInformationServiceType,
+		ServiceEndpoint: information,
 	}
-
-	// Convert contact information to serviceEndpoint:
-	contactJson, _ := json.Marshal(information)
-	serviceEndpoint := map[string]interface{}{}
-	json.Unmarshal(contactJson, &serviceEndpoint)
-	contactService.ServiceEndpoint = serviceEndpoint
 	serviceID := generateIDForService(doc.ID, contactService)
 	contactService.ID = serviceID
 
@@ -176,12 +170,7 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 		return nil, err
 	}
 
-	var contactServices []did.Service
-	for _, service := range doc.Service {
-		if service.Type == ContactInformationServiceType {
-			contactServices = append(contactServices, service)
-		}
-	}
+	contactServices := filterContactInfoServices(doc)
 	if len(contactServices) > 1 {
 		return nil, fmt.Errorf("multiple contact information services found")
 	}
@@ -194,6 +183,16 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 		return information, nil
 	}
 	return nil, nil
+}
+
+func filterContactInfoServices(doc *did.Document) []did.Service {
+	var contactServices []did.Service
+	for _, service := range doc.Service {
+		if service.Type == ContactInformationServiceType {
+			contactServices = append(contactServices, service)
+		}
+	}
+	return contactServices
 }
 
 func constructService(id did.DID, serviceType string, u url.URL) did.Service {
