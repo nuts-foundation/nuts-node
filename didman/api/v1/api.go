@@ -137,7 +137,12 @@ func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) erro
 		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
 		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
 	}
-	newContactInfo, err := w.Didman.UpdateContactInformation(*id, didman.ContactInformation{})
+	newContactInfo, err := w.Didman.UpdateContactInformation(*id, didman.ContactInformation{
+		Email:   contactInfo.Email,
+		Name:    contactInfo.Name,
+		Phone:   contactInfo.Phone,
+		Website: contactInfo.Website,
+	})
 	if err != nil {
 		err = fmt.Errorf("failed to update DID with contact information: %w", err)
 		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
