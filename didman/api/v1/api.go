@@ -130,6 +130,8 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 	return ctx.NoContent(http.StatusNoContent)
 }
 
+// UpdateContactInformation handles requests for updating contact information for a specific DID.
+// It parses the did path param and and unmarshalls the request body and passes them to didman.UpdateContactInformation.
 func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) error {
 	id, err := did.ParseDID(didStr)
 	if err != nil {
@@ -163,6 +165,8 @@ func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) erro
 	return ctx.JSON(http.StatusOK, newContactInfo)
 }
 
+// GetContactInformation handles requests for contact information for a specific DID.
+// It parses the did path param and passes it to didman.GetContactInformation.
 func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
 	id, err := did.ParseDID(didStr)
 	if err != nil {
