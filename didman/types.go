@@ -26,6 +26,9 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 )
 
+
+const ContactInformationServiceType = "node-contact-info"
+
 // Didman groups all high-level methods for manipulating DID Documents
 type Didman interface {
 	// AddEndpoint adds a service to a DID Document. The serviceEndpoint is set to the given URL.

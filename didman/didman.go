@@ -23,6 +23,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -136,8 +137,32 @@ func (d *didman) UpdateContactInformation(id did.DID, information ContactInforma
 	panic("implement me")
 }
 
+// GetContactInformation tries to find the ContactInformation for the indicated DID document.
+// Returns nil, nil when no contactInformation for the DID was found.
 func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) {
-	panic("implement me")
+	doc, _, err := d.docResolver.Resolve(id, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var contactServices []did.Service
+	for _, service := range doc.Service {
+		if service.Type == ContactInformationServiceType {
+			contactServices = append(contactServices, service)
+		}
+	}
+	if len(contactServices) > 1 {
+		return nil, fmt.Errorf("multiple contact information services found")
+	}
+	if len(contactServices) == 1 {
+		information := &ContactInformation{}
+		err = contactServices[0].UnmarshalServiceEndpoint(information)
+		if err != nil {
+			return nil, fmt.Errorf("unable to unmarshall contact info service endpoint: %w", err)
+		}
+		return information, nil
+	}
+	return nil, nil
 }
 
 func constructService(id did.DID, serviceType string, u url.URL) did.Service {
