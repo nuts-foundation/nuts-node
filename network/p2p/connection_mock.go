@@ -5,36 +5,49 @@
 package p2p
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	reflect "reflect"
 )
 
-// MockgrpcMessenger is a mock of grpcMessenger interface.
+// MockgrpcMessenger is a mock of grpcMessenger interface
 type MockgrpcMessenger struct {
 	ctrl     *gomock.Controller
 	recorder *MockgrpcMessengerMockRecorder
 }
 
-// MockgrpcMessengerMockRecorder is the mock recorder for MockgrpcMessenger.
+// MockgrpcMessengerMockRecorder is the mock recorder for MockgrpcMessenger
 type MockgrpcMessengerMockRecorder struct {
 	mock *MockgrpcMessenger
 }
 
-// NewMockgrpcMessenger creates a new mock instance.
+// NewMockgrpcMessenger creates a new mock instance
 func NewMockgrpcMessenger(ctrl *gomock.Controller) *MockgrpcMessenger {
 	mock := &MockgrpcMessenger{ctrl: ctrl}
 	mock.recorder = &MockgrpcMessengerMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockgrpcMessenger) EXPECT() *MockgrpcMessengerMockRecorder {
 	return m.recorder
 }
 
-// Recv mocks base method.
+// Send mocks base method
+func (m *MockgrpcMessenger) Send(message *transport.NetworkMessage) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Send", message)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Send indicates an expected call of Send
+func (mr *MockgrpcMessengerMockRecorder) Send(message interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockgrpcMessenger)(nil).Send), message)
+}
+
+// Recv mocks base method
 func (m *MockgrpcMessenger) Recv() (*transport.NetworkMessage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Recv")
@@ -43,22 +56,8 @@ func (m *MockgrpcMessenger) Recv() (*transport.NetworkMessage, error) {
 	return ret0, ret1
 }
 
-// Recv indicates an expected call of Recv.
+// Recv indicates an expected call of Recv
 func (mr *MockgrpcMessengerMockRecorder) Recv() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recv", reflect.TypeOf((*MockgrpcMessenger)(nil).Recv))
-}
-
-// Send mocks base method.
-func (m *MockgrpcMessenger) Send(message *transport.NetworkMessage) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Send", message)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Send indicates an expected call of Send.
-func (mr *MockgrpcMessengerMockRecorder) Send(message interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockgrpcMessenger)(nil).Send), message)
 }

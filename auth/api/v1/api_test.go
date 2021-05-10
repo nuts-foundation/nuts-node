@@ -22,11 +22,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	test2 "github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"reflect"
 	"testing"
 	"time"
+
+	test2 "github.com/nuts-foundation/nuts-node/test"
 
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -644,7 +645,7 @@ func (s signSessionResponseMatcher) Matches(x interface{}) bool {
 		return false
 	}
 
-	return x.(CreateSignSessionResponse).Means == s.means && x.(CreateSignSessionResponse).SessionPtr["sessionID"] != ""
+	return string(x.(CreateSignSessionResponse).Means) == s.means && x.(CreateSignSessionResponse).SessionPtr["sessionID"] != ""
 }
 
 func (s signSessionResponseMatcher) String() string {

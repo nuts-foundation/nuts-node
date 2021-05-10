@@ -156,7 +156,7 @@ func TestWrapper_Resolve(t *testing.T) {
 			return
 		}
 		assert.Equal(t, id, resolutionResult.VerifiableCredential.ID)
-		assert.Equal(t, trusted, resolutionResult.CurrentStatus)
+		assert.Equal(t, ResolutionResultCurrentStatusTrusted, resolutionResult.CurrentStatus)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -199,7 +199,7 @@ func TestWrapper_Resolve(t *testing.T) {
 			return
 		}
 		assert.Equal(t, id, resolutionResult.VerifiableCredential.ID)
-		assert.Equal(t, revoked, resolutionResult.CurrentStatus)
+		assert.Equal(t, ResolutionResultCurrentStatusRevoked, resolutionResult.CurrentStatus)
 	})
 
 	t.Run("error - revoked", func(t *testing.T) {
@@ -219,7 +219,7 @@ func TestWrapper_Resolve(t *testing.T) {
 			return
 		}
 		assert.Equal(t, id, resolutionResult.VerifiableCredential.ID)
-		assert.Equal(t, untrusted, resolutionResult.CurrentStatus)
+		assert.Equal(t, ResolutionResultCurrentStatusUntrusted, resolutionResult.CurrentStatus)
 	})
 }
 

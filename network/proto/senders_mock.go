@@ -5,94 +5,93 @@
 package proto
 
 import (
-	reflect "reflect"
-	time "time"
-
 	gomock "github.com/golang/mock/gomock"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	p2p "github.com/nuts-foundation/nuts-node/network/p2p"
+	reflect "reflect"
+	time "time"
 )
 
-// MockmessageSender is a mock of messageSender interface.
+// MockmessageSender is a mock of messageSender interface
 type MockmessageSender struct {
 	ctrl     *gomock.Controller
 	recorder *MockmessageSenderMockRecorder
 }
 
-// MockmessageSenderMockRecorder is the mock recorder for MockmessageSender.
+// MockmessageSenderMockRecorder is the mock recorder for MockmessageSender
 type MockmessageSenderMockRecorder struct {
 	mock *MockmessageSender
 }
 
-// NewMockmessageSender creates a new mock instance.
+// NewMockmessageSender creates a new mock instance
 func NewMockmessageSender(ctrl *gomock.Controller) *MockmessageSender {
 	mock := &MockmessageSender{ctrl: ctrl}
 	mock.recorder = &MockmessageSenderMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockmessageSender) EXPECT() *MockmessageSenderMockRecorder {
 	return m.recorder
 }
 
-// broadcastAdvertHashes mocks base method.
+// broadcastAdvertHashes mocks base method
 func (m *MockmessageSender) broadcastAdvertHashes(blocks []dagBlock) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "broadcastAdvertHashes", blocks)
 }
 
-// broadcastAdvertHashes indicates an expected call of broadcastAdvertHashes.
+// broadcastAdvertHashes indicates an expected call of broadcastAdvertHashes
 func (mr *MockmessageSenderMockRecorder) broadcastAdvertHashes(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastAdvertHashes", reflect.TypeOf((*MockmessageSender)(nil).broadcastAdvertHashes), blocks)
 }
 
-// sendTransactionList mocks base method.
-func (m *MockmessageSender) sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, date time.Time) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "sendTransactionList", peer, transactions, date)
-}
-
-// sendTransactionList indicates an expected call of sendTransactionList.
-func (mr *MockmessageSenderMockRecorder) sendTransactionList(peer, transactions, date interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionList", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionList), peer, transactions, date)
-}
-
-// sendTransactionListQuery mocks base method.
+// sendTransactionListQuery mocks base method
 func (m *MockmessageSender) sendTransactionListQuery(peer p2p.PeerID, blockDate time.Time) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "sendTransactionListQuery", peer, blockDate)
 }
 
-// sendTransactionListQuery indicates an expected call of sendTransactionListQuery.
+// sendTransactionListQuery indicates an expected call of sendTransactionListQuery
 func (mr *MockmessageSenderMockRecorder) sendTransactionListQuery(peer, blockDate interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionListQuery", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionListQuery), peer, blockDate)
 }
 
-// sendTransactionPayload mocks base method.
-func (m *MockmessageSender) sendTransactionPayload(peer p2p.PeerID, payloadHash hash.SHA256Hash, data []byte) {
+// sendTransactionList mocks base method
+func (m *MockmessageSender) sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, date time.Time) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "sendTransactionPayload", peer, payloadHash, data)
+	m.ctrl.Call(m, "sendTransactionList", peer, transactions, date)
 }
 
-// sendTransactionPayload indicates an expected call of sendTransactionPayload.
-func (mr *MockmessageSenderMockRecorder) sendTransactionPayload(peer, payloadHash, data interface{}) *gomock.Call {
+// sendTransactionList indicates an expected call of sendTransactionList
+func (mr *MockmessageSenderMockRecorder) sendTransactionList(peer, transactions, date interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionPayload", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionPayload), peer, payloadHash, data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionList", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionList), peer, transactions, date)
 }
 
-// sendTransactionPayloadQuery mocks base method.
+// sendTransactionPayloadQuery mocks base method
 func (m *MockmessageSender) sendTransactionPayloadQuery(peer p2p.PeerID, payloadHash hash.SHA256Hash) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "sendTransactionPayloadQuery", peer, payloadHash)
 }
 
-// sendTransactionPayloadQuery indicates an expected call of sendTransactionPayloadQuery.
+// sendTransactionPayloadQuery indicates an expected call of sendTransactionPayloadQuery
 func (mr *MockmessageSenderMockRecorder) sendTransactionPayloadQuery(peer, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionPayloadQuery", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionPayloadQuery), peer, payloadHash)
+}
+
+// sendTransactionPayload mocks base method
+func (m *MockmessageSender) sendTransactionPayload(peer p2p.PeerID, payloadHash hash.SHA256Hash, data []byte) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "sendTransactionPayload", peer, payloadHash, data)
+}
+
+// sendTransactionPayload indicates an expected call of sendTransactionPayload
+func (mr *MockmessageSenderMockRecorder) sendTransactionPayload(peer, payloadHash, data interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionPayload", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionPayload), peer, payloadHash, data)
 }

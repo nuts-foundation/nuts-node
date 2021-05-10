@@ -162,15 +162,15 @@ func (w *Wrapper) Resolve(ctx echo.Context, id string) error {
 
 	// transform VC && error
 	result := ResolutionResult{
-		CurrentStatus:        trusted,
+		CurrentStatus:        ResolutionResultCurrentStatusTrusted,
 		VerifiableCredential: *vc,
 	}
 
 	switch err {
 	case vcr.ErrUntrusted:
-		result.CurrentStatus = untrusted
+		result.CurrentStatus = ResolutionResultCurrentStatusUntrusted
 	case vcr.ErrRevoked:
-		result.CurrentStatus = revoked
+		result.CurrentStatus = ResolutionResultCurrentStatusRevoked
 	}
 
 	return ctx.JSON(http.StatusOK, result)

@@ -5,69 +5,50 @@
 package network
 
 import (
-	reflect "reflect"
-	time "time"
-
 	gomock "github.com/golang/mock/gomock"
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
+	reflect "reflect"
+	time "time"
 )
 
-// MockTransactions is a mock of Transactions interface.
+// MockTransactions is a mock of Transactions interface
 type MockTransactions struct {
 	ctrl     *gomock.Controller
 	recorder *MockTransactionsMockRecorder
 }
 
-// MockTransactionsMockRecorder is the mock recorder for MockTransactions.
+// MockTransactionsMockRecorder is the mock recorder for MockTransactions
 type MockTransactionsMockRecorder struct {
 	mock *MockTransactions
 }
 
-// NewMockTransactions creates a new mock instance.
+// NewMockTransactions creates a new mock instance
 func NewMockTransactions(ctrl *gomock.Controller) *MockTransactions {
 	mock := &MockTransactions{ctrl: ctrl}
 	mock.recorder = &MockTransactionsMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockTransactions) EXPECT() *MockTransactionsMockRecorder {
 	return m.recorder
 }
 
-// CreateTransaction mocks base method.
-func (m *MockTransactions) CreateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
+// Subscribe mocks base method
+func (m *MockTransactions) Subscribe(payloadType string, receiver dag.Receiver) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateTransaction", payloadType, payload, key, attachKey, timestamp, additionalPrevs)
-	ret0, _ := ret[0].(dag.Transaction)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	m.ctrl.Call(m, "Subscribe", payloadType, receiver)
 }
 
-// CreateTransaction indicates an expected call of CreateTransaction.
-func (mr *MockTransactionsMockRecorder) CreateTransaction(payloadType, payload, key, attachKey, timestamp, additionalPrevs interface{}) *gomock.Call {
+// Subscribe indicates an expected call of Subscribe
+func (mr *MockTransactionsMockRecorder) Subscribe(payloadType, receiver interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), payloadType, payload, key, attachKey, timestamp, additionalPrevs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), payloadType, receiver)
 }
 
-// GetTransaction mocks base method.
-func (m *MockTransactions) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTransaction", transactionRef)
-	ret0, _ := ret[0].(dag.Transaction)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetTransaction indicates an expected call of GetTransaction.
-func (mr *MockTransactionsMockRecorder) GetTransaction(transactionRef interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransaction", reflect.TypeOf((*MockTransactions)(nil).GetTransaction), transactionRef)
-}
-
-// GetTransactionPayload mocks base method.
+// GetTransactionPayload mocks base method
 func (m *MockTransactions) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTransactionPayload", transactionRef)
@@ -76,13 +57,43 @@ func (m *MockTransactions) GetTransactionPayload(transactionRef hash.SHA256Hash)
 	return ret0, ret1
 }
 
-// GetTransactionPayload indicates an expected call of GetTransactionPayload.
+// GetTransactionPayload indicates an expected call of GetTransactionPayload
 func (mr *MockTransactionsMockRecorder) GetTransactionPayload(transactionRef interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionPayload", reflect.TypeOf((*MockTransactions)(nil).GetTransactionPayload), transactionRef)
 }
 
-// ListTransactions mocks base method.
+// GetTransaction mocks base method
+func (m *MockTransactions) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTransaction", transactionRef)
+	ret0, _ := ret[0].(dag.Transaction)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTransaction indicates an expected call of GetTransaction
+func (mr *MockTransactionsMockRecorder) GetTransaction(transactionRef interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransaction", reflect.TypeOf((*MockTransactions)(nil).GetTransaction), transactionRef)
+}
+
+// CreateTransaction mocks base method
+func (m *MockTransactions) CreateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateTransaction", payloadType, payload, key, attachKey, timestamp, additionalPrevs)
+	ret0, _ := ret[0].(dag.Transaction)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateTransaction indicates an expected call of CreateTransaction
+func (mr *MockTransactionsMockRecorder) CreateTransaction(payloadType, payload, key, attachKey, timestamp, additionalPrevs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), payloadType, payload, key, attachKey, timestamp, additionalPrevs)
+}
+
+// ListTransactions mocks base method
 func (m *MockTransactions) ListTransactions() ([]dag.Transaction, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListTransactions")
@@ -91,25 +102,13 @@ func (m *MockTransactions) ListTransactions() ([]dag.Transaction, error) {
 	return ret0, ret1
 }
 
-// ListTransactions indicates an expected call of ListTransactions.
+// ListTransactions indicates an expected call of ListTransactions
 func (mr *MockTransactionsMockRecorder) ListTransactions() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTransactions", reflect.TypeOf((*MockTransactions)(nil).ListTransactions))
 }
 
-// Subscribe mocks base method.
-func (m *MockTransactions) Subscribe(payloadType string, receiver dag.Receiver) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Subscribe", payloadType, receiver)
-}
-
-// Subscribe indicates an expected call of Subscribe.
-func (mr *MockTransactionsMockRecorder) Subscribe(payloadType, receiver interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), payloadType, receiver)
-}
-
-// Walk mocks base method.
+// Walk mocks base method
 func (m *MockTransactions) Walk(visitor dag.Visitor) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Walk", visitor)
@@ -117,7 +116,7 @@ func (m *MockTransactions) Walk(visitor dag.Visitor) error {
 	return ret0
 }
 
-// Walk indicates an expected call of Walk.
+// Walk indicates an expected call of Walk
 func (mr *MockTransactionsMockRecorder) Walk(visitor interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockTransactions)(nil).Walk), visitor)

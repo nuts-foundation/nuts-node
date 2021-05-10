@@ -35,9 +35,3 @@ type IssueVCRequest = vc.VerifiableCredential
 
 // Revocation is an alias to use from within the API
 type Revocation = credential.Revocation
-
-const (
-	trusted   = "trusted"
-	untrusted = "untrusted"
-	revoked   = "revoked"
-)
