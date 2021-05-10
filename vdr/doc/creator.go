@@ -54,8 +54,24 @@ func DefaultCreationOptions() vdr.DIDCreationOptions {
 	}
 }
 
-// didKIDNamingFunc is a function used to name a key used in newly generated DID Documents
+// didKIDNamingFunc is a function used to name a key used in newly generated DID Documents.
 func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
+	return getKIDName(pKey, func(key jwk.Key) (string, error) {
+		return nutsCrypto.Thumbprint(key)
+	})
+}
+
+// didSubKIDNamingFunc returns a function used to name an sub (extra/alternative) key for a DID document.
+// E.g. for a assertionMethod key that differs from the key the DID document was created with.
+func didSubKIDNamingFunc(owningDID did.DID) func(pKey crypto.PublicKey) (string, error) {
+	return func(pKey crypto.PublicKey) (string, error) {
+		return getKIDName(pKey, func(_ jwk.Key) (string, error) {
+			return owningDID.ID, nil
+		})
+	}
+}
+
+func getKIDName(pKey crypto.PublicKey, idFunc func(key jwk.Key) (string, error)) (string, error) {
 	// according to RFC006:
 	// --------------------
 
@@ -65,7 +81,7 @@ func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
 		return "", fmt.Errorf("could not generate kid: %w", err)
 	}
 
-	idString, err := nutsCrypto.Thumbprint(jwKey)
+	idString, err := idFunc(jwKey)
 	if err != nil {
 		return "", err
 	}
@@ -137,7 +153,7 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 		}
 	} else {
 		// Generate new key for other key capabilities, store the private key
-		capKey, err := n.KeyStore.New(didKIDNamingFunc)
+		capKey, err := n.KeyStore.New(didSubKIDNamingFunc(didID))
 		if err != nil {
 			return nil, nil, err
 		}

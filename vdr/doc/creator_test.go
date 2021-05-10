@@ -186,7 +186,7 @@ func TestCreator_Create(t *testing.T) {
 	})
 }
 
-func Test_didKidNamingFunc(t *testing.T) {
+func Test_didKIDNamingFunc(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if assert.NoError(t, err) {
@@ -222,6 +222,25 @@ func Test_didKidNamingFunc(t *testing.T) {
 		assert.Equal(t, "could not generate kid: invalid key type 'doc.unknownPublicKey' for jwk.New", err.Error())
 		assert.Empty(t, keyID)
 
+	})
+}
+
+func Test_didSubKIDNamingFunc(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		owningDID, _ := did.ParseDID("did:nuts:bladiebla")
+
+		keyID, err := didSubKIDNamingFunc(*owningDID)(privateKey.PublicKey)
+		if !assert.NoError(t, err) {
+			return
+		}
+		parsedKeyID, err := did.ParseDID(keyID)
+		if !assert.NoError(t, err) {
+			return
+		}
+		// Make sure the idString part of the key ID is taken from the owning DID document
+		assert.Equal(t, parsedKeyID.ID, owningDID.ID)
+		assert.NotEmpty(t, parsedKeyID.Fragment)
 	})
 }
 
