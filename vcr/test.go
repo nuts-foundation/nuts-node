@@ -27,6 +27,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/sirupsen/logrus"
 )
@@ -61,10 +63,13 @@ type mockContext struct {
 }
 
 func newMockContext(t *testing.T) mockContext {
+	testDir := io.TestDirectory(t)
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
 	keystore := types.NewMockKeyResolver(ctrl)
+	vcr := NewVCRInstance(crypto, keystore, tx).(*vcr)
+	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	t.Cleanup(func() {
 		ctrl.Finish()
 	})
@@ -73,7 +78,7 @@ func newMockContext(t *testing.T) mockContext {
 		ctrl:        ctrl,
 		crypto:      crypto,
 		tx:          tx,
-		vcr:         NewVCRInstance(crypto, keystore, tx).(*vcr),
+		vcr:         vcr,
 		keyResolver: keystore,
 	}
 }

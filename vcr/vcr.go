@@ -270,6 +270,16 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
 	logging.Log().Infof("Verifiable Credential issued (id=%s,type=%s)", credential.ID, template.Type[0])
+
+	if !c.trustConfig.IsTrusted(template.Type[0], issuer.URI()) {
+		logging.Log().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuer, template.Type[0])
+		if err := c.Trust(template.Type[0], issuer.URI()); err != nil {
+			return &credential, fmt.Errorf("failed to trust issuer after TX completed (did=%s,type=%s): %w", *issuer, template.Type[0], err)
+		}
+	} else {
+		logging.Log().Debugf("Issuer already trusted (did=%s,type=%s)", *issuer, template.Type[0])
+	}
+
 	return &credential, nil
 }
 

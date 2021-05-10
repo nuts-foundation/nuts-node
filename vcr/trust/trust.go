@@ -28,6 +28,9 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// ErrNoFilename is returned when trust actions are performed but no file for storing those is specified.
+var ErrNoFilename = errors.New("no filename specified")
+
 // Config holds the trusted issuers per credential type
 type Config struct {
 	filename       string
@@ -70,7 +73,7 @@ func (tc *Config) Load() error {
 // Save the list of trusted issuers per credential type to file
 func (tc *Config) save() error {
 	if tc.filename == "" {
-		return errors.New("no filename specified")
+		return ErrNoFilename
 	}
 
 	data, err := yaml.Marshal(tc.issuersPerType)
