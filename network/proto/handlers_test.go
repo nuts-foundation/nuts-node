@@ -87,7 +87,7 @@ func TestProtocol_HandleAdvertedHashes(t *testing.T) {
 		msg := createAdvertHashesMessage(blocks)
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
-		ctx.assertNoNewOmnihashes()
+		ctx.assertNewOmnihash()
 	})
 }
 
@@ -148,7 +148,7 @@ func TestProtocol_HandleTransactionList(t *testing.T) {
 	t.Run("remove from slice", func(t *testing.T) {
 		slice := []string{"a"}
 		idx := 0
-		slice = append(slice[:idx], slice[idx + 1:]...)
+		slice = append(slice[:idx], slice[idx+1:]...)
 		fmt.Printf("%v\n", slice)
 	})
 	t.Run("non-empty list, processing error", func(t *testing.T) {

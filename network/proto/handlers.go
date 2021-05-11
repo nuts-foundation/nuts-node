@@ -77,19 +77,20 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 		return
 	}
 	// Compare historic block
-	historicBlock := getHistoricBlock(localBlocks)
-	localHistoryHash := historicBlock.xor()
-	if !localHistoryHash.Equals(hash.FromSlice(advertHash.HistoricHash)) {
+	localHistoricBlock := getHistoricBlock(localBlocks)
+	localHistoryHash := localHistoricBlock.xor()
+	peerHistoryHash := hash.FromSlice(advertHash.HistoricHash)
+	if !localHistoryHash.Equals(peerHistoryHash) {
 		// TODO: Disallowed when https://github.com/nuts-foundation/nuts-specification/issues/57 is implemented
-		log.Logger().Infof("Peer's historic block differs which will be sync-ed for now, but will be disallowed in the future (peer=%s)", peer)
+		log.Logger().Infof("Peer's historic block differs which will be sync-ed for now, but will be disallowed in the future (peer=%s,local hash=%s,peer hash=%s)", peer, localHistoryHash, peerHistoryHash)
 		p.sender.sendTransactionListQuery(peer, time.Time{})
-		return
+	} else {
+		// Finally, check the rest of the blocks
+		p.checkPeerBlocks(peer, advertHash.Blocks, localBlocks[1:])
 	}
-	// Finally, check the rest of the blocks
-	p.checkPeerBlocks(peer, advertHash.Blocks, localBlocks[1:])
 
 	// Calculate peer's omnihash and propagate it for diagnostic purposes.
-	omnihash := hash.FromSlice(advertHash.HistoricHash)
+	omnihash := peerHistoryHash
 	for _, blck := range advertHash.Blocks {
 		for _, head := range blck.Hashes {
 			xor(&omnihash, omnihash, hash.FromSlice(head))

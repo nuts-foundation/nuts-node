@@ -131,27 +131,15 @@ func (blx *trackingDAGBlocks) addTransaction(tx dag.Transaction, _ []byte) error
 
 func (blx *trackingDAGBlocks) internalAddTransaction(tx dag.Transaction) {
 	// Determine block the TX is part of
-	blockIdx := len(blx.blocks) - 1
-	for i := 0; i < len(blx.blocks)-1; i++ {
-		// Lower blocks are earlier, so when the TXs time is before the start time of the next block, this is the block
-		// the TX is part of.
-		if tx.SigningTime().Before(blx.blocks[i+1].start) {
-			blockIdx = i
-			break
-		}
-	}
+	blockIdx := blx.internalGetBlockIndex(tx.SigningTime())
 	txBlock := blx.blocks[blockIdx]
 	// Prevs of this TX in this block were previously heads (prev'd by another branch within this block) but now
 	// the current TX will be the new head. So we 'un-head' all prevs and mark the current TX as head.
 	// This works as long as this func is called with TXs in order.
 	txBlockDate := startOfDay(tx.SigningTime())
 	for _, prev := range tx.Previous() {
-		if prevTX, ok := txBlock.heads[prev]; ok {
-			// But not if the signing time of the tx would put it in a future block,
-			// which can be the case when TXs with future timestamps are added to today's block.
-			if !txBlockDate.After(prevTX.blockDate) {
-				delete(txBlock.heads, prev)
-			}
+		if _, ok := txBlock.heads[prev]; ok {
+			delete(txBlock.heads, prev)
 		}
 	}
 	txBlock.heads[tx.Ref()] = &head{
@@ -165,13 +153,26 @@ func (blx *trackingDAGBlocks) internalAddTransaction(tx dag.Transaction) {
 	for i := 0; i <= blockIdx; i++ {
 		for _, currPrev := range tx.Previous() {
 			if head, ok := blx.blocks[i].heads[currPrev]; ok {
-				newDistance := int32(txBlockDate.Sub(head.blockDate).Hours() / 24)
+				newDistance := int32(blockIdx - blx.internalGetBlockIndex(head.signingTime))
 				if newDistance < head.distance {
 					head.distance = newDistance
 				}
 			}
 		}
 	}
+}
+
+func (blx *trackingDAGBlocks) internalGetBlockIndex(txSigningTime time.Time) int {
+	blockIdx := len(blx.blocks) - 1
+	for i := 0; i < len(blx.blocks)-1; i++ {
+		// Lower blocks are earlier, so when the TXs time is before the start time of the next block, this is the block
+		// the TX is part of.
+		if txSigningTime.Before(blx.blocks[i+1].start) {
+			blockIdx = i
+			break
+		}
+	}
+	return blockIdx
 }
 
 // internalUpdate first updates the timestamps on the blocks and then redistributes the transactions into the correct blocks.
@@ -230,6 +231,7 @@ func (blx *trackingDAGBlocks) internalUpdateTimestamps(now time.Time) bool {
 	t := startOfDay(now)
 	changed := false
 	for idx, currBlock := range blx.blocks {
+		// Start time of first block (historic block) is beginning of time, so it doesn't need to be updated
 		if idx == 0 {
 			continue
 		}

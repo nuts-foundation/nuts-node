@@ -80,6 +80,27 @@ func testCases() []testCase {
 			},
 		},
 		/*
+			              │        │
+			┌───┐   ┌───┐ │  ┌───┐ │ ┌───┐
+			│ A ├──►│ B ├─┼─►│ C ├─┼►│ D │
+			└───┘   └───┘ │  └───┘ │ └───┘
+			              │        │
+		*/
+		{
+			name: "2 transactions in historic block",
+			txs: []tx{
+				tx{"A", -20, noPrevs()},
+				tx{"B", -10, prev("A")},
+				tx{"C", 1, prev("B")},
+				tx{"D", 2, prev("C")},
+			},
+			heads: []string{
+				"B, C, D",
+				"C, D",
+				"D",
+			},
+		},
+		/*
 			      │        │
 			┌───┐ │  ┌───┐ │  ┌───┐  ┌───┐
 			│ A ├─┼─►│ B ├─┼─►│ C ├─►│ D │
@@ -127,30 +148,6 @@ func testCases() []testCase {
 		/*
 			      │        │
 			┌───┐ │  ┌───┐ │  ┌───┐  ┌───┐
-			│ A ├─┼─►│ B ├─┼─►│ C ├─►│ D │ (D in future)
-			└───┘ │  └───┘ │  └───┘  └───┘
-			      │        │
-		*/
-		{
-			name: "simple + D in future",
-			txs: []tx{
-				tx{"A", 0, noPrevs()},
-				tx{"B", 1, prev("A")},
-				tx{"C", 2, prev("B")},
-				tx{"D", 5, prev("C")},
-			},
-			heads: []string{
-				"A, B, D",
-				"B, C, D",
-				"C,  , D",
-				"C,  , D",
-				"C, D",
-				"D",
-			},
-		},
-		/*
-			      │        │
-			┌───┐ │  ┌───┐ │  ┌───┐  ┌───┐
 			│ A ├─┼─►│ B ├─┼─►│ C ├─►│ D │
 			└───┘ │  └─┬─┘ │  └───┘  └───┘
 			      │    │   │
@@ -181,7 +178,7 @@ func TestBlocks(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			blocks := newDAGBlocks().(*trackingDAGBlocks)
 			txs := make(map[string]dag.Transaction, 0)
-			latestTXAge := 0
+			oldestTXAge := 0
 			for _, currTX := range tc.txs {
 				// Resolve prevs
 				prevs := make([]hash.SHA256Hash, 0)
@@ -197,8 +194,8 @@ func TestBlocks(t *testing.T) {
 					prev: prevs,
 					sigt: time.Now().AddDate(0, 0, currTX.time-numberOfBlocks+1),
 				}
-				if currTX.time > latestTXAge {
-					latestTXAge = currTX.time
+				if currTX.time > oldestTXAge {
+					oldestTXAge = currTX.time
 				}
 				txs[currTX.name] = tx
 				err := blocks.addTransaction(&tx, nil)
@@ -207,19 +204,27 @@ func TestBlocks(t *testing.T) {
 				}
 			}
 			println(blocks.String())
-			for dayNum := 0; dayNum < latestTXAge+1; dayNum++ {
+			for dayNum := 0; dayNum < oldestTXAge+1; dayNum++ {
 				// Assert blocks
-				expectedBlockHeads := strings.Split(tc.heads[dayNum], ", ")
-				for blockNum, blockHeadsConcatted := range expectedBlockHeads {
-					blockHeads := strings.Split(strings.TrimSpace(blockHeadsConcatted), " ")
-					for _, blockHead := range blockHeads {
-						heads := blocks.internalGet()
+				expectedBlocks := strings.Split(tc.heads[dayNum], ", ")
+				actualBlocks := blocks.internalGet()
+				for blockNum, blockHeadsConcatted := range expectedBlocks {
+					expectedHeads := strings.Split(strings.TrimSpace(blockHeadsConcatted), " ")
+					actualHeads := make(map[hash.SHA256Hash]bool, 0)
+					for _, curr := range actualBlocks[blockNum].heads {
+						actualHeads[curr] = true
+					}
+					for _, blockHead := range expectedHeads {
 						if strings.TrimSpace(blockHead) == "" {
-							assert.Empty(t, heads[blockNum].heads)
+							assert.Empty(t, actualHeads)
 						} else {
 							ref := txs[blockHead].Ref()
-							assert.Contains(t, heads[blockNum].heads, ref)
+							assert.Containsf(t, actualHeads, ref, "failure on day %d blocknum %d", dayNum, blockNum)
+							delete(actualHeads, ref)
 						}
+					}
+					if len(actualHeads) > 0 {
+						t.Fatalf("Test %s failed: on day %d there are unexpected heads in block %d: %v", tc.name, dayNum, blockNum, actualHeads)
 					}
 				}
 
@@ -255,7 +260,7 @@ func TestBlocks(t *testing.T) {
 	})
 	t.Run("empty DAG", func(t *testing.T) {
 		blocks := newDAGBlocks().(*trackingDAGBlocks)
-		blocks.internalUpdate(time.Date(2021, 10, 10, 10, 11,0, 0, time.FixedZone("Europe/Amsterdam", 5)))
+		blocks.internalUpdate(time.Date(2021, 10, 10, 10, 11, 0, 0, time.FixedZone("Europe/Amsterdam", 5)))
 		actual := blocks.internalGet()
 		assert.Len(t, actual, numberOfBlocks)
 		assert.Equal(t, "2021-10-10 00:00:00 +0000 UTC", getCurrentBlock(actual).start.String())

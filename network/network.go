@@ -89,7 +89,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if bboltErr != nil {
 		return fmt.Errorf("unable to create BBolt database: %w", bboltErr)
 	}
-	n.graph = dag.NewBBoltDAG(db, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
+	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	peerID := p2p.PeerID(uuid.New().String())
