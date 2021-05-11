@@ -21,6 +21,7 @@ package doc
 
 import (
 	"crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -45,4 +46,20 @@ func (s StaticKeyResolver) ResolveSigningKey(_ string, _ *time.Time) (crypto.Pub
 
 func (s StaticKeyResolver) ResolveAssertionKeyID(_ did.DID) (ssi.URI, error) {
 	panic("implement me")
+}
+
+const kid = "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"
+
+// mockKeyCreator can create new keys based on a predefined key
+type mockKeyCreator struct {
+	kid string
+}
+
+func newMockKeyCreator() *mockKeyCreator {
+	return &mockKeyCreator{kid: kid}
+}
+
+// New uses a predefined ECDSA key and calls the namingFunc to get the kid
+func (m *mockKeyCreator) New(namingFunc nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
+	return nutsCrypto.NewTestKey(m.kid), nil
 }
