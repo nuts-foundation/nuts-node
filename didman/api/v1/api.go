@@ -60,11 +60,9 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
 	}
 
-	id, err := did.ParseDID(didStr)
+	id, err := parseDID(didStr, problemTitleAddEndpoint)
 	if err != nil {
-		err = fmt.Errorf("failed to parse DID: %w", err)
-		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
-		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+		return err
 	}
 
 	if len(strings.TrimSpace(request.Type)) == 0 {
@@ -109,11 +107,9 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 // UpdateContactInformation handles requests for updating contact information for a specific DID.
 // It parses the did path param and and unmarshalls the request body and passes them to didman.UpdateContactInformation.
 func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) error {
-	id, err := did.ParseDID(didStr)
+	id, err := parseDID(didStr, problemTitleUpdateContactInformation)
 	if err != nil {
-		err = fmt.Errorf("failed to parse DID: %w", err)
-		logging.Log().WithError(err).Warn(problemTitleUpdateContactInformation)
-		return core.NewProblem(problemTitleUpdateContactInformation, http.StatusBadRequest, err.Error())
+		return err
 	}
 
 	contactInfo := ContactInformation{}
@@ -134,11 +130,9 @@ func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) erro
 // GetContactInformation handles requests for contact information for a specific DID.
 // It parses the did path param and passes it to didman.GetContactInformation.
 func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
-	id, err := did.ParseDID(didStr)
+	id, err := parseDID(didStr, problemTitleGetContactInformation)
 	if err != nil {
-		err = fmt.Errorf("failed to parse DID: %w", err)
-		logging.Log().WithError(err).Warn(problemTitleGetContactInformation)
-		return core.NewProblem(problemTitleGetContactInformation, http.StatusBadRequest, err.Error())
+		return err
 	}
 
 	contactInfo, err := w.Didman.GetContactInformation(*id)
@@ -151,6 +145,16 @@ func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
 	}
 
 	return ctx.JSON(http.StatusOK, contactInfo)
+}
+
+func parseDID(didStr string, problemTitle string) (*did.DID, error) {
+	id, err := did.ParseDID(didStr)
+	if err != nil {
+		err = fmt.Errorf("failed to parse DID: %w", err)
+		logging.Log().WithError(err).Warn(problemTitle)
+		return nil, core.NewProblem(problemTitle, http.StatusBadRequest, err.Error())
+	}
+	return id, nil
 }
 
 var errorStatusCodes = map[error]int{
