@@ -110,6 +110,20 @@ func TestCreator_Create(t *testing.T) {
 		})
 
 		t.Run("using ephemeral key creates different keys for assertion and DID", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			keyCreator := nutsCrypto.NewMockKeyCreator(ctrl)
+			creator := Creator{KeyStore: keyCreator}
+
+			keyCreator.EXPECT().New(gomock.Any()).DoAndReturn(func(fn nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
+				key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				keyName, _ := fn(key.Public())
+				return nutsCrypto.TestKey{
+					PrivateKey: key,
+					Kid:        keyName,
+				}, nil
+			})
+
 			ops := types.DIDCreationOptions{
 				AssertionMethod:      true,
 				Authentication:       false,
@@ -118,7 +132,7 @@ func TestCreator_Create(t *testing.T) {
 				KeyAgreement:         false,
 				SelfControl:          false,
 			}
-			doc, _, err := creator.Create(ops)
+			doc, docCreationKey, err := creator.Create(ops)
 
 			if !assert.NoError(t, err) {
 				return
@@ -128,10 +142,15 @@ func TestCreator_Create(t *testing.T) {
 			assert.Len(t, doc.VerificationMethod, 1)
 			assert.Len(t, doc.AssertionMethod, 1)
 
-			keyID := doc.VerificationMethod[0].ID
-			keyID.Fragment = ""
+			subKeyID := doc.VerificationMethod[0].ID
+			subKeyIDWithoutFragment := subKeyID
+			subKeyIDWithoutFragment.Fragment = ""
 
-			assert.NotEqual(t, doc.ID, keyID)
+			// Document has been created with a ephemeral key (one that won't be stored) but contains a verificationMethod
+			// for different purposes (in this case assertionMethod), which is stored. The latter (`subKeyID`) must have the same DID
+			// idString but a different fragment.
+			assert.NotEqual(t, docCreationKey.KID(), subKeyID)
+			assert.Equal(t, doc.ID.String(), subKeyIDWithoutFragment.String())
 		})
 	})
 
@@ -186,7 +205,7 @@ func TestCreator_Create(t *testing.T) {
 	})
 }
 
-func Test_didKidNamingFunc(t *testing.T) {
+func Test_didKIDNamingFunc(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if assert.NoError(t, err) {
@@ -222,6 +241,25 @@ func Test_didKidNamingFunc(t *testing.T) {
 		assert.Equal(t, "could not generate kid: invalid key type 'doc.unknownPublicKey' for jwk.New", err.Error())
 		assert.Empty(t, keyID)
 
+	})
+}
+
+func Test_didSubKIDNamingFunc(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		owningDID, _ := did.ParseDID("did:nuts:bladiebla")
+
+		keyID, err := didSubKIDNamingFunc(*owningDID)(privateKey.PublicKey)
+		if !assert.NoError(t, err) {
+			return
+		}
+		parsedKeyID, err := did.ParseDID(keyID)
+		if !assert.NoError(t, err) {
+			return
+		}
+		// Make sure the idString part of the key ID is taken from the owning DID document
+		assert.Equal(t, parsedKeyID.ID, owningDID.ID)
+		assert.NotEmpty(t, parsedKeyID.Fragment)
 	})
 }
 

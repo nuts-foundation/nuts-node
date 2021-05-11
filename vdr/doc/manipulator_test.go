@@ -42,35 +42,6 @@ func newManipulatorTestContext(t *testing.T) manipulatorTestContext {
 	}
 }
 
-func Test_newNamingFnForExistingDID(t *testing.T) {
-	existingDID, _ := did.ParseDID("did:nuts:123")
-	fn := newNamingFnForExistingDID(*existingDID)
-	if !assert.NotNil(t, fn) {
-		return
-	}
-
-	t.Run("it creates a new did", func(t *testing.T) {
-		key := crypto.NewTestKey("kid")
-		keyID, err := fn(key.Public())
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.NotEmpty(t, keyID)
-		newDID, err := did.ParseDID(keyID)
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		assert.Equal(t, newDID.ID, existingDID.ID,
-			"expected the base to be the same as the existing DID")
-	})
-	t.Run("error on empty key", func(t *testing.T) {
-		keyID, err := fn(nil)
-		assert.EqualError(t, err, "jwk.New requires a non-nil key")
-		assert.Empty(t, keyID)
-	})
-}
-
 func TestManipulator_RemoveVerificationMethod(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 	id123Method, _ := did.ParseDID("did:nuts:123#method-1")

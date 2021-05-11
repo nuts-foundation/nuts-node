@@ -1,10 +1,8 @@
 package doc
 
 import (
-	"crypto"
 	"errors"
 
-	"github.com/lestrrat-go/jwx/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -83,7 +81,7 @@ func (u Manipulator) RemoveVerificationMethod(id, keyID did.DID) error {
 // CreateNewVerificationMethodForDID creates a new VerificationMethod of type JsonWebKey2020
 // with a freshly generated key for a given DID.
 func CreateNewVerificationMethodForDID(id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, error) {
-	key, err := keyCreator.New(newNamingFnForExistingDID(id))
+	key, err := keyCreator.New(didSubKIDNamingFunc(id))
 	if err != nil {
 		return nil, err
 	}
@@ -96,26 +94,6 @@ func CreateNewVerificationMethodForDID(id did.DID, keyCreator nutsCrypto.KeyCrea
 		return nil, err
 	}
 	return method, nil
-}
-
-// newNamingFnForExistingDID returns a KIDNamingFunc that can be used as param in the KeyStore.New function.
-// It wraps the KIDNamingFunc with the context of the DID of the document.
-// It returns a keyID in the form of the documents DID with the new keys thumbprint as fragment.
-func newNamingFnForExistingDID(existingDID did.DID) nutsCrypto.KIDNamingFunc {
-	return func(pKey crypto.PublicKey) (string, error) {
-		jwKey, err := jwk.New(pKey)
-		if err != nil {
-			return "", err
-		}
-		err = jwk.AssignKeyID(jwKey)
-		if err != nil {
-			return "", err
-		}
-
-		existingDID.Fragment = jwKey.KeyID()
-
-		return existingDID.String(), nil
-	}
 }
 
 // getVerificationMethodDiff is a helper function that makes a diff of verificationMethods between
