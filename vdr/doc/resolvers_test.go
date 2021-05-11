@@ -34,7 +34,7 @@ import (
 func TestResolveSigningKey(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
-	keyCreator := &mockKeyCreator{kid: kid}
+	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(DefaultCreationOptions())
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
@@ -76,7 +76,7 @@ func TestResolveSigningKey(t *testing.T) {
 func TestResolveSigningKeyID(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
-	keyCreator := &mockKeyCreator{kid: kid}
+	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(DefaultCreationOptions())
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
@@ -119,7 +119,7 @@ func TestResolveSigningKeyID(t *testing.T) {
 func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
-	keyCreator := &mockKeyCreator{kid: kid}
+	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(DefaultCreationOptions())
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
@@ -162,7 +162,7 @@ func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 func TestResolver_Resolve(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	resolver := Resolver{Store: didStore}
-	keyCreator := &mockKeyCreator{kid: kid}
+	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(DefaultCreationOptions())
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
@@ -331,7 +331,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 func TestKeyResolver_ResolvePublicKey(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}
-	keyCreator := &mockKeyCreator{kid: kid}
+	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(DefaultCreationOptions())
 	doc.AddAssertionMethod(doc.VerificationMethod[0])

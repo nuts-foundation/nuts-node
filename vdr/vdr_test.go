@@ -24,7 +24,7 @@ import (
 
 const expectedPayloadType = "application/did+json"
 
-// testCtx contains the controller and mocks needed fot testing the DocUpdater
+// testCtx contains the controller and mocks needed fot testing the Manipulator
 type vdrTestCtx struct {
 	ctrl         *gomock.Controller
 	vdr          types.VDR

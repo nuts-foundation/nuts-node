@@ -171,8 +171,8 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// Update document B with a new authentication key which replaces the first one:
 	oldAuthKeyDocB := resolvedDocB.CapabilityInvocation[0].ID
-	docUpdater := DocUpdater{KeyCreator: nutsCrypto, VDR: *vdr, Resolver: docResolver}
-	method, err := docUpdater.createNewVerificationMethodForDID(docB.ID)
+	docUpdater := &doc.Manipulator{KeyCreator: nutsCrypto, Updater: *vdr, Resolver: docResolver}
+	method, err := doc.CreateNewVerificationMethodForDID(docB.ID, nutsCrypto)
 	assert.NoError(t, err)
 	assert.NotNil(t, method)
 	docB.AddCapabilityInvocation(method)

@@ -36,17 +36,6 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
 
-// mockKeyCreator can create new keys based on a predefined key
-type mockKeyCreator struct {
-	kid string
-}
-
-// New uses a predefined ECDSA key and calls the namingFunc to get the kid
-func (m *mockKeyCreator) New(namingFunc nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
-	return nutsCrypto.NewTestKey(m.kid), nil
-}
-
-var kid = "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"
 var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
 
 func TestDefaultCreationOptions(t *testing.T) {
@@ -65,9 +54,7 @@ func TestCreator_Create(t *testing.T) {
 	defaultOptions := DefaultCreationOptions()
 
 	t.Run("ok", func(t *testing.T) {
-		kc := &mockKeyCreator{
-			kid: kid,
-		}
+		kc := newMockKeyCreator()
 		creator := Creator{KeyStore: kc}
 		t.Run("defaults", func(t *testing.T) {
 			doc, key, err := creator.Create(defaultOptions)
@@ -153,9 +140,7 @@ func TestCreator_Create(t *testing.T) {
 			CapabilityInvocation: false,
 			SelfControl:          true,
 		}
-		kc := &mockKeyCreator{
-			kid: kid,
-		}
+		kc := newMockKeyCreator()
 		creator := Creator{KeyStore: kc}
 		_, _, err := creator.Create(ops)
 
