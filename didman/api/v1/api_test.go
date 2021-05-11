@@ -446,7 +446,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 
 		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
 		test.AssertErrProblemTitle(t, problemTitleUpdateContactInformation, err)
-		test.AssertErrProblemDetail(t, "failed to update DID with contact information: other problem", err)
+		test.AssertErrProblemDetail(t, "other problem", err)
 	})
 }
 
@@ -514,7 +514,7 @@ func TestWrapper_GetContactInformation(t *testing.T) {
 
 		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
 		test.AssertErrProblemTitle(t, problemTitleGetContactInformation, err)
-		test.AssertErrProblemDetail(t, "failed to extract contactinformation from DID: other error", err)
+		test.AssertErrProblemDetail(t, "other error", err)
 	})
 }
 

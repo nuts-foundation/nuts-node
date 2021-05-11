@@ -82,19 +82,7 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 
 	if err = w.Didman.AddEndpoint(*id, request.Type, *u); err != nil {
 		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
-		if errors.Is(err, types.ErrNotFound) {
-			return core.NewProblem(problemTitleAddEndpoint, http.StatusNotFound, err.Error())
-		}
-		if errors.Is(err, types.ErrDIDNotManagedByThisNode) {
-			return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
-		}
-		if errors.Is(err, types.ErrDeactivated) {
-			return core.NewProblem(problemTitleAddEndpoint, http.StatusConflict, err.Error())
-		}
-		if errors.Is(err, didman.ErrDuplicateService) {
-			return core.NewProblem(problemTitleAddEndpoint, http.StatusConflict, err.Error())
-		}
-		return core.NewProblem(problemTitleAddEndpoint, http.StatusInternalServerError, err.Error())
+		return core.NewProblem(problemTitleAddEndpoint, getStatusCode(err), err.Error())
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
@@ -112,19 +100,7 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 
 	if err = w.Didman.DeleteService(*id); err != nil {
 		logging.Log().WithError(err).Warn(problemTitleDeleteService)
-		if errors.Is(err, types.ErrNotFound) {
-			return core.NewProblem(problemTitleDeleteService, http.StatusNotFound, err.Error())
-		}
-		if errors.Is(err, types.ErrDIDNotManagedByThisNode) {
-			return core.NewProblem(problemTitleDeleteService, http.StatusBadRequest, err.Error())
-		}
-		if errors.Is(err, types.ErrDeactivated) {
-			return core.NewProblem(problemTitleDeleteService, http.StatusConflict, err.Error())
-		}
-		if errors.Is(err, didman.ErrServiceInUse) {
-			return core.NewProblem(problemTitleDeleteService, http.StatusConflict, err.Error())
-		}
-		return core.NewProblem(problemTitleDeleteService, http.StatusInternalServerError, err.Error())
+		return core.NewProblem(problemTitleDeleteService, getStatusCode(err), err.Error())
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
@@ -148,18 +124,8 @@ func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) erro
 	}
 	newContactInfo, err := w.Didman.UpdateContactInformation(*id, contactInfo)
 	if err != nil {
-		if errors.Is(err, types.ErrNotFound) {
-			return core.NewProblem(problemTitleUpdateContactInformation, http.StatusNotFound, err.Error())
-		}
-		if errors.Is(err, types.ErrDIDNotManagedByThisNode) {
-			return core.NewProblem(problemTitleUpdateContactInformation, http.StatusBadRequest, err.Error())
-		}
-		if errors.Is(err, types.ErrDeactivated) {
-			return core.NewProblem(problemTitleUpdateContactInformation, http.StatusConflict, err.Error())
-		}
-		err = fmt.Errorf("failed to update DID with contact information: %w", err)
 		logging.Log().WithError(err).Warn(problemTitleUpdateContactInformation)
-		return core.NewProblem(problemTitleUpdateContactInformation, http.StatusInternalServerError, err.Error())
+		return core.NewProblem(problemTitleUpdateContactInformation, getStatusCode(err), err.Error())
 	}
 
 	return ctx.JSON(http.StatusOK, newContactInfo)
@@ -177,16 +143,29 @@ func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
 
 	contactInfo, err := w.Didman.GetContactInformation(*id)
 	if err != nil {
-		if errors.Is(err, types.ErrNotFound) {
-			return core.NewProblem(problemTitleGetContactInformation, http.StatusNotFound, err.Error())
-		}
-		err = fmt.Errorf("failed to extract contactinformation from DID: %w", err)
 		logging.Log().WithError(err).Warn(problemTitleGetContactInformation)
-		return core.NewProblem(problemTitleGetContactInformation, http.StatusInternalServerError, err.Error())
+		return core.NewProblem(problemTitleGetContactInformation, getStatusCode(err), err.Error())
 	}
 	if contactInfo == nil {
 		return core.NewProblem(problemTitleGetContactInformation, http.StatusNotFound, "contact information for DID not found")
 	}
 
 	return ctx.JSON(http.StatusOK, contactInfo)
+}
+
+var errorStatusCodes = map[error]int{
+	types.ErrNotFound:                http.StatusNotFound,
+	types.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
+	types.ErrDeactivated:             http.StatusConflict,
+	didman.ErrDuplicateService:       http.StatusConflict,
+	didman.ErrServiceInUse:           http.StatusConflict,
+}
+
+func getStatusCode(err error) int {
+	for curr, code := range errorStatusCodes {
+		if errors.Is(err, curr) {
+			return code
+		}
+	}
+	return http.StatusInternalServerError
 }
