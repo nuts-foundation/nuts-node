@@ -64,20 +64,6 @@ func (mr *MockDAGMockRecorder) Add(transactions ...interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockDAG)(nil).Add), transactions...)
 }
 
-// MissingTransactions mocks base method
-func (m *MockDAG) MissingTransactions() []hash.SHA256Hash {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MissingTransactions")
-	ret0, _ := ret[0].([]hash.SHA256Hash)
-	return ret0
-}
-
-// MissingTransactions indicates an expected call of MissingTransactions
-func (mr *MockDAGMockRecorder) MissingTransactions() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MissingTransactions", reflect.TypeOf((*MockDAG)(nil).MissingTransactions))
-}
-
 // Walk mocks base method
 func (m *MockDAG) Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
