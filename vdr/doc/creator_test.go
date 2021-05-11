@@ -110,6 +110,20 @@ func TestCreator_Create(t *testing.T) {
 		})
 
 		t.Run("using ephemeral key creates different keys for assertion and DID", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			keyCreator := nutsCrypto.NewMockKeyCreator(ctrl)
+			creator := Creator{KeyStore: keyCreator}
+
+			keyCreator.EXPECT().New(gomock.Any()).DoAndReturn(func(fn nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
+				key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				keyName, _ := fn(key.Public())
+				return nutsCrypto.TestKey{
+					PrivateKey: key,
+					Kid:        keyName,
+				}, nil
+			})
+
 			ops := types.DIDCreationOptions{
 				AssertionMethod:      true,
 				Authentication:       false,
@@ -118,7 +132,7 @@ func TestCreator_Create(t *testing.T) {
 				KeyAgreement:         false,
 				SelfControl:          false,
 			}
-			doc, _, err := creator.Create(ops)
+			doc, docCreationKey, err := creator.Create(ops)
 
 			if !assert.NoError(t, err) {
 				return
@@ -128,10 +142,15 @@ func TestCreator_Create(t *testing.T) {
 			assert.Len(t, doc.VerificationMethod, 1)
 			assert.Len(t, doc.AssertionMethod, 1)
 
-			keyID := doc.VerificationMethod[0].ID
-			keyID.Fragment = ""
+			subKeyID := doc.VerificationMethod[0].ID
+			subKeyIDWithoutFragment := subKeyID
+			subKeyIDWithoutFragment.Fragment = ""
 
-			assert.NotEqual(t, doc.ID, keyID)
+			// Document has been created with a ephemeral key (one that won't be stored) but contains a verificationMethod
+			// for different purposes (in this case assertionMethod), which is stored. The latter (`subKeyID`) must have the same DID
+			// idString but a different fragment.
+			assert.NotEqual(t, docCreationKey.KID(), subKeyID)
+			assert.Equal(t, doc.ID.String(), subKeyIDWithoutFragment.String())
 		})
 	})
 
