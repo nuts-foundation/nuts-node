@@ -18,6 +18,16 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// A creation request for a compound service that references endpoints.
+type CompoundServiceCreateRequest struct {
+
+	// A map containing service references.
+	Endpoint map[string]interface{} `json:"endpoint"`
+
+	// type of the endpoint. May be freely choosen.
+	Type string `json:"type"`
+}
+
 // A combination of type and URL.
 type EndpointCreateRequest struct {
 
@@ -28,11 +38,17 @@ type EndpointCreateRequest struct {
 	Type string `json:"type"`
 }
 
+// AddCompoundServiceJSONBody defines parameters for AddCompoundService.
+type AddCompoundServiceJSONBody CompoundServiceCreateRequest
+
 // UpdateContactInformationJSONBody defines parameters for UpdateContactInformation.
 type UpdateContactInformationJSONBody ContactInformation
 
 // AddEndpointJSONBody defines parameters for AddEndpoint.
 type AddEndpointJSONBody EndpointCreateRequest
+
+// AddCompoundServiceJSONRequestBody defines body for AddCompoundService for application/json ContentType.
+type AddCompoundServiceJSONRequestBody AddCompoundServiceJSONBody
 
 // UpdateContactInformationJSONRequestBody defines body for UpdateContactInformation for application/json ContentType.
 type UpdateContactInformationJSONRequestBody UpdateContactInformationJSONBody
@@ -113,6 +129,11 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// AddCompoundService request  with any body
+	AddCompoundServiceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AddCompoundService(ctx context.Context, did string, body AddCompoundServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetContactInformation request
 	GetContactInformation(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -128,6 +149,30 @@ type ClientInterface interface {
 
 	// DeleteService request
 	DeleteService(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) AddCompoundServiceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddCompoundServiceRequestWithBody(c.Server, did, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddCompoundService(ctx context.Context, did string, body AddCompoundServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddCompoundServiceRequest(c.Server, did, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) GetContactInformation(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -200,6 +245,53 @@ func (c *Client) DeleteService(ctx context.Context, id string, reqEditors ...Req
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewAddCompoundServiceRequest calls the generic AddCompoundService builder with application/json body
+func NewAddCompoundServiceRequest(server string, did string, body AddCompoundServiceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddCompoundServiceRequestWithBody(server, did, "application/json", bodyReader)
+}
+
+// NewAddCompoundServiceRequestWithBody generates requests for AddCompoundService with any type of body
+func NewAddCompoundServiceRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/didman/v1/did/%s/compoundservice", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
 }
 
 // NewGetContactInformationRequest generates requests for GetContactInformation
@@ -407,6 +499,11 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// AddCompoundService request  with any body
+	AddCompoundServiceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddCompoundServiceResponse, error)
+
+	AddCompoundServiceWithResponse(ctx context.Context, did string, body AddCompoundServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*AddCompoundServiceResponse, error)
+
 	// GetContactInformation request
 	GetContactInformationWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetContactInformationResponse, error)
 
@@ -422,6 +519,27 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteService request
 	DeleteServiceWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error)
+}
+
+type AddCompoundServiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r AddCompoundServiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddCompoundServiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type GetContactInformationResponse struct {
@@ -510,6 +628,23 @@ func (r DeleteServiceResponse) StatusCode() int {
 	return 0
 }
 
+// AddCompoundServiceWithBodyWithResponse request with arbitrary body returning *AddCompoundServiceResponse
+func (c *ClientWithResponses) AddCompoundServiceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddCompoundServiceResponse, error) {
+	rsp, err := c.AddCompoundServiceWithBody(ctx, did, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddCompoundServiceResponse(rsp)
+}
+
+func (c *ClientWithResponses) AddCompoundServiceWithResponse(ctx context.Context, did string, body AddCompoundServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*AddCompoundServiceResponse, error) {
+	rsp, err := c.AddCompoundService(ctx, did, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddCompoundServiceResponse(rsp)
+}
+
 // GetContactInformationWithResponse request returning *GetContactInformationResponse
 func (c *ClientWithResponses) GetContactInformationWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetContactInformationResponse, error) {
 	rsp, err := c.GetContactInformation(ctx, did, reqEditors...)
@@ -560,6 +695,25 @@ func (c *ClientWithResponses) DeleteServiceWithResponse(ctx context.Context, id 
 		return nil, err
 	}
 	return ParseDeleteServiceResponse(rsp)
+}
+
+// ParseAddCompoundServiceResponse parses an HTTP response from a AddCompoundServiceWithResponse call
+func ParseAddCompoundServiceResponse(rsp *http.Response) (*AddCompoundServiceResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddCompoundServiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	}
+
+	return response, nil
 }
 
 // ParseGetContactInformationResponse parses an HTTP response from a GetContactInformationWithResponse call
@@ -654,6 +808,9 @@ func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Add a compound service to a DID Document.
+	// (POST /internal/didman/v1/did/{did}/compoundservice)
+	AddCompoundService(ctx echo.Context, did string) error
 
 	// (GET /internal/didman/v1/did/{did}/contactinfo)
 	GetContactInformation(ctx echo.Context, did string) error
@@ -671,6 +828,22 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// AddCompoundService converts echo context to params.
+func (w *ServerInterfaceWrapper) AddCompoundService(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.AddCompoundService(ctx, did)
+	return err
 }
 
 // GetContactInformation converts echo context to params.
@@ -759,6 +932,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/compoundservice", wrapper.AddCompoundService)
 	router.Add(http.MethodGet, baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.GetContactInformation)
 	router.Add(http.MethodPut, baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.UpdateContactInformation)
 	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/endpoint", wrapper.AddEndpoint)
