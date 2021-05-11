@@ -192,28 +192,6 @@ func TestBBoltDAG_Walk(t *testing.T) {
 	})
 }
 
-func TestBBoltDAG_MissingTransactions(t *testing.T) {
-	A := CreateTestTransactionWithJWK(0)
-	B := CreateTestTransactionWithJWK(1, A.Ref())
-	C := CreateTestTransactionWithJWK(2, B.Ref())
-	t.Run("no missing transactions (empty graph)", func(t *testing.T) {
-		graph := CreateDAG(t)
-		assert.Empty(t, graph.MissingTransactions())
-	})
-	t.Run("no missing transactions (non-empty graph)", func(t *testing.T) {
-		graph := CreateDAG(t)
-		graph.Add(A, B, C)
-		assert.Empty(t, graph.MissingTransactions())
-	})
-	t.Run("missing transactions (non-empty graph)", func(t *testing.T) {
-		graph := CreateDAG(t)
-		graph.Add(A, C)
-		assert.Len(t, graph.MissingTransactions(), 1)
-		// Now add missing transaction B and assert there are no more missing transactions
-		graph.Add(B)
-		assert.Empty(t, graph.MissingTransactions())
-	})
-}
 func TestBBoltDAG_Observe(t *testing.T) {
 	graph := CreateDAG(t)
 	var actual interface{}

@@ -36,8 +36,6 @@ type DAG interface {
 	Observable
 	// Add adds one or more transactions to the DAG. If it can't be added an error is returned. Nil entries are ignored.
 	Add(transactions ...Transaction) error
-	// MissingTransactions returns the hashes of the transactions we know we are missing and should still be resolved.
-	MissingTransactions() []hash.SHA256Hash
 	// Walk visits every node of the DAG, starting at the given hash working its way down each level until every leaf is visited.
 	// when startAt is an empty hash, the walker starts at the root node.
 	Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error

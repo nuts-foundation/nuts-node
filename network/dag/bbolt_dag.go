@@ -32,10 +32,6 @@ import (
 // transactionsBucket is the name of the Bolt bucket that holds the actual transactions as JSON.
 const transactionsBucket = "documents"
 
-// missingTransactionsBucket is the name of the Bolt bucket that holds the references of the transactions we're having prevs
-// to, but are missing (and will be added later, hopefully).
-const missingTransactionsBucket = "missingdocuments"
-
 // payloadIndexBucket is the name of the Bolt bucket that holds the a reverse reference from payload hash back to transactions.
 // The value ([]byte) should be split in chunks of HashSize where each entry is a transaction reference that refers to
 // the payload.
@@ -213,22 +209,6 @@ func (dag bboltDAG) IsPresent(ref hash.SHA256Hash) (bool, error) {
 	return isPresent(dag.db, transactionsBucket, ref.Slice())
 }
 
-func (dag bboltDAG) MissingTransactions() []hash.SHA256Hash {
-	result := make([]hash.SHA256Hash, 0)
-	if err := dag.db.View(func(tx *bbolt.Tx) error {
-		if bucket := tx.Bucket([]byte(missingTransactionsBucket)); bucket != nil {
-			cursor := bucket.Cursor()
-			for ref, _ := cursor.First(); ref != nil; ref, _ = cursor.Next() {
-				result = append(result, hash.FromSlice(ref))
-			}
-		}
-		return nil
-	}); err != nil {
-		log.Logger().Errorf("Unable to fetch missing transactions: %v", err)
-	}
-	return result
-}
-
 func (dag *bboltDAG) Add(transactions ...Transaction) error {
 	for _, transaction := range transactions {
 		if transaction != nil {
@@ -297,7 +277,7 @@ func (dag *bboltDAG) add(transaction Transaction) error {
 	ref := transaction.Ref()
 	refSlice := ref.Slice()
 	err := dag.db.Update(func(tx *bbolt.Tx) error {
-		transactions, nexts, missingTransactions, payloadIndex, heads, err := getBuckets(tx)
+		transactions, nexts, payloadIndex, heads, err := getBuckets(tx)
 		if err != nil {
 			return err
 		}
@@ -321,30 +301,22 @@ func (dag *bboltDAG) add(transaction Transaction) error {
 			if err := dag.registerNextRef(nexts, prev, ref); err != nil {
 				return fmt.Errorf("unable to store forward reference %s->%s: %w", prev, ref, err)
 			}
-			if !exists(transactions, prev) {
-				log.Logger().Debugf("Transaction is referring to missing prev, marking it as missing (tx=%s, prev=%s)", ref, prev)
-				if err = missingTransactions.Put(prev.Slice(), []byte{1}); err != nil {
-					return fmt.Errorf("unable to register missing transaction %s: %w", prev, err)
-				}
-			}
+			// The TX's previous transactions are probably current heads (if there's no other TX referring to it as prev),
+			// so it should be unmarked as head.
 			if err := heads.Delete(prev.Slice()); err != nil {
-				return fmt.Errorf("unable to remove earlier head: %w", err)
+				return fmt.Errorf("unable to unmark earlier head: %w", err)
 			}
 		}
-		// See if this is a head
-		if len(missingTransactions.Get(refSlice)) == 0 {
-			// This is not a previously missing transaction, so it is a head (for now)
-			if err := heads.Put(refSlice, []byte{1}); err != nil {
-				return fmt.Errorf("unable to mark transaction as head (ref=%s): %w", ref, err)
-			}
+		// Transactions are added in order, so the latest TX is always a head
+		if err := heads.Put(refSlice, []byte{1}); err != nil {
+			return fmt.Errorf("unable to mark transaction as head (ref=%s): %w", ref, err)
 		}
 		// Store reverse reference from payload hash to transaction
 		newPayloadIndexValue := appendHashList(payloadIndex.Get(transaction.PayloadHash().Slice()), ref)
 		if err = payloadIndex.Put(transaction.PayloadHash().Slice(), newPayloadIndexValue); err != nil {
 			return fmt.Errorf("unable to update payload index for transaction %s: %w", ref, err)
 		}
-		// Remove marker if this transaction was previously missing
-		return missingTransactions.Delete(refSlice)
+		return nil
 	})
 	if err == nil {
 		notifyObservers(dag.observers, transaction)
@@ -352,14 +324,11 @@ func (dag *bboltDAG) add(transaction Transaction) error {
 	return err
 }
 
-func getBuckets(tx *bbolt.Tx) (transactions, nexts, missingTransactions, payloadIndex, heads *bbolt.Bucket, err error) {
+func getBuckets(tx *bbolt.Tx) (transactions, nexts, payloadIndex, heads *bbolt.Bucket, err error) {
 	if transactions, err = tx.CreateBucketIfNotExists([]byte(transactionsBucket)); err != nil {
 		return
 	}
 	if nexts, err = tx.CreateBucketIfNotExists([]byte(nextsBucket)); err != nil {
-		return
-	}
-	if missingTransactions, err = tx.CreateBucketIfNotExists([]byte(missingTransactionsBucket)); err != nil {
 		return
 	}
 	if payloadIndex, err = tx.CreateBucketIfNotExists([]byte(payloadIndexBucket)); err != nil {
