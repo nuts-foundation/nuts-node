@@ -30,12 +30,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/crypto"
-
-	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-leia"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -271,6 +271,8 @@ func TestVcr_Issue(t *testing.T) {
 		assert.Equal(t, issued.CredentialSubject, cred.CredentialSubject)
 		assert.Equal(t, issued.Issuer, cred.Issuer)
 		assert.Equal(t, issued.ExpirationDate, cred.ExpirationDate)
+		// issuer is trusted
+		assert.True(t, instance.isTrusted(*issued))
 
 		var proof = make([]vc.JSONWebSignature2020Proof, 1)
 		err = issued.UnmarshalProofValue(&proof)
@@ -377,6 +379,37 @@ func TestVcr_Issue(t *testing.T) {
 		_, err := instance.Issue(*cred)
 
 		assert.Error(t, err)
+	})
+
+	t.Run("error - trust failed", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		instance.trustConfig = trust.NewConfig("")
+
+		cred := validNutsOrganizationCredential()
+		cred.CredentialStatus = &vc.CredentialStatus{
+			Type: "test",
+		}
+		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.tx.EXPECT().CreateTransaction(
+			vcDocumentType,
+			gomock.Any(),
+			gomock.Any(),
+			false,
+			gomock.Any(),
+			gomock.Any(),
+		).Return(nil, nil)
+
+		issued, err := instance.Issue(*cred)
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.True(t, errors.Is(err, trust.ErrNoFilename))
+		// TX still went through, so the credential is still returned
+		assert.NotNil(t, issued)
 	})
 }
 

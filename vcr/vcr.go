@@ -226,6 +226,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	if len(template.Type) != 1 {
 		return nil, errors.New("can only issue credential with 1 type")
 	}
+	templateType := template.Type[0]
 
 	var credential vc.VerifiableCredential
 	credential.Type = template.Type
@@ -269,7 +270,17 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
-	logging.Log().Infof("Verifiable Credential issued (id=%s,type=%s)", credential.ID, template.Type[0])
+	logging.Log().Infof("Verifiable Credential issued (id=%s,type=%s)", credential.ID, templateType)
+
+	if !c.trustConfig.IsTrusted(templateType, issuer.URI()) {
+		logging.Log().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuer, templateType)
+		if err := c.Trust(templateType, issuer.URI()); err != nil {
+			return &credential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuer, templateType, err)
+		}
+	} else {
+		logging.Log().Debugf("Issuer already trusted (did=%s,type=%s)", *issuer, templateType)
+	}
+
 	return &credential, nil
 }
 
