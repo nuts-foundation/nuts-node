@@ -53,7 +53,7 @@ func (tc *Config) Load() error {
 	defer tc.mutex.Unlock()
 
 	if tc.filename == "" {
-		return errors.New("trust config file not loaded")
+		return ErrNoFilename
 	}
 
 	// ignore if not exists
