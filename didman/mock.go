@@ -5,38 +5,37 @@
 package didman
 
 import (
-	url "net/url"
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
+	url "net/url"
+	reflect "reflect"
 )
 
-// MockDidman is a mock of Didman interface.
+// MockDidman is a mock of Didman interface
 type MockDidman struct {
 	ctrl     *gomock.Controller
 	recorder *MockDidmanMockRecorder
 }
 
-// MockDidmanMockRecorder is the mock recorder for MockDidman.
+// MockDidmanMockRecorder is the mock recorder for MockDidman
 type MockDidmanMockRecorder struct {
 	mock *MockDidman
 }
 
-// NewMockDidman creates a new mock instance.
+// NewMockDidman creates a new mock instance
 func NewMockDidman(ctrl *gomock.Controller) *MockDidman {
 	mock := &MockDidman{ctrl: ctrl}
 	mock.recorder = &MockDidmanMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockDidman) EXPECT() *MockDidmanMockRecorder {
 	return m.recorder
 }
 
-// AddEndpoint mocks base method.
+// AddEndpoint mocks base method
 func (m *MockDidman) AddEndpoint(id did.DID, serviceType string, u url.URL) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddEndpoint", id, serviceType, u)
@@ -44,13 +43,13 @@ func (m *MockDidman) AddEndpoint(id did.DID, serviceType string, u url.URL) erro
 	return ret0
 }
 
-// AddEndpoint indicates an expected call of AddEndpoint.
+// AddEndpoint indicates an expected call of AddEndpoint
 func (mr *MockDidmanMockRecorder) AddEndpoint(id, serviceType, u interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEndpoint", reflect.TypeOf((*MockDidman)(nil).AddEndpoint), id, serviceType, u)
 }
 
-// DeleteService mocks base method.
+// DeleteService mocks base method
 func (m *MockDidman) DeleteService(id go_did.URI) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteService", id)
@@ -58,28 +57,13 @@ func (m *MockDidman) DeleteService(id go_did.URI) error {
 	return ret0
 }
 
-// DeleteService indicates an expected call of DeleteService.
+// DeleteService indicates an expected call of DeleteService
 func (mr *MockDidmanMockRecorder) DeleteService(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockDidman)(nil).DeleteService), id)
 }
 
-// GetContactInformation mocks base method.
-func (m *MockDidman) GetContactInformation(id did.DID) (*ContactInformation, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetContactInformation", id)
-	ret0, _ := ret[0].(*ContactInformation)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetContactInformation indicates an expected call of GetContactInformation.
-func (mr *MockDidmanMockRecorder) GetContactInformation(id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContactInformation", reflect.TypeOf((*MockDidman)(nil).GetContactInformation), id)
-}
-
-// UpdateContactInformation mocks base method.
+// UpdateContactInformation mocks base method
 func (m *MockDidman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateContactInformation", id, information)
@@ -88,8 +72,23 @@ func (m *MockDidman) UpdateContactInformation(id did.DID, information ContactInf
 	return ret0, ret1
 }
 
-// UpdateContactInformation indicates an expected call of UpdateContactInformation.
+// UpdateContactInformation indicates an expected call of UpdateContactInformation
 func (mr *MockDidmanMockRecorder) UpdateContactInformation(id, information interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateContactInformation", reflect.TypeOf((*MockDidman)(nil).UpdateContactInformation), id, information)
+}
+
+// GetContactInformation mocks base method
+func (m *MockDidman) GetContactInformation(id did.DID) (*ContactInformation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetContactInformation", id)
+	ret0, _ := ret[0].(*ContactInformation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetContactInformation indicates an expected call of GetContactInformation
+func (mr *MockDidmanMockRecorder) GetContactInformation(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContactInformation", reflect.TypeOf((*MockDidman)(nil).GetContactInformation), id)
 }

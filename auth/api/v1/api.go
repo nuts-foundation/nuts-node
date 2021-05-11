@@ -151,7 +151,7 @@ func (w Wrapper) CreateSignSession(ctx echo.Context) error {
 
 	response := CreateSignSessionResponse{
 		SessionID:  sessionPtr.SessionID(),
-		Means:      requestParams.Means,
+		Means:      CreateSignSessionResponseMeans(requestParams.Means),
 		SessionPtr: keyValPointer,
 	}
 	return ctx.JSON(http.StatusCreated, response)
