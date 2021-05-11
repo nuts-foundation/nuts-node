@@ -80,7 +80,7 @@ func (u Manipulator) RemoveVerificationMethod(id, keyID did.DID) error {
 	return u.Updater.Update(id, meta.Hash, *doc, nil)
 }
 
-// CreateNewAuthenticationMethodForDocument creates a new VerificationMethod of type JsonWebKey2020
+// CreateNewVerificationMethodForDID creates a new VerificationMethod of type JsonWebKey2020
 // with a freshly generated key for a given DID.
 func CreateNewVerificationMethodForDID(id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, error) {
 	key, err := keyCreator.New(newNamingFnForExistingDID(id))
