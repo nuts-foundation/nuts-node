@@ -86,6 +86,12 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 	return ctx.NoContent(http.StatusNoContent)
 }
 
+// AddCompoundService handles calls to add a compound service. It only checks params and sets the correct return status code.
+// didman.AddCompoundService does the heavy lifting.
+func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
+	panic("implement me")
+}
+
 // DeleteService handles calls to delete a service. It only checks params and sets the correct return status code.
 // didman.DeleteService does the heavy lifting.
 func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {

@@ -63,6 +63,20 @@ func (mr *MockDidmanMockRecorder) DeleteService(id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockDidman)(nil).DeleteService), id)
 }
 
+// AddCompoundService mocks base method
+func (m *MockDidman) AddCompoundService(id did.DID, serviceType string, references map[string]go_did.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddCompoundService", id, serviceType, references)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddCompoundService indicates an expected call of AddCompoundService
+func (mr *MockDidmanMockRecorder) AddCompoundService(id, serviceType, references interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCompoundService", reflect.TypeOf((*MockDidman)(nil).AddCompoundService), id, serviceType, references)
+}
+
 // UpdateContactInformation mocks base method
 func (m *MockDidman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
 	m.ctrl.T.Helper()
