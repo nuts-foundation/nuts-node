@@ -61,9 +61,11 @@ func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
 	})
 }
 
-// didSubKIDNamingFunc returns a function used to name an sub (extra/alternative) key for a DID document.
+// didSubKIDNamingFunc returns a KIDNamingFunc that can be used as param in the KeyStore.New function.
+// It wraps the KIDNamingFunc with the context of the DID of the document.
+// It returns a keyID in the form of the documents DID with the new keys thumbprint as fragment.
 // E.g. for a assertionMethod key that differs from the key the DID document was created with.
-func didSubKIDNamingFunc(owningDID did.DID) func(pKey crypto.PublicKey) (string, error) {
+func didSubKIDNamingFunc(owningDID did.DID) nutsCrypto.KIDNamingFunc {
 	return func(pKey crypto.PublicKey) (string, error) {
 		return getKIDName(pKey, func(_ jwk.Key) (string, error) {
 			return owningDID.ID, nil
