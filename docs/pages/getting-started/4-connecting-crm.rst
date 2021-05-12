@@ -85,7 +85,8 @@ If all is well, the node will respond with a DID Document similar to:
     }
 
 The ``id`` at the top level needs to be extracted and stored as your vendor DID.
-In the example above this would be ``did:nuts:2mF6KT6eiSx5y2fwTP4Y42yMUh91zGVkbu4KMARvCJz9``
+In the example above this would be ``did:nuts:2mF6KT6eiSx5y2fwTP4Y42yMUh91zGVkbu4KMARvCJz9``.
+The DID Document shouldn't be stored since the Nuts node will do this for you.
 
 Setting vendor contact information
 ==================================
@@ -130,7 +131,7 @@ Organization integration
 
 Each organization (or customer) must be registered with its own DID and DID Document.
 The vendor CRM should make it possible to store a DID for each organization.
-Requests that are made in the context of the organization will use the private-key of the organization.
+Requests that are made in the context of the organization will use the private key of the organization.
 To easily control the DID Document of an organization, the vendor will be the controller.
 
 Create and store a customer DID
@@ -191,8 +192,9 @@ By default, no issuers are trusted. A list of untrusted issuers can be obtained 
 
     GET <internal-node-address>/internal/vcr/v1/NutsOrganizationCredential/untrusted
 
-This will return a list of all DIDs that are currently not trusted. If a DID is to be trusted should be validated out-of-band.
-The registered contact information for that DID could help in contacting the right party.
+This will return a list of all DIDs that are currently not trusted. If a DID is to be trusted should be validated out-of-band, eg: by phone or video conference call.
+The registered contact information for that DID could help in contacting the right party. Be aware that the provided contact information isn't verified.
+So instead of asking: "is this your DID?", ask: "could you please tell me your DID?".
 After a DID has been verified, it can be trusted by calling the following API:
 
 .. code-block:: text
@@ -210,7 +212,7 @@ After a vendor has been trusted, any of its registered organizations should be s
 .. note::
 
     Future development will see new cryptographic means. These means could enable the organization to self-register its name.
-    The network should then transfer to a trust model where the issuer of those means is trusted instead of the different vendors.
+    The network should then migrate to a trust model where the issuer of those means is trusted instead of the different vendors.
 
 Enabling a bolt
 ===============
