@@ -9,8 +9,8 @@ It's very likely the vendor has software to manage customer environments. We'll 
 This does not mean that a stand-alone installation isn't supported. In that case the vendor and organization are the same.
 
 The Nuts registry enables service discovery for organizations. The registry identifies organizations through their :ref:`DID <did>`.
-The DIDs are new and do not match the internal identifiers known to the CRM.
-This connection has to be made in order for the CRM to make adjustments to DID Documents and issue Verifiable Credentials.
+The DIDs are unique identifiers which are generated when the organization is registered in the Nuts registry.
+After creation of the DID the CRM should store and map it to its customer record, so it can refer to it when updating the customer's DID Document and issue Verifiable Credentials.
 
 All APIs used in the following chapters are documented at the :ref:`API <nuts-node-api>` page.
 Open API Spec files are available for generating client code.
@@ -28,12 +28,13 @@ As a vendor, you're in power of:
 - trusting other vendors
 
 The last three points require a setup where a vendor DID is created. This DID will act as the controller of all organization DID Documents.
-This will allow for reuse of service endpoints and issuing of verifiable credentials. It's easier for other vendors to trust a single issuer DID.
+This will allow for reuse of service endpoints and issuance of Verifiable Credentials.
+Since every DID issuing Verifiable Credentials must be trusted individually, it's easier for other vendors when the vendor uses a single DID for issuing credentials.
 
 Create and store a vendor DID
 =============================
 
-You'll have to prepare your CRM to store a DID. A DID is a string similar to:
+Your CRM must store the DIDs created for your vendor and your customers. A DID is a string similar to:
 
 .. code-block:: text
 
@@ -52,7 +53,7 @@ Consult the :ref:`configuration reference <nuts-node-config>` on how to configur
         "capabilityInvocation": true
     }
 
-The request above instruct the node to create a new DID and DID Document. The DID Document will be published to all other nodes.
+The request above instructs the node to create a new DID and DID Document. The DID Document will be published to all other nodes.
 The node will generate a new keypair and store it in the crypto backend.
 The options above will instruct the node to allow the DID Document to be changed by itself (``selfControl = true AND capabilityInvocation = true``) and that the DID can be used to issue credentials (``assertionMethod = true``).
 If all is well, the node will respond with a DID Document similar to:
@@ -96,7 +97,7 @@ A convenience API is available to add the contact information to a DID Document.
 
 .. code-block:: text
 
-    PUT <internal-node-address>/internal/didman/v1/did/{did}/contactinfo
+    PUT <internal-node-address>/internal/didman/v1/did/<did>/contactinfo
     {
         "name": "vendor X",
         "phone": "06-12345678",
@@ -104,7 +105,7 @@ A convenience API is available to add the contact information to a DID Document.
         "website": "https://example.com"
     }
 
-Where ``{did}`` must be replaced with the vendor DID.
+Where ``<did>`` must be replaced with the vendor DID.
 
 Adding endpoints
 ================
@@ -114,14 +115,15 @@ Registering services is a required step since the services that will be register
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/didman/v1/did/{did}/endpoint
+    POST <internal-node-address>/internal/didman/v1/did/<did>/endpoint
     {
         "type": "example-production-api",
         "endpoint": "https://api.example.com"
     }
 
-Where ``{did}`` must be replaced with the vendor DID. The ``type`` may be freely chosen and is used as reference in the organization services.
-The ``endpoint`` must be a fully qualified domain name. For some services this could be a base-url. If this is the case, the bolt description will note this.
+Where ``<did>`` must be replaced with the vendor DID. The ``type`` may be freely chosen and is used as reference in the organization services.
+The ``endpoint`` must be a valid endpoint (this differs per type of service).
+For some services this could be a base-url. If this is the case, the bolt description will note this.
 
 Organization integration
 ************************
@@ -141,12 +143,12 @@ A DID can be created like the vendor DID:
     POST <internal-node-address>/internal/vdr/v1/did
     {
         "selfControl": false,
-        "controllers": [{did}],
+        "controllers": [<did>],
         "assertionMethod": true,
         "capabilityInvocation": false
     }
 
-Where ``{did}`` must be replaced with the vendor DID.
+Where ``<did>`` must be replaced with the vendor DID.
 The body for creating an organization DID differs from the vendor DID in the fact that the vendor DID is in control of the newly generated DID Document.
 The ``assertionMethod`` is still true since it'll allow for the generation of access-tokens in the context of the organization.
 The result is similar to the output of the vendor DID creation.
@@ -168,14 +170,14 @@ A credential can be issued with the following call:
     POST <internal-node-address>/internal/vcr/v1/vc
     {
         "type": "NutsOrganizationCredential",
-        "issuer": "{did}",
+        "issuer": "<did>",
         "credentialSubject": {
-            "name": "{name}",
-            "city": "{city}"
+            "name": "<name>",
+            "city": "<city>"
         }
     }
 
-Where ``{did}`` must be replaced with the vendor DID. ``{name}`` and ``{city}`` must be replaced with the correct information.
+Where ``<did>`` must be replaced with the vendor DID. ``<name>`` and ``<city>`` must be replaced with the correct information.
 The API will respond with the full Verifiable Credential. It's not required to do anything with that since issued credentials can be found again.
 :ref:`This page <vc-concepts>` contains some more information on specific credentials.
 
@@ -197,11 +199,11 @@ After a DID has been verified, it can be trusted by calling the following API:
 
     POST <internal-node-address>/internal/vcr/v1/trust
     {
-        "issuer": "{did}",
+        "issuer": "<did>",
         "credentialType": "NutsOrganizationCredential"
     }
 
-Where ``{did}`` must be replaced with the validated DID.
+Where ``<did>`` must be replaced with the validated DID.
 It's also possible to update the ``vcr/trusted_issuers.yaml`` file located in the data directory (configured via the ``datadir`` property).
 After a vendor has been trusted, any of its registered organizations should be searchable by name.
 
