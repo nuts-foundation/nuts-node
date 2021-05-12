@@ -12,6 +12,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func Test_PrevTransactionVerifier(t *testing.T) {
@@ -81,5 +82,24 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 		err := NewTransactionSignatureVerifier(keyResolver)(d, nil)
 		assert.Contains(t, err.Error(), "failed")
+	})
+}
+
+func TestSigningTimeVerifier(t *testing.T) {
+	t.Run("signed now", func(t *testing.T) {
+		err := NewSigningTimeVerifier()(CreateSignedTestTransaction(1, time.Now(), "test/test"), nil)
+		assert.NoError(t, err)
+	})
+	t.Run("signed in history", func(t *testing.T) {
+		err := NewSigningTimeVerifier()(CreateSignedTestTransaction(1, time.Now().AddDate(-1, 0, 0), "test/test"), nil)
+		assert.NoError(t, err)
+	})
+	t.Run("signed a few hours in the future", func(t *testing.T) {
+		err := NewSigningTimeVerifier()(CreateSignedTestTransaction(1, time.Now().Add(time.Hour*2), "test/test"), nil)
+		assert.NoError(t, err)
+	})
+	t.Run("error - signed a day in the future", func(t *testing.T) {
+		err := NewSigningTimeVerifier()(CreateSignedTestTransaction(1, time.Now().Add(time.Hour*24+time.Second), "test/test"), nil)
+		assert.Error(t, err)
 	})
 }

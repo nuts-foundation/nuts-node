@@ -7,6 +7,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"time"
 )
 
 // ErrPreviousTransactionMissing indicates one or more of the previous transactions (which the transaction refers to)
@@ -51,6 +52,17 @@ func NewPrevTransactionsVerifier() Verifier {
 			if !present {
 				return ErrPreviousTransactionMissing
 			}
+		}
+		return nil
+	}
+}
+
+// NewSigningTimeVerifier creates a transaction verifier that asserts that signing time of transactions aren't
+// further than 1 day in the future, since that complicates head calculation.
+func NewSigningTimeVerifier() Verifier {
+	return func(tx Transaction, _ DAG) error {
+		if time.Now().Add(24 * time.Hour).Before(tx.SigningTime()) {
+			return fmt.Errorf("transaction signing time too far in the future: %s", tx.SigningTime())
 		}
 		return nil
 	}
