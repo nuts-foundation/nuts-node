@@ -30,15 +30,14 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/logging"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/vdr/logging"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -142,7 +141,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 	}
 	err = n.didStore.Write(proposedDIDDocument, documentMetadata)
 	if err == nil {
-		log.Logger().Infof("DID document registered (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+		logging.Log().Infof("DID document registered (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	}
 	return err
 }
@@ -226,7 +225,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	}
 	err = n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 	if err == nil {
-		log.Logger().Infof("DID document updated (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+		logging.Log().Infof("DID document updated (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	}
 	return err
 }
