@@ -37,7 +37,7 @@ func createConnection(peer Peer, messenger grpcMessenger) *connection {
 	return &connection{
 		Peer:        peer,
 		messenger:   messenger,
-		outMessages: make(chan *transport.NetworkMessage, 10),  // TODO: Does this number make sense? Should also be configurable?
+		outMessages: make(chan *transport.NetworkMessage, 10), // TODO: Does this number make sense? Should also be configurable?
 		mux:         &sync.Mutex{},
 	}
 }
