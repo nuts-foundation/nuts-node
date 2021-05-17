@@ -19,26 +19,37 @@ func Test_connection_close(t *testing.T) {
 }
 
 func Test_connection_send(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	messenger := NewMockgrpcMessenger(ctrl)
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		messenger := NewMockgrpcMessenger(ctrl)
 
-	// Signal waitgroup when a message is sent
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	messenger.EXPECT().Send(gomock.Any()).DoAndReturn(func(_ interface{}) error {
-		wg.Done()
-		return nil
+		// Signal waitgroup when a message is sent
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		messenger.EXPECT().Send(gomock.Any()).DoAndReturn(func(_ interface{}) error {
+			wg.Done()
+			return nil
+		})
+
+		// Create connection, start message sending goroutine
+		conn := createConnection(Peer{}, messenger)
+		defer conn.close()
+		go conn.sendMessages()
+
+		// Send message and wait for it to be sent
+		err := conn.send(&transport.NetworkMessage{})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.True(t, waitFor(&wg, time.Second), "time-out while waiting for message to arrive")
 	})
-
-	// Create connection, start message sending goroutine
-	conn := createConnection(Peer{}, messenger)
-	defer conn.close()
-	go conn.sendMessages()
-
-	// Send message and wait for it to be sent
-	conn.send(&transport.NetworkMessage{})
-	assert.True(t, waitFor(&wg, time.Second), "time-out while waiting for message to arrive")
+	t.Run("send on closed connection", func(t *testing.T) {
+		conn := createConnection(Peer{}, nil)
+		conn.close()
+		err := conn.send(&transport.NetworkMessage{})
+		assert.EqualError(t, err, "can't send on closed connection")
+	})
 }
 
 func Test_connection_receive(t *testing.T) {

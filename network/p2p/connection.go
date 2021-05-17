@@ -19,6 +19,7 @@
 package p2p
 
 import (
+	"errors"
 	"io"
 	"sync"
 
@@ -36,7 +37,7 @@ func createConnection(peer Peer, messenger grpcMessenger) *connection {
 	return &connection{
 		Peer:        peer,
 		messenger:   messenger,
-		outMessages: make(chan *transport.NetworkMessage, 10),
+		outMessages: make(chan *transport.NetworkMessage, 10), // TODO: Does this number make sense? Should also be configurable?
 		mux:         &sync.Mutex{},
 	}
 }
@@ -71,10 +72,14 @@ func (conn *connection) close() {
 	}
 }
 
-func (conn *connection) send(message *transport.NetworkMessage) {
+func (conn *connection) send(message *transport.NetworkMessage) error {
 	conn.mux.Lock()
 	defer conn.mux.Unlock()
+	if conn.outMessages == nil {
+		return errors.New("can't send on closed connection")
+	}
 	conn.outMessages <- message
+	return nil
 }
 
 // sendMessages (blocking) reads messages from its outMessages channel and sends them to the peer until the channel is closed.

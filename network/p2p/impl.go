@@ -100,7 +100,9 @@ func (n *adapter) Broadcast(message *transport.NetworkMessage) {
 	n.connsMutex.Lock()
 	defer n.connsMutex.Unlock()
 	for _, conn := range n.conns {
-		conn.outMessages <- message
+		if err := conn.send(message); err != nil {
+			log.Logger().Warnf("Unable to broadcast to %s: %v", conn.ID, err)
+		}
 	}
 }
 
@@ -118,8 +120,7 @@ func (n adapter) Send(peerID PeerID, message *transport.NetworkMessage) error {
 	if conn == nil {
 		return fmt.Errorf("unknown peer: %s", peerID)
 	}
-	conn.outMessages <- message
-	return nil
+	return conn.send(message)
 }
 
 type connector struct {
@@ -300,7 +301,6 @@ func (n adapter) ConnectToPeer(address string) bool {
 }
 
 func (n *adapter) startSendingAndReceiving(conn *connection) {
-	conn.outMessages = make(chan *transport.NetworkMessage, 10) // TODO: Does this number make sense? Should also be configurable?
 	go conn.sendMessages()
 	n.registerConnection(conn)
 	conn.receiveMessages(n.receivedMessages)

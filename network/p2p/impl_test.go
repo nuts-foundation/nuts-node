@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"sync"
 	"testing"
 	"time"
 
@@ -198,16 +199,52 @@ func Test_interface_Send(t *testing.T) {
 		err := network.Send(peerID, &transport.NetworkMessage{})
 		assert.EqualError(t, err, "unknown peer: foobar")
 	})
+	t.Run("concurrent call on closing connection", func(t *testing.T) {
+		network := NewAdapter().(*adapter)
+		conn := createConnection(Peer{ID: peerID}, nil)
+		network.registerConnection(conn)
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			_ = network.Send(peerID, &transport.NetworkMessage{})
+		}()
+		go func() {
+			defer wg.Done()
+			conn.close()
+		}()
+		wg.Wait()
+	})
 }
 
 func Test_interface_Broadcast(t *testing.T) {
 	const peer1ID = "foobar1"
 	const peer2ID = "foobar2"
 	network := NewAdapter().(*adapter)
-	network.conns[peer1ID] = createConnection(Peer{ID: peer1ID}, nil)
-	network.conns[peer2ID] = createConnection(Peer{ID: peer2ID}, nil)
-	network.Broadcast(&transport.NetworkMessage{})
-	for _, conn := range network.conns {
-		assert.Len(t, conn.outMessages, 1)
-	}
+	peer1 := createConnection(Peer{ID: peer1ID}, nil)
+	network.registerConnection(peer1)
+	peer2 := createConnection(Peer{ID: peer2ID}, nil)
+	network.registerConnection(peer2)
+	t.Run("ok", func(t *testing.T) {
+		network.Broadcast(&transport.NetworkMessage{})
+		for _, conn := range network.conns {
+			assert.Len(t, conn.outMessages, 1)
+		}
+	})
+	t.Run("concurrent call on closing connection", func(t *testing.T) {
+		peer2MsgCount := len(peer2.outMessages)
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			network.Broadcast(&transport.NetworkMessage{})
+		}()
+		go func() {
+			defer wg.Done()
+			peer1.close()
+		}()
+		wg.Wait()
+		assert.Empty(t, peer1.outMessages)
+		assert.Len(t, peer2.outMessages, peer2MsgCount+1)
+	})
 }
