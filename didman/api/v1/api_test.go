@@ -232,6 +232,97 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	})
 }
 
+func TestWrapper_AddCompoundService(t *testing.T) {
+	id := "did:nuts:1"
+	request := CompoundServiceCreateRequest{
+		Endpoint: map[string]interface{}{
+			"foo": "did:nuts:12345?type=foo",
+			"bar": "did:nuts:54321?type=bar",
+		},
+		Type: "type",
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		var (
+			parsedDID      did.DID
+			parsedEndpoint map[string]ssi.URI
+			parsedType     string
+		)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*CompoundServiceCreateRequest)
+			*p = request
+			return nil
+		})
+		ctx.didman.EXPECT().AddCompoundService(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+			func(subject interface{}, endpointType interface{}, endpoint interface{}) error {
+				parsedDID = subject.(did.DID)
+				parsedEndpoint = endpoint.(map[string]ssi.URI)
+				parsedType = endpointType.(string)
+				return nil
+			})
+		ctx.echo.EXPECT().NoContent(http.StatusNoContent).Return(nil)
+
+		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, id, parsedDID.String())
+		assert.Len(t, parsedEndpoint, 2)
+		assert.Equal(t, request.Endpoint["foo"], parsedEndpoint["foo"].String())
+		assert.Equal(t, request.Endpoint["bar"], parsedEndpoint["bar"].String())
+		assert.Equal(t, request.Type, parsedType)
+	})
+
+	t.Run("error - incorrect endpoint", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*CompoundServiceCreateRequest)
+			*p = CompoundServiceCreateRequest{Type: "type", Endpoint: map[string]interface{}{"foo": ":"}}
+			return nil
+		})
+		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
+
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemDetail(t,  "invalid reference for service 'foo': parse \":\": missing protocol scheme", err)
+		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
+	})
+
+	t.Run("error - incorrect did", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*CompoundServiceCreateRequest)
+			*p = request
+			return nil
+		})
+		err := ctx.wrapper.AddCompoundService(ctx.echo, "")
+
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemDetail(t, "failed to parse DID: input length is less than 7", err)
+		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
+	})
+
+	t.Run("error - incorrect post body", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
+
+		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
+
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
+	})
+}
+
 func TestWrapper_DeleteService(t *testing.T) {
 	id := "did:nuts:1#1"
 

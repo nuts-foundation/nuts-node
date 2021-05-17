@@ -36,6 +36,7 @@ import (
 )
 
 const problemTitleAddEndpoint = "Adding Endpoint failed"
+const problemTitleAddCompoundService = "Adding Compound Service failed"
 const problemTitleDeleteService = "Deleting Service failed"
 const problemTitleUpdateContactInformation = "Updating contact information failed"
 const problemTitleGetContactInformation = "Getting node's contact information failed"
@@ -89,7 +90,33 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 // AddCompoundService handles calls to add a compound service. It only checks params and sets the correct return status code.
 // didman.AddCompoundService does the heavy lifting.
 func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
-	panic("implement me")
+	request := CompoundServiceCreateRequest{}
+	if err := ctx.Bind(&request); err != nil {
+		err = fmt.Errorf("failed to parse %T: %w", request, err)
+		logging.Log().WithError(err).Warn(problemTitleAddCompoundService)
+		return core.NewProblem(problemTitleAddCompoundService, http.StatusBadRequest, err.Error())
+	}
+
+	id, err := parseDID(didStr, problemTitleAddCompoundService)
+	if err != nil {
+		return err
+	}
+
+	references := make(map[string]ssi.URI, 0)
+	for key, refAsStr := range request.Endpoint {
+		refAsURI, err := ssi.ParseURI(fmt.Sprintf("%s", refAsStr))
+		if err != nil {
+			err = fmt.Errorf("invalid reference for service '%s': %w", key, err)
+			logging.Log().WithError(err).Warn(problemTitleAddCompoundService)
+			return core.NewProblem(problemTitleAddCompoundService, http.StatusBadRequest, err.Error())
+		}
+		references[key] = *refAsURI
+	}
+	if err = w.Didman.AddCompoundService(*id, request.Type, references); err != nil {
+		logging.Log().WithError(err).Warn(problemTitleAddCompoundService)
+		return core.NewProblem(problemTitleAddCompoundService, getStatusCode(err), err.Error())
+	}
+	return ctx.NoContent(http.StatusNoContent)
 }
 
 // DeleteService handles calls to delete a service. It only checks params and sets the correct return status code.
