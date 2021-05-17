@@ -275,6 +275,21 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		assert.Equal(t, request.Type, parsedType)
 	})
 
+	t.Run("error - service fails", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*CompoundServiceCreateRequest)
+			*p = request
+			return nil
+		})
+		ctx.didman.EXPECT().AddCompoundService(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("failed"))
+
+		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
+		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
+		test.AssertErrProblemDetail(t,  "failed", err)
+		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
+	})
+
 	t.Run("error - incorrect endpoint", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
@@ -313,13 +328,13 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
 
-		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
+		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
 		if !test.AssertErrIsProblem(t, err) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
+		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
 	})
 }
 
