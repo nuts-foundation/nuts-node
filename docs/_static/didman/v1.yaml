@@ -110,7 +110,6 @@ paths:
         * 400 - incorrect input
         * 404 - unknown DID
         * 409 - a service with the same type already exists
-        * 422 - one or more of the referenced services can't be resolved
       operationId: "addCompoundService"
       tags:
         - DID

@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	errors2 "github.com/pkg/errors"
 	"net/url"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -82,38 +81,10 @@ func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) error {
 
 func (d *didman) AddCompoundService(id did.DID, serviceType string, references map[string]ssi.URI) error {
 	logging.Log().Debugf("Adding compound service (did: %s, type: %s, references: %v)", id.String(), serviceType, references)
-
-	// Resolve and validate all service references: they must all resolve to a single endpoint URL
-	// Cache resolved DID documents because most of the time a compound service will refer the same DID document in all service references.
-	documents := make(map[string]*did.Document)
-	var err error
-	for _, serviceRef := range references {
-		referencedDIDStr := serviceRef
-		referencedDIDStr.RawQuery = ""
-		referencedDIDStr.Fragment = ""
-		var document *did.Document
-		if document = documents[referencedDIDStr.String()]; document == nil {
-			referencedDID, err := did.ParseDID(referencedDIDStr.String())
-			if err != nil {
-				return err
-			}
-			document, _, err = d.docResolver.Resolve(*referencedDID, nil)
-			if err != nil {
-				return err
-			}
-			documents[referencedDIDStr.String()] = document
-		}
-		queriedServiceType := serviceRef.Query().Get("type")
-		if len(queriedServiceType) == 0 {
-			return ErrInvalidServiceQuery
-		}
-		_, _, err := document.ResolveEndpointURL(queriedServiceType)
-		if err != nil {
-			return errors2.WithMessage(ErrReferencedServiceNotAnEndpoint, err.Error())
-		}
+	if err := d.validateCompoundServiceEndpoint(references); err != nil {
+		return err
 	}
-
-	err = d.addService(id, serviceType, references, nil)
+	err := d.addService(id, serviceType, references, nil)
 	if err == nil {
 		logging.Log().Infof("Compound service added (did: %s, type: %s, references: %s)", id.String(), serviceType, references)
 	}
@@ -202,6 +173,40 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 	return nil, nil
 }
 
+// validateCompoundServiceEndpoint validates the serviceEndpoint of a compound service. The serviceEndpoint is passed
+// as a map of service references that must be resolvable to concrete URL endpoints. If validation fails an error is returned.
+// If all references can be resolved nil is returned.
+func (d *didman) validateCompoundServiceEndpoint(references map[string]ssi.URI) error {
+	// Cache resolved DID documents because most of the time a compound service will refer the same DID document in all service references.
+	documents := make(map[string]*did.Document)
+	for _, serviceRef := range references {
+		referencedDIDStr := serviceRef
+		referencedDIDStr.RawQuery = ""
+		referencedDIDStr.Fragment = ""
+		var document *did.Document
+		if document = documents[referencedDIDStr.String()]; document == nil {
+			referencedDID, err := did.ParseDID(referencedDIDStr.String())
+			if err != nil {
+				return err
+			}
+			document, _, err = d.docResolver.Resolve(*referencedDID, nil)
+			if err != nil {
+				return err
+			}
+			documents[referencedDIDStr.String()] = document
+		}
+		queriedServiceType := serviceRef.Query().Get("type")
+		if len(queriedServiceType) == 0 {
+			return ErrInvalidServiceQuery
+		}
+		_, _, err := document.ResolveEndpointURL(queriedServiceType)
+		if err != nil {
+			return fmt.Errorf("%w: %s", ErrReferencedServiceNotAnEndpoint, err.Error())
+		}
+	}
+	return nil
+}
+
 func filterContactInfoServices(doc *did.Document) []did.Service {
 	var contactServices []did.Service
 	for _, service := range doc.Service {
@@ -212,14 +217,14 @@ func filterContactInfoServices(doc *did.Document) []did.Service {
 	return contactServices
 }
 
-func (d *didman) addService(id did.DID, serviceType string, serviceEndpoint interface{}, updater func(*did.Document)) error {
+func (d *didman) addService(id did.DID, serviceType string, serviceEndpoint interface{}, preprocessor func(*did.Document)) error {
 	doc, meta, err := d.docResolver.Resolve(id, nil)
 	if err != nil {
 		return err
 	}
 
-	if updater != nil {
-		updater(doc)
+	if preprocessor != nil {
+		preprocessor(doc)
 	}
 
 	// check for duplicate service type
