@@ -85,7 +85,6 @@ func TestHTTPClient_AddEndpoint(t *testing.T) {
 	})
 }
 
-
 func TestHTTPClient_AddCompoundService(t *testing.T) {
 	refs := map[string]string{
 		"foo": "bar",

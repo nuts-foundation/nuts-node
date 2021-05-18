@@ -65,6 +65,7 @@ func (h HTTPClient) UpdateContactInformation(did string, information ContactInfo
 	return core.TestResponseCode(http.StatusOK, response)
 }
 
+// AddEndpoint registers a concrete endpoint URL on the given DID.
 func (h HTTPClient) AddEndpoint(did, endpointType, endpointURL string) error {
 	ctx, cancel := h.withTimeout()
 	defer cancel()
@@ -78,6 +79,7 @@ func (h HTTPClient) AddEndpoint(did, endpointType, endpointURL string) error {
 	return core.TestResponseCode(http.StatusNoContent, response)
 }
 
+// AddCompoundService registers a compound service on the given DID.
 func (h HTTPClient) AddCompoundService(did, serviceType string, references map[string]string) error {
 	ctx, cancel := h.withTimeout()
 	defer cancel()
