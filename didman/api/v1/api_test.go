@@ -88,7 +88,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, "invalid value for type", err)
-		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
+		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
 	})
 
 	t.Run("error - incorrect endpoint", func(t *testing.T) {
@@ -105,7 +105,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, "invalid value for endpoint: parse \":\": missing protocol scheme", err)
-		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
+		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
 	})
 
 	t.Run("error - incorrect did", func(t *testing.T) {
@@ -122,7 +122,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, "failed to parse DID: input length is less than 7", err)
-		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
+		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
 	})
 
 	t.Run("error - DID not found", func(t *testing.T) {
@@ -140,7 +140,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
+		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
 	})
 
 	t.Run("error - incorrect post body", func(t *testing.T) {
@@ -153,7 +153,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
+		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
 	})
 
 	t.Run("error - deactivated", func(t *testing.T) {
@@ -172,7 +172,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
 		test.AssertErrProblemDetail(t, types.ErrDeactivated.Error(), err)
-		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
+		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
 	})
 
 	t.Run("error - not managed", func(t *testing.T) {
@@ -191,7 +191,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, types.ErrDIDNotManagedByThisNode.Error(), err)
-		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
+		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
 	})
 
 	t.Run("error - duplicate", func(t *testing.T) {
@@ -228,7 +228,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
+		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
 	})
 }
 
@@ -287,7 +287,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
 		test.AssertErrProblemDetail(t, "failed", err)
-		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
+		test.AssertErrProblemTitle(t, "AddCompoundService failed", err)
 	})
 
 	t.Run("error - incorrect endpoint (not a URI)", func(t *testing.T) {
@@ -304,7 +304,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, "invalid reference for service 'foo': parse \":\": missing protocol scheme", err)
-		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
+		test.AssertErrProblemTitle(t, "AddCompoundService failed", err)
 	})
 
 	t.Run("error - incorrect endpoint (not a string)", func(t *testing.T) {
@@ -321,7 +321,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, "invalid reference for service 'foo': not a string", err)
-		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
+		test.AssertErrProblemTitle(t, "AddCompoundService failed", err)
 	})
 
 	t.Run("error - incorrect did", func(t *testing.T) {
@@ -338,7 +338,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, "failed to parse DID: input length is less than 7", err)
-		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
+		test.AssertErrProblemTitle(t, "AddCompoundService failed", err)
 	})
 
 	t.Run("error - incorrect post body", func(t *testing.T) {
@@ -351,7 +351,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
+		test.AssertErrProblemTitle(t, "AddCompoundService failed", err)
 	})
 }
 
@@ -384,7 +384,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
+		test.AssertErrProblemTitle(t, "DeleteService failed", err)
 		test.AssertErrProblemDetail(t, "failed to parse URI: parse \":\": missing protocol scheme", err)
 	})
 
@@ -398,7 +398,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
+		test.AssertErrProblemTitle(t, "DeleteService failed", err)
 	})
 
 	t.Run("error - in use", func(t *testing.T) {
@@ -411,7 +411,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
-		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
+		test.AssertErrProblemTitle(t, "DeleteService failed", err)
 	})
 
 	t.Run("error - deactivated", func(t *testing.T) {
@@ -425,7 +425,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
 		test.AssertErrProblemDetail(t, types.ErrDeactivated.Error(), err)
-		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
+		test.AssertErrProblemTitle(t, "DeleteService failed", err)
 	})
 
 	t.Run("error - not managed", func(t *testing.T) {
@@ -439,7 +439,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t, types.ErrDIDNotManagedByThisNode.Error(), err)
-		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
+		test.AssertErrProblemTitle(t, "DeleteService failed", err)
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -452,7 +452,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test.AssertErrProblemTitle(t, problemTitleDeleteService, err)
+		test.AssertErrProblemTitle(t, "DeleteService failed", err)
 	})
 }
 
@@ -492,7 +492,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, problemTitleUpdateContactInformation, err)
+		test.AssertErrProblemTitle(t, "UpdateContactInformation failed", err)
 		test.AssertErrProblemDetail(t, "failed to parse DID: input does not begin with 'did:' prefix", err)
 	})
 
@@ -512,7 +512,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 		}
 
 		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test.AssertErrProblemTitle(t, problemTitleUpdateContactInformation, err)
+		test.AssertErrProblemTitle(t, "UpdateContactInformation failed", err)
 		test.AssertErrProblemDetail(t, "unable to find the DID document", err)
 	})
 	t.Run("error - deactivated", func(t *testing.T) {
@@ -530,7 +530,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 		}
 
 		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
-		test.AssertErrProblemTitle(t, problemTitleUpdateContactInformation, err)
+		test.AssertErrProblemTitle(t, "UpdateContactInformation failed", err)
 		test.AssertErrProblemDetail(t, "the DID document has been deactivated", err)
 	})
 
@@ -549,7 +549,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 		}
 
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, problemTitleUpdateContactInformation, err)
+		test.AssertErrProblemTitle(t, "UpdateContactInformation failed", err)
 		test.AssertErrProblemDetail(t, "DID document not managed by this node", err)
 	})
 	t.Run("error - other problem", func(t *testing.T) {
@@ -568,7 +568,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 		}
 
 		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test.AssertErrProblemTitle(t, problemTitleUpdateContactInformation, err)
+		test.AssertErrProblemTitle(t, "UpdateContactInformation failed", err)
 		test.AssertErrProblemDetail(t, "other problem", err)
 	})
 }
@@ -600,7 +600,7 @@ func TestWrapper_GetContactInformation(t *testing.T) {
 		}
 
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, problemTitleGetContactInformation, err)
+		test.AssertErrProblemTitle(t, "GetContactInformation failed", err)
 		test.AssertErrProblemDetail(t, "failed to parse DID: input does not begin with 'did:' prefix", err)
 	})
 	t.Run("error - DID not found", func(t *testing.T) {
@@ -612,7 +612,7 @@ func TestWrapper_GetContactInformation(t *testing.T) {
 		}
 
 		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test.AssertErrProblemTitle(t, problemTitleGetContactInformation, err)
+		test.AssertErrProblemTitle(t, "GetContactInformation failed", err)
 		test.AssertErrProblemDetail(t, "unable to find the DID document", err)
 	})
 	t.Run("error - contact information not found", func(t *testing.T) {
@@ -624,7 +624,7 @@ func TestWrapper_GetContactInformation(t *testing.T) {
 		}
 
 		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test.AssertErrProblemTitle(t, problemTitleGetContactInformation, err)
+		test.AssertErrProblemTitle(t, "GetContactInformation failed", err)
 		test.AssertErrProblemDetail(t, "contact information for DID not found", err)
 	})
 	t.Run("error - other error", func(t *testing.T) {
@@ -636,7 +636,7 @@ func TestWrapper_GetContactInformation(t *testing.T) {
 		}
 
 		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test.AssertErrProblemTitle(t, problemTitleGetContactInformation, err)
+		test.AssertErrProblemTitle(t, "GetContactInformation failed", err)
 		test.AssertErrProblemDetail(t, "other error", err)
 	})
 }
