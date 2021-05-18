@@ -20,18 +20,22 @@ package v1
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
 )
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
 	C crypto.JWTSigner
+}
+
+func (a *Wrapper) ErrorStatusCodes() map[error]int {
+	return map[error]int{
+		crypto.ErrKeyNotFound: http.StatusBadRequest,
+	}
 }
 
 func (w *Wrapper) Routes(router core.EchoRouter) {
@@ -59,21 +63,16 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	var signRequest = &SignJwtRequest{}
 	err := ctx.Bind(signRequest)
 	if err != nil {
-		log.Logger().Error(err.Error())
-		return core.NewProblem(problemTitleSignJwt, http.StatusBadRequest, err.Error())
+		return err
 	}
 
 	if err := signRequest.validate(); err != nil {
-		return core.NewProblem(problemTitleSignJwt, http.StatusBadRequest, err.Error())
+		return err
 	}
 
 	sig, err := w.C.SignJWT(signRequest.Claims, signRequest.Kid)
 	if err != nil {
-		if errors.Is(err, crypto.ErrKeyNotFound) {
-			return core.NewProblem(problemTitleSignJwt, http.StatusBadRequest, fmt.Sprintf("no private key found for %s", signRequest.Kid))
-		}
-		log.Logger().Error(err.Error())
-		return core.NewProblem(problemTitleSignJwt, http.StatusInternalServerError, err.Error())
+		return err
 	}
 
 	return ctx.String(http.StatusOK, sig)

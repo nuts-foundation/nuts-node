@@ -36,12 +36,15 @@ type Routable interface {
 
 // NewSystem creates a new, empty System.
 func NewSystem() *System {
-	return &System{
+	result := &System{
 		engines:     []Engine{},
 		Config:      NewServerConfig(),
 		Routers:     []Routable{},
-		EchoCreator: createEchoServer,
 	}
+	result.EchoCreator = func(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
+		return createEchoServer(cfg, strictmode, result.Routers)
+	}
+	return result
 }
 
 // System is the control structure where engines are registered.

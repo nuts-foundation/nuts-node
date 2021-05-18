@@ -612,6 +612,10 @@ type EchoRouter interface {
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type ErrorStatusCodeMapper interface {
+	ErrorStatusCodes() map[error]int
+}
+
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -625,9 +629,35 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodGet, baseURL+"/internal/network/v1/diagnostics/graph", wrapper.RenderGraph)
-	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction", wrapper.ListTransactions)
-	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref", wrapper.GetTransaction)
-	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref/payload", wrapper.GetTransactionPayload)
+	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
+	// so it can be used in error reporting middleware.
+	router.Add(http.MethodGet, baseURL+"/internal/network/v1/diagnostics/graph", func(context echo.Context) error {
+		context.Set("!!OperationId", "RenderGraph")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.RenderGraph(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction", func(context echo.Context) error {
+		context.Set("!!OperationId", "ListTransactions")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.ListTransactions(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref", func(context echo.Context) error {
+		context.Set("!!OperationId", "GetTransaction")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.GetTransaction(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref/payload", func(context echo.Context) error {
+		context.Set("!!OperationId", "GetTransactionPayload")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.GetTransactionPayload(context)
+	})
 
 }

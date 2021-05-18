@@ -499,6 +499,10 @@ type EchoRouter interface {
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type ErrorStatusCodeMapper interface {
+	ErrorStatusCodes() map[error]int
+}
+
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -512,14 +516,70 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/accesstoken/introspect", wrapper.IntrospectAccessToken)
-	router.Add(http.MethodHead, baseURL+"/internal/auth/v1/accesstoken/verify", wrapper.VerifyAccessToken)
-	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/bearertoken", wrapper.CreateJwtBearerToken)
-	router.Add(http.MethodPut, baseURL+"/internal/auth/v1/contract/drawup", wrapper.DrawUpContract)
-	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/signature/session", wrapper.CreateSignSession)
-	router.Add(http.MethodGet, baseURL+"/internal/auth/v1/signature/session/:sessionID", wrapper.GetSignSessionStatus)
-	router.Add(http.MethodPut, baseURL+"/internal/auth/v1/signature/verify", wrapper.VerifySignature)
-	router.Add(http.MethodPost, baseURL+"/n2n/auth/v1/accesstoken", wrapper.CreateAccessToken)
-	router.Add(http.MethodGet, baseURL+"/public/auth/v1/contract/:contractType", wrapper.GetContractByType)
+	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
+	// so it can be used in error reporting middleware.
+	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/accesstoken/introspect", func(context echo.Context) error {
+		context.Set("!!OperationId", "IntrospectAccessToken")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.IntrospectAccessToken(context)
+	})
+	router.Add(http.MethodHead, baseURL+"/internal/auth/v1/accesstoken/verify", func(context echo.Context) error {
+		context.Set("!!OperationId", "VerifyAccessToken")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.VerifyAccessToken(context)
+	})
+	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/bearertoken", func(context echo.Context) error {
+		context.Set("!!OperationId", "CreateJwtBearerToken")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.CreateJwtBearerToken(context)
+	})
+	router.Add(http.MethodPut, baseURL+"/internal/auth/v1/contract/drawup", func(context echo.Context) error {
+		context.Set("!!OperationId", "DrawUpContract")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.DrawUpContract(context)
+	})
+	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/signature/session", func(context echo.Context) error {
+		context.Set("!!OperationId", "CreateSignSession")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.CreateSignSession(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/auth/v1/signature/session/:sessionID", func(context echo.Context) error {
+		context.Set("!!OperationId", "GetSignSessionStatus")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.GetSignSessionStatus(context)
+	})
+	router.Add(http.MethodPut, baseURL+"/internal/auth/v1/signature/verify", func(context echo.Context) error {
+		context.Set("!!OperationId", "VerifySignature")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.VerifySignature(context)
+	})
+	router.Add(http.MethodPost, baseURL+"/n2n/auth/v1/accesstoken", func(context echo.Context) error {
+		context.Set("!!OperationId", "CreateAccessToken")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.CreateAccessToken(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/public/auth/v1/contract/:contractType", func(context echo.Context) error {
+		context.Set("!!OperationId", "GetContractByType")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.GetContractByType(context)
+	})
 
 }

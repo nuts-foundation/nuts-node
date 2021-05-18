@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"schneider.vip/problem"
 	"strings"
 	"sync"
 )
@@ -107,7 +106,7 @@ func getGroup(path string) string {
 	return ""
 }
 
-func createEchoServer(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
+func createEchoServer(cfg HTTPConfig, strictmode bool, routers []Routable) (*echo.Echo, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
 	// Register Echo logger middleware but do not log calls to the status endpoint,
@@ -115,7 +114,7 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
 	loggerConfig := middleware.DefaultLoggerConfig
 	loggerConfig.Skipper = requestsStatusEndpoint
 	echoServer.Use(middleware.LoggerWithConfig(loggerConfig))
-	echoServer.HTTPErrorHandler = httpErrorHandler
+	echoServer.HTTPErrorHandler = createHTTPErrorHandler(routers)
 	if cfg.CORS.Enabled() {
 		if strictmode {
 			for _, origin := range cfg.CORS.Origin {
@@ -132,21 +131,4 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
 
 func requestsStatusEndpoint(context echo.Context) bool {
 	return context.Request().RequestURI == "/status"
-}
-
-func httpErrorHandler(err error, ctx echo.Context) {
-	if prb, ok := err.(*problem.Problem); ok {
-		if !ctx.Response().Committed {
-			if _, err := prb.WriteTo(ctx.Response()); err != nil {
-				ctx.Echo().Logger.Error(err)
-			}
-		}
-	} else {
-		ctx.Echo().DefaultHTTPErrorHandler(err, ctx)
-	}
-}
-
-// NewProblem creates a new problem.Problem
-func NewProblem(title string, status int, detail string) *problem.Problem {
-	return problem.New(problem.Title(title), problem.Status(status), problem.Detail(detail))
 }

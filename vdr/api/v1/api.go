@@ -20,7 +20,6 @@
 package v1
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -40,22 +39,31 @@ type Wrapper struct {
 	DocResolver    types.DocResolver
 }
 
+func (a *Wrapper) ErrorStatusCodes() map[error]int {
+	return map[error]int{
+		types.ErrNotFound:                http.StatusNotFound,
+		types.ErrDIDNotManagedByThisNode: http.StatusForbidden,
+		types.ErrDeactivated:             http.StatusConflict,
+		vdrDoc.ErrInvalidOptions:         http.StatusBadRequest,
+	}
+}
+
 // DeleteVerificationMethod accepts a DID and a KeyIdentifier of a verificationMethod and calls the DocManipulator
 // to remove the verificationMethod from the given document.
 func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidStr string) error {
 	id, err := did.ParseDID(didStr)
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+		return core.InvalidInputError("given DID could not be parsed: %w", err)
 	}
 
 	kid, err := did.ParseDIDURL(kidStr)
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given kid could not be parsed: %s", err.Error()))
+		return core.InvalidInputError("given kid could not be parsed: %w", err)
 	}
 
 	err = a.DocManipulator.RemoveVerificationMethod(*id, *kid)
 	if err != nil {
-		return handleError(ctx, err, "could not remove verification method from document: %s")
+		return fmt.Errorf("could not remove verification method from document: %w", err)
 	}
 	return ctx.NoContent(http.StatusNoContent)
 }
@@ -64,12 +72,12 @@ func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidS
 func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
 	d, err := did.ParseDID(id)
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+		return core.InvalidInputError("given verificationMethod ID could not be parsed: %w", err)
 	}
 
 	vm, err := a.DocManipulator.AddVerificationMethod(*d)
 	if err != nil {
-		return handleError(ctx, err, "could not update DID document: %s")
+		return err
 	}
 	return ctx.JSON(http.StatusOK, *vm)
 }
@@ -82,7 +90,7 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 func (a Wrapper) CreateDID(ctx echo.Context) error {
 	req := DIDCreateRequest{}
 	if err := ctx.Bind(&req); err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("create request could not be parsed: %s", err.Error()))
+		return err
 	}
 
 	options := vdrDoc.DefaultCreationOptions()
@@ -90,7 +98,7 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 		for _, c := range *req.Controllers {
 			id, err := did.ParseDID(c)
 			if err != nil {
-				return ctx.String(http.StatusBadRequest, fmt.Sprintf("controller entry (%s) could not be parsed: %s", c, err.Error()))
+				return core.InvalidInputError("controller entry (%s) could not be parsed: %w", c, err)
 			}
 			options.Controllers = append(options.Controllers, *id)
 		}
@@ -118,9 +126,6 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 	doc, _, err := a.VDR.Create(options)
 	// if this operation leads to an error, it may return a 500
 	if err != nil {
-		if errors.Is(err, vdrDoc.ErrInvalidOptions) {
-			return ctx.String(http.StatusBadRequest, err.Error())
-		}
 		return err
 	}
 
@@ -132,15 +137,12 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
 	d, err := did.ParseDID(targetDID)
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+		return core.InvalidInputError("given DID could not be parsed: %w", err)
 	}
 
 	// no params in the API for now
 	doc, meta, err := a.DocResolver.Resolve(*d, nil)
 	if err != nil {
-		if errors.Is(err, types.ErrNotFound) {
-			return ctx.String(http.StatusNotFound, "DID document not found")
-		}
 		return err
 	}
 
@@ -156,22 +158,22 @@ func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
 func (a Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
 	d, err := did.ParseDID(targetDID)
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+		return core.InvalidInputError("given DID could not be parsed: %w", err)
 	}
 
 	req := DIDUpdateRequest{}
 	if err := ctx.Bind(&req); err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given update request could not be parsed: %s", err.Error()))
+		return err
 	}
 
 	h, err := hash.ParseHex(req.CurrentHash)
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given hash is not valid: %s", err.Error()))
+		return core.InvalidInputError("given hash is not valid: %w", err)
 	}
 
 	err = a.VDR.Update(*d, h, req.Document, nil)
 	if err != nil {
-		return handleError(ctx, err, "could not update DID document: %s")
+		return err
 	}
 	return ctx.JSON(http.StatusOK, req.Document)
 }
@@ -181,33 +183,11 @@ func (a Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
 func (a *Wrapper) DeactivateDID(ctx echo.Context, targetDID string) error {
 	id, err := did.ParseDID(targetDID)
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
+		return core.InvalidInputError("given DID could not be parsed: %w", err)
 	}
 	err = a.DocManipulator.Deactivate(*id)
 	if err != nil {
-		return handleError(ctx, err, "could not deactivate DID document: %s")
+		return err
 	}
 	return ctx.NoContent(http.StatusOK)
-}
-
-// handleError make error handling consistent. It accepts the echo context an error and a template.
-// Based on the error the correct status code gets selected
-// The error message is put in the %s location of the errTemplate
-func handleError(ctx echo.Context, err error, errTemplate string) error {
-	if err != nil {
-		if errors.Is(err, types.ErrNotFound) {
-			return ctx.String(http.StatusNotFound, fmt.Sprintf(errTemplate, err.Error()))
-		}
-		if errors.Is(err, types.ErrDuplicateService) {
-			return ctx.String(http.StatusBadRequest, fmt.Sprintf(errTemplate, err.Error()))
-		}
-		if errors.Is(err, types.ErrDIDNotManagedByThisNode) {
-			return ctx.String(http.StatusForbidden, fmt.Sprintf(errTemplate, err.Error()))
-		}
-		if errors.Is(err, types.ErrDeactivated) {
-			return ctx.String(http.StatusConflict, fmt.Sprintf(errTemplate, err.Error()))
-		}
-		return ctx.String(http.StatusInternalServerError, fmt.Sprintf(errTemplate, err.Error()))
-	}
-	return err
 }

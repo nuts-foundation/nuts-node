@@ -919,6 +919,10 @@ type EchoRouter interface {
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type ErrorStatusCodeMapper interface {
+	ErrorStatusCodes() map[error]int
+}
+
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -932,10 +936,42 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/compoundservice", wrapper.AddCompoundService)
-	router.Add(http.MethodGet, baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.GetContactInformation)
-	router.Add(http.MethodPut, baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.UpdateContactInformation)
-	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/endpoint", wrapper.AddEndpoint)
-	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/service/:id", wrapper.DeleteService)
+	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
+	// so it can be used in error reporting middleware.
+	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/compoundservice", func(context echo.Context) error {
+		context.Set("!!OperationId", "AddCompoundService")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.AddCompoundService(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/didman/v1/did/:did/contactinfo", func(context echo.Context) error {
+		context.Set("!!OperationId", "GetContactInformation")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.GetContactInformation(context)
+	})
+	router.Add(http.MethodPut, baseURL+"/internal/didman/v1/did/:did/contactinfo", func(context echo.Context) error {
+		context.Set("!!OperationId", "UpdateContactInformation")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.UpdateContactInformation(context)
+	})
+	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/endpoint", func(context echo.Context) error {
+		context.Set("!!OperationId", "AddEndpoint")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.AddEndpoint(context)
+	})
+	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/service/:id", func(context echo.Context) error {
+		context.Set("!!OperationId", "DeleteService")
+		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
+			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		}
+		return wrapper.DeleteService(context)
+	})
 
 }

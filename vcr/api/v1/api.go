@@ -20,8 +20,6 @@
 package v1
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -40,6 +38,18 @@ type Wrapper struct {
 	CR concept.Reader
 }
 
+func (a *Wrapper) ErrorStatusCodes() map[error]int {
+	return map[error]int{
+		concept.ErrUnknownConcept: http.StatusNotFound,
+		vcr.ErrNotFound:           http.StatusNotFound,
+		vcr.ErrRevoked:            http.StatusConflict,
+		credential.ErrValidation:  http.StatusBadRequest,
+		types.ErrNotFound:         http.StatusBadRequest,
+		types.ErrKeyNotFound:      http.StatusBadRequest,
+		vcr.ErrInvalidCredential:  http.StatusNotFound,
+	}
+}
+
 // Routes registers the handler to the echo router
 func (w *Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, w)
@@ -50,14 +60,11 @@ func (w *Wrapper) Search(ctx echo.Context, conceptTemplate string) error {
 	sr := new(SearchRequest)
 
 	if err := ctx.Bind(sr); err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse request body: %s", err.Error()))
+		return err
 	}
 
 	query, err := w.CR.QueryFor(conceptTemplate)
 	if err != nil {
-		if err == concept.ErrUnknownConcept {
-			return ctx.NoContent(http.StatusNotFound)
-		}
 		return err
 	}
 
@@ -90,25 +97,10 @@ func (w *Wrapper) Revoke(ctx echo.Context, id string) error {
 
 	// return 400 for malformed input
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse credential ID: %s", err.Error()))
+		return core.InvalidInputError("failed to parse credential ID: %w", err)
 	}
 
 	r, err := w.R.Revoke(*idURI)
-	// 404 not found
-	if errors.Is(err, vcr.ErrNotFound) {
-		return ctx.NoContent(http.StatusNotFound)
-	}
-
-	// return 409 when already revoked
-	if errors.Is(err, vcr.ErrRevoked) {
-		return ctx.NoContent(http.StatusConflict)
-	}
-
-	// 400 not the issuer
-	if errors.Is(err, types.ErrKeyNotFound) {
-		return ctx.String(http.StatusBadRequest, "no issuer private key found")
-	}
-
 	if err != nil {
 		return err
 	}
@@ -121,20 +113,11 @@ func (w *Wrapper) Create(ctx echo.Context) error {
 	requestedVC := IssueVCRequest{}
 
 	if err := ctx.Bind(&requestedVC); err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse request body: %s", err.Error()))
+		return err
 	}
 
 	vcCreated, err := w.R.Issue(requestedVC)
 	if err != nil {
-		if errors.Is(err, credential.ErrValidation) {
-			return ctx.String(http.StatusBadRequest, err.Error())
-		}
-		if errors.Is(err, types.ErrNotFound) {
-			return ctx.String(http.StatusBadRequest, err.Error())
-		}
-		if errors.Is(err, types.ErrKeyNotFound) {
-			return ctx.String(http.StatusBadRequest, err.Error())
-		}
 		return err
 	}
 
@@ -146,16 +129,11 @@ func (w *Wrapper) Resolve(ctx echo.Context, id string) error {
 	idURI, err := ssi.ParseURI(id)
 	// return 400 for malformed input
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse credential ID: %s", err.Error()))
+		return core.InvalidInputError("failed to parse credential ID: %w", err)
 	}
 
 	// id is given with fragment
 	vc, err := w.R.Resolve(*idURI)
-	if errors.Is(err, vcr.ErrNotFound) {
-		return ctx.NoContent(http.StatusNotFound)
-	}
-
-	// 500
 	if vc == nil && err != nil {
 		return err
 	}
@@ -191,14 +169,11 @@ func (w *Wrapper) UntrustIssuer(ctx echo.Context) error {
 func (w *Wrapper) ListTrusted(ctx echo.Context, credentialType string) error {
 	uri, err := ssi.ParseURI(credentialType)
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("malformed credential type: %s", err.Error()))
+		return core.InvalidInputError("malformed credential type: %w", err)
 	}
 
 	trusted, err := w.R.Trusted(*uri)
 	if err != nil {
-		if errors.Is(err, vcr.ErrInvalidCredential) {
-			return ctx.NoContent(http.StatusNotFound)
-		}
 		return err
 	}
 	result := make([]string, len(trusted))
@@ -212,14 +187,11 @@ func (w *Wrapper) ListTrusted(ctx echo.Context, credentialType string) error {
 func (w *Wrapper) ListUntrusted(ctx echo.Context, credentialType string) error {
 	uri, err := ssi.ParseURI(credentialType)
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("malformed credential type: %s", err.Error()))
+		return core.InvalidInputError("malformed credential type: %w", err)
 	}
 
 	untrusted, err := w.R.Untrusted(*uri)
 	if err != nil {
-		if errors.Is(err, vcr.ErrInvalidCredential) {
-			return ctx.NoContent(http.StatusNotFound)
-		}
 		return err
 	}
 
@@ -237,17 +209,17 @@ func changeTrust(ctx echo.Context, f trustChangeFunc) error {
 	var icc = new(CredentialIssuer)
 
 	if err := ctx.Bind(icc); err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse request body: %s", err.Error()))
+		return err
 	}
 
 	d, err := ssi.ParseURI(icc.Issuer)
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse issuer: %s", err.Error()))
+		return core.InvalidInputError("failed to parse issuer: %w", err)
 	}
 
 	cType, err := ssi.ParseURI(icc.CredentialType)
 	if err != nil {
-		return ctx.String(http.StatusBadRequest, fmt.Sprintf("failed to parse credential type: %s", err.Error()))
+		return core.InvalidInputError("failed to parse credential type: %w", err)
 	}
 
 	if err = f(*cType, *d); err != nil {

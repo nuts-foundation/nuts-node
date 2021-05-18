@@ -29,11 +29,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
-const problemTitleListTransactions = "ListTransactions failed"
-const problemTitleGetTransaction = "GetTransaction failed"
-const problemTitleGetTransactionPayload = "GetTransactionPayload failed"
-const problemTitleRenderGraph = "RenderGraph failed"
-
 // Wrapper implements the ServerInterface for the network API.
 type Wrapper struct {
 	Service network.Transactions
@@ -48,7 +43,7 @@ func (a Wrapper) ListTransactions(ctx echo.Context) error {
 	transactions, err := a.Service.ListTransactions()
 	if err != nil {
 		log.Logger().Errorf("Error while listing transactions: %v", err)
-		return core.NewProblem(problemTitleListTransactions, http.StatusInternalServerError, err.Error())
+		return err
 	}
 	results := make([]string, len(transactions))
 	for i, transaction := range transactions {
@@ -59,17 +54,17 @@ func (a Wrapper) ListTransactions(ctx echo.Context) error {
 
 // GetTransaction returns a specific transaction
 func (a Wrapper) GetTransaction(ctx echo.Context, hashAsString string) error {
-	hash, err := hash2.ParseHex(hashAsString)
+	hash, err := parseHash(hashAsString)
 	if err != nil {
-		return core.NewProblem(problemTitleGetTransaction, http.StatusBadRequest, err.Error())
+		return err
 	}
 	transaction, err := a.Service.GetTransaction(hash)
 	if err != nil {
 		log.Logger().Errorf("Error while retrieving transaction (hash=%s): %v", hash, err)
-		return core.NewProblem(problemTitleGetTransaction, http.StatusInternalServerError, err.Error())
+		return err
 	}
 	if transaction == nil {
-		return core.NewProblem(problemTitleGetTransaction, http.StatusNotFound, "transaction not found")
+		return core.NotFoundError("transaction not found")
 	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "application/jose")
 	ctx.Response().WriteHeader(http.StatusOK)
@@ -79,17 +74,17 @@ func (a Wrapper) GetTransaction(ctx echo.Context, hashAsString string) error {
 
 // GetTransactionPayload returns the payload of a specific transaction
 func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) error {
-	hash, err := hash2.ParseHex(hashAsString)
+	hash, err := parseHash(hashAsString)
 	if err != nil {
-		return core.NewProblem(problemTitleGetTransactionPayload, http.StatusBadRequest, err.Error())
+		return err
 	}
 	data, err := a.Service.GetTransactionPayload(hash)
 	if err != nil {
 		log.Logger().Errorf("Error while retrieving transaction payload (hash=%s): %v", hash, err)
-		return core.NewProblem(problemTitleGetTransactionPayload, http.StatusInternalServerError, err.Error())
+		return err
 	}
 	if data == nil {
-		return core.NewProblem(problemTitleGetTransactionPayload, http.StatusNotFound, "transaction or contents not found")
+		return core.NotFoundError("transaction or contents not found")
 	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "application/octet-stream")
 	ctx.Response().WriteHeader(http.StatusOK)
@@ -103,8 +98,16 @@ func (a Wrapper) RenderGraph(ctx echo.Context) error {
 	err := a.Service.Walk(visitor.Accept)
 	if err != nil {
 		log.Logger().Errorf("Error while rendering graph: %v", err)
-		return core.NewProblem(problemTitleRenderGraph, http.StatusInternalServerError, err.Error())
+		return err
 	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "text/vnd.graphviz")
 	return ctx.String(http.StatusOK, visitor.Render())
+}
+
+func parseHash(hashAsString string) (hash2.SHA256Hash, error) {
+	hash, err := hash2.ParseHex(hashAsString)
+	if err != nil {
+		return hash, core.InvalidInputError("invalid hash: %w", err)
+	}
+	return hash, err
 }
