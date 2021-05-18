@@ -290,7 +290,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
 	})
 
-	t.Run("error - incorrect endpoint", func(t *testing.T) {
+	t.Run("error - incorrect endpoint (not a URI)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			p := f.(*CompoundServiceCreateRequest)
@@ -304,6 +304,23 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
 		test.AssertErrProblemDetail(t,  "invalid reference for service 'foo': parse \":\": missing protocol scheme", err)
+		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
+	})
+
+	t.Run("error - incorrect endpoint (not a string)", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*CompoundServiceCreateRequest)
+			*p = CompoundServiceCreateRequest{Type: "type", Endpoint: map[string]interface{}{"foo": map[string]interface{}{}}}
+			return nil
+		})
+		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
+
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemDetail(t,  "invalid reference for service 'foo': not a string", err)
 		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
 	})
 
