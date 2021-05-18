@@ -87,6 +87,43 @@ paths:
           description: The given type and URL have been added as service to the DID Document
         default:
           $ref: '../common/error_response.yaml'
+  /internal/didman/v1/did/{did}/compoundservice:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example:
+          - "did:nuts:1234"
+        schema:
+          type: string
+    post:
+      summary: Add a compound service to a DID Document.
+      description: |
+        Add a service to a DID Document that references one or more endpoints using a map. The keys of the map indicate the service name/type, the values contain the references to the endpoints.
+        The endpoints may be in the same or in another DID Document, but they must be resolvable when the service is created.
+        The references must follow the format for service references as specified by Nuts RFC006.
+
+        This API will also check if an endpoint with the same type already exists. This API is not meant to add endpoints.
+
+        error returns:
+        * 400 - incorrect input
+        * 404 - unknown DID
+        * 409 - a service with the same type already exists
+      operationId: "addCompoundService"
+      tags:
+        - DID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompoundServiceCreateRequest'
+      responses:
+        "204":
+          description: The compound service has been added to the DID Document
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/didman/v1/service/{id}:
     parameters:
       - name: id
@@ -126,6 +163,20 @@ components:
         endpoint:
           description: A URL.
           type: string
+    CompoundServiceCreateRequest:
+      type: object
+      description: A creation request for a compound service that references endpoints.
+      required:
+        - type
+        - endpoint
+      properties:
+        type:
+          description: type of the endpoint. May be freely choosen.
+          type: string
+        endpoint:
+          description: A map containing service references.
+          example: {'auth': 'did:nuts:1312321?type=auth'}
+          type: object
     ContactInformation:
       type: object
       description: A set of contact information entries

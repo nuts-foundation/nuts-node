@@ -116,6 +116,87 @@ func TestDidman_AddEndpoint(t *testing.T) {
 	})
 }
 
+func TestDidman_AddCompoundService(t *testing.T) {
+	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
+
+	helloServiceQuery, _ := ssi.ParseURI(vdr.TestDIDA.String() + "?type=hello")
+	worldServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "?type=world")
+	universeServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "?type=universe")
+	references := make(map[string]ssi.URI, 0)
+	references["hello"] = *helloServiceQuery
+	references["world"] = *worldServiceQuery
+	references["universe"] = *universeServiceQuery
+
+	docA := did.Document{
+		ID: *vdr.TestDIDA,
+		Service: []did.Service{{
+			Type:            "hello",
+			ServiceEndpoint: "http://hello",
+		}},
+	}
+	docB := did.Document{ID: *vdr.TestDIDB,
+		Service: []did.Service{
+			{
+				Type:            "world",
+				ServiceEndpoint: "http://world",
+			},
+			{
+				Type:            "universe",
+				ServiceEndpoint: "http://universe",
+			},
+		},
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		var newDoc did.Document
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
+		// DID B should be resolved once, since they're cached
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDB, nil).Return(&docB, meta, nil)
+		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
+			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
+				newDoc = doc.(did.Document)
+				return nil
+			})
+
+		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", references)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Len(t, newDoc.Service, 2)
+		assert.Equal(t, "helloworld", newDoc.Service[1].Type)
+		assert.Equal(t, references, newDoc.Service[1].ServiceEndpoint)
+	})
+	t.Run("error - service reference doesn't contain a valid DID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": {}})
+		assert.Error(t, err)
+	})
+	t.Run("error - holder DID document can't be resolved", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
+		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": *helloServiceQuery})
+		assert.EqualError(t, err, types.ErrNotFound.Error())
+	})
+	t.Run("error - service reference does not contain type", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
+		invalidQuery := *helloServiceQuery
+		invalidQuery.RawQuery = ""
+		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": invalidQuery})
+		assert.EqualError(t, err, ErrInvalidServiceQuery.Error())
+	})
+	t.Run("error - service reference does resolve to an endpoint URL", func(t *testing.T) {
+		ctx := newMockContext(t)
+		docAAlt := docA
+		docAAlt.Service[0].ServiceEndpoint = map[string]string{"key": "value"}
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docAAlt, meta, nil)
+		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": *helloServiceQuery})
+		assert.True(t, errors.Is(err, ErrReferencedServiceNotAnEndpoint))
+	})
+}
+
 func TestDidman_DeleteService(t *testing.T) {
 	didDocStr := `{"service":[{"id":"did:nuts:123#1", "serviceEndpoint": "https://api.example.com"}]}`
 	didDoc := &did.Document{}
@@ -303,15 +384,15 @@ func TestDidman_GetContactInformation(t *testing.T) {
 	})
 }
 
-func TestConstructService(t *testing.T) {
+func TestGenerateIDForService(t *testing.T) {
 	u, _ := url.Parse("https://api.example.com/v1")
 	expectedID, _ := ssi.ParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
 
-	service := constructService(*vdr.TestDIDA, "type", *u)
-
-	assert.Equal(t, "type", service.Type)
-	assert.Equal(t, u.String(), service.ServiceEndpoint)
-	assert.Equal(t, *expectedID, service.ID)
+	id := generateIDForService(*vdr.TestDIDA, did.Service{
+		Type:            "type",
+		ServiceEndpoint: u.String(),
+	})
+	assert.Equal(t, *expectedID, id)
 }
 
 func TestReferencesService(t *testing.T) {

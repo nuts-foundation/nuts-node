@@ -40,6 +40,12 @@ type Didman interface {
 	// It returns ErrServiceNotFound if the service can't be found in the DID Document.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	DeleteService(id ssi.URI) error
+	// AddCompoundEndpoint adds a compound endpoint to a DID Document.
+	// It returns ErrDuplicateService if a service with the given type already exists.
+	// It returns ErrInvalidServiceQuery if one of the service references is invalid.
+	// It returns ErrReferencedServiceNotAnEndpoint if one of the services does not resolve to a single endpoint URL.
+	// It can also return various errors from DocResolver.Resolve and VDR.Update
+	AddCompoundService(id did.DID, serviceType string, references map[string]ssi.URI) error
 
 	UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error)
 
