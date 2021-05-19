@@ -99,6 +99,8 @@ func (h HTTPClient) AddCompoundService(did, serviceType string, references map[s
 	return core.TestResponseCode(http.StatusNoContent, response)
 }
 
+// DeleteService tries to delete a service from the DID document indicated by the ID
+// Returns an error if the service does not exists, is still in use or if the DID is not managed by this node.
 func (h HTTPClient) DeleteService(id ssi.URI) error {
 	ctx, cancel := h.withTimeout()
 	defer cancel()
