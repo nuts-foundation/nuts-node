@@ -113,7 +113,7 @@ func TestHTTPClient_AddCompoundService(t *testing.T) {
 func TestHTTPClient_DeleteService(t *testing.T) {
 	id, _ := ssi.ParseURI("did:123#abc")
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK})
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		err := c.DeleteService(*id)
 		assert.NoError(t, err)

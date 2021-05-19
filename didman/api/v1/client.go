@@ -108,7 +108,7 @@ func (h HTTPClient) DeleteService(id ssi.URI) error {
 	if err != nil {
 		return err
 	}
-	return core.TestResponseCode(http.StatusOK, response)
+	return core.TestResponseCode(http.StatusNoContent, response)
 }
 
 func (h HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
