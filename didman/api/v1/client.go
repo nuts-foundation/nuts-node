@@ -2,9 +2,11 @@ package v1
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -95,6 +97,16 @@ func (h HTTPClient) AddCompoundService(did, serviceType string, references map[s
 		return err
 	}
 	return core.TestResponseCode(http.StatusNoContent, response)
+}
+
+func (h HTTPClient) DeleteService(id ssi.URI) error {
+	ctx, cancel := h.withTimeout()
+	defer cancel()
+	response, err := h.client().DeleteService(ctx, id.String())
+	if err != nil {
+		return err
+	}
+	return core.TestResponseCode(http.StatusOK, response)
 }
 
 func (h HTTPClient) withTimeout() (context.Context, context.CancelFunc) {

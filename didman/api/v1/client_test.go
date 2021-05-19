@@ -1,12 +1,14 @@
 package v1
 
 import (
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTPClient_UpdateContactInformation(t *testing.T) {
@@ -104,6 +106,23 @@ func TestHTTPClient_AddCompoundService(t *testing.T) {
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
 		err := c.AddCompoundService("abc", "type", refs)
+		assert.Error(t, err)
+	})
+}
+
+func TestHTTPClient_DeleteService(t *testing.T) {
+	id, _ := ssi.ParseURI("did:123#abc")
+	t.Run("ok", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.DeleteService(*id)
+		assert.NoError(t, err)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: nil})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.DeleteService(*id)
 		assert.Error(t, err)
 	})
 }
