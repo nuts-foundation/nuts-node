@@ -65,6 +65,38 @@ func (h HTTPClient) UpdateContactInformation(did string, information ContactInfo
 	return core.TestResponseCode(http.StatusOK, response)
 }
 
+// AddEndpoint registers a concrete endpoint URL on the given DID.
+func (h HTTPClient) AddEndpoint(did, endpointType, endpointURL string) error {
+	ctx, cancel := h.withTimeout()
+	defer cancel()
+	response, err := h.client().AddEndpoint(ctx, did, AddEndpointJSONRequestBody{
+		Type:     endpointType,
+		Endpoint: endpointURL,
+	})
+	if err != nil {
+		return err
+	}
+	return core.TestResponseCode(http.StatusNoContent, response)
+}
+
+// AddCompoundService registers a compound service on the given DID.
+func (h HTTPClient) AddCompoundService(did, serviceType string, references map[string]string) error {
+	ctx, cancel := h.withTimeout()
+	defer cancel()
+	refs := make(map[string]interface{}, 0)
+	for k, v := range references {
+		refs[k] = v
+	}
+	response, err := h.client().AddCompoundService(ctx, did, AddCompoundServiceJSONRequestBody{
+		Type:     serviceType,
+		Endpoint: refs,
+	})
+	if err != nil {
+		return err
+	}
+	return core.TestResponseCode(http.StatusNoContent, response)
+}
+
 func (h HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), h.Timeout)
 }

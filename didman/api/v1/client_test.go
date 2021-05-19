@@ -64,3 +64,46 @@ func TestHTTPClient_GetContactInformation(t *testing.T) {
 		assert.Nil(t, actual)
 	})
 }
+
+func TestHTTPClient_AddEndpoint(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.AddEndpoint("abc", "type", "some-url")
+		assert.NoError(t, err)
+	})
+	t.Run("error - server error", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.AddEndpoint("abc", "type", "some-url")
+		assert.Error(t, err)
+	})
+	t.Run("error - wrong address", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		err := c.AddEndpoint("abc", "type", "some-url")
+		assert.Error(t, err)
+	})
+}
+
+func TestHTTPClient_AddCompoundService(t *testing.T) {
+	refs := map[string]string{
+		"foo": "bar",
+	}
+	t.Run("ok", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.AddCompoundService("abc", "type", refs)
+		assert.NoError(t, err)
+	})
+	t.Run("error - server error", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.AddCompoundService("abc", "type", refs)
+		assert.Error(t, err)
+	})
+	t.Run("error - wrong address", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		err := c.AddCompoundService("abc", "type", refs)
+		assert.Error(t, err)
+	})
+}
