@@ -163,7 +163,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	}
 
 	var key crypto.Key
-	outer:
+outer:
 	for _, c := range controllers {
 		for _, cik := range c.CapabilityInvocation {
 			key, err = r.keyStore.Resolve(cik.ID.String())
