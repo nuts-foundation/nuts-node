@@ -149,35 +149,15 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	if store.IsDeactivated(*currentDIDDocument) {
 		return types.ErrDeactivated
 	}
-	controllers, err := r.didDocResolver.ResolveControllers(*currentDIDDocument)
-	if err != nil {
-		return fmt.Errorf("error while finding controllers for document: %w", err)
-	}
-	if len(controllers) == 0 {
-		return fmt.Errorf("could not find any controllers for document")
-	}
 
 	payload, err := json.Marshal(next)
 	if err != nil {
 		return err
 	}
 
-	var key crypto.Key
-outer:
-	for _, c := range controllers {
-		for _, cik := range c.CapabilityInvocation {
-			key, err = r.keyStore.Resolve(cik.ID.String())
-			if err == nil {
-				break outer
-			}
-		}
-	}
-
+	key, err := r.resolveControllerKey(*currentDIDDocument)
 	if err != nil {
-		if errors.Is(err, crypto.ErrKeyNotFound) {
-			return types.ErrDIDNotManagedByThisNode
-		}
-		return fmt.Errorf("could not find capabilityInvocation key for controller: %w", err)
+		return err
 	}
 
 	_, err = r.network.CreateTransaction(didDocumentType, payload, key, false, time.Now(), currentMeta.SourceTransactions)
@@ -191,4 +171,30 @@ outer:
 	}
 
 	return err
+}
+
+func (r VDR) resolveControllerKey(doc did.Document) (crypto.Key, error) {
+	controllers, err := r.didDocResolver.ResolveControllers(doc)
+	if err != nil {
+		return nil, fmt.Errorf("error while finding controllers for document: %w", err)
+	}
+	if len(controllers) == 0 {
+		return nil, fmt.Errorf("could not find any controllers for document")
+	}
+
+	var key crypto.Key
+	for _, c := range controllers {
+		for _, cik := range c.CapabilityInvocation {
+			key, err = r.keyStore.Resolve(cik.ID.String())
+			if err == nil {
+				return key, nil
+			}
+		}
+	}
+
+	if errors.Is(err, crypto.ErrKeyNotFound) {
+		return nil, types.ErrDIDNotManagedByThisNode
+	}
+
+	return nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
 }
