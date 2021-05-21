@@ -286,7 +286,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test.AssertErrProblemDetail(t,  "failed", err)
+		test.AssertErrProblemDetail(t, "failed", err)
 		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
 	})
 
@@ -303,7 +303,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemDetail(t,  "invalid reference for service 'foo': parse \":\": missing protocol scheme", err)
+		test.AssertErrProblemDetail(t, "invalid reference for service 'foo': parse \":\": missing protocol scheme", err)
 		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
 	})
 
@@ -320,7 +320,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemDetail(t,  "invalid reference for service 'foo': not a string", err)
+		test.AssertErrProblemDetail(t, "invalid reference for service 'foo': not a string", err)
 		test.AssertErrProblemTitle(t, problemTitleAddCompoundService, err)
 	})
 
