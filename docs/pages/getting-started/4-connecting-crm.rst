@@ -217,4 +217,45 @@ After a vendor has been trusted, any of its registered organizations should be s
 Enabling a bolt
 ===============
 
-todo
+Organizations can be found on the network and endpoints have been defined.
+Now it's time to enable specific bolts so users can start using data from other organizations.
+Every bolt requires its own configuration. This configuration is entered through a *Compound Service*.
+A Compound Service defines certain endpoint types and which endpoint to use for that type.
+
+A Compound Service can be added with the following request:
+
+.. code-block:: text
+
+    POST <internal-node-address>/internal/didman/v1/did/<did>/compoundservice
+    {
+        "type": "<type>",
+        "endpoint": {
+            "<X>": "<endpoint_did>?type=<Y>",
+            ...
+        }
+    }
+
+The parameters must be replaced:
+
+-  ``<did>`` must be replaced with the organization DID.
+-  ``<type>`` must be replaced with the type defined by the bolt specification.
+- ``<endpoint_did>`` must be replaced with the vendor DID that defines the endpoints.
+- ``<X>`` must be replaced with the type required by the bolt specification.
+  All types defined by the specification must be added, unless stated otherwise.
+- ``<Y>`` must be replaced with the correct endpoint type from the vendor DID Document.
+  ``<endpoint_did>?type=<Y>`` must be a valid query within the corresponding DID Document.
+
+
+For example, the `eOverdracht sender <https://nuts-foundation.gitbook.io/bolts/eoverdracht/leveranciersspecificatie#4-1-2-organisatie-endpoint-discovery>`_ requires an ``eOverdracht-sender`` Compound Service with two endpoints: an ``oauth`` endpoint and a ``fhir`` endpoint.
+The example can be added by the following request:
+
+.. code-block:: text
+
+    POST <internal-node-address>/internal/didman/v1/did/did:nuts:organization_identifier/compoundservice
+    {
+        "type": "eOverdracht-sender",
+        "endpoint": {
+            "oauth": "did:nuts:vendor_identifier?type=production-oauth",
+            "fhir": "did:nuts:vendor_identifier?type=eOverdracht-sender-fhir"
+        }
+    }
