@@ -122,6 +122,9 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 			j++
 		}
 	}
+	if j == len(doc.Service) {
+		return ErrServiceNotFound
+	}
 	doc.Service = doc.Service[:j]
 
 	err = d.vdr.Update(*id, meta.Hash, *doc, nil)
