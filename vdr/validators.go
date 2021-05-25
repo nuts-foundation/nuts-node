@@ -32,7 +32,6 @@ func (s serviceValidator) Validate(document did.Document) error {
 	return nil
 }
 
-
 func verifyDocumentEntryID(owner did.DID, entryID ssi.URI, knownIDs map[string]bool) error {
 	// Check theID has a fragment
 	if len(entryID.Fragment) == 0 {
