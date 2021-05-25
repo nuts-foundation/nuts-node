@@ -353,7 +353,7 @@ components:
           description: Key value pairs containing claims and their values.
           type: object
           example:
-            organisation: Zorgcentrum de Oosterlanden
+            organization: Zorgcentrum de Oosterlanden
             validFrom: 2020-12-16T10:57:00
             validTo: 2020-12-16T12:57:00
     #

@@ -70,7 +70,7 @@ func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID
 		return nil, fmt.Errorf("could not draw up contract: organization is not managed by this node: %w", validator.ErrMissingOrganizationKey)
 	}
 
-	// DrawUpContract draws up a contract for a specific organisation from a template
+	// DrawUpContract draws up a contract for a specific organization from a template
 	result, err := s.conceptFinder.Get(concept.OrganizationConcept, orgID.String())
 	if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
