@@ -612,6 +612,32 @@ func Test_ambassador_callback(t *testing.T) {
 	})
 }
 
+func Test_handleUpdateDIDDocument(t *testing.T) {
+	t.Run("error - unable to resolve controllers", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		didStoreMock := types.NewMockStore(ctrl)
+		keyStoreMock := types.NewMockKeyResolver(ctrl)
+		docResolverMock := types.NewMockDocResolver(ctrl)
+
+		am := ambassador{
+			didStore:    didStoreMock,
+			keyResolver: keyStoreMock,
+			docResolver: docResolverMock,
+		}
+
+		didDocument, _, _ := newDidDoc()
+		tx := testTransaction{}
+
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Return(&didDocument, &types.DocumentMetadata{}, nil)
+		docResolverMock.EXPECT().ResolveControllers(didDocument).Return(nil, errors.New("failed"))
+
+		err := am.handleUpdateDIDDocument(&tx, didDocument)
+		assert.EqualError(t, err, "unable to resolve DID document's controllers: failed")
+	})
+}
+
 func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	signingTime := time.Now()
 	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

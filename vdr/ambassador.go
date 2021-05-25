@@ -156,6 +156,9 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 
 	// Resolve controllers of current version (could be the same document)
 	didControllers, err := n.docResolver.ResolveControllers(*currentDIDDocument)
+	if err != nil {
+		return fmt.Errorf("unable to resolve DID document's controllers: %w", err)
+	}
 
 	var controllerVerificationRelationships []did.VerificationRelationship
 	for _, didCtrl := range didControllers {
