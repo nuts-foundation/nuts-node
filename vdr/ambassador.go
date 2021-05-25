@@ -192,20 +192,6 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		return fmt.Errorf("network document not signed by one of its controllers")
 	}
 
-	// TODO: perform all these tests:
-	// Take capabilityInvocation keys from the controllers
-	// Check if network signingKeyID is one of capabilityInvocations of the controller
-	//
-	// For each verificationMethod in the next version document
-	// 		check if the provided key thumbprint matches the corresponding thumbprint in the key store
-	// Take diff of verificationMethods between next and current versions:
-	// if new verificationMethod is added:
-	// 		Add public key to key store
-	// if verificationMethod is removed:
-	//		Mark keyID as expired since the updatedAt time from new DID document
-	// make a diff of the controllers
-	// 	if controller is added
-	//		check if it is known.
 	// check if the transactions contains all SourceTransactions
 	missedTransactions := missingTransactions(currentDIDMeta.SourceTransactions, transaction.Previous())
 	sourceTransactions := append(missedTransactions, transaction.Ref())

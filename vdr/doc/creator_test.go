@@ -212,7 +212,7 @@ func Test_didKIDNamingFunc(t *testing.T) {
 			return
 		}
 
-		keyID, err := didKIDNamingFunc(privateKey.PublicKey)
+		keyID, err := DIDKIDNamingFunc(privateKey.PublicKey)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -226,7 +226,7 @@ func Test_didKIDNamingFunc(t *testing.T) {
 			return
 		}
 
-		keyID, err := didKIDNamingFunc(pub)
+		keyID, err := DIDKIDNamingFunc(pub)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -234,7 +234,7 @@ func Test_didKIDNamingFunc(t *testing.T) {
 	})
 
 	t.Run("nok - wrong key type", func(t *testing.T) {
-		keyID, err := didKIDNamingFunc(unknownPublicKey{})
+		keyID, err := DIDKIDNamingFunc(unknownPublicKey{})
 		if !assert.Error(t, err) {
 			return
 		}

@@ -54,8 +54,8 @@ func DefaultCreationOptions() vdr.DIDCreationOptions {
 	}
 }
 
-// didKIDNamingFunc is a function used to name a key used in newly generated DID Documents.
-func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
+// DIDKIDNamingFunc is a function used to name a key used in newly generated DID Documents.
+func DIDKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
 	return getKIDName(pKey, func(key jwk.Key) (string, error) {
 		return nutsCrypto.Thumbprint(key)
 	})
@@ -118,9 +118,9 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 
 	// First, generate a new keyPair with the correct kid
 	if options.SelfControl {
-		key, err = n.KeyStore.New(didKIDNamingFunc)
+		key, err = n.KeyStore.New(DIDKIDNamingFunc)
 	} else {
-		key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
+		key, err = nutsCrypto.NewEphemeralKey(DIDKIDNamingFunc)
 	}
 	if err != nil {
 		return nil, nil, err

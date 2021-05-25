@@ -1,6 +1,9 @@
 package vdr
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -36,6 +39,15 @@ func Test_verificationMethodValidator(t *testing.T) {
 			didDoc.VerificationMethod = append(didDoc.VerificationMethod, method)
 			a.doc = didDoc
 		}, errors.New("invalid verificationMethod: ID must be unique")},
+		{"nok - verificationMethod with invalid thumbprint", func(t *testing.T, a *args) {
+			didDoc, _, _ := newDidDoc()
+			keyID := didDoc.VerificationMethod[0].ID
+			keyID.Fragment = "foobar"
+			pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			vm, _ := did.NewVerificationMethod(keyID, didDoc.VerificationMethod[0].Type, didDoc.VerificationMethod[0].Controller, pk.Public())
+			didDoc.VerificationMethod = append(didDoc.VerificationMethod, vm)
+			a.doc = didDoc
+		}, errors.New("invalid verificationMethod: verificationMethod ID is invalid")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -92,6 +104,13 @@ func Test_serviceValidator(t *testing.T) {
 			didDoc.Service[0].ID = *uri
 			a.doc = didDoc
 		}, errors.New("invalid service: ID must have document prefix")},
+		{"nok - service with duplicate type", func(t *testing.T, a *args) {
+			didDoc, _, _ := newDidDoc()
+			svc := didDoc.Service[0]
+			svc.ID.Fragment = "foobar"
+			didDoc.Service = append(didDoc.Service, svc)
+			a.doc = didDoc
+		}, errors.New("invalid service: duplicate service type")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
