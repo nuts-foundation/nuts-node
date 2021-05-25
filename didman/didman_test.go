@@ -199,16 +199,19 @@ func TestDidman_AddCompoundService(t *testing.T) {
 
 func TestDidman_DeleteService(t *testing.T) {
 	didDocStr := `{"service":[{"id":"did:nuts:123#1", "serviceEndpoint": "https://api.example.com"}]}`
-	didDoc := &did.Document{}
+	doc := func() *did.Document {
+		didDoc := &did.Document{}
+		json.Unmarshal([]byte(didDocStr), didDoc)
+		return didDoc
+	}
 	id, _ := did.ParseDID("did:nuts:123")
-	json.Unmarshal([]byte(didDocStr), didDoc)
 	uri, _ := ssi.ParseURI("did:nuts:123#1")
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		var newDoc did.Document
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(), meta, nil)
 		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
 		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).DoAndReturn(
 			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
@@ -224,9 +227,21 @@ func TestDidman_DeleteService(t *testing.T) {
 		assert.Len(t, newDoc.Service, 0)
 	})
 
+	t.Run("error - service not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(), meta, nil)
+		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
+		nonExistingID := *uri
+		nonExistingID.Fragment = "non-existent"
+
+		err := ctx.instance.DeleteService(nonExistingID)
+
+		assert.Equal(t, ErrServiceNotFound, err)
+	})
+
 	t.Run("error - in use", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(), meta, nil)
 		ctx.store.EXPECT().Iterate(gomock.Any()).Return(ErrServiceInUse)
 
 		err := ctx.instance.DeleteService(*uri)
@@ -237,7 +252,7 @@ func TestDidman_DeleteService(t *testing.T) {
 	t.Run("error - update failed", func(t *testing.T) {
 		ctx := newMockContext(t)
 		returnError := errors.New("b00m!")
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(), meta, nil)
 		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
 		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).Return(returnError)
 
