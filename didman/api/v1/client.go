@@ -2,9 +2,11 @@ package v1
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -91,6 +93,18 @@ func (h HTTPClient) AddCompoundService(did, serviceType string, references map[s
 		Type:     serviceType,
 		Endpoint: refs,
 	})
+	if err != nil {
+		return err
+	}
+	return core.TestResponseCode(http.StatusNoContent, response)
+}
+
+// DeleteService tries to delete a service from the DID document indicated by the ID
+// Returns an error if the service does not exists, is still in use or if the DID is not managed by this node.
+func (h HTTPClient) DeleteService(id ssi.URI) error {
+	ctx, cancel := h.withTimeout()
+	defer cancel()
+	response, err := h.client().DeleteService(ctx, id.String())
 	if err != nil {
 		return err
 	}
