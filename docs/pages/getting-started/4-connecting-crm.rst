@@ -219,7 +219,7 @@ Enabling a bolt
 
 Organizations can be found on the network and endpoints have been defined.
 Now it's time to enable specific bolts so users can start using data from other organizations.
-Every bolt requires its own configuration. This configuration is entered through a *Compound Service*.
+Every bolt requires its own configuration. This configuration is known as a Compound Service on the organization's DID document.
 A Compound Service defines certain endpoint types and which endpoint to use for that type.
 
 A Compound Service can be added with the following request:
@@ -259,3 +259,7 @@ The example can be added by the following request:
             "fhir": "did:nuts:vendor_identifier?type=eOverdracht-sender-fhir"
         }
     }
+
+.. note::
+
+    As specified by `RFC006 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc006-distributed-registry#4-services>`_, the ``type`` MUST be unique within a DID Document.
