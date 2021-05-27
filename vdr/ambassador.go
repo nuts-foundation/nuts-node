@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"time"
 
-	ssi "github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
@@ -284,48 +283,11 @@ func checkTransactionIntegrity(transaction dag.Transaction) error {
 //   - every service id should have the DID prefix
 //   - every service id must be unique
 func checkDIDDocumentIntegrity(doc did.Document) error {
-	if err := (did.W3CSpecValidator{}).Validate(doc); err != nil {
-		return err
-	}
-
-	// Verification methods
-	knownKeyIds := make(map[string]bool, 0)
-	for _, method := range doc.VerificationMethod {
-		if err := verifyDocumentEntryID(doc.ID, method.ID.URI(), knownKeyIds); err != nil {
-			return fmt.Errorf("invalid verificationMethod: %w", err)
-		}
-	}
-	// Services
-	knownServiceIDs := make(map[string]bool, 0)
-	for _, method := range doc.Service {
-		if err := verifyDocumentEntryID(doc.ID, method.ID, knownServiceIDs); err != nil {
-			return fmt.Errorf("invalid service: %w", err)
-		}
-	}
-	return nil
-}
-
-func verifyDocumentEntryID(owner did.DID, entryID ssi.URI, knownIDs map[string]bool) error {
-	// Check theID has a fragment
-	if len(entryID.Fragment) == 0 {
-		return fmt.Errorf("ID must have a fragment")
-	}
-	// Check if this ID was part of a previous entry
-	entryIDStr := entryID.String()
-	if knownIDs[entryIDStr] {
-		return fmt.Errorf("ID must be unique")
-	}
-	entryIDAsDID, err := did.ParseDID(entryIDStr)
-	if err != nil {
-		// Shouldn't happen
-		return err
-	}
-	entryIDAsDID.Fragment = ""
-	if !owner.Equals(*entryIDAsDID) {
-		return fmt.Errorf("ID must have document prefix")
-	}
-	knownIDs[entryIDStr] = true
-	return nil
+	return did.MultiValidator{Validators: []did.Validator{
+		did.W3CSpecValidator{},
+		verificationMethodValidator{},
+		serviceValidator{},
+	}}.Validate(doc)
 }
 
 func (n ambassador) isUpdate(doc did.Document) (bool, error) {
