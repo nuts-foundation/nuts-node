@@ -29,10 +29,7 @@ func (v verificationMethodValidator) verifyThumbprint(method *did.VerificationMe
 	if err != nil {
 		return fmt.Errorf("unable to get public key: %w", err)
 	}
-	kid, err := doc.DIDKIDNamingFunc(publicKey)
-	if err != nil {
-		return fmt.Errorf("unable to generate key name: %w", err)
-	}
+	kid, _ := doc.DIDKIDNamingFunc(publicKey)
 	if kid != method.ID.String() {
 		return errors.New("verificationMethod ID is invalid")
 	}
@@ -67,13 +64,8 @@ func verifyDocumentEntryID(owner did.DID, entryID ssi.URI, knownIDs map[string]b
 	if knownIDs[entryIDStr] {
 		return fmt.Errorf("ID must be unique")
 	}
-	entryIDAsDID, err := did.ParseDID(entryIDStr)
-	if err != nil {
-		// Shouldn't happen
-		return err
-	}
-	entryIDAsDID.Fragment = ""
-	if !owner.Equals(*entryIDAsDID) {
+	entryID.Fragment = ""
+	if owner.String() != entryID.String() {
 		return fmt.Errorf("ID must have document prefix")
 	}
 	knownIDs[entryIDStr] = true
