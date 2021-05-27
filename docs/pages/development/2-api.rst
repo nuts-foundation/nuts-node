@@ -46,7 +46,7 @@ The error definition can be used in a OAS file:
                     default:
                       $ref: '../common/error_response.yaml'
 
-The errors responses will not be listed as responses in the online generated documentation.
+The error responses will not be listed as responses in the online generated documentation.
 To describe error responses, the specific responses need to be added to the API description:
 
 .. code-block:: yaml
