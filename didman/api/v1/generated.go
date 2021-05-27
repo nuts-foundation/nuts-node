@@ -18,8 +18,16 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// CompoundService defines model for CompoundService.
+type CompoundService struct {
+	// Embedded fields due to inline allOf schema
+	Id string `json:"id"`
+	// Embedded struct due to allOf(#/components/schemas/CompoundServiceProperties)
+	CompoundServiceProperties `yaml:",inline"`
+}
+
 // A creation request for a compound service that references endpoints.
-type CompoundServiceCreateRequest struct {
+type CompoundServiceProperties struct {
 
 	// A map containing service references.
 	Endpoint map[string]interface{} `json:"endpoint"`
@@ -39,7 +47,7 @@ type EndpointCreateRequest struct {
 }
 
 // AddCompoundServiceJSONBody defines parameters for AddCompoundService.
-type AddCompoundServiceJSONBody CompoundServiceCreateRequest
+type AddCompoundServiceJSONBody CompoundServiceProperties
 
 // UpdateContactInformationJSONBody defines parameters for UpdateContactInformation.
 type UpdateContactInformationJSONBody ContactInformation
@@ -129,6 +137,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetCompoundServices request
+	GetCompoundServices(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// AddCompoundService request  with any body
 	AddCompoundServiceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -149,6 +160,18 @@ type ClientInterface interface {
 
 	// DeleteService request
 	DeleteService(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) GetCompoundServices(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCompoundServicesRequest(c.Server, did)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) AddCompoundServiceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -245,6 +268,40 @@ func (c *Client) DeleteService(ctx context.Context, id string, reqEditors ...Req
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewGetCompoundServicesRequest generates requests for GetCompoundServices
+func NewGetCompoundServicesRequest(server string, did string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/didman/v1/did/%s/compoundservice", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewAddCompoundServiceRequest calls the generic AddCompoundService builder with application/json body
@@ -499,6 +556,9 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetCompoundServices request
+	GetCompoundServicesWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetCompoundServicesResponse, error)
+
 	// AddCompoundService request  with any body
 	AddCompoundServiceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddCompoundServiceResponse, error)
 
@@ -521,9 +581,32 @@ type ClientWithResponsesInterface interface {
 	DeleteServiceWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error)
 }
 
+type GetCompoundServicesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]CompoundService
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCompoundServicesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCompoundServicesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type AddCompoundServiceResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *CompoundService
 }
 
 // Status returns HTTPResponse.Status
@@ -628,6 +711,15 @@ func (r DeleteServiceResponse) StatusCode() int {
 	return 0
 }
 
+// GetCompoundServicesWithResponse request returning *GetCompoundServicesResponse
+func (c *ClientWithResponses) GetCompoundServicesWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetCompoundServicesResponse, error) {
+	rsp, err := c.GetCompoundServices(ctx, did, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCompoundServicesResponse(rsp)
+}
+
 // AddCompoundServiceWithBodyWithResponse request with arbitrary body returning *AddCompoundServiceResponse
 func (c *ClientWithResponses) AddCompoundServiceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddCompoundServiceResponse, error) {
 	rsp, err := c.AddCompoundServiceWithBody(ctx, did, contentType, body, reqEditors...)
@@ -697,6 +789,32 @@ func (c *ClientWithResponses) DeleteServiceWithResponse(ctx context.Context, id 
 	return ParseDeleteServiceResponse(rsp)
 }
 
+// ParseGetCompoundServicesResponse parses an HTTP response from a GetCompoundServicesWithResponse call
+func ParseGetCompoundServicesResponse(rsp *http.Response) (*GetCompoundServicesResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCompoundServicesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []CompoundService
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseAddCompoundServiceResponse parses an HTTP response from a AddCompoundServiceWithResponse call
 func ParseAddCompoundServiceResponse(rsp *http.Response) (*AddCompoundServiceResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
@@ -711,6 +829,13 @@ func ParseAddCompoundServiceResponse(rsp *http.Response) (*AddCompoundServiceRes
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CompoundService
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil
@@ -808,6 +933,9 @@ func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Get a list of compound services for a DID document.
+	// (GET /internal/didman/v1/did/{did}/compoundservice)
+	GetCompoundServices(ctx echo.Context, did string) error
 	// Add a compound service to a DID Document.
 	// (POST /internal/didman/v1/did/{did}/compoundservice)
 	AddCompoundService(ctx echo.Context, did string) error
@@ -828,6 +956,22 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// GetCompoundServices converts echo context to params.
+func (w *ServerInterfaceWrapper) GetCompoundServices(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.GetCompoundServices(ctx, did)
+	return err
 }
 
 // AddCompoundService converts echo context to params.
@@ -942,6 +1086,13 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
 	// so it can be used in error reporting middleware.
+	router.Add(http.MethodGet, baseURL+"/internal/didman/v1/did/:did/compoundservice", func(context echo.Context) error {
+		context.Set("!!OperationId", "GetCompoundServices")
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
+		}
+		return wrapper.GetCompoundServices(context)
+	})
 	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/compoundservice", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("AddCompoundService", context)
 		return wrapper.AddCompoundService(context)

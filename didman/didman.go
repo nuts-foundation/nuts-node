@@ -67,19 +67,28 @@ func (d *didman) Name() string {
 	return ModuleName
 }
 
-func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) error {
+func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Service, error) {
 	logging.Log().Debugf("Adding endpoint (did: %s, type: %s, url: %s)", id.String(), serviceType, u.String())
-	err := d.addService(id, serviceType, u.String(), nil)
+	service, err := d.addService(id, serviceType, u.String(), nil)
 	if err == nil {
 		logging.Log().Infof("Endpoint added (did: %s, type: %s, url: %s)", id.String(), serviceType, u.String())
 	}
-	return err
+	return service, err
 }
 
-func (d *didman) AddCompoundService(id did.DID, serviceType string, references map[string]ssi.URI) error {
+func (d *didman) GetCompoundServices(id did.DID) ([]did.Service, error) {
+	doc, _, err := d.docResolver.Resolve(id, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return filterCompoundServices(doc), nil
+}
+
+func (d *didman) AddCompoundService(id did.DID, serviceType string, references map[string]ssi.URI) (*did.Service, error) {
 	logging.Log().Debugf("Adding compound service (did: %s, type: %s, references: %v)", id.String(), serviceType, references)
 	if err := d.validateCompoundServiceEndpoint(references); err != nil {
-		return err
+		return nil, err
 	}
 
 	// transform service references to map[string]interface{}
@@ -88,11 +97,12 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, references m
 		serviceEndpoint[k] = v.String()
 	}
 
-	err := d.addService(id, serviceType, serviceEndpoint, nil)
+	service, err := d.addService(id, serviceType, serviceEndpoint, nil)
 	if err == nil {
 		logging.Log().Infof("Compound service added (did: %s, type: %s, references: %s)", id.String(), serviceType, references)
 	}
-	return err
+
+	return service, err
 }
 
 func (d *didman) DeleteService(serviceID ssi.URI) error {
@@ -149,7 +159,7 @@ func (d *didman) UpdateContactInformation(id did.DID, information ContactInforma
 		"website": information.Website,
 	}
 
-	err := d.addService(id, ContactInformationServiceType, serviceEndpoint, func(doc *did.Document) {
+	_, err := d.addService(id, ContactInformationServiceType, serviceEndpoint, func(doc *did.Document) {
 		// check for existing contact information and remove it
 		i := 0
 		for _, s := range doc.Service {
@@ -223,6 +233,19 @@ func (d *didman) validateCompoundServiceEndpoint(references map[string]ssi.URI) 
 	return nil
 }
 
+func filterCompoundServices(doc *did.Document) []did.Service {
+	var compoundServices []did.Service
+	for _, service := range doc.Service {
+		if service.Type == ContactInformationServiceType {
+			continue
+		}
+		if _, ok := service.ServiceEndpoint.(map[string]interface{}); ok {
+			compoundServices = append(compoundServices, service)
+		}
+	}
+	return compoundServices
+}
+
 func filterContactInfoServices(doc *did.Document) []did.Service {
 	var contactServices []did.Service
 	for _, service := range doc.Service {
@@ -233,10 +256,10 @@ func filterContactInfoServices(doc *did.Document) []did.Service {
 	return contactServices
 }
 
-func (d *didman) addService(id did.DID, serviceType string, serviceEndpoint interface{}, preprocessor func(*did.Document)) error {
+func (d *didman) addService(id did.DID, serviceType string, serviceEndpoint interface{}, preprocessor func(*did.Document)) (*did.Service, error) {
 	doc, meta, err := d.docResolver.Resolve(id, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if preprocessor != nil {
@@ -246,21 +269,24 @@ func (d *didman) addService(id did.DID, serviceType string, serviceEndpoint inte
 	// check for duplicate service type
 	for _, s := range doc.Service {
 		if s.Type == serviceType {
-			return types.ErrDuplicateService
+			return nil, types.ErrDuplicateService
 		}
 	}
 
 	// construct service with correct ID
-	service := did.Service{
+	service := &did.Service{
 		Type:            serviceType,
 		ServiceEndpoint: serviceEndpoint,
 	}
 	service.ID = ssi.URI{}
-	service.ID = generateIDForService(id, service)
+	service.ID = generateIDForService(id, *service)
 
 	// Add on DID Document and update
-	doc.Service = append(doc.Service, service)
-	return d.vdr.Update(id, meta.Hash, *doc, nil)
+	doc.Service = append(doc.Service, *service)
+	if err = d.vdr.Update(id, meta.Hash, *doc, nil); err != nil {
+		return nil, err
+	}
+	return service, nil
 }
 
 func generateIDForService(id did.DID, service did.Service) ssi.URI {

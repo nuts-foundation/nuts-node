@@ -36,6 +36,7 @@ import (
 
 var _ ServerInterface = (*Wrapper)(nil)
 var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
+const problemTitleAddEndpoint = "Adding Endpoint failed"
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
@@ -89,17 +90,29 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 		return core.InvalidInputError("invalid value for endpoint: %w", err)
 	}
 
-	if err = w.Didman.AddEndpoint(*id, request.Type, *u); err != nil {
+	if _, err = w.Didman.AddEndpoint(*id, request.Type, *u); err != nil {
 		return err
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
 }
 
+func (w *Wrapper) GetCompoundServices(ctx echo.Context, didStr string) error {
+	id, err := did.ParseDID(didStr)
+	if err != nil {
+		return err
+	}
+	services, err  := w.Didman.GetCompoundServices(*id)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, services)
+}
+
 // AddCompoundService handles calls to add a compound service. It only checks params and sets the correct return status code.
 // didman.AddCompoundService does the heavy lifting.
 func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
-	request := CompoundServiceCreateRequest{}
+	request := CompoundServiceProperties{}
 	if err := ctx.Bind(&request); err != nil {
 		return core.InvalidInputError("failed to parse %T: %v", request, err)
 	}
@@ -117,10 +130,23 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 		}
 		references[key] = *uri
 	}
-	if err = w.Didman.AddCompoundService(*id, request.Type, references); err != nil {
+	service, err := w.Didman.AddCompoundService(*id, request.Type, references)
+	if err != nil {
 		return err
 	}
-	return ctx.NoContent(http.StatusNoContent)
+	endpointRefs := map[string]interface{}{}
+	for k, v := range service.ServiceEndpoint.(map[string]ssi.URI) {
+		endpointRefs[k] = v.String()
+	}
+
+	cs := CompoundService{
+		Id:                        service.ID.String(),
+		CompoundServiceProperties: CompoundServiceProperties{
+			Endpoint: endpointRefs,
+			Type:     service.Type,
+		},
+	}
+	return ctx.JSON(200, cs)
 }
 
 func interfaceToURI(input interface{}) (*ssi.URI, error) {

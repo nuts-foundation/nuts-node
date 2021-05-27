@@ -97,6 +97,18 @@ paths:
           - "did:nuts:1234"
         schema:
           type: string
+    get:
+      operationId: getCompoundServices
+      summary: Get a list of compound services for a DID document.
+      responses:
+        "200":
+          description: The compound service has been added to the DID Document
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompoundService'
     post:
       summary: Add a compound service to a DID Document.
       description: |
@@ -118,10 +130,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CompoundServiceCreateRequest'
+              $ref: '#/components/schemas/CompoundServiceProperties'
       responses:
-        "204":
+        "200":
           description: The compound service has been added to the DID Document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompoundService'
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/service/{id}:
@@ -163,7 +179,7 @@ components:
         endpoint:
           description: A URL.
           type: string
-    CompoundServiceCreateRequest:
+    CompoundServiceProperties:
       type: object
       description: A creation request for a compound service that references endpoints.
       required:
@@ -177,6 +193,15 @@ components:
           description: A map containing service references.
           example: {'auth': 'did:nuts:1312321?type=auth'}
           type: object
+    CompoundService:
+      allOf:
+        - type: object
+          required:
+            - id
+          properties:
+            id:
+              type: string
+        - $ref: "#/components/schemas/CompoundServiceProperties"
     ContactInformation:
       type: object
       description: A set of contact information entries

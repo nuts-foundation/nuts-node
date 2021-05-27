@@ -34,7 +34,7 @@ type Didman interface {
 	// AddEndpoint adds a service to a DID Document. The serviceEndpoint is set to the given URL.
 	// It returns ErrDuplicateService if a service with the given type already exists.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
-	AddEndpoint(id did.DID, serviceType string, u url.URL) error
+	AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Service, error)
 	// DeleteService removes a service from a DID Document.
 	// It returns ErrServiceInUse if the service is referenced by other services.
 	// It returns ErrServiceNotFound if the service can't be found in the DID Document.
@@ -45,7 +45,8 @@ type Didman interface {
 	// It returns ErrInvalidServiceQuery if one of the service references is invalid.
 	// It returns ErrReferencedServiceNotAnEndpoint if one of the services does not resolve to a single endpoint URL.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
-	AddCompoundService(id did.DID, serviceType string, references map[string]ssi.URI) error
+	AddCompoundService(id did.DID, serviceType string, references map[string]ssi.URI) (*did.Service, error)
+	GetCompoundServices(id did.DID) ([]did.Service, error)
 
 	UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error)
 
