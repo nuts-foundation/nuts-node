@@ -293,7 +293,7 @@ func TestProtocol_HandleTransactionPayload(t *testing.T) {
 }
 
 func TestProtocol_handleMessage(t *testing.T) {
-	t.Run("unknown fields", func(t *testing.T) {
+	t.Run("empty message", func(t *testing.T) {
 		ctx := newContext(t)
 		envelope := createEnvelope()
 		err := ctx.instance.handleMessage(p2p.PeerMessage{
