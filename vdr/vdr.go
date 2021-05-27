@@ -137,7 +137,6 @@ func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key
 // Update updates a DID Document based on the DID and current hash
 func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
 	logging.Log().Debugf("Updating DID Document (DID=%s)", id)
-	// TODO: check the integrity / validity of the proposed DID Document.
 	resolverMetadata := &types.ResolveMetadata{
 		Hash:             &current,
 		AllowDeactivated: true,
@@ -148,6 +147,10 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	}
 	if store.IsDeactivated(*currentDIDDocument) {
 		return types.ErrDeactivated
+	}
+
+	if err = CreateDocumentValidator().Validate(next); err != nil {
+		return err
 	}
 
 	payload, err := json.Marshal(next)

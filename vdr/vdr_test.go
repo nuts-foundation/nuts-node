@@ -69,7 +69,8 @@ func TestVDR_Update(t *testing.T) {
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 
-		nextDIDDocument := did.Document{}
+		nextDIDDocument := doc.CreateDocument()
+		nextDIDDocument.ID = *id
 		expectedResolverMetadata := &types.ResolveMetadata{
 			Hash:             &currentHash,
 			AllowDeactivated: true,
@@ -85,9 +86,11 @@ func TestVDR_Update(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("error - no controller for document", func(t *testing.T) {
+	t.Run("error - validation failed", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
-		currentDIDDocument := did.Document{ID: *id}
+		currentDIDDocument := doc.CreateDocument()
+		currentDIDDocument.ID = *id
+		currentDIDDocument.Controller = []did.DID{currentDIDDocument.ID}
 
 		nextDIDDocument := did.Document{}
 		expectedResolverMetadata := &types.ResolveMetadata{
@@ -97,6 +100,21 @@ func TestVDR_Update(t *testing.T) {
 		resolvedMetadata := types.DocumentMetadata{}
 		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		assert.EqualError(t, err, "DID Document validation failed: invalid context")
+	})
+
+	t.Run("error - no controller for document", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+		document := doc.CreateDocument()
+		document.ID = *id
+
+		expectedResolverMetadata := &types.ResolveMetadata{
+			Hash:             &currentHash,
+			AllowDeactivated: true,
+		}
+		resolvedMetadata := types.DocumentMetadata{}
+		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&document, &resolvedMetadata, nil)
+		err := ctx.vdr.Update(*id, currentHash, document, nil)
 		assert.EqualError(t, err, "the DID document has been deactivated")
 	})
 	t.Run("error - could not resolve current document", func(t *testing.T) {
@@ -113,7 +131,8 @@ func TestVDR_Update(t *testing.T) {
 
 	t.Run("error - document not managed by this node", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
-		nextDIDDocument := did.Document{ID: *id}
+		nextDIDDocument := doc.CreateDocument()
+		nextDIDDocument.ID = *id
 		currentDIDDocument := nextDIDDocument
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
@@ -133,7 +152,8 @@ func TestVDR_Create(t *testing.T) {
 		key := crypto.NewTestKey("did:nuts:123#key-1")
 		id, _ := did.ParseDID("did:nuts:123")
 		keyID, _ := did.ParseDID(key.KID())
-		nextDIDDocument := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: *id}
+		nextDIDDocument := doc.CreateDocument()
+		nextDIDDocument.ID = *id
 		vm, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
 		if !assert.NoError(t, err) {
 			return

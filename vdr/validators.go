@@ -9,6 +9,25 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
+// CreateDocumentValidator creates a DID Document validator that checks for inconsistencies in the the DID Document:
+// - validate it according to the W3C DID Core Data Model specification
+// - validate is according to the Nuts DID Method specification:
+//  - it checks validationMethods for the following conditions:
+//   - every validationMethod id must have a fragment
+//   - every validationMethod id should have the DID prefix
+//   - every validationMethod id must be unique
+//  - it checks services for the following conditions:
+//   - every service id must have a fragment
+//   - every service id should have the DID prefix
+//   - every service id must be unique
+func CreateDocumentValidator() did.Validator {
+	return &did.MultiValidator{Validators: []did.Validator{
+		did.W3CSpecValidator{},
+		verificationMethodValidator{},
+		serviceValidator{},
+	}}
+}
+
 // verificationMethodValidator validates the Verification Methods of a Nuts DID Document.
 type verificationMethodValidator struct{}
 

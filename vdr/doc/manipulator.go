@@ -27,10 +27,8 @@ func (u Manipulator) Deactivate(id did.DID) error {
 		return err
 	}
 	// A deactivated DID resolves to an empty DID document.
-	emptyDoc := did.Document{
-		Context: []ssi.URI{did.DIDContextV1URI()},
-		ID:      id,
-	}
+	emptyDoc := CreateDocument()
+	emptyDoc.ID = id
 	return u.Updater.Update(id, meta.Hash, emptyDoc, nil)
 }
 

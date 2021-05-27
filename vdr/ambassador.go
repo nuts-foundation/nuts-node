@@ -94,7 +94,7 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 		return fmt.Errorf("unable to unmarshal DID document from network payload: %w", err)
 	}
 
-	if err := checkDIDDocumentIntegrity(nextDIDDocument); err != nil {
+	if err := CreateDocumentValidator().Validate(nextDIDDocument); err != nil {
 		return fmt.Errorf("callback could not process new DID Document, DID Document integrity check failed: %w", err)
 	}
 
@@ -258,25 +258,6 @@ func checkTransactionIntegrity(transaction dag.Transaction) error {
 	}
 
 	return nil
-}
-
-// checkDIDDocumentIntegrity checks for inconsistencies in the the DID Document:
-// - validate it according to the W3C DID Core Data Model specification
-// - validate is according to the Nuts DID Method specification:
-//  - it checks validationMethods for the following conditions:
-//   - every validationMethod id must have a fragment
-//   - every validationMethod id should have the DID prefix
-//   - every validationMethod id must be unique
-//  - it checks services for the following conditions:
-//   - every service id must have a fragment
-//   - every service id should have the DID prefix
-//   - every service id must be unique
-func checkDIDDocumentIntegrity(doc did.Document) error {
-	return did.MultiValidator{Validators: []did.Validator{
-		did.W3CSpecValidator{},
-		verificationMethodValidator{},
-		serviceValidator{},
-	}}.Validate(doc)
 }
 
 func (n ambassador) isUpdate(doc did.Document) (bool, error) {

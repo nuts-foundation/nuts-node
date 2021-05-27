@@ -35,6 +35,11 @@ import (
 // NutsDIDMethodName is the DID method name used by Nuts
 const NutsDIDMethodName = "nuts"
 
+// CreateDocument creates an empty DID document with baseline properties set.
+func CreateDocument() did.Document {
+	return did.Document{Context: []ssi.URI{did.DIDContextV1URI()}}
+}
+
 // Creator implements the DocCreator interface and can create Nuts DID Documents.
 type Creator struct {
 	// KeyStore is used for getting a fresh key and use it to generate the Nuts DID
@@ -136,11 +141,9 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 	didID.Fragment = ""
 
 	// create the bare document
-	doc := &did.Document{
-		Context:    []ssi.URI{did.DIDContextV1URI()},
-		ID:         didID,
-		Controller: options.Controllers,
-	}
+	doc := CreateDocument()
+	doc.ID = didID
+	doc.Controller = options.Controllers
 
 	var verificationMethod *did.VerificationMethod
 	if options.SelfControl {
@@ -187,5 +190,5 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 	}
 
 	// return the doc and the keyCreator that created the private key
-	return doc, key, nil
+	return &doc, key, nil
 }
