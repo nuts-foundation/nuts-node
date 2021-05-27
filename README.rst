@@ -23,10 +23,15 @@ Distributed registry for storing and querying health care providers their vendor
    :target: https://github.com/nuts-foundation/nuts-node/actions/workflows/build-images.yaml
    :alt: Build Docker images
 
-Dependencies
+Requirements
 ************
 
 Go >= 1.16 is required.
+
+Building
+********
+
+Just use ``go build``.
 
 Running tests
 *************
@@ -36,11 +41,6 @@ Tests can be run by executing
 .. code-block:: shell
 
     go test ./...
-
-Building
-********
-
-Just use ``go build``.
 
 Code Generation
 ***************
@@ -95,11 +95,11 @@ The readme is auto-generated from a template and uses the documentation to fill 
 Documentation
 =============
 
-The documentation can be build by running
+The documentation can be build by running the following command from the ``/docs`` directory:
 
 .. code-block:: shell
 
-    /docs $ make html
+    make html
 
 Configuration
 *************
