@@ -47,7 +47,7 @@ func Test_verificationMethodValidator(t *testing.T) {
 			vm, _ := did.NewVerificationMethod(keyID, didDoc.VerificationMethod[0].Type, didDoc.VerificationMethod[0].Controller, pk.Public())
 			didDoc.VerificationMethod = append(didDoc.VerificationMethod, vm)
 			a.doc = didDoc
-		}, errors.New("invalid verificationMethod: verificationMethod ID is invalid")},
+		}, errors.New("invalid verificationMethod: key thumbprint does not match ID")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

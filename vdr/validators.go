@@ -3,9 +3,9 @@ package vdr
 import (
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 )
 
 // verificationMethodValidator validates the Verification Methods of a Nuts DID Document.
@@ -25,13 +25,13 @@ func (v verificationMethodValidator) Validate(document did.Document) error {
 }
 
 func (v verificationMethodValidator) verifyThumbprint(method *did.VerificationMethod) error {
-	publicKey, err := method.PublicKey()
+	keyAsJWK, err := method.JWK()
 	if err != nil {
-		return fmt.Errorf("unable to get public key: %w", err)
+		return fmt.Errorf("unable to get JWK: %w", err)
 	}
-	kid, _ := doc.DIDKIDNamingFunc(publicKey)
-	if kid != method.ID.String() {
-		return errors.New("verificationMethod ID is invalid")
+	_ = jwk.AssignKeyID(keyAsJWK)
+	if keyAsJWK.KeyID() != method.ID.Fragment {
+		return errors.New("key thumbprint does not match ID")
 	}
 	return nil
 }

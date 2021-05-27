@@ -393,14 +393,107 @@ func Test_ambassador_callback(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("ok - where the document is not the controller", func(t *testing.T) {
-		// the right key should be resolved
+	t.Run("update ok - where the document is not the controller", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		didStoreMock := types.NewMockStore(ctrl)
+		keyStoreMock := types.NewMockKeyResolver(ctrl)
+		resolverMock := types.NewMockDocResolver(ctrl)
+
+		am := ambassador{
+			didStore:    didStoreMock,
+			docResolver: resolverMock,
+			keyResolver: keyStoreMock,
+		}
+		controllerDoc, signingKey, _ := newDidDoc()
+		didDocument, _, _ := newDidDocWithOptions(types.DIDCreationOptions{Controllers: []did.DID{controllerDoc.ID}})
+
+		didDocPayload, _ := json.Marshal(didDocument)
+		payloadHash := hash.SHA256Sum(didDocPayload)
+
+		subDoc := newSubscriberTx()
+		subDoc.signingKeyID = controllerDoc.CapabilityInvocation[0].ID.String()
+		subDoc.payloadHash = payloadHash
+
+		expectedDocument := did.Document{}
+		json.Unmarshal(didDocPayload, &expectedDocument)
+
+		// This is the metadata of the current version of the document which will be returned by the resolver
+		currentMetadata := &types.DocumentMetadata{
+			Created: createdAt,
+			Updated: nil,
+			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
+		}
+
+		// This is the metadata that will be written during the update
+		expectedNextMetadata := types.DocumentMetadata{
+			Created:            createdAt,
+			Updated:            &signingTime,
+			Hash:               payloadHash,
+			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
+		}
+		var pKey crypto2.PublicKey
+		signingKey.Raw(&pKey)
+
+		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
+		resolverMock.EXPECT().ResolveControllers(expectedDocument).Return([]did.Document{controllerDoc}, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(controllerDoc.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
+		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
+
+		err := am.callback(subDoc, didDocPayload)
+		assert.NoError(t, err)
 	})
 
-	t.Run("ok - update with a new authentication key", func(t *testing.T) {
-		// old key should be removed
-		// new key should be present
+	t.Run("update ok - update with a new capabilityInvocation key", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 
+		didStoreMock := types.NewMockStore(ctrl)
+		keyStoreMock := types.NewMockKeyResolver(ctrl)
+		resolverMock := types.NewMockDocResolver(ctrl)
+
+		am := ambassador{
+			didStore:    didStoreMock,
+			docResolver: resolverMock,
+			keyResolver: keyStoreMock,
+		}
+		currentDoc, signingKey, _ := newDidDoc()
+		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
+		newCapInv, _ := doc.CreateNewVerificationMethodForDID(currentDoc.ID, &mockKeyCreator{})
+		newDoc.AddCapabilityInvocation(newCapInv)
+
+		didDocPayload, _ := json.Marshal(newDoc)
+		payloadHash := hash.SHA256Sum(didDocPayload)
+
+		subDoc := newSubscriberTx()
+		subDoc.signingKeyID = currentDoc.CapabilityInvocation[0].ID.String()
+		subDoc.payloadHash = payloadHash
+
+		// This is the metadata of the current version of the document which will be returned by the resolver
+		currentMetadata := &types.DocumentMetadata{
+			Created: createdAt,
+			Updated: nil,
+			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
+		}
+
+		// This is the metadata that will be written during the update
+		expectedNextMetadata := types.DocumentMetadata{
+			Created:            createdAt,
+			Updated:            &signingTime,
+			Hash:               payloadHash,
+			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
+		}
+		var pKey crypto2.PublicKey
+		signingKey.Raw(&pKey)
+
+		didStoreMock.EXPECT().Resolve(currentDoc.ID, nil).Times(2).Return(&currentDoc, currentMetadata, nil)
+		resolverMock.EXPECT().ResolveControllers(currentDoc).Return([]did.Document{currentDoc}, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
+		didStoreMock.EXPECT().Update(currentDoc.ID, currentMetadata.Hash, newDoc, &expectedNextMetadata)
+
+		err := am.callback(subDoc, didDocPayload)
+		assert.NoError(t, err)
 	})
 
 	t.Run("ok - update of document which is controlled by another DID document", func(t *testing.T) {
@@ -481,7 +574,7 @@ func Test_ambassador_callback(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("nok - update of document which is controlled by another DID document which does not have the authentication key", func(t *testing.T) {
+	t.Run("nok - update of document which is controlled by another DID document which does not have the capabilityInvocation key", func(t *testing.T) {
 		// This test checks if the correct authentication method is used for validating the updated DID document.
 		// It uses a DID document with a controller but uses a different key, the one of the DID document itself in this case.
 
@@ -736,10 +829,10 @@ func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
 	}
 }
 
-func newDidDoc() (did.Document, jwk.Key, error) {
+func newDidDocWithOptions(opts types.DIDCreationOptions) (did.Document, jwk.Key, error) {
 	kc := &mockKeyCreator{}
 	docCreator := doc.Creator{KeyStore: kc}
-	didDocument, key, err := docCreator.Create(doc.DefaultCreationOptions())
+	didDocument, key, err := docCreator.Create(opts)
 	signingKey, _ := jwk.New(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)
 	didStr := fmt.Sprintf("did:nuts:%s", thumbStr)
@@ -760,7 +853,9 @@ func newDidDoc() (did.Document, jwk.Key, error) {
 	return *didDocument, signingKey, nil
 }
 
-
+func newDidDoc() (did.Document, jwk.Key, error) {
+	return newDidDocWithOptions(doc.DefaultCreationOptions())
+}
 
 func Test_missingTransactions(t *testing.T) {
 	h1 := hash.SHA256Sum([]byte("hash1"))
