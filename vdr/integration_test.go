@@ -19,7 +19,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// Test the full stack by testing creating and updating did documents.
+// Test the full stack by testing creating and updating DID documents.
 func TestVDRIntegration_Test(t *testing.T) {
 	// === Setup ===
 	tmpDir, err := ioutil.TempDir("", "nuts-vdr-integration-test")

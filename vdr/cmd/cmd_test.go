@@ -234,7 +234,7 @@ func TestEngine_Command(t *testing.T) {
 			assert.Empty(t, errBuf.Bytes())
 		})
 
-		t.Run("error - did document not found", func(t *testing.T) {
+		t.Run("error - DID document not found", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
 
 			inBuf.Write([]byte{'y', '\n'})
@@ -271,7 +271,7 @@ func TestEngine_Command(t *testing.T) {
 
 		})
 
-		t.Run("error - did document not found", func(t *testing.T) {
+		t.Run("error - DID document not found", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
 
 			cmd.SetArgs([]string{"addvm", vdr.TestDIDA.String()})
@@ -296,7 +296,7 @@ func TestEngine_Command(t *testing.T) {
 			assert.Empty(t, errBuf.String())
 		})
 
-		t.Run("error - did document not found", func(t *testing.T) {
+		t.Run("error - DID document not found", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
 
 			cmd.SetArgs([]string{"delvm", vdr.TestDIDA.String(), vdr.TestMethodDIDA.String()})

@@ -202,7 +202,7 @@ func Test_ambassador_callback(t *testing.T) {
 		subDoc := newSubscriberTx()
 		am := ambassador{}
 		err := am.callback(subDoc, []byte("}"))
-		assert.EqualError(t, err, "unable to unmarshall did document from network payload: invalid character '}' looking for beginning of value")
+		assert.EqualError(t, err, "unable to unmarshal DID document from network payload: invalid character '}' looking for beginning of value")
 	})
 
 	t.Run("nok - incorrect payloadType", func(t *testing.T) {
@@ -403,7 +403,7 @@ func Test_ambassador_callback(t *testing.T) {
 
 	})
 
-	t.Run("ok - update of document which is controlled by another did document", func(t *testing.T) {
+	t.Run("ok - update of document which is controlled by another DID document", func(t *testing.T) {
 		// setup mocks:
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -436,7 +436,7 @@ func Test_ambassador_callback(t *testing.T) {
 		// set the didDocument`s controller to the controller
 		didDocument.Controller = []did.DID{didDocumentController.ID}
 
-		// remove any CapabilityInvocation methods from the did document
+		// remove any CapabilityInvocation methods from the DID document
 		didDocument.CapabilityInvocation = nil
 
 		didDocPayload, _ := json.Marshal(didDocument)
@@ -481,9 +481,9 @@ func Test_ambassador_callback(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("nok - update of document which is controlled by another did document which does not have the authentication key", func(t *testing.T) {
-		// This test checks if the correct authentication method is used for validating the updated did document.
-		// It uses a did document with a controller but uses a different key, the one of the did document itself in this case.
+	t.Run("nok - update of document which is controlled by another DID document which does not have the authentication key", func(t *testing.T) {
+		// This test checks if the correct authentication method is used for validating the updated DID document.
+		// It uses a DID document with a controller but uses a different key, the one of the DID document itself in this case.
 
 		// setup mocks:
 		ctrl := gomock.NewController(t)
@@ -520,7 +520,7 @@ func Test_ambassador_callback(t *testing.T) {
 
 		keyID := didDocument.CapabilityInvocation[0].ID.String()
 
-		// remove any CapabilityInvocation methods from the did document
+		// remove any CapabilityInvocation methods from the DID document
 		didDocument.CapabilityInvocation = nil
 
 		didDocPayload, _ := json.Marshal(didDocument)
@@ -548,9 +548,9 @@ func Test_ambassador_callback(t *testing.T) {
 			Hash:    currentPayloadHash,
 		}
 
-		// expect a resolve for previous versions of the did document
+		// expect a resolve for previous versions of the DID document
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
-		// expect a resolve for the did documents controller
+		// expect a resolve for the DID documents controller
 		resolverMock.EXPECT().ResolveControllers(expectedDocument).Return([]did.Document{didDocumentController}, nil)
 
 		keyStoreMock.EXPECT().ResolvePublicKey(keyID, &subDoc.signingTime).Return(pKey, nil)
