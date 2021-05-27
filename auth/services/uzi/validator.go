@@ -39,7 +39,7 @@ type Verifier struct {
 	UziValidator services.VPProofValueParser
 }
 
-// verifiablePresentation is the NutsUziPresentation specific data structure and can be used for parsing and unmarshalling
+// verifiablePresentation is the NutsUziPresentation specific data structure and can be used for parsing and unmarshaling
 type verifiablePresentation struct {
 	contract.VerifiablePresentationBase
 	Proof proof

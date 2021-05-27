@@ -158,7 +158,7 @@ func TestVDR_Create(t *testing.T) {
 
 		_, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
 
-		assert.EqualError(t, err, "could not create did document: b00m!")
+		assert.EqualError(t, err, "could not create DID document: b00m!")
 	})
 
 	t.Run("error - transaction failed", func(t *testing.T) {
@@ -169,7 +169,7 @@ func TestVDR_Create(t *testing.T) {
 
 		_, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
 
-		assert.EqualError(t, err, "could not store did document in network: b00m!")
+		assert.EqualError(t, err, "could not store DID document in network: b00m!")
 	})
 }
 

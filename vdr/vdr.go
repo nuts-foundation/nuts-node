@@ -116,7 +116,7 @@ func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key
 	logging.Log().Debug("Creating new DID Document.")
 	doc, key, err := r.didDocCreator.Create(options)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not create did document: %w", err)
+		return nil, nil, fmt.Errorf("could not create DID document: %w", err)
 	}
 
 	payload, err := json.Marshal(doc)
@@ -126,7 +126,7 @@ func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key
 
 	_, err = r.network.CreateTransaction(didDocumentType, payload, key, true, time.Now(), []hash.SHA256Hash{})
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not store did document in network: %w", err)
+		return nil, nil, fmt.Errorf("could not store DID document in network: %w", err)
 	}
 
 	logging.Log().Infof("New DID Document created (DID=%s)", doc.ID)

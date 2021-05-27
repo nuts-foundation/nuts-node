@@ -146,7 +146,7 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 }
 
 // UpdateContactInformation handles requests for updating contact information for a specific DID.
-// It parses the did path param and and unmarshalls the request body and passes them to didman.UpdateContactInformation.
+// It parses the did path param and and unmarshals the request body and passes them to didman.UpdateContactInformation.
 func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) error {
 	id, err := parseDID(didStr, problemTitleUpdateContactInformation)
 	if err != nil {

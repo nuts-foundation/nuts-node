@@ -91,7 +91,7 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 	// Unmarshal the next/new proposed version of the DID Document
 	var nextDIDDocument did.Document
 	if err := json.Unmarshal(payload, &nextDIDDocument); err != nil {
-		return fmt.Errorf("unable to unmarshall did document from network payload: %w", err)
+		return fmt.Errorf("unable to unmarshal DID document from network payload: %w", err)
 	}
 
 	if err := checkDIDDocumentIntegrity(nextDIDDocument); err != nil {
@@ -150,7 +150,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	// Resolve latest version of DID Document
 	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
 	if err != nil {
-		return fmt.Errorf("unable to update did document: %w", err)
+		return fmt.Errorf("unable to update DID document: %w", err)
 	}
 
 	// Resolve controllers of current version (could be the same document)
@@ -320,7 +320,7 @@ func (n ambassador) findKeyByThumbprint(thumbPrint []byte, didDocumentAuthKeys [
 		}
 		documentThumbprint, err := keyAsJWK.Thumbprint(thumbprintAlg)
 		if err != nil {
-			return nil, fmt.Errorf("unable to generate did document signing key thumbprint: %w", err)
+			return nil, fmt.Errorf("unable to generate DID document signing key thumbprint: %w", err)
 		}
 		// Compare thumbprints
 		if bytes.Equal(thumbPrint, documentThumbprint) {

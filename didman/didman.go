@@ -169,7 +169,7 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 		information := &ContactInformation{}
 		err = contactServices[0].UnmarshalServiceEndpoint(information)
 		if err != nil {
-			return nil, fmt.Errorf("unable to unmarshall contact info service endpoint: %w", err)
+			return nil, fmt.Errorf("unable to unmarshal contact info service endpoint: %w", err)
 		}
 		return information, nil
 	}
