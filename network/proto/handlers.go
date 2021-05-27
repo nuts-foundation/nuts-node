@@ -55,6 +55,8 @@ func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
 		if msg.TransactionPayload != nil && msg.TransactionPayload.PayloadHash != nil && msg.TransactionPayload.Data != nil {
 			p.handleTransactionPayload(peer, msg.TransactionPayload)
 		}
+	default:
+		log.Logger().Infof("Envelope doesn't contain any (handleable) messages, peer sent an empty message or protocol version might differ? (peer=%s)", peerMsg)
 	}
 	return nil
 }

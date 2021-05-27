@@ -292,6 +292,18 @@ func TestProtocol_HandleTransactionPayload(t *testing.T) {
 	})
 }
 
+func TestProtocol_handleMessage(t *testing.T) {
+	t.Run("unknown fields", func(t *testing.T) {
+		ctx := newContext(t)
+		envelope := createEnvelope()
+		err := ctx.instance.handleMessage(p2p.PeerMessage{
+			Peer:    peer,
+			Message: &envelope,
+		})
+		assert.NoError(t, err)
+	})
+}
+
 func Test_checkTransactionOnLocalNode(t *testing.T) {
 	tx, _, _ := dag.CreateTestTransaction(1)
 	t.Run("payload present (happy flow)", func(t *testing.T) {
