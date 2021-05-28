@@ -51,15 +51,15 @@ func (mr *MockProtocolMockRecorder) Diagnostics() *gomock.Call {
 }
 
 // Configure mocks base method
-func (m *MockProtocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, advertHashesInterval time.Duration, peerID p2p.PeerID) {
+func (m *MockProtocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() Diagnostics, advertHashesInterval, queryPeerDiagnosticsInterval time.Duration, peerID p2p.PeerID) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Configure", p2pNetwork, graph, publisher, payloadStore, advertHashesInterval, peerID)
+	m.ctrl.Call(m, "Configure", p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, queryPeerDiagnosticsInterval, peerID)
 }
 
 // Configure indicates an expected call of Configure
-func (mr *MockProtocolMockRecorder) Configure(p2pNetwork, graph, publisher, payloadStore, advertHashesInterval, peerID interface{}) *gomock.Call {
+func (mr *MockProtocolMockRecorder) Configure(p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, queryPeerDiagnosticsInterval, peerID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), p2pNetwork, graph, publisher, payloadStore, advertHashesInterval, peerID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, queryPeerDiagnosticsInterval, peerID)
 }
 
 // Start mocks base method
@@ -84,6 +84,20 @@ func (m *MockProtocol) Stop() {
 func (mr *MockProtocolMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockProtocol)(nil).Stop))
+}
+
+// PeerDiagnostics mocks base method
+func (m *MockProtocol) PeerDiagnostics() map[p2p.PeerID]Diagnostics {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PeerDiagnostics")
+	ret0, _ := ret[0].(map[p2p.PeerID]Diagnostics)
+	return ret0
+}
+
+// PeerDiagnostics indicates an expected call of PeerDiagnostics
+func (mr *MockProtocolMockRecorder) PeerDiagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerDiagnostics", reflect.TypeOf((*MockProtocol)(nil).PeerDiagnostics))
 }
 
 // MockPeerOmnihashQueue is a mock of PeerOmnihashQueue interface

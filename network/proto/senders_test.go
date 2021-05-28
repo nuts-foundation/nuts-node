@@ -36,6 +36,12 @@ func Test_defaultMessageSender_broadcastAdvertHashes(t *testing.T) {
 	)
 }
 
+func Test_defaultMessageSender_broadcastDiagnosticsQuery(t *testing.T) {
+	sender, mock := createMessageSender(t)
+	mock.EXPECT().Broadcast(&transport.NetworkMessage{Message: &transport.NetworkMessage_DiagnosticsRequest{DiagnosticsRequest: &transport.DiagnosticsRequest{}}})
+	sender.broadcastDiagnosticsQuery()
+}
+
 func Test_defaultMessageSender_sendTransactionList(t *testing.T) {
 	sender, mock := createMessageSender(t)
 	blockDate := time.Date(2021, 4, 29, 0, 0, 0, 0, time.UTC)

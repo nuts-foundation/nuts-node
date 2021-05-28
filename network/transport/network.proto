@@ -42,6 +42,7 @@ message NetworkMessage {
         TransactionList TransactionList = 102;
         TransactionPayloadQuery transactionPayloadQuery = 103;
         TransactionPayload transactionPayload = 104;
+        Diagnostics diagnosticsBroadcast = 105;
     }
 }
 
@@ -103,4 +104,19 @@ message TransactionPayload {
     bytes payloadHash = 1;
     // data contains the actual payload.
     bytes data = 10;
+}
+
+// DiagnosticsResponse is a broadcast message for information peers of the local node's state. All fields are optional.
+message Diagnostics {
+    // uptime contains the uptime (time since the node started) in seconds.
+    uint32 uptime = 1;
+    // peers contains the peer IDs of the node's peers.
+    repeated string peers = 3;
+    // numberOfTransactions contains the total number of transactions on the node's DAG.
+    uint32 numberOfTransactions = 4;
+    // version contains an indication of the software version of the node. It's recommended to use a (Git) commit ID that uniquely resolves to a code revision, alternatively a semantic version could be used (e.g. 1.2.5).
+    string version = 10;
+    // vendor contains an indication of the vendor of the software of the node. For open source implementations it's recommended to specify URL to the public, open source repository.
+    // Proprietary implementations could specify the product's or vendor's name.
+    string vendor = 11;
 }

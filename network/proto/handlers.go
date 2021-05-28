@@ -55,6 +55,8 @@ func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
 		if msg.TransactionPayload != nil && msg.TransactionPayload.PayloadHash != nil && msg.TransactionPayload.Data != nil {
 			p.handleTransactionPayload(peer, msg.TransactionPayload)
 		}
+	case *transport.NetworkMessage_DiagnosticsBroadcast:
+		p.handleDiagnostics(peer, msg.DiagnosticsBroadcast)
 	default:
 		log.Logger().Infof("Envelope doesn't contain any (handleable) messages, peer sent an empty message or protocol version might differ? (peer=%s)", peerMsg)
 	}
@@ -256,6 +258,21 @@ func (p *protocol) handleTransactionListQuery(peer p2p.PeerID, blockDateInt uint
 	}
 	p.sender.sendTransactionList(peer, txs, startDate)
 	return nil
+}
+
+func (p *protocol) handleDiagnostics(peer p2p.PeerID, response *transport.Diagnostics) {
+	diagnostics := Diagnostics{
+		Uptime:               time.Duration(response.Uptime),
+		NumberOfTransactions: response.NumberOfTransactions,
+		Version:              response.Version,
+		Vendor:               response.Vendor,
+	}
+	for _, peer := range response.Peers {
+		diagnostics.Peers = append(diagnostics.Peers, p2p.PeerID(peer))
+	}
+	withLock(p.peerDiagnosticsMutex, func() {
+		p.peerDiagnostics[peer] = diagnostics
+	})
 }
 
 func createAdvertHashesMessage(blocks []dagBlock) *transport.NetworkMessage_AdvertHashes {

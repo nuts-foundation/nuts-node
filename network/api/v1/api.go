@@ -88,6 +88,10 @@ func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) er
 	return err
 }
 
+func (a *Wrapper) GetPeerDiagnostics(ctx echo.Context) error {
+	return ctx.JSON(http.StatusOK, a.Service.PeerDiagnostics())
+}
+
 // RenderGraph visualizes the DAG as Graphviz/dot graph
 func (a Wrapper) RenderGraph(ctx echo.Context) error {
 	visitor := dag.NewDotGraphVisitor(dag.ShowShortRefLabelStyle)

@@ -114,19 +114,10 @@ func (dag *bboltDAG) RegisterObserver(observer Observer) {
 
 func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 	result := make([]core.DiagnosticResult, 0)
+	stats := dag.Statistics()
 	result = append(result, headsStatistic{heads: dag.Heads()})
-	transactionNum := 0
-	_ = dag.db.View(func(tx *bbolt.Tx) error {
-		if bucket := tx.Bucket([]byte(transactionsBucket)); bucket != nil {
-			// There's an extra entry in the Bucket for the root transaction,
-			// which is just a reference to the actual root transaction. So we subtract 1 from the number of keys to get
-			// the real number of TXs
-			transactionNum = bucket.Stats().KeyN - 1
-		}
-		return nil
-	})
-	result = append(result, numberOfTransactionsStatistic{numberOfTransactions: transactionNum})
-	result = append(result, dataSizeStatistic{sizeInBytes: dag.db.Stats().TxStats.PageAlloc})
+	result = append(result, numberOfTransactionsStatistic{numberOfTransactions: stats.NumberOfTransactions})
+	result = append(result, dataSizeStatistic{sizeInBytes: stats.DataSize})
 	return result
 }
 
@@ -246,6 +237,23 @@ func (dag bboltDAG) Root() (hash hash.SHA256Hash, err error) {
 		return nil
 	})
 	return
+}
+
+func (dag bboltDAG) Statistics() Statistics {
+	transactionNum := 0
+	_ = dag.db.View(func(tx *bbolt.Tx) error {
+		if bucket := tx.Bucket([]byte(transactionsBucket)); bucket != nil {
+			// There's an extra entry in the Bucket for the root transaction,
+			// which is just a reference to the actual root transaction. So we subtract 1 from the number of keys to get
+			// the real number of TXs
+			transactionNum = bucket.Stats().KeyN - 1
+		}
+		return nil
+	})
+	return Statistics{
+		NumberOfTransactions: transactionNum,
+		DataSize:             dag.db.Stats().TxStats.PageAlloc,
+	}
 }
 
 func isPresent(db *bbolt.DB, bucketName string, key []byte) (bool, error) {

@@ -57,6 +57,8 @@ type Network struct {
 	publisher    dag.Publisher
 	payloadStore dag.PayloadStore
 	keyResolver  types.KeyResolver
+	startTime    time.Time
+	peerID       p2p.PeerID
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -92,9 +94,12 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
-	peerID := p2p.PeerID(uuid.New().String())
-	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, time.Duration(n.config.AdvertHashesInterval)*time.Millisecond, peerID)
-	networkConfig, p2pErr := n.buildP2PConfig(peerID)
+	n.peerID = p2p.PeerID(uuid.New().String())
+	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics,
+		time.Duration(n.config.AdvertHashesInterval)*time.Millisecond,
+		time.Duration(n.config.QueryPeerDiagnosticsInterval)*time.Millisecond,
+		n.peerID)
+	networkConfig, p2pErr := n.buildP2PConfig(n.peerID)
 	if p2pErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", p2pErr)
 		return nil
@@ -134,6 +139,7 @@ func (n *Network) Start() error {
 	if err := n.graph.Verify(); err != nil {
 		return err
 	}
+	n.startTime = time.Now()
 
 	return nil
 }
@@ -214,6 +220,11 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 	return results
 }
 
+// GetPeersDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
+func (n *Network) PeerDiagnostics() map[p2p.PeerID]proto.Diagnostics {
+	return n.protocol.PeerDiagnostics()
+}
+
 func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) {
 	cfg := p2p.AdapterConfig{
 		ListenAddress:  n.config.GrpcAddr,
@@ -237,4 +248,17 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) 
 		log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
 	}
 	return &cfg, nil
+}
+
+func (n *Network) collectDiagnostics() proto.Diagnostics {
+	result := proto.Diagnostics{
+		Uptime:               time.Now().Sub(n.startTime),
+		NumberOfTransactions: uint32(n.graph.Statistics().NumberOfTransactions),
+		Version:              core.GitCommit,
+		Vendor:               "https://github.com/nuts-foundation/nuts-node",
+	}
+	for _, peer := range n.p2pNetwork.Peers() {
+		result.Peers = append(result.Peers, peer.ID)
+	}
+	return result
 }

@@ -48,6 +48,7 @@ func FlagSet() *pflag.FlagSet {
 		"Required when `network.enabletls` is `true`.")
 	flagSet.String("network.truststorefile", defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.Int("network.adverthashesinterval", defs.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
+	flagSet.Int("network.querypeerdiagnosticsinterval", defs.QueryPeerDiagnosticsInterval, "Interval (in milliseconds) that specifies how often the node should query its peers for diagnostic information.")
 	return flagSet
 }
 

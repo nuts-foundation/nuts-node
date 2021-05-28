@@ -89,6 +89,23 @@ paths:
               example:
         default:
           $ref: '../common/error_response.yaml'
+  /internal/network/v1/diagnostics/peers:
+    get:
+      summary: "Gets diagnostic information about the node's peers"
+      operationId: "getPeerDiagnostics"
+      tags:
+        - diagnostics
+      responses:
+        "200":
+          description: "Successfully retrieved peers diagnostics"
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/PeerDiagnostics'
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/network/v1/diagnostics/graph:
     get:
       summary: "Visualizes the DAG as a graph"
@@ -100,7 +117,7 @@ paths:
         * 500 - internal server error
       operationId: "renderGraph"
       tags:
-        - transactions
+        - diagnostics
       responses:
         "200":
           description: "Graph successfully rendered"
@@ -110,3 +127,27 @@ paths:
                 type: string
         default:
           $ref: '../common/error_response.yaml'
+
+components:
+  schemas:
+    PeerDiagnostics:
+      type: object
+      description: Diagnostic information of a peer.
+      properties:
+        peers:
+          description: IDs of the peer's peers.
+          type: array
+          items:
+            type: string
+        uptime:
+          description: Number of seconds since the node started.
+          type: number
+        transactionNum:
+          description: Number of transactions on the peer's DAG.
+          type: number
+        vendor:
+          description: Name of the peer's node software system or vendor.
+          type: string
+        version:
+          description: Version of the peer's software.
+          type: string

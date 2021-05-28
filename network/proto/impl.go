@@ -39,14 +39,21 @@ type protocol struct {
 	receivedPeerHashes        *chanPeerHashQueue
 	receivedTransactionHashes *chanPeerHashQueue
 
-	peerOmnihashChannel chan PeerOmnihash
+	// peerDiagnostics contains diagnostic information of the node's peers. The key contains the remote peer's ID. Access must be protected using peerDiagnosticsMutex
+	peerDiagnostics      map[p2p.PeerID]Diagnostics
+	peerDiagnosticsMutex *sync.Mutex
+
 	// peerOmnihashes contains the omnihashes of our peers. Access must be protected using peerOmnihashMutex
-	peerOmnihashes    map[p2p.PeerID]hash.SHA256Hash
-	peerOmnihashMutex *sync.Mutex
+	peerOmnihashes      map[p2p.PeerID]hash.SHA256Hash
+	peerOmnihashChannel chan PeerOmnihash
+	peerOmnihashMutex   *sync.Mutex
 
 	blocks dagBlocks
 
-	advertHashesInterval time.Duration
+	advertHashesInterval         time.Duration
+	queryPeerDiagnosticsInterval time.Duration
+	// diagnosticsProvider is a function for collecting diagnostics from the local node which can be shared with peers.
+	diagnosticsProvider func() Diagnostics
 	// peerID contains our own peer ID which can be logged for debugging purposes
 	peerID p2p.PeerID
 }
@@ -59,22 +66,40 @@ func (p *protocol) Diagnostics() []core.DiagnosticResult {
 	}
 }
 
+func (p *protocol) PeerDiagnostics() map[p2p.PeerID]Diagnostics {
+	p.peerDiagnosticsMutex.Lock()
+	defer p.peerDiagnosticsMutex.Unlock()
+	// Clone map to avoid racy behaviour
+	result := make(map[p2p.PeerID]Diagnostics, len(p.peerDiagnostics))
+	for key, value := range p.peerDiagnostics {
+		clone := value
+		clone.Peers = append([]p2p.PeerID(nil), value.Peers...)
+		result[key] = clone
+	}
+	return result
+}
+
 // NewProtocol creates a new instance of Protocol
 func NewProtocol() Protocol {
 	p := &protocol{
-		peerOmnihashes:      make(map[p2p.PeerID]hash.SHA256Hash),
-		peerOmnihashChannel: make(chan PeerOmnihash, 100),
-		peerOmnihashMutex:   &sync.Mutex{},
-		blocks:              newDAGBlocks(),
+		peerDiagnostics:      make(map[p2p.PeerID]Diagnostics, 0),
+		peerDiagnosticsMutex: &sync.Mutex{},
+		peerOmnihashes:       make(map[p2p.PeerID]hash.SHA256Hash),
+		peerOmnihashChannel:  make(chan PeerOmnihash, 100),
+		peerOmnihashMutex:    &sync.Mutex{},
+		blocks:               newDAGBlocks(),
 	}
 	return p
 }
 
-func (p *protocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, advertHashesInterval time.Duration, peerID p2p.PeerID) {
+func (p *protocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore,
+	diagnosticsProvider func() Diagnostics, advertHashesInterval time.Duration, queryPeerDiagnosticsInterval time.Duration, peerID p2p.PeerID) {
 	p.p2pNetwork = p2pNetwork
 	p.graph = graph
 	p.payloadStore = payloadStore
 	p.advertHashesInterval = advertHashesInterval
+	p.queryPeerDiagnosticsInterval = queryPeerDiagnosticsInterval
+	p.diagnosticsProvider = diagnosticsProvider
 	p.peerID = peerID
 	p.sender = defaultMessageSender{p2p: p.p2pNetwork}
 	publisher.Subscribe(dag.AnyPayloadType, p.blocks.addTransaction)
@@ -85,6 +110,7 @@ func (p *protocol) Start() {
 	peerConnected, peerDisconnected := p.p2pNetwork.EventChannels()
 	go p.startUpdatingDiagnostics(peerConnected, peerDisconnected)
 	go p.startAdvertingHashes()
+	go p.startQueryingPeerDiagnostics()
 }
 
 func (p protocol) Stop() {
@@ -101,6 +127,16 @@ func (p protocol) startAdvertingHashes() {
 	}
 }
 
+func (p protocol) startQueryingPeerDiagnostics() {
+	ticker := time.NewTicker(p.queryPeerDiagnosticsInterval)
+	for {
+		select {
+		case <-ticker.C:
+			p.sender.broadcastDiagnostics(p.diagnosticsProvider())
+		}
+	}
+}
+
 func (p *protocol) startUpdatingDiagnostics(peerConnected chan p2p.Peer, peerDisconnected chan p2p.Peer) {
 	for {
 		p.updateDiagnostics(peerConnected, peerDisconnected)
@@ -108,24 +144,25 @@ func (p *protocol) startUpdatingDiagnostics(peerConnected chan p2p.Peer, peerDis
 }
 
 func (p *protocol) updateDiagnostics(peerConnected chan p2p.Peer, peerDisconnected chan p2p.Peer) {
-	withLock := func(fn func()) {
-		p.peerOmnihashMutex.Lock()
-		defer p.peerOmnihashMutex.Unlock()
-		fn()
-	}
 	select {
 	case peer := <-peerConnected:
-		withLock(func() {
+		withLock(p.peerOmnihashMutex, func() {
 			p.peerOmnihashes[peer.ID] = hash.EmptyHash()
+		})
+		withLock(p.peerDiagnosticsMutex, func() {
+			p.peerDiagnostics[peer.ID] = Diagnostics{}
 		})
 		break
 	case peer := <-peerDisconnected:
-		withLock(func() {
+		withLock(p.peerOmnihashMutex, func() {
 			delete(p.peerOmnihashes, peer.ID)
+		})
+		withLock(p.peerDiagnosticsMutex, func() {
+			delete(p.peerDiagnostics, peer.ID)
 		})
 		break
 	case peerOmnihash := <-p.peerOmnihashChannel:
-		withLock(func() {
+		withLock(p.peerOmnihashMutex, func() {
 			p.peerOmnihashes[peerOmnihash.Peer] = peerOmnihash.Hash
 		})
 		break
@@ -147,4 +184,10 @@ type chanPeerHashQueue struct {
 
 func (q chanPeerHashQueue) Get() *PeerOmnihash {
 	return <-q.c
+}
+
+func withLock(mux *sync.Mutex, fn func()) {
+	mux.Lock()
+	defer mux.Unlock()
+	fn()
 }

@@ -92,6 +92,9 @@ type ClientInterface interface {
 	// RenderGraph request
 	RenderGraph(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetPeerDiagnostics request
+	GetPeerDiagnostics(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListTransactions request
 	ListTransactions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -104,6 +107,18 @@ type ClientInterface interface {
 
 func (c *Client) RenderGraph(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRenderGraphRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetPeerDiagnostics(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPeerDiagnosticsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -160,6 +175,33 @@ func NewRenderGraphRequest(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/internal/network/v1/diagnostics/graph")
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetPeerDiagnosticsRequest generates requests for GetPeerDiagnostics
+func NewGetPeerDiagnosticsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/network/v1/diagnostics/peers")
 	if operationPath[0] == '/' {
 		operationPath = operationPath[1:]
 	}
@@ -318,6 +360,9 @@ type ClientWithResponsesInterface interface {
 	// RenderGraph request
 	RenderGraphWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RenderGraphResponse, error)
 
+	// GetPeerDiagnostics request
+	GetPeerDiagnosticsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPeerDiagnosticsResponse, error)
+
 	// ListTransactions request
 	ListTransactionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListTransactionsResponse, error)
 
@@ -343,6 +388,30 @@ func (r RenderGraphResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r RenderGraphResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetPeerDiagnosticsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		AdditionalProperties map[string]PeerDiagnostics `json:"-"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPeerDiagnosticsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPeerDiagnosticsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -422,6 +491,15 @@ func (c *ClientWithResponses) RenderGraphWithResponse(ctx context.Context, reqEd
 	return ParseRenderGraphResponse(rsp)
 }
 
+// GetPeerDiagnosticsWithResponse request returning *GetPeerDiagnosticsResponse
+func (c *ClientWithResponses) GetPeerDiagnosticsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPeerDiagnosticsResponse, error) {
+	rsp, err := c.GetPeerDiagnostics(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPeerDiagnosticsResponse(rsp)
+}
+
 // ListTransactionsWithResponse request returning *ListTransactionsResponse
 func (c *ClientWithResponses) ListTransactionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListTransactionsResponse, error) {
 	rsp, err := c.ListTransactions(ctx, reqEditors...)
@@ -463,6 +541,34 @@ func ParseRenderGraphResponse(rsp *http.Response) (*RenderGraphResponse, error) 
 	}
 
 	switch {
+	}
+
+	return response, nil
+}
+
+// ParseGetPeerDiagnosticsResponse parses an HTTP response from a GetPeerDiagnosticsWithResponse call
+func ParseGetPeerDiagnosticsResponse(rsp *http.Response) (*GetPeerDiagnosticsResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPeerDiagnosticsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			AdditionalProperties map[string]PeerDiagnostics `json:"-"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil
@@ -537,6 +643,9 @@ type ServerInterface interface {
 	// Visualizes the DAG as a graph
 	// (GET /internal/network/v1/diagnostics/graph)
 	RenderGraph(ctx echo.Context) error
+	// Gets diagnostic information about the node's peers
+	// (GET /internal/network/v1/diagnostics/peers)
+	GetPeerDiagnostics(ctx echo.Context) error
 	// Lists the transactions on the DAG
 	// (GET /internal/network/v1/transaction)
 	ListTransactions(ctx echo.Context) error
@@ -559,6 +668,15 @@ func (w *ServerInterfaceWrapper) RenderGraph(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.RenderGraph(ctx)
+	return err
+}
+
+// GetPeerDiagnostics converts echo context to params.
+func (w *ServerInterfaceWrapper) GetPeerDiagnostics(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.GetPeerDiagnostics(ctx)
 	return err
 }
 
@@ -637,6 +755,13 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.RenderGraph(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/network/v1/diagnostics/peers", func(context echo.Context) error {
+		context.Set("!!OperationId", "GetPeerDiagnostics")
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
+		}
+		return wrapper.GetPeerDiagnostics(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction", func(context echo.Context) error {
 		context.Set("!!OperationId", "ListTransactions")
