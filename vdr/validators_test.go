@@ -110,7 +110,7 @@ func Test_serviceValidator(t *testing.T) {
 			svc.ID.Fragment = "foobar"
 			didDoc.Service = append(didDoc.Service, svc)
 			a.doc = didDoc
-		}, errors.New("invalid service: duplicate service type")},
+		}, errors.New("invalid service: service type is duplicate")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

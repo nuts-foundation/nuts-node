@@ -47,6 +47,9 @@ var ErrDeactivated = errors.New("the DID document has been deactivated")
 // ErrDIDAlreadyExists is returned when a DID already exists.
 var ErrDIDAlreadyExists = errors.New("DID document already exists in the store")
 
+// ErrDuplicateService is returned when a DID Document contains a multiple services with the same type
+var ErrDuplicateService = errors.New("service type is duplicate")
+
 // DocumentMetadata holds the metadata of a DID document
 type DocumentMetadata struct {
 	Created time.Time  `json:"created"`

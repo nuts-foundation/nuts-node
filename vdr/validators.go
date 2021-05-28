@@ -6,6 +6,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // verificationMethodValidator validates the Verification Methods of a Nuts DID Document.
@@ -43,11 +44,14 @@ func (s serviceValidator) Validate(document did.Document) error {
 	knownServiceIDs := make(map[string]bool, 0)
 	knownServiceTypes := make(map[string]bool, 0)
 	for _, method := range document.Service {
-		if err := verifyDocumentEntryID(document.ID, method.ID, knownServiceIDs); err != nil {
-			return fmt.Errorf("invalid service: %w", err)
+		var err error
+		if err = verifyDocumentEntryID(document.ID, method.ID, knownServiceIDs); err == nil {
+			if knownServiceTypes[method.Type] {
+				err = types.ErrDuplicateService
+			}
 		}
-		if knownServiceTypes[method.Type] {
-			return errors.New("invalid service: duplicate service type")
+		if err != nil {
+			return fmt.Errorf("invalid service: %w", err)
 		}
 		knownServiceTypes[method.Type] = true
 	}

@@ -201,7 +201,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(didman.ErrDuplicateService)
+		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDuplicateService)
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
@@ -209,7 +209,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			return
 		}
 		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
-		test.AssertErrProblemDetail(t, didman.ErrDuplicateService.Error(), err)
+		test.AssertErrProblemDetail(t, types.ErrDuplicateService.Error(), err)
 		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
 	})
 
