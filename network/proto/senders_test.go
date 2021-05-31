@@ -36,10 +36,22 @@ func Test_defaultMessageSender_broadcastAdvertHashes(t *testing.T) {
 	)
 }
 
-func Test_defaultMessageSender_broadcastDiagnosticsQuery(t *testing.T) {
+func Test_defaultMessageSender_broadcastDiagnostics(t *testing.T) {
 	sender, mock := createMessageSender(t)
-	mock.EXPECT().Broadcast(&transport.NetworkMessage{Message: &transport.NetworkMessage_DiagnosticsRequest{DiagnosticsRequest: &transport.DiagnosticsRequest{}}})
-	sender.broadcastDiagnosticsQuery()
+	mock.EXPECT().Broadcast(&transport.NetworkMessage{Message: &transport.NetworkMessage_DiagnosticsBroadcast{DiagnosticsBroadcast: &transport.Diagnostics{
+		Uptime:               1000,
+		Peers:                []string{"foobar"},
+		NumberOfTransactions: 5,
+		Version:              "1.0",
+		Vendor:               "Test",
+	}}})
+	sender.broadcastDiagnostics(Diagnostics{
+		Uptime:               1000 * time.Second,
+		Peers:                []p2p.PeerID{"foobar"},
+		NumberOfTransactions: 5,
+		Version:              "1.0",
+		Vendor:               "Test",
+	})
 }
 
 func Test_defaultMessageSender_sendTransactionList(t *testing.T) {

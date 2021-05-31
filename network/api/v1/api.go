@@ -88,7 +88,7 @@ func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) er
 	return err
 }
 
-func (a *Wrapper) GetPeerDiagnostics(ctx echo.Context) error {
+func (a Wrapper) GetPeerDiagnostics(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, a.Service.PeerDiagnostics())
 }
 

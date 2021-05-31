@@ -48,28 +48,16 @@ func (mr *MockmessageSenderMockRecorder) broadcastAdvertHashes(blocks interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastAdvertHashes", reflect.TypeOf((*MockmessageSender)(nil).broadcastAdvertHashes), blocks)
 }
 
-// broadcastDiagnosticsQuery mocks base method
-func (m *MockmessageSender) broadcastDiagnosticsQuery() {
+// broadcastDiagnostics mocks base method
+func (m *MockmessageSender) broadcastDiagnostics(diagnostics Diagnostics) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "broadcastDiagnosticsQuery")
+	m.ctrl.Call(m, "broadcastDiagnostics", diagnostics)
 }
 
-// broadcastDiagnosticsQuery indicates an expected call of broadcastDiagnosticsQuery
-func (mr *MockmessageSenderMockRecorder) broadcastDiagnosticsQuery() *gomock.Call {
+// broadcastDiagnostics indicates an expected call of broadcastDiagnostics
+func (mr *MockmessageSenderMockRecorder) broadcastDiagnostics(diagnostics interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastDiagnosticsQuery", reflect.TypeOf((*MockmessageSender)(nil).broadcastDiagnosticsQuery))
-}
-
-// sendDiagnostics mocks base method
-func (m *MockmessageSender) broadcastDiagnostics(peer p2p.PeerID, diagnostics Diagnostics) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "broadcastDiagnostics", peer, diagnostics)
-}
-
-// sendDiagnostics indicates an expected call of sendDiagnostics
-func (mr *MockmessageSenderMockRecorder) sendDiagnostics(peer, diagnostics interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastDiagnostics", reflect.TypeOf((*MockmessageSender)(nil).broadcastDiagnostics), peer, diagnostics)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastDiagnostics", reflect.TypeOf((*MockmessageSender)(nil).broadcastDiagnostics), diagnostics)
 }
 
 // sendTransactionListQuery mocks base method
