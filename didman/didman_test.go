@@ -100,7 +100,7 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		_ = ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
-		assert.Equal(t, ErrDuplicateService, err)
+		assert.Equal(t, types.ErrDuplicateService, err)
 	})
 
 	t.Run("error - DID not found", func(t *testing.T) {

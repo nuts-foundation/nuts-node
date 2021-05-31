@@ -36,9 +36,6 @@ import (
 // ModuleName contains the name of this module: Didman
 const ModuleName = "Didman"
 
-// ErrDuplicateService is returned when a DID Document already contains a service for the given type
-var ErrDuplicateService = errors.New("service type already defined")
-
 // ErrServiceInUse is returned when a service is deleted but in use by other services
 var ErrServiceInUse = errors.New("service is referenced by 1 or more services")
 
@@ -233,7 +230,7 @@ func (d *didman) addService(id did.DID, serviceType string, serviceEndpoint inte
 	// check for duplicate service type
 	for _, s := range doc.Service {
 		if s.Type == serviceType {
-			return ErrDuplicateService
+			return types.ErrDuplicateService
 		}
 	}
 

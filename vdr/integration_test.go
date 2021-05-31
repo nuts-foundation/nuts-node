@@ -114,7 +114,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 	assert.NotNil(t, docB,
 		"a new document should have been created")
-	resolvedDocB, metadataDocB, err := docResolver.Resolve(docB.ID, nil)
+	_, _, err = docResolver.Resolve(docB.ID, nil)
 	assert.NoError(t, err,
 		"unexpected error while resolving documentB")
 
@@ -169,36 +169,13 @@ func TestVDRIntegration_Test(t *testing.T) {
 	assert.Equal(t, newService, docA.Service[1],
 		"news service of document a does not contain expected values")
 
-	// Update document B with a new authentication key which replaces the first one:
-	oldAuthKeyDocB := resolvedDocB.CapabilityInvocation[0].ID
-	docUpdater := &doc.Manipulator{KeyCreator: nutsCrypto, Updater: *vdr, Resolver: docResolver}
-	method, err := doc.CreateNewVerificationMethodForDID(docB.ID, nutsCrypto)
-	assert.NoError(t, err)
-	assert.NotNil(t, method)
-	docB.AddCapabilityInvocation(method)
-	docB.AssertionMethod.Remove(oldAuthKeyDocB)
-	docB.CapabilityInvocation.Remove(oldAuthKeyDocB)
-	docB.VerificationMethod.Remove(oldAuthKeyDocB)
-	err = vdr.Update(docB.ID, metadataDocB.Hash, *docB, nil)
-	if !assert.NoError(t, err,
-		"unable to update documentB with a new CapabilityInvocation") {
-		return
-	}
-
-	// Resolve document B and check if the key has been updated
-	resolvedDocB, metadataDocB, err = docResolver.Resolve(docB.ID, nil)
-	assert.NoError(t, err,
-		"expected DocumentB to be resolved without error")
-
-	assert.Len(t, resolvedDocB.CapabilityInvocation, 1)
-	assert.NotEqual(t, oldAuthKeyDocB, resolvedDocB.CapabilityInvocation[0].ID)
-
 	// deactivate document B
+	docUpdater := &doc.Manipulator{KeyCreator: nutsCrypto, Updater: *vdr, Resolver: docResolver}
 	err = docUpdater.Deactivate(docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
 
-	docB, metadataDocB, err = docResolver.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
+	docB, _, err = docResolver.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
 	assert.NoError(t, err)
 	assert.Len(t, docB.CapabilityInvocation, 0,
 		"expected document B to not have any CapabilityInvocation methods after deactivation")

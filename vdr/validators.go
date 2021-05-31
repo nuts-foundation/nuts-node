@@ -1,9 +1,12 @@
 package vdr
 
 import (
+	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // verificationMethodValidator validates the Verification Methods of a Nuts DID Document.
@@ -15,6 +18,21 @@ func (v verificationMethodValidator) Validate(document did.Document) error {
 		if err := verifyDocumentEntryID(document.ID, method.ID.URI(), knownKeyIds); err != nil {
 			return fmt.Errorf("invalid verificationMethod: %w", err)
 		}
+		if err := v.verifyThumbprint(method); err != nil {
+			return fmt.Errorf("invalid verificationMethod: %w", err)
+		}
+	}
+	return nil
+}
+
+func (v verificationMethodValidator) verifyThumbprint(method *did.VerificationMethod) error {
+	keyAsJWK, err := method.JWK()
+	if err != nil {
+		return fmt.Errorf("unable to get JWK: %w", err)
+	}
+	_ = jwk.AssignKeyID(keyAsJWK)
+	if keyAsJWK.KeyID() != method.ID.Fragment {
+		return errors.New("key thumbprint does not match ID")
 	}
 	return nil
 }
@@ -24,10 +42,18 @@ type serviceValidator struct{}
 
 func (s serviceValidator) Validate(document did.Document) error {
 	knownServiceIDs := make(map[string]bool, 0)
+	knownServiceTypes := make(map[string]bool, 0)
 	for _, method := range document.Service {
-		if err := verifyDocumentEntryID(document.ID, method.ID, knownServiceIDs); err != nil {
+		var err error
+		if err = verifyDocumentEntryID(document.ID, method.ID, knownServiceIDs); err == nil {
+			if knownServiceTypes[method.Type] {
+				err = types.ErrDuplicateService
+			}
+		}
+		if err != nil {
 			return fmt.Errorf("invalid service: %w", err)
 		}
+		knownServiceTypes[method.Type] = true
 	}
 	return nil
 }
@@ -42,13 +68,8 @@ func verifyDocumentEntryID(owner did.DID, entryID ssi.URI, knownIDs map[string]b
 	if knownIDs[entryIDStr] {
 		return fmt.Errorf("ID must be unique")
 	}
-	entryIDAsDID, err := did.ParseDID(entryIDStr)
-	if err != nil {
-		// Shouldn't happen
-		return err
-	}
-	entryIDAsDID.Fragment = ""
-	if !owner.Equals(*entryIDAsDID) {
+	entryID.Fragment = ""
+	if owner.String() != entryID.String() {
 		return fmt.Errorf("ID must have document prefix")
 	}
 	knownIDs[entryIDStr] = true

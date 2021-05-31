@@ -202,7 +202,7 @@ var errorStatusCodes = map[error]int{
 	types.ErrNotFound:                http.StatusNotFound,
 	types.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
 	types.ErrDeactivated:             http.StatusConflict,
-	didman.ErrDuplicateService:       http.StatusConflict,
+	types.ErrDuplicateService:        http.StatusConflict,
 	didman.ErrServiceInUse:           http.StatusConflict,
 }
 
