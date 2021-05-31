@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 
@@ -234,7 +234,8 @@ func Test_ambassador_callback(t *testing.T) {
 		am := ambassador{didStore: didStoreMock}
 
 		id, _ := did.ParseDID("did:foo:bar")
-		emptyDIDDocument := did.Document{ID: *id, Context: []ssi.URI{did.DIDContextV1URI()}}
+		emptyDIDDocument := doc.CreateDocument()
+		emptyDIDDocument.ID = *id
 		didDocumentBytes, _ := emptyDIDDocument.MarshalJSON()
 		subDoc := testTransaction{
 			signingKeyID: "key-1",
@@ -305,7 +306,8 @@ func Test_ambassador_callback(t *testing.T) {
 		storedDocument := did.Document{}
 		json.Unmarshal(didDocPayload, &storedDocument)
 
-		deactivatedDocument := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: storedDocument.ID}
+		deactivatedDocument := doc.CreateDocument()
+		deactivatedDocument.ID = storedDocument.ID
 		didDocPayload, _ = json.Marshal(deactivatedDocument)
 
 		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))

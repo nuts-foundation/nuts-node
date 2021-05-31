@@ -471,7 +471,12 @@ func Test_handleError(t *testing.T) {
 		err := handleError(ctx.echo, errors.New("error!!"), "template: %s")
 		assert.NoError(t, err)
 	})
-
+	t.Run("duplicate service error causes 400", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().String(http.StatusBadRequest, "template: service type is duplicate")
+		err := handleError(ctx.echo, types.ErrDuplicateService, "template: %s")
+		assert.NoError(t, err)
+	})
 	t.Run("not found error causes 404", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().String(http.StatusNotFound, "template: unable to find the DID document")

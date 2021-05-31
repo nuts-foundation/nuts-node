@@ -173,7 +173,9 @@ func TestManipulator_Deactivate(t *testing.T) {
 	currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 
 	ctx.mockResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil)
-	ctx.mockUpdater.EXPECT().Update(*id, currentHash, did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: *id}, nil)
+	expectedDocument := CreateDocument()
+	expectedDocument.ID = *id
+	ctx.mockUpdater.EXPECT().Update(*id, currentHash, expectedDocument, nil)
 
 	err := ctx.manipulator.Deactivate(*id)
 	if !assert.NoError(t, err) {

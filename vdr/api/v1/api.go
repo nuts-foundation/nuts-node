@@ -198,6 +198,9 @@ func handleError(ctx echo.Context, err error, errTemplate string) error {
 		if errors.Is(err, types.ErrNotFound) {
 			return ctx.String(http.StatusNotFound, fmt.Sprintf(errTemplate, err.Error()))
 		}
+		if errors.Is(err, types.ErrDuplicateService) {
+			return ctx.String(http.StatusBadRequest, fmt.Sprintf(errTemplate, err.Error()))
+		}
 		if errors.Is(err, types.ErrDIDNotManagedByThisNode) {
 			return ctx.String(http.StatusForbidden, fmt.Sprintf(errTemplate, err.Error()))
 		}
