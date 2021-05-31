@@ -19,27 +19,45 @@
 
 package core
 
+import "fmt"
+
 // DiagnosticResult are the result of different checks giving information on how well the system is doing
 type DiagnosticResult interface {
 	// Name returns a simple and understandable name of the check
 	Name() string
 
-	// String returns the outcome of the check
+	// String returns the outcome of the check formatted as string
 	String() string
 }
 
-// GenericDiagnosticResult is a simple implementation of the DiagnosticResult interface
-type GenericDiagnosticResult struct {
-	Title   string
-	Outcome string
+// StringDiagnosticResult is an implementation of the DiagnosticResult interface that contains a single string as value.
+type StringDiagnosticResult struct {
+	Title string
+	Value string
 }
 
-// Name returns the name of the GenericDiagnosticResult
-func (gdr *GenericDiagnosticResult) Name() string {
-	return gdr.Title
+// Name returns the name of the StringDiagnosticResult
+func (r *StringDiagnosticResult) Name() string {
+	return r.Title
 }
 
-// String returns the outcome of the GenericDiagnosticResult
-func (gdr *GenericDiagnosticResult) String() string {
-	return gdr.Outcome
+// String returns the outcome of the StringDiagnosticResult as string
+func (r *StringDiagnosticResult) String() string {
+	return r.Value
+}
+
+// NestedDiagnosticResult is an implementation of the DiagnosticResult interface that contains a slice of DiagnosticResult's.
+type NestedDiagnosticResult struct {
+	Title string
+	Value []DiagnosticResult
+}
+
+// Name returns the name of the NestedDiagnosticResult
+func (r *NestedDiagnosticResult) Name() string {
+	return r.Title
+}
+
+// String returns the outcome of the NestedDiagnosticResult
+func (r *NestedDiagnosticResult) Outcome() string {
+	return fmt.Sprintf("%v", r.Value)
 }

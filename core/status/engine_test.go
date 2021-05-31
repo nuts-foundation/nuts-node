@@ -50,14 +50,15 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 		assert.Equal(t, core.OSArch(), ds[4].String())
 	})
 
-	t.Run("diagnosticsOverview() renders text output of diagnostics", func(t *testing.T) {
+	t.Run("handleGetDiagnostics() renders text output of diagnostics", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		echo := mock.NewMockContext(ctrl)
 
+		echo.EXPECT().Request().Return(&http.Request{})
 		echo.EXPECT().String(http.StatusOK, test.Contains("Registered engines: Status,Metrics"))
 
-		(&status{system: system}).diagnosticsOverview(echo)
+		(&status{system: system}).handleGetDiagnostics(echo)
 	})
 }
 
@@ -68,5 +69,5 @@ func TestStatusOK(t *testing.T) {
 
 	echo.EXPECT().String(http.StatusOK, "OK")
 
-	statusOK(echo)
+	handleGetStatus(echo)
 }

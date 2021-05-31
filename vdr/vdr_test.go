@@ -220,7 +220,7 @@ func TestVDR_Diagnostics(t *testing.T) {
 		if !assert.Len(t, results, 1) {
 			return
 		}
-		assert.Equal(t, "0", results[0].String())
+		assert.Equal(t, "0", results[0].Outcome())
 	})
 
 	t.Run("ok - 1 conflict", func(t *testing.T) {
@@ -234,7 +234,7 @@ func TestVDR_Diagnostics(t *testing.T) {
 		if !assert.Len(t, results, 1) {
 			return
 		}
-		assert.Equal(t, "1", results[0].String())
+		assert.Equal(t, "1", results[0].Outcome())
 	})
 }
 

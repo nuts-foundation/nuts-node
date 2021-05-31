@@ -231,7 +231,7 @@ func TestBBoltDAG_Diagnostics(t *testing.T) {
 	// Assert actual diagnostics
 	lines := make([]string, 0)
 	for _, diagnostic := range diagnostics {
-		lines = append(lines, diagnostic.Name()+": "+diagnostic.String())
+		lines = append(lines, diagnostic.Name()+": "+diagnostic.Outcome())
 	}
 	sort.Strings(lines)
 	actual := strings.Join(lines, "\n")

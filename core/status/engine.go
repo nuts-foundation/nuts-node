@@ -34,6 +34,8 @@ const moduleName = "Status"
 const diagnosticsEndpoint = "/status/diagnostics"
 const statusEndpoint = "/status"
 
+type diagnosticsRenderer func(map[string][]core.DiagnosticResult, echo.Context) error
+
 type status struct {
 	system    *core.System
 	startTime time.Time
@@ -52,37 +54,35 @@ func (s *status) Name() string {
 }
 
 func (s *status) Routes(router core.EchoRouter) {
-	router.Add(http.MethodGet, diagnosticsEndpoint, s.diagnosticsOverview)
-	router.Add(http.MethodGet, statusEndpoint, statusOK)
+	router.Add(http.MethodGet, diagnosticsEndpoint, s.handleGetDiagnostics)
+	router.Add(http.MethodGet, statusEndpoint, handleGetStatus)
 }
 
-func (s *status) diagnosticsOverview(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, s.diagnosticsSummaryAsText())
+func (s *status) handleGetDiagnostics(ctx echo.Context) error {
+	requestedContentType := ctx.Request().Header.Get("Content-Type")
+	renderer := getRenderer(requestedContentType)
+	return renderer(s.collectDiagnostics(), ctx)
 }
 
-func (s *status) diagnosticsSummaryAsText() string {
-	var lines []string
+func (s *status) collectDiagnostics() map[string][]core.DiagnosticResult {
+	result := make(map[string][]core.DiagnosticResult, 0)
 	s.system.VisitEngines(func(engine core.Engine) {
 		if m, ok := engine.(core.ViewableDiagnostics); ok {
-			lines = append(lines, m.Name())
-			diagnostics := m.Diagnostics()
-			for _, d := range diagnostics {
-				lines = append(lines, fmt.Sprintf("\t%s: %s", d.Name(), d.String()))
-			}
+			result[m.Name()] = append(result[m.Name()], m.Diagnostics()...)
 		}
 	})
-	return strings.Join(lines, "\n")
+	return result
 }
 
 // Diagnostics returns list of DiagnosticResult for the StatusEngine.
 // The results are a list of all registered engines
 func (s *status) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{
-		&core.GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(s.listAllEngines(), ",")},
-		&core.GenericDiagnosticResult{Title: "Uptime", Outcome: time.Now().Sub(s.startTime).String()},
-		&core.GenericDiagnosticResult{Title: "Version", Outcome: core.Version()},
-		&core.GenericDiagnosticResult{Title: "Git commit", Outcome: core.GitCommit},
-		&core.GenericDiagnosticResult{Title: "OS/Arch", Outcome: core.OSArch()},
+		&core.StringDiagnosticResult{Title: "Registered engines", Value: strings.Join(s.listAllEngines(), ",")},
+		&core.StringDiagnosticResult{Title: "Uptime", Value: time.Now().Sub(s.startTime).String()},
+		&core.StringDiagnosticResult{Title: "Version", Value: core.Version()},
+		&core.StringDiagnosticResult{Title: "Git commit", Value: core.GitCommit},
+		&core.StringDiagnosticResult{Title: "OS/Arch", Value: core.OSArch()},
 	}
 }
 
@@ -96,7 +96,33 @@ func (s *status) listAllEngines() []string {
 	return names
 }
 
-// statusOK returns 200 OK with a "OK" body
-func statusOK(ctx echo.Context) error {
+// handleGetStatus returns 200 OK with a "OK" body
+func handleGetStatus(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "OK")
+}
+
+func renderAsText(input map[string][]core.DiagnosticResult, ctx echo.Context) error {
+	var lines []string
+	for engine, items := range input {
+		lines = append(lines, engine)
+		for _, item := range items {
+			lines = append(lines, fmt.Sprintf("\t%s: %s", item.Name(), item.String()))
+		}
+	}
+	return ctx.String(http.StatusOK, strings.Join(lines, "\n"))
+}
+
+func renderAsJSON(input map[string][]core.DiagnosticResult, ctx echo.Context) error {
+	return ctx.JSON(http.StatusOK, input)
+}
+
+func getRenderer(requestedContentType string) diagnosticsRenderer {
+	switch requestedContentType {
+	case "application/json":
+		return renderAsJSON
+	case "text/plain":
+		fallthrough
+	default:
+		return renderAsText
+	}
 }
