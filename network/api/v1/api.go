@@ -88,6 +88,7 @@ func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) er
 	return err
 }
 
+// GetPeerDiagnostics returns the diagnostics of the node's peers
 func (a Wrapper) GetPeerDiagnostics(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, a.Service.PeerDiagnostics())
 }

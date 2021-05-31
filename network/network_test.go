@@ -304,6 +304,23 @@ func TestNetwork_Shutdown(t *testing.T) {
 	})
 }
 
+func TestNetwork_collectDiagnostics(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	cxt := createNetwork(ctrl)
+	cxt.graph.EXPECT().Statistics().Return(dag.Statistics{NumberOfTransactions: 5})
+	peer := p2p.Peer{ID: "abc", Address: "123"}
+	cxt.p2pAdapter.EXPECT().Peers().Return([]p2p.Peer{peer})
+
+	actual := cxt.network.collectDiagnostics()
+
+	assert.Equal(t, "https://github.com/nuts-foundation/nuts-node", actual.Vendor)
+	assert.Equal(t, "0", actual.Version)
+	assert.Equal(t, []p2p.PeerID{peer.ID}, actual.Peers)
+	assert.Equal(t, uint32(5), actual.NumberOfTransactions)
+	assert.NotEmpty(t, actual.Uptime)
+}
+
 func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

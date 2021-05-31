@@ -220,7 +220,7 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 	return results
 }
 
-// GetPeersDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
+// PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 func (n *Network) PeerDiagnostics() map[p2p.PeerID]proto.Diagnostics {
 	return n.protocol.PeerDiagnostics()
 }
