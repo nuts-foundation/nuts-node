@@ -99,7 +99,7 @@ paths:
               schema:
                  $ref: '#/components/schemas/DIDDocument'
         "400":
-          description: DID document couldn't be updated because the did param was malformed or the document was deactivated.
+          description: DID document couldn't be updated because the DID param was malformed or the DID document is invalid.
           content:
             text/plain:
               schema:
