@@ -19,6 +19,8 @@ package v1
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/network/p2p"
+	"github.com/nuts-foundation/nuts-node/network/proto"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -105,6 +107,32 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 
 		assert.EqualError(t, err, "transaction not found")
 	})
+}
+
+func TestApiWrapper_GetPeerDiagnostics(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var networkClient = network.NewMockTransactions(mockCtrl)
+	e, wrapper := initMockEcho(networkClient)
+	networkClient.EXPECT().PeerDiagnostics().Return(map[p2p.PeerID]proto.Diagnostics{"foo": {
+		Uptime:               1000,
+		Peers:                []p2p.PeerID{"bar"},
+		NumberOfTransactions: 5,
+		Version:              "1.0",
+		Vendor:               "Test",
+	}})
+
+	req := httptest.NewRequest(echo.GET, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/diagnostics/peers")
+
+	err := wrapper.GetPeerDiagnostics(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "application/json; charset=UTF-8", rec.Header().Get("Content-Type"))
+	assert.Equal(t, `{"foo":{"uptime":1000,"peers":["bar"],"transactionNum":5,"version":"1.0","vendor":"Test"}}`, strings.TrimSpace(rec.Body.String()))
 }
 
 func TestApiWrapper_RenderGraph(t *testing.T) {

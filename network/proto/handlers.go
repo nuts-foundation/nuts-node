@@ -262,7 +262,7 @@ func (p *protocol) handleTransactionListQuery(peer p2p.PeerID, blockDateInt uint
 
 func (p *protocol) handleDiagnostics(peer p2p.PeerID, response *transport.Diagnostics) {
 	diagnostics := Diagnostics{
-		Uptime:               time.Duration(response.Uptime),
+		Uptime:               time.Duration(response.Uptime) * time.Second,
 		NumberOfTransactions: response.NumberOfTransactions,
 		Version:              response.Version,
 		Vendor:               response.Vendor,
