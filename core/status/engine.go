@@ -20,6 +20,7 @@
 package status
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -59,7 +60,7 @@ func (s *status) Routes(router core.EchoRouter) {
 }
 
 func (s *status) handleGetDiagnostics(ctx echo.Context) error {
-	requestedContentType := ctx.Request().Header.Get("Content-Type")
+	requestedContentType := ctx.Request().Header.Get("Accept")
 	renderer := getRenderer(requestedContentType)
 	return renderer(s.collectDiagnostics(), ctx)
 }
@@ -78,11 +79,11 @@ func (s *status) collectDiagnostics() map[string][]core.DiagnosticResult {
 // The results are a list of all registered engines
 func (s *status) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{
-		&core.StringDiagnosticResult{Title: "Registered engines", Value: strings.Join(s.listAllEngines(), ",")},
-		&core.StringDiagnosticResult{Title: "Uptime", Value: time.Now().Sub(s.startTime).String()},
-		&core.StringDiagnosticResult{Title: "Version", Value: core.Version()},
-		&core.StringDiagnosticResult{Title: "Git commit", Value: core.GitCommit},
-		&core.StringDiagnosticResult{Title: "OS/Arch", Value: core.OSArch()},
+		&core.GenericDiagnosticResult{Title: "Registered engines", Value: s.listAllEngines()},
+		&core.GenericDiagnosticResult{Title: "Uptime", Value: time.Now().Sub(s.startTime).String()},
+		&core.GenericDiagnosticResult{Title: "Version", Value: core.Version()},
+		&core.GenericDiagnosticResult{Title: "Git commit", Value: core.GitCommit},
+		&core.GenericDiagnosticResult{Title: "OS/Arch", Value: core.OSArch()},
 	}
 }
 
@@ -101,9 +102,9 @@ func handleGetStatus(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "OK")
 }
 
-func renderAsText(input map[string][]core.DiagnosticResult, ctx echo.Context) error {
+func renderAsText(engineDiagnostics map[string][]core.DiagnosticResult, ctx echo.Context) error {
 	var lines []string
-	for engine, items := range input {
+	for engine, items := range engineDiagnostics {
 		lines = append(lines, engine)
 		for _, item := range items {
 			lines = append(lines, fmt.Sprintf("\t%s: %s", item.Name(), item.String()))
@@ -112,8 +113,33 @@ func renderAsText(input map[string][]core.DiagnosticResult, ctx echo.Context) er
 	return ctx.String(http.StatusOK, strings.Join(lines, "\n"))
 }
 
-func renderAsJSON(input map[string][]core.DiagnosticResult, ctx echo.Context) error {
-	return ctx.JSON(http.StatusOK, input)
+func renderAsJSON(engineDiagnostics map[string][]core.DiagnosticResult, ctx echo.Context) error {
+	result := make(map[string]map[string]interface{}, 0)
+	for engineName, entries := range engineDiagnostics {
+		asMap := make(map[string]interface{}, 0)
+		for _, diagnosticResult := range entries {
+			asMap[diagnosticResult.Name()] = toJSONValue(diagnosticResult)
+		}
+		result[engineName] = asMap
+	}
+	return ctx.JSONPretty(http.StatusOK, result, "  ")
+}
+
+func toJSONValue(element core.DiagnosticResult) interface{} {
+	switch el := element.(type) {
+	case *core.NestedDiagnosticResult:
+		values := make(map[string]interface{}, len(el.Value))
+		for _, value := range el.Value {
+			values[value.Name()] = toJSONValue(value)
+		}
+		return values
+	case *core.GenericDiagnosticResult:
+		return el.Value
+	case json.Marshaler:
+		return el
+	default:
+		return element.String()
+	}
 }
 
 func getRenderer(requestedContentType string) diagnosticsRenderer {

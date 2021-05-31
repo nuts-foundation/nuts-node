@@ -30,20 +30,20 @@ type DiagnosticResult interface {
 	String() string
 }
 
-// StringDiagnosticResult is an implementation of the DiagnosticResult interface that contains a single string as value.
-type StringDiagnosticResult struct {
+// GenericDiagnosticResult is an implementation of the DiagnosticResult interface that contains a generic value.
+type GenericDiagnosticResult struct {
 	Title string
-	Value string
+	Value interface{}
 }
 
-// Name returns the name of the StringDiagnosticResult
-func (r *StringDiagnosticResult) Name() string {
+// Name returns the name of the GenericDiagnosticResult
+func (r *GenericDiagnosticResult) Name() string {
 	return r.Title
 }
 
-// String returns the outcome of the StringDiagnosticResult as string
-func (r *StringDiagnosticResult) String() string {
-	return r.Value
+// String returns the outcome of the GenericDiagnosticResult as string
+func (r *GenericDiagnosticResult) String() string {
+	return fmt.Sprintf("%v", r.Value)
 }
 
 // NestedDiagnosticResult is an implementation of the DiagnosticResult interface that contains a slice of DiagnosticResult's.
@@ -58,6 +58,6 @@ func (r *NestedDiagnosticResult) Name() string {
 }
 
 // String returns the outcome of the NestedDiagnosticResult
-func (r *NestedDiagnosticResult) Outcome() string {
+func (r *NestedDiagnosticResult) String() string {
 	return fmt.Sprintf("%v", r.Value)
 }

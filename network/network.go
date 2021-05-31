@@ -206,10 +206,10 @@ func (n *Network) Shutdown() error {
 // Diagnostics collects and returns diagnostics for the Network engine.
 func (n *Network) Diagnostics() []core.DiagnosticResult {
 	var results = make([]core.DiagnosticResult, 0)
-	results = append(results, n.protocol.Diagnostics()...)
-	results = append(results, n.p2pNetwork.Diagnostics()...)
+	results = append(results, &core.NestedDiagnosticResult{Title: "Protocol", Value: n.protocol.Diagnostics()})
+	results = append(results, &core.NestedDiagnosticResult{Title: "P2P", Value: n.p2pNetwork.Diagnostics()})
 	if graph, ok := n.graph.(core.Diagnosable); ok {
-		results = append(results, graph.Diagnostics()...)
+		results = append(results, &core.NestedDiagnosticResult{Title: "DAG", Value: graph.Diagnostics()})
 	}
 	return results
 }

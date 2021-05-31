@@ -66,43 +66,6 @@ func (dag *bboltDAG) Verify() error {
 	return nil
 }
 
-type headsStatistic struct {
-	// SHA256Hash is the last consistency hash.
-	heads []hash.SHA256Hash
-}
-
-func (d headsStatistic) Name() string {
-	return "[DAG] Heads"
-}
-
-func (d headsStatistic) String() string {
-	return fmt.Sprintf("%v", d.heads)
-}
-
-type numberOfTransactionsStatistic struct {
-	numberOfTransactions int
-}
-
-func (d numberOfTransactionsStatistic) Name() string {
-	return "[DAG] Number of transactions"
-}
-
-func (d numberOfTransactionsStatistic) String() string {
-	return fmt.Sprintf("%d", d.numberOfTransactions)
-}
-
-type dataSizeStatistic struct {
-	sizeInBytes int
-}
-
-func (d dataSizeStatistic) Name() string {
-	return "[DAG] Stored transaction size (bytes)"
-}
-
-func (d dataSizeStatistic) String() string {
-	return fmt.Sprintf("%d", d.sizeInBytes)
-}
-
 // NewBBoltDAG creates a etcd/bbolt backed DAG using the given database.
 func NewBBoltDAG(db *bbolt.DB, txVerifiers ...Verifier) DAG {
 	return &bboltDAG{db: db, txVerifiers: txVerifiers}
@@ -114,7 +77,7 @@ func (dag *bboltDAG) RegisterObserver(observer Observer) {
 
 func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 	result := make([]core.DiagnosticResult, 0)
-	result = append(result, headsStatistic{heads: dag.Heads()})
+	result = append(result, &core.GenericDiagnosticResult{Title: "Heads", Value: dag.Heads()})
 	transactionNum := 0
 	_ = dag.db.View(func(tx *bbolt.Tx) error {
 		if bucket := tx.Bucket([]byte(transactionsBucket)); bucket != nil {
@@ -125,8 +88,8 @@ func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 		}
 		return nil
 	})
-	result = append(result, numberOfTransactionsStatistic{numberOfTransactions: transactionNum})
-	result = append(result, dataSizeStatistic{sizeInBytes: dag.db.Stats().TxStats.PageAlloc})
+	result = append(result, &core.GenericDiagnosticResult{Title: "Number of transactions", Value: transactionNum})
+	result = append(result, &core.GenericDiagnosticResult{Title: "Stored transaction size (bytes)", Value: dag.db.Stats().TxStats.PageAlloc})
 	return result
 }
 

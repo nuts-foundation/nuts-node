@@ -104,7 +104,7 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	})
 
 	return []core.DiagnosticResult{
-		&core.StringDiagnosticResult{
+		&core.GenericDiagnosticResult{
 			Title: "# Conflicted DID Documents",
 			Value: fmt.Sprintf("%d", count),
 		},

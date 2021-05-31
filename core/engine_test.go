@@ -113,7 +113,7 @@ func TestSystem_Diagnostics(t *testing.T) {
 	defer ctrl.Finish()
 
 	r := NewMockDiagnosable(ctrl)
-	r.EXPECT().Diagnostics().Return([]DiagnosticResult{&StringDiagnosticResult{Title: "Result"}})
+	r.EXPECT().Diagnostics().Return([]DiagnosticResult{&GenericDiagnosticResult{Title: "Result"}})
 
 	system := NewSystem()
 	system.RegisterEngine(TestEngine{})

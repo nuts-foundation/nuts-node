@@ -80,9 +80,9 @@ func (n adapter) Configured() bool {
 func (n adapter) Diagnostics() []core.DiagnosticResult {
 	peers := n.Peers()
 	return []core.DiagnosticResult{
-		numberOfPeersStatistic{numberOfPeers: len(peers)},
-		peersStatistic{peers: peers},
-		ownPeerIDStatistic{peerID: n.config.PeerID},
+		&core.GenericDiagnosticResult{Title: "Connected peers #", Value: len(peers)},
+		&core.GenericDiagnosticResult{Title: "Connected peers", Value: peers},
+		&core.GenericDiagnosticResult{Title: "Peer ID of local node", Value: n.config.PeerID},
 	}
 }
 

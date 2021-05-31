@@ -19,6 +19,7 @@
 package proto
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
@@ -38,8 +39,12 @@ type peerOmnihashStatistic struct {
 	peerHashes map[p2p.PeerID]hash.SHA256Hash
 }
 
+func (d peerOmnihashStatistic) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.peerHashes)
+}
+
 func (d peerOmnihashStatistic) Name() string {
-	return "[Protocol] Peer omnihashes"
+	return "Peer omnihashes"
 }
 
 func (d peerOmnihashStatistic) String() string {

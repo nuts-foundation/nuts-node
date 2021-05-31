@@ -231,13 +231,13 @@ func TestBBoltDAG_Diagnostics(t *testing.T) {
 	// Assert actual diagnostics
 	lines := make([]string, 0)
 	for _, diagnostic := range diagnostics {
-		lines = append(lines, diagnostic.Name()+": "+diagnostic.Outcome())
+		lines = append(lines, diagnostic.Name()+": "+diagnostic.String())
 	}
 	sort.Strings(lines)
 	actual := strings.Join(lines, "\n")
-	assert.Equal(t, `[DAG] Heads: [`+doc1.Ref().String()+`]
-[DAG] Number of transactions: 1
-[DAG] Stored transaction size (bytes): 8192`, actual)
+	assert.Equal(t, `Heads: [`+doc1.Ref().String()+`]
+Number of transactions: 1
+Stored transaction size (bytes): 8192`, actual)
 }
 
 func Test_parseHashList(t *testing.T) {
