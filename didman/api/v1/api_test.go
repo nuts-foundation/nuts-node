@@ -21,10 +21,11 @@ package v1
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
@@ -151,8 +152,8 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 
 func TestWrapper_AddCompoundService(t *testing.T) {
 	id := "did:nuts:1"
-	request := CompoundServiceCreateRequest{
-		Endpoint: map[string]interface{}{
+	request := CompoundServiceProperties{
+		ServiceEndpoint: map[string]interface{}{
 			"foo": "did:nuts:12345?type=foo",
 			"bar": "did:nuts:54321?type=bar",
 		},
@@ -167,7 +168,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 			parsedType     string
 		)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*CompoundServiceCreateRequest)
+			p := f.(*CompoundServiceProperties)
 			*p = request
 			return nil
 		})
@@ -187,15 +188,15 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		}
 		assert.Equal(t, id, parsedDID.String())
 		assert.Len(t, parsedEndpoint, 2)
-		assert.Equal(t, request.Endpoint["foo"], parsedEndpoint["foo"].String())
-		assert.Equal(t, request.Endpoint["bar"], parsedEndpoint["bar"].String())
+		assert.Equal(t, request.ServiceEndpoint["foo"], parsedEndpoint["foo"].String())
+		assert.Equal(t, request.ServiceEndpoint["bar"], parsedEndpoint["bar"].String())
 		assert.Equal(t, request.Type, parsedType)
 	})
 
 	t.Run("error - service fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*CompoundServiceCreateRequest)
+			p := f.(*CompoundServiceProperties)
 			*p = request
 			return nil
 		})
@@ -209,8 +210,8 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 	t.Run("error - incorrect endpoint (not a URI)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*CompoundServiceCreateRequest)
-			*p = CompoundServiceCreateRequest{Type: "type", Endpoint: map[string]interface{}{"foo": ":"}}
+			p := f.(*CompoundServiceProperties)
+			*p = CompoundServiceProperties{Type: "type", ServiceEndpoint: map[string]interface{}{"foo": ":"}}
 			return nil
 		})
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
@@ -222,8 +223,8 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 	t.Run("error - incorrect endpoint (not a string)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*CompoundServiceCreateRequest)
-			*p = CompoundServiceCreateRequest{Type: "type", Endpoint: map[string]interface{}{"foo": map[string]interface{}{}}}
+			p := f.(*CompoundServiceProperties)
+			*p = CompoundServiceProperties{Type: "type", ServiceEndpoint: map[string]interface{}{"foo": map[string]interface{}{}}}
 			return nil
 		})
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
@@ -235,7 +236,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 	t.Run("error - incorrect did", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*CompoundServiceCreateRequest)
+			p := f.(*CompoundServiceProperties)
 			*p = request
 			return nil
 		})

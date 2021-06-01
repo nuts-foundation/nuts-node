@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,20 +93,29 @@ func TestHTTPClient_AddCompoundService(t *testing.T) {
 		"foo": "bar",
 	}
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		res := CompoundService{
+			Id: "abc#123",
+			CompoundServiceProperties: CompoundServiceProperties{
+				ServiceEndpoint: map[string]interface{}{"foo": "bar"},
+				Type:            "type",
+			},
+		}
+
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData:})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		err := c.AddCompoundService("abc", "type", refs)
+		cs, err := c.AddCompoundService("abc", "type", refs)
 		assert.NoError(t, err)
+		assert.Equal(t, res, cs)
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		err := c.AddCompoundService("abc", "type", refs)
+		_, err := c.AddCompoundService("abc", "type", refs)
 		assert.Error(t, err)
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
-		err := c.AddCompoundService("abc", "type", refs)
+		_, err := c.AddCompoundService("abc", "type", refs)
 		assert.Error(t, err)
 	})
 }

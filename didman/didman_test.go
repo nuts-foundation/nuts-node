@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -68,11 +69,15 @@ func TestDidman_AddEndpoint(t *testing.T) {
 				return nil
 			})
 
-		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		ep, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		if !assert.NoError(t, err) {
 			return
 		}
+		assert.True(t, strings.HasPrefix(ep.ID.String(), vdr.TestDIDA.String()))
+		assert.Equal(t, "type", ep.Type)
+		assert.Equal(t, u.String(), ep.ServiceEndpoint.(string))
+
 		assert.Len(t, newDoc.Service, 1)
 		assert.Equal(t, "type", newDoc.Service[0].Type)
 		assert.Equal(t, u.String(), newDoc.Service[0].ServiceEndpoint)
@@ -86,7 +91,7 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(doc, meta, nil)
 		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
 
-		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		assert.Equal(t, returnError, err)
 	})
@@ -98,8 +103,8 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(doc, meta, nil).Times(2)
 		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
 
-		_ = ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
-		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_, _ = ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		assert.Equal(t, types.ErrDuplicateService, err)
 	})
@@ -108,7 +113,7 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
 
-		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		if !assert.Error(t, err) {
 			return
@@ -171,7 +176,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 				return vdr.CreateDocumentValidator().Validate(newDoc)
 			})
 
-		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", references)
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", references)
 
 		if !assert.NoError(t, err) {
 			return
@@ -182,13 +187,13 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	})
 	t.Run("error - service reference doesn't contain a valid DID", func(t *testing.T) {
 		ctx := newMockContext(t)
-		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": {}})
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": {}})
 		assert.Error(t, err)
 	})
 	t.Run("error - holder DID document can't be resolved", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
-		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": *helloServiceQuery})
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": *helloServiceQuery})
 		assert.EqualError(t, err, types.ErrNotFound.Error())
 	})
 	t.Run("error - service reference does not contain type", func(t *testing.T) {
@@ -196,7 +201,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
 		invalidQuery := *helloServiceQuery
 		invalidQuery.RawQuery = ""
-		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": invalidQuery})
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": invalidQuery})
 		assert.EqualError(t, err, ErrInvalidServiceQuery.Error())
 	})
 	t.Run("error - service reference does resolve to an endpoint URL", func(t *testing.T) {
@@ -204,7 +209,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		docAAlt := docA
 		docAAlt.Service[0].ServiceEndpoint = map[string]string{"key": "value"}
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docAAlt, meta, nil)
-		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": *helloServiceQuery})
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": *helloServiceQuery})
 		assert.True(t, errors.Is(err, ErrReferencedServiceNotAnEndpoint))
 	})
 }
