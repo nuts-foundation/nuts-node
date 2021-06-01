@@ -69,21 +69,28 @@ func TestHTTPClient_GetContactInformation(t *testing.T) {
 
 func TestHTTPClient_AddEndpoint(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		endpoint := Endpoint{
+			Id:                 "",
+			EndpointProperties: EndpointProperties{},
+		}
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: endpoint})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		err := c.AddEndpoint("abc", "type", "some-url")
+		res, err := c.AddEndpoint("did:nuts:123", "type", "some-url")
 		assert.NoError(t, err)
+		assert.Equal(t, &endpoint, res)
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		err := c.AddEndpoint("abc", "type", "some-url")
-		assert.Error(t, err)
+		endpoint, err := c.AddEndpoint("abc", "type", "some-url")
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: ")
+		assert.Nil(t, endpoint)
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
-		err := c.AddEndpoint("abc", "type", "some-url")
-		assert.Error(t, err)
+		endpoint, err := c.AddEndpoint("abc", "type", "some-url")
+		assert.EqualError(t, err, `Post "/not_an_address/internal/didman/v1/did/abc/endpoint": unsupported protocol scheme ""`)
+		assert.Nil(t, endpoint)
 	})
 }
 
