@@ -3,7 +3,6 @@ package v1
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -93,15 +92,15 @@ func TestHTTPClient_AddCompoundService(t *testing.T) {
 		"foo": "bar",
 	}
 	t.Run("ok", func(t *testing.T) {
-		res := CompoundService{
+		res := &CompoundService{
 			Id: "abc#123",
 			CompoundServiceProperties: CompoundServiceProperties{
 				ServiceEndpoint: map[string]interface{}{"foo": "bar"},
 				Type:            "type",
 			},
-		}
+			}
 
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData:})
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: res})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		cs, err := c.AddCompoundService("abc", "type", refs)
 		assert.NoError(t, err)
