@@ -36,8 +36,16 @@ type CompoundServiceProperties struct {
 	Type string `json:"type"`
 }
 
+// Endpoint defines model for Endpoint.
+type Endpoint struct {
+	// Embedded fields due to inline allOf schema
+	Id string `json:"id"`
+	// Embedded struct due to allOf(#/components/schemas/EndpointProperties)
+	EndpointProperties `yaml:",inline"`
+}
+
 // A combination of type and URL.
-type EndpointCreateRequest struct {
+type EndpointProperties struct {
 
 	// A URL.
 	Endpoint string `json:"endpoint"`
@@ -53,7 +61,7 @@ type AddCompoundServiceJSONBody CompoundServiceProperties
 type UpdateContactInformationJSONBody ContactInformation
 
 // AddEndpointJSONBody defines parameters for AddEndpoint.
-type AddEndpointJSONBody EndpointCreateRequest
+type AddEndpointJSONBody EndpointProperties
 
 // AddCompoundServiceJSONRequestBody defines body for AddCompoundService for application/json ContentType.
 type AddCompoundServiceJSONRequestBody AddCompoundServiceJSONBody
@@ -672,6 +680,7 @@ func (r UpdateContactInformationResponse) StatusCode() int {
 type AddEndpointResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *Endpoint
 }
 
 // Status returns HTTPResponse.Status
@@ -907,6 +916,13 @@ func ParseAddEndpointResponse(rsp *http.Response) (*AddEndpointResponse, error) 
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Endpoint
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil

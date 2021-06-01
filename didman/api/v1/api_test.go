@@ -25,11 +25,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/core"
-
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -52,7 +51,7 @@ func TestWrapper_Preprocess(t *testing.T) {
 
 func TestWrapper_AddEndpoint(t *testing.T) {
 	id := "did:nuts:1"
-	request := EndpointCreateRequest{
+	request := EndpointProperties{
 		Endpoint: "https://api.example.com/v1",
 		Type:     "type",
 	}
@@ -65,22 +64,26 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			parsedType string
 		)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*EndpointCreateRequest)
+			p := f.(*EndpointProperties)
 			*p = request
 			return nil
 		})
 		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-			func(id interface{}, t interface{}, u interface{}) error {
+			func(id interface{}, t interface{}, u interface{}) (*did.Service, error) {
 				parsedDID = id.(did.DID)
 				parsedURL = u.(url.URL)
 				parsedType = t.(string)
-				return nil
+				return &did.Service{
+					ID:              parsedDID.URI(),
+					Type:            parsedType,
+					ServiceEndpoint: parsedURL.String(),
+				}, nil
 			})
-		ctx.echo.EXPECT().NoContent(http.StatusNoContent).Return(nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).Return(nil)
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
-		if !assert.NoError(t, err) {
+		if !assert.Nil(t, err) {
 			return
 		}
 		assert.Equal(t, id, parsedDID.String())
@@ -91,8 +94,8 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	t.Run("error - incorrect type", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*EndpointCreateRequest)
-			*p = EndpointCreateRequest{Endpoint: "https://api.example.com/v1"}
+			p := f.(*EndpointProperties)
+			*p = EndpointProperties{Endpoint: "https://api.example.com/v1"}
 			return nil
 		})
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
@@ -103,8 +106,8 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	t.Run("error - incorrect endpoint", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*EndpointCreateRequest)
-			*p = EndpointCreateRequest{Type: "type", Endpoint: ":"}
+			p := f.(*EndpointProperties)
+			*p = EndpointProperties{Type: "type", Endpoint: ":"}
 			return nil
 		})
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
@@ -115,7 +118,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	t.Run("error - incorrect did", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*EndpointCreateRequest)
+			p := f.(*EndpointProperties)
 			*p = request
 			return nil
 		})
@@ -128,11 +131,11 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	t.Run("error - AddEndpoint fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*EndpointCreateRequest)
+			p := f.(*EndpointProperties)
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrNotFound)
+		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrNotFound)
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
@@ -146,7 +149,68 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
-		assert.EqualError(t, err, "failed to parse EndpointCreateRequest: b00m!")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
+	})
+
+	t.Run("error - deactivated", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*EndpointProperties)
+			*p = request
+			return nil
+		})
+		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDeactivated)
+
+		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
+
+		assert.ErrorIs(t, err, types.ErrDeactivated)
+		assert.Equal(t, http.StatusConflict, ctx.wrapper.ResolveStatusCode(err))
+	})
+
+	t.Run("error - not managed", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*EndpointProperties)
+			*p = request
+			return nil
+		})
+		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDIDNotManagedByThisNode)
+
+		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
+
+		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
+	})
+
+	t.Run("error - duplicate", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*EndpointProperties)
+			*p = request
+			return nil
+		})
+		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDuplicateService)
+
+		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
+
+		assert.ErrorIs(t, err, types.ErrDuplicateService)
+		assert.Equal(t, http.StatusConflict, ctx.wrapper.ResolveStatusCode(err))
+	})
+
+	t.Run("error - other", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*EndpointProperties)
+			*p = request
+			return nil
+		})
+		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
+
+		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
+
+		assert.Equal(t, err.Error(), "b00m!")
+		assert.Equal(t, http.StatusInternalServerError, ctx.wrapper.ResolveStatusCode(err))
 	})
 }
 
@@ -173,13 +237,17 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 			return nil
 		})
 		ctx.didman.EXPECT().AddCompoundService(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-			func(subject interface{}, endpointType interface{}, endpoint interface{}) error {
+			func(subject interface{}, endpointType interface{}, endpoint interface{}) (*did.Service, error) {
 				parsedDID = subject.(did.DID)
 				parsedEndpoint = endpoint.(map[string]ssi.URI)
 				parsedType = endpointType.(string)
-				return nil
+				return &did.Service{
+					ID:              parsedDID.URI(),
+					Type:            parsedType,
+					ServiceEndpoint: parsedEndpoint,
+				}, nil
 			})
-		ctx.echo.EXPECT().NoContent(http.StatusNoContent).Return(nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).Return(nil)
 
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
@@ -200,7 +268,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddCompoundService(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("failed"))
+		ctx.didman.EXPECT().AddCompoundService(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
@@ -252,7 +320,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
-		assert.EqualError(t, err, "failed to parse v1.CompoundServiceCreateRequest: b00m!")
+		assert.EqualError(t, err, "failed to parse v1.CompoundServiceProperties: b00m!")
 	})
 }
 

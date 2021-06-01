@@ -21,11 +21,12 @@ package v1
 
 import (
 	"errors"
-	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/doc"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"net/url"
 	"strings"
+
+	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
@@ -45,7 +46,7 @@ type Wrapper struct {
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
-	return core.ResolveStatusCode(err, map[error]int{
+	status := core.ResolveStatusCode(err, map[error]int{
 		did.ErrInvalidDID:                http.StatusBadRequest,
 		types.ErrNotFound:                http.StatusNotFound,
 		types.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
@@ -53,7 +54,12 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		types.ErrDuplicateService:        http.StatusConflict,
 		didman.ErrServiceInUse:           http.StatusConflict,
 		vdrDoc.ErrInvalidOptions:         http.StatusBadRequest,
+		core.InvalidInputError(""): http.StatusBadRequest,
 	})
+	if status > 0 {
+		return status
+	}
+	return http.StatusInternalServerError
 }
 
 // Preprocess is called just before the API operation itself is invoked.
@@ -71,7 +77,7 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 // AddEndpoint handles calls to add a service. It only checks params and sets the correct return status code.
 // didman.AddEndpoint does the heavy lifting.
 func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
-	request := EndpointCreateRequest{}
+	request := EndpointProperties{}
 	if err := ctx.Bind(&request); err != nil {
 		return core.InvalidInputError("failed to parse EndpointCreateRequest: %w", err)
 	}
@@ -90,11 +96,12 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 		return core.InvalidInputError("invalid value for endpoint: %w", err)
 	}
 
-	if _, err = w.Didman.AddEndpoint(*id, request.Type, *u); err != nil {
+	endpoint, err := w.Didman.AddEndpoint(*id, request.Type, *u)
+	if err != nil {
 		return err
 	}
 
-	return ctx.NoContent(http.StatusNoContent)
+	return ctx.JSON(http.StatusOK, endpoint)
 }
 
 func (w *Wrapper) GetCompoundServices(ctx echo.Context, didStr string) error {

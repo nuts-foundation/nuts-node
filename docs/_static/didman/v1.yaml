@@ -81,10 +81,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/EndpointCreateRequest'
+              $ref: '#/components/schemas/EndpointProperties'
       responses:
-        "204":
-          description: The given type and URL have been added as service to the DID Document
+        "200":
+          description: The service which has been added to the DID Document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/compoundservice:
@@ -166,7 +170,16 @@ paths:
           $ref: '../common/error_response.yaml'
 components:
   schemas:
-    EndpointCreateRequest:
+    Endpoint:
+      allOf:
+        - type: object
+          required:
+            - id
+          properties:
+            id:
+              type: string
+        - $ref: "#/components/schemas/EndpointProperties"
+    EndpointProperties:
       type: object
       description: A combination of type and URL.
       required:

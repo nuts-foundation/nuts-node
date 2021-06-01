@@ -98,7 +98,7 @@ func TestHTTPClient_AddCompoundService(t *testing.T) {
 				ServiceEndpoint: map[string]interface{}{"foo": "bar"},
 				Type:            "type",
 			},
-			}
+		}
 
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: res})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
