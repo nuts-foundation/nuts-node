@@ -30,7 +30,7 @@ type CompoundService struct {
 type CompoundServiceProperties struct {
 
 	// A map containing service references.
-	Endpoint map[string]interface{} `json:"endpoint"`
+	ServiceEndpoint map[string]interface{} `json:"serviceEndpoint"`
 
 	// type of the endpoint. May be freely choosen.
 	Type string `json:"type"`

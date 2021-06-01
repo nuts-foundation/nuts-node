@@ -184,12 +184,12 @@ components:
       description: A creation request for a compound service that references endpoints.
       required:
         - type
-        - endpoint
+        - serviceEndpoint
       properties:
         type:
           description: type of the endpoint. May be freely choosen.
           type: string
-        endpoint:
+        serviceEndpoint:
           description: A map containing service references.
           example: {'auth': 'did:nuts:1312321?type=auth'}
           type: object

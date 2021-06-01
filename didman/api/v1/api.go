@@ -123,7 +123,7 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 	}
 
 	references := make(map[string]ssi.URI, 0)
-	for key, value := range request.Endpoint {
+	for key, value := range request.ServiceEndpoint {
 		uri, err := interfaceToURI(value)
 		if err != nil {
 			return core.InvalidInputError("invalid reference for service '%s': %v", key, err)
@@ -142,7 +142,7 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 	cs := CompoundService{
 		Id:                        service.ID.String(),
 		CompoundServiceProperties: CompoundServiceProperties{
-			Endpoint: endpointRefs,
+			ServiceEndpoint: endpointRefs,
 			Type:     service.Type,
 		},
 	}

@@ -107,7 +107,7 @@ func (h HTTPClient) AddCompoundService(did, serviceType string, references map[s
 	}
 	response, err := h.client().AddCompoundService(ctx, did, AddCompoundServiceJSONRequestBody{
 		Type:     serviceType,
-		Endpoint: refs,
+		ServiceEndpoint: refs,
 	})
 	if err != nil {
 		return nil, err
