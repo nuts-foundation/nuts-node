@@ -40,6 +40,7 @@ func (d Resolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Doc
 	return d.Store.Resolve(id, metadata)
 }
 
+// ResolveControllers finds the DID Document controllers
 func (d Resolver) ResolveControllers(doc did.Document, metadata *types.ResolveMetadata) ([]did.Document, error) {
 	var leaves []did.Document
 	var refsToResolve []did.DID
