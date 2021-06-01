@@ -177,7 +177,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 }
 
 func (r VDR) resolveControllerKey(doc did.Document) (crypto.Key, error) {
-	controllers, err := r.didDocResolver.ResolveControllers(doc)
+	controllers, err := r.didDocResolver.ResolveControllers(doc, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error while finding controllers for document: %w", err)
 	}

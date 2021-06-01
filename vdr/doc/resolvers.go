@@ -40,7 +40,7 @@ func (d Resolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Doc
 	return d.Store.Resolve(id, metadata)
 }
 
-func (d Resolver) ResolveControllers(doc did.Document) ([]did.Document, error) {
+func (d Resolver) ResolveControllers(doc did.Document, metadata *types.ResolveMetadata) ([]did.Document, error) {
 	var leaves []did.Document
 	var refsToResolve []did.DID
 
@@ -63,7 +63,7 @@ func (d Resolver) ResolveControllers(doc did.Document) ([]did.Document, error) {
 
 	// resolve all unresolved docs
 	for _, ref := range refsToResolve {
-		node, _, err := d.Store.Resolve(ref, nil)
+		node, _, err := d.Store.Resolve(ref, metadata)
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve controllers: %w", err)
 		}

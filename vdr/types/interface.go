@@ -36,7 +36,7 @@ type DocResolver interface {
 	// It returns ErrNotFound if there are no corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata
 	Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error)
 	// ResolveControllers finds the DID Document controllers
-	ResolveControllers(input did.Document) ([]did.Document, error)
+	ResolveControllers(input did.Document, metadata *ResolveMetadata) ([]did.Document, error)
 }
 
 // DocCreator is the interface that wraps the Create method

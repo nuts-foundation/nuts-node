@@ -55,18 +55,18 @@ func (mr *MockDocResolverMockRecorder) Resolve(id, metadata interface{}) *gomock
 }
 
 // ResolveControllers mocks base method
-func (m *MockDocResolver) ResolveControllers(input did.Document) ([]did.Document, error) {
+func (m *MockDocResolver) ResolveControllers(input did.Document, metadata *ResolveMetadata) ([]did.Document, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveControllers", input)
+	ret := m.ctrl.Call(m, "ResolveControllers", input, metadata)
 	ret0, _ := ret[0].([]did.Document)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ResolveControllers indicates an expected call of ResolveControllers
-func (mr *MockDocResolverMockRecorder) ResolveControllers(input interface{}) *gomock.Call {
+func (mr *MockDocResolverMockRecorder) ResolveControllers(input, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveControllers", reflect.TypeOf((*MockDocResolver)(nil).ResolveControllers), input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveControllers", reflect.TypeOf((*MockDocResolver)(nil).ResolveControllers), input, metadata)
 }
 
 // MockDocCreator is a mock of DocCreator interface

@@ -154,7 +154,8 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	}
 
 	// Resolve controllers of current version (could be the same document)
-	didControllers, err := n.docResolver.ResolveControllers(*currentDIDDocument)
+	signingTime := transaction.SigningTime()
+	didControllers, err := n.docResolver.ResolveControllers(*currentDIDDocument, &types.ResolveMetadata{ResolveTime: &signingTime})
 	if err != nil {
 		return fmt.Errorf("unable to resolve DID document's controllers: %w", err)
 	}
@@ -168,7 +169,6 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 
 	// In an update, only the keyID is provided in the network document. Resolve the key from the key store
 	// This should succeed since the signature of the network document has already been verified.
-	signingTime := transaction.SigningTime()
 	pKey, err := n.keyResolver.ResolvePublicKey(transaction.SigningKeyID(), &signingTime)
 	if err != nil {
 		return fmt.Errorf("unable to resolve signingkey: %w", err)
