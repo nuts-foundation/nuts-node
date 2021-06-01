@@ -419,6 +419,45 @@ func TestDidman_GetContactInformation(t *testing.T) {
 	})
 }
 
+func TestDidman_GetCompoundServices(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	expected := []did.Service{{
+			Type:            "eOverdracht",
+			ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
+		}}
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		didDoc := &did.Document{Service: expected}
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServices(*id)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+	t.Run("ok - it ignores contact info", func(t *testing.T) {
+		ctx := newMockContext(t)
+		didDoc := &did.Document{Service: append(expected, did.Service{Type: ContactInformationServiceType, ServiceEndpoint: map[string]interface{}{}})}
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServices(*id)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+	t.Run("ok - it ignores endpoint services", func(t *testing.T) {
+		ctx := newMockContext(t)
+		didDoc := &did.Document{Service: append(expected, did.Service{Type: "normal-service", ServiceEndpoint: "http://api.example.com/fhir"})}
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServices(*id)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+	t.Run("error - unknown DID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
+		actual, err := ctx.instance.GetCompoundServices(*id)
+		assert.EqualError(t, err, "unable to find the DID document")
+		assert.Nil(t, actual)
+	})
+}
+
 func TestGenerateIDForService(t *testing.T) {
 	u, _ := url.Parse("https://api.example.com/v1")
 	expectedID, _ := ssi.ParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))

@@ -2,9 +2,6 @@ package v1
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -95,7 +92,11 @@ func (h HTTPClient) GetCompoundServices(did string) ([]CompoundService, error) {
 	} else if err = core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	}
-	return readCompoundServices(response.Body)
+	parsedResponse, err := ParseGetCompoundServicesResponse(response)
+	if err != nil {
+		return nil, err
+	}
+	return *parsedResponse.JSON200, nil
 }
 
 // AddCompoundService registers a compound service on the given DID.
@@ -115,31 +116,11 @@ func (h HTTPClient) AddCompoundService(did, serviceType string, references map[s
 	} else if err = core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	}
-	return readCompoundService(response.Body)
-}
-
-func readCompoundServices(reader io.Reader) ([]CompoundService, error) {
-	data, err := io.ReadAll(reader)
+	parsedResponse, err := ParseAddCompoundServiceResponse(response)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read compound services response: %w", err)
+		return nil, err
 	}
-	var cs []CompoundService
-	if err = json.Unmarshal(data, &cs); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal compound servcice response: %w, %s", err, string(data))
-	}
-	return cs, nil
-}
-
-func readCompoundService(reader io.Reader) (*CompoundService, error) {
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read compound service response: %w", err)
-	}
-	cs := CompoundService{}
-	if err = json.Unmarshal(data, &cs); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal compound servcice response: %w, %s", err, string(data))
-	}
-	return &cs, nil
+	return parsedResponse.JSON200, err
 }
 
 // DeleteService tries to delete a service from the DID document indicated by the ID
