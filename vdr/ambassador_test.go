@@ -104,7 +104,7 @@ func Test_ambassador_callback(t *testing.T) {
 	payloadHash := hash.SHA256Sum([]byte("payload"))
 	ref := hash.SHA256Sum([]byte("ref"))
 
-	newSubscriberTx := func() testTransaction {
+	newTX := func() testTransaction {
 		return testTransaction{
 			signingKeyID: signingKeyID,
 			signingTime:  signingTime,
@@ -131,9 +131,9 @@ func Test_ambassador_callback(t *testing.T) {
 			return
 		}
 
-		subDoc := newSubscriberTx()
-		subDoc.signingKey = signingKey
-		subDoc.signingKeyID = ""
+		tx := newTX()
+		tx.signingKey = signingKey
+		tx.signingKeyID = ""
 
 		didDocPayload, _ := json.Marshal(didDocument)
 		expectedDocument := did.Document{}
@@ -143,13 +143,13 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            signingTime,
 			Updated:            nil,
 			Hash:               payloadHash,
-			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
+			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 		didStoreMock.EXPECT().Write(expectedDocument, expectedMetadata)
 
-		err = am.callback(subDoc, didDocPayload)
+		err = am.callback(tx, didDocPayload)
 		assert.NoError(t, err)
 	})
 
@@ -173,9 +173,9 @@ func Test_ambassador_callback(t *testing.T) {
 			return
 		}
 
-		subDoc := newSubscriberTx()
-		subDoc.signingKey = signingKey
-		subDoc.signingKeyID = ""
+		tx := newTX()
+		tx.signingKey = signingKey
+		tx.signingKeyID = ""
 
 		didDocPayload, _ := json.Marshal(didDocument)
 		expectedDocument := did.Document{}
@@ -188,33 +188,33 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            signingTime,
 			Updated:            nil,
 			Hash:               payloadHash,
-			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
+			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 		didStoreMock.EXPECT().Write(expectedDocument, expectedMetadata)
 
-		err = am.callback(subDoc, didDocPayload)
+		err = am.callback(tx, didDocPayload)
 		assert.NoError(t, err)
 	})
 
 	t.Run("nok - invalid payload", func(t *testing.T) {
-		subDoc := newSubscriberTx()
+		tx := newTX()
 		am := ambassador{}
-		err := am.callback(subDoc, []byte("}"))
+		err := am.callback(tx, []byte("}"))
 		assert.EqualError(t, err, "unable to unmarshal DID document from network payload: invalid character '}' looking for beginning of value")
 	})
 
 	t.Run("nok - incorrect payloadType", func(t *testing.T) {
-		subDoc := newSubscriberTx()
-		subDoc.payloadType = ""
+		tx := newTX()
+		tx.payloadType = ""
 		am := ambassador{}
-		err := am.callback(subDoc, []byte{})
+		err := am.callback(tx, []byte{})
 		assert.EqualError(t, err, "callback could not process new DID Document: wrong payload type for this subscriber. Can handle: application/did+json, got: ")
 	})
 
 	t.Run("nok - DID document invalid according to W3C spec", func(t *testing.T) {
-		subDoc := newSubscriberTx()
+		tx := newTX()
 		am := ambassador{}
 
 		// Document is missing context
@@ -222,7 +222,7 @@ func Test_ambassador_callback(t *testing.T) {
 		emptyDIDDocument := did.Document{ID: *id}
 		didDocumentBytes, _ := emptyDIDDocument.MarshalJSON()
 
-		err := am.callback(subDoc, didDocumentBytes)
+		err := am.callback(tx, didDocumentBytes)
 		assert.True(t, errors.Is(err, did.ErrInvalidContext))
 		assert.True(t, errors.Is(err, did.ErrDIDDocumentInvalid))
 	})
@@ -237,7 +237,7 @@ func Test_ambassador_callback(t *testing.T) {
 		emptyDIDDocument := doc.CreateDocument()
 		emptyDIDDocument.ID = *id
 		didDocumentBytes, _ := emptyDIDDocument.MarshalJSON()
-		subDoc := testTransaction{
+		tx := testTransaction{
 			signingKeyID: "key-1",
 			signingTime:  signingTime,
 			ref:          ref,
@@ -247,7 +247,7 @@ func Test_ambassador_callback(t *testing.T) {
 
 		didStoreMock.EXPECT().Resolve(*id, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
-		err := am.callback(subDoc, didDocumentBytes)
+		err := am.callback(tx, didDocumentBytes)
 		if !assert.Error(t, err) {
 			return
 		}
@@ -263,16 +263,16 @@ func Test_ambassador_callback(t *testing.T) {
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		signingKey, _ := jwk.New(pair.PublicKey)
 		signingKey.Set(jwk.KeyIDKey, "kid123")
-		subDoc := newSubscriberTx()
-		subDoc.signingKeyID = ""
-		subDoc.signingKey = signingKey
+		tx := newTX()
+		tx.signingKeyID = ""
+		tx.signingKey = signingKey
 
 		doc, _, _ := newDidDoc()
 		docBytes, _ := doc.MarshalJSON()
 
 		didStoreMock.EXPECT().Resolve(doc.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
-		err := am.callback(subDoc, docBytes)
+		err := am.callback(tx, docBytes)
 		if !assert.Error(t, err) {
 			return
 		}
@@ -299,9 +299,9 @@ func Test_ambassador_callback(t *testing.T) {
 		didDocPayload, _ := json.Marshal(didDocument)
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
-		subDoc := newSubscriberTx()
-		subDoc.signingKeyID = didDocument.CapabilityInvocation[0].ID.String()
-		subDoc.payloadHash = payloadHash
+		tx := newTX()
+		tx.signingKeyID = didDocument.CapabilityInvocation[0].ID.String()
+		tx.payloadHash = payloadHash
 
 		storedDocument := did.Document{}
 		json.Unmarshal(didDocPayload, &storedDocument)
@@ -325,17 +325,17 @@ func Test_ambassador_callback(t *testing.T) {
 			Updated:            &signingTime,
 			Hash:               payloadHash,
 			Deactivated:        true,
-			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
+			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&storedDocument, currentMetadata, nil)
-		resolverMock.EXPECT().ResolveControllers(storedDocument, &types.ResolveMetadata{ResolveTime: &subDoc.signingTime}).Return([]did.Document{storedDocument}, nil)
-		keyStoreMock.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
+		resolverMock.EXPECT().ResolveControllers(storedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{storedDocument}, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), &tx.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(storedDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
 
-		err = am.callback(subDoc, didDocPayload)
+		err = am.callback(tx, didDocPayload)
 		assert.NoError(t, err)
 	})
 
@@ -360,9 +360,9 @@ func Test_ambassador_callback(t *testing.T) {
 		didDocPayload, _ := json.Marshal(didDocument)
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
-		subDoc := newSubscriberTx()
-		subDoc.signingKeyID = didDocument.CapabilityInvocation[0].ID.String()
-		subDoc.payloadHash = payloadHash
+		tx := newTX()
+		tx.signingKeyID = didDocument.CapabilityInvocation[0].ID.String()
+		tx.payloadHash = payloadHash
 
 		expectedDocument := did.Document{}
 		json.Unmarshal(didDocPayload, &expectedDocument)
@@ -381,17 +381,17 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            createdAt,
 			Updated:            &signingTime,
 			Hash:               payloadHash,
-			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
+			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
-		resolverMock.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &subDoc.signingTime}).Return([]did.Document{expectedDocument}, nil)
-		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
+		resolverMock.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{expectedDocument}, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(didDocument.CapabilityInvocation[0].ID.String(), &tx.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
-		err = am.callback(subDoc, didDocPayload)
+		err = am.callback(tx, didDocPayload)
 		assert.NoError(t, err)
 	})
 
@@ -414,9 +414,9 @@ func Test_ambassador_callback(t *testing.T) {
 		didDocPayload, _ := json.Marshal(didDocument)
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
-		subDoc := newSubscriberTx()
-		subDoc.signingKeyID = controllerDoc.CapabilityInvocation[0].ID.String()
-		subDoc.payloadHash = payloadHash
+		tx := newTX()
+		tx.signingKeyID = controllerDoc.CapabilityInvocation[0].ID.String()
+		tx.payloadHash = payloadHash
 
 		expectedDocument := did.Document{}
 		json.Unmarshal(didDocPayload, &expectedDocument)
@@ -433,17 +433,17 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            createdAt,
 			Updated:            &signingTime,
 			Hash:               payloadHash,
-			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
+			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
-		resolverMock.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &subDoc.signingTime}).Return([]did.Document{controllerDoc}, nil)
-		keyStoreMock.EXPECT().ResolvePublicKey(controllerDoc.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
+		resolverMock.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{controllerDoc}, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(controllerDoc.CapabilityInvocation[0].ID.String(), &tx.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
-		err := am.callback(subDoc, didDocPayload)
+		err := am.callback(tx, didDocPayload)
 		assert.NoError(t, err)
 	})
 
@@ -468,9 +468,9 @@ func Test_ambassador_callback(t *testing.T) {
 		didDocPayload, _ := json.Marshal(newDoc)
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
-		subDoc := newSubscriberTx()
-		subDoc.signingKeyID = currentDoc.CapabilityInvocation[0].ID.String()
-		subDoc.payloadHash = payloadHash
+		tx := newTX()
+		tx.signingKeyID = currentDoc.CapabilityInvocation[0].ID.String()
+		tx.payloadHash = payloadHash
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
 		currentMetadata := &types.DocumentMetadata{
@@ -484,17 +484,17 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            createdAt,
 			Updated:            &signingTime,
 			Hash:               payloadHash,
-			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
+			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
 		didStoreMock.EXPECT().Resolve(currentDoc.ID, nil).Times(2).Return(&currentDoc, currentMetadata, nil)
-		resolverMock.EXPECT().ResolveControllers(currentDoc, &types.ResolveMetadata{ResolveTime: &subDoc.signingTime}).Return([]did.Document{currentDoc}, nil)
-		keyStoreMock.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
+		resolverMock.EXPECT().ResolveControllers(currentDoc, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{currentDoc}, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), &tx.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(currentDoc.ID, currentMetadata.Hash, newDoc, &expectedNextMetadata)
 
-		err := am.callback(subDoc, didDocPayload)
+		err := am.callback(tx, didDocPayload)
 		assert.NoError(t, err)
 	})
 
@@ -538,9 +538,9 @@ func Test_ambassador_callback(t *testing.T) {
 		didDocControllerPayload, _ := json.Marshal(didDocumentController)
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
-		subDoc := newSubscriberTx()
-		subDoc.signingKeyID = didDocumentController.CapabilityInvocation[0].ID.String()
-		subDoc.payloadHash = payloadHash
+		tx := newTX()
+		tx.signingKeyID = didDocumentController.CapabilityInvocation[0].ID.String()
+		tx.payloadHash = payloadHash
 
 		// Convert back into a fresh doc because that will set the references correct
 		expectedDocument := did.Document{}
@@ -564,15 +564,15 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            createdAt,
 			Updated:            &signingTime,
 			Hash:               payloadHash,
-			SourceTransactions: []hash.SHA256Hash{subDoc.Ref()},
+			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
-		resolverMock.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &subDoc.signingTime}).Return([]did.Document{didDocumentController}, nil)
-		keyStoreMock.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), &subDoc.signingTime).Return(pKey, nil)
+		resolverMock.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{didDocumentController}, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), &tx.signingTime).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
-		err = am.callback(subDoc, didDocPayload)
+		err = am.callback(tx, didDocPayload)
 		assert.NoError(t, err)
 	})
 
@@ -622,9 +622,9 @@ func Test_ambassador_callback(t *testing.T) {
 		didDocControllerPayload, _ := json.Marshal(didDocumentController)
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
-		subDoc := newSubscriberTx()
-		subDoc.signingKeyID = keyID
-		subDoc.payloadHash = payloadHash
+		tx := newTX()
+		tx.signingKeyID = keyID
+		tx.payloadHash = payloadHash
 
 		// Convert back into a fresh doc because that will set the references correct
 		expectedDocument := did.Document{}
@@ -646,11 +646,11 @@ func Test_ambassador_callback(t *testing.T) {
 		// expect a resolve for previous versions of the DID document
 		didStoreMock.EXPECT().Resolve(didDocument.ID, nil).Times(2).Return(&expectedDocument, currentMetadata, nil)
 		// expect a resolve for the DID documents controller
-		resolverMock.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &subDoc.signingTime}).Return([]did.Document{didDocumentController}, nil)
+		resolverMock.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{didDocumentController}, nil)
 
-		keyStoreMock.EXPECT().ResolvePublicKey(keyID, &subDoc.signingTime).Return(pKey, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(keyID, &tx.signingTime).Return(pKey, nil)
 
-		err = am.callback(subDoc, didDocPayload)
+		err = am.callback(tx, didDocPayload)
 		assert.EqualError(t, err, "network document not signed by one of its controllers")
 	})
 
@@ -679,10 +679,10 @@ func Test_ambassador_callback(t *testing.T) {
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
-		subDoc := newSubscriberTx()
-		subDoc.signingKey = signingKey
-		subDoc.signingKeyID = signingKey.KeyID()
-		subDoc.signingTime = signingTime
+		tx := newTX()
+		tx.signingKey = signingKey
+		tx.signingKeyID = signingKey.KeyID()
+		tx.signingTime = signingTime
 
 		didDocPayload, _ := json.Marshal(didDocument)
 		expectedDocument := did.Document{}
@@ -695,14 +695,14 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            signingTime,
 			Updated:            &signingTime,
 			Hash:               payloadHash,
-			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), subDoc.Ref()},
+			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), tx.Ref()},
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(&didDocument, &didMetadata, nil).Times(2)
 		keyStoreMock.EXPECT().ResolvePublicKey(signingKey.KeyID(), gomock.Any()).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, hash.EmptyHash(), expectedDocument, &expectedMetadata).Return(nil)
 
-		err = am.callback(subDoc, didDocPayload)
+		err = am.callback(tx, didDocPayload)
 		assert.NoError(t, err)
 	})
 }
@@ -733,7 +733,7 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 	})
 }
 
-func Test_checkSubscriberDocumentIntegrity(t *testing.T) {
+func Test_checkTransactionIntegrity(t *testing.T) {
 	signingTime := time.Now()
 	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	signingKey, _ := jwk.New(pair.PublicKey)
