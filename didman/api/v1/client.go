@@ -84,6 +84,7 @@ func (h HTTPClient) AddEndpoint(did, endpointType, endpointURL string) error {
 	return core.TestResponseCode(http.StatusNoContent, response)
 }
 
+// GetCompoundServices returns a list of compound services for a given DID string.
 func (h HTTPClient) GetCompoundServices(did string) ([]CompoundService, error) {
 	ctx, cancel := h.withTimeout()
 	defer cancel()
@@ -106,7 +107,7 @@ func (h HTTPClient) AddCompoundService(did, serviceType string, references map[s
 		refs[k] = v
 	}
 	response, err := h.client().AddCompoundService(ctx, did, AddCompoundServiceJSONRequestBody{
-		Type:     serviceType,
+		Type:            serviceType,
 		ServiceEndpoint: refs,
 	})
 	if err != nil {

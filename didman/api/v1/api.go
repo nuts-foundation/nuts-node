@@ -104,12 +104,14 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 	return ctx.JSON(http.StatusOK, endpoint)
 }
 
+// GetCompoundServices handles calls to get a list of compound services for a provided DID string.
+// Its checks params, calls Didman and sets http return values.
 func (w *Wrapper) GetCompoundServices(ctx echo.Context, didStr string) error {
 	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return err
 	}
-	services, err  := w.Didman.GetCompoundServices(*id)
+	services, err := w.Didman.GetCompoundServices(*id)
 	if err != nil {
 		return err
 	}
@@ -147,10 +149,10 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 	}
 
 	cs := CompoundService{
-		Id:                        service.ID.String(),
+		Id: service.ID.String(),
 		CompoundServiceProperties: CompoundServiceProperties{
 			ServiceEndpoint: endpointRefs,
-			Type:     service.Type,
+			Type:            service.Type,
 		},
 	}
 	return ctx.JSON(200, cs)
