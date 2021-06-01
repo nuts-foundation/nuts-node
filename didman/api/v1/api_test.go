@@ -324,6 +324,46 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 	})
 }
 
+func TestWrapper_GetCompoundServices(t *testing.T) {
+	idStr := "did:nuts:1#1"
+	id, _ := did.ParseDID(idStr)
+	cServices := []did.Service{{
+		Type:            "eOverdracht",
+		ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
+	}}
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().GetCompoundServices(*id).Return(cServices, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, cServices)
+		err := ctx.wrapper.GetCompoundServices(ctx.echo, idStr)
+		assert.NoError(t, err)
+	})
+	t.Run("error - invalid DID", func(t *testing.T) {
+		invalidDIDStr := "nuts:123"
+		ctx := newMockContext(t)
+		err := ctx.wrapper.GetCompoundServices(ctx.echo, invalidDIDStr)
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+
+		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
+		test.AssertErrProblemTitle(t, problemTitleGetCompoundServices, err)
+		test.AssertErrProblemDetail(t, "failed to parse DID: input does not begin with 'did:' prefix", err)
+	})
+	t.Run("error - DID not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().GetCompoundServices(*id).Return(nil, types.ErrNotFound)
+		err := ctx.wrapper.GetCompoundServices(ctx.echo, idStr)
+		if !test.AssertErrIsProblem(t, err) {
+			return
+		}
+
+		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
+		test.AssertErrProblemTitle(t, problemTitleGetCompoundServices, err)
+		test.AssertErrProblemDetail(t, "unable to find the DID document", err)
+	})
+}
+
 func TestWrapper_DeleteService(t *testing.T) {
 	id := "did:nuts:1#1"
 
