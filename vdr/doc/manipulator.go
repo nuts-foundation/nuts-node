@@ -83,7 +83,7 @@ func CreateNewVerificationMethodForDID(id did.DID, keyCreator nutsCrypto.KeyCrea
 	if err != nil {
 		return nil, err
 	}
-	keyID, err := did.ParseDID(key.KID())
+	keyID, err := did.ParseDIDURL(key.KID())
 	if err != nil {
 		return nil, err
 	}

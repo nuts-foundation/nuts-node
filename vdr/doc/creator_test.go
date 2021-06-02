@@ -253,7 +253,7 @@ func Test_didSubKIDNamingFunc(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		parsedKeyID, err := did.ParseDID(keyID)
+		parsedKeyID, err := did.ParseDIDURL(keyID)
 		if !assert.NoError(t, err) {
 			return
 		}

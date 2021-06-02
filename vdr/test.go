@@ -15,10 +15,10 @@ var TestDIDA, _ = did.ParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtC
 var TestDIDB, _ = did.ParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
 
 // TestMethodDIDA is a test method DID for the TestDIDA
-var TestMethodDIDA, _ = did.ParseDID(TestDIDA.String() + "#abc-method-1")
+var TestMethodDIDA, _ = did.ParseDIDURL(TestDIDA.String() + "#abc-method-1")
 
 // TestMethodDIDB is a test method DID for the TestDIDB
-var TestMethodDIDB, _ = did.ParseDID(TestDIDB.String() + "#abc-method-2")
+var TestMethodDIDB, _ = did.ParseDIDURL(TestDIDB.String() + "#abc-method-2")
 
 func NewTestVDRInstance(testDirectory string) *VDR {
 	config := TestVDRConfig()

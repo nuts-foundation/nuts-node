@@ -44,7 +44,7 @@ func newManipulatorTestContext(t *testing.T) manipulatorTestContext {
 
 func TestManipulator_RemoveVerificationMethod(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
-	id123Method, _ := did.ParseDID("did:nuts:123#method-1")
+	id123Method, _ := did.ParseDIDURL("did:nuts:123#method-1")
 	doc := &did.Document{ID: *id123}
 	publicKey := crypto.NewTestKey("did:nuts:123").Public()
 	vm, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, did.DID{}, publicKey)
@@ -106,7 +106,7 @@ func TestManipulator_CreateNewAuthenticationMethodForDID(t *testing.T) {
 
 func TestManipulator_AddKey(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
-	keyID, _ := did.ParseDID("did:nuts:123#key-1")
+	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
 
 	t.Run("ok - add a new key", func(t *testing.T) {
@@ -164,7 +164,7 @@ func TestManipulator_AddKey(t *testing.T) {
 
 func TestManipulator_Deactivate(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
-	keyID, _ := did.ParseDID("did:nuts:123#key-1")
+	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
 
 	ctx := newManipulatorTestContext(t)
@@ -184,8 +184,8 @@ func TestManipulator_Deactivate(t *testing.T) {
 }
 
 func Test_getVerificationMethodDiff(t *testing.T) {
-	idMethod1, _ := did.ParseDID("did:nuts:123#method1")
-	idMethod2, _ := did.ParseDID("did:nuts:123#method2")
+	idMethod1, _ := did.ParseDIDURL("did:nuts:123#method1")
+	idMethod2, _ := did.ParseDIDURL("did:nuts:123#method2")
 	t.Run("empty documents", func(t *testing.T) {
 		docA := did.Document{}
 		docB := did.Document{}
