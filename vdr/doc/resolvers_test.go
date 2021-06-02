@@ -181,9 +181,9 @@ func TestResolver_Resolve(t *testing.T) {
 
 func TestResolver_ResolveControllers(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
-	id123Method1, _ := did.ParseDID("did:nuts:123#method-1")
+	id123Method1, _ := did.ParseDIDURL("did:nuts:123#method-1")
 	id456, _ := did.ParseDID("did:nuts:456")
-	id456Method1, _ := did.ParseDID("did:nuts:456#method-1")
+	id456Method1, _ := did.ParseDIDURL("did:nuts:456#method-1")
 	t.Run("emtpy input", func(t *testing.T) {
 		resolver := Resolver{}
 		docs, err := resolver.ResolveControllers(did.Document{})

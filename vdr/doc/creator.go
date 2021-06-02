@@ -131,7 +131,7 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 		return nil, nil, err
 	}
 
-	keyID, err := did.ParseDID(key.KID())
+	keyID, err := did.ParseDIDURL(key.KID())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -162,7 +162,7 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 		if err != nil {
 			return nil, nil, err
 		}
-		capKeyID, err := did.ParseDID(capKey.KID())
+		capKeyID, err := did.ParseDIDURL(capKey.KID())
 		if err != nil {
 			return nil, nil, err
 		}

@@ -108,7 +108,7 @@ func (r KeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (st
 // ResolveSigningKey resolves the PublicKey of the first valid AssertionMethod for an indicated
 // DID document at a validAt time.
 func (r KeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
-	kid, err := did.ParseDID(keyID)
+	kid, err := did.ParseDIDURL(keyID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", keyID, err)
 	}
@@ -149,7 +149,7 @@ func (r KeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
 }
 
 func (r KeyResolver) ResolvePublicKey(kid string, validAt *time.Time) (crypto.PublicKey, error) {
-	did, err := did.ParseDID(kid)
+	did, err := did.ParseDIDURL(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)
 	}

@@ -389,7 +389,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 	did123, _ := did.ParseDID("did:nuts:123")
-	did123Method, _ := did.ParseDID("did:nuts:123#abc-method-1")
+	did123Method, _ := did.ParseDIDURL("did:nuts:123#abc-method-1")
 
 	newMethod := &did.VerificationMethod{ID: *did123Method}
 
@@ -427,7 +427,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 func TestWrapper_DeleteVerificationMethod(t *testing.T) {
 	did123, _ := did.ParseDID("did:nuts:123")
-	did123Method, _ := did.ParseDID("did:nuts:123#abc-method-1")
+	did123Method, _ := did.ParseDIDURL("did:nuts:123#abc-method-1")
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)

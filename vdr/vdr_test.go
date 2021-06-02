@@ -60,7 +60,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 
 func TestVDR_Update(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
-	keyID, _ := did.ParseDID("did:nuts:123#key-1")
+	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
 
 	t.Run("ok", func(t *testing.T) {
@@ -151,7 +151,7 @@ func TestVDR_Create(t *testing.T) {
 		ctx := newVDRTestCtx(t)
 		key := crypto.NewTestKey("did:nuts:123#key-1")
 		id, _ := did.ParseDID("did:nuts:123")
-		keyID, _ := did.ParseDID(key.KID())
+		keyID, _ := did.ParseDIDURL(key.KID())
 		nextDIDDocument := doc.CreateDocument()
 		nextDIDDocument.ID = *id
 		vm, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
@@ -241,7 +241,7 @@ func TestVDR_Diagnostics(t *testing.T) {
 func TestVDR_resolveControllerKey(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
 	controllerId, _ := did.ParseDID("did:nuts:1234")
-	keyID, _ := did.ParseDID("did:nuts:123#key-1")
+	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
 
 	t.Run("ok - single doc", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)

@@ -90,7 +90,7 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, references m
 
 func (d *didman) DeleteService(serviceID ssi.URI) error {
 	logging.Log().Debugf("Deleting service (id: %s)", serviceID.String())
-	id, err := did.ParseDID(serviceID.String())
+	id, err := did.ParseDIDURL(serviceID.String())
 	if err != nil {
 		return err
 	}

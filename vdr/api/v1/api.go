@@ -48,7 +48,7 @@ func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidS
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given DID could not be parsed: %s", err.Error()))
 	}
 
-	kid, err := did.ParseDID(kidStr)
+	kid, err := did.ParseDIDURL(kidStr)
 	if err != nil {
 		return ctx.String(http.StatusBadRequest, fmt.Sprintf("given kid could not be parsed: %s", err.Error()))
 	}

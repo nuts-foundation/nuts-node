@@ -65,7 +65,7 @@ func resolveCompoundService(doc did.Document, serviceType string) (types.Compoun
 func resolveEndpointURL(resolver types.DocResolver, serviceURI ssi.URI, validAt *time.Time) (ssi.URI, string, error) {
 	serviceCopy := serviceURI
 	serviceCopy.RawQuery = ""
-	serviceDID, err := did.ParseDID(serviceCopy.String())
+	serviceDID, err := did.ParseDIDURL(serviceCopy.String())
 	if err != nil {
 		return ssi.URI{}, "", err
 	}
