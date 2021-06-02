@@ -81,7 +81,14 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, references m
 	if err := d.validateCompoundServiceEndpoint(references); err != nil {
 		return err
 	}
-	err := d.addService(id, serviceType, references, nil)
+
+	// transform ContactInformation to map[string]interface{}
+	serviceEndpoint := map[string]interface{}{}
+	for k, v := range references {
+		serviceEndpoint[k] = v.String()
+	}
+
+	err := d.addService(id, serviceType, serviceEndpoint, nil)
 	if err == nil {
 		logging.Log().Infof("Compound service added (did: %s, type: %s, references: %s)", id.String(), serviceType, references)
 	}
@@ -133,7 +140,16 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 
 func (d *didman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
 	logging.Log().Debugf("Updating contact information service (did: %s, info: %v)", id.String(), information)
-	err := d.addService(id, ContactInformationServiceType, information, func(doc *did.Document) {
+
+	// transform ContactInformation to map[string]interface{}
+	serviceEndpoint := map[string]interface{}{
+		"name":    information.Name,
+		"email":   information.Email,
+		"phone":   information.Phone,
+		"website": information.Website,
+	}
+
+	err := d.addService(id, ContactInformationServiceType, serviceEndpoint, func(doc *did.Document) {
 		// check for existing contact information and remove it
 		i := 0
 		for _, s := range doc.Service {

@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -127,14 +128,24 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	references["world"] = *worldServiceQuery
 	references["universe"] = *universeServiceQuery
 
+	expectedRefs := map[string]interface{}{}
+	for k, v := range references {
+		expectedRefs[k] = v.String()
+	}
+
+	serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
 	docA := did.Document{
+		Context: []ssi.URI{did.DIDContextV1URI()},
 		ID: *vdr.TestDIDA,
 		Service: []did.Service{{
+			ID:              *serviceID,
 			Type:            "hello",
 			ServiceEndpoint: "http://hello",
 		}},
 	}
-	docB := did.Document{ID: *vdr.TestDIDB,
+	docB := did.Document{
+		Context: []ssi.URI{did.DIDContextV1URI()},
+		ID: *vdr.TestDIDB,
 		Service: []did.Service{
 			{
 				Type:            "world",
@@ -156,7 +167,8 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
 			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
 				newDoc = doc.(did.Document)
-				return nil
+				// trigger validation to check if the added contact information isn't wrong
+				return vdr.CreateDocumentValidator().Validate(newDoc)
 			})
 
 		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", references)
@@ -166,7 +178,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		}
 		assert.Len(t, newDoc.Service, 2)
 		assert.Equal(t, "helloworld", newDoc.Service[1].Type)
-		assert.Equal(t, references, newDoc.Service[1].ServiceEndpoint)
+		assert.Equal(t, expectedRefs, newDoc.Service[1].ServiceEndpoint)
 	})
 	t.Run("error - service reference doesn't contain a valid DID", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -272,8 +284,9 @@ func TestDidman_DeleteService(t *testing.T) {
 }
 
 func TestDidman_UpdateContactInformation(t *testing.T) {
-	didDoc := &did.Document{}
+	didDoc := doc.CreateDocument()
 	id, _ := did.ParseDID("did:nuts:123")
+	didDoc.ID = *id
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 	expected := ContactInformation{
 		Email:   "email",
@@ -284,11 +297,13 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&didDoc, meta, nil)
 
 		var actualDocument did.Document
-		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).Do(func(_ did.DID, _ hash.SHA256Hash, doc did.Document, _ *types.DocumentMetadata) {
+		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).DoAndReturn(func(_ did.DID, _ hash.SHA256Hash, doc did.Document, _ *types.DocumentMetadata) error {
 			actualDocument = doc
+			// trigger validation to check if the added contact information isn't wrong
+			return vdr.CreateDocumentValidator().Validate(doc)
 		})
 		actual, err := ctx.instance.UpdateContactInformation(*id, expected)
 		if !assert.NoError(t, err) {
