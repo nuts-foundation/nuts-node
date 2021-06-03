@@ -226,9 +226,9 @@ func changeTrust(ctx echo.Context, f trustChangeFunc) error {
 		return core.InvalidInputError("failed to parse issuer: %w", err)
 	}
 
-	cType, err := ssi.ParseURI(icc.CredentialType)
+	cType, err := parseCredentialType(icc.CredentialType)
 	if err != nil {
-		return core.InvalidInputError("failed to parse credential type: %w", err)
+		return err
 	}
 
 	if err = f(*cType, *d); err != nil {

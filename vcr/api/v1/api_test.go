@@ -371,7 +371,7 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 
 		err := ctx.client.TrustIssuer(ctx.echo)
 
-		assert.EqualError(t, err, "failed to parse credential type: parse \"\\x00\": net/url: invalid control character in URL")
+		assert.EqualError(t, err, "malformed credential type: parse \"\\x00\": net/url: invalid control character in URL")
 	})
 
 	t.Run("error - invalid body", func(t *testing.T) {
