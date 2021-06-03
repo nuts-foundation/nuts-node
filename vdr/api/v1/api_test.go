@@ -17,7 +17,6 @@ package v1
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"testing"
 
@@ -106,7 +105,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 		})
 		err := ctx.client.CreateDID(ctx.echo)
 
-		test.AssertIsError(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - create fails", func(t *testing.T) {
@@ -164,7 +163,7 @@ func TestWrapper_GetDID(t *testing.T) {
 
 		err := ctx.client.GetDID(ctx.echo, "not a did")
 
-		test.AssertIsError(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -173,7 +172,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
 		err := ctx.client.GetDID(ctx.echo, id.String())
 
-		test.AssertIsError(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -223,7 +222,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 		err := ctx.client.UpdateDID(ctx.echo, "not a did")
 
-		test.AssertIsError(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -237,7 +236,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrNotFound)
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
-		test.AssertIsError(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -294,7 +293,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
-		test.AssertIsError(t, err, types.ErrDeactivated)
+		assert.ErrorIs(t, err, types.ErrDeactivated)
 	})
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
@@ -310,7 +309,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
-		test.AssertIsError(t, err, types.ErrDIDNotManagedByThisNode)
+		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
 	})
 }
 
@@ -330,7 +329,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 		err := ctx.client.DeactivateDID(ctx.echo, "invalidFormattedDID")
 
-		test.AssertIsError(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -340,7 +339,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 
-		test.AssertIsError(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 	})
 
 	t.Run("error - document already deactivated", func(t *testing.T) {
@@ -349,7 +348,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 
-		test.AssertIsError(t, err, types.ErrDeactivated)
+		assert.ErrorIs(t, err, types.ErrDeactivated)
 	})
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
@@ -358,7 +357,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 
-		test.AssertIsError(t, err, types.ErrDIDNotManagedByThisNode)
+		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
 	})
 }
 
@@ -387,7 +386,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 		err := ctx.client.AddNewVerificationMethod(ctx.echo, "not a did")
 
-		test.AssertIsError(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - internal error", func(t *testing.T) {
@@ -418,7 +417,7 @@ func TestWrapper_DeleteVerificationMethod(t *testing.T) {
 
 		err := ctx.client.DeleteVerificationMethod(ctx.echo, "invalid did", did123Method.String())
 
-		test.AssertIsError(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - invalid kid", func(t *testing.T) {

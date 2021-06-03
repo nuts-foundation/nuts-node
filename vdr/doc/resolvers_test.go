@@ -20,7 +20,6 @@
 package doc
 
 import (
-	"github.com/nuts-foundation/nuts-node/test"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -71,7 +70,7 @@ func TestResolveSigningKey(t *testing.T) {
 		_, err := keyResolver.ResolveSigningKey("asdasdsa", nil)
 
 		assert.Error(t, err)
-		test.AssertIsError(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 }
 

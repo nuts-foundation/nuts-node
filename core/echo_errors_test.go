@@ -3,7 +3,6 @@ package core
 import (
 	"errors"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
@@ -103,12 +102,12 @@ func Test_NotFoundError(t *testing.T) {
 	err := NotFoundError("failed: %s", "oops").(httpStatusCodeError)
 	assert.EqualError(t, err, "failed: oops")
 	assert.Equal(t, http.StatusNotFound, err.statusCode)
-	test.AssertIsError(t, err, NotFoundError(""))
+	assert.ErrorIs(t, err, NotFoundError(""))
 }
 
 func Test_InvalidInputError(t *testing.T) {
 	err := InvalidInputError("failed: %s", "oops").(httpStatusCodeError)
 	assert.EqualError(t, err, "failed: oops")
 	assert.Equal(t, http.StatusBadRequest, err.statusCode)
-	test.AssertIsError(t, err, InvalidInputError(""))
+	assert.ErrorIs(t, err, InvalidInputError(""))
 }

@@ -21,8 +21,6 @@ package v1
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/test"
-
 	"net/http"
 	"testing"
 
@@ -100,7 +98,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 
 		err := ctx.client.Create(ctx.echo)
 
-		test.AssertIsError(t, err, credential.ErrValidation)
+		assert.ErrorIs(t, err, credential.ErrValidation)
 	})
 }
 
@@ -140,7 +138,7 @@ func TestWrapper_Resolve(t *testing.T) {
 
 		err := ctx.client.Resolve(ctx.echo, idString)
 
-		test.AssertIsError(t, err, vcr.ErrNotFound)
+		assert.ErrorIs(t, err, vcr.ErrNotFound)
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -245,7 +243,7 @@ func TestWrapper_Search(t *testing.T) {
 
 		err := ctx.client.Search(ctx.echo, "unknown")
 
-		test.AssertIsError(t, err, concept.ErrUnknownConcept)
+		assert.ErrorIs(t, err, concept.ErrUnknownConcept)
 	})
 
 	t.Run("error - Bind explodes", func(t *testing.T) {
@@ -305,7 +303,7 @@ func TestWrapper_Revoke(t *testing.T) {
 
 		err := ctx.client.Revoke(ctx.echo, "test")
 
-		test.AssertIsError(t, err, vcr.ErrRevoked)
+		assert.ErrorIs(t, err, vcr.ErrRevoked)
 	})
 }
 

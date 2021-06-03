@@ -28,8 +28,6 @@ import (
 	"testing"
 	"time"
 
-	test2 "github.com/nuts-foundation/nuts-node/test"
-
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/sirupsen/logrus"
@@ -156,7 +154,7 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 
 		err := ctx.wrapper.GetSignSessionStatus(ctx.echoMock, signingSessionID)
 
-		test2.AssertIsError(t, err, services.ErrSessionNotFound)
+		assert.ErrorIs(t, err, services.ErrSessionNotFound)
 	})
 
 	t.Run("nok - unable to build a VP", func(t *testing.T) {
@@ -322,7 +320,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
-			test2.AssertIsError(t, err, did.ErrInvalidDID)
+			assert.ErrorIs(t, err, did.ErrInvalidDID)
 		})
 
 	})

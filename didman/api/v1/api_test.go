@@ -31,7 +31,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -95,7 +94,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		})
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
-		test.AssertIsError(t, err, core.InvalidInputError(""))
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - incorrect did", func(t *testing.T) {
@@ -107,7 +106,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		})
 		err := ctx.wrapper.AddEndpoint(ctx.echo, "")
 
-		test.AssertIsError(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - AddEndpoint fails", func(t *testing.T) {
@@ -121,7 +120,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
-		test.AssertIsError(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 	})
 
 	t.Run("error - incorrect post body", func(t *testing.T) {
@@ -224,7 +223,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		})
 		err := ctx.wrapper.AddCompoundService(ctx.echo, "")
 
-		test.AssertIsError(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - incorrect post body", func(t *testing.T) {
@@ -271,7 +270,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 
 		err := ctx.wrapper.DeleteService(ctx.echo, id)
 
-		test.AssertIsError(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 	})
 }
 
@@ -308,7 +307,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 		ctx := newMockContext(t)
 		err := ctx.wrapper.UpdateContactInformation(ctx.echo, invalidDIDStr)
 
-		test.AssertIsError(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - service fails DID", func(t *testing.T) {
@@ -323,7 +322,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 
 		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
 
-		test.AssertIsError(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 	})
 }
 
@@ -350,14 +349,14 @@ func TestWrapper_GetContactInformation(t *testing.T) {
 		ctx := newMockContext(t)
 		err := ctx.wrapper.GetContactInformation(ctx.echo, invalidDIDStr)
 
-		test.AssertIsError(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 	t.Run("error - service fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.didman.EXPECT().GetContactInformation(*id).Return(nil, types.ErrNotFound)
 		err := ctx.wrapper.GetContactInformation(ctx.echo, idStr)
 
-		test.AssertIsError(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 	})
 	t.Run("error - contact information not found", func(t *testing.T) {
 		ctx := newMockContext(t)
