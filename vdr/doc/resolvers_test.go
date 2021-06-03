@@ -20,13 +20,13 @@
 package doc
 
 import (
-	"testing"
-
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -222,11 +222,13 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		docA := did.Document{ID: *id123}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
 
-		store.EXPECT().Resolve(*id123, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
+		resolveTime := time.Date(2010, 1, 1, 1, 1, 1, 0, time.UTC)
+		resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime}
+		store.EXPECT().Resolve(*id123, resolveMD).Return(&docA, &types.DocumentMetadata{}, nil)
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
-		docs, err := resolver.ResolveControllers(docB, nil)
+		docs, err := resolver.ResolveControllers(docB, resolveMD)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 1)
 		assert.Equal(t, docA, docs[0],
