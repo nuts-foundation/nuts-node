@@ -10,7 +10,7 @@ import (
 )
 
 const statusCodesContextKey = "!!ErrorStatusCodes"
-const operationIdContextKey = "!!OperationId"
+const operationIDContextKey = "!!OperationId"
 
 func createHTTPErrorHandler(routers []Routable) echo.HTTPErrorHandler {
 	globalErrorStatusCodes := errorStatusCodesFromRouters(routers)
@@ -24,10 +24,10 @@ func createHTTPErrorHandler(routers []Routable) echo.HTTPErrorHandler {
 				err:        echoErr,
 			}
 		}
-		operationId := ctx.Get(operationIdContextKey)
+		operationID := ctx.Get(operationIDContextKey)
 		title := "Operation failed"
-		if operationId != nil {
-			title = fmt.Sprintf("%s failed", fmt.Sprintf("%s", operationId))
+		if operationID != nil {
+			title = fmt.Sprintf("%s failed", fmt.Sprintf("%s", operationID))
 		}
 		statusCode := getHTTPStatusCode(err, globalErrorStatusCodes, errorStatusCodesFromContext(ctx))
 		result := problem.New(problem.Title(title), problem.Status(statusCode), problem.Detail(err.Error()))
@@ -51,7 +51,7 @@ func NotFoundError(errStr string, args ...interface{}) error {
 	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusNotFound}
 }
 
-// NotFoundError returns an error that maps to a HTTP 400 Bad Request.
+// InvalidInputError returns an error that maps to a HTTP 400 Bad Request.
 func InvalidInputError(errStr string, args ...interface{}) error {
 	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusBadRequest}
 }

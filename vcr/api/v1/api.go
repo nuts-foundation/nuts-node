@@ -168,9 +168,9 @@ func (w *Wrapper) UntrustIssuer(ctx echo.Context) error {
 }
 
 func (w *Wrapper) ListTrusted(ctx echo.Context, credentialType string) error {
-	uri, err := ssi.ParseURI(credentialType)
+	uri, err := parseCredentialType(credentialType)
 	if err != nil {
-		return core.InvalidInputError("malformed credential type: %w", err)
+		return err
 	}
 
 	trusted, err := w.R.Trusted(*uri)
@@ -186,9 +186,9 @@ func (w *Wrapper) ListTrusted(ctx echo.Context, credentialType string) error {
 }
 
 func (w *Wrapper) ListUntrusted(ctx echo.Context, credentialType string) error {
-	uri, err := ssi.ParseURI(credentialType)
+	uri, err := parseCredentialType(credentialType)
 	if err != nil {
-		return core.InvalidInputError("malformed credential type: %w", err)
+		return err
 	}
 
 	untrusted, err := w.R.Untrusted(*uri)
@@ -202,6 +202,14 @@ func (w *Wrapper) ListUntrusted(ctx echo.Context, credentialType string) error {
 	}
 
 	return ctx.JSON(http.StatusOK, result)
+}
+
+func parseCredentialType(credentialType string) (*ssi.URI, error) {
+	uri, err := ssi.ParseURI(credentialType)
+	if err != nil {
+		return nil, core.InvalidInputError("malformed credential type: %w", err)
+	}
+	return uri, nil
 }
 
 type trustChangeFunc func(ssi.URI, ssi.URI) error

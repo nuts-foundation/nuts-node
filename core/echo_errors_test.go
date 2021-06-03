@@ -53,7 +53,7 @@ func TestHttpErrorHandler(t *testing.T) {
 	})
 	t.Run("error mapping from globals", func(t *testing.T) {
 		f := func(c echo.Context) error {
-			c.Set(operationIdContextKey, "test")
+			c.Set(operationIDContextKey, "test")
 			return err1
 		}
 		es.Add(http.MethodGet, "/", f)
@@ -68,7 +68,7 @@ func TestHttpErrorHandler(t *testing.T) {
 	})
 	t.Run("error mapping from context", func(t *testing.T) {
 		f := func(c echo.Context) error {
-			c.Set(operationIdContextKey, "test")
+			c.Set(operationIDContextKey, "test")
 			c.Set(statusCodesContextKey, map[error]int{err2: 402})
 			return err2
 		}
@@ -84,7 +84,7 @@ func TestHttpErrorHandler(t *testing.T) {
 	})
 	t.Run("unmapped", func(t *testing.T) {
 		f := func(c echo.Context) error {
-			c.Set(operationIdContextKey, "test")
+			c.Set(operationIDContextKey, "test")
 			return errors.New("other error")
 		}
 		es.Add(http.MethodGet, "/", f)
