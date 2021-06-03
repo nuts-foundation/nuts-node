@@ -31,6 +31,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/mock"
 )
 
+func Test_ErrorStatusCodes(t *testing.T) {
+	assert.NotNil(t, (&Wrapper{}).ErrorStatusCodes())
+}
+
 func TestWrapper_SignJwt(t *testing.T) {
 	t.Run("error - missing claim", func(t *testing.T) {
 		ctx := newMockContext(t)

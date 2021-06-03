@@ -38,6 +38,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_ErrorStatusCodes(t *testing.T) {
+	assert.NotNil(t, (&Wrapper{}).ErrorStatusCodes())
+}
+
 func TestWrapper_CreateDID(t *testing.T) {
 	issuer := vdr.TestDIDA.URI()
 
