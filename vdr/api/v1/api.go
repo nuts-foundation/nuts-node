@@ -39,6 +39,7 @@ type Wrapper struct {
 	DocResolver    types.DocResolver
 }
 
+// ErrorStatusCodes maps to errors returned by this API to specific HTTP status codes.
 func (a *Wrapper) ErrorStatusCodes() map[error]int {
 	return map[error]int{
 		types.ErrNotFound:                http.StatusNotFound,

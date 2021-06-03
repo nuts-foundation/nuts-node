@@ -46,10 +46,12 @@ func createHTTPErrorHandler(routers []Routable) echo.HTTPErrorHandler {
 	}
 }
 
+// NotFoundError returns an error that maps to a HTTP 404 Status Not Found.
 func NotFoundError(errStr string, args ...interface{}) error {
 	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusNotFound}
 }
 
+// NotFoundError returns an error that maps to a HTTP 400 Bad Request.
 func InvalidInputError(errStr string, args ...interface{}) error {
 	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusBadRequest}
 }

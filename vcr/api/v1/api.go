@@ -38,7 +38,8 @@ type Wrapper struct {
 	CR concept.Reader
 }
 
-func (a *Wrapper) ErrorStatusCodes() map[error]int {
+// ErrorStatusCodes maps to errors returned by this API to specific HTTP status codes.
+func (w *Wrapper) ErrorStatusCodes() map[error]int {
 	return map[error]int{
 		concept.ErrUnknownConcept: http.StatusNotFound,
 		vcr.ErrNotFound:           http.StatusNotFound,
