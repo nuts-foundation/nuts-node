@@ -37,30 +37,30 @@ func createHTTPErrorHandler(routers []Routable) echo.HTTPErrorHandler {
 	}
 }
 
-func NotFoundError(errStr string, args ...interface{}) HTTPStatusCodeError {
-	return HTTPStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusNotFound}
+func NotFoundError(errStr string, args ...interface{}) error {
+	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusNotFound}
 }
 
-func InvalidInputError(errStr string, args ...interface{}) HTTPStatusCodeError {
-	return HTTPStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusBadRequest}
+func InvalidInputError(errStr string, args ...interface{}) error {
+	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusBadRequest}
 }
 
-type HTTPStatusCodeError struct {
+type httpStatusCodeError struct {
 	msg        string
 	statusCode int
 	err        error
 }
 
-func (e HTTPStatusCodeError) Is(other error) bool {
-	_, is := other.(HTTPStatusCodeError)
+func (e httpStatusCodeError) Is(other error) bool {
+	_, is := other.(httpStatusCodeError)
 	return is
 }
 
-func (e HTTPStatusCodeError) Unwrap() error {
+func (e httpStatusCodeError) Unwrap() error {
 	return e.err
 }
 
-func (e HTTPStatusCodeError) Error() string {
+func (e httpStatusCodeError) Error() string {
 	return e.msg
 }
 
@@ -79,12 +79,12 @@ type ErrorStatusCodeMapper interface {
 }
 
 // getHTTPStatusCode resolves the HTTP Status Code to be returned from the given error, in this order:
-// - errors with a predefined status code (HTTPStatusCodeError)
+// - errors with a predefined status code (httpStatusCodeError)
 // - from contextStatusCodes, if present
 // - from globalStatusCodes, if present
 // - if none of the above criteria match, HTTP 500 Internal Server Error is returned.
 func getHTTPStatusCode(err error, globalStatusCodes map[error]int, contextStatusCodes map[error]int) int {
-	if predefined, ok := err.(HTTPStatusCodeError); ok {
+	if predefined, ok := err.(httpStatusCodeError); ok {
 		return predefined.statusCode
 	}
 	// First lookup in context, then global

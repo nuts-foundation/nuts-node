@@ -349,7 +349,7 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 
 	claims, err := w.Auth.OAuthClient().IntrospectAccessToken(token)
 	if err != nil {
-		logging.Log().WithError(err).Debug("Error while inspecting access token")
+		logging.Log().WithError(err).Warn("Error while inspecting access token")
 		return ctx.JSON(http.StatusOK, introspectionResponse)
 	}
 

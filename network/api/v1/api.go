@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
 // Wrapper implements the ServerInterface for the network API.
@@ -42,7 +41,6 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 func (a Wrapper) ListTransactions(ctx echo.Context) error {
 	transactions, err := a.Service.ListTransactions()
 	if err != nil {
-		log.Logger().Errorf("Error while listing transactions: %v", err)
 		return err
 	}
 	results := make([]string, len(transactions))
@@ -60,7 +58,6 @@ func (a Wrapper) GetTransaction(ctx echo.Context, hashAsString string) error {
 	}
 	transaction, err := a.Service.GetTransaction(hash)
 	if err != nil {
-		log.Logger().Errorf("Error while retrieving transaction (hash=%s): %v", hash, err)
 		return err
 	}
 	if transaction == nil {
@@ -80,7 +77,6 @@ func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) er
 	}
 	data, err := a.Service.GetTransactionPayload(hash)
 	if err != nil {
-		log.Logger().Errorf("Error while retrieving transaction payload (hash=%s): %v", hash, err)
 		return err
 	}
 	if data == nil {
@@ -97,7 +93,6 @@ func (a Wrapper) RenderGraph(ctx echo.Context) error {
 	visitor := dag.NewDotGraphVisitor(dag.ShowShortRefLabelStyle)
 	err := a.Service.Walk(visitor.Accept)
 	if err != nil {
-		log.Logger().Errorf("Error while rendering graph: %v", err)
 		return err
 	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "text/vnd.graphviz")
