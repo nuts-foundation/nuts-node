@@ -25,7 +25,7 @@ import (
 )
 
 // AssertIsError asserts that expected is, or is the cause of the given actual error (according to errors.Is()).
-func AssertIsError(t *testing.T, expected error, actual error) bool {
+func AssertIsError(t *testing.T, actual error, expected error) bool {
 	if !errors.Is(actual, expected) {
 		assert.Failf(t, "incorrect error", "actual error does not equal or is the wrapped in the given error\n\texpected: %v\n\tactual:%v", expected, actual)
 		return false

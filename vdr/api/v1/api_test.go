@@ -106,7 +106,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 		})
 		err := ctx.client.CreateDID(ctx.echo)
 
-		test.AssertIsError(t, did.ErrInvalidDID, err)
+		test.AssertIsError(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - create fails", func(t *testing.T) {
@@ -416,26 +416,26 @@ func TestWrapper_DeleteVerificationMethod(t *testing.T) {
 	t.Run("error - invalid did", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, "given DID could not be parsed: input does not begin with 'did:' prefix")
 		err := ctx.client.DeleteVerificationMethod(ctx.echo, "invalid did", did123Method.String())
-		assert.NoError(t, err)
+
+		test.AssertIsError(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - invalid kid", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, "given kid could not be parsed: input does not begin with 'did:' prefix")
 		err := ctx.client.DeleteVerificationMethod(ctx.echo, did123.String(), "invalid kid")
-		assert.NoError(t, err)
+
+		assert.EqualError(t, err, "given kid could not be parsed: invalid DID: input does not begin with 'did:' prefix")
 	})
 
 	t.Run("error - internal error", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docUpdater.EXPECT().RemoveVerificationMethod(*did123, *did123Method).Return(errors.New("something went wrong"))
 
-		ctx.echo.EXPECT().String(http.StatusInternalServerError, "could not remove verification method from document: something went wrong")
 		err := ctx.client.DeleteVerificationMethod(ctx.echo, did123.String(), did123Method.String())
-		assert.NoError(t, err)
+
+		assert.EqualError(t, err, "could not remove verification method from document: something went wrong")
 	})
 }
 

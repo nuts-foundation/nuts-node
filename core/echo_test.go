@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"github.com/golang/mock/gomock"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
@@ -102,48 +103,38 @@ func Test_getGroup(t *testing.T) {
 	assert.Equal(t, "", getGroup(""))
 	assert.Equal(t, "", getGroup("/"))
 }
-//
-//func TestHttpErrorHandler(t *testing.T) {
-//	es, _ := createEchoServer(HTTPConfig{}, false, nil)
-//	e := es.(*echo.Echo)
-//	server := httptest.NewServer(e)
-//	client := http.Client{}
-//
-//	t.Run("Problem return", func(t *testing.T) {
-//		prb := NewProblem("problem title", http.StatusInternalServerError, "problem detail")
-//		f := func(c echo.Context) error {
-//			return prb
-//		}
-//		e.Add(http.MethodGet, "/problem", f)
-//		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/problem", server.URL), nil)
-//		resp, err := client.Do(req)
-//
-//		assert.NoError(t, err)
-//		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-//		assert.Equal(t, problem.ContentTypeJSON, resp.Header.Get("Content-Type"))
-//
-//		// Validate response body with expected problem
-//		prbBytes, _ := json.Marshal(prb)
-//		bodyBytes, err := io.ReadAll(resp.Body)
-//		if !assert.NoError(t, err) {
-//			return
-//		}
-//		assert.Equal(t, prbBytes, bodyBytes)
-//	})
-//
-//	t.Run("Error return", func(t *testing.T) {
-//		f := func(c echo.Context) error {
-//			return errors.New("error")
-//		}
-//		e.Add(http.MethodGet, "/error", f)
-//		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/error", server.URL), nil)
-//		resp, err := client.Do(req)
-//
-//		assert.NoError(t, err)
-//		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-//	})
-//
-//}
+
+func Test_createEchoServer(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		instance, err := createEchoServer(NewServerConfig().HTTP.HTTPConfig, true, nil)
+		assert.NotNil(t, instance)
+		assert.NoError(t, err)
+	})
+	t.Run("CORS", func(t *testing.T) {
+		t.Run("strict mode", func(t *testing.T) {
+			cfg := NewServerConfig().HTTP.HTTPConfig
+			cfg.CORS.Origin = []string{"test.nl"}
+			instance, err := createEchoServer(cfg, true, nil)
+			assert.NotNil(t, instance)
+			assert.NoError(t, err)
+		})
+		t.Run("strict mode - wildcard not allowed", func(t *testing.T) {
+			cfg := NewServerConfig().HTTP.HTTPConfig
+			cfg.CORS.Origin = []string{"*"}
+			instance, err := createEchoServer(cfg, true, nil)
+			assert.Nil(t, instance)
+			assert.EqualError(t, err, "wildcard CORS origin is not allowed in strict mode")
+		})
+		t.Run("lenient mode", func(t *testing.T) {
+			cfg := NewServerConfig().HTTP.HTTPConfig
+			cfg.CORS.Origin = []string{"*"}
+			instance, err := createEchoServer(cfg, false, nil)
+			assert.NotNil(t, instance)
+			assert.NoError(t, err)
+		})
+	})
+
+}
 
 func Test_requestsStatusEndpoint(t *testing.T) {
 	req := &http.Request{}

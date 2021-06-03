@@ -67,7 +67,7 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	}
 
 	if err := signRequest.validate(); err != nil {
-		return err
+		return core.InvalidInputError("invalid sign request: %w", err)
 	}
 
 	sig, err := w.C.SignJWT(signRequest.Claims, signRequest.Kid)

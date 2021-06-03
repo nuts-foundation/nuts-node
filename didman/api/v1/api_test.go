@@ -21,7 +21,7 @@ package v1
 
 import (
 	"errors"
-	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/url"
 	"testing"
@@ -83,12 +83,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		})
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemDetail(t, "invalid value for type", err)
-		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
+		assert.Equal(t, err, core.InvalidInputError("invalid value for type"))
 	})
 
 	t.Run("error - incorrect endpoint", func(t *testing.T) {
@@ -100,12 +95,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		})
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemDetail(t, "invalid value for endpoint: parse \":\": missing protocol scheme", err)
-		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
+		test.AssertIsError(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - incorrect did", func(t *testing.T) {
@@ -117,15 +107,10 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		})
 		err := ctx.wrapper.AddEndpoint(ctx.echo, "")
 
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemDetail(t, "failed to parse DID: input length is less than 7", err)
-		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
+		test.AssertIsError(t, err, did.ErrInvalidDID)
 	})
 
-	t.Run("error - DID not found", func(t *testing.T) {
+	t.Run("error - AddEndpoint fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			p := f.(*EndpointCreateRequest)
@@ -136,11 +121,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
+		test.AssertIsError(t, err, types.ErrNotFound)
 	})
 
 	t.Run("error - incorrect post body", func(t *testing.T) {
@@ -149,86 +130,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
-	})
-
-	t.Run("error - deactivated", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*EndpointCreateRequest)
-			*p = request
-			return nil
-		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDeactivated)
-
-		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
-
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
-		test.AssertErrProblemDetail(t, types.ErrDeactivated.Error(), err)
-		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
-	})
-
-	t.Run("error - not managed", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*EndpointCreateRequest)
-			*p = request
-			return nil
-		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
-
-		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
-
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemDetail(t, types.ErrDIDNotManagedByThisNode.Error(), err)
-		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
-	})
-
-	t.Run("error - duplicate", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*EndpointCreateRequest)
-			*p = request
-			return nil
-		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDuplicateService)
-
-		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
-
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
-		test.AssertErrProblemDetail(t, types.ErrDuplicateService.Error(), err)
-		test.AssertErrProblemTitle(t, problemTitleAddEndpoint, err)
-	})
-
-	t.Run("error - other", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*EndpointCreateRequest)
-			*p = request
-			return nil
-		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("b00m!"))
-
-		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
-
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test.AssertErrProblemTitle(t, "AddEndpoint failed", err)
+		assert.EqualError(t, err, "failed to parse EndpointCreateRequest: b00m!")
 	})
 }
 
@@ -285,9 +187,8 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		ctx.didman.EXPECT().AddCompoundService(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("failed"))
 
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
-		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test.AssertErrProblemDetail(t, "failed", err)
-		test.AssertErrProblemTitle(t, "AddCompoundService failed", err)
+
+		assert.EqualError(t, err, "failed")
 	})
 
 	t.Run("error - incorrect endpoint (not a URI)", func(t *testing.T) {
@@ -299,12 +200,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		})
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemDetail(t, "invalid reference for service 'foo': parse \":\": missing protocol scheme", err)
-		test.AssertErrProblemTitle(t, "AddCompoundService failed", err)
+		assert.EqualError(t, err, "invalid reference for service 'foo': parse \":\": missing protocol scheme")
 	})
 
 	t.Run("error - incorrect endpoint (not a string)", func(t *testing.T) {
@@ -316,12 +212,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		})
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemDetail(t, "invalid reference for service 'foo': not a string", err)
-		test.AssertErrProblemTitle(t, "AddCompoundService failed", err)
+		assert.EqualError(t, err, "invalid reference for service 'foo': not a string")
 	})
 
 	t.Run("error - incorrect did", func(t *testing.T) {
@@ -333,12 +224,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		})
 		err := ctx.wrapper.AddCompoundService(ctx.echo, "")
 
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemDetail(t, "failed to parse DID: input length is less than 7", err)
-		test.AssertErrProblemTitle(t, "AddCompoundService failed", err)
+		test.AssertIsError(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - incorrect post body", func(t *testing.T) {
@@ -347,11 +233,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, "AddCompoundService failed", err)
+		assert.EqualError(t, err, "failed to parse v1.CompoundServiceCreateRequest: b00m!")
 	})
 }
 
@@ -380,79 +262,16 @@ func TestWrapper_DeleteService(t *testing.T) {
 		ctx := newMockContext(t)
 		err := ctx.wrapper.DeleteService(ctx.echo, ":")
 
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, "DeleteService failed", err)
-		test.AssertErrProblemDetail(t, "failed to parse URI: parse \":\": missing protocol scheme", err)
+		assert.EqualError(t, err, "failed to parse URI: parse \":\": missing protocol scheme")
 	})
 
-	t.Run("error - DID not found", func(t *testing.T) {
+	t.Run("error - service fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.didman.EXPECT().DeleteService(gomock.Any()).Return(types.ErrNotFound)
 
 		err := ctx.wrapper.DeleteService(ctx.echo, id)
 
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test.AssertErrProblemTitle(t, "DeleteService failed", err)
-	})
-
-	t.Run("error - in use", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.didman.EXPECT().DeleteService(gomock.Any()).Return(didman.ErrServiceInUse)
-
-		err := ctx.wrapper.DeleteService(ctx.echo, id)
-
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
-		test.AssertErrProblemTitle(t, "DeleteService failed", err)
-	})
-
-	t.Run("error - deactivated", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.didman.EXPECT().DeleteService(gomock.Any()).Return(types.ErrDeactivated)
-
-		err := ctx.wrapper.DeleteService(ctx.echo, id)
-
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
-		test.AssertErrProblemDetail(t, types.ErrDeactivated.Error(), err)
-		test.AssertErrProblemTitle(t, "DeleteService failed", err)
-	})
-
-	t.Run("error - not managed", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.didman.EXPECT().DeleteService(gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
-
-		err := ctx.wrapper.DeleteService(ctx.echo, id)
-
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemDetail(t, types.ErrDIDNotManagedByThisNode.Error(), err)
-		test.AssertErrProblemTitle(t, "DeleteService failed", err)
-	})
-
-	t.Run("error - other", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.didman.EXPECT().DeleteService(gomock.Any()).Return(errors.New("b00m!"))
-
-		err := ctx.wrapper.DeleteService(ctx.echo, id)
-
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test.AssertErrProblemTitle(t, "DeleteService failed", err)
+		test.AssertIsError(t, err, types.ErrNotFound)
 	})
 }
 
@@ -488,15 +307,11 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 		invalidDIDStr := "nuts:123"
 		ctx := newMockContext(t)
 		err := ctx.wrapper.UpdateContactInformation(ctx.echo, invalidDIDStr)
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, "UpdateContactInformation failed", err)
-		test.AssertErrProblemDetail(t, "failed to parse DID: input does not begin with 'did:' prefix", err)
+
+		test.AssertIsError(t, err, did.ErrInvalidDID)
 	})
 
-	t.Run("error - unknown DID", func(t *testing.T) {
+	t.Run("error - service fails DID", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			p := f.(*ContactInformation)
@@ -507,69 +322,8 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 		ctx.didman.EXPECT().UpdateContactInformation(*id, request).Return(nil, types.ErrNotFound)
 
 		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
 
-		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test.AssertErrProblemTitle(t, "UpdateContactInformation failed", err)
-		test.AssertErrProblemDetail(t, "unable to find the DID document", err)
-	})
-	t.Run("error - deactivated", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*ContactInformation)
-			*p = request
-			return nil
-		})
-		ctx.didman.EXPECT().UpdateContactInformation(*id, request).Return(nil, types.ErrDeactivated)
-
-		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-
-		test.AssertErrProblemStatusCode(t, http.StatusConflict, err)
-		test.AssertErrProblemTitle(t, "UpdateContactInformation failed", err)
-		test.AssertErrProblemDetail(t, "the DID document has been deactivated", err)
-	})
-
-	t.Run("error - not managed", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*ContactInformation)
-			*p = request
-			return nil
-		})
-		ctx.didman.EXPECT().UpdateContactInformation(*id, request).Return(nil, types.ErrDIDNotManagedByThisNode)
-
-		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, "UpdateContactInformation failed", err)
-		test.AssertErrProblemDetail(t, "DID document not managed by this node", err)
-	})
-	t.Run("error - other problem", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*ContactInformation)
-			*p = request
-			return nil
-		})
-
-		ctx.didman.EXPECT().UpdateContactInformation(*id, request).Return(nil, fmt.Errorf("other problem"))
-
-		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-
-		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test.AssertErrProblemTitle(t, "UpdateContactInformation failed", err)
-		test.AssertErrProblemDetail(t, "other problem", err)
+		test.AssertIsError(t, err, types.ErrNotFound)
 	})
 }
 
@@ -595,49 +349,22 @@ func TestWrapper_GetContactInformation(t *testing.T) {
 		invalidDIDStr := "nuts:123"
 		ctx := newMockContext(t)
 		err := ctx.wrapper.GetContactInformation(ctx.echo, invalidDIDStr)
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
 
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, "GetContactInformation failed", err)
-		test.AssertErrProblemDetail(t, "failed to parse DID: input does not begin with 'did:' prefix", err)
+		test.AssertIsError(t, err, did.ErrInvalidDID)
 	})
-	t.Run("error - DID not found", func(t *testing.T) {
+	t.Run("error - service fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.didman.EXPECT().GetContactInformation(*id).Return(nil, types.ErrNotFound)
 		err := ctx.wrapper.GetContactInformation(ctx.echo, idStr)
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
 
-		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test.AssertErrProblemTitle(t, "GetContactInformation failed", err)
-		test.AssertErrProblemDetail(t, "unable to find the DID document", err)
+		test.AssertIsError(t, err, types.ErrNotFound)
 	})
 	t.Run("error - contact information not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.didman.EXPECT().GetContactInformation(*id).Return(nil, nil)
 		err := ctx.wrapper.GetContactInformation(ctx.echo, idStr)
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
 
-		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test.AssertErrProblemTitle(t, "GetContactInformation failed", err)
-		test.AssertErrProblemDetail(t, "contact information for DID not found", err)
-	})
-	t.Run("error - other error", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.didman.EXPECT().GetContactInformation(*id).Return(nil, fmt.Errorf("other error"))
-		err := ctx.wrapper.GetContactInformation(ctx.echo, idStr)
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
-
-		test.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test.AssertErrProblemTitle(t, "GetContactInformation failed", err)
-		test.AssertErrProblemDetail(t, "other error", err)
+		assert.EqualError(t, err, "contact information for DID not found")
 	})
 }
 

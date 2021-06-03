@@ -19,7 +19,6 @@ package v1
 
 import (
 	"errors"
-	test2 "github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -72,9 +71,8 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 		c.SetParamValues(hash.SHA256Sum([]byte{1, 2, 3}).String())
 
 		err := wrapper.GetTransaction(c)
-		test2.AssertErrProblemTitle(t, problemTitleGetTransaction, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test2.AssertErrProblemDetail(t, "failed", err)
+
+		assert.EqualError(t, err, "failed")
 	})
 	t.Run("invalid hash", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
@@ -88,9 +86,8 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 		c.SetParamValues("1234")
 
 		err := wrapper.GetTransaction(c)
-		test2.AssertErrProblemTitle(t, problemTitleGetTransaction, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test2.AssertErrProblemDetail(t, "incorrect hash length (2)", err)
+
+		assert.EqualError(t, err, "invalid hash: incorrect hash length (2)")
 	})
 	t.Run("not found", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
@@ -105,9 +102,8 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 		c.SetParamValues(transaction.Ref().String())
 
 		err := wrapper.GetTransaction(c)
-		test2.AssertErrProblemTitle(t, problemTitleGetTransaction, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test2.AssertErrProblemDetail(t, "transaction not found", err)
+
+		assert.EqualError(t, err, "transaction not found")
 	})
 }
 
@@ -142,9 +138,8 @@ func TestApiWrapper_RenderGraph(t *testing.T) {
 		c.SetPath("/graph")
 
 		err := wrapper.RenderGraph(c)
-		test2.AssertErrProblemTitle(t, problemTitleRenderGraph, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test2.AssertErrProblemDetail(t, "failed", err)
+
+		assert.EqualError(t, err, "failed")
 	})
 }
 
@@ -184,9 +179,8 @@ func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 		c.SetParamValues(transaction.Ref().String())
 
 		err := wrapper.GetTransactionPayload(c)
-		test2.AssertErrProblemTitle(t, problemTitleGetTransactionPayload, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test2.AssertErrProblemDetail(t, "failed", err)
+
+		assert.EqualError(t, err, "failed")
 	})
 	t.Run("not found", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
@@ -201,9 +195,8 @@ func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 		c.SetParamValues(transaction.Ref().String())
 
 		err := wrapper.GetTransactionPayload(c)
-		test2.AssertErrProblemTitle(t, problemTitleGetTransactionPayload, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test2.AssertErrProblemDetail(t, "transaction or contents not found", err)
+
+		assert.EqualError(t, err, "transaction or contents not found")
 	})
 	t.Run("invalid hash", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
@@ -217,9 +210,8 @@ func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 		c.SetParamValues("1234")
 
 		err := wrapper.GetTransactionPayload(c)
-		test2.AssertErrProblemTitle(t, problemTitleGetTransactionPayload, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test2.AssertErrProblemDetail(t, "incorrect hash length (2)", err)
+
+		assert.EqualError(t, err, "invalid hash: incorrect hash length (2)")
 	})
 }
 
@@ -254,9 +246,8 @@ func TestApiWrapper_ListTransactions(t *testing.T) {
 		c.SetPath("/transaction")
 
 		err := wrapper.ListTransactions(c)
-		test2.AssertErrProblemTitle(t, problemTitleListTransactions, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test2.AssertErrProblemDetail(t, "failed", err)
+
+		assert.EqualError(t, err, "failed")
 	})
 }
 

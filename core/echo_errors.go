@@ -15,11 +15,20 @@ const operationIdContextKey = "!!OperationId"
 func createHTTPErrorHandler(routers []Routable) echo.HTTPErrorHandler {
 	globalErrorStatusCodes := errorStatusCodesFromRouters(routers)
 	return func(err error, ctx echo.Context) {
+		// HTTPErrors occur e.g. when a parameter bind fails. We map this to a httpStatusCodeError so its status code
+		// and message get directly mapped to a problem.
 		if echoErr, ok := err.(*echo.HTTPError); ok {
-			ctx.Echo().DefaultHTTPErrorHandler(echoErr, ctx)
-			return
+			err = httpStatusCodeError{
+				msg:        fmt.Sprintf("%s", echoErr.Message),
+				statusCode: echoErr.Code,
+				err:        echoErr,
+			}
 		}
-		title := fmt.Sprintf("%s failed", fmt.Sprintf("%s", ctx.Get(operationIdContextKey)))
+		operationId := ctx.Get(operationIdContextKey)
+		title := "Operation failed"
+		if operationId != nil {
+			title = fmt.Sprintf("%s failed", fmt.Sprintf("%s", operationId))
+		}
 		statusCode := getHTTPStatusCode(err, globalErrorStatusCodes, errorStatusCodesFromContext(ctx))
 		result := problem.New(problem.Title(title), problem.Status(statusCode), problem.Detail(err.Error()))
 		if statusCode == http.StatusInternalServerError {
@@ -52,8 +61,11 @@ type httpStatusCodeError struct {
 }
 
 func (e httpStatusCodeError) Is(other error) bool {
-	_, is := other.(httpStatusCodeError)
-	return is
+	cast, is := other.(httpStatusCodeError)
+	if is {
+		return cast.statusCode == e.statusCode
+	}
+	return false
 }
 
 func (e httpStatusCodeError) Unwrap() error {
@@ -79,7 +91,7 @@ type ErrorStatusCodeMapper interface {
 }
 
 // getHTTPStatusCode resolves the HTTP Status Code to be returned from the given error, in this order:
-// - errors with a predefined status code (httpStatusCodeError)
+// - errors with a predefined status code (httpStatusCodeError, echo.HTTPError)
 // - from contextStatusCodes, if present
 // - from globalStatusCodes, if present
 // - if none of the above criteria match, HTTP 500 Internal Server Error is returned.
