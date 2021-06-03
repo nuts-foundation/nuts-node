@@ -150,3 +150,20 @@ func TestHttpErrorHandler(t *testing.T) {
 	})
 
 }
+
+func Test_requestsStatusEndpoint(t *testing.T) {
+	req := &http.Request{}
+	ctx := echo.New().NewContext(req, nil)
+	t.Run("matches", func(t *testing.T) {
+		req.RequestURI = "/status"
+		assert.True(t, requestsStatusEndpoint(ctx))
+	})
+	t.Run("no match", func(t *testing.T) {
+		req.RequestURI = "/status/"
+		assert.False(t, requestsStatusEndpoint(ctx))
+		req.RequestURI = "/status/foo"
+		assert.False(t, requestsStatusEndpoint(ctx))
+		req.RequestURI = "/foobar"
+		assert.False(t, requestsStatusEndpoint(ctx))
+	})
+}

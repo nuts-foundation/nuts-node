@@ -110,7 +110,11 @@ func getGroup(path string) string {
 func createEchoServer(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
-	echoServer.Use(middleware.Logger())
+	// Register Echo logger middleware but do not log calls to the status endpoint,
+	// since that gets called by the Docker healthcheck very, very often which leads to lots of clutter in the log.
+	loggerConfig := middleware.DefaultLoggerConfig
+	loggerConfig.Skipper = requestsStatusEndpoint
+	echoServer.Use(middleware.LoggerWithConfig(loggerConfig))
 	echoServer.HTTPErrorHandler = httpErrorHandler
 	if cfg.CORS.Enabled() {
 		if strictmode {
@@ -124,6 +128,10 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
 	}
 	echoServer.Use(DecodeURIPath)
 	return echoServer, nil
+}
+
+func requestsStatusEndpoint(context echo.Context) bool {
+	return context.Request().RequestURI == "/status"
 }
 
 func httpErrorHandler(err error, ctx echo.Context) {
