@@ -45,6 +45,7 @@ func (a *Wrapper) ErrorStatusCodes() map[error]int {
 		types.ErrDIDNotManagedByThisNode: http.StatusForbidden,
 		types.ErrDeactivated:             http.StatusConflict,
 		vdrDoc.ErrInvalidOptions:         http.StatusBadRequest,
+		did.ErrInvalidDID:                http.StatusBadRequest,
 	}
 }
 
@@ -53,7 +54,7 @@ func (a *Wrapper) ErrorStatusCodes() map[error]int {
 func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidStr string) error {
 	id, err := did.ParseDID(didStr)
 	if err != nil {
-		return core.InvalidInputError("given DID could not be parsed: %w", err)
+		return err
 	}
 
 	kid, err := did.ParseDIDURL(kidStr)
@@ -72,7 +73,7 @@ func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidS
 func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
 	d, err := did.ParseDID(id)
 	if err != nil {
-		return core.InvalidInputError("given verificationMethod ID could not be parsed: %w", err)
+		return err
 	}
 
 	vm, err := a.DocManipulator.AddVerificationMethod(*d)
@@ -137,7 +138,7 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
 	d, err := did.ParseDID(targetDID)
 	if err != nil {
-		return core.InvalidInputError("given DID could not be parsed: %w", err)
+		return err
 	}
 
 	// no params in the API for now
@@ -158,7 +159,7 @@ func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
 func (a Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
 	d, err := did.ParseDID(targetDID)
 	if err != nil {
-		return core.InvalidInputError("given DID could not be parsed: %w", err)
+		return err
 	}
 
 	req := DIDUpdateRequest{}
@@ -183,7 +184,7 @@ func (a Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
 func (a *Wrapper) DeactivateDID(ctx echo.Context, targetDID string) error {
 	id, err := did.ParseDID(targetDID)
 	if err != nil {
-		return core.InvalidInputError("given DID could not be parsed: %w", err)
+		return err
 	}
 	err = a.DocManipulator.Deactivate(*id)
 	if err != nil {

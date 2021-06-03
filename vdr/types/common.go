@@ -29,9 +29,6 @@ import (
 // ErrUpdateOnOutdatedData is returned when a concurrent update is done on a DID document.
 var ErrUpdateOnOutdatedData = errors.New("could not update outdated DID document")
 
-// ErrInvalidDID The DID supplied to the DID resolution function does not conform to valid syntax.
-var ErrInvalidDID = errors.New("invalid DID syntax")
-
 // ErrKeyNotFound is returned when a particular key or type of key is not found.
 var ErrKeyNotFound = errors.New("key not found in DID document")
 

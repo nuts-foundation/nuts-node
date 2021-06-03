@@ -50,7 +50,7 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 		return core.InvalidInputError("failed to parse EndpointCreateRequest: %w", err)
 	}
 
-	id, err := parseDID(didStr)
+	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 		return core.InvalidInputError("failed to parse %T: %v", request, err)
 	}
 
-	id, err := parseDID(didStr)
+	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 // UpdateContactInformation handles requests for updating contact information for a specific DID.
 // It parses the did path param and and unmarshals the request body and passes them to didman.UpdateContactInformation.
 func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) error {
-	id, err := parseDID(didStr)
+	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) erro
 // GetContactInformation handles requests for contact information for a specific DID.
 // It parses the did path param and passes it to didman.GetContactInformation.
 func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
-	id, err := parseDID(didStr)
+	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return err
 	}
@@ -159,12 +159,3 @@ func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
 
 	return ctx.JSON(http.StatusOK, contactInfo)
 }
-
-func parseDID(didStr string) (*did.DID, error) {
-	id, err := did.ParseDID(didStr)
-	if err != nil {
-		return nil, core.InvalidInputError("failed to parse DID: %w", err)
-	}
-	return id, nil
-}
-
