@@ -41,7 +41,7 @@ func GetIrmaServer(validatorConfig ValidatorConfig, irmaConfig *irma.Configurati
 		IrmaConfiguration:    irmaConfig,
 		URL:                  validatorConfig.PublicURL + IrmaMountPath,
 		Logger:               logger,
-		Verbose:              irmaLogLevel(logger.Level),
+		Verbose:              irmaLogLevel(logger),
 		SchemesPath:          validatorConfig.IrmaConfigPath,
 		DisableSchemesUpdate: !validatorConfig.AutoUpdateIrmaSchemas,
 	}
@@ -52,8 +52,8 @@ func GetIrmaServer(validatorConfig ValidatorConfig, irmaConfig *irma.Configurati
 }
 
 // irmaLogLevel returns the IRMA log level. 0 is normal, 1 includes DEBUG level, 2 includes TRACE level
-func irmaLogLevel(lvl log.Level) int {
-	switch lvl {
+func irmaLogLevel(logger *log.Logger) int {
+	switch logger.Level {
 	case log.DebugLevel:
 		return 1
 	case log.TraceLevel:
