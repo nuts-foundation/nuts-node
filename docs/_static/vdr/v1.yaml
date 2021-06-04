@@ -61,7 +61,8 @@ paths:
           description: DID has been found and returned.
           content:
             application/json:
-              $ref: '#/components/schemas/DIDResolutionResult'
+              schema:
+                $ref: '#/components/schemas/DIDResolutionResult'
         "400":
           description: Returned in case of malformed DID.
           content:
