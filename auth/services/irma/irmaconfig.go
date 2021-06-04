@@ -50,6 +50,7 @@ func GetIrmaServer(validatorConfig ValidatorConfig, irmaConfig *irma.Configurati
 
 	return irmaserver.New(config)
 }
+
 // irmaLogLevel returns the IRMA log level. 0 is normal, 1 includes DEBUG level, 2 includes TRACE level
 func irmaLogLevel(lvl log.Level) int {
 	switch lvl {
