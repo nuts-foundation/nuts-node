@@ -106,7 +106,7 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 
 		ctx.contractClientMock.EXPECT().SigningSessionStatus(signingSessionID).Return(signingSessionResult, nil)
 
-		response := GetSignSessionStatusResponse{
+		response := SignSessionStatusResponse{
 			Status:                 signingSessionStatus,
 			VerifiablePresentation: nil,
 		}
@@ -135,7 +135,7 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 
 		ctx.contractClientMock.EXPECT().SigningSessionStatus(signingSessionID).Return(signingSessionResult, nil)
 
-		response := GetSignSessionStatusResponse{
+		response := SignSessionStatusResponse{
 			Status:                 signingSessionStatus,
 			VerifiablePresentation: &VerifiablePresentation{Context: []string{"http://example.com"}},
 		}
@@ -645,7 +645,7 @@ func (s signSessionResponseMatcher) Matches(x interface{}) bool {
 		return false
 	}
 
-	return string(x.(CreateSignSessionResponse).Means) == s.means && x.(CreateSignSessionResponse).SessionPtr["sessionID"] != ""
+	return string(x.(SignSessionResponse).Means) == s.means && x.(SignSessionResponse).SessionPtr["sessionID"] != ""
 }
 
 func (s signSessionResponseMatcher) String() string {
@@ -653,7 +653,7 @@ func (s signSessionResponseMatcher) String() string {
 }
 
 func TestWrapper_CreateSignSession(t *testing.T) {
-	bindPostBody := func(ctx *TestContext, body CreateSignSessionRequest) {
+	bindPostBody := func(ctx *TestContext, body SignSessionRequest) {
 		jsonData, _ := json.Marshal(body)
 		ctx.echoMock.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal(jsonData, f)
@@ -675,7 +675,7 @@ func TestWrapper_CreateSignSession(t *testing.T) {
 				return dummyMeans.StartSigningSession(sessionRequest.Message)
 			})
 
-		postParams := CreateSignSessionRequest{
+		postParams := SignSessionRequest{
 			Means:   "dummy",
 			Payload: "this is the contract message to agree to",
 		}
@@ -690,7 +690,7 @@ func TestWrapper_CreateSignSession(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		postParams := CreateSignSessionRequest{}
+		postParams := SignSessionRequest{}
 		bindPostBody(ctx, postParams)
 
 		ctx.contractClientMock.EXPECT().CreateSigningSession(gomock.Any()).Return(nil, errors.New("some error"))

@@ -18,14 +18,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateSignSessionRequest"
+              $ref: "#/components/schemas/SignSessionRequest"
       responses:
         201:
           description: When the signing session was successfully created.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateSignSessionResponse"
+                $ref: "#/components/schemas/SignSessionResponse"
         default:
           $ref: '../common/error_response.yaml'
 
@@ -51,7 +51,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetSignSessionStatusResponse"
+                $ref: "#/components/schemas/SignSessionStatusResponse"
         default:
           $ref: '../common/error_response.yaml'
 
@@ -258,7 +258,7 @@ components:
     #
     # Everthing related to sessions and signing
     #
-    CreateSignSessionRequest:
+    SignSessionRequest:
       required:
         - means
         - payload
@@ -274,7 +274,7 @@ components:
         payload:
           type: string
           description: Base64 encoded payload what needs to be signed.
-    CreateSignSessionResponse:
+    SignSessionResponse:
       required:
         - sessionID
         - sessionPtr
@@ -291,7 +291,7 @@ components:
           type: string
           enum: [ irma, dummy ]
           example: irma
-    GetSignSessionStatusResponse:
+    SignSessionStatusResponse:
       required:
         - status
       properties:
