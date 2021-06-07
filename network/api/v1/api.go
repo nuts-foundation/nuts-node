@@ -20,6 +20,7 @@ package v1
 
 import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -90,7 +91,12 @@ func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) er
 
 // GetPeerDiagnostics returns the diagnostics of the node's peers
 func (a Wrapper) GetPeerDiagnostics(ctx echo.Context) error {
-	return ctx.JSON(http.StatusOK, a.Service.PeerDiagnostics())
+	diagnostics := a.Service.PeerDiagnostics()
+	result := make(map[p2p.PeerID]PeerDiagnostics, len(diagnostics))
+	for k, v := range diagnostics {
+		result[k] = PeerDiagnostics(v)
+	}
+	return ctx.JSON(http.StatusOK, result)
 }
 
 // RenderGraph visualizes the DAG as Graphviz/dot graph

@@ -101,7 +101,6 @@ paths:
           content:
             application/json:
               schema:
-                type: object
                 additionalProperties:
                   $ref: '#/components/schemas/PeerDiagnostics'
         default:

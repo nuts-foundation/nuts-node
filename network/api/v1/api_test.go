@@ -18,6 +18,7 @@
 package v1
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/proto"
@@ -37,6 +38,22 @@ import (
 var payload = []byte("Hello, World!")
 
 func TestApiWrapper_GetTransaction(t *testing.T) {
+	r := GetPeerDiagnosticsResponse{
+		JSON200:      &struct {
+			AdditionalProperties map[string]PeerDiagnostics `json:"-"`
+		}{
+			AdditionalProperties: map[string]PeerDiagnostics{"peer": {
+				Uptime:               10,
+				Peers:                nil,
+				NumberOfTransactions: 5,
+				Version:              "",
+				Vendor:               "aaa",
+			}},
+		},
+	}
+	bytes, _ := json.Marshal(r.JSON200)
+	println(string(bytes))
+
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	transaction := dag.CreateTestTransactionWithJWK(1)

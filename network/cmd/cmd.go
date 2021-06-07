@@ -19,11 +19,11 @@
 package cmd
 
 import (
-	"sort"
-	"strings"
-
+	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"sort"
+	"strings"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -61,6 +61,7 @@ func Cmd() *cobra.Command {
 	cmd.AddCommand(listCommand())
 	cmd.AddCommand(getCommand())
 	cmd.AddCommand(payloadCommand())
+	cmd.AddCommand(peersCommand())
 	return cmd
 }
 
@@ -140,6 +141,37 @@ func listCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&sortFlag, "sort", sortFlagTime, "sort the results on either time or type")
 	return cmd
+}
+
+func peersCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "peers",
+		Short: "Get diagnostic information of the node's peers",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			peers, err := httpClient(core.NewClientConfig(cmd.Flags())).GetPeerDiagnostics()
+			if err != nil {
+				return err
+			}
+
+			sortedPeers := make([]string, 0, len(peers))
+			for peerID, _ := range peers {
+				sortedPeers = append(sortedPeers, peerID.String())
+			}
+			sort.Strings(sortedPeers)
+
+			cmd.Printf("Listing %d peers:\n", len(peers))
+			for _, curr := range sortedPeers {
+				peer := p2p.PeerID(curr)
+				cmd.Printf("\n%s\n", peer)
+				cmd.Printf("  Vendor:            %s\n", peers[peer].Vendor)
+				cmd.Printf("  Version:           %s\n", peers[peer].Version)
+				cmd.Printf("  Uptime:            %s\n", peers[peer].Uptime)
+				cmd.Printf("  Number of DAG TXs: %d\n", peers[peer].NumberOfTransactions)
+				cmd.Printf("  Peers:             %v\n", peers[peer].Peers)
+			}
+			return nil
+		},
+	}
 }
 
 // Sorts the transactions by provided flag or by time.
