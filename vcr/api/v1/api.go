@@ -39,8 +39,8 @@ type Wrapper struct {
 }
 
 // ErrorStatusCodes maps to errors returned by this API to specific HTTP status codes.
-func (w *Wrapper) ErrorStatusCodes() map[error]int {
-	return map[error]int{
+func (w *Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
 		concept.ErrUnknownConcept: http.StatusNotFound,
 		vcr.ErrNotFound:           http.StatusNotFound,
 		vcr.ErrRevoked:            http.StatusConflict,
@@ -48,7 +48,7 @@ func (w *Wrapper) ErrorStatusCodes() map[error]int {
 		types.ErrNotFound:         http.StatusBadRequest,
 		types.ErrKeyNotFound:      http.StatusBadRequest,
 		vcr.ErrInvalidCredential:  http.StatusNotFound,
-	}
+	})
 }
 
 // Routes registers the handler to the echo router

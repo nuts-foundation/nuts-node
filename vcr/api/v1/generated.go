@@ -1324,8 +1324,8 @@ type EchoRouter interface {
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
-type ErrorStatusCodeMapper interface {
-	ErrorStatusCodes() map[error]int
+type ErrorStatusCodeResolver interface {
+	ResolveStatusCode(err error) int
 }
 
 // RegisterHandlers adds each server route to the EchoRouter.
@@ -1345,57 +1345,57 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	// so it can be used in error reporting middleware.
 	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v1/trust", func(context echo.Context) error {
 		context.Set("!!OperationId", "UntrustIssuer")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.UntrustIssuer(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/trust", func(context echo.Context) error {
 		context.Set("!!OperationId", "TrustIssuer")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.TrustIssuer(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/vc", func(context echo.Context) error {
 		context.Set("!!OperationId", "Create")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.Create(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v1/vc/:id", func(context echo.Context) error {
 		context.Set("!!OperationId", "Revoke")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.Revoke(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/vc/:id", func(context echo.Context) error {
 		context.Set("!!OperationId", "Resolve")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.Resolve(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/:concept", func(context echo.Context) error {
 		context.Set("!!OperationId", "Search")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.Search(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/:credentialType/trusted", func(context echo.Context) error {
 		context.Set("!!OperationId", "ListTrusted")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.ListTrusted(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/:credentialType/untrusted", func(context echo.Context) error {
 		context.Set("!!OperationId", "ListUntrusted")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.ListUntrusted(context)
 	})

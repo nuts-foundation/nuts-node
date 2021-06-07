@@ -106,7 +106,7 @@ func getGroup(path string) string {
 	return ""
 }
 
-func createEchoServer(cfg HTTPConfig, strictmode bool, routers []Routable) (*echo.Echo, error) {
+func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
 	// Register Echo logger middleware but do not log calls to the status endpoint,
@@ -114,7 +114,7 @@ func createEchoServer(cfg HTTPConfig, strictmode bool, routers []Routable) (*ech
 	loggerConfig := middleware.DefaultLoggerConfig
 	loggerConfig.Skipper = requestsStatusEndpoint
 	echoServer.Use(middleware.LoggerWithConfig(loggerConfig))
-	echoServer.HTTPErrorHandler = createHTTPErrorHandler(routers)
+	echoServer.HTTPErrorHandler = createHTTPErrorHandler()
 	if cfg.CORS.Enabled() {
 		if strictmode {
 			for _, origin := range cfg.CORS.Origin {

@@ -106,7 +106,7 @@ func Test_getGroup(t *testing.T) {
 
 func Test_createEchoServer(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		instance, err := createEchoServer(NewServerConfig().HTTP.HTTPConfig, true, nil)
+		instance, err := createEchoServer(NewServerConfig().HTTP.HTTPConfig, true)
 		assert.NotNil(t, instance)
 		assert.NoError(t, err)
 	})
@@ -114,21 +114,21 @@ func Test_createEchoServer(t *testing.T) {
 		t.Run("strict mode", func(t *testing.T) {
 			cfg := NewServerConfig().HTTP.HTTPConfig
 			cfg.CORS.Origin = []string{"test.nl"}
-			instance, err := createEchoServer(cfg, true, nil)
+			instance, err := createEchoServer(cfg, true)
 			assert.NotNil(t, instance)
 			assert.NoError(t, err)
 		})
 		t.Run("strict mode - wildcard not allowed", func(t *testing.T) {
 			cfg := NewServerConfig().HTTP.HTTPConfig
 			cfg.CORS.Origin = []string{"*"}
-			instance, err := createEchoServer(cfg, true, nil)
+			instance, err := createEchoServer(cfg, true)
 			assert.Nil(t, instance)
 			assert.EqualError(t, err, "wildcard CORS origin is not allowed in strict mode")
 		})
 		t.Run("lenient mode", func(t *testing.T) {
 			cfg := NewServerConfig().HTTP.HTTPConfig
 			cfg.CORS.Origin = []string{"*"}
-			instance, err := createEchoServer(cfg, false, nil)
+			instance, err := createEchoServer(cfg, false)
 			assert.NotNil(t, instance)
 			assert.NoError(t, err)
 		})

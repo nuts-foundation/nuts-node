@@ -61,10 +61,11 @@ type Wrapper struct {
 }
 
 // ErrorStatusCodes maps to errors returned by this API to specific HTTP status codes.
-func (w *Wrapper) ErrorStatusCodes() map[error]int {
-	return map[error]int{
+func (w *Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
 		services.ErrSessionNotFound: http.StatusNotFound,
-	}
+		did.ErrInvalidDID: http.StatusBadRequest,
+	})
 }
 
 // Routes registers the Echo routes for the API.

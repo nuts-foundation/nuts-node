@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"reflect"
 	"testing"
@@ -155,6 +156,7 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 		err := ctx.wrapper.GetSignSessionStatus(ctx.echoMock, signingSessionID)
 
 		assert.ErrorIs(t, err, services.ErrSessionNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(err))
 	})
 
 	t.Run("nok - unable to build a VP", func(t *testing.T) {
@@ -214,7 +216,7 @@ func TestWrapper_GetContractByType(t *testing.T) {
 		wrapper := Wrapper{Auth: ctx.authMock}
 		err := wrapper.GetContractByType(ctx.echoMock, cType, params)
 
-		assert.EqualError(t, err, "could not find contract template")
+		assert.ErrorIs(t, err, core.NotFoundError(""))
 	})
 }
 
@@ -272,6 +274,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
 			assert.EqualError(t, err, "could not parse validFrom: parsing time \"02 Jan 2010\" as \"2006-01-02T15:04:05-07:00\": cannot parse \"an 2010\" as \"2006\"")
+			assert.ErrorIs(t, err, core.InvalidInputError(""))
 		})
 
 		t.Run("invalid formatted duration", func(t *testing.T) {
@@ -287,6 +290,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
+			assert.ErrorIs(t, err, core.InvalidInputError(""))
 			assert.EqualError(t, err, "could not parse validDuration: time: unknown unit \" minutes\" in duration \"15 minutes\"")
 		})
 
@@ -303,6 +307,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
+			assert.ErrorIs(t, err, core.NotFoundError(""))
 			assert.EqualError(t, err, "no contract found for given combination of type, version, and language")
 		})
 
@@ -321,6 +326,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
 			assert.ErrorIs(t, err, did.ErrInvalidDID)
+			assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
 		})
 
 	})

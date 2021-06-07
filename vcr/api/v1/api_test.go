@@ -37,7 +37,7 @@ import (
 )
 
 func Test_ErrorStatusCodes(t *testing.T) {
-	assert.NotNil(t, (&Wrapper{}).ErrorStatusCodes())
+	assert.NotNil(t, (&Wrapper{}).ResolveStatusCode(nil))
 }
 
 func TestWrapper_CreateDID(t *testing.T) {

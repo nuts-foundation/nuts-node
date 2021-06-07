@@ -40,14 +40,15 @@ type Wrapper struct {
 }
 
 // ErrorStatusCodes maps to errors returned by this API to specific HTTP status codes.
-func (a *Wrapper) ErrorStatusCodes() map[error]int {
-	return map[error]int{
+func (a *Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
 		types.ErrNotFound:                http.StatusNotFound,
 		types.ErrDIDNotManagedByThisNode: http.StatusForbidden,
 		types.ErrDeactivated:             http.StatusConflict,
+		types.ErrDuplicateService:        http.StatusBadRequest,
 		vdrDoc.ErrInvalidOptions:         http.StatusBadRequest,
 		did.ErrInvalidDID:                http.StatusBadRequest,
-	}
+	})
 }
 
 // DeleteVerificationMethod accepts a DID and a KeyIdentifier of a verificationMethod and calls the DocManipulator

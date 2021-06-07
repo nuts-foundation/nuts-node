@@ -919,8 +919,8 @@ type EchoRouter interface {
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
-type ErrorStatusCodeMapper interface {
-	ErrorStatusCodes() map[error]int
+type ErrorStatusCodeResolver interface {
+	ResolveStatusCode(err error) int
 }
 
 // RegisterHandlers adds each server route to the EchoRouter.
@@ -940,36 +940,36 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	// so it can be used in error reporting middleware.
 	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/compoundservice", func(context echo.Context) error {
 		context.Set("!!OperationId", "AddCompoundService")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.AddCompoundService(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/didman/v1/did/:did/contactinfo", func(context echo.Context) error {
 		context.Set("!!OperationId", "GetContactInformation")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.GetContactInformation(context)
 	})
 	router.Add(http.MethodPut, baseURL+"/internal/didman/v1/did/:did/contactinfo", func(context echo.Context) error {
 		context.Set("!!OperationId", "UpdateContactInformation")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.UpdateContactInformation(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/endpoint", func(context echo.Context) error {
 		context.Set("!!OperationId", "AddEndpoint")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.AddEndpoint(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/service/:id", func(context echo.Context) error {
 		context.Set("!!OperationId", "DeleteService")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.DeleteService(context)
 	})

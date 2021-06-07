@@ -612,8 +612,8 @@ type EchoRouter interface {
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
-type ErrorStatusCodeMapper interface {
-	ErrorStatusCodes() map[error]int
+type ErrorStatusCodeResolver interface {
+	ResolveStatusCode(err error) int
 }
 
 // RegisterHandlers adds each server route to the EchoRouter.
@@ -633,29 +633,29 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	// so it can be used in error reporting middleware.
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/diagnostics/graph", func(context echo.Context) error {
 		context.Set("!!OperationId", "RenderGraph")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.RenderGraph(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction", func(context echo.Context) error {
 		context.Set("!!OperationId", "ListTransactions")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.ListTransactions(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref", func(context echo.Context) error {
 		context.Set("!!OperationId", "GetTransaction")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.GetTransaction(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref/payload", func(context echo.Context) error {
 		context.Set("!!OperationId", "GetTransactionPayload")
-		if mapper, ok := si.(ErrorStatusCodeMapper); ok {
-			context.Set("!!ErrorStatusCodes", mapper.ErrorStatusCodes())
+		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
+			context.Set("!!StatusCodeResolver", resolver)
 		}
 		return wrapper.GetTransactionPayload(context)
 	})

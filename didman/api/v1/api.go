@@ -21,6 +21,8 @@ package v1
 
 import (
 	"errors"
+	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"net/url"
 	"strings"
@@ -35,6 +37,18 @@ import (
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
 	Didman didman.Didman
+}
+
+func (w *Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
+		did.ErrInvalidDID:                http.StatusBadRequest,
+		types.ErrNotFound:                http.StatusNotFound,
+		types.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
+		types.ErrDeactivated:             http.StatusConflict,
+		types.ErrDuplicateService:        http.StatusConflict,
+		didman.ErrServiceInUse:           http.StatusConflict,
+		vdrDoc.ErrInvalidOptions:         http.StatusBadRequest,
+	})
 }
 
 // Routes registers the routes from the open api spec to the echo router.

@@ -42,7 +42,7 @@ func NewSystem() *System {
 		Routers: []Routable{},
 	}
 	result.EchoCreator = func(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
-		return createEchoServer(cfg, strictmode, result.Routers)
+		return createEchoServer(cfg, strictmode)
 	}
 	return result
 }

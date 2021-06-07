@@ -17,6 +17,7 @@ package v1
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"testing"
 
@@ -106,6 +107,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 		err := ctx.client.CreateDID(ctx.echo)
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - create fails", func(t *testing.T) {
@@ -164,6 +166,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		err := ctx.client.GetDID(ctx.echo, "not a did")
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -173,6 +176,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		err := ctx.client.GetDID(ctx.echo, id.String())
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -223,6 +227,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		err := ctx.client.UpdateDID(ctx.echo, "not a did")
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -237,6 +242,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -268,7 +274,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		})
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - bind goes wrong", func(t *testing.T) {
@@ -294,6 +300,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		assert.ErrorIs(t, err, types.ErrDeactivated)
+		assert.Equal(t, http.StatusConflict, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
@@ -310,6 +317,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
+		assert.Equal(t, http.StatusForbidden, ctx.client.ResolveStatusCode(err))
 	})
 }
 
@@ -330,6 +338,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 		err := ctx.client.DeactivateDID(ctx.echo, "invalidFormattedDID")
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -340,6 +349,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - document already deactivated", func(t *testing.T) {
@@ -349,6 +359,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 
 		assert.ErrorIs(t, err, types.ErrDeactivated)
+		assert.Equal(t, http.StatusConflict, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
@@ -358,6 +369,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 
 		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
+		assert.Equal(t, http.StatusForbidden, ctx.client.ResolveStatusCode(err))
 	})
 }
 
@@ -387,6 +399,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 		err := ctx.client.AddNewVerificationMethod(ctx.echo, "not a did")
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - internal error", func(t *testing.T) {
@@ -439,7 +452,7 @@ func TestWrapper_DeleteVerificationMethod(t *testing.T) {
 }
 
 func Test_ErrorStatusCodes(t *testing.T) {
-	assert.NotNil(t, (&Wrapper{}).ErrorStatusCodes())
+	assert.NotNil(t, (&Wrapper{}).ResolveStatusCode(nil))
 }
 
 type mockContext struct {

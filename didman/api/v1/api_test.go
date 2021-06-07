@@ -107,6 +107,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		err := ctx.wrapper.AddEndpoint(ctx.echo, "")
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
 	})
 
 	t.Run("error - AddEndpoint fails", func(t *testing.T) {
@@ -121,6 +122,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(err))
 	})
 
 	t.Run("error - incorrect post body", func(t *testing.T) {
@@ -200,6 +202,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
 		assert.EqualError(t, err, "invalid reference for service 'foo': parse \":\": missing protocol scheme")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - incorrect endpoint (not a string)", func(t *testing.T) {
@@ -212,6 +215,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
 		assert.EqualError(t, err, "invalid reference for service 'foo': not a string")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - incorrect did", func(t *testing.T) {
@@ -224,6 +228,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		err := ctx.wrapper.AddCompoundService(ctx.echo, "")
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
 	})
 
 	t.Run("error - incorrect post body", func(t *testing.T) {
@@ -262,6 +267,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 		err := ctx.wrapper.DeleteService(ctx.echo, ":")
 
 		assert.EqualError(t, err, "failed to parse URI: parse \":\": missing protocol scheme")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - service fails", func(t *testing.T) {
@@ -271,6 +277,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 		err := ctx.wrapper.DeleteService(ctx.echo, id)
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(err))
 	})
 }
 
@@ -308,6 +315,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 		err := ctx.wrapper.UpdateContactInformation(ctx.echo, invalidDIDStr)
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
 	})
 
 	t.Run("error - service fails DID", func(t *testing.T) {
@@ -323,6 +331,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(err))
 	})
 }
 
@@ -350,6 +359,7 @@ func TestWrapper_GetContactInformation(t *testing.T) {
 		err := ctx.wrapper.GetContactInformation(ctx.echo, invalidDIDStr)
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
 	})
 	t.Run("error - service fails", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -364,6 +374,7 @@ func TestWrapper_GetContactInformation(t *testing.T) {
 		err := ctx.wrapper.GetContactInformation(ctx.echo, idStr)
 
 		assert.EqualError(t, err, "contact information for DID not found")
+		assert.ErrorIs(t, err, core.NotFoundError(""))
 	})
 }
 
