@@ -124,7 +124,7 @@ func (w Wrapper) VerifySignature(ctx echo.Context) error {
 
 // CreateSignSession handles the CreateSignSession http request. It parses the parameters, finds the means handler and returns a session pointer which can be used to monitor the session.
 func (w Wrapper) CreateSignSession(ctx echo.Context) error {
-	requestParams := new(CreateSignSessionRequest)
+	requestParams := new(SignSessionRequest)
 	if err := ctx.Bind(requestParams); err != nil {
 		err = fmt.Errorf("could not parse request body: %w", err)
 		logging.Log().WithError(err).Warn(problemTitleCreateSignSession)
@@ -149,9 +149,9 @@ func (w Wrapper) CreateSignSession(ctx echo.Context) error {
 		return core.NewProblem(problemTitleCreateSignSession, http.StatusBadRequest, err.Error())
 	}
 
-	response := CreateSignSessionResponse{
+	response := SignSessionResponse{
 		SessionID:  sessionPtr.SessionID(),
-		Means:      CreateSignSessionResponseMeans(requestParams.Means),
+		Means:      SignSessionResponseMeans(requestParams.Means),
 		SessionPtr: keyValPointer,
 	}
 	return ctx.JSON(http.StatusCreated, response)
@@ -185,7 +185,7 @@ func (w Wrapper) GetSignSessionStatus(ctx echo.Context, sessionID string) error 
 			return core.NewProblem(problemTitleSignSessionStatus, http.StatusInternalServerError, err.Error())
 		}
 	}
-	response := GetSignSessionStatusResponse{Status: sessionStatus.Status(), VerifiablePresentation: apiVp}
+	response := SignSessionStatusResponse{Status: sessionStatus.Status(), VerifiablePresentation: apiVp}
 	return ctx.JSON(http.StatusOK, response)
 }
 

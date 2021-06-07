@@ -20,18 +20,18 @@ const (
 	AccessTokenRequestFailedResponseErrorUnsupportedGrantType AccessTokenRequestFailedResponseError = "unsupported_grant_type"
 )
 
-// Defines values for CreateSignSessionRequestMeans.
+// Defines values for SignSessionRequestMeans.
 const (
-	CreateSignSessionRequestMeansDummy CreateSignSessionRequestMeans = "dummy"
+	SignSessionRequestMeansDummy SignSessionRequestMeans = "dummy"
 
-	CreateSignSessionRequestMeansIrma CreateSignSessionRequestMeans = "irma"
+	SignSessionRequestMeansIrma SignSessionRequestMeans = "irma"
 )
 
-// Defines values for CreateSignSessionResponseMeans.
+// Defines values for SignSessionResponseMeans.
 const (
-	CreateSignSessionResponseMeansDummy CreateSignSessionResponseMeans = "dummy"
+	SignSessionResponseMeansDummy SignSessionResponseMeans = "dummy"
 
-	CreateSignSessionResponseMeansIrma CreateSignSessionResponseMeans = "irma"
+	SignSessionResponseMeansIrma SignSessionResponseMeans = "irma"
 )
 
 // Error response when access token request fails as described in rfc6749 sectionn 5.2
@@ -123,36 +123,6 @@ type CreateJwtBearerTokenRequest struct {
 	Subject *string `json:"subject,omitempty"`
 }
 
-// CreateSignSessionRequest defines model for CreateSignSessionRequest.
-type CreateSignSessionRequest struct {
-	Means CreateSignSessionRequestMeans `json:"means"`
-
-	// Params are passed to the means. Should be documented in the means documentation.
-	Params map[string]interface{} `json:"params"`
-
-	// Base64 encoded payload what needs to be signed.
-	Payload string `json:"payload"`
-}
-
-// CreateSignSessionRequestMeans defines model for CreateSignSessionRequest.Means.
-type CreateSignSessionRequestMeans string
-
-// CreateSignSessionResponse defines model for CreateSignSessionResponse.
-type CreateSignSessionResponse struct {
-
-	// The means this session uses to sign.
-	Means CreateSignSessionResponseMeans `json:"means"`
-
-	// Unique identifier of this sign session.
-	SessionID string `json:"sessionID"`
-
-	// A pointer to a sign session. This is an opaque value which only has meaning in the context of the signing means. Can be an URL, base64 encoded image of a QRCode etc.
-	SessionPtr map[string]interface{} `json:"sessionPtr"`
-}
-
-// The means this session uses to sign.
-type CreateSignSessionResponseMeans string
-
 // DrawUpContractRequest defines model for DrawUpContractRequest.
 type DrawUpContractRequest struct {
 
@@ -175,16 +145,6 @@ type DrawUpContractRequest struct {
 	Version ContractVersion `json:"version"`
 }
 
-// GetSignSessionStatusResponse defines model for GetSignSessionStatusResponse.
-type GetSignSessionStatusResponse struct {
-
-	// Status indicates the status of the signing proces. Values depend on the implementation of the signing means.
-	Status string `json:"status"`
-
-	// If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
-	VerifiablePresentation *VerifiablePresentation `json:"verifiablePresentation,omitempty"`
-}
-
 // Response with a JWT Bearer Token. It contains a JWT, signed with the private key of the requestor software vendor.
 type JwtBearerTokenResponse struct {
 
@@ -195,6 +155,46 @@ type JwtBearerTokenResponse struct {
 
 // Identifier of the legalEntity as registered in the Nuts registry.
 type LegalEntity string
+
+// SignSessionRequest defines model for SignSessionRequest.
+type SignSessionRequest struct {
+	Means SignSessionRequestMeans `json:"means"`
+
+	// Params are passed to the means. Should be documented in the means documentation.
+	Params map[string]interface{} `json:"params"`
+
+	// Base64 encoded payload what needs to be signed.
+	Payload string `json:"payload"`
+}
+
+// SignSessionRequestMeans defines model for SignSessionRequest.Means.
+type SignSessionRequestMeans string
+
+// SignSessionResponse defines model for SignSessionResponse.
+type SignSessionResponse struct {
+
+	// The means this session uses to sign.
+	Means SignSessionResponseMeans `json:"means"`
+
+	// Unique identifier of this sign session.
+	SessionID string `json:"sessionID"`
+
+	// A pointer to a sign session. This is an opaque value which only has meaning in the context of the signing means. Can be an URL, base64 encoded image of a QRCode etc.
+	SessionPtr map[string]interface{} `json:"sessionPtr"`
+}
+
+// The means this session uses to sign.
+type SignSessionResponseMeans string
+
+// SignSessionStatusResponse defines model for SignSessionStatusResponse.
+type SignSessionStatusResponse struct {
+
+	// Status indicates the status of the signing proces. Values depend on the implementation of the signing means.
+	Status string `json:"status"`
+
+	// If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
+	VerifiablePresentation *VerifiablePresentation `json:"verifiablePresentation,omitempty"`
+}
 
 // SignatureVerificationRequest defines model for SignatureVerificationRequest.
 type SignatureVerificationRequest struct {
@@ -290,7 +290,7 @@ type CreateJwtBearerTokenJSONBody CreateJwtBearerTokenRequest
 type DrawUpContractJSONBody DrawUpContractRequest
 
 // CreateSignSessionJSONBody defines parameters for CreateSignSession.
-type CreateSignSessionJSONBody CreateSignSessionRequest
+type CreateSignSessionJSONBody SignSessionRequest
 
 // VerifySignatureJSONBody defines parameters for VerifySignature.
 type VerifySignatureJSONBody SignatureVerificationRequest
