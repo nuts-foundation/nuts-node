@@ -613,6 +613,7 @@ func (r DeactivateDIDResponse) StatusCode() int {
 type GetDIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *DIDResolutionResult
 }
 
 // Status returns HTTPResponse.Status
@@ -823,6 +824,13 @@ func ParseGetDIDResponse(rsp *http.Response) (*GetDIDResponse, error) {
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DIDResolutionResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil
