@@ -171,14 +171,17 @@ A credential can be issued with the following call:
     POST <internal-node-address>/internal/vcr/v1/vc
     {
         "type": "NutsOrganizationCredential",
-        "issuer": "<did>",
+        "issuer": "<issuer-did>",
         "credentialSubject": {
-            "name": "<name>",
-            "city": "<city>"
+            "id": "<holder-did>",
+            "organization": {
+                "name": "<name>",
+                "city": "<city>"
+            }
         }
     }
 
-Where ``<did>`` must be replaced with the vendor DID. ``<name>`` and ``<city>`` must be replaced with the correct information.
+Where ``<issuer-did>`` must be replaced with the vendor DID, ``<holder-did>`` must be replaced with the organization DID,``<name>`` and ``<city>`` must be replaced with the correct information.
 The API will respond with the full Verifiable Credential. It's not required to do anything with that since issued credentials can be found again.
 :ref:`This page <vc-concepts>` contains some more information on specific credentials.
 
