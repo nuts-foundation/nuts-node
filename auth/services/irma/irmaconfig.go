@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/nuts-foundation/nuts-node/auth/logging"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/pkg/errors"
 	irma "github.com/privacybydesign/irmago"
@@ -35,10 +36,12 @@ func GetIrmaConfig(validatorConfig ValidatorConfig) (irmaConfig *irma.Configurat
 // GetIrmaServer creates and starts the irma server instance.
 // The server can be used by a IRMA client like the app to handle IRMA sessions
 func GetIrmaServer(validatorConfig ValidatorConfig, irmaConfig *irma.Configuration) (*irmaserver.Server, error) {
+	logger := logging.Log().Logger
 	config := &server.Configuration{
 		IrmaConfiguration:    irmaConfig,
 		URL:                  validatorConfig.PublicURL + IrmaMountPath,
-		Logger:               logging.Log().Logger,
+		Logger:               logger,
+		Verbose:              irmaLogLevel(logger),
 		SchemesPath:          validatorConfig.IrmaConfigPath,
 		DisableSchemesUpdate: !validatorConfig.AutoUpdateIrmaSchemas,
 	}
@@ -46,4 +49,16 @@ func GetIrmaServer(validatorConfig ValidatorConfig, irmaConfig *irma.Configurati
 	logging.Log().Debugf("Initializing IRMA library (baseURL=%s)...", config.URL)
 
 	return irmaserver.New(config)
+}
+
+// irmaLogLevel returns the IRMA log level. 0 is normal, 1 includes DEBUG level, 2 includes TRACE level
+func irmaLogLevel(logger *log.Logger) int {
+	switch logger.Level {
+	case log.DebugLevel:
+		return 1
+	case log.TraceLevel:
+		return 2
+	default:
+		return 0
+	}
 }
