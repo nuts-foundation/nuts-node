@@ -20,13 +20,13 @@
 package doc
 
 import (
-	"testing"
-
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -186,7 +186,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	id456Method1, _ := did.ParseDIDURL("did:nuts:456#method-1")
 	t.Run("emtpy input", func(t *testing.T) {
 		resolver := Resolver{}
-		docs, err := resolver.ResolveControllers(did.Document{})
+		docs, err := resolver.ResolveControllers(did.Document{}, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 0,
 			"expected an empty list")
@@ -196,7 +196,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		resolver := Resolver{}
 		doc := did.Document{ID: *id123}
 		doc.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
-		docs, err := resolver.ResolveControllers(doc)
+		docs, err := resolver.ResolveControllers(doc, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 1,
 			"expected the document")
@@ -206,7 +206,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	t.Run("doc is deactivated", func(t *testing.T) {
 		resolver := Resolver{}
 		doc := did.Document{ID: *id123}
-		docs, err := resolver.ResolveControllers(doc)
+		docs, err := resolver.ResolveControllers(doc, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 0,
 			"expected an empty list when the document is deactivated")
@@ -222,11 +222,13 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		docA := did.Document{ID: *id123}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
 
-		store.EXPECT().Resolve(*id123, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
+		resolveTime := time.Date(2010, 1, 1, 1, 1, 1, 0, time.UTC)
+		resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime}
+		store.EXPECT().Resolve(*id123, resolveMD).Return(&docA, &types.DocumentMetadata{}, nil)
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
-		docs, err := resolver.ResolveControllers(docB)
+		docs, err := resolver.ResolveControllers(docB, resolveMD)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 1)
 		assert.Equal(t, docA, docs[0],
@@ -248,7 +250,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123, *id456}}
 		docB.AddCapabilityInvocation(&did.VerificationMethod{ID: *id456Method1})
 
-		docs, err := resolver.ResolveControllers(docB)
+		docs, err := resolver.ResolveControllers(docB, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 2)
 		assert.Equal(t, []did.Document{docB, docA}, docs,
@@ -283,7 +285,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		docA.Controller = []did.DID{docA.ID, docB.ID, docC.ID}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: docAIDCapInv})
 
-		docs, err := resolver.ResolveControllers(docA)
+		docs, err := resolver.ResolveControllers(docA, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 2)
 		assert.Contains(t, docs, docA, "expected docA to be resolved as controller of docA")
@@ -304,7 +306,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
-		docs, err := resolver.ResolveControllers(docB)
+		docs, err := resolver.ResolveControllers(docB, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 1)
 		assert.Equal(t, docA, docs[0],
@@ -322,7 +324,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
-		docs, err := resolver.ResolveControllers(docB)
+		docs, err := resolver.ResolveControllers(docB, nil)
 		assert.EqualError(t, err, "unable to resolve controllers: unable to find the DID document")
 		assert.Len(t, docs, 0)
 	})
