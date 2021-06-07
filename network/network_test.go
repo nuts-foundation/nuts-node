@@ -305,19 +305,24 @@ func TestNetwork_Shutdown(t *testing.T) {
 }
 
 func TestNetwork_collectDiagnostics(t *testing.T) {
+	const txNum = 5
+	const expectedVersion = "0"
+	const expectedVendor = "https://github.com/nuts-foundation/nuts-node"
+	expectedPeer := p2p.Peer{ID: "abc", Address: "123"}
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	cxt := createNetwork(ctrl)
-	cxt.graph.EXPECT().Statistics().Return(dag.Statistics{NumberOfTransactions: 5})
-	peer := p2p.Peer{ID: "abc", Address: "123"}
-	cxt.p2pAdapter.EXPECT().Peers().Return([]p2p.Peer{peer})
+	cxt.graph.EXPECT().Statistics().Return(dag.Statistics{NumberOfTransactions: txNum})
+
+	cxt.p2pAdapter.EXPECT().Peers().Return([]p2p.Peer{expectedPeer})
 
 	actual := cxt.network.collectDiagnostics()
 
-	assert.Equal(t, "https://github.com/nuts-foundation/nuts-node", actual.Vendor)
-	assert.Equal(t, "0", actual.Version)
-	assert.Equal(t, []p2p.PeerID{peer.ID}, actual.Peers)
-	assert.Equal(t, uint32(5), actual.NumberOfTransactions)
+	assert.Equal(t, expectedVendor, actual.Vendor)
+	assert.Equal(t, expectedVersion, actual.Version)
+	assert.Equal(t, []p2p.PeerID{expectedPeer.ID}, actual.Peers)
+	assert.Equal(t, uint32(txNum), actual.NumberOfTransactions)
 	assert.NotEmpty(t, actual.Uptime)
 }
 

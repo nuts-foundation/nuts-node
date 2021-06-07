@@ -43,6 +43,9 @@ import (
 // boltDBFileMode holds the Unix file mode the created BBolt database files will have.
 const boltDBFileMode = 0600
 
+// implVendorName contains the name of the vendor that's published in the node's diagnostic information.
+const implVendorName = "https://github.com/nuts-foundation/nuts-node"
+
 const (
 	moduleName = "Network"
 	configKey  = "network"
@@ -97,7 +100,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.peerID = p2p.PeerID(uuid.New().String())
 	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics,
 		time.Duration(n.config.AdvertHashesInterval)*time.Millisecond,
-		time.Duration(n.config.QueryPeerDiagnosticsInterval)*time.Millisecond,
+		time.Duration(n.config.AdvertDiagnosticsInterval)*time.Millisecond,
 		n.peerID)
 	networkConfig, p2pErr := n.buildP2PConfig(n.peerID)
 	if p2pErr != nil {
@@ -255,7 +258,7 @@ func (n *Network) collectDiagnostics() proto.Diagnostics {
 		Uptime:               time.Now().Sub(n.startTime),
 		NumberOfTransactions: uint32(n.graph.Statistics().NumberOfTransactions),
 		Version:              core.GitCommit,
-		Vendor:               "https://github.com/nuts-foundation/nuts-node",
+		Vendor:               implVendorName,
 	}
 	for _, peer := range n.p2pNetwork.Peers() {
 		result.Peers = append(result.Peers, peer.ID)

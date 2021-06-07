@@ -50,8 +50,8 @@ type protocol struct {
 
 	blocks dagBlocks
 
-	advertHashesInterval         time.Duration
-	queryPeerDiagnosticsInterval time.Duration
+	advertHashesInterval      time.Duration
+	advertDiagnosticsInterval time.Duration
 	// diagnosticsProvider is a function for collecting diagnostics from the local node which can be shared with peers.
 	diagnosticsProvider func() Diagnostics
 	// peerID contains our own peer ID which can be logged for debugging purposes
@@ -93,12 +93,12 @@ func NewProtocol() Protocol {
 }
 
 func (p *protocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore,
-	diagnosticsProvider func() Diagnostics, advertHashesInterval time.Duration, queryPeerDiagnosticsInterval time.Duration, peerID p2p.PeerID) {
+	diagnosticsProvider func() Diagnostics, advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration, peerID p2p.PeerID) {
 	p.p2pNetwork = p2pNetwork
 	p.graph = graph
 	p.payloadStore = payloadStore
 	p.advertHashesInterval = advertHashesInterval
-	p.queryPeerDiagnosticsInterval = queryPeerDiagnosticsInterval
+	p.advertDiagnosticsInterval = advertDiagnosticsInterval
 	p.diagnosticsProvider = diagnosticsProvider
 	p.peerID = peerID
 	p.sender = defaultMessageSender{p2p: p.p2pNetwork}
@@ -110,7 +110,7 @@ func (p *protocol) Start() {
 	peerConnected, peerDisconnected := p.p2pNetwork.EventChannels()
 	go p.startUpdatingDiagnostics(peerConnected, peerDisconnected)
 	go p.startAdvertingHashes()
-	go p.startQueryingPeerDiagnostics()
+	go p.startAdvertingDiagnostics()
 }
 
 func (p protocol) Stop() {
@@ -127,8 +127,8 @@ func (p protocol) startAdvertingHashes() {
 	}
 }
 
-func (p protocol) startQueryingPeerDiagnostics() {
-	ticker := time.NewTicker(p.queryPeerDiagnosticsInterval)
+func (p protocol) startAdvertingDiagnostics() {
+	ticker := time.NewTicker(p.advertDiagnosticsInterval)
 	for {
 		select {
 		case <-ticker.C:
