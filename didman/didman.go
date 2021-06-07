@@ -82,7 +82,7 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, references m
 		return err
 	}
 
-	// transform ContactInformation to map[string]interface{}
+	// transform service references to map[string]interface{}
 	serviceEndpoint := map[string]interface{}{}
 	for k, v := range references {
 		serviceEndpoint[k] = v.String()
