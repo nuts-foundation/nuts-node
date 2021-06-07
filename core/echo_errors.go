@@ -92,6 +92,8 @@ type ErrorStatusCodeResolver interface {
 	ResolveStatusCode(err error) int
 }
 
+// ResolveStatusCode looks tries to find the first error in the given map that satisfies errors.Is() for the given error,
+// and returns the associated integer as HTTP status code. If no match is found it returns 0.
 func ResolveStatusCode(err error, mapping map[error]int) int {
 	for curr, code := range mapping {
 		if errors.Is(err, curr) {
