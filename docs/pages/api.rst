@@ -14,6 +14,7 @@ Nuts APIs
             const ui = SwaggerUIBundle({
                 "dom_id": "#swagger-ui",
                 urls: [
+                    {url: "../_static/didman/v1.yaml", name: "DID Manager"},
                     {url: "../_static/crypto/v1.yaml", name: "Crypto"},
                     {url: "../_static/vcr/v1.yaml", name: "Verifiable Credential Registry"},
                     {url: "../_static/vdr/v1.yaml", name: "Verifiable Data Registry"},
