@@ -34,11 +34,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/didman"
 )
 
+var _ ServerInterface = (*Wrapper)(nil)
+var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
+
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
 	Didman didman.Didman
 }
 
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		did.ErrInvalidDID:                http.StatusBadRequest,

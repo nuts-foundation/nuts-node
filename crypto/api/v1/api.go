@@ -27,12 +27,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 )
 
+var _ ServerInterface = (*Wrapper)(nil)
+var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
+
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
 	C crypto.JWTSigner
 }
 
-// ErrorStatusCodes maps to errors returned by this API to specific HTTP status codes.
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		crypto.ErrKeyNotFound: http.StatusBadRequest,

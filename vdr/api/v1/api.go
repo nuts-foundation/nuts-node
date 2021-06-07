@@ -32,6 +32,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
+var _ ServerInterface = (*Wrapper)(nil)
+var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
+
 // Wrapper is needed to connect the implementation to the echo ServiceWrapper
 type Wrapper struct {
 	VDR            types.VDR
@@ -39,7 +42,7 @@ type Wrapper struct {
 	DocResolver    types.DocResolver
 }
 
-// ErrorStatusCodes maps to errors returned by this API to specific HTTP status codes.
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (a *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		types.ErrNotFound:                http.StatusNotFound,

@@ -37,19 +37,13 @@ import (
 )
 
 var _ ServerInterface = (*Wrapper)(nil)
+var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 const (
 	errOauthInvalidRequest   = "invalid_request"
 	errOauthInvalidGrant     = "invalid_grant"
 	errOauthUnsupportedGrant = "unsupported_grant_type"
 	bearerTokenHeaderPrefix  = "bearer "
-
-	problemTitleVerifySignature      = "signature verification failed"
-	problemTitleCreateSignSession    = "sign session creation failed"
-	problemTitleCreateJwtBearerToken = "token creation failed"
-	problemTitleDrawUpContract       = "contract creation failed"
-	problemTitleGetContract          = "could not get contract"
-	problemTitleSignSessionStatus    = "could not get session status"
 )
 
 // Wrapper bridges the generated api types and http logic to the internal types and logic.
@@ -60,11 +54,11 @@ type Wrapper struct {
 	Auth auth.AuthenticationServices
 }
 
-// ErrorStatusCodes maps to errors returned by this API to specific HTTP status codes.
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		services.ErrSessionNotFound: http.StatusNotFound,
-		did.ErrInvalidDID: http.StatusBadRequest,
+		did.ErrInvalidDID:           http.StatusBadRequest,
 	})
 }
 
