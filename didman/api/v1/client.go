@@ -88,6 +88,20 @@ func (h HTTPClient) AddEndpoint(did, endpointType, endpointURL string) (*Endpoin
 	return parsedResponse.JSON200, nil
 }
 
+// DeleteEndpoint deletes an endpoint by type on a DID document indicated by the did.
+func (h HTTPClient) DeleteEndpoint(did, endpointType string) error {
+	ctx, cancel := h.withTimeout()
+	defer cancel()
+	response, err := h.client().DeleteEndpoint(ctx, did, endpointType)
+	if err != nil {
+		return err
+	}
+	if err = core.TestResponseCode(http.StatusNoContent, response); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetCompoundServices returns a list of compound services for a given DID string.
 func (h HTTPClient) GetCompoundServices(did string) ([]CompoundService, error) {
 	ctx, cancel := h.withTimeout()

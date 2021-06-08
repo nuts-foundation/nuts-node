@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -326,7 +327,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 
 func TestWrapper_GetCompoundServices(t *testing.T) {
 	idStr := "did:nuts:1#1"
-	id, _ := did.ParseDID(idStr)
+	id, _ := did.ParseDIDURL(idStr)
 	cServices := []did.Service{{
 		Type:            "eOverdracht",
 		ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
@@ -346,9 +347,8 @@ func TestWrapper_GetCompoundServices(t *testing.T) {
 			return
 		}
 
-		test.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test.AssertErrProblemTitle(t, problemTitleGetCompoundServices, err)
-		test.AssertErrProblemDetail(t, "failed to parse DID: input does not begin with 'did:' prefix", err)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
 	})
 	t.Run("error - DID not found", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -358,9 +358,8 @@ func TestWrapper_GetCompoundServices(t *testing.T) {
 			return
 		}
 
-		test.AssertErrProblemStatusCode(t, http.StatusNotFound, err)
-		test.AssertErrProblemTitle(t, problemTitleGetCompoundServices, err)
-		test.AssertErrProblemDetail(t, "unable to find the DID document", err)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(err))
 	})
 }
 

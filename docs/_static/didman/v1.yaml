@@ -61,13 +61,15 @@ paths:
         schema:
           type: string
     post:
-      summary: Add an endpoint to a DID Document.
+      summary: Add an service endpoint or a reference to a service.
       description: |
         To distinguish from compound services, this type of service will be called an endpoint.
         In the Nuts specs this type of service is called a concrete service.
 
-        Add an endpoint with a type and URL to a DID Document. The API will convert it to a DID service with the serviceEndpoint set to a URL.
+        Add an endpoint with a type and URL to a DID Service in a Document. The API will convert it to a DID service with the serviceEndpoint set to a URL.
         This API will also check if an endpoint with the same type already exists. This API is not meant to add compound services.
+
+        The URL can either be an Endpoint or a reference to another service.
 
         error returns:
         * 400 - incorrect input
@@ -89,6 +91,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Endpoint'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/didman/v1/did/{did}/endpoint/{type}:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example:
+          - "did:nuts:1234"
+        schema:
+          type: string
+      - name: type
+        in: path
+        description: Type of the service
+        required: true
+        example:
+          - "eOverdracht"
+        schema:
+          type: string
+    delete:
+      operationId: deleteEndpoint
+      responses:
+        204:
+          description: Successfully deleted the endpoint
+        400:
+          description: Malformatted input, like the DID or the endpoint type.
+        404:
+          description: DID or the Endpoint with given type not found
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/compoundservice:
@@ -190,8 +221,11 @@ components:
           description: type of the endpoint. May be freely choosen.
           type: string
         endpoint:
-          description: A URL.
+          description: An endpoint URL or a reference to another service.
           type: string
+          example:
+            - ref://did:nuts:123?type=eOverdracht-fhir
+            - https://api.example.org/fhir
     CompoundServiceProperties:
       type: object
       description: A creation request for a compound service that references endpoints.

@@ -38,6 +38,12 @@ import (
 var _ ServerInterface = (*Wrapper)(nil)
 var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
 const problemTitleAddEndpoint = "Adding Endpoint failed"
+const problemTitleDeleteEndpoint = "Removing Endpoint failed"
+const problemTitleAddCompoundService = "Adding Compound Service failed"
+const problemTitleDeleteService = "Deleting Service failed"
+const problemTitleUpdateContactInformation = "Updating contact information failed"
+const problemTitleGetContactInformation = "Getting node's contact information failed"
+const problemTitleGetCompoundServices = "Getting compound services failed"
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
@@ -102,6 +108,23 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 	}
 
 	return ctx.JSON(http.StatusOK, endpoint)
+}
+
+func (w *Wrapper) DeleteEndpoint(ctx echo.Context, didStr string, endpointType string) error {
+	id, err := did.ParseDID(didStr)
+	if err != nil {
+		return err
+	}
+
+	if len(strings.TrimSpace(endpointType)) == 0 {
+		return core.InvalidInputError("invalid endpointType")
+	}
+
+	w.Didman.DeleteEndpoint(*id, endpointType)
+	if err != nil {
+		return err
+	}
+	return ctx.NoContent(http.StatusNoContent)
 }
 
 // GetCompoundServices handles calls to get a list of compound services for a provided DID string.

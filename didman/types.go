@@ -35,11 +35,19 @@ type Didman interface {
 	// It returns ErrDuplicateService if a service with the given type already exists.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Service, error)
+
+	// DeleteEndpoint takes an did and type and removes the endpoint with the type from the DID Document.
+	// It returns ErrServiceNotFound if the service can't be found in the DID Document.
+	// It returns ErrServiceInUse if the service is referenced by other services.
+	// It can also return various errors from DocResolver.Resolve
+	DeleteEndpoint(id did.DID, serviceType string) error
+
 	// DeleteService removes a service from a DID Document.
 	// It returns ErrServiceInUse if the service is referenced by other services.
 	// It returns ErrServiceNotFound if the service can't be found in the DID Document.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	DeleteService(id ssi.URI) error
+
 	// AddCompoundEndpoint adds a compound endpoint to a DID Document.
 	// It returns ErrDuplicateService if a service with the given type already exists.
 	// It returns ErrInvalidServiceQuery if one of the service references is invalid.

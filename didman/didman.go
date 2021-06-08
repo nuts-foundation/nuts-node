@@ -76,6 +76,25 @@ func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Se
 	return service, err
 }
 
+func (d *didman) DeleteEndpoint(id did.DID, serviceType string) error {
+	doc, _, err := d.docResolver.Resolve(id, nil)
+	if err != nil {
+		return err
+	}
+
+	var serviceID *ssi.URI
+	for _, s := range doc.Service {
+		if s.Type == serviceType {
+			serviceID = &s.ID
+			break
+		}
+	}
+	if serviceID == nil {
+		return ErrServiceNotFound
+	}
+	return d.DeleteService(*serviceID)
+}
+
 func (d *didman) GetCompoundServices(id did.DID) ([]did.Service, error) {
 	doc, _, err := d.docResolver.Resolve(id, nil)
 	if err != nil {
