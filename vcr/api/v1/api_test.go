@@ -21,6 +21,7 @@ package v1
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"testing"
 
@@ -99,6 +100,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 		err := ctx.client.Create(ctx.echo)
 
 		assert.ErrorIs(t, err, credential.ErrValidation)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 }
 
@@ -139,6 +141,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		err := ctx.client.Resolve(ctx.echo, idString)
 
 		assert.ErrorIs(t, err, vcr.ErrNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -244,6 +247,7 @@ func TestWrapper_Search(t *testing.T) {
 		err := ctx.client.Search(ctx.echo, "unknown")
 
 		assert.ErrorIs(t, err, concept.ErrUnknownConcept)
+		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - Bind explodes", func(t *testing.T) {
@@ -304,6 +308,7 @@ func TestWrapper_Revoke(t *testing.T) {
 		err := ctx.client.Revoke(ctx.echo, "test")
 
 		assert.ErrorIs(t, err, vcr.ErrRevoked)
+		assert.Equal(t, http.StatusConflict, ctx.client.ResolveStatusCode(err))
 	})
 }
 
@@ -325,7 +330,8 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 		ctx.vcr.EXPECT().Trust(cType, issuer).Return(nil)
 		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
 
-		ctx.client.TrustIssuer(ctx.echo)
+		err := ctx.client.TrustIssuer(ctx.echo)
+		assert.NoError(t, err)
 	})
 
 	t.Run("ok - remove", func(t *testing.T) {
@@ -341,7 +347,8 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 		ctx.vcr.EXPECT().Untrust(cType, issuer).Return(nil)
 		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
 
-		ctx.client.UntrustIssuer(ctx.echo)
+		err := ctx.client.UntrustIssuer(ctx.echo)
+		assert.NoError(t, err)
 	})
 
 	t.Run("error - invalid issuer", func(t *testing.T) {
@@ -358,6 +365,7 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 		err := ctx.client.TrustIssuer(ctx.echo)
 
 		assert.EqualError(t, err, "failed to parse issuer: parse \"\\x00\": net/url: invalid control character in URL")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - invalid credential", func(t *testing.T) {
@@ -374,6 +382,7 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 		err := ctx.client.TrustIssuer(ctx.echo)
 
 		assert.EqualError(t, err, "malformed credential type: parse \"\\x00\": net/url: invalid control character in URL")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - invalid body", func(t *testing.T) {
@@ -438,6 +447,7 @@ func TestWrapper_Trusted(t *testing.T) {
 		err := ctx.client.ListTrusted(ctx.echo, string([]byte{0}))
 
 		assert.Error(t, err)
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 }
 
@@ -472,6 +482,7 @@ func TestWrapper_Untrusted(t *testing.T) {
 		err := ctx.client.ListUntrusted(ctx.echo, string([]byte{0}))
 
 		assert.EqualError(t, err, "malformed credential type: parse \"\\x00\": net/url: invalid control character in URL")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - other", func(t *testing.T) {
