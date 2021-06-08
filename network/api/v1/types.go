@@ -9,6 +9,7 @@ import (
 // PeerDiagnostics defines the type for diagnostics of a peer
 type PeerDiagnostics proto.Diagnostics
 
+// UnmarshalJSON is the custom JSON unmarshaler for PeerDiagnostics
 func (p *PeerDiagnostics) UnmarshalJSON(bytes []byte) error {
 	result := proto.Diagnostics{}
 	err := json.Unmarshal(bytes, &result)
@@ -19,6 +20,7 @@ func (p *PeerDiagnostics) UnmarshalJSON(bytes []byte) error {
 	return err
 }
 
+// MarshalJSON is the custom JSON marshaler for PeerDiagnostics
 func (p PeerDiagnostics) MarshalJSON() ([]byte, error) {
 	cp := proto.Diagnostics(p)
 	cp.Uptime = cp.Uptime / time.Second

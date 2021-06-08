@@ -154,7 +154,7 @@ func peersCommand() *cobra.Command {
 			}
 
 			sortedPeers := make([]string, 0, len(peers))
-			for peerID, _ := range peers {
+			for peerID := range peers {
 				sortedPeers = append(sortedPeers, peerID.String())
 			}
 			sort.Strings(sortedPeers)
