@@ -20,6 +20,7 @@ package v1
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -102,6 +103,25 @@ func TestHttpClient_GetTransactionPayload(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusInternalServerError})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		actual, err := httpClient.GetTransactionPayload(hash.EmptyHash())
+		assert.Error(t, err)
+		assert.Nil(t, actual)
+	})
+}
+
+func TestHTTPClient_GetPeerDiagnostics(t *testing.T) {
+	t.Run("200", func(t *testing.T) {
+		expected := map[p2p.PeerID]PeerDiagnostics{"foo": {Uptime: 50 * time.Second}}
+		expectedData, _ := json.Marshal(expected)
+		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: expectedData})
+		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		actual, err := httpClient.GetPeerDiagnostics()
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+	t.Run("server error (500)", func(t *testing.T) {
+		s := httptest.NewServer(handler{statusCode: http.StatusInternalServerError})
+		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		actual, err := httpClient.GetPeerDiagnostics()
 		assert.Error(t, err)
 		assert.Nil(t, actual)
 	})

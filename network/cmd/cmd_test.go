@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"bytes"
+	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -139,4 +140,30 @@ func TestCmd_Payload(t *testing.T) {
 		err := cmd.Execute()
 		assert.NoError(t, err)
 	})
+}
+
+func TestCmd_Peers(t *testing.T) {
+	cmd := Cmd()
+	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: map[string]v1.PeerDiagnostics{"foo": {Uptime: 50 * time.Second}}}
+	s := httptest.NewServer(handler)
+	os.Setenv("NUTS_ADDRESS", s.URL)
+	defer os.Unsetenv("NUTS_ADDRESS")
+	core.NewServerConfig().Load(cmd)
+	defer s.Close()
+
+	outBuf := new(bytes.Buffer)
+	cmd.SetOut(outBuf)
+
+	expected := `Listing 1 peers:
+
+foo
+  Vendor:            
+  Version:           
+  Uptime:            50s
+  Number of DAG TXs: 0
+  Peers:             []`
+	cmd.SetArgs([]string{"peers"})
+	err := cmd.Execute()
+	assert.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(outBuf.String()))
+	assert.NoError(t, err)
 }

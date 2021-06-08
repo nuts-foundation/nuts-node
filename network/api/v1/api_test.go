@@ -296,6 +296,10 @@ func TestApiWrapper_ListTransactions(t *testing.T) {
 	})
 }
 
+func TestWrapper_GetPeerDiagnostics(t *testing.T) {
+
+}
+
 func initMockEcho(networkClient *network.MockTransactions) (*echo.Echo, *ServerInterfaceWrapper) {
 	e := echo.New()
 	stub := Wrapper{Service: networkClient}

@@ -83,7 +83,7 @@ func payloadCommand() *cobra.Command {
 				cmd.PrintErrf("Transaction or contents not found: %s", hash)
 				return nil
 			}
-			println(string(data))
+			cmd.Print(string(data))
 			return nil
 		},
 	}
