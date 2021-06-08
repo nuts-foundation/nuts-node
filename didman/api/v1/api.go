@@ -132,7 +132,7 @@ func (w *Wrapper) DeleteEndpoint(ctx echo.Context, didStr string, endpointType s
 // GetCompoundServices handles calls to get a list of compound services for a provided DID string.
 // Its checks params, calls Didman and sets http return values.
 func (w *Wrapper) GetCompoundServices(ctx echo.Context, didStr string) error {
-	id, err := did.ParseDID(didStr)
+	id, err := did.ParseDIDURL(didStr)
 	if err != nil {
 		return err
 	}

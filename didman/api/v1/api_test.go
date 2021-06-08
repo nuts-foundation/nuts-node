@@ -31,7 +31,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -343,9 +342,6 @@ func TestWrapper_GetCompoundServices(t *testing.T) {
 		invalidDIDStr := "nuts:123"
 		ctx := newMockContext(t)
 		err := ctx.wrapper.GetCompoundServices(ctx.echo, invalidDIDStr)
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
 		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
@@ -354,11 +350,8 @@ func TestWrapper_GetCompoundServices(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.didman.EXPECT().GetCompoundServices(*id).Return(nil, types.ErrNotFound)
 		err := ctx.wrapper.GetCompoundServices(ctx.echo, idStr)
-		if !test.AssertErrIsProblem(t, err) {
-			return
-		}
 
-		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(err))
 	})
 }
