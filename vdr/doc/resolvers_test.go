@@ -20,12 +20,13 @@
 package doc
 
 import (
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/stretchr/testify/assert"
-	"testing"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -69,7 +70,7 @@ func TestResolveSigningKey(t *testing.T) {
 		_, err := keyResolver.ResolveSigningKey("asdasdsa", nil)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "invalid key ID (id=asdasdsa): input does not begin with 'did:' prefix")
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 }
 

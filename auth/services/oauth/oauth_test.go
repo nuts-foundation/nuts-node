@@ -26,7 +26,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 
@@ -215,9 +214,7 @@ func TestService_validateIssuer(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.IssuerKey, "not a urn")
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
-		if assert.NotNil(t, err) {
-			assert.Contains(t, err.Error(), "invalid jwt.issuer: input does not begin with 'did:' prefix")
-		}
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 	t.Run("unable to resolve name", func(t *testing.T) {
 		ctx := createContext(t)
@@ -277,9 +274,7 @@ func TestService_validateSubject(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, "not a urn")
 
 		err := ctx.oauthService.validateSubject(tokenCtx)
-		if assert.NotNil(t, err) {
-			assert.Contains(t, err.Error(), "invalid jwt.subject: input does not begin with 'did:' prefix")
-		}
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 	t.Run("subject not managed by this node", func(t *testing.T) {
 		ctx := createContext(t)

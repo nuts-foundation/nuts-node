@@ -17,12 +17,12 @@ package v1
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/mock"
@@ -104,29 +104,13 @@ func TestWrapper_CreateDID(t *testing.T) {
 			*p = didCreateRequest
 			return nil
 		})
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any()).Return(nil)
 		err := ctx.client.CreateDID(ctx.echo)
 
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 
-	t.Run("error - invalid options", func(t *testing.T) {
-		ctx := newMockContext(t)
-
-		didCreateRequest := DIDCreateRequest{}
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*DIDCreateRequest)
-			*p = didCreateRequest
-			return nil
-		})
-		ctx.vdr.EXPECT().Create(gomock.Any()).Return(nil, nil, doc.ErrInvalidOptions)
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any()).Return(nil)
-		err := ctx.client.CreateDID(ctx.echo)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("error - 500", func(t *testing.T) {
+	t.Run("error - create fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 
 		didCreateRequest := DIDCreateRequest{}
@@ -145,10 +129,9 @@ func TestWrapper_CreateDID(t *testing.T) {
 		ctx := newMockContext(t)
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any()).Return(nil)
 		err := ctx.client.CreateDID(ctx.echo)
 
-		assert.NoError(t, err)
+		assert.EqualError(t, err, "b00m!")
 	})
 }
 
@@ -180,20 +163,20 @@ func TestWrapper_GetDID(t *testing.T) {
 	t.Run("error - wrong did format", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 		err := ctx.client.GetDID(ctx.echo, "not a did")
 
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.echo.EXPECT().String(http.StatusNotFound, "DID document not found")
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
 		err := ctx.client.GetDID(ctx.echo, id.String())
 
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -241,10 +224,10 @@ func TestWrapper_UpdateDID(t *testing.T) {
 	t.Run("error - wrong did format", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 		err := ctx.client.UpdateDID(ctx.echo, "not a did")
 
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -255,11 +238,11 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			*p = didUpdate
 			return nil
 		})
-		ctx.echo.EXPECT().String(http.StatusNotFound, "could not update DID document: unable to find the DID document")
 		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrNotFound)
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -270,11 +253,10 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			*p = didUpdate
 			return nil
 		})
-		ctx.echo.EXPECT().String(http.StatusInternalServerError, gomock.Any())
 		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("b00m!"))
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
-		assert.NoError(t, err)
+		assert.EqualError(t, err, "b00m!")
 	})
 
 	t.Run("error - wrong hash", func(t *testing.T) {
@@ -290,20 +272,18 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			*p = didUpdate
 			return nil
 		})
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - bind goes wrong", func(t *testing.T) {
 		ctx := newMockContext(t)
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
-		assert.NoError(t, err)
+		assert.EqualError(t, err, "b00m!")
 	})
 
 	t.Run("error - document deactivated", func(t *testing.T) {
@@ -315,11 +295,12 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.echo.EXPECT().String(http.StatusConflict, "could not update DID document: the DID document has been deactivated")
 		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDeactivated)
 
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
-		assert.NoError(t, err)
+
+		assert.ErrorIs(t, err, types.ErrDeactivated)
+		assert.Equal(t, http.StatusConflict, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
@@ -331,11 +312,12 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.echo.EXPECT().String(http.StatusForbidden, "could not update DID document: DID document not managed by this node")
 		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
 
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
-		assert.NoError(t, err)
+
+		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
+		assert.Equal(t, http.StatusForbidden, ctx.client.ResolveStatusCode(err))
 	})
 }
 
@@ -353,37 +335,41 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	t.Run("error - invalid DID format", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, "given DID could not be parsed: input does not begin with 'did:' prefix")
 		err := ctx.client.DeactivateDID(ctx.echo, "invalidFormattedDID")
-		assert.NoError(t, err)
+
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
 		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrNotFound)
-		ctx.echo.EXPECT().String(http.StatusNotFound, "could not deactivate DID document: unable to find the DID document")
 
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
-		assert.NoError(t, err)
+
+		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - document already deactivated", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrDeactivated)
 
-		ctx.echo.EXPECT().String(http.StatusConflict, "could not deactivate DID document: the DID document has been deactivated")
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
-		assert.NoError(t, err)
+
+		assert.ErrorIs(t, err, types.ErrDeactivated)
+		assert.Equal(t, http.StatusConflict, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrDIDNotManagedByThisNode)
 
-		ctx.echo.EXPECT().String(http.StatusForbidden, "could not deactivate DID document: DID document not managed by this node")
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
-		assert.NoError(t, err)
+
+		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
+		assert.Equal(t, http.StatusForbidden, ctx.client.ResolveStatusCode(err))
 	})
 }
 
@@ -410,18 +396,19 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 	t.Run("error - invalid did", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, "given DID could not be parsed: input does not begin with 'did:' prefix")
 		err := ctx.client.AddNewVerificationMethod(ctx.echo, "not a did")
-		assert.NoError(t, err)
+
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - internal error", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123).Return(nil, errors.New("something went wrong"))
 
-		ctx.echo.EXPECT().String(http.StatusInternalServerError, "could not update DID document: something went wrong")
 		err := ctx.client.AddNewVerificationMethod(ctx.echo, did123.String())
-		assert.NoError(t, err)
+
+		assert.EqualError(t, err, "something went wrong")
 	})
 }
 
@@ -441,66 +428,31 @@ func TestWrapper_DeleteVerificationMethod(t *testing.T) {
 	t.Run("error - invalid did", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, "given DID could not be parsed: input does not begin with 'did:' prefix")
 		err := ctx.client.DeleteVerificationMethod(ctx.echo, "invalid did", did123Method.String())
-		assert.NoError(t, err)
+
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 
 	t.Run("error - invalid kid", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, "given kid could not be parsed: input does not begin with 'did:' prefix")
 		err := ctx.client.DeleteVerificationMethod(ctx.echo, did123.String(), "invalid kid")
-		assert.NoError(t, err)
+
+		assert.EqualError(t, err, "given kid could not be parsed: invalid DID: input does not begin with 'did:' prefix")
 	})
 
 	t.Run("error - internal error", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docUpdater.EXPECT().RemoveVerificationMethod(*did123, *did123Method).Return(errors.New("something went wrong"))
 
-		ctx.echo.EXPECT().String(http.StatusInternalServerError, "could not remove verification method from document: something went wrong")
 		err := ctx.client.DeleteVerificationMethod(ctx.echo, did123.String(), did123Method.String())
-		assert.NoError(t, err)
+
+		assert.EqualError(t, err, "could not remove verification method from document: something went wrong")
 	})
 }
 
-func Test_handleError(t *testing.T) {
-	t.Run("unknown error causes 500", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().String(http.StatusInternalServerError, "template: error!!")
-		err := handleError(ctx.echo, errors.New("error!!"), "template: %s")
-		assert.NoError(t, err)
-	})
-	t.Run("duplicate service error causes 400", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().String(http.StatusBadRequest, "template: service type is duplicate")
-		err := handleError(ctx.echo, types.ErrDuplicateService, "template: %s")
-		assert.NoError(t, err)
-	})
-	t.Run("not found error causes 404", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().String(http.StatusNotFound, "template: unable to find the DID document")
-		err := handleError(ctx.echo, types.ErrNotFound, "template: %s")
-		assert.NoError(t, err)
-	})
-	t.Run("not managed error causes 403", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().String(http.StatusForbidden, "template: DID document not managed by this node")
-		err := handleError(ctx.echo, types.ErrDIDNotManagedByThisNode, "template: %s")
-		assert.NoError(t, err)
-	})
-	t.Run("deactivated error causes 409", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().String(http.StatusConflict, "template: the DID document has been deactivated")
-		err := handleError(ctx.echo, types.ErrDeactivated, "template: %s")
-		assert.NoError(t, err)
-	})
-
-	t.Run("no error causes no error", func(t *testing.T) {
-		ctx := newMockContext(t)
-		err := handleError(ctx.echo, nil, "template: %s")
-		assert.NoError(t, err)
-	})
+func Test_ErrorStatusCodes(t *testing.T) {
+	assert.NotNil(t, (&Wrapper{}).ResolveStatusCode(nil))
 }
 
 type mockContext struct {

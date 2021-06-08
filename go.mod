@@ -20,7 +20,7 @@ require (
 	github.com/magiconair/properties v1.8.4
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mdp/qrterminal/v3 v3.0.0
-	github.com/nuts-foundation/go-did v0.1.0
+	github.com/nuts-foundation/go-did v0.1.1
 	github.com/nuts-foundation/go-leia v0.4.1
 	github.com/pkg/errors v0.9.1
 	github.com/privacybydesign/irmago v0.7.0
@@ -33,7 +33,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	go.etcd.io/bbolt v1.3.5
 	google.golang.org/grpc v1.33.1
 	google.golang.org/protobuf v1.25.0

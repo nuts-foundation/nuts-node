@@ -384,7 +384,7 @@ func TestDidman_GetContactInformation(t *testing.T) {
 	})
 	t.Run("error - can't resolve DID", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrInvalidDID)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, errors.New("failed"))
 		actual, err := ctx.instance.GetContactInformation(*id)
 		assert.Error(t, err)
 		assert.Nil(t, actual)

@@ -21,7 +21,8 @@ package v1
 
 import (
 	"errors"
-	"fmt"
+	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"net/url"
 	"strings"
@@ -31,19 +32,27 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
-	"github.com/nuts-foundation/nuts-node/didman/logging"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-const problemTitleAddEndpoint = "Adding Endpoint failed"
-const problemTitleAddCompoundService = "Adding Compound Service failed"
-const problemTitleDeleteService = "Deleting Service failed"
-const problemTitleUpdateContactInformation = "Updating contact information failed"
-const problemTitleGetContactInformation = "Getting node's contact information failed"
+var _ ServerInterface = (*Wrapper)(nil)
+var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
 	Didman didman.Didman
+}
+
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
+func (w *Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
+		did.ErrInvalidDID:                http.StatusBadRequest,
+		types.ErrNotFound:                http.StatusNotFound,
+		types.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
+		types.ErrDeactivated:             http.StatusConflict,
+		types.ErrDuplicateService:        http.StatusConflict,
+		didman.ErrServiceInUse:           http.StatusConflict,
+		vdrDoc.ErrInvalidOptions:         http.StatusBadRequest,
+	})
 }
 
 // Routes registers the routes from the open api spec to the echo router.
@@ -56,32 +65,25 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 	request := EndpointCreateRequest{}
 	if err := ctx.Bind(&request); err != nil {
-		err = fmt.Errorf("failed to parse EndpointCreateRequest: %w", err)
-		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
-		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+		return core.InvalidInputError("failed to parse EndpointCreateRequest: %w", err)
 	}
 
-	id, err := parseDID(didStr, problemTitleAddEndpoint)
+	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return err
 	}
 
 	if len(strings.TrimSpace(request.Type)) == 0 {
-		err := errors.New("invalid value for type")
-		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
-		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+		return core.InvalidInputError("invalid value for type")
 	}
 
 	u, err := url.Parse(request.Endpoint)
 	if err != nil {
-		err = fmt.Errorf("invalid value for endpoint: %w", err)
-		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
-		return core.NewProblem(problemTitleAddEndpoint, http.StatusBadRequest, err.Error())
+		return core.InvalidInputError("invalid value for endpoint: %w", err)
 	}
 
 	if err = w.Didman.AddEndpoint(*id, request.Type, *u); err != nil {
-		logging.Log().WithError(err).Warn(problemTitleAddEndpoint)
-		return core.NewProblem(problemTitleAddEndpoint, getStatusCode(err), err.Error())
+		return err
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
@@ -92,12 +94,10 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 	request := CompoundServiceCreateRequest{}
 	if err := ctx.Bind(&request); err != nil {
-		err = fmt.Errorf("failed to parse %T: %w", request, err)
-		logging.Log().WithError(err).Warn(problemTitleAddCompoundService)
-		return core.NewProblem(problemTitleAddCompoundService, http.StatusBadRequest, err.Error())
+		return core.InvalidInputError("failed to parse %T: %v", request, err)
 	}
 
-	id, err := parseDID(didStr, problemTitleAddCompoundService)
+	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return err
 	}
@@ -106,15 +106,12 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 	for key, value := range request.Endpoint {
 		uri, err := interfaceToURI(value)
 		if err != nil {
-			err = fmt.Errorf("invalid reference for service '%s': %w", key, err)
-			logging.Log().WithError(err).Warn(problemTitleAddCompoundService)
-			return core.NewProblem(problemTitleAddCompoundService, http.StatusBadRequest, err.Error())
+			return core.InvalidInputError("invalid reference for service '%s': %v", key, err)
 		}
 		references[key] = *uri
 	}
 	if err = w.Didman.AddCompoundService(*id, request.Type, references); err != nil {
-		logging.Log().WithError(err).Warn(problemTitleAddCompoundService)
-		return core.NewProblem(problemTitleAddCompoundService, getStatusCode(err), err.Error())
+		return err
 	}
 	return ctx.NoContent(http.StatusNoContent)
 }
@@ -132,14 +129,11 @@ func interfaceToURI(input interface{}) (*ssi.URI, error) {
 func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 	id, err := ssi.ParseURI(uriStr)
 	if err != nil {
-		err = fmt.Errorf("failed to parse URI: %w", err)
-		logging.Log().WithError(err).Warn(problemTitleDeleteService)
-		return core.NewProblem(problemTitleDeleteService, http.StatusBadRequest, err.Error())
+		return core.InvalidInputError("failed to parse URI: %w", err)
 	}
 
 	if err = w.Didman.DeleteService(*id); err != nil {
-		logging.Log().WithError(err).Warn(problemTitleDeleteService)
-		return core.NewProblem(problemTitleDeleteService, getStatusCode(err), err.Error())
+		return err
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
@@ -148,21 +142,18 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 // UpdateContactInformation handles requests for updating contact information for a specific DID.
 // It parses the did path param and and unmarshals the request body and passes them to didman.UpdateContactInformation.
 func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) error {
-	id, err := parseDID(didStr, problemTitleUpdateContactInformation)
+	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return err
 	}
 
 	contactInfo := ContactInformation{}
 	if err = ctx.Bind(&contactInfo); err != nil {
-		err = fmt.Errorf("failed to parse ContactInformation: %w", err)
-		logging.Log().WithError(err).Warn(problemTitleUpdateContactInformation)
-		return core.NewProblem(problemTitleUpdateContactInformation, http.StatusBadRequest, err.Error())
+		return core.InvalidInputError("failed to parse ContactInformation: %w", err)
 	}
 	newContactInfo, err := w.Didman.UpdateContactInformation(*id, contactInfo)
 	if err != nil {
-		logging.Log().WithError(err).Warn(problemTitleUpdateContactInformation)
-		return core.NewProblem(problemTitleUpdateContactInformation, getStatusCode(err), err.Error())
+		return err
 	}
 
 	return ctx.JSON(http.StatusOK, newContactInfo)
@@ -171,46 +162,18 @@ func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) erro
 // GetContactInformation handles requests for contact information for a specific DID.
 // It parses the did path param and passes it to didman.GetContactInformation.
 func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
-	id, err := parseDID(didStr, problemTitleGetContactInformation)
+	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return err
 	}
 
 	contactInfo, err := w.Didman.GetContactInformation(*id)
 	if err != nil {
-		logging.Log().WithError(err).Warn(problemTitleGetContactInformation)
-		return core.NewProblem(problemTitleGetContactInformation, getStatusCode(err), err.Error())
+		return err
 	}
 	if contactInfo == nil {
-		return core.NewProblem(problemTitleGetContactInformation, http.StatusNotFound, "contact information for DID not found")
+		return core.NotFoundError("contact information for DID not found")
 	}
 
 	return ctx.JSON(http.StatusOK, contactInfo)
-}
-
-func parseDID(didStr string, problemTitle string) (*did.DID, error) {
-	id, err := did.ParseDID(didStr)
-	if err != nil {
-		err = fmt.Errorf("failed to parse DID: %w", err)
-		logging.Log().WithError(err).Warn(problemTitle)
-		return nil, core.NewProblem(problemTitle, http.StatusBadRequest, err.Error())
-	}
-	return id, nil
-}
-
-var errorStatusCodes = map[error]int{
-	types.ErrNotFound:                http.StatusNotFound,
-	types.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
-	types.ErrDeactivated:             http.StatusConflict,
-	types.ErrDuplicateService:        http.StatusConflict,
-	didman.ErrServiceInUse:           http.StatusConflict,
-}
-
-func getStatusCode(err error) int {
-	for curr, code := range errorStatusCodes {
-		if errors.Is(err, curr) {
-			return code
-		}
-	}
-	return http.StatusInternalServerError
 }

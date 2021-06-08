@@ -29,11 +29,14 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/mock"
-	test2 "github.com/nuts-foundation/nuts-node/test"
 )
 
+func Test_ErrorStatusCodes(t *testing.T) {
+	assert.NotNil(t, (&Wrapper{}).ResolveStatusCode(nil))
+}
+
 func TestWrapper_SignJwt(t *testing.T) {
-	t.Run("Missing claims returns 400", func(t *testing.T) {
+	t.Run("error - missing claim", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
@@ -48,10 +51,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		test2.AssertErrProblemTitle(t, problemTitleSignJwt, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test2.AssertErrProblemDetail(t, "missing claims", err)
-
+		assert.EqualError(t, err, "invalid sign request: missing claims")
 	})
 
 	t.Run("Missing kid returns 400", func(t *testing.T) {
@@ -69,34 +69,10 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		test2.AssertErrProblemTitle(t, problemTitleSignJwt, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test2.AssertErrProblemDetail(t, "missing kid", err)
+		assert.EqualError(t, err, "invalid sign request: missing kid")
 	})
 
-	t.Run("Missing private key returns 400", func(t *testing.T) {
-		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-
-		jsonRequest := SignJwtRequest{
-			Kid:    "unknown",
-			Claims: map[string]interface{}{"iss": "nuts"},
-		}
-		jsonData, _ := json.Marshal(jsonRequest)
-
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal(jsonData, f)
-		})
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), "unknown").Return("", crypto.ErrKeyNotFound)
-
-		err := ctx.client.SignJwt(ctx.echo)
-
-		test2.AssertErrProblemTitle(t, problemTitleSignJwt, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test2.AssertErrProblemDetail(t, "no private key found for unknown", err)
-	})
-
-	t.Run("Sign error returns 500", func(t *testing.T) {
+	t.Run("error - SignJWT fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
@@ -113,9 +89,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		test2.AssertErrProblemTitle(t, problemTitleSignJwt, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusInternalServerError, err)
-		test2.AssertErrProblemDetail(t, "b00m!", err)
+		assert.EqualError(t, err, "b00m!")
 	})
 
 	t.Run("All OK returns 200", func(t *testing.T) {
@@ -140,7 +114,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
-	t.Run("Missing body gives 400", func(t *testing.T) {
+	t.Run("error - bind fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
@@ -148,9 +122,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 		err := ctx.client.SignJwt(ctx.echo)
 
-		test2.AssertErrProblemTitle(t, problemTitleSignJwt, err)
-		test2.AssertErrProblemStatusCode(t, http.StatusBadRequest, err)
-		test2.AssertErrProblemDetail(t, "missing body in request", err)
+		assert.EqualError(t, err, "missing body in request")
 	})
 }
 

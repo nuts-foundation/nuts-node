@@ -21,8 +21,7 @@ package v1
 
 import (
 	"errors"
-	"fmt"
-
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"testing"
 
@@ -35,9 +34,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_ErrorStatusCodes(t *testing.T) {
+	assert.NotNil(t, (&Wrapper{}).ResolveStatusCode(nil))
+}
 
 func TestWrapper_CreateDID(t *testing.T) {
 	issuer := vdr.TestDIDA.URI()
@@ -70,13 +72,10 @@ func TestWrapper_CreateDID(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 
 		err := ctx.client.Create(ctx.echo)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		assert.EqualError(t, err, "b00m!")
 	})
 
 	t.Run("error - issue error", func(t *testing.T) {
@@ -91,43 +90,17 @@ func TestWrapper_CreateDID(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("error - validation error", func(t *testing.T) {
+	t.Run("error - issue error", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any())
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, credential.ErrValidation)
 
 		err := ctx.client.Create(ctx.echo)
 
-		assert.NoError(t, err)
-	})
-
-	t.Run("error - DID not found", func(t *testing.T) {
-		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-
-		ctx.echo.EXPECT().Bind(gomock.Any())
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
-		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, fmt.Errorf("wrapped error: %w", types.ErrNotFound))
-
-		err := ctx.client.Create(ctx.echo)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("error - key not found", func(t *testing.T) {
-		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-
-		ctx.echo.EXPECT().Bind(gomock.Any())
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
-		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, fmt.Errorf("wrapped error: %w", types.ErrKeyNotFound))
-
-		err := ctx.client.Create(ctx.echo)
-
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, credential.ErrValidation)
+		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
 	})
 }
 
@@ -164,11 +137,11 @@ func TestWrapper_Resolve(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.vcr.EXPECT().Resolve(*id).Return(nil, vcr.ErrNotFound)
-		ctx.echo.EXPECT().NoContent(http.StatusNotFound).Return(nil)
 
 		err := ctx.client.Resolve(ctx.echo, idString)
 
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, vcr.ErrNotFound)
+		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -270,11 +243,11 @@ func TestWrapper_Search(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any())
-		ctx.echo.EXPECT().NoContent(http.StatusNotFound).Return(nil)
 
 		err := ctx.client.Search(ctx.echo, "unknown")
 
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, concept.ErrUnknownConcept)
+		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - Bind explodes", func(t *testing.T) {
@@ -282,11 +255,10 @@ func TestWrapper_Search(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any()).Return(nil)
 
 		err := ctx.client.Search(ctx.echo, "unknown")
 
-		assert.NoError(t, err)
+		assert.EqualError(t, err, "b00m!")
 	})
 
 	t.Run("error - search returns error", func(t *testing.T) {
@@ -322,58 +294,21 @@ func TestWrapper_Revoke(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
-
 		err := ctx.client.Revoke(ctx.echo, string([]byte{0}))
 
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	})
 
-	t.Run("error - already revoked", func(t *testing.T) {
+	t.Run("error - revoke error", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
 		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, vcr.ErrRevoked)
-		ctx.echo.EXPECT().NoContent(http.StatusConflict)
 
 		err := ctx.client.Revoke(ctx.echo, "test")
 
-		assert.NoError(t, err)
-	})
-
-	t.Run("err - not found", func(t *testing.T) {
-		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-
-		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, vcr.ErrNotFound)
-		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
-
-		err := ctx.client.Revoke(ctx.echo, "test")
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("err - not issuer", func(t *testing.T) {
-		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-
-		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, types.ErrKeyNotFound)
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
-
-		err := ctx.client.Revoke(ctx.echo, "test")
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("err - other", func(t *testing.T) {
-		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-
-		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, errors.New("b00m!"))
-
-		err := ctx.client.Revoke(ctx.echo, "test")
-
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, vcr.ErrRevoked)
+		assert.Equal(t, http.StatusConflict, ctx.client.ResolveStatusCode(err))
 	})
 }
 
@@ -395,7 +330,8 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 		ctx.vcr.EXPECT().Trust(cType, issuer).Return(nil)
 		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
 
-		ctx.client.TrustIssuer(ctx.echo)
+		err := ctx.client.TrustIssuer(ctx.echo)
+		assert.NoError(t, err)
 	})
 
 	t.Run("ok - remove", func(t *testing.T) {
@@ -411,7 +347,8 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 		ctx.vcr.EXPECT().Untrust(cType, issuer).Return(nil)
 		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
 
-		ctx.client.UntrustIssuer(ctx.echo)
+		err := ctx.client.UntrustIssuer(ctx.echo)
+		assert.NoError(t, err)
 	})
 
 	t.Run("error - invalid issuer", func(t *testing.T) {
@@ -424,9 +361,11 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 			capturedCombination.Issuer = string([]byte{0})
 			return nil
 		})
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 
-		ctx.client.TrustIssuer(ctx.echo)
+		err := ctx.client.TrustIssuer(ctx.echo)
+
+		assert.EqualError(t, err, "failed to parse issuer: parse \"\\x00\": net/url: invalid control character in URL")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - invalid credential", func(t *testing.T) {
@@ -439,9 +378,11 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 			capturedCombination.Issuer = cType.String()
 			return nil
 		})
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 
-		ctx.client.TrustIssuer(ctx.echo)
+		err := ctx.client.TrustIssuer(ctx.echo)
+
+		assert.EqualError(t, err, "malformed credential type: parse \"\\x00\": net/url: invalid control character in URL")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - invalid body", func(t *testing.T) {
@@ -451,9 +392,10 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			return errors.New("b00m!")
 		})
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
 
-		ctx.client.TrustIssuer(ctx.echo)
+		err := ctx.client.TrustIssuer(ctx.echo)
+
+		assert.EqualError(t, err, "b00m!")
 	})
 
 	t.Run("error - failed to add", func(t *testing.T) {
@@ -498,27 +440,14 @@ func TestWrapper_Trusted(t *testing.T) {
 		assert.Equal(t, credentialType.String(), capturedList[0])
 	})
 
-	t.Run("error - not found", func(t *testing.T) {
-		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-
-		ctx.vcr.EXPECT().Trusted(*credentialType).Return(nil, vcr.ErrInvalidCredential)
-		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
-
-		err := ctx.client.ListTrusted(ctx.echo, credentialType.String())
-
-		assert.NoError(t, err)
-	})
-
 	t.Run("error", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
-
 		err := ctx.client.ListTrusted(ctx.echo, string([]byte{0}))
 
-		assert.NoError(t, err)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 }
 
@@ -550,23 +479,10 @@ func TestWrapper_Untrusted(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.echo.EXPECT().String(http.StatusBadRequest, gomock.Any())
-
 		err := ctx.client.ListUntrusted(ctx.echo, string([]byte{0}))
 
-		assert.NoError(t, err)
-	})
-
-	t.Run("error - not found", func(t *testing.T) {
-		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-
-		ctx.vcr.EXPECT().Untrusted(*credentialType).Return(nil, vcr.ErrInvalidCredential)
-		ctx.echo.EXPECT().NoContent(http.StatusNotFound)
-
-		err := ctx.client.ListUntrusted(ctx.echo, credentialType.String())
-
-		assert.NoError(t, err)
+		assert.EqualError(t, err, "malformed credential type: parse \"\\x00\": net/url: invalid control character in URL")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - other", func(t *testing.T) {
@@ -577,7 +493,7 @@ func TestWrapper_Untrusted(t *testing.T) {
 
 		err := ctx.client.ListUntrusted(ctx.echo, credentialType.String())
 
-		assert.Error(t, err)
+		assert.EqualError(t, err, "b00m!")
 	})
 }
 
