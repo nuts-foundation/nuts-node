@@ -110,6 +110,8 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 	return ctx.JSON(http.StatusOK, endpoint)
 }
 
+// DeleteEndpoint handles calls to delete an endoint. It only checks params and sets the correct return status code.
+// didman.DeleteEndoint does the heavy lifting.
 func (w *Wrapper) DeleteEndpoint(ctx echo.Context, didStr string, endpointType string) error {
 	id, err := did.ParseDID(didStr)
 	if err != nil {
@@ -120,7 +122,7 @@ func (w *Wrapper) DeleteEndpoint(ctx echo.Context, didStr string, endpointType s
 		return core.InvalidInputError("invalid endpointType")
 	}
 
-	w.Didman.DeleteEndpoint(*id, endpointType)
+	err = w.Didman.DeleteEndpoint(*id, endpointType)
 	if err != nil {
 		return err
 	}
