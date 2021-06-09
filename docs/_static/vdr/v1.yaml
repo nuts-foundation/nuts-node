@@ -345,9 +345,7 @@ components:
           type: string
         serviceEndpoint:
           description: Either a URI or a complex object.
-          oneOf:
-            - type: string
-            - type: object
+          type: object
     DIDUpdateRequest:
       required:
         - document
