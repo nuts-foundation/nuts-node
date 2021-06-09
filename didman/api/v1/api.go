@@ -37,6 +37,7 @@ import (
 
 var _ ServerInterface = (*Wrapper)(nil)
 var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
+
 const problemTitleAddEndpoint = "Adding Endpoint failed"
 const problemTitleDeleteEndpoint = "Removing Endpoint failed"
 const problemTitleAddCompoundService = "Adding Compound Service failed"
@@ -60,7 +61,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		types.ErrDuplicateService:        http.StatusConflict,
 		didman.ErrServiceInUse:           http.StatusConflict,
 		vdrDoc.ErrInvalidOptions:         http.StatusBadRequest,
-		core.InvalidInputError(""): http.StatusBadRequest,
+		core.InvalidInputError(""):       http.StatusBadRequest,
 	})
 	if status > 0 {
 		return status

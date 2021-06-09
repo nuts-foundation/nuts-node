@@ -141,7 +141,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
 	docA := did.Document{
 		Context: []ssi.URI{did.DIDContextV1URI()},
-		ID: *vdr.TestDIDA,
+		ID:      *vdr.TestDIDA,
 		Service: []did.Service{{
 			ID:              *serviceID,
 			Type:            "hello",
@@ -150,7 +150,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	}
 	docB := did.Document{
 		Context: []ssi.URI{did.DIDContextV1URI()},
-		ID: *vdr.TestDIDB,
+		ID:      *vdr.TestDIDB,
 		Service: []did.Service{
 			{
 				Type:            "world",
@@ -422,9 +422,9 @@ func TestDidman_GetContactInformation(t *testing.T) {
 func TestDidman_GetCompoundServices(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
 	expected := []did.Service{{
-			Type:            "eOverdracht",
-			ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
-		}}
+		Type:            "eOverdracht",
+		ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
+	}}
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		didDoc := &did.Document{Service: expected}
