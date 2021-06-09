@@ -38,14 +38,6 @@ import (
 var _ ServerInterface = (*Wrapper)(nil)
 var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
 
-const problemTitleAddEndpoint = "Adding Endpoint failed"
-const problemTitleDeleteEndpoint = "Removing Endpoint failed"
-const problemTitleAddCompoundService = "Adding Compound Service failed"
-const problemTitleDeleteService = "Deleting Service failed"
-const problemTitleUpdateContactInformation = "Updating contact information failed"
-const problemTitleGetContactInformation = "Getting node's contact information failed"
-const problemTitleGetCompoundServices = "Getting compound services failed"
-
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
 	Didman didman.Didman
