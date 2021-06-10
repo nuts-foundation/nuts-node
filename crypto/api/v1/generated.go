@@ -308,6 +308,10 @@ type EchoRouter interface {
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type Preprocessor interface {
+	Preprocess(operationId string, context echo.Context)
+}
+
 type ErrorStatusCodeResolver interface {
 	ResolveStatusCode(err error) int
 }
@@ -328,10 +332,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
 	// so it can be used in error reporting middleware.
 	router.Add(http.MethodPost, baseURL+"/internal/crypto/v1/sign_jwt", func(context echo.Context) error {
-		context.Set("!!OperationId", "SignJwt")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("SignJwt", context)
 		return wrapper.SignJwt(context)
 	})
 

@@ -62,6 +62,13 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 	})
 }
 
+// Preprocess is called just before the API operation itself is invoked.
+func (w *Wrapper) Preprocess(operationId string, context echo.Context) {
+	context.Set(core.StatusCodeResolverContextKey, w)
+	context.Set(core.OperationIDContextKey, operationId)
+	context.Set(core.ModuleNameContextKey, auth.ModuleName)
+}
+
 // Routes registers the Echo routes for the API.
 func (w *Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, w)

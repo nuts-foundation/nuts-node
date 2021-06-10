@@ -89,6 +89,19 @@ func createContext(t *testing.T) *TestContext {
 	}
 }
 
+func TestWrapper_Preprocess(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	w := &Wrapper{}
+	ctx := mock.NewMockContext(ctrl)
+	ctx.EXPECT().Set(core.StatusCodeResolverContextKey, w)
+	ctx.EXPECT().Set(core.OperationIDContextKey, "foo")
+	ctx.EXPECT().Set(core.ModuleNameContextKey, "Auth")
+
+	w.Preprocess("foo", ctx)
+}
+
 func TestWrapper_GetSignSessionStatus(t *testing.T) {
 	t.Run("ok - started without VP", func(t *testing.T) {
 		ctx := createContext(t)

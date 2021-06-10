@@ -47,7 +47,8 @@ const boltDBFileMode = 0600
 const implVendorName = "https://github.com/nuts-foundation/nuts-node"
 
 const (
-	moduleName = "Network"
+	// ModuleName specifies the name of this module.
+	ModuleName = "Network"
 	configKey  = "network"
 )
 
@@ -112,7 +113,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 
 // Name returns the module name.
 func (n *Network) Name() string {
-	return moduleName
+	return ModuleName
 }
 
 // ConfigKey returns the config key for the module.

@@ -21,6 +21,7 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"testing"
 
@@ -30,6 +31,19 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/mock"
 )
+
+func TestWrapper_Preprocess(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	w := &Wrapper{}
+	ctx := mock.NewMockContext(ctrl)
+	ctx.EXPECT().Set(core.StatusCodeResolverContextKey, w)
+	ctx.EXPECT().Set(core.OperationIDContextKey, "foo")
+	ctx.EXPECT().Set(core.ModuleNameContextKey, "Crypto")
+
+	w.Preprocess("foo", ctx)
+}
 
 func Test_ErrorStatusCodes(t *testing.T) {
 	assert.NotNil(t, (&Wrapper{}).ResolveStatusCode(nil))

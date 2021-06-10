@@ -36,10 +36,11 @@ func TestHttpErrorHandler(t *testing.T) {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		assert.Equal(t, "{\"detail\":\"failed\",\"status\":403,\"title\":\"Operation failed\"}", string(bodyBytes))
 	})
-	t.Run("no resolver", func(t *testing.T) {
+	t.Run("code from resolver", func(t *testing.T) {
 		f := func(c echo.Context) error {
-			c.Set(operationIDContextKey, "test")
-			c.Set(statusCodeResolverContextKey, &stubResolver{})
+			c.Set(OperationIDContextKey, "test")
+			c.Set(ModuleNameContextKey, "some-module")
+			c.Set(StatusCodeResolverContextKey, &stubResolver{})
 			return err
 		}
 		es.Add(http.MethodGet, "/", f)
@@ -52,9 +53,9 @@ func TestHttpErrorHandler(t *testing.T) {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		assert.Equal(t, "{\"detail\":\"error 2\",\"status\":424,\"title\":\"test failed\"}", string(bodyBytes))
 	})
-	t.Run("code from resolver", func(t *testing.T) {
+	t.Run("no resolver", func(t *testing.T) {
 		f := func(c echo.Context) error {
-			c.Set(operationIDContextKey, "test")
+			c.Set(OperationIDContextKey, "test")
 			return errors.New("other error")
 		}
 		es.Add(http.MethodGet, "/", f)
