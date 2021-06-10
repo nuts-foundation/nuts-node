@@ -150,12 +150,13 @@ func startNode(name string, directory string) (*Network, error) {
 		p2pNetwork: p2p.NewAdapter(),
 		protocol:   proto.NewProtocol(),
 		config: Config{
-			GrpcAddr:             fmt.Sprintf(":%d", nameToPort(name)),
-			CertFile:             "test/certificate-and-key.pem",
-			CertKeyFile:          "test/certificate-and-key.pem",
-			TrustStoreFile:       "test/truststore.pem",
-			EnableTLS:            true,
-			AdvertHashesInterval: 500,
+			GrpcAddr:                  fmt.Sprintf(":%d", nameToPort(name)),
+			CertFile:                  "test/certificate-and-key.pem",
+			CertKeyFile:               "test/certificate-and-key.pem",
+			TrustStoreFile:            "test/truststore.pem",
+			EnableTLS:                 true,
+			AdvertHashesInterval:      500,
+			AdvertDiagnosticsInterval: 5000,
 		},
 	}
 	if err := instance.Configure(core.ServerConfig{Datadir: directory}); err != nil {

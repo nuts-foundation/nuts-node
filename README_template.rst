@@ -23,7 +23,7 @@ Distributed registry for storing and querying health care providers their vendor
    :target: https://github.com/nuts-foundation/nuts-node/actions/workflows/build-images.yaml
    :alt: Build Docker images
 
-.. include:: docs/pages/development/development.rst
+.. include:: docs/pages/development/1-development.rst
     :start-after: .. marker-for-readme
 
 Configuration

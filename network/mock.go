@@ -9,6 +9,8 @@ import (
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
+	p2p "github.com/nuts-foundation/nuts-node/network/p2p"
+	proto "github.com/nuts-foundation/nuts-node/network/proto"
 	reflect "reflect"
 	time "time"
 )
@@ -120,4 +122,18 @@ func (m *MockTransactions) Walk(visitor dag.Visitor) error {
 func (mr *MockTransactionsMockRecorder) Walk(visitor interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockTransactions)(nil).Walk), visitor)
+}
+
+// PeerDiagnostics mocks base method
+func (m *MockTransactions) PeerDiagnostics() map[p2p.PeerID]proto.Diagnostics {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PeerDiagnostics")
+	ret0, _ := ret[0].(map[p2p.PeerID]proto.Diagnostics)
+	return ret0
+}
+
+// PeerDiagnostics indicates an expected call of PeerDiagnostics
+func (mr *MockTransactionsMockRecorder) PeerDiagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerDiagnostics", reflect.TypeOf((*MockTransactions)(nil).PeerDiagnostics))
 }

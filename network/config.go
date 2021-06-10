@@ -18,17 +18,20 @@ type Config struct {
 	CertKeyFile    string   `koanf:"certkeyfile"`
 	TrustStoreFile string   `koanf:"truststorefile"`
 
-	// AdvertHashesInterval specifies how often (in milliseconds) the node should broadcasts its last hashes so
-	// other nodes can compare and synchronize.
-	AdvertHashesInterval int
+	// AdvertHashesInterval specifies how often (in milliseconds) the node should broadcasts its last hashes,
+	// so other nodes can compare and synchronize.
+	AdvertHashesInterval int `koanf:"adverthashesinterval"`
+	// AdvertDiagnosticsInterval specifies how often (in milliseconds) the node should query its peers for diagnostic information.
+	AdvertDiagnosticsInterval int `koanf:"advertdiagnosticsinterval"`
 }
 
 // DefaultConfig returns the default NetworkEngine configuration.
 func DefaultConfig() Config {
 	return Config{
-		GrpcAddr:             ":5555",
-		EnableTLS:            true,
-		AdvertHashesInterval: 2000,
+		GrpcAddr:                  ":5555",
+		EnableTLS:                 true,
+		AdvertHashesInterval:      2000,
+		AdvertDiagnosticsInterval: 5000,
 	}
 }
 

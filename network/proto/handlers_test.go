@@ -292,6 +292,28 @@ func TestProtocol_HandleTransactionPayload(t *testing.T) {
 	})
 }
 
+func TestProtocol_handleDiagnostics(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := newContext(t)
+		msg := &transport.NetworkMessage_DiagnosticsBroadcast{DiagnosticsBroadcast: &transport.Diagnostics{
+			Uptime:               1000,
+			Peers:                []string{"test"},
+			NumberOfTransactions: 5,
+			Version:              "1.0",
+			Vendor:               "TEST",
+		}}
+		err := ctx.handle(msg)
+
+		assert.NoError(t, err)
+		actual := ctx.instance.peerDiagnostics[peer]
+		assert.Equal(t, 1000 * time.Second, actual.Uptime)
+		assert.Equal(t, []p2p.PeerID{"test"}, actual.Peers)
+		assert.Equal(t, uint32(5), actual.NumberOfTransactions)
+		assert.Equal(t, "1.0", actual.Version)
+		assert.Equal(t, "TEST", actual.Vendor)
+	})
+}
+
 func TestProtocol_handleMessage(t *testing.T) {
 	t.Run("empty message", func(t *testing.T) {
 		ctx := newContext(t)
@@ -431,6 +453,8 @@ func (ctx testContext) handle(msg interface{}) error {
 	case *transport.NetworkMessage_TransactionPayloadQuery:
 		envelope.Message = msg
 	case *transport.NetworkMessage_TransactionPayload:
+		envelope.Message = msg
+	case *transport.NetworkMessage_DiagnosticsBroadcast:
 		envelope.Message = msg
 	default:
 		panic(fmt.Sprintf("Can't handle msg type: %T", msg))

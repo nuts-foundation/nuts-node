@@ -18,11 +18,15 @@
 package v1
 
 import (
+	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/network/p2p"
+	"github.com/nuts-foundation/nuts-node/network/proto"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
@@ -35,6 +39,22 @@ import (
 var payload = []byte("Hello, World!")
 
 func TestApiWrapper_GetTransaction(t *testing.T) {
+	r := GetPeerDiagnosticsResponse{
+		JSON200:      &struct {
+			AdditionalProperties map[string]PeerDiagnostics `json:"-"`
+		}{
+			AdditionalProperties: map[string]PeerDiagnostics{"peer": {
+				Uptime:               10,
+				Peers:                nil,
+				NumberOfTransactions: 5,
+				Version:              "",
+				Vendor:               "aaa",
+			}},
+		},
+	}
+	bytes, _ := json.Marshal(r.JSON200)
+	println(string(bytes))
+
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	transaction := dag.CreateTestTransactionWithJWK(1)
@@ -105,6 +125,32 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 
 		assert.EqualError(t, err, "transaction not found")
 	})
+}
+
+func TestApiWrapper_GetPeerDiagnostics(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var networkClient = network.NewMockTransactions(mockCtrl)
+	e, wrapper := initMockEcho(networkClient)
+	networkClient.EXPECT().PeerDiagnostics().Return(map[p2p.PeerID]proto.Diagnostics{"foo": {
+		Uptime:               1000 * time.Second,
+		Peers:                []p2p.PeerID{"bar"},
+		NumberOfTransactions: 5,
+		Version:              "1.0",
+		Vendor:               "Test",
+	}})
+
+	req := httptest.NewRequest(echo.GET, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/diagnostics/peers")
+
+	err := wrapper.GetPeerDiagnostics(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "application/json; charset=UTF-8", rec.Header().Get("Content-Type"))
+	assert.Equal(t, `{"foo":{"uptime":1000,"peers":["bar"],"transactionNum":5,"version":"1.0","vendor":"Test"}}`, strings.TrimSpace(rec.Body.String()))
 }
 
 func TestApiWrapper_RenderGraph(t *testing.T) {
@@ -248,6 +294,30 @@ func TestApiWrapper_ListTransactions(t *testing.T) {
 		err := wrapper.ListTransactions(c)
 
 		assert.EqualError(t, err, "failed")
+	})
+}
+
+func TestWrapper_GetPeerDiagnostics(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	t.Run("200", func(t *testing.T) {
+		var networkClient = network.NewMockTransactions(mockCtrl)
+		e, wrapper := initMockEcho(networkClient)
+		expected := map[p2p.PeerID]proto.Diagnostics{"foo": {Uptime: 50 * time.Second}}
+		networkClient.EXPECT().PeerDiagnostics().Return(expected)
+
+		req := httptest.NewRequest(echo.GET, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetPath("/diagnostics/peers")
+
+		err := wrapper.GetPeerDiagnostics(c)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		actual := map[p2p.PeerID]PeerDiagnostics{}
+		json.Unmarshal(rec.Body.Bytes(), &actual)
+		assert.Equal(t, PeerDiagnostics(expected["foo"]), actual["foo"])
 	})
 }
 

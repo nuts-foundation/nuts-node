@@ -181,6 +181,20 @@ func (mr *MockDAGMockRecorder) Verify() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockDAG)(nil).Verify))
 }
 
+// Statistics mocks base method
+func (m *MockDAG) Statistics() Statistics {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Statistics")
+	ret0, _ := ret[0].(Statistics)
+	return ret0
+}
+
+// Statistics indicates an expected call of Statistics
+func (mr *MockDAGMockRecorder) Statistics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Statistics", reflect.TypeOf((*MockDAG)(nil).Statistics))
+}
+
 // MockPublisher is a mock of Publisher interface
 type MockPublisher struct {
 	ctrl     *gomock.Controller

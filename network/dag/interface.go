@@ -54,6 +54,15 @@ type DAG interface {
 	Heads() []hash.SHA256Hash
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
 	Verify() error
+	Statistics() Statistics
+}
+
+// Statistics holds data about the current state of the DAG.
+type Statistics struct {
+	// NumberOfTransactions contains the number of transactions on the DAG
+	NumberOfTransactions int
+	// DataSize contains the size of the DAG in bytes
+	DataSize int
 }
 
 // Publisher defines the interface for types that publish Nuts Network transactions.

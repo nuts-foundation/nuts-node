@@ -18,9 +18,33 @@ func Test_ProtocolLifecycle(t *testing.T) {
 	publisher := dag.NewMockPublisher(mockCtrl)
 	publisher.EXPECT().Subscribe("*", gomock.Any())
 
-	instance.Configure(p2p.NewAdapter(), dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), time.Second*2, "local")
+	instance.Configure(p2p.NewAdapter(), dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), nil, time.Second*2, time.Second*5, "local")
 	instance.Start()
 	instance.Stop()
+}
+
+func Test_Protocol_PeerDiagnostics(t *testing.T) {
+	instance := NewProtocol().(*protocol)
+
+	instance.peerDiagnostics[peer] = Diagnostics{
+		Peers:   []p2p.PeerID{"some-peer"},
+		Version: "1.0",
+	}
+	diagnostics := instance.PeerDiagnostics()
+	instance.peerDiagnostics[peer].Peers[0] = "other-peer" // mutate entry to make sure function returns a copy
+	assert.Len(t, diagnostics, 1)
+	actual := diagnostics[peer]
+	assert.Equal(t, "1.0", actual.Version)
+	assert.Equal(t, []p2p.PeerID{"some-peer"}, actual.Peers)
+}
+
+func Test_Protocol_StartAdvertingDiagnostics(t *testing.T) {
+	t.Run("disabled", func(t *testing.T) {
+		instance := NewProtocol().(*protocol)
+		instance.advertDiagnosticsInterval = 0 * time.Second // this is what would be configured
+		instance.startAdvertingDiagnostics()
+		// This is a blocking function when the feature is enabled, so if we reach the end of the test everything works as intended.
+	})
 }
 
 func Test_Protocol_Diagnostics(t *testing.T) {

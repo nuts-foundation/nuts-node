@@ -13,6 +13,7 @@ import (
 // implementation of non-functional requirements like throttling.
 type messageSender interface {
 	broadcastAdvertHashes(blocks []dagBlock)
+	broadcastDiagnostics(diagnostics Diagnostics)
 	sendTransactionListQuery(peer p2p.PeerID, blockDate time.Time)
 	sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, date time.Time)
 	sendTransactionPayloadQuery(peer p2p.PeerID, payloadHash hash.SHA256Hash)
@@ -32,6 +33,21 @@ func (s defaultMessageSender) doSend(peer p2p.PeerID, envelope *transport.Networ
 func (s defaultMessageSender) broadcastAdvertHashes(blocks []dagBlock) {
 	envelope := createEnvelope()
 	envelope.Message = createAdvertHashesMessage(blocks)
+	s.p2p.Broadcast(&envelope)
+}
+
+func (s defaultMessageSender) broadcastDiagnostics(diagnostics Diagnostics) {
+	envelope := createEnvelope()
+	message := transport.Diagnostics{
+		Uptime:               uint32(diagnostics.Uptime.Seconds()),
+		NumberOfTransactions: diagnostics.NumberOfTransactions,
+		Version:              diagnostics.Version,
+		Vendor:               diagnostics.Vendor,
+	}
+	for _, peer := range diagnostics.Peers {
+		message.Peers = append(message.Peers, peer.String())
+	}
+	envelope.Message = &transport.NetworkMessage_DiagnosticsBroadcast{DiagnosticsBroadcast: &message}
 	s.p2p.Broadcast(&envelope)
 }
 

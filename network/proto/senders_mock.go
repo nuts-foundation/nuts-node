@@ -48,6 +48,18 @@ func (mr *MockmessageSenderMockRecorder) broadcastAdvertHashes(blocks interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastAdvertHashes", reflect.TypeOf((*MockmessageSender)(nil).broadcastAdvertHashes), blocks)
 }
 
+// broadcastDiagnostics mocks base method
+func (m *MockmessageSender) broadcastDiagnostics(diagnostics Diagnostics) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "broadcastDiagnostics", diagnostics)
+}
+
+// broadcastDiagnostics indicates an expected call of broadcastDiagnostics
+func (mr *MockmessageSenderMockRecorder) broadcastDiagnostics(diagnostics interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastDiagnostics", reflect.TypeOf((*MockmessageSender)(nil).broadcastDiagnostics), diagnostics)
+}
+
 // sendTransactionListQuery mocks base method
 func (m *MockmessageSender) sendTransactionListQuery(peer p2p.PeerID, blockDate time.Time) {
 	m.ctrl.T.Helper()
