@@ -150,7 +150,6 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
 		assert.ErrorIs(t, err, core.InvalidInputError(""))
-		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
 	})
 
 	t.Run("error - deactivated", func(t *testing.T) {
@@ -210,7 +209,6 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
 		assert.Equal(t, err.Error(), "b00m!")
-		assert.Equal(t, http.StatusInternalServerError, ctx.wrapper.ResolveStatusCode(err))
 	})
 }
 

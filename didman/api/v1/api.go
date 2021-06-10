@@ -45,7 +45,7 @@ type Wrapper struct {
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
-	status := core.ResolveStatusCode(err, map[error]int{
+	return core.ResolveStatusCode(err, map[error]int{
 		did.ErrInvalidDID:                http.StatusBadRequest,
 		types.ErrNotFound:                http.StatusNotFound,
 		types.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
@@ -53,12 +53,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		types.ErrDuplicateService:        http.StatusConflict,
 		didman.ErrServiceInUse:           http.StatusConflict,
 		vdrDoc.ErrInvalidOptions:         http.StatusBadRequest,
-		core.InvalidInputError(""):       http.StatusBadRequest,
 	})
-	if status > 0 {
-		return status
-	}
-	return http.StatusInternalServerError
 }
 
 // Preprocess is called just before the API operation itself is invoked.
