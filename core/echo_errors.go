@@ -11,9 +11,11 @@ import (
 
 // StatusCodeResolverContextKey contains the key for the Echo context parameter that specifies a custom HTTP status code resolver.
 const StatusCodeResolverContextKey = "!!StatusCodeResolver"
+
 // OperationIDContextKey contains the key for the Echo context parameter that specifies the name of the OpenAPI operation being called,
 // for logging/error returning.
 const OperationIDContextKey = "!!OperationId"
+
 // ModuleNameContextKey contains the key for the Echo context parameter that specifies the module that contains the OpenAPI operation being called,
 // for logging/error returning.
 const ModuleNameContextKey = "!!ModuleName"

@@ -43,7 +43,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 }
 
 // Preprocess is called just before the API operation itself is invoked.
-func (w *Wrapper) Preprocess(operationId string, context echo.Context) {
+func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.StatusCodeResolverContextKey, w)
 	context.Set(core.OperationIDContextKey, operationId)
 	context.Set(core.ModuleNameContextKey, crypto.ModuleName)

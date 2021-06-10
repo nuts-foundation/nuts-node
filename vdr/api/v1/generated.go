@@ -1027,7 +1027,7 @@ type EchoRouter interface {
 }
 
 type Preprocessor interface {
-	Preprocess(operationId string, context echo.Context)
+	Preprocess(operationID string, context echo.Context)
 }
 
 type ErrorStatusCodeResolver interface {
