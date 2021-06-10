@@ -38,6 +38,15 @@ func Test_Protocol_PeerDiagnostics(t *testing.T) {
 	assert.Equal(t, []p2p.PeerID{"some-peer"}, actual.Peers)
 }
 
+func Test_Protocol_StartAdvertingDiagnostics(t *testing.T) {
+	t.Run("disabled", func(t *testing.T) {
+		instance := NewProtocol().(*protocol)
+		instance.advertDiagnosticsInterval = 0 * time.Second // this is what would be configured
+		instance.startAdvertingDiagnostics()
+		// This is a blocking function when the feature is enabled, so if we reach the end of the test everything works as intended.
+	})
+}
+
 func Test_Protocol_Diagnostics(t *testing.T) {
 	instance := NewProtocol().(*protocol)
 

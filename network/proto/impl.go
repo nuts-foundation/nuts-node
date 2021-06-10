@@ -128,6 +128,10 @@ func (p protocol) startAdvertingHashes() {
 }
 
 func (p protocol) startAdvertingDiagnostics() {
+	if p.advertDiagnosticsInterval.Nanoseconds() == 0 {
+		log.Logger().Info("Diagnostics broadcasting is disabled.")
+		return
+	}
 	ticker := time.NewTicker(p.advertDiagnosticsInterval)
 	for {
 		select {
