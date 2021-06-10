@@ -36,7 +36,7 @@ type Wrapper struct {
 
 // Preprocess is called just before the API operation itself is invoked.
 func (a *Wrapper) Preprocess(operationID string, context echo.Context) {
-	context.Set(core.OperationIDContextKey, operationId)
+	context.Set(core.OperationIDContextKey, operationID)
 	context.Set(core.ModuleNameContextKey, network.ModuleName)
 }
 
