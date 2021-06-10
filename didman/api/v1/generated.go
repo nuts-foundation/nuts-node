@@ -1069,7 +1069,7 @@ type ServerInterface interface {
 	// Add a predetermined DID Service with real life contact information
 	// (PUT /internal/didman/v1/did/{did}/contactinfo)
 	UpdateContactInformation(ctx echo.Context, did string) error
-	// Add an service endpoint or a reference to a service.
+	// Add a service endpoint or a reference to a service.
 	// (POST /internal/didman/v1/did/{did}/endpoint)
 	AddEndpoint(ctx echo.Context, did string) error
 

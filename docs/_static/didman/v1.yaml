@@ -61,7 +61,7 @@ paths:
         schema:
           type: string
     post:
-      summary: Add an service endpoint or a reference to a service.
+      summary: Add a service endpoint or a reference to a service.
       description: |
         To distinguish from compound services, this type of service will be called an endpoint.
         In the Nuts specs this type of service is called a concrete service.
@@ -137,7 +137,9 @@ paths:
       summary: Get a list of compound services for a DID document.
       responses:
         "200":
-          description: The compound service has been added to the DID Document
+          description: |
+            The list of compound services on the DID document.
+            It excludes special compound services like ContactInformation.
           content:
             application/json:
               schema:
