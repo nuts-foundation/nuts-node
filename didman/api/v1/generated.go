@@ -919,6 +919,10 @@ type EchoRouter interface {
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type Preprocessor interface {
+	Preprocess(operationID string, context echo.Context)
+}
+
 type ErrorStatusCodeResolver interface {
 	ResolveStatusCode(err error) int
 }
@@ -939,38 +943,23 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
 	// so it can be used in error reporting middleware.
 	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/compoundservice", func(context echo.Context) error {
-		context.Set("!!OperationId", "AddCompoundService")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("AddCompoundService", context)
 		return wrapper.AddCompoundService(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/didman/v1/did/:did/contactinfo", func(context echo.Context) error {
-		context.Set("!!OperationId", "GetContactInformation")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("GetContactInformation", context)
 		return wrapper.GetContactInformation(context)
 	})
 	router.Add(http.MethodPut, baseURL+"/internal/didman/v1/did/:did/contactinfo", func(context echo.Context) error {
-		context.Set("!!OperationId", "UpdateContactInformation")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("UpdateContactInformation", context)
 		return wrapper.UpdateContactInformation(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/didman/v1/did/:did/endpoint", func(context echo.Context) error {
-		context.Set("!!OperationId", "AddEndpoint")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("AddEndpoint", context)
 		return wrapper.AddEndpoint(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/service/:id", func(context echo.Context) error {
-		context.Set("!!OperationId", "DeleteService")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("DeleteService", context)
 		return wrapper.DeleteService(context)
 	})
 

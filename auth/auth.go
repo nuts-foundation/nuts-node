@@ -34,7 +34,7 @@ type Auth struct {
 
 // Name returns the name of the module.
 func (auth *Auth) Name() string {
-	return moduleName
+	return ModuleName
 }
 
 // ConfigKey returns the config key of the module.

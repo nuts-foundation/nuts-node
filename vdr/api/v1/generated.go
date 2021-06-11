@@ -1026,6 +1026,10 @@ type EchoRouter interface {
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type Preprocessor interface {
+	Preprocess(operationID string, context echo.Context)
+}
+
 type ErrorStatusCodeResolver interface {
 	ResolveStatusCode(err error) int
 }
@@ -1046,45 +1050,27 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
 	// so it can be used in error reporting middleware.
 	router.Add(http.MethodPost, baseURL+"/internal/vdr/v1/did", func(context echo.Context) error {
-		context.Set("!!OperationId", "CreateDID")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("CreateDID", context)
 		return wrapper.CreateDID(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/vdr/v1/did/:did", func(context echo.Context) error {
-		context.Set("!!OperationId", "DeactivateDID")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("DeactivateDID", context)
 		return wrapper.DeactivateDID(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/vdr/v1/did/:did", func(context echo.Context) error {
-		context.Set("!!OperationId", "GetDID")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("GetDID", context)
 		return wrapper.GetDID(context)
 	})
 	router.Add(http.MethodPut, baseURL+"/internal/vdr/v1/did/:did", func(context echo.Context) error {
-		context.Set("!!OperationId", "UpdateDID")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("UpdateDID", context)
 		return wrapper.UpdateDID(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/vdr/v1/did/:did/verificationmethod", func(context echo.Context) error {
-		context.Set("!!OperationId", "AddNewVerificationMethod")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("AddNewVerificationMethod", context)
 		return wrapper.AddNewVerificationMethod(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/vdr/v1/did/:did/verificationmethod/:kid", func(context echo.Context) error {
-		context.Set("!!OperationId", "DeleteVerificationMethod")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("DeleteVerificationMethod", context)
 		return wrapper.DeleteVerificationMethod(context)
 	})
 

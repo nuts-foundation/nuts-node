@@ -131,7 +131,7 @@ func TestCrypto_Configure(t *testing.T) {
 
 func Test_CryptoGetters(t *testing.T) {
 	instance := NewCryptoInstance()
-	assert.Equal(t, moduleName, instance.Name())
+	assert.Equal(t, ModuleName, instance.Name())
 	assert.Equal(t, configKey, instance.ConfigKey())
 	assert.Equal(t, &instance.config, instance.Config())
 }

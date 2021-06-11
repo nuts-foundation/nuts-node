@@ -20,6 +20,8 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/proto"
 	"net/http"
@@ -328,4 +330,16 @@ func initMockEcho(networkClient *network.MockTransactions) (*echo.Echo, *ServerI
 		Handler: stub,
 	}
 	return e, wrapper
+}
+
+func TestWrapper_Preprocess(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	w := &Wrapper{}
+	ctx := mock.NewMockContext(ctrl)
+	ctx.EXPECT().Set(core.OperationIDContextKey, "foo")
+	ctx.EXPECT().Set(core.ModuleNameContextKey, "Network")
+
+	w.Preprocess("foo", ctx)
 }

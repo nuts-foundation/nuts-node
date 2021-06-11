@@ -34,6 +34,12 @@ type Wrapper struct {
 	Service network.Transactions
 }
 
+// Preprocess is called just before the API operation itself is invoked.
+func (a *Wrapper) Preprocess(operationID string, context echo.Context) {
+	context.Set(core.OperationIDContextKey, operationID)
+	context.Set(core.ModuleNameContextKey, network.ModuleName)
+}
+
 func (a *Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, a)
 }

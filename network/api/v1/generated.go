@@ -730,6 +730,10 @@ type EchoRouter interface {
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type Preprocessor interface {
+	Preprocess(operationID string, context echo.Context)
+}
+
 type ErrorStatusCodeResolver interface {
 	ResolveStatusCode(err error) int
 }
@@ -750,10 +754,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
 	// so it can be used in error reporting middleware.
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/diagnostics/graph", func(context echo.Context) error {
-		context.Set("!!OperationId", "RenderGraph")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("RenderGraph", context)
 		return wrapper.RenderGraph(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/diagnostics/peers", func(context echo.Context) error {
@@ -764,24 +765,15 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		return wrapper.GetPeerDiagnostics(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction", func(context echo.Context) error {
-		context.Set("!!OperationId", "ListTransactions")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("ListTransactions", context)
 		return wrapper.ListTransactions(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref", func(context echo.Context) error {
-		context.Set("!!OperationId", "GetTransaction")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("GetTransaction", context)
 		return wrapper.GetTransaction(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref/payload", func(context echo.Context) error {
-		context.Set("!!OperationId", "GetTransactionPayload")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("GetTransactionPayload", context)
 		return wrapper.GetTransactionPayload(context)
 	})
 

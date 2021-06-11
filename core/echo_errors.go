@@ -4,13 +4,21 @@ import (
 	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/didman/logging"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"schneider.vip/problem"
 )
 
-const statusCodeResolverContextKey = "!!StatusCodeResolver"
-const operationIDContextKey = "!!OperationId"
+// StatusCodeResolverContextKey contains the key for the Echo context parameter that specifies a custom HTTP status code resolver.
+const StatusCodeResolverContextKey = "!!StatusCodeResolver"
+
+// OperationIDContextKey contains the key for the Echo context parameter that specifies the name of the OpenAPI operation being called,
+// for logging/error returning.
+const OperationIDContextKey = "!!OperationId"
+
+// ModuleNameContextKey contains the key for the Echo context parameter that specifies the module that contains the OpenAPI operation being called,
+// for logging/error returning.
+const ModuleNameContextKey = "!!ModuleName"
 const unmappedStatusCode = 0
 
 func createHTTPErrorHandler() echo.HTTPErrorHandler {
@@ -24,24 +32,25 @@ func createHTTPErrorHandler() echo.HTTPErrorHandler {
 				err:        echoErr,
 			}
 		}
-		operationID := ctx.Get(operationIDContextKey)
+		operationID := ctx.Get(OperationIDContextKey)
 		title := "Operation failed"
 		if operationID != nil {
 			title = fmt.Sprintf("%s failed", fmt.Sprintf("%s", operationID))
 		}
 		statusCode := getHTTPStatusCode(err, ctx)
 		result := problem.New(problem.Title(title), problem.Status(statusCode), problem.Detail(err.Error()))
+		logger := getContextLogger(ctx)
 		if statusCode == http.StatusInternalServerError {
-			logging.Log().WithError(err).Error(title)
+			logger.WithError(err).Error(title)
 		} else {
-			logging.Log().WithError(err).Warn(title)
+			logger.WithError(err).Warn(title)
 		}
 		if !ctx.Response().Committed {
 			if _, err := result.WriteTo(ctx.Response()); err != nil {
-				ctx.Echo().Logger.Error(err)
+				logger.Error(err)
 			}
 		} else {
-			ctx.Echo().Logger.Warnf("Unable to send error back to client, response already committed: %v", err)
+			logger.Warnf("Unable to send error back to client, response already committed: %v", err)
 		}
 	}
 }
@@ -112,7 +121,7 @@ func getHTTPStatusCode(err error, ctx echo.Context) int {
 		return predefined.statusCode
 	}
 
-	statusCodeResolverInterf := ctx.Get(statusCodeResolverContextKey)
+	statusCodeResolverInterf := ctx.Get(StatusCodeResolverContextKey)
 	var result int
 	if statusCodeResolverInterf != nil {
 		if statusCodeResolver, ok := statusCodeResolverInterf.(ErrorStatusCodeResolver); ok {
@@ -123,4 +132,17 @@ func getHTTPStatusCode(err error, ctx echo.Context) int {
 		result = http.StatusInternalServerError
 	}
 	return result
+}
+
+func getContextLogger(ctx echo.Context) *logrus.Entry {
+	fields := logrus.Fields{}
+	moduleName := ctx.Get(ModuleNameContextKey)
+	if moduleName != nil {
+		fields["module"] = moduleName
+	}
+	operationID := ctx.Get(OperationIDContextKey)
+	if operationID != nil {
+		fields["operation"] = operationID
+	}
+	return logrus.StandardLogger().WithFields(fields)
 }

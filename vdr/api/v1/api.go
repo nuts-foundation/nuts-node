@@ -54,6 +54,13 @@ func (a *Wrapper) ResolveStatusCode(err error) int {
 	})
 }
 
+// Preprocess is called just before the API operation itself is invoked.
+func (a *Wrapper) Preprocess(operationID string, context echo.Context) {
+	context.Set(core.StatusCodeResolverContextKey, a)
+	context.Set(core.OperationIDContextKey, operationID)
+	context.Set(core.ModuleNameContextKey, "VDR")
+}
+
 // DeleteVerificationMethod accepts a DID and a KeyIdentifier of a verificationMethod and calls the DocManipulator
 // to remove the verificationMethod from the given document.
 func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidStr string) error {

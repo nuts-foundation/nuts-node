@@ -33,7 +33,8 @@ import (
 )
 
 const (
-	moduleName = "Crypto"
+	// ModuleName contains the name of this module
+	ModuleName = "Crypto"
 	configKey  = "crypto"
 )
 
@@ -63,7 +64,7 @@ func NewCryptoInstance() *Crypto {
 }
 
 func (client *Crypto) Name() string {
-	return moduleName
+	return ModuleName
 }
 
 func (client *Crypto) ConfigKey() string {

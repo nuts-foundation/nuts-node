@@ -1324,6 +1324,10 @@ type EchoRouter interface {
 	Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type Preprocessor interface {
+	Preprocess(operationID string, context echo.Context)
+}
+
 type ErrorStatusCodeResolver interface {
 	ResolveStatusCode(err error) int
 }
@@ -1344,59 +1348,35 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
 	// so it can be used in error reporting middleware.
 	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v1/trust", func(context echo.Context) error {
-		context.Set("!!OperationId", "UntrustIssuer")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("UntrustIssuer", context)
 		return wrapper.UntrustIssuer(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/trust", func(context echo.Context) error {
-		context.Set("!!OperationId", "TrustIssuer")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("TrustIssuer", context)
 		return wrapper.TrustIssuer(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/vc", func(context echo.Context) error {
-		context.Set("!!OperationId", "Create")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("Create", context)
 		return wrapper.Create(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v1/vc/:id", func(context echo.Context) error {
-		context.Set("!!OperationId", "Revoke")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("Revoke", context)
 		return wrapper.Revoke(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/vc/:id", func(context echo.Context) error {
-		context.Set("!!OperationId", "Resolve")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("Resolve", context)
 		return wrapper.Resolve(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/:concept", func(context echo.Context) error {
-		context.Set("!!OperationId", "Search")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("Search", context)
 		return wrapper.Search(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/:credentialType/trusted", func(context echo.Context) error {
-		context.Set("!!OperationId", "ListTrusted")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("ListTrusted", context)
 		return wrapper.ListTrusted(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/:credentialType/untrusted", func(context echo.Context) error {
-		context.Set("!!OperationId", "ListUntrusted")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("ListUntrusted", context)
 		return wrapper.ListUntrusted(context)
 	})
 

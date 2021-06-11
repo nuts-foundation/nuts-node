@@ -29,6 +29,20 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
+
+func TestWrapper_Preprocess(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	w := &Wrapper{}
+	ctx := mock.NewMockContext(ctrl)
+	ctx.EXPECT().Set(core.StatusCodeResolverContextKey, w)
+	ctx.EXPECT().Set(core.OperationIDContextKey, "foo")
+	ctx.EXPECT().Set(core.ModuleNameContextKey, "VDR")
+
+	w.Preprocess("foo", ctx)
+}
+
 func TestWrapper_CreateDID(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:1")
 	didDoc := &did.Document{
