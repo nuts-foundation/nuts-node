@@ -36,11 +36,11 @@ type Didman interface {
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Service, error)
 
-	// DeleteEndpoint takes a did and type and removes the endpoint with the type from the DID Document.
-	// It returns ErrServiceNotFound if the service can't be found in the DID Document.
+	// DeleteEndpointsByType takes a did and type and removes all endpoint with the type from the DID Document.
+	// It returns ErrServiceNotFound if no services with the given type can't be found in the DID Document.
 	// It returns ErrServiceInUse if the service is referenced by other services.
 	// It can also return various errors from DocResolver.Resolve
-	DeleteEndpoint(id did.DID, serviceType string) error
+	DeleteEndpointsByType(id did.DID, serviceType string) error
 
 	// DeleteService removes a service from a DID Document.
 	// It returns ErrServiceInUse if the service is referenced by other services.

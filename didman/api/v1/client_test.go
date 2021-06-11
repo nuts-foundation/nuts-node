@@ -70,8 +70,9 @@ func TestHTTPClient_GetContactInformation(t *testing.T) {
 func TestHTTPClient_AddEndpoint(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		endpoint := Endpoint{
-			Id:                 "",
-			EndpointProperties: EndpointProperties{},
+			Endpoint: "ref://did:nuts:455/serviceEndpoint?type=eOverdracht-production",
+			Id:       "did:nuts:123#abc",
+			Type:     "eOverdracht",
 		}
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: endpoint})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
@@ -100,11 +101,9 @@ func TestHTTPClient_AddCompoundService(t *testing.T) {
 	}
 	t.Run("ok", func(t *testing.T) {
 		res := &CompoundService{
-			Id: "abc#123",
-			CompoundServiceProperties: CompoundServiceProperties{
-				ServiceEndpoint: map[string]interface{}{"foo": "bar"},
-				Type:            "type",
-			},
+			Id:              "abc#123",
+			ServiceEndpoint: map[string]interface{}{"foo": "bar"},
+			Type:            "type",
 		}
 
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: res})
@@ -150,10 +149,11 @@ func TestHTTPClient_DeleteService(t *testing.T) {
 
 func TestHTTPClient_GetCompoundServices(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		cServices := []CompoundService{{Id: "did:nuts:123#abc", CompoundServiceProperties: CompoundServiceProperties{
+		cServices := []CompoundService{{
+			Id:              "did:nuts:123#abc",
 			ServiceEndpoint: map[string]interface{}{"auth": "did:nuts:123?type=token-server"},
 			Type:            "eOverdracht",
-		}}}
+		}}
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: cServices})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		res, err := c.GetCompoundServices("did:nuts:123")

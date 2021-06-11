@@ -61,6 +61,7 @@ paths:
         schema:
           type: string
     post:
+      operationId: "addEndpoint"
       summary: Add a service endpoint or a reference to a service.
       description: |
         To distinguish from compound services, this type of service will be called an endpoint.
@@ -75,7 +76,6 @@ paths:
         * 400 - incorrect input
         * 404 - unknown DID
         * 409 - a service with the same type already exists
-      operationId: "addEndpoint"
       tags:
         - DID
       requestBody:
@@ -112,14 +112,16 @@ paths:
         schema:
           type: string
     delete:
-      operationId: deleteEndpoint
+      operationId: deleteEndpointsByType
+      description: Delete all endpoints with the provided type from the DID Document.
       responses:
         204:
-          description: Successfully deleted the endpoint
+          description: |
+            All existing endpoints with with this type were succesfully deleted.
         400:
           description: Malformatted input, like the DID or the endpoint type.
         404:
-          description: DID or the Endpoint with given type not found
+          description: DID or service with this type not found.
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/compoundservice:
@@ -204,14 +206,24 @@ paths:
 components:
   schemas:
     Endpoint:
-      allOf:
-        - type: object
-          required:
-            - id
-          properties:
-            id:
-              type: string
-        - $ref: "#/components/schemas/EndpointProperties"
+      type: object
+      description: A combination of type and URL.
+      required:
+        - id
+        - type
+        - endpoint
+      properties:
+        id:
+          type: string
+        type:
+          description: type of the endpoint. May be freely choosen.
+          type: string
+        endpoint:
+          description: An endpoint URL or a reference to another service.
+          type: string
+          example:
+            - ref://did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
+            - https://api.example.org/fhir
     EndpointProperties:
       type: object
       description: A combination of type and URL.
@@ -226,7 +238,7 @@ components:
           description: An endpoint URL or a reference to another service.
           type: string
           example:
-            - ref://did:nuts:123?type=eOverdracht-fhir
+            - ref://did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
             - https://api.example.org/fhir
     CompoundServiceProperties:
       type: object
@@ -243,14 +255,22 @@ components:
           example: {'auth': 'did:nuts:1312321?type=auth'}
           type: object
     CompoundService:
-      allOf:
-        - type: object
-          required:
-            - id
-          properties:
-            id:
-              type: string
-        - $ref: "#/components/schemas/CompoundServiceProperties"
+      type: object
+      description: A creation request for a compound service that references endpoints.
+      required:
+        - id
+        - type
+        - serviceEndpoint
+      properties:
+        id:
+          type: string
+        type:
+          description: type of the endpoint. May be freely choosen.
+          type: string
+        serviceEndpoint:
+          description: A map containing service references.
+          example: {'auth': 'did:nuts:1312321?type=auth'}
+          type: object
     ContactInformation:
       type: object
       description: A set of contact information entries

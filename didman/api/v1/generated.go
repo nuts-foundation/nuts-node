@@ -18,12 +18,15 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// CompoundService defines model for CompoundService.
+// A creation request for a compound service that references endpoints.
 type CompoundService struct {
-	// Embedded fields due to inline allOf schema
 	Id string `json:"id"`
-	// Embedded struct due to allOf(#/components/schemas/CompoundServiceProperties)
-	CompoundServiceProperties `yaml:",inline"`
+
+	// A map containing service references.
+	ServiceEndpoint map[string]interface{} `json:"serviceEndpoint"`
+
+	// type of the endpoint. May be freely choosen.
+	Type string `json:"type"`
 }
 
 // A creation request for a compound service that references endpoints.
@@ -36,12 +39,15 @@ type CompoundServiceProperties struct {
 	Type string `json:"type"`
 }
 
-// Endpoint defines model for Endpoint.
+// A combination of type and URL.
 type Endpoint struct {
-	// Embedded fields due to inline allOf schema
-	Id string `json:"id"`
-	// Embedded struct due to allOf(#/components/schemas/EndpointProperties)
-	EndpointProperties `yaml:",inline"`
+
+	// An endpoint URL or a reference to another service.
+	Endpoint string `json:"endpoint"`
+	Id       string `json:"id"`
+
+	// type of the endpoint. May be freely choosen.
+	Type string `json:"type"`
 }
 
 // A combination of type and URL.
@@ -166,8 +172,8 @@ type ClientInterface interface {
 
 	AddEndpoint(ctx context.Context, did string, body AddEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DeleteEndpoint request
-	DeleteEndpoint(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// DeleteEndpointsByType request
+	DeleteEndpointsByType(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteService request
 	DeleteService(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -269,8 +275,8 @@ func (c *Client) AddEndpoint(ctx context.Context, did string, body AddEndpointJS
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeleteEndpoint(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteEndpointRequest(c.Server, did, pType)
+func (c *Client) DeleteEndpointsByType(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteEndpointsByTypeRequest(c.Server, did, pType)
 	if err != nil {
 		return nil, err
 	}
@@ -502,8 +508,8 @@ func NewAddEndpointRequestWithBody(server string, did string, contentType string
 	return req, nil
 }
 
-// NewDeleteEndpointRequest generates requests for DeleteEndpoint
-func NewDeleteEndpointRequest(server string, did string, pType string) (*http.Request, error) {
+// NewDeleteEndpointsByTypeRequest generates requests for DeleteEndpointsByType
+func NewDeleteEndpointsByTypeRequest(server string, did string, pType string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -641,8 +647,8 @@ type ClientWithResponsesInterface interface {
 
 	AddEndpointWithResponse(ctx context.Context, did string, body AddEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*AddEndpointResponse, error)
 
-	// DeleteEndpoint request
-	DeleteEndpointWithResponse(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*DeleteEndpointResponse, error)
+	// DeleteEndpointsByType request
+	DeleteEndpointsByTypeWithResponse(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*DeleteEndpointsByTypeResponse, error)
 
 	// DeleteService request
 	DeleteServiceWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error)
@@ -758,13 +764,13 @@ func (r AddEndpointResponse) StatusCode() int {
 	return 0
 }
 
-type DeleteEndpointResponse struct {
+type DeleteEndpointsByTypeResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 }
 
 // Status returns HTTPResponse.Status
-func (r DeleteEndpointResponse) Status() string {
+func (r DeleteEndpointsByTypeResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -772,7 +778,7 @@ func (r DeleteEndpointResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r DeleteEndpointResponse) StatusCode() int {
+func (r DeleteEndpointsByTypeResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -869,13 +875,13 @@ func (c *ClientWithResponses) AddEndpointWithResponse(ctx context.Context, did s
 	return ParseAddEndpointResponse(rsp)
 }
 
-// DeleteEndpointWithResponse request returning *DeleteEndpointResponse
-func (c *ClientWithResponses) DeleteEndpointWithResponse(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*DeleteEndpointResponse, error) {
-	rsp, err := c.DeleteEndpoint(ctx, did, pType, reqEditors...)
+// DeleteEndpointsByTypeWithResponse request returning *DeleteEndpointsByTypeResponse
+func (c *ClientWithResponses) DeleteEndpointsByTypeWithResponse(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*DeleteEndpointsByTypeResponse, error) {
+	rsp, err := c.DeleteEndpointsByType(ctx, did, pType, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseDeleteEndpointResponse(rsp)
+	return ParseDeleteEndpointsByTypeResponse(rsp)
 }
 
 // DeleteServiceWithResponse request returning *DeleteServiceResponse
@@ -1017,15 +1023,15 @@ func ParseAddEndpointResponse(rsp *http.Response) (*AddEndpointResponse, error) 
 	return response, nil
 }
 
-// ParseDeleteEndpointResponse parses an HTTP response from a DeleteEndpointWithResponse call
-func ParseDeleteEndpointResponse(rsp *http.Response) (*DeleteEndpointResponse, error) {
+// ParseDeleteEndpointsByTypeResponse parses an HTTP response from a DeleteEndpointsByTypeWithResponse call
+func ParseDeleteEndpointsByTypeResponse(rsp *http.Response) (*DeleteEndpointsByTypeResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &DeleteEndpointResponse{
+	response := &DeleteEndpointsByTypeResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -1074,7 +1080,7 @@ type ServerInterface interface {
 	AddEndpoint(ctx echo.Context, did string) error
 
 	// (DELETE /internal/didman/v1/did/{did}/endpoint/{type})
-	DeleteEndpoint(ctx echo.Context, did string, pType string) error
+	DeleteEndpointsByType(ctx echo.Context, did string, pType string) error
 	// Remove a service from a DID Document.
 	// (DELETE /internal/didman/v1/service/{id})
 	DeleteService(ctx echo.Context, id string) error
@@ -1165,8 +1171,8 @@ func (w *ServerInterfaceWrapper) AddEndpoint(ctx echo.Context) error {
 	return err
 }
 
-// DeleteEndpoint converts echo context to params.
-func (w *ServerInterfaceWrapper) DeleteEndpoint(ctx echo.Context) error {
+// DeleteEndpointsByType converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteEndpointsByType(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "did" -------------
 	var did string
@@ -1185,7 +1191,7 @@ func (w *ServerInterfaceWrapper) DeleteEndpoint(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.DeleteEndpoint(ctx, did, pType)
+	err = w.Handler.DeleteEndpointsByType(ctx, did, pType)
 	return err
 }
 
@@ -1261,11 +1267,11 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		return wrapper.AddEndpoint(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/did/:did/endpoint/:type", func(context echo.Context) error {
-		context.Set("!!OperationId", "DeleteEndpoint")
+		context.Set("!!OperationId", "DeleteEndpointsByType")
 		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
 			context.Set("!!StatusCodeResolver", resolver)
 		}
-		return wrapper.DeleteEndpoint(context)
+		return wrapper.DeleteEndpointsByType(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/service/:id", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("DeleteService", context)

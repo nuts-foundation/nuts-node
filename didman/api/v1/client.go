@@ -88,11 +88,11 @@ func (h HTTPClient) AddEndpoint(did, endpointType, endpointURL string) (*Endpoin
 	return parsedResponse.JSON200, nil
 }
 
-// DeleteEndpoint deletes an endpoint by type on a DID document indicated by the did.
-func (h HTTPClient) DeleteEndpoint(did, endpointType string) error {
+// DeleteEndpointsByType deletes an endpoint by type on a DID document indicated by the did.
+func (h HTTPClient) DeleteEndpointsByType(did, endpointType string) error {
 	ctx, cancel := h.withTimeout()
 	defer cancel()
-	response, err := h.client().DeleteEndpoint(ctx, did, endpointType)
+	response, err := h.client().DeleteEndpointsByType(ctx, did, endpointType)
 	if err != nil {
 		return err
 	}

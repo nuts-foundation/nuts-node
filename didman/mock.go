@@ -67,9 +67,9 @@ func (mr *MockDidmanMockRecorder) AddEndpoint(id, serviceType, u interface{}) *g
 }
 
 // DeleteEndpoint mocks base method.
-func (m *MockDidman) DeleteEndpoint(id did.DID, serviceType string) error {
+func (m *MockDidman) DeleteEndpointsByType(id did.DID, serviceType string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteEndpoint", id, serviceType)
+	ret := m.ctrl.Call(m, "DeleteEndpointsByType", id, serviceType)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -77,7 +77,7 @@ func (m *MockDidman) DeleteEndpoint(id did.DID, serviceType string) error {
 // DeleteEndpoint indicates an expected call of DeleteEndpoint.
 func (mr *MockDidmanMockRecorder) DeleteEndpoint(id, serviceType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEndpoint", reflect.TypeOf((*MockDidman)(nil).DeleteEndpoint), id, serviceType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEndpointsByType", reflect.TypeOf((*MockDidman)(nil).DeleteEndpointsByType), id, serviceType)
 }
 
 // DeleteService mocks base method.
