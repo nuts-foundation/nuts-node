@@ -39,8 +39,8 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 		// Uptime
 		assert.Equal(t, "Uptime", ds[1].Name())
 		assert.NotEmpty(t, ds[1].String())
-		// Version
-		assert.Equal(t, "Version", ds[2].Name())
+		// SoftwareVersion
+		assert.Equal(t, "SoftwareVersion", ds[2].Name())
 		assert.Equal(t, core.Version(), ds[2].String())
 		// Commit
 		assert.Equal(t, "Git commit", ds[3].Name())

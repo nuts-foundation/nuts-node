@@ -299,18 +299,18 @@ func TestProtocol_handleDiagnostics(t *testing.T) {
 			Uptime:               1000,
 			Peers:                []string{"test"},
 			NumberOfTransactions: 5,
-			Version:              "1.0",
-			Vendor:               "TEST",
+			SoftwareVersion:      "1.0",
+			SoftwareID:           "TEST",
 		}}
 		err := ctx.handle(msg)
 
 		assert.NoError(t, err)
 		actual := ctx.instance.peerDiagnostics[peer]
-		assert.Equal(t, 1000 * time.Second, actual.Uptime)
+		assert.Equal(t, 1000*time.Second, actual.Uptime)
 		assert.Equal(t, []p2p.PeerID{"test"}, actual.Peers)
 		assert.Equal(t, uint32(5), actual.NumberOfTransactions)
-		assert.Equal(t, "1.0", actual.Version)
-		assert.Equal(t, "TEST", actual.Vendor)
+		assert.Equal(t, "1.0", actual.SoftwareVersion)
+		assert.Equal(t, "TEST", actual.SoftwareID)
 	})
 }
 

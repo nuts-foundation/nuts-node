@@ -74,9 +74,9 @@ type Diagnostics struct {
 	Peers []p2p.PeerID `json:"peers"`
 	// NumberOfTransactions contains the total number of transactions on the node's DAG.
 	NumberOfTransactions uint32 `json:"transactionNum"`
-	// Version contains an indication of the software version of the node. It's recommended to use a (Git) commit ID that uniquely resolves to a code revision, alternatively a semantic version could be used (e.g. 1.2.5).
-	Version string `json:"version"`
-	// Vendor contains an indication of the vendor of the software of the node. For open source implementations it's recommended to specify URL to the public, open source repository.
+	// SoftwareVersion contains an indication of the software version of the node. It's recommended to use a (Git) commit ID that uniquely resolves to a code revision, alternatively a semantic version could be used (e.g. 1.2.5).
+	SoftwareVersion string `json:"softwareVersion"`
+	// SoftwareID contains an indication of the vendor of the software of the node. For open source implementations it's recommended to specify URL to the public, open source repository.
 	// Proprietary implementations could specify the product's or vendor's name.
-	Vendor string `json:"vendor"`
+	SoftwareID string `json:"softwareID"`
 }

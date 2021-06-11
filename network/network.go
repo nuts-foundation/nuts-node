@@ -43,8 +43,8 @@ import (
 // boltDBFileMode holds the Unix file mode the created BBolt database files will have.
 const boltDBFileMode = 0600
 
-// implVendorName contains the name of the vendor that's published in the node's diagnostic information.
-const implVendorName = "https://github.com/nuts-foundation/nuts-node"
+// softwareID contains the name of the vendor/implementation that's published in the node's diagnostic information.
+const softwareID = "https://github.com/nuts-foundation/nuts-node"
 
 const (
 	// ModuleName specifies the name of this module.
@@ -258,8 +258,8 @@ func (n *Network) collectDiagnostics() proto.Diagnostics {
 	result := proto.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime),
 		NumberOfTransactions: uint32(n.graph.Statistics().NumberOfTransactions),
-		Version:              core.GitCommit,
-		Vendor:               implVendorName,
+		SoftwareVersion:      core.GitCommit,
+		SoftwareID:           softwareID,
 	}
 	for _, peer := range n.p2pNetwork.Peers() {
 		result.Peers = append(result.Peers, peer.ID)

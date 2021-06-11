@@ -157,8 +157,8 @@ func TestCmd_Peers(t *testing.T) {
 	expected := `Listing 1 peers:
 
 foo
-  Vendor:            
-  Version:           
+  SoftwareID:            
+  SoftwareVersion:           
   Uptime:            50s
   Number of DAG TXs: 0
   Peers:             []`
