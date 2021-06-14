@@ -85,6 +85,7 @@ func (d *didman) DeleteEndpointsByType(id did.DID, serviceType string) error {
 	found := false
 	for _, s := range doc.Service {
 		if s.Type == serviceType {
+			found = true
 			if err = d.DeleteService(s.ID); err != nil {
 				return err
 			}

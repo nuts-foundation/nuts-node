@@ -95,6 +95,26 @@ func TestHTTPClient_AddEndpoint(t *testing.T) {
 	})
 }
 
+func TestHTTPClient_DeleteEndpointsByType(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
+		assert.NoError(t, err)
+	})
+	t.Run("error - server error", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 204), response: null")
+	})
+	t.Run("error - wrong address", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
+		assert.EqualError(t, err, `Delete "/not_an_address/internal/didman/v1/did/did:nuts:123/endpoint/eOverdracht": unsupported protocol scheme ""`)
+	})
+}
+
 func TestHTTPClient_AddCompoundService(t *testing.T) {
 	refs := map[string]string{
 		"foo": "bar",

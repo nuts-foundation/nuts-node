@@ -419,6 +419,81 @@ func TestDidman_GetContactInformation(t *testing.T) {
 	})
 }
 
+func TestDidman_DeleteEndpointsByType(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	serviceID := *id
+	serviceID.Fragment = "abc"
+	endpointType := "eOverdracht"
+	endpoints := []did.Service{{
+		ID:              serviceID.URI(),
+		Type:            endpointType,
+		ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
+	}}
+
+	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
+	didDoc := &did.Document{ID: *id, Service: endpoints}
+
+	t.Run("ok - it deletes the service", func(t *testing.T) {
+		// local copy to prevent actually deleting the service from the test document
+		didDoc := &did.Document{ID: *id, Service: endpoints}
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).DoAndReturn(
+			func(_ interface{}, _ interface{}, doc did.Document, _ interface{}) error {
+				assert.Len(t, doc.Service, 0)
+				return nil
+			})
+		// not in use by any other document
+		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
+		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDoc, meta, nil).Times(2)
+		err := ctx.instance.DeleteEndpointsByType(*id, endpointType)
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - it keeps other services", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).DoAndReturn(
+			func(_ interface{}, _ interface{}, doc did.Document, _ interface{}) error {
+				assert.Len(t, doc.Service, 1)
+				return nil
+			})
+		otherServiceID, _ := ssi.ParseURI("did:nuts:123#def")
+		otherService := did.Service{
+			ID:              *otherServiceID,
+			Type:            "other",
+		}
+		didDocWithOtherService := &did.Document{ID: *id, Service: append(endpoints, otherService)}
+		// not in use by any other document
+		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
+		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDocWithOtherService, meta, nil).Times(2)
+		err := ctx.instance.DeleteEndpointsByType(*id, endpointType)
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - unknown service type", func(t *testing.T) {
+		ctx := newMockContext(t)
+		// not in use by any other document
+		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDoc, meta, nil)
+		err := ctx.instance.DeleteEndpointsByType(*id, "unknown type")
+		assert.ErrorIs(t, err, ErrServiceNotFound)
+	})
+
+	t.Run("error - DID document", func(t *testing.T) {
+		ctx := newMockContext(t)
+		// not in use by any other document
+		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		err := ctx.instance.DeleteEndpointsByType(*id, endpointType)
+		assert.ErrorIs(t, err, types.ErrNotFound)
+	})
+
+	t.Run("error - in use by other services", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.store.EXPECT().Iterate(gomock.Any()).Return(ErrServiceInUse)
+		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDoc, meta, nil).Times(2)
+		err := ctx.instance.DeleteEndpointsByType(*id, endpointType)
+		assert.ErrorIs(t, err, ErrServiceInUse)
+	})
+}
+
 func TestDidman_GetCompoundServices(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
 	expected := []did.Service{{

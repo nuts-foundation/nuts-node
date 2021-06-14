@@ -212,6 +212,43 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	})
 }
 
+func TestWrapper_DeleteEndpointsByType(t *testing.T) {
+	idStr := "did:nuts:123"
+	parsedID, _ := did.ParseDID(idStr)
+	endpointType := "eOverdracht"
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().DeleteEndpointsByType(*parsedID, endpointType)
+		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
+
+		err := ctx.wrapper.DeleteEndpointsByType(ctx.echo, idStr, endpointType)
+
+		if !assert.Nil(t, err) {
+			return
+		}
+	})
+
+	t.Run("error - invalid did", func(t *testing.T) {
+		ctx := newMockContext(t)
+		err := ctx.wrapper.DeleteEndpointsByType(ctx.echo, "not a did", endpointType)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
+	})
+
+	t.Run("error - invalid type", func(t *testing.T) {
+		ctx := newMockContext(t)
+		err := ctx.wrapper.DeleteEndpointsByType(ctx.echo, idStr, "")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
+	})
+
+	t.Run("error - didman.DeleteEndpointsByType returns error", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().DeleteEndpointsByType(*parsedID, endpointType).Return(types.ErrNotFound)
+		err := ctx.wrapper.DeleteEndpointsByType(ctx.echo, idStr, endpointType)
+		assert.ErrorIs(t, err, types.ErrNotFound)
+	})
+}
+
 func TestWrapper_AddCompoundService(t *testing.T) {
 	id := "did:nuts:1"
 	request := CompoundServiceProperties{
