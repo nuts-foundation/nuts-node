@@ -42,15 +42,15 @@ func Test_defaultMessageSender_broadcastDiagnostics(t *testing.T) {
 		Uptime:               1000,
 		Peers:                []string{"foobar"},
 		NumberOfTransactions: 5,
-		Version:              "1.0",
-		Vendor:               "Test",
+		SoftwareVersion:      "1.0",
+		SoftwareID:           "Test",
 	}}})
 	sender.broadcastDiagnostics(Diagnostics{
 		Uptime:               1000 * time.Second,
 		Peers:                []p2p.PeerID{"foobar"},
 		NumberOfTransactions: 5,
-		Version:              "1.0",
-		Vendor:               "Test",
+		SoftwareVersion:      "1.0",
+		SoftwareID:           "Test",
 	})
 }
 

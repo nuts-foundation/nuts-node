@@ -307,7 +307,7 @@ func TestNetwork_Shutdown(t *testing.T) {
 func TestNetwork_collectDiagnostics(t *testing.T) {
 	const txNum = 5
 	const expectedVersion = "0"
-	const expectedVendor = "https://github.com/nuts-foundation/nuts-node"
+	const expectedID = "https://github.com/nuts-foundation/nuts-node"
 	expectedPeer := p2p.Peer{ID: "abc", Address: "123"}
 
 	ctrl := gomock.NewController(t)
@@ -319,8 +319,8 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 
 	actual := cxt.network.collectDiagnostics()
 
-	assert.Equal(t, expectedVendor, actual.Vendor)
-	assert.Equal(t, expectedVersion, actual.Version)
+	assert.Equal(t, expectedID, actual.SoftwareID)
+	assert.Equal(t, expectedVersion, actual.SoftwareVersion)
 	assert.Equal(t, []p2p.PeerID{expectedPeer.ID}, actual.Peers)
 	assert.Equal(t, uint32(txNum), actual.NumberOfTransactions)
 	assert.NotEmpty(t, actual.Uptime)

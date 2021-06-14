@@ -49,8 +49,8 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 				Uptime:               10,
 				Peers:                nil,
 				NumberOfTransactions: 5,
-				Version:              "",
-				Vendor:               "aaa",
+				SoftwareVersion:      "",
+				SoftwareID:           "aaa",
 			}},
 		},
 	}
@@ -139,8 +139,8 @@ func TestApiWrapper_GetPeerDiagnostics(t *testing.T) {
 		Uptime:               1000 * time.Second,
 		Peers:                []p2p.PeerID{"bar"},
 		NumberOfTransactions: 5,
-		Version:              "1.0",
-		Vendor:               "Test",
+		SoftwareVersion:      "1.0",
+		SoftwareID:           "Test",
 	}})
 
 	req := httptest.NewRequest(echo.GET, "/", nil)
@@ -152,7 +152,7 @@ func TestApiWrapper_GetPeerDiagnostics(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "application/json; charset=UTF-8", rec.Header().Get("Content-Type"))
-	assert.Equal(t, `{"foo":{"uptime":1000,"peers":["bar"],"transactionNum":5,"version":"1.0","vendor":"Test"}}`, strings.TrimSpace(rec.Body.String()))
+	assert.Equal(t, `{"foo":{"uptime":1000,"peers":["bar"],"transactionNum":5,"softwareVersion":"1.0","softwareID":"Test"}}`, strings.TrimSpace(rec.Body.String()))
 }
 
 func TestApiWrapper_RenderGraph(t *testing.T) {

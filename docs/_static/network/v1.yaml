@@ -145,9 +145,12 @@ components:
         transactionNum:
           description: Number of transactions on the peer's DAG.
           type: number
-        vendor:
-          description: Name of the peer's node software system or vendor.
+        softwareID:
+          description: >
+            Identification of the particular Nuts implementation of the node.
+            For open source implementations it's recommended to specify URL to the public, open source repository.
+            Proprietary implementations could specify the product or vendor's name.
           type: string
-        version:
-          description: Version of the peer's software.
+        softwareVersion:
+          description: Indication of the software version of the node. It's recommended to use a (Git) commit ID that uniquely resolves to a code revision, alternatively a semantic version could be used (e.g. 1.2.5).
           type: string

@@ -264,8 +264,8 @@ func (p *protocol) handleDiagnostics(peer p2p.PeerID, response *transport.Diagno
 	diagnostics := Diagnostics{
 		Uptime:               time.Duration(response.Uptime) * time.Second,
 		NumberOfTransactions: response.NumberOfTransactions,
-		Version:              response.Version,
-		Vendor:               response.Vendor,
+		SoftwareVersion:      response.SoftwareVersion,
+		SoftwareID:           response.SoftwareID,
 	}
 	for _, peer := range response.Peers {
 		diagnostics.Peers = append(diagnostics.Peers, p2p.PeerID(peer))

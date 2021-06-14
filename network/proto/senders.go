@@ -41,8 +41,8 @@ func (s defaultMessageSender) broadcastDiagnostics(diagnostics Diagnostics) {
 	message := transport.Diagnostics{
 		Uptime:               uint32(diagnostics.Uptime.Seconds()),
 		NumberOfTransactions: diagnostics.NumberOfTransactions,
-		Version:              diagnostics.Version,
-		Vendor:               diagnostics.Vendor,
+		SoftwareVersion:      diagnostics.SoftwareVersion,
+		SoftwareID:           diagnostics.SoftwareID,
 	}
 	for _, peer := range diagnostics.Peers {
 		message.Peers = append(message.Peers, peer.String())

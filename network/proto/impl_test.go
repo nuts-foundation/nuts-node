@@ -27,14 +27,14 @@ func Test_Protocol_PeerDiagnostics(t *testing.T) {
 	instance := NewProtocol().(*protocol)
 
 	instance.peerDiagnostics[peer] = Diagnostics{
-		Peers:   []p2p.PeerID{"some-peer"},
-		Version: "1.0",
+		Peers:           []p2p.PeerID{"some-peer"},
+		SoftwareVersion: "1.0",
 	}
 	diagnostics := instance.PeerDiagnostics()
 	instance.peerDiagnostics[peer].Peers[0] = "other-peer" // mutate entry to make sure function returns a copy
 	assert.Len(t, diagnostics, 1)
 	actual := diagnostics[peer]
-	assert.Equal(t, "1.0", actual.Version)
+	assert.Equal(t, "1.0", actual.SoftwareVersion)
 	assert.Equal(t, []p2p.PeerID{"some-peer"}, actual.Peers)
 }
 

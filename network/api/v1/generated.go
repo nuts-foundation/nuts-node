@@ -758,10 +758,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		return wrapper.RenderGraph(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/diagnostics/peers", func(context echo.Context) error {
-		context.Set("!!OperationId", "GetPeerDiagnostics")
-		if resolver, ok := si.(ErrorStatusCodeResolver); ok {
-			context.Set("!!StatusCodeResolver", resolver)
-		}
+		si.(Preprocessor).Preprocess("GetPeerDiagnostics", context)
 		return wrapper.GetPeerDiagnostics(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction", func(context echo.Context) error {
