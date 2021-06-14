@@ -219,7 +219,7 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 		err           error
 	)
 	if params.ValidFrom != nil {
-		vf, err = time.Parse("2006-01-02T15:04:05-07:00", *params.ValidFrom)
+		vf, err = time.Parse(time.RFC3339, *params.ValidFrom)
 		if err != nil {
 			return core.InvalidInputError("could not parse validFrom: %w", err)
 		}
