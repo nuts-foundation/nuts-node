@@ -70,7 +70,7 @@ func TestHTTPClient_GetContactInformation(t *testing.T) {
 func TestHTTPClient_AddEndpoint(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		endpoint := Endpoint{
-			Endpoint: "ref://did:nuts:455/serviceEndpoint?type=eOverdracht-production",
+			Endpoint: "ref:did:nuts:455/serviceEndpoint?type=eOverdracht-production",
 			Id:       "did:nuts:123#abc",
 			Type:     "eOverdracht",
 		}

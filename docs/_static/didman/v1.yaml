@@ -232,7 +232,7 @@ components:
           description: An endpoint URL or a reference to another service.
           type: string
           example:
-            - ref://did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
+            - ref:did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
             - https://api.example.org/fhir
     EndpointProperties:
       type: object
@@ -248,7 +248,7 @@ components:
           description: An endpoint URL or a reference to another service.
           type: string
           example:
-            - ref://did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
+            - ref:did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
             - https://api.example.org/fhir
     CompoundServiceProperties:
       type: object
