@@ -35,7 +35,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestWrapper_Preprocess(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -208,7 +207,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
-		assert.Equal(t, err.Error(), "b00m!")
+		assert.EqualError(t, err, "b00m!")
 	})
 }
 
@@ -251,11 +250,12 @@ func TestWrapper_DeleteEndpointsByType(t *testing.T) {
 
 func TestWrapper_AddCompoundService(t *testing.T) {
 	id := "did:nuts:1"
+	serviceEndpoint := map[string]interface{}{
+		"foo": "did:nuts:12345?type=foo",
+		"bar": "did:nuts:54321?type=bar",
+	}
 	request := CompoundServiceProperties{
-		ServiceEndpoint: map[string]interface{}{
-			"foo": "did:nuts:12345?type=foo",
-			"bar": "did:nuts:54321?type=bar",
-		},
+		ServiceEndpoint: serviceEndpoint,
 		Type: "type",
 	}
 
@@ -279,7 +279,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 				return &did.Service{
 					ID:              parsedDID.URI(),
 					Type:            parsedType,
-					ServiceEndpoint: parsedEndpoint,
+					ServiceEndpoint: serviceEndpoint,
 				}, nil
 			})
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).Return(nil)
@@ -296,7 +296,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		assert.Equal(t, request.Type, parsedType)
 	})
 
-	t.Run("error - service fails", func(t *testing.T) {
+	t.Run("error - didman.AddCompoundService fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			p := f.(*CompoundServiceProperties)
@@ -347,6 +347,22 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
 		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
+	})
+
+	t.Run("error - incorrect type", func(t *testing.T) {
+		ctx := newMockContext(t)
+		request := CompoundServiceProperties{
+			ServiceEndpoint: serviceEndpoint,
+			Type: "",
+		}
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*CompoundServiceProperties)
+			*p = request
+			return nil
+		})
+		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
+
+		assert.Equal(t, err, core.InvalidInputError("invalid value for type"))
 	})
 
 	t.Run("error - incorrect post body", func(t *testing.T) {
@@ -540,12 +556,12 @@ func newMockContext(t *testing.T) mockContext {
 	t.Cleanup(func() {
 		ctrl.Finish()
 	})
-	didman := didman.NewMockDidman(ctrl)
+	didmanMock := didman.NewMockDidman(ctrl)
 
 	return mockContext{
 		ctrl:    ctrl,
 		echo:    mock.NewMockContext(ctrl),
-		didman:  didman,
-		wrapper: Wrapper{didman},
+		didman:  didmanMock,
+		wrapper: Wrapper{didmanMock},
 	}
 }

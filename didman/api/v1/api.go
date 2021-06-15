@@ -21,6 +21,7 @@ package v1
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -131,9 +132,16 @@ func (w *Wrapper) GetCompoundServices(ctx echo.Context, didStr string) error {
 	return ctx.JSON(http.StatusOK, services)
 }
 
-// AddCompoundService handles calls to add a compound service. It only checks params and sets the correct return status code.
-// didman.AddCompoundService does the heavy lifting.
+// AddCompoundService handles calls to add a compound service.
+// A CompoundService consists of a type and a map of name -> serviceEndpoint(Ref).
+//
+// This method checks the params: valid DID and type format
+// Converts the request to an CompoundService
+// Calls didman.AddCompoundService, which does the heavy lifting.
+// Converts the response of AddCompoundService, which is a did.Service back to a CompoundService
+// Sets the http status OK and adds the CompoundService to the response
 func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
+	// Request parsing and checking
 	request := CompoundServiceProperties{}
 	if err := ctx.Bind(&request); err != nil {
 		return core.InvalidInputError("failed to parse %T: %v", request, err)
@@ -144,7 +152,12 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 		return err
 	}
 
-	references := make(map[string]ssi.URI, 0)
+	if len(strings.TrimSpace(request.Type)) == 0 {
+		return core.InvalidInputError("invalid value for type")
+	}
+
+	// The api accepts a map[string]interface{} which must be converted to a map[string]ssi.URI.
+	references := make(map[string]ssi.URI, len(request.ServiceEndpoint))
 	for key, value := range request.ServiceEndpoint {
 		uri, err := interfaceToURI(value)
 		if err != nil {
@@ -152,13 +165,20 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 		}
 		references[key] = *uri
 	}
+
+	// Call Didman
 	service, err := w.Didman.AddCompoundService(*id, request.Type, references)
 	if err != nil {
 		return err
 	}
+
 	endpointRefs := map[string]interface{}{}
-	for k, v := range service.ServiceEndpoint.(map[string]ssi.URI) {
-		endpointRefs[k] = v.String()
+	serviceEndpoints, ok := service.ServiceEndpoint.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unable to convert service endpoints")
+	}
+	for k, v := range serviceEndpoints {
+		endpointRefs[k] = v
 	}
 
 	cs := CompoundService{
