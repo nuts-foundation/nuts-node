@@ -61,19 +61,21 @@ paths:
         schema:
           type: string
     post:
-      summary: Add an endpoint to a DID Document.
+      operationId: "addEndpoint"
+      summary: Add a service endpoint or a reference to a service.
       description: |
         To distinguish from compound services, this type of service will be called an endpoint.
         In the Nuts specs this type of service is called a concrete service.
 
-        Add an endpoint with a type and URL to a DID Document. The API will convert it to a DID service with the serviceEndpoint set to a URL.
+        Add an endpoint with a type and URL to a DID Service in a Document. The API will convert it to a DID service with the serviceEndpoint set to a URL.
         This API will also check if an endpoint with the same type already exists. This API is not meant to add compound services.
+
+        The URL can either be an Endpoint or a reference to another service.
 
         error returns:
         * 400 - incorrect input
         * 404 - unknown DID
         * 409 - a service with the same type already exists
-      operationId: "addEndpoint"
       tags:
         - DID
       requestBody:
@@ -81,10 +83,47 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/EndpointCreateRequest'
+              $ref: '#/components/schemas/EndpointProperties'
       responses:
-        "204":
-          description: The given type and URL have been added as service to the DID Document
+        "200":
+          description: The service which has been added to the DID Document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/didman/v1/did/{did}/endpoint/{type}:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example:
+          - "did:nuts:1234"
+        schema:
+          type: string
+      - name: type
+        in: path
+        description: Type of the service
+        required: true
+        example:
+          - "eOverdracht"
+        schema:
+          type: string
+    delete:
+      operationId: deleteEndpointsByType
+      description: |
+        Delete all endpoints with the provided type from the DID Document.
+
+        error returns:
+        * 400 - malformatted input, like the DID or the endpoint type.
+        * 404 - DID or service with this type not found.
+        * 409 - the service is referenced by other services
+      responses:
+        204:
+          description: |
+            All existing endpoints with with this type were succesfully deleted.
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/compoundservice:
@@ -97,6 +136,27 @@ paths:
           - "did:nuts:1234"
         schema:
           type: string
+    get:
+      operationId: getCompoundServices
+      summary: |
+        Get a list of compound services for a DID document.
+
+        error responses:
+        * 400 - incorrect input
+        * 404 - unknown DID
+      responses:
+        "200":
+          description: |
+            The list of compound services on the DID document.
+            It excludes special compound services like ContactInformation.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompoundService'
+        default:
+          $ref: '../common/error_response.yaml'
     post:
       summary: Add a compound service to a DID Document.
       description: |
@@ -118,10 +178,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CompoundServiceCreateRequest'
+              $ref: '#/components/schemas/CompoundServiceProperties'
       responses:
-        "204":
+        "200":
           description: The compound service has been added to the DID Document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompoundService'
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/service/{id}:
@@ -140,6 +204,7 @@ paths:
         Remove a service from a DID Document.
 
         error returns:
+        * 400 - incorrect input
         * 404 - unknown DID
         * 409 - the service is referenced by other services
       operationId: "deleteService"
@@ -150,7 +215,26 @@ paths:
           $ref: '../common/error_response.yaml'
 components:
   schemas:
-    EndpointCreateRequest:
+    Endpoint:
+      type: object
+      description: A combination of type and URL.
+      required:
+        - id
+        - type
+        - endpoint
+      properties:
+        id:
+          type: string
+        type:
+          description: type of the endpoint. May be freely choosen.
+          type: string
+        endpoint:
+          description: An endpoint URL or a reference to another service.
+          type: string
+          example:
+            - ref:did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
+            - https://api.example.org/fhir
+    EndpointProperties:
       type: object
       description: A combination of type and URL.
       required:
@@ -161,19 +245,39 @@ components:
           description: type of the endpoint. May be freely choosen.
           type: string
         endpoint:
-          description: A URL.
+          description: An endpoint URL or a reference to another service.
           type: string
-    CompoundServiceCreateRequest:
+          example:
+            - ref:did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
+            - https://api.example.org/fhir
+    CompoundServiceProperties:
       type: object
       description: A creation request for a compound service that references endpoints.
       required:
         - type
-        - endpoint
+        - serviceEndpoint
       properties:
         type:
           description: type of the endpoint. May be freely choosen.
           type: string
-        endpoint:
+        serviceEndpoint:
+          description: A map containing service references.
+          example: {'auth': 'did:nuts:1312321?type=auth'}
+          type: object
+    CompoundService:
+      type: object
+      description: A creation request for a compound service that references endpoints.
+      required:
+        - id
+        - type
+        - serviceEndpoint
+      properties:
+        id:
+          type: string
+        type:
+          description: type of the endpoint. May be freely choosen.
+          type: string
+        serviceEndpoint:
           description: A map containing service references.
           example: {'auth': 'did:nuts:1312321?type=auth'}
           type: object

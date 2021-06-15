@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -68,11 +69,15 @@ func TestDidman_AddEndpoint(t *testing.T) {
 				return nil
 			})
 
-		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		ep, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		if !assert.NoError(t, err) {
 			return
 		}
+		assert.True(t, strings.HasPrefix(ep.ID.String(), vdr.TestDIDA.String()))
+		assert.Equal(t, "type", ep.Type)
+		assert.Equal(t, u.String(), ep.ServiceEndpoint.(string))
+
 		assert.Len(t, newDoc.Service, 1)
 		assert.Equal(t, "type", newDoc.Service[0].Type)
 		assert.Equal(t, u.String(), newDoc.Service[0].ServiceEndpoint)
@@ -86,7 +91,7 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(doc, meta, nil)
 		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
 
-		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		assert.Equal(t, returnError, err)
 	})
@@ -98,8 +103,8 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(doc, meta, nil).Times(2)
 		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
 
-		_ = ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
-		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_, _ = ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		assert.Equal(t, types.ErrDuplicateService, err)
 	})
@@ -108,7 +113,7 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
 
-		err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
 		if !assert.Error(t, err) {
 			return
@@ -136,7 +141,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
 	docA := did.Document{
 		Context: []ssi.URI{did.DIDContextV1URI()},
-		ID: *vdr.TestDIDA,
+		ID:      *vdr.TestDIDA,
 		Service: []did.Service{{
 			ID:              *serviceID,
 			Type:            "hello",
@@ -145,7 +150,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	}
 	docB := did.Document{
 		Context: []ssi.URI{did.DIDContextV1URI()},
-		ID: *vdr.TestDIDB,
+		ID:      *vdr.TestDIDB,
 		Service: []did.Service{
 			{
 				Type:            "world",
@@ -171,7 +176,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 				return vdr.CreateDocumentValidator().Validate(newDoc)
 			})
 
-		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", references)
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", references)
 
 		if !assert.NoError(t, err) {
 			return
@@ -182,13 +187,13 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	})
 	t.Run("error - service reference doesn't contain a valid DID", func(t *testing.T) {
 		ctx := newMockContext(t)
-		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": {}})
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": {}})
 		assert.Error(t, err)
 	})
 	t.Run("error - holder DID document can't be resolved", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
-		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": *helloServiceQuery})
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": *helloServiceQuery})
 		assert.EqualError(t, err, types.ErrNotFound.Error())
 	})
 	t.Run("error - service reference does not contain type", func(t *testing.T) {
@@ -196,7 +201,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
 		invalidQuery := *helloServiceQuery
 		invalidQuery.RawQuery = ""
-		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": invalidQuery})
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": invalidQuery})
 		assert.EqualError(t, err, ErrInvalidServiceQuery.Error())
 	})
 	t.Run("error - service reference does resolve to an endpoint URL", func(t *testing.T) {
@@ -204,7 +209,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		docAAlt := docA
 		docAAlt.Service[0].ServiceEndpoint = map[string]string{"key": "value"}
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docAAlt, meta, nil)
-		err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": *helloServiceQuery})
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": *helloServiceQuery})
 		assert.True(t, errors.Is(err, ErrReferencedServiceNotAnEndpoint))
 	})
 }
@@ -410,6 +415,120 @@ func TestDidman_GetContactInformation(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
 		actual, err := ctx.instance.GetContactInformation(*id)
 		assert.EqualError(t, err, "multiple contact information services found")
+		assert.Nil(t, actual)
+	})
+}
+
+func TestDidman_DeleteEndpointsByType(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	serviceID := *id
+	serviceID.Fragment = "abc"
+	endpointType := "eOverdracht"
+	endpoints := []did.Service{{
+		ID:              serviceID.URI(),
+		Type:            endpointType,
+		ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
+	}}
+
+	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
+	didDoc := &did.Document{ID: *id, Service: endpoints}
+
+	t.Run("ok - it deletes the service", func(t *testing.T) {
+		// local copy to prevent actually deleting the service from the test document
+		didDoc := &did.Document{ID: *id, Service: endpoints}
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).DoAndReturn(
+			func(_ interface{}, _ interface{}, doc did.Document, _ interface{}) error {
+				assert.Len(t, doc.Service, 0)
+				return nil
+			})
+		// not in use by any other document
+		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
+		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDoc, meta, nil).Times(2)
+		err := ctx.instance.DeleteEndpointsByType(*id, endpointType)
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - it keeps other services", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).DoAndReturn(
+			func(_ interface{}, _ interface{}, doc did.Document, _ interface{}) error {
+				assert.Len(t, doc.Service, 1)
+				return nil
+			})
+		otherServiceID, _ := ssi.ParseURI("did:nuts:123#def")
+		otherService := did.Service{
+			ID:              *otherServiceID,
+			Type:            "other",
+		}
+		didDocWithOtherService := &did.Document{ID: *id, Service: append(endpoints, otherService)}
+		// not in use by any other document
+		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
+		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDocWithOtherService, meta, nil).Times(2)
+		err := ctx.instance.DeleteEndpointsByType(*id, endpointType)
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - unknown service type", func(t *testing.T) {
+		ctx := newMockContext(t)
+		// not in use by any other document
+		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDoc, meta, nil)
+		err := ctx.instance.DeleteEndpointsByType(*id, "unknown type")
+		assert.ErrorIs(t, err, ErrServiceNotFound)
+	})
+
+	t.Run("error - DID document", func(t *testing.T) {
+		ctx := newMockContext(t)
+		// not in use by any other document
+		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		err := ctx.instance.DeleteEndpointsByType(*id, endpointType)
+		assert.ErrorIs(t, err, types.ErrNotFound)
+	})
+
+	t.Run("error - in use by other services", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.store.EXPECT().Iterate(gomock.Any()).Return(ErrServiceInUse)
+		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDoc, meta, nil).Times(2)
+		err := ctx.instance.DeleteEndpointsByType(*id, endpointType)
+		assert.ErrorIs(t, err, ErrServiceInUse)
+	})
+}
+
+func TestDidman_GetCompoundServices(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	expected := []did.Service{{
+		Type:            "eOverdracht",
+		ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
+	}}
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		didDoc := &did.Document{Service: expected}
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServices(*id)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+	t.Run("ok - it ignores contact info", func(t *testing.T) {
+		ctx := newMockContext(t)
+		didDoc := &did.Document{Service: append(expected, did.Service{Type: ContactInformationServiceType, ServiceEndpoint: map[string]interface{}{}})}
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServices(*id)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+	t.Run("ok - it ignores endpoint services", func(t *testing.T) {
+		ctx := newMockContext(t)
+		didDoc := &did.Document{Service: append(expected, did.Service{Type: "normal-service", ServiceEndpoint: "http://api.example.com/fhir"})}
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServices(*id)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+	t.Run("error - unknown DID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
+		actual, err := ctx.instance.GetCompoundServices(*id)
+		assert.EqualError(t, err, "unable to find the DID document")
 		assert.Nil(t, actual)
 	})
 }

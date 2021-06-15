@@ -5,49 +5,36 @@
 package auth
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	services "github.com/nuts-foundation/nuts-node/auth/services"
-	reflect "reflect"
 )
 
-// MockAuthenticationServices is a mock of AuthenticationServices interface
+// MockAuthenticationServices is a mock of AuthenticationServices interface.
 type MockAuthenticationServices struct {
 	ctrl     *gomock.Controller
 	recorder *MockAuthenticationServicesMockRecorder
 }
 
-// MockAuthenticationServicesMockRecorder is the mock recorder for MockAuthenticationServices
+// MockAuthenticationServicesMockRecorder is the mock recorder for MockAuthenticationServices.
 type MockAuthenticationServicesMockRecorder struct {
 	mock *MockAuthenticationServices
 }
 
-// NewMockAuthenticationServices creates a new mock instance
+// NewMockAuthenticationServices creates a new mock instance.
 func NewMockAuthenticationServices(ctrl *gomock.Controller) *MockAuthenticationServices {
 	mock := &MockAuthenticationServices{ctrl: ctrl}
 	mock.recorder = &MockAuthenticationServicesMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockAuthenticationServices) EXPECT() *MockAuthenticationServicesMockRecorder {
 	return m.recorder
 }
 
-// OAuthClient mocks base method
-func (m *MockAuthenticationServices) OAuthClient() services.OAuthClient {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OAuthClient")
-	ret0, _ := ret[0].(services.OAuthClient)
-	return ret0
-}
-
-// OAuthClient indicates an expected call of OAuthClient
-func (mr *MockAuthenticationServicesMockRecorder) OAuthClient() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OAuthClient", reflect.TypeOf((*MockAuthenticationServices)(nil).OAuthClient))
-}
-
-// ContractClient mocks base method
+// ContractClient mocks base method.
 func (m *MockAuthenticationServices) ContractClient() services.ContractClient {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ContractClient")
@@ -55,13 +42,13 @@ func (m *MockAuthenticationServices) ContractClient() services.ContractClient {
 	return ret0
 }
 
-// ContractClient indicates an expected call of ContractClient
+// ContractClient indicates an expected call of ContractClient.
 func (mr *MockAuthenticationServicesMockRecorder) ContractClient() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContractClient", reflect.TypeOf((*MockAuthenticationServices)(nil).ContractClient))
 }
 
-// ContractNotary mocks base method
+// ContractNotary mocks base method.
 func (m *MockAuthenticationServices) ContractNotary() services.ContractNotary {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ContractNotary")
@@ -69,8 +56,22 @@ func (m *MockAuthenticationServices) ContractNotary() services.ContractNotary {
 	return ret0
 }
 
-// ContractNotary indicates an expected call of ContractNotary
+// ContractNotary indicates an expected call of ContractNotary.
 func (mr *MockAuthenticationServicesMockRecorder) ContractNotary() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContractNotary", reflect.TypeOf((*MockAuthenticationServices)(nil).ContractNotary))
+}
+
+// OAuthClient mocks base method.
+func (m *MockAuthenticationServices) OAuthClient() services.OAuthClient {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OAuthClient")
+	ret0, _ := ret[0].(services.OAuthClient)
+	return ret0
+}
+
+// OAuthClient indicates an expected call of OAuthClient.
+func (mr *MockAuthenticationServicesMockRecorder) OAuthClient() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OAuthClient", reflect.TypeOf((*MockAuthenticationServices)(nil).OAuthClient))
 }

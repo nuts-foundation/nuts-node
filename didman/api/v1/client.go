@@ -68,7 +68,7 @@ func (h HTTPClient) UpdateContactInformation(did string, information ContactInfo
 }
 
 // AddEndpoint registers a concrete endpoint URL on the given DID.
-func (h HTTPClient) AddEndpoint(did, endpointType, endpointURL string) error {
+func (h HTTPClient) AddEndpoint(did, endpointType, endpointURL string) (*Endpoint, error) {
 	ctx, cancel := h.withTimeout()
 	defer cancel()
 	response, err := h.client().AddEndpoint(ctx, did, AddEndpointJSONRequestBody{
@@ -76,13 +76,52 @@ func (h HTTPClient) AddEndpoint(did, endpointType, endpointURL string) error {
 		Endpoint: endpointURL,
 	})
 	if err != nil {
+		return nil, err
+	}
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	}
+	parsedResponse, err := ParseAddEndpointResponse(response)
+	if err != nil {
+		return nil, err
+	}
+	return parsedResponse.JSON200, nil
+}
+
+// DeleteEndpointsByType deletes an endpoint by type on a DID document indicated by the did.
+func (h HTTPClient) DeleteEndpointsByType(did, endpointType string) error {
+	ctx, cancel := h.withTimeout()
+	defer cancel()
+	response, err := h.client().DeleteEndpointsByType(ctx, did, endpointType)
+	if err != nil {
 		return err
 	}
-	return core.TestResponseCode(http.StatusNoContent, response)
+	if err = core.TestResponseCode(http.StatusNoContent, response); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetCompoundServices returns a list of compound services for a given DID string.
+func (h HTTPClient) GetCompoundServices(did string) ([]CompoundService, error) {
+	ctx, cancel := h.withTimeout()
+	defer cancel()
+
+	response, err := h.client().GetCompoundServices(ctx, did)
+	if err != nil {
+		return nil, err
+	} else if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	}
+	parsedResponse, err := ParseGetCompoundServicesResponse(response)
+	if err != nil {
+		return nil, err
+	}
+	return *parsedResponse.JSON200, nil
 }
 
 // AddCompoundService registers a compound service on the given DID.
-func (h HTTPClient) AddCompoundService(did, serviceType string, references map[string]string) error {
+func (h HTTPClient) AddCompoundService(did, serviceType string, references map[string]string) (*CompoundService, error) {
 	ctx, cancel := h.withTimeout()
 	defer cancel()
 	refs := make(map[string]interface{}, 0)
@@ -90,13 +129,19 @@ func (h HTTPClient) AddCompoundService(did, serviceType string, references map[s
 		refs[k] = v
 	}
 	response, err := h.client().AddCompoundService(ctx, did, AddCompoundServiceJSONRequestBody{
-		Type:     serviceType,
-		Endpoint: refs,
+		Type:            serviceType,
+		ServiceEndpoint: refs,
 	})
 	if err != nil {
-		return err
+		return nil, err
+	} else if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
 	}
-	return core.TestResponseCode(http.StatusNoContent, response)
+	parsedResponse, err := ParseAddCompoundServiceResponse(response)
+	if err != nil {
+		return nil, err
+	}
+	return parsedResponse.JSON200, err
 }
 
 // DeleteService tries to delete a service from the DID document indicated by the ID

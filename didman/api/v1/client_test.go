@@ -69,21 +69,49 @@ func TestHTTPClient_GetContactInformation(t *testing.T) {
 
 func TestHTTPClient_AddEndpoint(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		endpoint := Endpoint{
+			Endpoint: "ref:did:nuts:455/serviceEndpoint?type=eOverdracht-production",
+			Id:       "did:nuts:123#abc",
+			Type:     "eOverdracht",
+		}
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: endpoint})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		err := c.AddEndpoint("abc", "type", "some-url")
+		res, err := c.AddEndpoint("did:nuts:123", "type", "some-url")
 		assert.NoError(t, err)
+		assert.Equal(t, &endpoint, res)
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		err := c.AddEndpoint("abc", "type", "some-url")
-		assert.Error(t, err)
+		endpoint, err := c.AddEndpoint("abc", "type", "some-url")
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: ")
+		assert.Nil(t, endpoint)
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
-		err := c.AddEndpoint("abc", "type", "some-url")
-		assert.Error(t, err)
+		endpoint, err := c.AddEndpoint("abc", "type", "some-url")
+		assert.EqualError(t, err, `Post "/not_an_address/internal/didman/v1/did/abc/endpoint": unsupported protocol scheme ""`)
+		assert.Nil(t, endpoint)
+	})
+}
+
+func TestHTTPClient_DeleteEndpointsByType(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
+		assert.NoError(t, err)
+	})
+	t.Run("error - server error", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 204), response: null")
+	})
+	t.Run("error - wrong address", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
+		assert.EqualError(t, err, `Delete "/not_an_address/internal/didman/v1/did/did:nuts:123/endpoint/eOverdracht": unsupported protocol scheme ""`)
 	})
 }
 
@@ -92,20 +120,27 @@ func TestHTTPClient_AddCompoundService(t *testing.T) {
 		"foo": "bar",
 	}
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		res := &CompoundService{
+			Id:              "abc#123",
+			ServiceEndpoint: map[string]interface{}{"foo": "bar"},
+			Type:            "type",
+		}
+
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: res})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		err := c.AddCompoundService("abc", "type", refs)
+		cs, err := c.AddCompoundService("abc", "type", refs)
 		assert.NoError(t, err)
+		assert.Equal(t, res, cs)
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		err := c.AddCompoundService("abc", "type", refs)
+		_, err := c.AddCompoundService("abc", "type", refs)
 		assert.Error(t, err)
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
-		err := c.AddCompoundService("abc", "type", refs)
+		_, err := c.AddCompoundService("abc", "type", refs)
 		assert.Error(t, err)
 	})
 }
@@ -130,4 +165,34 @@ func TestHTTPClient_DeleteService(t *testing.T) {
 		err := c.DeleteService(*id)
 		assert.Error(t, err)
 	})
+}
+
+func TestHTTPClient_GetCompoundServices(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		cServices := []CompoundService{{
+			Id:              "did:nuts:123#abc",
+			ServiceEndpoint: map[string]interface{}{"auth": "did:nuts:123?type=token-server"},
+			Type:            "eOverdracht",
+		}}
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: cServices})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		res, err := c.GetCompoundServices("did:nuts:123")
+		assert.NoError(t, err)
+		assert.Equal(t, cServices, res)
+	})
+	t.Run("error - internal server error", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: nil})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		res, err := c.GetCompoundServices("did:nuts:123")
+		assert.Error(t, err)
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: null")
+		assert.Nil(t, res)
+	})
+	t.Run("error - wrong address", func(t *testing.T) {
+		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		res, err := c.GetCompoundServices("did:nuts:123")
+		assert.EqualError(t, err, `Get "/not_an_address/internal/didman/v1/did/did:nuts:123/compoundservice": unsupported protocol scheme ""`)
+		assert.Nil(t, res)
+	})
+
 }

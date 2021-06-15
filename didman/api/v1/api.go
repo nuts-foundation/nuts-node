@@ -21,11 +21,13 @@ package v1
 
 import (
 	"errors"
-	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/doc"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+
+	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
@@ -70,7 +72,7 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 // AddEndpoint handles calls to add a service. It only checks params and sets the correct return status code.
 // didman.AddEndpoint does the heavy lifting.
 func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
-	request := EndpointCreateRequest{}
+	request := EndpointProperties{}
 	if err := ctx.Bind(&request); err != nil {
 		return core.InvalidInputError("failed to parse EndpointCreateRequest: %w", err)
 	}
@@ -89,17 +91,58 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 		return core.InvalidInputError("invalid value for endpoint: %w", err)
 	}
 
-	if err = w.Didman.AddEndpoint(*id, request.Type, *u); err != nil {
+	endpoint, err := w.Didman.AddEndpoint(*id, request.Type, *u)
+	if err != nil {
 		return err
 	}
 
+	return ctx.JSON(http.StatusOK, endpoint)
+}
+
+// DeleteEndpointsByType handles calls to delete an endpoint. It only checks params and sets the correct return status code.
+// didman.DeleteEndpoint does the heavy lifting.
+func (w *Wrapper) DeleteEndpointsByType(ctx echo.Context, didStr string, endpointType string) error {
+	id, err := did.ParseDID(didStr)
+	if err != nil {
+		return err
+	}
+
+	if len(strings.TrimSpace(endpointType)) == 0 {
+		return core.InvalidInputError("invalid endpointType")
+	}
+
+	err = w.Didman.DeleteEndpointsByType(*id, endpointType)
+	if err != nil {
+		return err
+	}
 	return ctx.NoContent(http.StatusNoContent)
 }
 
-// AddCompoundService handles calls to add a compound service. It only checks params and sets the correct return status code.
-// didman.AddCompoundService does the heavy lifting.
+// GetCompoundServices handles calls to get a list of compound services for a provided DID string.
+// Its checks params, calls Didman and sets http return values.
+func (w *Wrapper) GetCompoundServices(ctx echo.Context, didStr string) error {
+	id, err := did.ParseDIDURL(didStr)
+	if err != nil {
+		return err
+	}
+	services, err := w.Didman.GetCompoundServices(*id)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, services)
+}
+
+// AddCompoundService handles calls to add a compound service.
+// A CompoundService consists of a type and a map of name -> serviceEndpoint(Ref).
+//
+// This method checks the params: valid DID and type format
+// Converts the request to an CompoundService
+// Calls didman.AddCompoundService, which does the heavy lifting.
+// Converts the response of AddCompoundService, which is a did.Service back to a CompoundService
+// Sets the http status OK and adds the CompoundService to the response
 func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
-	request := CompoundServiceCreateRequest{}
+	// Request parsing and checking
+	request := CompoundServiceProperties{}
 	if err := ctx.Bind(&request); err != nil {
 		return core.InvalidInputError("failed to parse %T: %v", request, err)
 	}
@@ -109,18 +152,41 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 		return err
 	}
 
-	references := make(map[string]ssi.URI, 0)
-	for key, value := range request.Endpoint {
+	if len(strings.TrimSpace(request.Type)) == 0 {
+		return core.InvalidInputError("invalid value for type")
+	}
+
+	// The api accepts a map[string]interface{} which must be converted to a map[string]ssi.URI.
+	references := make(map[string]ssi.URI, len(request.ServiceEndpoint))
+	for key, value := range request.ServiceEndpoint {
 		uri, err := interfaceToURI(value)
 		if err != nil {
 			return core.InvalidInputError("invalid reference for service '%s': %v", key, err)
 		}
 		references[key] = *uri
 	}
-	if err = w.Didman.AddCompoundService(*id, request.Type, references); err != nil {
+
+	// Call Didman
+	service, err := w.Didman.AddCompoundService(*id, request.Type, references)
+	if err != nil {
 		return err
 	}
-	return ctx.NoContent(http.StatusNoContent)
+
+	endpointRefs := map[string]interface{}{}
+	serviceEndpoints, ok := service.ServiceEndpoint.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unable to convert service endpoints")
+	}
+	for k, v := range serviceEndpoints {
+		endpointRefs[k] = v
+	}
+
+	cs := CompoundService{
+		Id:              service.ID.String(),
+		ServiceEndpoint: endpointRefs,
+		Type:            service.Type,
+	}
+	return ctx.JSON(200, cs)
 }
 
 func interfaceToURI(input interface{}) (*ssi.URI, error) {
