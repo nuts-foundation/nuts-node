@@ -113,15 +113,17 @@ paths:
           type: string
     delete:
       operationId: deleteEndpointsByType
-      description: Delete all endpoints with the provided type from the DID Document.
+      description: |
+        Delete all endpoints with the provided type from the DID Document.
+
+        error returns:
+        * 400 - malformatted input, like the DID or the endpoint type.
+        * 404 - DID or service with this type not found.
+        * 409 - the service is referenced by other services
       responses:
         204:
           description: |
             All existing endpoints with with this type were succesfully deleted.
-        400:
-          description: Malformatted input, like the DID or the endpoint type.
-        404:
-          description: DID or service with this type not found.
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/compoundservice:
@@ -136,7 +138,12 @@ paths:
           type: string
     get:
       operationId: getCompoundServices
-      summary: Get a list of compound services for a DID document.
+      summary: |
+        Get a list of compound services for a DID document.
+
+        error responses:
+        * 400 - incorrect input
+        * 404 - unknown DID
       responses:
         "200":
           description: |
@@ -148,6 +155,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CompoundService'
+        default:
+          $ref: '../common/error_response.yaml'
     post:
       summary: Add a compound service to a DID Document.
       description: |
@@ -195,6 +204,7 @@ paths:
         Remove a service from a DID Document.
 
         error returns:
+        * 400 - incorrect input
         * 404 - unknown DID
         * 409 - the service is referenced by other services
       operationId: "deleteService"
