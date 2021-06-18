@@ -5,8 +5,8 @@ Signing a contract with IRMA
 
 This getting started manual shows how to successfully use IRMA to sign a contract.
 Contracts are used within the Nuts ecosystem to identify a user to other network participants.
-It also connects a user to the care organization that user is currently working for.
-The signed contract can be seen as a network enabled session token and should therefore be stored alongside the user session.
+It also relates a user to the care organization that user is currently working for.
+The signed contract is used as token to authenticate the user's (local) EHR identity to other nodes in the network and can be used as session token on the EHR.
 The contract is required for every request that results in personal and/or medical data being retrieved.
 
 Basic requirements
@@ -14,7 +14,8 @@ Basic requirements
 
 To use IRMA as a means for signing a contract, the following is required:
 
-- the user has the IRMA app installed on an android or iOS device with camera and an internet connection.
+- the user has the IRMA app installed on an Android or iOS device with camera and an internet connection.
+- the user has retrieved the BRP and email credentials in the IRMA app.
 - the user interacts with the XIS/ECD via a recent browser capable of running javascript.
 - the vendor has a Nuts node running.
 
@@ -31,7 +32,7 @@ Configuring the Nuts node
 
 In the contract signing flow, the device running the IRMA app communicates with the Nuts node directly.
 Therefore the Nuts node needs to be accessible to the public internet.
-All APIs on the Nuts node starting with ``/public`` must be accessible over https without any security measures in place.
+All APIs on the Nuts node starting with ``/public`` (without a trailing slash) must be accessible over HTTPS without any additional security measures that could prevent access by mobile devices.
 A domain must also be available which resolves to those APIs.
 The domain must be configured on the Nuts node:
 
@@ -41,7 +42,7 @@ The domain must be configured on the Nuts node:
     publicurl: https://example.com
 
 The Nuts APIs used for signing will embed this URL in the QR code shown to the user.
-The javascript in the frontend will also use this domain (exposed via the QR code) to check the status of the signing session.
+The javascript in the frontend will also use this URL (exposed via the QR code) to check the status of the signing session.
 Therefore the domain which serves the frontend must be able to do requests to that domain.
 The browser will require CORS headers to be configured on the domain configured in the Nuts node config.
 This can be done by the following snippet:
@@ -56,14 +57,12 @@ This can be done by the following snippet:
 Where *other.com* is the domain serving the frontend. For development purposes ``*`` is also allowed.
 If the public APIs are mounted on a different port/interface in the nuts config then the ``default`` key should be changed to ``public`` in the example above.
 
-The XIS/ECD communicates with the Nuts node via the ``/internal`` APIs.
-
 Setting up the frontend
 ***********************
 
-For the frontend we'll be using the `irma-frontend-packages <https://github.com/privacybydesign/irma-frontend-packages>`_ JS library.
+For the frontend we'll be using the `irma-frontend-packages <https://github.com/privacybydesign/irma-frontend-packages>`_ javascript library.
 More info on how to use this library can be found on `https://irma.app/docs/irma-frontend/`_.
-You can choose to load the IRMA frontend packages javascript via a html tag, in which case you'll need to build the JS file yourself given the instructions on `https://github.com/privacybydesign/irma-frontend-packages`_ or you can choose to use ``npm``:
+You can choose to load the IRMA frontend packages javascript via an HTML tag, in which case you'll need to build the javascript file yourself given the instructions on `https://github.com/privacybydesign/irma-frontend-packages`_ or you can choose to use ``npm``:
 
 .. code-block:: json
 
@@ -181,17 +180,17 @@ In this case, only the header is changed.
       }
     }
 
-The ``session`` object contains all the technical parts to connect the IRMA JS library to your backend.
+The ``session`` object contains all the technical parts to connect the IRMA javascript library to your backend.
 The contents of the ``start`` object configures the initial request to start a signing session. You can control the type of request and the contents.
 In this case, some data from the frontend is sent as JSON. This is optional and no particular data is required.
-The ``url``, in this case ``/web/auth``, must be set in such a way that two backend services are available to the frontend.
+The ``url``, in this case ``/web/auth``, must be set so the frontend can access the following URLs:
 
 .. code-block::
 
     <url>/session
     <url>/session/<sessionToken>/result
 
-must both be available on the backend. For the example above this means that both ``/web/auth/session/`` and ``/web/auth/session/<sessionToken>/result`` are available. The ``<sessionToken>`` is the token that will be returned by the call to ``<url>/session/``.
+These URLs must both be available on the backend. For the example above this means that both ``/web/auth/session/`` and ``/web/auth/session/<sessionToken>/result`` are available. The ``<sessionToken>`` is the token that will be returned by the call to ``<url>/session/``.
 How to parse the result of that call and extract the token is done via the ``mapping`` object.
 
 The ``mapping`` object is a map where two keys are expected: ``sessionPtr`` and ``sessionToken``.
@@ -235,10 +234,10 @@ With the following body:
     }
 
 The ``type`` must be one of the valid Nuts contract types, currently only ``BehandelaarLogin`` for Dutch and ``PractitionerLogin`` for English are supported.
-The `language`` selects the correct language, ``NL`` for Dutch and ``EN`` for english. The ``version`` must be v3.
-The legalEntity must refer to the DID of the current organization. The user either selects an organization to login for or is already logged in.
-From that context the organization must have a DID as described in :ref:`Getting Started on customer integration <connecting-crm>`.
-``validFrom`` is a RFC3339 compliant time string. ``validDuration`` describes how long the contract is valid for. Unix compatible duration strings can be used like ``1h`` or ``60m``. The local system timezone is used to format the date and time string.
+The `language`` selects the correct language, ``NL`` for Dutch and ``EN`` for english. The ``version`` must be ``v3``.
+The ``legalEntity`` must refer to the DID of the current organization. The user either selects an organization to login for, or is already logged in.
+The organization must have a DID as described in :ref:`Getting Started on customer integration <connecting-crm>`.
+``validFrom`` is a RFC3339 compliant time string. ``validDuration`` describes how long the contract is valid for. Time unit strings are used like ``1h`` or ``60m``, the valid time units are: "ns", "us" (or "µs"), "ms", "s", "m", "h". The local system timezone is used to format the date and time string.
 
 The return value looks like:
 
@@ -274,7 +273,7 @@ If any transformation is done, the ``mapping`` setting in the frontend must be c
 Getting the session result
 ==========================
 
-The IRMA JS frontend library will check for the status of the signing session. When the session has been completed it'll call the following url:
+The IRMA javascript frontend library will check for the status of the signing session. When the session has been completed it'll call the following url:
 
 .. code-block::
 
@@ -287,7 +286,7 @@ The backend must implement this API, the implementation must call the following 
 
     GET /internal/auth/v1/signature/session/<sessionToken>
 
-Any errors in calling this service need to be relayed to the frontend. This will instruct the user on why things went wrong and what to do next.
+Any error in calling this service need to be relayed to the frontend. This will instruct the user on why things went wrong and what to do next.
 The call to the Nuts node will return the following response:
 
 .. code-block:: json
@@ -302,7 +301,7 @@ The call to the Nuts node will return the following response:
 The ``status`` field has a different content when a different signing means is used.
 The presence of the ``verifiablePresentation`` in the result is the main method of checking if the signing session succeeded.
 ``verifiablePresentation`` is the cryptographic proof that needs to be stored in the user session.
-It's required in the oauth flow for obtaining an access token.
+It's required in the OAuth flow for obtaining an access token.
 The backend should check if the signed contract (verifiable presentation) is still valid when using it.
 The validity can be checked by calling the following API with the verifiable presentation at the place of ``<vp>``:
 
@@ -340,4 +339,4 @@ It will return a structure similar to:
       }
     }
 
-The ``validity`` will indicate its validity.
+The ``validity`` will indicate its validity. An expired contract is considered invalid.
