@@ -33,15 +33,6 @@ type grpcMessenger interface {
 	Recv() (*transport.NetworkMessage, error)
 }
 
-func createConnection(peer Peer, messenger grpcMessenger) *connection {
-	return &connection{
-		Peer:        peer,
-		messenger:   messenger,
-		outMessages: make(chan *transport.NetworkMessage, 10), // TODO: Does this number make sense? Should also be configurable?
-		mux:         &sync.Mutex{},
-	}
-}
-
 // connection represents a bidirectional connection with a peer.
 type connection struct {
 	Peer
@@ -53,6 +44,7 @@ type connection struct {
 	//   According to the docs it's unsafe to simultaneously call stream.Send() from multiple goroutines so we put them
 	//   on a channel so that each peer can have its own goroutine sending messages (consuming messages from this channel)
 	outMessages chan *transport.NetworkMessage
+	closer      chan struct{}
 	// mux is used to secure access to the internals of this struct since they're accessed concurrently
 	mux *sync.Mutex
 }
@@ -60,16 +52,25 @@ type connection struct {
 func (conn *connection) close() {
 	conn.mux.Lock()
 	defer conn.mux.Unlock()
+	if conn.outMessages == nil {
+		// Already closed
+	}
+	log.Logger().Infof("Closing connection (peer-id=%s)", conn.ID)
+
+	// Signal send/receive loop connection is closing
+	if len(conn.closer) == 0 {
+		conn.closer <- struct{}{}
+	}
+	// Close our client connection (not applicable if we're the server side of the connection)
 	if conn.grpcConn != nil {
 		if err := conn.grpcConn.Close(); err != nil {
 			log.Logger().Warnf("Unable to close client connection (peer=%s): %v", conn.Peer, err)
 		}
 		conn.grpcConn = nil
 	}
-	if conn.outMessages != nil {
-		close(conn.outMessages)
-		conn.outMessages = nil
-	}
+	// Close in/out channels
+	close(conn.outMessages)
+	conn.outMessages = nil
 }
 
 func (conn *connection) send(message *transport.NetworkMessage) error {
@@ -82,32 +83,56 @@ func (conn *connection) send(message *transport.NetworkMessage) error {
 	return nil
 }
 
-// sendMessages (blocking) reads messages from its outMessages channel and sends them to the peer until the channel is closed.
-func (conn connection) sendMessages() {
-	for message := range conn.outMessages {
-		if conn.messenger.Send(message) != nil {
-			log.Logger().Warnf("Unable to send message to peer (peer=%s)", conn.Peer)
+// receiveMessages (blocking) reads messages from the peer until it disconnects or the network is stopped.
+func (conn *connection) receiveMessages() chan *PeerMessage {
+	peerID := conn.ID
+	messenger := conn.messenger
+	result := make(chan *PeerMessage, 10)
+	go func() {
+		for {
+			msg, recvErr := messenger.Recv()
+			if recvErr != nil {
+				if recvErr == io.EOF {
+					log.Logger().Infof("Peer closed connection (peer-id=%s)", peerID)
+				} else {
+					log.Logger().Warnf("Peer connection error (peer-id=%s): %v", peerID, recvErr)
+				}
+				conn.close()
+				break
+			}
+			log.Logger().Tracef("Received message from peer (peer-id=%s): %s", peerID, msg.String())
+			result <- &PeerMessage{
+				Peer:    peerID,
+				Message: msg,
+			}
 		}
-	}
+	}()
+	return result
 }
 
-// receiveMessages (blocking) reads messages from the peer until it disconnects or the network is stopped.
-func (conn *connection) receiveMessages(receivedMsgQueue messageQueue) {
+func (conn *connection) sendAndReceive(receivedMessages messageQueue) {
+	conn.mux.Lock()
+	out := conn.outMessages
+	in := conn.receiveMessages()
+	conn.mux.Unlock()
 	for {
-		msg, recvErr := conn.messenger.Recv()
-		if recvErr != nil {
-			if recvErr == io.EOF {
-				log.Logger().Infof("Peer closed connection (peer-id=%s)", conn.ID)
-			} else {
-				log.Logger().Warnf("Peer connection error (peer-id=%s): %v", conn.ID, recvErr)
+		select {
+		case message := <-out:
+			if message == nil {
+				// Connection is closing
+				return
 			}
-			break
-		}
-		log.Logger().Tracef("Received message from peer (peer-id=%s): %s", conn.ID, msg.String())
-		receivedMsgQueue.c <- PeerMessage{
-			Peer:    conn.ID,
-			Message: msg,
+			if conn.messenger.Send(message) != nil {
+				log.Logger().Warnf("Unable to send message to peer (peer=%s)", conn.Peer)
+			}
+		case message := <-in:
+			if message == nil {
+				// Connection is closing
+				return
+			}
+			receivedMessages.c <- *message
+		case <-conn.closer:
+			// close() is called
 		}
 	}
-	conn.close()
 }

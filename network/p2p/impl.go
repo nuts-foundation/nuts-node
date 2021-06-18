@@ -129,7 +129,7 @@ type connector struct {
 	dialer
 }
 
-func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*connection, error) {
+func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*Peer, transport.Network_ConnectClient, error) {
 	log.Logger().Debugf("Connecting to peer: %v", c.address)
 	cxt := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
 	dialContext, _ := context.WithTimeout(cxt, 5*time.Second)
@@ -148,30 +148,26 @@ func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*connection,
 	}
 	grpcConn, err := c.dialer(dialContext, c.address, dialOptions...)
 	if err != nil {
-		return nil, errors2.Wrap(err, "unable to connect")
+		return nil, nil, errors2.Wrap(err, "unable to connect")
 	}
 	client := transport.NewNetworkClient(grpcConn)
 	messenger, err := client.Connect(cxt)
 	if err != nil {
 		log.Logger().Warnf("Failed to set up stream (addr=%s): %v", c.address, err)
 		_ = grpcConn.Close()
-		return nil, err
+		return nil, nil, err
 	}
 
 	serverPeerID, err := c.readHeaders(messenger, grpcConn)
 	if err != nil {
 		log.Logger().Warnf("Error reading headers from server, closing connection (addr=%s): %v", c.address, err)
 		_ = grpcConn.Close()
-		return nil, err
+		return nil, nil, err
 	}
-	conn := createConnection(Peer{
+	return &Peer{
 		ID:      serverPeerID,
 		Address: c.address,
-	}, messenger)
-	conn.grpcConn = grpcConn
-
-	log.Logger().Infof("Connected to peer (id=%s,addr=%s)", conn.ID, c.address)
-	return conn, nil
+	}, messenger, nil
 }
 
 func (c *connector) readHeaders(gate transport.Network_ConnectClient, grpcConn *grpc.ClientConn) (PeerID, error) {
@@ -300,14 +296,6 @@ func (n adapter) ConnectToPeer(address string) bool {
 	return false
 }
 
-func (n *adapter) startSendingAndReceiving(conn *connection) {
-	go conn.sendMessages()
-	n.registerConnection(conn)
-	conn.receiveMessages(n.receivedMessages)
-	// When we reach this line, receiveMessages has exited which means the connection has been closed.
-	n.unregisterConnection(conn)
-}
-
 // connectToNewPeers reads from connectorAddChannel to start connecting to new peers
 func (n *adapter) connectToNewPeers() {
 	for address := range n.connectorAddChannel {
@@ -338,12 +326,15 @@ func (n *adapter) startConnecting(newConnector *connector) {
 					RootCAs:      n.config.TrustStore,
 				}
 			}
-			if peer, err := newConnector.doConnect(n.config.PeerID, tlsConfig); err != nil {
+			if peer, stream, err := newConnector.doConnect(n.config.PeerID, tlsConfig); err != nil {
 				waitPeriod := newConnector.backoff.Backoff()
 				log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), newConnector.address, err)
 				time.Sleep(waitPeriod)
 			} else {
-				n.startSendingAndReceiving(peer)
+				conn := n.newConnection(*peer, stream)
+				conn.sendAndReceive(n.receivedMessages)
+				n.unregisterConnection(conn)
+
 				newConnector.backoff.Reset()
 			}
 		}
@@ -397,7 +388,14 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 	if err := stream.SendHeader(constructMetadata(n.config.PeerID)); err != nil {
 		return errors2.Wrap(err, "unable to send headers")
 	}
-	n.startSendingAndReceiving(createConnection(peer, stream))
+
+	//if existingConnection, ok := n.conns[peer.ID]; ok {
+	//	log.Logger().Warnf("Already connected to peer, closing old connection (peerID=%s).", peer.ID)
+	//	existingConnection.close()
+	//}
+	conn := n.newConnection(peer, stream)
+	conn.sendAndReceive(n.receivedMessages)
+	n.unregisterConnection(conn)
 	return nil
 }
 
@@ -426,4 +424,16 @@ func (n *adapter) unregisterConnection(conn *connection) {
 	delete(n.conns, conn.ID)
 	delete(n.peersByAddr, normalizedAddress)
 	n.peerDisconnectedChannel <- conn.Peer
+}
+
+func (n adapter) newConnection(peer Peer, messenger grpcMessenger) *connection {
+	conn := &connection{
+		Peer:        peer,
+		messenger:   messenger,
+		outMessages: make(chan *transport.NetworkMessage, 10), // TODO: Does this number make sense? Should also be configurable?
+		closer:      make(chan struct{}, 1),
+		mux:         &sync.Mutex{},
+	}
+	n.registerConnection(conn)
+	return conn
 }
