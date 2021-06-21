@@ -20,7 +20,8 @@ package p2p
 
 import (
 	"errors"
-	"io"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"sync"
 
 	log "github.com/nuts-foundation/nuts-node/network/log"
@@ -54,8 +55,9 @@ func (conn *connection) close() {
 	defer conn.mux.Unlock()
 	if conn.outMessages == nil {
 		// Already closed
+		return
 	}
-	log.Logger().Infof("Closing connection (peer-id=%s)", conn.ID)
+	log.Logger().Debugf("Connection is closing (peer-id=%s)", conn.ID)
 
 	// Signal send/receive loop connection is closing
 	if len(conn.closer) == 0 {
@@ -92,7 +94,8 @@ func (conn *connection) receiveMessages() chan *PeerMessage {
 		for {
 			msg, recvErr := messenger.Recv()
 			if recvErr != nil {
-				if recvErr == io.EOF {
+				errStatus, isStatusError := status.FromError(recvErr)
+				if isStatusError && errStatus.Code() == codes.Canceled {
 					log.Logger().Infof("Peer closed connection (peer-id=%s)", peerID)
 				} else {
 					log.Logger().Warnf("Peer connection error (peer-id=%s): %v", peerID, recvErr)
@@ -132,7 +135,8 @@ func (conn *connection) sendAndReceive(receivedMessages messageQueue) {
 			}
 			receivedMessages.c <- *message
 		case <-conn.closer:
-			// close() is called
+			log.Logger().Trace("close() is called")
+			return
 		}
 	}
 }

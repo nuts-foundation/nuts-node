@@ -246,19 +246,24 @@ func (n *adapter) Start() error {
 				ClientCAs:    n.config.TrustStore,
 			})))
 		}
-		n.grpcServer = grpc.NewServer(serverOpts...)
-		transport.RegisterNetworkServer(n.grpcServer, n)
-		go func() {
-			err = n.grpcServer.Serve(n.listener)
-			if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-				log.Logger().Errorf("gRPC server errored: %v", err)
-				_ = n.Stop()
-			}
-		}()
+		n.startServing(serverOpts)
 	}
 	// Start client
 	go n.connectToNewPeers()
 	return nil
+}
+
+func (n *adapter) startServing(serverOpts []grpc.ServerOption) {
+	server := grpc.NewServer(serverOpts...)
+	n.grpcServer = server
+	transport.RegisterNetworkServer(server, n)
+	go func() {
+		err := server.Serve(n.listener)
+		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			log.Logger().Errorf("gRPC server errored: %v", err)
+			_ = n.Stop()
+		}
+	}()
 }
 
 func (n *adapter) Stop() error {
@@ -331,10 +336,9 @@ func (n *adapter) startConnecting(newConnector *connector) {
 				log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), newConnector.address, err)
 				time.Sleep(waitPeriod)
 			} else {
-				conn := n.newConnection(*peer, stream)
+				conn := n.registerConnection(*peer, stream)
 				conn.sendAndReceive(n.receivedMessages)
 				n.unregisterConnection(conn)
-
 				newConnector.backoff.Reset()
 			}
 		}
@@ -389,25 +393,20 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 		return errors2.Wrap(err, "unable to send headers")
 	}
 
-	//if existingConnection, ok := n.conns[peer.ID]; ok {
-	//	log.Logger().Warnf("Already connected to peer, closing old connection (peerID=%s).", peer.ID)
-	//	existingConnection.close()
-	//}
-	conn := n.newConnection(peer, stream)
+	// Smaller scope for mutex
+	{
+		n.connsMutex.Lock()
+		defer n.connsMutex.Unlock()
+		if existingConnection, ok := n.conns[peer.ID]; ok {
+			log.Logger().Warnf("Already connected to peer, closing old connection (peerID=%s).", peer.ID)
+			existingConnection.close()
+			n.unregisterConnection(existingConnection) // Explicitly unregister to avoid race conditions
+		}
+	}
+	conn := n.registerConnection(peer, stream)
 	conn.sendAndReceive(n.receivedMessages)
 	n.unregisterConnection(conn)
 	return nil
-}
-
-func (n *adapter) registerConnection(conn *connection) {
-	normalizedAddress := normalizeAddress(conn.Address)
-
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-
-	n.conns[conn.ID] = conn
-	n.peersByAddr[normalizedAddress] = conn.ID
-	n.peerConnectedChannel <- conn.Peer
 }
 
 func (n *adapter) unregisterConnection(conn *connection) {
@@ -416,8 +415,8 @@ func (n *adapter) unregisterConnection(conn *connection) {
 	n.connsMutex.Lock()
 	defer n.connsMutex.Unlock()
 
-	conn = n.conns[conn.ID]
-	if conn == nil {
+	// Only if connection is still registered
+	if _, ok := n.conns[conn.ID]; !ok {
 		return
 	}
 
@@ -426,7 +425,7 @@ func (n *adapter) unregisterConnection(conn *connection) {
 	n.peerDisconnectedChannel <- conn.Peer
 }
 
-func (n adapter) newConnection(peer Peer, messenger grpcMessenger) *connection {
+func (n *adapter) registerConnection(peer Peer, messenger grpcMessenger) *connection {
 	conn := &connection{
 		Peer:        peer,
 		messenger:   messenger,
@@ -434,6 +433,13 @@ func (n adapter) newConnection(peer Peer, messenger grpcMessenger) *connection {
 		closer:      make(chan struct{}, 1),
 		mux:         &sync.Mutex{},
 	}
-	n.registerConnection(conn)
+
+	n.connsMutex.Lock()
+	defer n.connsMutex.Unlock()
+
+	n.conns[conn.ID] = conn
+	n.peersByAddr[normalizeAddress(conn.Address)] = conn.ID
+	n.peerConnectedChannel <- conn.Peer
+
 	return conn
 }

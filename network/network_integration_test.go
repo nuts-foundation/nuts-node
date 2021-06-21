@@ -71,7 +71,10 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	defer func() {
 		node2.Shutdown()
 		node1.Shutdown()
-		bootstrap.Shutdown()
+		err := bootstrap.Shutdown()
+		if !assert.NoError(t, err) {
+			panic(err)
+		}
 	}()
 
 	// Wait until nodes are connected

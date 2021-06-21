@@ -143,7 +143,7 @@ func (n *Network) Start() error {
 	if err := n.graph.Verify(); err != nil {
 		return err
 	}
-	n.startTime = time.Now()
+	n.startTime = time.Now().UnixNano()
 
 	return nil
 }

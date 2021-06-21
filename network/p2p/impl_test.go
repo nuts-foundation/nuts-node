@@ -23,8 +23,12 @@ import (
 	"crypto/x509"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/vcr/logging"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/test/bufconn"
 	"io"
 	"net"
 	"sync"
@@ -133,10 +137,10 @@ func Test_interface_Start(t *testing.T) {
 func Test_interface_Connect(t *testing.T) {
 	const peerID = "abc"
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	t.Run("ok (uses mocks to test behaviour)", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 
-	t.Run("ok", func(t *testing.T) {
 		network := NewAdapter().(*adapter)
 		network.Configure(AdapterConfig{
 			PeerID:        "foo",
@@ -164,13 +168,13 @@ func Test_interface_Connect(t *testing.T) {
 
 		connectWaiter := sync.WaitGroup{}
 		connectWaiter.Add(1)
+		// Connect() is a blocking call, so we run it in a goroutine
 		go func() {
 			network.Connect(mockConnection())
 			connectWaiter.Done()
 		}()
 		recvWaiter.Wait()
-		// Connection is now live and receiving, close it
-		// Check that the connection is registered
+		// Connection is now live and receiving. Check that the connection is registered
 		assert.Len(t, network.conns, 1)
 		assert.Len(t, network.peersByAddr, 1)
 		assert.Len(t, network.Peers(), 1)
@@ -183,99 +187,75 @@ func Test_interface_Connect(t *testing.T) {
 		assert.Empty(t, network.Peers())
 	})
 
-	t.Run("parallel connection from same peer", func(t *testing.T) {
+	t.Run("second connection from same peer, disconnect first (uses actual in-memory gRPC connection)", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
 		network := NewAdapter().(*adapter)
 		network.Configure(AdapterConfig{
 			PeerID:        "foo",
 			ListenAddress: "127.0.0.1:0",
 		})
-
-		connectionsReceivingWaiter := sync.WaitGroup{}
-		mockConnection := func() *transport.MockNetwork_ConnectServer {
-			conn := transport.NewMockNetwork_ConnectServer(ctrl)
-			ctx := metadata.NewIncomingContext(peer.NewContext(context.Background(), &peer.Peer{
-				Addr: &net.IPAddr{
-					IP: net.IPv4(127, 0, 0, 1),
-				},
-			}), metadata.Pairs(peerIDHeader, peerID))
-			conn.EXPECT().Context().AnyTimes().Return(ctx)
-			conn.EXPECT().SendHeader(gomock.Any())
-			conn.EXPECT().Recv().DoAndReturn(func() (interface{}, error) {
-				connectionsReceivingWaiter.Done()
-				return nil, io.EOF
-			})
-			return conn
+		// Use gRPC bufconn listener
+		network.listener = bufconn.Listen(1024 * 1024)
+		network.startServing(nil)
+		dialFn := func(_ context.Context, _ string) (net.Conn, error) {
+			return network.listener.(*bufconn.Listener).Dial()
 		}
 
-		connsNum := 15
-		connectionsReceivingWaiter.Add(connsNum)
-		for i := 0; i < connsNum; i++ {
+		connect := func() (*grpc.ClientConn, *sync.WaitGroup) {
+			// Perform connection in goroutine to force parallelism server-side, just like it would at run-time.
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			var client transport.Network_ConnectClient
+			var conn *grpc.ClientConn
 			go func() {
-				err := network.Connect(mockConnection())
-				if err != nil {
-					t.Fatal(err)
+				defer wg.Done()
+				ctx := metadata.NewOutgoingContext(context.Background(), constructMetadata(peerID))
+				var err error
+				conn, err = grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(dialFn), grpc.WithInsecure(), grpc.WithBlock())
+				if !assert.NoError(t, err) {
+					t.FailNow()
+				}
+
+				service := transport.NewNetworkClient(conn)
+				client, err = service.Connect(ctx)
+				if !assert.NoError(t, err) {
+					t.FailNow()
 				}
 			}()
-		}
-		connectionsReceivingWaiter.Wait()
-	})
+			wg.Wait()
 
-	t.Run("peer connects twice", func(t *testing.T) {
-		network := NewAdapter().(*adapter)
-		network.Configure(AdapterConfig{
-			PeerID:        "foo",
-			ListenAddress: "127.0.0.1:0",
-		})
+			// client.Recv() blocks until the connection is closed, so we call it in a goroutine which communicates
+			// with a wait group to signal the caller.
+			recvWatcher := &sync.WaitGroup{}
+			recvWatcher.Add(1)
+			go func() {
+				client.Recv()
+				recvWatcher.Done()
+			}()
 
-		connectionsReceivingWaiter := sync.WaitGroup{}
-		shutdownWaiter := sync.WaitGroup{}
-		shutdownWaiter.Add(1)
-		defer shutdownWaiter.Done()
-
-		mockConnection := func() *transport.MockNetwork_ConnectServer {
-			conn := transport.NewMockNetwork_ConnectServer(ctrl)
-			ctx := metadata.NewIncomingContext(peer.NewContext(context.Background(), &peer.Peer{
-				Addr: &net.IPAddr{
-					IP: net.IPv4(127, 0, 0, 1),
-				},
-			}), metadata.Pairs(peerIDHeader, peerID))
-			conn.EXPECT().Context().AnyTimes().Return(ctx)
-			conn.EXPECT().SendHeader(gomock.Any())
-			conn.EXPECT().Recv().DoAndReturn(func() (interface{}, error) {
-				connectionsReceivingWaiter.Done()
-				shutdownWaiter.Wait()
-				return nil, io.EOF
-			})
-			return conn
+			return conn, recvWatcher
 		}
 
-		// Create first connection and wait for it to be connected (Recv() is called blockingly)
-		firstConnection := mockConnection()
-		connectionsReceivingWaiter.Add(1)
-		go func() {
-			err := network.Connect(firstConnection)
-			if !assert.NoError(t, err) {
-				return
-			}
-		}()
-		connectionsReceivingWaiter.Wait()
-		assert.Len(t, network.peersByAddr, 1)
-		assert.Len(t, network.peerConnectedChannel, 1)
-		assert.Len(t, network.conns, 1)
-		// First connection is established, now create second connection. This should disconnect and unregister the first connection.
-		secondConnection := mockConnection()
-		connectionsReceivingWaiter.Add(1)
-		go func() {
-			err := network.Connect(secondConnection)
-			if !assert.NoError(t, err) {
-				return
-			}
-		}()
-		connectionsReceivingWaiter.Wait()
-		// Second connection is established
-
+		// 1. First connection
+		conn1, conn1Recv := connect()
+		<-network.peerConnectedChannel // Wait until connected
+		assert.Equal(t, connectivity.Ready, conn1.GetState())
+		// 2. Second connection, should close first connection
+		conn2, _ := connect()
+		<-network.peerDisconnectedChannel // Wait until first connection is marked closed
+		conn1Recv.Wait() // Assert first connection is closed
+		<-network.peerConnectedChannel // Wait until connected
+		assert.Equal(t, connectivity.Ready, conn2.GetState())
+		// 3. Close second connection from client side
+		logging.Log().Info("closing second connection")
+		err := conn2.Close()
+		if !assert.NoError(t, err) {
+			return
+		}
+		<-network.peerDisconnectedChannel // Wait until second connection is marked closed
 	})
-
 }
 
 func Test_interface_ConnectToPeer(t *testing.T) {

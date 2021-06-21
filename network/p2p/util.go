@@ -22,20 +22,9 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"sync"
 
 	"google.golang.org/grpc/metadata"
 )
-
-func NewKeyedMutex() *keyedMutex {
-	return &keyedMutex{items: map[string]*sync.Mutex{}, mux: &sync.Mutex{}}
-}
-
-type keyedMutex struct {
-	items map[string]*sync.Mutex
-	mux   *sync.Mutex
-}
-
 
 func normalizeAddress(addr string) string {
 	var normalizedAddr string
