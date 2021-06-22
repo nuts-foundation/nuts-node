@@ -42,7 +42,11 @@ func Test_connection_exchange(t *testing.T) {
 		defer ctrl.Finish()
 		wg := sync.WaitGroup{}
 		messenger := NewMockgrpcMessenger(ctrl)
+
+		recvWaiter := sync.WaitGroup{}
+		recvWaiter.Add(1)
 		messenger.EXPECT().Recv().DoAndReturn(func() (interface{}, error) {
+			recvWaiter.Done()
 			wg.Wait()
 			return nil, io.EOF
 		})
@@ -53,7 +57,8 @@ func Test_connection_exchange(t *testing.T) {
 			conn.exchange(messageQueue{})
 			wg.Done()
 		}()
-		runtime.Gosched() // make sure exchange() goroutine is getting a slice of CPU
+		// make sure exchange() called Recv(), otherwise the test will sometimes fail
+		recvWaiter.Wait()
 
 		conn.close()
 		if !waitFor(&wg, time.Second) {
