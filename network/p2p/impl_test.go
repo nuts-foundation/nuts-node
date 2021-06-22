@@ -175,15 +175,11 @@ func Test_interface_Connect(t *testing.T) {
 		}()
 		recvWaiter.Wait()
 		// Connection is now live and receiving. Check that the connection is registered
-		assert.Len(t, network.conns, 1)
-		assert.Len(t, network.peersByAddr, 1)
 		assert.Len(t, network.Peers(), 1)
 		// Now close the connection and wait for the Connect() function to finish, indicating the connection is closed and cleaned up
-		network.conns[PeerID(peerID)].close()
+		network.conns.close(PeerID(peerID))
 		connectWaiter.Wait()
 		// Now we shouldn't have any connections left
-		assert.Empty(t, network.conns)
-		assert.Empty(t, network.peersByAddr)
 		assert.Empty(t, network.Peers())
 	})
 

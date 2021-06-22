@@ -34,8 +34,14 @@ type grpcMessenger interface {
 	Recv() (*transport.NetworkMessage, error)
 }
 
+type connection interface {
+	send(message *transport.NetworkMessage) error
+	sendAndReceive(receivedMessages messageQueue)
+	peer() Peer
+}
+
 // connection represents a bidirectional connection with a peer.
-type connection struct {
+type managedConnection struct {
 	Peer
 	// messenger is used to send and receive messages
 	messenger grpcMessenger
@@ -50,7 +56,13 @@ type connection struct {
 	mux *sync.Mutex
 }
 
-func (conn *connection) close() {
+func (conn *managedConnection) peer() Peer {
+	conn.mux.Lock()
+	defer conn.mux.Unlock()
+	return conn.Peer
+}
+
+func (conn *managedConnection) close() {
 	conn.mux.Lock()
 	defer conn.mux.Unlock()
 	if conn.outMessages == nil {
@@ -75,7 +87,7 @@ func (conn *connection) close() {
 	conn.outMessages = nil
 }
 
-func (conn *connection) send(message *transport.NetworkMessage) error {
+func (conn *managedConnection) send(message *transport.NetworkMessage) error {
 	conn.mux.Lock()
 	defer conn.mux.Unlock()
 	if conn.outMessages == nil {
@@ -86,7 +98,7 @@ func (conn *connection) send(message *transport.NetworkMessage) error {
 }
 
 // receiveMessages (blocking) reads messages from the peer until it disconnects or the network is stopped.
-func (conn *connection) receiveMessages() chan *PeerMessage {
+func (conn *managedConnection) receiveMessages() chan *PeerMessage {
 	peerID := conn.ID
 	messenger := conn.messenger
 	result := make(chan *PeerMessage, 10)
@@ -113,7 +125,7 @@ func (conn *connection) receiveMessages() chan *PeerMessage {
 	return result
 }
 
-func (conn *connection) sendAndReceive(receivedMessages messageQueue) {
+func (conn *managedConnection) sendAndReceive(receivedMessages messageQueue) {
 	conn.mux.Lock()
 	out := conn.outMessages
 	in := conn.receiveMessages()
@@ -138,5 +150,81 @@ func (conn *connection) sendAndReceive(receivedMessages messageQueue) {
 			log.Logger().Trace("close() is called")
 			return
 		}
+	}
+}
+
+func newConnectionManager() *connectionManager {
+	return &connectionManager{
+		mux:         &sync.Mutex{},
+		conns:       make(map[PeerID]*managedConnection, 0),
+		peersByAddr: make(map[string]PeerID, 0),
+	}
+}
+
+type connectionManager struct {
+	mux *sync.Mutex
+
+	conns       map[PeerID]*managedConnection
+	peersByAddr map[string]PeerID
+}
+
+func (mgr *connectionManager) register(peer Peer, messenger grpcMessenger) connection {
+	conn := &managedConnection{
+		Peer:        peer,
+		messenger:   messenger,
+		outMessages: make(chan *transport.NetworkMessage, 10), // TODO: Does this number make sense? Should also be configurable?
+		closer:      make(chan struct{}, 1),
+		mux:         &sync.Mutex{},
+	}
+
+	mgr.mux.Lock()
+	defer mgr.mux.Unlock()
+
+	mgr.conns[conn.ID] = conn
+	mgr.peersByAddr[normalizeAddress(conn.Address)] = conn.ID
+	return conn
+}
+
+func (mgr *connectionManager) isConnected(addr string) bool {
+	mgr.mux.Lock()
+	defer mgr.mux.Unlock()
+	_, ok := mgr.peersByAddr[normalizeAddress(addr)]
+	return ok
+}
+
+func (mgr *connectionManager) get(peer PeerID) connection {
+	mgr.mux.Lock()
+	defer mgr.mux.Unlock()
+	return mgr.conns[peer]
+}
+
+func (mgr *connectionManager) close(peer PeerID) bool {
+	mgr.mux.Lock()
+	defer mgr.mux.Unlock()
+	conn := mgr.conns[peer]
+	if conn == nil {
+		return false
+	}
+	conn.close()
+	delete(mgr.conns, conn.ID)
+	delete(mgr.peersByAddr, normalizeAddress(conn.Address))
+	return true
+}
+
+func (mgr *connectionManager) stop() {
+	mgr.mux.Lock()
+	defer mgr.mux.Unlock()
+	for _, conn := range mgr.conns {
+		conn.close()
+	}
+	mgr.conns = map[PeerID]*managedConnection{}
+	mgr.peersByAddr = map[string]PeerID{}
+}
+
+func (mgr *connectionManager) forEach(fn func(conn connection)) {
+	mgr.mux.Lock()
+	defer mgr.mux.Unlock()
+	for _, conn := range mgr.conns {
+		fn(conn)
 	}
 }

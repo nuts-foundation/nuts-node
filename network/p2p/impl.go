@@ -59,11 +59,9 @@ type adapter struct {
 	// Event channels which are listened to by, peers connects/disconnects
 	peerConnectedChannel    chan Peer
 	peerDisconnectedChannel chan Peer
-	// conns is the list of active connections. Access MUST be wrapped in locking using connsMutex.
-	conns map[PeerID]*connection
-	// peersByAddr access MUST be wrapped in locking using connsMutex.
-	peersByAddr      map[string]PeerID
-	connsMutex       *sync.Mutex
+
+	conns *connectionManager
+
 	receivedMessages messageQueue
 	grpcDialer       dialer
 	configured       bool
@@ -88,22 +86,18 @@ func (n adapter) Diagnostics() []core.DiagnosticResult {
 
 func (n *adapter) Peers() []Peer {
 	var result []Peer
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-	for _, conn := range n.conns {
-		result = append(result, conn.Peer)
-	}
+	n.conns.forEach(func(conn connection) {
+		result = append(result, conn.peer())
+	})
 	return result
 }
 
 func (n *adapter) Broadcast(message *transport.NetworkMessage) {
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-	for _, conn := range n.conns {
+	n.conns.forEach(func(conn connection) {
 		if err := conn.send(message); err != nil {
-			log.Logger().Warnf("Unable to broadcast to %s: %v", conn.ID, err)
+			log.Logger().Warnf("Unable to broadcast to %s: %v", conn.peer().ID, err)
 		}
-	}
+	})
 }
 
 func (n adapter) ReceivedMessages() MessageQueue {
@@ -111,12 +105,7 @@ func (n adapter) ReceivedMessages() MessageQueue {
 }
 
 func (n adapter) Send(peerID PeerID, message *transport.NetworkMessage) error {
-	var conn *connection
-	n.connsMutex.Lock()
-	{
-		defer n.connsMutex.Unlock()
-		conn = n.conns[peerID]
-	}
+	conn := n.conns.get(peerID)
 	if conn == nil {
 		return fmt.Errorf("unknown peer: %s", peerID)
 	}
@@ -188,13 +177,11 @@ func (c *connector) readHeaders(gate transport.Network_ConnectClient, grpcConn *
 // NewAdapter creates an interface to be used connect to peers in the network and exchange messages.
 func NewAdapter() Adapter {
 	return &adapter{
-		conns:                   make(map[PeerID]*connection, 0),
-		peersByAddr:             make(map[string]PeerID, 0),
+		conns:                   newConnectionManager(),
 		connectors:              make(map[string]*connector, 0),
 		connectorAddChannel:     make(chan string, connectingQueueChannelSize),
 		peerConnectedChannel:    make(chan Peer, eventChannelSize),
 		peerDisconnectedChannel: make(chan Peer, eventChannelSize),
-		connsMutex:              &sync.Mutex{},
 		serverMutex:             &sync.Mutex{},
 		receivedMessages:        messageQueue{c: make(chan PeerMessage, messageBacklogChannelSize)},
 		grpcDialer:              grpc.DialContext,
@@ -271,13 +258,7 @@ func (n *adapter) Stop() error {
 	defer n.serverMutex.Unlock()
 	// Stop client
 	close(n.connectorAddChannel)
-	n.connsMutex.Lock()
-	{
-		defer n.connsMutex.Unlock()
-		for _, peer := range n.conns {
-			peer.close()
-		}
-	}
+	n.conns.stop()
 	// Stop gRPC server
 	if n.grpcServer != nil {
 		n.grpcServer.Stop()
@@ -304,7 +285,7 @@ func (n adapter) ConnectToPeer(address string) bool {
 // connectToNewPeers reads from connectorAddChannel to start connecting to new peers
 func (n *adapter) connectToNewPeers() {
 	for address := range n.connectorAddChannel {
-		if _, present := n.peersByAddr[address]; present {
+		if n.conns.isConnected(address) {
 			log.Logger().Debugf("Not connecting to peer, already connected (address=%s)", address)
 		} else if n.connectors[address] != nil {
 			log.Logger().Debugf("Not connecting to peer, already trying to connect (address=%s)", address)
@@ -336,9 +317,12 @@ func (n *adapter) startConnecting(newConnector *connector) {
 				log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), newConnector.address, err)
 				time.Sleep(waitPeriod)
 			} else {
-				conn := n.registerConnection(*peer, stream)
+				conn := n.conns.register(*peer, stream)
+				n.peerConnectedChannel <- conn.peer()
 				conn.sendAndReceive(n.receivedMessages)
-				n.unregisterConnection(conn)
+				// Previous call was blocking, if we reach this the connection should be closed
+				n.conns.close(peer.ID)
+				n.peerDisconnectedChannel <- *peer
 				newConnector.backoff.Reset()
 			}
 		}
@@ -346,24 +330,22 @@ func (n *adapter) startConnecting(newConnector *connector) {
 }
 
 // shouldConnectTo checks whether we should connect to the given node.
-func (n adapter) shouldConnectTo(address string) bool {
+func (n *adapter) shouldConnectTo(address string) bool {
 	normalizedAddress := normalizeAddress(address)
 	if normalizedAddress == normalizeAddress(n.getLocalAddress()) {
 		// We're not going to connect to our own node
 		log.Logger().Trace("Not connecting since it's localhost")
 		return false
 	}
-	var alreadyConnected = true
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-	if _, alreadyConnected = n.peersByAddr[normalizedAddress]; alreadyConnected {
+	alreadyConnected := n.conns.isConnected(normalizedAddress)
+	if alreadyConnected {
 		// We're not going to connect to a node we're already connected to
 		log.Logger().Tracef("Not connecting since we're already connected (address=%s)", normalizedAddress)
 	}
 	return !alreadyConnected
 }
 
-func (n adapter) getLocalAddress() string {
+func (n *adapter) getLocalAddress() string {
 	if strings.HasPrefix(n.config.ListenAddress, ":") {
 		// Interface's address not included in listening address (e.g. :5555), so prepend with localhost
 		return "localhost" + n.config.ListenAddress
@@ -394,52 +376,15 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 	}
 
 	// Smaller scope for mutex
-	{
-		n.connsMutex.Lock()
-		defer n.connsMutex.Unlock()
-		if existingConnection, ok := n.conns[peer.ID]; ok {
-			log.Logger().Warnf("Already connected to peer, closing old connection (peerID=%s).", peer.ID)
-			existingConnection.close()
-			n.unregisterConnection(existingConnection) // Explicitly unregister to avoid race conditions
-		}
+	if n.conns.close(peer.ID) {
+		log.Logger().Warnf("Already connected to peer, closed old connection (peer=%s)", peer)
+		n.peerDisconnectedChannel <- peer
 	}
-	conn := n.registerConnection(peer, stream)
+	conn := n.conns.register(peer, stream)
+	n.peerConnectedChannel <- conn.peer()
 	conn.sendAndReceive(n.receivedMessages)
-	n.unregisterConnection(conn)
+	// Previous call was blocking, if we reach this the connection should be closed
+	n.conns.close(peerID)
+	n.peerDisconnectedChannel <- peer
 	return nil
-}
-
-func (n *adapter) unregisterConnection(conn *connection) {
-	normalizedAddress := normalizeAddress(conn.Address)
-
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-
-	// Only if connection is still registered
-	if _, ok := n.conns[conn.ID]; !ok {
-		return
-	}
-
-	delete(n.conns, conn.ID)
-	delete(n.peersByAddr, normalizedAddress)
-	n.peerDisconnectedChannel <- conn.Peer
-}
-
-func (n *adapter) registerConnection(peer Peer, messenger grpcMessenger) *connection {
-	conn := &connection{
-		Peer:        peer,
-		messenger:   messenger,
-		outMessages: make(chan *transport.NetworkMessage, 10), // TODO: Does this number make sense? Should also be configurable?
-		closer:      make(chan struct{}, 1),
-		mux:         &sync.Mutex{},
-	}
-
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-
-	n.conns[conn.ID] = conn
-	n.peersByAddr[normalizeAddress(conn.Address)] = conn.ID
-	n.peerConnectedChannel <- conn.Peer
-
-	return conn
 }
