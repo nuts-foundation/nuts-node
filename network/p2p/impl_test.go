@@ -241,8 +241,8 @@ func Test_interface_Connect(t *testing.T) {
 		// 2. Second connection, should close first connection
 		conn2, _ := connect()
 		<-network.peerDisconnectedChannel // Wait until first connection is marked closed
-		conn1Recv.Wait() // Assert first connection is closed
-		<-network.peerConnectedChannel // Wait until connected
+		conn1Recv.Wait()                  // Assert first connection is closed
+		<-network.peerConnectedChannel    // Wait until connected
 		assert.Equal(t, connectivity.Ready, conn2.GetState())
 		// 3. Close second connection from client side
 		logging.Log().Info("closing second connection")
@@ -311,70 +311,66 @@ func Test_interface_GetLocalAddress(t *testing.T) {
 	})
 }
 
-//func Test_interface_Send(t *testing.T) {
-//	const peerID = "foobar"
-//	t.Run("ok", func(t *testing.T) {
-//		network := NewAdapter().(*adapter)
-//		conn := createConnection(Peer{ID: peerID}, nil)
-//		assert.Empty(t, conn.outMessages)
-//		network.conns[peerID] = conn
-//		err := network.Send(peerID, &transport.NetworkMessage{})
-//		if !assert.NoError(t, err) {
-//			return
-//		}
-//		assert.Len(t, conn.outMessages, 1)
-//	})
-//	t.Run("unknown peer", func(t *testing.T) {
-//		network := NewAdapter().(*adapter)
-//		err := network.Send(peerID, &transport.NetworkMessage{})
-//		assert.EqualError(t, err, "unknown peer: foobar")
-//	})
-//	t.Run("concurrent call on closing connection", func(t *testing.T) {
-//		network := NewAdapter().(*adapter)
-//		conn := createConnection(Peer{ID: peerID}, nil)
-//		network.registerConnection(conn)
-//		wg := sync.WaitGroup{}
-//		wg.Add(2)
-//		go func() {
-//			defer wg.Done()
-//			_ = network.Send(peerID, &transport.NetworkMessage{})
-//		}()
-//		go func() {
-//			defer wg.Done()
-//			conn.close()
-//		}()
-//		wg.Wait()
-//	})
-//}
-//
-//func Test_interface_Broadcast(t *testing.T) {
-//	const peer1ID = "foobar1"
-//	const peer2ID = "foobar2"
-//	network := NewAdapter().(*adapter)
-//	peer1 := createConnection(Peer{ID: peer1ID}, nil)
-//	network.registerConnection(peer1)
-//	peer2 := createConnection(Peer{ID: peer2ID}, nil)
-//	network.registerConnection(peer2)
-//	t.Run("ok", func(t *testing.T) {
-//		network.Broadcast(&transport.NetworkMessage{})
-//		for _, conn := range network.conns {
-//			assert.Len(t, conn.outMessages, 1)
-//		}
-//	})
-//	t.Run("concurrent call on closing connection", func(t *testing.T) {
-//		peer2MsgCount := len(peer2.outMessages)
-//		wg := sync.WaitGroup{}
-//		wg.Add(2)
-//		go func() {
-//			defer wg.Done()
-//			network.Broadcast(&transport.NetworkMessage{})
-//		}()
-//		go func() {
-//			defer wg.Done()
-//			peer1.close()
-//		}()
-//		wg.Wait()
-//		assert.Empty(t, peer1.outMessages)
-//		assert.Len(t, peer2.outMessages, peer2MsgCount+1)
-//	})
-//}
+func Test_interface_Send(t *testing.T) {
+	const peerID = "foobar"
+	const addr = "foo"
+	t.Run("ok", func(t *testing.T) {
+		network := NewAdapter().(*adapter)
+		conn := network.conns.register(Peer{ID: peerID, Address: addr}, nil).(*managedConnection)
+		err := network.Send(peerID, &transport.NetworkMessage{})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Len(t, conn.outMessages, 1)
+	})
+	t.Run("unknown peer", func(t *testing.T) {
+		network := NewAdapter().(*adapter)
+		err := network.Send(peerID, &transport.NetworkMessage{})
+		assert.EqualError(t, err, "unknown peer: foobar")
+	})
+	t.Run("concurrent call on closing connection", func(t *testing.T) {
+		network := NewAdapter().(*adapter)
+		conn := network.conns.register(Peer{ID: peerID, Address: addr}, nil).(*managedConnection)
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			_ = network.Send(peerID, &transport.NetworkMessage{})
+		}()
+		go func() {
+			defer wg.Done()
+			conn.close()
+		}()
+		wg.Wait()
+	})
+}
+
+func Test_interface_Broadcast(t *testing.T) {
+	const peer1ID = "foobar1"
+	const peer2ID = "foobar2"
+	network := NewAdapter().(*adapter)
+	peer1 := network.conns.register(Peer{ID: peer1ID, Address: addr}, nil).(*managedConnection)
+	peer2 := network.conns.register(Peer{ID: peer2ID, Address: addr}, nil).(*managedConnection)
+	t.Run("ok", func(t *testing.T) {
+		network.Broadcast(&transport.NetworkMessage{})
+		for _, conn := range network.conns.conns {
+			assert.Len(t, conn.outMessages, 1)
+		}
+	})
+	t.Run("concurrent call on closing connection", func(t *testing.T) {
+		peer2MsgCount := len(peer2.outMessages)
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			network.Broadcast(&transport.NetworkMessage{})
+		}()
+		go func() {
+			defer wg.Done()
+			peer1.close()
+		}()
+		wg.Wait()
+		assert.Empty(t, peer1.outMessages)
+		assert.Len(t, peer2.outMessages, peer2MsgCount+1)
+	})
+}

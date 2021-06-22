@@ -210,7 +210,11 @@ func (mgr *connectionManager) isConnected(addr string) bool {
 func (mgr *connectionManager) get(peer PeerID) connection {
 	mgr.mux.RLock()
 	defer mgr.mux.RUnlock()
-	return mgr.conns[peer]
+	conn, ok := mgr.conns[peer]
+	if ok {
+		return conn
+	}
+	return nil
 }
 
 // close closes the connection associated with peer. It returns true if the peer was connected, otherwise false.
