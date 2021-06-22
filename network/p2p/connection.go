@@ -35,12 +35,27 @@ type grpcMessenger interface {
 }
 
 type connection interface {
+	// exchange must be called on the connection for it to start sending (using send()) and receiving messages.
+	// Received messages are passed to the receivedMessages message queue. It blocks until the connection is closed,
+	// by either the peer or the local node.
+	exchange(receivedMessages messageQueue)
+	// send sends the given message to the peer. It should not be called if exchange() isn't called yet.
 	send(message *transport.NetworkMessage) error
-	sendAndReceive(receivedMessages messageQueue)
+	// peer returns information about the peer associated with this connection.
 	peer() Peer
 }
 
-// connection represents a bidirectional connection with a peer.
+func newConnection(peer Peer, messenger grpcMessenger) *managedConnection {
+	return &managedConnection{
+		Peer:        peer,
+		messenger:   messenger,
+		outMessages: make(chan *transport.NetworkMessage, 10), // TODO: Does this number make sense? Should also be configurable?
+		closer:      make(chan struct{}, 1),
+		mux:         &sync.Mutex{},
+	}
+}
+
+// managedConnection represents a bidirectional connection with a peer, managed by connectionManager.
 type managedConnection struct {
 	Peer
 	// messenger is used to send and receive messages
@@ -62,31 +77,6 @@ func (conn *managedConnection) peer() Peer {
 	return conn.Peer
 }
 
-func (conn *managedConnection) close() {
-	conn.mux.Lock()
-	defer conn.mux.Unlock()
-	if conn.outMessages == nil {
-		// Already closed
-		return
-	}
-	log.Logger().Debugf("Connection is closing (peer-id=%s)", conn.ID)
-
-	// Signal send/receive loop connection is closing
-	if len(conn.closer) == 0 {
-		conn.closer <- struct{}{}
-	}
-	// Close our client connection (not applicable if we're the server side of the connection)
-	if conn.grpcConn != nil {
-		if err := conn.grpcConn.Close(); err != nil {
-			log.Logger().Warnf("Unable to close client connection (peer=%s): %v", conn.Peer, err)
-		}
-		conn.grpcConn = nil
-	}
-	// Close in/out channels
-	close(conn.outMessages)
-	conn.outMessages = nil
-}
-
 func (conn *managedConnection) send(message *transport.NetworkMessage) error {
 	conn.mux.Lock()
 	defer conn.mux.Unlock()
@@ -97,35 +87,7 @@ func (conn *managedConnection) send(message *transport.NetworkMessage) error {
 	return nil
 }
 
-// receiveMessages (blocking) reads messages from the peer until it disconnects or the network is stopped.
-func (conn *managedConnection) receiveMessages() chan *PeerMessage {
-	peerID := conn.ID
-	messenger := conn.messenger
-	result := make(chan *PeerMessage, 10)
-	go func() {
-		for {
-			msg, recvErr := messenger.Recv()
-			if recvErr != nil {
-				errStatus, isStatusError := status.FromError(recvErr)
-				if isStatusError && errStatus.Code() == codes.Canceled {
-					log.Logger().Infof("Peer closed connection (peer-id=%s)", peerID)
-				} else {
-					log.Logger().Warnf("Peer connection error (peer-id=%s): %v", peerID, recvErr)
-				}
-				conn.close()
-				break
-			}
-			log.Logger().Tracef("Received message from peer (peer-id=%s): %s", peerID, msg.String())
-			result <- &PeerMessage{
-				Peer:    peerID,
-				Message: msg,
-			}
-		}
-	}()
-	return result
-}
-
-func (conn *managedConnection) sendAndReceive(receivedMessages messageQueue) {
+func (conn *managedConnection) exchange(receivedMessages messageQueue) {
 	conn.mux.Lock()
 	out := conn.outMessages
 	in := conn.receiveMessages()
@@ -153,6 +115,58 @@ func (conn *managedConnection) sendAndReceive(receivedMessages messageQueue) {
 	}
 }
 
+func (conn *managedConnection) close() {
+	conn.mux.Lock()
+	defer conn.mux.Unlock()
+	if conn.outMessages == nil {
+		// Already closed
+		return
+	}
+	log.Logger().Debugf("Connection is closing (peer-id=%s)", conn.ID)
+
+	// Signal send/receive loop connection is closing
+	if len(conn.closer) == 0 {
+		conn.closer <- struct{}{}
+	}
+	// Close our client connection (not applicable if we're the server side of the connection)
+	if conn.grpcConn != nil {
+		if err := conn.grpcConn.Close(); err != nil {
+			log.Logger().Warnf("Unable to close client connection (peer=%s): %v", conn.Peer, err)
+		}
+		conn.grpcConn = nil
+	}
+	// Close in/out channels
+	close(conn.outMessages)
+	conn.outMessages = nil
+}
+
+func (conn *managedConnection) receiveMessages() chan *PeerMessage {
+	peerID := conn.ID
+	messenger := conn.messenger
+	result := make(chan *PeerMessage, 10)
+	go func() {
+		for {
+			msg, recvErr := messenger.Recv()
+			if recvErr != nil {
+				errStatus, isStatusError := status.FromError(recvErr)
+				if isStatusError && errStatus.Code() == codes.Canceled {
+					log.Logger().Infof("Peer closed connection (peer-id=%s)", peerID)
+				} else {
+					log.Logger().Warnf("Peer connection error (peer-id=%s): %v", peerID, recvErr)
+				}
+				close(result)
+				return
+			}
+			log.Logger().Tracef("Received message from peer (peer-id=%s): %s", peerID, msg.String())
+			result <- &PeerMessage{
+				Peer:    peerID,
+				Message: msg,
+			}
+		}
+	}()
+	return result
+}
+
 func newConnectionManager() *connectionManager {
 	return &connectionManager{
 		mux:         &sync.RWMutex{},
@@ -168,13 +182,7 @@ type connectionManager struct {
 }
 
 func (mgr *connectionManager) register(peer Peer, messenger grpcMessenger) connection {
-	conn := &managedConnection{
-		Peer:        peer,
-		messenger:   messenger,
-		outMessages: make(chan *transport.NetworkMessage, 10), // TODO: Does this number make sense? Should also be configurable?
-		closer:      make(chan struct{}, 1),
-		mux:         &sync.Mutex{},
-	}
+	conn := newConnection(peer, messenger)
 
 	mgr.mux.Lock()
 	defer mgr.mux.Unlock()

@@ -319,7 +319,7 @@ func (n *adapter) startConnecting(newConnector *connector) {
 			} else {
 				conn := n.conns.register(*peer, stream)
 				n.peerConnectedChannel <- conn.peer()
-				conn.sendAndReceive(n.receivedMessages)
+				conn.exchange(n.receivedMessages)
 				// Previous call was blocking, if we reach this the connection should be closed
 				n.conns.close(peer.ID)
 				n.peerDisconnectedChannel <- *peer
@@ -382,7 +382,7 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 	}
 	conn := n.conns.register(peer, stream)
 	n.peerConnectedChannel <- conn.peer()
-	conn.sendAndReceive(n.receivedMessages)
+	conn.exchange(n.receivedMessages)
 	// Previous call was blocking, if we reach this the connection should be closed
 	n.conns.close(peerID)
 	n.peerDisconnectedChannel <- peer
