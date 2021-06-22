@@ -375,11 +375,6 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 		return errors2.Wrap(err, "unable to send headers")
 	}
 
-	// Smaller scope for mutex
-	if n.conns.close(peer.ID) {
-		log.Logger().Warnf("Already connected to peer, closed old connection (peer=%s)", peer)
-		n.peerDisconnectedChannel <- peer
-	}
 	conn := n.conns.register(peer, stream)
 	n.peerConnectedChannel <- conn.peer()
 	conn.exchange(n.receivedMessages)

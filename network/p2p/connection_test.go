@@ -164,3 +164,90 @@ func invokeWaitFor(fn func(), timeout time.Duration) bool {
 	}()
 	return waitFor(&wg, timeout)
 }
+
+const addr = "bar"
+const id = "foo"
+
+func Test_connectionManager_register(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		mgr := newConnectionManager()
+		conn := mgr.register(Peer{ID: id, Address: addr}, nil)
+		assert.NotNil(t, conn)
+		assert.Len(t, mgr.peersByAddr, 1)
+	})
+	t.Run("duplicate connection closes first", func(t *testing.T) {
+		mgr := newConnectionManager()
+		conn1 := mgr.register(Peer{ID: id, Address: addr}, nil).(*managedConnection)
+		assert.Empty(t, conn1.closer) // assert first one connected
+		// Now register second one, disconnect first
+		conn2 := mgr.register(Peer{ID: id, Address: addr + "2"}, nil).(*managedConnection)
+		assert.NotEmpty(t, conn1.closer) // assert first one disconnected
+		assert.Empty(t, conn2.closer) // assert second one connected
+
+		assert.Len(t, mgr.peersByAddr, 1)
+	})
+}
+
+func Test_connectionManager_get(t *testing.T) {
+	t.Run("exists", func(t *testing.T) {
+		mgr := newConnectionManager()
+		conn := mgr.register(Peer{ID: id, Address: addr}, nil)
+		assert.Equal(t, conn, mgr.get(id))
+	})
+	t.Run("does not exists", func(t *testing.T) {
+		mgr := newConnectionManager()
+		assert.Nil(t, mgr.get(id))
+	})
+}
+
+func Test_connectionManager_isConnected(t *testing.T) {
+	t.Run("exists", func(t *testing.T) {
+		mgr := newConnectionManager()
+		_ = mgr.register(Peer{ID: id, Address: addr}, nil)
+		assert.True(t, mgr.isConnected(addr))
+	})
+	t.Run("does not exists", func(t *testing.T) {
+		mgr := newConnectionManager()
+		assert.False(t, mgr.isConnected(id))
+	})
+}
+
+func Test_connectionManager_close(t *testing.T) {
+	t.Run("exists", func(t *testing.T) {
+		mgr := newConnectionManager()
+		_ = mgr.register(Peer{ID: id, Address: addr}, nil)
+		assert.True(t, mgr.close(id))
+	})
+	t.Run("does not exists", func(t *testing.T) {
+		mgr := newConnectionManager()
+		assert.False(t, mgr.close(id))
+	})
+}
+
+func Test_connectionManager_stop(t *testing.T) {
+	mgr := newConnectionManager()
+	_ = mgr.register(Peer{ID: id, Address: addr}, nil)
+	mgr.stop()
+	assert.Empty(t, mgr.conns)
+}
+
+func Test_connectionManager_forEach(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		calls := 0
+		mgr := newConnectionManager()
+		mgr.forEach(func(conn connection) {
+			calls++
+		})
+		assert.Equal(t, 0, calls)
+	})
+	t.Run("non-empty", func(t *testing.T) {
+		calls := 0
+		mgr := newConnectionManager()
+		_ = mgr.register(Peer{ID: id, Address: addr}, nil)
+		_ = mgr.register(Peer{ID: id + "2", Address: addr + "2"}, nil)
+		mgr.forEach(func(conn connection) {
+			calls++
+		})
+		assert.Equal(t, 2, calls)
+	})
+}

@@ -181,7 +181,13 @@ type connectionManager struct {
 	peersByAddr map[string]PeerID
 }
 
+// register adds a new connection associated with peer. It uses the given messenger to send/receive messages.
+// If a connection with peer already exists, it is closed (and the new one is accepted).
 func (mgr *connectionManager) register(peer Peer, messenger grpcMessenger) connection {
+	if mgr.close(peer.ID) {
+		log.Logger().Warnf("Already connected to peer, closed old connection (peer=%s)", peer)
+	}
+
 	conn := newConnection(peer, messenger)
 
 	mgr.mux.Lock()
@@ -192,6 +198,7 @@ func (mgr *connectionManager) register(peer Peer, messenger grpcMessenger) conne
 	return conn
 }
 
+// isConnected returns true if a peer with addr is connected, otherwise false.
 func (mgr *connectionManager) isConnected(addr string) bool {
 	mgr.mux.RLock()
 	defer mgr.mux.RUnlock()
@@ -199,12 +206,14 @@ func (mgr *connectionManager) isConnected(addr string) bool {
 	return ok
 }
 
+// get returns the connection associated with peer, or nil if it isn't connected.
 func (mgr *connectionManager) get(peer PeerID) connection {
 	mgr.mux.RLock()
 	defer mgr.mux.RUnlock()
 	return mgr.conns[peer]
 }
 
+// close closes the connection associated with peer. It returns true if the peer was connected, otherwise false.
 func (mgr *connectionManager) close(peer PeerID) bool {
 	mgr.mux.Lock()
 	defer mgr.mux.Unlock()
@@ -218,6 +227,7 @@ func (mgr *connectionManager) close(peer PeerID) bool {
 	return true
 }
 
+// stop() closes all connections in the connectionManager and resets the internal state.
 func (mgr *connectionManager) stop() {
 	mgr.mux.Lock()
 	defer mgr.mux.Unlock()
@@ -228,6 +238,7 @@ func (mgr *connectionManager) stop() {
 	mgr.peersByAddr = map[string]PeerID{}
 }
 
+// forEach applies fn to each connection.
 func (mgr *connectionManager) forEach(fn func(conn connection)) {
 	mgr.mux.RLock()
 	defer mgr.mux.RUnlock()
