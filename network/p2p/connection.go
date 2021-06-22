@@ -155,15 +155,14 @@ func (conn *managedConnection) sendAndReceive(receivedMessages messageQueue) {
 
 func newConnectionManager() *connectionManager {
 	return &connectionManager{
-		mux:         &sync.Mutex{},
+		mux:         &sync.RWMutex{},
 		conns:       make(map[PeerID]*managedConnection, 0),
 		peersByAddr: make(map[string]PeerID, 0),
 	}
 }
 
 type connectionManager struct {
-	mux *sync.Mutex
-
+	mux         *sync.RWMutex
 	conns       map[PeerID]*managedConnection
 	peersByAddr map[string]PeerID
 }
@@ -186,15 +185,15 @@ func (mgr *connectionManager) register(peer Peer, messenger grpcMessenger) conne
 }
 
 func (mgr *connectionManager) isConnected(addr string) bool {
-	mgr.mux.Lock()
-	defer mgr.mux.Unlock()
+	mgr.mux.RLock()
+	defer mgr.mux.RUnlock()
 	_, ok := mgr.peersByAddr[normalizeAddress(addr)]
 	return ok
 }
 
 func (mgr *connectionManager) get(peer PeerID) connection {
-	mgr.mux.Lock()
-	defer mgr.mux.Unlock()
+	mgr.mux.RLock()
+	defer mgr.mux.RUnlock()
 	return mgr.conns[peer]
 }
 
@@ -222,8 +221,8 @@ func (mgr *connectionManager) stop() {
 }
 
 func (mgr *connectionManager) forEach(fn func(conn connection)) {
-	mgr.mux.Lock()
-	defer mgr.mux.Unlock()
+	mgr.mux.RLock()
+	defer mgr.mux.RUnlock()
 	for _, conn := range mgr.conns {
 		fn(conn)
 	}
