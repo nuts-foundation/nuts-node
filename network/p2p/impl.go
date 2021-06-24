@@ -324,7 +324,6 @@ func (n *adapter) startConnecting(newConnector *connector) {
 	}
 }
 
-
 // shouldConnectTo checks whether we should connect to the given node.
 func (n *adapter) shouldConnectTo(address string) bool {
 	normalizedAddress := normalizeAddress(address)
