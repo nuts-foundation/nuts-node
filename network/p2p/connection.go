@@ -20,7 +20,8 @@ package p2p
 
 import (
 	"errors"
-	"io"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"sync"
 
 	log "github.com/nuts-foundation/nuts-node/network/log"
@@ -33,17 +34,29 @@ type grpcMessenger interface {
 	Recv() (*transport.NetworkMessage, error)
 }
 
-func createConnection(peer Peer, messenger grpcMessenger) *connection {
-	return &connection{
+type connection interface {
+	// exchange must be called on the connection for it to start sending (using send()) and receiving messages.
+	// Received messages are passed to the messageReceiver message queue. It blocks until the connection is closed,
+	// by either the peer or the local node.
+	exchange(messageReceiver messageQueue)
+	// send sends the given message to the peer. It should not be called if exchange() isn't called yet.
+	send(message *transport.NetworkMessage) error
+	// peer returns information about the peer associated with this connection.
+	peer() Peer
+}
+
+func newConnection(peer Peer, messenger grpcMessenger) *managedConnection {
+	return &managedConnection{
 		Peer:        peer,
 		messenger:   messenger,
 		outMessages: make(chan *transport.NetworkMessage, 10), // TODO: Does this number make sense? Should also be configurable?
+		closer:      make(chan struct{}, 1),
 		mux:         &sync.Mutex{},
 	}
 }
 
-// connection represents a bidirectional connection with a peer.
-type connection struct {
+// managedConnection represents a bidirectional connection with a peer, managed by connectionManager.
+type managedConnection struct {
 	Peer
 	// messenger is used to send and receive messages
 	messenger grpcMessenger
@@ -53,26 +66,18 @@ type connection struct {
 	//   According to the docs it's unsafe to simultaneously call stream.Send() from multiple goroutines so we put them
 	//   on a channel so that each peer can have its own goroutine sending messages (consuming messages from this channel)
 	outMessages chan *transport.NetworkMessage
+	closer      chan struct{}
 	// mux is used to secure access to the internals of this struct since they're accessed concurrently
 	mux *sync.Mutex
 }
 
-func (conn *connection) close() {
+func (conn *managedConnection) peer() Peer {
 	conn.mux.Lock()
 	defer conn.mux.Unlock()
-	if conn.grpcConn != nil {
-		if err := conn.grpcConn.Close(); err != nil {
-			log.Logger().Warnf("Unable to close client connection (peer=%s): %v", conn.Peer, err)
-		}
-		conn.grpcConn = nil
-	}
-	if conn.outMessages != nil {
-		close(conn.outMessages)
-		conn.outMessages = nil
-	}
+	return conn.Peer
 }
 
-func (conn *connection) send(message *transport.NetworkMessage) error {
+func (conn *managedConnection) send(message *transport.NetworkMessage) error {
 	conn.mux.Lock()
 	defer conn.mux.Unlock()
 	if conn.outMessages == nil {
@@ -82,32 +87,170 @@ func (conn *connection) send(message *transport.NetworkMessage) error {
 	return nil
 }
 
-// sendMessages (blocking) reads messages from its outMessages channel and sends them to the peer until the channel is closed.
-func (conn connection) sendMessages() {
-	for message := range conn.outMessages {
-		if conn.messenger.Send(message) != nil {
-			log.Logger().Warnf("Unable to send message to peer (peer=%s)", conn.Peer)
+func (conn *managedConnection) exchange(messageReceiver messageQueue) {
+	conn.mux.Lock()
+	out := conn.outMessages
+	in := conn.receiveMessages()
+	conn.mux.Unlock()
+	for {
+		select {
+		case message := <-out:
+			if message == nil {
+				// Connection is closing
+				return
+			}
+			if conn.messenger.Send(message) != nil {
+				log.Logger().Warnf("Unable to send message to peer (peer=%s)", conn.Peer)
+			}
+		case message := <-in:
+			if message == nil {
+				// Connection is closing
+				return
+			}
+			messageReceiver.c <- *message
+		case <-conn.closer:
+			log.Logger().Trace("close() is called")
+			return
 		}
 	}
 }
 
-// receiveMessages (blocking) reads messages from the peer until it disconnects or the network is stopped.
-func (conn *connection) receiveMessages(receivedMsgQueue messageQueue) {
-	for {
-		msg, recvErr := conn.messenger.Recv()
-		if recvErr != nil {
-			if recvErr == io.EOF {
-				log.Logger().Infof("Peer closed connection (peer-id=%s)", conn.ID)
-			} else {
-				log.Logger().Warnf("Peer connection error (peer-id=%s): %v", conn.ID, recvErr)
+func (conn *managedConnection) close() {
+	conn.mux.Lock()
+	defer conn.mux.Unlock()
+	if conn.outMessages == nil {
+		// Already closed
+		return
+	}
+	log.Logger().Debugf("Connection is closing (peer-id=%s)", conn.ID)
+
+	// Signal send/receive loop connection is closing
+	if len(conn.closer) == 0 {
+		conn.closer <- struct{}{}
+	}
+	// Close our client connection (not applicable if we're the server side of the connection)
+	if conn.grpcConn != nil {
+		if err := conn.grpcConn.Close(); err != nil {
+			log.Logger().Warnf("Unable to close client connection (peer=%s): %v", conn.Peer, err)
+		}
+		conn.grpcConn = nil
+	}
+	// Close in/out channels
+	close(conn.outMessages)
+	conn.outMessages = nil
+
+	conn.messenger = nil
+}
+
+// receiveMessages spawns a goroutine that receives messages and puts them on the returned channel. The goroutine
+// can only be stopped by closing the underlying gRPC connection.
+func (conn *managedConnection) receiveMessages() chan *PeerMessage {
+	peerID := conn.ID
+	messenger := conn.messenger
+	result := make(chan *PeerMessage, 10)
+	go func() {
+		for {
+			msg, recvErr := messenger.Recv()
+			if recvErr != nil {
+				errStatus, isStatusError := status.FromError(recvErr)
+				if isStatusError && errStatus.Code() == codes.Canceled {
+					log.Logger().Infof("Peer closed connection (peer-id=%s)", peerID)
+				} else {
+					log.Logger().Warnf("Peer connection error (peer-id=%s): %v", peerID, recvErr)
+				}
+				close(result)
+				return
 			}
-			break
+			log.Logger().Tracef("Received message from peer (peer-id=%s): %s", peerID, msg.String())
+			result <- &PeerMessage{
+				Peer:    peerID,
+				Message: msg,
+			}
 		}
-		log.Logger().Tracef("Received message from peer (peer-id=%s): %s", conn.ID, msg.String())
-		receivedMsgQueue.c <- PeerMessage{
-			Peer:    conn.ID,
-			Message: msg,
-		}
+	}()
+	return result
+}
+
+func newConnectionManager() *connectionManager {
+	return &connectionManager{
+		mux:         &sync.RWMutex{},
+		conns:       make(map[PeerID]*managedConnection, 0),
+		peersByAddr: make(map[string]PeerID, 0),
+	}
+}
+
+type connectionManager struct {
+	mux         *sync.RWMutex
+	conns       map[PeerID]*managedConnection
+	peersByAddr map[string]PeerID
+}
+
+// register adds a new connection associated with peer. It uses the given messenger to send/receive messages.
+// If a connection with peer already exists, it is closed (and the new one is accepted).
+func (mgr *connectionManager) register(peer Peer, messenger grpcMessenger) connection {
+	if mgr.close(peer.ID) {
+		log.Logger().Warnf("Already connected to peer, closed old connection (peer=%s)", peer)
+	}
+
+	conn := newConnection(peer, messenger)
+
+	mgr.mux.Lock()
+	defer mgr.mux.Unlock()
+
+	mgr.conns[conn.ID] = conn
+	mgr.peersByAddr[normalizeAddress(conn.Address)] = conn.ID
+	return conn
+}
+
+// isConnected returns true if a peer with addr is connected, otherwise false.
+func (mgr *connectionManager) isConnected(addr string) bool {
+	mgr.mux.RLock()
+	defer mgr.mux.RUnlock()
+	_, ok := mgr.peersByAddr[normalizeAddress(addr)]
+	return ok
+}
+
+// get returns the connection associated with peer, or nil if it isn't connected.
+func (mgr *connectionManager) get(peer PeerID) connection {
+	mgr.mux.RLock()
+	defer mgr.mux.RUnlock()
+	conn, ok := mgr.conns[peer]
+	if ok {
+		return conn
+	}
+	return nil
+}
+
+// close closes the connection associated with peer. It returns true if the peer was connected, otherwise false.
+func (mgr *connectionManager) close(peer PeerID) bool {
+	mgr.mux.Lock()
+	defer mgr.mux.Unlock()
+	conn := mgr.conns[peer]
+	if conn == nil {
+		return false
 	}
 	conn.close()
+	delete(mgr.conns, conn.ID)
+	delete(mgr.peersByAddr, normalizeAddress(conn.Address))
+	return true
+}
+
+// stop() closes all connections in the connectionManager and resets the internal state.
+func (mgr *connectionManager) stop() {
+	mgr.mux.Lock()
+	defer mgr.mux.Unlock()
+	for _, conn := range mgr.conns {
+		conn.close()
+	}
+	mgr.conns = map[PeerID]*managedConnection{}
+	mgr.peersByAddr = map[string]PeerID{}
+}
+
+// forEach applies fn to each connection.
+func (mgr *connectionManager) forEach(fn func(conn connection)) {
+	mgr.mux.RLock()
+	defer mgr.mux.RUnlock()
+	for _, conn := range mgr.conns {
+		fn(conn)
+	}
 }

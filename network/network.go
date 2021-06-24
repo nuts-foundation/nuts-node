@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -61,7 +62,7 @@ type Network struct {
 	publisher    dag.Publisher
 	payloadStore dag.PayloadStore
 	keyResolver  types.KeyResolver
-	startTime    time.Time
+	startTime    atomic.Value
 	peerID       p2p.PeerID
 }
 
@@ -143,7 +144,7 @@ func (n *Network) Start() error {
 	if err := n.graph.Verify(); err != nil {
 		return err
 	}
-	n.startTime = time.Now()
+	n.startTime.Store(time.Now())
 
 	return nil
 }
@@ -256,7 +257,7 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) 
 
 func (n *Network) collectDiagnostics() proto.Diagnostics {
 	result := proto.Diagnostics{
-		Uptime:               time.Now().Sub(n.startTime),
+		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
 		NumberOfTransactions: uint32(n.graph.Statistics().NumberOfTransactions),
 		SoftwareVersion:      core.GitCommit,
 		SoftwareID:           softwareID,

@@ -59,11 +59,9 @@ type adapter struct {
 	// Event channels which are listened to by, peers connects/disconnects
 	peerConnectedChannel    chan Peer
 	peerDisconnectedChannel chan Peer
-	// conns is the list of active connections. Access MUST be wrapped in locking using connsMutex.
-	conns map[PeerID]*connection
-	// peersByAddr access MUST be wrapped in locking using connsMutex.
-	peersByAddr      map[string]PeerID
-	connsMutex       *sync.Mutex
+
+	conns *connectionManager
+
 	receivedMessages messageQueue
 	grpcDialer       dialer
 	configured       bool
@@ -88,22 +86,18 @@ func (n adapter) Diagnostics() []core.DiagnosticResult {
 
 func (n *adapter) Peers() []Peer {
 	var result []Peer
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-	for _, conn := range n.conns {
-		result = append(result, conn.Peer)
-	}
+	n.conns.forEach(func(conn connection) {
+		result = append(result, conn.peer())
+	})
 	return result
 }
 
 func (n *adapter) Broadcast(message *transport.NetworkMessage) {
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-	for _, conn := range n.conns {
+	n.conns.forEach(func(conn connection) {
 		if err := conn.send(message); err != nil {
-			log.Logger().Warnf("Unable to broadcast to %s: %v", conn.ID, err)
+			log.Logger().Warnf("Unable to broadcast to %s: %v", conn.peer().ID, err)
 		}
-	}
+	})
 }
 
 func (n adapter) ReceivedMessages() MessageQueue {
@@ -111,12 +105,7 @@ func (n adapter) ReceivedMessages() MessageQueue {
 }
 
 func (n adapter) Send(peerID PeerID, message *transport.NetworkMessage) error {
-	var conn *connection
-	n.connsMutex.Lock()
-	{
-		defer n.connsMutex.Unlock()
-		conn = n.conns[peerID]
-	}
+	conn := n.conns.get(peerID)
 	if conn == nil {
 		return fmt.Errorf("unknown peer: %s", peerID)
 	}
@@ -129,7 +118,7 @@ type connector struct {
 	dialer
 }
 
-func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*connection, error) {
+func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*Peer, transport.Network_ConnectClient, error) {
 	log.Logger().Debugf("Connecting to peer: %v", c.address)
 	cxt := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
 	dialContext, _ := context.WithTimeout(cxt, 5*time.Second)
@@ -148,30 +137,26 @@ func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*connection,
 	}
 	grpcConn, err := c.dialer(dialContext, c.address, dialOptions...)
 	if err != nil {
-		return nil, errors2.Wrap(err, "unable to connect")
+		return nil, nil, errors2.Wrap(err, "unable to connect")
 	}
 	client := transport.NewNetworkClient(grpcConn)
 	messenger, err := client.Connect(cxt)
 	if err != nil {
 		log.Logger().Warnf("Failed to set up stream (addr=%s): %v", c.address, err)
 		_ = grpcConn.Close()
-		return nil, err
+		return nil, nil, err
 	}
 
 	serverPeerID, err := c.readHeaders(messenger, grpcConn)
 	if err != nil {
 		log.Logger().Warnf("Error reading headers from server, closing connection (addr=%s): %v", c.address, err)
 		_ = grpcConn.Close()
-		return nil, err
+		return nil, nil, err
 	}
-	conn := createConnection(Peer{
+	return &Peer{
 		ID:      serverPeerID,
 		Address: c.address,
-	}, messenger)
-	conn.grpcConn = grpcConn
-
-	log.Logger().Infof("Connected to peer (id=%s,addr=%s)", conn.ID, c.address)
-	return conn, nil
+	}, messenger, nil
 }
 
 func (c *connector) readHeaders(gate transport.Network_ConnectClient, grpcConn *grpc.ClientConn) (PeerID, error) {
@@ -192,13 +177,11 @@ func (c *connector) readHeaders(gate transport.Network_ConnectClient, grpcConn *
 // NewAdapter creates an interface to be used connect to peers in the network and exchange messages.
 func NewAdapter() Adapter {
 	return &adapter{
-		conns:                   make(map[PeerID]*connection, 0),
-		peersByAddr:             make(map[string]PeerID, 0),
+		conns:                   newConnectionManager(),
 		connectors:              make(map[string]*connector, 0),
 		connectorAddChannel:     make(chan string, connectingQueueChannelSize),
 		peerConnectedChannel:    make(chan Peer, eventChannelSize),
 		peerDisconnectedChannel: make(chan Peer, eventChannelSize),
-		connsMutex:              &sync.Mutex{},
 		serverMutex:             &sync.Mutex{},
 		receivedMessages:        messageQueue{c: make(chan PeerMessage, messageBacklogChannelSize)},
 		grpcDialer:              grpc.DialContext,
@@ -250,19 +233,24 @@ func (n *adapter) Start() error {
 				ClientCAs:    n.config.TrustStore,
 			})))
 		}
-		n.grpcServer = grpc.NewServer(serverOpts...)
-		transport.RegisterNetworkServer(n.grpcServer, n)
-		go func() {
-			err = n.grpcServer.Serve(n.listener)
-			if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-				log.Logger().Errorf("gRPC server errored: %v", err)
-				_ = n.Stop()
-			}
-		}()
+		n.startServing(serverOpts)
 	}
 	// Start client
 	go n.connectToNewPeers()
 	return nil
+}
+
+func (n *adapter) startServing(serverOpts []grpc.ServerOption) {
+	server := grpc.NewServer(serverOpts...)
+	n.grpcServer = server
+	transport.RegisterNetworkServer(server, n)
+	go func() {
+		err := server.Serve(n.listener)
+		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			log.Logger().Errorf("gRPC server errored: %v", err)
+			_ = n.Stop()
+		}
+	}()
 }
 
 func (n *adapter) Stop() error {
@@ -270,13 +258,7 @@ func (n *adapter) Stop() error {
 	defer n.serverMutex.Unlock()
 	// Stop client
 	close(n.connectorAddChannel)
-	n.connsMutex.Lock()
-	{
-		defer n.connsMutex.Unlock()
-		for _, peer := range n.conns {
-			peer.close()
-		}
-	}
+	n.conns.stop()
 	// Stop gRPC server
 	if n.grpcServer != nil {
 		n.grpcServer.Stop()
@@ -300,18 +282,10 @@ func (n adapter) ConnectToPeer(address string) bool {
 	return false
 }
 
-func (n *adapter) startSendingAndReceiving(conn *connection) {
-	go conn.sendMessages()
-	n.registerConnection(conn)
-	conn.receiveMessages(n.receivedMessages)
-	// When we reach this line, receiveMessages has exited which means the connection has been closed.
-	n.unregisterConnection(conn)
-}
-
 // connectToNewPeers reads from connectorAddChannel to start connecting to new peers
 func (n *adapter) connectToNewPeers() {
 	for address := range n.connectorAddChannel {
-		if _, present := n.peersByAddr[address]; present {
+		if n.conns.isConnected(address) {
 			log.Logger().Debugf("Not connecting to peer, already connected (address=%s)", address)
 		} else if n.connectors[address] != nil {
 			log.Logger().Debugf("Not connecting to peer, already trying to connect (address=%s)", address)
@@ -338,12 +312,12 @@ func (n *adapter) startConnecting(newConnector *connector) {
 					RootCAs:      n.config.TrustStore,
 				}
 			}
-			if peer, err := newConnector.doConnect(n.config.PeerID, tlsConfig); err != nil {
+			if peer, stream, err := newConnector.doConnect(n.config.PeerID, tlsConfig); err != nil {
 				waitPeriod := newConnector.backoff.Backoff()
 				log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), newConnector.address, err)
 				time.Sleep(waitPeriod)
 			} else {
-				n.startSendingAndReceiving(peer)
+				n.acceptPeer(*peer, stream)
 				newConnector.backoff.Reset()
 			}
 		}
@@ -351,24 +325,22 @@ func (n *adapter) startConnecting(newConnector *connector) {
 }
 
 // shouldConnectTo checks whether we should connect to the given node.
-func (n adapter) shouldConnectTo(address string) bool {
+func (n *adapter) shouldConnectTo(address string) bool {
 	normalizedAddress := normalizeAddress(address)
 	if normalizedAddress == normalizeAddress(n.getLocalAddress()) {
 		// We're not going to connect to our own node
 		log.Logger().Trace("Not connecting since it's localhost")
 		return false
 	}
-	var alreadyConnected = true
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-	if _, alreadyConnected = n.peersByAddr[normalizedAddress]; alreadyConnected {
+	alreadyConnected := n.conns.isConnected(normalizedAddress)
+	if alreadyConnected {
 		// We're not going to connect to a node we're already connected to
 		log.Logger().Tracef("Not connecting since we're already connected (address=%s)", normalizedAddress)
 	}
 	return !alreadyConnected
 }
 
-func (n adapter) getLocalAddress() string {
+func (n *adapter) getLocalAddress() string {
 	if strings.HasPrefix(n.config.ListenAddress, ":") {
 		// Interface's address not included in listening address (e.g. :5555), so prepend with localhost
 		return "localhost" + n.config.ListenAddress
@@ -397,33 +369,20 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 	if err := stream.SendHeader(constructMetadata(n.config.PeerID)); err != nil {
 		return errors2.Wrap(err, "unable to send headers")
 	}
-	n.startSendingAndReceiving(createConnection(peer, stream))
+	n.acceptPeer(peer, stream)
 	return nil
 }
 
-func (n *adapter) registerConnection(conn *connection) {
-	normalizedAddress := normalizeAddress(conn.Address)
-
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-
-	n.conns[conn.ID] = conn
-	n.peersByAddr[normalizedAddress] = conn.ID
-	n.peerConnectedChannel <- conn.Peer
-}
-
-func (n *adapter) unregisterConnection(conn *connection) {
-	normalizedAddress := normalizeAddress(conn.Address)
-
-	n.connsMutex.Lock()
-	defer n.connsMutex.Unlock()
-
-	conn = n.conns[conn.ID]
-	if conn == nil {
-		return
-	}
-
-	delete(n.conns, conn.ID)
-	delete(n.peersByAddr, normalizedAddress)
-	n.peerDisconnectedChannel <- conn.Peer
+// acceptPeer registers a connection, associating the gRPC stream with the given peer. It starts the goroutines required
+// for receiving and sending messages from/to the peer. It should be called from the gRPC service handler,
+// so when this function exits (and the service handler as well), goroutines spawned for calling Recv() will exit.
+func (n *adapter) acceptPeer(peer Peer, stream grpcMessenger) {
+	conn := n.conns.register(peer, stream)
+	n.peerConnectedChannel <- conn.peer()
+	conn.exchange(n.receivedMessages)
+	// Previous call was blocking, if we reach this the connection has either errored out, been disconnected
+	// by the local node or by the peer. We still need to explicitly close it to clean up the connection
+	// (in case it's closed due to a network error or by the peer).
+	n.conns.close(peer.ID)
+	n.peerDisconnectedChannel <- peer
 }

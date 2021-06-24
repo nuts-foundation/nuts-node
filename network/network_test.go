@@ -397,6 +397,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	network.graph = graph
 	network.payloadStore = payload
 	network.publisher = publisher
+	network.startTime.Store(time.Now())
 	return &networkTestContext{
 		network:     network,
 		p2pAdapter:  p2pAdapter,
