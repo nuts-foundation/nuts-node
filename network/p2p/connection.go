@@ -36,9 +36,9 @@ type grpcMessenger interface {
 
 type connection interface {
 	// exchange must be called on the connection for it to start sending (using send()) and receiving messages.
-	// Received messages are passed to the receivedMessages message queue. It blocks until the connection is closed,
+	// Received messages are passed to the messageReceiver message queue. It blocks until the connection is closed,
 	// by either the peer or the local node.
-	exchange(receivedMessages messageQueue)
+	exchange(messageReceiver messageQueue)
 	// send sends the given message to the peer. It should not be called if exchange() isn't called yet.
 	send(message *transport.NetworkMessage) error
 	// peer returns information about the peer associated with this connection.
@@ -87,7 +87,7 @@ func (conn *managedConnection) send(message *transport.NetworkMessage) error {
 	return nil
 }
 
-func (conn *managedConnection) exchange(receivedMessages messageQueue) {
+func (conn *managedConnection) exchange(messageReceiver messageQueue) {
 	conn.mux.Lock()
 	out := conn.outMessages
 	in := conn.receiveMessages()
@@ -107,7 +107,7 @@ func (conn *managedConnection) exchange(receivedMessages messageQueue) {
 				// Connection is closing
 				return
 			}
-			receivedMessages.c <- *message
+			messageReceiver.c <- *message
 		case <-conn.closer:
 			log.Logger().Trace("close() is called")
 			return
@@ -138,8 +138,12 @@ func (conn *managedConnection) close() {
 	// Close in/out channels
 	close(conn.outMessages)
 	conn.outMessages = nil
+
+	conn.messenger = nil
 }
 
+// receiveMessages spawns a goroutine that receives messages and puts them on the returned channel. The goroutine
+// can only be stopped by closing the underlying gRPC connection.
 func (conn *managedConnection) receiveMessages() chan *PeerMessage {
 	peerID := conn.ID
 	messenger := conn.messenger

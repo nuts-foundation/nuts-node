@@ -317,17 +317,13 @@ func (n *adapter) startConnecting(newConnector *connector) {
 				log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), newConnector.address, err)
 				time.Sleep(waitPeriod)
 			} else {
-				conn := n.conns.register(*peer, stream)
-				n.peerConnectedChannel <- conn.peer()
-				conn.exchange(n.receivedMessages)
-				// Previous call was blocking, if we reach this the connection should be closed
-				n.conns.close(peer.ID)
-				n.peerDisconnectedChannel <- *peer
+				n.acceptPeer(*peer, stream)
 				newConnector.backoff.Reset()
 			}
 		}
 	}
 }
+
 
 // shouldConnectTo checks whether we should connect to the given node.
 func (n *adapter) shouldConnectTo(address string) bool {
@@ -374,12 +370,20 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 	if err := stream.SendHeader(constructMetadata(n.config.PeerID)); err != nil {
 		return errors2.Wrap(err, "unable to send headers")
 	}
+	n.acceptPeer(peer, stream)
+	return nil
+}
 
+// acceptPeer registers a connection, associating the gRPC stream with the given peer. It starts the goroutines required
+// for receiving and sending messages from/to the peer. It should be called from the gRPC service handler,
+// so when this function exits (and the service handler as well), goroutines spawned for calling Recv() will exit.
+func (n *adapter) acceptPeer(peer Peer, stream grpcMessenger) {
 	conn := n.conns.register(peer, stream)
 	n.peerConnectedChannel <- conn.peer()
 	conn.exchange(n.receivedMessages)
-	// Previous call was blocking, if we reach this the connection should be closed
-	n.conns.close(peerID)
+	// Previous call was blocking, if we reach this the connection has either errored out, been disconnected
+	// by the local node or by the peer. We still need to explicitly close it to clean up the connection
+	// (in case it's closed due to a network error or by the peer).
+	n.conns.close(peer.ID)
 	n.peerDisconnectedChannel <- peer
-	return nil
 }
