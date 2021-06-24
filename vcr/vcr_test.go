@@ -124,7 +124,9 @@ func TestVCR_Search(t *testing.T) {
 			return
 		}
 
-		assert.Len(t, creds, 1)
+		if !assert.Len(t, creds, 1) {
+			return
+		}
 
 		cs := creds[0].CredentialSubject[0]
 		m := cs.(map[string]interface{})

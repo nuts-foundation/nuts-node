@@ -44,6 +44,12 @@ const IssuerField = "issuer"
 // SubjectField defines the concept JSON joinPath to a VC subject
 const SubjectField = "subject"
 
+// IndexTypeBytes is used for a regular index
+const IndexTypeBytes uint8 = 'B'
+
+// IndexTypeText is the index type used for a phonetic index
+const IndexTypeText uint8 = 'T'
+
 // Template represents a json mapping template. In the template concept to json joinPath mappings are stored.
 // Indices that need to be created by a DB are also created by the template.
 type Template struct {
@@ -53,9 +59,17 @@ type Template struct {
 	// reverseIndexMapping contains mappings from VC JSON joinPath to concept JSON joinPath
 	reverseIndexMapping map[string]string
 	// indices contains a set of compound indices
-	indices [][]string
+	indices [][]CompoundIndex
 	// fixedValues contains key/value pairs that always need to be added to the backend query
 	fixedValues map[string]string
+}
+
+// CompoundIndex holds the type of index for a particular concept JSON path
+type CompoundIndex struct {
+	// The concept JSON path
+	ConceptPath string
+	// IndexType is either 'T' for phonetic index or 'B' for a byte index
+	IndexType uint8
 }
 
 // templateString represents a value in a template.
@@ -69,7 +83,7 @@ func (ct Template) ToVCPath(conceptPath string) string {
 
 // Indices returns the required indices parsed from the template.
 // It returns a slice of compound indices.
-func (ct Template) Indices() [][]string {
+func (ct Template) Indices() [][]CompoundIndex {
 	return ct.indices
 }
 
@@ -174,7 +188,7 @@ func (ct *Template) processValue(value string, currentPath string) error {
 
 	if processValue.hasIndex() {
 		for _, index := range processValue.indices() {
-			ct.addIndex(index[0], index[1], currentPath)
+			ct.addIndex(index, currentPath)
 		}
 	}
 
@@ -182,22 +196,26 @@ func (ct *Template) processValue(value string, currentPath string) error {
 }
 
 // addIndex expects lvl Indices to start at 1
-func (ct *Template) addIndex(lvl1 int, lvl2 int, jsonPath string) {
+func (ct *Template) addIndex(index fieldIndexNotation, jsonPath string) {
+	lvl1 := index.position[0]
+	lvl2 := index.position[1]
+
 	//always replace & copy => less if/else logic
 	lvl1Size := max(len(ct.indices), lvl1)
-	newLvl1 := make([][]string, lvl1Size)
+	newLvl1 := make([][]CompoundIndex, lvl1Size)
 	for i, v := range ct.indices {
 		newLvl1[i] = v
 	}
 
 	lvl2Size := max(len(newLvl1[lvl1-1]), lvl2)
-	newLvl2 := make([]string, lvl2Size)
+	newLvl2 := make([]CompoundIndex, lvl2Size)
 	for i, v := range newLvl1[lvl1-1] {
 		newLvl2[i] = v
 	}
 	ct.indices = newLvl1
 	ct.indices[lvl1-1] = newLvl2
-	ct.indices[lvl1-1][lvl2-1] = ct.reverseIndexMapping[jsonPath]
+	// append at the end
+	ct.indices[lvl1-1][lvl2-1] = CompoundIndex{ConceptPath: ct.reverseIndexMapping[jsonPath], IndexType: index.indexType}
 }
 
 // transform a VC to a concept given the template mapping
@@ -260,7 +278,7 @@ func (cs templateString) hasIndex() bool {
 	return strings.Contains(string(cs), "@")
 }
 
-var templateStringMatcher, _ = regexp.Compile("((<<[a-zA-Z\\.]+>>)|([a-zA-Z\\.]+))(@({[1-9](_[1-9])?})(,{[1-9](_[1-9])?})*)?")
+var templateStringMatcher, _ = regexp.Compile("((<<[a-zA-Z\\.]+>>)|([a-zA-Z\\.]+))(@([TB]{[1-9](_[1-9])?})(,[TB]{[1-9](_[1-9])?})*)?")
 
 func (cs templateString) isValid() bool {
 	s := templateStringMatcher.ReplaceAllString(string(cs), "")
@@ -269,7 +287,7 @@ func (cs templateString) isValid() bool {
 
 // String returns the hardCoded string or the value between << and >>
 func (cs templateString) String() string {
-	// expect "?(<<)text?(>>)?(@{x,y})"
+	// expect "?(<<)text?(>>)?(@T{x,y})"
 	processValue := string(cs)
 	if i := strings.Index(processValue, "@"); i != -1 && i < len(cs) {
 		processValue = processValue[0:i]
@@ -282,25 +300,32 @@ func (cs templateString) String() string {
 	return processValue
 }
 
-func (cs templateString) indices() [][]int {
-	// expect "*{x,y})"
-	var indices [][]int
+// fieldIndexNotation denotes the type and place of a templateString within an index.
+type fieldIndexNotation struct {
+	indexType uint8
+	position  []int
+}
+
+func (cs templateString) indices() []fieldIndexNotation {
+	// expect "*T{x,y})"
+	var indices []fieldIndexNotation
 	s := string(cs)
 	i := strings.Index(s, "@")
 	is := s[i+1:]
 
 	split := strings.Split(is, ",")
 	for _, partial := range split {
-		iVal := partial[1 : len(partial)-1]
+		iType := partial[0]
+		iVal := partial[2 : len(partial)-1]
 		iSplit := strings.Split(iVal, "_")
 		lvl2 := int64(1)
 		lvl1, _ := strconv.ParseInt(iSplit[0], 0, 0)
 
-		index := []int{int(lvl1), int(lvl2)}
+		index := fieldIndexNotation{indexType: iType, position: []int{int(lvl1), int(lvl2)}}
 
 		if len(iSplit) > 1 {
 			lvl2, _ = strconv.ParseInt(iSplit[1], 0, 0)
-			index[1] = int(lvl2)
+			index.position[1] = int(lvl2)
 		}
 		indices = append(indices, index)
 	}
