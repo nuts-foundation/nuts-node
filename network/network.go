@@ -129,6 +129,7 @@ func (n *Network) Config() interface{} {
 
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
+	n.startTime.Store(time.Now())
 	if n.p2pNetwork.Configured() {
 		// It's possible that the Nuts node isn't bootstrapped (e.g. TLS configuration incomplete) but that shouldn't
 		// prevent it from starting. In that case the network will be in 'offline mode', meaning it can be read from
@@ -144,8 +145,6 @@ func (n *Network) Start() error {
 	if err := n.graph.Verify(); err != nil {
 		return err
 	}
-	n.startTime.Store(time.Now())
-
 	return nil
 }
 

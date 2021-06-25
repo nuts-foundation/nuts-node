@@ -258,6 +258,7 @@ func TestNetwork_Start(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
+		assert.NotNil(t, cxt.network.startTime.Load())
 	})
 	t.Run("ok - offline", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
