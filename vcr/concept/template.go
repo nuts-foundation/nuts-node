@@ -45,10 +45,10 @@ const IssuerField = "issuer"
 const SubjectField = "subject"
 
 // IndexTypeBytes is used for a regular index
-const IndexTypeBytes uint8 = 'B'
+const IndexTypeBytes byte = 'B'
 
 // IndexTypeText is the index type used for a phonetic index
-const IndexTypeText uint8 = 'T'
+const IndexTypeText byte = 'T'
 
 // Template represents a json mapping template. In the template concept to json joinPath mappings are stored.
 // Indices that need to be created by a DB are also created by the template.
@@ -59,17 +59,17 @@ type Template struct {
 	// reverseIndexMapping contains mappings from VC JSON joinPath to concept JSON joinPath
 	reverseIndexMapping map[string]string
 	// indices contains a set of compound indices
-	indices [][]CompoundIndex
+	indices [][]TemplateIndex
 	// fixedValues contains key/value pairs that always need to be added to the backend query
 	fixedValues map[string]string
 }
 
-// CompoundIndex holds the type of index for a particular concept JSON path
-type CompoundIndex struct {
+// TemplateIndex holds the type of index for a particular concept JSON path
+type TemplateIndex struct {
 	// The concept JSON path
 	ConceptPath string
 	// IndexType is either 'T' for phonetic index or 'B' for a byte index
-	IndexType uint8
+	IndexType byte
 }
 
 // templateString represents a value in a template.
@@ -83,7 +83,7 @@ func (ct Template) ToVCPath(conceptPath string) string {
 
 // Indices returns the required indices parsed from the template.
 // It returns a slice of compound indices.
-func (ct Template) Indices() [][]CompoundIndex {
+func (ct Template) Indices() [][]TemplateIndex {
 	return ct.indices
 }
 
@@ -202,20 +202,20 @@ func (ct *Template) addIndex(index fieldIndexNotation, jsonPath string) {
 
 	//always replace & copy => less if/else logic
 	lvl1Size := max(len(ct.indices), lvl1)
-	newLvl1 := make([][]CompoundIndex, lvl1Size)
+	newLvl1 := make([][]TemplateIndex, lvl1Size)
 	for i, v := range ct.indices {
 		newLvl1[i] = v
 	}
 
 	lvl2Size := max(len(newLvl1[lvl1-1]), lvl2)
-	newLvl2 := make([]CompoundIndex, lvl2Size)
+	newLvl2 := make([]TemplateIndex, lvl2Size)
 	for i, v := range newLvl1[lvl1-1] {
 		newLvl2[i] = v
 	}
 	ct.indices = newLvl1
 	ct.indices[lvl1-1] = newLvl2
 	// append at the end
-	ct.indices[lvl1-1][lvl2-1] = CompoundIndex{ConceptPath: ct.reverseIndexMapping[jsonPath], IndexType: index.indexType}
+	ct.indices[lvl1-1][lvl2-1] = TemplateIndex{ConceptPath: ct.reverseIndexMapping[jsonPath], IndexType: index.indexType}
 }
 
 // transform a VC to a concept given the template mapping
@@ -302,7 +302,7 @@ func (cs templateString) String() string {
 
 // fieldIndexNotation denotes the type and place of a templateString within an index.
 type fieldIndexNotation struct {
-	indexType uint8
+	indexType byte
 	position  []int
 }
 

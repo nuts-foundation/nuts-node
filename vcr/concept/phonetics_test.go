@@ -22,18 +22,19 @@ package concept
 import (
 	"testing"
 
+	"github.com/nuts-foundation/go-leia"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCologneTransformer(t *testing.T) {
 	cases := []struct{
-		given    string
+		given    interface{}
 		expected string
 	}{
 		{"Ziekenhuis","8468"},
 		{"ziek","84"},
 		{"Zorgcentrum", "87486276"},
-		{"zorggroep", "87471"},
+		{leia.Key("zorggroep"), "87471"},
 	}
 
 	for _, testCase := range cases {

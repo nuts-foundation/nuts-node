@@ -27,11 +27,11 @@ import (
 
 // CologneTransformer is a go-leia compatible function for generating the phonetic representation of a string.
 func CologneTransformer(text interface{}) interface{} {
-	switch text.(type) {
+	switch v := text.(type) {
 	case string:
-		return gophonetics.NewPhoneticCode(text.(string))
+		return gophonetics.NewPhoneticCode(v)
 	case leia.Key:
-		return gophonetics.NewPhoneticCode(text.(leia.Key).String())
+		return gophonetics.NewPhoneticCode(v.String())
 	default:
 		return text
 	}
