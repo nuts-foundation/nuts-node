@@ -65,6 +65,10 @@ func Test_connection_exchange(t *testing.T) {
 			t.Fatal("expected exchange() to return due to close()")
 		}
 	})
+	t.Run("messenger is nil", func(t *testing.T) {
+		conn := newConnection(Peer{}, nil)
+		conn.exchange(messageQueue{})
+	})
 }
 
 func Test_connection_send(t *testing.T) {
@@ -125,7 +129,7 @@ func Test_connection_receiveMessages(t *testing.T) {
 	// Create connection, start message receiving goroutine
 	conn := newConnection(Peer{}, messenger)
 	defer conn.close()
-	c := conn.receiveMessages()
+	c := receiveMessages(conn.ID, conn.messenger)
 
 	// Wait for numMsg to arrive
 	wg := sync.WaitGroup{}
@@ -187,7 +191,7 @@ func Test_connectionManager_register(t *testing.T) {
 		// Now register second one, disconnect first
 		conn2 := mgr.register(Peer{ID: id, Address: addr + "2"}, nil).(*managedConnection)
 		assert.NotEmpty(t, conn1.closer) // assert first one disconnected
-		assert.Empty(t, conn2.closer) // assert second one connected
+		assert.Empty(t, conn2.closer)    // assert second one connected
 
 		assert.Len(t, mgr.peersByAddr, 1)
 	})
