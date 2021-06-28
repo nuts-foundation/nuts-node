@@ -89,8 +89,15 @@ func (conn *managedConnection) send(message *transport.NetworkMessage) error {
 
 func (conn *managedConnection) exchange(messageReceiver messageQueue) {
 	conn.mux.Lock()
+	if conn.messenger == nil {
+		log.Logger().Tracef("Connection already closed (peer=%s)", conn.Peer)
+		conn.mux.Unlock()
+		return
+	}
+	// Use copies of pointers to prevent nil deref when close() is called
 	out := conn.outMessages
-	in := conn.receiveMessages()
+	in := receiveMessages(conn.ID, conn.messenger)
+	messenger := conn.messenger
 	conn.mux.Unlock()
 	for {
 		select {
@@ -99,7 +106,7 @@ func (conn *managedConnection) exchange(messageReceiver messageQueue) {
 				// Connection is closing
 				return
 			}
-			if conn.messenger.Send(message) != nil {
+			if messenger.Send(message) != nil {
 				log.Logger().Warnf("Unable to send message to peer (peer=%s)", conn.Peer)
 			}
 		case message := <-in:
@@ -144,9 +151,7 @@ func (conn *managedConnection) close() {
 
 // receiveMessages spawns a goroutine that receives messages and puts them on the returned channel. The goroutine
 // can only be stopped by closing the underlying gRPC connection.
-func (conn *managedConnection) receiveMessages() chan *PeerMessage {
-	peerID := conn.ID
-	messenger := conn.messenger
+func receiveMessages(peerID PeerID, messenger grpcMessenger) chan *PeerMessage {
 	result := make(chan *PeerMessage, 10)
 	go func() {
 		for {
