@@ -42,7 +42,7 @@ var payload = []byte("Hello, World!")
 
 func TestApiWrapper_GetTransaction(t *testing.T) {
 	r := GetPeerDiagnosticsResponse{
-		JSON200:      &struct {
+		JSON200: &struct {
 			AdditionalProperties map[string]PeerDiagnostics `json:"-"`
 		}{
 			AdditionalProperties: map[string]PeerDiagnostics{"peer": {

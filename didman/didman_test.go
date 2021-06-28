@@ -458,8 +458,8 @@ func TestDidman_DeleteEndpointsByType(t *testing.T) {
 			})
 		otherServiceID, _ := ssi.ParseURI("did:nuts:123#def")
 		otherService := did.Service{
-			ID:              *otherServiceID,
-			Type:            "other",
+			ID:   *otherServiceID,
+			Type: "other",
 		}
 		didDocWithOtherService := &did.Document{ID: *id, Service: append(endpoints, otherService)}
 		// not in use by any other document

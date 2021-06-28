@@ -24,7 +24,6 @@ import (
 	"github.com/nuts-foundation/go-leia"
 )
 
-
 // CologneTransformer is a go-leia compatible function for generating the phonetic representation of a string.
 func CologneTransformer(text interface{}) interface{} {
 	switch v := text.(type) {

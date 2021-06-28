@@ -256,7 +256,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 	}
 	request := CompoundServiceProperties{
 		ServiceEndpoint: serviceEndpoint,
-		Type: "type",
+		Type:            "type",
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -353,7 +353,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		ctx := newMockContext(t)
 		request := CompoundServiceProperties{
 			ServiceEndpoint: serviceEndpoint,
-			Type: "",
+			Type:            "",
 		}
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			p := f.(*CompoundServiceProperties)

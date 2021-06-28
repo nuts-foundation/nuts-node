@@ -29,7 +29,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-
 func TestWrapper_Preprocess(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

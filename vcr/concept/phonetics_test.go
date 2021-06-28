@@ -27,12 +27,12 @@ import (
 )
 
 func TestCologneTransformer(t *testing.T) {
-	cases := []struct{
+	cases := []struct {
 		given    interface{}
 		expected string
 	}{
-		{"Ziekenhuis","8468"},
-		{"ziek","84"},
+		{"Ziekenhuis", "8468"},
+		{"ziek", "84"},
 		{"Zorgcentrum", "87486276"},
 		{leia.Key("zorggroep"), "87471"},
 	}
