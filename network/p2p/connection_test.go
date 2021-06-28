@@ -65,6 +65,10 @@ func Test_connection_exchange(t *testing.T) {
 			t.Fatal("expected exchange() to return due to close()")
 		}
 	})
+	t.Run("messenger is nil", func(t *testing.T) {
+		conn := newConnection(Peer{}, nil)
+		conn.exchange(messageQueue{})
+	})
 }
 
 func Test_connection_send(t *testing.T) {
