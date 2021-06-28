@@ -24,6 +24,8 @@ github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAE
 github.com/OpenPeeDeeP/depguard v1.0.1 h1:VlW4R6jmBIv3/u1JNlawEvJMM4J+dPORPaZasQee8Us=
 github.com/OpenPeeDeeP/depguard v1.0.1/go.mod h1:xsIw86fROiiwelg+jB2uM9PiKihMMmUx/1V+TNhjQvM=
 github.com/PuerkitoBio/goquery v1.5.1/go.mod h1:GsLWisAFVj4WgDibEWF4pvYnkVQBpKBKeU+7zCJoLcc=
+github.com/Regis24GmbH/go-phonetics v1.0.0 h1:8u9uHWk3beJ+zhSWLPYUR7hMEW5d4vjdmPKdPky/CeM=
+github.com/Regis24GmbH/go-phonetics v1.0.0/go.mod h1:R23kRPNoUNFdJroVeIaHJB0T9+0PBW/TiagnkIWvxQY=
 github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6/go.mod h1:3eOhrUMpNV+6aFIbp5/iudMxNCF27Vw2OZgy4xEx0Fg=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
@@ -462,6 +464,10 @@ github.com/nuts-foundation/go-did v0.1.1 h1:Yn4Ejjyj4/3urI3HfmOAJnYO2kBrwPFfR+BZ
 github.com/nuts-foundation/go-did v0.1.1/go.mod h1:tWZ+glowEt1E+SqJQzqyXB3rGuZ+AZHSsXYU9ceuMRM=
 github.com/nuts-foundation/go-leia v0.4.1 h1:BKmWhTkc9RzDGvJ1UeR99igiSx2JXVNaEYcNPO7bOyQ=
 github.com/nuts-foundation/go-leia v0.4.1/go.mod h1:VMmOAg9I6kRUGY9eRNgeQqyj5vyx+oAteKWfVXzcTQs=
+github.com/nuts-foundation/go-leia v0.5.0 h1:G9w22ywlqbZbGvT4U92WFaRA1xv+/stqQBUysWFVg/o=
+github.com/nuts-foundation/go-leia v0.5.0/go.mod h1:L/vFIWE5VHgIJgzEiYdhq5MyhSwGYhNXyKN2NAS8NEo=
+github.com/nuts-foundation/go-leia v0.5.1 h1:HPZ4+IXx7F3JBkKYfQQOlHYQU0ZO55DC/7ByUuAzYKY=
+github.com/nuts-foundation/go-leia v0.5.1/go.mod h1:L/vFIWE5VHgIJgzEiYdhq5MyhSwGYhNXyKN2NAS8NEo=
 github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8 h1:s5GFggECXv/KwF37ax4B7ACMOKoUnKvmur4i+7I07UE=
 github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8 h1:s5GFggECXv/KwF37ax4B7ACMOKoUnKvmur4i+7I07UE=
 github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8/go.mod h1:ZsbTIuVGt8OrQEbqWrSztUISN4joeMabdsinbLubbzw=
@@ -868,6 +874,8 @@ google.golang.org/protobuf v1.23.0/go.mod h1:EGpADcykh3NcUnDUJcl1+ZksZNG86OlYog2
 google.golang.org/protobuf v1.23.1-0.20200526195155-81db48ad09cc/go.mod h1:EGpADcykh3NcUnDUJcl1+ZksZNG86OlYog2l/sGQquU=
 google.golang.org/protobuf v1.25.0 h1:Ejskq+SyPohKW+1uil0JJMtmHCgJPJ/qWTxr8qp+R4c=
 google.golang.org/protobuf v1.25.0/go.mod h1:9JNX74DMeImyA3h4bdi1ymwjUzf21/xIlbajtzgsN7c=
+gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0 h1:VJvJ8yFbE8v1f9YcoY7d0ULZaUeD66yzQy0jzZiiE+o=
+gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0/go.mod h1:yJVYf/HxbIad87581bSoyMTFm3gph8RtwMTWFFnIZ3s=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
 gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d/go.mod h1:cuepJuh7vyXfUyUwEgHQXw849cJrilpS5NeIjOWESAw=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=

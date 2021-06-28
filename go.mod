@@ -3,6 +3,7 @@ module github.com/nuts-foundation/nuts-node
 go 1.16
 
 require (
+	github.com/Regis24GmbH/go-phonetics v1.0.0 // indirect
 	github.com/cbroglie/mustache v1.2.0
 	github.com/deepmap/oapi-codegen v1.7.1
 	github.com/dgrijalva/jwt-go v3.2.1-0.20200107013213-dc14462fd587+incompatible // indirect
@@ -21,7 +22,7 @@ require (
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/nuts-foundation/go-did v0.1.1
-	github.com/nuts-foundation/go-leia v0.4.1
+	github.com/nuts-foundation/go-leia v0.5.1
 	github.com/pkg/errors v0.9.1
 	github.com/privacybydesign/irmago v0.7.0
 	github.com/prometheus/client_golang v1.7.1
@@ -37,6 +38,7 @@ require (
 	go.etcd.io/bbolt v1.3.5
 	google.golang.org/grpc v1.33.1
 	google.golang.org/protobuf v1.25.0
+	gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0
 	schneider.vip/problem v1.6.0
 )

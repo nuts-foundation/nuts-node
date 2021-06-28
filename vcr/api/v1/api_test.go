@@ -37,7 +37,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestWrapper_Preprocess(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

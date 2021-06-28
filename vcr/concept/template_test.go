@@ -37,11 +37,12 @@ func TestTemplateString_isValid(t *testing.T) {
 	}{
 		{"subject", true, "ok - basic string"},
 		{"<<subject>>", true, "ok - concept string"},
-		{"subject@{2_2}", true, "ok - basic with single index"},
-		{"<<subject>>@{2_2}", true, "ok - concept with single index"},
-		{"subject@{2_2},{1_1}", true, "ok - basic with dual index"},
-		{"<<subject>>@{2_2},{1_1}", true, "ok - concept with dual index"},
-		{"subject@{2_2_2}", false, "error - triple index layer"},
+		{"subject@B{2_2}", true, "ok - basic with single index"},
+		{"<<subject>>@B{2_2}", true, "ok - concept with single index"},
+		{"subject@B{2_2},T{1_1}", true, "ok - basic with dual index"},
+		{"<<subject>>@T{2_2},B{1_1}", true, "ok - concept with dual index"},
+		{"subject@T{2_2_2}", false, "error - triple index layer"},
+		{"subject@{1}", false, "error - missing index type"},
 		{"subject@", false, "error - missing index"},
 		{"<<subject", false, "error - missing concept postfix"},
 		{"subject>>", false, "error - missing concept prefix"},
@@ -79,15 +80,12 @@ func TestTemplate_parse(t *testing.T) {
 	t.Run("it adds the correct Indices", func(t *testing.T) {
 		assert.Len(t, ct.Indices(), 3)
 
-		assert.Equal(t, "human.eyeColour", ct.indices[0][0])
-		assert.Equal(t, "subject", ct.indices[1][0])
-		assert.Equal(t, "issuer", ct.indices[2][0])
-	})
-
-	t.Run("error - incorrect syntax", func(t *testing.T) {
-		_, err := ParseTemplate(`{"id": "<<id>>@"}`)
-
-		assert.Error(t, err)
+		assert.Equal(t, "human.eyeColour", ct.indices[0][0].ConceptPath)
+		assert.Equal(t, IndexTypeText, ct.indices[0][0].IndexType)
+		assert.Equal(t, "subject", ct.indices[1][0].ConceptPath)
+		assert.Equal(t, IndexTypeBytes, ct.indices[1][0].IndexType)
+		assert.Equal(t, "issuer", ct.indices[2][0].ConceptPath)
+		assert.Equal(t, IndexTypeBytes, ct.indices[2][0].IndexType)
 	})
 
 	t.Run("error - unsupported", func(t *testing.T) {

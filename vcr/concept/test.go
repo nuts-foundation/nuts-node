@@ -30,12 +30,12 @@ const ExampleType = "HumanCredential"
 const ExampleTemplate = `
 {
 	"id": "<<id>>",
-	"issuer": "<<issuer>>@{3}",
+	"issuer": "<<issuer>>@B{3}",
 	"type": "HumanCredential",
 	"credentialSubject": {
-		"id": "<<subject>>@{2}",
+		"id": "<<subject>>@B{2}",
 		"human": {
-			"eyeColour": "<<human.eyeColour>>@{1}",
+			"eyeColour": "<<human.eyeColour>>@T{1}",
 			"hairColour": "<<human.hairColour>>"
 		}
 	}

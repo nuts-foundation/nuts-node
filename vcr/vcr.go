@@ -142,11 +142,24 @@ func (c *vcr) initIndices() error {
 				var leiaParts []leia.IndexPart
 
 				for _, iParts := range index {
-					name := iParts
-					jsonPath := t.ToVCPath(iParts)
-					leiaParts = append(leiaParts, leia.NewJSONIndexPart(name, jsonPath))
+					name := iParts.ConceptPath
+					indexType := iParts.IndexType
+					jsonPath := t.ToVCPath(iParts.ConceptPath)
+					switch indexType {
+					case concept.IndexTypeBytes:
+						leiaParts = append(leiaParts, leia.NewJSONIndexPart(name, jsonPath, nil, nil))
+					case concept.IndexTypeText:
+						leiaParts = append(leiaParts, leia.NewJSONIndexPart(name, jsonPath, leia.WhiteSpaceTokenizer, concept.CologneTransformer))
+					default:
+						return fmt.Errorf("unknown index type %c @ %s", indexType, name)
+					}
 				}
 
+				// since only new indices trigger a re-index. We'll remove the old one first
+				indexName := fmt.Sprintf("index_%d", i)
+				if err := collection.DropIndex(indexName); err != nil {
+					return err
+				}
 				if err := collection.AddIndex(leia.NewIndex(fmt.Sprintf("index_%d", i), leiaParts...)); err != nil {
 					return err
 				}
@@ -156,14 +169,14 @@ func (c *vcr) initIndices() error {
 
 	// generic indices
 	gIndex := c.globalIndex()
-	if err := gIndex.AddIndex(leia.NewIndex("index_id", leia.NewJSONIndexPart(concept.IDField, concept.IDField))); err != nil {
+	if err := gIndex.AddIndex(leia.NewIndex("index_id", leia.NewJSONIndexPart(concept.IDField, concept.IDField, nil, nil))); err != nil {
 		return err
 	}
-	if err := gIndex.AddIndex(leia.NewIndex("index_issuer", leia.NewJSONIndexPart(concept.IssuerField, concept.IssuerField))); err != nil {
+	if err := gIndex.AddIndex(leia.NewIndex("index_issuer", leia.NewJSONIndexPart(concept.IssuerField, concept.IssuerField, nil, nil))); err != nil {
 		return err
 	}
 	rIndex := c.revocationIndex()
-	if err := rIndex.AddIndex(leia.NewIndex("index_subject", leia.NewJSONIndexPart(concept.SubjectField, concept.SubjectField))); err != nil {
+	if err := rIndex.AddIndex(leia.NewIndex("index_subject", leia.NewJSONIndexPart(concept.SubjectField, concept.SubjectField, nil, nil))); err != nil {
 		return err
 	}
 
