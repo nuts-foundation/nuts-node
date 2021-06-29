@@ -97,7 +97,7 @@ type ContractResponse struct {
 // Type of which contract to sign.
 type ContractType string
 
-// SoftwareVersion of the contract.
+// Version of the contract.
 type ContractVersion string
 
 // Request as described in RFC7523 section 2.1

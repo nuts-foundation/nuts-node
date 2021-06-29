@@ -86,6 +86,18 @@ func (m *Mockconnection) EXPECT() *MockconnectionMockRecorder {
 	return m.recorder
 }
 
+// exchange mocks base method.
+func (m *Mockconnection) exchange(messageReceiver messageQueue) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "exchange", messageReceiver)
+}
+
+// exchange indicates an expected call of exchange.
+func (mr *MockconnectionMockRecorder) exchange(messageReceiver interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "exchange", reflect.TypeOf((*Mockconnection)(nil).exchange), messageReceiver)
+}
+
 // peer mocks base method.
 func (m *Mockconnection) peer() Peer {
 	m.ctrl.T.Helper()
@@ -112,16 +124,4 @@ func (m *Mockconnection) send(message *transport.NetworkMessage) error {
 func (mr *MockconnectionMockRecorder) send(message interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "send", reflect.TypeOf((*Mockconnection)(nil).send), message)
-}
-
-// sendAndReceive mocks base method.
-func (m *Mockconnection) exchange(receivedMessages messageQueue) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "exchange", receivedMessages)
-}
-
-// sendAndReceive indicates an expected call of sendAndReceive.
-func (mr *MockconnectionMockRecorder) sendAndReceive(receivedMessages interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "exchange", reflect.TypeOf((*Mockconnection)(nil).exchange), receivedMessages)
 }
