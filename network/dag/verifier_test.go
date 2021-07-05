@@ -99,7 +99,7 @@ func TestSigningTimeVerifier(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("error - signed a day in the future", func(t *testing.T) {
-		err := NewSigningTimeVerifier()(CreateSignedTestTransaction(1, time.Now().Add(time.Hour*24+time.Second), "test/test"), nil)
+		err := NewSigningTimeVerifier()(CreateSignedTestTransaction(1, time.Now().Add(time.Hour*24+time.Minute), "test/test"), nil)
 		assert.Error(t, err)
 	})
 }
