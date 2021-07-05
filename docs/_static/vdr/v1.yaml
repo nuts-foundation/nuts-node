@@ -13,6 +13,10 @@ paths:
         The DID Document will be created according to the given request. If a combination of options is not allowed, a 400 is returned.
         The default values for selfControl, assertionMethod and capabilityInvocation are true. The default for controllers is an empty list. All other options default to false.
         Only a single keypair will be generated. All enabled methods will reuse the same key pair. A seperate keypair will be generated to generate the DID if SelfControl is false.
+
+        error returns:
+        * 400 - Invalid (combination of) options
+        * 500 - An error occurred while processing the request
       operationId: "createDID"
       requestBody:
         required: true
@@ -29,18 +33,8 @@ paths:
             application/json+did-document:
               schema:
                 $ref: '#/components/schemas/DIDDocument'
-        "400":
-          description: "Conflicting options given."
-          content:
-            application/json:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vdr/v1/did/{did}:
     parameters:
       - name: did
@@ -53,6 +47,13 @@ paths:
           type: string
     get:
       summary: "Resolves a Nuts DID document"
+      description: |
+        Resolves a Nuts DID document
+
+        error returns:
+          * 400 - Returned in case of malformed DID
+          * 404 - Corresponding DID document could not be found
+          * 500 - An error occurred while processing the request
       operationId: "getDID"
       tags:
         - DID
@@ -63,26 +64,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DIDResolutionResult'
-        "400":
-          description: Returned in case of malformed DID.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "404":
-          description: Corresponding DID document could not be found.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
     put:
       summary: Updates a Nuts DID document.
+      description: |
+        Updates a Nuts DID document.
+
+        error returns:
+          * 400 - DID document could not be updated because the DID param was malformed or the DID document is invalid
+          * 403 - DID document could not be updated because the DID is not managed by this node
+          * 404 - Corresponding DID document could not be found
+          * 409 - DID document could not be updated because the the document was already deactivated
+          * 500 - An error occurred while processing the request
       operationId: "updateDID"
       tags:
         - DID
@@ -99,74 +93,27 @@ paths:
             application/json+did-document:
               schema:
                  $ref: '#/components/schemas/DIDDocument'
-        "400":
-          description: DID document couldn't be updated because the DID param was malformed or the DID document is invalid.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "409":
-          description: DID document couldn't be updated because the the document was already deactivated.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "403":
-          description: DID document couldn't be updated because the DID is not managed by this node.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "404":
-          description: Corresponding DID document could not be found.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
     delete:
       summary: Deactivates a Nuts DID document according to the specification.
+      description: |
+        Updates a Nuts DID document.
+
+        error returns:
+          * 400 - DID document could not be deleted because the DID param was malformed
+          * 403 - DID document could not be deleted because the DID is not managed by this node
+          * 404 - Corresponding DID document could not be found
+          * 409 - DID document could not be deactivated because the the document was already deactivated
+          * 500 - An error occurred while processing the request
       operationId: "deactivateDID"
       tags:
         - DID
       responses:
         "200":
           description: DID document has been deactivated.
-        "400":
-          description: DID document couldn't be deleted because the DID param was malformed.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "403":
-          description: DID document couldn't be deleted because the DID is not managed by this node.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "404":
-          description: Corresponding DID document could not be found.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "409":
-          description: DID document couldn't be deactivated because the the document was already deactivated.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vdr/v1/did/{did}/verificationmethod:
     parameters:
       - name: did
@@ -179,7 +126,13 @@ paths:
           type: string
     post:
       summary: Creates and adds a new verificationMethod to the DID document.
-      description: It create a new private public keypair. The public key is wrapped in  verificationMethod. This method is added to the DID Document.
+      description: |
+        It create a new private public keypair. The public key is wrapped in  verificationMethod. This method is added to the DID Document.
+
+        error returns:
+        * 403 - Verification method could not be added because the DID is not managed by this node
+        * 404 - Corresponding DID document could not be found
+        * 500 - An error occurred while processing the request
       operationId: addNewVerificationMethod
       tags:
         - DID
@@ -190,24 +143,8 @@ paths:
             application/json+did-document:
               schema:
                 $ref: '#/components/schemas/VerificationMethod'
-        "403":
-          description: Verification method could not be added because the DID is not managed by this node.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "404":
-          description: Corresponding DID document could not be found.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vdr/v1/did/{did}/verificationmethod/{kid}:
     parameters:
       - name: did
@@ -232,28 +169,17 @@ paths:
         Removes the verification method from the DID Document.
         Revokes the public key with the corresponding key-id.
         Note: Other verification methods with different key-ids with the same private key will still be valid.
+
+        error returns:
+        * 403 - Verification method could not be deleted because the DID is not managed by this node
+        * 404 - Corresponding DID document or verification method could not be found
+        * 500 - An error occurred while processing the request
       operationId: deleteVerificationMethod
       responses:
         "204":
           description: Verification Method was successfully deleted
-        "403":
-          description: Verification method could not be deleted because the DID is not managed by this node.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "404":
-          description: Corresponding DID document or verification method could not be found.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     DIDDocument:
