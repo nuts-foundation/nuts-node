@@ -20,6 +20,7 @@ package dag
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -234,10 +235,15 @@ func TestBBoltDAG_Diagnostics(t *testing.T) {
 		lines = append(lines, diagnostic.Name()+": "+diagnostic.String())
 	}
 	sort.Strings(lines)
+
+	dbSize := dag.Statistics()
+	assert.NotZero(t, dbSize)
+
 	actual := strings.Join(lines, "\n")
-	assert.Equal(t, `[DAG] Heads: [`+doc1.Ref().String()+`]
+	expected := fmt.Sprintf(`[DAG] Heads: [`+doc1.Ref().String()+`]
 [DAG] Number of transactions: 1
-[DAG] Stored transaction size (bytes): 8192`, actual)
+[DAG] Stored database size (bytes): %d`, dbSize.DataSize)
+	assert.Equal(t, expected, actual)
 }
 
 func Test_parseHashList(t *testing.T) {

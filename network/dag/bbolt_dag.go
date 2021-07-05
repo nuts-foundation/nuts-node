@@ -96,7 +96,7 @@ type dataSizeStatistic struct {
 }
 
 func (d dataSizeStatistic) Name() string {
-	return "[DAG] Stored transaction size (bytes)"
+	return "[DAG] Stored database size (bytes)"
 }
 
 func (d dataSizeStatistic) String() string {
