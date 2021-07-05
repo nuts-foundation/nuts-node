@@ -9,6 +9,12 @@ paths:
   /internal/vcr/v1/vc:
     post:
       summary: Creates a new Verifiable Credential
+      description: |
+        Creates a new Verifiable Credential.
+
+        error returns:
+        * 400 - One or more of the given parameters are invalid
+        * 500 - An error occurred while processing the request
       operationId: "create"
       tags:
         - credential
@@ -25,18 +31,8 @@ paths:
             application/vc+json:
               schema:
                 $ref: '#/components/schemas/VerifiableCredential'
-        "400":
-          description: One or more of the given parameters are invalid
-          content:
-            text/plain:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vcr/v1/vc/{id}:
     parameters:
       - name: id
@@ -52,6 +48,10 @@ paths:
       description: >
         The resolutionResult contains the credential regardless of the validity.
         The resolutionResult.currentStatus must be checked to see if the credential is valid.
+
+        error returns:
+        * 404 - Corresponding credential could not be found
+        * 500 - An error occurred while processing the request
       operationId: "resolve"
       tags:
         - credential
@@ -62,20 +62,18 @@ paths:
             application/vc+json:
               schema:
                 $ref: '#/components/schemas/ResolutionResult'
-        "404":
-          description: Corresponding credential could not be found.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
     delete:
       summary: "Revoke a credential"
+      description: |
+        Revoke a credential.
+
+        error returns:
+        * 400 - Credential can't be revoked. Most likely due to a missing private key.
+        * 404 - Credential is not found
+        * 409 - Credential has already been revoked
+        * 500 - An error occurred while processing the request
       operationId: "revoke"
       tags:
         - credential
@@ -86,33 +84,18 @@ paths:
             application/vc+json;type=revocation:
               schema:
                 $ref: '#/components/schemas/Revocation'
-        "400":
-          description: Credential can't be revoked. Most likely due to a missing private key.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "404":
-          description: Credential is not found.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "409":
-          description: Credential has already been revoked.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vcr/v1/{concept}:
     post:
       summary: Search for a concept. A concept is backed by 1 or more VCs
+      description: |
+        Search for a concept. A concept is backed by 1 or more VCs.
+
+        error returns:
+        * 400 - Invalid paramters
+        * 404 - Concept not found
+        * 500 - An error occurred while processing the request
       operationId: "search"
       tags:
         - credential
@@ -140,28 +123,17 @@ paths:
                 items:
                   description: the returned JSON depends on the requested concept.
                   type: object
-        "400":
-          description: invalid params.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "404":
-          description: concept not found.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vcr/v1/trust:
     post:
       summary: Mark all the VCs of given type and issuer as 'trusted'.
-      description: The added trust is persisted and may be removed with a delete operation.
+      description: |
+        The added trust is persisted and may be removed with a delete operation.
+
+        error returns:
+        * 400 - Invalid paramters
+        * 500 - An error occurred while processing the request
       operationId: "trustIssuer"
       tags:
         - credential
@@ -175,21 +147,16 @@ paths:
       responses:
         "204":
           description: The change was accepted.
-        "400":
-          description: invalid params.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
     delete:
       summary: Remove trust in an issuer/credentialType combination
-      description: The removed trust is persisted.
+      description: |
+        The removed trust is persisted.
+
+        error returns:
+        * 400 - Invalid paramters
+        * 500 - An error occurred while processing the request
       operationId: "untrustIssuer"
       tags:
         - credential
@@ -203,21 +170,17 @@ paths:
       responses:
         "204":
           description: The change was accepted.
-        "400":
-          description: invalid params.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "500":
-          description: An error occurred while processing the request.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vcr/v1/{credentialType}/trusted:
     get:
       summary: "List all trusted issuers for a given credential type"
+      description: |
+        List all trusted issuers for a given credential type.
+
+        error returns:
+        * 400 - Malformed credential type
+        * 404 - Unkown credential type
       operationId: "listTrusted"
       tags:
         - credential
@@ -239,21 +202,17 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/DID'
-        "400":
-          description: malformed credential type.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "404":
-          description: unknown credential type.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vcr/v1/{credentialType}/untrusted:
     get:
       summary: "List all untrusted issuers for a given credential type"
+      description: |
+        List all untrusted issuers for a given credential type.
+
+        error returns:
+        * 400 - Malformed credential type
+        * 404 - Unkown credential type
       operationId: "listUntrusted"
       tags:
         - credential
@@ -275,18 +234,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/DID'
-        "400":
-          description: malformed credential type.
-          content:
-            text/plain:
-              schema:
-                type: string
-        "404":
-          description: unknown credential type.
-          content:
-            text/plain:
-              schema:
-                type: string
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     CredentialSubject:
