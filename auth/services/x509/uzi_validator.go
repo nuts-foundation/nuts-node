@@ -48,7 +48,7 @@ func getUziAttributeNames() []string {
 		"uziNr",
 		"cardType",
 		"orgID",
-		"rollCode",
+		"roleCode",
 		"agbCode",
 	}
 }
