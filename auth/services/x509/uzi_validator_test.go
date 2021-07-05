@@ -59,7 +59,7 @@ func TestUziValidator(t *testing.T) {
 			"cardType": "N",
 			"oidCa":    "2.16.528.1.1007.99.218", // CIBG.Uzi test identifiers
 			"orgID":    "90000382",
-			"rollCode": "00.000",
+			"roleCode": "00.000",
 			"uziNr":    "900021219",
 			"version":  "1",
 		}
