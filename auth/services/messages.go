@@ -26,8 +26,8 @@ type CreateAccessTokenRequest struct {
 	RawJwtBearerToken string
 }
 
-// CreateJwtBearerTokenRequest contains all information to create a JwtBearerToken
-type CreateJwtBearerTokenRequest struct {
+// CreateJwtGrantRequest contains all information to create a JwtBearerToken
+type CreateJwtGrantRequest struct {
 	Actor         string
 	Custodian     string
 	IdentityToken *string

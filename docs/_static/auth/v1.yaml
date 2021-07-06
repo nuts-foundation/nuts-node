@@ -146,12 +146,12 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
 
-  /internal/auth/v1/bearertoken:
+  /internal/auth/v1/jwt-grant:
     post:
-      operationId: createJwtBearerToken
-      summary: Create a JWT Bearer Token
+      operationId: createJwtGrant
+      summary: Create a JWT Grant
       description: |
-        Create a JWT Bearer Token which can be used in the createAccessToken request in the assertion field
+        Create a JWT Grant which can be used in the createAccessToken request in the assertion field
 
         error returns:
         * 400 - one of the parameters has the wrong format
@@ -162,10 +162,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateJwtBearerTokenRequest"
+              $ref: "#/components/schemas/CreateJwtGrantRequest"
       responses:
         '200':
-          description: Successfull request. Responds with JWT encoded Bearer Token
+          description: Successful request. Responds with JWT encoded Bearer Token
           content:
             application/json:
               schema:
@@ -176,9 +176,9 @@ paths:
   /n2n/auth/v1/accesstoken:
     post:
       operationId: createAccessToken
-      summary: Create an access token based on the OAuth JWT Bearer flow.
+      summary: Create an access token using a JWT as authorization grant
       description: |
-        Create an access token based on the OAuth JWT Bearer flow.
+        Create an access token using a JWT as authorization grant.
         This endpoint must be available to other nodes for other applications to request access tokens.
         It requires a two-way TLS connection according to the network agreement.
 
@@ -466,10 +466,10 @@ components:
           description: "The duration this contract is valid, starting from validFrom or current time if validFrom is omitted. Uses this node default when omitted. Valid time units are: 's', 'm', 'h'"
           example: "2h"
     #
-    # Everything related to JWT Bearer Tokens
+    # Everything related to JWT Grants
     #
-    CreateJwtBearerTokenRequest:
-      description: Request for a JWT Bearer Token. The Bearer Token can be used during a Access Token Request in the assertion field
+    CreateJwtGrantRequest:
+      description: Request for a JWT Grant. The grant can be used during a Access Token Request in the assertion field
       required:
         - custodian
         - actor
@@ -491,7 +491,7 @@ components:
           description: The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
           example: nuts-patient-transfer
     JwtBearerTokenResponse:
-      description: Response with a JWT Bearer Token. It contains a JWT, signed with the private key of the requestor software vendor.
+      description: Response with a JWT Grant. It contains a JWT, signed with the private key of the requestor software vendor.
       required:
         - bearer_token
         - authorization_server_endpoint

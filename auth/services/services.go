@@ -12,7 +12,7 @@ import (
 // OAuthClient is the client interface for the OAuth service
 type OAuthClient interface {
 	CreateAccessToken(request CreateAccessTokenRequest) (*AccessTokenResult, error)
-	CreateJwtBearerToken(request CreateJwtBearerTokenRequest) (*JwtBearerTokenResult, error)
+	CreateJwtGrant(request CreateJwtGrantRequest) (*JwtBearerTokenResult, error)
 	IntrospectAccessToken(token string) (*NutsAccessToken, error)
 	Configure() error
 }

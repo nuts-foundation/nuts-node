@@ -66,19 +66,19 @@ func (mr *MockOAuthClientMockRecorder) CreateAccessToken(request interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessToken", reflect.TypeOf((*MockOAuthClient)(nil).CreateAccessToken), request)
 }
 
-// CreateJwtBearerToken mocks base method.
-func (m *MockOAuthClient) CreateJwtBearerToken(request CreateJwtBearerTokenRequest) (*JwtBearerTokenResult, error) {
+// CreateJwtGrant mocks base method.
+func (m *MockOAuthClient) CreateJwtGrant(request CreateJwtGrantRequest) (*JwtBearerTokenResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateJwtBearerToken", request)
+	ret := m.ctrl.Call(m, "CreateJwtGrant", request)
 	ret0, _ := ret[0].(*JwtBearerTokenResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateJwtBearerToken indicates an expected call of CreateJwtBearerToken.
-func (mr *MockOAuthClientMockRecorder) CreateJwtBearerToken(request interface{}) *gomock.Call {
+// CreateJwtGrant indicates an expected call of CreateJwtGrant.
+func (mr *MockOAuthClientMockRecorder) CreateJwtGrant(request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJwtBearerToken", reflect.TypeOf((*MockOAuthClient)(nil).CreateJwtBearerToken), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJwtGrant", reflect.TypeOf((*MockOAuthClient)(nil).CreateJwtGrant), request)
 }
 
 // IntrospectAccessToken mocks base method.

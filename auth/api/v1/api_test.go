@@ -364,8 +364,8 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 	})
 }
 
-func TestWrapper_CreateJwtBearerToken(t *testing.T) {
-	bindPostBody := func(ctx *TestContext, body CreateJwtBearerTokenRequest) {
+func TestWrapper_CreateJwtGrant(t *testing.T) {
+	bindPostBody := func(ctx *TestContext, body CreateJwtGrantRequest) {
 		jsonData, _ := json.Marshal(body)
 		ctx.echoMock.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal(jsonData, f)
@@ -380,7 +380,7 @@ func TestWrapper_CreateJwtBearerToken(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 		subj := "urn:oid:2.16.840.1.113883.2.4.6.3:9999990"
-		body := CreateJwtBearerTokenRequest{
+		body := CreateJwtGrantRequest{
 			Actor:     "urn:oid:2.16.840.1.113883.2.4.6.1:48000000",
 			Custodian: "urn:oid:2.16.840.1.113883.2.4.6.1:12481248",
 			Subject:   &subj,
@@ -392,7 +392,7 @@ func TestWrapper_CreateJwtBearerToken(t *testing.T) {
 			BearerToken: "123.456.789",
 		}
 
-		expectedRequest := services.CreateJwtBearerTokenRequest{
+		expectedRequest := services.CreateJwtGrantRequest{
 			Actor:         body.Actor,
 			Custodian:     body.Custodian,
 			IdentityToken: &body.Identity,
@@ -400,10 +400,10 @@ func TestWrapper_CreateJwtBearerToken(t *testing.T) {
 			Service:       "service",
 		}
 
-		ctx.oauthClientMock.EXPECT().CreateJwtBearerToken(expectedRequest).Return(&services.JwtBearerTokenResult{BearerToken: response.BearerToken}, nil)
+		ctx.oauthClientMock.EXPECT().CreateJwtGrant(expectedRequest).Return(&services.JwtBearerTokenResult{BearerToken: response.BearerToken}, nil)
 		expectStatusOK(ctx, response)
 
-		if !assert.Nil(t, ctx.wrapper.CreateJwtBearerToken(ctx.echoMock)) {
+		if !assert.Nil(t, ctx.wrapper.CreateJwtGrant(ctx.echoMock)) {
 			t.FailNow()
 		}
 	})

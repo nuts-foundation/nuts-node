@@ -110,8 +110,8 @@ type CreateAccessTokenRequest struct {
 	GrantType string `json:"grant_type"`
 }
 
-// Request for a JWT Bearer Token. The Bearer Token can be used during a Access Token Request in the assertion field
-type CreateJwtBearerTokenRequest struct {
+// Request for a JWT Grant. The grant can be used during a Access Token Request in the assertion field
+type CreateJwtGrantRequest struct {
 	Actor     string `json:"actor"`
 	Custodian string `json:"custodian"`
 
@@ -145,7 +145,7 @@ type DrawUpContractRequest struct {
 	Version ContractVersion `json:"version"`
 }
 
-// Response with a JWT Bearer Token. It contains a JWT, signed with the private key of the requestor software vendor.
+// Response with a JWT Grant. It contains a JWT, signed with the private key of the requestor software vendor.
 type JwtBearerTokenResponse struct {
 
 	// The URL that corresponds to the oauth endpoint of the selected service.
@@ -283,11 +283,11 @@ type VerifyAccessTokenParams struct {
 	Authorization string `json:"Authorization"`
 }
 
-// CreateJwtBearerTokenJSONBody defines parameters for CreateJwtBearerToken.
-type CreateJwtBearerTokenJSONBody CreateJwtBearerTokenRequest
-
 // DrawUpContractJSONBody defines parameters for DrawUpContract.
 type DrawUpContractJSONBody DrawUpContractRequest
+
+// CreateJwtGrantJSONBody defines parameters for CreateJwtGrant.
+type CreateJwtGrantJSONBody CreateJwtGrantRequest
 
 // CreateSignSessionJSONBody defines parameters for CreateSignSession.
 type CreateSignSessionJSONBody SignSessionRequest
@@ -306,11 +306,11 @@ type GetContractByTypeParams struct {
 	Language *string `json:"language,omitempty"`
 }
 
-// CreateJwtBearerTokenJSONRequestBody defines body for CreateJwtBearerToken for application/json ContentType.
-type CreateJwtBearerTokenJSONRequestBody CreateJwtBearerTokenJSONBody
-
 // DrawUpContractJSONRequestBody defines body for DrawUpContract for application/json ContentType.
 type DrawUpContractJSONRequestBody DrawUpContractJSONBody
+
+// CreateJwtGrantJSONRequestBody defines body for CreateJwtGrant for application/json ContentType.
+type CreateJwtGrantJSONRequestBody CreateJwtGrantJSONBody
 
 // CreateSignSessionJSONRequestBody defines body for CreateSignSession for application/json ContentType.
 type CreateSignSessionJSONRequestBody CreateSignSessionJSONBody
@@ -329,12 +329,12 @@ type ServerInterface interface {
 	// Verifies the provided access token
 	// (HEAD /internal/auth/v1/accesstoken/verify)
 	VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error
-	// Create a JWT Bearer Token
-	// (POST /internal/auth/v1/bearertoken)
-	CreateJwtBearerToken(ctx echo.Context) error
 	// Draw up a contract using a specified contract template, language and version
 	// (PUT /internal/auth/v1/contract/drawup)
 	DrawUpContract(ctx echo.Context) error
+	// Create a JWT Grant
+	// (POST /internal/auth/v1/jwt-grant)
+	CreateJwtGrant(ctx echo.Context) error
 	// Create a signing session for a supported means.
 	// (POST /internal/auth/v1/signature/session)
 	CreateSignSession(ctx echo.Context) error
@@ -344,7 +344,7 @@ type ServerInterface interface {
 	// Verify a signature in the form of a verifiable presentation
 	// (PUT /internal/auth/v1/signature/verify)
 	VerifySignature(ctx echo.Context) error
-	// Create an access token based on the OAuth JWT Bearer flow.
+	// Create an access token using a JWT as authorization grant
 	// (POST /n2n/auth/v1/accesstoken)
 	CreateAccessToken(ctx echo.Context) error
 	// Get a contract by type and version
@@ -397,21 +397,21 @@ func (w *ServerInterfaceWrapper) VerifyAccessToken(ctx echo.Context) error {
 	return err
 }
 
-// CreateJwtBearerToken converts echo context to params.
-func (w *ServerInterfaceWrapper) CreateJwtBearerToken(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.CreateJwtBearerToken(ctx)
-	return err
-}
-
 // DrawUpContract converts echo context to params.
 func (w *ServerInterfaceWrapper) DrawUpContract(ctx echo.Context) error {
 	var err error
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.DrawUpContract(ctx)
+	return err
+}
+
+// CreateJwtGrant converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateJwtGrant(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.CreateJwtGrant(ctx)
 	return err
 }
 
@@ -530,13 +530,13 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		si.(Preprocessor).Preprocess("VerifyAccessToken", context)
 		return wrapper.VerifyAccessToken(context)
 	})
-	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/bearertoken", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("CreateJwtBearerToken", context)
-		return wrapper.CreateJwtBearerToken(context)
-	})
 	router.Add(http.MethodPut, baseURL+"/internal/auth/v1/contract/drawup", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("DrawUpContract", context)
 		return wrapper.DrawUpContract(context)
+	})
+	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/jwt-grant", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("CreateJwtGrant", context)
+		return wrapper.CreateJwtGrant(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/signature/session", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("CreateSignSession", context)

@@ -453,7 +453,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 	sid := "789"
 	usi := "irma identity token"
 
-	request := services.CreateJwtBearerTokenRequest{
+	request := services.CreateJwtGrantRequest{
 		Custodian:     custodianDID.String(),
 		Actor:         actorDID.String(),
 		Subject:       &sid,
@@ -469,7 +469,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(actorDID, gomock.Any()).MinTimes(1).Return(actorSigningKeyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), actorSigningKeyID.String()).Return("token", nil)
 
-		token, err := ctx.oauthService.CreateJwtBearerToken(request)
+		token, err := ctx.oauthService.CreateJwtGrant(request)
 
 		if !assert.Nil(t, err) || !assert.NotEmpty(t, token.BearerToken) {
 			t.FailNow()
@@ -483,7 +483,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(&did.Document{}, nil, nil)
 
-		token, err := ctx.oauthService.CreateJwtBearerToken(request)
+		token, err := ctx.oauthService.CreateJwtGrant(request)
 
 		assert.Empty(t, token)
 		assert.Contains(t, err.Error(), "service not found")
@@ -493,13 +493,13 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		request := services.CreateJwtBearerTokenRequest{
+		request := services.CreateJwtGrantRequest{
 			Actor:         actorDID.String(),
 			Subject:       &sid,
 			IdentityToken: &usi,
 		}
 
-		token, err := ctx.oauthService.CreateJwtBearerToken(request)
+		token, err := ctx.oauthService.CreateJwtGrant(request)
 
 		assert.Empty(t, token)
 		assert.NotNil(t, err)
@@ -513,7 +513,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(actorDID, gomock.Any()).MinTimes(1).Return(actorSigningKeyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), actorSigningKeyID.String()).Return("", errors.New("boom!"))
 
-		token, err := ctx.oauthService.CreateJwtBearerToken(request)
+		token, err := ctx.oauthService.CreateJwtGrant(request)
 
 		assert.Error(t, err)
 		assert.Empty(t, token)
@@ -527,7 +527,7 @@ func Test_claimsFromRequest(t *testing.T) {
 	usi := "irma identity token"
 
 	t.Run("ok", func(t *testing.T) {
-		request := services.CreateJwtBearerTokenRequest{
+		request := services.CreateJwtGrantRequest{
 			Custodian:     custodianDID.String(),
 			Actor:         actorDID.String(),
 			Subject:       &sid,

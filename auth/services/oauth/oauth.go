@@ -243,8 +243,8 @@ func (s *service) validateLegalBase(jwtBearerToken *services.NutsJwtBearerToken)
 	return nil
 }
 
-// CreateJwtBearerToken creates a JwtBearerToken from the given CreateJwtBearerTokenRequest
-func (s *service) CreateJwtBearerToken(request services.CreateJwtBearerTokenRequest) (*services.JwtBearerTokenResult, error) {
+// CreateJwtBearerToken creates a JwtBearerToken from the given CreateJwtGrantRequest
+func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
 	actor, err := did.ParseDID(request.Actor)
 	if err != nil {
 		return nil, err
@@ -279,7 +279,7 @@ func (s *service) CreateJwtBearerToken(request services.CreateJwtBearerTokenRequ
 var timeFunc = time.Now
 
 // standalone func for easier testing
-func claimsFromRequest(request services.CreateJwtBearerTokenRequest, audience string) map[string]interface{} {
+func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) map[string]interface{} {
 	token := services.NutsJwtBearerToken{
 		UserIdentity: request.IdentityToken,
 		SubjectID:    request.Subject,
