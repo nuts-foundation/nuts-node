@@ -156,7 +156,7 @@ func timeSelectionFilter(metadata vdr.ResolveMetadata) filterFunc {
 		if e.next != nil {
 			// a next must always have an updated field
 			// the next version is created later, indicating this version is valid
-			return e.next.metadata.Updated.After(*metadata.ResolveTime)
+			return e.next.metadata.Updated.After(*metadata.ResolveTime) || e.next.metadata.Updated.Equal(*metadata.ResolveTime)
 		}
 
 		// last record in line
