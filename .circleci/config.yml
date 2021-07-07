@@ -23,5 +23,31 @@ jobs:
       - run: go test ./... -race
       - run: go test ./... -coverprofile=coverage.txt
 
-      - codecov/upload:
-          file: coverage.txt
+      # Run coverage report for Code Climate
+      - run:
+          name: Setup Code Climate test-reporter
+          command: |
+            mkdir -p tmp/
+            # download test reporter as a static binary
+            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./tmp/cc-test-reporter
+            chmod +x ./tmp/cc-test-reporter
+            ./cc-test-reporter before-build
+      - run:
+          name: Format test coverage output
+          command:
+            ./tmp/cc-test-reporter format-coverage -t cover -o tmp/codeclimate.json coverage.txt
+      - run:
+          name: Send coverage report to Code Climate
+          command:
+            # nyc report requires that nyc has already been run,
+            # which creates the .nyc_output folder containing necessary data
+            ./cc-test-reporter after-build -t lcov
+          when: always
+      # Upload results
+      - run:
+          name: Upload coverage
+          command: |
+            ./tmp/cc-test-reporter sum-coverage tmp/codeclimate.json -p 2 -o tmp/codeclimate.total.json
+            ./tmp/cc-test-reporter upload-coverage -i tmp/codeclimate.total.json
+
+
