@@ -176,7 +176,13 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 		return failure("'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
 	}
 
-	for _, r := range cs.Restrictions {
+	return validateRestrictions(cs.Restrictions)
+}
+
+var validOperationTypes = []string{"read", "vread", "update", "patch", "delete", "history", "create", "search"}
+
+func validateRestrictions(restrictions []Restriction) error {
+	for _, r := range restrictions {
 		if len(strings.TrimSpace(r.Resource)) == 0 {
 			return failure("'credentialSubject.Restrictions[].Resource' is required for a restriction'")
 		}
@@ -192,8 +198,6 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 
 	return nil
 }
-
-var validOperationTypes = []string{"read", "vread", "update", "patch", "delete", "history", "create", "search"}
 
 func validOperation(operation string) bool {
 	for _, o := range validOperationTypes {
