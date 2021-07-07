@@ -2,6 +2,7 @@ package services
 
 import (
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -11,10 +12,11 @@ import (
 
 // OAuthClient is the client interface for the OAuth service
 type OAuthClient interface {
+	Configure() error
 	CreateAccessToken(request CreateAccessTokenRequest) (*AccessTokenResult, error)
 	CreateJwtGrant(request CreateJwtGrantRequest) (*JwtBearerTokenResult, error)
+	GetOAuthEndpointURL(service string, custodian did.DID) (url.URL, error)
 	IntrospectAccessToken(token string) (*NutsAccessToken, error)
-	Configure() error
 }
 
 // SignedToken defines the uniform interface to crypto specific implementations such as Irma or x509 tokens.
@@ -54,4 +56,9 @@ type ContractClient interface {
 
 	// HandlerFunc returns the Irma server handler func
 	HandlerFunc() http.HandlerFunc
+}
+
+// CompoundServiceClient defines a function to get a compoundservice by its servicetype
+type CompoundServiceClient interface {
+	GetCompoundService(id did.DID, serviceType string) (*did.Service, error)
 }

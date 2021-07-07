@@ -28,6 +28,7 @@ import (
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"net/url"
 
 	"testing"
 	"time"
@@ -614,6 +615,64 @@ func TestAuth_Configure(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		assert.NoError(t, ctx.oauthService.Configure())
+	})
+}
+
+func TestAuth_GetOAuthEndpointURL(t *testing.T) {
+	t.Run("returns_error_when_resolve_compound_service_fails", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.didResolver.
+			EXPECT().
+			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
+			Return(nil, nil, errors.New("random error"))
+
+		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL("test-service", *vdr.TestDIDA)
+
+		expectedErr := errors.New("failed to resolve OAuth endpoint URL: random error")
+
+		if assert.Error(t, err) {
+			assert.Equal(t, expectedErr.Error(), err.Error())
+		}
+
+		assert.Empty(t, parsedURL)
+	})
+
+	t.Run("returns_parsed_endpoint_url", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.didResolver.
+			EXPECT().
+			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
+			Return(&did.Document{
+				Service: []did.Service{
+					{
+						Type: "test-service",
+						ServiceEndpoint: map[string]string{
+							"oauth": fmt.Sprintf("%s?type=oauth", vdr.TestDIDA),
+						},
+					},
+				},
+			}, &types.DocumentMetadata{}, nil)
+
+		ctx.didResolver.
+			EXPECT().
+			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
+			Return(&did.Document{
+				Service: []did.Service{
+					{
+						Type:            "oauth",
+						ServiceEndpoint: "http://localhost",
+					},
+				},
+			}, &types.DocumentMetadata{}, nil)
+
+		expectedURL, _ := url.Parse("http://localhost")
+
+		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL("test-service", *vdr.TestDIDA)
+
+		assert.NoError(t, err)
+		assert.Equal(t, *expectedURL, parsedURL)
 	})
 }
 

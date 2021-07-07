@@ -169,7 +169,34 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/JwtBearerTokenResponse"
+                $ref: "#/components/schemas/JwtGrantResponse"
+        default:
+          $ref: '../common/error_response.yaml'
+
+  /internal/auth/v1/request-access-token:
+    post:
+      operationId: requestAccessToken
+      summary: Request an accesstoken from the custodian
+      description: |
+        Create a JWT Grant and use it as authorization grant to get an accesstoken from the custodian.
+
+        error returns:
+        * 400 - one of the parameters has the wrong format
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestAccessTokenRequest"
+      responses:
+        '200':
+          description: Successful request. Responds with an accesstoken.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessTokenResponse"
         default:
           $ref: '../common/error_response.yaml'
 
@@ -190,9 +217,6 @@ paths:
         required: true
         content:
           application/x-www-form-urlencoded:
-            schema:
-              $ref: "#/components/schemas/CreateAccessTokenRequest"
-          application/json:
             schema:
               $ref: "#/components/schemas/CreateAccessTokenRequest"
       responses:
@@ -490,7 +514,7 @@ components:
           type: string
           description: The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
           example: nuts-patient-transfer
-    JwtBearerTokenResponse:
+    JwtGrantResponse:
       description: Response with a JWT Grant. It contains a JWT, signed with the private key of the requestor software vendor.
       required:
         - bearer_token
@@ -501,9 +525,32 @@ components:
         authorization_server_endpoint:
           description: The URL that corresponds to the oauth endpoint of the selected service.
           type: string
+
     #
     # Everything related to Access Tokens
     #
+    RequestAccessTokenRequest:
+      description: Request for a JWT Grant and use it as authorization grant to get the access token from the custodian
+      required:
+        - custodian
+        - actor
+        - identity
+        - service
+      properties:
+        subject:
+          type: string
+        custodian:
+          type: string
+        actor:
+          type: string
+        identity:
+          type: string
+          description: |
+            Base64 encoded IRMA contract conaining the identity of the performer
+        service:
+          type: string
+          description: The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
+          example: nuts-patient-transfer
     CreateAccessTokenRequest:
       description: Request as described in RFC7523 section 2.1
       required:
@@ -548,7 +595,7 @@ components:
       properties:
         error:
           type: string
-          enum: [invalid_request, invalid_grant, unsupported_grant_type]
+          enum: [ invalid_request, invalid_grant, unsupported_grant_type ]
         error_description:
           description: >
             Human-readable ASCII text providing

@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
@@ -243,7 +244,22 @@ func (s *service) validateLegalBase(jwtBearerToken *services.NutsJwtBearerToken)
 	return nil
 }
 
-// CreateJwtBearerToken creates a JwtBearerToken from the given CreateJwtGrantRequest
+// GetOAuthEndpointURL returns the oauth2 endpoint URL of the custodian for a service
+func (s *service) GetOAuthEndpointURL(service string, custodian did.DID) (url.URL, error) {
+	_, endpointURL, err := services.ResolveCompoundServiceURL(s.docResolver, custodian, service, services.OAuthEndpointType, nil)
+	if err != nil {
+		return url.URL{}, fmt.Errorf("failed to resolve OAuth endpoint URL: %w", err)
+	}
+
+	parsedURL, err := url.Parse(endpointURL)
+	if err != nil {
+		return url.URL{}, fmt.Errorf("failed to parse OAuth endpoint URL: %w", err)
+	}
+
+	return *parsedURL, nil
+}
+
+// CreateJwtGrant creates a JWT Grant from the given CreateJwtGrantRequest
 func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
 	actor, err := did.ParseDID(request.Actor)
 	if err != nil {

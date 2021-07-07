@@ -65,6 +65,11 @@ func InvalidInputError(errStr string, args ...interface{}) error {
 	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusBadRequest}
 }
 
+// PreconditionFailedError returns an error that maps to a HTTP 412 Status Precondition Failed.
+func PreconditionFailedError(errStr string, args ...interface{}) error {
+	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusPreconditionFailed}
+}
+
 type httpStatusCodeError struct {
 	msg        string
 	statusCode int

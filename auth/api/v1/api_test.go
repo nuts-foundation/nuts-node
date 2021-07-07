@@ -22,24 +22,26 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/sirupsen/logrus"
-
 	"github.com/golang/mock/gomock"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/nuts-foundation/go-did/did"
 	pkg2 "github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/vdr"
 )
 
 type TestContext struct {
@@ -77,7 +79,14 @@ func createContext(t *testing.T) *TestContext {
 	mockContractClient := services.NewMockContractClient(ctrl)
 	mockContractNotary := services.NewMockContractNotary(ctrl)
 	mockOAuthClient := services.NewMockOAuthClient(ctrl)
-	authMock := &mockAuthClient{ctrl: ctrl, mockContractClient: mockContractClient, mockContractNotary: mockContractNotary, mockOAuthClient: mockOAuthClient}
+
+	authMock := &mockAuthClient{
+		ctrl:               ctrl,
+		mockContractClient: mockContractClient,
+		mockContractNotary: mockContractNotary,
+		mockOAuthClient:    mockOAuthClient,
+	}
+
 	return &TestContext{
 		ctrl:               ctrl,
 		echoMock:           mock.NewMockContext(ctrl),
@@ -372,7 +381,7 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		})
 	}
 
-	expectStatusOK := func(ctx *TestContext, response JwtBearerTokenResponse) {
+	expectStatusOK := func(ctx *TestContext, response JwtGrantResponse) {
 		ctx.echoMock.EXPECT().JSON(http.StatusOK, response)
 	}
 
@@ -388,7 +397,7 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 			Service:   "service",
 		}
 		bindPostBody(ctx, body)
-		response := JwtBearerTokenResponse{
+		response := JwtGrantResponse{
 			BearerToken: "123.456.789",
 		}
 
@@ -406,6 +415,205 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		if !assert.Nil(t, ctx.wrapper.CreateJwtGrant(ctx.echoMock)) {
 			t.FailNow()
 		}
+	})
+}
+
+func TestWrapper_RequestAccessToken(t *testing.T) {
+	testID := "test-id"
+	testSubject := "test-testSubject"
+	fakeRequest := RequestAccessTokenRequest{
+		Actor:     vdr.TestDIDA.String(),
+		Custodian: vdr.TestDIDB.String(),
+		Identity:  testID,
+		Service:   "test-service",
+		Subject:   &testSubject,
+	}
+
+	t.Run("returns_error_when_request_is_invalid", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.echoMock.EXPECT().
+			Bind(gomock.Any()).
+			Return(errors.New("random error"))
+
+		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
+
+		assert.EqualError(t, err, "random error")
+	})
+
+	t.Run("returns_error_when_creating_jwt_grant_fails", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.echoMock.EXPECT().
+			Bind(gomock.Any()).
+			DoAndReturn(func(input interface{}) error {
+				*input.(*RequestAccessTokenRequest) = fakeRequest
+				return nil
+			})
+
+		ctx.oauthClientMock.EXPECT().
+			CreateJwtGrant(services.CreateJwtGrantRequest{
+				Actor:         vdr.TestDIDA.String(),
+				Custodian:     vdr.TestDIDB.String(),
+				IdentityToken: &testID,
+				Service:       "test-service",
+				Subject:       &testSubject,
+			}).
+			Return(nil, errors.New("random error"))
+
+		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
+
+		assert.EqualError(t, err, "random error")
+	})
+
+	t.Run("returns_error_when_parsing_custodian_did_fails", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.echoMock.EXPECT().
+			Bind(gomock.Any()).
+			DoAndReturn(func(input interface{}) error {
+				request := input.(*RequestAccessTokenRequest)
+				*request = fakeRequest
+				request.Custodian = "invalid..!!"
+
+				return nil
+			})
+
+		ctx.oauthClientMock.EXPECT().
+			CreateJwtGrant(services.CreateJwtGrantRequest{
+				Actor:         vdr.TestDIDA.String(),
+				Custodian:     "invalid..!!",
+				IdentityToken: &testID,
+				Service:       "test-service",
+				Subject:       &testSubject,
+			}).
+			Return(&services.JwtBearerTokenResult{
+				BearerToken: "jwt-bearer-token",
+			}, nil)
+
+		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
+
+		assert.EqualError(t, err, "invalid DID: input does not begin with 'did:' prefix")
+	})
+
+	t.Run("returns_error_when_get_oauth_endpoint_url_fails", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.echoMock.EXPECT().
+			Bind(gomock.Any()).
+			DoAndReturn(func(input interface{}) error {
+				*input.(*RequestAccessTokenRequest) = fakeRequest
+				return nil
+			})
+
+		ctx.oauthClientMock.EXPECT().
+			CreateJwtGrant(services.CreateJwtGrantRequest{
+				Actor:         vdr.TestDIDA.String(),
+				Custodian:     vdr.TestDIDB.String(),
+				IdentityToken: &testID,
+				Service:       "test-service",
+				Subject:       &testSubject,
+			}).
+			Return(&services.JwtBearerTokenResult{
+				BearerToken: "jwt-bearer-token",
+			}, nil)
+
+		ctx.oauthClientMock.EXPECT().
+			GetOAuthEndpointURL("test-service", *vdr.TestDIDB).
+			Return(url.URL{}, errors.New("random error"))
+
+		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
+
+		assert.EqualError(t, err, "unable to find the oauth2 service endpoint of the custodian: random error")
+	})
+
+	t.Run("returns_error_when_http_create_access_token_fails", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.echoMock.EXPECT().
+			Bind(gomock.Any()).
+			DoAndReturn(func(input interface{}) error {
+				*input.(*RequestAccessTokenRequest) = fakeRequest
+				return nil
+			})
+
+		ctx.oauthClientMock.EXPECT().
+			CreateJwtGrant(services.CreateJwtGrantRequest{
+				Actor:         vdr.TestDIDA.String(),
+				Custodian:     vdr.TestDIDB.String(),
+				IdentityToken: &testID,
+				Service:       "test-service",
+				Subject:       &testSubject,
+			}).
+			Return(&services.JwtBearerTokenResult{
+				BearerToken: "jwt-bearer-token",
+			}, nil)
+
+		server := httptest.NewServer(http2.Handler{
+			StatusCode: http.StatusInternalServerError,
+		})
+		serverURL, _ := url.Parse(server.URL)
+
+		t.Cleanup(server.Close)
+
+		ctx.oauthClientMock.EXPECT().
+			GetOAuthEndpointURL("test-service", *vdr.TestDIDB).
+			Return(*serverURL, nil)
+
+		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
+
+		assert.EqualError(t, err, "unable to create access token: server returned HTTP 500 (expected: 200), response: null")
+	})
+
+	t.Run("happy_path", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.echoMock.EXPECT().
+			Bind(gomock.Any()).
+			DoAndReturn(func(input interface{}) error {
+				*input.(*RequestAccessTokenRequest) = fakeRequest
+				return nil
+			})
+
+		ctx.oauthClientMock.EXPECT().
+			CreateJwtGrant(services.CreateJwtGrantRequest{
+				Actor:         vdr.TestDIDA.String(),
+				Custodian:     vdr.TestDIDB.String(),
+				IdentityToken: &testID,
+				Service:       "test-service",
+				Subject:       &testSubject,
+			}).
+			Return(&services.JwtBearerTokenResult{
+				BearerToken: "jwt-bearer-token",
+			}, nil)
+
+		server := httptest.NewServer(http2.Handler{
+			StatusCode: http.StatusOK,
+			ResponseData: &AccessTokenResponse{
+				TokenType:   "token-type",
+				ExpiresIn:   10,
+				AccessToken: "actual-token",
+			},
+		})
+		serverURL, _ := url.Parse(server.URL)
+
+		t.Cleanup(server.Close)
+
+		ctx.oauthClientMock.EXPECT().
+			GetOAuthEndpointURL("test-service", *vdr.TestDIDB).
+			Return(*serverURL, nil)
+
+		ctx.echoMock.EXPECT().
+			JSON(http.StatusOK, &AccessTokenResponse{
+				TokenType:   "token-type",
+				ExpiresIn:   10,
+				AccessToken: "actual-token",
+			}).
+			Return(nil)
+
+		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
+
+		assert.NoError(t, err)
 	})
 }
 
