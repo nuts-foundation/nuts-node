@@ -20,8 +20,11 @@ jobs:
             - "/go/pkg/mod"
 
       - run: go test ./... -race
-      - run: go test ./... -coverprofile=c.out
-
+      - run: go test ./... -coverprofile=c_raw.out
+      - run:
+          name: Remove mock and generated code
+          command: |
+            cat c_raw.out | grep -v generated | grep -v mock > c.out
       # Run coverage report for Code Climate
       - run:
           name: Setup Code Climate test-reporter
