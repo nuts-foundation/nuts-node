@@ -57,7 +57,7 @@ type NutsAuthorizationCredentialSubject struct {
 	PurposeOfUse string `json:"purposeOfUse"`
 	// Restrictions contains limitations to individual resources that can be accessed.
 	Restrictions []Restriction `json:"restrictions"`
-	// Subject contains a URN refering to the subject of care (not the credential subject)
+	// Subject contains a URN referring to the subject of care (not the credential subject)
 	Subject *string `json:"subject"`
 }
 
@@ -73,13 +73,14 @@ type LegalBase struct {
 type Evidence struct {
 	// Path is the relative path (relative to the FHIR base path of the mentioned service)
 	Path string `json:"path"`
-	// Type indicates the mime type of the resource.
+	// Type indicates the MIME type of the resource.
 	Type string `json:"type"`
 }
 
 // Restriction defines a single resource restriction
 type Restriction struct {
-	// Resource defines the relative path of the resource.
+	// Resource defines the path of the resource relative to the service base URL.
+	// Which service acts as base URL is described by the Bolt.
 	Resource string `json:"resource"`
 	// Operations define which operations are allowed on the resource.
 	Operations []string `json:"operations"`

@@ -51,8 +51,9 @@ func (err *validationError) Is(target error) bool {
 	return errors.Is(target, ErrValidation)
 }
 
-func failure(err string) error {
-	return &validationError{err}
+func failure(err string, args... interface{}) error {
+	errStr := fmt.Sprintf(err, args...)
+	return &validationError{errStr}
 }
 
 // validate the default fields
@@ -96,7 +97,7 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 	}
 
 	if !credential.IsType(*NutsOrganizationCredentialTypeURI) {
-		return failure(fmt.Sprintf("type '%s' is required", NutsOrganizationCredentialType))
+		return failure("type '%s' is required", NutsOrganizationCredentialType)
 	}
 
 	// if it fails, length check will trigger
@@ -138,7 +139,7 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	}
 
 	if !credential.IsType(*NutsAuthorizationCredentialTypeURI) {
-		return failure(fmt.Sprintf("type '%s' is required", NutsAuthorizationCredentialType))
+		return failure("type '%s' is required", NutsAuthorizationCredentialType)
 	}
 
 	// if it fails, length check will trigger
@@ -148,16 +149,16 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	}
 	cs := target[0]
 
-	if cs.ID == "" {
+	if len(strings.TrimSpace(cs.ID)) == 0 {
 		return failure("'credentialSubject.ID' is nil")
 	}
-	if cs.PurposeOfUse == "" {
+	if len(strings.TrimSpace(cs.PurposeOfUse)) == 0 {
 		return failure("'credentialSubject.PurposeOfUse' is nil")
 	}
 	switch cs.LegalBase.ConsentType {
 	case "implied":
 		if len(cs.Restrictions) == 0 {
-			return failure("'credentialSubject.Restrictions' must have entries when consentType is 'implied'")
+			return failure("'credentialSubject.Restrictions[]' must have entries when consentType is 'implied'")
 		}
 	case "explicit":
 		if cs.Subject == nil || len(strings.TrimSpace(*cs.Subject)) == 0 {
@@ -179,7 +180,9 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	return validateRestrictions(cs.Restrictions)
 }
 
-var validOperationTypes = []string{"read", "vread", "update", "patch", "delete", "history", "create", "search"}
+func validOperationTypes() []string {
+	return []string{"read", "vread", "update", "patch", "delete", "history", "create", "search", "document"}
+}
 
 func validateRestrictions(restrictions []Restriction) error {
 	for _, r := range restrictions {
@@ -187,11 +190,11 @@ func validateRestrictions(restrictions []Restriction) error {
 			return failure("'credentialSubject.Restrictions[].Resource' is required for a restriction'")
 		}
 		if len(r.Operations) == 0 {
-			return failure("'credentialSubject.Restrictions[].Operations' requires at least one value")
+			return failure("'credentialSubject.Restrictions[].Operations[]' requires at least one value")
 		}
 		for _, o := range r.Operations {
 			if !validOperation(o) {
-				return failure(fmt.Sprintf("'credentialSubject.Restrictions[].Operations' contains an invalid operation '%s'", o))
+				return failure("'credentialSubject.Restrictions[].Operations[]' contains an invalid operation '%s'", o)
 			}
 		}
 	}
@@ -200,8 +203,8 @@ func validateRestrictions(restrictions []Restriction) error {
 }
 
 func validOperation(operation string) bool {
-	for _, o := range validOperationTypes {
-		if o == operation {
+	for _, o := range validOperationTypes() {
+		if o == strings.ToLower(operation) {
 			return true
 		}
 	}
