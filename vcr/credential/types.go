@@ -55,8 +55,8 @@ type NutsAuthorizationCredentialSubject struct {
 	LegalBase LegalBase `json:"legalBase"`
 	// PurposeOfUse refers to the Bolt access policy
 	PurposeOfUse string `json:"purposeOfUse"`
-	// Restrictions contains limitations to individual resources that can be accessed.
-	Restrictions []Restriction `json:"restrictions"`
+	// Resources contains additional individual resources that can be accessed.
+	Resources []Resource `json:"resources"`
 	// Subject contains a URN referring to the subject of care (not the credential subject)
 	Subject *string `json:"subject"`
 }
@@ -77,11 +77,11 @@ type Evidence struct {
 	Type string `json:"type"`
 }
 
-// Restriction defines a single resource restriction
-type Restriction struct {
-	// Resource defines the path of the resource relative to the service base URL.
+// Resource defines a single accessbile resource
+type Resource struct {
+	// Path defines the path of the resource relative to the service base URL.
 	// Which service acts as base URL is described by the Bolt.
-	Resource string `json:"resource"`
+	Path string `json:"path"`
 	// Operations define which operations are allowed on the resource.
 	Operations []string `json:"operations"`
 	// UserContext defines if a user login contract is required for the resource.

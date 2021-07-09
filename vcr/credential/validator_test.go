@@ -281,52 +281,40 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.PurposeOfUse' is nil")
 	})
 
-	t.Run("failed - missing restrictions for implied", func(t *testing.T) {
+	t.Run("failed - resources: missing path", func(t *testing.T) {
 		v := validImpliedNutsAuthorizationCredential()
 		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Restrictions = []Restriction{}
+		cs.Resources[0].Path = ""
 		v.CredentialSubject[0] = cs
 
 		err := validator.Validate(*v)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Restrictions[]' must have entries when consentType is 'implied'")
+		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Path' is required'")
 	})
 
-	t.Run("failed - restrictions: missing resource", func(t *testing.T) {
+	t.Run("failed - resources: missing operation", func(t *testing.T) {
 		v := validImpliedNutsAuthorizationCredential()
 		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Restrictions[0].Resource = ""
+		cs.Resources[0].Operations = []string{}
 		v.CredentialSubject[0] = cs
 
 		err := validator.Validate(*v)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Restrictions[].Resource' is required for a restriction'")
+		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' requires at least one value")
 	})
 
-	t.Run("failed - restrictions: missing operation", func(t *testing.T) {
+	t.Run("failed - resources: invalid operation", func(t *testing.T) {
 		v := validImpliedNutsAuthorizationCredential()
 		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Restrictions[0].Operations = []string{}
+		cs.Resources[0].Operations = []string{"unknown"}
 		v.CredentialSubject[0] = cs
 
 		err := validator.Validate(*v)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Restrictions[].Operations[]' requires at least one value")
-	})
-
-	t.Run("failed - restrictions: invalid operation", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Restrictions[0].Operations = []string{"unknown"}
-		v.CredentialSubject[0] = cs
-
-		err := validator.Validate(*v)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Restrictions[].Operations[]' contains an invalid operation 'unknown'")
+		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' contains an invalid operation 'unknown'")
 	})
 
 	t.Run("failed - missing subject for explicit", func(t *testing.T) {
@@ -416,9 +404,9 @@ func validImpliedNutsAuthorizationCredential() *vc.VerifiableCredential {
 			ConsentType: "implied",
 		},
 		PurposeOfUse: "eTransfer",
-		Restrictions: []Restriction{
+		Resources: []Resource{
 			{
-				Resource:    "/composition/1",
+				Path:        "/composition/1",
 				Operations:  []string{"read"},
 				UserContext: true,
 			},

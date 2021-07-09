@@ -128,7 +128,6 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 // nutsAuthorizationCredentialValidator checks for mandatory fields: id, legalBase, purposeOfUse.
 // It checks if the value for legalBase.consentType is either 'explicit' or 'implied'.
 // When 'explicit', both the evidence and subject subfields must be filled.
-// When 'implied', the restrictions array must have values.
 type nutsAuthorizationCredentialValidator struct{}
 
 func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
@@ -157,9 +156,8 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	}
 	switch cs.LegalBase.ConsentType {
 	case "implied":
-		if len(cs.Restrictions) == 0 {
-			return failure("'credentialSubject.Restrictions[]' must have entries when consentType is 'implied'")
-		}
+		// no additional requirements
+		break
 	case "explicit":
 		if cs.Subject == nil || len(strings.TrimSpace(*cs.Subject)) == 0 {
 			return failure("'credentialSubject.Subject' is required when consentType is 'explicit'")
@@ -177,24 +175,24 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 		return failure("'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
 	}
 
-	return validateRestrictions(cs.Restrictions)
+	return validateResources(cs.Resources)
 }
 
 func validOperationTypes() []string {
 	return []string{"read", "vread", "update", "patch", "delete", "history", "create", "search", "document"}
 }
 
-func validateRestrictions(restrictions []Restriction) error {
-	for _, r := range restrictions {
-		if len(strings.TrimSpace(r.Resource)) == 0 {
-			return failure("'credentialSubject.Restrictions[].Resource' is required for a restriction'")
+func validateResources(resources []Resource) error {
+	for _, r := range resources {
+		if len(strings.TrimSpace(r.Path)) == 0 {
+			return failure("'credentialSubject.Resources[].Path' is required'")
 		}
 		if len(r.Operations) == 0 {
-			return failure("'credentialSubject.Restrictions[].Operations[]' requires at least one value")
+			return failure("'credentialSubject.Resources[].Operations[]' requires at least one value")
 		}
 		for _, o := range r.Operations {
 			if !validOperation(o) {
-				return failure("'credentialSubject.Restrictions[].Operations[]' contains an invalid operation '%s'", o)
+				return failure("'credentialSubject.Resources[].Operations[]' contains an invalid operation '%s'", o)
 			}
 		}
 	}
