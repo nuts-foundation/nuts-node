@@ -51,7 +51,7 @@ func (err *validationError) Is(target error) bool {
 	return errors.Is(target, ErrValidation)
 }
 
-func failure(err string, args... interface{}) error {
+func failure(err string, args ...interface{}) error {
 	errStr := fmt.Sprintf(err, args...)
 	return &validationError{errStr}
 }
