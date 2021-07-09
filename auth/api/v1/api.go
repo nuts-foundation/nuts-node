@@ -310,7 +310,7 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 	}
 
 	httpClient := HTTPClient{
-		Timeout: 30 * time.Second,
+		Timeout: w.Auth.HTTPTimeout(),
 	}
 
 	accessTokenResponse, err := httpClient.CreateAccessToken(endpointURL, jwtGrantResponse.BearerToken)

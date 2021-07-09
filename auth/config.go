@@ -2,8 +2,9 @@ package auth
 
 // Config holds all the configuration params
 type Config struct {
-	PublicURL          string     `koanf:"publicurl"`
 	Irma               IrmaConfig `koanf:"irma"`
+	HTTP               HTTPConfig `koanf:"http"`
+	PublicURL          string     `koanf:"publicurl"`
 	ContractValidators []string   `koanf:"contractvalidators"`
 }
 
@@ -13,6 +14,11 @@ type IrmaConfig struct {
 	AutoUpdateSchemas bool   `koanf:"autoupdateschemas"`
 }
 
+// HTTPConfig holds HTTP configuration params
+type HTTPConfig struct {
+	Timeout int `koanf:"timeout"`
+}
+
 // DefaultConfig returns an instance of Config with the default values.
 func DefaultConfig() Config {
 	return Config{
@@ -20,6 +26,7 @@ func DefaultConfig() Config {
 			SchemeManager:     "pbdf",
 			AutoUpdateSchemas: true,
 		},
+		HTTP:               HTTPConfig{Timeout: 30},
 		ContractValidators: []string{"irma", "uzi", "dummy"},
 	}
 }

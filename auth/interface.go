@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/auth/services"
 )
 
@@ -12,4 +14,6 @@ type AuthenticationServices interface {
 	ContractClient() services.ContractClient
 	// ContractNotary returns an instance of ContractNotary
 	ContractNotary() services.ContractNotary
+	// HTTPTimeout returns the HTTP timeout to use for the Auth API HTTP client
+	HTTPTimeout() time.Duration
 }

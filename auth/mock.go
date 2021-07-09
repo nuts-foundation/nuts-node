@@ -6,6 +6,7 @@ package auth
 
 import (
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	services "github.com/nuts-foundation/nuts-node/auth/services"
@@ -60,6 +61,20 @@ func (m *MockAuthenticationServices) ContractNotary() services.ContractNotary {
 func (mr *MockAuthenticationServicesMockRecorder) ContractNotary() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContractNotary", reflect.TypeOf((*MockAuthenticationServices)(nil).ContractNotary))
+}
+
+// HTTPTimeout mocks base method.
+func (m *MockAuthenticationServices) HTTPTimeout() time.Duration {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HTTPTimeout")
+	ret0, _ := ret[0].(time.Duration)
+	return ret0
+}
+
+// HTTPTimeout indicates an expected call of HTTPTimeout.
+func (mr *MockAuthenticationServicesMockRecorder) HTTPTimeout() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HTTPTimeout", reflect.TypeOf((*MockAuthenticationServices)(nil).HTTPTimeout))
 }
 
 // OAuthClient mocks base method.

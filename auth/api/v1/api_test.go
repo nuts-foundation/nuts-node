@@ -61,6 +61,10 @@ type mockAuthClient struct {
 	mockOAuthClient    *services.MockOAuthClient
 }
 
+func (m *mockAuthClient) HTTPTimeout() time.Duration {
+	return 10 * time.Second
+}
+
 func (m *mockAuthClient) OAuthClient() services.OAuthClient {
 	return m.mockOAuthClient
 }
