@@ -290,7 +290,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 		err := validator.Validate(*v)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Restrictions' must have entries when consentType is 'implied'")
+		assert.EqualError(t, err, "validation failed: 'credentialSubject.Restrictions[]' must have entries when consentType is 'implied'")
 	})
 
 	t.Run("failed - restrictions: missing resource", func(t *testing.T) {
@@ -314,7 +314,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 		err := validator.Validate(*v)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Restrictions[].Operations' requires at least one value")
+		assert.EqualError(t, err, "validation failed: 'credentialSubject.Restrictions[].Operations[]' requires at least one value")
 	})
 
 	t.Run("failed - restrictions: invalid operation", func(t *testing.T) {
@@ -326,7 +326,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 		err := validator.Validate(*v)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Restrictions[].Operations' contains an invalid operation 'unknown'")
+		assert.EqualError(t, err, "validation failed: 'credentialSubject.Restrictions[].Operations[]' contains an invalid operation 'unknown'")
 	})
 
 	t.Run("failed - missing subject for explicit", func(t *testing.T) {
