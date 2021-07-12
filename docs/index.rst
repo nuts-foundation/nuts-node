@@ -24,7 +24,8 @@ Nuts documentation
     :caption: Development:
     :glob:
 
-    pages/**
+    pages/development/**
+    pages/api.rst
     pages/configuration/configuration.rst
     pages/contribute.rst
     pages/release_notes.rst
