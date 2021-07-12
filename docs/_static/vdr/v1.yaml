@@ -204,10 +204,8 @@ components:
           items:
             type: string
         controller:
-          description: List of DIDs that have control over the DID document
-          type: array
-          items:
-            type: string
+          description: Single DID (as string) or List of DIDs that have control over the DID document
+          type: object
         id:
           description: DID according to Nuts specification
           example: "did:nuts:1"
