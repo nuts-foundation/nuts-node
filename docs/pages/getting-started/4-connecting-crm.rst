@@ -232,7 +232,7 @@ A Compound Service can be added with the following request:
     POST <internal-node-address>/internal/didman/v1/did/<did>/compoundservice
     {
         "type": "<type>",
-        "endpoint": {
+        "serviceEndpoint": {
             "<X>": "<endpoint_did>?type=<Y>",
             ...
         }
@@ -257,7 +257,7 @@ The example can be added by the following request:
     POST <internal-node-address>/internal/didman/v1/did/did:nuts:organization_identifier/compoundservice
     {
         "type": "eOverdracht-sender",
-        "endpoint": {
+        "serviceEndpoint": {
             "oauth": "did:nuts:vendor_identifier?type=production-oauth",
             "fhir": "did:nuts:vendor_identifier?type=eOverdracht-sender-fhir"
         }
