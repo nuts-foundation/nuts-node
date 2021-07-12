@@ -28,12 +28,11 @@ import (
 	"strings"
 	"time"
 
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
-
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -202,11 +201,6 @@ func (c *vcr) Config() interface{} {
 }
 
 func (c *vcr) Search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
-	validAt := time.Now()
-	if resolveTime != nil {
-		validAt = *resolveTime
-	}
-
 	//transform query to leia query, for each template a query is returned
 	queries := c.convert(query)
 
@@ -223,7 +217,7 @@ func (c *vcr) Search(query concept.Query, resolveTime *time.Time) ([]vc.Verifiab
 				return nil, errors.Wrap(err, "unable to parse credential from db")
 			}
 
-			if err = c.validateForUse(foundCredential, validAt); err == nil {
+			if err = c.validateForUse(foundCredential, resolveTime); err == nil {
 				VCs = append(VCs, foundCredential)
 			}
 		}
@@ -300,17 +294,12 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 }
 
 func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
-	validAt := time.Now()
-	if resolveTime != nil {
-		validAt = *resolveTime
-	}
-
 	credential, err := c.find(ID)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = c.validateForUse(credential, validAt); err != nil {
+	if err = c.validateForUse(credential, resolveTime); err != nil {
 		switch err {
 		case ErrRevoked:
 			return &credential, ErrRevoked
@@ -323,7 +312,7 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 	return &credential, nil
 }
 
-func (c *vcr) validateForUse(credential vc.VerifiableCredential, validAt time.Time) error {
+func (c *vcr) validateForUse(credential vc.VerifiableCredential, validAt *time.Time) error {
 	revoked, err := c.isRevoked(*credential.ID)
 	if revoked {
 		return ErrRevoked
@@ -337,12 +326,27 @@ func (c *vcr) validateForUse(credential vc.VerifiableCredential, validAt time.Ti
 		return ErrUntrusted
 	}
 
+	return c.validate(credential, validAt)
+}
+
+func (c *vcr) validate(credential vc.VerifiableCredential, validAt *time.Time) error {
+	at := time.Now()
+	if validAt != nil {
+		at = *validAt
+	}
 	issuer, err := did.ParseDIDURL(credential.Issuer.String())
 	if err != nil {
 		return err
 	}
 
-	_, _, err = c.docResolver.Resolve(*issuer, &vdr.ResolveMetadata{ResolveTime: &validAt})
+	if credential.IssuanceDate.After(at) {
+		return ErrInvalidPeriod
+	}
+	if credential.ExpirationDate != nil && credential.ExpirationDate.Before(at) {
+		return ErrInvalidPeriod
+	}
+
+	_, _, err = c.docResolver.Resolve(*issuer, &vdr.ResolveMetadata{ResolveTime: &at})
 	return err
 }
 
@@ -436,20 +440,8 @@ func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
 		return err
 	}
 
-	// next check timeRestrictions
-	if at != nil {
-		if subject.IssuanceDate.After(*at) {
-			return errors.New("credential not valid yet at given time")
-		}
-		if subject.ExpirationDate != nil && (*subject.ExpirationDate).Before(*at) {
-			return errors.New("credential not valid anymore at given time")
-		}
-	}
-
-	// check if issuer is trusted
-	// todo requires trusted config
-
-	return nil
+	// next check trusted/period and revocation
+	return c.validate(subject, at)
 }
 
 func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {

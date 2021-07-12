@@ -51,6 +51,9 @@ var ErrUntrusted = errors.New("credential issuer is untrusted")
 // ErrInvalidCredential is returned when validation failed
 var ErrInvalidCredential = errors.New("invalid credential")
 
+// ErrInvalidPeriod is returned when the credential is not valid at the given time.
+var ErrInvalidPeriod = errors.New("credential not valid at given time")
+
 var vcDocumentType = "application/vc+json"
 
 var revocationDocumentType = "application/vc+json;type=revocation"

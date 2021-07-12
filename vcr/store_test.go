@@ -54,6 +54,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
+		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
 
 		err := ctx.vcr.StoreCredential(target)
 

@@ -121,9 +121,10 @@ func TestVCR_Search(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx, q := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
+		now := time.Now()
 		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
 
-		creds, err := ctx.vcr.Search(q, nil)
+		creds, err := ctx.vcr.Search(q, &now)
 
 		if !assert.NoError(t, err) {
 			return
@@ -465,7 +466,8 @@ func TestVcr_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
+		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
 
 		err := instance.Verify(subject, nil)
 
