@@ -209,6 +209,25 @@ func TestVCR_Resolve(t *testing.T) {
 		assert.Equal(t, testVC, *vc)
 	})
 
+	t.Run("error - not valid yet", func(t *testing.T) {
+		ctx := testInstance(t)
+		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
+
+		_, err := ctx.vcr.Resolve(*testVC.ID, &time.Time{})
+		assert.Equal(t, ErrInvalidPeriod, err)
+	})
+
+	t.Run("error - no longer valid", func(t *testing.T) {
+		testVC := vc.VerifiableCredential{}
+		_ = json.Unmarshal([]byte(concept.TestCredential), &testVC)
+		nextYear, _ := time.Parse(time.RFC3339, "2030-01-02T12:00:00Z")
+		ctx := testInstance(t)
+		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
+
+		_, err := ctx.vcr.Resolve(*testVC.ID, &nextYear)
+		assert.Equal(t, ErrInvalidPeriod, err)
+	})
+
 	t.Run("ok - revoked", func(t *testing.T) {
 		ctx := testInstance(t)
 		ctx.vcr.trustConfig.RemoveTrust(testVC.Type[0], testVC.Issuer)

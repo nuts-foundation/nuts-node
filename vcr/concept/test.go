@@ -46,6 +46,8 @@ const TestCredential = `
 {
 	"id": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123",
 	"issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
+	"issuanceDate": "1970-01-01T12:00:00Z",
+	"expirationDate": "2030-01-01T12:00:00Z",
 	"type": ["VerifiableCredential", "HumanCredential"],
 	"credentialSubject": {
 		"id": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW",

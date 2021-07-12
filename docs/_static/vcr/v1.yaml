@@ -57,6 +57,7 @@ paths:
         - name: at
           in: query
           description: a rfc3339 time string for resolving a VC at a specific moment in time
+          example: "2012-01-02T12:00:00Z"
           schema:
             type: string
       tags:
