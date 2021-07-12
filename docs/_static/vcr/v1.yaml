@@ -54,7 +54,7 @@ paths:
         * 500 - An error occurred while processing the request
       operationId: "resolve"
       parameters:
-        - name: at
+        - name: resolveTime
           in: query
           description: a rfc3339 time string for resolving a VC at a specific moment in time
           example: "2012-01-02T12:00:00Z"

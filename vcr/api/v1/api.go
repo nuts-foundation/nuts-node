@@ -144,16 +144,17 @@ func (w *Wrapper) Resolve(ctx echo.Context, id string, params ResolveParams) err
 	}
 
 	// resolve time
-	at := time.Now()
-	if params.At != nil {
-		at, err = time.Parse(time.RFC3339, *params.At)
+	var at *time.Time
+	if params.ResolveTime != nil {
+		parsedTime, err := time.Parse(time.RFC3339, *params.ResolveTime)
 		if err != nil {
 			return core.InvalidInputError("failed to parse query parameter 'at': %w", err)
 		}
+		at = &parsedTime
 	}
 
 	// id is given with fragment
-	vc, err := w.R.Resolve(*idURI, &at)
+	vc, err := w.R.Resolve(*idURI, at)
 	if vc == nil && err != nil {
 		return err
 	}

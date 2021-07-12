@@ -83,6 +83,7 @@ func TestVCR_Configure(t *testing.T) {
 
 func TestVCR_Search(t *testing.T) {
 	vc := concept.TestVC()
+	issuer, _ := did2.ParseDIDURL(vc.Issuer.String())
 	testInstance := func(t2 *testing.T) (mockContext, concept.Query) {
 		ctx := newMockContext(t2)
 
@@ -118,11 +119,18 @@ func TestVCR_Search(t *testing.T) {
 		return ctx, q
 	}
 
+	now := time.Now()
+	timeFunc = func() time.Time {
+		return now
+	}
+	defer func() {
+		timeFunc = time.Now
+	}()
+
 	t.Run("ok", func(t *testing.T) {
 		ctx, q := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
-		now := time.Now()
-		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
+		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
 		creds, err := ctx.vcr.Search(q, &now)
 
@@ -166,7 +174,7 @@ func TestVCR_Search(t *testing.T) {
 	t.Run("err - DID resolution failed", func(t *testing.T) {
 		ctx, q := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
-		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, types.ErrNotFound)
 
 		creds, err := ctx.vcr.Search(q, nil)
 		if !assert.NoError(t, err) {
@@ -193,13 +201,20 @@ func TestVCR_Resolve(t *testing.T) {
 
 	testVC := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(concept.TestCredential), &testVC)
+	issuer, _ := did2.ParseDIDURL(testVC.Issuer.String())
+
+	now := time.Now()
+	timeFunc = func() time.Time {
+		return now
+	}
+	defer func() {
+		timeFunc = time.Now
+	}()
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := testInstance(t)
 		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
-		did, _ := did2.ParseDIDURL(testVC.Issuer.String())
-		now := time.Now()
-		ctx.docResolver.EXPECT().Resolve(*did, gomock.Any()).Return(nil, nil, nil)
+		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, &now)
 		if !assert.NoError(t, err) {
@@ -268,9 +283,7 @@ func TestVCR_Resolve(t *testing.T) {
 	t.Run("error - DID not found", func(t *testing.T) {
 		ctx := testInstance(t)
 		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
-		did, _ := did2.ParseDIDURL(testVC.Issuer.String())
-		now := time.Now()
-		ctx.docResolver.EXPECT().Resolve(*did, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, types.ErrNotFound)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &now)
 		assert.Equal(t, types.ErrNotFound, err)
@@ -473,6 +486,7 @@ func TestVcr_Verify(t *testing.T) {
 	subject := vc.VerifiableCredential{}
 	vcJSON, _ := os.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &subject)
+	issuer, _ := did2.ParseDIDURL(subject.Issuer.String())
 
 	// oad pub key
 	pke := storage.PublicKeyEntry{}
@@ -481,12 +495,20 @@ func TestVcr_Verify(t *testing.T) {
 	var pk = new(ecdsa.PublicKey)
 	pke.JWK().Raw(pk)
 
+	now := time.Now()
+	timeFunc = func() time.Time {
+		return now
+	}
+	defer func() {
+		timeFunc = time.Now
+	}()
+
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
-		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
+		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
 		err := instance.Verify(subject, nil)
 

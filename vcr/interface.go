@@ -89,10 +89,12 @@ type Resolver interface {
 	// Registry returns the concept registry as read-only
 	Registry() concept.Reader
 	// Resolve returns a credential based on its ID.
+	// The optional resolveTime will resolve the credential at that point in time.
 	// The credential will still be returned in the case of ErrRevoked and ErrUntrusted.
 	// For other errors, nil is returned
 	Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error)
 	// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
+	// The optional resolveTime will search for credentials at that point in time.
 	Search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
 }
 

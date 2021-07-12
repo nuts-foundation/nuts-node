@@ -77,9 +77,6 @@ func newMockContext(t *testing.T) mockContext {
 	if err := vcr.Configure(core.ServerConfig{Datadir: testDir}); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		ctrl.Finish()
-	})
 
 	return mockContext{
 		ctrl:        ctrl,

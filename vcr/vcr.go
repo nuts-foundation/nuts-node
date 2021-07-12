@@ -46,6 +46,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var timeFunc = time.Now
+
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
 	r := &vcr{
@@ -330,7 +332,7 @@ func (c *vcr) validateForUse(credential vc.VerifiableCredential, validAt *time.T
 }
 
 func (c *vcr) validate(credential vc.VerifiableCredential, validAt *time.Time) error {
-	at := time.Now()
+	at := timeFunc()
 	if validAt != nil {
 		at = *validAt
 	}
@@ -584,7 +586,7 @@ func (c *vcr) Get(conceptName string, subject string) (concept.Concept, error) {
 
 	q.AddClause(concept.Eq(concept.SubjectField, subject))
 
-	// finding a VC that backs a concept is a runtime call, eg: usage is now
+	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
 	vcs, err := c.Search(q, nil)
 	if err != nil {
 		return nil, err

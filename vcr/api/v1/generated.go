@@ -87,7 +87,7 @@ type CreateJSONBody IssueVCRequest
 type ResolveParams struct {
 
 	// a rfc3339 time string for resolving a VC at a specific moment in time
-	At *string `json:"at,omitempty"`
+	ResolveTime *string `json:"resolveTime,omitempty"`
 }
 
 // SearchJSONBody defines parameters for Search.
@@ -537,9 +537,9 @@ func NewResolveRequest(server string, id string, params *ResolveParams) (*http.R
 
 	queryValues := queryURL.Query()
 
-	if params.At != nil {
+	if params.ResolveTime != nil {
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "at", runtime.ParamLocationQuery, *params.At); err != nil {
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "resolveTime", runtime.ParamLocationQuery, *params.ResolveTime); err != nil {
 			return nil, err
 		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 			return nil, err
@@ -1291,11 +1291,11 @@ func (w *ServerInterfaceWrapper) Resolve(ctx echo.Context) error {
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ResolveParams
-	// ------------- Optional query parameter "at" -------------
+	// ------------- Optional query parameter "resolveTime" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "at", ctx.QueryParams(), &params.At)
+	err = runtime.BindQueryParameter("form", true, false, "resolveTime", ctx.QueryParams(), &params.ResolveTime)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter at: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter resolveTime: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
