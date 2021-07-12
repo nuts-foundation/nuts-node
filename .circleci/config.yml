@@ -5,7 +5,6 @@ jobs:
   build:
     docker:
       - image: circleci/golang:1.16
-
     steps:
       - checkout
 
@@ -21,7 +20,24 @@ jobs:
             - "/go/pkg/mod"
 
       - run: go test ./... -race
-      - run: go test ./... -coverprofile=coverage.txt
+      - run: go test ./... -coverprofile=c_raw.out
+      - run:
+          name: Remove mock and generated code
+          command: |
+            cat c_raw.out | grep -v generated | grep -v mock > c.out
+      # Run coverage report for Code Climate
+      - run:
+          name: Setup Code Climate test-reporter
+          command: |
+            mkdir -p tmp/
+            # download test reporter as a static binary
+            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./tmp/cc-test-reporter
+            chmod +x ./tmp/cc-test-reporter
+            ./tmp/cc-test-reporter before-build
+      # Upload results
+      - run:
+          name: Upload coverage
+          command: |
+            ./tmp/cc-test-reporter after-build -t gocov --prefix github.com/nuts-foundation/nuts-node
 
-      - codecov/upload:
-          file: coverage.txt
+
