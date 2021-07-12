@@ -6,6 +6,7 @@ package vcr
 
 import (
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
@@ -222,33 +223,33 @@ func (mr *MockResolverMockRecorder) Registry() *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockResolver) Resolve(ID ssi.URI) (*vc.VerifiableCredential, error) {
+func (m *MockResolver) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Resolve", ID)
+	ret := m.ctrl.Call(m, "Resolve", ID, resolveTime)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Resolve indicates an expected call of Resolve.
-func (mr *MockResolverMockRecorder) Resolve(ID interface{}) *gomock.Call {
+func (mr *MockResolverMockRecorder) Resolve(ID, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockResolver)(nil).Resolve), ID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockResolver)(nil).Resolve), ID, resolveTime)
 }
 
 // Search mocks base method.
-func (m *MockResolver) Search(query concept.Query) ([]vc.VerifiableCredential, error) {
+func (m *MockResolver) Search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", query)
+	ret := m.ctrl.Call(m, "Search", query, resolveTime)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Search indicates an expected call of Search.
-func (mr *MockResolverMockRecorder) Search(query interface{}) *gomock.Call {
+func (mr *MockResolverMockRecorder) Search(query, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockResolver)(nil).Search), query)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockResolver)(nil).Search), query, resolveTime)
 }
 
 // MockVCR is a mock of VCR interface.
@@ -319,18 +320,18 @@ func (mr *MockVCRMockRecorder) Registry() *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockVCR) Resolve(ID ssi.URI) (*vc.VerifiableCredential, error) {
+func (m *MockVCR) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Resolve", ID)
+	ret := m.ctrl.Call(m, "Resolve", ID, resolveTime)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Resolve indicates an expected call of Resolve.
-func (mr *MockVCRMockRecorder) Resolve(ID interface{}) *gomock.Call {
+func (mr *MockVCRMockRecorder) Resolve(ID, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVCR)(nil).Resolve), ID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVCR)(nil).Resolve), ID, resolveTime)
 }
 
 // Revoke mocks base method.
@@ -349,18 +350,18 @@ func (mr *MockVCRMockRecorder) Revoke(ID interface{}) *gomock.Call {
 }
 
 // Search mocks base method.
-func (m *MockVCR) Search(query concept.Query) ([]vc.VerifiableCredential, error) {
+func (m *MockVCR) Search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", query)
+	ret := m.ctrl.Call(m, "Search", query, resolveTime)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Search indicates an expected call of Search.
-func (mr *MockVCRMockRecorder) Search(query interface{}) *gomock.Call {
+func (mr *MockVCRMockRecorder) Search(query, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), query)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), query, resolveTime)
 }
 
 // StoreCredential mocks base method.

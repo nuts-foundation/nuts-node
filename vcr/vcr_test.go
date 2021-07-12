@@ -32,10 +32,12 @@ import (
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
+	did2 "github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -49,7 +51,7 @@ import (
 func TestVCR_Configure(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
-		instance := NewVCRInstance(nil, nil, nil).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, nil).(*vcr)
 
 		err := instance.Configure(core.ServerConfig{Datadir: "test"})
 		assert.Error(t, err)
@@ -80,50 +82,52 @@ func TestVCR_Configure(t *testing.T) {
 }
 
 func TestVCR_Search(t *testing.T) {
-	testDir := io.TestDirectory(t)
-	instance := NewTestVCRInstance(testDir)
 	vc := concept.TestVC()
+	testInstance := func(t2 *testing.T) (mockContext, concept.Query) {
+		ctx := newMockContext(t2)
 
-	ct, err := concept.ParseTemplate(concept.ExampleTemplate)
-	if !assert.NoError(t, err) {
-		return
-	}
-	// init template
-	err = instance.registry.Add(ct)
-	if !assert.NoError(t, err) {
-		return
-	}
+		ct, err := concept.ParseTemplate(concept.ExampleTemplate)
+		if !assert.NoError(t2, err) {
+			t2.Fatal(err)
+		}
+		// init template
+		err = ctx.vcr.registry.Add(ct)
+		if !assert.NoError(t2, err) {
+			t2.Fatal(err)
+		}
 
-	// reindex
-	err = instance.initIndices()
-	if !assert.NoError(t, err) {
-		return
-	}
+		// reindex
+		err = ctx.vcr.initIndices()
+		if !assert.NoError(t2, err) {
+			t2.Fatal(err)
+		}
 
-	// add document
-	doc := leia.Document(concept.TestCredential)
-	err = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
-	if !assert.NoError(t, err) {
-		return
-	}
+		// add document
+		doc := leia.Document(concept.TestCredential)
+		err = ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+		if !assert.NoError(t2, err) {
+			t2.Fatal(err)
+		}
 
-	// query
-	q, err := instance.Registry().QueryFor(concept.ExampleConcept)
-	if !assert.NoError(t, err) {
-		return
+		// query
+		q, err := ctx.vcr.Registry().QueryFor(concept.ExampleConcept)
+		if !assert.NoError(t2, err) {
+			t2.Fatal(err)
+		}
+		q.AddClause(concept.Prefix("human.eyeColour", "blue"))
+		return ctx, q
 	}
-	q.AddClause(concept.Prefix("human.eyeColour", "blue"))
 
 	t.Run("ok", func(t *testing.T) {
-		instance.Trust(vc.Type[0], vc.Issuer)
-		defer func() {
-			instance.Untrust(vc.Type[0], vc.Issuer)
-		}()
-		creds, err := instance.Search(q)
+		ctx, q := testInstance(t)
+		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
+		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
+
+		creds, err := ctx.vcr.Search(q, nil)
+
 		if !assert.NoError(t, err) {
 			return
 		}
-
 		if !assert.Len(t, creds, 1) {
 			return
 		}
@@ -131,12 +135,13 @@ func TestVCR_Search(t *testing.T) {
 		cs := creds[0].CredentialSubject[0]
 		m := cs.(map[string]interface{})
 		c := m["human"].(map[string]interface{})
-
 		assert.Equal(t, "fair", c["hairColour"])
 	})
 
 	t.Run("ok - untrusted", func(t *testing.T) {
-		creds, err := instance.Search(q)
+		ctx, q := testInstance(t)
+
+		creds, err := ctx.vcr.Search(q, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -145,14 +150,24 @@ func TestVCR_Search(t *testing.T) {
 	})
 
 	t.Run("ok - revoked", func(t *testing.T) {
-		instance.Trust(vc.Type[0], vc.Issuer)
+		ctx, q := testInstance(t)
+		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		rev := leia.Document(concept.TestRevocation)
-		instance.store.Collection(revocationCollection).Add([]leia.Document{rev})
-		defer func() {
-			instance.Untrust(vc.Type[0], vc.Issuer)
-			instance.store.Collection(revocationCollection).Delete(rev)
-		}()
-		creds, err := instance.Search(q)
+		ctx.vcr.store.Collection(revocationCollection).Add([]leia.Document{rev})
+		creds, err := ctx.vcr.Search(q, nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, creds, 0)
+	})
+
+	t.Run("err - DID resolution failed", func(t *testing.T) {
+		ctx, q := testInstance(t)
+		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
+		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, types.ErrNotFound)
+
+		creds, err := ctx.vcr.Search(q, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -162,22 +177,30 @@ func TestVCR_Search(t *testing.T) {
 }
 
 func TestVCR_Resolve(t *testing.T) {
-	testDir := io.TestDirectory(t)
-	instance := NewTestVCRInstance(testDir)
+
+	testInstance := func(t2 *testing.T) mockContext {
+		ctx := newMockContext(t2)
+
+		// add document
+		doc := leia.Document(concept.TestCredential)
+		err := ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+		if !assert.NoError(t2, err) {
+			t2.Fatal(err)
+		}
+		return ctx
+	}
+
 	testVC := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(concept.TestCredential), &testVC)
 
-	// add document
-	doc := leia.Document(concept.TestCredential)
-	err := instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
-	if !assert.NoError(t, err) {
-		return
-	}
-
 	t.Run("ok", func(t *testing.T) {
-		instance.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
-		vc, err := instance.Resolve(*testVC.ID)
+		ctx := testInstance(t)
+		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
+		did, _ := did2.ParseDIDURL(testVC.Issuer.String())
+		now := time.Now()
+		ctx.docResolver.EXPECT().Resolve(*did, gomock.Any()).Return(nil, nil, nil)
 
+		vc, err := ctx.vcr.Resolve(*testVC.ID, &now)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -186,41 +209,51 @@ func TestVCR_Resolve(t *testing.T) {
 	})
 
 	t.Run("ok - revoked", func(t *testing.T) {
-		instance.trustConfig.RemoveTrust(testVC.Type[0], testVC.Issuer)
+		ctx := testInstance(t)
+		ctx.vcr.trustConfig.RemoveTrust(testVC.Type[0], testVC.Issuer)
 		rev := leia.Document(concept.TestRevocation)
-		instance.store.Collection(revocationCollection).Add([]leia.Document{rev})
-		defer func() {
-			instance.Untrust(testVC.Type[0], testVC.Issuer)
-			instance.store.Collection(revocationCollection).Delete(rev)
-		}()
-		vc, err := instance.Resolve(*testVC.ID)
+		ctx.vcr.store.Collection(revocationCollection).Add([]leia.Document{rev})
+
+		vc, err := ctx.vcr.Resolve(*testVC.ID, nil)
 
 		assert.Equal(t, err, ErrRevoked)
 		assert.Equal(t, testVC, *vc)
 	})
 
 	t.Run("ok - untrusted", func(t *testing.T) {
-		instance.trustConfig.RemoveTrust(testVC.Type[0], testVC.Issuer)
+		ctx := testInstance(t)
+		ctx.vcr.trustConfig.RemoveTrust(testVC.Type[0], testVC.Issuer)
 
-		vc, err := instance.Resolve(*testVC.ID)
+		vc, err := ctx.vcr.Resolve(*testVC.ID, nil)
 
 		assert.Equal(t, err, ErrUntrusted)
 		assert.Equal(t, testVC, *vc)
 	})
 
 	t.Run("error - error from store", func(t *testing.T) {
-		testDir := io.TestDirectory(t)
-		instance := NewTestVCRInstance(testDir)
-		instance.store.Collection(leia.GlobalCollection).DropIndex("index_id")
-		_, err := instance.Resolve(*testVC.ID)
+		ctx := testInstance(t)
+		ctx.vcr.store.Collection(leia.GlobalCollection).DropIndex("index_id")
+		_, err := ctx.vcr.Resolve(*testVC.ID, nil)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		_, err := instance.Resolve(ssi.URI{})
+		ctx := testInstance(t)
+		_, err := ctx.vcr.Resolve(ssi.URI{}, nil)
 
 		assert.Equal(t, ErrNotFound, err)
+	})
+
+	t.Run("error - DID not found", func(t *testing.T) {
+		ctx := testInstance(t)
+		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
+		did, _ := did2.ParseDIDURL(testVC.Issuer.String())
+		now := time.Now()
+		ctx.docResolver.EXPECT().Resolve(*did, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+
+		_, err := ctx.vcr.Resolve(*testVC.ID, &now)
+		assert.Equal(t, types.ErrNotFound, err)
 	})
 }
 
@@ -610,7 +643,6 @@ func TestVcr_Revoke(t *testing.T) {
 		ctx := newMockContext(t)
 		key := crypto.NewTestKey("kid")
 
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
@@ -635,7 +667,6 @@ func TestVcr_Revoke(t *testing.T) {
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
 		_, err := ctx.vcr.Revoke(ssi.URI{})
@@ -649,7 +680,6 @@ func TestVcr_Revoke(t *testing.T) {
 
 	t.Run("error - already revoked", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
 
@@ -670,7 +700,6 @@ func TestVcr_Revoke(t *testing.T) {
 	t.Run("error - key resolve returns error", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
@@ -687,47 +716,44 @@ func TestVcr_Revoke(t *testing.T) {
 }
 
 func TestVcr_Find(t *testing.T) {
-	testDir := io.TestDirectory(t)
-	instance := NewTestVCRInstance(testDir)
+	testInstance := func(t2 *testing.T) mockContext {
+		ctx := newMockContext(t2)
+
+		ct, err := concept.ParseTemplate(concept.ExampleTemplate)
+		if !assert.NoError(t2, err) {
+			t2.Fatal(err)
+		}
+		// init template
+		err = ctx.vcr.registry.Add(ct)
+		if !assert.NoError(t2, err) {
+			t2.Fatal(err)
+		}
+
+		// reindex
+		err = ctx.vcr.initIndices()
+		if !assert.NoError(t2, err) {
+			t2.Fatal(err)
+		}
+
+		// add document
+		doc := leia.Document(concept.TestCredential)
+		err = ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+		if !assert.NoError(t2, err) {
+			t2.Fatal(err)
+		}
+
+		return ctx
+	}
+
 	vc := concept.TestVC()
 	subject := "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW"
 
-	ct, err := concept.ParseTemplate(concept.ExampleTemplate)
-	if !assert.NoError(t, err) {
-		return
-	}
-	// init template
-	err = instance.registry.Add(ct)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	// reindex
-	err = instance.initIndices()
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	// add document
-	doc := leia.Document(concept.TestCredential)
-	err = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	// query
-	q, err := instance.Registry().QueryFor(concept.ExampleConcept)
-	if !assert.NoError(t, err) {
-		return
-	}
-	q.AddClause(concept.Eq("human.eyeColour", "blue/grey"))
-
 	t.Run("ok", func(t *testing.T) {
-		instance.Trust(vc.Type[0], vc.Issuer)
-		defer func() {
-			instance.Untrust(vc.Type[0], vc.Issuer)
-		}()
-		conc, err := instance.Get(concept.ExampleConcept, subject)
+		ctx := testInstance(t)
+		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
+		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
+
+		conc, err := ctx.vcr.Get(concept.ExampleConcept, subject)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -738,14 +764,16 @@ func TestVcr_Find(t *testing.T) {
 	})
 
 	t.Run("error - unknown concept", func(t *testing.T) {
-		_, err := instance.Get("unknown", subject)
+		ctx := testInstance(t)
+		_, err := ctx.vcr.Get("unknown", subject)
 
 		assert.Error(t, err)
 		assert.Equal(t, err, concept.ErrUnknownConcept)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		_, err := instance.Get(concept.ExampleConcept, "unknown")
+		ctx := testInstance(t)
+		_, err := ctx.vcr.Get(concept.ExampleConcept, "unknown")
 
 		assert.Error(t, err)
 		assert.Equal(t, err, ErrNotFound)

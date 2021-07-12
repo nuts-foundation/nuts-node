@@ -22,6 +22,7 @@ package vcr
 import (
 	"embed"
 	"errors"
+	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -87,9 +88,9 @@ type Resolver interface {
 	// Resolve returns a credential based on its ID.
 	// The credential will still be returned in the case of ErrRevoked and ErrUntrusted.
 	// For other errors, nil is returned
-	Resolve(ID ssi.URI) (*vc.VerifiableCredential, error)
+	Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error)
 	// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
-	Search(query concept.Query) ([]vc.VerifiableCredential, error)
+	Search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
 }
 
 // VCR is the interface that covers all functionality of the vcr store.

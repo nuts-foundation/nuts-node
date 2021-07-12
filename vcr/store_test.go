@@ -52,7 +52,6 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
 
@@ -64,7 +63,6 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("error - validation", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
 		err := ctx.vcr.StoreCredential(vc.VerifiableCredential{})
@@ -89,7 +87,6 @@ func TestVcr_StoreRevocation(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), gomock.Any()).Return(pk, nil)
 
@@ -101,7 +98,6 @@ func TestVcr_StoreRevocation(t *testing.T) {
 	t.Run("error - validation", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
 		err := ctx.vcr.StoreRevocation(credential.Revocation{})

@@ -44,6 +44,7 @@ func NewTestVCRInstance(testDirectory string) *vcr {
 	newInstance := NewVCRInstance(
 		nil,
 		nil,
+		nil,
 		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 	).(*vcr)
 
@@ -60,6 +61,7 @@ type mockContext struct {
 	tx          *network.MockTransactions
 	vcr         *vcr
 	keyResolver *types.MockKeyResolver
+	docResolver *types.MockDocResolver
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -67,9 +69,14 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
-	keystore := types.NewMockKeyResolver(ctrl)
-	vcr := NewVCRInstance(crypto, keystore, tx).(*vcr)
+	tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).AnyTimes()
+	keyResolver := types.NewMockKeyResolver(ctrl)
+	docResolver := types.NewMockDocResolver(ctrl)
+	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx).(*vcr)
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
+	if err := vcr.Configure(core.ServerConfig{Datadir: testDir}); err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() {
 		ctrl.Finish()
 	})
@@ -79,6 +86,7 @@ func newMockContext(t *testing.T) mockContext {
 		crypto:      crypto,
 		tx:          tx,
 		vcr:         vcr,
-		keyResolver: keystore,
+		keyResolver: keyResolver,
+		docResolver: docResolver,
 	}
 }
