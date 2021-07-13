@@ -55,25 +55,39 @@ func createHTTPErrorHandler() echo.HTTPErrorHandler {
 	}
 }
 
+// Error returns an error that maps to a HTTP status
+func Error(statusCode int, errStr string, args ...interface{}) error {
+	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: statusCode}
+}
+
 // NotFoundError returns an error that maps to a HTTP 404 Status Not Found.
 func NotFoundError(errStr string, args ...interface{}) error {
-	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusNotFound}
+	return Error(http.StatusNotFound, errStr, args...)
 }
 
 // InvalidInputError returns an error that maps to a HTTP 400 Bad Request.
 func InvalidInputError(errStr string, args ...interface{}) error {
-	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusBadRequest}
+	return Error(http.StatusBadRequest, errStr, args...)
 }
 
 // PreconditionFailedError returns an error that maps to a HTTP 412 Status Precondition Failed.
 func PreconditionFailedError(errStr string, args ...interface{}) error {
-	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: http.StatusPreconditionFailed}
+	return Error(http.StatusPreconditionFailed, errStr, args...)
+}
+
+// HTTPStatusCodeError defines an interface for HTTP errors that includes a HTTP statuscode
+type HTTPStatusCodeError interface {
+	StatusCode() int
 }
 
 type httpStatusCodeError struct {
 	msg        string
 	statusCode int
 	err        error
+}
+
+func (e httpStatusCodeError) StatusCode() int {
+	return e.statusCode
 }
 
 func (e httpStatusCodeError) Is(other error) bool {
@@ -118,12 +132,12 @@ func ResolveStatusCode(err error, mapping map[error]int) int {
 }
 
 // getHTTPStatusCode resolves the HTTP Status Code to be returned from the given error, in this order:
-// - errors with a predefined status code (httpStatusCodeError, echo.HTTPError)
+// - errors with a predefined status code (HTTPStatusCodeError, echo.HTTPError)
 // - from handler
 // - if none of the above criteria match, HTTP 500 Internal Server Error is returned.
 func getHTTPStatusCode(err error, ctx echo.Context) int {
-	if predefined, ok := err.(httpStatusCodeError); ok {
-		return predefined.statusCode
+	if predefined, ok := err.(HTTPStatusCodeError); ok {
+		return predefined.StatusCode()
 	}
 
 	statusCodeResolverInterf := ctx.Get(StatusCodeResolverContextKey)

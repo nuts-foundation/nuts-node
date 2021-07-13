@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -34,7 +35,13 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 		response, err := client.CreateAccessToken(*serverURL, "bearer_token")
 
 		assert.Nil(t, response)
-		assert.Error(t, err)
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: null")
+
+		statusCodeErr, ok := err.(core.HTTPStatusCodeError)
+
+		if assert.True(t, ok, "error should implement HTTPStatusCodeError") {
+			assert.Equal(t, http.StatusInternalServerError, statusCodeErr.StatusCode())
+		}
 	})
 
 	t.Run("error_invalid_endpoint", func(t *testing.T) {

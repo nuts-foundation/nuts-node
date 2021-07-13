@@ -306,7 +306,7 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 
 	endpointURL, err := w.Auth.OAuthClient().GetOAuthEndpointURL(requestBody.Service, *custodianDID)
 	if err != nil {
-		return core.PreconditionFailedError(fmt.Errorf("unable to find the oauth2 service endpoint of the custodian: %w", err).Error())
+		return core.PreconditionFailedError("unable to find the oauth2 service endpoint of the custodian: %w", err)
 	}
 
 	httpClient := HTTPClient{
@@ -315,6 +315,10 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 
 	accessTokenResponse, err := httpClient.CreateAccessToken(endpointURL, jwtGrantResponse.BearerToken)
 	if err != nil {
+		if statusCodeErr, ok := err.(core.HTTPStatusCodeError); ok {
+			return core.Error(statusCodeErr.StatusCode(), "unable to create access token: %w", err)
+		}
+
 		return fmt.Errorf("unable to create access token: %w", err)
 	}
 

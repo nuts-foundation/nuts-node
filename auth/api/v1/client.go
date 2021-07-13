@@ -11,6 +11,19 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
+type oauthAPIError struct {
+	err        error
+	statusCode int
+}
+
+func (err *oauthAPIError) StatusCode() int {
+	return err.statusCode
+}
+
+func (err *oauthAPIError) Error() string {
+	return err.err.Error()
+}
+
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
 	ServerAddress string
@@ -46,7 +59,7 @@ func (h HTTPClient) CreateAccessToken(endpointURL url.URL, bearerToken string) (
 	}
 
 	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
-		return nil, err
+		return nil, &oauthAPIError{err: err, statusCode: response.StatusCode}
 	}
 
 	result, err := ParseCreateAccessTokenResponse(response)
