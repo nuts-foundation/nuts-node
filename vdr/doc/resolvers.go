@@ -23,6 +23,7 @@ package doc
 
 import (
 	"crypto"
+	"errors"
 	"fmt"
 	"time"
 
@@ -31,17 +32,53 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
+// ErrNestedDocumentsTooDeep is returned when a DID Document contains a multiple services with the same type
+var ErrNestedDocumentsTooDeep = errors.New("DID Document controller structure has too many indirections")
+
+const maxControllerDepth = 5
+
 // Resolver implements the DocResolver interface with a types.Store as backend
 type Resolver struct {
 	Store types.Store
 }
 
 func (d Resolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
-	return d.Store.Resolve(id, metadata)
+	return d.resolve(id, metadata, 0)
+}
+
+// bug, if one is deactivated => error
+func (d Resolver) resolve(id did.DID, metadata *types.ResolveMetadata, depth int) (*did.Document, *types.DocumentMetadata, error) {
+	if depth >= maxControllerDepth {
+		return nil, nil, ErrNestedDocumentsTooDeep
+	}
+
+	doc, meta, err := d.Store.Resolve(id, metadata)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if metadata != nil && !metadata.AllowDeactivated {
+		// also check if the controller is not deactivated
+		// since ResolveControllers calls Resolve and propagates the metadata
+		controllers, err := d.resolveControllers(*doc, metadata, depth+1)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(controllers) == 0 {
+			return nil, nil, types.ErrDeactivated
+		}
+	}
+
+	return doc, meta, nil
 }
 
 // ResolveControllers finds the DID Document controllers
 func (d Resolver) ResolveControllers(doc did.Document, metadata *types.ResolveMetadata) ([]did.Document, error) {
+	return d.resolveControllers(doc, metadata, 0)
+}
+
+// ResolveControllers finds the DID Document controllers
+func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMetadata, depth int) ([]did.Document, error) {
 	var leaves []did.Document
 	var refsToResolve []did.DID
 
@@ -64,7 +101,13 @@ func (d Resolver) ResolveControllers(doc did.Document, metadata *types.ResolveMe
 
 	// resolve all unresolved docs
 	for _, ref := range refsToResolve {
-		node, _, err := d.Store.Resolve(ref, metadata)
+		node, _, err := d.resolve(ref, metadata, depth)
+		if errors.Is(err, types.ErrDeactivated) {
+			continue
+		}
+		if errors.Is(err, ErrNestedDocumentsTooDeep) {
+			return nil, err
+		}
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve controllers: %w", err)
 		}
