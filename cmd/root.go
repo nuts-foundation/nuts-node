@@ -159,7 +159,7 @@ func CreateSystem() *core.System {
 
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, store)
-	credentialInstance := vcr.NewVCRInstance(cryptoInstance, keyResolver, networkInstance)
+	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), store, credentialInstance, cryptoInstance)

@@ -570,7 +570,6 @@ type ClientWithResponsesInterface interface {
 type CreateDIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *string
 }
 
 // Status returns HTTPResponse.Status
@@ -779,13 +778,6 @@ func ParseCreateDIDResponse(rsp *http.Response) (*CreateDIDResponse, error) {
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest string
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
 	}
 
 	return response, nil

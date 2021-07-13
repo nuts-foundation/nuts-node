@@ -28,12 +28,11 @@ import (
 	"strings"
 	"time"
 
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
-
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -47,14 +46,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+var timeFunc = time.Now
+
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
 	r := &vcr{
 		config:      DefaultConfig(),
-		registry:    concept.NewRegistry(),
+		docResolver: docResolver,
 		keyStore:    keyStore,
 		keyResolver: keyResolver,
 		network:     network,
+		registry:    concept.NewRegistry(),
 	}
 
 	r.ambassador = NewAmbassador(network, r)
@@ -67,6 +69,7 @@ type vcr struct {
 	config      Config
 	store       leia.Store
 	keyStore    crypto.KeyStore
+	docResolver vdr.DocResolver
 	keyResolver vdr.KeyResolver
 	ambassador  Ambassador
 	network     network.Transactions
@@ -199,7 +202,7 @@ func (c *vcr) Config() interface{} {
 	return &c.config
 }
 
-func (c *vcr) Search(query concept.Query) ([]vc.VerifiableCredential, error) {
+func (c *vcr) Search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	//transform query to leia query, for each template a query is returned
 	queries := c.convert(query)
 
@@ -216,12 +219,7 @@ func (c *vcr) Search(query concept.Query) ([]vc.VerifiableCredential, error) {
 				return nil, errors.Wrap(err, "unable to parse credential from db")
 			}
 
-			trusted := c.isTrusted(foundCredential)
-			revoked, err := c.isRevoked(*foundCredential.ID)
-			if err != nil {
-				return nil, errors.Wrap(err, "unable to check revocation state for credential")
-			}
-			if trusted && !revoked {
+			if err = c.validateForUse(foundCredential, resolveTime); err == nil {
 				VCs = append(VCs, foundCredential)
 			}
 		}
@@ -297,26 +295,61 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	return &credential, nil
 }
 
-func (c *vcr) Resolve(ID ssi.URI) (*vc.VerifiableCredential, error) {
+func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	credential, err := c.find(ID)
 	if err != nil {
 		return nil, err
 	}
 
-	revoked, err := c.isRevoked(ID)
+	if err = c.validateForUse(credential, resolveTime); err != nil {
+		switch err {
+		case ErrRevoked:
+			return &credential, ErrRevoked
+		case ErrUntrusted:
+			return &credential, ErrUntrusted
+		default:
+			return nil, err
+		}
+	}
+	return &credential, nil
+}
+
+func (c *vcr) validateForUse(credential vc.VerifiableCredential, validAt *time.Time) error {
+	revoked, err := c.isRevoked(*credential.ID)
 	if revoked {
-		return &credential, ErrRevoked
+		return ErrRevoked
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	trusted := c.isTrusted(credential)
 	if !trusted {
-		return &credential, ErrUntrusted
+		return ErrUntrusted
 	}
 
-	return &credential, nil
+	return c.validate(credential, validAt)
+}
+
+func (c *vcr) validate(credential vc.VerifiableCredential, validAt *time.Time) error {
+	at := timeFunc()
+	if validAt != nil {
+		at = *validAt
+	}
+	issuer, err := did.ParseDIDURL(credential.Issuer.String())
+	if err != nil {
+		return err
+	}
+
+	if credential.IssuanceDate.After(at) {
+		return ErrInvalidPeriod
+	}
+	if credential.ExpirationDate != nil && credential.ExpirationDate.Before(at) {
+		return ErrInvalidPeriod
+	}
+
+	_, _, err = c.docResolver.Resolve(*issuer, &vdr.ResolveMetadata{ResolveTime: &at})
+	return err
 }
 
 func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
@@ -409,20 +442,8 @@ func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
 		return err
 	}
 
-	// next check timeRestrictions
-	if at != nil {
-		if subject.IssuanceDate.After(*at) {
-			return errors.New("credential not valid yet at given time")
-		}
-		if subject.ExpirationDate != nil && (*subject.ExpirationDate).Before(*at) {
-			return errors.New("credential not valid anymore at given time")
-		}
-	}
-
-	// check if issuer is trusted
-	// todo requires trusted config
-
-	return nil
+	// next check trusted/period and revocation
+	return c.validate(subject, at)
 }
 
 func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
@@ -565,7 +586,8 @@ func (c *vcr) Get(conceptName string, subject string) (concept.Concept, error) {
 
 	q.AddClause(concept.Eq(concept.SubjectField, subject))
 
-	vcs, err := c.Search(q)
+	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
+	vcs, err := c.Search(q, nil)
 	if err != nil {
 		return nil, err
 	}

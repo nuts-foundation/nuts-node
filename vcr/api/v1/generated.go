@@ -83,6 +83,13 @@ type TrustIssuerJSONBody CredentialIssuer
 // CreateJSONBody defines parameters for Create.
 type CreateJSONBody IssueVCRequest
 
+// ResolveParams defines parameters for Resolve.
+type ResolveParams struct {
+
+	// a rfc3339 time string for resolving a VC at a specific moment in time
+	ResolveTime *string `json:"resolveTime,omitempty"`
+}
+
 // SearchJSONBody defines parameters for Search.
 type SearchJSONBody SearchRequest
 
@@ -190,7 +197,7 @@ type ClientInterface interface {
 	Revoke(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Resolve request
-	Resolve(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	Resolve(ctx context.Context, id string, params *ResolveParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Search request  with any body
 	SearchWithBody(ctx context.Context, concept string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -288,8 +295,8 @@ func (c *Client) Revoke(ctx context.Context, id string, reqEditors ...RequestEdi
 	return c.Client.Do(req)
 }
 
-func (c *Client) Resolve(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewResolveRequest(c.Server, id)
+func (c *Client) Resolve(ctx context.Context, id string, params *ResolveParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveRequest(c.Server, id, params)
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +510,7 @@ func NewRevokeRequest(server string, id string) (*http.Request, error) {
 }
 
 // NewResolveRequest generates requests for Resolve
-func NewResolveRequest(server string, id string) (*http.Request, error) {
+func NewResolveRequest(server string, id string, params *ResolveParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -527,6 +534,26 @@ func NewResolveRequest(server string, id string) (*http.Request, error) {
 	}
 
 	queryURL := serverURL.ResolveReference(&operationURL)
+
+	queryValues := queryURL.Query()
+
+	if params.ResolveTime != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "resolveTime", runtime.ParamLocationQuery, *params.ResolveTime); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -713,7 +740,7 @@ type ClientWithResponsesInterface interface {
 	RevokeWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*RevokeResponse, error)
 
 	// Resolve request
-	ResolveWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*ResolveResponse, error)
+	ResolveWithResponse(ctx context.Context, id string, params *ResolveParams, reqEditors ...RequestEditorFn) (*ResolveResponse, error)
 
 	// Search request  with any body
 	SearchWithBodyWithResponse(ctx context.Context, concept string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchResponse, error)
@@ -959,8 +986,8 @@ func (c *ClientWithResponses) RevokeWithResponse(ctx context.Context, id string,
 }
 
 // ResolveWithResponse request returning *ResolveResponse
-func (c *ClientWithResponses) ResolveWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*ResolveResponse, error) {
-	rsp, err := c.Resolve(ctx, id, reqEditors...)
+func (c *ClientWithResponses) ResolveWithResponse(ctx context.Context, id string, params *ResolveParams, reqEditors ...RequestEditorFn) (*ResolveResponse, error) {
+	rsp, err := c.Resolve(ctx, id, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -1191,7 +1218,7 @@ type ServerInterface interface {
 	Revoke(ctx echo.Context, id string) error
 	// Resolves a verifiable credential
 	// (GET /internal/vcr/v1/vc/{id})
-	Resolve(ctx echo.Context, id string) error
+	Resolve(ctx echo.Context, id string, params ResolveParams) error
 	// Search for a concept. A concept is backed by 1 or more VCs
 	// (POST /internal/vcr/v1/{concept})
 	Search(ctx echo.Context, concept string) error
@@ -1262,8 +1289,17 @@ func (w *ServerInterfaceWrapper) Resolve(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ResolveParams
+	// ------------- Optional query parameter "resolveTime" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "resolveTime", ctx.QueryParams(), &params.ResolveTime)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter resolveTime: %s", err))
+	}
+
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.Resolve(ctx, id)
+	err = w.Handler.Resolve(ctx, id, params)
 	return err
 }
 

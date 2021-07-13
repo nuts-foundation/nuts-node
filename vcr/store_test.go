@@ -24,8 +24,11 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
+	did2 "github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -41,6 +44,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	target := vc.VerifiableCredential{}
 	vcJSON, _ := os.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &target)
+	did, _ := did2.ParseDIDURL(target.Issuer.String())
 
 	// load pub key
 	pke := storage.PublicKeyEntry{}
@@ -51,10 +55,17 @@ func TestVcr_StoreCredential(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
+		now := time.Now()
+		timeFunc = func() time.Time {
+			return now
+		}
+		defer func() {
+			timeFunc = time.Now
+		}()
 
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
+		ctx.docResolver.EXPECT().Resolve(*did, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
 		err := ctx.vcr.StoreCredential(target)
 
@@ -64,7 +75,6 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("error - validation", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
 		err := ctx.vcr.StoreCredential(vc.VerifiableCredential{})
@@ -89,7 +99,6 @@ func TestVcr_StoreRevocation(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), gomock.Any()).Return(pk, nil)
 
@@ -101,7 +110,6 @@ func TestVcr_StoreRevocation(t *testing.T) {
 	t.Run("error - validation", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).Times(2)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
 		err := ctx.vcr.StoreRevocation(credential.Revocation{})

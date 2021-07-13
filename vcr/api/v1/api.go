@@ -21,6 +21,7 @@ package v1
 
 import (
 	"net/http"
+	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 
@@ -83,7 +84,7 @@ func (w *Wrapper) Search(ctx echo.Context, conceptTemplate string) error {
 		query.AddClause(concept.Prefix(kvp.Key, kvp.Value))
 	}
 
-	VCs, err := w.R.Search(query)
+	VCs, err := w.R.Search(query, nil)
 	if err != nil {
 		return err
 	}
@@ -135,16 +136,25 @@ func (w *Wrapper) Create(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, vcCreated)
 }
 
-// Resolve a VC and return its content
-func (w *Wrapper) Resolve(ctx echo.Context, id string) error {
+func (w *Wrapper) Resolve(ctx echo.Context, id string, params ResolveParams) error {
 	idURI, err := ssi.ParseURI(id)
 	// return 400 for malformed input
 	if err != nil {
 		return core.InvalidInputError("failed to parse credential ID: %w", err)
 	}
 
+	// resolve time
+	var at *time.Time
+	if params.ResolveTime != nil {
+		parsedTime, err := time.Parse(time.RFC3339, *params.ResolveTime)
+		if err != nil {
+			return core.InvalidInputError("failed to parse query parameter 'at': %w", err)
+		}
+		at = &parsedTime
+	}
+
 	// id is given with fragment
-	vc, err := w.R.Resolve(*idURI)
+	vc, err := w.R.Resolve(*idURI, at)
 	if vc == nil && err != nil {
 		return err
 	}

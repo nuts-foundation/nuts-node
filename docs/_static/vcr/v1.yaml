@@ -53,6 +53,13 @@ paths:
         * 404 - Corresponding credential could not be found
         * 500 - An error occurred while processing the request
       operationId: "resolve"
+      parameters:
+        - name: resolveTime
+          in: query
+          description: a rfc3339 time string for resolving a VC at a specific moment in time
+          example: "2012-01-02T12:00:00Z"
+          schema:
+            type: string
       tags:
         - credential
       responses:

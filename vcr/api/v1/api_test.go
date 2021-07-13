@@ -21,11 +21,12 @@ package v1
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr"
 
 	"github.com/golang/mock/gomock"
@@ -127,16 +128,14 @@ func TestWrapper_Resolve(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id).Return(&v, nil)
+		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
 		})
 
-		err := ctx.client.Resolve(ctx.echo, idString)
+		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{})
 
 		if !assert.NoError(t, err) {
 			return
@@ -145,13 +144,26 @@ func TestWrapper_Resolve(t *testing.T) {
 		assert.Equal(t, ResolutionResultCurrentStatusTrusted, resolutionResult.CurrentStatus)
 	})
 
+	t.Run("ok - with resolveTime", func(t *testing.T) {
+		ctx := newMockContext(t)
+		timeString := "2020-01-01T12:00:00Z"
+		resolveTime, _ := time.Parse(time.RFC3339, timeString)
+		ctx.vcr.EXPECT().Resolve(*id, &resolveTime).Return(&v, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
+
+		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{ResolveTime: &timeString})
+
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Resolve(*id).Return(nil, vcr.ErrNotFound)
+		ctx.vcr.EXPECT().Resolve(*id, nil).Return(nil, vcr.ErrNotFound)
 
-		err := ctx.client.Resolve(ctx.echo, idString)
+		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{})
 
 		assert.ErrorIs(t, err, vcr.ErrNotFound)
 		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
@@ -159,27 +171,25 @@ func TestWrapper_Resolve(t *testing.T) {
 
 	t.Run("error - other", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Resolve(*id).Return(nil, errors.New("b00m!"))
+		ctx.vcr.EXPECT().Resolve(*id, nil).Return(nil, errors.New("b00m!"))
 
-		err := ctx.client.Resolve(ctx.echo, idString)
+		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{})
 
 		assert.Error(t, err)
 	})
 
 	t.Run("error - revoked", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id).Return(&v, vcr.ErrRevoked)
+		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, vcr.ErrRevoked)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
 		})
 
-		err := ctx.client.Resolve(ctx.echo, idString)
+		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{})
 
 		if !assert.NoError(t, err) {
 			return
@@ -188,24 +198,33 @@ func TestWrapper_Resolve(t *testing.T) {
 		assert.Equal(t, ResolutionResultCurrentStatusRevoked, resolutionResult.CurrentStatus)
 	})
 
-	t.Run("error - revoked", func(t *testing.T) {
+	t.Run("error - untrusted", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id).Return(&v, vcr.ErrUntrusted)
+		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, vcr.ErrUntrusted)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
 		})
 
-		err := ctx.client.Resolve(ctx.echo, idString)
+		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{})
 
 		if !assert.NoError(t, err) {
 			return
 		}
 		assert.Equal(t, id, resolutionResult.VerifiableCredential.ID)
 		assert.Equal(t, ResolutionResultCurrentStatusUntrusted, resolutionResult.CurrentStatus)
+	})
+
+	t.Run("error - incorrect at param", func(t *testing.T) {
+		ctx := newMockContext(t)
+		at := "b00m!"
+
+		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{ResolveTime: &at})
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "failed to parse query parameter 'at': parsing time \"b00m!\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"b00m!\" as \"2006\"")
 	})
 }
 
@@ -233,7 +252,7 @@ func TestWrapper_Search(t *testing.T) {
 			*sr = searchRequest
 			return nil
 		})
-		ctx.vcr.EXPECT().Search(gomock.Any()).Return([]vc.VerifiableCredential{concept.TestVC()}, nil)
+		ctx.vcr.EXPECT().Search(gomock.Any(), nil).Return([]vc.VerifiableCredential{concept.TestVC()}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			capturedConcept = f2.([]concept.Concept)
 			return nil
@@ -280,7 +299,7 @@ func TestWrapper_Search(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any())
-		ctx.vcr.EXPECT().Search(gomock.Any()).Return(nil, errors.New("b00m!"))
+		ctx.vcr.EXPECT().Search(gomock.Any(), nil).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.Search(ctx.echo, "human")
 
