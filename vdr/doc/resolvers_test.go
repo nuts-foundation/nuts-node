@@ -163,16 +163,23 @@ func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 }
 
 func TestResolver_Resolve(t *testing.T) {
-	didStore := store.NewMemoryStore()
-	resolver := Resolver{Store: didStore}
-	keyCreator := newMockKeyCreator()
-	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(DefaultCreationOptions())
-	doc.AddAssertionMethod(doc.VerificationMethod[0])
-	didStore.Write(*doc, types.DocumentMetadata{})
+	id123, _ := did.ParseDID("did:nuts:123")
+	id456, _ := did.ParseDID("did:nuts:456")
+	docA := did.Document{ID: *id123}
+	docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
+	resolveTime := time.Date(2010, 1, 1, 1, 1, 1, 0, time.UTC)
+	resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime}
 
 	t.Run("ok", func(t *testing.T) {
-		resultDoc, _, err := resolver.Resolve(doc.ID, nil)
+		ctrl := gomock.NewController(t)
+		store := types.NewMockStore(ctrl)
+		resolver := Resolver{Store: store}
+		doc := did.Document{ID: *id123}
+		id123Method1, _ := did.ParseDIDURL("did:nuts:123#method-1")
+		doc.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
+		store.EXPECT().Resolve(*id123, resolveMD).Return(&doc, &types.DocumentMetadata{}, nil)
+
+		resultDoc, _, err := resolver.Resolve(*id123, resolveMD)
 
 		if !assert.NoError(t, err) {
 			return
@@ -183,24 +190,29 @@ func TestResolver_Resolve(t *testing.T) {
 
 	t.Run("docA is controller of docB and docA is deactivated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		id123, _ := did.ParseDID("did:nuts:123")
-		id456, _ := did.ParseDID("did:nuts:456")
-
 		store := types.NewMockStore(ctrl)
-
 		resolver := Resolver{Store: store}
-		docA := did.Document{ID: *id123}
-		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
-
-		resolveTime := time.Date(2010, 1, 1, 1, 1, 1, 0, time.UTC)
-		resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime}
 		store.EXPECT().Resolve(*id456, resolveMD).Return(&docB, &types.DocumentMetadata{}, nil)
 		store.EXPECT().Resolve(*id123, resolveMD).Return(&docA, &types.DocumentMetadata{}, nil)
 
 		doc, _, err := resolver.Resolve(*id456, resolveMD)
+
 		assert.Error(t, err)
 		assert.Equal(t, types.ErrDeactivated, err)
 		assert.Nil(t, doc)
+	})
+
+	t.Run("docA is controller of docB and docA is deactivated but is allowed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		store := types.NewMockStore(ctrl)
+		resolver := Resolver{Store: store}
+		resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime, AllowDeactivated: true}
+
+		store.EXPECT().Resolve(*id456, resolveMD).Return(&docB, &types.DocumentMetadata{}, nil)
+
+		doc, _, err := resolver.Resolve(*id456, resolveMD)
+		assert.NoError(t, err)
+		assert.Equal(t, docB, *doc)
 	})
 
 	t.Run("Controller hierarchy nested too deeply", func(t *testing.T) {
@@ -212,9 +224,6 @@ func TestResolver_Resolve(t *testing.T) {
 		docs := make([]did.Document, depth)
 		prevID := rootID
 		prevDoc := rootDoc
-		resolveTime := time.Date(2010, 1, 1, 1, 1, 1, 0, time.UTC)
-		resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime}
-		//resolveNMD := &types.ResolveMetadata{ResolveTime: &resolveTime, AllowDeactivated: true}
 		store := types.NewMockStore(ctrl)
 		resolver := Resolver{Store: store}
 		for i := 0; i < depth; i++ {
