@@ -227,7 +227,7 @@ func TestResolver_Resolve(t *testing.T) {
 		store := types.NewMockStore(ctrl)
 		resolver := Resolver{Store: store}
 		for i := 0; i < depth; i++ {
-			id, _ := did.ParseDID(fmt.Sprintf("did:nuts:%d",i))
+			id, _ := did.ParseDID(fmt.Sprintf("did:nuts:%d", i))
 			d := did.Document{ID: *id, Controller: []did.DID{*prevID}}
 			store.EXPECT().Resolve(*prevID, resolveMD).Return(&prevDoc, &types.DocumentMetadata{}, nil).AnyTimes()
 			dids[i] = id
