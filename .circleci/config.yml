@@ -18,14 +18,14 @@ jobs:
 
       - restore_cache:
           keys:
-            - go-mod-v1-{{ checksum "go.sum" }}
+            - go-mod-v2-{{ checksum "go.sum" }}
 
       - run: go get -t -v ./...
 
       - save_cache:
-          key: go-mod-v1-{{ checksum "go.sum" }}
+          key: go-mod-v2-{{ checksum "go.sum" }}
           paths:
-            - "/go/pkg/mod"
+            - "/home/circleci/go/pkg/mod"
 
       - run: go test ./... -race
       - run: go test ./... -coverprofile=c_raw.out
