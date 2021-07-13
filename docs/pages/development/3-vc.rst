@@ -25,7 +25,7 @@ So calling `/internal/vcr/v1/vc` with
         "type": ["NutsOrganizationCredential"],
         "credentialSubject": {
             "id": "did:nuts:9UKf9F9sRtiq4gR3bxfGQAeARtJeU8jvPqfWJcFP6ziN",
-            "company": {
+            "organization": {
                 "name": "Because we care B.V.",
                 "city": "IJbergen"
             }
@@ -121,4 +121,10 @@ NutsOrganizationCredential
 ==========================
 
 .. include:: ../../../vcr/assets/NutsOrganizationCredential.json.template
+   :literal:
+
+NutsAuthorizationCredential
+==========================
+
+.. include:: ../../../vcr/assets/NutsAuthorizationCredential.json.template
    :literal:

@@ -29,8 +29,11 @@ import (
 func FindValidatorAndBuilder(credential vc.VerifiableCredential) (Validator, Builder) {
 	if vcTypes := ExtractTypes(credential); len(vcTypes) > 0 {
 		for _, t := range vcTypes {
-			if t == NutsOrganizationCredentialType {
-				return nutsOrganizationCredentialValidator{}, defaultBuilder{vcType: NutsOrganizationCredentialType}
+			switch t {
+			case NutsOrganizationCredentialType:
+				return nutsOrganizationCredentialValidator{}, defaultBuilder{vcType: t}
+			case NutsAuthorizationCredentialType:
+				return nutsAuthorizationCredentialValidator{}, defaultBuilder{vcType: t}
 			}
 		}
 	}

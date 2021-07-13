@@ -24,8 +24,10 @@ import (
 )
 
 const (
-	// NutsOrganizationCredentialType is the VC type for a NutsOrganizationCredentialType
+	// NutsOrganizationCredentialType is the VC type for a NutsOrganizationCredential
 	NutsOrganizationCredentialType = "NutsOrganizationCredential"
+	// NutsAuthorizationCredentialType is the VC type for a NutsAuthorizationCredential
+	NutsAuthorizationCredentialType = "NutsAuthorizationCredential"
 	// NutsContext is the nuts specific json-ld context
 	NutsContext = "https://nuts.nl/credentials/v1"
 )
@@ -33,14 +35,57 @@ const (
 var (
 	// NutsOrganizationCredentialTypeURI is the VC type for a NutsOrganizationCredentialType as URI
 	NutsOrganizationCredentialTypeURI, _ = ssi.ParseURI(NutsOrganizationCredentialType)
+	// NutsAuthorizationCredentialTypeURI is the VC type for a NutsAuthorizationCredentialType as URI
+	NutsAuthorizationCredentialTypeURI, _ = ssi.ParseURI(NutsAuthorizationCredentialType)
 	// NutsContextURI is the nuts specific json-ld context as URI
 	NutsContextURI, _ = ssi.ParseURI(NutsContext)
 )
 
-// NutsOrganizationCredentialSubject defines the CredentialSubject struct for the NutsOrganizationCredentialType
+// NutsOrganizationCredentialSubject defines the CredentialSubject struct for the NutsOrganizationCredential
 type NutsOrganizationCredentialSubject struct {
 	ID           string            `json:"id"`
 	Organization map[string]string `json:"organization"`
+}
+
+// NutsAuthorizationCredentialSubject defines the CredentialSubject struct for the NutsAuthorizationCredential
+type NutsAuthorizationCredentialSubject struct {
+	// ID contains the DID of the subject
+	ID string `json:"id"`
+	// LegalBase contains information about the type of consent that is the basis for the authorization.
+	LegalBase LegalBase `json:"legalBase"`
+	// PurposeOfUse refers to the Bolt access policy
+	PurposeOfUse string `json:"purposeOfUse"`
+	// Resources contains additional individual resources that can be accessed.
+	Resources []Resource `json:"resources"`
+	// Subject contains a URN referring to the subject of care (not the credential subject)
+	Subject *string `json:"subject"`
+}
+
+// LegalBase is part of the NutsAuthorizationCredential credentialSubject
+type LegalBase struct {
+	// ConsentType defines the type of consent that has been given (implied or explicit)
+	ConsentType string `json:"consentType"`
+	// Evidence contains a link to a resource when ConsentType == 'explicit'
+	Evidence *Evidence `json:"evidence"`
+}
+
+// Evidence is part of the NutsAuthorizationCredential credentialSubject.legalBase
+type Evidence struct {
+	// Path is the relative path (relative to the FHIR base path of the mentioned service)
+	Path string `json:"path"`
+	// Type indicates the MIME type of the resource.
+	Type string `json:"type"`
+}
+
+// Resource defines a single accessbile resource
+type Resource struct {
+	// Path defines the path of the resource relative to the service base URL.
+	// Which service acts as base URL is described by the Bolt.
+	Path string `json:"path"`
+	// Operations define which operations are allowed on the resource.
+	Operations []string `json:"operations"`
+	// UserContext defines if a user login contract is required for the resource.
+	UserContext bool `json:"userContext"`
 }
 
 // BaseCredentialSubject defines the CredentialSubject struct for fields that are shared amongst all CredentialSubjects

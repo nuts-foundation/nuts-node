@@ -42,6 +42,14 @@ func TestFindValidatorAndBuilder(t *testing.T) {
 		assert.NotNil(t, v)
 		assert.NotNil(t, b)
 	})
+
+	t.Run("validator and builder found for NutsAuthorizationCredential", func(t *testing.T) {
+		vc := validImpliedNutsAuthorizationCredential()
+		v, b := FindValidatorAndBuilder(*vc)
+
+		assert.NotNil(t, v)
+		assert.NotNil(t, b)
+	})
 }
 
 func TestExtractTypes(t *testing.T) {

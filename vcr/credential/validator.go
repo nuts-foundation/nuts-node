@@ -51,15 +51,16 @@ func (err *validationError) Is(target error) bool {
 	return errors.Is(target, ErrValidation)
 }
 
-func failure(err string) error {
-	return &validationError{err}
+func failure(err string, args ...interface{}) error {
+	errStr := fmt.Sprintf(err, args...)
+	return &validationError{errStr}
 }
 
 // validate the default fields
 func validate(credential vc.VerifiableCredential) error {
 
 	if !credential.IsType(vc.VerifiableCredentialTypeV1URI()) {
-		return failure("'VerifiableCredential' is required")
+		return failure("type 'VerifiableCredential' is required")
 	}
 
 	if !credential.ContainsContext(vc.VCContextV1URI()) {
@@ -96,7 +97,7 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 	}
 
 	if !credential.IsType(*NutsOrganizationCredentialTypeURI) {
-		return failure("'VerifiableCredential' is required")
+		return failure("type '%s' is required", NutsOrganizationCredentialType)
 	}
 
 	// if it fails, length check will trigger
@@ -122,4 +123,88 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 	}
 
 	return nil
+}
+
+// nutsAuthorizationCredentialValidator checks for mandatory fields: id, legalBase, purposeOfUse.
+// It checks if the value for legalBase.consentType is either 'explicit' or 'implied'.
+// When 'explicit', both the evidence and subject subfields must be filled.
+type nutsAuthorizationCredentialValidator struct{}
+
+func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
+	var target = make([]NutsAuthorizationCredentialSubject, 0)
+
+	if err := validate(credential); err != nil {
+		return err
+	}
+
+	if !credential.IsType(*NutsAuthorizationCredentialTypeURI) {
+		return failure("type '%s' is required", NutsAuthorizationCredentialType)
+	}
+
+	// if it fails, length check will trigger
+	_ = credential.UnmarshalCredentialSubject(&target)
+	if len(target) != 1 {
+		return failure("single CredentialSubject expected")
+	}
+	cs := target[0]
+
+	if len(strings.TrimSpace(cs.ID)) == 0 {
+		return failure("'credentialSubject.ID' is nil")
+	}
+	if len(strings.TrimSpace(cs.PurposeOfUse)) == 0 {
+		return failure("'credentialSubject.PurposeOfUse' is nil")
+	}
+	switch cs.LegalBase.ConsentType {
+	case "implied":
+		// no additional requirements
+		break
+	case "explicit":
+		if cs.Subject == nil || len(strings.TrimSpace(*cs.Subject)) == 0 {
+			return failure("'credentialSubject.Subject' is required when consentType is 'explicit'")
+		}
+		if cs.LegalBase.Evidence == nil {
+			return failure("'credentialSubject.LegalBase.Evidence' is required when consentType is 'explicit'")
+		}
+		if len(strings.TrimSpace(cs.LegalBase.Evidence.Path)) == 0 {
+			return failure("'credentialSubject.LegalBase.Evidence.Path' is required when consentType is 'explicit'")
+		}
+		if len(strings.TrimSpace(cs.LegalBase.Evidence.Type)) == 0 {
+			return failure("'credentialSubject.LegalBase.Evidence.Type' is required when consentType is 'explicit'")
+		}
+	default:
+		return failure("'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
+	}
+
+	return validateResources(cs.Resources)
+}
+
+func validOperationTypes() []string {
+	return []string{"read", "vread", "update", "patch", "delete", "history", "create", "search", "document"}
+}
+
+func validateResources(resources []Resource) error {
+	for _, r := range resources {
+		if len(strings.TrimSpace(r.Path)) == 0 {
+			return failure("'credentialSubject.Resources[].Path' is required'")
+		}
+		if len(r.Operations) == 0 {
+			return failure("'credentialSubject.Resources[].Operations[]' requires at least one value")
+		}
+		for _, o := range r.Operations {
+			if !validOperation(o) {
+				return failure("'credentialSubject.Resources[].Operations[]' contains an invalid operation '%s'", o)
+			}
+		}
+	}
+
+	return nil
+}
+
+func validOperation(operation string) bool {
+	for _, o := range validOperationTypes() {
+		if o == strings.ToLower(operation) {
+			return true
+		}
+	}
+	return false
 }
