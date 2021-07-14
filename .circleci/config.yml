@@ -1,23 +1,31 @@
 version: 2.1
+
 orbs:
   codecov: codecov/codecov@1.0.5
+
+workflows:
+  tests:
+    jobs:
+      - build
+      - e2e-tests
+
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.16
+      - image: cimg/go:1.16
     steps:
       - checkout
 
       - restore_cache:
           keys:
-            - go-mod-v1-{{ checksum "go.sum" }}
+            - go-mod-v2-{{ checksum "go.sum" }}
 
       - run: go get -t -v ./...
 
       - save_cache:
-          key: go-mod-v1-{{ checksum "go.sum" }}
+          key: go-mod-v2-{{ checksum "go.sum" }}
           paths:
-            - "/go/pkg/mod"
+            - "/home/circleci/go/pkg/mod"
 
       - run: go test ./... -race
       - run: go test ./... -coverprofile=c_raw.out
@@ -40,4 +48,24 @@ jobs:
           command: |
             ./tmp/cc-test-reporter after-build -t gocov --prefix github.com/nuts-foundation/nuts-node
 
+  e2e-tests:
+    machine:
+      image: ubuntu-2004:202104-01
 
+    steps:
+      - checkout
+      - run:
+          name: Build image
+          command: |
+            docker build -t nuts-node-ci/${CIRCLE_SHA1} .
+      - run:
+          name: Clone E2E tests repo
+          command: |
+            git clone https://github.com/nuts-foundation/nuts-go-e2e-test.git && \
+              cd nuts-go-e2e-test && \
+              find . -type f -name "docker-compose.yml" | xargs -I{} sed "s/nutsfoundation\/nuts-node:master/nuts-node-ci\/${CIRCLE_SHA1}/g" {}
+      - run:
+          name: Run E2E tests
+          command: |
+            cd nuts-go-e2e-test && \
+              docker run --privileged -t -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):/workspace -v earthly-tmp:/tmp/earthly:rw earthly/earthly:latest -P +all
