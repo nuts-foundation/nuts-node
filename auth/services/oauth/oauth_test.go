@@ -28,6 +28,7 @@ import (
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"net/url"
 
 	"testing"
 	"time"
@@ -453,7 +454,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 	sid := "789"
 	usi := "irma identity token"
 
-	request := services.CreateJwtBearerTokenRequest{
+	request := services.CreateJwtGrantRequest{
 		Custodian:     custodianDID.String(),
 		Actor:         actorDID.String(),
 		Subject:       &sid,
@@ -469,7 +470,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(actorDID, gomock.Any()).MinTimes(1).Return(actorSigningKeyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), actorSigningKeyID.String()).Return("token", nil)
 
-		token, err := ctx.oauthService.CreateJwtBearerToken(request)
+		token, err := ctx.oauthService.CreateJwtGrant(request)
 
 		if !assert.Nil(t, err) || !assert.NotEmpty(t, token.BearerToken) {
 			t.FailNow()
@@ -483,7 +484,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(&did.Document{}, nil, nil)
 
-		token, err := ctx.oauthService.CreateJwtBearerToken(request)
+		token, err := ctx.oauthService.CreateJwtGrant(request)
 
 		assert.Empty(t, token)
 		assert.Contains(t, err.Error(), "service not found")
@@ -493,13 +494,13 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		request := services.CreateJwtBearerTokenRequest{
+		request := services.CreateJwtGrantRequest{
 			Actor:         actorDID.String(),
 			Subject:       &sid,
 			IdentityToken: &usi,
 		}
 
-		token, err := ctx.oauthService.CreateJwtBearerToken(request)
+		token, err := ctx.oauthService.CreateJwtGrant(request)
 
 		assert.Empty(t, token)
 		assert.NotNil(t, err)
@@ -513,7 +514,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(actorDID, gomock.Any()).MinTimes(1).Return(actorSigningKeyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), actorSigningKeyID.String()).Return("", errors.New("boom!"))
 
-		token, err := ctx.oauthService.CreateJwtBearerToken(request)
+		token, err := ctx.oauthService.CreateJwtGrant(request)
 
 		assert.Error(t, err)
 		assert.Empty(t, token)
@@ -527,7 +528,7 @@ func Test_claimsFromRequest(t *testing.T) {
 	usi := "irma identity token"
 
 	t.Run("ok", func(t *testing.T) {
-		request := services.CreateJwtBearerTokenRequest{
+		request := services.CreateJwtGrantRequest{
 			Custodian:     custodianDID.String(),
 			Actor:         actorDID.String(),
 			Subject:       &sid,
@@ -614,6 +615,64 @@ func TestAuth_Configure(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		assert.NoError(t, ctx.oauthService.Configure())
+	})
+}
+
+func TestAuth_GetOAuthEndpointURL(t *testing.T) {
+	t.Run("returns_error_when_resolve_compound_service_fails", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.didResolver.
+			EXPECT().
+			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
+			Return(nil, nil, errors.New("random error"))
+
+		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL("test-service", *vdr.TestDIDA)
+
+		expectedErr := errors.New("failed to resolve OAuth endpoint URL: random error")
+
+		if assert.Error(t, err) {
+			assert.Equal(t, expectedErr.Error(), err.Error())
+		}
+
+		assert.Empty(t, parsedURL)
+	})
+
+	t.Run("returns_parsed_endpoint_url", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.didResolver.
+			EXPECT().
+			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
+			Return(&did.Document{
+				Service: []did.Service{
+					{
+						Type: "test-service",
+						ServiceEndpoint: map[string]string{
+							"oauth": fmt.Sprintf("%s?type=oauth", vdr.TestDIDA),
+						},
+					},
+				},
+			}, &types.DocumentMetadata{}, nil)
+
+		ctx.didResolver.
+			EXPECT().
+			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
+			Return(&did.Document{
+				Service: []did.Service{
+					{
+						Type:            "oauth",
+						ServiceEndpoint: "http://localhost",
+					},
+				},
+			}, &types.DocumentMetadata{}, nil)
+
+		expectedURL, _ := url.Parse("http://localhost")
+
+		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL("test-service", *vdr.TestDIDA)
+
+		assert.NoError(t, err)
+		assert.Equal(t, *expectedURL, parsedURL)
 	})
 }
 

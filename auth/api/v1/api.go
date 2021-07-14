@@ -257,26 +257,72 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, response)
 }
 
-// CreateJwtBearerToken handles the http request (from from the vendor's EPD/XIS) for creating a JWT bearer token which can be used to retrieve an access token from a remote Nuts node.
-func (w Wrapper) CreateJwtBearerToken(ctx echo.Context) error {
-	requestBody := &CreateJwtBearerTokenRequest{}
+// CreateJwtGrant handles the http request (from from the vendor's EPD/XIS) for creating a JWT bearer token which can be used to retrieve an access token from a remote Nuts node.
+func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
+	requestBody := &CreateJwtGrantRequest{}
 	if err := ctx.Bind(requestBody); err != nil {
 		return err
 	}
 
-	request := services.CreateJwtBearerTokenRequest{
+	request := services.CreateJwtGrantRequest{
 		Actor:         requestBody.Actor,
 		Custodian:     requestBody.Custodian,
 		IdentityToken: &requestBody.Identity,
 		Service:       requestBody.Service,
 		Subject:       requestBody.Subject,
 	}
-	response, err := w.Auth.OAuthClient().CreateJwtBearerToken(request)
+	response, err := w.Auth.OAuthClient().CreateJwtGrant(request)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
 	}
 
-	return ctx.JSON(http.StatusOK, JwtBearerTokenResponse{BearerToken: response.BearerToken})
+	return ctx.JSON(http.StatusOK, JwtGrantResponse{BearerToken: response.BearerToken})
+}
+
+// RequestAccessToken handles the HTTP request (from the vendor's EPD/XIS) for creating a JWT grant and using it as authorization grant to get an access token from the remote Nuts node.
+func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
+	requestBody := &RequestAccessTokenRequest{}
+	if err := ctx.Bind(requestBody); err != nil {
+		return err
+	}
+
+	request := services.CreateJwtGrantRequest{
+		Actor:         requestBody.Actor,
+		Custodian:     requestBody.Custodian,
+		IdentityToken: &requestBody.Identity,
+		Service:       requestBody.Service,
+		Subject:       requestBody.Subject,
+	}
+
+	jwtGrantResponse, err := w.Auth.OAuthClient().CreateJwtGrant(request)
+	if err != nil {
+		return core.InvalidInputError(err.Error())
+	}
+
+	custodianDID, err := did.ParseDID(requestBody.Custodian)
+	if err != nil {
+		return core.InvalidInputError(err.Error())
+	}
+
+	endpointURL, err := w.Auth.OAuthClient().GetOAuthEndpointURL(requestBody.Service, *custodianDID)
+	if err != nil {
+		return core.PreconditionFailedError("unable to find the oauth2 service endpoint of the custodian: %w", err)
+	}
+
+	httpClient := HTTPClient{
+		Timeout: w.Auth.HTTPTimeout(),
+	}
+
+	accessTokenResponse, err := httpClient.CreateAccessToken(endpointURL, jwtGrantResponse.BearerToken)
+	if err != nil {
+		if statusCodeErr, ok := err.(core.HTTPStatusCodeError); ok {
+			return core.Error(statusCodeErr.StatusCode(), "unable to create access token: %w", err)
+		}
+
+		return fmt.Errorf("unable to create access token: %w", err)
+	}
+
+	return ctx.JSON(http.StatusOK, accessTokenResponse)
 }
 
 // CreateAccessToken handles the http request (from a remote vendor's Nuts node) for creating an access token for accessing

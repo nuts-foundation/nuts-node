@@ -6,6 +6,7 @@ package services
 
 import (
 	http "net/http"
+	url "net/url"
 	reflect "reflect"
 	time "time"
 
@@ -66,19 +67,34 @@ func (mr *MockOAuthClientMockRecorder) CreateAccessToken(request interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessToken", reflect.TypeOf((*MockOAuthClient)(nil).CreateAccessToken), request)
 }
 
-// CreateJwtBearerToken mocks base method.
-func (m *MockOAuthClient) CreateJwtBearerToken(request CreateJwtBearerTokenRequest) (*JwtBearerTokenResult, error) {
+// CreateJwtGrant mocks base method.
+func (m *MockOAuthClient) CreateJwtGrant(request CreateJwtGrantRequest) (*JwtBearerTokenResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateJwtBearerToken", request)
+	ret := m.ctrl.Call(m, "CreateJwtGrant", request)
 	ret0, _ := ret[0].(*JwtBearerTokenResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateJwtBearerToken indicates an expected call of CreateJwtBearerToken.
-func (mr *MockOAuthClientMockRecorder) CreateJwtBearerToken(request interface{}) *gomock.Call {
+// CreateJwtGrant indicates an expected call of CreateJwtGrant.
+func (mr *MockOAuthClientMockRecorder) CreateJwtGrant(request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJwtBearerToken", reflect.TypeOf((*MockOAuthClient)(nil).CreateJwtBearerToken), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJwtGrant", reflect.TypeOf((*MockOAuthClient)(nil).CreateJwtGrant), request)
+}
+
+// GetOAuthEndpointURL mocks base method.
+func (m *MockOAuthClient) GetOAuthEndpointURL(service string, custodian did.DID) (url.URL, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOAuthEndpointURL", service, custodian)
+	ret0, _ := ret[0].(url.URL)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOAuthEndpointURL indicates an expected call of GetOAuthEndpointURL.
+func (mr *MockOAuthClientMockRecorder) GetOAuthEndpointURL(service, custodian interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOAuthEndpointURL", reflect.TypeOf((*MockOAuthClient)(nil).GetOAuthEndpointURL), service, custodian)
 }
 
 // IntrospectAccessToken mocks base method.
@@ -332,4 +348,42 @@ func (m *MockContractClient) VerifyVP(rawVerifiablePresentation []byte, checkTim
 func (mr *MockContractClientMockRecorder) VerifyVP(rawVerifiablePresentation, checkTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyVP", reflect.TypeOf((*MockContractClient)(nil).VerifyVP), rawVerifiablePresentation, checkTime)
+}
+
+// MockCompoundServiceClient is a mock of CompoundServiceClient interface.
+type MockCompoundServiceClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockCompoundServiceClientMockRecorder
+}
+
+// MockCompoundServiceClientMockRecorder is the mock recorder for MockCompoundServiceClient.
+type MockCompoundServiceClientMockRecorder struct {
+	mock *MockCompoundServiceClient
+}
+
+// NewMockCompoundServiceClient creates a new mock instance.
+func NewMockCompoundServiceClient(ctrl *gomock.Controller) *MockCompoundServiceClient {
+	mock := &MockCompoundServiceClient{ctrl: ctrl}
+	mock.recorder = &MockCompoundServiceClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCompoundServiceClient) EXPECT() *MockCompoundServiceClientMockRecorder {
+	return m.recorder
+}
+
+// GetCompoundService mocks base method.
+func (m *MockCompoundServiceClient) GetCompoundService(id did.DID, serviceType string) (*did.Service, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCompoundService", id, serviceType)
+	ret0, _ := ret[0].(*did.Service)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCompoundService indicates an expected call of GetCompoundService.
+func (mr *MockCompoundServiceClientMockRecorder) GetCompoundService(id, serviceType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCompoundService", reflect.TypeOf((*MockCompoundServiceClient)(nil).GetCompoundService), id, serviceType)
 }

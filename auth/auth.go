@@ -47,6 +47,11 @@ func (auth *Auth) Config() interface{} {
 	return &auth.config
 }
 
+// HTTPTimeout returns the HTTP timeout to use for the Auth API HTTP client
+func (auth *Auth) HTTPTimeout() time.Duration {
+	return time.Duration(auth.config.HTTP.Timeout) * time.Second
+}
+
 // ContractNotary returns an implementation of the ContractNotary interface.
 func (auth *Auth) ContractNotary() services.ContractNotary {
 	return auth.contractNotary

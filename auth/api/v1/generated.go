@@ -4,8 +4,15 @@
 package v1
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/labstack/echo/v4"
@@ -94,6 +101,28 @@ type ContractResponse struct {
 	Version ContractVersion `json:"version"`
 }
 
+// ContractSigningRequest defines model for ContractSigningRequest.
+type ContractSigningRequest struct {
+
+	// Language of the contract in all caps.
+	Language ContractLanguage `json:"language"`
+
+	// Identifier of the legalEntity as registered in the Nuts registry.
+	LegalEntity LegalEntity `json:"legalEntity"`
+
+	// Type of which contract to sign.
+	Type ContractType `json:"type"`
+
+	// ValidFrom describes the time from which this contract should be considered valid
+	ValidFrom *string `json:"valid_from,omitempty"`
+
+	// ValidTo describes the time until this contract should be considered valid
+	ValidTo *string `json:"valid_to,omitempty"`
+
+	// Version of the contract.
+	Version ContractVersion `json:"version"`
+}
+
 // Type of which contract to sign.
 type ContractType string
 
@@ -110,8 +139,8 @@ type CreateAccessTokenRequest struct {
 	GrantType string `json:"grant_type"`
 }
 
-// Request for a JWT Bearer Token. The Bearer Token can be used during a Access Token Request in the assertion field
-type CreateJwtBearerTokenRequest struct {
+// Request for a JWT Grant. The grant can be used during a Access Token Request in the assertion field
+type CreateJwtGrantRequest struct {
 	Actor     string `json:"actor"`
 	Custodian string `json:"custodian"`
 
@@ -145,8 +174,8 @@ type DrawUpContractRequest struct {
 	Version ContractVersion `json:"version"`
 }
 
-// Response with a JWT Bearer Token. It contains a JWT, signed with the private key of the requestor software vendor.
-type JwtBearerTokenResponse struct {
+// Response with a JWT Grant. It contains a JWT, signed with the private key of the requestor software vendor.
+type JwtGrantResponse struct {
 
 	// The URL that corresponds to the oauth endpoint of the selected service.
 	AuthorizationServerEndpoint string `json:"authorization_server_endpoint"`
@@ -155,6 +184,19 @@ type JwtBearerTokenResponse struct {
 
 // Identifier of the legalEntity as registered in the Nuts registry.
 type LegalEntity string
+
+// Request for a JWT Grant and use it as authorization grant to get the access token from the custodian
+type RequestAccessTokenRequest struct {
+	Actor     string `json:"actor"`
+	Custodian string `json:"custodian"`
+
+	// Base64 encoded IRMA contract conaining the identity of the performer
+	Identity string `json:"identity"`
+
+	// The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
+	Service string  `json:"service"`
+	Subject *string `json:"subject,omitempty"`
+}
 
 // SignSessionRequest defines model for SignSessionRequest.
 type SignSessionRequest struct {
@@ -283,20 +325,20 @@ type VerifyAccessTokenParams struct {
 	Authorization string `json:"Authorization"`
 }
 
-// CreateJwtBearerTokenJSONBody defines parameters for CreateJwtBearerToken.
-type CreateJwtBearerTokenJSONBody CreateJwtBearerTokenRequest
-
 // DrawUpContractJSONBody defines parameters for DrawUpContract.
 type DrawUpContractJSONBody DrawUpContractRequest
+
+// CreateJwtGrantJSONBody defines parameters for CreateJwtGrant.
+type CreateJwtGrantJSONBody CreateJwtGrantRequest
+
+// RequestAccessTokenJSONBody defines parameters for RequestAccessToken.
+type RequestAccessTokenJSONBody RequestAccessTokenRequest
 
 // CreateSignSessionJSONBody defines parameters for CreateSignSession.
 type CreateSignSessionJSONBody SignSessionRequest
 
 // VerifySignatureJSONBody defines parameters for VerifySignature.
 type VerifySignatureJSONBody SignatureVerificationRequest
-
-// CreateAccessTokenJSONBody defines parameters for CreateAccessToken.
-type CreateAccessTokenJSONBody CreateAccessTokenRequest
 
 // GetContractByTypeParams defines parameters for GetContractByType.
 type GetContractByTypeParams struct {
@@ -306,11 +348,14 @@ type GetContractByTypeParams struct {
 	Language *string `json:"language,omitempty"`
 }
 
-// CreateJwtBearerTokenJSONRequestBody defines body for CreateJwtBearerToken for application/json ContentType.
-type CreateJwtBearerTokenJSONRequestBody CreateJwtBearerTokenJSONBody
-
 // DrawUpContractJSONRequestBody defines body for DrawUpContract for application/json ContentType.
 type DrawUpContractJSONRequestBody DrawUpContractJSONBody
+
+// CreateJwtGrantJSONRequestBody defines body for CreateJwtGrant for application/json ContentType.
+type CreateJwtGrantJSONRequestBody CreateJwtGrantJSONBody
+
+// RequestAccessTokenJSONRequestBody defines body for RequestAccessToken for application/json ContentType.
+type RequestAccessTokenJSONRequestBody RequestAccessTokenJSONBody
 
 // CreateSignSessionJSONRequestBody defines body for CreateSignSession for application/json ContentType.
 type CreateSignSessionJSONRequestBody CreateSignSessionJSONBody
@@ -318,8 +363,1391 @@ type CreateSignSessionJSONRequestBody CreateSignSessionJSONBody
 // VerifySignatureJSONRequestBody defines body for VerifySignature for application/json ContentType.
 type VerifySignatureJSONRequestBody VerifySignatureJSONBody
 
-// CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
-type CreateAccessTokenJSONRequestBody CreateAccessTokenJSONBody
+// RequestEditorFn  is the function signature for the RequestEditor callback function
+type RequestEditorFn func(ctx context.Context, req *http.Request) error
+
+// Doer performs HTTP requests.
+//
+// The standard http.Client implements this interface.
+type HttpRequestDoer interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// Client which conforms to the OpenAPI3 specification for this service.
+type Client struct {
+	// The endpoint of the server conforming to this interface, with scheme,
+	// https://api.deepmap.com for example. This can contain a path relative
+	// to the server, such as https://api.deepmap.com/dev-test, and all the
+	// paths in the swagger spec will be appended to the server.
+	Server string
+
+	// Doer for performing requests, typically a *http.Client with any
+	// customized settings, such as certificate chains.
+	Client HttpRequestDoer
+
+	// A list of callbacks for modifying requests which are generated before sending over
+	// the network.
+	RequestEditors []RequestEditorFn
+}
+
+// ClientOption allows setting custom parameters during construction
+type ClientOption func(*Client) error
+
+// Creates a new Client, with reasonable defaults
+func NewClient(server string, opts ...ClientOption) (*Client, error) {
+	// create a client with sane default values
+	client := Client{
+		Server: server,
+	}
+	// mutate client and add all optional params
+	for _, o := range opts {
+		if err := o(&client); err != nil {
+			return nil, err
+		}
+	}
+	// ensure the server URL always has a trailing slash
+	if !strings.HasSuffix(client.Server, "/") {
+		client.Server += "/"
+	}
+	// create httpClient, if not already present
+	if client.Client == nil {
+		client.Client = &http.Client{}
+	}
+	return &client, nil
+}
+
+// WithHTTPClient allows overriding the default Doer, which is
+// automatically created using http.Client. This is useful for tests.
+func WithHTTPClient(doer HttpRequestDoer) ClientOption {
+	return func(c *Client) error {
+		c.Client = doer
+		return nil
+	}
+}
+
+// WithRequestEditorFn allows setting up a callback function, which will be
+// called right before sending the request. This can be used to mutate the request.
+func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
+	return func(c *Client) error {
+		c.RequestEditors = append(c.RequestEditors, fn)
+		return nil
+	}
+}
+
+// The interface specification for the client above.
+type ClientInterface interface {
+	// IntrospectAccessToken request  with any body
+	IntrospectAccessTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// VerifyAccessToken request
+	VerifyAccessToken(ctx context.Context, params *VerifyAccessTokenParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DrawUpContract request  with any body
+	DrawUpContractWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	DrawUpContract(ctx context.Context, body DrawUpContractJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateJwtGrant request  with any body
+	CreateJwtGrantWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateJwtGrant(ctx context.Context, body CreateJwtGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RequestAccessToken request  with any body
+	RequestAccessTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	RequestAccessToken(ctx context.Context, body RequestAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateSignSession request  with any body
+	CreateSignSessionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateSignSession(ctx context.Context, body CreateSignSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSignSessionStatus request
+	GetSignSessionStatus(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// VerifySignature request  with any body
+	VerifySignatureWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	VerifySignature(ctx context.Context, body VerifySignatureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateAccessToken request  with any body
+	CreateAccessTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetContractByType request
+	GetContractByType(ctx context.Context, contractType string, params *GetContractByTypeParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) IntrospectAccessTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewIntrospectAccessTokenRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) VerifyAccessToken(ctx context.Context, params *VerifyAccessTokenParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewVerifyAccessTokenRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DrawUpContractWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDrawUpContractRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DrawUpContract(ctx context.Context, body DrawUpContractJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDrawUpContractRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateJwtGrantWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateJwtGrantRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateJwtGrant(ctx context.Context, body CreateJwtGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateJwtGrantRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RequestAccessTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestAccessTokenRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RequestAccessToken(ctx context.Context, body RequestAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestAccessTokenRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateSignSessionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSignSessionRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateSignSession(ctx context.Context, body CreateSignSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSignSessionRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSignSessionStatus(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSignSessionStatusRequest(c.Server, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) VerifySignatureWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewVerifySignatureRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) VerifySignature(ctx context.Context, body VerifySignatureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewVerifySignatureRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateAccessTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAccessTokenRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetContractByType(ctx context.Context, contractType string, params *GetContractByTypeParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetContractByTypeRequest(c.Server, contractType, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewIntrospectAccessTokenRequestWithBody generates requests for IntrospectAccessToken with any type of body
+func NewIntrospectAccessTokenRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/auth/v1/accesstoken/introspect")
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewVerifyAccessTokenRequest generates requests for VerifyAccessToken
+func NewVerifyAccessTokenRequest(server string, params *VerifyAccessTokenParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/auth/v1/accesstoken/verify")
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("HEAD", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var headerParam0 string
+
+	headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, params.Authorization)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", headerParam0)
+
+	return req, nil
+}
+
+// NewDrawUpContractRequest calls the generic DrawUpContract builder with application/json body
+func NewDrawUpContractRequest(server string, body DrawUpContractJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDrawUpContractRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewDrawUpContractRequestWithBody generates requests for DrawUpContract with any type of body
+func NewDrawUpContractRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/auth/v1/contract/drawup")
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCreateJwtGrantRequest calls the generic CreateJwtGrant builder with application/json body
+func NewCreateJwtGrantRequest(server string, body CreateJwtGrantJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateJwtGrantRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateJwtGrantRequestWithBody generates requests for CreateJwtGrant with any type of body
+func NewCreateJwtGrantRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/auth/v1/jwt-grant")
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRequestAccessTokenRequest calls the generic RequestAccessToken builder with application/json body
+func NewRequestAccessTokenRequest(server string, body RequestAccessTokenJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRequestAccessTokenRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRequestAccessTokenRequestWithBody generates requests for RequestAccessToken with any type of body
+func NewRequestAccessTokenRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/auth/v1/request-access-token")
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCreateSignSessionRequest calls the generic CreateSignSession builder with application/json body
+func NewCreateSignSessionRequest(server string, body CreateSignSessionJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateSignSessionRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateSignSessionRequestWithBody generates requests for CreateSignSession with any type of body
+func NewCreateSignSessionRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/auth/v1/signature/session")
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetSignSessionStatusRequest generates requests for GetSignSessionStatus
+func NewGetSignSessionStatusRequest(server string, sessionID string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sessionID", runtime.ParamLocationPath, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/auth/v1/signature/session/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewVerifySignatureRequest calls the generic VerifySignature builder with application/json body
+func NewVerifySignatureRequest(server string, body VerifySignatureJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewVerifySignatureRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewVerifySignatureRequestWithBody generates requests for VerifySignature with any type of body
+func NewVerifySignatureRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/auth/v1/signature/verify")
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCreateAccessTokenRequestWithBody generates requests for CreateAccessToken with any type of body
+func NewCreateAccessTokenRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/n2n/auth/v1/accesstoken")
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetContractByTypeRequest generates requests for GetContractByType
+func NewGetContractByTypeRequest(server string, contractType string, params *GetContractByTypeParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "contractType", runtime.ParamLocationPath, contractType)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/public/auth/v1/contract/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	queryValues := queryURL.Query()
+
+	if params.Version != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "version", runtime.ParamLocationQuery, *params.Version); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.Language != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "language", runtime.ParamLocationQuery, *params.Language); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
+	for _, r := range c.RequestEditors {
+		if err := r(ctx, req); err != nil {
+			return err
+		}
+	}
+	for _, r := range additionalEditors {
+		if err := r(ctx, req); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ClientWithResponses builds on ClientInterface to offer response payloads
+type ClientWithResponses struct {
+	ClientInterface
+}
+
+// NewClientWithResponses creates a new ClientWithResponses, which wraps
+// Client with return type handling
+func NewClientWithResponses(server string, opts ...ClientOption) (*ClientWithResponses, error) {
+	client, err := NewClient(server, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &ClientWithResponses{client}, nil
+}
+
+// WithBaseURL overrides the baseURL.
+func WithBaseURL(baseURL string) ClientOption {
+	return func(c *Client) error {
+		newBaseURL, err := url.Parse(baseURL)
+		if err != nil {
+			return err
+		}
+		c.Server = newBaseURL.String()
+		return nil
+	}
+}
+
+// ClientWithResponsesInterface is the interface specification for the client with responses above.
+type ClientWithResponsesInterface interface {
+	// IntrospectAccessToken request  with any body
+	IntrospectAccessTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*IntrospectAccessTokenResponse, error)
+
+	// VerifyAccessToken request
+	VerifyAccessTokenWithResponse(ctx context.Context, params *VerifyAccessTokenParams, reqEditors ...RequestEditorFn) (*VerifyAccessTokenResponse, error)
+
+	// DrawUpContract request  with any body
+	DrawUpContractWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DrawUpContractResponse, error)
+
+	DrawUpContractWithResponse(ctx context.Context, body DrawUpContractJSONRequestBody, reqEditors ...RequestEditorFn) (*DrawUpContractResponse, error)
+
+	// CreateJwtGrant request  with any body
+	CreateJwtGrantWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateJwtGrantResponse, error)
+
+	CreateJwtGrantWithResponse(ctx context.Context, body CreateJwtGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateJwtGrantResponse, error)
+
+	// RequestAccessToken request  with any body
+	RequestAccessTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestAccessTokenResponse, error)
+
+	RequestAccessTokenWithResponse(ctx context.Context, body RequestAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestAccessTokenResponse, error)
+
+	// CreateSignSession request  with any body
+	CreateSignSessionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSignSessionResponse, error)
+
+	CreateSignSessionWithResponse(ctx context.Context, body CreateSignSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSignSessionResponse, error)
+
+	// GetSignSessionStatus request
+	GetSignSessionStatusWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetSignSessionStatusResponse, error)
+
+	// VerifySignature request  with any body
+	VerifySignatureWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifySignatureResponse, error)
+
+	VerifySignatureWithResponse(ctx context.Context, body VerifySignatureJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifySignatureResponse, error)
+
+	// CreateAccessToken request  with any body
+	CreateAccessTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAccessTokenResponse, error)
+
+	// GetContractByType request
+	GetContractByTypeWithResponse(ctx context.Context, contractType string, params *GetContractByTypeParams, reqEditors ...RequestEditorFn) (*GetContractByTypeResponse, error)
+}
+
+type IntrospectAccessTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TokenIntrospectionResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r IntrospectAccessTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r IntrospectAccessTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type VerifyAccessTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r VerifyAccessTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r VerifyAccessTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DrawUpContractResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ContractResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DrawUpContractResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DrawUpContractResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateJwtGrantResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *JwtGrantResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateJwtGrantResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateJwtGrantResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RequestAccessTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AccessTokenResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r RequestAccessTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RequestAccessTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateSignSessionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *SignSessionResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateSignSessionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateSignSessionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetSignSessionStatusResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *SignSessionStatusResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSignSessionStatusResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSignSessionStatusResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type VerifySignatureResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *SignatureVerificationResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r VerifySignatureResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r VerifySignatureResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateAccessTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AccessTokenResponse
+	JSON400      *AccessTokenRequestFailedResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateAccessTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateAccessTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetContractByTypeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Contract
+}
+
+// Status returns HTTPResponse.Status
+func (r GetContractByTypeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetContractByTypeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// IntrospectAccessTokenWithBodyWithResponse request with arbitrary body returning *IntrospectAccessTokenResponse
+func (c *ClientWithResponses) IntrospectAccessTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*IntrospectAccessTokenResponse, error) {
+	rsp, err := c.IntrospectAccessTokenWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseIntrospectAccessTokenResponse(rsp)
+}
+
+// VerifyAccessTokenWithResponse request returning *VerifyAccessTokenResponse
+func (c *ClientWithResponses) VerifyAccessTokenWithResponse(ctx context.Context, params *VerifyAccessTokenParams, reqEditors ...RequestEditorFn) (*VerifyAccessTokenResponse, error) {
+	rsp, err := c.VerifyAccessToken(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseVerifyAccessTokenResponse(rsp)
+}
+
+// DrawUpContractWithBodyWithResponse request with arbitrary body returning *DrawUpContractResponse
+func (c *ClientWithResponses) DrawUpContractWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DrawUpContractResponse, error) {
+	rsp, err := c.DrawUpContractWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDrawUpContractResponse(rsp)
+}
+
+func (c *ClientWithResponses) DrawUpContractWithResponse(ctx context.Context, body DrawUpContractJSONRequestBody, reqEditors ...RequestEditorFn) (*DrawUpContractResponse, error) {
+	rsp, err := c.DrawUpContract(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDrawUpContractResponse(rsp)
+}
+
+// CreateJwtGrantWithBodyWithResponse request with arbitrary body returning *CreateJwtGrantResponse
+func (c *ClientWithResponses) CreateJwtGrantWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateJwtGrantResponse, error) {
+	rsp, err := c.CreateJwtGrantWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateJwtGrantResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateJwtGrantWithResponse(ctx context.Context, body CreateJwtGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateJwtGrantResponse, error) {
+	rsp, err := c.CreateJwtGrant(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateJwtGrantResponse(rsp)
+}
+
+// RequestAccessTokenWithBodyWithResponse request with arbitrary body returning *RequestAccessTokenResponse
+func (c *ClientWithResponses) RequestAccessTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestAccessTokenResponse, error) {
+	rsp, err := c.RequestAccessTokenWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequestAccessTokenResponse(rsp)
+}
+
+func (c *ClientWithResponses) RequestAccessTokenWithResponse(ctx context.Context, body RequestAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestAccessTokenResponse, error) {
+	rsp, err := c.RequestAccessToken(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequestAccessTokenResponse(rsp)
+}
+
+// CreateSignSessionWithBodyWithResponse request with arbitrary body returning *CreateSignSessionResponse
+func (c *ClientWithResponses) CreateSignSessionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSignSessionResponse, error) {
+	rsp, err := c.CreateSignSessionWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateSignSessionResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateSignSessionWithResponse(ctx context.Context, body CreateSignSessionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSignSessionResponse, error) {
+	rsp, err := c.CreateSignSession(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateSignSessionResponse(rsp)
+}
+
+// GetSignSessionStatusWithResponse request returning *GetSignSessionStatusResponse
+func (c *ClientWithResponses) GetSignSessionStatusWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetSignSessionStatusResponse, error) {
+	rsp, err := c.GetSignSessionStatus(ctx, sessionID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSignSessionStatusResponse(rsp)
+}
+
+// VerifySignatureWithBodyWithResponse request with arbitrary body returning *VerifySignatureResponse
+func (c *ClientWithResponses) VerifySignatureWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifySignatureResponse, error) {
+	rsp, err := c.VerifySignatureWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseVerifySignatureResponse(rsp)
+}
+
+func (c *ClientWithResponses) VerifySignatureWithResponse(ctx context.Context, body VerifySignatureJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifySignatureResponse, error) {
+	rsp, err := c.VerifySignature(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseVerifySignatureResponse(rsp)
+}
+
+// CreateAccessTokenWithBodyWithResponse request with arbitrary body returning *CreateAccessTokenResponse
+func (c *ClientWithResponses) CreateAccessTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAccessTokenResponse, error) {
+	rsp, err := c.CreateAccessTokenWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAccessTokenResponse(rsp)
+}
+
+// GetContractByTypeWithResponse request returning *GetContractByTypeResponse
+func (c *ClientWithResponses) GetContractByTypeWithResponse(ctx context.Context, contractType string, params *GetContractByTypeParams, reqEditors ...RequestEditorFn) (*GetContractByTypeResponse, error) {
+	rsp, err := c.GetContractByType(ctx, contractType, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetContractByTypeResponse(rsp)
+}
+
+// ParseIntrospectAccessTokenResponse parses an HTTP response from a IntrospectAccessTokenWithResponse call
+func ParseIntrospectAccessTokenResponse(rsp *http.Response) (*IntrospectAccessTokenResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &IntrospectAccessTokenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TokenIntrospectionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseVerifyAccessTokenResponse parses an HTTP response from a VerifyAccessTokenWithResponse call
+func ParseVerifyAccessTokenResponse(rsp *http.Response) (*VerifyAccessTokenResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &VerifyAccessTokenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	}
+
+	return response, nil
+}
+
+// ParseDrawUpContractResponse parses an HTTP response from a DrawUpContractWithResponse call
+func ParseDrawUpContractResponse(rsp *http.Response) (*DrawUpContractResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DrawUpContractResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ContractResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateJwtGrantResponse parses an HTTP response from a CreateJwtGrantWithResponse call
+func ParseCreateJwtGrantResponse(rsp *http.Response) (*CreateJwtGrantResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateJwtGrantResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest JwtGrantResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRequestAccessTokenResponse parses an HTTP response from a RequestAccessTokenWithResponse call
+func ParseRequestAccessTokenResponse(rsp *http.Response) (*RequestAccessTokenResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RequestAccessTokenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AccessTokenResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateSignSessionResponse parses an HTTP response from a CreateSignSessionWithResponse call
+func ParseCreateSignSessionResponse(rsp *http.Response) (*CreateSignSessionResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateSignSessionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SignSessionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSignSessionStatusResponse parses an HTTP response from a GetSignSessionStatusWithResponse call
+func ParseGetSignSessionStatusResponse(rsp *http.Response) (*GetSignSessionStatusResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSignSessionStatusResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SignSessionStatusResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseVerifySignatureResponse parses an HTTP response from a VerifySignatureWithResponse call
+func ParseVerifySignatureResponse(rsp *http.Response) (*VerifySignatureResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &VerifySignatureResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SignatureVerificationResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateAccessTokenResponse parses an HTTP response from a CreateAccessTokenWithResponse call
+func ParseCreateAccessTokenResponse(rsp *http.Response) (*CreateAccessTokenResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateAccessTokenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AccessTokenResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest AccessTokenRequestFailedResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetContractByTypeResponse parses an HTTP response from a GetContractByTypeWithResponse call
+func ParseGetContractByTypeResponse(rsp *http.Response) (*GetContractByTypeResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetContractByTypeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Contract
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -329,12 +1757,15 @@ type ServerInterface interface {
 	// Verifies the provided access token
 	// (HEAD /internal/auth/v1/accesstoken/verify)
 	VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error
-	// Create a JWT Bearer Token
-	// (POST /internal/auth/v1/bearertoken)
-	CreateJwtBearerToken(ctx echo.Context) error
 	// Draw up a contract using a specified contract template, language and version
 	// (PUT /internal/auth/v1/contract/drawup)
 	DrawUpContract(ctx echo.Context) error
+	// Create a JWT Grant
+	// (POST /internal/auth/v1/jwt-grant)
+	CreateJwtGrant(ctx echo.Context) error
+	// Request an accesstoken from the custodian
+	// (POST /internal/auth/v1/request-access-token)
+	RequestAccessToken(ctx echo.Context) error
 	// Create a signing session for a supported means.
 	// (POST /internal/auth/v1/signature/session)
 	CreateSignSession(ctx echo.Context) error
@@ -344,7 +1775,7 @@ type ServerInterface interface {
 	// Verify a signature in the form of a verifiable presentation
 	// (PUT /internal/auth/v1/signature/verify)
 	VerifySignature(ctx echo.Context) error
-	// Create an access token based on the OAuth JWT Bearer flow.
+	// Create an access token using a JWT as authorization grant
 	// (POST /n2n/auth/v1/accesstoken)
 	CreateAccessToken(ctx echo.Context) error
 	// Get a contract by type and version
@@ -397,21 +1828,30 @@ func (w *ServerInterfaceWrapper) VerifyAccessToken(ctx echo.Context) error {
 	return err
 }
 
-// CreateJwtBearerToken converts echo context to params.
-func (w *ServerInterfaceWrapper) CreateJwtBearerToken(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.CreateJwtBearerToken(ctx)
-	return err
-}
-
 // DrawUpContract converts echo context to params.
 func (w *ServerInterfaceWrapper) DrawUpContract(ctx echo.Context) error {
 	var err error
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.DrawUpContract(ctx)
+	return err
+}
+
+// CreateJwtGrant converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateJwtGrant(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.CreateJwtGrant(ctx)
+	return err
+}
+
+// RequestAccessToken converts echo context to params.
+func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.RequestAccessToken(ctx)
 	return err
 }
 
@@ -530,13 +1970,17 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		si.(Preprocessor).Preprocess("VerifyAccessToken", context)
 		return wrapper.VerifyAccessToken(context)
 	})
-	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/bearertoken", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("CreateJwtBearerToken", context)
-		return wrapper.CreateJwtBearerToken(context)
-	})
 	router.Add(http.MethodPut, baseURL+"/internal/auth/v1/contract/drawup", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("DrawUpContract", context)
 		return wrapper.DrawUpContract(context)
+	})
+	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/jwt-grant", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("CreateJwtGrant", context)
+		return wrapper.CreateJwtGrant(context)
+	})
+	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/request-access-token", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("RequestAccessToken", context)
+		return wrapper.RequestAccessToken(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/auth/v1/signature/session", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("CreateSignSession", context)

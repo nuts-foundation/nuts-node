@@ -191,6 +191,7 @@ func CreateSystem() *core.System {
 	system.RegisterEngine(credentialInstance)
 	system.RegisterEngine(authInstance)
 	system.RegisterEngine(didmanInstance)
+
 	return system
 }
 
