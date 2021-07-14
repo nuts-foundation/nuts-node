@@ -1,0 +1,52 @@
+---
+name: 'E2E tests'
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - master
+
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'pull_request' }}
+          tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ github.sha }}
+
+      - name: Run E2E tests
+        run: |
+          git clone https://github.com/nuts-foundation/nuts-go-e2e-test.git && \
+            cd nuts-go-e2e-test && \
+            find . -type f -name "docker-compose.yml" | xargs -I{} sed -i "s~nutsfoundation/nuts-node:master~ghcr.io/nuts-foundation/nuts-node-ci:${{ github.sha }}~g" {} && \
+            sed -i "s~WITH DOCKER~WITH DOCKER --pull ghcr.io/nuts-foundation/nuts-node-ci:${{ github.sha }}~g" Earthfile && \
+            curl -LO https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 && \
+            chmod +x earthly-linux-amd64 && \
+            ./earthly-linux-amd64 -P +all
