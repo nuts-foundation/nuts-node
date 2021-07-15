@@ -194,10 +194,6 @@ func (c *vcr) Name() string {
 	return moduleName
 }
 
-func (c *vcr) ConfigKey() string {
-	return configKey
-}
-
 func (c *vcr) Config() interface{} {
 	return &c.config
 }

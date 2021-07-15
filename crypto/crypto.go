@@ -35,12 +35,11 @@ import (
 const (
 	// ModuleName contains the name of this module
 	ModuleName = "Crypto"
-	configKey  = "crypto"
 )
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage string
+	Storage string `koanf:"crypto.storage"`
 }
 
 // DefaultCryptoConfig returns a Config with sane defaults
@@ -65,10 +64,6 @@ func NewCryptoInstance() *Crypto {
 
 func (client *Crypto) Name() string {
 	return ModuleName
-}
-
-func (client *Crypto) ConfigKey() string {
-	return configKey
 }
 
 func (client *Crypto) Config() interface{} {
@@ -124,7 +119,7 @@ func generateECKeyPair() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 }
 
-// PrivateKeyExists checks storage for an entry for the given legal entity and returns true if it exists
+// Exists checks storage for an entry for the given legal entity and returns true if it exists
 func (client *Crypto) Exists(kid string) bool {
 	return client.Storage.PrivateKeyExists(kid)
 }

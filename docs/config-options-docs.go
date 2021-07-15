@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -31,27 +33,49 @@ func generateServerOptions(system *core.System) {
 	globalFlags.AddFlagSet(serverCommand.PersistentFlags())
 	// Now index the flags by engine
 	flags[""] = globalFlags
+
 	system.VisitEngines(func(engine core.Engine) {
 		if m, ok := engine.(core.Injectable); ok {
-			flagsForEngine := extractFlagsForEngine(m.ConfigKey(), globalFlags)
+			flagsForEngine := extractFlagsForEngine(globalFlags, m.Config())
 			if flagsForEngine.HasAvailableFlags() {
 				flags[m.Name()] = flagsForEngine
 			}
 		}
 	})
+
 	generatePartitionedConfigOptionsDocs("docs/pages/configuration/server_options.rst", flags)
 }
 
-func extractFlagsForEngine(configKey string, flagSet *pflag.FlagSet) *pflag.FlagSet {
+func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}) *pflag.FlagSet {
 	result := pflag.FlagSet{}
+	flagNames := []string{}
+	structType := reflect.TypeOf(config).Elem()
+
+	for i := 0; i < structType.NumField(); i++ {
+		fieldType := structType.Field(i)
+
+		tag, ok := fieldType.Tag.Lookup("koanf")
+		if !ok {
+			continue
+		}
+
+		flagNames = append(flagNames, tag)
+	}
+
 	flagSet.VisitAll(func(current *pflag.Flag) {
-		if strings.HasPrefix(current.Name, configKey+".") {
-			// This flag belongs to this engine, so copy it and hide it in the input flag set
-			flagCopy := *current
-			current.Hidden = true
-			result.AddFlag(&flagCopy)
+		for _, flagName := range flagNames {
+			if current.Name == flagName ||
+				strings.HasPrefix(current.Name, fmt.Sprintf("%s.", flagName)) {
+				// This flag belongs to this engine, so copy it and hide it in the input flag set
+				flagCopy := *current
+				current.Hidden = true
+				result.AddFlag(&flagCopy)
+
+				return
+			}
 		}
 	})
+
 	return &result
 }
 

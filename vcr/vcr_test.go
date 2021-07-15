@@ -298,10 +298,6 @@ func TestVcr_Instance(t *testing.T) {
 		assert.Equal(t, moduleName, instance.Name())
 	})
 
-	t.Run("ok - configKey", func(t *testing.T) {
-		assert.Equal(t, configKey, instance.ConfigKey())
-	})
-
 	t.Run("ok - config defaults", func(t *testing.T) {
 		cfg := instance.Config().(*Config)
 

@@ -156,6 +156,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Bool(strictModeFlag, defaultStrictMode, "When set, insecure settings are forbidden.")
 	flagSet.String(datadirFlag, defaultDatadir, "Directory where the node stores its files.")
 	flagSet.StringSlice(httpCORSOriginFlag, nil, "When set, enables CORS from the specified origins for the on default HTTP interface.")
+
 	return flagSet
 }
 
@@ -166,5 +167,7 @@ func (ngc *ServerConfig) PrintConfig() string {
 
 // InjectIntoEngine takes the loaded config and sets the engine's config struct
 func (ngc *ServerConfig) InjectIntoEngine(e Injectable) error {
-	return ngc.configMap.Unmarshal(e.ConfigKey(), e.Config())
+	return ngc.configMap.UnmarshalWithConf("", e.Config(), koanf.UnmarshalConf{
+		FlatPaths: true,
+	})
 }

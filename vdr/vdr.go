@@ -77,10 +77,6 @@ func (r *VDR) Name() string {
 	return moduleName
 }
 
-func (r *VDR) ConfigKey() string {
-	return configKey
-}
-
 func (r *VDR) Config() interface{} {
 	return &r.config
 }

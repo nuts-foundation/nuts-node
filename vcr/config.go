@@ -19,10 +19,7 @@
 
 package vcr
 
-const (
-	moduleName = "Verifiable Credential Store"
-	configKey  = "vcs"
-)
+const moduleName = "Verifiable Credential Store"
 
 // Config holds the config for the vcr engine
 type Config struct{}
