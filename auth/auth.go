@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/x509"
 	"errors"
 	"path"
 	"time"
@@ -30,6 +31,7 @@ type Auth struct {
 	keyStore       crypto.KeyStore
 	registry       types.Store
 	vcr            vcr.VCR
+	trustStore     *x509.CertPool
 }
 
 // Name returns the name of the module.
@@ -45,6 +47,11 @@ func (auth *Auth) Config() interface{} {
 // HTTPTimeout returns the HTTP timeout to use for the Auth API HTTP client
 func (auth *Auth) HTTPTimeout() time.Duration {
 	return time.Duration(auth.config.HTTPTimeout) * time.Second
+}
+
+// TrustStore contains an x509 certificate pool (only when TLS is enabled)
+func (auth *Auth) TrustStore() *x509.CertPool {
+	return auth.trustStore
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.
@@ -96,14 +103,28 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		AutoUpdateIrmaSchemas: auth.config.IrmaAutoUpdateSchemas,
 		ContractValidators:    auth.config.ContractValidators,
 	}
+
 	nameResolver := auth.vcr
 	keyResolver := doc.KeyResolver{Store: auth.registry}
+
 	auth.contractClient = validator.NewContractInstance(cfg, keyResolver, auth.vcr, auth.keyStore)
 	auth.contractNotary = contract.NewContractNotary(nameResolver, keyResolver, auth.keyStore, contractValidity)
+
+	if auth.config.EnableTLS {
+		trustStore, err := core.LoadTrustStore(auth.config.TrustStoreFile)
+		if err != nil {
+			return err
+		}
+
+		auth.trustStore = trustStore
+	}
+
 	if err := auth.contractClient.Configure(); err != nil {
 		return err
 	}
+
 	auth.oauthClient = oauth.NewOAuthService(auth.registry, nameResolver, auth.keyStore, auth.contractClient)
+
 	if err := auth.oauthClient.Configure(); err != nil {
 		return err
 	}

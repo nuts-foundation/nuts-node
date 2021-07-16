@@ -1,16 +1,32 @@
 package cmd
 
 import (
+	"sort"
+	"testing"
+
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
-	"strings"
-	"testing"
 )
 
 func TestFlagSet(t *testing.T) {
 	flags := FlagSet()
+
+	var keys []string
+
 	// Assert all start with module config key
 	flags.VisitAll(func(flag *pflag.Flag) {
-		assert.True(t, strings.HasPrefix(flag.Name, "auth."))
+		keys = append(keys, flag.Name)
+	})
+
+	sort.Strings(keys)
+
+	assert.Equal(t, keys, []string{
+		ConfContractValidators,
+		ConfHTTPTimeout,
+		ConfAutoUpdateIrmaSchemas,
+		ConfIrmaSchemeManager,
+		ConfPublicURL,
+		ConfNetworkEnableTLS,
+		ConfNetworkTrustStoreFile,
 	})
 }

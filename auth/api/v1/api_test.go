@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -63,6 +64,10 @@ type mockAuthClient struct {
 
 func (m *mockAuthClient) HTTPTimeout() time.Duration {
 	return 10 * time.Second
+}
+
+func (m *mockAuthClient) TrustStore() *x509.CertPool {
+	return nil
 }
 
 func (m *mockAuthClient) OAuthClient() services.OAuthClient {
