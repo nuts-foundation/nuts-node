@@ -198,7 +198,7 @@ func TestResolver_Resolve(t *testing.T) {
 		doc, _, err := resolver.Resolve(*id456, resolveMD)
 
 		assert.Error(t, err)
-		assert.Equal(t, types.ErrDeactivated, err)
+		assert.Equal(t, types.ErrNoActiveController, err)
 		assert.Nil(t, doc)
 	})
 

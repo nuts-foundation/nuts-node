@@ -17,9 +17,10 @@ package v1
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
@@ -164,7 +165,7 @@ func TestWrapper_GetDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
+		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(didDoc, meta, nil)
 		err := ctx.client.GetDID(ctx.echo, id.String())
 
 		if !assert.NoError(t, err) {
@@ -185,7 +186,7 @@ func TestWrapper_GetDID(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
+		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, types.ErrNotFound)
 		err := ctx.client.GetDID(ctx.echo, id.String())
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
@@ -195,7 +196,7 @@ func TestWrapper_GetDID(t *testing.T) {
 	t.Run("error - other", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, errors.New("b00m!"))
+		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, errors.New("b00m!"))
 		err := ctx.client.GetDID(ctx.echo, id.String())
 
 		assert.Error(t, err)

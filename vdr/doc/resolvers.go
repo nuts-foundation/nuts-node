@@ -65,7 +65,7 @@ func (d Resolver) resolve(id did.DID, metadata *types.ResolveMetadata, depth int
 			return nil, nil, err
 		}
 		if len(controllers) == 0 {
-			return nil, nil, types.ErrDeactivated
+			return nil, nil, types.ErrNoActiveController
 		}
 	}
 
@@ -102,7 +102,7 @@ func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMe
 	// resolve all unresolved docs
 	for _, ref := range refsToResolve {
 		node, _, err := d.resolve(ref, metadata, depth)
-		if errors.Is(err, types.ErrDeactivated) {
+		if errors.Is(err, types.ErrDeactivated) || errors.Is(err, types.ErrNoActiveController) {
 			continue
 		}
 		if errors.Is(err, ErrNestedDocumentsTooDeep) {
