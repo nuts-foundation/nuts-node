@@ -26,6 +26,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"net/url"
@@ -85,6 +86,7 @@ func getCustodianDIDDocument() *did.Document {
 		panic(err)
 	}
 	doc.AddAssertionMethod(key)
+	doc.AddCapabilityInvocation(key)
 	doc.Service = append(doc.Service, did.Service{
 		ID:   *serviceID,
 		Type: "oauth",
@@ -464,7 +466,6 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 
 	t.Run("create a JwtBearerToken", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(custodianDIDDocument, nil, nil).AnyTimes()
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(actorDID, gomock.Any()).MinTimes(1).Return(actorSigningKeyID.String(), nil)
@@ -480,9 +481,10 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 
 	t.Run("custodian without endpoint", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
+		doc := getCustodianDIDDocument()
+		doc.Service = []did.Service{}
 
-		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(&did.Document{}, nil, nil)
+		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(doc, nil, nil)
 
 		token, err := ctx.oauthService.CreateJwtGrant(request)
 
@@ -492,7 +494,6 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 
 	t.Run("request without custodian", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		request := services.CreateJwtGrantRequest{
 			Actor:         actorDID.String(),

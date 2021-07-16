@@ -48,6 +48,7 @@ func (a *Wrapper) ResolveStatusCode(err error) int {
 		types.ErrNotFound:                http.StatusNotFound,
 		types.ErrDIDNotManagedByThisNode: http.StatusForbidden,
 		types.ErrDeactivated:             http.StatusConflict,
+		types.ErrNoActiveController:      http.StatusConflict,
 		types.ErrDuplicateService:        http.StatusBadRequest,
 		vdrDoc.ErrInvalidOptions:         http.StatusBadRequest,
 		did.ErrInvalidDID:                http.StatusBadRequest,
@@ -154,7 +155,7 @@ func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
 	}
 
 	// no params in the API for now
-	doc, meta, err := a.DocResolver.Resolve(*d, nil)
+	doc, meta, err := a.DocResolver.Resolve(*d, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return err
 	}
