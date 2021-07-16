@@ -318,20 +318,6 @@ func (mr *MockInjectableMockRecorder) Config() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Config", reflect.TypeOf((*MockInjectable)(nil).Config))
 }
 
-// ConfigKey mocks base method.
-func (m *MockInjectable) ConfigKey() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ConfigKey")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// ConfigKey indicates an expected call of ConfigKey.
-func (mr *MockInjectableMockRecorder) ConfigKey() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfigKey", reflect.TypeOf((*MockInjectable)(nil).ConfigKey))
-}
-
 // Name mocks base method.
 func (m *MockInjectable) Name() string {
 	m.ctrl.T.Helper()

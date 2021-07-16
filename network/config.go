@@ -1,11 +1,5 @@
 package network
 
-import (
-	"crypto/x509"
-	"fmt"
-	"os"
-)
-
 // Config holds the config for Transactions
 type Config struct {
 	// Socket address for gRPC to listen on
@@ -33,16 +27,4 @@ func DefaultConfig() Config {
 		AdvertHashesInterval:      2000,
 		AdvertDiagnosticsInterval: 5000,
 	}
-}
-
-func (c Config) loadTrustStore() (*x509.CertPool, error) {
-	trustStore := x509.NewCertPool()
-	data, err := os.ReadFile(c.TrustStoreFile)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read trust store (file=%s): %w", c.TrustStoreFile, err)
-	}
-	if ok := trustStore.AppendCertsFromPEM(data); !ok {
-		return nil, fmt.Errorf("unable to load one or more certificates from trust store (file=%s)", c.TrustStoreFile)
-	}
-	return trustStore, nil
 }

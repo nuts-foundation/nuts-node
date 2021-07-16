@@ -5,6 +5,7 @@
 package auth
 
 import (
+	x509 "crypto/x509"
 	reflect "reflect"
 	time "time"
 
@@ -89,4 +90,18 @@ func (m *MockAuthenticationServices) OAuthClient() services.OAuthClient {
 func (mr *MockAuthenticationServicesMockRecorder) OAuthClient() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OAuthClient", reflect.TypeOf((*MockAuthenticationServices)(nil).OAuthClient))
+}
+
+// TrustStore mocks base method.
+func (m *MockAuthenticationServices) TrustStore() *x509.CertPool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TrustStore")
+	ret0, _ := ret[0].(*x509.CertPool)
+	return ret0
+}
+
+// TrustStore indicates an expected call of TrustStore.
+func (mr *MockAuthenticationServicesMockRecorder) TrustStore() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TrustStore", reflect.TypeOf((*MockAuthenticationServices)(nil).TrustStore))
 }
