@@ -646,6 +646,11 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 			EXPECT().
 			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
 			Return(&did.Document{
+				CapabilityInvocation: did.VerificationRelationships{
+					{
+						VerificationMethod: &did.VerificationMethod{},
+					},
+				},
 				Service: []did.Service{
 					{
 						Type: "test-service",
@@ -660,6 +665,11 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 			EXPECT().
 			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
 			Return(&did.Document{
+				CapabilityInvocation: did.VerificationRelationships{
+					{
+						VerificationMethod: &did.VerificationMethod{},
+					},
+				},
 				Service: []did.Service{
 					{
 						Type:            "oauth",

@@ -26,17 +26,17 @@ func (err *oauthAPIError) Error() string {
 
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
-	ServerAddress string
-	Timeout       time.Duration
+	Timeout time.Duration
+	client  ClientInterface
 }
 
-func (h HTTPClient) client() ClientInterface {
-	response, err := NewClientWithResponses(h.ServerAddress)
+func NewHTTPClient(serverAddress string, timeout time.Duration, opts ...ClientOption) (*HTTPClient, error) {
+	client, err := NewClientWithResponses(serverAddress, opts...)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return response
+	return &HTTPClient{Timeout: timeout, client: client}, nil
 }
 
 // CreateAccessToken creates an access token and overrides the url by the 'endpointURL' input argument
@@ -48,7 +48,7 @@ func (h HTTPClient) CreateAccessToken(endpointURL url.URL, bearerToken string) (
 	values.Set("assertion", bearerToken)
 	values.Set("grant_type", auth.JwtBearerGrantType)
 
-	response, err := h.client().CreateAccessTokenWithBody(
+	response, err := h.client.CreateAccessTokenWithBody(
 		ctx,
 		"application/x-www-form-urlencoded",
 		strings.NewReader(values.Encode()),

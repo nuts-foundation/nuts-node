@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/x509"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
@@ -16,4 +17,6 @@ type AuthenticationServices interface {
 	ContractNotary() services.ContractNotary
 	// HTTPTimeout returns the HTTP timeout to use for the Auth API HTTP client
 	HTTPTimeout() time.Duration
+	// TrustStore contains an certificate pool (only when TLS is enabled)
+	TrustStore() *x509.CertPool
 }

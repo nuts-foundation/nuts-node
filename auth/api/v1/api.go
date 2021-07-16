@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -309,11 +310,23 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		return core.PreconditionFailedError("unable to find the oauth2 service endpoint of the custodian: %w", err)
 	}
 
-	httpClient := HTTPClient{
-		Timeout: w.Auth.HTTPTimeout(),
+	httpClient := &http.Client{}
+	trustStore := w.Auth.TrustStore()
+
+	if trustStore != nil {
+		httpClient.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: trustStore,
+			},
+		}
 	}
 
-	accessTokenResponse, err := httpClient.CreateAccessToken(endpointURL, jwtGrantResponse.BearerToken)
+	authClient, err := NewHTTPClient("", w.Auth.HTTPTimeout(), WithHTTPClient(httpClient))
+	if err != nil {
+		return fmt.Errorf("unable to create HTTP client: %w", err)
+	}
+
+	accessTokenResponse, err := authClient.CreateAccessToken(endpointURL, jwtGrantResponse.BearerToken)
 	if err != nil {
 		if statusCodeErr, ok := err.(core.HTTPStatusCodeError); ok {
 			return core.Error(statusCodeErr.StatusCode(), "unable to create access token: %w", err)
