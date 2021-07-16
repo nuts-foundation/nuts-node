@@ -65,16 +65,12 @@ func (system *System) Load(cmd *cobra.Command) error {
 		return err
 	}
 
-	return system.injectConfig()
-}
-
-func (system *System) injectConfig() error {
-	var err error
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Injectable); ok {
-			err = system.Config.InjectIntoEngine(m)
+			return system.Config.InjectIntoEngine(m)
 		}
-		return err
+
+		return nil
 	})
 }
 
@@ -142,6 +138,7 @@ func (system *System) VisitEnginesE(visitor func(engine Engine) error) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -193,8 +190,6 @@ type Named interface {
 // Injectable marks a engine capable of Config injection
 type Injectable interface {
 	Named
-	// ConfigKey returns the logical Config key used in the Config file for this engine.
-	ConfigKey() string
 	// Config returns a pointer to the struct that holds the Config.
 	Config() interface{}
 }

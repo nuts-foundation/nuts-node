@@ -1,9 +1,6 @@
 package vdr
 
-const (
-	moduleName = "Verifiable Data Registry"
-	configKey  = "vdr"
-)
+const moduleName = "Verifiable Data Registry"
 
 // Config holds the config for the VDR engine
 type Config struct{}

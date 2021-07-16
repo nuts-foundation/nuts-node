@@ -3,7 +3,7 @@ module github.com/nuts-foundation/nuts-node
 go 1.16
 
 require (
-	github.com/Regis24GmbH/go-phonetics v1.0.0 // indirect
+	github.com/Regis24GmbH/go-phonetics v1.0.0
 	github.com/cbroglie/mustache v1.2.0
 	github.com/deepmap/oapi-codegen v1.7.1
 	github.com/dgrijalva/jwt-go v3.2.1-0.20200107013213-dc14462fd587+incompatible // indirect

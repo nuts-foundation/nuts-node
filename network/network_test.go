@@ -62,10 +62,6 @@ func TestNetwork_Name(t *testing.T) {
 	assert.Equal(t, "Network", (&Network{}).Name())
 }
 
-func TestNetwork_ConfigKey(t *testing.T) {
-	assert.Equal(t, "network", (&Network{}).ConfigKey())
-}
-
 func TestNetwork_Config(t *testing.T) {
 	n := &Network{}
 	assert.Same(t, &n.config, n.Config())

@@ -50,7 +50,6 @@ const softwareID = "https://github.com/nuts-foundation/nuts-node"
 const (
 	// ModuleName specifies the name of this module.
 	ModuleName = "Network"
-	configKey  = "network"
 )
 
 // Network implements Transactions interface and Engine functions.
@@ -115,11 +114,6 @@ func (n *Network) Configure(config core.ServerConfig) error {
 // Name returns the module name.
 func (n *Network) Name() string {
 	return ModuleName
-}
-
-// ConfigKey returns the config key for the module.
-func (n *Network) ConfigKey() string {
-	return configKey
 }
 
 // Config returns a pointer to the actual config of the module.

@@ -37,11 +37,6 @@ func (auth *Auth) Name() string {
 	return ModuleName
 }
 
-// ConfigKey returns the config key of the module.
-func (auth *Auth) ConfigKey() string {
-	return configKey
-}
-
 // Config returns the actual config of the module.
 func (auth *Auth) Config() interface{} {
 	return &auth.config
@@ -49,7 +44,7 @@ func (auth *Auth) Config() interface{} {
 
 // HTTPTimeout returns the HTTP timeout to use for the Auth API HTTP client
 func (auth *Auth) HTTPTimeout() time.Duration {
-	return time.Duration(auth.config.HTTP.Timeout) * time.Second
+	return time.Duration(auth.config.HTTPTimeout) * time.Second
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.
@@ -79,10 +74,10 @@ func (auth *Auth) ContractClient() services.ContractClient {
 
 // Configure the Auth struct by creating a validator and create an Irma server
 func (auth *Auth) Configure(config core.ServerConfig) error {
-	if auth.config.Irma.SchemeManager == "" {
+	if auth.config.IrmaSchemeManager == "" {
 		return errors.New("IRMA SchemeManager must be set")
 	}
-	if config.Strictmode && auth.config.Irma.SchemeManager != "pbdf" {
+	if config.Strictmode && auth.config.IrmaSchemeManager != "pbdf" {
 		return errors.New("in strictmode the only valid irma-scheme-manager is 'pbdf'")
 	}
 
@@ -97,8 +92,8 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	cfg := validator.Config{
 		PublicURL:             auth.config.PublicURL,
 		IrmaConfigPath:        path.Join(config.Datadir, "irma"),
-		IrmaSchemeManager:     auth.config.Irma.SchemeManager,
-		AutoUpdateIrmaSchemas: auth.config.Irma.AutoUpdateSchemas,
+		IrmaSchemeManager:     auth.config.IrmaSchemeManager,
+		AutoUpdateIrmaSchemas: auth.config.IrmaAutoUpdateSchemas,
 		ContractValidators:    auth.config.ContractValidators,
 	}
 	nameResolver := auth.vcr

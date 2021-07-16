@@ -44,5 +44,7 @@ func loadConfigIntoStruct(flags *pflag.FlagSet, target interface{}, configMap *k
 	_ = configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
 
 	// load into struct
-	return configMap.Unmarshal("", target)
+	return configMap.UnmarshalWithConf("", target, koanf.UnmarshalConf{
+		FlatPaths: false,
+	})
 }
