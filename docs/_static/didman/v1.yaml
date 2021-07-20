@@ -213,6 +213,37 @@ paths:
           description: The service has been removed
         default:
           $ref: '../common/error_response.yaml'
+  /internal/didman/v1/search/organizations:
+    parameters:
+      - name: query
+        in: query
+        description: Query used for searching the organization by name.
+        required: true
+        example:
+          - "Zorgcentrum de Roodvink"
+        schema:
+          type: string
+      - name: didServiceType
+        in: query
+        description: Filters organizations by service of the given type in the organizations' DID document (optional).
+        required: false
+        example:
+          - "eOverdracht-receiver"
+        schema:
+          type: string
+    get:
+      operationId: searchOrganizations
+      responses:
+        "200":
+          description: Organizations resulting from the search.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SearchResult'
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     Endpoint:
@@ -302,3 +333,13 @@ components:
         website:
           type: string
           description: URL of the public website of this Service Provider. Can point to a Nuts specific page with more information about the node and how to contact.
+    SearchResult:
+      type: object
+      description: An entry resulting from the search.
+      properties:
+        entity:
+          type: object
+          description: An object describing the found entity, modelled as a concept as specified by VCR's OpenAPI specification.
+        didDocument:
+          type: object
+          description: The latest version of the DID document of the found entity, as specified by VDR's OpenAPI specification.
