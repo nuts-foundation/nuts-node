@@ -196,7 +196,9 @@ func (c *vcr) Config() interface{} {
 	return &c.config
 }
 
-func (c *vcr) Search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
+// search for matching credentials based upon a query. It returns an empty list if no matches have been found.
+// The optional resolveTime will search for credentials at that point in time.
+func (c *vcr) search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	//transform query to leia query, for each template a query is returned
 	queries := c.convert(query)
 
@@ -578,7 +580,7 @@ func (c *vcr) Get(conceptName string, subject string) (concept.Concept, error) {
 	q.AddClause(concept.Eq(concept.SubjectField, subject))
 
 	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
-	vcs, err := c.Search(q, nil)
+	vcs, err := c.search(q, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -589,6 +591,32 @@ func (c *vcr) Get(conceptName string, subject string) (concept.Concept, error) {
 
 	// multiple valids, use first one
 	return c.Registry().Transform(conceptName, vcs[0])
+}
+
+func (c *vcr) Search(conceptName string, queryParams map[string]string) ([]concept.Concept, error) {
+	query, err := c.registry.QueryFor(conceptName)
+	if err != nil {
+		return nil, err
+	}
+
+	for key, value := range queryParams {
+		query.AddClause(concept.Prefix(key, value))
+	}
+
+	results, err := c.search(query, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var transformedResults = make([]concept.Concept, len(results))
+	for i, result := range results {
+		transformedResult, err := c.registry.Transform(conceptName, result)
+		if err != nil {
+			return nil, err
+		}
+		transformedResults[i] = transformedResult
+	}
+	return transformedResults, nil
 }
 
 func (c *vcr) verifyRevocation(r credential.Revocation) error {

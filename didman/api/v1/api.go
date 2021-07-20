@@ -250,3 +250,11 @@ func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
 
 	return ctx.JSON(http.StatusOK, contactInfo)
 }
+
+func (w *Wrapper) SearchOrganizations(ctx echo.Context, params SearchOrganizationsParams) error {
+	results, err := w.Didman.SearchOrganizations(params.Query, params.DidServiceType)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, results)
+}

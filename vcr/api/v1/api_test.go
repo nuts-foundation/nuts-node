@@ -251,7 +251,7 @@ func TestWrapper_Search(t *testing.T) {
 			*sr = searchRequest
 			return nil
 		})
-		ctx.vcr.EXPECT().Search(gomock.Any(), nil).Return([]vc.VerifiableCredential{concept.TestVC()}, nil)
+		ctx.vcr.EXPECT().Search(gomock.Any(), gomock.Any()).Return([]concept.Concept{map[string]interface{}{}}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			capturedConcept = f2.([]concept.Concept)
 			return nil
@@ -264,8 +264,6 @@ func TestWrapper_Search(t *testing.T) {
 		}
 
 		assert.Len(t, capturedConcept, 1)
-		assert.Equal(t, "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123", capturedConcept[0]["id"])
-		assert.Equal(t, "HumanCredential", capturedConcept[0]["type"])
 	})
 
 	t.Run("error - unknown template", func(t *testing.T) {
@@ -274,6 +272,7 @@ func TestWrapper_Search(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any())
+		ctx.vcr.EXPECT().Search("unknown", gomock.Any()).Return(nil, concept.ErrUnknownConcept)
 
 		err := ctx.client.Search(ctx.echo, "unknown")
 
@@ -298,7 +297,7 @@ func TestWrapper_Search(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any())
-		ctx.vcr.EXPECT().Search(gomock.Any(), nil).Return(nil, errors.New("b00m!"))
+		ctx.vcr.EXPECT().Search(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.Search(ctx.echo, "human")
 

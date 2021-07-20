@@ -69,6 +69,16 @@ type UpdateContactInformationJSONBody ContactInformation
 // AddEndpointJSONBody defines parameters for AddEndpoint.
 type AddEndpointJSONBody EndpointProperties
 
+// SearchOrganizationsParams defines parameters for SearchOrganizations.
+type SearchOrganizationsParams struct {
+
+	// Query used for searching the organization by name.
+	Query string `json:"query"`
+
+	// Filters organizations by service of the given type in the organizations' DID document (optional).
+	DidServiceType *string `json:"didServiceType,omitempty"`
+}
+
 // AddCompoundServiceJSONRequestBody defines body for AddCompoundService for application/json ContentType.
 type AddCompoundServiceJSONRequestBody AddCompoundServiceJSONBody
 
@@ -175,6 +185,9 @@ type ClientInterface interface {
 	// DeleteEndpointsByType request
 	DeleteEndpointsByType(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SearchOrganizations request
+	SearchOrganizations(ctx context.Context, params *SearchOrganizationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteService request
 	DeleteService(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
@@ -277,6 +290,18 @@ func (c *Client) AddEndpoint(ctx context.Context, did string, body AddEndpointJS
 
 func (c *Client) DeleteEndpointsByType(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteEndpointsByTypeRequest(c.Server, did, pType)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SearchOrganizations(ctx context.Context, params *SearchOrganizationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchOrganizationsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -549,6 +574,65 @@ func NewDeleteEndpointsByTypeRequest(server string, did string, pType string) (*
 	return req, nil
 }
 
+// NewSearchOrganizationsRequest generates requests for SearchOrganizations
+func NewSearchOrganizationsRequest(server string, params *SearchOrganizationsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/didman/v1/search/organizations")
+	if operationPath[0] == '/' {
+		operationPath = operationPath[1:]
+	}
+	operationURL := url.URL{
+		Path: operationPath,
+	}
+
+	queryURL := serverURL.ResolveReference(&operationURL)
+
+	queryValues := queryURL.Query()
+
+	if queryFrag, err := runtime.StyleParamWithLocation("form", true, "query", runtime.ParamLocationQuery, params.Query); err != nil {
+		return nil, err
+	} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+		return nil, err
+	} else {
+		for k, v := range parsed {
+			for _, v2 := range v {
+				queryValues.Add(k, v2)
+			}
+		}
+	}
+
+	if params.DidServiceType != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "didServiceType", runtime.ParamLocationQuery, *params.DidServiceType); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDeleteServiceRequest generates requests for DeleteService
 func NewDeleteServiceRequest(server string, id string) (*http.Request, error) {
 	var err error
@@ -649,6 +733,9 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteEndpointsByType request
 	DeleteEndpointsByTypeWithResponse(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*DeleteEndpointsByTypeResponse, error)
+
+	// SearchOrganizations request
+	SearchOrganizationsWithResponse(ctx context.Context, params *SearchOrganizationsParams, reqEditors ...RequestEditorFn) (*SearchOrganizationsResponse, error)
 
 	// DeleteService request
 	DeleteServiceWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error)
@@ -785,6 +872,28 @@ func (r DeleteEndpointsByTypeResponse) StatusCode() int {
 	return 0
 }
 
+type SearchOrganizationsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]OrganizationSearchResult
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchOrganizationsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchOrganizationsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type DeleteServiceResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -882,6 +991,15 @@ func (c *ClientWithResponses) DeleteEndpointsByTypeWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseDeleteEndpointsByTypeResponse(rsp)
+}
+
+// SearchOrganizationsWithResponse request returning *SearchOrganizationsResponse
+func (c *ClientWithResponses) SearchOrganizationsWithResponse(ctx context.Context, params *SearchOrganizationsParams, reqEditors ...RequestEditorFn) (*SearchOrganizationsResponse, error) {
+	rsp, err := c.SearchOrganizations(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchOrganizationsResponse(rsp)
 }
 
 // DeleteServiceWithResponse request returning *DeleteServiceResponse
@@ -1042,6 +1160,32 @@ func ParseDeleteEndpointsByTypeResponse(rsp *http.Response) (*DeleteEndpointsByT
 	return response, nil
 }
 
+// ParseSearchOrganizationsResponse parses an HTTP response from a SearchOrganizationsWithResponse call
+func ParseSearchOrganizationsResponse(rsp *http.Response) (*SearchOrganizationsResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchOrganizationsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []OrganizationSearchResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDeleteServiceResponse parses an HTTP response from a DeleteServiceWithResponse call
 func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
@@ -1085,6 +1229,9 @@ type ServerInterface interface {
 
 	// (DELETE /internal/didman/v1/did/{did}/endpoint/{type})
 	DeleteEndpointsByType(ctx echo.Context, did string, pType string) error
+
+	// (GET /internal/didman/v1/search/organizations)
+	SearchOrganizations(ctx echo.Context, params SearchOrganizationsParams) error
 	// Remove a service from a DID Document.
 	// (DELETE /internal/didman/v1/service/{id})
 	DeleteService(ctx echo.Context, id string) error
@@ -1199,6 +1346,31 @@ func (w *ServerInterfaceWrapper) DeleteEndpointsByType(ctx echo.Context) error {
 	return err
 }
 
+// SearchOrganizations converts echo context to params.
+func (w *ServerInterfaceWrapper) SearchOrganizations(ctx echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchOrganizationsParams
+	// ------------- Required query parameter "query" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "query", ctx.QueryParams(), &params.Query)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter query: %s", err))
+	}
+
+	// ------------- Optional query parameter "didServiceType" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "didServiceType", ctx.QueryParams(), &params.DidServiceType)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter didServiceType: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.SearchOrganizations(ctx, params)
+	return err
+}
+
 // DeleteService converts echo context to params.
 func (w *ServerInterfaceWrapper) DeleteService(ctx echo.Context) error {
 	var err error
@@ -1270,6 +1442,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/did/:did/endpoint/:type", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("DeleteEndpointsByType", context)
 		return wrapper.DeleteEndpointsByType(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/didman/v1/search/organizations", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("SearchOrganizations", context)
+		return wrapper.SearchOrganizations(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/didman/v1/service/:id", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("DeleteService", context)

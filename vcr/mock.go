@@ -53,6 +53,21 @@ func (mr *MockConceptFinderMockRecorder) Get(conceptName, subject interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockConceptFinder)(nil).Get), conceptName, subject)
 }
 
+// Search mocks base method.
+func (m *MockConceptFinder) Search(conceptName string, query map[string]string) ([]concept.Concept, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Search", conceptName, query)
+	ret0, _ := ret[0].([]concept.Concept)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Search indicates an expected call of Search.
+func (mr *MockConceptFinderMockRecorder) Search(conceptName, query interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockConceptFinder)(nil).Search), conceptName, query)
+}
+
 // MockWriter is a mock of Writer interface.
 type MockWriter struct {
 	ctrl     *gomock.Controller
@@ -237,21 +252,6 @@ func (mr *MockResolverMockRecorder) Resolve(ID, resolveTime interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockResolver)(nil).Resolve), ID, resolveTime)
 }
 
-// Search mocks base method.
-func (m *MockResolver) Search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", query, resolveTime)
-	ret0, _ := ret[0].([]vc.VerifiableCredential)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Search indicates an expected call of Search.
-func (mr *MockResolverMockRecorder) Search(query, resolveTime interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockResolver)(nil).Search), query, resolveTime)
-}
-
 // MockVCR is a mock of VCR interface.
 type MockVCR struct {
 	ctrl     *gomock.Controller
@@ -350,18 +350,18 @@ func (mr *MockVCRMockRecorder) Revoke(ID interface{}) *gomock.Call {
 }
 
 // Search mocks base method.
-func (m *MockVCR) Search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
+func (m *MockVCR) Search(conceptName string, query map[string]string) ([]concept.Concept, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", query, resolveTime)
-	ret0, _ := ret[0].([]vc.VerifiableCredential)
+	ret := m.ctrl.Call(m, "Search", conceptName, query)
+	ret0, _ := ret[0].([]concept.Concept)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Search indicates an expected call of Search.
-func (mr *MockVCRMockRecorder) Search(query, resolveTime interface{}) *gomock.Call {
+func (mr *MockVCRMockRecorder) Search(conceptName, query interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), query, resolveTime)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), conceptName, query)
 }
 
 // StoreCredential mocks base method.

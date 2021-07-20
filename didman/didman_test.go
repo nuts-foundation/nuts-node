@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/url"
 	"strings"
 	"testing"
@@ -39,14 +40,14 @@ import (
 )
 
 func TestDidman_Name(t *testing.T) {
-	instance := NewDidmanInstance(nil, nil, nil).(core.Named)
+	instance := NewDidmanInstance(nil, nil, nil, nil).(core.Named)
 
 	assert.Equal(t, ModuleName, instance.Name())
 }
 
 func TestNewDidmanInstance(t *testing.T) {
 	ctx := newMockContext(t)
-	instance := NewDidmanInstance(ctx.docResolver, ctx.store, ctx.vdr).(*didman)
+	instance := NewDidmanInstance(ctx.docResolver, ctx.store, ctx.vdr, ctx.vcr).(*didman)
 
 	assert.NotNil(t, instance)
 	assert.Equal(t, ctx.docResolver, instance.docResolver)
@@ -533,6 +534,48 @@ func TestDidman_GetCompoundServices(t *testing.T) {
 	})
 }
 
+func TestDidman_SearchOrganizations(t *testing.T) {
+	//id, _ := did.ParseDID("did:nuts:123")
+	//expected := []did.Service{{
+	//	Type:            "eOverdracht",
+	//	ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
+	//}}
+
+	//vcID, _ := ssi.ParseURI("abc")
+	//credential := vc.VerifiableCredential{ID: vcID}
+	//
+	//t.Run("ok - no results", func(t *testing.T) {
+	//	ctx := newMockContext(t)
+	//	didDoc := &did.Document{Service: expected}
+	//	ctx.vcr.EXPECT().Search(gomock.Any(),nil).Return(, nil)
+	//
+	//	actual, err := ctx.instance.SearchOrganizations("query", nil)
+	//
+	//	assert.NoError(t, err)
+	//	assert.NotNil(t, actual)
+	//	assert.Empty(t, actual)
+	//})
+	//t.Run("ok - no DID service type", func(t *testing.T) {
+	//	ctx := newMockContext(t)
+	//	didDoc := &did.Document{Service: expected}
+	//	ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+	//	actual, err := ctx.instance.GetCompoundServices(*id)
+	//	assert.NoError(t, err)
+	//	assert.Equal(t, expected, actual)
+	//})
+	//t.Run("ok - with DID service type", func(t *testing.T) {
+	//	ctx := newMockContext(t)
+	//	didDoc := &did.Document{Service: append(expected, did.Service{Type: ContactInformationServiceType, ServiceEndpoint: map[string]interface{}{}})}
+	//	ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+	//	actual, err := ctx.instance.GetCompoundServices(*id)
+	//	assert.NoError(t, err)
+	//	assert.Equal(t, expected, actual)
+	//})
+	//t.Run("ok - DID document not found (logs, omits result)", func(t *testing.T) {
+	//
+	//})
+}
+
 func TestGenerateIDForService(t *testing.T) {
 	u, _ := url.Parse("https://api.example.com/v1")
 	expectedID, _ := ssi.ParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
@@ -569,6 +612,7 @@ type mockContext struct {
 	docResolver *types.MockDocResolver
 	store       *types.MockStore
 	vdr         *types.MockVDR
+	vcr         *vcr.MockVCR
 	instance    Didman
 }
 
@@ -579,14 +623,16 @@ func newMockContext(t *testing.T) mockContext {
 	})
 	docResolver := types.NewMockDocResolver(ctrl)
 	store := types.NewMockStore(ctrl)
-	vdr := types.NewMockVDR(ctrl)
-	instance := NewDidmanInstance(docResolver, store, vdr)
+	mockVDR := types.NewMockVDR(ctrl)
+	mockVCR := vcr.NewMockVCR(ctrl)
+	instance := NewDidmanInstance(docResolver, store, mockVDR, mockVCR)
 
 	return mockContext{
 		ctrl:        ctrl,
 		docResolver: docResolver,
 		store:       store,
-		vdr:         vdr,
+		vdr:         mockVDR,
+		vcr:         mockVCR,
 		instance:    instance,
 	}
 }

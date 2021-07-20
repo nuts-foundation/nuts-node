@@ -544,6 +544,33 @@ func TestWrapper_GetContactInformation(t *testing.T) {
 	})
 }
 
+func TestWrapper_SearchOrganizations(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		idStr := "did:nuts:1"
+		id, _ := did.ParseDID(idStr)
+
+		ctx := newMockContext(t)
+		serviceType := "service"
+		results := []OrganizationSearchResult{{DIDDocument: did.Document{ID: *id}, Organization: map[string]interface{}{"name": "bar"}}}
+		ctx.didman.EXPECT().SearchOrganizations("query", &serviceType).Return(results, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, results)
+
+		err := ctx.wrapper.SearchOrganizations(ctx.echo, SearchOrganizationsParams{
+			Query:          "query",
+			DidServiceType: &serviceType,
+		})
+
+		assert.NoError(t, err)
+	})
+	t.Run("error - service fails", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().SearchOrganizations("query", nil).Return(nil, types.ErrNotFound)
+		err := ctx.wrapper.SearchOrganizations(ctx.echo, SearchOrganizationsParams{Query: "query"})
+
+		assert.ErrorIs(t, err, types.ErrNotFound)
+	})
+}
+
 type mockContext struct {
 	ctrl    *gomock.Controller
 	echo    *mock.MockContext

@@ -131,7 +131,7 @@ func TestVCR_Search(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
-		creds, err := ctx.vcr.Search(q, &now)
+		creds, err := ctx.vcr.search(q, &now)
 
 		if !assert.NoError(t, err) {
 			return
@@ -149,7 +149,7 @@ func TestVCR_Search(t *testing.T) {
 	t.Run("ok - untrusted", func(t *testing.T) {
 		ctx, q := testInstance(t)
 
-		creds, err := ctx.vcr.Search(q, nil)
+		creds, err := ctx.vcr.search(q, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -162,7 +162,7 @@ func TestVCR_Search(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		rev := leia.DocumentFromString(concept.TestRevocation)
 		ctx.vcr.store.Collection(revocationCollection).Add([]leia.Document{rev})
-		creds, err := ctx.vcr.Search(q, nil)
+		creds, err := ctx.vcr.search(q, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -175,7 +175,7 @@ func TestVCR_Search(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, types.ErrNotFound)
 
-		creds, err := ctx.vcr.Search(q, nil)
+		creds, err := ctx.vcr.search(q, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
