@@ -27,9 +27,10 @@ import (
 	"errors"
 	"fmt"
 
+	"net/url"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
-	"net/url"
 
 	"testing"
 	"time"
@@ -641,32 +642,26 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 
 	t.Run("returns_parsed_endpoint_url", func(t *testing.T) {
 		ctx := createContext(t)
-
+		keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
+		currentDIDDocument := &did.Document{
+			Service: []did.Service{
+				{
+					Type: "test-service",
+					ServiceEndpoint: map[string]string{
+						"oauth": fmt.Sprintf("%s?type=oauth", vdr.TestDIDA),
+					},
+				},
+				{
+					Type:            "oauth",
+					ServiceEndpoint: "http://localhost",
+				},
+			},
+		}
+		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.didResolver.
 			EXPECT().
 			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
-			Return(&did.Document{
-				Service: []did.Service{
-					{
-						Type: "test-service",
-						ServiceEndpoint: map[string]string{
-							"oauth": fmt.Sprintf("%s?type=oauth", vdr.TestDIDA),
-						},
-					},
-				},
-			}, &types.DocumentMetadata{}, nil)
-
-		ctx.didResolver.
-			EXPECT().
-			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
-			Return(&did.Document{
-				Service: []did.Service{
-					{
-						Type:            "oauth",
-						ServiceEndpoint: "http://localhost",
-					},
-				},
-			}, &types.DocumentMetadata{}, nil)
+			Return(currentDIDDocument, &types.DocumentMetadata{}, nil).Times(2)
 
 		expectedURL, _ := url.Parse("http://localhost")
 
