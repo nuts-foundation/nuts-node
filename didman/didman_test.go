@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"net/url"
 	"strings"
 	"testing"
@@ -535,45 +536,77 @@ func TestDidman_GetCompoundServices(t *testing.T) {
 }
 
 func TestDidman_SearchOrganizations(t *testing.T) {
-	//id, _ := did.ParseDID("did:nuts:123")
-	//expected := []did.Service{{
-	//	Type:            "eOverdracht",
-	//	ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
-	//}}
+	id, _ := did.ParseDID("did:nuts:123")
+	docWithService := did.Document{
+		ID: *id,
+		Service: []did.Service{{
+			Type:            "eOverdracht",
+			ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
+		}},
+	}
+	docWithoutService := did.Document{
+		ID: *id,
+	}
+	//
 
-	//vcID, _ := ssi.ParseURI("abc")
-	//credential := vc.VerifiableCredential{ID: vcID}
-	//
-	//t.Run("ok - no results", func(t *testing.T) {
-	//	ctx := newMockContext(t)
-	//	didDoc := &did.Document{Service: expected}
-	//	ctx.vcr.EXPECT().Search(gomock.Any(),nil).Return(, nil)
-	//
-	//	actual, err := ctx.instance.SearchOrganizations("query", nil)
-	//
-	//	assert.NoError(t, err)
-	//	assert.NotNil(t, actual)
-	//	assert.Empty(t, actual)
-	//})
-	//t.Run("ok - no DID service type", func(t *testing.T) {
-	//	ctx := newMockContext(t)
-	//	didDoc := &did.Document{Service: expected}
-	//	ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
-	//	actual, err := ctx.instance.GetCompoundServices(*id)
-	//	assert.NoError(t, err)
-	//	assert.Equal(t, expected, actual)
-	//})
-	//t.Run("ok - with DID service type", func(t *testing.T) {
-	//	ctx := newMockContext(t)
-	//	didDoc := &did.Document{Service: append(expected, did.Service{Type: ContactInformationServiceType, ServiceEndpoint: map[string]interface{}{}})}
-	//	ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
-	//	actual, err := ctx.instance.GetCompoundServices(*id)
-	//	assert.NoError(t, err)
-	//	assert.Equal(t, expected, actual)
-	//})
-	//t.Run("ok - DID document not found (logs, omits result)", func(t *testing.T) {
-	//
-	//})
+	t.Run("ok - no results", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{}, nil)
+
+		actual, err := ctx.instance.SearchOrganizations("query", nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, actual)
+		assert.Empty(t, actual)
+	})
+	cpt := map[string]interface{}{
+		"subject":      id.String(),
+		"organization": concept.Concept{},
+	}
+	t.Run("ok - no DID service type", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.store.EXPECT().Resolve(*id, nil).Return(&docWithoutService, nil, nil)
+
+		actual, err := ctx.instance.SearchOrganizations("query", nil)
+
+		assert.NoError(t, err)
+		assert.Len(t, actual, 1)
+	})
+	t.Run("ok - with DID service type (matches)", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.store.EXPECT().Resolve(*id, nil).Return(&docWithService, nil, nil)
+
+		serviceType := "eOverdracht"
+		actual, err := ctx.instance.SearchOrganizations("query", &serviceType)
+
+		assert.NoError(t, err)
+		assert.Len(t, actual, 1)
+	})
+	t.Run("ok - with DID service type (no match)", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.store.EXPECT().Resolve(*id, nil).Return(&docWithoutService, nil, nil)
+
+		serviceType := "eOverdracht"
+		actual, err := ctx.instance.SearchOrganizations("query", &serviceType)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, actual)
+		assert.Empty(t, actual)
+	})
+	t.Run("ok - DID document not found (logs, omits result)", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.store.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
+
+		actual, err := ctx.instance.SearchOrganizations("query", nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, actual)
+		assert.Empty(t, actual)
+	})
 }
 
 func TestGenerateIDForService(t *testing.T) {
