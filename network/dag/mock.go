@@ -182,20 +182,6 @@ func (mr *MockDAGMockRecorder) Statistics() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Statistics", reflect.TypeOf((*MockDAG)(nil).Statistics))
 }
 
-// Verify mocks base method.
-func (m *MockDAG) Verify() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Verify indicates an expected call of Verify.
-func (mr *MockDAGMockRecorder) Verify() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockDAG)(nil).Verify))
-}
-
 // Walk mocks base method.
 func (m *MockDAG) Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
@@ -510,4 +496,41 @@ func (m *MockObservable) RegisterObserver(observer Observer) {
 func (mr *MockObservableMockRecorder) RegisterObserver(observer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterObserver", reflect.TypeOf((*MockObservable)(nil).RegisterObserver), observer)
+}
+
+// MockBootTimeVerifier is a mock of BootTimeVerifier interface.
+type MockBootTimeVerifier struct {
+	ctrl     *gomock.Controller
+	recorder *MockBootTimeVerifierMockRecorder
+}
+
+// MockBootTimeVerifierMockRecorder is the mock recorder for MockBootTimeVerifier.
+type MockBootTimeVerifierMockRecorder struct {
+	mock *MockBootTimeVerifier
+}
+
+// NewMockBootTimeVerifier creates a new mock instance.
+func NewMockBootTimeVerifier(ctrl *gomock.Controller) *MockBootTimeVerifier {
+	mock := &MockBootTimeVerifier{ctrl: ctrl}
+	mock.recorder = &MockBootTimeVerifierMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockBootTimeVerifier) EXPECT() *MockBootTimeVerifierMockRecorder {
+	return m.recorder
+}
+
+// BootFinished mocks base method.
+func (m *MockBootTimeVerifier) BootFinished() []error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BootFinished")
+	ret0, _ := ret[0].([]error)
+	return ret0
+}
+
+// BootFinished indicates an expected call of BootFinished.
+func (mr *MockBootTimeVerifierMockRecorder) BootFinished() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BootFinished", reflect.TypeOf((*MockBootTimeVerifier)(nil).BootFinished))
 }

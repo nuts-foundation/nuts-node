@@ -55,8 +55,6 @@ type DAG interface {
 	// Heads returns all unmerged heads, which are transactions where no other transactions point to as `prev`. To be used
 	// as `prevs` parameter when adding a new transaction.
 	Heads() []hash.SHA256Hash
-	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
-	Verify() error
 	Statistics() Statistics
 }
 
@@ -136,4 +134,11 @@ func MinTime() time.Time {
 // MaxTime returns the maximum value for time.Time. Taken from https://stackoverflow.com/questions/25065055/what-is-the-maximum-time-time-in-go
 func MaxTime() time.Time {
 	return time.Unix(1<<63-62135596801, 999999999)
+}
+
+// BootTimeVerifier is a verifier that can be used after loading a DAG from disk to verify its transactions.
+type BootTimeVerifier interface {
+	// BootFinished signals the verifier that boot has finished and that it should stop verifying transactions.
+	// It returns all verification failures that have been collected.
+	BootFinished() []error
 }

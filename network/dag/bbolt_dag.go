@@ -52,19 +52,6 @@ type bboltDAG struct {
 	txVerifiers []Verifier
 }
 
-func (dag *bboltDAG) Verify() error {
-	transactions, err := dag.FindBetween(MinTime(), MaxTime())
-	if err != nil {
-		return err
-	}
-	for _, tx := range transactions {
-		if err := dag.verifyTX(tx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 type headsStatistic struct {
 	// SHA256Hash is the last consistency hash.
 	heads []hash.SHA256Hash

@@ -36,14 +36,15 @@ import (
 )
 
 type networkTestContext struct {
-	network     *Network
-	p2pAdapter  *p2p.MockAdapter
-	protocol    *proto.MockProtocol
-	graph       *dag.MockDAG
-	payload     *dag.MockPayloadStore
-	keyStore    *crypto.MockKeyStore
-	publisher   *dag.MockPublisher
-	keyResolver *types.MockKeyResolver
+	network       *Network
+	p2pAdapter    *p2p.MockAdapter
+	protocol      *proto.MockProtocol
+	graph         *dag.MockDAG
+	payload       *dag.MockPayloadStore
+	keyStore      *crypto.MockKeyStore
+	publisher     *dag.MockPublisher
+	keyResolver   *types.MockKeyResolver
+	graphVerifier *dag.MockBootTimeVerifier
 }
 
 func TestNetwork_ListTransactions(t *testing.T) {
@@ -186,12 +187,14 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify()
+		cxt.graphVerifier.EXPECT().BootFinished()
+		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
 
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
+
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
@@ -207,7 +210,8 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify()
+		cxt.graphVerifier.EXPECT().BootFinished()
+		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
@@ -228,7 +232,8 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify()
+		cxt.graphVerifier.EXPECT().BootFinished()
+		cxt.graph.EXPECT().Heads().Return(nil)
 
 		// Register root TX on head tracker
 		rootTX, _, _ := dag.CreateTestTransaction(0)
@@ -264,7 +269,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify()
+		cxt.graphVerifier.EXPECT().BootFinished()
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
@@ -293,7 +298,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify()
+		cxt.graphVerifier.EXPECT().BootFinished()
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
@@ -308,7 +313,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify()
+		cxt.graphVerifier.EXPECT().BootFinished()
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
@@ -322,11 +327,11 @@ func TestNetwork_Start(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify().Return(errors.New("failed"))
-		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
+		cxt.graphVerifier.EXPECT().BootFinished().Return([]error{errors.New("failed")})
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		err := cxt.network.Start()
-		assert.EqualError(t, err, "failed")
+		assert.EqualError(t, err, "On-boot DAG verification has failed, see the error log for details.")
 	})
 }
 
@@ -460,6 +465,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	graph := dag.NewMockDAG(ctrl)
 	payload := dag.NewMockPayloadStore(ctrl)
 	publisher := dag.NewMockPublisher(ctrl)
+	bootVerifier := dag.NewMockBootTimeVerifier(ctrl)
 	networkConfig := TestNetworkConfig()
 	networkConfig.TrustStoreFile = "test/truststore.pem"
 	networkConfig.CertFile = "test/certificate-and-key.pem"
@@ -473,16 +479,18 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	network.graph = graph
 	network.payloadStore = payload
 	network.publisher = publisher
+	network.graphVerifier = bootVerifier
 	network.startTime.Store(time.Now())
 	return &networkTestContext{
-		network:     network,
-		p2pAdapter:  p2pAdapter,
-		protocol:    protocol,
-		graph:       graph,
-		payload:     payload,
-		publisher:   publisher,
-		keyStore:    keyStore,
-		keyResolver: keyResolver,
+		network:       network,
+		p2pAdapter:    p2pAdapter,
+		protocol:      protocol,
+		graph:         graph,
+		payload:       payload,
+		publisher:     publisher,
+		keyStore:      keyStore,
+		keyResolver:   keyResolver,
+		graphVerifier: bootVerifier,
 	}
 }
 

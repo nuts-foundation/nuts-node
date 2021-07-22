@@ -90,3 +90,23 @@ func (s *replayingDAGPublisher) publishTransaction(transaction Transaction) bool
 	}
 	return true
 }
+
+// NewOnOffSubscriber creates a subscriber that can be switched off. It directly subscribes to any payload type and is default on.
+func NewOnOffSubscriber(publisher Publisher, receiver Receiver) *OnOffSubscriber {
+	sub := &OnOffSubscriber{receiver: receiver, On: true}
+	publisher.Subscribe(AnyPayloadType, sub.receive)
+	return sub
+}
+
+// OnOffSubscriber is a subscriber that can be switched off. It directly subscribes to any payload type and is default on.
+type OnOffSubscriber struct {
+	On       bool
+	receiver Receiver
+}
+
+func (sub *OnOffSubscriber) receive(transaction Transaction, payload []byte) error {
+	if sub.On {
+		return sub.receiver(transaction, payload)
+	}
+	return nil
+}

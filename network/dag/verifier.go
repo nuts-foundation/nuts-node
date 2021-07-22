@@ -67,3 +67,39 @@ func NewSigningTimeVerifier() Verifier {
 		return nil
 	}
 }
+
+// NewBootTimeVerifier creates a BootTimeVerifier. See BootTimeVerifier for its usage.
+func NewBootTimeVerifier(publisher Publisher, graph DAG, verifiers ...Verifier) BootTimeVerifier {
+	btf := &subscribingBootTimeVerifier{graph: graph, verifiers: verifiers}
+	sub := NewOnOffSubscriber(publisher, btf.verify)
+	btf.sub = sub
+	return btf
+}
+
+// subscribingBootTimeVerifier is a verifier that can be used after loading a DAG from disk to verify its transactions.
+// It does not exactly replicate the context of the DAG when a transaction was added, so it should only execute verifiers check deterministic variables (e.g. signatures).
+// It is called by letting the given publisher publish the transactions on the loaded DAG. When the publisher has finished publishing all transactions from the loaded DAG,
+// BootFinished must be called to retrieve any verification failures that might have occurred. If no errors are returned, all transactions successfully were verified.
+type subscribingBootTimeVerifier struct {
+	verifiers            []Verifier
+	graph                DAG
+	verificationFailures []error
+	sub                  *OnOffSubscriber
+}
+
+func (btf *subscribingBootTimeVerifier) verify(tx Transaction, payload []byte) error {
+	for _, verifier := range btf.verifiers {
+		err := verifier(tx, btf.graph)
+		if err != nil {
+			btf.verificationFailures = append(btf.verificationFailures, err)
+		}
+	}
+	return nil
+}
+
+// BootFinished signals the verifier that boot has finished and that it should stop verifying transactions.
+// It returns all verification failures that have been collected.
+func (btf *subscribingBootTimeVerifier) BootFinished() []error {
+	btf.sub.On = false
+	return btf.verificationFailures
+}

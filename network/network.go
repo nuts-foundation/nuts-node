@@ -59,6 +59,7 @@ type Network struct {
 	p2pNetwork             p2p.Adapter
 	protocol               proto.Protocol
 	graph                  dag.DAG
+	graphVerifier          dag.BootTimeVerifier
 	publisher              dag.Publisher
 	payloadStore           dag.PayloadStore
 	keyResolver            types.KeyResolver
@@ -98,9 +99,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if bboltErr != nil {
 		return fmt.Errorf("unable to create BBolt database: %w", bboltErr)
 	}
-	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
+	txSignatureVerifier := dag.NewTransactionSignatureVerifier(n.keyResolver)
+	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), txSignatureVerifier)
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
+	n.graphVerifier = dag.NewBootTimeVerifier(n.publisher, n.graph, txSignatureVerifier)
 	n.peerID = p2p.PeerID(uuid.New().String())
 	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics,
 		time.Duration(n.config.AdvertHashesInterval)*time.Millisecond,
@@ -141,8 +144,12 @@ func (n *Network) Start() error {
 	n.protocol.Start()
 	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
 	n.publisher.Start()
-	if err := n.graph.Verify(); err != nil {
-		return err
+	verificationFailures := n.graphVerifier.BootFinished()
+	if len(verificationFailures) > 0 {
+		for _, err := range verificationFailures {
+			log.Logger().Errorf("On-boot DAG verification failure: %v", err)
+		}
+		return errors.New("On-boot DAG verification has failed, see the error log for details.")
 	}
 	return nil
 }
