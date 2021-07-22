@@ -149,7 +149,7 @@ func (n *Network) Start() error {
 		for _, err := range verificationFailures {
 			log.Logger().Errorf("On-boot DAG verification failure: %v", err)
 		}
-		return errors.New("On-boot DAG verification has failed, see the error log for details.")
+		return errors.New("on-boot DAG verification has failed, see the error log for details")
 	}
 	return nil
 }
