@@ -182,6 +182,8 @@ func TestVCR_Search(t *testing.T) {
 
 		assert.Len(t, creds, 0)
 	})
+
+
 }
 
 func TestVCR_Resolve(t *testing.T) {

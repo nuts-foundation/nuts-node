@@ -317,7 +317,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 			return
 		}
 		assert.Equal(t, expected, *actual)
-		services := filterServices(&actualDocument)
+		services := filterServices(&actualDocument, ContactInformationServiceType)
 		assert.Len(t, services, 1)
 		actualInfo := ContactInformation{}
 		services[0].UnmarshalServiceEndpoint(&actualInfo)
@@ -350,7 +350,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 			return
 		}
 		assert.Equal(t, expected, *actual)
-		services := filterServices(&actualDocument)
+		services := filterServices(&actualDocument, ContactInformationServiceType)
 		assert.Len(t, services, 1)
 		actualInfo := ContactInformation{}
 		services[0].UnmarshalServiceEndpoint(&actualInfo)

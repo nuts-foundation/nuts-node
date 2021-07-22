@@ -233,7 +233,7 @@ func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]Or
 	j := 0
 	for i, organization := range organizations {
 		document, organizationDID, err := d.resolveOrganizationDIDDocument(organization)
-		if err != nil {
+		if err != nil && !errors.Is(types.ErrNotFound, err){
 			return nil, err
 		}
 		if document == nil {
@@ -279,17 +279,6 @@ func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]Or
 	}
 
 	return results, nil
-}
-
-func checkDIDDocumentHasService(didDocument *did.Document, didServiceType *string) bool {
-	hasService := false
-	for _, svc := range didDocuments[i].Service {
-		if svc.Type == *didServiceType {
-			hasService = true
-			break
-		}
-	}
-	return hasService
 }
 
 func (d *didman) resolveOrganizationDIDDocument(organization concept.Concept) (*did.Document, did.DID, error) {
