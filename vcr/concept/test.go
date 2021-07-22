@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
+
 package concept
 
 import (
@@ -27,20 +28,46 @@ import (
 const ExampleConcept = "human"
 const ExampleType = "HumanCredential"
 
-const ExampleTemplate = `
+var humanEyeColour = "human.eyeColour"
+var humanHairColour = "human.hairColour"
+var subject = "subject"
+var ExampleConfig = Config{
+	Concept:        "human",
+	CredentialType: "HumanCredential",
+	Indices: []Index{
+		{
+			Name: "human",
+			Parts: []IndexPart{
+				{Alias: &humanEyeColour, JSONPath: "credentialSubject.human.eyeColour"},
+				{Alias: &humanHairColour, JSONPath: "credentialSubject.human.hairColour"},
+			},
+		},
+		{
+			Name:  "subject",
+			Parts: []IndexPart{{Alias: &subject, JSONPath: "credentialSubject.id"}},
+		},
+		{
+			Name:  "id",
+			Parts: []IndexPart{{JSONPath: "id"}},
+		},
+		{
+			Name:  "issuer",
+			Parts: []IndexPart{{JSONPath: "issuer"}},
+		},
+	},
+	Template: `
 {
 	"id": "<<id>>",
-	"issuer": "<<issuer>>@B{3}",
+	"issuer": "<<issuer>>",
 	"type": "HumanCredential",
-	"credentialSubject": {
-		"id": "<<subject>>@B{2}",
-		"human": {
-			"eyeColour": "<<human.eyeColour>>@T{1}",
-			"hairColour": "<<human.hairColour>>"
-		}
+	"subject": "<<credentialSubject.id>>",
+	"human": {
+		"eyeColour": "<<credentialSubject.human.eyeColour>>",
+		"hairColour": "<<credentialSubject.human.hairColour>>"
 	}
 }
-`
+`,
+}
 
 const TestCredential = `
 {

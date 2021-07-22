@@ -25,50 +25,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConcept_GetSetValue(t *testing.T) {
-	t.Run("ok - single level", func(t *testing.T) {
-		c := Concept{}
-		c.SetValue("path", "value")
-
-		value := c.GetValue("path")
-
-		assert.NotNil(t, value)
-		assert.Equal(t, "value", value)
-	})
-
-	t.Run("ok - multi level", func(t *testing.T) {
-		c := Concept{}
-		c.SetValue("deep.path", "value")
-
-		value := c.GetValue("deep.path")
-
-		assert.NotNil(t, value)
-		assert.Equal(t, "value", value)
-	})
-
-	t.Run("ok - not found", func(t *testing.T) {
-		c := Concept{}
-		c.SetValue("deep.path", "value")
-
-		value := c.GetValue("deep.other")
-
-		assert.Nil(t, value)
-	})
-
-	t.Run("ok - not found 2", func(t *testing.T) {
-		c := Concept{}
-		c.SetValue("deep.path", "value")
-
-		value := c.GetValue("other.other")
-
-		assert.Nil(t, value)
-	})
-}
-
 func TestConcept_GetString(t *testing.T) {
-	c := Concept{}
-	c.SetValue("string", "value")
-	c.SetValue("int", 0)
+	c := Concept{
+		"string": "value",
+	}
 
 	t.Run("ok - string", func(t *testing.T) {
 		value, err := c.GetString("string")
@@ -88,17 +48,6 @@ func TestConcept_GetString(t *testing.T) {
 		}
 
 		assert.Equal(t, ErrNoValue, err)
-		assert.Equal(t, "", value)
-	})
-
-	t.Run("error - wrong type", func(t *testing.T) {
-		value, err := c.GetString("int")
-
-		if !assert.Error(t, err) {
-			return
-		}
-
-		assert.Equal(t, ErrIncorrectType, err)
 		assert.Equal(t, "", value)
 	})
 }

@@ -196,11 +196,11 @@ func (s *service) validateIssuer(context *validationContext) error {
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
-	ok := false
-	if context.actorName, ok = orgConcept.GetValue(concept.OrganizationName).(string); !ok {
+
+	if context.actorName, err = orgConcept.GetString(concept.OrganizationName); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, errors.New("actor has invalid organization VC"))
 	}
-	if context.actorCity, ok = orgConcept.GetValue(concept.OrganizationCity).(string); !ok {
+	if context.actorCity, err = orgConcept.GetString(concept.OrganizationCity); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, errors.New("actor has invalid organization VC"))
 	}
 

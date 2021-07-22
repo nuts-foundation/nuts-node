@@ -47,7 +47,7 @@ func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 
 	collection := c.store.Collection(vcType)
 
-	return collection.Add([]leia.Document{doc})
+	return collection.Add([]leia.Document{leia.DocumentFromBytes(doc)})
 }
 
 func (c *vcr) StoreRevocation(r credential.Revocation) error {
@@ -64,7 +64,7 @@ func (c *vcr) writeRevocation(r credential.Revocation) error {
 
 	doc, _ := json.Marshal(r)
 
-	return collection.Add([]leia.Document{doc})
+	return collection.Add([]leia.Document{leia.DocumentFromBytes(doc)})
 }
 
 func (c *vcr) revocationIndex() leia.Collection {

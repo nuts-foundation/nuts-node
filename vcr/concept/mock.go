@@ -34,18 +34,18 @@ func (m *MockReader) EXPECT() *MockReaderMockRecorder {
 	return m.recorder
 }
 
-// ConceptTemplates mocks base method.
-func (m *MockReader) ConceptTemplates() map[string][]*Template {
+// Concepts mocks base method.
+func (m *MockReader) Concepts() []Config {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ConceptTemplates")
-	ret0, _ := ret[0].(map[string][]*Template)
+	ret := m.ctrl.Call(m, "Concepts")
+	ret0, _ := ret[0].([]Config)
 	return ret0
 }
 
-// ConceptTemplates indicates an expected call of ConceptTemplates.
-func (mr *MockReaderMockRecorder) ConceptTemplates() *gomock.Call {
+// Concepts indicates an expected call of Concepts.
+func (mr *MockReaderMockRecorder) Concepts() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConceptTemplates", reflect.TypeOf((*MockReader)(nil).ConceptTemplates))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Concepts", reflect.TypeOf((*MockReader)(nil).Concepts))
 }
 
 // QueryFor mocks base method.
@@ -102,17 +102,17 @@ func (m *MockWriter) EXPECT() *MockWriterMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockWriter) Add(conceptTemplate *Template) error {
+func (m *MockWriter) Add(config Config) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Add", conceptTemplate)
+	ret := m.ctrl.Call(m, "Add", config)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Add indicates an expected call of Add.
-func (mr *MockWriterMockRecorder) Add(conceptTemplate interface{}) *gomock.Call {
+func (mr *MockWriterMockRecorder) Add(config interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockWriter)(nil).Add), conceptTemplate)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockWriter)(nil).Add), config)
 }
 
 // MockRegistry is a mock of Registry interface.
@@ -139,31 +139,31 @@ func (m *MockRegistry) EXPECT() *MockRegistryMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockRegistry) Add(conceptTemplate *Template) error {
+func (m *MockRegistry) Add(config Config) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Add", conceptTemplate)
+	ret := m.ctrl.Call(m, "Add", config)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Add indicates an expected call of Add.
-func (mr *MockRegistryMockRecorder) Add(conceptTemplate interface{}) *gomock.Call {
+func (mr *MockRegistryMockRecorder) Add(config interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockRegistry)(nil).Add), conceptTemplate)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockRegistry)(nil).Add), config)
 }
 
-// ConceptTemplates mocks base method.
-func (m *MockRegistry) ConceptTemplates() map[string][]*Template {
+// Concepts mocks base method.
+func (m *MockRegistry) Concepts() []Config {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ConceptTemplates")
-	ret0, _ := ret[0].(map[string][]*Template)
+	ret := m.ctrl.Call(m, "Concepts")
+	ret0, _ := ret[0].([]Config)
 	return ret0
 }
 
-// ConceptTemplates indicates an expected call of ConceptTemplates.
-func (mr *MockRegistryMockRecorder) ConceptTemplates() *gomock.Call {
+// Concepts indicates an expected call of Concepts.
+func (mr *MockRegistryMockRecorder) Concepts() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConceptTemplates", reflect.TypeOf((*MockRegistry)(nil).ConceptTemplates))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Concepts", reflect.TypeOf((*MockRegistry)(nil).Concepts))
 }
 
 // QueryFor mocks base method.

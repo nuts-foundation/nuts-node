@@ -44,6 +44,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 )
 
 var timeFunc = time.Now
@@ -114,7 +115,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 }
 
 func (c *vcr) loadTemplates() error {
-	list, err := fs.Glob(defaultTemplates, "**/*.json.template")
+	list, err := fs.Glob(defaultTemplates, "**/*.config.yaml")
 	if err != nil {
 		return err
 	}
@@ -124,12 +125,13 @@ func (c *vcr) loadTemplates() error {
 		if err != nil {
 			return err
 		}
-		t, err := concept.ParseTemplate(string(bytes))
+		config := concept.Config{}
+		err = yaml.Unmarshal(bytes, &config)
 		if err != nil {
 			return err
 		}
 
-		if err = c.registry.Add(t); err != nil {
+		if err = c.registry.Add(config); err != nil {
 			return err
 		}
 	}
@@ -138,56 +140,47 @@ func (c *vcr) loadTemplates() error {
 }
 
 func (c *vcr) initIndices() error {
-	for _, templates := range c.registry.ConceptTemplates() {
-		for _, t := range templates {
-			collection := c.store.Collection(t.VCType())
-			for i, index := range t.Indices() {
-				var leiaParts []leia.IndexPart
+	for _, config := range c.registry.Concepts() {
+		collection := c.store.Collection(config.CredentialType)
+		for _, index := range config.Indices {
+			var leiaParts []leia.FieldIndexer
 
-				for _, iParts := range index {
-					name := iParts.ConceptPath
-					indexType := iParts.IndexType
-					jsonPath := t.ToVCPath(iParts.ConceptPath)
-					switch indexType {
-					case concept.IndexTypeBytes:
-						leiaParts = append(leiaParts, leia.NewJSONIndexPart(name, jsonPath, nil, nil))
-					case concept.IndexTypeText:
-						leiaParts = append(leiaParts, leia.NewJSONIndexPart(name, jsonPath, leia.WhiteSpaceTokenizer, concept.CologneTransformer))
+			for _, iParts := range index.Parts {
+				options := make([]leia.IndexOption, 0)
+				if iParts.Alias != nil {
+					options = append(options, leia.AliasOption{Alias: *iParts.Alias})
+				}
+				if iParts.Tokenizer != nil {
+					switch *iParts.Tokenizer {
+					case "whitespace":
+						options = append(options, leia.TokenizerOption{Tokenizer: leia.WhiteSpaceTokenizer})
 					default:
-						return fmt.Errorf("unknown index type %c @ %s", indexType, name)
+						return fmt.Errorf("unknown tokenizer %s for %s", *iParts.Tokenizer, config.CredentialType)
+					}
+				}
+				if iParts.Transformer != nil {
+					switch *iParts.Transformer {
+					case "cologne":
+						options = append(options, leia.TransformerOption{Transformer: concept.CologneTransformer})
+					case "lowerCase":
+						options = append(options, leia.TransformerOption{Transformer: leia.ToLower})
+					default:
+						return fmt.Errorf("unknown transformer %s for %s", *iParts.Transformer, config.CredentialType)
 					}
 				}
 
-				// since only new indices trigger a re-index. We'll remove the old one first
-				indexName := fmt.Sprintf("index_%d", i)
-				if err := collection.DropIndex(indexName); err != nil {
-					return err
-				}
-				if err := collection.AddIndex(leia.NewIndex(fmt.Sprintf("index_%d", i), leiaParts...)); err != nil {
-					return err
-				}
+				leiaParts = append(leiaParts, leia.NewFieldIndexer(iParts.JSONPath, options...))
+			}
+
+			if err := collection.AddIndex(leia.NewIndex(index.Name, leiaParts...)); err != nil {
+				return err
 			}
 		}
 	}
 
-	// generic indices
-	gIndex := c.globalIndex()
-	if err := gIndex.AddIndex(leia.NewIndex("index_id", leia.NewJSONIndexPart(concept.IDField, concept.IDField, nil, nil))); err != nil {
-		return err
-	}
-	if err := gIndex.AddIndex(leia.NewIndex("index_issuer", leia.NewJSONIndexPart(concept.IssuerField, concept.IssuerField, nil, nil))); err != nil {
-		return err
-	}
+	// revocation indices
 	rIndex := c.revocationIndex()
-	if err := rIndex.AddIndex(leia.NewIndex("index_subject", leia.NewJSONIndexPart(concept.SubjectField, concept.SubjectField, nil, nil))); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *vcr) globalIndex() leia.Collection {
-	return c.store.Collection(leia.GlobalCollection)
+	return rIndex.AddIndex(leia.NewIndex("index_subject", leia.NewFieldIndexer(concept.SubjectField)))
 }
 
 func (c *vcr) Name() string {
@@ -210,7 +203,7 @@ func (c *vcr) Search(query concept.Query, resolveTime *time.Time) ([]vc.Verifiab
 		}
 		for _, doc := range docs {
 			foundCredential := vc.VerifiableCredential{}
-			err = json.Unmarshal(doc, &foundCredential)
+			err = json.Unmarshal(doc.Bytes(), &foundCredential)
 			if err != nil {
 				return nil, errors.Wrap(err, "unable to parse credential from db")
 			}
@@ -364,22 +357,23 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	qp := leia.Eq(concept.IDField, ID.String())
 	q := leia.New(qp)
 
-	gIndex := c.globalIndex()
-	docs, err := gIndex.Find(q)
-	if err != nil {
-		return credential, err
+	for _, t := range c.registry.Concepts() {
+		docs, err := c.store.Collection(t.CredentialType).Find(q)
+		if err != nil {
+			return credential, err
+		}
+		if len(docs) > 0 {
+			// there can be only one
+			err = json.Unmarshal(docs[0].Bytes(), &credential)
+			if err != nil {
+				return credential, errors.Wrap(err, "unable to parse credential from db")
+			}
+
+			return credential, nil
+		}
 	}
 
-	if len(docs) != 1 {
-		return credential, ErrNotFound
-	}
-
-	err = json.Unmarshal(docs[0], &credential)
-	if err != nil {
-		return credential, errors.Wrap(err, "unable to parse credential from db")
-	}
-
-	return credential, nil
+	return credential, ErrNotFound
 }
 
 func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
@@ -518,24 +512,15 @@ func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
 }
 
 func (c *vcr) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
-	templates := c.registry.ConceptTemplates()
-	found := false
+	concepts := c.registry.Concepts()
 
-outer:
-	for _, vs := range templates {
-		for _, v := range vs {
-			if v.VCType() == credentialType.String() {
-				found = true
-				break outer
-			}
+	for _, concept := range concepts {
+		if concept.CredentialType == credentialType.String() {
+			return c.trustConfig.List(credentialType), nil
 		}
 	}
 
-	if !found {
-		return nil, ErrInvalidCredential
-	}
-
-	return c.trustConfig.List(credentialType), nil
+	return nil, ErrInvalidCredential
 }
 
 func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
@@ -552,7 +537,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	collection := c.store.Collection(credentialType.String())
 
 	// for each key: add to untrusted if not present in trusted
-	err := collection.Iterate(query, func(key []byte, value []byte) error {
+	err := collection.IndexIterate(query, func(key []byte, value []byte) error {
 		// we iterate over all issuers->reference pairs
 		issuer := string(key)
 		if _, ok := trustMap[issuer]; !ok {
@@ -689,7 +674,7 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 				q = q.And(qp)
 			}
 		}
-		qs[tq.VCType()] = q
+		qs[tq.CredentialType()] = q
 	}
 
 	return qs

@@ -238,8 +238,7 @@ func TestWrapper_Search(t *testing.T) {
 		},
 	}
 	registry := concept.NewRegistry()
-	template, _ := concept.ParseTemplate(concept.ExampleTemplate)
-	registry.Add(template)
+	registry.Add(concept.ExampleConfig)
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)

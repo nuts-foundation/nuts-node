@@ -82,7 +82,7 @@ In the concept templates, we use the `@T{1_1},{2_1}` syntax for this. The full r
 
 .. code-block:: text
 
-    ((<<[a-zA-Z\.]+>>)|([a-zA-Z\.]+))(@([T|B]{[1-9](_[1-9])?})(,[T|B]{[1-9](_[1-9])?})*)?
+    ((<<[a-zA-Z\.]+>>)|([a-zA-Z\.]+))?(@([T|B]{[1-9](_[1-9])?})(,[T|B]{[1-9](_[1-9])?})*)?
 
 Every entry between `{` and `}` represents an index. It contains multiple numbers that it represents a compound index.
 The second number is the place in the compound index. Every combination of numbers must be unique.

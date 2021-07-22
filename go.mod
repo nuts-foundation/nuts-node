@@ -35,6 +35,7 @@ require (
 	github.com/spf13/viper v1.7.1 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.7.0
+	github.com/tidwall/gjson v1.8.1
 	go.etcd.io/bbolt v1.3.5
 	google.golang.org/grpc v1.33.1
 	google.golang.org/protobuf v1.25.0
@@ -42,3 +43,5 @@ require (
 	gopkg.in/yaml.v2 v2.3.0
 	schneider.vip/problem v1.6.0
 )
+
+replace github.com/nuts-foundation/go-leia => ../go-leia
