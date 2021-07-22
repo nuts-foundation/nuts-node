@@ -92,7 +92,10 @@ type ContactInformation struct {
 	Website string `json:"website"`
 }
 
+// OrganizationSearchResult is returned by SearchOrganizations and associates a resulting organization with its DID Document.
 type OrganizationSearchResult struct {
-	DIDDocument  did.Document           `json:"didDocument"`
+	// DIDDocument contains the organization's DID Document.
+	DIDDocument did.Document `json:"didDocument"`
+	// Organization contains the organization's information derived from its Verifiable Credential.
 	Organization map[string]interface{} `json:"organization"`
 }

@@ -208,7 +208,7 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 		return nil, err
 	}
 
-	contactServices := filterContactInfoServices(doc)
+	contactServices := filterServices(doc, ContactInformationServiceType)
 	if len(contactServices) > 1 {
 		return nil, fmt.Errorf("multiple contact information services found")
 	}
@@ -232,16 +232,11 @@ func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]Or
 	didDocuments := make([]*did.Document, len(organizations))
 	j := 0
 	for i, organization := range organizations {
-		organizationDIDStr, err := organization.GetString(concept.SubjectField)
+		document, organizationDID, err := d.resolveOrganizationDIDDocument(organization)
 		if err != nil {
-			return nil, fmt.Errorf("unable to get DID from organization concept: %w", err)
+			return nil, err
 		}
-		organizationDID, err := did.ParseDID(organizationDIDStr)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse DID from organization concept: %w", err)
-		}
-		document, _, err := d.store.Resolve(*organizationDID, nil)
-		if err != nil {
+		if document == nil {
 			// DID Document might be deactivated, so just log a warning and omit this entry from the search.
 			logging.Log().Warnf("Unable to resolve organization DID Document (DID=%s): %v", organizationDIDStr, err)
 			continue
@@ -259,14 +254,7 @@ func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]Or
 		j := 0
 		for i := 0; i < len(organizations); i++ {
 			// Check if this organization's DID Document has a service that matches the given type
-			hasService := false
-			for _, svc := range didDocuments[i].Service {
-				if svc.Type == *didServiceType {
-					hasService = true
-					break
-				}
-			}
-			if hasService {
+			if len(filterServices(didDocuments[i], *didServiceType)) > 0 {
 				organizations[j] = organizations[i]
 				didDocuments[j] = didDocuments[i]
 				j++
@@ -291,6 +279,30 @@ func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]Or
 	}
 
 	return results, nil
+}
+
+func checkDIDDocumentHasService(didDocument *did.Document, didServiceType *string) bool {
+	hasService := false
+	for _, svc := range didDocuments[i].Service {
+		if svc.Type == *didServiceType {
+			hasService = true
+			break
+		}
+	}
+	return hasService
+}
+
+func (d *didman) resolveOrganizationDIDDocument(organization concept.Concept) (*did.Document, did.DID, error) {
+	organizationDIDStr, err := organization.GetString(concept.SubjectField)
+	if err != nil {
+		return nil, did.DID{}, fmt.Errorf("unable to get DID from organization concept: %w", err)
+	}
+	organizationDID, err := did.ParseDID(organizationDIDStr)
+	if err != nil {
+		return nil, did.DID{}, fmt.Errorf("unable to parse DID from organization concept: %w", err)
+	}
+	document, _, err := d.store.Resolve(*organizationDID, nil)
+	return document, *organizationDID, err
 }
 
 // validateCompoundServiceEndpoint validates the serviceEndpoint of a compound service. The serviceEndpoint is passed
@@ -340,10 +352,10 @@ func filterCompoundServices(doc *did.Document) []did.Service {
 	return compoundServices
 }
 
-func filterContactInfoServices(doc *did.Document) []did.Service {
+func filterServices(doc *did.Document, serviceType string) []did.Service {
 	var contactServices []did.Service
 	for _, service := range doc.Service {
-		if service.Type == ContactInformationServiceType {
+		if service.Type == serviceType {
 			contactServices = append(contactServices, service)
 		}
 	}

@@ -317,7 +317,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 			return
 		}
 		assert.Equal(t, expected, *actual)
-		services := filterContactInfoServices(&actualDocument)
+		services := filterServices(&actualDocument)
 		assert.Len(t, services, 1)
 		actualInfo := ContactInformation{}
 		services[0].UnmarshalServiceEndpoint(&actualInfo)
@@ -350,7 +350,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 			return
 		}
 		assert.Equal(t, expected, *actual)
-		services := filterContactInfoServices(&actualDocument)
+		services := filterServices(&actualDocument)
 		assert.Len(t, services, 1)
 		actualInfo := ContactInformation{}
 		services[0].UnmarshalServiceEndpoint(&actualInfo)
@@ -604,6 +604,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 		actual, err := ctx.instance.SearchOrganizations("query", nil)
 
 		assert.NoError(t, err)
+
 		assert.NotNil(t, actual)
 		assert.Empty(t, actual)
 	})
