@@ -233,7 +233,7 @@ func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]Or
 	j := 0
 	for i, organization := range organizations {
 		document, organizationDID, err := d.resolveOrganizationDIDDocument(organization)
-		if err != nil && !errors.Is(types.ErrNotFound, err){
+		if err != nil && !errors.Is(types.ErrNotFound, err) {
 			return nil, err
 		}
 		if document == nil {
