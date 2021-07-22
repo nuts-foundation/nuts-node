@@ -217,7 +217,10 @@ paths:
     parameters:
       - name: query
         in: query
-        description: Query used for searching the organization by name.
+        description: >
+          Query used for searching the organization by name. The query is matched to the organization's name in a SQL's
+          "LIKE" fashion: it matches partial strings and also names that sound like the given query,
+          using a phonetic transformation algorithm. The exact algorithm depends on the implementation and might change without notice.
         required: true
         example:
           - "Zorgcentrum de Roodvink"
