@@ -148,12 +148,12 @@ func (c *vcr) initIndices() error {
 			for _, iParts := range index.Parts {
 				options := make([]leia.IndexOption, 0)
 				if iParts.Alias != nil {
-					options = append(options, leia.AliasOption{Alias: *iParts.Alias})
+					options = append(options, leia.AliasOption(*iParts.Alias))
 				}
 				if iParts.Tokenizer != nil {
 					switch *iParts.Tokenizer {
 					case "whitespace":
-						options = append(options, leia.TokenizerOption{Tokenizer: leia.WhiteSpaceTokenizer})
+						options = append(options, leia.TokenizerOption(leia.WhiteSpaceTokenizer))
 					default:
 						return fmt.Errorf("unknown tokenizer %s for %s", *iParts.Tokenizer, config.CredentialType)
 					}
@@ -161,9 +161,9 @@ func (c *vcr) initIndices() error {
 				if iParts.Transformer != nil {
 					switch *iParts.Transformer {
 					case "cologne":
-						options = append(options, leia.TransformerOption{Transformer: concept.CologneTransformer})
+						options = append(options, leia.TransformerOption(concept.CologneTransformer))
 					case "lowerCase":
-						options = append(options, leia.TransformerOption{Transformer: leia.ToLower})
+						options = append(options, leia.TransformerOption(leia.ToLower))
 					default:
 						return fmt.Errorf("unknown transformer %s for %s", *iParts.Transformer, config.CredentialType)
 					}
