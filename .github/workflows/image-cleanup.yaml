@@ -7,10 +7,6 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - uses: bots-house/ghcr-delete-image-action@v1.0.1
+      - uses: actions/delete-package-versions@v1
         with:
-          owner: nuts-foundation
-          name: nuts-node-ci
-          # NOTE: using Personal Access Token
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.event.workflow_run.head_sha }}
+          package-version-ids: ${{ github.event.workflow_run.head_sha }}
