@@ -1,0 +1,16 @@
+on:
+  workflow_run:
+    workflows: ["E2E tests"]
+    types: [completed]
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: bots-house/ghcr-delete-image-action@v1.0.1
+        with:
+          owner: nuts-foundation
+          name: nuts-node-ci
+          # NOTE: using Personal Access Token
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.sha }}
