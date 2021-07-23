@@ -39,7 +39,7 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name == 'pull_request' }}
-          tags: ghcr.io/nuts-foundation/nuts-node:${{ github.sha }}
+          tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ github.sha }}
 
       - name: Run E2E tests
         run: |
@@ -51,10 +51,7 @@ jobs:
             chmod +x earthly-linux-amd64 && \
             ./earthly-linux-amd64 -P +all
 
-      - name: Delete image
-        uses: bots-house/ghcr-delete-image-action@v1.0.0
+      - uses: actions/delete-package-versions@v1
         with:
-          owner: nuts-foundation
-          name: nuts-node
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.sha }}
+          package-name: 'nuts-node-ci'
+          num-old-versions-to-delete: 3
