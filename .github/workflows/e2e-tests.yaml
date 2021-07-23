@@ -50,3 +50,12 @@ jobs:
             curl -LO https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 && \
             chmod +x earthly-linux-amd64 && \
             ./earthly-linux-amd64 -P +all
+
+      - name: package cleanup
+        uses: bots-house/ghcr-delete-image-action@v1.0.1
+        with:
+          owner: nuts-foundation
+          name: nuts-node-ci
+          # NOTE: using Personal Access Token
+          token: ${{ secrets.PACKAGE_TOKEN }}
+          tag: ${{ github.event.workflow_run.head_sha }}
