@@ -7,7 +7,7 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - uses: WyriHaximus/github-action-delete-package@v1
+      - uses: WyriHaximus/github-action-delete-package@master
         with:
           packageVersionId: ${{ github.event.workflow_run.head_sha }}
         env:
