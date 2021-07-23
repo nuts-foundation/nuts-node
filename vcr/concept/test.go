@@ -30,7 +30,19 @@ const ExampleType = "HumanCredential"
 
 var humanEyeColour = "human.eyeColour"
 var humanHairColour = "human.hairColour"
-var subject = "subject"
+var humanSubject = "subject"
+var humanTemplate = `
+{
+	"id": "<<id>>",
+	"issuer": "<<issuer>>",
+	"type": "HumanCredential",
+	"subject": "<<credentialSubject.id>>",
+	"human": {
+		"eyeColour": "<<credentialSubject.human.eyeColour>>",
+		"hairColour": "<<credentialSubject.human.hairColour>>"
+	}
+}
+`
 var ExampleConfig = Config{
 	Concept:        "human",
 	CredentialType: "HumanCredential",
@@ -44,7 +56,7 @@ var ExampleConfig = Config{
 		},
 		{
 			Name:  "subject",
-			Parts: []IndexPart{{Alias: &subject, JSONPath: "credentialSubject.id"}},
+			Parts: []IndexPart{{Alias: &humanSubject, JSONPath: "credentialSubject.id"}},
 		},
 		{
 			Name:  "id",
@@ -55,18 +67,7 @@ var ExampleConfig = Config{
 			Parts: []IndexPart{{JSONPath: "issuer"}},
 		},
 	},
-	Template: `
-{
-	"id": "<<id>>",
-	"issuer": "<<issuer>>",
-	"type": "HumanCredential",
-	"subject": "<<credentialSubject.id>>",
-	"human": {
-		"eyeColour": "<<credentialSubject.human.eyeColour>>",
-		"hairColour": "<<credentialSubject.human.hairColour>>"
-	}
-}
-`,
+	Template: &humanTemplate,
 }
 
 const TestCredential = `

@@ -21,13 +21,11 @@ package concept
 
 import (
 	"encoding/json"
-	"os"
 	"regexp"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/tidwall/gjson"
-	"gopkg.in/yaml.v2"
 )
 
 // Config defines the concept configuration for a VerifiableCredential
@@ -40,7 +38,7 @@ type Config struct {
 	Indices []Index `yaml:"indices"`
 	// Template is the string template for outputting a credential to a common format
 	// Each <<JSONPath>> value is substituted with the outcome of the JSONPath query
-	Template string `yaml:"template"`
+	Template *string `yaml:"template"`
 }
 
 var templateStringMatcher, _ = regexp.Compile(`<<([a-zA-Z\\.]+)>>`)
@@ -48,19 +46,27 @@ var templateStringMatcher, _ = regexp.Compile(`<<([a-zA-Z\\.]+)>>`)
 func (c Config) transform(vc vc.VerifiableCredential) (Concept, error) {
 	vcBytes, err := json.Marshal(vc)
 	vcString := string(vcBytes)
-	template := c.Template
+	concept := Concept{}
+	var template string
 	if err != nil {
 		return nil, err
 	}
 
-	// find all << refs >>
-	for _, match := range templateStringMatcher.FindAllStringSubmatch(c.Template, -1) {
-		replacement := gjson.Get(vcString, match[1]).String()
-		replacee := match[0]
-		template = strings.ReplaceAll(template, replacee, replacement)
+	// if no template is present, we'll return the credential
+	if c.Template == nil {
+		template = vcString
+	} else {
+		template = *c.Template
+
+		// find all << refs >>
+		for _, match := range templateStringMatcher.FindAllStringSubmatch(template, -1) {
+			replacement := gjson.Get(vcString, match[1]).String()
+			replacee := match[0]
+			template = strings.ReplaceAll(template, replacee, replacement)
+		}
 	}
 
-	concept := Concept{}
+
 	err = json.Unmarshal([]byte(template), &concept)
 	return concept, err
 }
@@ -83,15 +89,4 @@ type IndexPart struct {
 	Tokenizer *string `yaml:"tokenizer"`
 	// Transformer defines an optional transformer. Possible values: [cologne, lowerCase]
 	Transformer *string `yaml:"transformer"`
-}
-
-func ParseConfig(filename string) (Config, error) {
-	config := Config{}
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return config, err
-	}
-
-	err = yaml.Unmarshal(data, &config)
-	return config, err
 }

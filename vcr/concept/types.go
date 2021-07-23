@@ -51,7 +51,7 @@ const IDField = "id"
 // IssuerField defines the concept/VC JSON joinPath to a VC issuer
 const IssuerField = "issuer"
 
-// SubjectField defines the concept JSONPath to a VC subject
+// SubjectField defines the concept JSONPath to a VC humanSubject
 const SubjectField = "subject"
 
 // GetString returns the value at the given path or nil if not found
