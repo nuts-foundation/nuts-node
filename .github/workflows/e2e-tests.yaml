@@ -42,6 +42,7 @@ jobs:
           tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ github.sha }}
 
       - name: Run E2E tests
+        continue-on-error: true
         run: |
           git clone https://github.com/nuts-foundation/nuts-go-e2e-test.git && \
             cd nuts-go-e2e-test && \
@@ -51,7 +52,12 @@ jobs:
             chmod +x earthly-linux-amd64 && \
             ./earthly-linux-amd64 -P +all
 
-      - uses: actions/delete-package-versions@v1
+      - uses: bots-house/ghcr-delete-image-action@v1.0.1
         with:
           package-name: 'nuts-node-ci'
-          num-old-versions-to-delete: 3
+          package-version-ids:  ${{ github.sha }}
+          owner: nuts-foundation
+          name: nuts-node-ci
+          # NOTE: using Personal Access Token
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.sha }}
