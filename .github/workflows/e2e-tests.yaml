@@ -39,14 +39,14 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name == 'pull_request' }}
-          tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ github.sha }}
+          tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ github.event.pull_request.head.sha }}
 
       - name: Run E2E tests
         run: |
           git clone https://github.com/nuts-foundation/nuts-go-e2e-test.git && \
             cd nuts-go-e2e-test && \
-            find . -type f -name "docker-compose.yml" | xargs -I{} sed -i "s~nutsfoundation/nuts-node:master~ghcr.io/nuts-foundation/nuts-node-ci:${{ github.sha }}~g" {} && \
-            sed -i "s~WITH DOCKER~WITH DOCKER --pull ghcr.io/nuts-foundation/nuts-node-ci:${{ github.sha }}~g" Earthfile && \
+            find . -type f -name "docker-compose.yml" | xargs -I{} sed -i "s~nutsfoundation/nuts-node:master~ghcr.io/nuts-foundation/nuts-node-ci:${{ github.event.pull_request.head.sha }}~g" {} && \
+            sed -i "s~WITH DOCKER~WITH DOCKER --pull ghcr.io/nuts-foundation/nuts-node-ci:${{ github.event.pull_request.head.sha }}~g" Earthfile && \
             curl -LO https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 && \
             chmod +x earthly-linux-amd64 && \
             ./earthly-linux-amd64 -P +all
