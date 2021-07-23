@@ -57,5 +57,5 @@ jobs:
           owner: nuts-foundation
           name: nuts-node-ci
           # NOTE: using Personal Access Token
-          token: ${{ secrets.PACKAGE_TOKEN }}
+          token: ${{ secrets.PACKAGE_SECRET }}
           tag: ${{ github.event.workflow_run.head_sha }}
