@@ -227,6 +227,7 @@ components:
         - hash
         - originJWSHash
         - version
+        - deactivated
       properties:
         created:
           description: Time when DID document was created in rfc3339 form.
@@ -243,6 +244,9 @@ components:
         version:
           description: Version of the DID document, starting at 1.
           type: integer
+        deactivated:
+          description: Whether the DID document has been deactivated.
+          type: boolean
     DIDResolutionResult:
       required:
         - document
