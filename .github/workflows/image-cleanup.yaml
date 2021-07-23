@@ -1,7 +1,7 @@
 on:
-workflow_run:
-  workflows: ["E2E tests"]
-  types: [completed]
+  workflow_run:
+    workflows: ["E2E tests"]
+    types: [completed]
 
 jobs:
   cleanup:
