@@ -13,4 +13,4 @@ jobs:
           name: nuts-node-ci
           # NOTE: using Personal Access Token
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.sha }}
+          tag: ${{ github.event.workflow_run.head_sha }}
