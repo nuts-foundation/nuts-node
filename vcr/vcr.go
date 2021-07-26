@@ -172,7 +172,10 @@ func (c *vcr) initIndices() error {
 				leiaParts = append(leiaParts, leia.NewFieldIndexer(iParts.JSONPath, options...))
 			}
 
-			if err := collection.AddIndex(leia.NewIndex(index.Name, leiaParts...)); err != nil {
+			leiaIndex := leia.NewIndex(index.Name, leiaParts...)
+			logging.Log().Debug("Adding index %s to %s using: %v", leiaIndex)
+
+			if err := collection.AddIndex(leiaIndex); err != nil {
 				return err
 			}
 		}
