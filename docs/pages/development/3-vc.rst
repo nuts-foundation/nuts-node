@@ -120,11 +120,11 @@ See `VC Concept mapping <vc-concepts>`_ for background information on concept ma
 NutsOrganizationCredential
 ==========================
 
-.. include:: ../../../vcr/assets/NutsOrganizationCredential.json.template
+.. include:: ../../../vcr/assets/NutsOrganizationCredential.config.yaml
    :literal:
 
 NutsAuthorizationCredential
 ==========================
 
-.. include:: ../../../vcr/assets/NutsAuthorizationCredential.json.template
+.. include:: ../../../vcr/assets/NutsAuthorizationCredential.config.yaml
    :literal:
