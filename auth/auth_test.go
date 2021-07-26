@@ -18,6 +18,19 @@ func TestAuth_Configure(t *testing.T) {
 		_ = i.Configure(*core.NewServerConfig())
 	})
 
+	t.Run("ok - truststore loaded", func(t *testing.T) {
+		authCfg := TestConfig()
+		authCfg.EnableTLS = true
+		authCfg.TrustStoreFile = "test/certs/example.pem"
+		i := testInstance(t, authCfg)
+		err := i.Configure(*core.NewServerConfig())
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.NotNil(t, i.trustStore)
+	})
+
 	t.Run("error - no publicUrl", func(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.PublicURL = ""
@@ -54,6 +67,15 @@ func TestAuth_Configure(t *testing.T) {
 		serverConfig.Strictmode = true
 		err := i.Configure(*serverConfig)
 		assert.EqualError(t, err, "in strictmode the only valid irma-scheme-manager is 'pbdf'")
+	})
+
+	t.Run("error - unknown truststore when TLS enabled", func(t *testing.T) {
+		authCfg := TestConfig()
+		authCfg.EnableTLS = true
+		authCfg.TrustStoreFile = "non-existing"
+		i := testInstance(t, authCfg)
+		err := i.Configure(*core.NewServerConfig())
+		assert.EqualError(t, err, "unable to read trust store (file=non-existing): open non-existing: no such file or directory")
 	})
 }
 
