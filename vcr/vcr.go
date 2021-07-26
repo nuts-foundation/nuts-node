@@ -520,6 +520,8 @@ func (c *vcr) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
 		}
 	}
 
+	logging.Log().Warnf("No credential with type %s configured", credentialType.String())
+
 	return nil, ErrInvalidCredential
 }
 
@@ -551,6 +553,8 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	})
 	if err != nil {
 		if errors.Is(err, leia.ErrNoIndex) {
+			logging.Log().Warnf("No index with field 'issuer' found for %s", credentialType.String())
+
 			return nil, ErrInvalidCredential
 		}
 		return nil, err
