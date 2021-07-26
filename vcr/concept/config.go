@@ -84,7 +84,7 @@ type IndexPart struct {
 	// Alias defines an optional alias that can be used within a search query
 	Alias *string `yaml:"alias"`
 	// JSONPath defines the JSON search path
-	JSONPath string `yaml:"jsonPath"`
+	JSONPath string `yaml:"path"`
 	// Tokenizer defines an optional tokenizer. Possible values: [whitespace]
 	Tokenizer *string `yaml:"tokenizer"`
 	// Transformer defines an optional transformer. Possible values: [cologne, lowerCase]
