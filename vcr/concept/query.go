@@ -26,53 +26,53 @@ type Query interface {
 	// Concept returns the concept name.
 	Concept() string
 	// Parts returns the different concept queries
-	Parts() []*ConceptQuery
+	Parts() []*CredentialQuery
 	// AddClause adds a clause to the query.
 	AddClause(clause Clause)
 }
 
 type query struct {
 	concept string
-	parts   []*ConceptQuery
+	parts   []*CredentialQuery
 }
 
 func (q query) Concept() string {
 	return q.concept
 }
 
-func (q query) Parts() []*ConceptQuery {
+func (q query) Parts() []*CredentialQuery {
 	return q.parts
 }
 
-// addConfig adds a config to this query. It'll create a new ConceptQuery
+// addConfig adds a config to this query. It'll create a new CredentialQuery
 func (q *query) addConfig(config Config) {
-	tq := ConceptQuery{
+	tq := CredentialQuery{
 		config: config,
 	}
 
 	q.parts = append(q.parts, &tq)
 }
 
-// AddClause adds a Clause. The clause is added to each ConceptQuery
+// AddClause adds a Clause. The clause is added to each CredentialQuery
 func (q *query) AddClause(clause Clause) {
 	for _, tq := range q.parts {
 		tq.Clauses = append(tq.Clauses, clause)
 	}
 }
 
-// ConceptQuery represents a query/template combination
-type ConceptQuery struct {
+// CredentialQuery represents a query/template combination
+type CredentialQuery struct {
 	config  Config
 	Clauses []Clause
 }
 
 // Config returns the underlying config
-func (tq *ConceptQuery) Config() Config {
+func (tq *CredentialQuery) Config() Config {
 	return tq.config
 }
 
 // CredentialType returns the VC type.
-func (tq *ConceptQuery) CredentialType() string {
+func (tq *CredentialQuery) CredentialType() string {
 	return tq.config.CredentialType
 }
 

@@ -66,7 +66,6 @@ func (c Config) transform(vc vc.VerifiableCredential) (Concept, error) {
 		}
 	}
 
-
 	err = json.Unmarshal([]byte(template), &concept)
 	return concept, err
 }
