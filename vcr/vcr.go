@@ -550,6 +550,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 			if err != nil {
 				return err
 			}
+			trustMap[issuer] = true
 			untrusted = append(untrusted, *u)
 		}
 		return nil

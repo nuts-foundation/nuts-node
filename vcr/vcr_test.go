@@ -27,6 +27,7 @@ import (
 	"path"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -832,10 +833,10 @@ func TestVcr_Untrusted(t *testing.T) {
 
 	// add document
 	doc := leia.DocumentFromString(concept.TestCredential)
-	err = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
-	if !assert.NoError(t, err) {
-		return
-	}
+	doc2 := leia.DocumentFromString(strings.ReplaceAll(concept.TestCredential, "#123", "#321"))
+	_ = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+	// for duplicate detection
+	_ = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc2})
 
 	funcs := []func(ssi.URI) ([]ssi.URI, error){
 		instance.Trusted,
