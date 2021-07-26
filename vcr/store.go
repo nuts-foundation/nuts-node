@@ -45,7 +45,7 @@ func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 	vcType := credential.ExtractTypes(subject)[0]
 
 	logging.Log().Debugf("Writing %s to store", vcType)
-	logging.Log().Tracef("%+v", vc)
+	logging.Log().Tracef("%+v", subject)
 
 	doc, _ := json.Marshal(subject)
 
