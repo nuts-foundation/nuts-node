@@ -22,7 +22,7 @@ require (
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/nuts-foundation/go-did v0.1.1
-	github.com/nuts-foundation/go-leia v1.0.0-beta
+	github.com/nuts-foundation/go-leia v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/privacybydesign/irmago v0.7.0
 	github.com/prometheus/client_golang v1.7.1
