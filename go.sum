@@ -457,6 +457,8 @@ github.com/nishanths/exhaustive v0.0.0-20200525081945-8e46705b6132 h1:NjznefjSrr
 github.com/nishanths/exhaustive v0.0.0-20200525081945-8e46705b6132/go.mod h1:wBEpHwM2OdmeNpdCvRPUlkEbBuaFmcK4Wv8Q7FuGW3c=
 github.com/nuts-foundation/go-did v0.1.1 h1:Yn4Ejjyj4/3urI3HfmOAJnYO2kBrwPFfR+BZKY/uFdc=
 github.com/nuts-foundation/go-did v0.1.1/go.mod h1:tWZ+glowEt1E+SqJQzqyXB3rGuZ+AZHSsXYU9ceuMRM=
+github.com/nuts-foundation/go-leia v1.0.0-beta h1:J9kRkpMrw6IV3ESRiOEIGjFH35dpM2CaSWM+mKM0Gx4=
+github.com/nuts-foundation/go-leia v1.0.0-beta/go.mod h1:oa8yl7r6+BJCqFHkjD9gb2lgoANnoaSdC3qI6Eocneg=
 github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8 h1:s5GFggECXv/KwF37ax4B7ACMOKoUnKvmur4i+7I07UE=
 github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8 h1:s5GFggECXv/KwF37ax4B7ACMOKoUnKvmur4i+7I07UE=
 github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8/go.mod h1:ZsbTIuVGt8OrQEbqWrSztUISN4joeMabdsinbLubbzw=
