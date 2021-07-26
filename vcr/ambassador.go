@@ -26,7 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/logging"
+	"github.com/nuts-foundation/nuts-node/vcr/logging"
 	"github.com/pkg/errors"
 )
 

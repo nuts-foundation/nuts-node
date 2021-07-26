@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/logging"
 
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -42,6 +43,9 @@ func (c *vcr) StoreCredential(credential vc.VerifiableCredential) error {
 func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 	// validation has made sure there's exactly one!
 	vcType := credential.ExtractTypes(subject)[0]
+
+	logging.Log().Debugf("Writing %s to store", vcType)
+	logging.Log().Tracef("%+v", vc)
 
 	doc, _ := json.Marshal(subject)
 
