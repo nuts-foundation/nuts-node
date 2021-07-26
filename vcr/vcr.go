@@ -173,7 +173,7 @@ func (c *vcr) initIndices() error {
 			}
 
 			leiaIndex := leia.NewIndex(index.Name, leiaParts...)
-			logging.Log().Debugf("Adding index %s to %s using: %v", leiaIndex)
+			logging.Log().Debugf("Adding index %s to %s using: %v", index.Name, config.CredentialType, leiaIndex)
 
 			if err := collection.AddIndex(leiaIndex); err != nil {
 				return err
