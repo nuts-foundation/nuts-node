@@ -229,25 +229,11 @@ func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]Or
 		return nil, err
 	}
 	// Retrieve DID Documents of found organizations
-	didDocuments := make([]*did.Document, len(organizations))
-	j := 0
-	for i, organization := range organizations {
-		document, organizationDID, err := d.resolveOrganizationDIDDocument(organization)
-		if err != nil && !errors.Is(types.ErrNotFound, err) {
-			return nil, err
-		}
-		if document == nil {
-			// DID Document might be deactivated, so just log a warning and omit this entry from the search.
-			logging.Log().Warnf("Unable to resolve organization DID Document (DID=%s): %v", organizationDIDStr, err)
-			continue
-		}
-		didDocuments[j] = document
-		organizations[j] = organizations[i]
-		j++
+	var didDocuments []*did.Document
+	didDocuments, organizations, err = d.resolveOrganizationDIDDocuments(organizations)
+	if err != nil {
+		return nil, err
 	}
-	// Reslice to omit results which' DID Document could not be resolved
-	didDocuments = didDocuments[:j]
-	organizations = organizations[:j]
 
 	// If specified, filter on DID service type
 	if didServiceType != nil && len(*didServiceType) > 0 {
@@ -281,6 +267,32 @@ func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]Or
 	return results, nil
 }
 
+// resolveOrganizationDIDDocuments takes a slice of organization concepts and tries to resolve the corresponding DID document for each.
+// If a DID document isn't found or it is deactivated the organization is filtered from the concepts slice (reslicing the given slice) and omitted from the DID documents slice.
+// If any other error occurs, it is returned.
+func (d *didman) resolveOrganizationDIDDocuments(organizations []concept.Concept) ([]*did.Document, []concept.Concept, error) {
+	didDocuments := make([]*did.Document, len(organizations))
+	j := 0
+	for i, organization := range organizations {
+		document, organizationDID, err := d.resolveOrganizationDIDDocument(organization)
+		if err != nil && !(errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrDeactivated)) {
+			return nil, nil, err
+		}
+		if document == nil {
+			// DID Document might be deactivated, so just log a warning and omit this entry from the search.
+			logging.Log().Warnf("Unable to resolve organization DID Document (DID=%s): %v", organizationDID, err)
+			continue
+		}
+		didDocuments[j] = document
+		organizations[j] = organizations[i]
+		j++
+	}
+	// Reslice to omit results which' DID Document could not be resolved
+	didDocuments = didDocuments[:j]
+	organizations = organizations[:j]
+	return didDocuments, organizations, nil
+}
+
 func (d *didman) resolveOrganizationDIDDocument(organization concept.Concept) (*did.Document, did.DID, error) {
 	organizationDIDStr, err := organization.GetString(concept.SubjectField)
 	if err != nil {
@@ -290,7 +302,7 @@ func (d *didman) resolveOrganizationDIDDocument(organization concept.Concept) (*
 	if err != nil {
 		return nil, did.DID{}, fmt.Errorf("unable to parse DID from organization concept: %w", err)
 	}
-	document, _, err := d.store.Resolve(*organizationDID, nil)
+	document, _, err := d.docResolver.Resolve(*organizationDID, nil)
 	return document, *organizationDID, err
 }
 

@@ -72,7 +72,7 @@ type AddEndpointJSONBody EndpointProperties
 // SearchOrganizationsParams defines parameters for SearchOrganizations.
 type SearchOrganizationsParams struct {
 
-	// Query used for searching the organization by name.
+	// Query used for searching the organization by name. The query is matched to the organization's name in a SQL's "LIKE" fashion: it matches partial strings and also names that sound like the given query, using a phonetic transformation algorithm.
 	Query string `json:"query"`
 
 	// Filters organizations by service of the given type in the organizations' DID document (optional).

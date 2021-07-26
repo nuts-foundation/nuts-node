@@ -253,6 +253,7 @@ func (w *Wrapper) GetContactInformation(ctx echo.Context, didStr string) error {
 
 // SearchOrganizations handles requests for searching organizations, meaning it looks for (valid) Verifiable Credentials
 // that map to the "organization" concept and where its subject resolves to an active DID Document.
+// It optionally filters only on organizations which DID documents contain a service with the specified type.
 func (w *Wrapper) SearchOrganizations(ctx echo.Context, params SearchOrganizationsParams) error {
 	results, err := w.Didman.SearchOrganizations(params.Query, params.DidServiceType)
 	if err != nil {
