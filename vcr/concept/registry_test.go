@@ -118,6 +118,22 @@ func TestRegistry_Transform(t *testing.T) {
 	})
 }
 
+func TestRegistry_Concepts(t *testing.T) {
+	r := NewRegistry().(*registry)
+
+	err := r.Add(ExampleConfig)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	cs := r.Concepts()
+
+	if !assert.Len(t, cs, 1) {
+		return
+	}
+	assert.Equal(t, "human", cs[0].Concept)
+}
+
 func TestRegistry_QueryFor(t *testing.T) {
 	r := NewRegistry().(*registry)
 
@@ -134,5 +150,21 @@ func TestRegistry_QueryFor(t *testing.T) {
 		}
 
 		assert.Equal(t, ErrUnknownConcept, err)
+	})
+
+	t.Run("ok", func(t *testing.T) {
+		q, err := r.QueryFor("human")
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, "human", q.Concept())
+		if !assert.Len(t, q.Parts(), 1) {
+			return
+		}
+		assert.Equal(t, "HumanCredential", q.Parts()[0].CredentialType())
+		assert.Equal(t, q.Concept(), q.Parts()[0].config.Concept)
+		assert.Len(t, q.Parts()[0].Clauses, 0)
 	})
 }

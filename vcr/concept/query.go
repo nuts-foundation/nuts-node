@@ -66,11 +66,6 @@ type CredentialQuery struct {
 	Clauses []Clause
 }
 
-// Config returns the underlying config
-func (tq *CredentialQuery) Config() Config {
-	return tq.config
-}
-
 // CredentialType returns the VC type.
 func (tq *CredentialQuery) CredentialType() string {
 	return tq.config.CredentialType
