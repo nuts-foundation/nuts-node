@@ -34,13 +34,11 @@ jobs:
 
       - name: Setting git SHA to PR head
         if: ${{ github.event_name == 'pull_request' }}
-        run: echo "::set-output name=SHA::${{ github.event.pull_request.head.sha }}"
-        id: sha-setter
+        run: echo "SHA=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
 
       - name: Setting git SHA to branch head
-        if: ${{ env.SHA == null }}
-        run: echo "::set-output name=SHA::${{ github.sha }}"
-        id: sha-setter
+        if: ${{ github.event_name != 'pull_request' }}
+        run: echo "SHA=${{ github.sha }}" >> $GITHUB_ENV
 
       - name: Build and push
         uses: docker/build-push-action@v2
@@ -49,14 +47,14 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name == 'pull_request' }}
-          tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ steps.sha-setter.outputs.SHA }}
+          tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}
 
       - name: Run E2E tests
         run: |
           git clone https://github.com/nuts-foundation/nuts-go-e2e-test.git && \
             cd nuts-go-e2e-test && \
-            find . -type f -name "docker-compose.yml" | xargs -I{} sed -i "s~nutsfoundation/nuts-node:master~ghcr.io/nuts-foundation/nuts-node-ci:${{ steps.sha-setter.outputs.SHA }}~g" {} && \
-            sed -i "s~WITH DOCKER~WITH DOCKER --pull ghcr.io/nuts-foundation/nuts-node-ci:${{ steps.sha-setter.outputs.SHA }}~g" Earthfile && \
+            find . -type f -name "docker-compose.yml" | xargs -I{} sed -i "s~nutsfoundation/nuts-node:master~ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}~g" {} && \
+            sed -i "s~WITH DOCKER~WITH DOCKER --pull ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}~g" Earthfile && \
             curl -LO https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 && \
             chmod +x earthly-linux-amd64 && \
             ./earthly-linux-amd64 -P +all
@@ -68,4 +66,4 @@ jobs:
           name: nuts-node-ci
           # NOTE: using Personal Access Token
           token: ${{ secrets.PACKAGE_SECRET }}
-          tag: ${{ steps.sha-setter.outputs.SHA }}
+          tag: ${{ env.SHA }}
