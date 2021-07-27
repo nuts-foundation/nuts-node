@@ -41,7 +41,7 @@ type Config struct {
 	Template *string `yaml:"template"`
 }
 
-var templateStringMatcher, _ = regexp.Compile(`<<([a-zA-Z\\.]+)>>`)
+var templateStringMatcher = regexp.MustCompile(`<<([a-zA-Z\\._\\-]+)>>`)
 
 func (c Config) transform(vc vc.VerifiableCredential) (Concept, error) {
 	vcBytes, err := json.Marshal(vc)
@@ -86,6 +86,6 @@ type IndexPart struct {
 	JSONPath string `yaml:"path"`
 	// Tokenizer defines an optional tokenizer. Possible values: [whitespace]
 	Tokenizer *string `yaml:"tokenizer"`
-	// Transformer defines an optional transformer. Possible values: [cologne, lowerCase]
+	// Transformer defines an optional transformer. Possible values: [cologne, lowercase]
 	Transformer *string `yaml:"transformer"`
 }

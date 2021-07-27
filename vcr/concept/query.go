@@ -114,7 +114,7 @@ func (e eq) Match() string {
 	return e.value
 }
 
-// PrefixType is the identifier for an prefix clause
+// PrefixType is the identifier for a prefix clause
 const PrefixType = "prefix"
 
 // Prefix creates a prefix Clause

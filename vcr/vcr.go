@@ -151,7 +151,8 @@ func (c *vcr) initIndices() error {
 					options = append(options, leia.AliasOption(*iParts.Alias))
 				}
 				if iParts.Tokenizer != nil {
-					switch *iParts.Tokenizer {
+					tokenizer := strings.ToLower(*iParts.Tokenizer)
+					switch tokenizer {
 					case "whitespace":
 						options = append(options, leia.TokenizerOption(leia.WhiteSpaceTokenizer))
 					default:
@@ -159,10 +160,11 @@ func (c *vcr) initIndices() error {
 					}
 				}
 				if iParts.Transformer != nil {
-					switch *iParts.Transformer {
+					transformer := strings.ToLower(*iParts.Transformer)
+					switch transformer {
 					case "cologne":
 						options = append(options, leia.TransformerOption(concept.CologneTransformer))
-					case "lowerCase":
+					case "lowercase":
 						options = append(options, leia.TransformerOption(leia.ToLower))
 					default:
 						return fmt.Errorf("unknown transformer %s for %s", *iParts.Transformer, config.CredentialType)

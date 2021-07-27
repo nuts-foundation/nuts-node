@@ -84,7 +84,7 @@ Possible values for tokenizer: `whitespace`.
 A transformer transforms a value before the value is used as an index key. A transformer will also transform search parameters that use that index.
 For example: the lowercase transformer will transform all indexed values and search params to lowercase.
 The word *Nutty* in the previous example could then be found with *nutty*, *NUTTY* or any other combination of upper- and lowercase letters.
-Possible values for transformer: `lowerCase`, `cologne`.
+Possible values for transformer: `lowercase`, `cologne`.
 
 The `cologne` transformer is a phonetic transformer. It's like soundex but works better for germanic type languages.
 
