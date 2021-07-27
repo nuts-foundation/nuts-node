@@ -331,7 +331,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.graphVerifier.EXPECT().BootFinished().Return([]error{errors.New("failed")})
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		err := cxt.network.Start()
-		assert.EqualError(t, err, "On-boot DAG verification has failed, see the error log for details.")
+		assert.EqualError(t, err, "on-boot DAG verification has failed, see the error log for details")
 	})
 }
 
