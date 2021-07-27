@@ -342,6 +342,8 @@ components:
       properties:
         organization:
           type: object
-          description: An object describing the found entity, modelled as a concept as specified by VCR's OpenAPI specification.
+          description: >
+            An object describing the found entity, modelled as a concept as specified by VCR's OpenAPI specification.
+            See https://nuts-node.readthedocs.io/en/latest/pages/development/3-vc.html for examples on which concepts are supported and how they're structured.
         didDocument:
           $ref: '../vdr/v1.yaml#/components/schemas/DIDDocument'
