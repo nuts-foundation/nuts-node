@@ -843,14 +843,6 @@ func TestVCR_Search(t *testing.T) {
 		assert.ErrorIs(t, err, concept.ErrUnknownConcept)
 		assert.Nil(t, results)
 	})
-	//
-	//t.Run("error - not found", func(t *testing.T) {
-	//	ctx := testInstance(t)
-	//	_, err := ctx.vcr.Get(concept.ExampleConcept, "unknown")
-	//
-	//	assert.Error(t, err)
-	//	assert.Equal(t, err, ErrNotFound)
-	//})
 }
 
 func TestVcr_Untrusted(t *testing.T) {
