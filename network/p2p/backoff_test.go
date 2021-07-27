@@ -50,3 +50,12 @@ func TestBackoffDefaultValues(t *testing.T) {
 	assert.Equal(t, time.Second, b.min)
 	assert.Equal(t, 30*time.Second, b.max)
 }
+
+func TestRandomBackoff(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		const min = time.Second
+		const max = 10 * time.Second
+		val := RandomBackoff(min, max)
+		assert.True(t, val >= min && val <= max)
+	}
+}
