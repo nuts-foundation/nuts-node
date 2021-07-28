@@ -275,7 +275,7 @@ func (n *adapter) Stop() error {
 }
 
 func (n adapter) ConnectToPeer(address string) bool {
-	if n.shouldConnectTo(address) && len(n.connectorAddChannel) < connectingQueueChannelSize {
+	if n.shouldConnectTo(address, "") && len(n.connectorAddChannel) < connectingQueueChannelSize {
 		n.connectorAddChannel <- address
 		return true
 	}
@@ -303,8 +303,9 @@ func (n *adapter) connectToNewPeers() {
 }
 
 func (n *adapter) startConnecting(newConnector *connector) {
+	var resolvedPeerID PeerID
 	for {
-		if n.shouldConnectTo(newConnector.address) {
+		if n.shouldConnectTo(newConnector.address, resolvedPeerID) {
 			var tlsConfig *tls.Config
 			if n.config.tlsEnabled() {
 				tlsConfig = &tls.Config{
@@ -317,25 +318,37 @@ func (n *adapter) startConnecting(newConnector *connector) {
 				log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), newConnector.address, err)
 				time.Sleep(waitPeriod)
 			} else {
-				n.acceptPeer(*peer, stream)
 				newConnector.backoff.Reset()
+				// Since outgoing connections only get the peer's address as input, it doesn't know the peer's ID when initially connecting.
+				// We might already have a connection to this peer, in case it connected to the local node first.
+				// That's why we store the peer's ID, so we can check whether we're already connected to the peer next time before reconnecting.
+				resolvedPeerID = peer.ID
+				n.acceptPeer(*peer, stream)
+				// When the peer's reconnection timing is very close to the local node's (because they're running the same software),
+				// they might reconnect to each other at the same time after a disconnect.
+				// So we add a bit of randomness before reconnecting, making the chance they reconnect at the same time a lot smaller.
+				time.Sleep(RandomBackoff(time.Second, 5*time.Second))
 			}
 		}
+		// We check whether we should (re)connect to the registered peers every second. Should be OK since it's a cheap check.
+		time.Sleep(time.Second)
 	}
 }
 
 // shouldConnectTo checks whether we should connect to the given node.
-func (n *adapter) shouldConnectTo(address string) bool {
+func (n *adapter) shouldConnectTo(address string, peerID PeerID) bool {
 	normalizedAddress := normalizeAddress(address)
 	if normalizedAddress == normalizeAddress(n.getLocalAddress()) {
 		// We're not going to connect to our own node
-		log.Logger().Trace("Not connecting since it's localhost")
+		log.Logger().Tracef("Not connecting since it's localhost (address=%s)", address)
 		return false
 	}
 	alreadyConnected := n.conns.isConnected(normalizedAddress)
 	if alreadyConnected {
-		// We're not going to connect to a node we're already connected to
-		log.Logger().Tracef("Not connecting since we're already connected (address=%s)", normalizedAddress)
+		log.Logger().Tracef("Not connected since we're already connected to a peer on that address (address=%s)", address)
+	} else if peerID != "" && n.conns.get(peerID) != nil {
+		log.Logger().Tracef("Not connecting since we're already connected to a peer with that ID (peer=%s)", peerID)
+		alreadyConnected = true
 	}
 	return !alreadyConnected
 }

@@ -42,7 +42,7 @@ func waitForGRPCStart() {
 	time.Sleep(100 * time.Millisecond) // Wait a moment for gRPC server and bootstrap goroutines to run
 }
 
-func Test_interface_Configure(t *testing.T) {
+func Test_adapter_Configure(t *testing.T) {
 	t.Run("ok - configure registers bootstrap nodes", func(t *testing.T) {
 		network := NewAdapter()
 		err := network.Configure(AdapterConfig{
@@ -76,7 +76,7 @@ func Test_interface_Configure(t *testing.T) {
 	})
 }
 
-func Test_interface_Start(t *testing.T) {
+func Test_adapter_Start(t *testing.T) {
 	t.Run("ok - gRPC server not bound", func(t *testing.T) {
 		network := NewAdapter().(*adapter)
 		err := network.Configure(AdapterConfig{
@@ -134,7 +134,7 @@ func Test_interface_Start(t *testing.T) {
 	})
 }
 
-func Test_interface_Connect(t *testing.T) {
+func Test_adapter_Connect(t *testing.T) {
 	const peerID = "abc"
 
 	t.Run("ok (uses mocks to test behaviour)", func(t *testing.T) {
@@ -254,7 +254,7 @@ func Test_interface_Connect(t *testing.T) {
 	})
 }
 
-func Test_interface_ConnectToPeer(t *testing.T) {
+func Test_adapter_ConnectToPeer(t *testing.T) {
 	network := NewAdapter().(*adapter)
 	network.Configure(AdapterConfig{
 		PeerID:        "foo",
@@ -286,12 +286,12 @@ func Test_interface_ConnectToPeer(t *testing.T) {
 	})
 }
 
-func Test_interface_Diagnostics(t *testing.T) {
+func Test_adapter_Diagnostics(t *testing.T) {
 	network := NewAdapter()
 	assert.Len(t, network.Diagnostics(), 3)
 }
 
-func Test_interface_GetLocalAddress(t *testing.T) {
+func Test_adapter_GetLocalAddress(t *testing.T) {
 	network := NewAdapter().(*adapter)
 	err := network.Configure(AdapterConfig{
 		PeerID:         "foo",
@@ -311,7 +311,7 @@ func Test_interface_GetLocalAddress(t *testing.T) {
 	})
 }
 
-func Test_interface_Send(t *testing.T) {
+func Test_adapter_Send(t *testing.T) {
 	const peerID = "foobar"
 	const addr = "foo"
 	t.Run("ok", func(t *testing.T) {
@@ -345,7 +345,7 @@ func Test_interface_Send(t *testing.T) {
 	})
 }
 
-func Test_interface_Broadcast(t *testing.T) {
+func Test_adapter_Broadcast(t *testing.T) {
 	const peer1ID = "foobar1"
 	const peer2ID = "foobar2"
 	network := NewAdapter().(*adapter)
@@ -372,5 +372,29 @@ func Test_interface_Broadcast(t *testing.T) {
 		wg.Wait()
 		assert.Empty(t, peer1.outMessages)
 		assert.Len(t, peer2.outMessages, peer2MsgCount+1)
+	})
+}
+
+func Test_adapter_shouldConnectTo(t *testing.T) {
+	sut := NewAdapter().(*adapter)
+	sut.config.ListenAddress = "some-address:5555"
+	sut.conns.register(Peer{
+		ID:      "peer",
+		Address: "peer:5555",
+	}, nil)
+	t.Run("localhost", func(t *testing.T) {
+		assert.False(t, sut.shouldConnectTo("some-address:5555", ""))
+	})
+	t.Run("localhost, but port differs", func(t *testing.T) {
+		assert.True(t, sut.shouldConnectTo("some-address:1111", ""))
+	})
+	t.Run("peer already connected, address equal", func(t *testing.T) {
+		assert.False(t, sut.shouldConnectTo("peer:5555", ""))
+	})
+	t.Run("peer already connected, address differs (but peer ID matches)", func(t *testing.T) {
+		assert.False(t, sut.shouldConnectTo("1.2.3.4:5555", "peer"))
+	})
+	t.Run("not connected, peer ID provided", func(t *testing.T) {
+		assert.True(t, sut.shouldConnectTo("4.3.2.1:5555", "other-peer"))
 	})
 }

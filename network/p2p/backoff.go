@@ -19,6 +19,7 @@
 package p2p
 
 import (
+	"math/rand"
 	"time"
 )
 
@@ -32,6 +33,12 @@ type Backoff interface {
 	Reset()
 	// Backoff returns the waiting time before the call should be retried, and should be called after a failed call.
 	Backoff() time.Duration
+}
+
+// RandomBackoff returns a random time.Duration which lies between the given (inclusive) min/max bounds.
+// It can be used to get a random, one-off backoff.
+func RandomBackoff(min, max time.Duration) time.Duration {
+	return time.Duration(rand.Int63n(int64(max-min)) + int64(min))
 }
 
 type backoff struct {
