@@ -19,17 +19,18 @@ Authorization credentials are issued by the same party that will also control th
 Bolt
 ****
 
-An authorization is created for a particular Bolt. A Bolt specifies what the contents of the `purposeOfUse` should be.
+A Bolt is a functional and technical specification that translates a care process to technical requirements.
+An authorization is created for a particular Bolt. A Bolt specifies what the possible values of `purposeOfUse` can be.
 Each value corresponds to an access policy defined by the Bolt.
 Creating an authorization credential that is not according to a Bolt specification will have little effect or will even hinder interoperability.
-Particular requirements for a Bolt are not validated by the node, the node will only do the validations as specified by the specification.
+Particular requirements for a Bolt are not validated by the node, the node will only do the validations as specified.
 
 Registering a NutsAuthorizationCredential
 *****************************************
 
 Issuing an authorization credential is similar to issuing an organization credential. Both use the same API.
 New credentials will automatically receive an `id`, `issuanceDate`, `context` and `proof`.
-A DID requires a valid `assertionMethod key<https://nuts-foundation.gitbook.io/drafts/rfc/rfc011-verifiable-credential#3-1-1-jsonwebsignature2020>`_.
+A DID requires a valid `assertionMethod key <https://nuts-foundation.gitbook.io/drafts/rfc/rfc011-verifiable-credential#3-1-1-jsonwebsignature2020>`_.
 
 The credential can be issued with the following call:
 
@@ -91,18 +92,18 @@ The result of the call above will be something like this:
 
 .. code-block:: json
 
-[
-    {
-        "id": "did:nuts:3wEb8GJEuenjMexQXKfrdAr8CvA69SdbVh8qhUpDMcX2#dd4193e6-cc94-4276-88c3-8b272612c50f",
-        "issuer": "did:nuts:3wEb8GJEuenjMexQXKfrdAr8CvA69SdbVh8qhUpDMcX2",
-        "organization": {
-            "city": "CareTown",
-            "name": "CareBears"
-        },
-        "subject": "did:nuts:5vLpJpRP8KnQbTL4XC78VtfdNabwNGfDtTTWXDkAkXBm",
-        "type": "NutsOrganizationCredential"
-    }
-]
+    [
+        {
+            "id": "did:nuts:3wEb8GJEuenjMexQXKfrdAr8CvA69SdbVh8qhUpDMcX2#dd4193e6-cc94-4276-88c3-8b272612c50f",
+            "issuer": "did:nuts:3wEb8GJEuenjMexQXKfrdAr8CvA69SdbVh8qhUpDMcX2",
+            "organization": {
+                "city": "CareTown",
+                "name": "CareBears"
+            },
+            "subject": "did:nuts:5vLpJpRP8KnQbTL4XC78VtfdNabwNGfDtTTWXDkAkXBm",
+            "type": "NutsOrganizationCredential"
+        }
+    ]
 
 The `subject` field is the DID that would be the receiver of the credential.
 
@@ -193,7 +194,7 @@ Return values
 =============
 
 When searching for authorization credentials, the credentials are returned as a verifiable credential.
-Most of the time, you'll only need the credential identifier, available in the `id` field.
+Most of the time, you'll only need the credential identifier, available in the root `id` field.
 
 Example return value:
 
