@@ -69,7 +69,7 @@ Each configuration may contain a list of indices. Each index has a name and cont
 The name of the index is used to identify the index. Each index is scoped to its own credential type.
 An index part must contain a `path`. The path is a JSON path query.
 The values found at that location will be used for indexing.
-See [go-leia](https://github.com/nuts-foundation/go-leia) for the syntax and available options.
+See `go-leia <https://github.com/nuts-foundation/go-leia>`_ for the syntax and available options.
 
 An index part may contain an `alias`. The alias is used as a search key.
 In the example above, the JSON path `credentialSubject.organization.name` has an alias of `organization.name`.
