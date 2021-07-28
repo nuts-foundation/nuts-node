@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - iss382_fix_master_e2e_tests
     tags:
       - 'v*'
   pull_request:
