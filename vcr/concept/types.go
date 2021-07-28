@@ -20,8 +20,10 @@
 package concept
 
 import (
+	"encoding/json"
 	"errors"
-	"strings"
+
+	"github.com/tidwall/gjson"
 )
 
 // ErrUnknownConcept is returned when an unknown concept is requested
@@ -40,60 +42,29 @@ var ErrNoValue = errors.New("no value for given path")
 // It contains the default values of a VC: id, type, issuer and subject as well as custom concept specific data.
 type Concept map[string]interface{}
 
-// SetValue sets the field value. A joinPath supports '.' syntax for nested values.
-func (c Concept) SetValue(path string, val interface{}) {
-	parts := strings.Split(path, ".")
+// TypeField defines the concept/VC JSON joinPath to a VC type
+const TypeField = "type"
 
-	m := c
+// IDField defines the concept/VC JSON joinPath to a VC ID
+const IDField = "id"
 
-	for i, p := range parts {
-		if i == len(parts)-1 {
-			m[p] = val
-			break
-		}
-		if _, ok := m[p]; !ok {
-			m[p] = Concept{}
-		}
-		m = m[p].(Concept)
-	}
-}
+// IssuerField defines the concept/VC JSON joinPath to a VC issuer
+const IssuerField = "issuer"
 
-// GetValue returns the value at the given path or nil if not found
-func (c Concept) GetValue(path string) interface{} {
-	parts := strings.Split(path, ".")
+// SubjectField defines the concept JSONPath to a VC subject
+const SubjectField = "subject"
 
-	current := c
-	var returnValue interface{}
-
-	for i, p := range parts {
-		if i == len(parts)-1 {
-			returnValue = current[p]
-			break
-		}
-		if sub, ok := current[p]; ok {
-			ok2 := false
-			if current, ok2 = sub.(Concept); ok2 {
-				continue
-			}
-		}
-		break
-	}
-
-	return returnValue
-}
-
-// GetString returns the value as a string for the given path or an error if not found or if the value is not a string
+// GetString returns the value at the given path or nil if not found
 func (c Concept) GetString(path string) (string, error) {
-	val := c.GetValue(path)
+	conceptJSON, err := json.Marshal(c)
+	if err != nil {
+		return "", err
+	}
 
-	if val == nil {
+	result := gjson.GetBytes(conceptJSON, path)
+	if !result.Exists() {
 		return "", ErrNoValue
 	}
 
-	stringValue, ok := val.(string)
-	if !ok {
-		return "", ErrIncorrectType
-	}
-
-	return stringValue, nil
+	return result.String(), nil
 }

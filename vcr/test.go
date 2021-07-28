@@ -74,10 +74,10 @@ func newMockContext(t *testing.T) mockContext {
 	docResolver := types.NewMockDocResolver(ctrl)
 	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx).(*vcr)
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
+
 	if err := vcr.Configure(core.ServerConfig{Datadir: testDir}); err != nil {
 		t.Fatal(err)
 	}
-
 	return mockContext{
 		ctrl:        ctrl,
 		crypto:      crypto,

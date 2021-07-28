@@ -27,16 +27,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRegistry_AddFromString(t *testing.T) {
-	tp, err := ParseTemplate(ExampleTemplate)
-	if !assert.NoError(t, err) {
-		return
-	}
-
+func TestRegistry_Add(t *testing.T) {
 	t.Run("when template is added", func(t *testing.T) {
 		r := NewRegistry().(*registry)
 
-		err := r.Add(tp)
+		err := r.Add(ExampleConfig)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -45,41 +40,15 @@ func TestRegistry_AddFromString(t *testing.T) {
 			assert.True(t, r.hasConcept(ExampleConcept))
 		})
 
-		t.Run("template is added to conceptTemplates", func(t *testing.T) {
-			ts, ok := r.conceptTemplates[ExampleConcept]
-
-			if !assert.True(t, ok) {
-				return
-			}
-
-			assert.Len(t, ts, 1)
-		})
-
-		t.Run("ConceptTemplates() returns templates", func(t *testing.T) {
-			ts, ok := r.ConceptTemplates()[ExampleConcept]
-
-			if !assert.True(t, ok) {
-				return
-			}
-
-			assert.Len(t, ts, 1)
-		})
-
-		t.Run("template is added to typedTemplates", func(t *testing.T) {
-			_, ok := r.typedTemplates[ExampleType]
-
-			assert.True(t, ok)
+		t.Run("template is added", func(t *testing.T) {
+			assert.Len(t, r.configs, 1)
 		})
 	})
 
 	t.Run("error - no type error", func(t *testing.T) {
 		r := NewRegistry().(*registry)
-		tp, err := ParseTemplate("{}")
-		if !assert.NoError(t, err) {
-			return
-		}
 
-		err = r.Add(tp)
+		err := r.Add(Config{})
 
 		if !assert.Error(t, err) {
 			return
@@ -90,12 +59,8 @@ func TestRegistry_AddFromString(t *testing.T) {
 
 func TestRegistry_Transform(t *testing.T) {
 	r := NewRegistry().(*registry)
-	tp, err := ParseTemplate(ExampleTemplate)
-	if !assert.NoError(t, err) {
-		return
-	}
 
-	err = r.Add(tp)
+	err := r.Add(ExampleConfig)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -118,7 +83,7 @@ func TestRegistry_Transform(t *testing.T) {
 			return
 		}
 
-		cm, ok := cs.(Concept)
+		cm, ok := cs.(map[string]interface{})
 		if !assert.True(t, ok) {
 			return
 		}
@@ -153,13 +118,26 @@ func TestRegistry_Transform(t *testing.T) {
 	})
 }
 
-func TestRegistry_QueryFor(t *testing.T) {
+func TestRegistry_Concepts(t *testing.T) {
 	r := NewRegistry().(*registry)
-	tp, err := ParseTemplate(ExampleTemplate)
+
+	err := r.Add(ExampleConfig)
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = r.Add(tp)
+
+	cs := r.Concepts()
+
+	if !assert.Len(t, cs, 1) {
+		return
+	}
+	assert.Equal(t, "human", cs[0].Concept)
+}
+
+func TestRegistry_QueryFor(t *testing.T) {
+	r := NewRegistry().(*registry)
+
+	err := r.Add(ExampleConfig)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -172,5 +150,21 @@ func TestRegistry_QueryFor(t *testing.T) {
 		}
 
 		assert.Equal(t, ErrUnknownConcept, err)
+	})
+
+	t.Run("ok", func(t *testing.T) {
+		q, err := r.QueryFor("human")
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, "human", q.Concept())
+		if !assert.Len(t, q.Parts(), 1) {
+			return
+		}
+		assert.Equal(t, "HumanCredential", q.Parts()[0].CredentialType())
+		assert.Equal(t, q.Concept(), q.Parts()[0].config.Concept)
+		assert.Len(t, q.Parts()[0].Clauses, 0)
 	})
 }

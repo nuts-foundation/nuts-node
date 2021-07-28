@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/logging"
 
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -43,11 +44,14 @@ func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 	// validation has made sure there's exactly one!
 	vcType := credential.ExtractTypes(subject)[0]
 
+	logging.Log().Debugf("Writing %s to store", vcType)
+	logging.Log().Tracef("%+v", subject)
+
 	doc, _ := json.Marshal(subject)
 
 	collection := c.store.Collection(vcType)
 
-	return collection.Add([]leia.Document{doc})
+	return collection.Add([]leia.Document{leia.DocumentFromBytes(doc)})
 }
 
 func (c *vcr) StoreRevocation(r credential.Revocation) error {
@@ -64,7 +68,7 @@ func (c *vcr) writeRevocation(r credential.Revocation) error {
 
 	doc, _ := json.Marshal(r)
 
-	return collection.Add([]leia.Document{doc})
+	return collection.Add([]leia.Document{leia.DocumentFromBytes(doc)})
 }
 
 func (c *vcr) revocationIndex() leia.Collection {

@@ -27,6 +27,7 @@ import (
 	"path"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,6 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v2"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
@@ -61,16 +63,17 @@ func TestVCR_Configure(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		instance := NewTestVCRInstance(testDir)
 
-		t.Run("loads default templates", func(t *testing.T) {
-			cTemplates := instance.registry.ConceptTemplates()
+		t.Run("loads default configs", func(t *testing.T) {
+			concepts := instance.registry.Concepts()
 
-			if !assert.Len(t, cTemplates, 1) {
+			if !assert.Len(t, concepts, 2) {
 				return
 			}
 
-			orgTemplate := cTemplates["organization"]
-
-			assert.NotNil(t, orgTemplate)
+			assert.Equal(t, "NutsAuthorizationCredential", concepts[0].CredentialType)
+			assert.Equal(t, "authorization", concepts[0].Concept)
+			assert.Equal(t, "NutsOrganizationCredential", concepts[1].CredentialType)
+			assert.Equal(t, "organization", concepts[1].Concept)
 		})
 
 		t.Run("initializes DB", func(t *testing.T) {
@@ -87,12 +90,8 @@ func TestVCR_Search(t *testing.T) {
 	testInstance := func(t2 *testing.T) (mockContext, concept.Query) {
 		ctx := newMockContext(t2)
 
-		ct, err := concept.ParseTemplate(concept.ExampleTemplate)
-		if !assert.NoError(t2, err) {
-			t2.Fatal(err)
-		}
 		// init template
-		err = ctx.vcr.registry.Add(ct)
+		err := ctx.vcr.registry.Add(concept.ExampleConfig)
 		if !assert.NoError(t2, err) {
 			t2.Fatal(err)
 		}
@@ -104,7 +103,7 @@ func TestVCR_Search(t *testing.T) {
 		}
 
 		// add document
-		doc := leia.Document(concept.TestCredential)
+		doc := leia.DocumentFromString(concept.TestCredential)
 		err = ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
 		if !assert.NoError(t2, err) {
 			t2.Fatal(err)
@@ -161,7 +160,7 @@ func TestVCR_Search(t *testing.T) {
 	t.Run("ok - revoked", func(t *testing.T) {
 		ctx, q := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
-		rev := leia.Document(concept.TestRevocation)
+		rev := leia.DocumentFromString(concept.TestRevocation)
 		ctx.vcr.store.Collection(revocationCollection).Add([]leia.Document{rev})
 		creds, err := ctx.vcr.Search(q, nil)
 		if !assert.NoError(t, err) {
@@ -191,11 +190,14 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx := newMockContext(t2)
 
 		// add document
-		doc := leia.Document(concept.TestCredential)
+		doc := leia.DocumentFromString(concept.TestCredential)
 		err := ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
 		if !assert.NoError(t2, err) {
 			t2.Fatal(err)
 		}
+		// register type in templates
+		_ = ctx.vcr.registry.Add(concept.ExampleConfig)
+
 		return ctx
 	}
 
@@ -246,7 +248,7 @@ func TestVCR_Resolve(t *testing.T) {
 	t.Run("ok - revoked", func(t *testing.T) {
 		ctx := testInstance(t)
 		ctx.vcr.trustConfig.RemoveTrust(testVC.Type[0], testVC.Issuer)
-		rev := leia.Document(concept.TestRevocation)
+		rev := leia.DocumentFromString(concept.TestRevocation)
 		ctx.vcr.store.Collection(revocationCollection).Add([]leia.Document{rev})
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, nil)
@@ -263,14 +265,6 @@ func TestVCR_Resolve(t *testing.T) {
 
 		assert.Equal(t, err, ErrUntrusted)
 		assert.Equal(t, testVC, *vc)
-	})
-
-	t.Run("error - error from store", func(t *testing.T) {
-		ctx := testInstance(t)
-		ctx.vcr.store.Collection(leia.GlobalCollection).DropIndex("index_id")
-		_, err := ctx.vcr.Resolve(*testVC.ID, nil)
-
-		assert.Error(t, err)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -678,10 +672,14 @@ func TestVcr_Revoke(t *testing.T) {
 	var pk = new(ecdsa.PublicKey)
 	pke.JWK().Raw(pk)
 
+	organizationCredentialConfig := concept.Config{}
+	credentialBytes, _ := os.ReadFile("assets/NutsOrganizationCredential.config.yaml")
+	_ = yaml.Unmarshal(credentialBytes, &organizationCredentialConfig)
+
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		key := crypto.NewTestKey("kid")
-
+		ctx.vcr.registry.Add(organizationCredentialConfig)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
@@ -758,12 +756,7 @@ func TestVcr_Find(t *testing.T) {
 	testInstance := func(t2 *testing.T) mockContext {
 		ctx := newMockContext(t2)
 
-		ct, err := concept.ParseTemplate(concept.ExampleTemplate)
-		if !assert.NoError(t2, err) {
-			t2.Fatal(err)
-		}
-		// init template
-		err = ctx.vcr.registry.Add(ct)
+		err := ctx.vcr.registry.Add(concept.ExampleConfig)
 		if !assert.NoError(t2, err) {
 			t2.Fatal(err)
 		}
@@ -775,7 +768,7 @@ func TestVcr_Find(t *testing.T) {
 		}
 
 		// add document
-		doc := leia.Document(concept.TestCredential)
+		doc := leia.DocumentFromString(concept.TestCredential)
 		err = ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
 		if !assert.NoError(t2, err) {
 			t2.Fatal(err)
@@ -797,7 +790,10 @@ func TestVcr_Find(t *testing.T) {
 			return
 		}
 
-		hairColour := conc.GetValue("human.hairColour")
+		hairColour, err := conc.GetString("human.hairColour")
+		if !assert.NoError(t, err) {
+			return
+		}
 
 		assert.Equal(t, "fair", hairColour)
 	})
@@ -824,12 +820,7 @@ func TestVcr_Untrusted(t *testing.T) {
 	instance := NewTestVCRInstance(testDir)
 	vc := concept.TestVC()
 
-	ct, err := concept.ParseTemplate(concept.ExampleTemplate)
-	if !assert.NoError(t, err) {
-		return
-	}
-	// init template
-	err = instance.registry.Add(ct)
+	err := instance.registry.Add(concept.ExampleConfig)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -841,11 +832,11 @@ func TestVcr_Untrusted(t *testing.T) {
 	}
 
 	// add document
-	doc := leia.Document(concept.TestCredential)
-	err = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
-	if !assert.NoError(t, err) {
-		return
-	}
+	doc := leia.DocumentFromString(concept.TestCredential)
+	doc2 := leia.DocumentFromString(strings.ReplaceAll(concept.TestCredential, "#123", "#321"))
+	_ = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+	// for duplicate detection
+	_ = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc2})
 
 	funcs := []func(ssi.URI) ([]ssi.URI, error){
 		instance.Trusted,

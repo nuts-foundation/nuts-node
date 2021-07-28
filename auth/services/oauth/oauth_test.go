@@ -241,7 +241,7 @@ func TestService_validateIssuer(t *testing.T) {
 		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).Return(falseConceptName, nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
-		assert.EqualError(t, err, "invalid jwt.issuer: actor has invalid organization VC")
+		assert.EqualError(t, err, "invalid jwt.issuer: actor has invalid organization VC: no value for given path")
 	})
 	t.Run("unable to resolve key", func(t *testing.T) {
 		ctx := createContext(t)

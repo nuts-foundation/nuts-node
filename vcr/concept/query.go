@@ -25,55 +25,50 @@ package concept
 type Query interface {
 	// Concept returns the concept name.
 	Concept() string
-	// Parts returns the different TemplateQuery
-	Parts() []*TemplateQuery
+	// Parts returns the different concept queries
+	Parts() []*CredentialQuery
 	// AddClause adds a clause to the query.
 	AddClause(clause Clause)
 }
 
 type query struct {
 	concept string
-	parts   []*TemplateQuery
+	parts   []*CredentialQuery
 }
 
 func (q query) Concept() string {
 	return q.concept
 }
 
-func (q query) Parts() []*TemplateQuery {
+func (q query) Parts() []*CredentialQuery {
 	return q.parts
 }
 
-// addTemplate adds a template to this query. It'll create a new TemplateQuery preconfigured with the template's hard coded values.
-func (q *query) addTemplate(template *Template) {
-	tq := TemplateQuery{
-		template: template,
+// addConfig adds a config to this query. It'll create a new CredentialQuery
+func (q *query) addConfig(config Config) {
+	tq := CredentialQuery{
+		config: config,
 	}
 
 	q.parts = append(q.parts, &tq)
 }
 
-// Add a Clause. The clause is added to each TemplateQuery
+// AddClause adds a Clause. The clause is added to each CredentialQuery
 func (q *query) AddClause(clause Clause) {
 	for _, tq := range q.parts {
 		tq.Clauses = append(tq.Clauses, clause)
 	}
 }
 
-// TemplateQuery represents a query/template combination
-type TemplateQuery struct {
-	template *Template
-	Clauses  []Clause
+// CredentialQuery represents a query/template combination
+type CredentialQuery struct {
+	config  Config
+	Clauses []Clause
 }
 
-// Template returns the underlying template
-func (tq *TemplateQuery) Template() *Template {
-	return tq.template
-}
-
-// VCType returns the VC type.
-func (tq *TemplateQuery) VCType() string {
-	return tq.template.VCType()
+// CredentialType returns the VC type.
+func (tq *CredentialQuery) CredentialType() string {
+	return tq.config.CredentialType
 }
 
 // Clause abstracts different equality clauses, comparable to '=', '!=', 'between' and 'abc%' in SQL.
@@ -119,7 +114,7 @@ func (e eq) Match() string {
 	return e.value
 }
 
-// EqType is the identifier for an equals clause
+// PrefixType is the identifier for a prefix clause
 const PrefixType = "prefix"
 
 // Prefix creates a prefix Clause

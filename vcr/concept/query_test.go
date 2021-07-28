@@ -76,12 +76,7 @@ func TestQuery(t *testing.T) {
 		concept: "concept",
 	}
 
-	tp, err := ParseTemplate(ExampleTemplate)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	q.addTemplate(tp)
+	q.addConfig(ExampleConfig)
 
 	t.Run("Concept", func(t *testing.T) {
 		assert.Equal(t, "concept", q.Concept())
@@ -105,10 +100,10 @@ func TestQuery(t *testing.T) {
 		assert.Equal(t, "value", crit.Seek())
 	})
 
-	t.Run("VCType", func(t *testing.T) {
+	t.Run("CredentialType", func(t *testing.T) {
 		tq := q.parts[0]
 
-		assert.Equal(t, ExampleType, tq.VCType())
+		assert.Equal(t, ExampleType, tq.CredentialType())
 	})
 
 }

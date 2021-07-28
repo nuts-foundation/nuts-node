@@ -25,8 +25,8 @@ import (
 
 // Reader contains all read-only operations for the concept registry
 type Reader interface {
-	// ConceptTemplates returns a mapping of concept names to parsed templates.
-	ConceptTemplates() map[string][]*Template
+	// Concepts returns a list of concept configs
+	Concepts() []Config
 	// QueryFor creates a query for the given concept.
 	// The query is preloaded with required fixed values like the type.
 	// It returns ErrUnknownConcept if the concept is not found
@@ -37,8 +37,8 @@ type Reader interface {
 
 // Writer contains state changing operations for the concept registry
 type Writer interface {
-	// Add a conceptTemplate to the registry
-	Add(conceptTemplate *Template) error
+	// Add a credential config to the registry
+	Add(config Config) error
 }
 
 // Registry defines the interface for accessing loaded concepts and using the templates
@@ -57,59 +57,34 @@ const (
 	OrganizationCity = "organization.city"
 )
 
-// registry holds parsed concepts which contain all the mappings from concept names to json paths.
+// registry holds parsed credential configs which contain all the mappings from concept names to json paths.
 // Queries are created through the conceptRegistry to add the correct templates.
-// The registry can also do transformations of VCs and queries to the correct format.
-// Concepts are automatically determined from the ConceptTemplates
-// a concept value of <<organization.name>> creates the concept "organization"
+// The registry can also do transformations of VCs to the correct format.
 type registry struct {
-	conceptTemplates map[string][]*Template
-	typedTemplates   map[string]*Template
+	configs []Config
 }
 
 // NewRegistry creates a new registry instance with no templates.
 func NewRegistry() Registry {
 	r := &registry{
-		conceptTemplates: map[string][]*Template{},
-		typedTemplates:   map[string]*Template{},
+		configs: make([]Config, 0),
 	}
 
 	return r
 }
 
-func (r *registry) ConceptTemplates() map[string][]*Template {
-	ct := make(map[string][]*Template, len(r.conceptTemplates))
-
-	// without generics we need to convert the template pointers to Template interface
-	for k, v := range r.conceptTemplates {
-		ts := make([]*Template, len(v))
-		for i, t := range v {
-			ts[i] = t
-		}
-		ct[k] = ts
-	}
-
-	return ct
+func (r *registry) Concepts() []Config {
+	return r.configs
 }
 
-// AddFromString adds a new template to a concept and parses it.
-func (r *registry) Add(conceptTemplate *Template) error {
-	// add to list of templates for same concept name
-	for _, c := range conceptTemplate.rootConcepts() {
-		current, ok := r.conceptTemplates[c]
-		if !ok {
-			current = []*Template{}
-		}
-		current = append(current, conceptTemplate)
-		r.conceptTemplates[c] = current
-	}
-
-	// add to map of specific VC type to template
-	v, ok := conceptTemplate.fixedValues[TypeField]
-	if !ok || v == "" {
+// Add adds a new template to a concept and parses it.
+func (r *registry) Add(config Config) error {
+	// check for type
+	if config.CredentialType == "" {
 		return ErrNoType
 	}
-	r.typedTemplates[v] = conceptTemplate
+
+	r.configs = append(r.configs, config)
 
 	return nil
 }
@@ -123,8 +98,10 @@ func (r *registry) Transform(concept string, VC vc.VerifiableCredential) (Concep
 	// find the correct template
 	for _, u := range VC.Type {
 		s := u.String()
-		if t, ok := r.typedTemplates[s]; ok {
-			return t.transform(VC)
+		for _, c := range r.configs {
+			if c.CredentialType == s && c.Concept == concept {
+				return c.transform(VC)
+			}
 		}
 	}
 
@@ -142,14 +119,20 @@ func (r *registry) QueryFor(concept string) (Query, error) {
 		concept: concept,
 	}
 
-	for _, t := range r.conceptTemplates[concept] {
-		q.addTemplate(t)
+	for _, c := range r.configs {
+		if c.Concept == concept {
+			q.addConfig(c)
+		}
 	}
 
 	return &q, nil
 }
 
 func (r *registry) hasConcept(concept string) bool {
-	_, ok := r.conceptTemplates[concept]
-	return ok
+	for _, c := range r.configs {
+		if c.Concept == concept {
+			return true
+		}
+	}
+	return false
 }

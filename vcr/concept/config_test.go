@@ -22,32 +22,30 @@ package concept
 import (
 	"testing"
 
+	vc2 "github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConcept_GetString(t *testing.T) {
-	c := Concept{
-		"string": "value",
-	}
+func TestConfig_transform(t *testing.T) {
+	t.Run("without template raw VC is returned", func(t *testing.T) {
+		config := Config{}
+		vc := vc2.VerifiableCredential{
+			CredentialSubject: []interface{}{
+				map[string]string{"key": "value"},
+			},
+		}
 
-	t.Run("ok - string", func(t *testing.T) {
-		value, err := c.GetString("string")
+		transformed, err := config.transform(vc)
 
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		assert.Equal(t, "value", value)
-	})
-
-	t.Run("err - not found", func(t *testing.T) {
-		value, err := c.GetString("other")
-
-		if !assert.Error(t, err) {
+		subject, ok := transformed["credentialSubject"].(map[string]interface{})
+		if !assert.True(t, ok) {
 			return
 		}
 
-		assert.Equal(t, ErrNoValue, err)
-		assert.Equal(t, "", value)
+		assert.Equal(t, "value", subject["key"])
 	})
 }

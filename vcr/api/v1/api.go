@@ -68,14 +68,14 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 }
 
 // Search finds concepts. Concepts are mapped to VCs. This is primarily used for finding DIDs.
-func (w *Wrapper) Search(ctx echo.Context, conceptTemplate string) error {
+func (w *Wrapper) Search(ctx echo.Context, conceptName string) error {
 	sr := new(SearchRequest)
 
 	if err := ctx.Bind(sr); err != nil {
 		return err
 	}
 
-	query, err := w.CR.QueryFor(conceptTemplate)
+	query, err := w.CR.QueryFor(conceptName)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (w *Wrapper) Search(ctx echo.Context, conceptTemplate string) error {
 	var results = make([]concept.Concept, len(VCs))
 
 	for i, vc := range VCs {
-		o, err := w.CR.Transform(conceptTemplate, vc)
+		o, err := w.CR.Transform(conceptName, vc)
 		if err != nil {
 			return err
 		}

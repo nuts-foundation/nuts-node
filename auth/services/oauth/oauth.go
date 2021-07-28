@@ -42,6 +42,7 @@ import (
 const errInvalidIssuerFmt = "invalid jwt.issuer: %w"
 const errInvalidIssuerKeyFmt = "invalid jwt.issuer key ID: %w"
 const errInvalidSubjectFmt = "invalid jwt.subject: %w"
+const errInvalidOrganizationVC = "actor has invalid organization VC: %w"
 
 type service struct {
 	docResolver     types.DocResolver
@@ -196,12 +197,12 @@ func (s *service) validateIssuer(context *validationContext) error {
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
-	ok := false
-	if context.actorName, ok = orgConcept.GetValue(concept.OrganizationName).(string); !ok {
-		return fmt.Errorf(errInvalidIssuerFmt, errors.New("actor has invalid organization VC"))
+
+	if context.actorName, err = orgConcept.GetString(concept.OrganizationName); err != nil {
+		return fmt.Errorf(errInvalidIssuerFmt, fmt.Errorf(errInvalidOrganizationVC, err))
 	}
-	if context.actorCity, ok = orgConcept.GetValue(concept.OrganizationCity).(string); !ok {
-		return fmt.Errorf(errInvalidIssuerFmt, errors.New("actor has invalid organization VC"))
+	if context.actorCity, err = orgConcept.GetString(concept.OrganizationCity); err != nil {
+		return fmt.Errorf(errInvalidIssuerFmt, fmt.Errorf(errInvalidOrganizationVC, err))
 	}
 
 	return nil
