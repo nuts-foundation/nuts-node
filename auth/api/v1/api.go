@@ -311,11 +311,13 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 	}
 
 	httpClient := &http.Client{}
-	trustStore := w.Auth.TrustStore()
 
-	if trustStore != nil {
+	if w.Auth.TLSEnabled() {
+		trustStore := w.Auth.TrustStore()
+		clientCertificate := w.Auth.ClientCertificate()
 		httpClient.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{
+				Certificates: []tls.Certificate{*clientCertificate},
 				RootCAs: trustStore,
 			},
 		}

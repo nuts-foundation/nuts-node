@@ -1,8 +1,10 @@
 package auth
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"path"
 	"time"
 
@@ -24,14 +26,15 @@ const contractValidity = 60 * time.Minute
 
 // Auth is the main struct of the Auth service
 type Auth struct {
-	config         Config
-	oauthClient    services.OAuthClient
-	contractClient services.ContractClient
-	contractNotary services.ContractNotary
-	keyStore       crypto.KeyStore
-	registry       types.Store
-	vcr            vcr.VCR
-	trustStore     *x509.CertPool
+	config            Config
+	oauthClient       services.OAuthClient
+	contractClient    services.ContractClient
+	contractNotary    services.ContractNotary
+	keyStore          crypto.KeyStore
+	registry          types.Store
+	vcr               vcr.VCR
+	trustStore        *x509.CertPool
+	clientCertificate *tls.Certificate
 }
 
 // Name returns the name of the module.
@@ -52,6 +55,14 @@ func (auth *Auth) HTTPTimeout() time.Duration {
 // TrustStore contains an x509 certificate pool (only when TLS is enabled)
 func (auth *Auth) TrustStore() *x509.CertPool {
 	return auth.trustStore
+}
+
+func (auth *Auth) TLSEnabled() bool {
+	return auth.config.EnableTLS
+}
+
+func (auth *Auth) ClientCertificate() *tls.Certificate {
+	return auth.clientCertificate
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.
@@ -110,13 +121,21 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	auth.contractClient = validator.NewContractInstance(cfg, keyResolver, auth.vcr, auth.keyStore)
 	auth.contractNotary = contract.NewContractNotary(nameResolver, keyResolver, auth.keyStore, contractValidity)
 
+	if config.Strictmode && !auth.config.EnableTLS {
+		return errors.New("in strictmode auth.enabletls must be true")
+	}
 	if auth.config.EnableTLS {
+		clientCertificate, err := tls.LoadX509KeyPair(auth.config.CertFile, auth.config.CertKeyFile)
+		if err != nil {
+			return fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", auth.config.CertFile, auth.config.CertKeyFile, err)
+		}
 		trustStore, err := core.LoadTrustStore(auth.config.TrustStoreFile)
 		if err != nil {
 			return err
 		}
 
 		auth.trustStore = trustStore
+		auth.clientCertificate = &clientCertificate
 	}
 
 	if err := auth.contractClient.Configure(); err != nil {

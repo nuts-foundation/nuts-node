@@ -18,10 +18,12 @@ func TestAuth_Configure(t *testing.T) {
 		_ = i.Configure(*core.NewServerConfig())
 	})
 
-	t.Run("ok - truststore loaded", func(t *testing.T) {
+	t.Run("ok - TLS files loaded", func(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.EnableTLS = true
-		authCfg.TrustStoreFile = "test/certs/example.pem"
+		authCfg.TrustStoreFile = "test/certs/ca.pem"
+		authCfg.CertKeyFile = "test/certs/example.com.key"
+		authCfg.CertFile = "test/certs/example.com.pem"
 		i := testInstance(t, authCfg)
 		err := i.Configure(*core.NewServerConfig())
 		if !assert.NoError(t, err) {
@@ -33,7 +35,6 @@ func TestAuth_Configure(t *testing.T) {
 
 	t.Run("error - no publicUrl", func(t *testing.T) {
 		authCfg := TestConfig()
-		authCfg.PublicURL = ""
 		authCfg.IrmaSchemeManager = "pbdf"
 		i := testInstance(t, authCfg)
 		cfg := core.NewServerConfig()
@@ -69,9 +70,29 @@ func TestAuth_Configure(t *testing.T) {
 		assert.EqualError(t, err, "in strictmode the only valid irma-scheme-manager is 'pbdf'")
 	})
 
+	t.Run("error - TLS required in strict mode", func(t *testing.T) {
+		authCfg := TestConfig()
+		authCfg.PublicURL = "https://example.com"
+		i := testInstance(t, authCfg)
+		serverConfig := core.NewServerConfig()
+		serverConfig.Strictmode = true
+		err := i.Configure(*serverConfig)
+		assert.EqualError(t, err, "in strictmode auth.enabletls must be true")
+	})
+
+	t.Run("error - unknown key/certificate when TLS enabled", func(t *testing.T) {
+		authCfg := TestConfig()
+		authCfg.EnableTLS = true
+		i := testInstance(t, authCfg)
+		err := i.Configure(*core.NewServerConfig())
+		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=,certkeyfile=): open : no such file or directory")
+	})
+
 	t.Run("error - unknown truststore when TLS enabled", func(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.EnableTLS = true
+		authCfg.CertKeyFile = "test/certs/example.com.key"
+		authCfg.CertFile = "test/certs/example.com.pem"
 		authCfg.TrustStoreFile = "non-existing"
 		i := testInstance(t, authCfg)
 		err := i.Configure(*core.NewServerConfig())

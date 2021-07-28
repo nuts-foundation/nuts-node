@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"time"
 
@@ -19,4 +20,8 @@ type AuthenticationServices interface {
 	HTTPTimeout() time.Duration
 	// TrustStore contains an certificate pool (only when TLS is enabled)
 	TrustStore() *x509.CertPool
+	// ClientCertificate returns a tls.Certificate (only when TLS is enabled)
+	ClientCertificate() *tls.Certificate
+	// TLSEnabled returns true if TLS is enabled (mTLS)
+	TLSEnabled() bool
 }
