@@ -318,7 +318,7 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		httpClient.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{
 				Certificates: []tls.Certificate{*clientCertificate},
-				RootCAs: trustStore,
+				RootCAs:      trustStore,
 			},
 		}
 	}
