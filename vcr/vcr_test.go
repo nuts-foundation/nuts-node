@@ -821,8 +821,7 @@ func TestVCR_Search(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ct, _ := concept.ParseTemplate(concept.ExampleTemplate)
-		ctx.vcr.registry.Add(ct)
+		ctx.vcr.registry.Add(concept.ExampleConfig)
 		err := ctx.vcr.initIndices()
 		if !assert.NoError(t, err) {
 			return
@@ -830,7 +829,7 @@ func TestVCR_Search(t *testing.T) {
 
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
-		doc := leia.Document(concept.TestCredential)
+		doc := leia.DocumentFromString(concept.TestCredential)
 		ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
 		results, _ := ctx.vcr.Search("human", map[string]string{"human.eyeColour": "blue/grey"})
 		assert.Len(t, results, 1)
