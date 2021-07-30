@@ -29,6 +29,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+const outMessagesBacklog = 1000 // TODO: Does this number make sense? Should also be configurable?
+
 type grpcMessenger interface {
 	Send(message *transport.NetworkMessage) error
 	Recv() (*transport.NetworkMessage, error)
@@ -49,7 +51,7 @@ func newConnection(peer Peer, messenger grpcMessenger) *managedConnection {
 	return &managedConnection{
 		Peer:        peer,
 		messenger:   messenger,
-		outMessages: make(chan *transport.NetworkMessage, 10), // TODO: Does this number make sense? Should also be configurable?
+		outMessages: make(chan *transport.NetworkMessage, outMessagesBacklog),
 		closer:      make(chan struct{}, 1),
 		mux:         &sync.Mutex{},
 	}
@@ -83,6 +85,11 @@ func (conn *managedConnection) send(message *transport.NetworkMessage) error {
 	if conn.outMessages == nil {
 		return errors.New("can't send on closed connection")
 	}
+	if len(conn.outMessages) >= cap(conn.outMessages) {
+		// We need to find out if, and when happens. If this can be triggered by the remote node (e.g. by being slow to respond),
+		// it needs measures to prevent it from DoS-ing the local node. By disconnecting or just ignoring the message, for example.
+		log.Logger().Warnf("Outbound message backlog for peer has reached its max capacity, this can hurt performance of the local node (peer=%s,cap=%d).", conn.Peer, cap(conn.outMessages))
+	}
 	conn.outMessages <- message
 	return nil
 }
@@ -113,6 +120,12 @@ func (conn *managedConnection) exchange(messageReceiver messageQueue) {
 			if message == nil {
 				// Connection is closing
 				return
+			}
+			if len(messageReceiver.c) >= cap(messageReceiver.c) {
+				// We need to find out if, and when happens. This can probably be triggered by sending lots of messages.
+				// It probably doesn't cause issues for the health of the local node, but it might hurt the connection to the particular peer.
+				// We might need measures to solve it, like disconnecting or just ignoring the message, for example.
+				log.Logger().Warnf("Inbound message backlog for peer has reached its max capacity, connection to the peer will be unstable (peer=%s,cap=%d).", conn.Peer, cap(messageReceiver.c))
 			}
 			messageReceiver.c <- *message
 		case <-conn.closer:

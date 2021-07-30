@@ -69,6 +69,34 @@ func Test_connection_exchange(t *testing.T) {
 		conn := newConnection(Peer{}, nil)
 		conn.exchange(messageQueue{})
 	})
+	t.Run("backlog is full", func(t *testing.T) {
+		const backlogSize = 5
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		wg := sync.WaitGroup{}
+		wg.Add(backlogSize + 1)
+		messenger := NewMockgrpcMessenger(ctrl)
+
+		var callCount int32
+		messenger.EXPECT().Recv().Times(backlogSize + 2).DoAndReturn(func() (interface{}, error) {
+			if atomic.AddInt32(&callCount, 1) >= backlogSize+2 {
+				return nil, io.EOF
+			}
+			wg.Done()
+			return &transport.NetworkMessage{}, nil
+		})
+
+		conn := newConnection(Peer{}, messenger)
+		q := messageQueue{c: make(chan PeerMessage, backlogSize)}
+
+		go func() {
+			conn.exchange(q)
+		}()
+		wg.Wait()
+		time.Sleep(50 * time.Millisecond) // Wait a bit for all calls to be performed
+		assert.Len(t, q.c, backlogSize)
+	})
 }
 
 func Test_connection_send(t *testing.T) {
@@ -107,6 +135,22 @@ func Test_connection_send(t *testing.T) {
 		conn.close()
 		err := conn.send(&transport.NetworkMessage{})
 		assert.EqualError(t, err, "can't send on closed connection")
+	})
+	t.Run("backlog is full", func(t *testing.T) {
+		conn := newConnection(Peer{}, nil)
+		wg := sync.WaitGroup{}
+		const numberOfMessages = outMessagesBacklog + 1
+		wg.Add(numberOfMessages)
+		go func() {
+			for i := 0; i < numberOfMessages; i++ {
+				wg.Done()
+				err := conn.send(&transport.NetworkMessage{})
+				assert.NoError(t, err)
+			}
+		}()
+		wg.Wait()
+		time.Sleep(50 * time.Millisecond) // Wait a bit for all calls to be performed
+		assert.Len(t, conn.outMessages, outMessagesBacklog)
 	})
 }
 
