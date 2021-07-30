@@ -24,13 +24,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/didman/logging"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/shengdoushi/base58"
+	"net/url"
 )
 
 // ModuleName contains the name of this module: Didman
@@ -52,14 +53,16 @@ type didman struct {
 	docResolver types.DocResolver
 	store       types.Store
 	vdr         types.VDR
+	vcr         vcr.VCR
 }
 
 // NewDidmanInstance creates a new didman instance with services set
-func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR) Didman {
+func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR, vcr vcr.VCR) Didman {
 	return &didman{
 		docResolver: docResolver,
 		store:       store,
 		vdr:         vdr,
+		vcr:         vcr,
 	}
 }
 
@@ -205,7 +208,7 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 		return nil, err
 	}
 
-	contactServices := filterContactInfoServices(doc)
+	contactServices := filterServices(doc, ContactInformationServiceType)
 	if len(contactServices) > 1 {
 		return nil, fmt.Errorf("multiple contact information services found")
 	}
@@ -218,6 +221,89 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 		return information, nil
 	}
 	return nil, nil
+}
+
+func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]OrganizationSearchResult, error) {
+	organizations, err := d.vcr.Search(concept.OrganizationConcept, map[string]string{concept.OrganizationName: query})
+	if err != nil {
+		return nil, err
+	}
+	// Retrieve DID Documents of found organizations
+	var didDocuments []*did.Document
+	didDocuments, organizations, err = d.resolveOrganizationDIDDocuments(organizations)
+	if err != nil {
+		return nil, err
+	}
+
+	// If specified, filter on DID service type
+	if didServiceType != nil && len(*didServiceType) > 0 {
+		j := 0
+		for i := 0; i < len(organizations); i++ {
+			// Check if this organization's DID Document has a service that matches the given type
+			if len(filterServices(didDocuments[i], *didServiceType)) > 0 {
+				organizations[j] = organizations[i]
+				didDocuments[j] = didDocuments[i]
+				j++
+			}
+		}
+		// Reslice to omit results which' DID Document did not contain the given service type
+		didDocuments = didDocuments[:j]
+		organizations = organizations[:j]
+	}
+
+	// Convert organization concepts and DID documents to search results
+	results := make([]OrganizationSearchResult, len(organizations))
+	for i := range organizations {
+		organization, ok := organizations[i]["organization"].(concept.Concept)
+		if !ok {
+			return nil, errors.New("unable to map organization to concept")
+		}
+		results[i] = OrganizationSearchResult{
+			DIDDocument:  *didDocuments[i],
+			Organization: organization,
+		}
+	}
+
+	return results, nil
+}
+
+// resolveOrganizationDIDDocuments takes a slice of organization concepts and tries to resolve the corresponding DID document for each.
+// If a DID document isn't found or it is deactivated the organization is filtered from the concepts slice (reslicing the given slice) and omitted from the DID documents slice.
+// If any other error occurs, it is returned.
+func (d *didman) resolveOrganizationDIDDocuments(organizations []concept.Concept) ([]*did.Document, []concept.Concept, error) {
+	didDocuments := make([]*did.Document, len(organizations))
+	j := 0
+	for i, organization := range organizations {
+		document, organizationDID, err := d.resolveOrganizationDIDDocument(organization)
+		if err != nil && !(errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrDeactivated)) {
+			return nil, nil, err
+		}
+		if document == nil {
+			// DID Document might be deactivated, so just log a warning and omit this entry from the search.
+			logging.Log().Warnf("Unable to resolve organization DID Document (DID=%s): %v", organizationDID, err)
+			continue
+		}
+		didDocuments[j] = document
+		organizations[j] = organizations[i]
+		j++
+	}
+	// Reslice to omit results which' DID Document could not be resolved
+	didDocuments = didDocuments[:j]
+	organizations = organizations[:j]
+	return didDocuments, organizations, nil
+}
+
+func (d *didman) resolveOrganizationDIDDocument(organization concept.Concept) (*did.Document, did.DID, error) {
+	organizationDIDStr, err := organization.GetString(concept.SubjectField)
+	if err != nil {
+		return nil, did.DID{}, fmt.Errorf("unable to get DID from organization concept: %w", err)
+	}
+	organizationDID, err := did.ParseDID(organizationDIDStr)
+	if err != nil {
+		return nil, did.DID{}, fmt.Errorf("unable to parse DID from organization concept: %w", err)
+	}
+	document, _, err := d.docResolver.Resolve(*organizationDID, nil)
+	return document, *organizationDID, err
 }
 
 // validateCompoundServiceEndpoint validates the serviceEndpoint of a compound service. The serviceEndpoint is passed
@@ -267,10 +353,10 @@ func filterCompoundServices(doc *did.Document) []did.Service {
 	return compoundServices
 }
 
-func filterContactInfoServices(doc *did.Document) []did.Service {
+func filterServices(doc *did.Document, serviceType string) []did.Service {
 	var contactServices []did.Service
 	for _, service := range doc.Service {
-		if service.Type == ContactInformationServiceType {
+		if service.Type == serviceType {
 			contactServices = append(contactServices, service)
 		}
 	}

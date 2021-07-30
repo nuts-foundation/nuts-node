@@ -39,16 +39,29 @@ var ErrDIDNotManagedByThisNode = errors.New("DID document not managed by this no
 var ErrNotFound = errors.New("unable to find the DID document")
 
 // ErrDeactivated The DID supplied to the DID resolution function has been deactivated.
-var ErrDeactivated = errors.New("the DID document has been deactivated")
+var ErrDeactivated = deactivatedError{msg: "the DID document has been deactivated"}
 
 // ErrNoActiveController The DID supplied to the DID resolution does not have any active controllers.
-var ErrNoActiveController = errors.New("no active controllers for DID Document")
+var ErrNoActiveController = deactivatedError{msg: "no active controllers for DID Document"}
 
 // ErrDIDAlreadyExists is returned when a DID already exists.
 var ErrDIDAlreadyExists = errors.New("DID document already exists in the store")
 
 // ErrDuplicateService is returned when a DID Document contains a multiple services with the same type
 var ErrDuplicateService = errors.New("service type is duplicate")
+
+type deactivatedError struct {
+	msg string
+}
+
+func (d deactivatedError) Error() string {
+	return d.msg
+}
+
+func (d deactivatedError) Is(other error) bool {
+	_, result := other.(deactivatedError)
+	return result
+}
 
 // DocumentMetadata holds the metadata of a DID document
 type DocumentMetadata struct {

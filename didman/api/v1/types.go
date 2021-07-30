@@ -10,3 +10,6 @@ type Error = problem.Problem
 
 // ContactInformation is an alias for the already defined didman.ContactInformation
 type ContactInformation = didman.ContactInformation
+
+// OrganizationSearchResult is an alias for the already defined didman.OrganizationSearchResult
+type OrganizationSearchResult = didman.OrganizationSearchResult

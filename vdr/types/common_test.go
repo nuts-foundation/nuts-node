@@ -19,6 +19,7 @@
 package types
 
 import (
+	"io"
 	"reflect"
 	"testing"
 	"time"
@@ -69,4 +70,10 @@ func TestDocumentMetadata_IsConflicted(t *testing.T) {
 	t.Run("false", func(t *testing.T) {
 		assert.False(t, DocumentMetadata{}.IsConflicted())
 	})
+}
+
+func Test_deactivatedError_Is(t *testing.T) {
+	assert.ErrorIs(t, ErrDeactivated, ErrDeactivated)
+	assert.ErrorIs(t, ErrNoActiveController, ErrDeactivated)
+	assert.NotErrorIs(t, io.EOF, ErrDeactivated)
 }

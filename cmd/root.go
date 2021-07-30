@@ -164,7 +164,7 @@ func CreateSystem() *core.System {
 	metricsEngine := core.NewMetricsEngine()
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), store, credentialInstance, cryptoInstance)
 
-	didmanInstance := didman.NewDidmanInstance(docResolver, store, vdrInstance)
+	didmanInstance := didman.NewDidmanInstance(docResolver, store, vdrInstance, credentialInstance)
 
 	// add engine specific routes
 	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance})

@@ -213,6 +213,40 @@ paths:
           description: The service has been removed
         default:
           $ref: '../common/error_response.yaml'
+  /internal/didman/v1/search/organizations:
+    parameters:
+      - name: query
+        in: query
+        description: >
+          Query used for searching the organization by name. The query is matched to the organization's name in a SQL's
+          "LIKE" fashion: it matches partial strings and also names that sound like the given query,
+          using a phonetic transformation algorithm.
+        required: true
+        example:
+          - "Zorgcentrum de Roodvink"
+        schema:
+          type: string
+      - name: didServiceType
+        in: query
+        description: Filters organizations by service of the given type in the organizations' DID document (optional).
+        required: false
+        example:
+          - "eOverdracht-receiver"
+        schema:
+          type: string
+    get:
+      operationId: searchOrganizations
+      responses:
+        "200":
+          description: Organizations resulting from the search.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrganizationSearchResult'
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     Endpoint:
@@ -302,3 +336,14 @@ components:
         website:
           type: string
           description: URL of the public website of this Service Provider. Can point to a Nuts specific page with more information about the node and how to contact.
+    OrganizationSearchResult:
+      type: object
+      description: An entry resulting from the organozation search.
+      properties:
+        organization:
+          type: object
+          description: >
+            An object describing the found entity, modelled as a concept as specified by VCR's OpenAPI specification.
+            See https://nuts-node.readthedocs.io/en/latest/pages/development/3-vc.html for examples on which concepts are supported and how they're structured.
+        didDocument:
+          $ref: '../vdr/v1.yaml#/components/schemas/DIDDocument'

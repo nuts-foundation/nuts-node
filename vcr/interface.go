@@ -62,6 +62,9 @@ var revocationDocumentType = "application/vc+json;type=revocation"
 type ConceptFinder interface {
 	// Get returns the requested concept as concept.Concept for the subject or ErrNotFound
 	Get(conceptName string, subject string) (concept.Concept, error)
+
+	// Search for matching concepts based upon a query. It returns an empty list if no matches have been found.
+	Search(conceptName string, query map[string]string) ([]concept.Concept, error)
 }
 
 // Writer is the interface that groups al the VC write methods
@@ -93,9 +96,6 @@ type Resolver interface {
 	// The credential will still be returned in the case of ErrRevoked and ErrUntrusted.
 	// For other errors, nil is returned
 	Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error)
-	// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
-	// The optional resolveTime will search for credentials at that point in time.
-	Search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
 }
 
 // VCR is the interface that covers all functionality of the vcr store.

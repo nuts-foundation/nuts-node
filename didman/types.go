@@ -70,6 +70,10 @@ type Didman interface {
 	// Returns nil, nil when no contactInformation for the DID was found.
 	// It can also return various errors from DocResolver.Resolve
 	GetContactInformation(id did.DID) (*ContactInformation, error)
+
+	// SearchOrganizations searches VCR for organizations which's name matches the given query.
+	// It then optionally filters on those which have a service of the specified type on their DID Document.
+	SearchOrganizations(query string, didServiceType *string) ([]OrganizationSearchResult, error)
 }
 
 // ContactInformation contains set of contact information entries
@@ -86,4 +90,12 @@ type ContactInformation struct {
 
 	// Website contains the URL of the public website of this Service Provider. Can point to a Nuts specific page with more information about the node and how to contact.
 	Website string `json:"website"`
+}
+
+// OrganizationSearchResult is returned by SearchOrganizations and associates a resulting organization with its DID Document.
+type OrganizationSearchResult struct {
+	// DIDDocument contains the organization's DID Document.
+	DIDDocument did.Document `json:"didDocument"`
+	// Organization contains the organization's information derived from its Verifiable Credential.
+	Organization map[string]interface{} `json:"organization"`
 }
