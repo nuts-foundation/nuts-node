@@ -42,7 +42,7 @@ type dialer func(ctx context.Context, target string, opts ...grpc.DialOption) (c
 
 const connectingQueueChannelSize = 100
 const eventChannelSize = 100
-const messageBacklogChannelSize = 100
+const messageBacklogChannelSize = 1000 // TODO: Does this number make sense? Should also be configurable?
 const maxMessageSizeInBytes = 1024 * 512
 
 type adapter struct {
