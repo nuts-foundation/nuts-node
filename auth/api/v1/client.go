@@ -30,6 +30,7 @@ type HTTPClient struct {
 	client  ClientInterface
 }
 
+// NewHTTPClient creates a new HTTPClient using the generated OAS client
 func NewHTTPClient(serverAddress string, timeout time.Duration, opts ...ClientOption) (*HTTPClient, error) {
 	client, err := NewClientWithResponses(serverAddress, opts...)
 	if err != nil {
