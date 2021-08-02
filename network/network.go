@@ -229,15 +229,18 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) 
 		BootstrapNodes: n.config.BootstrapNodes,
 		PeerID:         peerID,
 	}
+
 	if n.config.EnableTLS {
 		clientCertificate, err := tls.LoadX509KeyPair(n.config.CertFile, n.config.CertKeyFile)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", n.config.CertFile, n.config.CertKeyFile)
 		}
+
 		cfg.ClientCert = clientCertificate
-		if cfg.TrustStore, err = n.config.loadTrustStore(); err != nil {
+		if cfg.TrustStore, err = core.LoadTrustStore(n.config.TrustStoreFile); err != nil {
 			return nil, err
 		}
+
 		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
 		if n.config.GrpcAddr != "" {
 			cfg.ServerCert = cfg.ClientCert
@@ -245,6 +248,7 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) 
 	} else {
 		log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
 	}
+
 	return &cfg, nil
 }
 

@@ -18,7 +18,7 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 		server := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK})
 		serverURL, _ := url.Parse(server.URL)
 
-		client := HTTPClient{Timeout: time.Second}
+		client, _ := NewHTTPClient("", time.Second)
 
 		response, err := client.CreateAccessToken(*serverURL, "bearer_token")
 
@@ -30,7 +30,7 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 		server := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError})
 		serverURL, _ := url.Parse(server.URL)
 
-		client := HTTPClient{Timeout: time.Second}
+		client, _ := NewHTTPClient("", time.Second)
 
 		response, err := client.CreateAccessToken(*serverURL, "bearer_token")
 
@@ -45,7 +45,7 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 	})
 
 	t.Run("error_invalid_endpoint", func(t *testing.T) {
-		client := HTTPClient{Timeout: time.Second}
+		client, _ := NewHTTPClient("", time.Second)
 
 		response, err := client.CreateAccessToken(url.URL{}, "bearer_token")
 

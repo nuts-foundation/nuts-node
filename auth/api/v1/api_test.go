@@ -19,16 +19,19 @@
 package v1
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"testing"
 	"time"
+
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
 
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
@@ -63,6 +66,18 @@ type mockAuthClient struct {
 
 func (m *mockAuthClient) HTTPTimeout() time.Duration {
 	return 10 * time.Second
+}
+
+func (m *mockAuthClient) TrustStore() *x509.CertPool {
+	return nil
+}
+
+func (m *mockAuthClient) ClientCertificate() *tls.Certificate {
+	return nil
+}
+
+func (m *mockAuthClient) TLSEnabled() bool {
+	return false
 }
 
 func (m *mockAuthClient) OAuthClient() services.OAuthClient {

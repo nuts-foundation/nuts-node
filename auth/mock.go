@@ -5,6 +5,8 @@
 package auth
 
 import (
+	tls "crypto/tls"
+	x509 "crypto/x509"
 	reflect "reflect"
 	time "time"
 
@@ -33,6 +35,20 @@ func NewMockAuthenticationServices(ctrl *gomock.Controller) *MockAuthenticationS
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockAuthenticationServices) EXPECT() *MockAuthenticationServicesMockRecorder {
 	return m.recorder
+}
+
+// ClientCertificate mocks base method.
+func (m *MockAuthenticationServices) ClientCertificate() *tls.Certificate {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClientCertificate")
+	ret0, _ := ret[0].(*tls.Certificate)
+	return ret0
+}
+
+// ClientCertificate indicates an expected call of ClientCertificate.
+func (mr *MockAuthenticationServicesMockRecorder) ClientCertificate() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClientCertificate", reflect.TypeOf((*MockAuthenticationServices)(nil).ClientCertificate))
 }
 
 // ContractClient mocks base method.
@@ -89,4 +105,32 @@ func (m *MockAuthenticationServices) OAuthClient() services.OAuthClient {
 func (mr *MockAuthenticationServicesMockRecorder) OAuthClient() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OAuthClient", reflect.TypeOf((*MockAuthenticationServices)(nil).OAuthClient))
+}
+
+// TLSEnabled mocks base method.
+func (m *MockAuthenticationServices) TLSEnabled() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TLSEnabled")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// TLSEnabled indicates an expected call of TLSEnabled.
+func (mr *MockAuthenticationServicesMockRecorder) TLSEnabled() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TLSEnabled", reflect.TypeOf((*MockAuthenticationServices)(nil).TLSEnabled))
+}
+
+// TrustStore mocks base method.
+func (m *MockAuthenticationServices) TrustStore() *x509.CertPool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TrustStore")
+	ret0, _ := ret[0].(*x509.CertPool)
+	return ret0
+}
+
+// TrustStore indicates an expected call of TrustStore.
+func (mr *MockAuthenticationServicesMockRecorder) TrustStore() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TrustStore", reflect.TypeOf((*MockAuthenticationServices)(nil).TrustStore))
 }

@@ -7,6 +7,10 @@ type Config struct {
 	HTTPTimeout           int      `koanf:"auth.http.timeout"`
 	PublicURL             string   `koanf:"auth.publicurl"`
 	ContractValidators    []string `koanf:"auth.contractvalidators"`
+	CertFile              string   `koanf:"network.certfile"`
+	CertKeyFile           string   `koanf:"network.certkeyfile"`
+	EnableTLS             bool     `koanf:"network.enabletls"`
+	TrustStoreFile        string   `koanf:"network.truststorefile"`
 }
 
 // DefaultConfig returns an instance of Config with the default values.
