@@ -820,13 +820,13 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().IntrospectAccessToken(request.Token).Return(
 			&services.NutsAccessToken{
-				Audience:   aud,
-				Expiration: int64(exp),
-				IssuedAt:   int64(iat),
-				Issuer:     iss,
-				Subject:    aid,
-				SubjectID:  &sid,
-				Service:    service,
+				Audience:    aud,
+				Expiration:  int64(exp),
+				IssuedAt:    int64(iat),
+				Issuer:      iss,
+				Subject:     aid,
+				SubjectID:   &sid,
+				Service:     service,
 			}, nil)
 
 		emptyStr := ""

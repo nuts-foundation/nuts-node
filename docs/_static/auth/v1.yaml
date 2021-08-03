@@ -499,6 +499,7 @@ components:
         - actor
         - identity
         - service
+        - credentials
       properties:
         subject:
           type: string
@@ -514,6 +515,12 @@ components:
           type: string
           description: The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
           example: nuts-patient-transfer
+        credentials:
+          type: array
+          items:
+            type: string
+          description: |
+            Array of NutsAuthorizationCredential DIDs
     JwtGrantResponse:
       description: Response with a JWT Grant. It contains a JWT, signed with the private key of the requestor software vendor.
       required:
@@ -536,6 +543,7 @@ components:
         - actor
         - identity
         - service
+        - credentials
       properties:
         subject:
           type: string
@@ -551,6 +559,12 @@ components:
           type: string
           description: The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
           example: nuts-patient-transfer
+        credentials:
+          type: array
+          items:
+            type: string
+          description: |
+            Array of NutsAuthorizationCredential DIDs
     CreateAccessTokenRequest:
       description: Request as described in RFC7523 section 2.1
       required:
@@ -645,6 +659,11 @@ components:
         usi:
           type: string
           description: Jwt encoded user identity.
+        vcs:
+          type: array
+          items:
+            type: string
+          description: Array of NutsAuthorizationCredential DIDs
         osi:
           type: string
           description: encoded ops signature. (TBD)

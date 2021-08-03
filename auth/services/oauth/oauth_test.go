@@ -26,6 +26,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 
 	"net/url"
 
@@ -477,7 +479,61 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		if !assert.Nil(t, err) || !assert.NotEmpty(t, token.BearerToken) {
 			t.FailNow()
 		}
+
 		assert.Equal(t, "token", token.BearerToken)
+	})
+
+	t.Run("create a JwtBearerToken with valid credentials", func(t *testing.T) {
+		ctx := createContext(t)
+		validCredential := &vc.VerifiableCredential{
+			Context:      []ssi.URI{vc.VCContextV1URI(), *credential.NutsContextURI},
+			ID:           &ssi.URI{},
+			Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
+			Issuer:       vdr.TestDIDA.URI(),
+			IssuanceDate: time.Now(),
+			CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
+				ID: vdr.TestDIDB.String(),
+				LegalBase: credential.LegalBase{
+					ConsentType: "implied",
+				},
+				PurposeOfUse: "eTransfer",
+				Resources: []credential.Resource{
+					{
+						Path:        "/composition/1",
+						Operations:  []string{"read"},
+						UserContext: true,
+					},
+				},
+			}},
+			Proof: []interface{}{vc.Proof{}},
+		}
+
+		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(custodianDIDDocument, nil, nil).AnyTimes()
+		ctx.keyResolver.EXPECT().ResolveSigningKeyID(actorDID, gomock.Any()).MinTimes(1).Return(actorSigningKeyID.String(), nil)
+		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), actorSigningKeyID.String()).Return("token", nil)
+		ctx.vcrResolver.EXPECT().Resolve(vdr.TestDIDA.URI(), nil).Return(validCredential, nil)
+
+		validRequest := request
+		validRequest.Credentials = []string{vdr.TestDIDA.String()}
+
+		token, err := ctx.oauthService.CreateJwtGrant(validRequest)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "token", token.BearerToken)
+	})
+
+	t.Run("create a JwtBearerToken with invalid credentials fails", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.vcrResolver.EXPECT().Resolve(vdr.TestDIDA.URI(), nil).Return(nil, errors.New("random error"))
+
+		invalidRequest := request
+		invalidRequest.Credentials = []string{vdr.TestDIDA.String()}
+
+		token, err := ctx.oauthService.CreateJwtGrant(invalidRequest)
+
+		assert.EqualError(t, err, "random error")
+		assert.Empty(t, token)
 	})
 
 	t.Run("custodian without endpoint", func(t *testing.T) {
@@ -560,7 +616,6 @@ func Test_claimsFromRequest(t *testing.T) {
 }
 
 func TestOAuthService_IntrospectAccessToken(t *testing.T) {
-
 	t.Run("validate access token", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
@@ -729,6 +784,7 @@ type testContext struct {
 	nameResolver       *vcr.MockConceptFinder
 	didResolver        *types.MockStore
 	keyResolver        *types.MockKeyResolver
+	vcrResolver        *vcr.MockResolver
 	oauthService       *service
 }
 
@@ -740,6 +796,8 @@ var createContext = func(t *testing.T) *testContext {
 	nameResolver := vcr.NewMockConceptFinder(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	didResolver := types.NewMockStore(ctrl)
+	vcrResolver := vcr.NewMockResolver(ctrl)
+
 	return &testContext{
 		ctrl:               ctrl,
 		contractClientMock: contractClientMock,
@@ -747,12 +805,14 @@ var createContext = func(t *testing.T) *testContext {
 		keyResolver:        keyResolver,
 		nameResolver:       nameResolver,
 		didResolver:        didResolver,
+		vcrResolver:        vcrResolver,
 		oauthService: &service{
-			docResolver:     doc.Resolver{didResolver},
+			docResolver:     doc.Resolver{Store: didResolver},
 			keyResolver:     keyResolver,
 			contractClient:  contractClientMock,
 			privateKeyStore: privateKeyStore,
 			conceptFinder:   nameResolver,
+			vcrResolver:     vcrResolver,
 		},
 	}
 }

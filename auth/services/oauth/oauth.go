@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/url"
 	"time"
 
@@ -47,6 +48,7 @@ const errInvalidOrganizationVC = "actor has invalid organization VC: %w"
 type service struct {
 	docResolver     types.DocResolver
 	conceptFinder   vcr.ConceptFinder
+	vcrResolver     vcr.Resolver
 	keyResolver     types.KeyResolver
 	privateKeyStore nutsCrypto.KeyStore
 	contractClient  services.ContractClient
@@ -273,6 +275,24 @@ func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*servi
 		return nil, err
 	}
 
+	validator := credential.NutsAuthorizationCredentialValidator{}
+
+	for _, cred := range request.Credentials {
+		credentialDID, err := did.ParseDID(cred)
+		if err != nil {
+			return nil, err
+		}
+
+		authCred, err := s.vcrResolver.Resolve(credentialDID.URI(), nil)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := validator.Validate(*authCred); err != nil {
+			return nil, fmt.Errorf("invalid NutsAuthorizationCredential: %w", err)
+		}
+	}
+
 	endpointID, _, err := services.ResolveCompoundServiceURL(s.docResolver, *custodian, request.Service, services.OAuthEndpointType, nil)
 	if err != nil {
 		return nil, err
@@ -300,7 +320,9 @@ func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) 
 	token := services.NutsJwtBearerToken{
 		UserIdentity: request.IdentityToken,
 		SubjectID:    request.Subject,
+		Credentials:  request.Credentials,
 	}
+
 	result, _ := token.AsMap()
 	result[jwt.AudienceKey] = audience
 	result[jwt.ExpirationKey] = timeFunc().Add(OauthBearerTokenMaxValidity * time.Second).Unix()
@@ -309,6 +331,7 @@ func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) 
 	result[jwt.NotBeforeKey] = 0
 	result[jwt.SubjectKey] = request.Custodian
 	result[services.JWTService] = request.Service
+
 	return result
 }
 

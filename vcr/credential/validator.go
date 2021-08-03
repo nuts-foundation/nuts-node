@@ -28,7 +28,7 @@ import (
 )
 
 // Validator is the interface specific VC verification.
-// Every VC will have it's own rules of verification.
+// Every VC will have its own rules of verification.
 type Validator interface {
 	// Validate the given credential according to the rules of the VC type.
 	Validate(credential vc.VerifiableCredential) error
@@ -58,7 +58,6 @@ func failure(err string, args ...interface{}) error {
 
 // validate the default fields
 func validate(credential vc.VerifiableCredential) error {
-
 	if !credential.IsType(vc.VerifiableCredentialTypeV1URI()) {
 		return failure("type 'VerifiableCredential' is required")
 	}
@@ -125,12 +124,12 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 	return nil
 }
 
-// nutsAuthorizationCredentialValidator checks for mandatory fields: id, legalBase, purposeOfUse.
+// NutsAuthorizationCredentialValidator checks for mandatory fields: id, legalBase, purposeOfUse.
 // It checks if the value for legalBase.consentType is either 'explicit' or 'implied'.
 // When 'explicit', both the evidence and subject subfields must be filled.
-type nutsAuthorizationCredentialValidator struct{}
+type NutsAuthorizationCredentialValidator struct{}
 
-func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
+func (d NutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
 	var target = make([]NutsAuthorizationCredentialSubject, 0)
 
 	if err := validate(credential); err != nil {
