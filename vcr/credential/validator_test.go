@@ -197,7 +197,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 }
 
 func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
-	validator := NutsAuthorizationCredentialValidator{}
+	validator := nutsAuthorizationCredentialValidator{}
 
 	t.Run("ok - implied", func(t *testing.T) {
 		v := validImpliedNutsAuthorizationCredential()

@@ -56,8 +56,8 @@ func failure(err string, args ...interface{}) error {
 	return &validationError{errStr}
 }
 
-// validate the default fields
-func validate(credential vc.VerifiableCredential) error {
+// Validate the default fields
+func Validate(credential vc.VerifiableCredential) error {
 	if !credential.IsType(vc.VerifiableCredentialTypeV1URI()) {
 		return failure("type 'VerifiableCredential' is required")
 	}
@@ -91,7 +91,7 @@ type nutsOrganizationCredentialValidator struct{}
 func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
 	var target = make([]NutsOrganizationCredentialSubject, 0)
 
-	if err := validate(credential); err != nil {
+	if err := Validate(credential); err != nil {
 		return err
 	}
 
@@ -124,15 +124,15 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 	return nil
 }
 
-// NutsAuthorizationCredentialValidator checks for mandatory fields: id, legalBase, purposeOfUse.
+// nutsAuthorizationCredentialValidator checks for mandatory fields: id, legalBase, purposeOfUse.
 // It checks if the value for legalBase.consentType is either 'explicit' or 'implied'.
 // When 'explicit', both the evidence and subject subfields must be filled.
-type NutsAuthorizationCredentialValidator struct{}
+type nutsAuthorizationCredentialValidator struct{}
 
-func (d NutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
+func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
 	var target = make([]NutsAuthorizationCredentialSubject, 0)
 
-	if err := validate(credential); err != nil {
+	if err := Validate(credential); err != nil {
 		return err
 	}
 

@@ -136,11 +136,9 @@ type CreateAccessTokenRequest struct {
 
 // Request for a JWT Grant. The grant can be used during a Access Token Request in the assertion field
 type CreateJwtGrantRequest struct {
-	Actor string `json:"actor"`
-
-	// Array of NutsAuthorizationCredential DIDs
-	Credentials []string `json:"credentials"`
-	Custodian   string   `json:"custodian"`
+	Actor       string                 `json:"actor"`
+	Credentials []VerifiableCredential `json:"credentials"`
+	Custodian   string                 `json:"custodian"`
 
 	// Base64 encoded IRMA contract conaining the identity of the performer
 	Identity string `json:"identity"`
@@ -149,6 +147,21 @@ type CreateJwtGrantRequest struct {
 	Service string  `json:"service"`
 	Subject *string `json:"subject,omitempty"`
 }
+
+// CredentialIssuer defines model for CredentialIssuer.
+type CredentialIssuer struct {
+	// a credential type
+	CredentialType string `json:"credentialType"`
+
+	// the DID of an issuer
+	Issuer string `json:"issuer"`
+}
+
+// Subject of a Verifiable Credential identifying the holder and expressing claims.
+type CredentialSubject map[string]interface{}
+
+// DID according to Nuts specification
+type DID string
 
 // DrawUpContractRequest defines model for DrawUpContractRequest.
 type DrawUpContractRequest struct {
@@ -183,11 +196,9 @@ type LegalEntity string
 
 // Request for a JWT Grant and use it as authorization grant to get the access token from the custodian
 type RequestAccessTokenRequest struct {
-	Actor string `json:"actor"`
-
-	// Array of NutsAuthorizationCredential DIDs
-	Credentials []string `json:"credentials"`
-	Custodian   string   `json:"custodian"`
+	Actor       string                 `json:"actor"`
+	Credentials []VerifiableCredential `json:"credentials"`
+	Custodian   string                 `json:"custodian"`
 
 	// Base64 encoded IRMA contract conaining the identity of the performer
 	Identity string `json:"identity"`
@@ -304,10 +315,8 @@ type TokenIntrospectionResponse struct {
 	Sub *string `json:"sub,omitempty"`
 
 	// Jwt encoded user identity.
-	Usi *string `json:"usi,omitempty"`
-
-	// Array of NutsAuthorizationCredential DIDs
-	Vcs *[]string `json:"vcs,omitempty"`
+	Usi *string                 `json:"usi,omitempty"`
+	Vcs *[]VerifiableCredential `json:"vcs,omitempty"`
 }
 
 // If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.

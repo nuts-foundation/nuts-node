@@ -279,6 +279,67 @@ paths:
 
 components:
   schemas:
+    VerifiableCredential:
+      type: object
+      description: A credential according to the W3C and Nuts specs.
+      required:
+        - "@context"
+        - type
+        - issuer
+        - issuanceDate
+        - credentialSubject
+        - proof
+      properties:
+        "@context":
+          description: List of URIs
+          type: array
+          items:
+            type: string
+        id:
+          description: credential ID. A Nuts DID followed by a large number.
+          example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+          type: string
+        type:
+          description: List of type definitions for the credential. Always includes 'VerifiableCredential'
+          type: array
+          items:
+            type: string
+        issuer:
+          $ref: '#/components/schemas/DID'
+        issuanceDate:
+          description: rfc3339 time string when the credential was issued.
+          type: string
+          example: "2012-01-02T12:00:00Z"
+        expirationDate:
+          description: rfc3339 time string untill when the credential is valid.
+          type: string
+          example: "2012-01-02T12:00:00Z"
+        credentialSubject:
+          $ref: '#/components/schemas/CredentialSubject'
+        proof:
+          description: one or multiple cryptographic proofs
+          type: object
+    CredentialSubject:
+      type: object
+      description: Subject of a Verifiable Credential identifying the holder and expressing claims.
+    CredentialIssuer:
+      type: object
+      required:
+        - issuer
+        - credentialType
+      properties:
+        issuer:
+          description: the DID of an issuer
+          example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+          type: string
+        credentialType:
+          description: a credential type
+          example: NutsOrganizationCredential
+          type: string
+    DID:
+      type: string
+      description: DID according to Nuts specification
+      example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
     #
     # Everthing related to sessions and signing
     #
@@ -518,9 +579,7 @@ components:
         credentials:
           type: array
           items:
-            type: string
-          description: |
-            Array of NutsAuthorizationCredential DIDs
+            $ref: '#/components/schemas/VerifiableCredential'
     JwtGrantResponse:
       description: Response with a JWT Grant. It contains a JWT, signed with the private key of the requestor software vendor.
       required:
@@ -562,9 +621,7 @@ components:
         credentials:
           type: array
           items:
-            type: string
-          description: |
-            Array of NutsAuthorizationCredential DIDs
+            $ref: '#/components/schemas/VerifiableCredential'
     CreateAccessTokenRequest:
       description: Request as described in RFC7523 section 2.1
       required:
@@ -662,8 +719,7 @@ components:
         vcs:
           type: array
           items:
-            type: string
-          description: Array of NutsAuthorizationCredential DIDs
+            $ref: '#/components/schemas/VerifiableCredential'
         osi:
           type: string
           description: encoded ops signature. (TBD)

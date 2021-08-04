@@ -48,7 +48,6 @@ const errInvalidOrganizationVC = "actor has invalid organization VC: %w"
 type service struct {
 	docResolver     types.DocResolver
 	conceptFinder   vcr.ConceptFinder
-	vcrResolver     vcr.Resolver
 	keyResolver     types.KeyResolver
 	privateKeyStore nutsCrypto.KeyStore
 	contractClient  services.ContractClient
@@ -275,21 +274,18 @@ func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*servi
 		return nil, err
 	}
 
-	validator := credential.NutsAuthorizationCredentialValidator{}
+	for _, verifiableCredential := range request.Credentials {
+		validator, _ := credential.FindValidatorAndBuilder(verifiableCredential)
+		if validator == nil {
+			if err := credential.Validate(verifiableCredential); err != nil {
+				return nil, fmt.Errorf("invalid VerifiableCredential: %w", err)
+			}
 
-	for _, cred := range request.Credentials {
-		credentialDID, err := did.ParseDID(cred)
-		if err != nil {
-			return nil, err
+			continue
 		}
 
-		authCred, err := s.vcrResolver.Resolve(credentialDID.URI(), nil)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := validator.Validate(*authCred); err != nil {
-			return nil, fmt.Errorf("invalid NutsAuthorizationCredential: %w", err)
+		if err := validator.Validate(verifiableCredential); err != nil {
+			return nil, fmt.Errorf("invalid VerifiableCredential: %w", err)
 		}
 	}
 
