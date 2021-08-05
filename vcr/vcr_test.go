@@ -1065,6 +1065,12 @@ func TestVcr_generateRevocationProof(t *testing.T) {
 	})
 }
 
+func TestWhitespaceOrExactTokenizer(t *testing.T) {
+	input := "a b c"
+
+	assert.Equal(t, []string{"a", "b", "c", "a b c"}, whitespaceOrExactTokenizer(input))
+}
+
 func validNutsOrganizationCredential() *vc.VerifiableCredential {
 	uri, _ := ssi.ParseURI(credential.NutsOrganizationCredentialType)
 	issuer, _ := ssi.ParseURI(vdr.TestDIDA.String())

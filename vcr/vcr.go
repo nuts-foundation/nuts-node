@@ -139,6 +139,13 @@ func (c *vcr) loadTemplates() error {
 	return nil
 }
 
+func whitespaceOrExactTokenizer(text string) (tokens []string) {
+	tokens = leia.WhiteSpaceTokenizer(text)
+	tokens = append(tokens, text)
+
+	return
+}
+
 func (c *vcr) initIndices() error {
 	for _, config := range c.registry.Concepts() {
 		collection := c.store.Collection(config.CredentialType)
@@ -153,6 +160,8 @@ func (c *vcr) initIndices() error {
 				if iParts.Tokenizer != nil {
 					tokenizer := strings.ToLower(*iParts.Tokenizer)
 					switch tokenizer {
+					case "whitespaceorexact":
+						options = append(options, leia.TokenizerOption(whitespaceOrExactTokenizer))
 					case "whitespace":
 						options = append(options, leia.TokenizerOption(leia.WhiteSpaceTokenizer))
 					default:
