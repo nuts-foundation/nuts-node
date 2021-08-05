@@ -562,7 +562,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	cpt := map[string]interface{}{
 		"subject":      id.String(),
-		"organization": concept.Concept{},
+		"organization": map[string]interface{}{"name": "Foo"},
 	}
 	t.Run("ok - no DID service type", func(t *testing.T) {
 		ctx := newMockContext(t)

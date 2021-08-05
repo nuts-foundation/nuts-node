@@ -254,7 +254,7 @@ func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]Or
 	// Convert organization concepts and DID documents to search results
 	results := make([]OrganizationSearchResult, len(organizations))
 	for i := range organizations {
-		organization, ok := organizations[i]["organization"].(concept.Concept)
+		organization, ok := organizations[i]["organization"].(map[string]interface{})
 		if !ok {
 			return nil, errors.New("unable to map organization to concept")
 		}
