@@ -343,6 +343,7 @@ func (n *adapter) shouldConnectTo(address string, peerID PeerID) bool {
 		log.Logger().Tracef("Not connecting since it's localhost (address=%s)", address)
 		return false
 	}
+
 	alreadyConnected := n.conns.isConnected(normalizedAddress)
 	if alreadyConnected {
 		log.Logger().Tracef("Not connected since we're already connected to a peer on that address (address=%s)", address)
@@ -350,6 +351,7 @@ func (n *adapter) shouldConnectTo(address string, peerID PeerID) bool {
 		log.Logger().Tracef("Not connecting since we're already connected to a peer with that ID (peer=%s)", peerID)
 		alreadyConnected = true
 	}
+
 	return !alreadyConnected
 }
 

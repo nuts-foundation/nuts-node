@@ -255,24 +255,47 @@ func Test_adapter_Connect(t *testing.T) {
 }
 
 func Test_adapter_ConnectToPeer(t *testing.T) {
-	network := NewAdapter().(*adapter)
-	network.Configure(AdapterConfig{
-		PeerID:        "foo",
-		ListenAddress: "127.0.0.1:0",
-	})
-	network.Start()
-	defer network.Stop()
-	waitForGRPCStart()
 	t.Run("connect to self", func(t *testing.T) {
+		network := NewAdapter().(*adapter)
+		network.Configure(AdapterConfig{
+			PeerID:        "foo",
+			ListenAddress: "127.0.0.1:0",
+		})
+		network.Start()
+
+		waitForGRPCStart()
+
+		defer network.Stop()
+
 		willConnect := network.ConnectToPeer(network.config.ListenAddress)
+
 		assert.False(t, willConnect)
 	})
+
 	t.Run("connect to peer", func(t *testing.T) {
-		addr := network.config.ListenAddress
-		network.config.ListenAddress = ":5555" // trick to make the server connect to itself
-		willConnect := network.ConnectToPeer(addr)
+		network := NewAdapter().(*adapter)
+		network.Configure(AdapterConfig{
+			PeerID:        "foo",
+			ListenAddress: "127.0.0.1:0",
+		})
+		network.Start()
+
+		peer := NewAdapter().(*adapter)
+		peer.Configure(AdapterConfig{
+			PeerID:         "baz",
+			ListenAddress:  "127.0.0.1:0",
+		})
+		peer.Start()
+
+		waitForGRPCStart()
+
+		defer network.Stop()
+		defer peer.Stop()
+
+		willConnect := network.ConnectToPeer(peer.config.ListenAddress)
 		assert.True(t, willConnect)
-		// Now wait for peer (self) to actually connect
+
+		// Now wait for peer to actually connect
 		startTime := time.Now()
 		for {
 			if len(network.Peers()) > 0 {

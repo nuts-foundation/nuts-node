@@ -243,8 +243,8 @@ func (mgr *connectionManager) get(peer PeerID) connection {
 func (mgr *connectionManager) close(peer PeerID) bool {
 	mgr.mux.Lock()
 	defer mgr.mux.Unlock()
-	conn := mgr.conns[peer]
-	if conn == nil {
+	conn, ok := mgr.conns[peer]
+	if !ok {
 		return false
 	}
 	conn.close()
