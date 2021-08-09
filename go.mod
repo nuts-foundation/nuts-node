@@ -12,7 +12,7 @@ require (
 	github.com/golang/mock v1.5.0
 	github.com/golang/protobuf v1.4.3
 	github.com/goodsign/monday v1.0.0
-	github.com/google/uuid v1.1.4
+	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.0 // indirect
 	github.com/jinzhu/gorm v1.9.14 // indirect
 	github.com/knadh/koanf v0.15.0
