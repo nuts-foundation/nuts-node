@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # github actions
+  - package-ecosystem: "github-actions"
+    # checks workflow files in /.github/workflows
+    directory: "/"
+    schedule:
+      interval: "daily"
+
+  # Go
+  - package-ecosystem: "gomod"
+    # checks /go.mod
+    directory: "/"
+    schedule:
+      interval: "daily"
+
+  # Docker
+  - package-ecosystem: "docker"
+    # checks /Dockerfile
+    directory: "/"
+    schedule:
+      interval: "daily"
+
+  # Python (PRs disabled)
+  - package-ecosystem: "pip"
+    # checks /docs/requirements.txt
+    directory: "/docs"
+    schedule:
+      interval: "weekly"
+    # Allow up to 0 open pull requests for pip dependencies
+    open-pull-requests-limit: 0
