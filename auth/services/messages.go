@@ -2,7 +2,7 @@ package services
 
 import (
 	"encoding/json"
-
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 
 	irma "github.com/privacybydesign/irmago"
@@ -33,6 +33,7 @@ type CreateJwtGrantRequest struct {
 	IdentityToken *string
 	Service       string
 	Subject       *string
+	Credentials   []vc.VerifiableCredential
 }
 
 // AccessTokenResult defines the return value back to the api for the CreateAccessToken method
@@ -54,6 +55,8 @@ type NutsJwtBearerToken struct {
 	// Base64 encoded VerifiablePresentation
 	UserIdentity *string `json:"usi,omitempty"`
 	SubjectID    *string `json:"sid,omitempty"`
+	// Array of NutsAuthorizationCredential DIDs
+	Credentials []vc.VerifiableCredential `json:"vcs"`
 	// Service defines the use-case for which an access token is required
 	Service string `json:"service"`
 	KeyID   string `json:"-"`
@@ -71,12 +74,13 @@ type NutsAccessToken struct {
 	FamilyName string  `json:"family_name"`
 	Email      string  `json:"email"`
 
-	KeyID      string `json:"-"`
-	Expiration int64  `json:"exp"`
-	IssuedAt   int64  `json:"iat"`
-	Issuer     string `json:"iss"`
-	Subject    string `json:"sub"`
-	Audience   string `json:"aud"`
+	KeyID       string                    `json:"-"`
+	Expiration  int64                     `json:"exp"`
+	IssuedAt    int64                     `json:"iat"`
+	Issuer      string                    `json:"iss"`
+	Subject     string                    `json:"sub"`
+	Audience    string                    `json:"aud"`
+	Credentials []vc.VerifiableCredential `json:"vcs"`
 }
 
 // FromMap sets the values of the token from the given map.

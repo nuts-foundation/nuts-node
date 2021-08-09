@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/url"
 	"time"
 
@@ -273,6 +274,21 @@ func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*servi
 		return nil, err
 	}
 
+	for _, verifiableCredential := range request.Credentials {
+		validator, _ := credential.FindValidatorAndBuilder(verifiableCredential)
+		if validator == nil {
+			if err := credential.Validate(verifiableCredential); err != nil {
+				return nil, fmt.Errorf("invalid VerifiableCredential: %w", err)
+			}
+
+			continue
+		}
+
+		if err := validator.Validate(verifiableCredential); err != nil {
+			return nil, fmt.Errorf("invalid VerifiableCredential: %w", err)
+		}
+	}
+
 	endpointID, _, err := services.ResolveCompoundServiceURL(s.docResolver, *custodian, request.Service, services.OAuthEndpointType, nil)
 	if err != nil {
 		return nil, err
@@ -300,7 +316,9 @@ func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) 
 	token := services.NutsJwtBearerToken{
 		UserIdentity: request.IdentityToken,
 		SubjectID:    request.Subject,
+		Credentials:  request.Credentials,
 	}
+
 	result, _ := token.AsMap()
 	result[jwt.AudienceKey] = audience
 	result[jwt.ExpirationKey] = timeFunc().Add(OauthBearerTokenMaxValidity * time.Second).Unix()
@@ -309,6 +327,7 @@ func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) 
 	result[jwt.NotBeforeKey] = 0
 	result[jwt.SubjectKey] = request.Custodian
 	result[services.JWTService] = request.Service
+
 	return result
 }
 

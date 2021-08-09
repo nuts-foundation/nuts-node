@@ -258,7 +258,7 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, response)
 }
 
-// CreateJwtGrant handles the http request (from from the vendor's EPD/XIS) for creating a JWT bearer token which can be used to retrieve an access token from a remote Nuts node.
+// CreateJwtGrant handles the http request (from the vendor's EPD/XIS) for creating a JWT bearer token which can be used to retrieve an access token from a remote Nuts node.
 func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 	requestBody := &CreateJwtGrantRequest{}
 	if err := ctx.Bind(requestBody); err != nil {
@@ -271,6 +271,7 @@ func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 		IdentityToken: &requestBody.Identity,
 		Service:       requestBody.Service,
 		Subject:       requestBody.Subject,
+		Credentials:   requestBody.Credentials,
 	}
 	response, err := w.Auth.OAuthClient().CreateJwtGrant(request)
 	if err != nil {
@@ -293,6 +294,7 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		IdentityToken: &requestBody.Identity,
 		Service:       requestBody.Service,
 		Subject:       requestBody.Subject,
+		Credentials:   requestBody.Credentials,
 	}
 
 	jwtGrantResponse, err := w.Auth.OAuthClient().CreateJwtGrant(request)
@@ -434,6 +436,10 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		Prefix:     &claims.Prefix,
 		FamilyName: &claims.FamilyName,
 		Email:      &claims.Email,
+	}
+
+	if len(claims.Credentials) > 0 {
+		introspectionResponse.Vcs = &claims.Credentials
 	}
 
 	return ctx.JSON(http.StatusOK, introspectionResponse)

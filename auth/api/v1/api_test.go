@@ -24,6 +24,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -593,10 +596,38 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	t.Run("happy_path", func(t *testing.T) {
 		ctx := createContext(t)
 
+		credentials := []vc.VerifiableCredential{
+			{
+				Context:      []ssi.URI{vc.VCContextV1URI(), *credential.NutsContextURI},
+				ID:           &ssi.URI{},
+				Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
+				Issuer:       vdr.TestDIDA.URI(),
+				IssuanceDate: time.Now(),
+				CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
+					ID: vdr.TestDIDB.String(),
+					LegalBase: credential.LegalBase{
+						ConsentType: "implied",
+					},
+					PurposeOfUse: "eTransfer",
+					Resources: []credential.Resource{
+						{
+							Path:        "/composition/1",
+							Operations:  []string{"read"},
+							UserContext: true,
+						},
+					},
+				}},
+				Proof: []interface{}{vc.Proof{}},
+			},
+		}
+
 		ctx.echoMock.EXPECT().
 			Bind(gomock.Any()).
 			DoAndReturn(func(input interface{}) error {
-				*input.(*RequestAccessTokenRequest) = fakeRequest
+				request := fakeRequest
+				request.Credentials = credentials
+
+				*input.(*RequestAccessTokenRequest) = request
 				return nil
 			})
 
@@ -607,6 +638,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				IdentityToken: &testID,
 				Service:       "test-service",
 				Subject:       &testSubject,
+				Credentials:   credentials,
 			}).
 			Return(&services.JwtBearerTokenResult{
 				BearerToken: "jwt-bearer-token",
@@ -817,6 +849,25 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		iss := "urn:oid:2.16.840.1.113883.2.4.6.1:00000001"
 		sid := "urn:oid:2.16.840.1.113883.2.4.6.3:999999990"
 		service := "service"
+		subject := []interface{}{
+			credential.NutsAuthorizationCredentialSubject{
+				ID: vdr.TestDIDB.String(),
+				LegalBase: credential.LegalBase{
+					ConsentType: "implied",
+				},
+				PurposeOfUse: "eTransfer",
+				Resources: []credential.Resource{
+					{
+						Path:        "/composition/1",
+						Operations:  []string{"read"},
+						UserContext: true,
+					},
+				},
+			},
+		}
+		proof := []interface{}{vc.Proof{}}
+
+		now := time.Now()
 
 		ctx.oauthClientMock.EXPECT().IntrospectAccessToken(request.Token).Return(
 			&services.NutsAccessToken{
@@ -827,9 +878,32 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 				Subject:    aid,
 				SubjectID:  &sid,
 				Service:    service,
+				Credentials: []vc.VerifiableCredential{
+					{
+						Context:           []ssi.URI{vc.VCContextV1URI(), *credential.NutsContextURI},
+						ID:                nil,
+						Type:              []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
+						Issuer:            vdr.TestDIDA.URI(),
+						IssuanceDate:      now,
+						CredentialSubject: subject,
+						Proof:             proof,
+					},
+				},
 			}, nil)
 
 		emptyStr := ""
+
+		credentials := []VerifiableCredential{
+			{
+				Context:           []ssi.URI{vc.VCContextV1URI(), *credential.NutsContextURI},
+				Type:              []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
+				Issuer:            vdr.TestDIDA.URI(),
+				IssuanceDate:      now,
+				CredentialSubject: subject,
+				Proof:             proof,
+			},
+		}
+
 		response := TokenIntrospectionResponse{
 			Active: true,
 			Aud:    &aud,
@@ -845,7 +919,9 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			Prefix:     &emptyStr,
 			FamilyName: &emptyStr,
 			Name:       &emptyStr,
+			Vcs:        &credentials,
 		}
+
 		expectStatusOK(ctx, response)
 
 		if !assert.NoError(t, ctx.wrapper.IntrospectAccessToken(ctx.echoMock)) {

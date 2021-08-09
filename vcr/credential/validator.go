@@ -28,7 +28,7 @@ import (
 )
 
 // Validator is the interface specific VC verification.
-// Every VC will have it's own rules of verification.
+// Every VC will have its own rules of verification.
 type Validator interface {
 	// Validate the given credential according to the rules of the VC type.
 	Validate(credential vc.VerifiableCredential) error
@@ -56,9 +56,8 @@ func failure(err string, args ...interface{}) error {
 	return &validationError{errStr}
 }
 
-// validate the default fields
-func validate(credential vc.VerifiableCredential) error {
-
+// Validate the default fields
+func Validate(credential vc.VerifiableCredential) error {
 	if !credential.IsType(vc.VerifiableCredentialTypeV1URI()) {
 		return failure("type 'VerifiableCredential' is required")
 	}
@@ -92,7 +91,7 @@ type nutsOrganizationCredentialValidator struct{}
 func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
 	var target = make([]NutsOrganizationCredentialSubject, 0)
 
-	if err := validate(credential); err != nil {
+	if err := Validate(credential); err != nil {
 		return err
 	}
 
@@ -133,7 +132,7 @@ type nutsAuthorizationCredentialValidator struct{}
 func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
 	var target = make([]NutsAuthorizationCredentialSubject, 0)
 
-	if err := validate(credential); err != nil {
+	if err := Validate(credential); err != nil {
 		return err
 	}
 
