@@ -18,7 +18,7 @@ with the Nuts software community in case of a software problem. We will try to c
 
 Please do the following:
 
-  * E-mail your findings to responsible-disclosure@nuts.nl.
+  * E-mail your findings to [responsible-disclosure@nuts.nl](mailto:responsible-disclosure@nuts.nl).
   * Do not take advantage of the vulnerability or problem you have discovered, for example by downloading more data than necessary to demonstrate the vulnerability or deleting or modifying other people's data,
   * Do not reveal the problem to others until it has been resolved,
   * Do not use attacks on physical security, social engineering, distributed denial of service, spam or applications of third parties, and
