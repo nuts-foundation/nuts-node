@@ -10,7 +10,7 @@ require (
 	github.com/go-chi/chi v4.0.2+incompatible // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/mock v1.5.0
-	github.com/golang/protobuf v1.4.3
+	github.com/golang/protobuf v1.5.2
 	github.com/goodsign/monday v1.0.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.0 // indirect
@@ -37,8 +37,9 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.8.1
 	go.etcd.io/bbolt v1.3.5
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	google.golang.org/grpc v1.33.1
-	google.golang.org/protobuf v1.25.0
+	google.golang.org/protobuf v1.26.0
 	gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0
 	schneider.vip/problem v1.6.0
