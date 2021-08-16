@@ -147,9 +147,6 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 	return &services.AccessTokenResult{AccessToken: accessToken}, nil
 }
 
-// ErrLegalEntityNotProvided indicates that the legalEntity is missing
-var ErrLegalEntityNotProvided = errors.New("legalEntity not provided")
-
 // checks if the name from the login contract matches with the registered name of the issuer.
 func (s *service) validateActor(context *validationContext) error {
 	if context.contractVerificationResult.ContractAttributes[contract.LegalEntityAttr] != context.actorName || context.contractVerificationResult.ContractAttributes[contract.LegalEntityCityAttr] != context.actorCity {
