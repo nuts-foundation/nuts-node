@@ -755,7 +755,6 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		err := ctx.wrapper.CreateAccessToken(ctx.echoMock)
 
 		assert.Nil(t, err)
-
 	})
 }
 

@@ -172,6 +172,57 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		}
 	})
 
+	t.Run("valid - without user identity", func(t *testing.T) {
+		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(actorSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(actorSigningKey.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
+		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
+		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
+		ctx.privateKeyStore.EXPECT().Exists(custodianSigningKeyID.String()).Return(true)
+		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), custodianSigningKeyID.String()).Return("expectedAT", nil)
+
+		sid := "subject"
+		serviceID, _ := ssi.ParseURI(custodianDID.String() + "#service-id")
+		claims := services.NutsJwtBearerToken{
+			SubjectID: &sid,
+			KeyID:     actorSigningKeyID.String(),
+			Service:   "service",
+		}
+
+		headers := map[string]interface{}{
+			jwt.AudienceKey:   serviceID.String(),
+			jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
+			jwt.JwtIDKey:      "a005e81c-6749-4967-b01c-495228fcafb4",
+			jwt.IssuedAtKey:   time.Now().UTC(),
+			jwt.IssuerKey:     actorDID.String(),
+			jwt.NotBeforeKey:  0,
+			jwt.SubjectKey:    custodianDID.String(),
+		}
+
+		token := jwt.New()
+
+		for k, v := range headers {
+			if err := token.Set(k, v); err != nil {
+				panic(err)
+			}
+		}
+
+		tokenCtx := &validationContext{
+			jwtBearerTokenClaims: &claims,
+			jwtBearerToken:       token,
+		}
+
+		signToken(tokenCtx)
+
+		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, "expectedAT", response.AccessToken)
+	})
+
 	t.Run("valid - with legal base", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()

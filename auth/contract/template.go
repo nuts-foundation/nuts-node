@@ -111,14 +111,5 @@ func (c Template) Render(vars map[string]string, validFrom time.Time, validDurat
 	return contract, nil
 }
 
-// ErrUnknownContractFormat is returned when the contract format is unknown
-var ErrUnknownContractFormat = errors.New("unknown contract format")
-
-// ErrInvalidContractFormat indicates tha a contract format is unknown.
-var ErrInvalidContractFormat = errors.New("unknown contract type")
-
-// ErrContractNotFound is used when a certain combination of type, language and version cannot resolve to a contract
-var ErrContractNotFound = errors.New("contract not found")
-
 // ErrInvalidContractText is used when contract texts cannot be parsed or contain invalid values
 var ErrInvalidContractText = errors.New("invalid contract text")

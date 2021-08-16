@@ -112,21 +112,26 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 
 	// Validate the AuthTokenContainer, according to RFC003 §5.2.1.5
 	var err error
+
 	if context.jwtBearerTokenClaims.UserIdentity != nil {
 		var decoded []byte
+
 		if decoded, err = base64.StdEncoding.DecodeString(*context.jwtBearerTokenClaims.UserIdentity); err != nil {
 			return nil, fmt.Errorf("failed to decode base64 usi field: %w", err)
 		}
+
 		if context.contractVerificationResult, err = s.contractClient.VerifyVP(decoded, nil); err != nil {
 			return nil, fmt.Errorf("identity verification failed: %w", err)
 		}
-	}
-	if context.contractVerificationResult.Validity == contract.Invalid {
-		return nil, errors.New("identity validation failed")
-	}
-	// checks if the name from the login contract matches with the registered name of the issuer.
-	if err := s.validateActor(&context); err != nil {
-		return nil, err
+
+		if context.contractVerificationResult.Validity != contract.Valid {
+			return nil, errors.New("identity validation failed")
+		}
+
+		// checks if the name from the login contract matches with the registered name of the issuer.
+		if err := s.validateActor(&context); err != nil {
+			return nil, err
+		}
 	}
 
 	// validate the endpoint in aud, according to RFC003 §5.2.1.6
@@ -146,9 +151,6 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 
 	return &services.AccessTokenResult{AccessToken: accessToken}, nil
 }
-
-// ErrLegalEntityNotProvided indicates that the legalEntity is missing
-var ErrLegalEntityNotProvided = errors.New("legalEntity not provided")
 
 // checks if the name from the login contract matches with the registered name of the issuer.
 func (s *service) validateActor(context *validationContext) error {
@@ -370,46 +372,52 @@ func (s *service) IntrospectAccessToken(accessToken string) (*services.NutsAcces
 // BuildAccessToken builds an access token based on the oauth claims and the identity of the user provided by the identityValidationResult
 // The token gets signed with the custodians private key and returned as a string.
 func (s *service) buildAccessToken(context *validationContext) (string, error) {
-	identityValidationResult := context.contractVerificationResult
-	bearerTokenClaims := context.jwtBearerTokenClaims
-	bearerToken := context.jwtBearerToken
-
-	if identityValidationResult.Validity != contract.Valid {
-		return "", fmt.Errorf("could not build accessToken: %w", errors.New("invalid contract"))
+	if context.contractVerificationResult != nil {
+		if context.contractVerificationResult.Validity != contract.Valid {
+			return "", fmt.Errorf("could not build accessToken: %w", errors.New("invalid contract"))
+		}
 	}
 
-	if bearerToken.Subject() == "" {
+	if context.jwtBearerToken.Subject() == "" {
 		return "", fmt.Errorf("could not build accessToken: %w", errors.New("subject is missing"))
 	}
 
-	issuer, err := did.ParseDID(bearerToken.Subject())
+	issuer, err := did.ParseDID(context.jwtBearerToken.Subject())
 	if err != nil {
-		return "", fmt.Errorf("could not build accessToken, subject is invalid (subject=%s): %w", bearerToken.Subject(), err)
+		return "", fmt.Errorf("could not build accessToken, subject is invalid (subject=%s): %w", context.jwtBearerToken.Subject(), err)
 	}
 
-	disclosedAttributes := identityValidationResult.DisclosedAttributes
 	issueTime := time.Now()
+
 	at := services.NutsAccessToken{
-		SubjectID: bearerTokenClaims.SubjectID,
-		Service:   bearerTokenClaims.Service,
+		SubjectID:  context.jwtBearerTokenClaims.SubjectID,
+		Service:    context.jwtBearerTokenClaims.Service,
+		Expiration: time.Now().Add(time.Minute * 15).UTC().Unix(), // Expires in 15 minutes
+		IssuedAt:   issueTime.UTC().Unix(),
+		Issuer:     issuer.String(),
+		Subject:    context.jwtBearerToken.Issuer(),
+	}
+
+	if context.contractVerificationResult != nil {
+		disclosedAttributes := context.contractVerificationResult.DisclosedAttributes
+
 		// based on
 		// https://privacybydesign.foundation/attribute-index/en/pbdf.gemeente.personalData.html
 		// https://privacybydesign.foundation/attribute-index/en/pbdf.pbdf.email.html
 		// and
 		// https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims
-		FamilyName: disclosedAttributes["gemeente.personalData.familyname"],
-		GivenName:  disclosedAttributes["gemeente.personalData.firstnames"],
-		Prefix:     disclosedAttributes["gemeente.personalData.prefix"],
-		Name:       disclosedAttributes["gemeente.personalData.fullname"],
-		Email:      disclosedAttributes["sidn-pbdf.email.email"],
-		Expiration: time.Now().Add(time.Minute * 15).UTC().Unix(), // Expires in 15 minutes
-		IssuedAt:   issueTime.UTC().Unix(),
-		Issuer:     issuer.String(),
-		Subject:    bearerToken.Issuer(),
+		at.FamilyName = disclosedAttributes["gemeente.personalData.familyname"]
+		at.GivenName = disclosedAttributes["gemeente.personalData.firstnames"]
+		at.Prefix = disclosedAttributes["gemeente.personalData.prefix"]
+		at.Name = disclosedAttributes["gemeente.personalData.fullname"]
+		at.Email = disclosedAttributes["sidn-pbdf.email.email"]
 	}
+
 	var keyVals map[string]interface{}
-	inrec, _ := json.Marshal(at)
-	if err := json.Unmarshal(inrec, &keyVals); err != nil {
+
+	data, _ := json.Marshal(at)
+
+	if err := json.Unmarshal(data, &keyVals); err != nil {
 		return "", err
 	}
 
