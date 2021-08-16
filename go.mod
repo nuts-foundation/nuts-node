@@ -18,7 +18,7 @@ require (
 	github.com/knadh/koanf v0.15.0
 	github.com/labstack/echo/v4 v4.2.1
 	github.com/lestrrat-go/jwx v1.1.2
-	github.com/magiconair/properties v1.8.4
+	github.com/magiconair/properties v1.8.5
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/nuts-foundation/go-did v0.1.1
