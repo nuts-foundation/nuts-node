@@ -258,6 +258,14 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, response)
 }
 
+func makeStringPointer(input string) *string {
+	if input == "" {
+		return nil
+	}
+
+	return &input
+}
+
 // CreateJwtGrant handles the http request (from the vendor's EPD/XIS) for creating a JWT bearer token which can be used to retrieve an access token from a remote Nuts node.
 func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 	requestBody := &CreateJwtGrantRequest{}
@@ -268,11 +276,12 @@ func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 	request := services.CreateJwtGrantRequest{
 		Actor:         requestBody.Actor,
 		Custodian:     requestBody.Custodian,
-		IdentityToken: &requestBody.Identity,
+		IdentityToken: makeStringPointer(requestBody.Identity),
 		Service:       requestBody.Service,
 		Subject:       requestBody.Subject,
 		Credentials:   requestBody.Credentials,
 	}
+
 	response, err := w.Auth.OAuthClient().CreateJwtGrant(request)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
@@ -291,7 +300,7 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 	request := services.CreateJwtGrantRequest{
 		Actor:         requestBody.Actor,
 		Custodian:     requestBody.Custodian,
-		IdentityToken: &requestBody.Identity,
+		IdentityToken: makeStringPointer(requestBody.Identity),
 		Service:       requestBody.Service,
 		Subject:       requestBody.Subject,
 		Credentials:   requestBody.Credentials,
