@@ -145,6 +145,41 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints ma
 	return service, err
 }
 
+func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType string, endpointType string, resolveReferences bool) (string, error) {
+	doc, _, err := d.docResolver.Resolve(id, nil)
+	if err != nil {
+		return "", err
+	}
+
+	documentsCache := map[string]*did.Document{doc.ID.String(): doc}
+	for _, compoundService := range filterCompoundServices(doc) {
+		if compoundService.Type == compoundServiceType {
+			endpoints := make(map[string]interface{}, 0)
+			_ = compoundService.UnmarshalServiceEndpoint(&endpoints) // can't fail because it's also done by filterCompoundServices()
+			endpoint := endpoints[endpointType]
+			if endpoint == nil {
+				return "", ErrServiceNotFound
+			}
+			endpointStr, isStr := endpoint.(string)
+			if !isStr {
+				return "", ErrReferencedServiceNotAnEndpoint
+			}
+			if resolveReferences {
+				endpointURI, err := ssi.ParseURI(endpointStr)
+				if err != nil {
+					// Not sure when this could ever happen
+					return "", err
+				}
+				resolvedEndpoint, err := d.resolveAbsoluteURLEndpoint(*endpointURI, 0, maxServiceReferenceDepth, documentsCache)
+				return resolvedEndpoint.String(), err
+			} else {
+				return endpointStr, nil
+			}
+		}
+	}
+	return "", ErrServiceNotFound
+}
+
 func (d *didman) DeleteService(serviceID ssi.URI) error {
 	logging.Log().Debugf("Deleting service (id: %s)", serviceID.String())
 	id, err := did.ParseDIDURL(serviceID.String())

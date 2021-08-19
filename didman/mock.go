@@ -37,18 +37,18 @@ func (m *MockDidman) EXPECT() *MockDidmanMockRecorder {
 }
 
 // AddCompoundService mocks base method.
-func (m *MockDidman) AddCompoundService(id did.DID, serviceType string, references map[string]go_did.URI) (*did.Service, error) {
+func (m *MockDidman) AddCompoundService(id did.DID, serviceType string, endpoints map[string]go_did.URI) (*did.Service, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddCompoundService", id, serviceType, references)
+	ret := m.ctrl.Call(m, "AddCompoundService", id, serviceType, endpoints)
 	ret0, _ := ret[0].(*did.Service)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddCompoundService indicates an expected call of AddCompoundService.
-func (mr *MockDidmanMockRecorder) AddCompoundService(id, serviceType, references interface{}) *gomock.Call {
+func (mr *MockDidmanMockRecorder) AddCompoundService(id, serviceType, endpoints interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCompoundService", reflect.TypeOf((*MockDidman)(nil).AddCompoundService), id, serviceType, references)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCompoundService", reflect.TypeOf((*MockDidman)(nil).AddCompoundService), id, serviceType, endpoints)
 }
 
 // AddEndpoint mocks base method.
@@ -92,6 +92,21 @@ func (m *MockDidman) DeleteService(id go_did.URI) error {
 func (mr *MockDidmanMockRecorder) DeleteService(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockDidman)(nil).DeleteService), id)
+}
+
+// GetCompoundServiceEndpoint mocks base method.
+func (m *MockDidman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType, endpointType string, resolveReferences bool) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCompoundServiceEndpoint", id, compoundServiceType, endpointType, resolveReferences)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCompoundServiceEndpoint indicates an expected call of GetCompoundServiceEndpoint.
+func (mr *MockDidmanMockRecorder) GetCompoundServiceEndpoint(id, compoundServiceType, endpointType, resolveReferences interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCompoundServiceEndpoint", reflect.TypeOf((*MockDidman)(nil).GetCompoundServiceEndpoint), id, compoundServiceType, endpointType, resolveReferences)
 }
 
 // GetCompoundServices mocks base method.

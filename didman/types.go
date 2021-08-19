@@ -74,6 +74,14 @@ type Didman interface {
 	// SearchOrganizations searches VCR for organizations which's name matches the given query.
 	// It then optionally filters on those which have a service of the specified type on their DID Document.
 	SearchOrganizations(query string, didServiceType *string) ([]OrganizationSearchResult, error)
+
+	// GetCompoundServiceEndpoint retrieves the endpoint with the specified endpointType from the specified compound service.
+	// It returns the serviceEndpoint of the specified service (which must be an absolute URL endpoint).
+	// If resolveReferences is true and the specified endpointType contains a reference, it is resolved and the referenced endpoint is returned instead.
+	// It returns ErrServiceNotFound if the specified compound service or endpoint can't be found in the DID Document.
+	// It returns ErrInvalidServiceQuery if the endpoint doesn't contain a (valid) reference and resolveReferences = true.
+	// It returns ErrServiceReferenceToDeep if the endpoint reference is nested too deep.
+	GetCompoundServiceEndpoint(id did.DID, compoundServiceType string, endpointType string, resolveReferences bool) (string, error)
 }
 
 // ContactInformation contains set of contact information entries
