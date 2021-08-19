@@ -51,9 +51,9 @@ type Didman interface {
 	// AddCompoundService adds a compound endpoint to a DID Document.
 	// It returns ErrDuplicateService if a service with the given type already exists.
 	// It returns ErrInvalidServiceQuery if one of the service references is invalid.
-	// It returns ErrReferencedServiceNotAnEndpoint if one of the services does not resolve to a single endpoint URL.
+	// It returns ErrReferencedServiceNotAnEndpoint if one of the references does not resolve to a single endpoint URL.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
-	AddCompoundService(id did.DID, serviceType string, references map[string]ssi.URI) (*did.Service, error)
+	AddCompoundService(id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error)
 
 	// GetCompoundServices returns a list of all compoundServices defined on the given DID document.
 	// It does not include special compound services like ContactInformation
