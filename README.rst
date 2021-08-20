@@ -26,7 +26,7 @@ Distributed registry for storing and querying health care providers their vendor
 Requirements
 ************
 
-Go >= 1.16 is required.
+Go >= 1.17 is required.
 
 Building
 ********
