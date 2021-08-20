@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/Regis24GmbH/go-phonetics v1.0.0
-	github.com/cbroglie/mustache v1.2.0
+	github.com/cbroglie/mustache v1.2.2
 	github.com/deepmap/oapi-codegen v1.8.2
 	github.com/dgrijalva/jwt-go v3.2.1-0.20200107013213-dc14462fd587+incompatible // indirect
 	github.com/go-chi/chi v4.0.2+incompatible // indirect
