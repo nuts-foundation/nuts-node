@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.0 // indirect
 	github.com/jinzhu/gorm v1.9.14 // indirect
-	github.com/knadh/koanf v0.15.0
+	github.com/knadh/koanf v0.16.0
 	github.com/labstack/echo/v4 v4.2.1
 	github.com/lestrrat-go/jwx v1.1.2
 	github.com/magiconair/properties v1.8.5
@@ -122,8 +122,10 @@ require (
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
 	github.com/minio/sha256-simd v0.1.1 // indirect
+	github.com/mitchellh/copystructure v1.1.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
+	github.com/mitchellh/reflectwalk v1.0.1 // indirect
 	github.com/mr-tron/base58 v1.1.3 // indirect
 	github.com/multiformats/go-multihash v0.0.11 // indirect
 	github.com/nakabonne/nestif v0.3.0 // indirect
