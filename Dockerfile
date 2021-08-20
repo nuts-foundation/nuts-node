@@ -1,4 +1,4 @@
-# golang alpine 1.13.x
+# golang alpine
 FROM golang:1.17.0-alpine as builder
 
 ARG TARGETARCH
@@ -27,7 +27,7 @@ RUN go mod download && go mod verify
 COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
-# alpine 3.13.x
+# alpine
 FROM alpine:3.14.1
 RUN apk update \
   && apk add --no-cache \
