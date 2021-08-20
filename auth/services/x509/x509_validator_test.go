@@ -190,8 +190,9 @@ func TestJwtX509Validator_Parse(t *testing.T) {
 		}
 		token, err := validator.Parse(string(signedJwt))
 		assert.Nil(t, token)
+
 		if assert.Error(t, err) {
-			assert.Equal(t, "could not parse certificates from headers: could not parse certificate: asn1: structure error: length too large", err.Error())
+			assert.Equal(t, "could not parse certificates from headers: could not parse certificate: x509: malformed certificate", err.Error())
 		}
 
 	})
