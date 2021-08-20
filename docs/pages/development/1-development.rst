@@ -8,7 +8,7 @@ Nuts node development
 Requirements
 ************
 
-Go >= 1.16 is required.
+Go >= 1.17 is required.
 
 Building
 ********
