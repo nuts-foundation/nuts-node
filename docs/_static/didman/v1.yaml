@@ -319,7 +319,7 @@ components:
           description: An endpoint URL or a reference to another service.
           type: string
           example:
-            - ref:did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
+            - did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
             - https://api.example.org/fhir
     EndpointProperties:
       type: object
@@ -335,7 +335,7 @@ components:
           description: An endpoint URL or a reference to another service.
           type: string
           example:
-            - ref:did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
+            - did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
             - https://api.example.org/fhir
     CompoundServiceProperties:
       type: object
@@ -349,11 +349,11 @@ components:
           type: string
         serviceEndpoint:
           description: A map containing service references and/or endpoints.
-          example: { 'auth': 'did:nuts:1312321?type=auth' }
+          example: { 'auth': 'did:nuts:1312321/serviceEndpoint?type=auth' }
           type: object
     CompoundService:
       type: object
-      description: A creation request for a compound service that references endpoints and/or endpoints.
+      description: A creation request for a compound service with endpoints and/or references to endpoints.
       required:
         - id
         - type
@@ -366,7 +366,7 @@ components:
           type: string
         serviceEndpoint:
           description: A map containing service references and/or endpoints.
-          example: { 'auth': 'did:nuts:1312321?type=auth' }
+          example: { 'auth': 'did:nuts:1312321/serviceEndpoint?type=auth' }
           type: object
     ContactInformation:
       type: object

@@ -177,9 +177,8 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 				}
 				resolvedEndpoint, err := d.resolveAbsoluteURLEndpoint(*endpointURI, 0, maxServiceReferenceDepth, documentsCache)
 				return resolvedEndpoint.String(), err
-			} else {
-				return endpointStr, nil
 			}
+			return endpointStr, nil
 		}
 	}
 	return "", ErrServiceNotFound
