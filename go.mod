@@ -34,7 +34,7 @@ require (
 	github.com/tidwall/gjson v1.8.1
 	go.etcd.io/bbolt v1.3.5
 	google.golang.org/grpc v1.38.0
-	google.golang.org/protobuf v1.26.0
+	google.golang.org/protobuf v1.27.1
 	gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 	schneider.vip/problem v1.6.0
