@@ -233,7 +233,7 @@ A Compound Service can be added with the following request:
     {
         "type": "<type>",
         "serviceEndpoint": {
-            "<X>": "<endpoint_did>?type=<Y>",
+            "<X>": "<endpoint_did>/serviceEndpoint?type=<Y>",
             ...
         }
     }
@@ -246,7 +246,7 @@ The parameters must be replaced:
 - ``<X>`` must be replaced with the type required by the bolt specification.
   All types defined by the specification must be added, unless stated otherwise.
 - ``<Y>`` must be replaced with the correct endpoint type from the vendor DID Document.
-  ``<endpoint_did>?type=<Y>`` must be a valid query within the corresponding DID Document.
+  ``<endpoint_did>/serviceEndpoint?type=<Y>`` must be a valid query within the corresponding DID Document.
 
 
 For example, the `eOverdracht sender <https://nuts-foundation.gitbook.io/bolts/eoverdracht/leveranciersspecificatie#4-1-2-organisatie-endpoint-discovery>`_ requires an ``eOverdracht-sender`` Compound Service with two endpoints: an ``oauth`` endpoint and a ``fhir`` endpoint.
@@ -258,8 +258,8 @@ The example can be added by the following request:
     {
         "type": "eOverdracht-sender",
         "serviceEndpoint": {
-            "oauth": "did:nuts:vendor_identifier?type=production-oauth",
-            "fhir": "did:nuts:vendor_identifier?type=eOverdracht-sender-fhir"
+            "oauth": "did:nuts:vendor_identifier/serviceEndpoint?type=production-oauth",
+            "fhir": "did:nuts:vendor_identifier/serviceEndpoint?type=eOverdracht-sender-fhir"
         }
     }
 

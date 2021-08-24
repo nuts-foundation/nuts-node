@@ -251,8 +251,8 @@ func TestWrapper_DeleteEndpointsByType(t *testing.T) {
 func TestWrapper_AddCompoundService(t *testing.T) {
 	id := "did:nuts:1"
 	serviceEndpoint := map[string]interface{}{
-		"foo": "did:nuts:12345?type=foo",
-		"bar": "did:nuts:54321?type=bar",
+		"foo": "did:nuts:12345/serviceEndpoint?type=foo",
+		"bar": "did:nuts:54321/serviceEndpoint?type=bar",
 	}
 	request := CompoundServiceProperties{
 		ServiceEndpoint: serviceEndpoint,

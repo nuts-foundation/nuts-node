@@ -171,7 +171,7 @@ func TestHTTPClient_GetCompoundServices(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cServices := []CompoundService{{
 			Id:              "did:nuts:123#abc",
-			ServiceEndpoint: map[string]interface{}{"auth": "did:nuts:123?type=token-server"},
+			ServiceEndpoint: map[string]interface{}{"auth": "did:nuts:123/serviceEndpoint?type=token-server"},
 			Type:            "eOverdracht",
 		}}
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: cServices})

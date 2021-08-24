@@ -128,9 +128,11 @@ func TestDidman_AddEndpoint(t *testing.T) {
 func TestDidman_AddCompoundService(t *testing.T) {
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
-	helloServiceQuery, _ := ssi.ParseURI(vdr.TestDIDA.String() + "?type=hello")
-	worldServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "?type=world")
-	universeServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "?type=universe")
+	helloServiceQuery, _ := ssi.ParseURI(vdr.TestDIDA.String() + "/serviceEndpoint?type=hello")
+	worldServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "/serviceEndpoint?type=world")
+	universeServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "/serviceEndpoint?type=universe")
+	universeNestedServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "/serviceEndpoint?type=universe-ref")
+	cyclicServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "/serviceEndpoint?type=cyclic-ref")
 	references := make(map[string]ssi.URI, 0)
 	references["hello"] = *helloServiceQuery
 	references["world"] = *worldServiceQuery
@@ -163,6 +165,14 @@ func TestDidman_AddCompoundService(t *testing.T) {
 				Type:            "universe",
 				ServiceEndpoint: "http://universe",
 			},
+			{
+				Type:            "universe-ref",
+				ServiceEndpoint: vdr.TestDIDB.String() + "/serviceEndpoint?type=universe",
+			},
+			{
+				Type:            "cyclic-ref",
+				ServiceEndpoint: vdr.TestDIDB.String() + "/serviceEndpoint?type=cyclic-ref",
+			},
 		},
 	}
 
@@ -188,32 +198,73 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		assert.Equal(t, "helloworld", newDoc.Service[1].Type)
 		assert.Equal(t, expectedRefs, newDoc.Service[1].ServiceEndpoint)
 	})
-	t.Run("error - service reference doesn't contain a valid DID", func(t *testing.T) {
+	t.Run("ok - nested reference", func(t *testing.T) {
 		ctx := newMockContext(t)
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": {}})
-		assert.Error(t, err)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDB, nil).MinTimes(1).Return(&docB, meta, nil)
+		ctx.vdr.EXPECT().Update(*vdr.TestDIDB, meta.Hash, gomock.Any(), nil)
+
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDB, "helloworld", map[string]ssi.URI{"foobar": *universeNestedServiceQuery})
+
+		assert.NoError(t, err)
+	})
+	t.Run("ok - endpoint is an absolute URL", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
+		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil)
+
+		s, _ := ssi.ParseURI("http://nuts.nl")
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "hellonuts", map[string]ssi.URI{"foobar": *s})
+
+		assert.NoError(t, err)
+	})
+	t.Run("error - cyclic reference (yields refs too deep)", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDB, nil).MinTimes(1).Return(&docB, meta, nil)
+
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "hellonuts", map[string]ssi.URI{"foobar": *cyclicServiceQuery})
+
+		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, ErrServiceReferenceToDeep)
 	})
 	t.Run("error - holder DID document can't be resolved", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": *helloServiceQuery})
-		assert.EqualError(t, err, types.ErrNotFound.Error())
+		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, types.ErrNotFound)
 	})
 	t.Run("error - service reference does not contain type", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
 		invalidQuery := *helloServiceQuery
 		invalidQuery.RawQuery = ""
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": invalidQuery})
-		assert.EqualError(t, err, ErrInvalidServiceQuery.Error())
+		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, ErrInvalidServiceQuery)
 	})
-	t.Run("error - service reference does resolve to an endpoint URL", func(t *testing.T) {
-		ctx := newMockContext(t)
-		docAAlt := docA
-		docAAlt.Service[0].ServiceEndpoint = map[string]string{"key": "value"}
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docAAlt, meta, nil)
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": *helloServiceQuery})
-		assert.True(t, errors.Is(err, ErrReferencedServiceNotAnEndpoint))
+}
+
+func TestDidman_validateServiceReference(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint?type=t")
+		err := validateServiceReference(*ref)
+		assert.NoError(t, err)
+	})
+	t.Run("error - invalid path", func(t *testing.T) {
+		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpointWithInvalidPostfix?type=sajdklsad")
+		err := validateServiceReference(*ref)
+		assert.ErrorIs(t, err, ErrInvalidServiceQuery)
+	})
+	t.Run("error - too many type params", func(t *testing.T) {
+		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint?type=t1&type=t2")
+		err := validateServiceReference(*ref)
+		assert.ErrorIs(t, err, ErrInvalidServiceQuery)
+	})
+	t.Run("error - no type params", func(t *testing.T) {
+		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint")
+		err := validateServiceReference(*ref)
+		assert.ErrorIs(t, err, ErrInvalidServiceQuery)
+	})
+	t.Run("error - invalid params", func(t *testing.T) {
+		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint?type=t1&someOther=not-allowed")
+		err := validateServiceReference(*ref)
+		assert.ErrorIs(t, err, ErrInvalidServiceQuery)
 	})
 }
 
