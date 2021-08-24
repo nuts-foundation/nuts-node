@@ -24,7 +24,7 @@ require (
 	github.com/nuts-foundation/go-leia v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/privacybydesign/irmago v0.7.0
-	github.com/prometheus/client_golang v1.7.1
+	github.com/prometheus/client_golang v1.11.0
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.2.1
@@ -139,8 +139,8 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/privacybydesign/gabi v0.0.0-20210311130659-b4e094b964d8 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.10.0 // indirect
-	github.com/prometheus/procfs v0.1.3 // indirect
+	github.com/prometheus/common v0.26.0 // indirect
+	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/quasilyte/go-ruleguard v0.1.2-0.20200318202121-b00d7a75d3d8 // indirect
 	github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95 // indirect
 	github.com/ryancurrah/gomodguard v1.1.0 // indirect
@@ -174,7 +174,7 @@ require (
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2 // indirect
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
-	golang.org/x/sys v0.0.0-20210510120138-977fb7262007 // indirect
+	golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40 // indirect
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 // indirect
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
