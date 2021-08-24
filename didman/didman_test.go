@@ -644,7 +644,7 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
 		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csType", "non-url", false)
-		assert.ErrorIs(t, err, ErrReferencedServiceNotAnEndpoint)
+		assert.ErrorIs(t, err, ErrReferencedServiceNotAnEndpoint{})
 		assert.Empty(t, actual)
 	})
 }

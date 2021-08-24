@@ -441,7 +441,7 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(didman.ErrServiceNotFound))
 		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(didman.ErrInvalidServiceQuery))
 		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(didman.ErrServiceReferenceToDeep))
-		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(didman.ErrReferencedServiceNotAnEndpoint))
+		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(didman.ErrReferencedServiceNotAnEndpoint{}))
 		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(types.ErrNotFound))
 	})
 }

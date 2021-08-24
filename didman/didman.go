@@ -57,6 +57,11 @@ func (e ErrReferencedServiceNotAnEndpoint) Error() string {
 	return fmt.Sprintf("referenced service does not resolve to a single endpoint URL: %s", e.Cause)
 }
 
+// Is checks whether the other error is also a ErrReferencedServiceNotAnEndpoint
+func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
+	return fmt.Sprintf("%T", e) == fmt.Sprintf("%T", other)
+}
+
 // ErrServiceReferenceToDeep is returned when a service reference is chain is nested too deeply.
 var ErrServiceReferenceToDeep = errors.New("service references are neested to deeply before resolving to a single endpoint URL")
 
@@ -162,7 +167,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 			}
 			endpointStr, isStr := endpoint.(string)
 			if !isStr {
-				return "", ErrReferencedServiceNotAnEndpoint
+				return "", ErrReferencedServiceNotAnEndpoint{Cause: errors.New("endpoint is not a string")}
 			}
 			if resolveReferences {
 				endpointURI, err := ssi.ParseURI(endpointStr)

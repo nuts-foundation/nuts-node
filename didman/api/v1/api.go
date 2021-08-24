@@ -47,17 +47,17 @@ type Wrapper struct {
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
-		did.ErrInvalidDID:                        http.StatusBadRequest,
-		types.ErrNotFound:                        http.StatusNotFound,
-		types.ErrDIDNotManagedByThisNode:         http.StatusBadRequest,
-		types.ErrDeactivated:                     http.StatusConflict,
-		types.ErrDuplicateService:                http.StatusConflict,
-		didman.ErrServiceInUse:                   http.StatusConflict,
-		vdrDoc.ErrInvalidOptions:                 http.StatusBadRequest,
-		didman.ErrServiceNotFound:                http.StatusNotFound,
-		didman.ErrInvalidServiceQuery:            http.StatusBadRequest,
-		didman.ErrServiceReferenceToDeep:         http.StatusNotAcceptable,
-		didman.ErrReferencedServiceNotAnEndpoint: http.StatusNotAcceptable,
+		did.ErrInvalidDID:                          http.StatusBadRequest,
+		types.ErrNotFound:                          http.StatusNotFound,
+		types.ErrDIDNotManagedByThisNode:           http.StatusBadRequest,
+		types.ErrDeactivated:                       http.StatusConflict,
+		types.ErrDuplicateService:                  http.StatusConflict,
+		didman.ErrServiceInUse:                     http.StatusConflict,
+		vdrDoc.ErrInvalidOptions:                   http.StatusBadRequest,
+		didman.ErrServiceNotFound:                  http.StatusNotFound,
+		didman.ErrInvalidServiceQuery:              http.StatusBadRequest,
+		didman.ErrServiceReferenceToDeep:           http.StatusNotAcceptable,
+		didman.ErrReferencedServiceNotAnEndpoint{}: http.StatusNotAcceptable,
 	})
 }
 
