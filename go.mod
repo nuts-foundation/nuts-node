@@ -23,7 +23,7 @@ require (
 	github.com/nuts-foundation/go-did v0.1.1
 	github.com/nuts-foundation/go-leia v1.0.1
 	github.com/pkg/errors v0.9.1
-	github.com/privacybydesign/irmago v0.7.0
+	github.com/privacybydesign/irmago v0.8.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.8.1
@@ -33,8 +33,8 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.8.1
 	go.etcd.io/bbolt v1.3.6
-	google.golang.org/protobuf v1.27.1
 	google.golang.org/grpc v1.40.0
+	google.golang.org/protobuf v1.27.1
 	gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 	schneider.vip/problem v1.6.0
@@ -137,7 +137,7 @@ require (
 	github.com/pelletier/go-toml v1.9.3 // indirect
 	github.com/phayes/checkstyle v0.0.0-20170904204023-bfd46e6a821d // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/privacybydesign/gabi v0.0.0-20210311130659-b4e094b964d8 // indirect
+	github.com/privacybydesign/gabi v0.0.0-20210714094051-ba80a6a8c5d8 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.26.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
