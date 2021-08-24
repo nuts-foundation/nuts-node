@@ -223,20 +223,20 @@ func TestDidman_AddCompoundService(t *testing.T) {
 
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "hellonuts", map[string]ssi.URI{"foobar": *cyclicServiceQuery})
 
-		assert.ErrorIs(t, err, ErrServiceReferenceToDeep)
+		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, ErrServiceReferenceToDeep)
 	})
 	t.Run("error - holder DID document can't be resolved", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": *helloServiceQuery})
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, types.ErrNotFound)
 	})
 	t.Run("error - service reference does not contain type", func(t *testing.T) {
 		ctx := newMockContext(t)
 		invalidQuery := *helloServiceQuery
 		invalidQuery.RawQuery = ""
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": invalidQuery})
-		assert.ErrorIs(t, err, ErrInvalidServiceQuery)
+		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, ErrInvalidServiceQuery)
 	})
 }
 

@@ -30,7 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/nuts-foundation/nuts-node/wraperr"
 	"github.com/shengdoushi/base58"
 	"net/url"
 	"strings"
@@ -49,7 +48,14 @@ var ErrServiceNotFound = errors.New("service not found in DID Document")
 var ErrInvalidServiceQuery = errors.New("service query is invalid")
 
 // ErrReferencedServiceNotAnEndpoint is returned when a compound service contains a reference that does not resolve to a single endpoint URL.
-var ErrReferencedServiceNotAnEndpoint = errors.New("referenced service does not resolve to a single endpoint URL")
+type ErrReferencedServiceNotAnEndpoint struct {
+	Cause error
+}
+
+// Error returns the error message.
+func (e ErrReferencedServiceNotAnEndpoint) Error() string {
+	return fmt.Sprintf("referenced service does not resolve to a single endpoint URL: %s", e.Cause)
+}
 
 // ErrServiceReferenceToDeep is returned when a service reference is chain is nested too deeply.
 var ErrServiceReferenceToDeep = errors.New("service references are neested to deeply before resolving to a single endpoint URL")
@@ -325,7 +331,7 @@ func (d *didman) validateCompoundServiceEndpoint(endpoints map[string]ssi.URI) e
 	for _, serviceRef := range endpoints {
 		_, err := d.resolveAbsoluteURLEndpoint(serviceRef, 0, maxServiceReferenceDepth, documents)
 		if err != nil {
-			return wraperr.Wrap(ErrReferencedServiceNotAnEndpoint, err)
+			return ErrReferencedServiceNotAnEndpoint{Cause: err}
 		}
 	}
 	return nil
