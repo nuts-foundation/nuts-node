@@ -21,7 +21,7 @@ require (
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/nuts-foundation/go-did v0.1.1
-	github.com/nuts-foundation/go-leia v1.0.0
+	github.com/nuts-foundation/go-leia v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/privacybydesign/irmago v0.7.0
 	github.com/prometheus/client_golang v1.11.0
@@ -32,9 +32,9 @@ require (
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.8.1
-	go.etcd.io/bbolt v1.3.5
-	google.golang.org/protobuf v1.27.1
+	go.etcd.io/bbolt v1.3.6
 	google.golang.org/grpc v1.40.0
+	google.golang.org/protobuf v1.27.1
 	gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 	schneider.vip/problem v1.6.0
