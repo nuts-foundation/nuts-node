@@ -102,7 +102,7 @@ func SignJWT(key jwk.Key, claims map[string]interface{}, headers map[string]inte
 	}
 	hdr := convertHeaders(headers)
 
-	sig, err = jwt.Sign(t, jwa.SignatureAlgorithm(key.Algorithm()), key, jws.WithHeaders(hdr))
+	sig, err = jwt.Sign(t, jwa.SignatureAlgorithm(key.Algorithm()), key, jwt.WithHeaders(hdr))
 	token = string(sig)
 
 	return
