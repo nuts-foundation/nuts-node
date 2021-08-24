@@ -11,6 +11,9 @@ on:
     branches:
       - master
 
+# allow permissions to be up-scoped
+permissions:
+  pull_requests: write
 
 jobs:
   e2e-test:
@@ -48,8 +51,6 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name == 'pull_request' }}
           tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}
-          secrets: |
-            "github_token=${{ secrets.PACKAGE_SECRET }}"
 
       - name: Run E2E tests
         run: |
