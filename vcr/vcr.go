@@ -443,7 +443,7 @@ func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
 
 	verifier, _ := jws.NewVerifier(alg)
 	// the jws lib can't do this for us, so we concat hdr with payload for verification
-	challenge := fmt.Sprintf("%s.%s", splittedJws[0], base64.RawURLEncoding.EncodeToString(payload))
+	challenge := fmt.Sprintf("%s.%s", splittedJws[0], payload)
 	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
 		return err
 	}
@@ -652,7 +652,6 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
 	if err != nil {
 		return err
-
 	}
 
 	// check if key is of issuer
@@ -671,7 +670,7 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	// the proof must be correct
 	verifier, _ := jws.NewVerifier(jwa.ES256)
 	// the jws lib can't do this for us, so we concat hdr with payload for verification
-	challenge := fmt.Sprintf("%s.%s", splittedJws[0], base64.RawURLEncoding.EncodeToString(payload))
+	challenge := fmt.Sprintf("%s.%s", splittedJws[0], payload)
 	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
 		return err
 	}
@@ -808,9 +807,10 @@ func generateCredentialChallenge(credential vc.VerifiableCredential) ([]byte, er
 	proof.Jws = ""
 	prJSON, _ := json.Marshal(proof)
 
-	tbs := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
+	sums := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
+	tbs := base64.RawURLEncoding.EncodeToString(sums)
 
-	return tbs, nil
+	return []byte(tbs), nil
 }
 
 func generateRevocationChallenge(r credential.Revocation) []byte {
@@ -824,9 +824,10 @@ func generateRevocationChallenge(r credential.Revocation) []byte {
 	// proof
 	prJSON, _ := json.Marshal(proof)
 
-	tbs := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
+	sums := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
+	tbs := base64.RawURLEncoding.EncodeToString(sums)
 
-	return tbs
+	return []byte(tbs)
 }
 
 // detachedJWSHeaders creates headers for JsonWebSignature2020

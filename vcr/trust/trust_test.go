@@ -72,7 +72,7 @@ func TestTrustConfig_Load(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, []string{"did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv"}, tc.issuersPerType[nutsTestCredential])
+		assert.Equal(t, []string{"did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey"}, tc.issuersPerType[nutsTestCredential])
 	})
 
 	t.Run("error - no filename", func(t *testing.T) {
@@ -93,7 +93,7 @@ func TestTrustConfig_IsTrusted(t *testing.T) {
 	c, _ := ssi.ParseURI(nutsTestCredential)
 
 	t.Run("true", func(t *testing.T) {
-		d, _ := ssi.ParseURI("did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv")
+		d, _ := ssi.ParseURI("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
 
 		assert.True(t, tc.IsTrusted(*c, *d))
 	})
@@ -107,7 +107,7 @@ func TestTrustConfig_IsTrusted(t *testing.T) {
 
 func TestTrustConfig_List(t *testing.T) {
 	tc := NewConfig("../test/issuers.yaml")
-	d, _ := ssi.ParseURI("did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv")
+	d, _ := ssi.ParseURI("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
 	c, _ := ssi.ParseURI(nutsTestCredential)
 
 	err := tc.Load()

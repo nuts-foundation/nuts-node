@@ -4,21 +4,21 @@
     "https://nuts.nl/credentials/v1"
   ],
   "credentialSubject": {
-    "id": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv",
+    "id": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey",
     "organization": {
       "city": "IJbergen",
       "name": "Because we care B.V."
     }
   },
-  "id": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#6f91673b-afa9-4d26-9e0f-00d989943275",
-  "issuanceDate": "2021-03-15T16:34:17.687862+01:00",
-  "issuer": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv",
+  "id": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#c4199b74-0c0a-4e09-a463-6927553e65f5",
+  "issuanceDate": "2021-08-24T16:35:33.134745+02:00",
+  "issuer": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey",
   "proof": {
-    "created": "2021-03-15T16:34:17.687862+01:00",
-    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..hKcboC8m6YnZPi6ReJAYs0J0Ztn5nxcx2EavoXdtrkWxmE1JZmImW89_8IIgjvfI8XtGeDlEnGywAuY2u7y9Bw",
+    "created": "2021-08-24T16:35:33.134745+02:00",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..M3P57CHDMZsffoHUrCFVzVsi_elJufi-LX9aJpzOwIWIls7qNmjb1AYfl5euEG76_HGDHook-10Cl4hfw2EG-A",
     "proofPurpose": "assertionMethod",
     "type": "JsonWebSignature2020",
-    "verificationMethod": "did:nuts:t1DVVAs5fmNba8fdKoTSQNtiGcH49vicrkjZW2KRqpv#h22vbXHX7-lRd1qAJnU63liaehb9sAoBS7RavhvfgR8"
+    "verificationMethod": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
   },
   "type": [
     "NutsOrganizationCredential",
