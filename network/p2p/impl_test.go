@@ -282,8 +282,8 @@ func Test_adapter_ConnectToPeer(t *testing.T) {
 
 		peer := NewAdapter().(*adapter)
 		peer.Configure(AdapterConfig{
-			PeerID:         "baz",
-			ListenAddress:  "127.0.0.1:0",
+			PeerID:        "baz",
+			ListenAddress: "127.0.0.1:0",
 		})
 		peer.Start()
 
