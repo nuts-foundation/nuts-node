@@ -48,6 +48,8 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name == 'pull_request' }}
           tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}
+          secrets: |
+            "github_token=${{ secrets.PACKAGE_SECRET }}"
 
       - name: Run E2E tests
         run: |
