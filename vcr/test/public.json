@@ -1,1 +1,11 @@
-{"period":{"begin":"2021-03-10T14:50:12Z"},"publicKeyJwk":{"crv":"P-256","kty":"EC","x":"96KYea8hXasFZIsWyKNOJPHfPJfn0tpLERyWcaDiIBg=","y":"3+eSM+GH1J8dhOSNxgdXGzT5ZGiJFe6d+WxTRT5BVIg="}}
+{
+  "period": {
+    "begin": "2021-03-10T14:50:12Z"
+  },
+  "publicKeyJwk": {
+    "crv": "P-256",
+    "kty": "EC",
+    "x": "v074twBbOXhqjm2a7y42xLd04TXJZF1Twl-T9XbAefY",
+    "y": "ZMx42vzH8QaHsNdoscT17cq_jbiLJAKj2zzwrpKFdtM"
+  }
+}
