@@ -687,12 +687,17 @@ func TestVcr_Revoke(t *testing.T) {
 	credentialBytes, _ := os.ReadFile("assets/NutsOrganizationCredential.config.yaml")
 	_ = yaml.Unmarshal(credentialBytes, &organizationCredentialConfig)
 
+	documentMetadata := types.DocumentMetadata{
+		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
+	}
+
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		key := crypto.NewTestKey("kid")
 		ctx.vcr.registry.Add(organizationCredentialConfig)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
+		ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(nil, &documentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
 		ctx.crypto.EXPECT().Resolve(vc.Issuer.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(
@@ -701,7 +706,7 @@ func TestVcr_Revoke(t *testing.T) {
 			key,
 			false,
 			gomock.Any(),
-			gomock.Any(),
+			documentMetadata.SourceTransactions,
 		)
 
 		r, err := ctx.vcr.Revoke(*vc.ID)
@@ -750,6 +755,7 @@ func TestVcr_Revoke(t *testing.T) {
 
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
+		ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(nil, &documentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
 		ctx.crypto.EXPECT().Resolve(vc.Issuer.String()).Return(nil, crypto.ErrKeyNotFound)
 

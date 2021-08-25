@@ -479,6 +479,11 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract issuer: %w", err)
 	}
+	// find did document/metadata for originating TXs
+	_, meta, err := c.docResolver.Resolve(*issuer, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	// resolve an assertionMethod key for issuer
 	kid, err := c.keyResolver.ResolveAssertionKeyID(*issuer)
@@ -506,7 +511,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 
 	payload, _ := json.Marshal(r)
 
-	_, err = c.network.CreateTransaction(revocationDocumentType, payload, key, false, r.Date, []hash.SHA256Hash{})
+	_, err = c.network.CreateTransaction(revocationDocumentType, payload, key, false, r.Date, meta.SourceTransactions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish revocation: %w", err)
 	}
