@@ -255,6 +255,11 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
+	// find did document/metadata for originating TXs
+	_, meta, err := c.docResolver.Resolve(*issuer, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	// resolve an assertionMethod key for issuer
 	kid, err := c.keyResolver.ResolveAssertionKeyID(*issuer)
@@ -282,7 +287,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 
 	payload, _ := json.Marshal(credential)
 
-	_, err = c.network.CreateTransaction(vcDocumentType, payload, key, false, credential.IssuanceDate, []hash.SHA256Hash{})
+	_, err = c.network.CreateTransaction(vcDocumentType, payload, key, false, credential.IssuanceDate, meta.SourceTransactions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
