@@ -182,6 +182,13 @@ func (r KeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
 	if err != nil {
 		return ssi.URI{}, err
 	}
+
+	return ExtractAssertionKeyID(*doc)
+}
+
+// ExtractAssertionKeyID returns a assertionMethod ID from the given DID document.
+// it returns types.ErrKeyNotFound is no assertionMethod key is present.
+func ExtractAssertionKeyID(doc did.Document) (ssi.URI, error) {
 	keys := doc.AssertionMethod
 	for _, key := range keys {
 		kid := key.ID.String()

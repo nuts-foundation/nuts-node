@@ -37,6 +37,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -301,6 +302,12 @@ func TestVcr_Instance(t *testing.T) {
 }
 
 func TestVcr_Issue(t *testing.T) {
+	documentMetadata := types.DocumentMetadata{
+		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
+	}
+	document := did2.Document{}
+	document.AddAssertionMethod(&did2.VerificationMethod{ID: *vdr.TestMethodDIDA})
+
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
@@ -309,15 +316,15 @@ func TestVcr_Issue(t *testing.T) {
 		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
-		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
 			gomock.Any(),
 			gomock.Any(),
 			false,
 			gomock.Any(),
-			gomock.Any(),
+			documentMetadata.SourceTransactions,
 		).Return(nil, nil)
 
 		issued, err := instance.Issue(*cred)
@@ -359,7 +366,7 @@ func TestVcr_Issue(t *testing.T) {
 		instance := ctx.vcr
 
 		cred := validNutsOrganizationCredential()
-		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.URI{}, errors.New("b00m!"))
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
 
 		_, err := instance.Issue(*cred)
 
@@ -396,8 +403,8 @@ func TestVcr_Issue(t *testing.T) {
 
 		cred := validNutsOrganizationCredential()
 		cred.CredentialSubject = make([]interface{}, 0)
-		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 
 		_, err := instance.Issue(*cred)
 
@@ -410,8 +417,8 @@ func TestVcr_Issue(t *testing.T) {
 		instance := ctx.vcr
 
 		cred := validNutsOrganizationCredential()
-		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(nil, errors.New("b00m!"))
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(nil, errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
 
@@ -424,8 +431,8 @@ func TestVcr_Issue(t *testing.T) {
 		key := crypto.NewTestKey("kid")
 
 		cred := validNutsOrganizationCredential()
-		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(key, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
 			gomock.Any(),
@@ -449,8 +456,8 @@ func TestVcr_Issue(t *testing.T) {
 		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
-		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestDIDA.URI(), nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			vcDocumentType,
 			gomock.Any(),
@@ -677,21 +684,27 @@ func TestVcr_Revoke(t *testing.T) {
 	credentialBytes, _ := os.ReadFile("assets/NutsOrganizationCredential.config.yaml")
 	_ = yaml.Unmarshal(credentialBytes, &organizationCredentialConfig)
 
+	documentMetadata := types.DocumentMetadata{
+		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
+	}
+	document := did2.Document{}
+	document.AddAssertionMethod(&did2.VerificationMethod{ID: *vdr.TestMethodDIDA})
+
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		key := crypto.NewTestKey("kid")
 		ctx.vcr.registry.Add(organizationCredentialConfig)
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
-		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
-		ctx.crypto.EXPECT().Resolve(vc.Issuer.String()).Return(key, nil)
+		ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(&document, &documentMetadata, nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(
 			revocationDocumentType,
 			gomock.Any(),
 			key,
 			false,
 			gomock.Any(),
-			gomock.Any(),
+			documentMetadata.SourceTransactions,
 		)
 
 		r, err := ctx.vcr.Revoke(*vc.ID)
@@ -740,8 +753,8 @@ func TestVcr_Revoke(t *testing.T) {
 
 		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.vcr.writeCredential(vc)
-		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(vc.Issuer, nil)
-		ctx.crypto.EXPECT().Resolve(vc.Issuer.String()).Return(nil, crypto.ErrKeyNotFound)
+		ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(&document, &documentMetadata, nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(nil, crypto.ErrKeyNotFound)
 
 		_, err := ctx.vcr.Revoke(*vc.ID)
 
