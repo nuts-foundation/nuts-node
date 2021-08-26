@@ -42,6 +42,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/logging"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
+	doc2 "github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -256,13 +257,13 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
 	// find did document/metadata for originating TXs
-	_, meta, err := c.docResolver.Resolve(*issuer, nil)
+	doc, meta, err := c.docResolver.Resolve(*issuer, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	// resolve an assertionMethod key for issuer
-	kid, err := c.keyResolver.ResolveAssertionKeyID(*issuer)
+	kid, err := doc2.ExtractAssertionKeyID(*doc)
 	if err != nil {
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
@@ -480,13 +481,13 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("failed to extract issuer: %w", err)
 	}
 	// find did document/metadata for originating TXs
-	_, meta, err := c.docResolver.Resolve(*issuer, nil)
+	doc, meta, err := c.docResolver.Resolve(*issuer, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	// resolve an assertionMethod key for issuer
-	kid, err := c.keyResolver.ResolveAssertionKeyID(*issuer)
+	kid, err := doc2.ExtractAssertionKeyID(*doc)
 	if err != nil {
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
