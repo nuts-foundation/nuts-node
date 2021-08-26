@@ -188,6 +188,59 @@ paths:
                 $ref: '#/components/schemas/CompoundService'
         default:
           $ref: '../common/error_response.yaml'
+  /internal/didman/v1/did/{did}/compoundservice/{compoundServiceType}/endpoint/{endpointType}:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example:
+          - "did:nuts:1234"
+        schema:
+          type: string
+      - name: compoundServiceType
+        in: path
+        description: Service type of the compound service containing the endpoint to be resolved.
+        required: true
+        example: geolocation
+        schema:
+          type: string
+      - name: endpointType
+        in: path
+        description: Entry in the compound service to be resolved as endpoint.
+        required: true
+        example: geolocation-rest-api
+        schema:
+          type: string
+    get:
+      operationId: getCompoundServiceEndpoint
+      summary: |
+        Retrieves the endpoint with the specified endpointType from the specified compound service.
+        It returns the serviceEndpoint of the specified service (which must be an absolute URL endpoint).
+
+        error responses:
+        * 400 - incorrect input (e.g. the given service type isn't a compound service)
+        * 404 - unknown DID, compound service or endpoint
+        * 406 - service references are nested too deep or reference is invalid in other ways
+      parameters:
+        - name: resolve
+          in: query
+          description: |
+            Whether to resolve references. When true and the given endpoint is a reference it returns the endpoint of the referenced service.
+            If false it returns the reference itself. Defaults to true.
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: |
+            The endpoint of the given type and compound service is returned.
+          content:
+            application/json:
+              schema:
+                type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/didman/v1/service/{id}:
     parameters:
       - name: id
@@ -266,7 +319,7 @@ components:
           description: An endpoint URL or a reference to another service.
           type: string
           example:
-            - ref:did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
+            - did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
             - https://api.example.org/fhir
     EndpointProperties:
       type: object
@@ -282,11 +335,11 @@ components:
           description: An endpoint URL or a reference to another service.
           type: string
           example:
-            - ref:did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
+            - did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
             - https://api.example.org/fhir
     CompoundServiceProperties:
       type: object
-      description: A creation request for a compound service that references endpoints.
+      description: A creation request for a compound service that contains endpoints. The endpoints can be either absolute endpoints or references.
       required:
         - type
         - serviceEndpoint
@@ -295,12 +348,12 @@ components:
           description: type of the endpoint. May be freely choosen.
           type: string
         serviceEndpoint:
-          description: A map containing service references.
-          example: {'auth': 'did:nuts:1312321?type=auth'}
+          description: A map containing service references and/or endpoints.
+          example: { 'auth': 'did:nuts:1312321/serviceEndpoint?type=auth' }
           type: object
     CompoundService:
       type: object
-      description: A creation request for a compound service that references endpoints.
+      description: A creation request for a compound service with endpoints and/or references to endpoints.
       required:
         - id
         - type
@@ -312,8 +365,8 @@ components:
           description: type of the endpoint. May be freely choosen.
           type: string
         serviceEndpoint:
-          description: A map containing service references.
-          example: {'auth': 'did:nuts:1312321?type=auth'}
+          description: A map containing service references and/or endpoints.
+          example: { 'auth': 'did:nuts:1312321/serviceEndpoint?type=auth' }
           type: object
     ContactInformation:
       type: object

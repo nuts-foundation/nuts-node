@@ -587,6 +587,68 @@ func TestDidman_GetCompoundServices(t *testing.T) {
 	})
 }
 
+func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	expectedRef := id.String() + "/serviceEndpoint?type=url"
+	expectedURL := "http://example.org"
+	didDoc := &did.Document{Service: []did.Service{
+		{
+			Type: "csType",
+			ServiceEndpoint: map[string]interface{}{
+				"eType": expectedRef,
+				"non-url": true,
+			},
+		},
+		{
+			Type:            "url",
+			ServiceEndpoint: expectedURL,
+		},
+	}, ID: *id}
+	t.Run("ok - resolve references", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csType", "eType", true)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedURL, actual)
+	})
+	t.Run("ok - resolve references", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csType", "eType", false)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedRef, actual)
+	})
+	t.Run("error - unknown DID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
+		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csType", "eType", false)
+		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Empty(t, actual)
+	})
+	t.Run("error - unknown compound service", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "non-existent", "eType", false)
+		assert.ErrorIs(t, err, ErrServiceNotFound)
+		assert.Empty(t, actual)
+	})
+	t.Run("error - unknown endpoint", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csType", "non-existent", false)
+		assert.ErrorIs(t, err, ErrServiceNotFound)
+		assert.Empty(t, actual)
+	})
+	t.Run("error - endpoint is not an URL", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csType", "non-url", false)
+		assert.ErrorIs(t, err, ErrReferencedServiceNotAnEndpoint{})
+		assert.Empty(t, actual)
+	})
+}
+
 func TestDidman_SearchOrganizations(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
 	docWithService := did.Document{

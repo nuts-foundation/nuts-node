@@ -47,13 +47,17 @@ type Wrapper struct {
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
-		did.ErrInvalidDID:                http.StatusBadRequest,
-		types.ErrNotFound:                http.StatusNotFound,
-		types.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
-		types.ErrDeactivated:             http.StatusConflict,
-		types.ErrDuplicateService:        http.StatusConflict,
-		didman.ErrServiceInUse:           http.StatusConflict,
-		vdrDoc.ErrInvalidOptions:         http.StatusBadRequest,
+		did.ErrInvalidDID:                          http.StatusBadRequest,
+		types.ErrNotFound:                          http.StatusNotFound,
+		types.ErrDIDNotManagedByThisNode:           http.StatusBadRequest,
+		types.ErrDeactivated:                       http.StatusConflict,
+		types.ErrDuplicateService:                  http.StatusConflict,
+		didman.ErrServiceInUse:                     http.StatusConflict,
+		vdrDoc.ErrInvalidOptions:                   http.StatusBadRequest,
+		didman.ErrServiceNotFound:                  http.StatusNotFound,
+		didman.ErrInvalidServiceQuery:              http.StatusBadRequest,
+		didman.ErrServiceReferenceToDeep:           http.StatusNotAcceptable,
+		didman.ErrReferencedServiceNotAnEndpoint{}: http.StatusNotAcceptable,
 	})
 }
 
@@ -187,6 +191,23 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 		Type:            service.Type,
 	}
 	return ctx.JSON(200, cs)
+}
+
+// GetCompoundServiceEndpoint handles calls to read a specific endpoint of a compound service.
+func (w *Wrapper) GetCompoundServiceEndpoint(ctx echo.Context, didStr string, compoundServiceType string, endpointType string, params GetCompoundServiceEndpointParams) error {
+	id, err := did.ParseDID(didStr)
+	if err != nil {
+		return err
+	}
+	resolve := true
+	if params.Resolve != nil {
+		resolve = *params.Resolve
+	}
+	endpoint, err := w.Didman.GetCompoundServiceEndpoint(*id, compoundServiceType, endpointType, resolve)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, endpoint)
 }
 
 func interfaceToURI(input interface{}) (*ssi.URI, error) {

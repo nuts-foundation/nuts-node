@@ -407,6 +407,45 @@ func TestWrapper_GetCompoundServices(t *testing.T) {
 	})
 }
 
+func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
+	idStr := "did:nuts:1"
+	id, _ := did.ParseDIDURL(idStr)
+	const expected = "result"
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().GetCompoundServiceEndpoint(*id, "csType", "eType", true).Return(expected, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, expected)
+		err := ctx.wrapper.GetCompoundServiceEndpoint(ctx.echo, idStr, "csType", "eType", GetCompoundServiceEndpointParams{})
+
+		assert.NoError(t, err)
+	})
+	t.Run("ok - no resolve", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().GetCompoundServiceEndpoint(*id, "csType", "eType", false).Return(expected, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, expected)
+		f := false
+		err := ctx.wrapper.GetCompoundServiceEndpoint(ctx.echo, idStr, "csType", "eType", GetCompoundServiceEndpointParams{Resolve: &f})
+
+		assert.NoError(t, err)
+	})
+	t.Run("error - invalid DID", func(t *testing.T) {
+		invalidDIDStr := "nuts:123"
+		ctx := newMockContext(t)
+		err := ctx.wrapper.GetCompoundServiceEndpoint(ctx.echo, invalidDIDStr, "", "", GetCompoundServiceEndpointParams{})
+
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
+	})
+	t.Run("error mapping", func(t *testing.T) {
+		ctx := newMockContext(t)
+		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(didman.ErrServiceNotFound))
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(didman.ErrInvalidServiceQuery))
+		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(didman.ErrServiceReferenceToDeep))
+		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(didman.ErrReferencedServiceNotAnEndpoint{}))
+		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(types.ErrNotFound))
+	})
+}
+
 func TestWrapper_DeleteService(t *testing.T) {
 	id := "did:nuts:1#1"
 

@@ -57,6 +57,11 @@ func (e ErrReferencedServiceNotAnEndpoint) Error() string {
 	return fmt.Sprintf("referenced service does not resolve to a single endpoint URL: %s", e.Cause)
 }
 
+// Is checks whether the other error is also a ErrReferencedServiceNotAnEndpoint
+func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
+	return fmt.Sprintf("%T", e) == fmt.Sprintf("%T", other)
+}
+
 // ErrServiceReferenceToDeep is returned when a service reference is chain is nested too deeply.
 var ErrServiceReferenceToDeep = errors.New("service references are neested to deeply before resolving to a single endpoint URL")
 
@@ -143,6 +148,40 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints ma
 	}
 
 	return service, err
+}
+
+func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType string, endpointType string, resolveReferences bool) (string, error) {
+	doc, _, err := d.docResolver.Resolve(id, nil)
+	if err != nil {
+		return "", err
+	}
+
+	documentsCache := map[string]*did.Document{doc.ID.String(): doc}
+	for _, compoundService := range filterCompoundServices(doc) {
+		if compoundService.Type == compoundServiceType {
+			endpoints := make(map[string]interface{}, 0)
+			_ = compoundService.UnmarshalServiceEndpoint(&endpoints) // can't fail because it's also done by filterCompoundServices()
+			endpoint := endpoints[endpointType]
+			if endpoint == nil {
+				return "", ErrServiceNotFound
+			}
+			endpointStr, isStr := endpoint.(string)
+			if !isStr {
+				return "", ErrReferencedServiceNotAnEndpoint{Cause: errors.New("endpoint is not a string")}
+			}
+			if resolveReferences {
+				endpointURI, err := ssi.ParseURI(endpointStr)
+				if err != nil {
+					// Not sure when this could ever happen
+					return "", err
+				}
+				resolvedEndpoint, err := d.resolveAbsoluteURLEndpoint(*endpointURI, 0, maxServiceReferenceDepth, documentsCache)
+				return resolvedEndpoint.String(), err
+			}
+			return endpointStr, nil
+		}
+	}
+	return "", ErrServiceNotFound
 }
 
 func (d *didman) DeleteService(serviceID ssi.URI) error {
