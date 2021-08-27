@@ -400,6 +400,8 @@ func TestService_validateAud(t *testing.T) {
 	})
 
 	t.Run("error - wrong audience", func(t *testing.T) {
+		// TODO: Re-enable after https://github.com/nuts-foundation/nuts-specification/issues/124 has been implemented
+		t.SkipNow()
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 		tokenCtx := validContext()

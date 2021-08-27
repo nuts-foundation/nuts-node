@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/url"
@@ -180,7 +181,9 @@ func (s *service) validateAudience(context *validationContext) error {
 		return err
 	}
 	if context.jwtBearerToken.Audience()[0] != endpointURL {
-		return errors.New("aud does not contain correct endpoint URL")
+		err := errors.New("aud does not contain correct endpoint URL")
+		// TODO: Make this blocking after https://github.com/nuts-foundation/nuts-specification/issues/124 is implemented
+		log.Logger().Infof("%s: allowed for now but will be enforced soon (https://github.com/nuts-foundation/nuts-specification/issues/124)", err.Error())
 	}
 	return nil
 }
