@@ -113,6 +113,40 @@ func (c validationContext) stringVal(claim string) *string {
 	return &stringVal
 }
 
+func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, error){
+	vcs := make([]vc2.VerifiableCredential, 0)
+	claim, ok := c.jwtBearerToken.Get(vcClaim)
+
+	// If no credentials then OK
+	if !ok || claim == nil {
+		return vcs, nil
+	}
+
+	// vcs should contain a slice of map[string]interface{}
+	vcMaps, ok := claim.([]interface{})
+	if !ok {
+		return vcs, errors.New("field does not contain an array of credentials")
+	}
+
+	// convert from map to bytes
+	rawVCs := make([][]byte, len(vcMaps))
+	for i, vcMap := range vcMaps {
+		rawVC, _ := json.Marshal(vcMap)
+		rawVCs[i] = rawVC
+	}
+
+	// filter on authorization credentials
+	vcs = make([]vc2.VerifiableCredential, len(rawVCs))
+	for i, rawVC := range rawVCs {
+		vc := vc2.VerifiableCredential{}
+		if err := json.Unmarshal(rawVC, &vc); err != nil {
+			return vcs[:0], errors.New("cannot unmarshal authorization credential JSON")
+		}
+		vcs[i] = vc
+	}
+	return vcs, nil
+}
+
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
 func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValidator vcr.Validator, serviceResolver didman.ServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractClient services.ContractClient) services.OAuthClient {
 	return &service{
@@ -286,40 +320,23 @@ func (s *service) validateSubject(context *validationContext) error {
 // validate the legal base, according to RFC003 §5.2.1.7 if sid is present
 // use consent store
 func (s *service) validateAuthorizationCredentials(context validationContext) error {
-	claim, ok := context.jwtBearerToken.Get(vcClaim)
-
-	// If no credentials then OK
-	if !ok || claim == nil {
-		return nil
-	}
-
-	// vcs should contain a slice of map[string]interface{}
-	vcMaps, ok := claim.([]interface{})
-	if !ok {
-		return fmt.Errorf(errInvalidVCClaim, errors.New("field does not contain an array of credentials"))
-	}
-
-	// convert from map to bytes
-	rawVCs := make([][]byte, len(vcMaps))
-	for i, vcMap := range vcMaps {
-		rawVC, _ := json.Marshal(vcMap)
-		rawVCs[i] = rawVC
-	}
-
 	// filter on authorization credentials
-	authCreds := make([]vc2.VerifiableCredential, 0)
-	for _, rawVC := range rawVCs {
-		vc := vc2.VerifiableCredential{}
-		if err := json.Unmarshal(rawVC, &vc); err != nil {
-			return fmt.Errorf(errInvalidVCClaim, errors.New("cannot unmarshal authorization credential JSON"))
-		}
+	vcs, err := context.verifiableCredentials()
+	if err != nil {
+		return fmt.Errorf(errInvalidVCClaim, err)
+	}
+	j := 0
+	for _, vc := range vcs {
 		if vc.IsType(*credential.NutsAuthorizationCredentialTypeURI) {
-			authCreds = append(authCreds, vc)
+			vcs[j] = vc
+			j++
 		}
 	}
+
+	vcs = vcs[:j]
 
 	// no auth creds, return
-	if len(authCreds) == 0 {
+	if len(vcs) == 0 {
 		return nil
 	}
 
@@ -327,7 +344,7 @@ func (s *service) validateAuthorizationCredentials(context validationContext) er
 	iss := context.jwtBearerToken.Issuer()
 	sub := context.jwtBearerToken.Subject()
 
-	for _, authCred := range authCreds {
+	for _, authCred := range vcs {
 		// first check if the VC is valid
 		if err := s.vcValidator.Validate(authCred, true, &iat); err != nil {
 			return fmt.Errorf(errInvalidVCClaim, err)
