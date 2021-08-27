@@ -24,6 +24,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -58,8 +59,8 @@ import (
 var actorSigningKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 var custodianSigningKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
-var actorDID = *vdr.TestDIDA
-var custodianDID = *vdr.TestDIDB
+var actorDID = *vdr.TestDIDB
+var custodianDID = *vdr.TestDIDA
 var custodianDIDDocument = getCustodianDIDDocument()
 var actorSigningKeyID = getActorSigningKey()
 var custodianSigningKeyID = getCustodianSigningKey()
@@ -81,7 +82,7 @@ func getCustodianSigningKey() *ssi.URI {
 }
 
 func getCustodianDIDDocument() *did.Document {
-	id := *vdr.TestDIDB
+	id := custodianDID
 	serviceID, _ := ssi.ParseURI(id.String() + "#service-id")
 
 	doc := did.Document{
@@ -187,48 +188,21 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(custodianDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.privateKeyStore.EXPECT().Exists(custodianSigningKeyID.String()).Return(true)
-		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), custodianSigningKeyID.String()).Return("expectedAT", nil)
+		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), custodianSigningKeyID.String()).Return("expectedAccessToken", nil)
+		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, gomock.Any()).Return(nil)
 
-		sid := "subject"
-		claims := services.NutsJwtBearerToken{
-			SubjectID: &sid,
-			KeyID:     actorSigningKeyID.String(),
-			Service:   expectedService,
-		}
-
-		headers := map[string]interface{}{
-			jwt.AudienceKey:   expectedAudience,
-			jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
-			jwt.JwtIDKey:      "a005e81c-6749-4967-b01c-495228fcafb4",
-			jwt.IssuedAtKey:   time.Now().UTC(),
-			jwt.IssuerKey:     actorDID.String(),
-			jwt.NotBeforeKey:  0,
-			jwt.SubjectKey:    custodianDID.String(),
-		}
-
-		token := jwt.New()
-
-		for k, v := range headers {
-			if err := token.Set(k, v); err != nil {
-				panic(err)
-			}
-		}
-
-		tokenCtx := &validationContext{
-			jwtBearerTokenClaims: &claims,
-			jwtBearerToken:       token,
-		}
-
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Remove(userIdentityClaim)
 		signToken(tokenCtx)
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, "expectedAT", response.AccessToken)
+		assert.Equal(t, "expectedAccessToken", response.AccessToken)
 	})
 
-	t.Run("valid - with legal base", func(t *testing.T) {
+	t.Run("valid - all fields", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
@@ -244,6 +218,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 			DisclosedAttributes: map[string]string{"name": "Henk de Vries"},
 			ContractAttributes:  map[string]string{"legal_entity": "Carebears", "legal_entity_city": "Caretown"},
 		}, nil)
+		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, gomock.Any()).Return(nil)
 
 		tokenCtx := validContext()
 		signToken(tokenCtx)
@@ -427,14 +402,14 @@ func TestOAuthService_parseAndValidateJwtBearerToken(t *testing.T) {
 			rawJwtBearerToken: "foo",
 		}
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
-		assert.Nil(t, tokenCtx.jwtBearerTokenClaims)
+		assert.Nil(t, tokenCtx.jwtBearerToken)
 		assert.Equal(t, "invalid compact serialization format: invalid number of segments", err.Error())
 
 		tokenCtx2 := &validationContext{
 			rawJwtBearerToken: "123.456.787",
 		}
 		err = ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx2)
-		assert.Nil(t, tokenCtx.jwtBearerTokenClaims)
+		assert.Nil(t, tokenCtx.jwtBearerToken)
 		assert.Equal(t, "failed to parse JOSE headers: invalid character '×' looking for beginning of value", err.Error())
 	})
 
@@ -458,7 +433,7 @@ func TestOAuthService_parseAndValidateJwtBearerToken(t *testing.T) {
 			rawJwtBearerToken: string(signedToken),
 		}
 		err = ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
-		assert.Nil(t, tokenCtx.jwtBearerTokenClaims)
+		assert.Nil(t, tokenCtx.jwtBearerToken)
 		assert.Equal(t, "token signing algorithm is not supported: RS256", err.Error())
 	})
 
@@ -471,7 +446,7 @@ func TestOAuthService_parseAndValidateJwtBearerToken(t *testing.T) {
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
 		assert.NoError(t, err)
 		assert.Equal(t, actorDID.String(), tokenCtx.jwtBearerToken.Issuer())
-		assert.Equal(t, actorSigningKeyID.String(), tokenCtx.jwtBearerTokenClaims.KeyID)
+		assert.Equal(t, actorSigningKeyID.String(), tokenCtx.kid)
 	})
 }
 
@@ -482,7 +457,6 @@ func TestOAuthService_buildAccessToken(t *testing.T) {
 
 		tokenCtx := &validationContext{
 			contractVerificationResult: &contract.VPVerificationResult{Validity: contract.Valid},
-			jwtBearerTokenClaims:       &services.NutsJwtBearerToken{},
 			jwtBearerToken:             jwt.New(),
 		}
 
@@ -501,7 +475,6 @@ func TestOAuthService_buildAccessToken(t *testing.T) {
 
 		tokenCtx := &validationContext{
 			contractVerificationResult: &contract.VPVerificationResult{Validity: contract.Valid},
-			jwtBearerTokenClaims:       &services.NutsJwtBearerToken{},
 			jwtBearerToken:             jwt.New(),
 		}
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, custodianDID.String())
@@ -677,7 +650,7 @@ func Test_claimsFromRequest(t *testing.T) {
 		assert.Equal(t, request.Custodian, claims[jwt.SubjectKey])
 		assert.Equal(t, *request.IdentityToken, claims["usi"])
 		assert.Equal(t, *request.Subject, claims["sid"])
-		assert.Equal(t, request.Service, claims[services.JWTService])
+		assert.Equal(t, request.Service, claims[purposeOfUseClaim])
 	})
 }
 
@@ -784,13 +757,13 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 func validContext() *validationContext {
 	sid := "subject"
 	usi := base64.StdEncoding.EncodeToString([]byte("irma identity token"))
-	claims := services.NutsJwtBearerToken{
-		UserIdentity: &usi,
-		SubjectID:    &sid,
-		KeyID:        actorSigningKeyID.String(),
-		Service:      expectedService,
-	}
-	hdrs := map[string]interface{}{
+
+	cred := credential.ValidExplicitNutsAuthorizationCredential()
+	credString, _ := json.Marshal(cred)
+	credMap := map[string]interface{}{}
+	_ = json.Unmarshal(credString, &credMap)
+
+	claims := map[string]interface{}{
 		jwt.AudienceKey:   expectedAudience,
 		jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
 		jwt.JwtIDKey:      "a005e81c-6749-4967-b01c-495228fcafb4",
@@ -798,26 +771,24 @@ func validContext() *validationContext {
 		jwt.IssuerKey:     actorDID.String(),
 		jwt.NotBeforeKey:  0,
 		jwt.SubjectKey:    custodianDID.String(),
+		userIdentityClaim: usi,
+		subjectIDClaim:    sid,
+		purposeOfUseClaim: expectedService,
+		vcClaim:           []interface{}{credMap},
 	}
 	token := jwt.New()
-	for k, v := range hdrs {
+	for k, v := range claims {
 		if err := token.Set(k, v); err != nil {
 			panic(err)
 		}
 	}
 	return &validationContext{
-		jwtBearerTokenClaims: &claims,
 		jwtBearerToken:       token,
+		kid:                  actorSigningKeyID.String(),
 	}
 }
 
 func signToken(context *validationContext) {
-	claimsAsMap, _ := context.jwtBearerTokenClaims.AsMap()
-	for k, v := range claimsAsMap {
-		if err := context.jwtBearerToken.Set(k, v); err != nil {
-			panic(err)
-		}
-	}
 	hdrs := jws.NewHeaders()
 	err := hdrs.Set(jws.KeyIDKey, actorSigningKeyID.String())
 	if err != nil {
@@ -835,6 +806,7 @@ type testContext struct {
 	contractClientMock *services.MockContractClient
 	privateKeyStore    *crypto.MockKeyStore
 	nameResolver       *vcr.MockConceptFinder
+	vcValidator        *vcr.MockValidator
 	didResolver        *types.MockStore
 	keyResolver        *types.MockKeyResolver
 	serviceResolver    *didman.MockServiceResolver
@@ -847,6 +819,7 @@ var createContext = func(t *testing.T) *testContext {
 	contractClientMock := services.NewMockContractClient(ctrl)
 	privateKeyStore := crypto.NewMockKeyStore(ctrl)
 	nameResolver := vcr.NewMockConceptFinder(ctrl)
+	vcValidator := vcr.NewMockValidator(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	serviceResolver := didman.NewMockServiceResolver(ctrl)
 	didResolver := types.NewMockStore(ctrl)
@@ -858,6 +831,7 @@ var createContext = func(t *testing.T) *testContext {
 		keyResolver:        keyResolver,
 		nameResolver:       nameResolver,
 		serviceResolver:    serviceResolver,
+		vcValidator:        vcValidator,
 		didResolver:        didResolver,
 		oauthService: &service{
 			docResolver:     doc.Resolver{Store: didResolver},
@@ -866,6 +840,7 @@ var createContext = func(t *testing.T) *testContext {
 			privateKeyStore: privateKeyStore,
 			conceptFinder:   nameResolver,
 			serviceResolver: serviceResolver,
+			vcValidator:     vcValidator,
 		},
 	}
 }

@@ -208,7 +208,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("ok - explicit", func(t *testing.T) {
-		v := validExplicitNutsAuthorizationCredential()
+		v := ValidExplicitNutsAuthorizationCredential()
 
 		err := validator.Validate(*v)
 
@@ -318,7 +318,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - missing subject for explicit", func(t *testing.T) {
-		v := validExplicitNutsAuthorizationCredential()
+		v := ValidExplicitNutsAuthorizationCredential()
 		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
 		cs.Subject = nil
 		v.CredentialSubject[0] = cs
@@ -330,7 +330,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - missing evidence", func(t *testing.T) {
-		v := validExplicitNutsAuthorizationCredential()
+		v := ValidExplicitNutsAuthorizationCredential()
 		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
 		cs.LegalBase = LegalBase{
 			ConsentType: "explicit",
@@ -344,7 +344,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - missing evidence.Path", func(t *testing.T) {
-		v := validExplicitNutsAuthorizationCredential()
+		v := ValidExplicitNutsAuthorizationCredential()
 		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
 		cs.LegalBase = LegalBase{
 			ConsentType: "explicit",
@@ -361,7 +361,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - missing evidence.Type", func(t *testing.T) {
-		v := validExplicitNutsAuthorizationCredential()
+		v := ValidExplicitNutsAuthorizationCredential()
 		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
 		cs.LegalBase = LegalBase{
 			ConsentType: "explicit",
@@ -395,56 +395,4 @@ func validNutsOrganizationCredential() *vc.VerifiableCredential {
 		CredentialSubject: []interface{}{credentialSubject},
 		Proof:             []interface{}{vc.Proof{}},
 	}
-}
-
-func validImpliedNutsAuthorizationCredential() *vc.VerifiableCredential {
-	credentialSubject := NutsAuthorizationCredentialSubject{
-		ID: vdr.TestDIDB.String(),
-		LegalBase: LegalBase{
-			ConsentType: "implied",
-		},
-		PurposeOfUse: "eTransfer",
-		Resources: []Resource{
-			{
-				Path:        "/composition/1",
-				Operations:  []string{"read"},
-				UserContext: true,
-			},
-		},
-	}
-	return validNutsAuthorizationCredential(credentialSubject)
-}
-
-func validExplicitNutsAuthorizationCredential() *vc.VerifiableCredential {
-	patient := "urn:oid:2.16.840.1.113883.2.4.6.3:123456780"
-	credentialSubject := NutsAuthorizationCredentialSubject{
-		ID: vdr.TestDIDB.String(),
-		LegalBase: LegalBase{
-			ConsentType: "explicit",
-			Evidence: &Evidence{
-				Path: "/1.pdf",
-				Type: "application/pdf",
-			},
-		},
-		PurposeOfUse: "careViewer",
-		Subject:      &patient,
-	}
-	return validNutsAuthorizationCredential(credentialSubject)
-}
-
-func validNutsAuthorizationCredential(credentialSubject NutsAuthorizationCredentialSubject) *vc.VerifiableCredential {
-	return &vc.VerifiableCredential{
-		Context:           []ssi.URI{vc.VCContextV1URI(), *NutsContextURI},
-		ID:                &ssi.URI{},
-		Type:              []ssi.URI{*NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
-		Issuer:            stringToURI(vdr.TestDIDA.String()),
-		IssuanceDate:      time.Now(),
-		CredentialSubject: []interface{}{credentialSubject},
-		Proof:             []interface{}{vc.Proof{}},
-	}
-}
-
-func stringToURI(input string) ssi.URI {
-	u, _ := ssi.ParseURI(input)
-	return *u
 }

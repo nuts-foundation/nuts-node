@@ -52,6 +52,9 @@ const errInvalidOrganizationVC = "actor has invalid organization VC: %w"
 const errInvalidVCClaim = "invalid jwt.vcs: %w"
 
 const vcClaim = "vcs"
+const subjectIDClaim = "sid"
+const purposeOfUseClaim = "purposeOfUseClaim"
+const userIdentityClaim = "usi"
 
 type service struct {
 	docResolver     types.DocResolver
@@ -66,10 +69,47 @@ type service struct {
 type validationContext struct {
 	rawJwtBearerToken          string
 	jwtBearerToken             jwt.Token
-	jwtBearerTokenClaims       *services.NutsJwtBearerToken
+	kid                        string
 	actorName                  string
 	actorCity                  string
 	contractVerificationResult *contract.VPVerificationResult
+}
+
+func (c validationContext) purposeOfUse() string {
+	val, ok := c.jwtBearerToken.Get(purposeOfUseClaim)
+	if !ok {
+		return ""
+	}
+	switch v := val.(type) {
+	case string: return v
+	case []string:
+		if len(v) > 0 {
+			return v[0]
+		}
+	}
+
+	return ""
+}
+
+func (c validationContext) subjectID() *string {
+	return c.stringVal(subjectIDClaim)
+}
+
+func (c validationContext) userIdentity() *string {
+	return c.stringVal(userIdentityClaim)
+}
+
+func (c validationContext) stringVal(claim string) *string {
+	val, ok := c.jwtBearerToken.Get(claim)
+	if !ok {
+		return nil
+	}
+	stringVal, ok := val.(string)
+	if !ok {
+		return nil
+	}
+
+	return &stringVal
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
@@ -125,10 +165,11 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 	// Validate the AuthTokenContainer, according to RFC003 §5.2.1.5
 	var err error
 
-	if context.jwtBearerTokenClaims.UserIdentity != nil {
+	usi := context.userIdentity()
+	if usi != nil {
 		var decoded []byte
 
-		if decoded, err = base64.StdEncoding.DecodeString(*context.jwtBearerTokenClaims.UserIdentity); err != nil {
+		if decoded, err = base64.StdEncoding.DecodeString(*usi); err != nil {
 			return nil, fmt.Errorf("failed to decode base64 usi field: %w", err)
 		}
 
@@ -177,11 +218,11 @@ func (s *service) validateAudience(context *validationContext) error {
 	if len(context.jwtBearerToken.Audience()) != 1 {
 		return errors.New("aud does not contain a single URI")
 	}
-	service := context.jwtBearerTokenClaims.Service
+	purposeOfUse := context.purposeOfUse()
 	// parsing is already done in a previous check
 	subject, _ := did.ParseDID(context.jwtBearerToken.Subject())
 
-	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*subject, service, services.OAuthEndpointType, true)
+	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*subject, purposeOfUse, services.OAuthEndpointType, true)
 	if err != nil {
 		return err
 	}
@@ -202,7 +243,7 @@ func (s *service) validateIssuer(context *validationContext) error {
 	}
 
 	validationTime := context.jwtBearerToken.IssuedAt()
-	if _, err := s.keyResolver.ResolveSigningKey(context.jwtBearerTokenClaims.KeyID, &validationTime); err != nil {
+	if _, err := s.keyResolver.ResolveSigningKey(context.kid, &validationTime); err != nil {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
@@ -251,17 +292,27 @@ func (s *service) validateAuthorizationCredentials(context validationContext) er
 		return nil
 	}
 
-	// vcs should contain a slice of strings
-	rawVCs, ok := claim.([]string)
+	// vcs should contain a slice of map[string]interface{}
+	vcMaps, ok := claim.([]interface{})
 	if !ok {
-		return fmt.Errorf(errInvalidVCClaim, errors.New("field does not contain list of strings"))
+		return fmt.Errorf(errInvalidVCClaim, errors.New("field does not contain an array of credentials"))
+	}
+
+	// convert from map to bytes
+	rawVCs := make([][]byte, len(vcMaps))
+	for i, vcMap := range vcMaps {
+		rawVC, err := json.Marshal(vcMap)
+		if err != nil {
+			return fmt.Errorf(errInvalidVCClaim, err)
+		}
+		rawVCs[i] = rawVC
 	}
 
 	// filter on authorization credentials
 	authCreds := make([]vc2.VerifiableCredential, 0)
 	for _, rawVC := range rawVCs {
 		vc := vc2.VerifiableCredential{}
-		if err := json.Unmarshal([]byte(rawVC), &vc); err != nil {
+		if err := json.Unmarshal(rawVC, &vc); err != nil {
 			return fmt.Errorf(errInvalidVCClaim, err)
 		}
 		if vc.IsType(*credential.NutsAuthorizationCredentialTypeURI) {
@@ -372,20 +423,17 @@ var timeFunc = time.Now
 
 // standalone func for easier testing
 func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) map[string]interface{} {
-	token := services.NutsJwtBearerToken{
-		UserIdentity: request.IdentityToken,
-		SubjectID:    request.Subject,
-		Credentials:  request.Credentials,
-	}
-
-	result, _ := token.AsMap()
+	result := map[string]interface{}{}
 	result[jwt.AudienceKey] = audience
 	result[jwt.ExpirationKey] = timeFunc().Add(OauthBearerTokenMaxValidity * time.Second).Unix()
 	result[jwt.IssuedAtKey] = timeFunc().Unix()
 	result[jwt.IssuerKey] = request.Actor
 	result[jwt.NotBeforeKey] = 0
 	result[jwt.SubjectKey] = request.Custodian
-	result[services.JWTService] = request.Service
+	result[purposeOfUseClaim] = request.Service
+	result[userIdentityClaim] = *request.IdentityToken
+	result[subjectIDClaim] = *request.Subject
+	result[vcClaim] = request.Credentials
 
 	return result
 }
@@ -403,8 +451,8 @@ func (s *service) parseAndValidateJwtBearerToken(context *validationContext) err
 
 	// this should be ok since it has already succeeded before
 	context.jwtBearerToken = token
-	context.jwtBearerTokenClaims = &services.NutsJwtBearerToken{KeyID: kidHdr}
-	return context.jwtBearerTokenClaims.FromMap(token.PrivateClaims())
+	context.kid = kidHdr
+	return nil
 }
 
 // IntrospectAccessToken fills the fields in NutsAccessToken from the given Jwt Access Token
@@ -447,8 +495,8 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 	issueTime := time.Now()
 
 	at := services.NutsAccessToken{
-		SubjectID:  context.jwtBearerTokenClaims.SubjectID,
-		Service:    context.jwtBearerTokenClaims.Service,
+		SubjectID:  context.subjectID(),
+		Service:    context.purposeOfUse(),
 		Expiration: time.Now().Add(time.Minute * 15).UTC().Unix(), // Expires in 15 minutes
 		IssuedAt:   issueTime.UTC().Unix(),
 		Issuer:     issuer.String(),
