@@ -47,12 +47,12 @@ func (m *mockIrmaClient) GetSessionResult(token string) *irmaservercore.SessionR
 	return m.sessionResult
 }
 
-func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercore.SessionHandler) (*irma.Qr, string, error) {
+func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercore.SessionHandler) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error) {
 	if m.err != nil {
-		return nil, "", m.err
+		return nil, "", nil, m.err
 	}
 
-	return m.irmaQr, m.sessionToken, nil
+	return m.irmaQr, irma.RequestorToken(m.sessionToken), nil, nil
 }
 
 //
