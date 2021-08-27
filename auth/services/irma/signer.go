@@ -88,7 +88,7 @@ func (v Service) StartSigningSession(rawContractText string) (contract.SessionPo
 	}
 
 	// Start an IRMA session
-	sessionPointer, token, err := v.IrmaSessionHandler.StartSession(signatureRequest, func(result *server.SessionResult) {
+	sessionPointer, token, _, err := v.IrmaSessionHandler.StartSession(signatureRequest, func(result *server.SessionResult) {
 		logging.Log().Debugf("session done, result: %s", server.ToJson(result))
 	})
 	if err != nil {
@@ -98,7 +98,7 @@ func (v Service) StartSigningSession(rawContractText string) (contract.SessionPo
 
 	// Return the sessionPointer and sessionId
 	challenge := SessionPtr{
-		ID:         token,
+		ID:         string(token),
 		QrCodeInfo: *sessionPointer,
 	}
 	jsonResult := challenge.Payload()
