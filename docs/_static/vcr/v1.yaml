@@ -119,6 +119,11 @@ paths:
           required: true
           schema:
             type: string
+        - name: untrusted
+          in: query
+          description: when true, the search also returns untrusted credentials. Default false
+          schema:
+            type: boolean
       responses:
         "200":
           description: Found 0 or more results.

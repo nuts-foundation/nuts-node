@@ -24,6 +24,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/didman/logging"
@@ -31,8 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/shengdoushi/base58"
-	"net/url"
-	"strings"
 )
 
 // ModuleName contains the name of this module: Didman
@@ -279,7 +280,7 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 }
 
 func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]OrganizationSearchResult, error) {
-	organizations, err := d.vcr.Search(concept.OrganizationConcept, map[string]string{concept.OrganizationName: query})
+	organizations, err := d.vcr.Search(concept.OrganizationConcept, false, map[string]string{concept.OrganizationName: query})
 	if err != nil {
 		return nil, err
 	}

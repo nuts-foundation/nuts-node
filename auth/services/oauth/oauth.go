@@ -24,9 +24,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/url"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -44,6 +45,9 @@ const errInvalidIssuerFmt = "invalid jwt.issuer: %w"
 const errInvalidIssuerKeyFmt = "invalid jwt.issuer key ID: %w"
 const errInvalidSubjectFmt = "invalid jwt.subject: %w"
 const errInvalidOrganizationVC = "actor has invalid organization VC: %w"
+const errInvalidVCClaim = "invalid jwt.vcs: %w"
+
+const vcClaim = "vcs"
 
 type service struct {
 	docResolver     types.DocResolver
@@ -140,7 +144,7 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 	}
 
 	// validate the legal base, according to RFC003 §5.2.1.7 if sid is present
-	if err = s.validateLegalBase(context.jwtBearerTokenClaims); err != nil {
+	if err = s.validateAuthorizationCredentials(context); err != nil {
 		return nil, err
 	}
 
@@ -196,7 +200,8 @@ func (s *service) validateIssuer(context *validationContext) error {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
-	orgConcept, err := s.conceptFinder.Get(concept.OrganizationConcept, context.jwtBearerToken.Issuer())
+	// organization credentials MUST come from a trusted source
+	orgConcept, err := s.conceptFinder.Get(concept.OrganizationConcept, false, context.jwtBearerToken.Issuer())
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
@@ -232,19 +237,7 @@ func (s *service) validateSubject(context *validationContext) error {
 
 // validate the legal base, according to RFC003 §5.2.1.7 if sid is present
 // use consent store
-func (s *service) validateLegalBase(jwtBearerToken *services.NutsJwtBearerToken) error {
-	// TODO: Implement this (https://github.com/nuts-foundation/nuts-node/issues/94)
-	//if jwtBearerTokenClaims.SubjectID != nil && *jwtBearerTokenClaims.SubjectID != "" {
-	//
-	// validationTime := time.Unix(jwtBearerTokenClaims.IssuedAt, 0)
-	//legalBase, err := s.consentResolver.QueryConsent(context.Background(), &jwtBearerTokenClaims.Issuer, &jwtBearerTokenClaims.Subject, jwtBearerTokenClaims.SubjectID, &validationTime)
-	//if err != nil {
-	//	return fmt.Errorf("legal base validation failed: %w", err)
-	//}
-	//if len(legalBase) == 0 {
-	//	return errors.New("subject scope requested but no legal base present")
-	//}
-	//}
+func (s *service) validateAuthorizationCredentials(context validationContext) error {
 	return nil
 }
 

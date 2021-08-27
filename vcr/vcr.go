@@ -208,7 +208,7 @@ func (c *vcr) Config() interface{} {
 
 // search for matching credentials based upon a query. It returns an empty list if no matches have been found.
 // The optional resolveTime will search for credentials at that point in time.
-func (c *vcr) search(query concept.Query, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
+func (c *vcr) search(query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	//transform query to leia query, for each template a query is returned
 	queries := c.convert(query)
 
@@ -225,7 +225,7 @@ func (c *vcr) search(query concept.Query, resolveTime *time.Time) ([]vc.Verifiab
 				return nil, errors.Wrap(err, "unable to parse credential from db")
 			}
 
-			if err = c.validateForUse(foundCredential, resolveTime); err == nil {
+			if err = c.Validate(foundCredential, allowUntrusted, resolveTime); err == nil {
 				VCs = append(VCs, foundCredential)
 			}
 		}
@@ -312,7 +312,7 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 		return nil, err
 	}
 
-	if err = c.validateForUse(credential, resolveTime); err != nil {
+	if err = c.Validate(credential, false, resolveTime); err != nil {
 		switch err {
 		case ErrRevoked:
 			return &credential, ErrRevoked
@@ -325,7 +325,7 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 	return &credential, nil
 }
 
-func (c *vcr) validateForUse(credential vc.VerifiableCredential, validAt *time.Time) error {
+func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, validAt *time.Time) error {
 	revoked, err := c.isRevoked(*credential.ID)
 	if revoked {
 		return ErrRevoked
@@ -334,9 +334,11 @@ func (c *vcr) validateForUse(credential vc.VerifiableCredential, validAt *time.T
 		return err
 	}
 
-	trusted := c.isTrusted(credential)
-	if !trusted {
-		return ErrUntrusted
+	if !allowUntrusted {
+		trusted := c.isTrusted(credential)
+		if !trusted {
+			return ErrUntrusted
+		}
 	}
 
 	return c.validate(credential, validAt)
@@ -591,7 +593,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	return untrusted, nil
 }
 
-func (c *vcr) Get(conceptName string, subject string) (concept.Concept, error) {
+func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error) {
 	q, err := c.Registry().QueryFor(conceptName)
 	if err != nil {
 		return nil, err
@@ -600,7 +602,7 @@ func (c *vcr) Get(conceptName string, subject string) (concept.Concept, error) {
 	q.AddClause(concept.Eq(concept.SubjectField, subject))
 
 	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
-	vcs, err := c.search(q, nil)
+	vcs, err := c.search(q, allowUntrusted, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -613,7 +615,7 @@ func (c *vcr) Get(conceptName string, subject string) (concept.Concept, error) {
 	return c.Registry().Transform(conceptName, vcs[0])
 }
 
-func (c *vcr) Search(conceptName string, queryParams map[string]string) ([]concept.Concept, error) {
+func (c *vcr) Search(conceptName string, allowUntrusted bool, queryParams map[string]string) ([]concept.Concept, error) {
 	query, err := c.registry.QueryFor(conceptName)
 	if err != nil {
 		return nil, err
@@ -623,7 +625,7 @@ func (c *vcr) Search(conceptName string, queryParams map[string]string) ([]conce
 		query.AddClause(concept.Prefix(key, value))
 	}
 
-	results, err := c.search(query, nil)
+	results, err := c.search(query, allowUntrusted, nil)
 	if err != nil {
 		return nil, err
 	}

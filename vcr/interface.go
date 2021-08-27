@@ -61,10 +61,22 @@ var revocationDocumentType = "application/vc+json;type=revocation"
 // ConceptFinder can resolve VC backed concepts for a DID.
 type ConceptFinder interface {
 	// Get returns the requested concept as concept.Concept for the subject or ErrNotFound
-	Get(conceptName string, subject string) (concept.Concept, error)
+	// It also returns untrusted credentials when allowUntrusted == true
+	Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error)
 
 	// Search for matching concepts based upon a query. It returns an empty list if no matches have been found.
-	Search(conceptName string, query map[string]string) ([]concept.Concept, error)
+	// It also returns untrusted credentials when allowUntrusted == true
+	Search(conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error)
+}
+
+type Validator interface {
+	// Validate checks if the given credential:
+	// - is not revoked
+	// - is valid at the given time (or now if not give)
+	// - has a valid issuer
+	// if allowUntrusted == false, the issuer must also be a trusted DID
+	// May return ErrRevoked, ErrUntrusted or ErrInvalidPeriod
+	Validate(credential vc.VerifiableCredential, allowUntrusted bool, validAt *time.Time) error
 }
 
 // Writer is the interface that groups al the VC write methods
