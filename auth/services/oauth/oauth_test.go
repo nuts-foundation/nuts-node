@@ -745,6 +745,21 @@ func Test_claimsFromRequest(t *testing.T) {
 		assert.Equal(t, *request.Subject, claims["sid"])
 		assert.Equal(t, request.Service, claims[purposeOfUseClaim])
 	})
+
+	t.Run("ok - minimal", func(t *testing.T) {
+		request := services.CreateJwtGrantRequest{
+			Custodian: custodianDID.String(),
+			Actor:     actorDID.String(),
+			Service:   "service",
+		}
+		audience := "aud"
+		claims := claimsFromRequest(request, audience)
+
+		assert.Equal(t, audience, claims[jwt.AudienceKey])
+		assert.Equal(t, request.Actor, claims[jwt.IssuerKey])
+		assert.Equal(t, request.Custodian, claims[jwt.SubjectKey])
+		assert.Equal(t, request.Service, claims[purposeOfUseClaim])
+	})
 }
 
 func TestService_IntrospectAccessToken(t *testing.T) {

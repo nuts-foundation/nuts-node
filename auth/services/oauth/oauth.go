@@ -446,8 +446,12 @@ func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) 
 	result[jwt.NotBeforeKey] = 0
 	result[jwt.SubjectKey] = request.Custodian
 	result[purposeOfUseClaim] = request.Service
-	result[userIdentityClaim] = *request.IdentityToken
-	result[subjectIDClaim] = *request.Subject
+	if request.IdentityToken != nil {
+		result[userIdentityClaim] = *request.IdentityToken
+	}
+	if request.Subject != nil {
+		result[subjectIDClaim] = *request.Subject
+	}
 	result[vcClaim] = request.Credentials
 
 	return result
