@@ -113,7 +113,7 @@ func (c validationContext) stringVal(claim string) *string {
 	return &stringVal
 }
 
-func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, error){
+func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, error) {
 	vcs := make([]vc2.VerifiableCredential, 0)
 	claim, ok := c.jwtBearerToken.Get(vcClaim)
 
