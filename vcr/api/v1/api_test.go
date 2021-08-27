@@ -252,13 +252,13 @@ func TestWrapper_Search(t *testing.T) {
 			return nil
 		})
 		cpt := concept.Concept(map[string]interface{}{"foo": "bar"})
-		ctx.vcr.EXPECT().Search(gomock.Any(), map[string]string{"name": "Because we care B.V."}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search(gomock.Any(), false, map[string]string{"name": "Because we care B.V."}).Return([]concept.Concept{cpt}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			capturedConcept = f2.([]concept.Concept)
 			return nil
 		})
 
-		err := ctx.client.Search(ctx.echo, "human")
+		err := ctx.client.Search(ctx.echo, "human", SearchParams{})
 
 		if !assert.NoError(t, err) {
 			return
@@ -274,7 +274,7 @@ func TestWrapper_Search(t *testing.T) {
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
 
-		err := ctx.client.Search(ctx.echo, "unknown")
+		err := ctx.client.Search(ctx.echo, "unknown", SearchParams{})
 
 		assert.EqualError(t, err, "b00m!")
 	})
@@ -283,11 +283,12 @@ func TestWrapper_Search(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.client.CR = registry
 		defer ctx.ctrl.Finish()
+		trueVal := true
 
 		ctx.echo.EXPECT().Bind(gomock.Any())
-		ctx.vcr.EXPECT().Search(gomock.Any(), map[string]string{}).Return(nil, errors.New("b00m!"))
+		ctx.vcr.EXPECT().Search(gomock.Any(), true, map[string]string{}).Return(nil, errors.New("b00m!"))
 
-		err := ctx.client.Search(ctx.echo, "human")
+		err := ctx.client.Search(ctx.echo, "human", SearchParams{Untrusted: &trueVal})
 
 		assert.Error(t, err)
 	})

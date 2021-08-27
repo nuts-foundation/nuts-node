@@ -23,12 +23,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"io"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
@@ -595,7 +596,7 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 		{
 			Type: "csType",
 			ServiceEndpoint: map[string]interface{}{
-				"eType": expectedRef,
+				"eType":   expectedRef,
 				"non-url": true,
 			},
 		},
@@ -665,7 +666,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 
 	t.Run("ok - no results", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{}, nil)
+		ctx.vcr.EXPECT().Search("organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{}, nil)
 
 		actual, err := ctx.instance.SearchOrganizations("query", nil)
 
@@ -679,7 +680,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	}
 	t.Run("ok - no DID service type", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search("organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithoutService, nil, nil)
 
 		actual, err := ctx.instance.SearchOrganizations("query", nil)
@@ -689,7 +690,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - with DID service type (matches)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search("organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithService, nil, nil)
 
 		serviceType := "eOverdracht"
@@ -700,7 +701,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - with DID service type (no match)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search("organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithoutService, nil, nil)
 
 		serviceType := "eOverdracht"
@@ -712,7 +713,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - DID document not found (logs, omits result)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search("organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
 
 		actual, err := ctx.instance.SearchOrganizations("query", nil)
@@ -723,7 +724,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - DID document deactivated (logs, omits result)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search("organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrDeactivated)
 
 		actual, err := ctx.instance.SearchOrganizations("query", nil)
@@ -734,7 +735,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("error - other error while resolving DID document", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().Search("organization", map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search("organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, io.EOF)
 
 		actual, err := ctx.instance.SearchOrganizations("query", nil)

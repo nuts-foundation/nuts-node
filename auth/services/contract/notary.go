@@ -71,7 +71,7 @@ func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID
 	}
 
 	// DrawUpContract draws up a contract for a specific organization from a template
-	result, err := s.conceptFinder.Get(concept.OrganizationConcept, orgID.String())
+	result, err := s.conceptFinder.Get(concept.OrganizationConcept, false, orgID.String())
 	if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}

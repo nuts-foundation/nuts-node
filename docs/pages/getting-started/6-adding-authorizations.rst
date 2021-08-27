@@ -144,7 +144,7 @@ To find all authorization credentials of a single patient:
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v1/organization
+    POST <internal-node-address>/internal/vcr/v1/organization?untrusted=true
     {
         "Params": [
             {
@@ -162,13 +162,14 @@ The call above includes a query for a particular *receiver* via the `credentialS
 This would typically be a DID from your own administration.
 The second parameter defines the patient.
 This example will return a list of authorization credentials where the `credentialSubject.purposeOfUse` field will indicate what kind of information can be retrieved.
+The `untrusted` query parameter must be added because authorization credentials are not issued by a trusted third party but by organizations themselves.
 
 It can also be the case that you need to find an authorization that covers a certain request.
 If you want to call `/patient/2250f7ab-6517-4923-ac00-88ed26f85843` for a particular Bolt, you can use:
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v1/organization
+    POST <internal-node-address>/internal/vcr/v1/organization?untrusted=true
     {
         "Params": [
             {

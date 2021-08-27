@@ -132,7 +132,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
-		creds, err := ctx.vcr.search(q, &now)
+		creds, err := ctx.vcr.search(q, false, &now)
 
 		if !assert.NoError(t, err) {
 			return
@@ -150,7 +150,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 	t.Run("ok - untrusted", func(t *testing.T) {
 		ctx, q := testInstance(t)
 
-		creds, err := ctx.vcr.search(q, nil)
+		creds, err := ctx.vcr.search(q, false, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -158,12 +158,24 @@ func TestVCR_SearchInternal(t *testing.T) {
 		assert.Len(t, creds, 0)
 	})
 
+	t.Run("ok - untrusted but allowed", func(t *testing.T) {
+		ctx, q := testInstance(t)
+		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
+
+		creds, err := ctx.vcr.search(q, true, nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, creds, 1)
+	})
+
 	t.Run("ok - revoked", func(t *testing.T) {
 		ctx, q := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		rev := leia.DocumentFromString(concept.TestRevocation)
 		ctx.vcr.store.Collection(revocationCollection).Add([]leia.Document{rev})
-		creds, err := ctx.vcr.search(q, nil)
+		creds, err := ctx.vcr.search(q, false, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -176,7 +188,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, types.ErrNotFound)
 
-		creds, err := ctx.vcr.search(q, nil)
+		creds, err := ctx.vcr.search(q, false, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -799,7 +811,7 @@ func TestVcr_Find(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
 
-		conc, err := ctx.vcr.Get(concept.ExampleConcept, subject)
+		conc, err := ctx.vcr.Get(concept.ExampleConcept, false, subject)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -814,7 +826,7 @@ func TestVcr_Find(t *testing.T) {
 
 	t.Run("error - unknown concept", func(t *testing.T) {
 		ctx := testInstance(t)
-		_, err := ctx.vcr.Get("unknown", subject)
+		_, err := ctx.vcr.Get("unknown", false, subject)
 
 		assert.Error(t, err)
 		assert.Equal(t, err, concept.ErrUnknownConcept)
@@ -822,7 +834,7 @@ func TestVcr_Find(t *testing.T) {
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := testInstance(t)
-		_, err := ctx.vcr.Get(concept.ExampleConcept, "unknown")
+		_, err := ctx.vcr.Get(concept.ExampleConcept, false, "unknown")
 
 		assert.Error(t, err)
 		assert.Equal(t, err, ErrNotFound)
@@ -844,14 +856,14 @@ func TestVCR_Search(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
 		doc := leia.DocumentFromString(concept.TestCredential)
 		ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
-		results, _ := ctx.vcr.Search("human", map[string]string{"human.eyeColour": "blue/grey"})
+		results, _ := ctx.vcr.Search("human", false, map[string]string{"human.eyeColour": "blue/grey"})
 		assert.Len(t, results, 1)
 	})
 
 	t.Run("error - unknown concept", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		results, err := ctx.vcr.Search("unknown", map[string]string{"human.eyeColour": "blue/grey"})
+		results, err := ctx.vcr.Search("unknown", false, map[string]string{"human.eyeColour": "blue/grey"})
 		assert.ErrorIs(t, err, concept.ErrUnknownConcept)
 		assert.Nil(t, results)
 	})

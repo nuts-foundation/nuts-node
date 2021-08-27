@@ -39,33 +39,70 @@ func (m *MockConceptFinder) EXPECT() *MockConceptFinderMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockConceptFinder) Get(conceptName, subject string) (concept.Concept, error) {
+func (m *MockConceptFinder) Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", conceptName, subject)
+	ret := m.ctrl.Call(m, "Get", conceptName, allowUntrusted, subject)
 	ret0, _ := ret[0].(concept.Concept)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockConceptFinderMockRecorder) Get(conceptName, subject interface{}) *gomock.Call {
+func (mr *MockConceptFinderMockRecorder) Get(conceptName, allowUntrusted, subject interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockConceptFinder)(nil).Get), conceptName, subject)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockConceptFinder)(nil).Get), conceptName, allowUntrusted, subject)
 }
 
 // Search mocks base method.
-func (m *MockConceptFinder) Search(conceptName string, query map[string]string) ([]concept.Concept, error) {
+func (m *MockConceptFinder) Search(conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", conceptName, query)
+	ret := m.ctrl.Call(m, "Search", conceptName, allowUntrusted, query)
 	ret0, _ := ret[0].([]concept.Concept)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Search indicates an expected call of Search.
-func (mr *MockConceptFinderMockRecorder) Search(conceptName, query interface{}) *gomock.Call {
+func (mr *MockConceptFinderMockRecorder) Search(conceptName, allowUntrusted, query interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockConceptFinder)(nil).Search), conceptName, query)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockConceptFinder)(nil).Search), conceptName, allowUntrusted, query)
+}
+
+// MockValidator is a mock of Validator interface.
+type MockValidator struct {
+	ctrl     *gomock.Controller
+	recorder *MockValidatorMockRecorder
+}
+
+// MockValidatorMockRecorder is the mock recorder for MockValidator.
+type MockValidatorMockRecorder struct {
+	mock *MockValidator
+}
+
+// NewMockValidator creates a new mock instance.
+func NewMockValidator(ctrl *gomock.Controller) *MockValidator {
+	mock := &MockValidator{ctrl: ctrl}
+	mock.recorder = &MockValidatorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockValidator) EXPECT() *MockValidatorMockRecorder {
+	return m.recorder
+}
+
+// Validate mocks base method.
+func (m *MockValidator) Validate(credential vc.VerifiableCredential, allowUntrusted bool, validAt *time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Validate", credential, allowUntrusted, validAt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Validate indicates an expected call of Validate.
+func (mr *MockValidatorMockRecorder) Validate(credential, allowUntrusted, validAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockValidator)(nil).Validate), credential, allowUntrusted, validAt)
 }
 
 // MockWriter is a mock of Writer interface.
@@ -276,18 +313,18 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockVCR) Get(conceptName, subject string) (concept.Concept, error) {
+func (m *MockVCR) Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", conceptName, subject)
+	ret := m.ctrl.Call(m, "Get", conceptName, allowUntrusted, subject)
 	ret0, _ := ret[0].(concept.Concept)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockVCRMockRecorder) Get(conceptName, subject interface{}) *gomock.Call {
+func (mr *MockVCRMockRecorder) Get(conceptName, allowUntrusted, subject interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockVCR)(nil).Get), conceptName, subject)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockVCR)(nil).Get), conceptName, allowUntrusted, subject)
 }
 
 // Issue mocks base method.
@@ -350,18 +387,18 @@ func (mr *MockVCRMockRecorder) Revoke(ID interface{}) *gomock.Call {
 }
 
 // Search mocks base method.
-func (m *MockVCR) Search(conceptName string, query map[string]string) ([]concept.Concept, error) {
+func (m *MockVCR) Search(conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", conceptName, query)
+	ret := m.ctrl.Call(m, "Search", conceptName, allowUntrusted, query)
 	ret0, _ := ret[0].([]concept.Concept)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Search indicates an expected call of Search.
-func (mr *MockVCRMockRecorder) Search(conceptName, query interface{}) *gomock.Call {
+func (mr *MockVCRMockRecorder) Search(conceptName, allowUntrusted, query interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), conceptName, query)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), conceptName, allowUntrusted, query)
 }
 
 // StoreCredential mocks base method.
