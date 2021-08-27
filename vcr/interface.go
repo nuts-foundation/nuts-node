@@ -124,5 +124,6 @@ type VCR interface {
 	ConceptFinder
 	Resolver
 	TrustManager
+	Validator
 	Writer
 }

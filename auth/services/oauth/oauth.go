@@ -24,11 +24,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/didman"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/url"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crypto/log"
+	"github.com/nuts-foundation/nuts-node/didman"
+
+	vc2 "github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -53,6 +56,7 @@ const vcClaim = "vcs"
 type service struct {
 	docResolver     types.DocResolver
 	conceptFinder   vcr.ConceptFinder
+	vcValidator     vcr.Validator
 	keyResolver     types.KeyResolver
 	privateKeyStore nutsCrypto.KeyStore
 	contractClient  services.ContractClient
@@ -69,13 +73,14 @@ type validationContext struct {
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, serviceResolver didman.ServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractClient services.ContractClient) services.OAuthClient {
+func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValidator vcr.Validator, serviceResolver didman.ServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractClient services.ContractClient) services.OAuthClient {
 	return &service{
 		docResolver:     doc.Resolver{Store: store},
 		keyResolver:     doc.KeyResolver{Store: store},
 		serviceResolver: serviceResolver,
 		contractClient:  contractClient,
 		conceptFinder:   conceptFinder,
+		vcValidator:     vcValidator,
 		privateKeyStore: privateKeyStore,
 	}
 }
@@ -239,6 +244,64 @@ func (s *service) validateSubject(context *validationContext) error {
 // validate the legal base, according to RFC003 §5.2.1.7 if sid is present
 // use consent store
 func (s *service) validateAuthorizationCredentials(context validationContext) error {
+	claim, ok := context.jwtBearerToken.Get(vcClaim)
+
+	// If no credentials then OK
+	if !ok || claim == nil {
+		return nil
+	}
+
+	// vcs should contain a slice of strings
+	rawVCs, ok := claim.([]string)
+	if !ok {
+		return fmt.Errorf(errInvalidVCClaim, errors.New("field does not contain list of strings"))
+	}
+
+	// filter on authorization credentials
+	authCreds := make([]vc2.VerifiableCredential, 0)
+	for _, rawVC := range rawVCs {
+		vc := vc2.VerifiableCredential{}
+		if err := json.Unmarshal([]byte(rawVC), &vc); err != nil {
+			return fmt.Errorf(errInvalidVCClaim, err)
+		}
+		if vc.IsType(*credential.NutsAuthorizationCredentialTypeURI) {
+			authCreds = append(authCreds, vc)
+		}
+	}
+
+	// no auth creds, return
+	if len(authCreds) == 0 {
+		return nil
+	}
+
+	iat := context.jwtBearerToken.IssuedAt()
+	iss := context.jwtBearerToken.Issuer()
+	sub := context.jwtBearerToken.Subject()
+
+	for _, authCred := range authCreds {
+		// first check if the VC is valid
+		if err := s.vcValidator.Validate(authCred, true, &iat); err != nil {
+			return fmt.Errorf(errInvalidVCClaim, err)
+		}
+
+		//The credential issuer equals the sub field of the JWT.
+		if authCred.Issuer.String() != sub {
+			return fmt.Errorf("issuer of authorization credential with ID: %s does not match jwt.sub: %s", authCred.Issuer.String(), sub)
+		}
+
+		//The credential credentialSubject.id equals the iss field of the JWT.
+		authCredSubjects := make([]credential.NutsAuthorizationCredentialSubject, 0)
+		if err := authCred.UnmarshalCredentialSubject(&authCredSubjects); err != nil {
+			return fmt.Errorf(errInvalidVCClaim, err)
+		}
+		// should be only 1 credentialSubject, but we do the range just to make sure and to avoid [0] specific code.
+		for _, authCredSubject := range authCredSubjects {
+			if authCredSubject.ID != iss {
+				return fmt.Errorf("credentialSubject.ID of authorization credential with ID: %s does not match jwt.iss: %s", authCred.Issuer.String(), iss)
+			}
+		}
+	}
+
 	return nil
 }
 
