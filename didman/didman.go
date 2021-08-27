@@ -157,32 +157,46 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 		return "", err
 	}
 
+	referenceDepth := 0
 	documentsCache := map[string]*did.Document{doc.ID.String(): doc}
-	for _, compoundService := range filterCompoundServices(doc) {
-		if compoundService.Type == compoundServiceType {
-			endpoints := make(map[string]interface{}, 0)
-			_ = compoundService.UnmarshalServiceEndpoint(&endpoints) // can't fail because it's also done by filterCompoundServices()
-			endpoint := endpoints[endpointType]
-			if endpoint == nil {
-				return "", ErrServiceNotFound
-			}
-			endpointStr, isStr := endpoint.(string)
-			if !isStr {
-				return "", ErrReferencedServiceNotAnEndpoint{Cause: errors.New("endpoint is not a string")}
-			}
-			if resolveReferences {
-				endpointURI, err := ssi.ParseURI(endpointStr)
-				if err != nil {
-					// Not sure when this could ever happen
-					return "", err
-				}
-				resolvedEndpoint, err := d.resolveAbsoluteURLEndpoint(*endpointURI, 0, maxServiceReferenceDepth, documentsCache)
-				return resolvedEndpoint.String(), err
-			}
-			return endpointStr, nil
-		}
+
+	// First, resolve the compound endpoint
+	compoundServiceRef := id.URI()
+	compoundServiceRef.Path = "/" + serviceEndpointPath
+	compoundServiceRef.RawQuery = fmt.Sprintf("%s=%s", serviceTypeQueryParameter, compoundServiceType)
+
+	compoundService, err := d.resolveService(compoundServiceRef, referenceDepth, maxServiceReferenceDepth, documentsCache)
+	if err != nil {
+		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("unable to resolve compound service: %w", err)}
 	}
-	return "", ErrServiceNotFound
+
+	// Second, resolve the endpoint in the compound service
+	endpoints := make(map[string]interface{}, 0)
+	err = compoundService.UnmarshalServiceEndpoint(&endpoints)
+	if err != nil {
+		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("referenced service is not a compound service: %w", err)}
+	}
+	endpoint := endpoints[endpointType]
+	if endpoint == nil {
+		return "", ErrServiceNotFound
+	}
+	endpointStr, isStr := endpoint.(string)
+	if !isStr {
+		return "", ErrReferencedServiceNotAnEndpoint{Cause: errors.New("endpoint is not a string")}
+	}
+	if resolveReferences {
+		endpointURI, err := ssi.ParseURI(endpointStr)
+		if err != nil {
+			// Not sure when this could ever happen
+			return "", err
+		}
+		resolvedEndpoint, err := d.resolveService(*endpointURI, referenceDepth, maxServiceReferenceDepth, documentsCache)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%s", resolvedEndpoint.ServiceEndpoint), nil
+	}
+	return endpointStr, nil
 }
 
 func (d *didman) DeleteService(serviceID ssi.URI) error {
@@ -369,53 +383,69 @@ func (d *didman) validateCompoundServiceEndpoint(endpoints map[string]ssi.URI) e
 	// Cache resolved DID documents because most of the time a compound service will refer the same DID document in all service references.
 	documents := make(map[string]*did.Document)
 	for _, serviceRef := range endpoints {
-		_, err := d.resolveAbsoluteURLEndpoint(serviceRef, 0, maxServiceReferenceDepth, documents)
-		if err != nil {
-			return ErrReferencedServiceNotAnEndpoint{Cause: err}
+		if isServiceReference(serviceRef.String()) {
+			err := validateServiceReference(serviceRef)
+			if err != nil {
+				return ErrReferencedServiceNotAnEndpoint{Cause: err}
+			}
+			_, err = d.resolveService(serviceRef, 0, maxServiceReferenceDepth, documents)
+			if err != nil {
+				return ErrReferencedServiceNotAnEndpoint{Cause: err}
+			}
 		}
 	}
 	return nil
 }
 
-// resolveAbsoluteURLEndpoint tries to resolve an absolute URL endpoint from the given endpoint URI, which is a URI that isn't a reference (beginning with with 'did:').
+// resolveService tries to resolve a DID service from the given endpoint URI, following references (URIs that begin with 'did:').
 // When the endpoint is a reference it resolves it up until the (per spec) max reference depth. When resolving a reference it recursively calls itself with depth + 1.
 // The documentCache map is used to avoid resolving the same document over and over again, which might be a (slightly more) expensive operation.
-func (d *didman) resolveAbsoluteURLEndpoint(endpoint ssi.URI, depth int, maxDepth int, documentCache map[string]*did.Document) (ssi.URI, error) {
+func (d *didman) resolveService(endpoint ssi.URI, depth int, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
 	if depth >= maxDepth {
-		return ssi.URI{}, ErrServiceReferenceToDeep
+		return did.Service{}, ErrServiceReferenceToDeep
 	}
-	if !isServiceReference(endpoint) {
-		// Not a reference to be resolved
-		return endpoint, nil
-	}
-	err := validateServiceReference(endpoint)
-	if err != nil {
-		return ssi.URI{}, err
-	}
-	referencedDID, _ := did.ParseDIDURL(endpoint.String()) // err can't occur since it ahs been checked by validateServiceReference() just above
+
+	referencedDID, _ := did.ParseDIDURL(endpoint.String()) // err can't occur since it has been checked by validateServiceReference() just above
 	referencedDID.Query = ""
 	referencedDID.Path = ""
 	referencedDID.Fragment = ""
 	referencedDID.PathSegments = nil
 	var document *did.Document
+	var err error
 	if document = documentCache[referencedDID.String()]; document == nil {
 		document, _, err = d.docResolver.Resolve(*referencedDID, nil)
 		if err != nil {
-			return ssi.URI{}, err
+			return did.Service{}, err
 		}
 		documentCache[referencedDID.String()] = document
 	}
-	_, resolvedEndpointURL, err := document.ResolveEndpointURL(endpoint.Query().Get(serviceTypeQueryParameter))
-	// Nested reference?
-	resolvedEndpointURI, err := ssi.ParseURI(resolvedEndpointURL)
-	if err != nil {
-		return ssi.URI{}, err
+
+	var service *did.Service
+	for _, curr := range document.Service {
+		if curr.Type == endpoint.Query().Get(serviceTypeQueryParameter) {
+			service = &curr
+			break
+		}
 	}
-	if isServiceReference(*resolvedEndpointURI) {
-		// Recursive
-		return d.resolveAbsoluteURLEndpoint(*resolvedEndpointURI, depth+1, maxDepth, documentCache)
+	if service == nil {
+		return did.Service{}, ErrServiceNotFound
 	}
-	return *resolvedEndpointURI, nil
+
+	if endpointURL, isString := service.ServiceEndpoint.(string); isString {
+		if isServiceReference(endpointURL) {
+			// Looks like a reference, recurse
+			resolvedEndpointURI, err := ssi.ParseURI(endpointURL)
+			if err != nil {
+				return did.Service{}, err
+			}
+			err = validateServiceReference(*resolvedEndpointURI)
+			if err != nil {
+				return did.Service{}, err
+			}
+			return d.resolveService(*resolvedEndpointURI, depth+1, maxDepth, documentCache)
+		}
+	}
+	return *service, nil
 }
 
 func validateServiceReference(endpointURI ssi.URI) error {
@@ -445,8 +475,8 @@ func validateServiceReference(endpointURI ssi.URI) error {
 	return nil
 }
 
-func isServiceReference(endpoint ssi.URI) bool {
-	return strings.HasPrefix(endpoint.Scheme, serviceRefURIScheme)
+func isServiceReference(endpoint string) bool {
+	return strings.HasPrefix(endpoint, serviceRefURIScheme+":")
 }
 
 func filterCompoundServices(doc *did.Document) []did.Service {

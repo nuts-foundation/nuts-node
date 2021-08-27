@@ -601,6 +601,10 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 			},
 		},
 		{
+			Type: "csRefType",
+			ServiceEndpoint: id.String() + "/serviceEndpoint?type=csType",
+		},
+		{
 			Type:            "url",
 			ServiceEndpoint: expectedURL,
 		},
@@ -613,10 +617,17 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expectedURL, actual)
 	})
-	t.Run("ok - resolve references", func(t *testing.T) {
+	t.Run("ok - resolve references - top level is compound service", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
 		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csType", "eType", false)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedRef, actual)
+	})
+	t.Run("ok - resolve references - top level is reference", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csRefType", "eType", false)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedRef, actual)
 	})
@@ -631,7 +642,7 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
 		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "non-existent", "eType", false)
-		assert.ErrorIs(t, err, ErrServiceNotFound)
+		assert.Contains(t, err.Error(), ErrServiceNotFound.Error())
 		assert.Empty(t, actual)
 	})
 	t.Run("error - unknown endpoint", func(t *testing.T) {
