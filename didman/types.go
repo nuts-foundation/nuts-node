@@ -31,6 +31,8 @@ const ContactInformationServiceType = "node-contact-info"
 
 // Didman groups all high-level methods for manipulating DID Documents
 type Didman interface {
+	ServiceResolver
+
 	// AddEndpoint adds a service to a DID Document. The serviceEndpoint is set to the given URL.
 	// It returns ErrDuplicateService if a service with the given type already exists.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
@@ -55,11 +57,6 @@ type Didman interface {
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	AddCompoundService(id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error)
 
-	// GetCompoundServices returns a list of all compoundServices defined on the given DID document.
-	// It does not include special compound services like ContactInformation
-	// It can also return various errors from DocResolver.Resolve
-	GetCompoundServices(id did.DID) ([]did.Service, error)
-
 	// UpdateContactInformation adds or updates the compoundService with type equal to node-contact-info with provided
 	// contact information to the DID Document.
 	// It returns the contact information when the update was successful.
@@ -74,7 +71,10 @@ type Didman interface {
 	// SearchOrganizations searches VCR for organizations which's name matches the given query.
 	// It then optionally filters on those which have a service of the specified type on their DID Document.
 	SearchOrganizations(query string, didServiceType *string) ([]OrganizationSearchResult, error)
+}
 
+// ServiceResolver defines high-level operations for resolving services of DID documents.
+type ServiceResolver interface {
 	// GetCompoundServiceEndpoint retrieves the endpoint with the specified endpointType from the specified compound service.
 	// It returns the serviceEndpoint of the specified service (which must be an absolute URL endpoint).
 	// If resolveReferences is true and the specified endpointType contains a reference, it is resolved and the referenced endpoint is returned instead.
@@ -82,6 +82,11 @@ type Didman interface {
 	// It returns ErrInvalidServiceQuery if the endpoint doesn't contain a (valid) reference and resolveReferences = true.
 	// It returns ErrServiceReferenceToDeep if the endpoint reference is nested too deep.
 	GetCompoundServiceEndpoint(id did.DID, compoundServiceType string, endpointType string, resolveReferences bool) (string, error)
+
+	// GetCompoundServices returns a list of all compoundServices defined on the given DID document.
+	// It does not include special compound services like ContactInformation
+	// It can also return various errors from DocResolver.Resolve
+	GetCompoundServices(id did.DID) ([]did.Service, error)
 }
 
 // ContactInformation contains set of contact information entries

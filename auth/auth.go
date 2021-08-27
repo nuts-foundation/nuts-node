@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/didman"
 	"path"
 	"time"
 
@@ -35,6 +36,7 @@ type Auth struct {
 	vcr               vcr.VCR
 	trustStore        *x509.CertPool
 	clientCertificate *tls.Certificate
+	serviceResolver   didman.ServiceResolver
 }
 
 // Name returns the name of the module.
@@ -71,12 +73,13 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.KeyStore) *Auth {
+func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.ServiceResolver) *Auth {
 	return &Auth{
-		config:   config,
-		registry: registry,
-		keyStore: keyStore,
-		vcr:      vcr,
+		config:          config,
+		registry:        registry,
+		keyStore:        keyStore,
+		vcr:             vcr,
+		serviceResolver: serviceResolver,
 	}
 }
 
@@ -142,7 +145,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, nameResolver, auth.keyStore, auth.contractClient)
+	auth.oauthClient = oauth.NewOAuthService(auth.registry, nameResolver, auth.serviceResolver, auth.keyStore, auth.contractClient)
 
 	if err := auth.oauthClient.Configure(); err != nil {
 		return err

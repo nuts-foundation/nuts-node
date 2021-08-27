@@ -28,6 +28,7 @@ import (
 	"fmt"
 
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 
 	"net/url"
@@ -63,6 +64,9 @@ var custodianDIDDocument = getCustodianDIDDocument()
 var actorSigningKeyID = getActorSigningKey()
 var custodianSigningKeyID = getCustodianSigningKey()
 var orgConceptName = concept.Concept{"organization": concept.Concept{"name": "Carebears", "city": "Caretown"}}
+
+const expectedService = "unit-test"
+const expectedAudience = "http://oauth"
 
 func getActorSigningKey() *ssi.URI {
 	serviceID, _ := ssi.ParseURI(actorDID.String() + "#signing-key")
@@ -181,19 +185,19 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
 		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(custodianDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.privateKeyStore.EXPECT().Exists(custodianSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), custodianSigningKeyID.String()).Return("expectedAT", nil)
 
 		sid := "subject"
-		serviceID, _ := ssi.ParseURI(custodianDID.String() + "#service-id")
 		claims := services.NutsJwtBearerToken{
 			SubjectID: &sid,
 			KeyID:     actorSigningKeyID.String(),
-			Service:   "service",
+			Service:   expectedService,
 		}
 
 		headers := map[string]interface{}{
-			jwt.AudienceKey:   serviceID.String(),
+			jwt.AudienceKey:   expectedAudience,
 			jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
 			jwt.JwtIDKey:      "a005e81c-6749-4967-b01c-495228fcafb4",
 			jwt.IssuedAtKey:   time.Now().UTC(),
@@ -232,6 +236,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
 		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, actorDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(custodianDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.privateKeyStore.EXPECT().Exists(custodianSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), custodianSigningKeyID.String()).Return("expectedAT", nil)
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(&contract.VPVerificationResult{
@@ -357,6 +362,7 @@ func TestService_validateAud(t *testing.T) {
 		defer ctx.ctrl.Finish()
 		tokenCtx := validContext()
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(custodianDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 
 		err := ctx.oauthService.validateAudience(tokenCtx)
 
@@ -378,11 +384,11 @@ func TestService_validateAud(t *testing.T) {
 		assert.EqualError(t, err, "aud does not contain a single URI")
 	})
 
-	t.Run("error - resolve returns error", func(t *testing.T) {
+	t.Run("error - endpoint resolve returns error", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 		tokenCtx := validContext()
-		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(custodianDID, expectedService, services.OAuthEndpointType, true).Return("", types.ErrNotFound)
 
 		err := ctx.oauthService.validateAudience(tokenCtx)
 
@@ -394,11 +400,13 @@ func TestService_validateAud(t *testing.T) {
 	})
 
 	t.Run("error - wrong audience", func(t *testing.T) {
+		// TODO: Re-enable after https://github.com/nuts-foundation/nuts-specification/issues/124 has been implemented
+		t.SkipNow()
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.AudienceKey, []string{"not_the_right_audience"})
-		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(getCustodianDIDDocument(), nil, nil).AnyTimes()
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(custodianDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 
 		err := ctx.oauthService.validateAudience(tokenCtx)
 
@@ -406,7 +414,7 @@ func TestService_validateAud(t *testing.T) {
 			return
 		}
 
-		assert.EqualError(t, err, "aud does not contain correct endpoint identifier for subject")
+		assert.EqualError(t, err, "aud does not contain correct endpoint URL")
 	})
 }
 
@@ -516,7 +524,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		Actor:         actorDID.String(),
 		Subject:       &sid,
 		IdentityToken: &usi,
-		Service:       "service",
+		Service:       expectedService,
 	}
 
 	validCredential := vc.VerifiableCredential{
@@ -546,6 +554,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(custodianDIDDocument, nil, nil).AnyTimes()
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(custodianDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(actorDID, gomock.Any()).MinTimes(1).Return(actorSigningKeyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), actorSigningKeyID.String()).Return("token", nil)
 
@@ -562,6 +571,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(custodianDIDDocument, nil, nil).AnyTimes()
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(custodianDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(actorDID, gomock.Any()).MinTimes(1).Return(actorSigningKeyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), actorSigningKeyID.String()).Return("token", nil)
 
@@ -596,12 +606,12 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		document := getCustodianDIDDocument()
 		document.Service = []did.Service{}
 
-		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(document, nil, nil)
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(custodianDID, expectedService, services.OAuthEndpointType, true).Return("", didman.ErrServiceNotFound)
 
 		token, err := ctx.oauthService.CreateJwtGrant(request)
 
 		assert.Empty(t, token)
-		assert.Contains(t, err.Error(), "service not found")
+		assert.ErrorIs(t, err, didman.ErrServiceNotFound)
 	})
 
 	t.Run("request without custodian", func(t *testing.T) {
@@ -624,6 +634,7 @@ func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		ctx.didResolver.EXPECT().Resolve(custodianDID, gomock.Any()).Return(custodianDIDDocument, nil, nil).AnyTimes()
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(custodianDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(actorDID, gomock.Any()).MinTimes(1).Return(actorSigningKeyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), actorSigningKeyID.String()).Return("", errors.New("boom!"))
 
@@ -734,19 +745,11 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 	t.Run("returns_error_when_resolve_compound_service_fails", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.didResolver.
-			EXPECT().
-			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
-			Return(nil, nil, errors.New("random error"))
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(*vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return("", didman.ErrServiceNotFound)
 
-		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL("test-service", *vdr.TestDIDA)
+		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL(expectedService, *vdr.TestDIDA)
 
-		expectedErr := errors.New("failed to resolve OAuth endpoint URL: random error")
-
-		if assert.Error(t, err) {
-			assert.Equal(t, expectedErr.Error(), err.Error())
-		}
-
+		assert.ErrorIs(t, err, didman.ErrServiceNotFound)
 		assert.Empty(t, parsedURL)
 	})
 
@@ -768,14 +771,10 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 			},
 		}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		ctx.didResolver.
-			EXPECT().
-			Resolve(*vdr.TestDIDA, &types.ResolveMetadata{}).
-			Return(currentDIDDocument, &types.DocumentMetadata{}, nil).Times(2)
-
 		expectedURL, _ := url.Parse("http://localhost")
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(*vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return(expectedURL.String(), nil)
 
-		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL("test-service", *vdr.TestDIDA)
+		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL(expectedService, *vdr.TestDIDA)
 
 		assert.NoError(t, err)
 		assert.Equal(t, *expectedURL, parsedURL)
@@ -783,17 +782,16 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 }
 
 func validContext() *validationContext {
-	serviceID, _ := ssi.ParseURI(custodianDID.String() + "#service-id")
 	sid := "subject"
 	usi := base64.StdEncoding.EncodeToString([]byte("irma identity token"))
 	claims := services.NutsJwtBearerToken{
 		UserIdentity: &usi,
 		SubjectID:    &sid,
 		KeyID:        actorSigningKeyID.String(),
-		Service:      "service",
+		Service:      expectedService,
 	}
 	hdrs := map[string]interface{}{
-		jwt.AudienceKey:   serviceID.String(),
+		jwt.AudienceKey:   expectedAudience,
 		jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
 		jwt.JwtIDKey:      "a005e81c-6749-4967-b01c-495228fcafb4",
 		jwt.IssuedAtKey:   time.Now().UTC(),
@@ -839,6 +837,7 @@ type testContext struct {
 	nameResolver       *vcr.MockConceptFinder
 	didResolver        *types.MockStore
 	keyResolver        *types.MockKeyResolver
+	serviceResolver    *didman.MockServiceResolver
 	oauthService       *service
 }
 
@@ -849,6 +848,7 @@ var createContext = func(t *testing.T) *testContext {
 	privateKeyStore := crypto.NewMockKeyStore(ctrl)
 	nameResolver := vcr.NewMockConceptFinder(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
+	serviceResolver := didman.NewMockServiceResolver(ctrl)
 	didResolver := types.NewMockStore(ctrl)
 
 	return &testContext{
@@ -857,6 +857,7 @@ var createContext = func(t *testing.T) *testContext {
 		privateKeyStore:    privateKeyStore,
 		keyResolver:        keyResolver,
 		nameResolver:       nameResolver,
+		serviceResolver:    serviceResolver,
 		didResolver:        didResolver,
 		oauthService: &service{
 			docResolver:     doc.Resolver{Store: didResolver},
@@ -864,6 +865,7 @@ var createContext = func(t *testing.T) *testContext {
 			contractClient:  contractClientMock,
 			privateKeyStore: privateKeyStore,
 			conceptFinder:   nameResolver,
+			serviceResolver: serviceResolver,
 		},
 	}
 }
