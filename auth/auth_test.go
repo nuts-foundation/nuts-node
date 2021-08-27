@@ -104,7 +104,7 @@ func testInstance(t *testing.T, cfg Config) *Auth {
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
 	vcrInstance := vcr.NewTestVCRInstance(testDirectory)
-	return NewAuthInstance(cfg, store.NewMemoryStore(), vcrInstance, cryptoInstance)
+	return NewAuthInstance(cfg, store.NewMemoryStore(), vcrInstance, cryptoInstance, nil)
 }
 
 func TestAuth_Name(t *testing.T) {

@@ -12,6 +12,7 @@ func NewTestAuthInstance(testDirectory string) *Auth {
 		store.NewMemoryStore(),
 		vcr.NewTestVCRInstance(testDirectory),
 		crypto.NewTestCryptoInstance(testDirectory),
+		nil,
 	)
 }
 

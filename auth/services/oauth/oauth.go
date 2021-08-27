@@ -24,10 +24,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/url"
 	"time"
-
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -55,6 +55,7 @@ type service struct {
 	keyResolver     types.KeyResolver
 	privateKeyStore nutsCrypto.KeyStore
 	contractClient  services.ContractClient
+	serviceResolver didman.ServiceResolver
 }
 
 type validationContext struct {
@@ -67,10 +68,11 @@ type validationContext struct {
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, privateKeyStore nutsCrypto.KeyStore, contractClient services.ContractClient) services.OAuthClient {
+func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, serviceResolver didman.ServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractClient services.ContractClient) services.OAuthClient {
 	return &service{
 		docResolver:     doc.Resolver{Store: store},
 		keyResolver:     doc.KeyResolver{Store: store},
+		serviceResolver: serviceResolver,
 		contractClient:  contractClient,
 		conceptFinder:   conceptFinder,
 		privateKeyStore: privateKeyStore,
@@ -169,21 +171,17 @@ func (s *service) validateAudience(context *validationContext) error {
 	if len(context.jwtBearerToken.Audience()) != 1 {
 		return errors.New("aud does not contain a single URI")
 	}
-	audience := context.jwtBearerToken.Audience()[0]
 	service := context.jwtBearerTokenClaims.Service
 	// parsing is already done in a previous check
 	subject, _ := did.ParseDID(context.jwtBearerToken.Subject())
-	iat := context.jwtBearerToken.IssuedAt()
 
-	uri, _, err := services.ResolveCompoundServiceURL(s.docResolver, *subject, service, services.OAuthEndpointType, &iat)
+	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*subject, service, services.OAuthEndpointType, true)
 	if err != nil {
 		return err
 	}
-
-	if audience != uri.String() {
-		return errors.New("aud does not contain correct endpoint identifier for subject")
+	if context.jwtBearerToken.Audience()[0] != endpointURL {
+		return errors.New("aud does not contain correct endpoint URL")
 	}
-
 	return nil
 }
 
@@ -243,7 +241,7 @@ func (s *service) validateAuthorizationCredentials(context validationContext) er
 
 // GetOAuthEndpointURL returns the oauth2 endpoint URL of the custodian for a service
 func (s *service) GetOAuthEndpointURL(service string, custodian did.DID) (url.URL, error) {
-	_, endpointURL, err := services.ResolveCompoundServiceURL(s.docResolver, custodian, service, services.OAuthEndpointType, nil)
+	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(custodian, service, services.OAuthEndpointType, true)
 	if err != nil {
 		return url.URL{}, fmt.Errorf("failed to resolve OAuth endpoint URL: %w", err)
 	}
@@ -284,12 +282,12 @@ func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*servi
 		}
 	}
 
-	endpointID, _, err := services.ResolveCompoundServiceURL(s.docResolver, *custodian, request.Service, services.OAuthEndpointType, nil)
+	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*custodian, request.Service, services.OAuthEndpointType, true)
 	if err != nil {
 		return nil, err
 	}
 
-	keyVals := claimsFromRequest(request, endpointID.String())
+	keyVals := claimsFromRequest(request, endpointURL)
 
 	now := time.Now()
 	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(*actor, &now)
