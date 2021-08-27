@@ -393,7 +393,100 @@ func TestService_validateAud(t *testing.T) {
 	})
 }
 
-func TestOAuthService_parseAndValidateJwtBearerToken(t *testing.T) {
+func TestService_validateAuthorizationCredentials(t *testing.T) {
+	ctx := createContext(t)
+	defer ctx.ctrl.Finish()
+
+	t.Run("ok - no authorization credentials", func(t *testing.T) {
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Remove(vcClaim)
+		signToken(tokenCtx)
+
+		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - empty list", func(t *testing.T) {
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Set(vcClaim, []interface{}{})
+		signToken(tokenCtx)
+
+		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - wrong vcs contents", func(t *testing.T) {
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Set(vcClaim, "not a vc")
+		signToken(tokenCtx)
+
+		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "invalid jwt.vcs: field does not contain an array of credentials")
+	})
+
+	t.Run("error - wrong vcs contents 2", func(t *testing.T) {
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Set(vcClaim, []interface{}{"}"})
+		signToken(tokenCtx)
+
+		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "invalid jwt.vcs: cannot unmarshal authorization credential JSON")
+	})
+
+	t.Run("error - jwt.iss <> credentialSubject.ID mismatch", func(t *testing.T) {
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Set(jwt.IssuerKey, "unknown")
+		signToken(tokenCtx)
+		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, gomock.Any()).Return(nil)
+
+		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "credentialSubject.ID of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW does not match jwt.iss: unknown")
+	})
+
+	t.Run("error - jwt.sub <> issuer mismatch", func(t *testing.T) {
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, "unknown")
+		signToken(tokenCtx)
+		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, gomock.Any()).Return(nil)
+
+		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "issuer of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW does not match jwt.sub: unknown")
+	})
+
+	t.Run("error - invalid credential", func(t *testing.T) {
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, "unknown")
+		signToken(tokenCtx)
+		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, gomock.Any()).Return(vcr.ErrRevoked)
+
+		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "invalid jwt.vcs: credential is revoked")
+	})
+}
+
+func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 	ctx := createContext(t)
 	defer ctx.ctrl.Finish()
 
@@ -450,7 +543,7 @@ func TestOAuthService_parseAndValidateJwtBearerToken(t *testing.T) {
 	})
 }
 
-func TestOAuthService_buildAccessToken(t *testing.T) {
+func TestService_buildAccessToken(t *testing.T) {
 	t.Run("missing subject", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
@@ -488,7 +581,7 @@ func TestOAuthService_buildAccessToken(t *testing.T) {
 	// todo some extra tests needed for claims generation
 }
 
-func TestOAuthService_CreateJwtBearerToken(t *testing.T) {
+func TestService_CreateJwtBearerToken(t *testing.T) {
 	sid := "789"
 	usi := "irma identity token"
 
@@ -654,7 +747,7 @@ func Test_claimsFromRequest(t *testing.T) {
 	})
 }
 
-func TestOAuthService_IntrospectAccessToken(t *testing.T) {
+func TestService_IntrospectAccessToken(t *testing.T) {
 	t.Run("validate access token", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
@@ -783,8 +876,8 @@ func validContext() *validationContext {
 		}
 	}
 	return &validationContext{
-		jwtBearerToken:       token,
-		kid:                  actorSigningKeyID.String(),
+		jwtBearerToken: token,
+		kid:            actorSigningKeyID.String(),
 	}
 }
 

@@ -81,7 +81,8 @@ func (c validationContext) purposeOfUse() string {
 		return ""
 	}
 	switch v := val.(type) {
-	case string: return v
+	case string:
+		return v
 	case []string:
 		if len(v) > 0 {
 			return v[0]
@@ -301,10 +302,7 @@ func (s *service) validateAuthorizationCredentials(context validationContext) er
 	// convert from map to bytes
 	rawVCs := make([][]byte, len(vcMaps))
 	for i, vcMap := range vcMaps {
-		rawVC, err := json.Marshal(vcMap)
-		if err != nil {
-			return fmt.Errorf(errInvalidVCClaim, err)
-		}
+		rawVC, _ := json.Marshal(vcMap)
 		rawVCs[i] = rawVC
 	}
 
@@ -313,7 +311,7 @@ func (s *service) validateAuthorizationCredentials(context validationContext) er
 	for _, rawVC := range rawVCs {
 		vc := vc2.VerifiableCredential{}
 		if err := json.Unmarshal(rawVC, &vc); err != nil {
-			return fmt.Errorf(errInvalidVCClaim, err)
+			return fmt.Errorf(errInvalidVCClaim, errors.New("cannot unmarshal authorization credential JSON"))
 		}
 		if vc.IsType(*credential.NutsAuthorizationCredentialTypeURI) {
 			authCreds = append(authCreds, vc)
