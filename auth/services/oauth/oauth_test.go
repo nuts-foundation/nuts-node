@@ -356,12 +356,6 @@ func TestService_validateSubject(t *testing.T) {
 	})
 }
 
-func TestParseURL(t *testing.T) {
-	l, err := url.Parse("https://nodeA:443/n2n/auth/v1/accesstoken")
-	assert.NoError(t, err)
-	println(l)
-}
-
 func TestService_validateAud(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createContext(t)
