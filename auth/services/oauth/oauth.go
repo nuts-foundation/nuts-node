@@ -27,7 +27,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/didman"
 
 	vc2 "github.com/nuts-foundation/go-did/vc"
@@ -72,24 +71,8 @@ type validationContext struct {
 	kid                        string
 	actorName                  string
 	actorCity                  string
+	purposeOfUse               string
 	contractVerificationResult *contract.VPVerificationResult
-}
-
-func (c validationContext) purposeOfUse() string {
-	val, ok := c.jwtBearerToken.Get(purposeOfUseClaim)
-	if !ok {
-		return ""
-	}
-	switch v := val.(type) {
-	case string:
-		return v
-	case []string:
-		if len(v) > 0 {
-			return v[0]
-		}
-	}
-
-	return ""
 }
 
 func (c validationContext) subjectID() *string {
@@ -222,6 +205,11 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 		}
 	}
 
+	// validate the endpoint in aud, according to RFC003 §5.2.1.9
+	if err := s.validatePurposeOfUse(&context); err != nil {
+		return nil, err
+	}
+
 	// validate the endpoint in aud, according to RFC003 §5.2.1.6
 	if err := s.validateAudience(&context); err != nil {
 		return nil, err
@@ -248,23 +236,33 @@ func (s *service) validateActor(context *validationContext) error {
 	return nil
 }
 
+// check if the purposeOfUser is filled and adds it to the validationContext
+func (s *service) validatePurposeOfUse(context *validationContext) error {
+	purposeOfUse := context.stringVal(purposeOfUseClaim)
+	if purposeOfUse == nil {
+		return errors.New("no purposeOfUse given")
+	}
+
+	context.purposeOfUse = *purposeOfUse
+
+	return nil
+}
+
 // check if the aud service identifier matches the oauth endpoint of the requested service
 func (s *service) validateAudience(context *validationContext) error {
 	if len(context.jwtBearerToken.Audience()) != 1 {
 		return errors.New("aud does not contain a single URI")
 	}
-	purposeOfUse := context.purposeOfUse()
+
 	// parsing is already done in a previous check
 	subject, _ := did.ParseDID(context.jwtBearerToken.Subject())
 
-	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*subject, purposeOfUse, services.OAuthEndpointType, true)
+	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*subject, context.purposeOfUse, services.OAuthEndpointType, true)
 	if err != nil {
 		return err
 	}
 	if context.jwtBearerToken.Audience()[0] != endpointURL {
-		err := errors.New("aud does not contain correct endpoint URL")
-		// TODO: Make this blocking after https://github.com/nuts-foundation/nuts-specification/issues/124 is implemented
-		log.Logger().Infof("%s: allowed for now but will be enforced soon (https://github.com/nuts-foundation/nuts-specification/issues/124)", err.Error())
+		return errors.New("aud does not contain correct endpoint URL")
 	}
 	return nil
 }
@@ -515,7 +513,7 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 
 	at := services.NutsAccessToken{
 		SubjectID:  context.subjectID(),
-		Service:    context.purposeOfUse(),
+		Service:    context.purposeOfUse,
 		Expiration: time.Now().Add(time.Minute * 15).UTC().Unix(), // Expires in 15 minutes
 		IssuedAt:   issueTime.UTC().Unix(),
 		Issuer:     issuer.String(),
