@@ -331,6 +331,23 @@ func TestService_validateSubject(t *testing.T) {
 	})
 }
 
+func TestService_validatePurposeOfUse(t *testing.T) {
+	t.Run("error - no purposeOfUser", func(t *testing.T) {
+		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Remove(purposeOfUseClaim)
+
+		err := ctx.oauthService.validatePurposeOfUse(tokenCtx)
+
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.EqualError(t, err, "no purposeOfUse given")
+	})
+}
+
 func TestService_validateAud(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createContext(t)
