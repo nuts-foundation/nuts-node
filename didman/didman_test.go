@@ -129,15 +129,15 @@ func TestDidman_AddEndpoint(t *testing.T) {
 func TestDidman_AddCompoundService(t *testing.T) {
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
-	helloServiceQuery, _ := ssi.ParseURI(vdr.TestDIDA.String() + "/serviceEndpoint?type=hello")
-	worldServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "/serviceEndpoint?type=world")
-	universeServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "/serviceEndpoint?type=universe")
-	universeNestedServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "/serviceEndpoint?type=universe-ref")
-	cyclicServiceQuery, _ := ssi.ParseURI(vdr.TestDIDB.String() + "/serviceEndpoint?type=cyclic-ref")
+	helloServiceQuery := referenceFor(*vdr.TestDIDA, "hello")
+	worldServiceQuery := referenceFor(*vdr.TestDIDB, "world")
+	universeServiceQuery := referenceFor(*vdr.TestDIDB, "universe")
+	universeNestedServiceQuery := referenceFor(*vdr.TestDIDB, "universe-ref")
+	cyclicServiceQuery := referenceFor(*vdr.TestDIDB, "cyclic-ref")
 	references := make(map[string]ssi.URI, 0)
-	references["hello"] = *helloServiceQuery
-	references["world"] = *worldServiceQuery
-	references["universe"] = *universeServiceQuery
+	references["hello"] = helloServiceQuery
+	references["world"] = worldServiceQuery
+	references["universe"] = universeServiceQuery
 
 	expectedRefs := map[string]interface{}{}
 	for k, v := range references {
@@ -174,6 +174,10 @@ func TestDidman_AddCompoundService(t *testing.T) {
 				Type:            "cyclic-ref",
 				ServiceEndpoint: vdr.TestDIDB.String() + "/serviceEndpoint?type=cyclic-ref",
 			},
+			{
+				Type:            "bool",
+				ServiceEndpoint: true,
+			},
 		},
 	}
 
@@ -204,7 +208,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDB, nil).MinTimes(1).Return(&docB, meta, nil)
 		ctx.vdr.EXPECT().Update(*vdr.TestDIDB, meta.Hash, gomock.Any(), nil)
 
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDB, "helloworld", map[string]ssi.URI{"foobar": *universeNestedServiceQuery})
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDB, "helloworld", map[string]ssi.URI{"foobar": universeNestedServiceQuery})
 
 		assert.NoError(t, err)
 	})
@@ -222,23 +226,31 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDB, nil).MinTimes(1).Return(&docB, meta, nil)
 
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "hellonuts", map[string]ssi.URI{"foobar": *cyclicServiceQuery})
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "hellonuts", map[string]ssi.URI{"foobar": cyclicServiceQuery})
 
 		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, ErrServiceReferenceToDeep)
 	})
 	t.Run("error - holder DID document can't be resolved", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": *helloServiceQuery})
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": helloServiceQuery})
 		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, types.ErrNotFound)
 	})
 	t.Run("error - service reference does not contain type", func(t *testing.T) {
 		ctx := newMockContext(t)
-		invalidQuery := *helloServiceQuery
+		invalidQuery := helloServiceQuery
 		invalidQuery.RawQuery = ""
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": invalidQuery})
 		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, ErrInvalidServiceQuery)
 	})
+}
+
+func referenceFor(holder did.DID, referencedType string) ssi.URI {
+	result, err := ssi.ParseURI(holder.String() + "/serviceEndpoint?type=" + referencedType)
+	if err != nil {
+		panic(err)
+	}
+	return *result
 }
 
 func TestDidman_validateServiceReference(t *testing.T) {
@@ -596,17 +608,28 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 		{
 			Type: "csType",
 			ServiceEndpoint: map[string]interface{}{
-				"eType":   expectedRef,
-				"non-url": true,
+				"eType": expectedRef,
 			},
 		},
 		{
-			Type: "csRefType",
+			Type: "csTypeNoRefs",
+			ServiceEndpoint: map[string]interface{}{
+				"eType": expectedURL,
+			},
+		},
+		{
+			Type:            "csRefType",
 			ServiceEndpoint: id.String() + "/serviceEndpoint?type=csType",
 		},
 		{
 			Type:            "url",
 			ServiceEndpoint: expectedURL,
+		},
+		{
+			Type: "csInvalidType",
+			ServiceEndpoint: map[string]interface{}{
+				"non-url": true,
+			},
 		},
 	}, ID: *id}
 	t.Run("ok - resolve references", func(t *testing.T) {
@@ -614,6 +637,14 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
 		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csType", "eType", true)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedURL, actual)
+	})
+	t.Run("ok - no references", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
+		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csTypeNoRefs", "eType", true)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedURL, actual)
 	})
@@ -655,7 +686,7 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 	t.Run("error - endpoint is not an URL", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
-		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csType", "non-url", false)
+		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csInvalidType", "non-url", false)
 		assert.ErrorIs(t, err, ErrReferencedServiceNotAnEndpoint{})
 		assert.Empty(t, actual)
 	})

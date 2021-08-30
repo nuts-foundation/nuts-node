@@ -171,21 +171,17 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	}
 
 	// Second, resolve the endpoint in the compound service
-	endpoints := make(map[string]interface{}, 0)
+	endpoints := make(map[string]string, 0)
 	err = compoundService.UnmarshalServiceEndpoint(&endpoints)
 	if err != nil {
 		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("referenced service is not a compound service: %w", err)}
 	}
 	endpoint := endpoints[endpointType]
-	if endpoint == nil {
+	if endpoint == "" {
 		return "", ErrServiceNotFound
 	}
-	endpointStr, isStr := endpoint.(string)
-	if !isStr {
-		return "", ErrReferencedServiceNotAnEndpoint{Cause: errors.New("endpoint is not a string")}
-	}
-	if resolveReferences {
-		endpointURI, err := ssi.ParseURI(endpointStr)
+	if resolveReferences && isServiceReference(endpoint) {
+		endpointURI, err := ssi.ParseURI(endpoint)
 		if err != nil {
 			// Not sure when this could ever happen
 			return "", err
@@ -194,9 +190,13 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 		if err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("%s", resolvedEndpoint.ServiceEndpoint), nil
+		err = resolvedEndpoint.UnmarshalServiceEndpoint(&endpoint)
+		if err != nil {
+			return "", ErrReferencedServiceNotAnEndpoint{Cause: err}
+		}
+		return endpoint, nil
 	}
-	return endpointStr, nil
+	return endpoint, nil
 }
 
 func (d *didman) DeleteService(serviceID ssi.URI) error {
@@ -405,13 +405,16 @@ func (d *didman) resolveService(endpoint ssi.URI, depth int, maxDepth int, docum
 		return did.Service{}, ErrServiceReferenceToDeep
 	}
 
-	referencedDID, _ := did.ParseDIDURL(endpoint.String()) // err can't occur since it has been checked by validateServiceReference() just above
+	referencedDID, err := did.ParseDIDURL(endpoint.String())
+	if err != nil {
+		// Shouldn't happen, because only DID URLs are passed?
+		return did.Service{}, err
+	}
 	referencedDID.Query = ""
 	referencedDID.Path = ""
 	referencedDID.Fragment = ""
 	referencedDID.PathSegments = nil
 	var document *did.Document
-	var err error
 	if document = documentCache[referencedDID.String()]; document == nil {
 		document, _, err = d.docResolver.Resolve(*referencedDID, nil)
 		if err != nil {
