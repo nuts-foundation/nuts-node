@@ -355,11 +355,19 @@ func (s *service) IntrospectAccessToken(accessToken string) (*services.NutsAcces
 	if err != nil {
 		return nil, err
 	}
-	var result services.NutsAccessToken
+
+	result := &services.NutsAccessToken{}
+
 	if err := result.FromMap(token.PrivateClaims()); err != nil {
 		return nil, err
 	}
-	return &result, err
+
+	result.Subject = token.Subject()
+	result.Issuer = token.Issuer()
+	result.IssuedAt = token.IssuedAt().Unix()
+	result.Expiration = token.Expiration().Unix()
+
+	return result, err
 }
 
 // todo split this func for easier testing

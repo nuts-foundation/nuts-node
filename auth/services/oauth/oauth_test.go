@@ -698,6 +698,11 @@ func TestOAuthService_IntrospectAccessToken(t *testing.T) {
 		if !assert.NoError(t, err) || !assert.NotNil(t, claims) {
 			t.FailNow()
 		}
+
+		assert.Equal(t, tokenCtx.jwtBearerToken.Subject(), claims.Subject)
+		assert.Equal(t, tokenCtx.jwtBearerToken.Issuer(), claims.Issuer)
+		assert.Equal(t, tokenCtx.jwtBearerToken.IssuedAt().Unix(), claims.IssuedAt)
+		assert.Equal(t, tokenCtx.jwtBearerToken.Expiration().Unix(), claims.Expiration)
 	})
 
 	t.Run("private key not present", func(t *testing.T) {
