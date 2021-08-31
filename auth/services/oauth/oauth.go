@@ -123,7 +123,7 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 	for i, rawVC := range rawVCs {
 		vc := vc2.VerifiableCredential{}
 		if err := json.Unmarshal(rawVC, &vc); err != nil {
-			return vcs[:0], errors.New("cannot unmarshal authorization credential JSON")
+			return vcs[:0], fmt.Errorf("cannot unmarshal authorization credential: %w", err)
 		}
 		vcs[i] = vc
 	}
@@ -315,8 +315,7 @@ func (s *service) validateSubject(context *validationContext) error {
 	return nil
 }
 
-// validate the legal base, according to RFC003 §5.2.1.7 if sid is present
-// use consent store
+// validate the authorization credentials according to §5.2.1.7
 func (s *service) validateAuthorizationCredentials(context validationContext) error {
 	// filter on authorization credentials
 	vcs, err := context.verifiableCredentials()
@@ -350,7 +349,7 @@ func (s *service) validateAuthorizationCredentials(context validationContext) er
 
 		//The credential issuer equals the sub field of the JWT.
 		if authCred.Issuer.String() != sub {
-			return fmt.Errorf("issuer of authorization credential with ID: %s does not match jwt.sub: %s", authCred.Issuer.String(), sub)
+			return fmt.Errorf("issuer %s of authorization credential with ID: %s does not match jwt.sub: %s", authCred.Issuer.String(), authCred.ID.String(), sub)
 		}
 
 		//The credential credentialSubject.id equals the iss field of the JWT.
@@ -361,7 +360,7 @@ func (s *service) validateAuthorizationCredentials(context validationContext) er
 		// should be only 1 credentialSubject, but we do the range just to make sure and to avoid [0] specific code.
 		for _, authCredSubject := range authCredSubjects {
 			if authCredSubject.ID != iss {
-				return fmt.Errorf("credentialSubject.ID of authorization credential with ID: %s does not match jwt.iss: %s", authCred.Issuer.String(), iss)
+				return fmt.Errorf("credentialSubject.ID %s of authorization credential with ID: %s does not match jwt.iss: %s", authCredSubject.ID, authCred.ID.String(), iss)
 			}
 		}
 	}

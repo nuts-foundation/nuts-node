@@ -455,7 +455,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.EqualError(t, err, "invalid jwt.vcs: cannot unmarshal authorization credential JSON")
+		assert.EqualError(t, err, "invalid jwt.vcs: cannot unmarshal authorization credential: json: cannot unmarshal string into Go value of type map[string]interface {}")
 	})
 
 	t.Run("error - jwt.iss <> credentialSubject.ID mismatch", func(t *testing.T) {
@@ -469,7 +469,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.EqualError(t, err, "credentialSubject.ID of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW does not match jwt.iss: unknown")
+		assert.EqualError(t, err, "credentialSubject.ID did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1 does not match jwt.iss: unknown")
 	})
 
 	t.Run("error - jwt.sub <> issuer mismatch", func(t *testing.T) {
@@ -483,7 +483,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.EqualError(t, err, "issuer of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW does not match jwt.sub: unknown")
+		assert.EqualError(t, err, "issuer did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1 does not match jwt.sub: unknown")
 	})
 
 	t.Run("error - invalid credential", func(t *testing.T) {

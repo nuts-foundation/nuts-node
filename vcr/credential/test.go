@@ -63,9 +63,10 @@ func ValidExplicitNutsAuthorizationCredential() *vc.VerifiableCredential {
 }
 
 func validNutsAuthorizationCredential(credentialSubject NutsAuthorizationCredentialSubject) *vc.VerifiableCredential {
+	id := stringToURI(vdr.TestDIDA.String() + "#1")
 	return &vc.VerifiableCredential{
 		Context:           []ssi.URI{vc.VCContextV1URI(), *NutsContextURI},
-		ID:                &ssi.URI{},
+		ID:                &id,
 		Type:              []ssi.URI{*NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 		Issuer:            stringToURI(vdr.TestDIDA.String()),
 		IssuanceDate:      time.Now(),
