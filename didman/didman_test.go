@@ -690,6 +690,31 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 		assert.ErrorIs(t, err, ErrReferencedServiceNotAnEndpoint{})
 		assert.Empty(t, actual)
 	})
+	t.Run("ok - resolve endpoint (nuts-registry-admin-demo structure)", func(t *testing.T) {
+		expectedURL := "http://localhost:1304/web/external/transfer/notify"
+		careProvider := `{"@context":"https://www.w3.org/ns/did/v1","id":"did:nuts:8XB5WdtaxK7NZQs3onvGsRVkUSQtjWwcgRTCLtgxDAYT","service":[{"id":"did:nuts:8XB5WdtaxK7NZQs3onvGsRVkUSQtjWwcgRTCLtgxDAYT#7P8jAUReCUuAJSFoYNo75BAkdRiwFeudHaCLfyqyVkVo","serviceEndpoint":"did:nuts:5bSHwHtpSZfSCdCqaHvzDceEkjgNuKvTWVvQPB5DdeD9/serviceEndpoint?type=eOverdracht-receiver","type":"eOverdracht-receiver"}]}`
+		saasProvider := `{"@context":"https://www.w3.org/ns/did/v1","id":"did:nuts:5bSHwHtpSZfSCdCqaHvzDceEkjgNuKvTWVvQPB5DdeD9","service":[{"id":"did:nuts:5bSHwHtpSZfSCdCqaHvzDceEkjgNuKvTWVvQPB5DdeD9#BDtdeE3RGY1FoqW6zvAcMZTmGyQi1kr6GANfeEXbPufc","serviceEndpoint":"http://localhost:8080/fhir","type":"eoverdracht-fhir"},{"id":"did:nuts:5bSHwHtpSZfSCdCqaHvzDceEkjgNuKvTWVvQPB5DdeD9#DX7ZbdjbqVXYEfC83WKqisyrqrQ6sRcgrXXU63jNaHqp","serviceEndpoint":"http://localhost:1304/web/external/transfer/notify","type":"eoverdracht-notification-receiver"},{"id":"did:nuts:5bSHwHtpSZfSCdCqaHvzDceEkjgNuKvTWVvQPB5DdeD9#22LyurnBCyAJCtyzQkEq1MXqEfdP1ZNpWr1sy5REDJ34","serviceEndpoint":"http://localhost:1323/n2n/auth/v1/accesstoken","type":"oauth-request-accesstoken"},{"id":"did:nuts:5bSHwHtpSZfSCdCqaHvzDceEkjgNuKvTWVvQPB5DdeD9#6UYBLQVCZ4WWRRg2yuqqE4k727Vf5gvMEiPYMxAD5o1Y","serviceEndpoint":{"notification":"did:nuts:5bSHwHtpSZfSCdCqaHvzDceEkjgNuKvTWVvQPB5DdeD9/serviceEndpoint?type=eoverdracht-notification-receiver","oauth":"did:nuts:5bSHwHtpSZfSCdCqaHvzDceEkjgNuKvTWVvQPB5DdeD9/serviceEndpoint?type=oauth-request-accesstoken"},"type":"eOverdracht-receiver"},{"id":"did:nuts:5bSHwHtpSZfSCdCqaHvzDceEkjgNuKvTWVvQPB5DdeD9#4ECP4tF6PTvk1nH9bcA7oA9yrsTA93iDADUqLn6vK7uF","serviceEndpoint":{"fhir":"did:nuts:5bSHwHtpSZfSCdCqaHvzDceEkjgNuKvTWVvQPB5DdeD9/serviceEndpoint?type=eoverdracht-fhir"},"type":"eOverdracht-sender"}]}`
+
+		careProviderDocument := &did.Document{}
+		err := careProviderDocument.UnmarshalJSON([]byte(careProvider))
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		saasProviderDocument := &did.Document{}
+		err = saasProviderDocument.UnmarshalJSON([]byte(saasProvider))
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(careProviderDocument.ID, nil).Return(careProviderDocument, nil, nil)
+		ctx.docResolver.EXPECT().Resolve(saasProviderDocument.ID, nil).Return(saasProviderDocument, nil, nil)
+
+		actualURL, err := ctx.instance.GetCompoundServiceEndpoint(careProviderDocument.ID, "eOverdracht-receiver", "notification", true)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedURL, actualURL)
+	})
 }
 
 func TestDidman_SearchOrganizations(t *testing.T) {

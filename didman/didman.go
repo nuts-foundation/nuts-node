@@ -434,7 +434,9 @@ func (d *didman) resolveService(endpoint ssi.URI, depth int, maxDepth int, docum
 		return did.Service{}, ErrServiceNotFound
 	}
 
-	if endpointURL, isString := service.ServiceEndpoint.(string); isString {
+	var endpointURL string
+	if service.UnmarshalServiceEndpoint(&endpointURL) == nil {
+		// Service endpoint is a string, if it's a reference we need to resolve it
 		if isServiceReference(endpointURL) {
 			// Looks like a reference, recurse
 			resolvedEndpointURI, err := ssi.ParseURI(endpointURL)
