@@ -145,7 +145,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, nameResolver, auth.serviceResolver, auth.keyStore, auth.contractClient)
+	auth.oauthClient = oauth.NewOAuthService(auth.registry, nameResolver, auth.vcr, auth.serviceResolver, auth.keyStore, auth.contractClient)
 
 	if err := auth.oauthClient.Configure(); err != nil {
 		return err

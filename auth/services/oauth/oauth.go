@@ -24,11 +24,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/didman"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/url"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/didman"
+
+	vc2 "github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -49,10 +51,14 @@ const errInvalidOrganizationVC = "actor has invalid organization VC: %w"
 const errInvalidVCClaim = "invalid jwt.vcs: %w"
 
 const vcClaim = "vcs"
+const subjectIDClaim = "sid"
+const purposeOfUseClaim = "purposeOfUseClaim"
+const userIdentityClaim = "usi"
 
 type service struct {
 	docResolver     types.DocResolver
 	conceptFinder   vcr.ConceptFinder
+	vcValidator     vcr.Validator
 	keyResolver     types.KeyResolver
 	privateKeyStore nutsCrypto.KeyStore
 	contractClient  services.ContractClient
@@ -62,20 +68,77 @@ type service struct {
 type validationContext struct {
 	rawJwtBearerToken          string
 	jwtBearerToken             jwt.Token
-	jwtBearerTokenClaims       *services.NutsJwtBearerToken
+	kid                        string
 	actorName                  string
 	actorCity                  string
+	purposeOfUse               string
 	contractVerificationResult *contract.VPVerificationResult
 }
 
+func (c validationContext) subjectID() *string {
+	return c.stringVal(subjectIDClaim)
+}
+
+func (c validationContext) userIdentity() *string {
+	return c.stringVal(userIdentityClaim)
+}
+
+func (c validationContext) stringVal(claim string) *string {
+	val, ok := c.jwtBearerToken.Get(claim)
+	if !ok {
+		return nil
+	}
+	stringVal, ok := val.(string)
+	if !ok {
+		return nil
+	}
+
+	return &stringVal
+}
+
+func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, error) {
+	vcs := make([]vc2.VerifiableCredential, 0)
+	claim, ok := c.jwtBearerToken.Get(vcClaim)
+
+	// If no credentials then OK
+	if !ok || claim == nil {
+		return vcs, nil
+	}
+
+	// vcs should contain a slice of map[string]interface{}
+	vcMaps, ok := claim.([]interface{})
+	if !ok {
+		return vcs, errors.New("field does not contain an array of credentials")
+	}
+
+	// convert from map to bytes
+	rawVCs := make([][]byte, len(vcMaps))
+	for i, vcMap := range vcMaps {
+		rawVC, _ := json.Marshal(vcMap)
+		rawVCs[i] = rawVC
+	}
+
+	// filter on authorization credentials
+	vcs = make([]vc2.VerifiableCredential, len(rawVCs))
+	for i, rawVC := range rawVCs {
+		vc := vc2.VerifiableCredential{}
+		if err := json.Unmarshal(rawVC, &vc); err != nil {
+			return vcs[:0], fmt.Errorf("cannot unmarshal authorization credential: %w", err)
+		}
+		vcs[i] = vc
+	}
+	return vcs, nil
+}
+
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, serviceResolver didman.ServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractClient services.ContractClient) services.OAuthClient {
+func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValidator vcr.Validator, serviceResolver didman.ServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractClient services.ContractClient) services.OAuthClient {
 	return &service{
 		docResolver:     doc.Resolver{Store: store},
 		keyResolver:     doc.KeyResolver{Store: store},
 		serviceResolver: serviceResolver,
 		contractClient:  contractClient,
 		conceptFinder:   conceptFinder,
+		vcValidator:     vcValidator,
 		privateKeyStore: privateKeyStore,
 	}
 }
@@ -120,10 +183,11 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 	// Validate the AuthTokenContainer, according to RFC003 §5.2.1.5
 	var err error
 
-	if context.jwtBearerTokenClaims.UserIdentity != nil {
+	usi := context.userIdentity()
+	if usi != nil {
 		var decoded []byte
 
-		if decoded, err = base64.StdEncoding.DecodeString(*context.jwtBearerTokenClaims.UserIdentity); err != nil {
+		if decoded, err = base64.StdEncoding.DecodeString(*usi); err != nil {
 			return nil, fmt.Errorf("failed to decode base64 usi field: %w", err)
 		}
 
@@ -139,6 +203,11 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 		if err := s.validateActor(&context); err != nil {
 			return nil, err
 		}
+	}
+
+	// validate the endpoint in aud, according to RFC003 §5.2.1.9
+	if err := s.validatePurposeOfUse(&context); err != nil {
+		return nil, err
 	}
 
 	// validate the endpoint in aud, according to RFC003 §5.2.1.6
@@ -167,23 +236,33 @@ func (s *service) validateActor(context *validationContext) error {
 	return nil
 }
 
+// check if the purposeOfUser is filled and adds it to the validationContext
+func (s *service) validatePurposeOfUse(context *validationContext) error {
+	purposeOfUse := context.stringVal(purposeOfUseClaim)
+	if purposeOfUse == nil {
+		return errors.New("no purposeOfUse given")
+	}
+
+	context.purposeOfUse = *purposeOfUse
+
+	return nil
+}
+
 // check if the aud service identifier matches the oauth endpoint of the requested service
 func (s *service) validateAudience(context *validationContext) error {
 	if len(context.jwtBearerToken.Audience()) != 1 {
 		return errors.New("aud does not contain a single URI")
 	}
-	service := context.jwtBearerTokenClaims.Service
+
 	// parsing is already done in a previous check
 	subject, _ := did.ParseDID(context.jwtBearerToken.Subject())
 
-	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*subject, service, services.OAuthEndpointType, true)
+	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*subject, context.purposeOfUse, services.OAuthEndpointType, true)
 	if err != nil {
 		return err
 	}
 	if context.jwtBearerToken.Audience()[0] != endpointURL {
-		err := errors.New("aud does not contain correct endpoint URL")
-		// TODO: Make this blocking after https://github.com/nuts-foundation/nuts-specification/issues/124 is implemented
-		log.Logger().Infof("%s: allowed for now but will be enforced soon (https://github.com/nuts-foundation/nuts-specification/issues/124)", err.Error())
+		return errors.New("aud does not contain correct endpoint URL")
 	}
 	return nil
 }
@@ -197,7 +276,7 @@ func (s *service) validateIssuer(context *validationContext) error {
 	}
 
 	validationTime := context.jwtBearerToken.IssuedAt()
-	if _, err := s.keyResolver.ResolveSigningKey(context.jwtBearerTokenClaims.KeyID, &validationTime); err != nil {
+	if _, err := s.keyResolver.ResolveSigningKey(context.kid, &validationTime); err != nil {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
@@ -236,9 +315,56 @@ func (s *service) validateSubject(context *validationContext) error {
 	return nil
 }
 
-// validate the legal base, according to RFC003 §5.2.1.7 if sid is present
-// use consent store
+// validate the authorization credentials according to §5.2.1.7
 func (s *service) validateAuthorizationCredentials(context validationContext) error {
+	// filter on authorization credentials
+	vcs, err := context.verifiableCredentials()
+	if err != nil {
+		return fmt.Errorf(errInvalidVCClaim, err)
+	}
+	j := 0
+	for _, vc := range vcs {
+		if vc.IsType(*credential.NutsAuthorizationCredentialTypeURI) {
+			vcs[j] = vc
+			j++
+		}
+	}
+
+	vcs = vcs[:j]
+
+	// no auth creds, return
+	if len(vcs) == 0 {
+		return nil
+	}
+
+	iat := context.jwtBearerToken.IssuedAt()
+	iss := context.jwtBearerToken.Issuer()
+	sub := context.jwtBearerToken.Subject()
+
+	for _, authCred := range vcs {
+		// first check if the VC is valid
+		if err := s.vcValidator.Validate(authCred, true, &iat); err != nil {
+			return fmt.Errorf(errInvalidVCClaim, err)
+		}
+
+		//The credential issuer equals the sub field of the JWT.
+		if authCred.Issuer.String() != sub {
+			return fmt.Errorf("issuer %s of authorization credential with ID: %s does not match jwt.sub: %s", authCred.Issuer.String(), authCred.ID.String(), sub)
+		}
+
+		//The credential credentialSubject.id equals the iss field of the JWT.
+		authCredSubjects := make([]credential.NutsAuthorizationCredentialSubject, 0)
+		if err := authCred.UnmarshalCredentialSubject(&authCredSubjects); err != nil {
+			return fmt.Errorf(errInvalidVCClaim, err)
+		}
+		// should be only 1 credentialSubject, but we do the range just to make sure and to avoid [0] specific code.
+		for _, authCredSubject := range authCredSubjects {
+			if authCredSubject.ID != iss {
+				return fmt.Errorf("credentialSubject.ID %s of authorization credential with ID: %s does not match jwt.iss: %s", authCredSubject.ID, authCred.ID.String(), iss)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -309,20 +435,21 @@ var timeFunc = time.Now
 
 // standalone func for easier testing
 func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) map[string]interface{} {
-	token := services.NutsJwtBearerToken{
-		UserIdentity: request.IdentityToken,
-		SubjectID:    request.Subject,
-		Credentials:  request.Credentials,
-	}
-
-	result, _ := token.AsMap()
+	result := map[string]interface{}{}
 	result[jwt.AudienceKey] = audience
 	result[jwt.ExpirationKey] = timeFunc().Add(OauthBearerTokenMaxValidity * time.Second).Unix()
 	result[jwt.IssuedAtKey] = timeFunc().Unix()
 	result[jwt.IssuerKey] = request.Actor
 	result[jwt.NotBeforeKey] = 0
 	result[jwt.SubjectKey] = request.Custodian
-	result[services.JWTService] = request.Service
+	result[purposeOfUseClaim] = request.Service
+	if request.IdentityToken != nil {
+		result[userIdentityClaim] = *request.IdentityToken
+	}
+	if request.Subject != nil {
+		result[subjectIDClaim] = *request.Subject
+	}
+	result[vcClaim] = request.Credentials
 
 	return result
 }
@@ -340,8 +467,8 @@ func (s *service) parseAndValidateJwtBearerToken(context *validationContext) err
 
 	// this should be ok since it has already succeeded before
 	context.jwtBearerToken = token
-	context.jwtBearerTokenClaims = &services.NutsJwtBearerToken{KeyID: kidHdr}
-	return context.jwtBearerTokenClaims.FromMap(token.PrivateClaims())
+	context.kid = kidHdr
+	return nil
 }
 
 // IntrospectAccessToken fills the fields in NutsAccessToken from the given Jwt Access Token
@@ -392,8 +519,8 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 	issueTime := time.Now()
 
 	at := services.NutsAccessToken{
-		SubjectID:  context.jwtBearerTokenClaims.SubjectID,
-		Service:    context.jwtBearerTokenClaims.Service,
+		SubjectID:  context.subjectID(),
+		Service:    context.purposeOfUse,
 		Expiration: time.Now().Add(time.Minute * 15).UTC().Unix(), // Expires in 15 minutes
 		IssuedAt:   issueTime.UTC().Unix(),
 		Issuer:     issuer.String(),

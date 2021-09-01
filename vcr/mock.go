@@ -486,3 +486,17 @@ func (mr *MockVCRMockRecorder) Untrusted(credentialType interface{}) *gomock.Cal
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrusted", reflect.TypeOf((*MockVCR)(nil).Untrusted), credentialType)
 }
+
+// Validate mocks base method.
+func (m *MockVCR) Validate(credential vc.VerifiableCredential, allowUntrusted bool, validAt *time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Validate", credential, allowUntrusted, validAt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Validate indicates an expected call of Validate.
+func (mr *MockVCRMockRecorder) Validate(credential, allowUntrusted, validAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockVCR)(nil).Validate), credential, allowUntrusted, validAt)
+}

@@ -69,6 +69,7 @@ type ConceptFinder interface {
 	Search(conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error)
 }
 
+// Validator is the VCR interface for validation options
 type Validator interface {
 	// Validate checks if the given credential:
 	// - is not revoked
@@ -124,5 +125,6 @@ type VCR interface {
 	ConceptFinder
 	Resolver
 	TrustManager
+	Validator
 	Writer
 }

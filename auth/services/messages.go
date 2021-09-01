@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 
@@ -46,22 +47,6 @@ type JwtBearerTokenResult struct {
 	BearerToken string
 }
 
-// JWTService is the field used to denote the selected service in the JWT
-const JWTService = "service"
-
-// NutsJwtBearerToken contains the deserialized Jwt Bearer Token as defined in rfc7523. It contains a NutsIdentity token which can be
-// verified by the authorization server.
-type NutsJwtBearerToken struct {
-	// Base64 encoded VerifiablePresentation
-	UserIdentity *string `json:"usi,omitempty"`
-	SubjectID    *string `json:"sid,omitempty"`
-	// Array of NutsAuthorizationCredential DIDs
-	Credentials []vc.VerifiableCredential `json:"vcs"`
-	// Service defines the use-case for which an access token is required
-	Service string `json:"service"`
-	KeyID   string `json:"-"`
-}
-
 // NutsAccessToken is a OAuth 2.0 access token which provides context to a request.
 // Its contents are derived from a Jwt Bearer token. The Jwt Bearer token is verified by the authorization server and
 // stripped from the proof to make it compact.
@@ -87,22 +72,6 @@ type NutsAccessToken struct {
 func (t *NutsAccessToken) FromMap(m map[string]interface{}) error {
 	data, _ := json.Marshal(m)
 	return json.Unmarshal(data, t)
-}
-
-// AsMap returns the claims from a NutsJwtBearerToken as a map with the json names as keys
-func (token NutsJwtBearerToken) AsMap() (map[string]interface{}, error) {
-	var keyVals map[string]interface{}
-	inrec, _ := json.Marshal(token)
-	if err := json.Unmarshal(inrec, &keyVals); err != nil {
-		return nil, err
-	}
-	return keyVals, nil
-}
-
-// FromMap sets the values of the token from the given map.
-func (token *NutsJwtBearerToken) FromMap(m map[string]interface{}) error {
-	data, _ := json.Marshal(m)
-	return json.Unmarshal(data, token)
 }
 
 // ContractValidationResult contains the result of a contract validation
