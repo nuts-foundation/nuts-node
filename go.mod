@@ -31,7 +31,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.7.0
-	github.com/tidwall/gjson v1.8.1
+	github.com/tidwall/gjson v1.9.0
 	go.etcd.io/bbolt v1.3.6
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
