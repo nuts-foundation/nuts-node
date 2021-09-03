@@ -19,7 +19,6 @@
 package dag
 
 import (
-	"bytes"
 	"fmt"
 	"time"
 
@@ -172,27 +171,17 @@ func (dag bboltDAG) Heads() []hash.SHA256Hash {
 }
 
 func (dag *bboltDAG) FindBetween(startInclusive time.Time, endExclusive time.Time) ([]Transaction, error) {
-	result := make([]Transaction, 0)
-	// TODO: Replace this with something more optimized (maybe go-leia with a range query on signing time?)
-	err := dag.db.View(func(tx *bbolt.Tx) error {
-		if transactions := tx.Bucket([]byte(transactionsBucket)); transactions != nil {
-			cursor := transactions.Cursor()
-			for ref, transactionBytes := cursor.First(); transactionBytes != nil; ref, transactionBytes = cursor.Next() {
-				if bytes.Equal(ref, []byte(rootsTransactionKey)) {
-					continue
-				}
-				transaction, err := ParseTransaction(transactionBytes)
-				if err != nil {
-					return fmt.Errorf("unable to parse transaction %s: %w", ref, err)
-				}
-				if !transaction.SigningTime().Before(startInclusive) && transaction.SigningTime().Before(endExclusive) {
-					result = append(result, transaction)
-				}
-			}
-			return nil
+	var result []Transaction
+	rootTX, err := dag.Root()
+	if err != nil {
+		return nil, err
+	}
+	err = dag.Walk(NewBFSWalkerAlgorithm(), func(transaction Transaction) bool {
+		if !transaction.SigningTime().Before(startInclusive) && transaction.SigningTime().Before(endExclusive) {
+			result = append(result, transaction)
 		}
-		return nil
-	})
+		return true
+	}, rootTX)
 	return result, err
 }
 

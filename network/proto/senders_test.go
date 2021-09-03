@@ -6,6 +6,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
@@ -17,6 +18,7 @@ func createMessageSender(t *testing.T) (defaultMessageSender, *p2p.MockAdapter) 
 	})
 	p2pInterface := p2p.NewMockAdapter(ctrl)
 	sender := defaultMessageSender{p2p: p2pInterface}
+	sender.maxMessageSize = p2p.MaxMessageSizeInBytes
 	return sender, p2pInterface
 }
 
@@ -55,17 +57,63 @@ func Test_defaultMessageSender_broadcastDiagnostics(t *testing.T) {
 }
 
 func Test_defaultMessageSender_sendTransactionList(t *testing.T) {
-	sender, mock := createMessageSender(t)
 	blockDate := time.Date(2021, 4, 29, 0, 0, 0, 0, time.UTC)
-	tx := testTX{data: []byte{1, 2, 3}}
-	mock.EXPECT().Send(peer, &transport.NetworkMessage{Message: &transport.NetworkMessage_TransactionList{TransactionList: &transport.TransactionList{
-		BlockDate: uint32(blockDate.Unix()),
-		Transactions: []*transport.Transaction{{
-			Hash: tx.Ref().Slice(),
-			Data: tx.data,
-		}},
-	}}})
-	sender.sendTransactionList(peer, []dag.Transaction{tx}, blockDate)
+
+	t.Run("ok", func(t *testing.T) {
+		sender, mock := createMessageSender(t)
+		tx := testTX{data: []byte{1, 2, 3}}
+		mock.EXPECT().Send(peer, &transport.NetworkMessage{Message: &transport.NetworkMessage_TransactionList{TransactionList: &transport.TransactionList{
+			BlockDate: uint32(blockDate.Unix()),
+			Transactions: []*transport.Transaction{{
+				Hash: tx.Ref().Slice(),
+				Data: tx.data,
+			}},
+		}}})
+		sender.sendTransactionList(peer, []dag.Transaction{tx}, blockDate)
+	})
+	t.Run("ok - paginated", func(t *testing.T) {
+		// This test checks whether transaction list responses that exceed the maximum Protobuf message size are split into
+		// pages.
+		const numberOfTXs = 100     // number of transactions this test produces
+		const maxMessageSize = 6000 // max. message size in bytes
+		const dataSize = 100        // number of bytes added to the TX to make them a bit larger
+		const numberOfMessages = 4  // expected number of pages when the transaction list is sent
+
+		var txs []dag.Transaction
+		for i := 0; i < numberOfTXs; i++ {
+			data := make([]byte, dataSize)
+			txs = append(txs, &testTX{data: append([]byte{byte(i)}, data...)})
+		}
+
+		sender, mock := createMessageSender(t)
+		sender.maxMessageSize = maxMessageSize
+		sentMessages := map[byte]bool{}
+		mock.EXPECT().Send(peer, gomock.Any()).DoAndReturn(func(_ p2p.PeerID, msg *transport.NetworkMessage) error {
+			for _, tx := range msg.GetTransactionList().Transactions {
+				if sentMessages[tx.Data[0]] {
+					t.Fatalf("transaction sent twice (idx: %d)", tx.Data[0])
+				}
+				sentMessages[tx.Data[0]] = true
+			}
+			return nil
+		}).Times(numberOfMessages)
+		sender.sendTransactionList(peer, txs, blockDate)
+
+		assert.Len(t, sentMessages, numberOfTXs)
+		for i := 0; i < numberOfTXs; i++ {
+			if !sentMessages[byte(i)] {
+				t.Fatalf("Missing message (idx: %d)", i)
+			}
+		}
+	})
+	t.Run("ok - no transactions sends empty message", func(t *testing.T) {
+		sender, mock := createMessageSender(t)
+		mock.EXPECT().Send(peer, &transport.NetworkMessage{Message: &transport.NetworkMessage_TransactionList{TransactionList: &transport.TransactionList{
+			BlockDate:    uint32(blockDate.Unix()),
+			Transactions: []*transport.Transaction{},
+		}}})
+		sender.sendTransactionList(peer, []dag.Transaction{}, blockDate)
+	})
 }
 
 func Test_defaultMessageSender_sendTransactionListQuery(t *testing.T) {

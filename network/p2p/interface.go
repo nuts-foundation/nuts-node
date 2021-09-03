@@ -38,7 +38,7 @@ type Adapter interface {
 	Start() error
 	// Stop stops the P2P network on the local node.
 	Stop() error
-	// AddRemoteNode adds a remote node to the local node's view of the network, so it can become one of our peers.
+	// ConnectToPeer adds a remote node to the local node's view of the network, so it can become one of our peers.
 	// If we'll try to connect to the remote node, true is returned, otherwise false.
 	ConnectToPeer(address string) bool
 	// ReceivedMessages returns a queue containing all messages received from our peers. It must be drained, because when its buffer is full the producer (Adapter) is blocked.

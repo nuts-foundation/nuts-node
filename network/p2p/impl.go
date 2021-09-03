@@ -43,7 +43,10 @@ type dialer func(ctx context.Context, target string, opts ...grpc.DialOption) (c
 const connectingQueueChannelSize = 100
 const eventChannelSize = 100
 const messageBacklogChannelSize = 1000 // TODO: Does this number make sense? Should also be configurable?
-const maxMessageSizeInBytes = 1024 * 512
+const defaultMaxMessageSizeInBytes = 1024 * 512
+
+// MaxMessageSizeInBytes defines the maximum size of an in- or outbound gRPC/Protobuf message
+var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 
 type adapter struct {
 	config AdapterConfig
@@ -126,8 +129,8 @@ func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*Peer, trans
 		grpc.WithBlock(),                 // Dial should block until connection succeeded (or time-out expired)
 		grpc.WithReturnConnectionError(), // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
 		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(maxMessageSizeInBytes),
-			grpc.MaxCallSendMsgSize(maxMessageSizeInBytes),
+			grpc.MaxCallRecvMsgSize(MaxMessageSizeInBytes),
+			grpc.MaxCallSendMsgSize(MaxMessageSizeInBytes),
 		),
 	}
 	if tlsConfig != nil {
@@ -215,8 +218,8 @@ func (n *adapter) Start() error {
 	if n.config.ListenAddress != "" {
 		log.Logger().Debugf("Starting gRPC server on %s", n.config.ListenAddress)
 		serverOpts := []grpc.ServerOption{
-			grpc.MaxRecvMsgSize(maxMessageSizeInBytes),
-			grpc.MaxSendMsgSize(maxMessageSizeInBytes),
+			grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
+			grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
 		}
 		var err error
 		n.listener, err = net.Listen("tcp", n.config.ListenAddress)

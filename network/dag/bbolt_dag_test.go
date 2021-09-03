@@ -55,20 +55,20 @@ func (n trackingVisitor) JoinRefsAsString() string {
 func TestBBoltDAG_FindBetween(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		graph := CreateDAG(t)
-		tx := CreateTestTransactionWithJWK(1)
 
-		err := graph.Add(tx)
+		// tx1 and tx2's signing time are out-of-order
+		tx1 := CreateSignedTestTransaction(2, time.Now().AddDate(0, 0, 1), "unit/test")
+		tx2 := CreateSignedTestTransaction(1, time.Now(), "unit/test", tx1.Ref())
+		_ = graph.Add(tx1)
+		_ = graph.Add(tx2)
 
+		actual, err := graph.FindBetween(time.Now().AddDate(0, 0, -2), time.Now().AddDate(1, 0, 0))
 		if !assert.NoError(t, err) {
 			return
 		}
-
-		actual, err := graph.FindBetween(time.Now().AddDate(0, 0, -1), time.Now().AddDate(1, 0, 0))
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Len(t, actual, 1)
-		assert.Equal(t, tx, actual[0])
+		assert.Len(t, actual, 2)
+		assert.Equal(t, tx1, actual[0])
+		assert.Equal(t, tx2, actual[1])
 	})
 }
 
