@@ -34,7 +34,7 @@ import (
 // exceed Protobuf's max message size.
 func TestNetworkIntegration_Pagination(t *testing.T) {
 	p2p.MaxMessageSizeInBytes = 4 * 1024 // 4kb
-	const numberOfTransactions = 19  // 20 transactions equals +/- 12.6kb (which exceeds the set limit of 10kb)
+	const numberOfTransactions = 19      // 20 transactions equals +/- 12.6kb (which exceeds the set limit of 10kb)
 
 	resetIntegrationTest()
 	testDirectory := io.TestDirectory(t)
