@@ -1,14 +1,15 @@
 package proto
 
 import (
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func createMessageSender(t *testing.T) (defaultMessageSender, *p2p.MockAdapter) {
@@ -106,12 +107,8 @@ func Test_defaultMessageSender_sendTransactionList(t *testing.T) {
 			}
 		}
 	})
-	t.Run("ok - no transactions sends empty message", func(t *testing.T) {
-		sender, mock := createMessageSender(t)
-		mock.EXPECT().Send(peer, &transport.NetworkMessage{Message: &transport.NetworkMessage_TransactionList{TransactionList: &transport.TransactionList{
-			BlockDate:    uint32(blockDate.Unix()),
-			Transactions: []*transport.Transaction{},
-		}}})
+	t.Run("ok - no transactions sends nothing", func(t *testing.T) {
+		sender, _ := createMessageSender(t)
 		sender.sendTransactionList(peer, []dag.Transaction{}, blockDate)
 	})
 }
