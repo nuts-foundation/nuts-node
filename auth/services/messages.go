@@ -53,19 +53,19 @@ type JwtBearerTokenResult struct {
 type NutsAccessToken struct {
 	SubjectID  *string `json:"sid"`
 	Service    string  `json:"service"`
-	Name       string  `json:"name"`
-	GivenName  string  `json:"given_name"`
-	Prefix     string  `json:"prefix"`
-	FamilyName string  `json:"family_name"`
-	Email      string  `json:"email"`
+	Name       *string `json:"name"`
+	GivenName  *string `json:"given_name"`
+	Prefix     *string `json:"prefix"`
+	FamilyName *string `json:"family_name"`
+	Email      *string `json:"email"`
 
-	KeyID       string                    `json:"-"`
-	Expiration  int64                     `json:"exp"`
-	IssuedAt    int64                     `json:"iat"`
-	Issuer      string                    `json:"iss"`
-	Subject     string                    `json:"sub"`
-	Audience    string                    `json:"aud"`
-	Credentials []vc.VerifiableCredential `json:"vcs"`
+	KeyID       string    `json:"-"`
+	Expiration  int64     `json:"exp"`
+	IssuedAt    int64     `json:"iat"`
+	Issuer      string    `json:"iss"`
+	Subject     string    `json:"sub"`
+	Audience    string    `json:"aud"`
+	Credentials *[]string `json:"vcs"`
 }
 
 // FromMap sets the values of the token from the given map.

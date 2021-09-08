@@ -328,8 +328,8 @@ type TokenIntrospectionResponse struct {
 	Sub *string `json:"sub,omitempty"`
 
 	// Jwt encoded user identity.
-	Usi *string                 `json:"usi,omitempty"`
-	Vcs *[]VerifiableCredential `json:"vcs,omitempty"`
+	Usi *string   `json:"usi,omitempty"`
+	Vcs *[]string `json:"vcs,omitempty"`
 }
 
 // If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
