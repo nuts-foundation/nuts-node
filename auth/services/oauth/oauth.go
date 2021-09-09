@@ -547,7 +547,7 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 	}
 
 	if len(context.credentialIDs) > 0 {
-		at.Credentials = &context.credentialIDs
+		at.Credentials = context.credentialIDs
 	}
 
 	var keyVals map[string]interface{}

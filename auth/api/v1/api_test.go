@@ -858,7 +858,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 				Subject:     aid,
 				SubjectID:   &sid,
 				Service:     service,
-				Credentials: &[]string{"credentialID"},
+				Credentials: []string{"credentialID"},
 			}, nil)
 
 		credentials := []string{"credentialID"}

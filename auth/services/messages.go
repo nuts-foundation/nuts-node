@@ -51,21 +51,21 @@ type JwtBearerTokenResult struct {
 // Its contents are derived from a Jwt Bearer token. The Jwt Bearer token is verified by the authorization server and
 // stripped from the proof to make it compact.
 type NutsAccessToken struct {
-	SubjectID  *string `json:"sid"`
+	SubjectID  *string `json:"sid,omitempty"`
 	Service    string  `json:"service"`
-	Name       *string `json:"name"`
-	GivenName  *string `json:"given_name"`
-	Prefix     *string `json:"prefix"`
-	FamilyName *string `json:"family_name"`
-	Email      *string `json:"email"`
+	Name       *string `json:"name,omitempty"`
+	GivenName  *string `json:"given_name,omitempty"`
+	Prefix     *string `json:"prefix,omitempty"`
+	FamilyName *string `json:"family_name,omitempty"`
+	Email      *string `json:"email,omitempty"`
 
-	KeyID       string    `json:"-"`
-	Expiration  int64     `json:"exp"`
-	IssuedAt    int64     `json:"iat"`
-	Issuer      string    `json:"iss"`
-	Subject     string    `json:"sub"`
-	Audience    string    `json:"aud"`
-	Credentials *[]string `json:"vcs"`
+	KeyID       string   `json:"-"`
+	Expiration  int64    `json:"exp"`
+	IssuedAt    int64    `json:"iat"`
+	Issuer      string   `json:"iss"`
+	Subject     string   `json:"sub"`
+	Audience    string   `json:"aud"`
+	Credentials []string `json:"vcs,omitempty"`
 }
 
 // FromMap sets the values of the token from the given map.

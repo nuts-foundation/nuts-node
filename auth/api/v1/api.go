@@ -447,8 +447,8 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		Email:      claims.Email,
 	}
 
-	if claims.Credentials != nil && len(*claims.Credentials) > 0 {
-		introspectionResponse.Vcs = claims.Credentials
+	if claims.Credentials != nil && len(claims.Credentials) > 0 {
+		introspectionResponse.Vcs = &claims.Credentials
 	}
 
 	return ctx.JSON(http.StatusOK, introspectionResponse)
