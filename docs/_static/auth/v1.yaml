@@ -719,7 +719,8 @@ components:
         vcs:
           type: array
           items:
-            $ref: '#/components/schemas/VerifiableCredential'
+            type: string
+            description: credential ID as string
         osi:
           type: string
           description: encoded ops signature. (TBD)

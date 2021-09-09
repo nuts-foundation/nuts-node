@@ -579,11 +579,17 @@ func TestService_buildAccessToken(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(custodianDID, gomock.Any()).MinTimes(1).Return(custodianSigningKeyID.String(), nil)
 
-		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any()).Return("expectedAT", nil)
+		var recordedClaims map[string]interface{}
+		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any()).DoAndReturn(func(claims map[string]interface{}, kid string) (token string, err error) {
+			recordedClaims = claims
+
+			return "expectedAT", nil
+		})
 
 		tokenCtx := &validationContext{
 			contractVerificationResult: &contract.VPVerificationResult{Validity: contract.Valid},
 			jwtBearerToken:             jwt.New(),
+			credentialIDs:              []string{"credential"},
 		}
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, custodianDID.String())
 
@@ -591,9 +597,13 @@ func TestService_buildAccessToken(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, "expectedAT", token)
+		assert.Equal(t, custodianDID.String(), recordedClaims["iss"])
+		recordedCredentials, ok := recordedClaims["vcs"].([]interface{})
+		if !assert.True(t, ok) {
+			return
+		}
+		assert.Equal(t, "credential", recordedCredentials[0])
 	})
-
-	// todo some extra tests needed for claims generation
 }
 
 func TestService_CreateJwtBearerToken(t *testing.T) {
@@ -786,7 +796,7 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		ctx.privateKeyStore.EXPECT().Exists(actorSigningKeyID.String()).Return(true)
 
 		// First build an access token
-		tokenCtx := validContext()
+		tokenCtx := validAccessToken()
 		signToken(tokenCtx)
 
 		// Then validate it
@@ -903,6 +913,36 @@ func validContext() *validationContext {
 		subjectIDClaim:    sid,
 		purposeOfUseClaim: expectedService,
 		vcClaim:           []interface{}{credMap},
+	}
+	token := jwt.New()
+	for k, v := range claims {
+		if err := token.Set(k, v); err != nil {
+			panic(err)
+		}
+	}
+	return &validationContext{
+		jwtBearerToken: token,
+		kid:            actorSigningKeyID.String(),
+		purposeOfUse:   expectedService,
+	}
+}
+
+func validAccessToken() *validationContext {
+	sid := "subject"
+	usi := base64.StdEncoding.EncodeToString([]byte("irma identity token"))
+
+	claims := map[string]interface{}{
+		jwt.AudienceKey:   expectedAudience,
+		jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
+		jwt.JwtIDKey:      "a005e81c-6749-4967-b01c-495228fcafb4",
+		jwt.IssuedAtKey:   time.Now().UTC(),
+		jwt.SubjectKey:    actorDID.String(),
+		jwt.NotBeforeKey:  0,
+		jwt.IssuerKey:     custodianDID.String(),
+		userIdentityClaim: usi,
+		subjectIDClaim:    sid,
+		purposeOfUseClaim: expectedService,
+		vcClaim:           []string{"credential"},
 	}
 	token := jwt.New()
 	for k, v := range claims {

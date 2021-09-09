@@ -72,6 +72,7 @@ type validationContext struct {
 	actorName                  string
 	actorCity                  string
 	purposeOfUse               string
+	credentialIDs              []string
 	contractVerificationResult *contract.VPVerificationResult
 }
 
@@ -215,7 +216,7 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 		return nil, err
 	}
 
-	// validate the legal base, according to RFC003 §5.2.1.7 if sid is present
+	// validate the legal base, according to RFC003 §5.2.1.7
 	if err = s.validateAuthorizationCredentials(context); err != nil {
 		return nil, err
 	}
@@ -323,7 +324,10 @@ func (s *service) validateAuthorizationCredentials(context validationContext) er
 		return fmt.Errorf(errInvalidVCClaim, err)
 	}
 	j := 0
-	for _, vc := range vcs {
+	// also add all cred IDs to validationContext
+	context.credentialIDs = make([]string, len(vcs))
+	for i, vc := range vcs {
+		context.credentialIDs[i] = vc.ID.String()
 		if vc.IsType(*credential.NutsAuthorizationCredentialTypeURI) {
 			vcs[j] = vc
 			j++
@@ -535,11 +539,15 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 		// https://privacybydesign.foundation/attribute-index/en/pbdf.pbdf.email.html
 		// and
 		// https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims
-		at.FamilyName = disclosedAttributes["gemeente.personalData.familyname"]
-		at.GivenName = disclosedAttributes["gemeente.personalData.firstnames"]
-		at.Prefix = disclosedAttributes["gemeente.personalData.prefix"]
-		at.Name = disclosedAttributes["gemeente.personalData.fullname"]
-		at.Email = disclosedAttributes["sidn-pbdf.email.email"]
+		at.FamilyName = toStrPtr(disclosedAttributes["gemeente.personalData.familyname"])
+		at.GivenName = toStrPtr(disclosedAttributes["gemeente.personalData.firstnames"])
+		at.Prefix = toStrPtr(disclosedAttributes["gemeente.personalData.prefix"])
+		at.Name = toStrPtr(disclosedAttributes["gemeente.personalData.fullname"])
+		at.Email = toStrPtr(disclosedAttributes["sidn-pbdf.email.email"])
+	}
+
+	if len(context.credentialIDs) > 0 {
+		at.Credentials = context.credentialIDs
 	}
 
 	var keyVals map[string]interface{}
@@ -561,4 +569,8 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 	}
 
 	return token, err
+}
+
+func toStrPtr(value string) *string {
+	return &value
 }

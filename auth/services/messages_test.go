@@ -8,7 +8,7 @@ import (
 )
 
 func TestNutsAccessToken_FromMap(t *testing.T) {
-	expected := NutsAccessToken{Name: "Foobar"}
+	expected := NutsAccessToken{Service: "Foobar"}
 	asJSON, _ := json.Marshal(&expected)
 	var asMap map[string]interface{}
 	err := json.Unmarshal(asJSON, &asMap)

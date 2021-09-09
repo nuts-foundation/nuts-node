@@ -440,14 +440,14 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		Iat:        &iat,
 		Sid:        claims.SubjectID,
 		Service:    &claims.Service,
-		Name:       &claims.Name,
-		GivenName:  &claims.GivenName,
-		Prefix:     &claims.Prefix,
-		FamilyName: &claims.FamilyName,
-		Email:      &claims.Email,
+		Name:       claims.Name,
+		GivenName:  claims.GivenName,
+		Prefix:     claims.Prefix,
+		FamilyName: claims.FamilyName,
+		Email:      claims.Email,
 	}
 
-	if len(claims.Credentials) > 0 {
+	if claims.Credentials != nil && len(claims.Credentials) > 0 {
 		introspectionResponse.Vcs = &claims.Credentials
 	}
 
