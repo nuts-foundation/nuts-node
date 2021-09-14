@@ -18,6 +18,8 @@ paths:
           type: string
     get:
       operationId: getContactInformation
+      tags:
+        - "contact info"
       responses:
         "200":
           description: The actual Contact Information of the DID document.
@@ -34,6 +36,8 @@ paths:
         provide contact inforamtion such as an emergency phone number and support email address.
 
         There is at most one contact-information service per DID.
+      tags:
+        - "contact info"
       operationId: updateContactInformation
       requestBody:
         required: true
@@ -77,7 +81,7 @@ paths:
         * 404 - unknown DID
         * 409 - a service with the same type already exists
       tags:
-        - DID
+        - services
       requestBody:
         required: true
         content:
@@ -120,6 +124,8 @@ paths:
         * 400 - malformatted input, like the DID or the endpoint type.
         * 404 - DID or service with this type not found.
         * 409 - the service is referenced by other services
+      tags:
+        - services
       responses:
         204:
           description: |
@@ -144,6 +150,8 @@ paths:
         error responses:
         * 400 - incorrect input
         * 404 - unknown DID
+      tags:
+        - services
       responses:
         "200":
           description: |
@@ -172,7 +180,7 @@ paths:
         * 409 - a service with the same type already exists
       operationId: "addCompoundService"
       tags:
-        - DID
+        - services
       requestBody:
         required: true
         content:
@@ -222,6 +230,8 @@ paths:
         * 400 - incorrect input (e.g. the given service type isn't a compound service)
         * 404 - unknown DID, compound service or endpoint
         * 406 - service references are nested too deep or reference is invalid in other ways
+      tags:
+        - services
       parameters:
         - name: resolve
           in: query
@@ -260,6 +270,8 @@ paths:
         * 400 - incorrect input
         * 404 - unknown DID
         * 409 - the service is referenced by other services
+      tags:
+        - services
       operationId: "deleteService"
       responses:
         "204":
@@ -289,6 +301,8 @@ paths:
           type: string
     get:
       operationId: searchOrganizations
+      tags:
+        - search
       responses:
         "200":
           description: Organizations resulting from the search.
