@@ -31,7 +31,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.7.0
-	github.com/tidwall/gjson v1.9.0
+	github.com/tidwall/gjson v1.9.1
 	go.etcd.io/bbolt v1.3.6
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
@@ -162,7 +162,7 @@ require (
 	github.com/templexxx/xor v0.0.0-20181023030647-4e92f724b73b // indirect
 	github.com/tetafro/godot v0.4.2 // indirect
 	github.com/tidwall/match v1.0.3 // indirect
-	github.com/tidwall/pretty v1.1.0 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/timakin/bodyclose v0.0.0-20190930140734-f7f2e9bca95e // indirect
 	github.com/timshannon/bolthold v0.0.0-20190812165541-a85bcc049a2e // indirect
 	github.com/tommy-muehle/go-mnd v1.3.1-0.20200224220436-e6f9a994e8fa // indirect
