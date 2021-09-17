@@ -174,6 +174,8 @@ paths:
         * 403 - Verification method could not be deleted because the DID is not managed by this node
         * 404 - Corresponding DID document or verification method could not be found
         * 500 - An error occurred while processing the request
+      tags:
+        - DID
       operationId: deleteVerificationMethod
       responses:
         "204":
