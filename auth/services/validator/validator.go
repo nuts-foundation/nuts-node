@@ -94,7 +94,6 @@ func (s *service) Configure() (err error) {
 		cvMap[contract.SigningMeans(cv)] = true
 	}
 
-	fmt.Printf("Validators: %v\n", s.config.ContractValidators)
 	if s.config.hasContractValidator("irma") {
 		var (
 			irmaConfig *irmago.Configuration
