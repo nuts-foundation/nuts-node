@@ -144,7 +144,7 @@ To find all authorization credentials of a single patient:
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v1/organization?untrusted=true
+    POST <internal-node-address>/internal/vcr/v1/authorization?untrusted=true
     {
         "Params": [
             {
