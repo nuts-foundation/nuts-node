@@ -203,6 +203,9 @@ func (n *adapter) Configure(config AdapterConfig) error {
 	n.config = config
 	n.configured = true
 	for _, bootstrapNode := range n.config.BootstrapNodes {
+		if len(strings.TrimSpace(bootstrapNode)) == 0 {
+			continue
+		}
 		n.ConnectToPeer(bootstrapNode)
 	}
 	return nil

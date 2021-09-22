@@ -74,6 +74,15 @@ func Test_adapter_Configure(t *testing.T) {
 		err := network.Configure(AdapterConfig{})
 		assert.Error(t, err)
 	})
+	t.Run("ok - empty bootstrap node address is skipped", func(t *testing.T) {
+		network := NewAdapter()
+		err := network.Configure(AdapterConfig{
+			BootstrapNodes: []string{"A", " ", "B"},
+			PeerID:         "foo",
+		})
+		assert.NoError(t, err)
+		assert.Len(t, network.(*adapter).connectorAddChannel, 2)
+	})
 }
 
 func Test_adapter_Start(t *testing.T) {
