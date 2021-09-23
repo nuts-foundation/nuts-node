@@ -19,11 +19,12 @@
 package cmd
 
 import (
+	"sort"
+	"strings"
+
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"sort"
-	"strings"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -39,7 +40,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("network.grpcaddr", defs.GrpcAddr, "Local address for gRPC to listen on. "+
 		"If empty the gRPC server won't be started and other nodes will not be able to connect to this node "+
 		"(outbound connections can still be made).")
-	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "Comma-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
+	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "List of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
 	flagSet.Bool("network.enabletls", defs.EnableTLS, "Whether to enable TLS for incoming and outgoing gRPC connections. "+
 		"If set to `true` (which is default) `certfile` and `certkeyfile` MUST be configured.")
 	flagSet.String("network.certfile", defs.CertFile, "PEM file containing the server certificate for the gRPC server. "+
