@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -54,15 +55,16 @@ const (
 
 // Network implements Transactions interface and Engine functions.
 type Network struct {
-	config       Config
-	p2pNetwork   p2p.Adapter
-	protocol     proto.Protocol
-	graph        dag.DAG
-	publisher    dag.Publisher
-	payloadStore dag.PayloadStore
-	keyResolver  types.KeyResolver
-	startTime    atomic.Value
-	peerID       p2p.PeerID
+	config                 Config
+	p2pNetwork             p2p.Adapter
+	protocol               proto.Protocol
+	graph                  dag.DAG
+	publisher              dag.Publisher
+	payloadStore           dag.PayloadStore
+	keyResolver            types.KeyResolver
+	startTime              atomic.Value
+	peerID                 p2p.PeerID
+	lastTransactionTracker lastTransactionTracker
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -77,10 +79,11 @@ func (n *Network) Walk(visitor dag.Visitor) error {
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(config Config, keyResolver types.KeyResolver) *Network {
 	result := &Network{
-		config:      config,
-		keyResolver: keyResolver,
-		p2pNetwork:  p2p.NewAdapter(),
-		protocol:    proto.NewProtocol(),
+		config:                 config,
+		keyResolver:            keyResolver,
+		p2pNetwork:             p2p.NewAdapter(),
+		protocol:               proto.NewProtocol(),
+		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
 	return result
 }
@@ -135,6 +138,7 @@ func (n *Network) Start() error {
 		log.Logger().Warn("Network engine is in offline mode (P2P layer not configured).")
 	}
 	n.protocol.Start()
+	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
 	n.publisher.Start()
 	if err := n.graph.Verify(); err != nil {
 		return err
@@ -174,8 +178,19 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 	payloadHash := hash.SHA256Sum(payload)
 	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), key.KID())
 
+	// Assert that all additional prevs are present and its payload is there
+	for _, prev := range additionalPrevs {
+		isPresent, err := n.isPayloadPresent(prev)
+		if err != nil {
+			return nil, err
+		}
+		if !isPresent {
+			return nil, fmt.Errorf("additional prev is unknown or missing payload (prev=%s)", prev)
+		}
+	}
+
 	// Create transaction
-	prevs := n.graph.Heads()
+	prevs := n.lastTransactionTracker.heads()
 	for _, addPrev := range additionalPrevs {
 		prevs = append(prevs, addPrev)
 	}
@@ -263,4 +278,45 @@ func (n *Network) collectDiagnostics() proto.Diagnostics {
 		result.Peers = append(result.Peers, peer.ID)
 	}
 	return result
+}
+
+func (n *Network) isPayloadPresent(txRef hash.SHA256Hash) (bool, error) {
+	tx, err := n.graph.Get(txRef)
+	if err != nil {
+		return false, err
+	}
+	if tx == nil {
+		return false, nil
+	}
+	return n.payloadStore.IsPresent(tx.PayloadHash())
+}
+
+// lastTransactionTracker that is used for tracking the heads but with payloads, since the DAG heads might have the associated payloads.
+// This works because the publisher only publishes transactions which' payloads are present.
+type lastTransactionTracker struct {
+	headRefs map[hash.SHA256Hash]bool
+	mux      sync.Mutex
+}
+
+func (l *lastTransactionTracker) process(transaction dag.Transaction, _ []byte) error {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+
+	// Update heads: previous' transactions aren't heads anymore, this transaction becomes a head.
+	for _, prev := range transaction.Previous() {
+		delete(l.headRefs, prev)
+	}
+	l.headRefs[transaction.Ref()] = true
+	return nil
+}
+
+func (l *lastTransactionTracker) heads() []hash.SHA256Hash {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+
+	var heads []hash.SHA256Hash
+	for head := range l.headRefs {
+		heads = append(heads, head)
+	}
+	return heads
 }

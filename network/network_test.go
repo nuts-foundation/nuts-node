@@ -179,10 +179,10 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify()
-		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
 
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
@@ -200,9 +200,9 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify()
-		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
@@ -213,7 +213,6 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		assert.Len(t, tx.Previous(), 0)
 	})
 	t.Run("ok - additional prevs", func(t *testing.T) {
-		prev, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 		payload := []byte("Hello, World!")
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -222,21 +221,59 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify()
-		cxt.graph.EXPECT().Heads().Return(nil)
+
+		// Register root TX on head tracker
+		rootTX, _, _ := dag.CreateTestTransaction(0)
+		cxt.network.lastTransactionTracker.process(rootTX, []byte{1, 2, 3})
+
+		// 'Register' prev on DAG
+		additionalPrev, _, _ := dag.CreateTestTransaction(1)
+		cxt.graph.EXPECT().Get(additionalPrev.Ref()).Return(additionalPrev, nil)
+		cxt.payload.EXPECT().IsPresent(additionalPrev.PayloadHash()).Return(true, nil)
+
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
 		}
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{prev})
+		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{additionalPrev.Ref()})
 
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Len(t, tx.Previous(), 1)
-		assert.Equal(t, prev, tx.Previous()[0])
+		assert.Len(t, tx.Previous(), 2)
+		assert.Equal(t, rootTX.Ref(), tx.Previous()[0])
+		assert.Equal(t, additionalPrev.Ref(), tx.Previous()[1])
+	})
+	t.Run("error - additional prev is missing payload", func(t *testing.T) {
+		payload := []byte("Hello, World!")
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl)
+		cxt.p2pAdapter.EXPECT().Start()
+		cxt.p2pAdapter.EXPECT().Configured().Return(true)
+		cxt.protocol.EXPECT().Start()
+		cxt.graph.EXPECT().Verify()
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
+		cxt.publisher.EXPECT().Start()
+		err := cxt.network.Start()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// 'Register' prev on DAG
+		prev, _, _ := dag.CreateTestTransaction(1)
+		cxt.graph.EXPECT().Get(prev.Ref()).Return(prev, nil)
+		cxt.payload.EXPECT().IsPresent(prev.PayloadHash()).Return(false, nil)
+
+		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{prev.Ref()})
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "additional prev is unknown or missing payload")
+		assert.Nil(t, tx)
 	})
 }
 
@@ -249,6 +286,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify()
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
@@ -263,6 +301,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify()
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
@@ -276,6 +315,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify().Return(errors.New("failed"))
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		assert.EqualError(t, err, "failed")
@@ -373,6 +413,37 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		assert.Nil(t, cfg)
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
+}
+
+func Test_lastTransactionTracker(t *testing.T) {
+	tracker := lastTransactionTracker{headRefs: map[hash.SHA256Hash]bool{}}
+
+	assert.Empty(t, tracker.heads()) // initially empty
+
+	// Root TX
+	tx0, _, _ := dag.CreateTestTransaction(0)
+	_ = tracker.process(tx0, nil)
+	assert.Len(t, tracker.heads(), 1)
+	assert.Contains(t, tracker.heads(), tx0.Ref())
+
+	// TX 1
+	tx1, _, _ := dag.CreateTestTransaction(1, tx0.Ref())
+	_ = tracker.process(tx1, nil)
+	assert.Len(t, tracker.heads(), 1)
+	assert.Contains(t, tracker.heads(), tx1.Ref())
+
+	// TX 2 (branch from root)
+	tx2, _, _ := dag.CreateTestTransaction(2, tx0.Ref())
+	_ = tracker.process(tx2, nil)
+	assert.Len(t, tracker.heads(), 2)
+	assert.Contains(t, tracker.heads(), tx1.Ref())
+	assert.Contains(t, tracker.heads(), tx2.Ref())
+
+	// TX 3 (merges 1 and 2)
+	tx3, _, _ := dag.CreateTestTransaction(2, tx1.Ref(), tx2.Ref())
+	_ = tracker.process(tx3, nil)
+	assert.Len(t, tracker.heads(), 1)
+	assert.Contains(t, tracker.heads(), tx3.Ref())
 }
 
 func createNetwork(ctrl *gomock.Controller) *networkTestContext {
