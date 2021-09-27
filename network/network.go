@@ -178,7 +178,7 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 	for _, prev := range additionalPrevs {
 		isPresent, err := n.isPayloadPresent(prev)
 		if err != nil {
-			return nil ,err
+			return nil, err
 		}
 		if !isPresent {
 			return nil, fmt.Errorf("additional prev is unknown or missing payload (prev=%s)", prev)
