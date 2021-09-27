@@ -44,7 +44,8 @@ This setup uses the following `nuts.yaml` configuration file:
     truststorefile: /opt/nuts/truststore.pem
     certfile: /opt/nuts/certificate-and-key.pem
     certkeyfile: /opt/nuts/certificate-and-key.pem
-    bootstrapnodes: example.com:5555
+    bootstrapnodes:
+      - example.com:5555
 
 .. note::
 

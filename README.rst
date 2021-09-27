@@ -162,7 +162,7 @@ crypto.storage                     fs                Storage to use, 'fs' for fi
 **Network**
 network.advertdiagnosticsinterval  5000              Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).
 network.adverthashesinterval       2000              Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.
-network.bootstrapnodes             []                Comma-separated list of bootstrap nodes (`<host>:<port>`) which the node initially connect to.
+network.bootstrapnodes             []                List of bootstrap nodes (`<host>:<port>`) which the node initially connect to.
 network.certfile                                     PEM file containing the server certificate for the gRPC server. Required when `enableTLS` is `true`.
 network.certkeyfile                                  PEM file containing the private key of the server certificate. Required when `network.enabletls` is `true`.
 network.enabletls                  true              Whether to enable TLS for incoming and outgoing gRPC connections. If set to `true` (which is default) `certfile` and `certkeyfile` MUST be configured.
