@@ -174,8 +174,30 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 	payloadHash := hash.SHA256Sum(payload)
 	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), key.KID())
 
+	// Assert that all additional prevs are present and its payload is there
+	for _, prev := range additionalPrevs {
+		isPresent, err := n.isPayloadPresent(prev)
+		if err != nil {
+			return nil ,err
+		}
+		if !isPresent {
+			return nil, fmt.Errorf("additional prev is unknown or missing payload (prev=%s)", prev)
+		}
+	}
+
+	// Find current heads, make sure they've got payload
+	var prevs []hash.SHA256Hash
+	for _, head := range n.graph.Heads() {
+		resolvedHead, err := n.findFirstTransactionWithPayload(head)
+		if err != nil {
+			return nil, fmt.Errorf("error while searching for first head transaction with payload: %w", err)
+		}
+		if resolvedHead != nil {
+			prevs = append(prevs, resolvedHead.Ref())
+		}
+	}
+
 	// Create transaction
-	prevs := n.graph.Heads()
 	for _, addPrev := range additionalPrevs {
 		prevs = append(prevs, addPrev)
 	}
@@ -263,4 +285,41 @@ func (n *Network) collectDiagnostics() proto.Diagnostics {
 		result.Peers = append(result.Peers, peer.ID)
 	}
 	return result
+}
+
+func (n *Network) isPayloadPresent(txRef hash.SHA256Hash) (bool, error) {
+	tx, err := n.graph.Get(txRef)
+	if err != nil {
+		return false, err
+	}
+	if tx == nil {
+		return false, nil
+	}
+	return n.payloadStore.IsPresent(tx.PayloadHash())
+}
+
+// findFirstTransactionWithPayload looks back, starting at the specified transaction, for the first transaction it encounters which' payload is present.
+func (n *Network) findFirstTransactionWithPayload(txRef hash.SHA256Hash) (dag.Transaction, error) {
+	tx, err := n.graph.Get(txRef)
+	if err != nil {
+		return nil, err
+	}
+	payloadPresent, err := n.payloadStore.IsPresent(tx.PayloadHash())
+	if err != nil {
+		return nil, err
+	}
+	if payloadPresent {
+		return tx, nil
+	}
+	for _, prev := range tx.Previous() {
+		prevTX, err := n.findFirstTransactionWithPayload(prev)
+		if err != nil {
+			return nil, err
+		}
+		if prevTX != nil {
+			return prevTX, nil
+		}
+	}
+	// No more to find
+	return nil, nil
 }
