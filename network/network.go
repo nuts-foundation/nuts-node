@@ -54,15 +54,16 @@ const (
 
 // Network implements Transactions interface and Engine functions.
 type Network struct {
-	config       Config
-	p2pNetwork   p2p.Adapter
-	protocol     proto.Protocol
-	graph        dag.DAG
-	publisher    dag.Publisher
-	payloadStore dag.PayloadStore
-	keyResolver  types.KeyResolver
-	startTime    atomic.Value
-	peerID       p2p.PeerID
+	config                 Config
+	p2pNetwork             p2p.Adapter
+	protocol               proto.Protocol
+	graph                  dag.DAG
+	publisher              dag.Publisher
+	payloadStore           dag.PayloadStore
+	keyResolver            types.KeyResolver
+	startTime              atomic.Value
+	peerID                 p2p.PeerID
+	lastTransactionTracker lastTransactionTracker
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -77,10 +78,11 @@ func (n *Network) Walk(visitor dag.Visitor) error {
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(config Config, keyResolver types.KeyResolver) *Network {
 	result := &Network{
-		config:      config,
-		keyResolver: keyResolver,
-		p2pNetwork:  p2p.NewAdapter(),
-		protocol:    proto.NewProtocol(),
+		config:                 config,
+		keyResolver:            keyResolver,
+		p2pNetwork:             p2p.NewAdapter(),
+		protocol:               proto.NewProtocol(),
+		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
 	return result
 }
@@ -135,6 +137,7 @@ func (n *Network) Start() error {
 		log.Logger().Warn("Network engine is in offline mode (P2P layer not configured).")
 	}
 	n.protocol.Start()
+	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
 	n.publisher.Start()
 	if err := n.graph.Verify(); err != nil {
 		return err
@@ -185,19 +188,8 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 		}
 	}
 
-	// Find current heads, make sure they've got payload
-	var prevs []hash.SHA256Hash
-	for _, head := range n.graph.Heads() {
-		resolvedHead, err := n.findFirstTransactionWithPayload(head)
-		if err != nil {
-			return nil, fmt.Errorf("error while searching for first head transaction with payload: %w", err)
-		}
-		if resolvedHead != nil {
-			prevs = append(prevs, resolvedHead.Ref())
-		}
-	}
-
 	// Create transaction
+	prevs := n.lastTransactionTracker.heads()
 	for _, addPrev := range additionalPrevs {
 		prevs = append(prevs, addPrev)
 	}
@@ -298,28 +290,25 @@ func (n *Network) isPayloadPresent(txRef hash.SHA256Hash) (bool, error) {
 	return n.payloadStore.IsPresent(tx.PayloadHash())
 }
 
-// findFirstTransactionWithPayload looks back, starting at the specified transaction, for the first transaction it encounters which' payload is present.
-func (n *Network) findFirstTransactionWithPayload(txRef hash.SHA256Hash) (dag.Transaction, error) {
-	tx, err := n.graph.Get(txRef)
-	if err != nil {
-		return nil, err
+// lastTransactionTracker that is used for tracking the heads but with payloads, since the DAG heads might have the associated payloads.
+// This works because the publisher only publishes transactions which' payloads are present.
+type lastTransactionTracker struct {
+	headRefs map[hash.SHA256Hash]bool
+}
+
+func (l lastTransactionTracker) process(transaction dag.Transaction, _ []byte) error {
+	// Update heads: previous' transactions aren't heads anymore, this transaction becomes a head.
+	for _, prev := range transaction.Previous() {
+		delete(l.headRefs, prev)
 	}
-	payloadPresent, err := n.payloadStore.IsPresent(tx.PayloadHash())
-	if err != nil {
-		return nil, err
+	l.headRefs[transaction.Ref()] = true
+	return nil
+}
+
+func (l lastTransactionTracker) heads() []hash.SHA256Hash {
+	var heads []hash.SHA256Hash
+	for head := range l.headRefs {
+		heads = append(heads, head)
 	}
-	if payloadPresent {
-		return tx, nil
-	}
-	for _, prev := range tx.Previous() {
-		prevTX, err := n.findFirstTransactionWithPayload(prev)
-		if err != nil {
-			return nil, err
-		}
-		if prevTX != nil {
-			return prevTX, nil
-		}
-	}
-	// No more to find
-	return nil, nil
+	return heads
 }

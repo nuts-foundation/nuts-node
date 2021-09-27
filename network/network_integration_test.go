@@ -158,6 +158,7 @@ func startNode(name string, directory string) (*Network, error) {
 			AdvertHashesInterval:      500,
 			AdvertDiagnosticsInterval: 5000,
 		},
+		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
 	if err := instance.Configure(core.ServerConfig{Datadir: directory}); err != nil {
 		return nil, err

@@ -179,10 +179,10 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify()
-		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
 
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
@@ -200,9 +200,9 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify()
-		cxt.graph.EXPECT().Heads().Return(nil)
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
@@ -221,27 +221,32 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify()
-		cxt.graph.EXPECT().Heads().Return(nil)
+
+		// Register root TX on head tracker
+		rootTX, _, _ := dag.CreateTestTransaction(0)
+		cxt.network.lastTransactionTracker.process(rootTX, []byte{1, 2, 3})
 
 		// 'Register' prev on DAG
-		prev, _, _ := dag.CreateTestTransaction(1)
-		cxt.graph.EXPECT().Get(prev.Ref()).Return(prev, nil)
-		cxt.payload.EXPECT().IsPresent(prev.PayloadHash()).Return(true, nil)
+		additionalPrev, _, _ := dag.CreateTestTransaction(1)
+		cxt.graph.EXPECT().Get(additionalPrev.Ref()).Return(additionalPrev, nil)
+		cxt.payload.EXPECT().IsPresent(additionalPrev.PayloadHash()).Return(true, nil)
 
 		cxt.graph.EXPECT().Add(gomock.Any())
 		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
 			return
 		}
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{prev.Ref()})
+		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{additionalPrev.Ref()})
 
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Len(t, tx.Previous(), 1)
-		assert.Equal(t, prev.Ref(), tx.Previous()[0])
+		assert.Len(t, tx.Previous(), 2)
+		assert.Equal(t, rootTX.Ref(), tx.Previous()[0])
+		assert.Equal(t, additionalPrev.Ref(), tx.Previous()[1])
 	})
 	t.Run("error - additional prev is missing payload", func(t *testing.T) {
 		payload := []byte("Hello, World!")
@@ -252,6 +257,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify()
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
@@ -269,53 +275,6 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		assert.Contains(t, err.Error(), "additional prev is unknown or missing payload")
 		assert.Nil(t, tx)
 	})
-	t.Run("ok - head is missing payload", func(t *testing.T) {
-		// This test asserts that when determining prevs, only transactions which' payload is present are taken into account
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		payload := []byte("Hello, World!")
-		cxt := createNetwork(ctrl)
-
-		// Root TX with payload
-		tx0, _, _ := dag.CreateTestTransaction(1)
-		cxt.graph.EXPECT().Get(tx0.Ref()).Return(tx0, nil)
-		cxt.payload.EXPECT().IsPresent(tx0.PayloadHash()).Return(true, nil)
-
-		// Tx 1 without payload
-		tx1, _, _ := dag.CreateTestTransaction(2, tx0.Ref())
-		cxt.graph.EXPECT().Get(tx1.Ref()).Return(tx1, nil)
-		cxt.payload.EXPECT().IsPresent(tx1.PayloadHash()).Return(false, nil)
-
-		// Tx 2 without payload (acts as head)
-		tx2, _, _ := dag.CreateTestTransaction(3, tx1.Ref())
-		cxt.graph.EXPECT().Get(tx2.Ref()).Return(tx2, nil)
-		cxt.payload.EXPECT().IsPresent(tx2.PayloadHash()).Return(false, nil)
-		cxt.graph.EXPECT().Heads().Return([]hash.SHA256Hash{tx2.Ref()})
-
-		// Setup
-		cxt.p2pAdapter.EXPECT().Start()
-		cxt.p2pAdapter.EXPECT().Configured().Return(true)
-		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify()
-
-		// Addition of new transaction
-		cxt.graph.EXPECT().Add(gomock.Any()).DoAndReturn(func(tx dag.Transaction) error {
-			// Assert it references the root TX (tx0), rather than the head (which' payload is missing)
-			assert.Len(t, tx.Previous(), 1)
-			assert.Equal(t, tx0.Ref(), tx.Previous()[0])
-			return nil
-		})
-
-		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
-
-		cxt.publisher.EXPECT().Start()
-		err := cxt.network.Start()
-		if !assert.NoError(t, err) {
-			return
-		}
-		_, err = cxt.network.CreateTransaction(payloadType, payload, key, true, time.Now(), []hash.SHA256Hash{})
-		assert.NoError(t, err)
-	})
 }
 
 func TestNetwork_Start(t *testing.T) {
@@ -327,6 +286,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify()
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
@@ -341,6 +301,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify()
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		if !assert.NoError(t, err) {
@@ -354,6 +315,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify().Return(errors.New("failed"))
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		assert.EqualError(t, err, "failed")
