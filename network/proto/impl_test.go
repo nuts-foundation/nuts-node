@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"errors"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -48,32 +49,62 @@ func Test_Protocol_StartAdvertingDiagnostics(t *testing.T) {
 }
 
 func Test_Protocol_Diagnostics(t *testing.T) {
-	instance := NewProtocol().(*protocol)
+	t.Run("peer diagnostics", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		payloadCollector := NewMockmissingPayloadCollector(ctrl)
+		payloadCollector.EXPECT().findMissingPayloads().AnyTimes().Return(nil, nil)
 
-	instance.peerOmnihashChannel = make(chan PeerOmnihash, 1)
-	peerConnected := make(chan p2p.Peer, 1)
-	peerDisconnected := make(chan p2p.Peer, 1)
+		instance := NewProtocol().(*protocol)
+		instance.missingPayloadCollector = payloadCollector
+		instance.peerOmnihashChannel = make(chan PeerOmnihash, 1)
+		peerConnected := make(chan p2p.Peer, 1)
+		peerDisconnected := make(chan p2p.Peer, 1)
 
-	stats := instance.Diagnostics()[0].(peerOmnihashStatistic)
-	assert.Empty(t, stats.peerHashes)
+		stats := instance.Diagnostics()[0].(peerOmnihashStatistic)
+		assert.Empty(t, stats.peerHashes)
 
-	// Peer connects
-	peerConnected <- p2p.Peer{ID: peer}
-	instance.updateDiagnostics(peerConnected, peerDisconnected)
-	stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
-	assert.Len(t, stats.peerHashes, 1)
+		// Peer connects
+		peerConnected <- p2p.Peer{ID: peer}
+		instance.updateDiagnostics(peerConnected, peerDisconnected)
+		stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
+		assert.Len(t, stats.peerHashes, 1)
 
-	// Peer broadcasts hash
-	peerHash := hash.SHA256Sum([]byte("Hello, World!"))
-	instance.peerOmnihashChannel <- PeerOmnihash{Peer: peer, Hash: peerHash}
-	instance.updateDiagnostics(peerConnected, peerDisconnected)
-	stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
-	assert.Len(t, stats.peerHashes, 1)
-	assert.Equal(t, peerHash, stats.peerHashes[peer])
+		// Peer broadcasts hash
+		peerHash := hash.SHA256Sum([]byte("Hello, World!"))
+		instance.peerOmnihashChannel <- PeerOmnihash{Peer: peer, Hash: peerHash}
+		instance.updateDiagnostics(peerConnected, peerDisconnected)
+		stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
+		assert.Len(t, stats.peerHashes, 1)
+		assert.Equal(t, peerHash, stats.peerHashes[peer])
 
-	// Peer disconnects
-	peerDisconnected <- p2p.Peer{ID: peer}
-	instance.updateDiagnostics(peerConnected, peerDisconnected)
-	stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
-	assert.Empty(t, stats.peerHashes)
+		// Peer disconnects
+		peerDisconnected <- p2p.Peer{ID: peer}
+		instance.updateDiagnostics(peerConnected, peerDisconnected)
+		stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
+		assert.Empty(t, stats.peerHashes)
+	})
+
+	t.Run("ok - missing payloads", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		payloadCollector := NewMockmissingPayloadCollector(ctrl)
+		payloadCollector.EXPECT().findMissingPayloads().Return([]hash.SHA256Hash{{1}}, nil)
+
+		instance := NewProtocol().(*protocol)
+		instance.missingPayloadCollector = payloadCollector
+		diagnostics := instance.Diagnostics()
+		assert.Equal(t, "[Protocol] Missing Payload Hashes", diagnostics[1].Name())
+		assert.Equal(t, "[0100000000000000000000000000000000000000000000000000000000000000]", diagnostics[1].String())
+	})
+
+	t.Run("error - missing payloads (doesn't panic/fail)", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		payloadCollector := NewMockmissingPayloadCollector(ctrl)
+		payloadCollector.EXPECT().findMissingPayloads().Return(nil, errors.New("oops"))
+
+		instance := NewProtocol().(*protocol)
+		instance.missingPayloadCollector = payloadCollector
+		diagnostics := instance.Diagnostics()
+		assert.Equal(t, "[Protocol] Missing Payload Hashes", diagnostics[1].Name())
+		assert.Empty(t, "", diagnostics[1].String())
+	})
 }

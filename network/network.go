@@ -105,6 +105,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics,
 		time.Duration(n.config.AdvertHashesInterval)*time.Millisecond,
 		time.Duration(n.config.AdvertDiagnosticsInterval)*time.Millisecond,
+		time.Duration(n.config.CollectMissingPayloadsInterval)*time.Millisecond,
 		n.peerID)
 	networkConfig, p2pErr := n.buildP2PConfig(n.peerID)
 	if p2pErr != nil {

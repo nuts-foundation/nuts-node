@@ -38,15 +38,15 @@ func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 }
 
 // Configure mocks base method.
-func (m *MockProtocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() Diagnostics, advertHashesInterval, advertDiagnosticsInterval time.Duration, peerID p2p.PeerID) {
+func (m *MockProtocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() Diagnostics, advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval time.Duration, peerID p2p.PeerID) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Configure", p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, advertDiagnosticsInterval, peerID)
+	m.ctrl.Call(m, "Configure", p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval, peerID)
 }
 
 // Configure indicates an expected call of Configure.
-func (mr *MockProtocolMockRecorder) Configure(p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, advertDiagnosticsInterval, peerID interface{}) *gomock.Call {
+func (mr *MockProtocolMockRecorder) Configure(p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval, peerID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, advertDiagnosticsInterval, peerID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval, peerID)
 }
 
 // Diagnostics mocks base method.

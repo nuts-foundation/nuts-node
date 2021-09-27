@@ -43,10 +43,10 @@ type Protocol interface {
 	core.Diagnosable
 	// Configure configures the Protocol. Must be called before Start().
 	Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() Diagnostics,
-		advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration, peerID p2p.PeerID)
-	// Starts the Protocol (sending and receiving of messages).
+		advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration, collectMissingPayloadsInterval time.Duration, peerID p2p.PeerID)
+	// Start the Protocol (sending and receiving of messages).
 	Start()
-	// Stops the Protocol.
+	// Stop the Protocol.
 	Stop()
 	// PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 	PeerDiagnostics() map[p2p.PeerID]Diagnostics

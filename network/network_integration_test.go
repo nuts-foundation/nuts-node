@@ -139,25 +139,29 @@ func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCr
 	return true
 }
 
-func startNode(name string, directory string) (*Network, error) {
+func startNode(name string, directory string, configurers ...func(*Config)) (*Network, error) {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
 	core.NewServerConfig().Load(&cobra.Command{})
 	mutex.Lock()
 	mutex.Unlock()
 	// Create Network instance
+	config := Config{
+		GrpcAddr:                  fmt.Sprintf(":%d", nameToPort(name)),
+		CertFile:                  "test/certificate-and-key.pem",
+		CertKeyFile:               "test/certificate-and-key.pem",
+		TrustStoreFile:            "test/truststore.pem",
+		EnableTLS:                 true,
+		AdvertHashesInterval:      500,
+		AdvertDiagnosticsInterval: 5000,
+	}
+	for _, c := range configurers {
+		c(&config)
+	}
 	instance := &Network{
-		p2pNetwork: p2p.NewAdapter(),
-		protocol:   proto.NewProtocol(),
-		config: Config{
-			GrpcAddr:                  fmt.Sprintf(":%d", nameToPort(name)),
-			CertFile:                  "test/certificate-and-key.pem",
-			CertKeyFile:               "test/certificate-and-key.pem",
-			TrustStoreFile:            "test/truststore.pem",
-			EnableTLS:                 true,
-			AdvertHashesInterval:      500,
-			AdvertDiagnosticsInterval: 5000,
-		},
+		p2pNetwork:             p2p.NewAdapter(),
+		protocol:               proto.NewProtocol(),
+		config:                 config,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
 	if err := instance.Configure(core.ServerConfig{Datadir: directory}); err != nil {

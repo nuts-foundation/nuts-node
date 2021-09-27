@@ -127,6 +127,20 @@ func (mr *MockDAGMockRecorder) IsPresent(ref interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockDAG)(nil).IsPresent), ref)
 }
 
+// PayloadHashes mocks base method.
+func (m *MockDAG) PayloadHashes(visitor func(hash.SHA256Hash) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PayloadHashes", visitor)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PayloadHashes indicates an expected call of PayloadHashes.
+func (mr *MockDAGMockRecorder) PayloadHashes(visitor interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PayloadHashes", reflect.TypeOf((*MockDAG)(nil).PayloadHashes), visitor)
+}
+
 // RegisterObserver mocks base method.
 func (m *MockDAG) RegisterObserver(observer Observer) {
 	m.ctrl.T.Helper()
@@ -318,6 +332,20 @@ func (mr *MockPayloadStoreMockRecorder) IsPresent(payloadHash interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockPayloadStore)(nil).IsPresent), payloadHash)
 }
 
+// ReadMany mocks base method.
+func (m *MockPayloadStore) ReadMany(consumer func(PayloadReader) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReadMany", consumer)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReadMany indicates an expected call of ReadMany.
+func (mr *MockPayloadStoreMockRecorder) ReadMany(consumer interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadMany", reflect.TypeOf((*MockPayloadStore)(nil).ReadMany), consumer)
+}
+
 // ReadPayload mocks base method.
 func (m *MockPayloadStore) ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error) {
 	m.ctrl.T.Helper()
@@ -394,6 +422,59 @@ func (m *MockPayloadWriter) WritePayload(payloadHash hash.SHA256Hash, data []byt
 func (mr *MockPayloadWriterMockRecorder) WritePayload(payloadHash, data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockPayloadWriter)(nil).WritePayload), payloadHash, data)
+}
+
+// MockPayloadReader is a mock of PayloadReader interface.
+type MockPayloadReader struct {
+	ctrl     *gomock.Controller
+	recorder *MockPayloadReaderMockRecorder
+}
+
+// MockPayloadReaderMockRecorder is the mock recorder for MockPayloadReader.
+type MockPayloadReaderMockRecorder struct {
+	mock *MockPayloadReader
+}
+
+// NewMockPayloadReader creates a new mock instance.
+func NewMockPayloadReader(ctrl *gomock.Controller) *MockPayloadReader {
+	mock := &MockPayloadReader{ctrl: ctrl}
+	mock.recorder = &MockPayloadReaderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPayloadReader) EXPECT() *MockPayloadReaderMockRecorder {
+	return m.recorder
+}
+
+// IsPresent mocks base method.
+func (m *MockPayloadReader) IsPresent(payloadHash hash.SHA256Hash) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsPresent", payloadHash)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsPresent indicates an expected call of IsPresent.
+func (mr *MockPayloadReaderMockRecorder) IsPresent(payloadHash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockPayloadReader)(nil).IsPresent), payloadHash)
+}
+
+// ReadPayload mocks base method.
+func (m *MockPayloadReader) ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReadPayload", payloadHash)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ReadPayload indicates an expected call of ReadPayload.
+func (mr *MockPayloadReaderMockRecorder) ReadPayload(payloadHash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockPayloadReader)(nil).ReadPayload), payloadHash)
 }
 
 // MockObservable is a mock of Observable interface.

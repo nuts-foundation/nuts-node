@@ -61,6 +61,18 @@ func (mr *MockmessageSenderMockRecorder) broadcastDiagnostics(diagnostics interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastDiagnostics", reflect.TypeOf((*MockmessageSender)(nil).broadcastDiagnostics), diagnostics)
 }
 
+// broadcastTransactionPayloadQuery mocks base method.
+func (m *MockmessageSender) broadcastTransactionPayloadQuery(payloadHash hash.SHA256Hash) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "broadcastTransactionPayloadQuery", payloadHash)
+}
+
+// broadcastTransactionPayloadQuery indicates an expected call of broadcastTransactionPayloadQuery.
+func (mr *MockmessageSenderMockRecorder) broadcastTransactionPayloadQuery(payloadHash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastTransactionPayloadQuery", reflect.TypeOf((*MockmessageSender)(nil).broadcastTransactionPayloadQuery), payloadHash)
+}
+
 // sendTransactionList mocks base method.
 func (m *MockmessageSender) sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, date time.Time) {
 	m.ctrl.T.Helper()

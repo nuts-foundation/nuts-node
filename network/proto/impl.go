@@ -19,6 +19,8 @@
 package proto
 
 import (
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
 
@@ -48,10 +50,12 @@ type protocol struct {
 	peerOmnihashChannel chan PeerOmnihash
 	peerOmnihashMutex   *sync.Mutex
 
-	blocks dagBlocks
+	blocks                  dagBlocks
+	missingPayloadCollector missingPayloadCollector
 
-	advertHashesInterval      time.Duration
-	advertDiagnosticsInterval time.Duration
+	advertHashesInterval           time.Duration
+	advertDiagnosticsInterval      time.Duration
+	collectMissingPayloadsInterval time.Duration
 	// diagnosticsProvider is a function for collecting diagnostics from the local node which can be shared with peers.
 	diagnosticsProvider func() Diagnostics
 	// peerID contains our own peer ID which can be logged for debugging purposes
@@ -59,11 +63,22 @@ type protocol struct {
 }
 
 func (p *protocol) Diagnostics() []core.DiagnosticResult {
+	var diagnostics []core.DiagnosticResult
+
 	p.peerOmnihashMutex.Lock()
-	defer p.peerOmnihashMutex.Unlock()
-	return []core.DiagnosticResult{
-		newPeerOmnihashStatistic(p.peerOmnihashes),
+	diagnostics = append(diagnostics, newPeerOmnihashStatistic(p.peerOmnihashes))
+	p.peerOmnihashMutex.Unlock()
+
+	missingPayloads, err := p.missingPayloadCollector.findMissingPayloads()
+	if err != nil {
+		log.Logger().Errorf("Error while collecting missing payloads: %s", err)
 	}
+	diagnostics = append(diagnostics, &core.GenericDiagnosticResult{
+		Title:   "[Protocol] Missing Payload Hashes",
+		Outcome: fmt.Sprintf("%v", missingPayloads),
+	})
+
+	return diagnostics
 }
 
 func (p *protocol) PeerDiagnostics() map[p2p.PeerID]Diagnostics {
@@ -93,15 +108,22 @@ func NewProtocol() Protocol {
 }
 
 func (p *protocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore,
-	diagnosticsProvider func() Diagnostics, advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration, peerID p2p.PeerID) {
+	diagnosticsProvider func() Diagnostics, advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration,
+	collectMissingPayloadsInterval time.Duration, peerID p2p.PeerID) {
 	p.p2pNetwork = p2pNetwork
 	p.graph = graph
 	p.payloadStore = payloadStore
 	p.advertHashesInterval = advertHashesInterval
 	p.advertDiagnosticsInterval = advertDiagnosticsInterval
+	p.collectMissingPayloadsInterval = collectMissingPayloadsInterval
 	p.diagnosticsProvider = diagnosticsProvider
 	p.peerID = peerID
 	p.sender = defaultMessageSender{p2p: p.p2pNetwork, maxMessageSize: p2p.MaxMessageSizeInBytes}
+	p.missingPayloadCollector = broadcastingMissingPayloadCollector{
+		graph:        p.graph,
+		payloadStore: p.payloadStore,
+		sender:       p.sender,
+	}
 	publisher.Subscribe(dag.AnyPayloadType, p.blocks.addTransaction)
 }
 
@@ -111,6 +133,7 @@ func (p *protocol) Start() {
 	go p.startUpdatingDiagnostics(peerConnected, peerDisconnected)
 	go p.startAdvertingHashes()
 	go p.startAdvertingDiagnostics()
+	go p.startCollectingMissingPayloads()
 }
 
 func (p protocol) Stop() {
@@ -137,6 +160,23 @@ func (p protocol) startAdvertingDiagnostics() {
 		select {
 		case <-ticker.C:
 			p.sender.broadcastDiagnostics(p.diagnosticsProvider())
+		}
+	}
+}
+
+func (p protocol) startCollectingMissingPayloads() {
+	if p.collectMissingPayloadsInterval.Nanoseconds() == 0 {
+		log.Logger().Info("Collecting missing payloads is disabled.")
+		return
+	}
+	ticker := time.NewTicker(p.collectMissingPayloadsInterval)
+	for {
+		select {
+		case <-ticker.C:
+			err := p.missingPayloadCollector.findAndQueryMissingPayloads()
+			if err != nil {
+				logrus.Infof("Error occured while querying missing payloads: %s", err)
+			}
 		}
 	}
 }
