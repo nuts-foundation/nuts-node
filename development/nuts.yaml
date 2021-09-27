@@ -1,4 +1,4 @@
-  datadir: /opt/nuts
+datadir: /opt/nuts
 network:
   truststorefile: /opt/nuts/truststore.pem
   certfile: /opt/nuts/certificate.pem
