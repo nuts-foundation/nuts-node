@@ -415,6 +415,37 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 	})
 }
 
+func Test_lastTransactionTracker(t *testing.T) {
+	tracker := lastTransactionTracker{headRefs: map[hash.SHA256Hash]bool{}}
+
+	assert.Empty(t, tracker.heads()) // initially empty
+
+	// Root TX
+	tx0, _, _ := dag.CreateTestTransaction(0)
+	_ = tracker.process(tx0, nil)
+	assert.Len(t, tracker.heads(), 1)
+	assert.Contains(t, tracker.heads(), tx0.Ref())
+
+	// TX 1
+	tx1, _, _ := dag.CreateTestTransaction(1, tx0.Ref())
+	_ = tracker.process(tx1, nil)
+	assert.Len(t, tracker.heads(), 1)
+	assert.Contains(t, tracker.heads(), tx1.Ref())
+
+	// TX 2 (branch from root)
+	tx2, _, _ := dag.CreateTestTransaction(2, tx0.Ref())
+	_ = tracker.process(tx2, nil)
+	assert.Len(t, tracker.heads(), 2)
+	assert.Contains(t, tracker.heads(), tx1.Ref())
+	assert.Contains(t, tracker.heads(), tx2.Ref())
+
+	// TX 3 (merges 1 and 2)
+	tx3, _, _ := dag.CreateTestTransaction(2, tx1.Ref(), tx2.Ref())
+	_ = tracker.process(tx3, nil)
+	assert.Len(t, tracker.heads(), 1)
+	assert.Contains(t, tracker.heads(), tx3.Ref())
+}
+
 func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	p2pAdapter := p2p.NewMockAdapter(ctrl)
 	protocol := proto.NewMockProtocol(ctrl)
