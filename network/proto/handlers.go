@@ -173,7 +173,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer p2p.PeerID, query *transpo
 }
 
 func (p *protocol) handleTransactionList(peer p2p.PeerID, transactionList *transport.TransactionList) error {
-	// TODO: Only process transaction list if we actually queried it
+	// TODO: Only process transaction list if we actually queried it (but be aware of pagination)
 	// TODO: Do something with blockDate
 	log.Logger().Tracef("Received transaction list from peer (peer=%s)", peer)
 	transactions := transactionList.Transactions

@@ -101,7 +101,7 @@ func (p *protocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher da
 	p.advertDiagnosticsInterval = advertDiagnosticsInterval
 	p.diagnosticsProvider = diagnosticsProvider
 	p.peerID = peerID
-	p.sender = defaultMessageSender{p2p: p.p2pNetwork}
+	p.sender = defaultMessageSender{p2p: p.p2pNetwork, maxMessageSize: p2p.MaxMessageSizeInBytes}
 	publisher.Subscribe(dag.AnyPayloadType, p.blocks.addTransaction)
 }
 

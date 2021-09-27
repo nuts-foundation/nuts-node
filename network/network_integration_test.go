@@ -48,7 +48,7 @@ var receivedTransactions = make(map[string][]dag.Transaction, 0)
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest(testDirectory)
+	resetIntegrationTest()
 	key := nutsCrypto.NewTestKey("key")
 	expectedDocLogSize := 0
 
@@ -113,7 +113,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	fmt.Printf("%v\n", node2.Diagnostics())
 }
 
-func resetIntegrationTest(testDirectory string) {
+func resetIntegrationTest() {
 	receivedTransactions = make(map[string][]dag.Transaction, 0)
 }
 
