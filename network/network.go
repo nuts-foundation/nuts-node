@@ -295,7 +295,7 @@ func (n *Network) isPayloadPresent(txRef hash.SHA256Hash) (bool, error) {
 // This works because the publisher only publishes transactions which' payloads are present.
 type lastTransactionTracker struct {
 	headRefs map[hash.SHA256Hash]bool
-	mux sync.Mutex
+	mux      sync.Mutex
 }
 
 func (l *lastTransactionTracker) process(transaction dag.Transaction, _ []byte) error {
