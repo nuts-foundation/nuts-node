@@ -1,9 +1,10 @@
-datadir: /opt/nuts
+  datadir: /opt/nuts
 network:
   truststorefile: /opt/nuts/truststore.pem
   certfile: /opt/nuts/certificate.pem
   certkeyfile: /opt/nuts/certificate.pem
-  bootstrapnodes: node1:5555
+  bootstrapnodes:
+    - node1:5555
 http:
   default:
     address: :8080

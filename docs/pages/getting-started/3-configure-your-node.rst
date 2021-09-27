@@ -44,7 +44,7 @@ If you're using a YAML file to configure your node, the following snippet shows 
     certfile: /path/to/certificate-and-key.pem
     certkeyfile: /path/to/certificate-and-key.pem
     bootstrapnodes:
-      - "example.com:5555"
+      - example.com:5555
 
 Node TLS Certificate
 ====================
