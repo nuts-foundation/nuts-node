@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -294,9 +295,13 @@ func (n *Network) isPayloadPresent(txRef hash.SHA256Hash) (bool, error) {
 // This works because the publisher only publishes transactions which' payloads are present.
 type lastTransactionTracker struct {
 	headRefs map[hash.SHA256Hash]bool
+	mux sync.Mutex
 }
 
-func (l lastTransactionTracker) process(transaction dag.Transaction, _ []byte) error {
+func (l *lastTransactionTracker) process(transaction dag.Transaction, _ []byte) error {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+
 	// Update heads: previous' transactions aren't heads anymore, this transaction becomes a head.
 	for _, prev := range transaction.Previous() {
 		delete(l.headRefs, prev)
@@ -305,7 +310,10 @@ func (l lastTransactionTracker) process(transaction dag.Transaction, _ []byte) e
 	return nil
 }
 
-func (l lastTransactionTracker) heads() []hash.SHA256Hash {
+func (l *lastTransactionTracker) heads() []hash.SHA256Hash {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+
 	var heads []hash.SHA256Hash
 	for head := range l.headRefs {
 		heads = append(heads, head)
