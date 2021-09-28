@@ -413,8 +413,8 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		defer ctx.ctrl.Finish()
 		subj := "urn:oid:2.16.840.1.113883.2.4.6.3:9999990"
 		body := CreateJwtGrantRequest{
-			Actor:     "urn:oid:2.16.840.1.113883.2.4.6.1:48000000",
-			Custodian: "urn:oid:2.16.840.1.113883.2.4.6.1:12481248",
+			Actor:     vdr.TestDIDA.String(),
+			Custodian: vdr.TestDIDB.String(),
 			Subject:   &subj,
 			Identity:  "irma-token",
 			Service:   "service",
@@ -843,10 +843,10 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		bindPostBody(ctx, request)
 
 		aud := "123"
-		aid := "urn:oid:2.16.840.1.113883.2.4.6.1:00000000"
+		aid := vdr.TestDIDA.String()
 		exp := 1581412667
 		iat := 1581411767
-		iss := "urn:oid:2.16.840.1.113883.2.4.6.1:00000001"
+		iss := vdr.TestDIDB.String()
 		sid := "urn:oid:2.16.840.1.113883.2.4.6.3:999999990"
 		service := "service"
 		ctx.oauthClientMock.EXPECT().IntrospectAccessToken(request.Token).Return(

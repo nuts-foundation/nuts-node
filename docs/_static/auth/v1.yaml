@@ -465,8 +465,8 @@ components:
       example: "v1"
     LegalEntity:
       type: string
-      description: Identifier of the legalEntity as registered in the Nuts registry.
-      example: "urn:oid:2.16.840.1.113883.2.4.6.1:48000000"
+      description: DID of the organization as registered in the Nuts registry.
+      example: "did:nuts:128903fjgfslcnmgpe84"
     Contract:
       required:
         - type
@@ -703,13 +703,13 @@ components:
         iss:
           type: string
           description: |
-            The subject (not a Nuts subject) contains the URN of the custodian.
-          example: "urn:oid:2.16.840.1.113883.2.4.6.1:48000000"
+            The subject (not a Nuts subject) contains the DID of the custodian.
+          example: "did:nuts:128903fjgfslcnmgpe84"
         sub:
           type: string
           description: |
             The subject is always the acting party, thus the care organization requesting access to data.
-          example: "urn:oid:2.16.840.1.113883.2.4.6.1:12481248"
+          example: "did:nuts:128903fjgfslcnmgpe84"
         sid:
           type: string
           description: The Nuts subject id, patient identifier in the form of an oid encoded BSN.

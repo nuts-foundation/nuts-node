@@ -103,7 +103,7 @@ type ContractSigningRequest struct {
 	// Language of the contract in all caps.
 	Language ContractLanguage `json:"language"`
 
-	// Identifier of the legalEntity as registered in the Nuts registry.
+	// DID of the organization as registered in the Nuts registry.
 	LegalEntity LegalEntity `json:"legalEntity"`
 
 	// Type of which contract to sign.
@@ -168,7 +168,7 @@ type DrawUpContractRequest struct {
 	// Language of the contract in all caps.
 	Language ContractLanguage `json:"language"`
 
-	// Identifier of the legalEntity as registered in the Nuts registry.
+	// DID of the organization as registered in the Nuts registry.
 	LegalEntity LegalEntity `json:"legalEntity"`
 
 	// Type of which contract to sign.
@@ -191,7 +191,7 @@ type JwtGrantResponse struct {
 	BearerToken                 string `json:"bearer_token"`
 }
 
-// Identifier of the legalEntity as registered in the Nuts registry.
+// DID of the organization as registered in the Nuts registry.
 type LegalEntity string
 
 // Request for a JWT Grant and use it as authorization grant to get the access token from the custodian
@@ -295,7 +295,7 @@ type TokenIntrospectionResponse struct {
 	GivenName *string `json:"given_name,omitempty"`
 	Iat       *int    `json:"iat,omitempty"`
 
-	// The subject (not a Nuts subject) contains the URN of the custodian.
+	// The subject (not a Nuts subject) contains the DID of the custodian.
 	Iss *string `json:"iss,omitempty"`
 
 	// End-User's full name in displayable form including all name parts, possibly including titles and suffixes, ordered according to the End-User's locale and preferences.
