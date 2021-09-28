@@ -164,6 +164,9 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 	if err != nil {
 		return nil, err
 	}
+	if transaction == nil {
+		return nil, nil
+	}
 	return n.payloadStore.ReadPayload(transaction.PayloadHash())
 }
 
