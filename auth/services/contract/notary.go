@@ -61,7 +61,7 @@ func (s *contractNotaryService) DrawUpContract(template contract.Template, orgID
 	// Test if the org in managed by this node:
 	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(orgID, &validFrom)
 	if errors.Is(err, types.ErrNotFound) {
-		return nil, fmt.Errorf("could not draw up contract: organization not found")
+		return nil, fmt.Errorf("could not draw up contract: no valid organization credential at provided validFrom date")
 	} else if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
