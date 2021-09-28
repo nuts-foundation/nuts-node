@@ -268,7 +268,7 @@ func isPresent(db *bbolt.DB, bucketName string, key []byte) (bool, error) {
 	err = db.View(func(tx *bbolt.Tx) error {
 		if payloads := tx.Bucket([]byte(bucketName)); payloads != nil {
 			data := payloads.Get(key)
-			result = len(data) > 0
+			result = data != nil
 		}
 		return nil
 	})
