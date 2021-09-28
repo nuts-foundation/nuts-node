@@ -11,6 +11,7 @@ Nuts documentation
 
     pages/getting-started/**
 
+
 .. toctree::
     :maxdepth: 1
     :caption: Technology:
