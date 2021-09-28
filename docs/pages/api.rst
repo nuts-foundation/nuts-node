@@ -34,7 +34,10 @@ Below you can discover the Nuts Node APIs and download their OpenAPI specificati
                     SwaggerUIBundle.presets.apis,
                     SwaggerUIStandalonePreset
                 ],
-                layout: "StandaloneLayout"
+                layout: "StandaloneLayout",
+                onComplete: function(swaggerApi, swaggerUi) {
+                    swaggerApi.setBasePath('http://localhost:1323')
+                }
             });
 
             window.ui = ui
