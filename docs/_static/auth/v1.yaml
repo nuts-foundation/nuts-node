@@ -275,7 +275,13 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              $ref: "#/components/schemas/TokenIntrospectionRequest"
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: JWT access token
       responses:
         '200':
           description: An Introspection response as described in RFC7662 section 2.2
