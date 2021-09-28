@@ -5,6 +5,8 @@ info:
   version: 1.0.0
   license:
     name: GPLv3
+servers:
+  - url: http://localhost:1323
 paths:
   /internal/crypto/v1/sign_jwt:
     post:
