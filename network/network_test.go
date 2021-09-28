@@ -77,7 +77,7 @@ func TestNetwork_GetTransaction(t *testing.T) {
 	})
 }
 
-func TestNetwork_GetTransactionContents(t *testing.T) {
+func TestNetwork_GetTransactionPayload(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
@@ -86,6 +86,14 @@ func TestNetwork_GetTransactionContents(t *testing.T) {
 		cxt.graph.EXPECT().Get(transaction.Ref()).Return(transaction, nil)
 		cxt.payload.EXPECT().ReadPayload(transaction.PayloadHash())
 		cxt.network.GetTransactionPayload(transaction.Ref())
+	})
+	t.Run("ok - TX not found", func(t *testing.T) {
+		cxt := createNetwork(ctrl)
+		transaction := dag.CreateTestTransactionWithJWK(1)
+		cxt.graph.EXPECT().Get(transaction.Ref()).Return(nil, nil)
+		payload, err := cxt.network.GetTransactionPayload(transaction.Ref())
+		assert.NoError(t, err)
+		assert.Nil(t, payload)
 	})
 }
 
