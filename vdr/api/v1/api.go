@@ -168,6 +168,25 @@ func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
 	return ctx.JSON(http.StatusOK, resolutionResult)
 }
 
+func (a *Wrapper) ConflictedDIDs(ctx echo.Context) error {
+	docs, metas, err := a.VDR.ConflictedDocuments()
+	if err != nil {
+		// 500 internal server error
+		return err
+	}
+
+	// []docs, []meta to [](doc, meta)
+	returnValues := make([]DIDResolutionResult, len(docs))
+	for i, _ := range docs {
+		returnValues[i] = DIDResolutionResult{
+			Document:         docs[i],
+			DocumentMetadata: metas[i],
+		}
+	}
+
+	return ctx.JSON(http.StatusOK, returnValues)
+}
+
 // UpdateDID updates a DID Document given a DID and DID Document body. It returns the updated DID Document.
 func (a Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
 	d, err := did.ParseDID(targetDID)

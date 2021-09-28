@@ -154,6 +154,9 @@ type ClientInterface interface {
 
 	CreateDID(ctx context.Context, body CreateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ConflictedDIDs request
+	ConflictedDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeactivateDID request
 	DeactivateDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -186,6 +189,18 @@ func (c *Client) CreateDIDWithBody(ctx context.Context, contentType string, body
 
 func (c *Client) CreateDID(ctx context.Context, body CreateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateDIDRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ConflictedDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConflictedDIDsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -304,6 +319,33 @@ func NewCreateDIDRequestWithBody(server string, contentType string, body io.Read
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewConflictedDIDsRequest generates requests for ConflictedDIDs
+func NewConflictedDIDsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vdr/v1/did/conflicted")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -546,6 +588,9 @@ type ClientWithResponsesInterface interface {
 
 	CreateDIDWithResponse(ctx context.Context, body CreateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDIDResponse, error)
 
+	// ConflictedDIDs request
+	ConflictedDIDsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ConflictedDIDsResponse, error)
+
 	// DeactivateDID request
 	DeactivateDIDWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*DeactivateDIDResponse, error)
 
@@ -579,6 +624,28 @@ func (r CreateDIDResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateDIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ConflictedDIDsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]DIDResolutionResult
+}
+
+// Status returns HTTPResponse.Status
+func (r ConflictedDIDsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConflictedDIDsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -708,6 +775,15 @@ func (c *ClientWithResponses) CreateDIDWithResponse(ctx context.Context, body Cr
 	return ParseCreateDIDResponse(rsp)
 }
 
+// ConflictedDIDsWithResponse request returning *ConflictedDIDsResponse
+func (c *ClientWithResponses) ConflictedDIDsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ConflictedDIDsResponse, error) {
+	rsp, err := c.ConflictedDIDs(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConflictedDIDsResponse(rsp)
+}
+
 // DeactivateDIDWithResponse request returning *DeactivateDIDResponse
 func (c *ClientWithResponses) DeactivateDIDWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*DeactivateDIDResponse, error) {
 	rsp, err := c.DeactivateDID(ctx, did, reqEditors...)
@@ -772,6 +848,32 @@ func ParseCreateDIDResponse(rsp *http.Response) (*CreateDIDResponse, error) {
 	response := &CreateDIDResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseConflictedDIDsResponse parses an HTTP response from a ConflictedDIDsWithResponse call
+func ParseConflictedDIDsResponse(rsp *http.Response) (*ConflictedDIDsResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConflictedDIDsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []DIDResolutionResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil
@@ -872,6 +974,9 @@ type ServerInterface interface {
 	// Creates a new Nuts DID
 	// (POST /internal/vdr/v1/did)
 	CreateDID(ctx echo.Context) error
+	// Retrieve the list of conflicted DID documents
+	// (GET /internal/vdr/v1/did/conflicted)
+	ConflictedDIDs(ctx echo.Context) error
 	// Deactivates a Nuts DID document according to the specification.
 	// (DELETE /internal/vdr/v1/did/{did})
 	DeactivateDID(ctx echo.Context, did string) error
@@ -900,6 +1005,15 @@ func (w *ServerInterfaceWrapper) CreateDID(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.CreateDID(ctx)
+	return err
+}
+
+// ConflictedDIDs converts echo context to params.
+func (w *ServerInterfaceWrapper) ConflictedDIDs(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.ConflictedDIDs(ctx)
 	return err
 }
 
@@ -1026,6 +1140,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/internal/vdr/v1/did", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("CreateDID", context)
 		return wrapper.CreateDID(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/vdr/v1/did/conflicted", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("ConflictedDIDs", context)
+		return wrapper.ConflictedDIDs(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/vdr/v1/did/:did", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("DeactivateDID", context)

@@ -203,6 +203,41 @@ func TestWrapper_GetDID(t *testing.T) {
 	})
 }
 
+func TestWrapper_ConflictedDIDs(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:1")
+	didDoc := &did.Document{
+		ID: *id,
+	}
+	meta := &types.DocumentMetadata{}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		var didResolutionResult []DIDResolutionResult
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
+			didResolutionResult = f2.([]DIDResolutionResult)
+			return nil
+		})
+
+		ctx.vdr.EXPECT().ConflictedDocuments().Return([]did.Document{*didDoc}, []types.DocumentMetadata{*meta}, nil)
+		err := ctx.client.ConflictedDIDs(ctx.echo)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, *id, didResolutionResult[0].Document.ID)
+	})
+
+	t.Run("error - other", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		ctx.vdr.EXPECT().ConflictedDocuments().Return(nil, nil, errors.New("b00m!"))
+		err := ctx.client.ConflictedDIDs(ctx.echo)
+
+		assert.Error(t, err)
+	})
+}
+
 func TestWrapper_UpdateDID(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:1")
 	didDoc := &did.Document{
