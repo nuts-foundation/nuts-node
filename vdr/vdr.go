@@ -88,7 +88,7 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 	return nil
 }
 
-func  (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, error) {
+func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, error) {
 	conflictedDocs := make([]did.Document, 0)
 	conflictedMeta := make([]types.DocumentMetadata, 0)
 

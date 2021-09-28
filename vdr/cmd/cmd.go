@@ -49,15 +49,11 @@ func Cmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(createCmd())
-
 	cmd.AddCommand(resolveCmd())
-
+	cmd.AddCommand(conflictedCmd())
 	cmd.AddCommand(updateCmd())
-
 	cmd.AddCommand(deactivateCmd())
-
 	cmd.AddCommand(addVerificationMethodCmd())
-
 	cmd.AddCommand(deleteVerificationMethodCmd())
 
 	return cmd
@@ -170,6 +166,43 @@ func resolveCmd() *cobra.Command {
 			for _, o := range toPrint {
 				bytes, _ := json.MarshalIndent(o, "", "  ")
 				cmd.Printf("%s\n", string(bytes))
+			}
+
+			return nil
+		},
+	}
+	result.Flags().BoolVar(&printMetadata, "metadata", false, "Pass 'true' to only print the metadata (unless other flags are provided as well).")
+	result.Flags().BoolVar(&printDocument, "document", false, "Pass 'true' to only print the document (unless other flags are provided as well).")
+	return result
+}
+
+func conflictedCmd() *cobra.Command {
+	var printMetadata bool
+	var printDocument bool
+	result := &cobra.Command{
+		Use:   "conflicted",
+		Short: "Print conflicted documents and their metadata",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			conflictedDocs, err := httpClient(core.NewClientConfig(cmd.Flags())).ConflictedDIDs()
+			if err != nil {
+				return fmt.Errorf("failed to find conflicted documents: %v", err)
+			}
+
+			if !printMetadata && !printDocument {
+				printMetadata = true
+				printDocument = true
+			}
+
+			for _, doc := range conflictedDocs {
+				if printDocument {
+					bytes, _ := json.MarshalIndent(doc.Document, "", "  ")
+					cmd.Printf("%s\n", string(bytes))
+				}
+				if printMetadata {
+					bytes, _ := json.MarshalIndent(doc.DocumentMetadata, "", "  ")
+					cmd.Printf("%s\n", string(bytes))
+				}
 			}
 
 			return nil

@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"schneider.vip/problem"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
@@ -165,6 +166,57 @@ func TestEngine_Command(t *testing.T) {
 			}
 			assert.Contains(t, errBuf.String(), "failed to resolve DID document")
 			assert.Contains(t, errBuf.String(), "not found")
+		})
+	})
+
+	t.Run("conflicted", func(t *testing.T) {
+		t.Run("ok - write to stdout", func(t *testing.T) {
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
+			cmd.SetArgs([]string{"conflicted"})
+
+			err := cmd.Execute()
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
+			assert.Empty(t, errBuf.Bytes())
+		})
+
+		t.Run("ok - print metadata only", func(t *testing.T) {
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
+			cmd.SetArgs([]string{"conflicted", "--metadata"})
+
+			err := cmd.Execute()
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.NotContains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
+			assert.Empty(t, errBuf.Bytes())
+		})
+
+		t.Run("ok - print document only", func(t *testing.T) {
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
+			cmd.SetArgs([]string{"conflicted", "--document"})
+
+			err := cmd.Execute()
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
+			assert.NotContains(t, buf.String(), "version")
+			assert.Empty(t, errBuf.Bytes())
+		})
+
+		t.Run("error - not found", func(t *testing.T) {
+			p1 := problem.New(problem.Title("error"))
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: p1})
+			cmd.SetArgs([]string{"resolve", "did"})
+
+			err := cmd.Execute()
+			if !assert.Error(t, err) {
+				return
+			}
+			assert.Contains(t, errBuf.String(), "error")
 		})
 	})
 
