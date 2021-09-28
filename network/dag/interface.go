@@ -48,6 +48,8 @@ type DAG interface {
 	Get(ref hash.SHA256Hash) (Transaction, error)
 	// GetByPayloadHash retrieves all transactions that refer to the specified payload.
 	GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Transaction, error)
+	// PayloadHashes applies the visitor function to the payload hashes of all transactions, in random order.
+	PayloadHashes(visitor func(payloadHash hash.SHA256Hash) error) error
 	// IsPresent checks whether the specified transaction exists on the DAG.
 	IsPresent(ref hash.SHA256Hash) (bool, error)
 	// Heads returns all unmerged heads, which are transactions where no other transactions point to as `prev`. To be used
@@ -95,14 +97,10 @@ type Visitor func(transaction Transaction) bool
 type PayloadStore interface {
 	// Observable allows observers to be notified when payload is written to the store.
 	Observable
+	PayloadReader
 	PayloadWriter
-
-	// IsPayloadPresent checks whether the contents for the given transaction are present.
-	IsPresent(payloadHash hash.SHA256Hash) (bool, error)
-
-	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
-	// nil is returned. If something (else) goes wrong an error is returned.
-	ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error)
+	// ReadMany allows the caller read many payloads in an optimized fashion.
+	ReadMany(consumer func(PayloadReader) error) error
 }
 
 // PayloadWriter defines the interface for types that store transaction payloads.
@@ -110,6 +108,16 @@ type PayloadWriter interface {
 	// WritePayload writes contents for the specified payload, identified by the given hash. Implementations must make
 	// sure the hash matches the given contents.
 	WritePayload(payloadHash hash.SHA256Hash, data []byte) error
+}
+
+// PayloadReader defines the interface for types that read transaction payloads.
+type PayloadReader interface {
+	// IsPresent checks whether the contents for the given transaction are present.
+	IsPresent(payloadHash hash.SHA256Hash) (bool, error)
+
+	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
+	// nil is returned. If something (else) goes wrong an error is returned.
+	ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error)
 }
 
 // Observer defines the signature of a observer which can be called by an Observable.

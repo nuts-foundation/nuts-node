@@ -5,8 +5,8 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-// payloadsBucket is the name of the Bolt bucket that holds the payloads of the transactions.
-const payloadsBucket = "payloads"
+// payloadsBucketName is the name of the Bolt bucket that holds the payloads of the transactions.
+const payloadsBucketName = "payloads"
 
 // NewBBoltPayloadStore creates a etcd/bbolt backed payload store using the given database.
 func NewBBoltPayloadStore(db *bbolt.DB) PayloadStore {
@@ -23,23 +23,38 @@ func (store *bboltPayloadStore) RegisterObserver(observer Observer) {
 }
 
 func (store bboltPayloadStore) IsPresent(payloadHash hash.SHA256Hash) (bool, error) {
-	return isPresent(store.db, payloadsBucket, payloadHash.Slice())
-}
-
-func (store bboltPayloadStore) ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error) {
-	var result []byte
-	err := store.db.View(func(tx *bbolt.Tx) error {
-		if payloads := tx.Bucket([]byte(payloadsBucket)); payloads != nil {
-			result = payloads.Get(payloadHash.Slice())
-		}
-		return nil
+	var result bool
+	var err error
+	err = store.ReadMany(func(reader PayloadReader) error {
+		result, err = reader.IsPresent(payloadHash)
+		return err
 	})
 	return result, err
 }
 
+func (store bboltPayloadStore) ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error) {
+	var result []byte
+	var err error
+	err = store.ReadMany(func(reader PayloadReader) error {
+		result, err = reader.ReadPayload(payloadHash)
+		return err
+	})
+	return result, err
+}
+
+func (store bboltPayloadStore) ReadMany(consumer func(reader PayloadReader) error) error {
+	return store.db.View(func(tx *bbolt.Tx) error {
+		payloadsBucket := tx.Bucket([]byte(payloadsBucketName))
+		if payloadsBucket == nil {
+			return nil
+		}
+		return consumer(bboltPayloadReader{payloadsBucket: payloadsBucket})
+	})
+}
+
 func (store bboltPayloadStore) WritePayload(payloadHash hash.SHA256Hash, data []byte) error {
 	err := store.db.Update(func(tx *bbolt.Tx) error {
-		payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucket))
+		payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucketName))
 		if err != nil {
 			return err
 		}
@@ -52,4 +67,17 @@ func (store bboltPayloadStore) WritePayload(payloadHash hash.SHA256Hash, data []
 		notifyObservers(store.observers, payloadHash)
 	}
 	return err
+}
+
+type bboltPayloadReader struct {
+	payloadsBucket *bbolt.Bucket
+}
+
+func (reader bboltPayloadReader) IsPresent(payloadHash hash.SHA256Hash) (bool, error) {
+	data := reader.payloadsBucket.Get(payloadHash.Slice())
+	return len(data) > 0, nil
+}
+
+func (reader bboltPayloadReader) ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error) {
+	return reader.payloadsBucket.Get(payloadHash.Slice()), nil
 }

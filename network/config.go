@@ -17,14 +17,17 @@ type Config struct {
 	AdvertHashesInterval int `koanf:"network.adverthashesinterval"`
 	// AdvertDiagnosticsInterval specifies how often (in milliseconds) the node should query its peers for diagnostic information.
 	AdvertDiagnosticsInterval int `koanf:"network.advertdiagnosticsinterval"`
+	// CollectMissingPayloadsInterval specifies how often (in milliseconds) the node should query peers for missing payloads.
+	CollectMissingPayloadsInterval int `koanf:"network.collectmissingpayloadsinterval"`
 }
 
 // DefaultConfig returns the default NetworkEngine configuration.
 func DefaultConfig() Config {
 	return Config{
-		GrpcAddr:                  ":5555",
-		EnableTLS:                 true,
-		AdvertHashesInterval:      2000,
-		AdvertDiagnosticsInterval: 5000,
+		GrpcAddr:                       ":5555",
+		EnableTLS:                      true,
+		AdvertHashesInterval:           2000,
+		AdvertDiagnosticsInterval:      5000,
+		CollectMissingPayloadsInterval: 60000,
 	}
 }

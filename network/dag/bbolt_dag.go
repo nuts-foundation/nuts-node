@@ -31,7 +31,7 @@ import (
 // transactionsBucket is the name of the Bolt bucket that holds the actual transactions as JSON.
 const transactionsBucket = "documents"
 
-// payloadIndexBucket is the name of the Bolt bucket that holds the a reverse reference from payload hash back to transactions.
+// payloadIndexBucket is the name of the Bolt bucket that holds the reverse reference from payload hash back to transactions.
 // The value ([]byte) should be split in chunks of HashSize where each entry is a transaction reference that refers to
 // the payload.
 const payloadIndexBucket = "payloadIndex"
@@ -154,6 +154,23 @@ func (dag bboltDAG) GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Transaction
 	return result, err
 }
 
+func (dag *bboltDAG) PayloadHashes(visitor func(payloadHash hash.SHA256Hash) error) error {
+	return dag.db.View(func(tx *bbolt.Tx) error {
+		payloadIndex := tx.Bucket([]byte(payloadIndexBucket))
+		if payloadIndex == nil {
+			return nil
+		}
+		cursor := payloadIndex.Cursor()
+		for ref, _ := cursor.First(); ref != nil; ref, _ = cursor.Next() {
+			err := visitor(hash.FromSlice(ref))
+			if err != nil {
+				return fmt.Errorf("visitor returned error: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
 func (dag bboltDAG) Heads() []hash.SHA256Hash {
 	result := make([]hash.SHA256Hash, 0)
 	_ = dag.db.View(func(tx *bbolt.Tx) error {
@@ -251,7 +268,7 @@ func isPresent(db *bbolt.DB, bucketName string, key []byte) (bool, error) {
 	err = db.View(func(tx *bbolt.Tx) error {
 		if payloads := tx.Bucket([]byte(bucketName)); payloads != nil {
 			data := payloads.Get(key)
-			result = len(data) > 0
+			result = data != nil
 		}
 		return nil
 	})

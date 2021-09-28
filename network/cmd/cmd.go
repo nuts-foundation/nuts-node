@@ -50,6 +50,8 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("network.truststorefile", defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.Int("network.adverthashesinterval", defs.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
 	flagSet.Int("network.advertdiagnosticsinterval", defs.AdvertDiagnosticsInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")
+	flagSet.Int("network.collectmissingpayloadsinterval", defs.CollectMissingPayloadsInterval, "Interval (in milliseconds) that specifies how often the node should check for missing payloads and broadcast its peers for it (specify 0 to disable). "+
+		"This check might be heavy on larger DAGs so make sure not to run it too often.")
 	return flagSet
 }
 

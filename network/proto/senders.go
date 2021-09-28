@@ -21,6 +21,7 @@ const estimatedMessageSizeMargin = 0.75
 type messageSender interface {
 	broadcastAdvertHashes(blocks []dagBlock)
 	broadcastDiagnostics(diagnostics Diagnostics)
+	broadcastTransactionPayloadQuery(payloadHash hash.SHA256Hash)
 	sendTransactionListQuery(peer p2p.PeerID, blockDate time.Time)
 	sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, date time.Time)
 	sendTransactionPayloadQuery(peer p2p.PeerID, payloadHash hash.SHA256Hash)
@@ -37,6 +38,10 @@ func (s defaultMessageSender) doSend(peer p2p.PeerID, envelope *transport.Networ
 	if err := s.p2p.Send(peer, envelope); err != nil {
 		log.Logger().Warnf("Error while sending message to peer (peer=%s, msg=%T): %v", peer, envelope.Message, err)
 	}
+}
+
+func (s defaultMessageSender) broadcastTransactionPayloadQuery(payloadHash hash.SHA256Hash) {
+	s.p2p.Broadcast(createTransactionPayloadQueryMessage(payloadHash))
 }
 
 func (s defaultMessageSender) broadcastAdvertHashes(blocks []dagBlock) {
@@ -101,11 +106,7 @@ func (s defaultMessageSender) sendTransactionList(peer p2p.PeerID, transactions 
 }
 
 func (s defaultMessageSender) sendTransactionPayloadQuery(peer p2p.PeerID, payloadHash hash.SHA256Hash) {
-	envelope := createEnvelope()
-	envelope.Message = &transport.NetworkMessage_TransactionPayloadQuery{
-		TransactionPayloadQuery: &transport.TransactionPayloadQuery{PayloadHash: payloadHash.Slice()},
-	}
-	s.doSend(peer, &envelope)
+	s.doSend(peer, createTransactionPayloadQueryMessage(payloadHash))
 }
 
 func (s defaultMessageSender) sendTransactionPayload(peer p2p.PeerID, payloadHash hash.SHA256Hash, data []byte) {
@@ -131,4 +132,12 @@ func (s defaultMessageSender) getTransactionsPerMessage(transactions []dag.Trans
 
 func createEnvelope() transport.NetworkMessage {
 	return transport.NetworkMessage{}
+}
+
+func createTransactionPayloadQueryMessage(payloadHash hash.SHA256Hash) *transport.NetworkMessage {
+	envelope := createEnvelope()
+	envelope.Message = &transport.NetworkMessage_TransactionPayloadQuery{
+		TransactionPayloadQuery: &transport.TransactionPayloadQuery{PayloadHash: payloadHash.Slice()},
+	}
+	return &envelope
 }
