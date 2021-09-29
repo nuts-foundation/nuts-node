@@ -1,7 +1,7 @@
-svg {
-    width: 100%;
-}
-
 .wy-nav-content {
     max-width: 1000px !important;
+}
+
+ul.current {
+    margin-bottom: 2em;
 }

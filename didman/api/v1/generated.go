@@ -1358,12 +1358,6 @@ type ServerInterface interface {
 	// (POST /internal/didman/v1/did/{did}/compoundservice)
 	AddCompoundService(ctx echo.Context, did string) error
 	// Retrieves the endpoint with the specified endpointType from the specified compound service.
-	// It returns the serviceEndpoint of the specified service (which must be an absolute URL endpoint).
-	//
-	// error responses:
-	// * 400 - incorrect input (e.g. the given service type isn't a compound service)
-	// * 404 - unknown DID, compound service or endpoint
-	// * 406 - service references are nested too deep or reference is invalid in other ways
 	// (GET /internal/didman/v1/did/{did}/compoundservice/{compoundServiceType}/endpoint/{endpointType})
 	GetCompoundServiceEndpoint(ctx echo.Context, did string, compoundServiceType string, endpointType string, params GetCompoundServiceEndpointParams) error
 

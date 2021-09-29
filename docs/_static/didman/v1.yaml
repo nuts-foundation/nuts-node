@@ -5,6 +5,8 @@ info:
   version: 1.0.0
   license:
     name: GPLv3
+servers:
+  - url: http://localhost:1323
 paths:
   /internal/didman/v1/did/{did}/contactinfo:
     parameters:
@@ -222,7 +224,8 @@ paths:
           type: string
     get:
       operationId: getCompoundServiceEndpoint
-      summary: |
+      summary: Retrieves the endpoint with the specified endpointType from the specified compound service.
+      description: |
         Retrieves the endpoint with the specified endpointType from the specified compound service.
         It returns the serviceEndpoint of the specified service (which must be an absolute URL endpoint).
 
