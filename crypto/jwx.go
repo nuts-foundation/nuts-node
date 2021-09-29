@@ -25,6 +25,7 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -143,7 +144,7 @@ func ParseJWT(tokenString string, f PublicKeyFunc) (jwt.Token, error) {
 		return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
 	}
 
-	return jwt.ParseString(tokenString, jwt.WithVerify(alg, key), jwt.WithValidate(true))
+	return jwt.ParseString(tokenString, jwt.WithVerify(alg, key), jwt.WithValidate(true), jwt.WithAcceptableSkew(5 * time.Second))
 }
 
 func SignJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer) (string, error) {
