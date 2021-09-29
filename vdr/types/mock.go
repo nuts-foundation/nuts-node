@@ -370,6 +370,22 @@ func (m *MockVDR) EXPECT() *MockVDRMockRecorder {
 	return m.recorder
 }
 
+// ConflictedDocuments mocks base method.
+func (m *MockVDR) ConflictedDocuments() ([]did.Document, []DocumentMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConflictedDocuments")
+	ret0, _ := ret[0].([]did.Document)
+	ret1, _ := ret[1].([]DocumentMetadata)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ConflictedDocuments indicates an expected call of ConflictedDocuments.
+func (mr *MockVDRMockRecorder) ConflictedDocuments() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConflictedDocuments", reflect.TypeOf((*MockVDR)(nil).ConflictedDocuments))
+}
+
 // Create mocks base method.
 func (m *MockVDR) Create(options DIDCreationOptions) (*did.Document, crypto0.Key, error) {
 	m.ctrl.T.Helper()

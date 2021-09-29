@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"schneider.vip/problem"
 )
 
 func TestHTTPClient_Create(t *testing.T) {
@@ -105,6 +106,36 @@ func TestHttpClient_Get(t *testing.T) {
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
 		_, _, err := c.Get(vdr.TestDIDA.String())
+		assert.Error(t, err)
+	})
+}
+
+func TestHTTPClient_ConflictedDIDs(t *testing.T) {
+	didDoc := did.Document{
+		ID: *vdr.TestDIDA,
+	}
+	meta := types.DocumentMetadata{}
+
+	t.Run("ok", func(t *testing.T) {
+		resolutionResults := []DIDResolutionResult{{
+			Document:         didDoc,
+			DocumentMetadata: meta,
+		}}
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: resolutionResults})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		docs, err := c.ConflictedDIDs()
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.NotNil(t, docs)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: problem.Problem{}})
+		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+
+		_, err := c.ConflictedDIDs()
+
 		assert.Error(t, err)
 	})
 }

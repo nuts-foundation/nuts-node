@@ -92,7 +92,7 @@ paths:
           content:
             application/json+did-document:
               schema:
-                 $ref: '#/components/schemas/DIDDocument'
+                $ref: '#/components/schemas/DIDDocument'
         default:
           $ref: '../common/error_response.yaml'
     delete:
@@ -112,6 +112,28 @@ paths:
       responses:
         "200":
           description: DID document has been deactivated.
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/vdr/v1/did/conflicted:
+    get:
+      summary: "Retrieve the list of conflicted DID documents"
+      description: |
+        Resolves DID documents with a conflict. It returns both the DID Document and metadata of the DID Document.
+
+        error returns:
+          * 500 - An error occurred while processing the request
+      operationId: "conflictedDIDs"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: List of conflicting DID Documents. Empty list if there are none.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DIDResolutionResult'
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v1/did/{did}/verificationmethod:

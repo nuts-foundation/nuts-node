@@ -88,6 +88,20 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 	return nil
 }
 
+func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, error) {
+	conflictedDocs := make([]did.Document, 0)
+	conflictedMeta := make([]types.DocumentMetadata, 0)
+
+	err := r.store.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
+		if metadata.IsConflicted() {
+			conflictedDocs = append(conflictedDocs, doc)
+			conflictedMeta = append(conflictedMeta, metadata)
+		}
+		return nil
+	})
+	return conflictedDocs, conflictedMeta, err
+}
+
 // Diagnostics returns the diagnostics for this engine
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	// return # conflicted docs

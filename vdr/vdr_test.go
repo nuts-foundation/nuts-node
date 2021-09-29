@@ -211,30 +211,60 @@ func TestVDR_Configure(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestVDR_Diagnostics(t *testing.T) {
-	t.Run("ok - no conflicts", func(t *testing.T) {
-		s := store.NewMemoryStore()
-		vdr := NewVDR(Config{}, nil, nil, s)
-		results := vdr.Diagnostics()
+func TestVDR_ConflictingDocuments(t *testing.T) {
+	t.Run("diagnostics", func(t *testing.T) {
+		t.Run("ok - no conflicts", func(t *testing.T) {
+			s := store.NewMemoryStore()
+			vdr := NewVDR(Config{}, nil, nil, s)
+			results := vdr.Diagnostics()
 
-		if !assert.Len(t, results, 1) {
-			return
-		}
-		assert.Equal(t, "0", results[0].String())
+			if !assert.Len(t, results, 1) {
+				return
+			}
+			assert.Equal(t, "0", results[0].String())
+		})
+
+		t.Run("ok - 1 conflict", func(t *testing.T) {
+			s := store.NewMemoryStore()
+			vdr := NewVDR(Config{}, nil, nil, s)
+			doc := did.Document{ID: *TestDIDA}
+			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
+			s.Write(doc, metadata)
+			results := vdr.Diagnostics()
+
+			if !assert.Len(t, results, 1) {
+				return
+			}
+			assert.Equal(t, "1", results[0].String())
+		})
 	})
+	t.Run("list", func(t *testing.T) {
+		t.Run("ok - no conflicts", func(t *testing.T) {
+			s := store.NewMemoryStore()
+			vdr := NewVDR(Config{}, nil, nil, s)
+			docs, meta, err := vdr.ConflictedDocuments()
 
-	t.Run("ok - 1 conflict", func(t *testing.T) {
-		s := store.NewMemoryStore()
-		vdr := NewVDR(Config{}, nil, nil, s)
-		doc := did.Document{ID: *TestDIDA}
-		metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
-		s.Write(doc, metadata)
-		results := vdr.Diagnostics()
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Len(t, docs, 0)
+			assert.Len(t, meta, 0)
+		})
 
-		if !assert.Len(t, results, 1) {
-			return
-		}
-		assert.Equal(t, "1", results[0].String())
+		t.Run("ok - 1 conflict", func(t *testing.T) {
+			s := store.NewMemoryStore()
+			vdr := NewVDR(Config{}, nil, nil, s)
+			doc := did.Document{ID: *TestDIDA}
+			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
+			s.Write(doc, metadata)
+			docs, meta, err := vdr.ConflictedDocuments()
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Len(t, docs, 1)
+			assert.Len(t, meta, 1)
+		})
 	})
 }
 

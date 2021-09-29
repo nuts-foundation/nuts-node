@@ -24,12 +24,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -80,6 +80,26 @@ func (hb HTTPClient) Get(DID string) (*DIDDocument, *DIDDocumentMetadata, error)
 		return nil, nil, err
 	}
 	return &resolutionResult.Document, &resolutionResult.DocumentMetadata, nil
+}
+
+// ConflictedDIDs returns the conflicted DID Documents and their metadata
+func (hb HTTPClient) ConflictedDIDs() ([]DIDResolutionResult, error) {
+	ctx, cancel := hb.withTimeout()
+	defer cancel()
+
+	response, err := hb.client().ConflictedDIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	}
+
+	var resolutionResults []DIDResolutionResult
+	if resolutionResults, err = readDIDResolutionResults(response.Body); err != nil {
+		return nil, err
+	}
+	return resolutionResults, nil
 }
 
 // Update a DID Document given a DID and its current hash.
@@ -173,6 +193,18 @@ func readDIDResolutionResult(reader io.Reader) (*DIDResolutionResult, error) {
 		return nil, fmt.Errorf("unable to unmarshal DID Resolve response: %w", err)
 	}
 	return &resolutionResult, nil
+}
+
+func readDIDResolutionResults(reader io.Reader) ([]DIDResolutionResult, error) {
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read response: %w", err)
+	}
+	var resolutionResult []DIDResolutionResult
+	if err = json.Unmarshal(data, &resolutionResult); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal []DIDResolutionResult response: %w", err)
+	}
+	return resolutionResult, nil
 }
 
 func readVerificationMethod(reader io.Reader) (*did.VerificationMethod, error) {

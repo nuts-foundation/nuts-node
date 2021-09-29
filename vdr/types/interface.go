@@ -109,6 +109,9 @@ type Store interface {
 type VDR interface {
 	DocCreator
 	DocUpdater
+
+	// ConflictedDocuments returns the DID Document and metadata of all documents with a conflict.
+	ConflictedDocuments() ([]did.Document, []DocumentMetadata, error)
 }
 
 // DocManipulator groups several higher level methods to alter the state of a DID document.
