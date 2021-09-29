@@ -120,7 +120,7 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 		if assert.Error(t, err) {
-			assert.Equal(t, "could not draw up contract: organization not found", err.Error())
+			assert.Equal(t, "could not draw up contract: no valid organization credential at provided validFrom date", err.Error())
 		}
 		assert.Nil(t, drawnUpContract)
 	})
