@@ -27,6 +27,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/shengdoushi/base58"
@@ -125,6 +126,22 @@ func TestParseJWT(t *testing.T) {
 		assert.Nil(t, parsedToken)
 		assert.EqualError(t, err, "token signing algorithm is not supported: RS256")
 	})
+
+	t.Run("allow clock skew", func(t *testing.T) {
+		ecKey := test.GenerateECKey()
+		token := jwt.New()
+		err := token.Set(jwt.IssuedAtKey, time.Now().Add(4 * time.Second).Unix())
+		assert.NoError(t, err)
+		signature, _ := jwt.Sign(token, jwa.ES256, ecKey)
+		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
+			return ecKey.Public(), nil
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.NotNil(t, parsedToken)
+	})
 }
 
 func TestCrypto_SignJWT(t *testing.T) {
@@ -135,7 +152,6 @@ func TestCrypto_SignJWT(t *testing.T) {
 
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, kid)
-		println(tokenString)
 
 		if !assert.NoError(t, err) {
 			return
