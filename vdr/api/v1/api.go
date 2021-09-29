@@ -177,7 +177,7 @@ func (a *Wrapper) ConflictedDIDs(ctx echo.Context) error {
 
 	// []docs, []meta to [](doc, meta)
 	returnValues := make([]DIDResolutionResult, len(docs))
-	for i, _ := range docs {
+	for i := range docs {
 		returnValues[i] = DIDResolutionResult{
 			Document:         docs[i],
 			DocumentMetadata: metas[i],
