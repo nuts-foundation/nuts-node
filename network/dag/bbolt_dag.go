@@ -162,7 +162,7 @@ func (dag *bboltDAG) PayloadHashes(visitor func(payloadHash hash.SHA256Hash) err
 		}
 		cursor := payloadIndex.Cursor()
 		for ref, _ := cursor.First(); ref != nil; ref, _ = cursor.Next() {
-			err := visitor(hash.FromSlice(ref))
+			err := visitor(hash.FromSlice(ref)) // FromSlice() copies
 			if err != nil {
 				return fmt.Errorf("visitor returned error: %w", err)
 			}
@@ -180,7 +180,7 @@ func (dag bboltDAG) Heads() []hash.SHA256Hash {
 		}
 		cursor := heads.Cursor()
 		for ref, _ := cursor.First(); ref != nil; ref, _ = cursor.Next() {
-			result = append(result, hash.FromSlice(ref))
+			result = append(result, hash.FromSlice(ref)) // FromSlice() copies
 		}
 		return nil
 	})
@@ -228,7 +228,7 @@ func (dag bboltDAG) Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA
 		return algo.walk(visitor, startAt, func(hash hash.SHA256Hash) (Transaction, error) {
 			return getTransaction(hash, transactions)
 		}, func(hash hash.SHA256Hash) ([]hash.SHA256Hash, error) {
-			return parseHashList(nexts.Get(hash.Slice())), nil
+			return parseHashList(nexts.Get(hash.Slice())), nil // no need to copy, calls FromSlice() (which copies)
 		})
 	})
 }
@@ -326,7 +326,7 @@ func (dag *bboltDAG) add(transaction Transaction) error {
 			return fmt.Errorf("unable to mark transaction as head (ref=%s): %w", ref, err)
 		}
 		// Store reverse reference from payload hash to transaction
-		newPayloadIndexValue := appendHashList(payloadIndex.Get(transaction.PayloadHash().Slice()), ref)
+		newPayloadIndexValue := appendHashList(copyBBoltValue(payloadIndex, transaction.PayloadHash().Slice()), ref)
 		if err = payloadIndex.Put(transaction.PayloadHash().Slice(), newPayloadIndexValue); err != nil {
 			return fmt.Errorf("unable to update payload index for transaction %s: %w", ref, err)
 		}
@@ -355,7 +355,7 @@ func getBuckets(tx *bbolt.Tx) (transactions, nexts, payloadIndex, heads *bbolt.B
 }
 
 func getRoots(transactionsBucket *bbolt.Bucket) []hash.SHA256Hash {
-	return parseHashList(transactionsBucket.Get([]byte(rootsTransactionKey)))
+	return parseHashList(transactionsBucket.Get([]byte(rootsTransactionKey))) // no need to copy, calls FromSlice() (which copies)
 }
 
 func addRoot(transactionsBucket *bbolt.Bucket, ref hash.SHA256Hash) error {
@@ -377,7 +377,7 @@ func (dag *bboltDAG) registerNextRef(nextsBucket *bbolt.Bucket, prev hash.SHA256
 }
 
 func getTransaction(hash hash.SHA256Hash, transactions *bbolt.Bucket) (Transaction, error) {
-	transactionBytes := transactions.Get(hash.Slice())
+	transactionBytes := copyBBoltValue(transactions, hash.Slice())
 	if transactionBytes == nil {
 		return nil, nil
 	}

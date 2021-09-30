@@ -79,5 +79,5 @@ func (reader bboltPayloadReader) IsPresent(payloadHash hash.SHA256Hash) (bool, e
 }
 
 func (reader bboltPayloadReader) ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error) {
-	return reader.payloadsBucket.Get(payloadHash.Slice()), nil
+	return copyBBoltValue(reader.payloadsBucket, payloadHash.Slice()), nil
 }
