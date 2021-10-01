@@ -491,6 +491,77 @@ func TestVcr_Issue(t *testing.T) {
 	})
 }
 
+func TestVcr_Validate(t *testing.T) {
+	// load VC
+	subject := vc.VerifiableCredential{}
+	vcJSON, _ := os.ReadFile("test/vc.json")
+
+	if err := json.Unmarshal(vcJSON, &subject); err != nil {
+		t.Fatal(err)
+	}
+
+	issuer, _ := did2.ParseDIDURL(subject.Issuer.String())
+
+	now := time.Now()
+	timeFunc = func() time.Time {
+		return now
+	}
+
+	t.Cleanup(func() {
+		timeFunc = time.Now
+	})
+
+	t.Run("ok - with clock one second off", func(t *testing.T) {
+		almostNow := now.Add(-time.Second)
+
+		subject.IssuanceDate = now
+		subject.ExpirationDate = &now
+
+		timeFunc = func() time.Time {
+			return almostNow
+		}
+
+		t.Cleanup(func() {
+			timeFunc = func() time.Time {
+				return now
+			}
+		})
+
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+
+		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &almostNow})
+
+		err := instance.Validate(subject, true, nil)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("err - with clock 10 seconds off", func(t *testing.T) {
+		almostNow := now.Add(-10 * time.Second)
+
+		subject.IssuanceDate = now
+		subject.ExpirationDate = &now
+
+		timeFunc = func() time.Time {
+			return almostNow
+		}
+
+		t.Cleanup(func() {
+			timeFunc = func() time.Time {
+				return now
+			}
+		})
+
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+
+		err := instance.Validate(subject, true, nil)
+
+		assert.Error(t, err)
+	})
+}
+
 func TestVcr_Verify(t *testing.T) {
 	// load VC
 	subject := vc.VerifiableCredential{}

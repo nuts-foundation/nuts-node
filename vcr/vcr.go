@@ -48,6 +48,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const maxSkew = 5 * time.Second
+
 var timeFunc = time.Now
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
@@ -349,15 +351,17 @@ func (c *vcr) validate(credential vc.VerifiableCredential, validAt *time.Time) e
 	if validAt != nil {
 		at = *validAt
 	}
+
 	issuer, err := did.ParseDIDURL(credential.Issuer.String())
 	if err != nil {
 		return err
 	}
 
-	if credential.IssuanceDate.After(at) {
+	if credential.IssuanceDate.After(at.Add(maxSkew)) {
 		return ErrInvalidPeriod
 	}
-	if credential.ExpirationDate != nil && credential.ExpirationDate.Before(at) {
+
+	if credential.ExpirationDate != nil && credential.ExpirationDate.Add(maxSkew).Before(at) {
 		return ErrInvalidPeriod
 	}
 
