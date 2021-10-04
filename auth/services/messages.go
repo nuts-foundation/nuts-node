@@ -29,8 +29,8 @@ type CreateAccessTokenRequest struct {
 
 // CreateJwtGrantRequest contains all information to create a JwtBearerToken
 type CreateJwtGrantRequest struct {
-	Authorizer    string
-	Requester     string
+	Actor         string
+	Custodian     string
 	IdentityToken *string
 	Service       string
 	Subject       *string
