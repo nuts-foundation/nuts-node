@@ -502,6 +502,13 @@ func TestVcr_Validate(t *testing.T) {
 
 	issuer, _ := did2.ParseDIDURL(subject.Issuer.String())
 
+	// oad pub key
+	pke := storage.PublicKeyEntry{}
+	pkeJSON, _ := os.ReadFile("test/public.json")
+	json.Unmarshal(pkeJSON, &pke)
+	var pk = new(ecdsa.PublicKey)
+	pke.JWK().Raw(pk)
+
 	now := time.Now()
 	timeFunc = func() time.Time {
 		return now
@@ -509,6 +516,18 @@ func TestVcr_Validate(t *testing.T) {
 
 	t.Cleanup(func() {
 		timeFunc = time.Now
+	})
+
+	t.Run("ok - with signature verification", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+
+		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now})
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, &now).Return(pk, nil)
+
+		err := instance.Validate(subject, true, true, &now)
+
+		assert.NoError(t, err)
 	})
 
 	t.Run("ok - with clock one second off", func(t *testing.T) {
@@ -532,7 +551,7 @@ func TestVcr_Validate(t *testing.T) {
 
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &almostNow})
 
-		err := instance.Validate(subject, true, nil)
+		err := instance.Validate(subject, true, false, nil)
 
 		assert.NoError(t, err)
 	})
@@ -556,7 +575,7 @@ func TestVcr_Validate(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 
-		err := instance.Validate(subject, true, nil)
+		err := instance.Validate(subject, true, false, nil)
 
 		assert.Error(t, err)
 	})

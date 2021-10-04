@@ -227,7 +227,7 @@ func (c *vcr) search(query concept.Query, allowUntrusted bool, resolveTime *time
 				return nil, errors.Wrap(err, "unable to parse credential from db")
 			}
 
-			if err = c.Validate(foundCredential, allowUntrusted, resolveTime); err == nil {
+			if err = c.Validate(foundCredential, allowUntrusted, false, resolveTime); err == nil {
 				VCs = append(VCs, foundCredential)
 			}
 		}
@@ -314,7 +314,8 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 		return nil, err
 	}
 
-	if err = c.Validate(credential, false, resolveTime); err != nil {
+	// we don't have to check the signature, it's coming from our own store.
+	if err = c.Validate(credential, false, false, resolveTime); err != nil {
 		switch err {
 		case ErrRevoked:
 			return &credential, ErrRevoked
@@ -327,7 +328,7 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 	return &credential, nil
 }
 
-func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, validAt *time.Time) error {
+func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
 	revoked, err := c.isRevoked(*credential.ID)
 	if revoked {
 		return ErrRevoked
@@ -343,6 +344,9 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 		}
 	}
 
+	if checkSignature {
+		return c.Verify(credential, validAt)
+	}
 	return c.validate(credential, validAt)
 }
 

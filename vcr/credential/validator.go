@@ -85,6 +85,15 @@ func Validate(credential vc.VerifiableCredential) error {
 	return nil
 }
 
+type defaultCredentialValidator struct{}
+
+func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential) error {
+	if err := Validate(credential); err != nil {
+		return err
+	}
+	return nil
+}
+
 // nutsOrganizationCredentialValidator checks if there's a 'name' and 'city' in the 'organization' struct
 type nutsOrganizationCredentialValidator struct{}
 

@@ -346,8 +346,8 @@ func (s *service) validateAuthorizationCredentials(context *validationContext) e
 	sub := context.jwtBearerToken.Subject()
 
 	for _, authCred := range vcs {
-		// first check if the VC is valid
-		if err := s.vcValidator.Validate(authCred, true, &iat); err != nil {
+		// first check if the VC is valid and if the signature is correct
+		if err := s.vcValidator.Validate(authCred, true, true, &iat); err != nil {
 			return fmt.Errorf(errInvalidVCClaim, err)
 		}
 
