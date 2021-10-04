@@ -412,12 +412,27 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 	ctx := createContext(t)
 	defer ctx.ctrl.Finish()
 
+	t.Run("ok", func(t *testing.T) {
+		tokenCtx := validContext()
+		signToken(tokenCtx)
+
+		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, gomock.Any()).Return(nil)
+		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.NotNil(t, tokenCtx.credentialIDs)
+		assert.Equal(t, "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1", tokenCtx.credentialIDs[0])
+	})
+
 	t.Run("ok - no authorization credentials", func(t *testing.T) {
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Remove(vcClaim)
 		signToken(tokenCtx)
 
-		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
 		assert.NoError(t, err)
 	})
@@ -427,7 +442,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(vcClaim, []interface{}{})
 		signToken(tokenCtx)
 
-		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
 		assert.NoError(t, err)
 	})
@@ -437,7 +452,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(vcClaim, "not a vc")
 		signToken(tokenCtx)
 
-		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
 		if !assert.Error(t, err) {
 			return
@@ -450,7 +465,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(vcClaim, []interface{}{"}"})
 		signToken(tokenCtx)
 
-		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
 		if !assert.Error(t, err) {
 			return
@@ -464,7 +479,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		signToken(tokenCtx)
 		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, gomock.Any()).Return(nil)
 
-		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
 		if !assert.Error(t, err) {
 			return
@@ -478,7 +493,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		signToken(tokenCtx)
 		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, gomock.Any()).Return(nil)
 
-		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
 		if !assert.Error(t, err) {
 			return
@@ -492,7 +507,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		signToken(tokenCtx)
 		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, gomock.Any()).Return(vcr.ErrRevoked)
 
-		err := ctx.oauthService.validateAuthorizationCredentials(*tokenCtx)
+		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
 		if !assert.Error(t, err) {
 			return
