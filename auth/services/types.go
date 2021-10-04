@@ -48,7 +48,7 @@ const OAuthEndpointType = "oauth"
 // InitialsTokenClaim is the JWT claim for initials
 const InitialsTokenClaim = "initials"
 
-// v is the JWT claim for the family name
+// FamilyNameTokenClaim is the JWT claim for the family name
 const FamilyNameTokenClaim = "familyname"
 
 // PrefixTokenClaim is the JWT claim for the name prefix
