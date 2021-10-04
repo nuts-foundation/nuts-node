@@ -40,7 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 )
 
-const defaultTimeout = 2 * time.Second
+const defaultTimeout = 4 * time.Second
 const payloadType = "test/transaction"
 
 var mutex = sync.Mutex{}
