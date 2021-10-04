@@ -47,7 +47,7 @@ import (
 const errInvalidIssuerFmt = "invalid jwt.issuer: %w"
 const errInvalidIssuerKeyFmt = "invalid jwt.issuer key ID: %w"
 const errInvalidSubjectFmt = "invalid jwt.subject: %w"
-const errInvalidOrganizationVC = "actor has invalid organization VC: %w"
+const errInvalidOrganizationVC = "requester has invalid organization VC: %w"
 const errInvalidVCClaim = "invalid jwt.vcs: %w"
 
 const vcClaim = "vcs"
@@ -69,8 +69,8 @@ type validationContext struct {
 	rawJwtBearerToken          string
 	jwtBearerToken             jwt.Token
 	kid                        string
-	actorName                  string
-	actorCity                  string
+	requesterName              string
+	requesterCity              string
 	purposeOfUse               string
 	credentialIDs              []string
 	contractVerificationResult *contract.VPVerificationResult
@@ -170,13 +170,13 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 		return nil, errors.New("JWT validity too long")
 	}
 
-	// check the actor against the registry, according to RFC003 §5.2.1.3
-	// checks signing certificate and sets vendor, actorName in validationContext
+	// check the requester against the registry, according to RFC003 §5.2.1.3
+	// checks signing certificate and sets vendor, requesterName in validationContext
 	if err := s.validateIssuer(&context); err != nil {
 		return nil, err
 	}
 
-	// check if the custodian is registered by this vendor, according to RFC003 §5.2.1.8
+	// check if the authorizer is registered by this vendor, according to RFC003 §5.2.1.8
 	if err := s.validateSubject(&context); err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 		}
 
 		// checks if the name from the login contract matches with the registered name of the issuer.
-		if err := s.validateActor(&context); err != nil {
+		if err := s.validateRequester(&context); err != nil {
 			return nil, err
 		}
 	}
@@ -230,8 +230,8 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 }
 
 // checks if the name from the login contract matches with the registered name of the issuer.
-func (s *service) validateActor(context *validationContext) error {
-	if context.contractVerificationResult.ContractAttributes[contract.LegalEntityAttr] != context.actorName || context.contractVerificationResult.ContractAttributes[contract.LegalEntityCityAttr] != context.actorCity {
+func (s *service) validateRequester(context *validationContext) error {
+	if context.contractVerificationResult.ContractAttributes[contract.LegalEntityAttr] != context.requesterName || context.contractVerificationResult.ContractAttributes[contract.LegalEntityCityAttr] != context.requesterCity {
 		return errors.New("legal entity mismatch")
 	}
 	return nil
@@ -268,9 +268,9 @@ func (s *service) validateAudience(context *validationContext) error {
 	return nil
 }
 
-// check the actor against the registry, according to RFC003 §5.2.1.3
+// check the requester against the registry, according to RFC003 §5.2.1.3
 // - the signing key (KID) must be present as assertionMethod in the issuer's DID.
-// - the actor name/city which must match the login contract.
+// - the requester name/city which must match the login contract.
 func (s *service) validateIssuer(context *validationContext) error {
 	if _, err := did.ParseDID(context.jwtBearerToken.Issuer()); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
@@ -287,17 +287,17 @@ func (s *service) validateIssuer(context *validationContext) error {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
 
-	if context.actorName, err = orgConcept.GetString(concept.OrganizationName); err != nil {
+	if context.requesterName, err = orgConcept.GetString(concept.OrganizationName); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, fmt.Errorf(errInvalidOrganizationVC, err))
 	}
-	if context.actorCity, err = orgConcept.GetString(concept.OrganizationCity); err != nil {
+	if context.requesterCity, err = orgConcept.GetString(concept.OrganizationCity); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, fmt.Errorf(errInvalidOrganizationVC, err))
 	}
 
 	return nil
 }
 
-// check if the custodian is registered by this vendor, according to RFC003 §5.2.1.8
+// check if the authorizer is registered by this vendor, according to RFC003 §5.2.1.8
 func (s *service) validateSubject(context *validationContext) error {
 	subject, err := did.ParseDID(context.jwtBearerToken.Subject())
 	if err != nil {
@@ -372,9 +372,9 @@ func (s *service) validateAuthorizationCredentials(context *validationContext) e
 	return nil
 }
 
-// GetOAuthEndpointURL returns the oauth2 endpoint URL of the custodian for a service
-func (s *service) GetOAuthEndpointURL(service string, custodian did.DID) (url.URL, error) {
-	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(custodian, service, services.OAuthEndpointType, true)
+// GetOAuthEndpointURL returns the oauth2 endpoint URL of the authorizer for a service
+func (s *service) GetOAuthEndpointURL(service string, authorizer did.DID) (url.URL, error) {
+	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(authorizer, service, services.OAuthEndpointType, true)
 	if err != nil {
 		return url.URL{}, fmt.Errorf("failed to resolve OAuth endpoint URL: %w", err)
 	}
@@ -389,13 +389,13 @@ func (s *service) GetOAuthEndpointURL(service string, custodian did.DID) (url.UR
 
 // CreateJwtGrant creates a JWT Grant from the given CreateJwtGrantRequest
 func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
-	actor, err := did.ParseDID(request.Actor)
+	requester, err := did.ParseDID(request.Requester)
 	if err != nil {
 		return nil, err
 	}
 
 	// todo add checks for missing values?
-	custodian, err := did.ParseDID(request.Custodian)
+	authorizer, err := did.ParseDID(request.Authorizer)
 	if err != nil {
 		return nil, err
 	}
@@ -415,7 +415,7 @@ func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*servi
 		}
 	}
 
-	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*custodian, request.Service, services.OAuthEndpointType, true)
+	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*authorizer, request.Service, services.OAuthEndpointType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -423,7 +423,7 @@ func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*servi
 	keyVals := claimsFromRequest(request, endpointURL)
 
 	now := time.Now()
-	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(*actor, &now)
+	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(*requester, &now)
 	if err != nil {
 		return nil, err
 	}
@@ -443,9 +443,9 @@ func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) 
 	result[jwt.AudienceKey] = audience
 	result[jwt.ExpirationKey] = timeFunc().Add(OauthBearerTokenMaxValidity * time.Second).Unix()
 	result[jwt.IssuedAtKey] = timeFunc().Unix()
-	result[jwt.IssuerKey] = request.Actor
+	result[jwt.IssuerKey] = request.Requester
 	result[jwt.NotBeforeKey] = 0
-	result[jwt.SubjectKey] = request.Custodian
+	result[jwt.SubjectKey] = request.Authorizer
 	result[purposeOfUseClaim] = request.Service
 	if request.IdentityToken != nil {
 		result[userIdentityClaim] = *request.IdentityToken
@@ -503,7 +503,7 @@ func (s *service) IntrospectAccessToken(accessToken string) (*services.NutsAcces
 
 // todo split this func for easier testing
 // BuildAccessToken builds an access token based on the oauth claims and the identity of the user provided by the identityValidationResult
-// The token gets signed with the custodians private key and returned as a string.
+// The token gets signed with the authorizers private key and returned as a string.
 func (s *service) buildAccessToken(context *validationContext) (string, error) {
 	if context.contractVerificationResult != nil {
 		if context.contractVerificationResult.Validity != contract.Valid {

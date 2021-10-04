@@ -83,18 +83,18 @@ func (mr *MockOAuthClientMockRecorder) CreateJwtGrant(request interface{}) *gomo
 }
 
 // GetOAuthEndpointURL mocks base method.
-func (m *MockOAuthClient) GetOAuthEndpointURL(service string, custodian did.DID) (url.URL, error) {
+func (m *MockOAuthClient) GetOAuthEndpointURL(service string, authorizer did.DID) (url.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOAuthEndpointURL", service, custodian)
+	ret := m.ctrl.Call(m, "GetOAuthEndpointURL", service, authorizer)
 	ret0, _ := ret[0].(url.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetOAuthEndpointURL indicates an expected call of GetOAuthEndpointURL.
-func (mr *MockOAuthClientMockRecorder) GetOAuthEndpointURL(service, custodian interface{}) *gomock.Call {
+func (mr *MockOAuthClientMockRecorder) GetOAuthEndpointURL(service, authorizer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOAuthEndpointURL", reflect.TypeOf((*MockOAuthClient)(nil).GetOAuthEndpointURL), service, custodian)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOAuthEndpointURL", reflect.TypeOf((*MockOAuthClient)(nil).GetOAuthEndpointURL), service, authorizer)
 }
 
 // IntrospectAccessToken mocks base method.
