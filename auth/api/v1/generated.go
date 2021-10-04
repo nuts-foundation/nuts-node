@@ -312,10 +312,7 @@ type TokenIntrospectionResponse struct {
 	Sid *string `json:"sid,omitempty"`
 
 	// The subject is always the acting party, thus the care organization requesting access to data.
-	Sub *string `json:"sub,omitempty"`
-
-	// Jwt encoded user identity.
-	Usi *string   `json:"usi,omitempty"`
+	Sub *string   `json:"sub,omitempty"`
 	Vcs *[]string `json:"vcs,omitempty"`
 }
 

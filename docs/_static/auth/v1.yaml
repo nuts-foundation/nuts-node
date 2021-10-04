@@ -727,9 +727,6 @@ components:
             As per rfc7523 https://tools.ietf.org/html/rfc7523>, the aud must be the
             token endpoint. This can be taken from the Nuts registry.
           example: "https://target_token_endpoint"
-        usi:
-          type: string
-          description: Jwt encoded user identity.
         vcs:
           type: array
           items:
