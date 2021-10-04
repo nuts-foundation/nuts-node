@@ -413,11 +413,11 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		defer ctx.ctrl.Finish()
 		subj := "urn:oid:2.16.840.1.113883.2.4.6.3:9999990"
 		body := CreateJwtGrantRequest{
-			Actor:     vdr.TestDIDA.String(),
-			Custodian: vdr.TestDIDB.String(),
-			Subject:   &subj,
-			Identity:  "irma-token",
-			Service:   "service",
+			Authorizer: vdr.TestDIDA.String(),
+			Requester:  vdr.TestDIDB.String(),
+			Subject:    &subj,
+			Identity:   "irma-token",
+			Service:    "service",
 		}
 		bindPostBody(ctx, body)
 		response := JwtGrantResponse{
@@ -425,8 +425,8 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		}
 
 		expectedRequest := services.CreateJwtGrantRequest{
-			Actor:         body.Actor,
-			Custodian:     body.Custodian,
+			Authorizer:    body.Authorizer,
+			Requester:     body.Requester,
 			IdentityToken: &body.Identity,
 			Subject:       body.Subject,
 			Service:       "service",
@@ -445,11 +445,11 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	testID := "test-id"
 	testSubject := "test-testSubject"
 	fakeRequest := RequestAccessTokenRequest{
-		Actor:     vdr.TestDIDA.String(),
-		Custodian: vdr.TestDIDB.String(),
-		Identity:  testID,
-		Service:   "test-service",
-		Subject:   &testSubject,
+		Authorizer: vdr.TestDIDA.String(),
+		Requester:  vdr.TestDIDB.String(),
+		Identity:   testID,
+		Service:    "test-service",
+		Subject:    &testSubject,
 	}
 
 	t.Run("returns_error_when_request_is_invalid", func(t *testing.T) {
@@ -476,8 +476,8 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Actor:         vdr.TestDIDA.String(),
-				Custodian:     vdr.TestDIDB.String(),
+				Authorizer:    vdr.TestDIDA.String(),
+				Requester:     vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
 				Subject:       &testSubject,
@@ -489,7 +489,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		assert.EqualError(t, err, "random error")
 	})
 
-	t.Run("returns_error_when_parsing_custodian_did_fails", func(t *testing.T) {
+	t.Run("returns_error_when_parsing_requester_did_fails", func(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.echoMock.EXPECT().
@@ -497,15 +497,15 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			DoAndReturn(func(input interface{}) error {
 				request := input.(*RequestAccessTokenRequest)
 				*request = fakeRequest
-				request.Custodian = "invalid..!!"
+				request.Requester = "invalid..!!"
 
 				return nil
 			})
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Actor:         vdr.TestDIDA.String(),
-				Custodian:     "invalid..!!",
+				Authorizer:    vdr.TestDIDA.String(),
+				Requester:     "invalid..!!",
 				IdentityToken: &testID,
 				Service:       "test-service",
 				Subject:       &testSubject,
@@ -531,8 +531,8 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Actor:         vdr.TestDIDA.String(),
-				Custodian:     vdr.TestDIDB.String(),
+				Authorizer:    vdr.TestDIDA.String(),
+				Requester:     vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
 				Subject:       &testSubject,
@@ -547,7 +547,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
-		assert.EqualError(t, err, "unable to find the oauth2 service endpoint of the custodian: random error")
+		assert.EqualError(t, err, "unable to find the oauth2 service endpoint of the requester: random error")
 	})
 
 	t.Run("returns_error_when_http_create_access_token_fails", func(t *testing.T) {
@@ -562,8 +562,8 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Actor:         vdr.TestDIDA.String(),
-				Custodian:     vdr.TestDIDB.String(),
+				Authorizer:    vdr.TestDIDA.String(),
+				Requester:     vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
 				Subject:       &testSubject,
@@ -634,8 +634,8 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Actor:         vdr.TestDIDA.String(),
-				Custodian:     vdr.TestDIDB.String(),
+				Authorizer:    vdr.TestDIDA.String(),
+				Requester:     vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
 				Subject:       &testSubject,
