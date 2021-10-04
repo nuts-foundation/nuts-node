@@ -142,7 +142,7 @@ func (s *service) Configure() (err error) {
 	return
 }
 
-func (s *service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (*contract.VPVerificationResult, error) {
+func (s *service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (contract.VPVerificationResult, error) {
 	vp := contract.BaseVerifiablePresentation{}
 	if err := json.Unmarshal(rawVerifiablePresentation, &vp); err != nil {
 		return nil, fmt.Errorf("unable to verifyVP: %w", err)

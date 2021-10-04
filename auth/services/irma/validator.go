@@ -83,9 +83,51 @@ type VPProof struct {
 	ProofValue string `json:"proofValue"`
 }
 
+type irmaVPVerificationResult struct {
+	validity            contract.State
+	vpType              contract.VPType
+	disclosedAttributes map[string]string
+	contractAttributes  map[string]string
+}
+
+func (I irmaVPVerificationResult) Validity() contract.State {
+	return I.validity
+}
+
+func (I irmaVPVerificationResult) VPType() contract.VPType {
+	return I.vpType
+}
+
+func (I irmaVPVerificationResult) DisclosedAttribute(key string) string {
+	var v string
+	switch key {
+	case "familyname":
+		v = I.disclosedAttributes["gemeente.personalData.familyname"]
+	case "prefix":
+		v = I.disclosedAttributes["gemeente.personalData.prefix"]
+	case "initials":
+		v = I.disclosedAttributes["gemeente.personalData.initials"]
+	case "email":
+		v = I.disclosedAttributes["sidn-pbdf.email.email"]
+	}
+	return v
+}
+
+func (I irmaVPVerificationResult) ContractAttribute(key string) string {
+	return I.contractAttributes[key]
+}
+
+func (I irmaVPVerificationResult) DisclosedAttributes() map[string]string {
+	return I.disclosedAttributes
+}
+
+func (I irmaVPVerificationResult) ContractAttributes() map[string]string {
+	return I.contractAttributes
+}
+
 // VerifyVP expects the given raw VerifiablePresentation to be of the correct type
 // todo: type check?
-func (v Service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (*contract.VPVerificationResult, error) {
+func (v Service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (contract.VPVerificationResult, error) {
 	// Extract the Irma message
 	vp := VerifiablePresentation{}
 	if err := json.Unmarshal(rawVerifiablePresentation, &vp); err != nil {
@@ -109,11 +151,11 @@ func (v Service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time
 		return nil, fmt.Errorf("could not verify vp: could not get signer attributes: %w", err)
 	}
 
-	return &contract.VPVerificationResult{
-		Validity:            contract.State(cvr.ValidationResult),
-		VPType:              contract.VPType(cvr.ContractFormat),
-		DisclosedAttributes: signerAttributes,
-		ContractAttributes:  signedContract.Contract().Params,
+	return irmaVPVerificationResult{
+		validity:            contract.State(cvr.ValidationResult),
+		vpType:              contract.VPType(cvr.ContractFormat),
+		disclosedAttributes: signerAttributes,
+		contractAttributes:  signedContract.Contract().Params,
 	}, nil
 }
 

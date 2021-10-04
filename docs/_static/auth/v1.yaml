@@ -739,10 +739,6 @@ components:
           type: integer
         iat:
           type: integer
-        name:
-          type: string
-          description: End-User's full name in displayable form including all name parts, possibly including titles and suffixes, ordered according to the End-User's locale and preferences.
-          example: Willeke de Bruijn
         family_name:
           type: string
           description: Surname(s) or last name(s) of the End-User.
@@ -751,10 +747,10 @@ components:
           type: string
           description: Surname prefix
           example: de
-        given_name:
+        initials:
           type: string
-          description: Given name(s) or first name(s) of the End-User.
-          example: Willeke
+          description: Initials of the End-User.
+          example: I.
         email:
           type: string
           description: End-User's preferred e-mail address. Should be a personal email and can be used to uniquely identify a user. Just like the email used for an account.

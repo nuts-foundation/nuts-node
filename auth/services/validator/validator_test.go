@@ -86,7 +86,7 @@ func TestContract_VerifyVP(t *testing.T) {
 		}
 
 		mockVerifier := services.NewMockContractClient(ctrl)
-		mockVerifier.EXPECT().VerifyVP(rawVP, nil).Return(&contract.VPVerificationResult{Validity: contract.Valid}, nil)
+		mockVerifier.EXPECT().VerifyVP(rawVP, nil).Return(services.TestVPVerificationResult{Val: contract.Valid}, nil)
 
 		validator := service{verifiers: map[contract.VPType]contract.VPVerifier{"bar": mockVerifier}}
 
@@ -98,7 +98,7 @@ func TestContract_VerifyVP(t *testing.T) {
 		if !assert.NotNil(t, validationResult) {
 			return
 		}
-		assert.Equal(t, contract.Valid, validationResult.Validity)
+		assert.Equal(t, contract.Valid, validationResult.Validity())
 	})
 
 	t.Run("nok - unknown VerifiablePresentation", func(t *testing.T) {

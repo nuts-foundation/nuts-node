@@ -100,22 +100,22 @@ func (w Wrapper) VerifySignature(ctx echo.Context) error {
 	}
 	// Convert internal validationResult to api SignatureVerificationResponse
 	response := SignatureVerificationResponse{}
-	if validationResult.Validity == contract.Valid {
+	if validationResult.Validity() == contract.Valid {
 		response.Validity = true
 
 		credentials := map[string]interface{}{}
-		for key, val := range validationResult.ContractAttributes {
+		for key, val := range validationResult.ContractAttributes() {
 			credentials[key] = val
 		}
 		response.Credentials = &credentials
 
 		issuerAttributes := map[string]interface{}{}
-		for key, val := range validationResult.DisclosedAttributes {
+		for key, val := range validationResult.DisclosedAttributes() {
 			issuerAttributes[key] = val
 		}
 		response.IssuerAttributes = &issuerAttributes
 
-		vpType := string(validationResult.VPType)
+		vpType := string(validationResult.VPType())
 		response.VpType = &vpType
 	} else {
 		response.Validity = false
@@ -440,8 +440,7 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		Iat:        &iat,
 		Sid:        claims.SubjectID,
 		Service:    &claims.Service,
-		Name:       claims.Name,
-		GivenName:  claims.GivenName,
+		Initials:   claims.Initials,
 		Prefix:     claims.Prefix,
 		FamilyName: claims.FamilyName,
 		Email:      claims.Email,

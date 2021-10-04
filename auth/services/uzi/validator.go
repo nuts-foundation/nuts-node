@@ -51,10 +51,41 @@ type proof struct {
 	ProofValue string
 }
 
+type uziVPVerificationResult struct {
+	validity            contract.State
+	vpType              contract.VPType
+	disclosedAttributes map[string]string
+	contractAttributes  map[string]string
+}
+
+func (I uziVPVerificationResult) Validity() contract.State {
+	return I.validity
+}
+
+func (I uziVPVerificationResult) VPType() contract.VPType {
+	return I.vpType
+}
+
+func (I uziVPVerificationResult) DisclosedAttribute(key string) string {
+	return I.disclosedAttributes[key]
+}
+
+func (I uziVPVerificationResult) ContractAttribute(key string) string {
+	return I.contractAttributes[key]
+}
+
+func (I uziVPVerificationResult) DisclosedAttributes() map[string]string {
+	return I.disclosedAttributes
+}
+
+func (I uziVPVerificationResult) ContractAttributes() map[string]string {
+	return I.contractAttributes
+}
+
 // VerifyVP implements the verifiablePresentation Verifier interface. It can verify an Uzi VP.
 // It checks the signature, the attributes and the contract.
 // Returns the contract.VPVerificationResult or an error if something went wrong.
-func (u Verifier) VerifyVP(rawVerifiablePresentation []byte, _ *time.Time) (*contract.VPVerificationResult, error) {
+func (u Verifier) VerifyVP(rawVerifiablePresentation []byte, _ *time.Time) (contract.VPVerificationResult, error) {
 
 	presentation := verifiablePresentation{}
 	if err := json.Unmarshal(rawVerifiablePresentation, &presentation); err != nil {
@@ -81,8 +112,8 @@ func (u Verifier) VerifyVP(rawVerifiablePresentation []byte, _ *time.Time) (*con
 		return nil, fmt.Errorf("could not verify verifiable presentation: could not parse the proof: %w", err)
 	}
 	if err := u.UziValidator.Verify(signedToken); err != nil {
-		return &contract.VPVerificationResult{
-			Validity: contract.Invalid,
+		return uziVPVerificationResult{
+			validity: contract.Invalid,
 		}, nil
 	}
 
@@ -91,10 +122,10 @@ func (u Verifier) VerifyVP(rawVerifiablePresentation []byte, _ *time.Time) (*con
 		return nil, fmt.Errorf("could not get disclosed attributes from signed contract: %w", err)
 	}
 
-	return &contract.VPVerificationResult{
-		Validity:            contract.Valid,
-		VPType:              VerifiablePresentationType,
-		DisclosedAttributes: disclosedAttributes,
-		ContractAttributes:  signedToken.Contract().Params,
+	return uziVPVerificationResult{
+		validity:            contract.Valid,
+		vpType:              VerifiablePresentationType,
+		disclosedAttributes: disclosedAttributes,
+		contractAttributes:  signedToken.Contract().Params,
 	}, nil
 }
