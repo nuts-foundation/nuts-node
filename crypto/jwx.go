@@ -144,7 +144,7 @@ func ParseJWT(tokenString string, f PublicKeyFunc) (jwt.Token, error) {
 		return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
 	}
 
-	return jwt.ParseString(tokenString, jwt.WithVerify(alg, key), jwt.WithValidate(true), jwt.WithAcceptableSkew(5 * time.Second))
+	return jwt.ParseString(tokenString, jwt.WithVerify(alg, key), jwt.WithValidate(true), jwt.WithAcceptableSkew(5*time.Second))
 }
 
 func SignJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer) (string, error) {

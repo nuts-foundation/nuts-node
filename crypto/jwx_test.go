@@ -130,7 +130,7 @@ func TestParseJWT(t *testing.T) {
 	t.Run("allow clock skew", func(t *testing.T) {
 		ecKey := test.GenerateECKey()
 		token := jwt.New()
-		err := token.Set(jwt.IssuedAtKey, time.Now().Add(4 * time.Second).Unix())
+		err := token.Set(jwt.IssuedAtKey, time.Now().Add(4*time.Second).Unix())
 		assert.NoError(t, err)
 		signature, _ := jwt.Sign(token, jwa.ES256, ecKey)
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {

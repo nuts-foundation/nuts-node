@@ -217,7 +217,7 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 	}
 
 	// validate the legal base, according to RFC003 §5.2.1.7
-	if err = s.validateAuthorizationCredentials(context); err != nil {
+	if err = s.validateAuthorizationCredentials(&context); err != nil {
 		return nil, err
 	}
 
@@ -317,7 +317,7 @@ func (s *service) validateSubject(context *validationContext) error {
 }
 
 // validate the authorization credentials according to §5.2.1.7
-func (s *service) validateAuthorizationCredentials(context validationContext) error {
+func (s *service) validateAuthorizationCredentials(context *validationContext) error {
 	// filter on authorization credentials
 	vcs, err := context.verifiableCredentials()
 	if err != nil {
