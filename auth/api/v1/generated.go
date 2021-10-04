@@ -136,12 +136,12 @@ type CreateAccessTokenRequest struct {
 
 // Request for a JWT Grant. The grant can be used during a Access Token Request in the assertion field
 type CreateJwtGrantRequest struct {
-	Actor       string                 `json:"actor"`
+	Authorizer  string                 `json:"authorizer"`
 	Credentials []VerifiableCredential `json:"credentials"`
-	Custodian   string                 `json:"custodian"`
 
 	// Base64 encoded IRMA contract conaining the identity of the performer
-	Identity string `json:"identity"`
+	Identity  string `json:"identity"`
+	Requester string `json:"requester"`
 
 	// The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
 	Service string  `json:"service"`
@@ -194,14 +194,14 @@ type JwtGrantResponse struct {
 // DID of the organization as registered in the Nuts registry.
 type LegalEntity string
 
-// Request for a JWT Grant and use it as authorization grant to get the access token from the custodian
+// Request for a JWT Grant and use it as authorization grant to get the access token from the requester
 type RequestAccessTokenRequest struct {
-	Actor       string                 `json:"actor"`
+	Authorizer  string                 `json:"authorizer"`
 	Credentials []VerifiableCredential `json:"credentials"`
-	Custodian   string                 `json:"custodian"`
 
 	// Base64 encoded IRMA contract conaining the identity of the performer
-	Identity string `json:"identity"`
+	Identity  string `json:"identity"`
+	Requester string `json:"requester"`
 
 	// The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
 	Service string  `json:"service"`
@@ -295,7 +295,7 @@ type TokenIntrospectionResponse struct {
 	GivenName *string `json:"given_name,omitempty"`
 	Iat       *int    `json:"iat,omitempty"`
 
-	// The subject (not a Nuts subject) contains the DID of the custodian.
+	// The subject (not a Nuts subject) contains the DID of the requester.
 	Iss *string `json:"iss,omitempty"`
 
 	// End-User's full name in displayable form including all name parts, possibly including titles and suffixes, ordered according to the End-User's locale and preferences.
@@ -1762,7 +1762,7 @@ type ServerInterface interface {
 	// Create a JWT Grant
 	// (POST /internal/auth/v1/jwt-grant)
 	CreateJwtGrant(ctx echo.Context) error
-	// Request an accesstoken from the custodian
+	// Request an accesstoken from the requester
 	// (POST /internal/auth/v1/request-access-token)
 	RequestAccessToken(ctx echo.Context) error
 	// Create a signing session for a supported means.
