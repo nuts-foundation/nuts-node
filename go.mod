@@ -16,7 +16,7 @@ require (
 	github.com/jinzhu/gorm v1.9.14 // indirect
 	github.com/knadh/koanf v0.16.0
 	github.com/labstack/echo/v4 v4.6.1
-	github.com/lestrrat-go/jwx v1.2.6
+	github.com/lestrrat-go/jwx v1.2.7
 	github.com/magiconair/properties v1.8.5
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mdp/qrterminal/v3 v3.0.0
@@ -59,7 +59,7 @@ require (
 	github.com/getsentry/raven-go v0.0.0-20180121060056-563b81fc02b7 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
-	github.com/goccy/go-json v0.7.6 // indirect
+	github.com/goccy/go-json v0.7.8 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
