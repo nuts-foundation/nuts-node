@@ -413,8 +413,8 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		defer ctx.ctrl.Finish()
 		subj := "urn:oid:2.16.840.1.113883.2.4.6.3:9999990"
 		body := CreateJwtGrantRequest{
-			Authorizer: vdr.TestDIDA.String(),
-			Requester:  vdr.TestDIDB.String(),
+			Requester:  vdr.TestDIDA.String(),
+			Authorizer: vdr.TestDIDB.String(),
 			Subject:    &subj,
 			Identity:   "irma-token",
 			Service:    "service",
@@ -425,8 +425,8 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		}
 
 		expectedRequest := services.CreateJwtGrantRequest{
-			Authorizer:    body.Authorizer,
 			Requester:     body.Requester,
+			Authorizer:    body.Authorizer,
 			IdentityToken: &body.Identity,
 			Subject:       body.Subject,
 			Service:       "service",
@@ -445,8 +445,8 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	testID := "test-id"
 	testSubject := "test-testSubject"
 	fakeRequest := RequestAccessTokenRequest{
-		Authorizer: vdr.TestDIDA.String(),
-		Requester:  vdr.TestDIDB.String(),
+		Requester:  vdr.TestDIDA.String(),
+		Authorizer: vdr.TestDIDB.String(),
 		Identity:   testID,
 		Service:    "test-service",
 		Subject:    &testSubject,
@@ -476,8 +476,8 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Authorizer:    vdr.TestDIDA.String(),
-				Requester:     vdr.TestDIDB.String(),
+				Requester:     vdr.TestDIDA.String(),
+				Authorizer:    vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
 				Subject:       &testSubject,
@@ -489,7 +489,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		assert.EqualError(t, err, "random error")
 	})
 
-	t.Run("returns_error_when_parsing_requester_did_fails", func(t *testing.T) {
+	t.Run("returns_error_when_parsing_authorizer_did_fails", func(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.echoMock.EXPECT().
@@ -497,15 +497,15 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			DoAndReturn(func(input interface{}) error {
 				request := input.(*RequestAccessTokenRequest)
 				*request = fakeRequest
-				request.Requester = "invalid..!!"
+				request.Authorizer = "invalid..!!"
 
 				return nil
 			})
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Authorizer:    vdr.TestDIDA.String(),
-				Requester:     "invalid..!!",
+				Requester:     vdr.TestDIDA.String(),
+				Authorizer:    "invalid..!!",
 				IdentityToken: &testID,
 				Service:       "test-service",
 				Subject:       &testSubject,
@@ -531,8 +531,8 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Authorizer:    vdr.TestDIDA.String(),
-				Requester:     vdr.TestDIDB.String(),
+				Requester:     vdr.TestDIDA.String(),
+				Authorizer:    vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
 				Subject:       &testSubject,
@@ -547,7 +547,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
-		assert.EqualError(t, err, "unable to find the oauth2 service endpoint of the requester: random error")
+		assert.EqualError(t, err, "unable to find the oauth2 service endpoint of the authorizer: random error")
 	})
 
 	t.Run("returns_error_when_http_create_access_token_fails", func(t *testing.T) {
@@ -562,8 +562,8 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Authorizer:    vdr.TestDIDA.String(),
-				Requester:     vdr.TestDIDB.String(),
+				Requester:     vdr.TestDIDA.String(),
+				Authorizer:    vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
 				Subject:       &testSubject,
@@ -634,8 +634,8 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Authorizer:    vdr.TestDIDA.String(),
-				Requester:     vdr.TestDIDB.String(),
+				Requester:     vdr.TestDIDA.String(),
+				Authorizer:    vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
 				Subject:       &testSubject,

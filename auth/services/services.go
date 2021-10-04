@@ -15,7 +15,7 @@ type OAuthClient interface {
 	Configure() error
 	CreateAccessToken(request CreateAccessTokenRequest) (*AccessTokenResult, error)
 	CreateJwtGrant(request CreateJwtGrantRequest) (*JwtBearerTokenResult, error)
-	GetOAuthEndpointURL(service string, requester did.DID) (url.URL, error)
+	GetOAuthEndpointURL(service string, authorizer did.DID) (url.URL, error)
 	IntrospectAccessToken(token string) (*NutsAccessToken, error)
 }
 

@@ -194,7 +194,7 @@ type JwtGrantResponse struct {
 // DID of the organization as registered in the Nuts registry.
 type LegalEntity string
 
-// Request for a JWT Grant and use it as authorization grant to get the access token from the requester
+// Request for a JWT Grant and use it as authorization grant to get the access token from the authorizer
 type RequestAccessTokenRequest struct {
 	Authorizer  string                 `json:"authorizer"`
 	Credentials []VerifiableCredential `json:"credentials"`
@@ -295,7 +295,7 @@ type TokenIntrospectionResponse struct {
 	GivenName *string `json:"given_name,omitempty"`
 	Iat       *int    `json:"iat,omitempty"`
 
-	// The subject (not a Nuts subject) contains the DID of the requester.
+	// The subject (not a Nuts subject) contains the DID of the authorizer.
 	Iss *string `json:"iss,omitempty"`
 
 	// End-User's full name in displayable form including all name parts, possibly including titles and suffixes, ordered according to the End-User's locale and preferences.
@@ -1762,7 +1762,7 @@ type ServerInterface interface {
 	// Create a JWT Grant
 	// (POST /internal/auth/v1/jwt-grant)
 	CreateJwtGrant(ctx echo.Context) error
-	// Request an accesstoken from the requester
+	// Request an accesstoken from the authorizer
 	// (POST /internal/auth/v1/request-access-token)
 	RequestAccessToken(ctx echo.Context) error
 	// Create a signing session for a supported means.

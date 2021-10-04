@@ -6,7 +6,7 @@ install-tools:
 	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.8.2
 	go install github.com/golang/mock/mockgen@v1.6.0
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 
 gen-readme:
 	./generate_readme.sh

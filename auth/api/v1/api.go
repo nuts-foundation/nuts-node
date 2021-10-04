@@ -274,8 +274,8 @@ func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 	}
 
 	request := services.CreateJwtGrantRequest{
-		Authorizer:    requestBody.Authorizer,
 		Requester:     requestBody.Requester,
+		Authorizer:    requestBody.Authorizer,
 		IdentityToken: makeStringPointer(requestBody.Identity),
 		Service:       requestBody.Service,
 		Subject:       requestBody.Subject,
@@ -298,8 +298,8 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 	}
 
 	request := services.CreateJwtGrantRequest{
-		Authorizer:    requestBody.Authorizer,
 		Requester:     requestBody.Requester,
+		Authorizer:    requestBody.Authorizer,
 		IdentityToken: makeStringPointer(requestBody.Identity),
 		Service:       requestBody.Service,
 		Subject:       requestBody.Subject,
@@ -311,14 +311,14 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		return core.InvalidInputError(err.Error())
 	}
 
-	requesterDID, err := did.ParseDID(requestBody.Requester)
+	authorizerDID, err := did.ParseDID(requestBody.Authorizer)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
 	}
 
-	endpointURL, err := w.Auth.OAuthClient().GetOAuthEndpointURL(requestBody.Service, *requesterDID)
+	endpointURL, err := w.Auth.OAuthClient().GetOAuthEndpointURL(requestBody.Service, *authorizerDID)
 	if err != nil {
-		return core.PreconditionFailedError("unable to find the oauth2 service endpoint of the requester: %w", err)
+		return core.PreconditionFailedError("unable to find the oauth2 service endpoint of the authorizer: %w", err)
 	}
 
 	httpClient := &http.Client{}

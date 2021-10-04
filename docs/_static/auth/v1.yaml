@@ -185,9 +185,9 @@ paths:
   /internal/auth/v1/request-access-token:
     post:
       operationId: requestAccessToken
-      summary: Request an accesstoken from the requester
+      summary: Request an accesstoken from the authorizer
       description: |
-        Create a JWT Grant and use it as authorization grant to get an accesstoken from the requester.
+        Create a JWT Grant and use it as authorization grant to get an accesstoken from the authorizer.
 
         error returns:
         * 400 - one of the parameters has the wrong format
@@ -570,17 +570,17 @@ components:
     CreateJwtGrantRequest:
       description: Request for a JWT Grant. The grant can be used during a Access Token Request in the assertion field
       required:
-        - requester
         - authorizer
+        - requester
         - identity
         - service
         - credentials
       properties:
         subject:
           type: string
-        requester:
-          type: string
         authorizer:
+          type: string
+        requester:
           type: string
         identity:
           type: string
@@ -610,19 +610,19 @@ components:
     # Everything related to Access Tokens
     #
     RequestAccessTokenRequest:
-      description: Request for a JWT Grant and use it as authorization grant to get the access token from the requester
+      description: Request for a JWT Grant and use it as authorization grant to get the access token from the authorizer
       required:
-        - requester
         - authorizer
+        - requester
         - identity
         - service
         - credentials
       properties:
         subject:
           type: string
-        requester:
-          type: string
         authorizer:
+          type: string
+        requester:
           type: string
         identity:
           type: string
@@ -710,7 +710,7 @@ components:
         iss:
           type: string
           description: |
-            The subject (not a Nuts subject) contains the DID of the requester.
+            The subject (not a Nuts subject) contains the DID of the authorizer.
           example: "did:nuts:128903fjgfslcnmgpe84"
         sub:
           type: string
