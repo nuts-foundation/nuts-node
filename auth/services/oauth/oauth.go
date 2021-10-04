@@ -55,12 +55,6 @@ const subjectIDClaim = "sid"
 const purposeOfUseClaim = "purposeOfUseClaim"
 const userIdentityClaim = "usi"
 
-// claims as used by openid
-const initialsTokenClaim = "initials"
-const familyNameTokenClaim = "familyname"
-const prefixTokenClaim = "prefix"
-const emailTokenClaim = "email"
-
 type service struct {
 	docResolver     types.DocResolver
 	conceptFinder   vcr.ConceptFinder
@@ -541,10 +535,10 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 		disclosedAttributeFn := context.contractVerificationResult.DisclosedAttribute
 
 		// based on https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims
-		at.Initials = toStrPtr(disclosedAttributeFn(initialsTokenClaim))
-		at.FamilyName = toStrPtr(disclosedAttributeFn(familyNameTokenClaim))
-		at.Prefix = toStrPtr(disclosedAttributeFn(prefixTokenClaim))
-		at.Email = toStrPtr(disclosedAttributeFn(emailTokenClaim))
+		at.Initials = toStrPtr(disclosedAttributeFn(services.InitialsTokenClaim))
+		at.FamilyName = toStrPtr(disclosedAttributeFn(services.FamilyNameTokenClaim))
+		at.Prefix = toStrPtr(disclosedAttributeFn(services.PrefixTokenClaim))
+		at.Email = toStrPtr(disclosedAttributeFn(services.EmailTokenClaim))
 	}
 
 	if len(context.credentialIDs) > 0 {

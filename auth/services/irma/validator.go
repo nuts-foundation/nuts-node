@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/nuts-foundation/nuts-node/auth/services"
 
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 
@@ -101,13 +102,13 @@ func (I irmaVPVerificationResult) VPType() contract.VPType {
 func (I irmaVPVerificationResult) DisclosedAttribute(key string) string {
 	var v string
 	switch key {
-	case "familyname":
+	case services.FamilyNameTokenClaim:
 		v = I.disclosedAttributes["gemeente.personalData.familyname"]
-	case "prefix":
+	case services.PrefixTokenClaim:
 		v = I.disclosedAttributes["gemeente.personalData.prefix"]
-	case "initials":
+	case services.InitialsTokenClaim:
 		v = I.disclosedAttributes["gemeente.personalData.initials"]
-	case "email":
+	case services.EmailTokenClaim:
 		v = I.disclosedAttributes["sidn-pbdf.email.email"]
 	}
 	return v
