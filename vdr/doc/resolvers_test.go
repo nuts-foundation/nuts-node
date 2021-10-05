@@ -437,7 +437,7 @@ func TestKeyResolver_ResolvePublicKey(t *testing.T) {
 	})
 
 	t.Run("ok by hash", func(t *testing.T) {
-		key, err := keyResolver.ResolvePublicKeyFromOriginatingTransaction(kid, txHash)
+		key, err := keyResolver.ResolvePublicKeyFromOriginatingTransaction(kid, []hash.SHA256Hash{txHash})
 
 		if !assert.NoError(t, err) {
 			return

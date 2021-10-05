@@ -34,7 +34,7 @@ type StaticKeyResolver struct {
 	Key crypto.PublicKey
 }
 
-func (s StaticKeyResolver) ResolvePublicKeyFromOriginatingTransaction(kid string, hash hash.SHA256Hash) (crypto.PublicKey, error) {
+func (s StaticKeyResolver) ResolvePublicKeyFromOriginatingTransaction(kid string, prevs []hash.SHA256Hash) (crypto.PublicKey, error) {
 	return s.Key, nil
 }
 

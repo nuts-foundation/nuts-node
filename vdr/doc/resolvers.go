@@ -206,10 +206,21 @@ func (r KeyResolver) ResolvePublicKey(kid string, validAt *time.Time) (crypto.Pu
 	})
 }
 
-func (r KeyResolver) ResolvePublicKeyFromOriginatingTransaction(kid string, hash hash.SHA256Hash) (crypto.PublicKey, error) {
-	return r.resolvePublicKey(kid, types.ResolveMetadata{
-		Hash: &hash,
-	})
+func (r KeyResolver) ResolvePublicKeyFromOriginatingTransaction(kid string, hashes []hash.SHA256Hash) (crypto.PublicKey, error) {
+	// try all keys, continue when err == types.ErrNotFound
+	for _, h := range hashes {
+		publicKey, err := r.resolvePublicKey(kid, types.ResolveMetadata{
+			Hash: &h,
+		})
+		if err == nil {
+			return publicKey, nil
+		}
+		if err != types.ErrNotFound {
+			return nil, err
+		}
+	}
+
+	return nil, types.ErrNotFound
 }
 
 func (r KeyResolver) resolvePublicKey(kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {

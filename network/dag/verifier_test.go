@@ -94,11 +94,12 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 	})
 	t.Run("unable to resolve key by hash", func(t *testing.T) {
 		after := didDocumentResolveEPoch.Add(1 * time.Second)
-		d := CreateSignedTestTransaction(1, after, "foo/bar", false)
+		root := hash.SHA256Sum([]byte("root"))
+		d := CreateSignedTestTransaction(1, after, "foo/bar", false, root)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolvePublicKeyFromOriginatingTransaction(gomock.Any(), d.Ref()).Return(nil, errors.New("failed"))
+		keyResolver.EXPECT().ResolvePublicKeyFromOriginatingTransaction(gomock.Any(), []hash.SHA256Hash{root}).Return(nil, errors.New("failed"))
 		err := NewTransactionSignatureVerifier(keyResolver)(context.Background(), d, nil)
 		if !assert.Error(t, err) {
 			return
@@ -110,22 +111,22 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 
 func TestSigningTimeVerifier(t *testing.T) {
 	t.Run("signed now", func(t *testing.T) {
-		err := NewSigningTimeVerifier()(CreateSignedTestTransaction(1, time.Now(), "test/test", true), nil)
+		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, time.Now(), "test/test", true), nil)
 		assert.NoError(t, err)
 	})
 	t.Run("signed in history", func(t *testing.T) {
 		aWhileBack := time.Now().AddDate(-1, 0, 0)
-		err := NewSigningTimeVerifier()(CreateSignedTestTransaction(1, aWhileBack, "test/test", true), nil)
+		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, aWhileBack, "test/test", true), nil)
 		assert.NoError(t, err)
 	})
 	t.Run("signed a few hours in the future", func(t *testing.T) {
 		soon := time.Now().Add(time.Hour * 2)
-		err := NewSigningTimeVerifier()(CreateSignedTestTransaction(1, soon, "test/test", true), nil)
+		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, soon, "test/test", true), nil)
 		assert.NoError(t, err)
 	})
 	t.Run("error - signed a day in the future", func(t *testing.T) {
 		later := time.Now().Add(time.Hour*24 + time.Minute)
-		err := NewSigningTimeVerifier()(CreateSignedTestTransaction(1, later, "test/test", true), nil)
+		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, later, "test/test", true), nil)
 		assert.Error(t, err)
 	})
 }

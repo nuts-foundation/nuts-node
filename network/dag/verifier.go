@@ -9,6 +9,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -20,12 +21,12 @@ var ErrPreviousTransactionMissing = errors.New("transaction is referring to non-
 type Verifier func(ctx context.Context, tx Transaction, graph DAG) error
 
 // didDocumentResolveEPoch represents the epoch on which DID Document resolving switched from time based to hash based
-var didDocumentResolveEPoch = time.Unix(1634446887, 0)
+var didDocumentResolveEPoch = time.Unix(1632444887, 0)
 
 // NewTransactionSignatureVerifier creates a transaction verifier that checks the signature of the transaction.
 // It uses the given KeyResolver to resolves keys that aren't embedded in the transaction.
 func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
-	return func(_ context.Context, tx Transaction, _ DAG) error {
+	return func(ctx context.Context, tx Transaction, dag DAG) error {
 		var signingKey crypto2.PublicKey
 		if tx.SigningKey() != nil {
 			if err := tx.SigningKey().Raw(&signingKey); err != nil {
@@ -34,7 +35,14 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 		} else {
 			signingTime := tx.SigningTime()
 			if signingTime.After(didDocumentResolveEPoch) {
-				pk, err := resolver.ResolvePublicKeyFromOriginatingTransaction(tx.SigningKeyID(), tx.Ref())
+				// convert prevHashes to payloadHashes
+				payloadHashes := make([]hash.SHA256Hash, len(tx.Previous()))
+				for i, prevHash := range tx.Previous() {
+					// no error since other verifier ran first
+					prevTX, _ := dag.Get(ctx, prevHash)
+					payloadHashes[i] = prevTX.PayloadHash()
+				}
+				pk, err := resolver.ResolvePublicKeyFromOriginatingTransaction(tx.SigningKeyID(), payloadHashes)
 				if err != nil {
 					return fmt.Errorf("unable to verify transaction signature, can't resolve key by TX ref (kid=%s, txhash=%s): %w", tx.SigningKeyID(), tx.Ref().String(), err)
 				}
