@@ -5,11 +5,10 @@ go 1.17
 require (
 	github.com/Regis24GmbH/go-phonetics v1.0.0
 	github.com/cbroglie/mustache v1.3.0
-	github.com/deepmap/oapi-codegen v1.8.2
+	github.com/deepmap/oapi-codegen v1.8.3
 	github.com/dgrijalva/jwt-go v3.2.1-0.20200107013213-dc14462fd587+incompatible // indirect
 	github.com/go-chi/chi v4.0.2+incompatible // indirect
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.2
 	github.com/goodsign/monday v1.0.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.0 // indirect
@@ -61,6 +60,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/goccy/go-json v0.7.8 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
 	github.com/hashicorp/go-hclog v0.9.2 // indirect
