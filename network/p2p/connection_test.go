@@ -2,15 +2,16 @@ package p2p
 
 import (
 	"errors"
-	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_connection_close(t *testing.T) {
@@ -121,10 +122,10 @@ func Test_connection_send(t *testing.T) {
 		conn := newConnection(Peer{}, messenger)
 		defer conn.close()
 		go conn.exchange(messageQueue{})
-		runtime.Gosched() // make sure exchange() goroutine is getting a slice of CPU
 
 		// Send message and wait for it to be sent
 		err := conn.send(&transport.NetworkMessage{})
+		runtime.Gosched() // make sure exchange() goroutine is getting a slice of CPU
 		if !assert.NoError(t, err) {
 			return
 		}
