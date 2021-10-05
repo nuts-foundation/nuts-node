@@ -21,8 +21,10 @@ package doc
 
 import (
 	"crypto"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"time"
+
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -30,6 +32,10 @@ import (
 
 type StaticKeyResolver struct {
 	Key crypto.PublicKey
+}
+
+func (s StaticKeyResolver) ResolvePublicKeyFromOriginatingTransaction(kid string, hash hash.SHA256Hash) (crypto.PublicKey, error) {
+	return s.Key, nil
 }
 
 func (s StaticKeyResolver) ResolvePublicKey(_ string, _ *time.Time) (crypto.PublicKey, error) {

@@ -20,13 +20,14 @@ package cmd
 
 import (
 	"bytes"
-	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -40,9 +41,9 @@ func TestFlagSet(t *testing.T) {
 }
 
 func TestCmd_List(t *testing.T) {
-	t1 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(0)*time.Second), "zfoo/bar")
-	t2 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(60)*time.Second), "bar/foo")
-	t3 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(30)*time.Second), "1foo/bar")
+	t1 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(0)*time.Second), "zfoo/bar", true)
+	t2 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(60)*time.Second), "bar/foo", true)
+	t3 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(30)*time.Second), "1foo/bar", true)
 	response := []interface{}{string(t1.Data()), string(t2.Data()), string(t3.Data())}
 	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
 	defer s.Close()
