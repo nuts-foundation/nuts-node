@@ -22,11 +22,12 @@ import (
 	"crypto"
 	"encoding/binary"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"go.etcd.io/bbolt"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/test/io"
+	"go.etcd.io/bbolt"
 
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -35,17 +36,16 @@ import (
 // CreateTestTransactionWithJWK creates a transaction with the given num as payload hash and signs it with a random EC key.
 // The JWK is attached, rather than referred to using the kid.
 func CreateTestTransactionWithJWK(num uint32, prevs ...hash.SHA256Hash) Transaction {
-	return CreateSignedTestTransaction(num, time.Now(), "foo/bar", prevs...)
+	return CreateSignedTestTransaction(num, time.Now(), "foo/bar", true, prevs...)
 }
 
 // CreateSignedTestTransaction creates a signed transaction with more control
-// The JWK is attached, rather than referred to using the kid.
-func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, payloadType string, prevs ...hash.SHA256Hash) Transaction {
+func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, payloadType string, attach bool, prevs ...hash.SHA256Hash) Transaction {
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], payloadNum)
 	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevs)
 	signer := crypto2.NewTestKey(fmt.Sprintf("%d", payloadNum))
-	signedTransaction, err := NewTransactionSigner(signer, true).Sign(unsignedTransaction, signingTime)
+	signedTransaction, err := NewTransactionSigner(signer, attach).Sign(unsignedTransaction, signingTime)
 	if err != nil {
 		panic(err)
 	}

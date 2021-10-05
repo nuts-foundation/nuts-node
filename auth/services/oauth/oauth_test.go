@@ -214,10 +214,9 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAT", nil)
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
-			Val:            contract.Valid,
+			Val:         contract.Valid,
 			DAttributes: map[string]string{"name": "Henk de Vries"},
-			CAttributes:  map[string]string{"legal_entity": "Carebears", "legal_entity_city": "Caretown"},
-
+			CAttributes: map[string]string{"legal_entity": "Carebears", "legal_entity_city": "Caretown"},
 		}, nil)
 		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(nil)
 

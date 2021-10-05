@@ -158,15 +158,15 @@ func TestService_VerifyVP(t *testing.T) {
 
 func TestIrmaVPVerificationResult(t *testing.T) {
 	vr := irmaVPVerificationResult{
-		validity:            contract.Valid,
-		vpType:              contract.VPType("type"),
+		validity: contract.Valid,
+		vpType:   contract.VPType("type"),
 		disclosedAttributes: map[string]string{
 			"gemeente.personalData.familyname": "tester",
-			"gemeente.personalData.initials": "i",
-			"gemeente.personalData.prefix": "von",
-			"sidn-pbdf.email.email": "info@example.com",
+			"gemeente.personalData.initials":   "i",
+			"gemeente.personalData.prefix":     "von",
+			"sidn-pbdf.email.email":            "info@example.com",
 		},
-		contractAttributes:  map[string]string{
+		contractAttributes: map[string]string{
 			"a": "b",
 		},
 	}

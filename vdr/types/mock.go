@@ -236,6 +236,21 @@ func (mr *MockKeyResolverMockRecorder) ResolvePublicKey(kid, validAt interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolvePublicKey", reflect.TypeOf((*MockKeyResolver)(nil).ResolvePublicKey), kid, validAt)
 }
 
+// ResolvePublicKeyFromOriginatingTransaction mocks base method.
+func (m *MockKeyResolver) ResolvePublicKeyFromOriginatingTransaction(kid string, hash hash.SHA256Hash) (crypto.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolvePublicKeyFromOriginatingTransaction", kid, hash)
+	ret0, _ := ret[0].(crypto.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolvePublicKeyFromOriginatingTransaction indicates an expected call of ResolvePublicKeyFromOriginatingTransaction.
+func (mr *MockKeyResolverMockRecorder) ResolvePublicKeyFromOriginatingTransaction(kid, hash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolvePublicKeyFromOriginatingTransaction", reflect.TypeOf((*MockKeyResolver)(nil).ResolvePublicKeyFromOriginatingTransaction), kid, hash)
+}
+
 // ResolveSigningKey mocks base method.
 func (m *MockKeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
 	m.ctrl.T.Helper()

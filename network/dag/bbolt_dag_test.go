@@ -57,8 +57,8 @@ func TestBBoltDAG_FindBetween(t *testing.T) {
 		graph := CreateDAG(t)
 
 		// tx1 and tx2's signing time are out-of-order
-		tx1 := CreateSignedTestTransaction(2, time.Now().AddDate(0, 0, 1), "unit/test")
-		tx2 := CreateSignedTestTransaction(1, time.Now(), "unit/test", tx1.Ref())
+		tx1 := CreateSignedTestTransaction(2, time.Now().AddDate(0, 0, 1), "unit/test", true)
+		tx2 := CreateSignedTestTransaction(1, time.Now(), "unit/test", true, tx1.Ref())
 		_ = graph.Add(tx1)
 		_ = graph.Add(tx2)
 

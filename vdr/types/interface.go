@@ -86,6 +86,11 @@ type KeyResolver interface {
 	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
 	// It returns ErrNotFound when the DID Document can't be found.
 	ResolvePublicKey(kid string, validAt *time.Time) (crypto.PublicKey, error)
+	// ResolvePublicKeyFromOriginatingTransaction loads the key from a DID Document where the DID Document
+	// was created by the given transaction
+	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
+	// It returns ErrNotFound when the DID Document can't be found.
+	ResolvePublicKeyFromOriginatingTransaction(kid string, hash hash.SHA256Hash) (crypto.PublicKey, error)
 }
 
 // DocIterator is the function type for iterating over the all current DID Documents in the store

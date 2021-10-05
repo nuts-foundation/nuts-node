@@ -4,10 +4,11 @@ import (
 	crypto2 "crypto"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"time"
 )
 
 // ErrPreviousTransactionMissing indicates one or more of the previous transactions (which the transaction refers to)
@@ -16,6 +17,9 @@ var ErrPreviousTransactionMissing = errors.New("transaction is referring to non-
 
 // Verifier defines the API of a DAG verifier, used to check the validity of a transaction.
 type Verifier func(tx Transaction, graph DAG) error
+
+// didDocumentResolveEPoch represents the epoch on which DID Document resolving switched from time based to hash based
+var didDocumentResolveEPoch = time.Unix(1634446887, 0)
 
 // NewTransactionSignatureVerifier creates a transaction verifier that checks the signature of the transaction.
 // It uses the given KeyResolver to resolves keys that aren't embedded in the transaction.
@@ -28,11 +32,20 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 			}
 		} else {
 			signingTime := tx.SigningTime()
-			pk, err := resolver.ResolvePublicKey(tx.SigningKeyID(), &signingTime)
-			if err != nil {
-				return fmt.Errorf("unable to verify transaction signature, can't resolve key (kid=%s): %w", tx.SigningKeyID(), err)
+			if signingTime.After(didDocumentResolveEPoch) {
+				pk, err := resolver.ResolvePublicKeyFromOriginatingTransaction(tx.SigningKeyID(), tx.Ref())
+				if err != nil {
+					return fmt.Errorf("unable to verify transaction signature, can't resolve key by TX ref (kid=%s, txhash=%s): %w", tx.SigningKeyID(), tx.Ref().String(), err)
+				}
+				signingKey = pk
+			} else {
+				// legacy resolving for older documents
+				pk, err := resolver.ResolvePublicKey(tx.SigningKeyID(), &signingTime)
+				if err != nil {
+					return fmt.Errorf("unable to verify transaction signature, can't resolve key by signing time (kid=%s): %w", tx.SigningKeyID(), err)
+				}
+				signingKey = pk
 			}
-			signingKey = pk
 		}
 		// TODO: jws.Verify parses the JWS again, which we already did when parsing the transaction. If we want to optimize
 		// this we need to implement a custom verifier.
