@@ -168,12 +168,12 @@ func TestDummy_VerifyVP(t *testing.T) {
 				Type:    []contract.VPType{contract.VerifiablePresentationType, VerifiablePresentationType},
 			},
 			Proof: Proof{
-				Type:      NoSignatureType,
-				Initials:  "I",
-				Lastname:  "Tester",
-				Birthdate: "1980-01-01",
-				Email:     "tester@example.com",
-				Contract:  "EN:PractitionerLogin:v3 I hereby declare to act on behalf of care org located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00.",
+				Type:       NoSignatureType,
+				Initials:   "I",
+				FamilyName: "Tester",
+				Prefix:     "von",
+				Email:      "tester@example.com",
+				Contract:   "EN:PractitionerLogin:v3 I hereby declare to act on behalf of care org located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00.",
 			},
 		}
 
@@ -181,8 +181,8 @@ func TestDummy_VerifyVP(t *testing.T) {
 		vr, err := d.VerifyVP(j, nil)
 
 		assert.NoError(t, err)
-		assert.Equal(t, contract.Valid, vr.Validity)
-		assert.Equal(t, VerifiablePresentationType, vr.VPType)
+		assert.Equal(t, contract.Valid, vr.Validity())
+		assert.Equal(t, VerifiablePresentationType, vr.VPType())
 	})
 
 	t.Run("error - incorrect json", func(t *testing.T) {
@@ -240,10 +240,10 @@ func TestSigningSessionResult_VerifiablePresentation(t *testing.T) {
 		assert.Equal(t, []string{contract.VerifiableCredentialContext}, dvp.Context)
 		assert.Equal(t, []contract.VPType{contract.VerifiablePresentationType, VerifiablePresentationType}, dvp.Type)
 		assert.Equal(t, "", dvp.Proof.Contract)
-		assert.Equal(t, "1980-01-01", dvp.Proof.Birthdate)
 		assert.Equal(t, "tester@example.com", dvp.Proof.Email)
 		assert.Equal(t, "I", dvp.Proof.Initials)
-		assert.Equal(t, "Tester", dvp.Proof.Lastname)
+		assert.Equal(t, "von", dvp.Proof.Prefix)
+		assert.Equal(t, "Dummy", dvp.Proof.FamilyName)
 		assert.Equal(t, "NoSignature", dvp.Proof.Type)
 	})
 }

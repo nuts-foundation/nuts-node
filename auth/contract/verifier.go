@@ -37,7 +37,7 @@ type VerifierType string
 type VPVerifier interface {
 	// VerifyVP validates a verifiable presentation.
 	// When the verifier could not handle the verifiable presentation, an error should be thrown.
-	VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (*VPVerificationResult, error)
+	VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (VPVerificationResult, error)
 }
 
 // VPType holds the type of the Verifiable Presentation. Based on the format an appropriate validator can be selected.
@@ -78,19 +78,25 @@ type Proof struct {
 	Type string `json:"type"`
 }
 
-// VPVerificationResult contains the result of a contract validation
-type VPVerificationResult struct {
+// VPVerificationResult describes the result of a contract validation
+// it abstracts the name of the disclosed attributes from the means.
+// the access token for example uses "initials", "family_name", "prefix" and "email"
+type VPVerificationResult interface {
 	// Validity indicates if the Presentation is valid
 	// It can contains the "VALID" or "INVALID" status.
 	// Validators must only set the Validity to "VALID" if the whole VP, including the embedded
 	// contract are valid at the given moment in time.
-	Validity State
-	// VPType contains the the VP type like "NutsUziPresentation".
-	VPType VPType
-	// ContractID contains the identifier string of the signed contract message like: "EN:PractitionerLogin:v3"
-	ContractID string
-	// DisclosedAttributes contain the attributes used to sign this contract
-	DisclosedAttributes map[string]string
-	// ContractAttributes contain the attributes used to fill the contract
-	ContractAttributes map[string]string
+	Validity() State
+	// VPType returns the the VP type like "NutsUziPresentation".
+	VPType() VPType
+	// DisclosedAttribute returns the attribute value used to sign this contract
+	// returns empty string when not found
+	DisclosedAttribute(key string) string
+	// ContractAttribute returns the attribute value used to fill the contract
+	// returns empty string when not found
+	ContractAttribute(key string) string
+	// DisclosedAttributes returns the attributes used to sign this contract
+	DisclosedAttributes() map[string]string
+	// ContractAttributes returns the attributes used to fill the contract
+	ContractAttributes() map[string]string
 }

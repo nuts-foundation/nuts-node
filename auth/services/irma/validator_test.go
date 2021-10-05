@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/test"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -152,6 +153,46 @@ func TestService_VerifyVP(t *testing.T) {
 		}
 		assert.Equal(t, "could not verify VP: unexpected end of JSON input", err.Error())
 
+	})
+}
+
+func TestIrmaVPVerificationResult(t *testing.T) {
+	vr := irmaVPVerificationResult{
+		validity:            contract.Valid,
+		vpType:              contract.VPType("type"),
+		disclosedAttributes: map[string]string{
+			"gemeente.personalData.familyname": "tester",
+			"gemeente.personalData.initials": "i",
+			"gemeente.personalData.prefix": "von",
+			"sidn-pbdf.email.email": "info@example.com",
+		},
+		contractAttributes:  map[string]string{
+			"a": "b",
+		},
+	}
+
+	t.Run("attribute mapping", func(t *testing.T) {
+		assert.Equal(t, "i", vr.DisclosedAttribute(services.InitialsTokenClaim))
+		assert.Equal(t, "tester", vr.DisclosedAttribute(services.FamilyNameTokenClaim))
+		assert.Equal(t, "von", vr.DisclosedAttribute(services.PrefixTokenClaim))
+		assert.Equal(t, "info@example.com", vr.DisclosedAttribute(services.EmailTokenClaim))
+	})
+
+	t.Run("validity", func(t *testing.T) {
+		assert.Equal(t, contract.Valid, vr.Validity())
+	})
+
+	t.Run("type", func(t *testing.T) {
+		assert.Equal(t, contract.VPType("type"), vr.VPType())
+	})
+
+	t.Run("DisclosedAttributes", func(t *testing.T) {
+		assert.NotNil(t, vr.DisclosedAttributes())
+	})
+
+	t.Run("ContractAttributes", func(t *testing.T) {
+		assert.NotNil(t, vr.ContractAttributes())
+		assert.Equal(t, "b", vr.ContractAttribute("a"))
 	})
 }
 

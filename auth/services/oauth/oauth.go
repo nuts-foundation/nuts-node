@@ -73,7 +73,7 @@ type validationContext struct {
 	requesterCity              string
 	purposeOfUse               string
 	credentialIDs              []string
-	contractVerificationResult *contract.VPVerificationResult
+	contractVerificationResult contract.VPVerificationResult
 }
 
 func (c validationContext) subjectID() *string {
@@ -196,7 +196,7 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 			return nil, fmt.Errorf("identity verification failed: %w", err)
 		}
 
-		if context.contractVerificationResult.Validity != contract.Valid {
+		if context.contractVerificationResult.Validity() != contract.Valid {
 			return nil, errors.New("identity validation failed")
 		}
 
@@ -231,7 +231,7 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 
 // checks if the name from the login contract matches with the registered name of the issuer.
 func (s *service) validateRequester(context *validationContext) error {
-	if context.contractVerificationResult.ContractAttributes[contract.LegalEntityAttr] != context.requesterName || context.contractVerificationResult.ContractAttributes[contract.LegalEntityCityAttr] != context.requesterCity {
+	if context.contractVerificationResult.ContractAttribute(contract.LegalEntityAttr) != context.requesterName || context.contractVerificationResult.ContractAttribute(contract.LegalEntityCityAttr) != context.requesterCity {
 		return errors.New("legal entity mismatch")
 	}
 	return nil
@@ -506,7 +506,7 @@ func (s *service) IntrospectAccessToken(accessToken string) (*services.NutsAcces
 // The token gets signed with the authorizers private key and returned as a string.
 func (s *service) buildAccessToken(context *validationContext) (string, error) {
 	if context.contractVerificationResult != nil {
-		if context.contractVerificationResult.Validity != contract.Valid {
+		if context.contractVerificationResult.Validity() != contract.Valid {
 			return "", fmt.Errorf("could not build accessToken: %w", errors.New("invalid contract"))
 		}
 	}
@@ -532,18 +532,13 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 	}
 
 	if context.contractVerificationResult != nil {
-		disclosedAttributes := context.contractVerificationResult.DisclosedAttributes
+		disclosedAttributeFn := context.contractVerificationResult.DisclosedAttribute
 
-		// based on
-		// https://privacybydesign.foundation/attribute-index/en/pbdf.gemeente.personalData.html
-		// https://privacybydesign.foundation/attribute-index/en/pbdf.pbdf.email.html
-		// and
-		// https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims
-		at.FamilyName = toStrPtr(disclosedAttributes["gemeente.personalData.familyname"])
-		at.GivenName = toStrPtr(disclosedAttributes["gemeente.personalData.firstnames"])
-		at.Prefix = toStrPtr(disclosedAttributes["gemeente.personalData.prefix"])
-		at.Name = toStrPtr(disclosedAttributes["gemeente.personalData.fullname"])
-		at.Email = toStrPtr(disclosedAttributes["sidn-pbdf.email.email"])
+		// based on https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims
+		at.Initials = toStrPtr(disclosedAttributeFn(services.InitialsTokenClaim))
+		at.FamilyName = toStrPtr(disclosedAttributeFn(services.FamilyNameTokenClaim))
+		at.Prefix = toStrPtr(disclosedAttributeFn(services.PrefixTokenClaim))
+		at.Email = toStrPtr(disclosedAttributeFn(services.EmailTokenClaim))
 	}
 
 	if len(context.credentialIDs) > 0 {

@@ -44,3 +44,15 @@ type ContractFormat string
 
 // OAuthEndpointType defines the type identifier for oauth endpoints (RFCtodo)
 const OAuthEndpointType = "oauth"
+
+// InitialsTokenClaim is the JWT claim for initials
+const InitialsTokenClaim = "initials"
+
+// FamilyNameTokenClaim is the JWT claim for the family name
+const FamilyNameTokenClaim = "familyname"
+
+// PrefixTokenClaim is the JWT claim for the name prefix
+const PrefixTokenClaim = "prefix"
+
+// EmailTokenClaim is the JWT claim for email
+const EmailTokenClaim = "email"

@@ -336,10 +336,10 @@ func (mr *MockContractClientMockRecorder) SigningSessionStatus(sessionID interfa
 }
 
 // VerifyVP mocks base method.
-func (m *MockContractClient) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (*contract.VPVerificationResult, error) {
+func (m *MockContractClient) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (contract.VPVerificationResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "VerifyVP", rawVerifiablePresentation, checkTime)
-	ret0, _ := ret[0].(*contract.VPVerificationResult)
+	ret0, _ := ret[0].(contract.VPVerificationResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

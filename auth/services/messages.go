@@ -53,8 +53,7 @@ type JwtBearerTokenResult struct {
 type NutsAccessToken struct {
 	SubjectID  *string `json:"sid,omitempty"`
 	Service    string  `json:"service"`
-	Name       *string `json:"name,omitempty"`
-	GivenName  *string `json:"given_name,omitempty"`
+	Initials   *string `json:"initials,omitempty"`
 	Prefix     *string `json:"prefix,omitempty"`
 	FamilyName *string `json:"family_name,omitempty"`
 	Email      *string `json:"email,omitempty"`

@@ -987,11 +987,11 @@ func TestWrapper_VerifySignature(t *testing.T) {
 
 		bindPostBody(ctx, postParams)
 
-		verificationResult := &contract.VPVerificationResult{
-			Validity:            contract.Valid,
-			VPType:              "AVPType",
-			DisclosedAttributes: map[string]string{"name": "John"},
-			ContractAttributes:  map[string]string{"validTo": "now"},
+		verificationResult := services.TestVPVerificationResult{
+			Val:         contract.Valid,
+			Type:        "AVPType",
+			DAttributes: map[string]string{"name": "John"},
+			CAttributes: map[string]string{"validTo": "now"},
 		}
 
 		vpType := "AVPType"
@@ -1021,8 +1021,8 @@ func TestWrapper_VerifySignature(t *testing.T) {
 
 		bindPostBody(ctx, postParams)
 
-		verificationResult := &contract.VPVerificationResult{
-			Validity: contract.Invalid,
+		verificationResult := services.TestVPVerificationResult{
+			Val: contract.Invalid,
 		}
 
 		expectedResponse := SignatureVerificationResponse{
@@ -1051,8 +1051,8 @@ func TestWrapper_VerifySignature(t *testing.T) {
 
 		bindPostBody(ctx, postParams)
 
-		verificationResult := &contract.VPVerificationResult{
-			Validity: contract.Valid,
+		verificationResult := services.TestVPVerificationResult{
+			Val: contract.Valid,
 		}
 
 		vpType := ""

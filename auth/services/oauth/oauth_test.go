@@ -166,7 +166,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
-		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(&contract.VPVerificationResult{Validity: contract.Invalid}, nil)
+		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{Val: contract.Invalid}, nil)
 
 		tokenCtx := validContext()
 		signToken(tokenCtx)
@@ -213,10 +213,11 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAT", nil)
-		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(&contract.VPVerificationResult{
-			Validity:            contract.Valid,
-			DisclosedAttributes: map[string]string{"name": "Henk de Vries"},
-			ContractAttributes:  map[string]string{"legal_entity": "Carebears", "legal_entity_city": "Caretown"},
+		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
+			Val:            contract.Valid,
+			DAttributes: map[string]string{"name": "Henk de Vries"},
+			CAttributes:  map[string]string{"legal_entity": "Carebears", "legal_entity_city": "Caretown"},
+
 		}, nil)
 		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(nil)
 
@@ -579,7 +580,7 @@ func TestService_buildAccessToken(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		tokenCtx := &validationContext{
-			contractVerificationResult: &contract.VPVerificationResult{Validity: contract.Valid},
+			contractVerificationResult: services.TestVPVerificationResult{Val: contract.Valid},
 			jwtBearerToken:             jwt.New(),
 		}
 
@@ -602,7 +603,7 @@ func TestService_buildAccessToken(t *testing.T) {
 		})
 
 		tokenCtx := &validationContext{
-			contractVerificationResult: &contract.VPVerificationResult{Validity: contract.Valid},
+			contractVerificationResult: services.TestVPVerificationResult{Val: contract.Valid},
 			jwtBearerToken:             jwt.New(),
 			credentialIDs:              []string{"credential"},
 		}

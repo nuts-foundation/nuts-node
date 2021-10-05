@@ -70,13 +70,13 @@ type Proof struct {
 	Type string
 	// Contract as how it was presented to the user
 	Contract string
-	// Initials form the signing means
+	// FamilyName from the signing means
+	FamilyName string
+	// GivenName from the signing means
 	Initials string
-	// Lastname form the signing means
-	Lastname string
-	// Birthdate form the signing means
-	Birthdate string
-	// Email form the signing means
+	// Prefix from the signing means
+	Prefix string
+	// Email from the signing means
 	Email string
 }
 
@@ -118,6 +118,36 @@ func (s sessionPointer) MarshalJSON() ([]byte, error) {
 	}{SessionID: s.sessionID})
 }
 
+type dummyVPVerificationResult struct {
+	contractID          string
+	disclosedAttributes map[string]string
+	contractAttributes  map[string]string
+}
+
+func (d dummyVPVerificationResult) Validity() contract.State {
+	return contract.Valid
+}
+
+func (d dummyVPVerificationResult) VPType() contract.VPType {
+	return VerifiablePresentationType
+}
+
+func (d dummyVPVerificationResult) DisclosedAttribute(key string) string {
+	return d.disclosedAttributes[key]
+}
+
+func (d dummyVPVerificationResult) ContractAttribute(key string) string {
+	return d.contractAttributes[key]
+}
+
+func (d dummyVPVerificationResult) DisclosedAttributes() map[string]string {
+	return d.disclosedAttributes
+}
+
+func (d dummyVPVerificationResult) ContractAttributes() map[string]string {
+	return d.contractAttributes
+}
+
 type signingSessionResult struct {
 	ID      string
 	State   string
@@ -143,18 +173,18 @@ func (d signingSessionResult) VerifiablePresentation() (contract.VerifiablePrese
 			Type:    []contract.VPType{contract.VerifiablePresentationType, VerifiablePresentationType},
 		},
 		Proof: Proof{
-			Type:      NoSignatureType,
-			Initials:  "I",
-			Lastname:  "Tester",
-			Birthdate: "1980-01-01",
-			Email:     "tester@example.com",
-			Contract:  d.Request,
+			Type:       NoSignatureType,
+			Initials:   "I",
+			Prefix:     "von",
+			FamilyName: "Dummy",
+			Email:      "tester@example.com",
+			Contract:   d.Request,
 		},
 	}, nil
 }
 
 // VerifyVP check a Dummy VerifiablePresentation. It Returns a verificationResult if all was fine, an error otherwise.
-func (d Dummy) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (*contract.VPVerificationResult, error) {
+func (d Dummy) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (contract.VPVerificationResult, error) {
 	if d.InStrictMode {
 		return nil, errNotEnabled
 	}
@@ -169,16 +199,15 @@ func (d Dummy) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) 
 		return nil, err
 	}
 
-	return &contract.VPVerificationResult{
-		Validity: contract.Valid,
-		VPType:   VerifiablePresentationType,
-		DisclosedAttributes: map[string]string{
-			"initials":  p.Proof.Initials,
-			"lastname":  p.Proof.Lastname,
-			"birthdate": p.Proof.Birthdate,
-			"email":     p.Proof.Initials,
+	// follows openid default claims
+	return dummyVPVerificationResult{
+		disclosedAttributes: map[string]string{
+			"initials":   p.Proof.Initials,
+			"prefix":     p.Proof.Prefix,
+			"familyname": p.Proof.FamilyName,
+			"email":      p.Proof.Email,
 		},
-		ContractAttributes: c.Params,
+		contractAttributes: c.Params,
 	}, nil
 }
 

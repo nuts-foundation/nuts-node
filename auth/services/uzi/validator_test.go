@@ -21,8 +21,9 @@ package uzi
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/services"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/auth/services"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -61,9 +62,9 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 			return
 		}
 		assert.NotNil(t, res)
-		assert.Equal(t, contract.Valid, res.Validity)
-		assert.Equal(t, "Henk de Vries", res.DisclosedAttributes["name"])
-		assert.Equal(t, "2020-12-10T13:57:00", res.ContractAttributes["validFrom"])
+		assert.Equal(t, contract.Valid, res.Validity())
+		assert.Equal(t, "Henk de Vries", res.DisclosedAttribute("name"))
+		assert.Equal(t, "2020-12-10T13:57:00", res.ContractAttribute("validFrom"))
 	})
 
 	t.Run("nok - garbage input", func(t *testing.T) {
@@ -178,8 +179,8 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 			return
 		}
 		assert.NotNil(t, res)
-		assert.Equal(t, contract.Invalid, res.Validity)
-		assert.Empty(t, res.DisclosedAttributes)
-		assert.Empty(t, res.ContractAttributes)
+		assert.Equal(t, contract.Invalid, res.Validity())
+		assert.Empty(t, res.DisclosedAttributes())
+		assert.Empty(t, res.ContractAttributes())
 	})
 }
