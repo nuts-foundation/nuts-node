@@ -75,9 +75,10 @@ type Validator interface {
 	// - is not revoked
 	// - is valid at the given time (or now if not give)
 	// - has a valid issuer
+	// - has a valid signature if checkSignature is true
 	// if allowUntrusted == false, the issuer must also be a trusted DID
 	// May return ErrRevoked, ErrUntrusted or ErrInvalidPeriod
-	Validate(credential vc.VerifiableCredential, allowUntrusted bool, validAt *time.Time) error
+	Validate(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error
 }
 
 // Writer is the interface that groups al the VC write methods

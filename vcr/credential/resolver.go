@@ -34,10 +34,11 @@ func FindValidatorAndBuilder(credential vc.VerifiableCredential) (Validator, Bui
 				return nutsOrganizationCredentialValidator{}, defaultBuilder{vcType: t}
 			case NutsAuthorizationCredentialType:
 				return nutsAuthorizationCredentialValidator{}, defaultBuilder{vcType: t}
+			default:
+				return defaultCredentialValidator{}, defaultBuilder{vcType: t}
 			}
 		}
 	}
-
 	return nil, nil
 }
 

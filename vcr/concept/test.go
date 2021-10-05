@@ -72,6 +72,10 @@ var ExampleConfig = Config{
 
 const TestCredential = `
 {
+	"@context": [
+		"https://www.w3.org/2018/credentials/v1",
+		"https://nuts.nl/credentials/v1"
+	  ],
 	"id": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123",
 	"issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
 	"issuanceDate": "1970-01-01T12:00:00Z",
@@ -83,7 +87,8 @@ const TestCredential = `
 			"eyeColour": "blue/grey",
 			"hairColour": "fair"
 		}
-	}
+	},
+	"proof": {}
 }
 `
 

@@ -92,17 +92,17 @@ func (m *MockValidator) EXPECT() *MockValidatorMockRecorder {
 }
 
 // Validate mocks base method.
-func (m *MockValidator) Validate(credential vc.VerifiableCredential, allowUntrusted bool, validAt *time.Time) error {
+func (m *MockValidator) Validate(credential vc.VerifiableCredential, allowUntrusted, checkSignature bool, validAt *time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", credential, allowUntrusted, validAt)
+	ret := m.ctrl.Call(m, "Validate", credential, allowUntrusted, checkSignature, validAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Validate indicates an expected call of Validate.
-func (mr *MockValidatorMockRecorder) Validate(credential, allowUntrusted, validAt interface{}) *gomock.Call {
+func (mr *MockValidatorMockRecorder) Validate(credential, allowUntrusted, checkSignature, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockValidator)(nil).Validate), credential, allowUntrusted, validAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockValidator)(nil).Validate), credential, allowUntrusted, checkSignature, validAt)
 }
 
 // MockWriter is a mock of Writer interface.
@@ -488,15 +488,15 @@ func (mr *MockVCRMockRecorder) Untrusted(credentialType interface{}) *gomock.Cal
 }
 
 // Validate mocks base method.
-func (m *MockVCR) Validate(credential vc.VerifiableCredential, allowUntrusted bool, validAt *time.Time) error {
+func (m *MockVCR) Validate(credential vc.VerifiableCredential, allowUntrusted, checkSignature bool, validAt *time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", credential, allowUntrusted, validAt)
+	ret := m.ctrl.Call(m, "Validate", credential, allowUntrusted, checkSignature, validAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Validate indicates an expected call of Validate.
-func (mr *MockVCRMockRecorder) Validate(credential, allowUntrusted, validAt interface{}) *gomock.Call {
+func (mr *MockVCRMockRecorder) Validate(credential, allowUntrusted, checkSignature, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockVCR)(nil).Validate), credential, allowUntrusted, validAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockVCR)(nil).Validate), credential, allowUntrusted, checkSignature, validAt)
 }
