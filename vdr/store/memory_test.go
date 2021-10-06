@@ -59,9 +59,11 @@ func TestMemory_Resolve(t *testing.T) {
 
 	//upd := time.Now().Add(time.Hour * 24)
 	h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
+	txHash := hash.FromSlice([]byte("keyTransactionHash"))
 	meta := types.DocumentMetadata{
 		Created: time.Now().Add(time.Hour * -24),
 		Hash:    h,
+		KeyTransactions: []hash.SHA256Hash{txHash},
 	}
 
 	_ = store.Write(doc, meta)
@@ -110,6 +112,27 @@ func TestMemory_Resolve(t *testing.T) {
 		}
 		assert.NotNil(t, d)
 		assert.NotNil(t, m)
+	})
+
+	t.Run("returns document with resolve metadata - selection on KeyTransaction", func(t *testing.T) {
+		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
+			KeyTransaction: &txHash,
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.NotNil(t, d)
+		assert.NotNil(t, m)
+	})
+
+	t.Run("returns no document with resolve metadata - selection on KeyTransaction", func(t *testing.T) {
+		_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
+			KeyTransaction: &h,
+		})
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Equal(t,types.ErrNotFound, err)
 	})
 }
 
