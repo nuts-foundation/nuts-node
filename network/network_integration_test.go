@@ -40,7 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 )
 
-const defaultTimeout = 4 * time.Second
+const defaultTimeout = 2 * time.Second
 const payloadType = "test/transaction"
 
 var mutex = sync.Mutex{}
@@ -54,20 +54,20 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 
 	// Start 3 nodes: bootstrap, node1 and node2. Node 1 and 2 connect to the bootstrap node and should discover
 	// each other that way.
-	bootstrap, err := startNode("bootstrap", path.Join(testDirectory, "bootstrap"))
+	bootstrap, err := startNode("integration_bootstrap", path.Join(testDirectory, "bootstrap"))
 	if !assert.NoError(t, err) {
 		return
 	}
-	node1, err := startNode("node1", path.Join(testDirectory, "node1"))
+	node1, err := startNode("integration_node1", path.Join(testDirectory, "node1"))
 	if !assert.NoError(t, err) {
 		return
 	}
-	node1.p2pNetwork.ConnectToPeer(nameToAddress("bootstrap"))
-	node2, err := startNode("node2", path.Join(testDirectory, "node2"))
+	node1.p2pNetwork.ConnectToPeer(nameToAddress("integration_bootstrap"))
+	node2, err := startNode("integration_node2", path.Join(testDirectory, "node2"))
 	if !assert.NoError(t, err) {
 		return
 	}
-	node2.p2pNetwork.ConnectToPeer(nameToAddress("bootstrap"))
+	node2.p2pNetwork.ConnectToPeer(nameToAddress("integration_bootstrap"))
 	defer func() {
 		node2.Shutdown()
 		node1.Shutdown()
@@ -76,19 +76,19 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 
 	// Wait until nodes are connected
 	if !waitFor(t, func() (bool, error) {
-		return len(node1.p2pNetwork.Peers()) == 1 && len(node2.p2pNetwork.Peers()) == 1, nil
-	}, defaultTimeout, "time-out while waiting for node 1 and 2 to have 2 peers") {
+		return len(bootstrap.p2pNetwork.Peers()) == 2, nil
+	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
 		return
 	}
 
 	// Publish first transaction on node1 and we expect in to come out on node2 and bootstrap
-	if !addTransactionAndWaitForItToArrive(t, "doc1", key, node1, "node2", "bootstrap") {
+	if !addTransactionAndWaitForItToArrive(t, "doc1", key, node1, "integration_node2", "integration_bootstrap") {
 		return
 	}
 	expectedDocLogSize++
 
 	// Now the graph has a root, and node2 can publish a transaction
-	if !addTransactionAndWaitForItToArrive(t, "doc2", key, node2, "node1", "bootstrap") {
+	if !addTransactionAndWaitForItToArrive(t, "doc2", key, node2, "integration_node1", "integration_bootstrap") {
 		return
 	}
 	expectedDocLogSize++
