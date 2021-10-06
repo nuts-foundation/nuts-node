@@ -38,7 +38,7 @@ func NewBFSWalkerAlgorithm() WalkerAlgorithm {
 	}
 }
 
-func (w bfsWalkerAlgorithm) walk(visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error {
+func (w bfsWalkerAlgorithm) walk(visitor algoVisitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error {
 	queue := list.New()
 	queue.PushFrontList(w.resumeAt)
 	if !startAt.Empty() {

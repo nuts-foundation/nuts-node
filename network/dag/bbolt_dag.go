@@ -193,7 +193,7 @@ func (dag *bboltDAG) FindBetween(startInclusive time.Time, endExclusive time.Tim
 	if err != nil {
 		return nil, err
 	}
-	err = dag.Walk(NewBFSWalkerAlgorithm(), func(transaction Transaction) bool {
+	err = dag.Walk(NewBFSWalkerAlgorithm(), func(transaction Transaction, _ PayloadReader) bool {
 		if !transaction.SigningTime().Before(startInclusive) && transaction.SigningTime().Before(endExclusive) {
 			result = append(result, transaction)
 		}
@@ -225,7 +225,10 @@ func (dag bboltDAG) Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA
 			// DAG is empty
 			return nil
 		}
-		return algo.walk(visitor, startAt, func(hash hash.SHA256Hash) (Transaction, error) {
+		wrappedVisitor := func(transaction Transaction) bool {
+			return visitor(transaction, newBBoltPayloadReader(tx))
+		}
+		return algo.walk(wrappedVisitor, startAt, func(hash hash.SHA256Hash) (Transaction, error) {
 			return getTransaction(hash, transactions)
 		}, func(hash hash.SHA256Hash) ([]hash.SHA256Hash, error) {
 			return parseHashList(nexts.Get(hash.Slice())), nil // no need to copy, calls FromSlice() (which copies)

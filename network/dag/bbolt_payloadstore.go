@@ -44,11 +44,7 @@ func (store bboltPayloadStore) ReadPayload(payloadHash hash.SHA256Hash) ([]byte,
 
 func (store bboltPayloadStore) ReadMany(consumer func(reader PayloadReader) error) error {
 	return store.db.View(func(tx *bbolt.Tx) error {
-		payloadsBucket := tx.Bucket([]byte(payloadsBucketName))
-		if payloadsBucket == nil {
-			return nil
-		}
-		return consumer(bboltPayloadReader{payloadsBucket: payloadsBucket})
+		return consumer(newBBoltPayloadReader(tx))
 	})
 }
 
@@ -69,15 +65,25 @@ func (store bboltPayloadStore) WritePayload(payloadHash hash.SHA256Hash, data []
 	return err
 }
 
+func newBBoltPayloadReader(tx *bbolt.Tx) PayloadReader {
+	return &bboltPayloadReader{payloadsBucket: tx.Bucket([]byte(payloadsBucketName))}
+}
+
 type bboltPayloadReader struct {
 	payloadsBucket *bbolt.Bucket
 }
 
 func (reader bboltPayloadReader) IsPresent(payloadHash hash.SHA256Hash) (bool, error) {
+	if reader.payloadsBucket == nil {
+		return false, nil
+	}
 	data := reader.payloadsBucket.Get(payloadHash.Slice())
 	return len(data) > 0, nil
 }
 
 func (reader bboltPayloadReader) ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error) {
+	if reader.payloadsBucket == nil {
+		return nil, nil
+	}
 	return copyBBoltValue(reader.payloadsBucket, payloadHash.Slice()), nil
 }

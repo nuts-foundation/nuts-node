@@ -87,11 +87,13 @@ type WalkerAlgorithm interface {
 	// numberOfNodes is an indicative number of nodes that's expected to be visited. It's used for optimizing memory usage.
 	// getFn is a function for reading a transaction from the DAG using the given ref hash. If not found nil must be returned.
 	// nextsFn is a function for reading a transaction's nexts using the given ref hash. If not found nil must be returned.
-	walk(visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error
+	walk(visitor algoVisitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error
 }
 
 // Visitor defines the contract for a function that visits the DAG. If the function returns `false` it stops walking the DAG.
-type Visitor func(transaction Transaction) bool
+type Visitor func(transaction Transaction, payloadReader PayloadReader) bool
+
+type algoVisitor func(transaction Transaction) bool
 
 // PayloadStore defines the interface for types that store and read transaction payloads.
 type PayloadStore interface {

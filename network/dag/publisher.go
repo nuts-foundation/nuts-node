@@ -8,10 +8,9 @@ import (
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
 func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
 	publisher := &replayingDAGPublisher{
-		subscribers:  map[string]Receiver{},
-		algo:         NewBFSWalkerAlgorithm().(*bfsWalkerAlgorithm),
-		payloadStore: payloadStore,
-		dag:          dag,
+		subscribers: map[string]Receiver{},
+		algo:        NewBFSWalkerAlgorithm().(*bfsWalkerAlgorithm),
+		dag:         dag,
 	}
 	dag.RegisterObserver(publisher.TransactionAdded)
 	payloadStore.RegisterObserver(publisher.PayloadWritten)
@@ -19,10 +18,9 @@ func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
 }
 
 type replayingDAGPublisher struct {
-	subscribers  map[string]Receiver
-	algo         *bfsWalkerAlgorithm
-	payloadStore PayloadStore
-	dag          DAG
+	subscribers map[string]Receiver
+	algo        *bfsWalkerAlgorithm
+	dag         DAG
 }
 
 func (s *replayingDAGPublisher) PayloadWritten(_ interface{}) {
@@ -68,8 +66,8 @@ func (s *replayingDAGPublisher) publish(startAt hash.SHA256Hash) {
 	}
 }
 
-func (s *replayingDAGPublisher) publishTransaction(transaction Transaction) bool {
-	payload, err := s.payloadStore.ReadPayload(transaction.PayloadHash())
+func (s *replayingDAGPublisher) publishTransaction(transaction Transaction, payloadReader PayloadReader) bool {
+	payload, err := payloadReader.ReadPayload(transaction.PayloadHash())
 	if err != nil {
 		log.Logger().Errorf("Unable to read payload to publish DAG: (ref=%s) %v", transaction.Ref(), err)
 		return false
