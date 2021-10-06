@@ -72,6 +72,9 @@ type DocumentMetadata struct {
 	// SourceTransactions points to the transaction(s) that created the current version of this DID Document.
 	// If multiple transactions are listed, the DID Document is conflicted
 	SourceTransactions []hash.SHA256Hash `json:"txs"`
+	// KeyTransactions point to transactions where this document depends upon.
+	// Typically, this will be the previous DID Document version transaction and the transaction that introduced the signing key
+	KeyTransactions []hash.SHA256Hash `json:"key_txs"`
 	// Deactivated indicates if the document is deactivated
 	Deactivated bool `json:"deactivated"`
 }
