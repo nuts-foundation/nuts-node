@@ -3,7 +3,6 @@ package p2p
 import (
 	"errors"
 	"io"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -114,7 +113,7 @@ func Test_connection_send(t *testing.T) {
 			return nil
 		})
 		messenger.EXPECT().Recv().DoAndReturn(func() (interface{}, error) {
-			wg.Wait()
+			wg.Wait() // Wait for the send() call, to avoid returning an error very early, which causes exchange() to fail
 			return nil, io.EOF
 		})
 
@@ -125,11 +124,10 @@ func Test_connection_send(t *testing.T) {
 
 		// Send message and wait for it to be sent
 		err := conn.send(&transport.NetworkMessage{})
-		runtime.Gosched() // make sure exchange() goroutine is getting a slice of CPU
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.True(t, waitFor(&wg, time.Second), "time-out while waiting for message to arrive")
+		assert.True(t, waitFor(&wg, time.Second * 10), "time-out while waiting for message to arrive")
 	})
 	t.Run("send on closed connection", func(t *testing.T) {
 		conn := newConnection(Peer{}, nil)
