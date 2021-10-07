@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -35,29 +36,29 @@ type DAG interface {
 	// Observable allows observers to be notified when a transaction is added to the DAG.
 	Observable
 	// Add adds one or more transactions to the DAG. If it can't be added an error is returned. Nil entries are ignored.
-	Add(transactions ...Transaction) error
+	Add(ctx context.Context, transactions ...Transaction) error
 	// Walk visits every node of the DAG, starting at the given hash working its way down each level until every leaf is visited.
 	// when startAt is an empty hash, the walker starts at the root node.
-	Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error
+	Walk(ctx context.Context, algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error
 	// FindBetween finds all transactions which signing time lies between startInclude and endExclusive.
 	// It returns the transactions in DAG walking order.
-	FindBetween(startInclusive time.Time, endExclusive time.Time) ([]Transaction, error)
+	FindBetween(ctx context.Context, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error)
 	// Root returns the root hash of the DAG. If there's no root an empty hash is returned. If an error occurs, it is returned.
-	Root() (hash.SHA256Hash, error)
+	Root(ctx context.Context) (hash.SHA256Hash, error)
 	// Get retrieves a specific transaction from the DAG. If it isn't found, nil is returned.
-	Get(ref hash.SHA256Hash) (Transaction, error)
+	Get(ctx context.Context, ref hash.SHA256Hash) (Transaction, error)
 	// GetByPayloadHash retrieves all transactions that refer to the specified payload.
-	GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Transaction, error)
+	GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error)
 	// PayloadHashes applies the visitor function to the payload hashes of all transactions, in random order.
-	PayloadHashes(visitor func(payloadHash hash.SHA256Hash) error) error
+	PayloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error
 	// IsPresent checks whether the specified transaction exists on the DAG.
-	IsPresent(ref hash.SHA256Hash) (bool, error)
+	IsPresent(ctx context.Context, ref hash.SHA256Hash) (bool, error)
 	// Heads returns all unmerged heads, which are transactions where no other transactions point to as `prev`. To be used
 	// as `prevs` parameter when adding a new transaction.
-	Heads() []hash.SHA256Hash
+	Heads(ctx context.Context) []hash.SHA256Hash
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
-	Verify() error
-	Statistics() Statistics
+	Verify(ctx context.Context) error
+	Statistics(ctx context.Context) Statistics
 }
 
 // Statistics holds data about the current state of the DAG.
@@ -87,13 +88,11 @@ type WalkerAlgorithm interface {
 	// numberOfNodes is an indicative number of nodes that's expected to be visited. It's used for optimizing memory usage.
 	// getFn is a function for reading a transaction from the DAG using the given ref hash. If not found nil must be returned.
 	// nextsFn is a function for reading a transaction's nexts using the given ref hash. If not found nil must be returned.
-	walk(visitor algoVisitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error
+	walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error
 }
 
 // Visitor defines the contract for a function that visits the DAG. If the function returns `false` it stops walking the DAG.
-type Visitor func(transaction Transaction, payloadReader PayloadReader) bool
-
-type algoVisitor func(transaction Transaction) bool
+type Visitor func(ctx context.Context, transaction Transaction) bool
 
 // PayloadStore defines the interface for types that store and read transaction payloads.
 type PayloadStore interface {
@@ -102,28 +101,28 @@ type PayloadStore interface {
 	PayloadReader
 	PayloadWriter
 	// ReadMany allows the caller read many payloads in an optimized fashion.
-	ReadMany(consumer func(PayloadReader) error) error
+	ReadMany(ctx context.Context, consumer func(context.Context, PayloadReader) error) error
 }
 
 // PayloadWriter defines the interface for types that store transaction payloads.
 type PayloadWriter interface {
 	// WritePayload writes contents for the specified payload, identified by the given hash. Implementations must make
 	// sure the hash matches the given contents.
-	WritePayload(payloadHash hash.SHA256Hash, data []byte) error
+	WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error
 }
 
 // PayloadReader defines the interface for types that read transaction payloads.
 type PayloadReader interface {
 	// IsPresent checks whether the contents for the given transaction are present.
-	IsPresent(payloadHash hash.SHA256Hash) (bool, error)
+	IsPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error)
 
 	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
 	// nil is returned. If something (else) goes wrong an error is returned.
-	ReadPayload(payloadHash hash.SHA256Hash) ([]byte, error)
+	ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error)
 }
 
-// Observer defines the signature of a observer which can be called by an Observable.
-type Observer func(subject interface{})
+// Observer defines the signature of an observer which can be called by an Observable.
+type Observer func(ctx context.Context, subject interface{})
 
 // Observable defines the interfaces for types that can be observed.
 type Observable interface {

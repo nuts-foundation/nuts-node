@@ -19,12 +19,13 @@
 package dag
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	log "github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"go.etcd.io/bbolt"
 )
 
@@ -52,13 +53,13 @@ type bboltDAG struct {
 	txVerifiers []Verifier
 }
 
-func (dag *bboltDAG) Verify() error {
-	transactions, err := dag.FindBetween(MinTime(), MaxTime())
+func (dag *bboltDAG) Verify(ctx context.Context) error {
+	transactions, err := dag.FindBetween(ctx, MinTime(), MaxTime())
 	if err != nil {
 		return err
 	}
 	for _, tx := range transactions {
-		if err := dag.verifyTX(tx); err != nil {
+		if err := dag.verifyTX(ctx, tx); err != nil {
 			return err
 		}
 	}
@@ -113,17 +114,18 @@ func (dag *bboltDAG) RegisterObserver(observer Observer) {
 
 func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 	result := make([]core.DiagnosticResult, 0)
-	stats := dag.Statistics()
-	result = append(result, headsStatistic{heads: dag.Heads()})
+	ctx := context.Background()
+	stats := dag.Statistics(ctx)
+	result = append(result, headsStatistic{heads: dag.Heads(ctx)})
 	result = append(result, numberOfTransactionsStatistic{numberOfTransactions: stats.NumberOfTransactions})
 	result = append(result, dataSizeStatistic{sizeInBytes: stats.DataSize})
 	return result
 }
 
-func (dag bboltDAG) Get(ref hash.SHA256Hash) (Transaction, error) {
+func (dag bboltDAG) Get(ctx context.Context, ref hash.SHA256Hash) (Transaction, error) {
 	var result Transaction
 	var err error
-	err = dag.db.View(func(tx *bbolt.Tx) error {
+	err = bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
 		if transactions := tx.Bucket([]byte(transactionsBucket)); transactions != nil {
 			result, err = getTransaction(ref, transactions)
 			return err
@@ -133,9 +135,9 @@ func (dag bboltDAG) Get(ref hash.SHA256Hash) (Transaction, error) {
 	return result, err
 }
 
-func (dag bboltDAG) GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Transaction, error) {
+func (dag bboltDAG) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
 	result := make([]Transaction, 0)
-	err := dag.db.View(func(tx *bbolt.Tx) error {
+	err := bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
 		transactions := tx.Bucket([]byte(transactionsBucket))
 		payloadIndex := tx.Bucket([]byte(payloadIndexBucket))
 		if transactions == nil || payloadIndex == nil {
@@ -154,8 +156,8 @@ func (dag bboltDAG) GetByPayloadHash(payloadHash hash.SHA256Hash) ([]Transaction
 	return result, err
 }
 
-func (dag *bboltDAG) PayloadHashes(visitor func(payloadHash hash.SHA256Hash) error) error {
-	return dag.db.View(func(tx *bbolt.Tx) error {
+func (dag *bboltDAG) PayloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error {
+	return bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
 		payloadIndex := tx.Bucket([]byte(payloadIndexBucket))
 		if payloadIndex == nil {
 			return nil
@@ -171,9 +173,9 @@ func (dag *bboltDAG) PayloadHashes(visitor func(payloadHash hash.SHA256Hash) err
 	})
 }
 
-func (dag bboltDAG) Heads() []hash.SHA256Hash {
+func (dag bboltDAG) Heads(ctx context.Context) []hash.SHA256Hash {
 	result := make([]hash.SHA256Hash, 0)
-	_ = dag.db.View(func(tx *bbolt.Tx) error {
+	_ = bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
 		heads := tx.Bucket([]byte(headsBucket))
 		if heads == nil {
 			return nil
@@ -187,13 +189,13 @@ func (dag bboltDAG) Heads() []hash.SHA256Hash {
 	return result
 }
 
-func (dag *bboltDAG) FindBetween(startInclusive time.Time, endExclusive time.Time) ([]Transaction, error) {
+func (dag *bboltDAG) FindBetween(ctx context.Context, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error) {
 	var result []Transaction
-	rootTX, err := dag.Root()
+	rootTX, err := dag.Root(ctx)
 	if err != nil {
 		return nil, err
 	}
-	err = dag.Walk(NewBFSWalkerAlgorithm(), func(transaction Transaction, _ PayloadReader) bool {
+	err = dag.Walk(ctx, NewBFSWalkerAlgorithm(), func(ctx context.Context, transaction Transaction) bool {
 		if !transaction.SigningTime().Before(startInclusive) && transaction.SigningTime().Before(endExclusive) {
 			result = append(result, transaction)
 		}
@@ -202,14 +204,22 @@ func (dag *bboltDAG) FindBetween(startInclusive time.Time, endExclusive time.Tim
 	return result, err
 }
 
-func (dag bboltDAG) IsPresent(ref hash.SHA256Hash) (bool, error) {
-	return isPresent(dag.db, transactionsBucket, ref.Slice())
+func (dag bboltDAG) IsPresent(ctx context.Context, ref hash.SHA256Hash) (bool, error) {
+	var result bool
+	err := bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+		if payloads := tx.Bucket([]byte(transactionsBucket)); payloads != nil {
+			data := payloads.Get(ref.Slice())
+			result = data != nil
+		}
+		return nil
+	})
+	return result, err
 }
 
-func (dag *bboltDAG) Add(transactions ...Transaction) error {
+func (dag *bboltDAG) Add(ctx context.Context, transactions ...Transaction) error {
 	for _, transaction := range transactions {
 		if transaction != nil {
-			if err := dag.add(transaction); err != nil {
+			if err := dag.add(ctx, transaction); err != nil {
 				return err
 			}
 		}
@@ -217,18 +227,15 @@ func (dag *bboltDAG) Add(transactions ...Transaction) error {
 	return nil
 }
 
-func (dag bboltDAG) Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error {
-	return dag.db.View(func(tx *bbolt.Tx) error {
+func (dag bboltDAG) Walk(ctx context.Context, algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error {
+	return bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
 		transactions := tx.Bucket([]byte(transactionsBucket))
 		nexts := tx.Bucket([]byte(nextsBucket))
 		if transactions == nil || nexts == nil {
 			// DAG is empty
 			return nil
 		}
-		wrappedVisitor := func(transaction Transaction) bool {
-			return visitor(transaction, newBBoltPayloadReader(tx))
-		}
-		return algo.walk(wrappedVisitor, startAt, func(hash hash.SHA256Hash) (Transaction, error) {
+		return algo.walk(ctx, visitor, startAt, func(hash hash.SHA256Hash) (Transaction, error) {
 			return getTransaction(hash, transactions)
 		}, func(hash hash.SHA256Hash) ([]hash.SHA256Hash, error) {
 			return parseHashList(nexts.Get(hash.Slice())), nil // no need to copy, calls FromSlice() (which copies)
@@ -236,8 +243,8 @@ func (dag bboltDAG) Walk(algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA
 	})
 }
 
-func (dag bboltDAG) Root() (hash hash.SHA256Hash, err error) {
-	err = dag.db.View(func(tx *bbolt.Tx) error {
+func (dag bboltDAG) Root(ctx context.Context) (hash hash.SHA256Hash, err error) {
+	err = bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
 		if transactions := tx.Bucket([]byte(transactionsBucket)); transactions != nil {
 			if roots := getRoots(transactions); len(roots) >= 1 {
 				hash = roots[0]
@@ -248,9 +255,9 @@ func (dag bboltDAG) Root() (hash hash.SHA256Hash, err error) {
 	return
 }
 
-func (dag bboltDAG) Statistics() Statistics {
+func (dag bboltDAG) Statistics(ctx context.Context) Statistics {
 	transactionNum := 0
-	_ = dag.db.View(func(tx *bbolt.Tx) error {
+	_ = bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
 		if bucket := tx.Bucket([]byte(transactionsBucket)); bucket != nil {
 			// There's an extra entry in the Bucket for the root transaction,
 			// which is just a reference to the actual root transaction. So we subtract 1 from the number of keys to get
@@ -265,35 +272,22 @@ func (dag bboltDAG) Statistics() Statistics {
 	}
 }
 
-func isPresent(db *bbolt.DB, bucketName string, key []byte) (bool, error) {
-	var result bool
-	var err error
-	err = db.View(func(tx *bbolt.Tx) error {
-		if payloads := tx.Bucket([]byte(bucketName)); payloads != nil {
-			data := payloads.Get(key)
-			result = data != nil
-		}
-		return nil
-	})
-	return result, err
-}
-
-func (dag *bboltDAG) verifyTX(tx Transaction) error {
+func (dag *bboltDAG) verifyTX(ctx context.Context, tx Transaction) error {
 	for _, verifier := range dag.txVerifiers {
-		if err := verifier(tx, dag); err != nil {
+		if err := verifier(ctx, tx, dag); err != nil {
 			return fmt.Errorf("transaction verification failed (tx=%s): %w", tx.Ref(), err)
 		}
 	}
 	return nil
 }
 
-func (dag *bboltDAG) add(transaction Transaction) error {
-	if err := dag.verifyTX(transaction); err != nil {
+func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
+	if err := dag.verifyTX(ctx, transaction); err != nil {
 		return err
 	}
 	ref := transaction.Ref()
 	refSlice := ref.Slice()
-	err := dag.db.Update(func(tx *bbolt.Tx) error {
+	err := bboltTXUpdate(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
 		transactions, nexts, payloadIndex, heads, err := getBuckets(tx)
 		if err != nil {
 			return err
@@ -336,7 +330,7 @@ func (dag *bboltDAG) add(transaction Transaction) error {
 		return nil
 	})
 	if err == nil {
-		notifyObservers(dag.observers, transaction)
+		notifyObservers(ctx, dag.observers, transaction)
 	}
 	return err
 }
@@ -416,8 +410,8 @@ func appendHashList(list []byte, h hash.SHA256Hash) []byte {
 	return newList
 }
 
-func notifyObservers(observers []Observer, subject interface{}) {
+func notifyObservers(ctx context.Context, observers []Observer, subject interface{}) {
 	for _, observer := range observers {
-		observer(subject)
+		observer(ctx, subject)
 	}
 }

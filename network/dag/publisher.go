@@ -1,6 +1,7 @@
 package dag
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
@@ -8,9 +9,10 @@ import (
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
 func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
 	publisher := &replayingDAGPublisher{
-		subscribers: map[string]Receiver{},
-		algo:        NewBFSWalkerAlgorithm().(*bfsWalkerAlgorithm),
-		dag:         dag,
+		subscribers:  map[string]Receiver{},
+		algo:         NewBFSWalkerAlgorithm().(*bfsWalkerAlgorithm),
+		payloadStore: payloadStore,
+		dag:          dag,
 	}
 	dag.RegisterObserver(publisher.TransactionAdded)
 	payloadStore.RegisterObserver(publisher.PayloadWritten)
@@ -18,21 +20,22 @@ func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
 }
 
 type replayingDAGPublisher struct {
-	subscribers map[string]Receiver
-	algo        *bfsWalkerAlgorithm
-	dag         DAG
+	subscribers  map[string]Receiver
+	algo         *bfsWalkerAlgorithm
+	payloadStore PayloadStore
+	dag          DAG
 }
 
-func (s *replayingDAGPublisher) PayloadWritten(_ interface{}) {
-	s.publish(hash.EmptyHash())
+func (s *replayingDAGPublisher) PayloadWritten(ctx context.Context, _ interface{}) {
+	s.publish(ctx, hash.EmptyHash())
 }
 
-func (s *replayingDAGPublisher) TransactionAdded(transaction interface{}) {
+func (s *replayingDAGPublisher) TransactionAdded(ctx context.Context, transaction interface{}) {
 	tx := transaction.(Transaction)
 	// Received new transaction, add it to the subscription walker resume list so it resumes from this transaction
 	// when the payload is received.
 	s.algo.resumeAt.PushBack(tx.Ref())
-	s.publish(tx.Ref())
+	s.publish(ctx, tx.Ref())
 }
 
 func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver) {
@@ -49,25 +52,26 @@ func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver)
 }
 
 func (s replayingDAGPublisher) Start() {
-	root, err := s.dag.Root()
+	ctx := context.Background()
+	root, err := s.dag.Root(ctx)
 	if err != nil {
 		log.Logger().Errorf("Unable to retrieve DAG root for replaying subscriptions: %v", err)
 		return
 	}
 	if !root.Empty() {
-		s.publish(root)
+		s.publish(ctx, root)
 	}
 }
 
-func (s *replayingDAGPublisher) publish(startAt hash.SHA256Hash) {
-	err := s.dag.Walk(s.algo, s.publishTransaction, startAt)
+func (s *replayingDAGPublisher) publish(ctx context.Context, startAt hash.SHA256Hash) {
+	err := s.dag.Walk(ctx, s.algo, s.publishTransaction, startAt)
 	if err != nil {
 		log.Logger().Errorf("Unable to publish DAG: %v", err)
 	}
 }
 
-func (s *replayingDAGPublisher) publishTransaction(transaction Transaction, payloadReader PayloadReader) bool {
-	payload, err := payloadReader.ReadPayload(transaction.PayloadHash())
+func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transaction Transaction) bool {
+	payload, err := s.payloadStore.ReadPayload(ctx, transaction.PayloadHash())
 	if err != nil {
 		log.Logger().Errorf("Unable to read payload to publish DAG: (ref=%s) %v", transaction.Ref(), err)
 		return false
