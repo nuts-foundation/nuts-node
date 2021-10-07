@@ -63,7 +63,7 @@ func TestMemory_Resolve(t *testing.T) {
 	meta := types.DocumentMetadata{
 		Created: time.Now().Add(time.Hour * -24),
 		Hash:    h,
-		KeyTransactions: []hash.SHA256Hash{txHash},
+		SourceTransactions: []hash.SHA256Hash{txHash},
 	}
 
 	_ = store.Write(doc, meta)
@@ -116,7 +116,7 @@ func TestMemory_Resolve(t *testing.T) {
 
 	t.Run("returns document with resolve metadata - selection on KeyTransaction", func(t *testing.T) {
 		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
-			KeyTransaction: &txHash,
+			SourceTransaction: &txHash,
 		})
 		if !assert.NoError(t, err) {
 			return
@@ -127,7 +127,7 @@ func TestMemory_Resolve(t *testing.T) {
 
 	t.Run("returns no document with resolve metadata - selection on KeyTransaction", func(t *testing.T) {
 		_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
-			KeyTransaction: &h,
+			SourceTransaction: &h,
 		})
 		if !assert.Error(t, err) {
 			return

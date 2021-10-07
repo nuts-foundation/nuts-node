@@ -137,7 +137,6 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 		Created:            transaction.SigningTime(),
 		Hash:               transaction.PayloadHash(),
 		SourceTransactions: []hash.SHA256Hash{transaction.Ref()},
-		KeyTransactions:    transaction.Previous(),
 	}
 	err = n.didStore.Write(proposedDIDDocument, documentMetadata)
 	if err == nil {
@@ -211,7 +210,6 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		Hash:               transaction.PayloadHash(),
 		Deactivated:        store.IsDeactivated(proposedDIDDocument),
 		SourceTransactions: sourceTransactions,
-		KeyTransactions:    transaction.Previous(),
 	}
 	err = n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 	if err == nil {

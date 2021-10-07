@@ -180,7 +180,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	}
 
 	// a DIDDocument update must point to its previous version, current heads and the controller TX (for signing key transaction ordering)
-	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.KeyTransactions...)
+	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
 
 	_, err = r.network.CreateTransaction(didDocumentType, payload, key, false, time.Now(), previousTransactions)
 	if err == nil {

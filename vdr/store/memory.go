@@ -103,10 +103,10 @@ func (m *memory) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (*did.Docume
 		}
 
 		// filter on KeyTransaction
-		if metadata.KeyTransaction != nil {
+		if metadata.SourceTransaction != nil {
 			entries = entries.filter(func(e memoryEntry) bool {
-				for _, kt := range e.metadata.KeyTransactions {
-					if kt.Equals(*metadata.KeyTransaction) {
+				for _, kt := range e.metadata.SourceTransactions {
+					if kt.Equals(*metadata.SourceTransaction) {
 						return true
 					}
 				}

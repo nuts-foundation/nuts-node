@@ -72,9 +72,6 @@ type DocumentMetadata struct {
 	// SourceTransactions points to the transaction(s) that created the current version of this DID Document.
 	// If multiple transactions are listed, the DID Document is conflicted
 	SourceTransactions []hash.SHA256Hash `json:"txs"`
-	// KeyTransactions point to transactions where this document depends upon.
-	// Typically, this will be the previous DID Document version transaction and the transaction that introduced the signing key
-	KeyTransactions []hash.SHA256Hash `json:"key_txs"`
 	// Deactivated indicates if the document is deactivated
 	Deactivated bool `json:"deactivated"`
 }
@@ -99,8 +96,8 @@ type ResolveMetadata struct {
 	ResolveTime *time.Time
 	// if provided, use the version which matches this exact hash
 	Hash *hash.SHA256Hash
-	// KeyTransaction must match a TX hash from the metadata.KeyTransaction field, if provided
-	KeyTransaction *hash.SHA256Hash
+	// SourceTransaction must match a TX hash from the metadata.SourceTransaction field, if provided
+	SourceTransaction *hash.SHA256Hash
 	// Allow DIDs which are deactivated
 	AllowDeactivated bool
 }
