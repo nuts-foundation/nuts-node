@@ -82,6 +82,7 @@ func (m DocumentMetadata) Copy() DocumentMetadata {
 		updated := *m.Updated
 		m.Updated = &updated
 	}
+	m.SourceTransactions = append(m.SourceTransactions[:0:0], m.SourceTransactions...)
 	return m
 }
 
