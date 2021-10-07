@@ -26,8 +26,7 @@ jobs:
           paths:
             - "/home/circleci/go/pkg/mod"
 
-      - run: go test ./... -race
-      - run: go test ./... -coverprofile=c_raw.out
+      - run: go test ./... -race -coverprofile=c_raw.out
       - run:
           name: Remove mock and generated code
           command: |
