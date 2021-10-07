@@ -248,10 +248,14 @@ paths:
         "200":
           description: |
             The endpoint of the given type and compound service is returned.
+            It returns JSON by default, text if requested through the accept header (text/plain)
           content:
-            application/json:
+            text/plain:
               schema:
                 type: string
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EndpointResponse'
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/service/{id}:
@@ -417,3 +421,11 @@ components:
             See https://nuts-node.readthedocs.io/en/latest/pages/development/3-vc.html for examples on which concepts are supported and how they're structured.
         didDocument:
           $ref: '../vdr/v1.yaml#/components/schemas/DIDDocument'
+    EndpointResponse:
+      type: object
+      required:
+        - endpoint
+      properties:
+        endpoint:
+          type: string
+          description: The endpoint URL.
