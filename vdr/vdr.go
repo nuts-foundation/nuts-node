@@ -168,12 +168,21 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return err
 	}
 
-	key, err := r.resolveControllerKey(*currentDIDDocument)
+	controller, key, err := r.resolveControllerWithKey(*currentDIDDocument)
 	if err != nil {
 		return err
 	}
 
-	_, err = r.network.CreateTransaction(didDocumentType, payload, key, false, time.Now(), currentMeta.SourceTransactions)
+	// for the metadata
+	_, controllerMeta, err := r.didDocResolver.Resolve(controller.ID, nil)
+	if err != nil {
+		return err
+	}
+
+	// a DIDDocument update must point to its previous version, current heads and the controller TX (for signing key transaction ordering)
+	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
+
+	_, err = r.network.CreateTransaction(didDocumentType, payload, key, false, time.Now(), previousTransactions)
 	if err == nil {
 		logging.Log().Infof("DID Document updated (DID=%s)", id)
 	} else {
@@ -186,13 +195,13 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	return err
 }
 
-func (r VDR) resolveControllerKey(doc did.Document) (crypto.Key, error) {
+func (r VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.Key, error) {
 	controllers, err := r.didDocResolver.ResolveControllers(doc, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error while finding controllers for document: %w", err)
+		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
 	}
 	if len(controllers) == 0 {
-		return nil, fmt.Errorf("could not find any controllers for document")
+		return did.Document{}, nil, fmt.Errorf("could not find any controllers for document")
 	}
 
 	var key crypto.Key
@@ -200,14 +209,14 @@ func (r VDR) resolveControllerKey(doc did.Document) (crypto.Key, error) {
 		for _, cik := range c.CapabilityInvocation {
 			key, err = r.keyStore.Resolve(cik.ID.String())
 			if err == nil {
-				return key, nil
+				return c, key, nil
 			}
 		}
 	}
 
 	if errors.Is(err, crypto.ErrKeyNotFound) {
-		return nil, types.ErrDIDNotManagedByThisNode
+		return did.Document{}, nil, types.ErrDIDNotManagedByThisNode
 	}
 
-	return nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
+	return did.Document{}, nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
 }

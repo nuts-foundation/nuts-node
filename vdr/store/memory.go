@@ -101,6 +101,18 @@ func (m *memory) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (*did.Docume
 		if metadata.ResolveTime != nil {
 			entries = entries.filter(timeSelectionFilter(*metadata))
 		}
+
+		// filter on KeyTransaction
+		if metadata.SourceTransaction != nil {
+			entries = entries.filter(func(e memoryEntry) bool {
+				for _, kt := range e.metadata.SourceTransactions {
+					if kt.Equals(*metadata.SourceTransaction) {
+						return true
+					}
+				}
+				return false
+			})
+		}
 	}
 
 	entry, err := entries.last()

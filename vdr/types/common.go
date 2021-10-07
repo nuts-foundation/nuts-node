@@ -97,6 +97,8 @@ type ResolveMetadata struct {
 	ResolveTime *time.Time
 	// if provided, use the version which matches this exact hash
 	Hash *hash.SHA256Hash
+	// SourceTransaction must match a TX hash from the metadata.SourceTransaction field, if provided
+	SourceTransaction *hash.SHA256Hash
 	// Allow DIDs which are deactivated
 	AllowDeactivated bool
 }

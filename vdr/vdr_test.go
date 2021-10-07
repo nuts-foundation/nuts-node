@@ -75,11 +75,14 @@ func TestVDR_Update(t *testing.T) {
 			Hash:             &currentHash,
 			AllowDeactivated: true,
 		}
-		resolvedMetadata := types.DocumentMetadata{}
+		resolvedMetadata := types.DocumentMetadata{
+			SourceTransactions: []hash.SHA256Hash{currentHash},
+		}
 		expectedPayload, _ := json.Marshal(nextDIDDocument)
 		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
+		ctx.mockStore.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, gomock.Any(), false, gomock.Any(), gomock.Any())
+		ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, gomock.Any(), false, gomock.Any(), []hash.SHA256Hash{currentHash, currentHash})
 
 		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
 
@@ -279,12 +282,13 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
 
-		key, err := ctx.vdr.resolveControllerKey(currentDIDDocument)
+		controller, key, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
 		if !assert.NoError(t, err) {
 			return
 		}
 		assert.Equal(t, keyID.String(), key.KID())
+		assert.Equal(t, *id, controller.ID)
 	})
 
 	t.Run("ok - key from 2nd controller", func(t *testing.T) {
@@ -298,12 +302,13 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 			ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil),
 		)
 
-		key, err := ctx.vdr.resolveControllerKey(currentDIDDocument)
+		_, key, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
 		if !assert.NoError(t, err) {
 			return
 		}
 		assert.Equal(t, keyID.String(), key.KID())
+		assert.Equal(t, *controllerId, controller.ID)
 	})
 
 	t.Run("error - resolving key", func(t *testing.T) {
@@ -312,7 +317,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, errors.New("b00m!"))
 
-		_, err := ctx.vdr.resolveControllerKey(currentDIDDocument)
+		_, _, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
 		if !assert.Error(t, err) {
 			return
@@ -328,7 +333,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 		ctx.mockStore.EXPECT().Resolve(*controllerId, gomock.Any()).Return(&controller, nil, nil).Times(2)
 		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrKeyNotFound).Times(2)
 
-		_, err := ctx.vdr.resolveControllerKey(currentDIDDocument)
+		_, _, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
 		if !assert.Error(t, err) {
 			return
