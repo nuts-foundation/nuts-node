@@ -39,7 +39,7 @@ func TestCopy(t *testing.T) {
 		Updated:            &timeNow,
 		Hash:               h,
 		Deactivated:        false,
-		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
+		SourceTransactions: []hash.SHA256Hash{h},
 	}
 	numFields := 5
 
@@ -53,12 +53,18 @@ func TestCopy(t *testing.T) {
 		// Updated
 		metaCopy = meta.Copy()
 		*metaCopy.Updated = timeLater
-		metaCopy.SourceTransactions = []hash.SHA256Hash{}
 		assert.False(t, reflect.DeepEqual(meta, metaCopy))
+
+		// Hash
+		metaCopy.Hash[0] = 0
+		assert.NotEqual(t, metaCopy.Hash, meta.Hash, "Hash is not deep-copied")
+
+		// SourceTransactions
+		metaCopy.SourceTransactions[0] = hash.SHA256Hash{20}
+		assert.NotEqual(t, metaCopy.SourceTransactions, meta.SourceTransactions, "SourceTransactions is not deep-copied")
 
 		// if this test fails, please make sure the Copy() method is updated as well!
 		assert.Equal(t, numFields, reflect.TypeOf(DocumentMetadata{}).NumField())
-
 	})
 }
 
