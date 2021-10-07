@@ -62,7 +62,6 @@ func TestVDR_Update(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
 	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
-	txHash := hash.SHA256Sum([]byte("txHash"))
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)

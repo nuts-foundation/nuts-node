@@ -41,7 +41,7 @@ func TestCopy(t *testing.T) {
 		Deactivated:        false,
 		SourceTransactions: []hash.SHA256Hash{h},
 	}
-	numFields := 6
+	numFields := 5
 
 	t.Run("returns error if metadata can be manipulated", func(t *testing.T) {
 		var metaCopy DocumentMetadata
