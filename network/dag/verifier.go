@@ -9,7 +9,6 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -35,21 +34,14 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 		} else {
 			signingTime := tx.SigningTime()
 			if signingTime.After(didDocumentResolveEPoch) {
-				// convert prevHashes to payloadHashes
-				payloadHashes := make([]hash.SHA256Hash, len(tx.Previous()))
-				for i, prevHash := range tx.Previous() {
-					// no error since other verifier ran first
-					prevTX, _ := dag.Get(ctx, prevHash)
-					payloadHashes[i] = prevTX.PayloadHash()
-				}
-				pk, err := resolver.ResolvePublicKeyFromOriginatingTransaction(tx.SigningKeyID(), payloadHashes)
+				pk, err := resolver.ResolvePublicKeyFromSourceTransaction(tx.SigningKeyID(), tx.Previous())
 				if err != nil {
 					return fmt.Errorf("unable to verify transaction signature, can't resolve key by TX ref (kid=%s, txhash=%s): %w", tx.SigningKeyID(), tx.Ref().String(), err)
 				}
 				signingKey = pk
 			} else {
 				// legacy resolving for older documents
-				pk, err := resolver.ResolvePublicKey(tx.SigningKeyID(), &signingTime)
+				pk, err := resolver.ResolvePublicKeyInTime(tx.SigningKeyID(), &signingTime)
 				if err != nil {
 					return fmt.Errorf("unable to verify transaction signature, can't resolve key by signing time (kid=%s): %w", tx.SigningKeyID(), err)
 				}

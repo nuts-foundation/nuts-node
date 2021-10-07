@@ -169,7 +169,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 
 	// In an update, only the keyID is provided in the network document. Resolve the key from the key store
 	// This should succeed since the signature of the network document has already been verified.
-	pKey, err := n.keyResolver.ResolvePublicKey(transaction.SigningKeyID(), &signingTime)
+	pKey, err := n.keyResolver.ResolvePublicKeyInTime(transaction.SigningKeyID(), &signingTime)
 	if err != nil {
 		return fmt.Errorf("unable to resolve signingkey: %w", err)
 	}

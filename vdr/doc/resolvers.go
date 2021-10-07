@@ -200,17 +200,17 @@ func ExtractAssertionKeyID(doc did.Document) (ssi.URI, error) {
 	return ssi.URI{}, types.ErrKeyNotFound
 }
 
-func (r KeyResolver) ResolvePublicKey(kid string, validAt *time.Time) (crypto.PublicKey, error) {
+func (r KeyResolver) ResolvePublicKeyInTime(kid string, validAt *time.Time) (crypto.PublicKey, error) {
 	return r.resolvePublicKey(kid, types.ResolveMetadata{
 		ResolveTime: validAt,
 	})
 }
 
-func (r KeyResolver) ResolvePublicKeyFromOriginatingTransaction(kid string, hashes []hash.SHA256Hash) (crypto.PublicKey, error) {
+func (r KeyResolver) ResolvePublicKeyFromSourceTransaction(kid string, hashes []hash.SHA256Hash) (crypto.PublicKey, error) {
 	// try all keys, continue when err == types.ErrNotFound
 	for _, h := range hashes {
 		publicKey, err := r.resolvePublicKey(kid, types.ResolveMetadata{
-			Hash: &h,
+			SourceTransaction: &h,
 		})
 		if err == nil {
 			return publicKey, nil
