@@ -411,19 +411,39 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 	idStr := "did:nuts:1"
 	id, _ := did.ParseDIDURL(idStr)
 	const expected = "result"
+	expectedResult := EndpointResponse{Endpoint: expected}
+	req := http.Request{Header: map[string][]string{}}
+
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Request().Return(&req)
 		ctx.didman.EXPECT().GetCompoundServiceEndpoint(*id, "csType", "eType", true).Return(expected, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, expected)
+		ctx.echo.EXPECT().JSON(http.StatusOK, expectedResult)
+
+		err := ctx.wrapper.GetCompoundServiceEndpoint(ctx.echo, idStr, "csType", "eType", GetCompoundServiceEndpointParams{})
+
+		assert.NoError(t, err)
+	})
+	t.Run("ok as text/plain", func(t *testing.T) {
+		ctx := newMockContext(t)
+		req := http.Request{Header: map[string][]string{
+			"Accept": {"text/plain"},
+		}}
+
+		ctx.didman.EXPECT().GetCompoundServiceEndpoint(*id, "csType", "eType", true).Return(expected, nil)
+		ctx.echo.EXPECT().Request().Return(&req)
+		ctx.echo.EXPECT().String(http.StatusOK, expected)
 		err := ctx.wrapper.GetCompoundServiceEndpoint(ctx.echo, idStr, "csType", "eType", GetCompoundServiceEndpointParams{})
 
 		assert.NoError(t, err)
 	})
 	t.Run("ok - no resolve", func(t *testing.T) {
 		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Request().Return(&req)
 		ctx.didman.EXPECT().GetCompoundServiceEndpoint(*id, "csType", "eType", false).Return(expected, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, expected)
+		ctx.echo.EXPECT().JSON(http.StatusOK, expectedResult)
 		f := false
+
 		err := ctx.wrapper.GetCompoundServiceEndpoint(ctx.echo, idStr, "csType", "eType", GetCompoundServiceEndpointParams{Resolve: &f})
 
 		assert.NoError(t, err)
@@ -431,6 +451,8 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 	t.Run("error - invalid DID", func(t *testing.T) {
 		invalidDIDStr := "nuts:123"
 		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Request().Return(&req)
+		
 		err := ctx.wrapper.GetCompoundServiceEndpoint(ctx.echo, invalidDIDStr, "", "", GetCompoundServiceEndpointParams{})
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)

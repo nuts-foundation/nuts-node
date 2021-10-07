@@ -57,6 +57,12 @@ type EndpointProperties struct {
 	Type string `json:"type"`
 }
 
+// EndpointResponse defines model for EndpointResponse.
+type EndpointResponse struct {
+	// The endpoint URL.
+	Endpoint string `json:"endpoint"`
+}
+
 // AddCompoundServiceJSONBody defines parameters for AddCompoundService.
 type AddCompoundServiceJSONBody CompoundServiceProperties
 
@@ -877,7 +883,7 @@ func (r AddCompoundServiceResponse) StatusCode() int {
 type GetCompoundServiceEndpointResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *string
+	JSON200      *EndpointResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -1198,11 +1204,14 @@ func ParseGetCompoundServiceEndpointResponse(rsp *http.Response) (*GetCompoundSe
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest string
+		var dest EndpointResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case rsp.StatusCode == 200:
+		// Content-type (text/plain) unsupported
 
 	}
 

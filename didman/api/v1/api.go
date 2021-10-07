@@ -195,6 +195,7 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 
 // GetCompoundServiceEndpoint handles calls to read a specific endpoint of a compound service.
 func (w *Wrapper) GetCompoundServiceEndpoint(ctx echo.Context, didStr string, compoundServiceType string, endpointType string, params GetCompoundServiceEndpointParams) error {
+	acceptHeader := ctx.Request().Header.Get("Accept")
 	id, err := did.ParseDID(didStr)
 	if err != nil {
 		return err
@@ -207,7 +208,12 @@ func (w *Wrapper) GetCompoundServiceEndpoint(ctx echo.Context, didStr string, co
 	if err != nil {
 		return err
 	}
-	return ctx.JSON(http.StatusOK, endpoint)
+	if strings.Contains(acceptHeader, "text/plain") {
+		return ctx.String(http.StatusOK, endpoint)
+	}
+
+	// default json
+	return ctx.JSON(http.StatusOK, EndpointResponse{Endpoint: endpoint})
 }
 
 func interfaceToURI(input interface{}) (*ssi.URI, error) {
