@@ -202,10 +202,11 @@ func (d Dummy) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) 
 	// follows openid default claims
 	return dummyVPVerificationResult{
 		disclosedAttributes: map[string]string{
-			"initials":   p.Proof.Initials,
-			"prefix":     p.Proof.Prefix,
-			"familyname": p.Proof.FamilyName,
-			"email":      p.Proof.Email,
+			services.InitialsTokenClaim:   p.Proof.Initials,
+			services.PrefixTokenClaim:     p.Proof.Prefix,
+			services.FamilyNameTokenClaim: p.Proof.FamilyName,
+			services.EmailTokenClaim:      p.Proof.Email,
+			services.EidasIALClaim:        "low",
 		},
 		contractAttributes: c.Params,
 	}, nil

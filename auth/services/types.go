@@ -56,3 +56,6 @@ const PrefixTokenClaim = "prefix"
 
 // EmailTokenClaim is the JWT claim for email
 const EmailTokenClaim = "email"
+
+// EidasIALClaim is the EIDAS identity assurance level claim: Low - to - High
+const EidasIALClaim = "eidas_ial"

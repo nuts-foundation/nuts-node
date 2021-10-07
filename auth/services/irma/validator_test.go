@@ -56,64 +56,6 @@ func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercor
 	return m.irmaQr, irma.RequestorToken(m.sessionToken), nil, nil
 }
 
-//
-//func TestDefaultValidator_legalEntityFromContract(t *testing.T) {
-//	type TestContext struct {
-//		ctrl  *gomock.Controller
-//		v     Service
-//		rMock *registryMock.MockRegistryClient
-//	}
-//	createContext := func(t *testing.T) TestContext {
-//		ctrl := gomock.NewController(t)
-//		rMock := registryMock.NewMockRegistryClient(ctrl)
-//
-//		v := Service{
-//			Registry: rMock,
-//		}
-//
-//		return TestContext{ctrl: ctrl, v: v, rMock: rMock}
-//	}
-//
-//	t.Run("Empty message returns error", func(t *testing.T) {
-//		ctx := createContext(t)
-//		defer ctx.ctrl.Finish()
-//		_, err := ctx.v.legalEntityFromContract(&SignedIrmaContract{IrmaContract: irma.SignedMessage{}, contract: &contract.Contract{}})
-//
-//		assert.NotNil(t, err)
-//		assert.Error(t, contract.ErrInvalidContractText, err)
-//	})
-//
-//	t.Run("Missing legalEntity returns error", func(t *testing.T) {
-//		ctx := createContext(t)
-//		defer ctx.ctrl.Finish()
-//		rawText := "NL:BehandelaarLogin:v1 Ondergetekende geeft toestemming aan Demo EHR om namens  en ondergetekende het Nuts netwerk te bevragen. Deze toestemming is geldig van dinsdag, 1 oktober 2019 13:30:42 tot dinsdag, 1 oktober 2019 14:30:42."
-//		signedContract, err := contract.ParseContractString(rawText, contract.StandardContractTemplates)
-//
-//		assert.Nil(t, signedContract)
-//		assert.NotNil(t, err)
-//		assert.True(t, errors.Is(err, contract.ErrInvalidContractText))
-//	})
-//
-//	t.Run("Unknown legalEntity returns error", func(t *testing.T) {
-//		ctx := createContext(t)
-//		defer ctx.ctrl.Finish()
-//
-//		ctx.rMock.EXPECT().ReverseLookup("UNKNOWN").Return(nil, db.ErrOrganizationNotFound)
-//
-//		rawText := "NL:BehandelaarLogin:v1 Ondergetekende geeft toestemming aan Demo EHR om namens UNKNOWN en ondergetekende het Nuts netwerk te bevragen. Deze toestemming is geldig van dinsdag, 1 oktober 2019 13:30:42 tot dinsdag, 1 oktober 2019 14:30:42."
-//		signedContract, err := contract.ParseContractString(rawText, contract.StandardContractTemplates)
-//
-//		assert.Nil(t, err)
-//
-//		_, err = ctx.v.legalEntityFromContract(&SignedIrmaContract{
-//			contract: signedContract,
-//		})
-//
-//		assert.NotNil(t, err)
-//		assert.True(t, errors.Is(err, db.ErrOrganizationNotFound))
-//	})
-//}
-
 func TestService_VerifyVP(t *testing.T) {
 	t.Run("ok - valid VP", func(t *testing.T) {
 		validator, _ := defaultValidator(t)
@@ -158,15 +100,16 @@ func TestService_VerifyVP(t *testing.T) {
 
 func TestIrmaVPVerificationResult(t *testing.T) {
 	vr := irmaVPVerificationResult{
-		validity:            contract.Valid,
-		vpType:              contract.VPType("type"),
+		validity: contract.Valid,
+		vpType:   contract.VPType("type"),
 		disclosedAttributes: map[string]string{
 			"gemeente.personalData.familyname": "tester",
-			"gemeente.personalData.initials": "i",
-			"gemeente.personalData.prefix": "von",
-			"sidn-pbdf.email.email": "info@example.com",
+			"gemeente.personalData.initials":   "i",
+			"gemeente.personalData.prefix":     "von",
+			"sidn-pbdf.email.email":            "info@example.com",
+			"gemeente.personalData.digidlevel": "Midden",
 		},
-		contractAttributes:  map[string]string{
+		contractAttributes: map[string]string{
 			"a": "b",
 		},
 	}
@@ -176,6 +119,7 @@ func TestIrmaVPVerificationResult(t *testing.T) {
 		assert.Equal(t, "tester", vr.DisclosedAttribute(services.FamilyNameTokenClaim))
 		assert.Equal(t, "von", vr.DisclosedAttribute(services.PrefixTokenClaim))
 		assert.Equal(t, "info@example.com", vr.DisclosedAttribute(services.EmailTokenClaim))
+		assert.Equal(t, "Midden", vr.DisclosedAttribute(services.EidasIALClaim))
 	})
 
 	t.Run("validity", func(t *testing.T) {

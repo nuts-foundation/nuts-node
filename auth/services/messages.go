@@ -57,6 +57,7 @@ type NutsAccessToken struct {
 	Prefix     *string `json:"prefix,omitempty"`
 	FamilyName *string `json:"family_name,omitempty"`
 	Email      *string `json:"email,omitempty"`
+	EidasIAL   *string `json:"eidas_ial,omitempty"`
 
 	KeyID       string   `json:"-"`
 	Expiration  int64    `json:"exp"`

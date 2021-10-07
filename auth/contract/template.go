@@ -81,6 +81,7 @@ var StandardSignerAttributes = []string{
 	".gemeente.personalData.prefix",
 	".gemeente.personalData.familyname",
 	"pbdf.sidn-pbdf.email.email",
+	".gemeente.personalData.digidlevel",
 }
 
 func (c Template) timeLocation() *time.Location {

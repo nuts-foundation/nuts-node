@@ -539,6 +539,7 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 		at.FamilyName = toStrPtr(disclosedAttributeFn(services.FamilyNameTokenClaim))
 		at.Prefix = toStrPtr(disclosedAttributeFn(services.PrefixTokenClaim))
 		at.Email = toStrPtr(disclosedAttributeFn(services.EmailTokenClaim))
+		at.EidasIAL = toStrPtr(disclosedAttributeFn(services.EidasIALClaim))
 	}
 
 	if len(context.credentialIDs) > 0 {

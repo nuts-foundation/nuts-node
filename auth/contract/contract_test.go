@@ -19,6 +19,7 @@
 package contract
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -209,5 +210,16 @@ func TestContract_Verify(t *testing.T) {
 			assert.EqualError(t, err, expected)
 		})
 
+	})
+}
+
+func TestParseContractString(t *testing.T) {
+	t.Run("Missing legalEntity returns error", func(t *testing.T) {
+		rawText := "NL:BehandelaarLogin:v1 Ondergetekende geeft toestemming aan Demo EHR om namens  en ondergetekende het Nuts netwerk te bevragen. Deze toestemming is geldig van dinsdag, 1 oktober 2019 13:30:42 tot dinsdag, 1 oktober 2019 14:30:42."
+		signedContract, err := ParseContractString(rawText, StandardContractTemplates)
+
+		assert.Nil(t, signedContract)
+		assert.NotNil(t, err)
+		assert.True(t, errors.Is(err, ErrInvalidContractText))
 	})
 }
