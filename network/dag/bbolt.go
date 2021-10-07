@@ -35,11 +35,10 @@ func callBBoltCallbackWithTX(ctx context.Context, db *bbolt.DB, cb bboltTXCallba
 		return db.View(func(tx *bbolt.Tx) error {
 			return cb(context.WithValue(ctx, bboltTXContextKey, tx), tx)
 		})
-	} else {
-		// There is an active TX we can use. We just have to check whether it's writable if we need it writable.
-		if writable && !tx.Writable() {
-			return errors.New("the active BBolt transaction is not writable")
-		}
-		return cb(ctx, tx)
 	}
+	// There is an active TX we can use. We just have to check whether it's writable if we need it writable.
+	if writable && !tx.Writable() {
+		return errors.New("the active BBolt transaction is not writable")
+	}
+	return cb(ctx, tx)
 }
