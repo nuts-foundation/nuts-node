@@ -62,8 +62,8 @@ func TestMemory_Resolve(t *testing.T) {
 	h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 	txHash := hash.FromSlice([]byte("keyTransactionHash"))
 	meta := types.DocumentMetadata{
-		Created: time.Now().Add(time.Hour * -24),
-		Hash:    h,
+		Created:            time.Now().Add(time.Hour * -24),
+		Hash:               h,
 		SourceTransactions: []hash.SHA256Hash{txHash},
 	}
 
@@ -133,7 +133,7 @@ func TestMemory_Resolve(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t,types.ErrNotFound, err)
+		assert.Equal(t, types.ErrNotFound, err)
 	})
 }
 
@@ -252,6 +252,52 @@ func TestMemory_Update(t *testing.T) {
 	})
 }
 
+func TestMemory_Parallelism(t *testing.T) {
+	// This test, when run with -race, assures access to internals is synchronized
+	store := NewMemoryStore()
+	did1, _ := did.ParseDID("did:nuts:1")
+	did2, _ := did.ParseDID("did:nuts:2")
+	doc := did.Document{
+		ID: *did1,
+	}
+	doc2 := did.Document{
+		ID: *did2,
+	}
+	meta := types.DocumentMetadata{}
+
+	// Make sure update, resolve and iterate have something to work on
+	_ = store.Write(doc, meta)
+
+	// Prepare functions to be called
+	wg := sync.WaitGroup{}
+	funcs := []func() {
+		func() {
+			_ = store.Write(doc2, meta)
+		},
+		func() {
+			_ = store.Iterate(func(_ did.Document, _ types.DocumentMetadata) error {
+				return nil
+			})
+		},
+		func() {
+			_ = store.Update(*did1, hash.EmptyHash(), doc, &meta)
+		},
+		func() {
+			_, _, _ = store.Resolve(*did1, nil)
+		},
+	}
+	wg.Add(len(funcs))
+
+	// Execute functions and wait for them to finish
+	for _, fn := range funcs {
+		go func(actual func()) {
+			actual()
+			wg.Done()
+		}(fn)
+	}
+	wg.Wait()
+}
+
 func TestMemory_Iterate(t *testing.T) {
 	store := NewMemoryStore()
 	did1, _ := did.ParseDID("did:nuts:1")
@@ -312,24 +358,5 @@ func TestMemory_Iterate(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Equal(t, types.ErrNotFound, err)
-	})
-
-
-	t.Run("parallelism", func(t *testing.T) {
-		_ = store.Write(doc, meta)
-		count := 0
-		fn := counter(&count)
-
-		const numCallers = 3
-		wg := sync.WaitGroup{}
-		wg.Add(numCallers)
-		for i := 0; i < numCallers; i++ {
-			go func() {
-				err := store.Iterate(fn)
-				assert.NoError(t, err)
-			}()
-			wg.Done()
-		}
-		wg.Wait()
 	})
 }

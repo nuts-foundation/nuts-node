@@ -98,7 +98,8 @@ type Store interface {
 	// If metadata is provided then the result is filtered or scoped on that metadata.
 	// It returns ErrNotFound if there are no corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata
 	Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error)
-	// Iterate loops over all the latest versions of the stored DID Documents and applies fn
+	// Iterate loops over all the latest versions of the stored DID Documents and applies fn.
+	// Calling any of the Store's functions from the given fn might cause a deadlock.
 	Iterate(fn DocIterator) error
 
 	DocWriter

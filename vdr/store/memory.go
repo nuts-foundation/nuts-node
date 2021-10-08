@@ -30,7 +30,7 @@ import (
 func NewMemoryStore() vdr.Store {
 	return &memory{
 		store: map[string]versionedEntryList{},
-		mutex: sync.Mutex{},
+		mutex: sync.RWMutex{},
 	}
 }
 
@@ -58,7 +58,7 @@ func (list versionedEntryList) last() (*memoryEntry, error) {
 
 type memory struct {
 	store map[string]versionedEntryList
-	mutex sync.Mutex
+	mutex sync.RWMutex
 }
 
 type memoryEntry struct {
@@ -74,8 +74,8 @@ func (me memoryEntry) isDeactivated() bool {
 // Resolve implements the Resolver.
 // Resolves a DID document and returns a deep copy of the data in memory.
 func (m *memory) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (*did.Document, *vdr.DocumentMetadata, error) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
 	entries, ok := m.store[id.String()]
 	if !ok {
@@ -234,8 +234,8 @@ func (m *memory) Update(id did.DID, current hash.SHA256Hash, next did.Document, 
 }
 
 func (m *memory) Iterate(fn vdr.DocIterator) error {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
 	for _, entryList := range m.store {
 		entry, err := entryList.last()
