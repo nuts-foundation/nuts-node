@@ -13,9 +13,9 @@ func TestDotGraphVisitor(t *testing.T) {
 			txA, _, _ := CreateTestTransaction(1)
 			txB, _, _ := CreateTestTransaction(2, txA.Ref())
 			txC, _, _ := CreateTestTransaction(3, txA.Ref())
-			visitor.Accept(txA)
-			visitor.Accept(txB)
-			visitor.Accept(txC)
+			visitor.Accept(nil, txA)
+			visitor.Accept(nil, txB)
+			visitor.Accept(nil, txC)
 			actual := visitor.Render()
 			// Since visualization changes now and then and the TX references differ every time the test is run, just do some sanity checks
 			assert.Contains(t, actual, "digraph {")

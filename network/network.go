@@ -19,6 +19,7 @@
 package network
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"os"
@@ -69,11 +70,12 @@ type Network struct {
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
 func (n *Network) Walk(visitor dag.Visitor) error {
-	root, err := n.graph.Root()
+	ctx := context.Background()
+	root, err := n.graph.Root(ctx)
 	if err != nil {
 		return err
 	}
-	return n.graph.Walk(dag.NewBFSWalkerAlgorithm(), visitor, root)
+	return n.graph.Walk(ctx, dag.NewBFSWalkerAlgorithm(), visitor, root)
 }
 
 // NewNetworkInstance creates a new Network engine instance.
@@ -141,7 +143,7 @@ func (n *Network) Start() error {
 	n.protocol.Start()
 	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
 	n.publisher.Start()
-	if err := n.graph.Verify(); err != nil {
+	if err := n.graph.Verify(context.Background()); err != nil {
 		return err
 	}
 	return nil
@@ -155,25 +157,25 @@ func (n *Network) Subscribe(transactionType string, receiver dag.Receiver) {
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
 func (n *Network) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
-	return n.graph.Get(transactionRef)
+	return n.graph.Get(context.Background(), transactionRef)
 }
 
 // GetTransactionPayload retrieves the transaction payload for the given transaction. If the transaction or payload is not found
 // nil is returned.
 func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
-	transaction, err := n.graph.Get(transactionRef)
+	transaction, err := n.graph.Get(context.Background(), transactionRef)
 	if err != nil {
 		return nil, err
 	}
 	if transaction == nil {
 		return nil, nil
 	}
-	return n.payloadStore.ReadPayload(transaction.PayloadHash())
+	return n.payloadStore.ReadPayload(context.Background(), transaction.PayloadHash())
 }
 
 // ListTransactions returns all transactions known to this Network instance.
 func (n *Network) ListTransactions() ([]dag.Transaction, error) {
-	return n.graph.FindBetween(dag.MinTime(), dag.MaxTime())
+	return n.graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())
 }
 
 // CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
@@ -183,8 +185,9 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), key.KID())
 
 	// Assert that all additional prevs are present and its payload is there
+	ctx := context.Background()
 	for _, prev := range additionalPrevs {
-		isPresent, err := n.isPayloadPresent(prev)
+		isPresent, err := n.isPayloadPresent(ctx, prev)
 		if err != nil {
 			return nil, err
 		}
@@ -211,10 +214,10 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 		return nil, fmt.Errorf("unable to sign newly created transaction: %w", err)
 	}
 	// Store on local DAG and publish it
-	if err = n.graph.Add(transaction); err != nil {
+	if err = n.graph.Add(ctx, transaction); err != nil {
 		return nil, fmt.Errorf("unable to add newly created transaction to DAG: %w", err)
 	}
-	if err = n.payloadStore.WritePayload(payloadHash, payload); err != nil {
+	if err = n.payloadStore.WritePayload(ctx, payloadHash, payload); err != nil {
 		return nil, fmt.Errorf("unable to store payload of newly created transaction: %w", err)
 	}
 	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), payloadType, len(payload))
@@ -274,7 +277,7 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) 
 func (n *Network) collectDiagnostics() proto.Diagnostics {
 	result := proto.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
-		NumberOfTransactions: uint32(n.graph.Statistics().NumberOfTransactions),
+		NumberOfTransactions: uint32(n.graph.Statistics(context.Background()).NumberOfTransactions),
 		SoftwareVersion:      core.GitCommit,
 		SoftwareID:           softwareID,
 	}
@@ -284,15 +287,15 @@ func (n *Network) collectDiagnostics() proto.Diagnostics {
 	return result
 }
 
-func (n *Network) isPayloadPresent(txRef hash.SHA256Hash) (bool, error) {
-	tx, err := n.graph.Get(txRef)
+func (n *Network) isPayloadPresent(ctx context.Context, txRef hash.SHA256Hash) (bool, error) {
+	tx, err := n.graph.Get(ctx, txRef)
 	if err != nil {
 		return false, err
 	}
 	if tx == nil {
 		return false, nil
 	}
-	return n.payloadStore.IsPresent(tx.PayloadHash())
+	return n.payloadStore.IsPresent(ctx, tx.PayloadHash())
 }
 
 // lastTransactionTracker that is used for tracking the heads but with payloads, since the DAG heads might have the associated payloads.

@@ -19,11 +19,12 @@
 package proto
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	log "github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/sirupsen/logrus"
@@ -130,7 +131,7 @@ func (p *protocol) checkPeerBlocks(peer p2p.PeerID, peerBlocks []*transport.Bloc
 			// - We have a TX our peer doesn't have
 			// To find out which is the case we check whether we have the peer's head as TX on our DAG.
 			// If not, we're missing the peer's TX on our DAG and should query the block.
-			headIsPresentOnLocalDAG, err := p.graph.IsPresent(peerHeadHash)
+			headIsPresentOnLocalDAG, err := p.graph.IsPresent(context.Background(), peerHeadHash)
 			if err != nil {
 				log.Logger().Errorf("Error while checking peer head on local DAG (ref=%s): %v", peerHeadHash, err)
 			} else if !headIsPresentOnLocalDAG {
@@ -143,17 +144,18 @@ func (p *protocol) checkPeerBlocks(peer p2p.PeerID, peerBlocks []*transport.Bloc
 
 func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport.TransactionPayload) {
 	payloadHash := hash.FromSlice(contents.PayloadHash)
+	ctx := context.Background()
 	log.Logger().Infof("Received transaction payload from peer (peer=%s,payloadHash=%s,len=%d)", peer, payloadHash, len(contents.Data))
-	if transaction, err := p.graph.GetByPayloadHash(payloadHash); err != nil {
+	if transaction, err := p.graph.GetByPayloadHash(ctx, payloadHash); err != nil {
 		log.Logger().Errorf("Error while looking up transaction to write payload (payloadHash=%s): %v", payloadHash, err)
 	} else if len(transaction) == 0 {
 		// This might mean an attacker is sending us unsolicited document payloads
 		log.Logger().Infof("Received transaction payload for transaction we don't have (payloadHash=%s)", payloadHash)
-	} else if hasPayload, err := p.payloadStore.IsPresent(payloadHash); err != nil {
+	} else if hasPayload, err := p.payloadStore.IsPresent(ctx, payloadHash); err != nil {
 		log.Logger().Errorf("Error while checking whether we already have payload (payloadHash=%s): %v", payloadHash, err)
 	} else if hasPayload {
 		log.Logger().Debugf("Received payload we already have (payloadHash=%s)", payloadHash)
-	} else if err := p.payloadStore.WritePayload(payloadHash, contents.Data); err != nil {
+	} else if err := p.payloadStore.WritePayload(ctx, payloadHash, contents.Data); err != nil {
 		log.Logger().Errorf("Error while writing payload for transaction (hash=%s): %v", payloadHash, err)
 	}
 }
@@ -161,7 +163,7 @@ func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport
 func (p *protocol) handleTransactionPayloadQuery(peer p2p.PeerID, query *transport.TransactionPayloadQuery) error {
 	payloadHash := hash.FromSlice(query.PayloadHash)
 	log.Logger().Tracef("Received transaction payload query from peer (peer=%s, payloadHash=%s)", peer, payloadHash)
-	data, err := p.payloadStore.ReadPayload(payloadHash)
+	data, err := p.payloadStore.ReadPayload(context.Background(), payloadHash)
 	if err != nil {
 		return err
 	}
@@ -176,6 +178,7 @@ func (p *protocol) handleTransactionList(peer p2p.PeerID, transactionList *trans
 	// TODO: Only process transaction list if we actually queried it (but be aware of pagination)
 	// TODO: Do something with blockDate
 	log.Logger().Tracef("Received transaction list from peer (peer=%s)", peer)
+	ctx := context.Background()
 	transactions := transactionList.Transactions
 	transactionProcessed := true
 	for transactionProcessed {
@@ -186,7 +189,7 @@ func (p *protocol) handleTransactionList(peer p2p.PeerID, transactionList *trans
 			if !transactionRef.Equals(hash.SHA256Sum(current.Data)) {
 				return errors.New("received transaction hash doesn't match transaction bytes")
 			}
-			err := p.checkTransactionOnLocalNode(peer, transactionRef, current.Data)
+			err := p.checkTransactionOnLocalNode(ctx, peer, transactionRef, current.Data)
 			// No error = OK, added to DAG. Remove from list
 			if err == nil {
 				transactionProcessed = true
@@ -210,7 +213,7 @@ func (p *protocol) handleTransactionList(peer p2p.PeerID, transactionList *trans
 
 // checkTransactionOnLocalNode checks whether the given transaction is present on the local node, adds it if not and/or queries
 // the payload if it (the payload) it not present. If we have both transaction and payload, nothing is done.
-func (p *protocol) checkTransactionOnLocalNode(peer p2p.PeerID, transactionRef hash.SHA256Hash, data []byte) error {
+func (p *protocol) checkTransactionOnLocalNode(ctx context.Context, peer p2p.PeerID, transactionRef hash.SHA256Hash, data []byte) error {
 	// TODO: Make this a bit smarter.
 	var transaction dag.Transaction
 	var err error
@@ -218,14 +221,14 @@ func (p *protocol) checkTransactionOnLocalNode(peer p2p.PeerID, transactionRef h
 		return fmt.Errorf("received transaction is invalid (peer=%s,pref=%s): %w", peer, transactionRef, err)
 	}
 	queryContents := false
-	if present, err := p.graph.IsPresent(transactionRef); err != nil {
+	if present, err := p.graph.IsPresent(ctx, transactionRef); err != nil {
 		return err
 	} else if !present {
-		if err := p.graph.Add(transaction); err != nil {
+		if err := p.graph.Add(ctx, transaction); err != nil {
 			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
 		}
 		queryContents = true
-	} else if payloadPresent, err := p.payloadStore.IsPresent(transaction.PayloadHash()); err != nil {
+	} else if payloadPresent, err := p.payloadStore.IsPresent(ctx, transaction.PayloadHash()); err != nil {
 		return err
 	} else {
 		queryContents = !payloadPresent
@@ -252,7 +255,7 @@ func (p *protocol) handleTransactionListQuery(peer p2p.PeerID, blockDateInt uint
 		endDate = startDate.AddDate(0, 0, 1)
 	}
 	log.Logger().Tracef("Received transaction list query from peer (peer=%s,from=%s,to=%s)", peer, startDate, endDate)
-	txs, err := p.graph.FindBetween(startDate, endDate)
+	txs, err := p.graph.FindBetween(context.Background(), startDate, endDate)
 	if err != nil {
 		return err
 	}

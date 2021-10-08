@@ -1,9 +1,11 @@
 package vdr
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/url"
 	"os"
+	"sync"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -190,4 +192,81 @@ func TestVDRIntegration_Test(t *testing.T) {
 	err = vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
 	assert.EqualError(t, err, "could not find any controllers for document")
 
+}
+
+func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
+	// === Setup ===
+	tmpDir, err := ioutil.TempDir("", "nuts-vdr-integration-concurrencytest")
+	if !assert.NoError(t, err, "unable to create temporary data dir for integration test") {
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+	nutsConfig := core.ServerConfig{
+		Verbosity: "debug",
+		Datadir:   tmpDir,
+	}
+	// Configure the logger:
+	var lvl log.Level
+	// initialize logger, verbosity flag needs to be available
+	if lvl, err = log.ParseLevel(nutsConfig.Verbosity); err != nil {
+		return
+	}
+	log.SetLevel(lvl)
+	log.SetFormatter(&log.TextFormatter{ForceColors: true})
+
+	// Startup crypto
+	nutsCrypto := crypto.NewCryptoInstance()
+	nutsCrypto.Configure(nutsConfig)
+
+	// DID Store
+	didStore := store.NewMemoryStore()
+
+	// Startup the network layer
+	nutsNetwork := network.NewNetworkInstance(network.DefaultConfig(), doc.KeyResolver{Store: didStore})
+	nutsNetwork.Configure(nutsConfig)
+	nutsNetwork.Start()
+	defer nutsNetwork.Shutdown()
+
+	// Init the VDR
+	vdr := NewVDR(DefaultConfig(), nutsCrypto, nutsNetwork, didStore)
+	vdr.Configure(nutsConfig)
+
+	// Resolver
+	docResolver := doc.Resolver{Store: didStore}
+
+	// === End of setup ===
+
+	// Start with a first and fresh document named DocumentA.
+	initialDoc, _, err := vdr.Create(doc.DefaultCreationOptions())
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.NotNil(t, initialDoc)
+
+	// Check if the document can be found in the store
+	initialDoc, _, err = docResolver.Resolve(initialDoc.ID, nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	const procs = 10
+	wg := sync.WaitGroup{}
+	wg.Add(procs)
+	for i := 0; i < procs; i++ {
+		go func(num int) {
+			currDoc, currMetadata, _ := docResolver.Resolve(initialDoc.ID, nil)
+			serviceID, _ := url.Parse(fmt.Sprintf("%s#service-%d", currDoc.ID, num))
+			newService := did.Service{
+				ID:              ssi.URI{URL: *serviceID},
+				Type:            "service",
+				ServiceEndpoint: []interface{}{"http://example.com/service"},
+			}
+
+			currDoc.Service = append(currDoc.Service, newService)
+			err := vdr.Update(currDoc.ID, currMetadata.Hash, *initialDoc, nil)
+			assert.NoError(t, err, "unable to update doc with a new service")
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
 }
