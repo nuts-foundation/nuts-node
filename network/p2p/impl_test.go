@@ -209,13 +209,13 @@ func Test_adapter_Connect(t *testing.T) {
 				Addr: &net.IPAddr{
 					IP: net.IPv4(127, 0, 0, 1),
 				},
-			}), metadata.Pairs(peerIDHeader, peerID, protocolHeader, "v2"))
+			}), metadata.Pairs(peerIDHeader, peerID, protocolVersionHeader, "v2"))
 			conn.EXPECT().Context().AnyTimes().Return(ctx)
 			return conn
 		}
 
 		err := network.Connect(mockConnection())
-		assert.EqualError(t, err, "client connection rejected: peer uses incorrect protocol version: v2")
+		assert.EqualError(t, err, "client connection (peer=127.0.0.1) rejected: peer uses incorrect protocol version: v2")
 	})
 
 	t.Run("second connection from same peer, disconnect first (uses actual in-memory gRPC connection)", func(t *testing.T) {

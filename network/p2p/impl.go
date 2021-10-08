@@ -394,7 +394,7 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 
 	peerID, err := readHeaders(md)
 	if err != nil {
-		return fmt.Errorf("client connection rejected: %w", err)
+		return fmt.Errorf("client connection (peer=%s) rejected: %w", peerCtx.Addr, err)
 	}
 
 	peer := Peer{

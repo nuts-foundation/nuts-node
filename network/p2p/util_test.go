@@ -79,7 +79,7 @@ func Test_constructMetadata(t *testing.T) {
 	t.Run("set default protocol version", func(t *testing.T) {
 		md := constructMetadata("1234")
 
-		v := md.Get(protocolHeader)
+		v := md.Get(protocolVersionHeader)
 
 		assert.Len(t, v, 1)
 		assert.Equal(t, protocolVersionV1, v[0])
@@ -89,7 +89,7 @@ func Test_constructMetadata(t *testing.T) {
 func Test_protocolVersionFromMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		md := metadata.MD{}
-		md.Append(protocolHeader, "v2")
+		md.Append(protocolVersionHeader, "v2")
 
 		v, err := protocolVersionFromMetadata(md)
 
@@ -112,8 +112,8 @@ func Test_protocolVersionFromMetadata(t *testing.T) {
 
 	t.Run("error - too many values", func(t *testing.T) {
 		md := metadata.MD{}
-		md.Append(protocolHeader, "v1")
-		md.Append(protocolHeader, "v2")
+		md.Append(protocolVersionHeader, "v1")
+		md.Append(protocolVersionHeader, "v2")
 
 		v, err := protocolVersionFromMetadata(md)
 

@@ -27,7 +27,7 @@ import (
 )
 
 const protocolVersionV1 = "v1"
-const protocolHeader = "version"
+const protocolVersionHeader = "version"
 const peerIDHeader = "peerID"
 
 func normalizeAddress(addr string) string {
@@ -61,19 +61,19 @@ func peerIDFromMetadata(md metadata.MD) (PeerID, error) {
 }
 
 func protocolVersionFromMetadata(md metadata.MD) (string, error) {
-	values := md.Get(protocolHeader)
+	values := md.Get(protocolVersionHeader)
 	if len(values) == 0 {
 		// no version means v1 for backwards compatibility
 		return protocolVersionV1, nil
 	} else if len(values) > 1 {
-		return "", fmt.Errorf("peer sent multiple values for %s header", protocolHeader)
+		return "", fmt.Errorf("peer sent multiple values for %s header", protocolVersionHeader)
 	}
 	return strings.TrimSpace(values[0]), nil
 }
 
 func constructMetadata(peerID PeerID) metadata.MD {
 	return metadata.New(map[string]string{
-		peerIDHeader:   string(peerID),
-		protocolHeader: protocolVersionV1,
+		peerIDHeader:          string(peerID),
+		protocolVersionHeader: protocolVersionV1,
 	})
 }
