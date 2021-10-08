@@ -21,6 +21,12 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"io"
+	"net"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vcr/logging"
@@ -29,11 +35,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/test/bufconn"
-	"io"
-	"net"
-	"sync"
-	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -190,6 +191,31 @@ func Test_adapter_Connect(t *testing.T) {
 		connectWaiter.Wait()
 		// Now we shouldn't have any connections left
 		assert.Empty(t, network.Peers())
+	})
+
+	t.Run("error - incorrect server protocol version", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		network := NewAdapter().(*adapter)
+		network.Configure(AdapterConfig{
+			PeerID:        "foo",
+			ListenAddress: "127.0.0.1:0",
+		})
+
+		mockConnection := func() *transport.MockNetwork_ConnectServer {
+			conn := transport.NewMockNetwork_ConnectServer(ctrl)
+			ctx := metadata.NewIncomingContext(peer.NewContext(context.Background(), &peer.Peer{
+				Addr: &net.IPAddr{
+					IP: net.IPv4(127, 0, 0, 1),
+				},
+			}), metadata.Pairs(peerIDHeader, peerID, protocolVersionHeader, "v2"))
+			conn.EXPECT().Context().AnyTimes().Return(ctx)
+			return conn
+		}
+
+		err := network.Connect(mockConnection())
+		assert.EqualError(t, err, "client connection (peer=127.0.0.1) rejected: peer uses incorrect protocol version: v2")
 	})
 
 	t.Run("second connection from same peer, disconnect first (uses actual in-memory gRPC connection)", func(t *testing.T) {
