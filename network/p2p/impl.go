@@ -150,7 +150,7 @@ func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*Peer, trans
 		return nil, nil, err
 	}
 
-	serverPeerID, err := c.readHeaders(messenger, grpcConn)
+	serverPeerID, err := readClientHeaders(messenger)
 	if err != nil {
 		log.Logger().Warnf("Error reading headers from server, closing connection (addr=%s): %v", c.address, err)
 		_ = grpcConn.Close()
@@ -162,17 +162,30 @@ func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*Peer, trans
 	}, messenger, nil
 }
 
-func (c *connector) readHeaders(gate transport.Network_ConnectClient, grpcConn *grpc.ClientConn) (PeerID, error) {
+func readClientHeaders(gate transport.Network_ConnectClient) (PeerID, error) {
 	serverHeader, err := gate.Header()
 	if err != nil {
 		return "", err
 	}
-	serverPeerID, err := peerIDFromMetadata(serverHeader)
+
+	return readHeaders(serverHeader)
+}
+
+func readHeaders(metadata metadata.MD) (PeerID, error) {
+	serverPeerID, err := peerIDFromMetadata(metadata)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse PeerID: %w", err)
 	}
 	if serverPeerID == "" {
-		return "", errors.New("server didn't sent a PeerID")
+		return "", errors.New("peer didn't sent a PeerID")
+	}
+
+	peerVersion, err := protocolVersionFromMetadata(metadata)
+	if err != nil {
+		return "", err
+	}
+	if peerVersion != protocolVersionV1 {
+		return "", fmt.Errorf("peer uses incorrect protocol version: %s", peerVersion)
 	}
 	return serverPeerID, nil
 }
@@ -370,6 +383,7 @@ func (n *adapter) getLocalAddress() string {
 	return n.config.ListenAddress
 }
 
+// Connect is the callback that is called from the GRPC layer when a new client connects
 func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 	peerCtx, _ := grpcPeer.FromContext(stream.Context())
 	log.Logger().Tracef("New peer connected from %s", peerCtx.Addr)
@@ -377,10 +391,12 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 	if !ok {
 		return errors.New("unable to get metadata")
 	}
-	peerID, err := peerIDFromMetadata(md)
+
+	peerID, err := readHeaders(md)
 	if err != nil {
-		return err
+		return fmt.Errorf("client connection rejected: %w", err)
 	}
+
 	peer := Peer{
 		ID:      peerID,
 		Address: peerCtx.Addr.String(),
@@ -388,7 +404,7 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 	log.Logger().Infof("New peer connected (peer=%s)", peer)
 	// We received our peer's PeerID, now send our own.
 	if err := stream.SendHeader(constructMetadata(n.config.PeerID)); err != nil {
-		return errors2.Wrap(err, "unable to send headers")
+		return fmt.Errorf("unable to send headers: %w", err)
 	}
 	n.acceptPeer(peer, stream)
 	return nil

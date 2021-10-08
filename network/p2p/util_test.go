@@ -74,3 +74,50 @@ func Test_peerIDFromMetadata(t *testing.T) {
 		assert.Empty(t, peerID.String())
 	})
 }
+
+func Test_constructMetadata(t *testing.T) {
+	t.Run("set default protocol version", func(t *testing.T) {
+		md := constructMetadata("1234")
+
+		v := md.Get(protocolHeader)
+
+		assert.Len(t, v, 1)
+		assert.Equal(t, protocolVersionV1, v[0])
+	})
+}
+
+func Test_protocolVersionFromMetadata(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		md := metadata.MD{}
+		md.Append(protocolHeader, "v2")
+
+		v, err := protocolVersionFromMetadata(md)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, "v2", v)
+	})
+
+	t.Run("v1 for missing header", func(t *testing.T) {
+		md := metadata.MD{}
+
+		v, err := protocolVersionFromMetadata(md)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, protocolVersionV1, v)
+	})
+
+	t.Run("error - too many values", func(t *testing.T) {
+		md := metadata.MD{}
+		md.Append(protocolHeader, "v1")
+		md.Append(protocolHeader, "v2")
+
+		v, err := protocolVersionFromMetadata(md)
+
+		assert.EqualError(t, err, "peer sent multiple values for version header")
+		assert.Empty(t, v)
+	})
+}
