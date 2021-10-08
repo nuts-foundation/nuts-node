@@ -747,10 +747,14 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: validJwt}
 		bindPostBody(ctx, params)
 
-		pkgResponse := &services.AccessTokenResult{AccessToken: "foo"}
+		pkgResponse := &services.AccessTokenResult{AccessToken: "foo", ExpiresIn: 800000}
 		ctx.oauthClientMock.EXPECT().CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(pkgResponse, nil)
 
-		apiResponse := AccessTokenResponse{AccessToken: pkgResponse.AccessToken}
+		apiResponse := AccessTokenResponse{
+			AccessToken: pkgResponse.AccessToken,
+			ExpiresIn:   800000,
+			TokenType:   "bearer",
+		}
 		expectStatusOK(ctx, apiResponse)
 
 		err := ctx.wrapper.CreateAccessToken(ctx.echoMock)

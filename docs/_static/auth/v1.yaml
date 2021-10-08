@@ -669,9 +669,9 @@ components:
           type: string
           example: "nuts_session_token"
         expires_in:
-          type: number
+          type: integer
           description: The lifetime in seconds of the access token.
-          example: 15
+          example: 900
     AccessTokenRequestFailedResponse:
       description: Error response when access token request fails as described in rfc6749 sectionn 5.2
       required:

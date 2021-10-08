@@ -59,7 +59,7 @@ type AccessTokenResponse struct {
 	AccessToken string `json:"access_token"`
 
 	// The lifetime in seconds of the access token.
-	ExpiresIn float32 `json:"expires_in"`
+	ExpiresIn int `json:"expires_in"`
 
 	// The type of the token issued
 	TokenType string `json:"token_type"`

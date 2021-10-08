@@ -221,12 +221,15 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 		return nil, err
 	}
 
-	accessToken, err := s.buildAccessToken(&context)
+	accessToken, rawToken, err := s.buildAccessToken(&context)
 	if err != nil {
 		return nil, err
 	}
 
-	return &services.AccessTokenResult{AccessToken: accessToken}, nil
+	return &services.AccessTokenResult{
+		AccessToken: accessToken,
+		ExpiresIn: int(rawToken.Expiration - rawToken.IssuedAt),
+	}, nil
 }
 
 // checks if the name from the login contract matches with the registered name of the issuer.
@@ -504,32 +507,32 @@ func (s *service) IntrospectAccessToken(accessToken string) (*services.NutsAcces
 // todo split this func for easier testing
 // BuildAccessToken builds an access token based on the oauth claims and the identity of the user provided by the identityValidationResult
 // The token gets signed with the authorizers private key and returned as a string.
-func (s *service) buildAccessToken(context *validationContext) (string, error) {
+// it also returns the claims in the form of a services.NutsAccessToken
+func (s *service) buildAccessToken(context *validationContext) (string, services.NutsAccessToken, error) {
+	at := services.NutsAccessToken{}
 	if context.contractVerificationResult != nil {
 		if context.contractVerificationResult.Validity() != contract.Valid {
-			return "", fmt.Errorf("could not build accessToken: %w", errors.New("invalid contract"))
+			return "", at, fmt.Errorf("could not build accessToken: %w", errors.New("invalid contract"))
 		}
 	}
 
 	if context.jwtBearerToken.Subject() == "" {
-		return "", fmt.Errorf("could not build accessToken: %w", errors.New("subject is missing"))
+		return "", at, fmt.Errorf("could not build accessToken: %w", errors.New("subject is missing"))
 	}
 
 	issuer, err := did.ParseDID(context.jwtBearerToken.Subject())
 	if err != nil {
-		return "", fmt.Errorf("could not build accessToken, subject is invalid (subject=%s): %w", context.jwtBearerToken.Subject(), err)
+		return "", at, fmt.Errorf("could not build accessToken, subject is invalid (subject=%s): %w", context.jwtBearerToken.Subject(), err)
 	}
 
 	issueTime := time.Now()
 
-	at := services.NutsAccessToken{
-		SubjectID:  context.subjectID(),
-		Service:    context.purposeOfUse,
-		Expiration: time.Now().Add(time.Minute * 15).UTC().Unix(), // Expires in 15 minutes
-		IssuedAt:   issueTime.UTC().Unix(),
-		Issuer:     issuer.String(),
-		Subject:    context.jwtBearerToken.Issuer(),
-	}
+	at.SubjectID  = context.subjectID()
+	at.Service    = context.purposeOfUse
+	at.Expiration = time.Now().Add(time.Minute * 15).UTC().Unix() // Expires in 15 minutes
+	at.IssuedAt   = issueTime.UTC().Unix()
+	at.Issuer     = issuer.String()
+	at.Subject    = context.jwtBearerToken.Issuer()
 
 	if context.contractVerificationResult != nil {
 		disclosedAttributeFn := context.contractVerificationResult.DisclosedAttribute
@@ -551,20 +554,20 @@ func (s *service) buildAccessToken(context *validationContext) (string, error) {
 	data, _ := json.Marshal(at)
 
 	if err := json.Unmarshal(data, &keyVals); err != nil {
-		return "", err
+		return "", at, err
 	}
 
 	// Sign with the private key of the issuer
 	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(*issuer, &issueTime)
 	if err != nil {
-		return "", err
+		return "", at, err
 	}
 	token, err := s.privateKeyStore.SignJWT(keyVals, signingKeyID)
 	if err != nil {
-		return token, fmt.Errorf("could not build accessToken: %w", err)
+		return token, at, fmt.Errorf("could not build accessToken: %w", err)
 	}
 
-	return token, err
+	return token, at, err
 }
 
 func toStrPtr(value string) *string {

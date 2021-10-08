@@ -583,7 +583,7 @@ func TestService_buildAccessToken(t *testing.T) {
 			jwtBearerToken:             jwt.New(),
 		}
 
-		token, err := ctx.oauthService.buildAccessToken(tokenCtx)
+		token, _, err := ctx.oauthService.buildAccessToken(tokenCtx)
 		assert.Empty(t, token)
 		assert.EqualError(t, err, "could not build accessToken: subject is missing")
 	})
@@ -608,7 +608,7 @@ func TestService_buildAccessToken(t *testing.T) {
 		}
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, authorizerDID.String())
 
-		token, err := ctx.oauthService.buildAccessToken(tokenCtx)
+		token, _, err := ctx.oauthService.buildAccessToken(tokenCtx)
 
 		assert.Nil(t, err)
 		assert.Equal(t, "expectedAT", token)
