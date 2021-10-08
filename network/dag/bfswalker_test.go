@@ -1,7 +1,6 @@
 package dag
 
 import (
-	"context"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -10,13 +9,12 @@ import (
 
 func TestBFSWalkerAlgorithm(t *testing.T) {
 	t.Run("ok - walk graph F", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
-		graph.Add(ctx, graphF()...)
+		graph.Add(graphF()...)
 		visitor := trackingVisitor{}
 
-		root, _ := graph.Root(ctx)
-		err := graph.Walk(ctx, NewBFSWalkerAlgorithm(), visitor.Accept, root)
+		root, _ := graph.Root()
+		err := graph.Walk(NewBFSWalkerAlgorithm(), visitor.Accept, root)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -25,12 +23,11 @@ func TestBFSWalkerAlgorithm(t *testing.T) {
 	})
 
 	t.Run("ok - walk graph G", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
-		graph.Add(ctx, graphG()...)
+		graph.Add(graphG()...)
 		visitor := trackingVisitor{}
-		root, _ := graph.Root(ctx)
-		graph.Walk(ctx, NewBFSWalkerAlgorithm(), visitor.Accept, root)
+		root, _ := graph.Root()
+		graph.Walk(NewBFSWalkerAlgorithm(), visitor.Accept, root)
 
 		assert.Regexp(t, "^0, (1, 2|2, 1), (3, 4|4, 3), 5, 6$", visitor.JoinRefsAsString())
 	})
@@ -43,14 +40,13 @@ func TestBFSWalkerAlgorithm(t *testing.T) {
 		//.................D    E
 		//.......................\
 		//........................F
-		ctx := context.Background()
 		graph := CreateDAG(t)
 		visitor := trackingVisitor{}
 		docs := graphF()
-		graph.Add(ctx, docs[0], docs[1], docs[3], docs[4], docs[5])
+		graph.Add(docs[0], docs[1], docs[3], docs[4], docs[5])
 
-		root, _ := graph.Root(ctx)
-		graph.Walk(ctx, NewBFSWalkerAlgorithm(), visitor.Accept, root)
+		root, _ := graph.Root()
+		graph.Walk(NewBFSWalkerAlgorithm(), visitor.Accept, root)
 
 		assert.Equal(t, "0, 1", visitor.JoinRefsAsString())
 	})
@@ -63,20 +59,19 @@ func TestBFSWalkerAlgorithm(t *testing.T) {
 		//.................D    E
 		//.......................\
 		//........................F
-		ctx := context.Background()
 		graph := CreateDAG(t)
 		docs := graphG()
-		graph.Add(ctx, docs...)
+		graph.Add(docs...)
 		docC := docs[2]
 
-		root, _ := graph.Root(ctx)
+		root, _ := graph.Root()
 		walker := NewBFSWalkerAlgorithm()
 		visitorBeforeResume := trackingVisitor{}
-		graph.Walk(ctx, walker, func(ctx context.Context, transaction Transaction) bool {
+		graph.Walk(walker, func(transaction Transaction) bool {
 			if transaction.Ref().Equals(docC.Ref()) {
 				return false
 			}
-			return visitorBeforeResume.Accept(ctx, transaction)
+			return visitorBeforeResume.Accept(transaction)
 		}, root)
 
 		// Make sure it breaks at C, having processed A and B
@@ -84,7 +79,7 @@ func TestBFSWalkerAlgorithm(t *testing.T) {
 
 		// Now resume, not breaking at C
 		visitorAfterResume := trackingVisitor{}
-		graph.Walk(ctx, walker, visitorAfterResume.Accept, hash.EmptyHash())
+		graph.Walk(walker, visitorAfterResume.Accept, hash.EmptyHash())
 
 		// Make sure it resumes at C, then processes E, D and F.
 		refs := visitorAfterResume.JoinRefsAsString()
@@ -92,17 +87,16 @@ func TestBFSWalkerAlgorithm(t *testing.T) {
 
 		// Make sure DAG isn't revisited after walk is invoked when the complete DAG has been walked already
 		visitorAfterCompleteWalk := trackingVisitor{}
-		graph.Walk(ctx, walker, visitorAfterResume.Accept, root)
+		graph.Walk(walker, visitorAfterResume.Accept, root)
 		assert.Equal(t, "", visitorAfterCompleteWalk.JoinRefsAsString())
 	})
 
 	t.Run("ok - empty graph", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
 		visitor := trackingVisitor{}
 
-		root, _ := graph.Root(ctx)
-		err := graph.Walk(ctx, NewBFSWalkerAlgorithm(), visitor.Accept, root)
+		root, _ := graph.Root()
+		err := graph.Walk(NewBFSWalkerAlgorithm(), visitor.Accept, root)
 		if !assert.NoError(t, err) {
 			return
 		}

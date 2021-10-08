@@ -51,7 +51,7 @@ func TestNetwork_ListTransactions(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.graph.EXPECT().FindBetween(gomock.Any(), gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
+		cxt.graph.EXPECT().FindBetween(gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
 		docs, err := cxt.network.ListTransactions()
 		assert.Len(t, docs, 1)
 		assert.NoError(t, err)
@@ -72,7 +72,7 @@ func TestNetwork_GetTransaction(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.graph.EXPECT().Get(gomock.Any(), gomock.Any())
+		cxt.graph.EXPECT().Get(gomock.Any())
 		cxt.network.GetTransaction(hash.EmptyHash())
 	})
 }
@@ -83,14 +83,14 @@ func TestNetwork_GetTransactionPayload(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		transaction := dag.CreateTestTransactionWithJWK(1)
-		cxt.graph.EXPECT().Get(gomock.Any(), transaction.Ref()).Return(transaction, nil)
-		cxt.payload.EXPECT().ReadPayload(gomock.Any(), transaction.PayloadHash())
+		cxt.graph.EXPECT().Get(transaction.Ref()).Return(transaction, nil)
+		cxt.payload.EXPECT().ReadPayload(transaction.PayloadHash())
 		cxt.network.GetTransactionPayload(transaction.Ref())
 	})
 	t.Run("ok - TX not found", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		transaction := dag.CreateTestTransactionWithJWK(1)
-		cxt.graph.EXPECT().Get(gomock.Any(), transaction.Ref()).Return(nil, nil)
+		cxt.graph.EXPECT().Get(transaction.Ref()).Return(nil, nil)
 		payload, err := cxt.network.GetTransactionPayload(transaction.Ref())
 		assert.NoError(t, err)
 		assert.Nil(t, payload)
@@ -186,9 +186,9 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
-		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
-		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
+		cxt.graph.EXPECT().Verify()
+		cxt.graph.EXPECT().Add(gomock.Any())
+		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
 
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
@@ -207,9 +207,9 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
-		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
-		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
+		cxt.graph.EXPECT().Verify()
+		cxt.graph.EXPECT().Add(gomock.Any())
+		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
@@ -228,7 +228,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
+		cxt.graph.EXPECT().Verify()
 
 		// Register root TX on head tracker
 		rootTX, _, _ := dag.CreateTestTransaction(0)
@@ -236,11 +236,11 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 		// 'Register' prev on DAG
 		additionalPrev, _, _ := dag.CreateTestTransaction(1)
-		cxt.graph.EXPECT().Get(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil)
-		cxt.payload.EXPECT().IsPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
+		cxt.graph.EXPECT().Get(additionalPrev.Ref()).Return(additionalPrev, nil)
+		cxt.payload.EXPECT().IsPresent(additionalPrev.PayloadHash()).Return(true, nil)
 
-		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
-		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
+		cxt.graph.EXPECT().Add(gomock.Any())
+		cxt.payload.EXPECT().WritePayload(hash.SHA256Sum(payload), payload)
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
@@ -264,7 +264,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
+		cxt.graph.EXPECT().Verify()
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
@@ -274,8 +274,8 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 		// 'Register' prev on DAG
 		prev, _, _ := dag.CreateTestTransaction(1)
-		cxt.graph.EXPECT().Get(gomock.Any(), prev.Ref()).Return(prev, nil)
-		cxt.payload.EXPECT().IsPresent(gomock.Any(), prev.PayloadHash()).Return(false, nil)
+		cxt.graph.EXPECT().Get(prev.Ref()).Return(prev, nil)
+		cxt.payload.EXPECT().IsPresent(prev.PayloadHash()).Return(false, nil)
 
 		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{prev.Ref()})
 
@@ -293,7 +293,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.p2pAdapter.EXPECT().Start()
 		cxt.p2pAdapter.EXPECT().Configured().Return(true)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
+		cxt.graph.EXPECT().Verify()
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
@@ -308,7 +308,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
+		cxt.graph.EXPECT().Verify()
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
@@ -322,7 +322,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.p2pAdapter.EXPECT().Configured().Return(false)
 		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any()).Return(errors.New("failed"))
+		cxt.graph.EXPECT().Verify().Return(errors.New("failed"))
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
@@ -358,7 +358,7 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	cxt := createNetwork(ctrl)
-	cxt.graph.EXPECT().Statistics(gomock.Any()).Return(dag.Statistics{NumberOfTransactions: txNum})
+	cxt.graph.EXPECT().Statistics().Return(dag.Statistics{NumberOfTransactions: txNum})
 
 	cxt.p2pAdapter.EXPECT().Peers().Return([]p2p.Peer{expectedPeer})
 

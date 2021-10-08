@@ -19,7 +19,6 @@
 package network
 
 import (
-	"context"
 	"github.com/stretchr/testify/assert"
 	"path"
 	"testing"
@@ -59,7 +58,7 @@ func TestNetworkIntegration_MissingPayloads(t *testing.T) {
 	tx1Payload := []byte{3, 2, 1}
 	tx1, err := node1.CreateTransaction(payloadType, tx1Payload, key, true, time.Now(), nil)
 
-	node1.payloadStore.WritePayload(context.Background(), tx1.PayloadHash(), nil)
+	node1.payloadStore.WritePayload(tx1.PayloadHash(), nil)
 
 	node2.p2pNetwork.ConnectToPeer(nameToAddress("node1"))
 	// Wait until nodes are connected
@@ -77,7 +76,7 @@ func TestNetworkIntegration_MissingPayloads(t *testing.T) {
 	}, 10*time.Second, "node2 didn't receive all transactions")
 
 	// Now write the payload, node 2 should broadcast query node 1 for TX1's payload which it now has
-	node1.payloadStore.WritePayload(context.Background(), tx1.PayloadHash(), tx1Payload)
+	node1.payloadStore.WritePayload(tx1.PayloadHash(), tx1Payload)
 	waitFor(t, func() (bool, error) {
 		mutex.Lock()
 		defer mutex.Unlock()
