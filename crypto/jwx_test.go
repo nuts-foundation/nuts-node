@@ -135,7 +135,7 @@ func TestParseJWT(t *testing.T) {
 		signature, _ := jwt.Sign(token, jwa.ES256, ecKey)
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
 			return ecKey.Public(), nil
-		}, jwt.WithAcceptableSkew(5000 * time.Millisecond))
+		}, jwt.WithAcceptableSkew(5000*time.Millisecond))
 		if !assert.NoError(t, err) {
 			return
 		}

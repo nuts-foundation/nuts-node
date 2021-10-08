@@ -576,8 +576,8 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		ctx := createContext(t)
 		ctx.oauthService.clockSkew = 5000
 		tokenCtx := validContext()
-		tokenCtx.jwtBearerToken.Set(jwt.IssuedAtKey, time.Now().Add(-6 * time.Second))
-		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(-4000 * time.Millisecond))
+		tokenCtx.jwtBearerToken.Set(jwt.IssuedAtKey, time.Now().Add(-6*time.Second))
+		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(-4000*time.Millisecond))
 		signToken(tokenCtx)
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).Return(requesterSigningKey.PublicKey, nil)

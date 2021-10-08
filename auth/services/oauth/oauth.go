@@ -64,7 +64,7 @@ type service struct {
 	contractClient  services.ContractClient
 	serviceResolver didman.ServiceResolver
 
-	clockSkew       time.Duration
+	clockSkew time.Duration
 }
 
 type validationContext struct {
@@ -467,7 +467,7 @@ func (s *service) parseAndValidateJwtBearerToken(context *validationContext) err
 	token, err := nutsCrypto.ParseJWT(context.rawJwtBearerToken, func(kid string) (crypto.PublicKey, error) {
 		kidHdr = kid
 		return s.keyResolver.ResolveSigningKey(kid, nil)
-	}, jwt.WithAcceptableSkew(s.clockSkew * time.Millisecond))
+	}, jwt.WithAcceptableSkew(s.clockSkew*time.Millisecond))
 	if err != nil {
 		return err
 	}
@@ -485,7 +485,7 @@ func (s *service) IntrospectAccessToken(accessToken string) (*services.NutsAcces
 			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
 		}
 		return s.keyResolver.ResolveSigningKey(kid, nil)
-	}, jwt.WithAcceptableSkew(s.clockSkew * time.Millisecond))
+	}, jwt.WithAcceptableSkew(s.clockSkew*time.Millisecond))
 	if err != nil {
 		return nil, err
 	}

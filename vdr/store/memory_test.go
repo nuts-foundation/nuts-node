@@ -61,8 +61,8 @@ func TestMemory_Resolve(t *testing.T) {
 	h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 	txHash := hash.FromSlice([]byte("keyTransactionHash"))
 	meta := types.DocumentMetadata{
-		Created: time.Now().Add(time.Hour * -24),
-		Hash:    h,
+		Created:            time.Now().Add(time.Hour * -24),
+		Hash:               h,
 		SourceTransactions: []hash.SHA256Hash{txHash},
 	}
 
@@ -132,7 +132,7 @@ func TestMemory_Resolve(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t,types.ErrNotFound, err)
+		assert.Equal(t, types.ErrNotFound, err)
 	})
 }
 
