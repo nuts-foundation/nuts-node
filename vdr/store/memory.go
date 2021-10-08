@@ -234,6 +234,9 @@ func (m *memory) Update(id did.DID, current hash.SHA256Hash, next did.Document, 
 }
 
 func (m *memory) Iterate(fn vdr.DocIterator) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
 	for _, entryList := range m.store {
 		entry, err := entryList.last()
 		if err != nil {

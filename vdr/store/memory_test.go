@@ -17,6 +17,7 @@ package store
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -311,5 +312,24 @@ func TestMemory_Iterate(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Equal(t, types.ErrNotFound, err)
+	})
+
+
+	t.Run("parallelism", func(t *testing.T) {
+		_ = store.Write(doc, meta)
+		count := 0
+		fn := counter(&count)
+
+		const numCallers = 3
+		wg := sync.WaitGroup{}
+		wg.Add(numCallers)
+		for i := 0; i < numCallers; i++ {
+			go func() {
+				err := store.Iterate(fn)
+				assert.NoError(t, err)
+			}()
+			wg.Done()
+		}
+		wg.Wait()
 	})
 }
