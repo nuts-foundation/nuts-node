@@ -228,7 +228,7 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 
 	return &services.AccessTokenResult{
 		AccessToken: accessToken,
-		ExpiresIn: int(rawToken.Expiration - rawToken.IssuedAt),
+		ExpiresIn:   int(rawToken.Expiration - rawToken.IssuedAt),
 	}, nil
 }
 
@@ -527,12 +527,12 @@ func (s *service) buildAccessToken(context *validationContext) (string, services
 
 	issueTime := time.Now()
 
-	at.SubjectID  = context.subjectID()
-	at.Service    = context.purposeOfUse
+	at.SubjectID = context.subjectID()
+	at.Service = context.purposeOfUse
 	at.Expiration = time.Now().Add(time.Minute * 15).UTC().Unix() // Expires in 15 minutes
-	at.IssuedAt   = issueTime.UTC().Unix()
-	at.Issuer     = issuer.String()
-	at.Subject    = context.jwtBearerToken.Issuer()
+	at.IssuedAt = issueTime.UTC().Unix()
+	at.Issuer = issuer.String()
+	at.Subject = context.jwtBearerToken.Issuer()
 
 	if context.contractVerificationResult != nil {
 		disclosedAttributeFn := context.contractVerificationResult.DisclosedAttribute

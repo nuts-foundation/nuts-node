@@ -42,7 +42,7 @@ type AccessTokenResult struct {
 	// AccessToken contains the JWT in compact serialization form
 	AccessToken string
 	// ExpiresIn defines the expiration in seconds
-	ExpiresIn   int
+	ExpiresIn int
 }
 
 // JwtBearerTokenResult defines the return value back to the api for the createJwtBearerToken method

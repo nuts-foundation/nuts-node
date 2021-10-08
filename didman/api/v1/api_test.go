@@ -452,7 +452,7 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 		invalidDIDStr := "nuts:123"
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Request().Return(&req)
-		
+
 		err := ctx.wrapper.GetCompoundServiceEndpoint(ctx.echo, invalidDIDStr, "", "", GetCompoundServiceEndpointParams{})
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)

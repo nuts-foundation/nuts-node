@@ -383,8 +383,8 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 	}
 	response := AccessTokenResponse{
 		AccessToken: acResponse.AccessToken,
-		ExpiresIn: acResponse.ExpiresIn,
-		TokenType: "bearer", // bearer token type according to RFC6750/	RFC6749
+		ExpiresIn:   acResponse.ExpiresIn,
+		TokenType:   "bearer", // bearer token type according to RFC6750/	RFC6749
 	}
 
 	return ctx.JSON(http.StatusOK, response)
