@@ -2,6 +2,7 @@ package dag
 
 import (
 	"container/list"
+	"context"
 	"sort"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -38,7 +39,7 @@ func NewBFSWalkerAlgorithm() WalkerAlgorithm {
 	}
 }
 
-func (w bfsWalkerAlgorithm) walk(visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error {
+func (w bfsWalkerAlgorithm) walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error {
 	queue := list.New()
 	queue.PushFrontList(w.resumeAt)
 	if !startAt.Empty() {
@@ -71,7 +72,7 @@ ProcessQueueLoop:
 		}
 
 		// Visit the node
-		if !visitor(currentTransaction) {
+		if !visitor(ctx, currentTransaction) {
 			// Visitor returned false, so stop processing this branch. Resume at later point.
 			w.resumeAt.PushBack(currentRef)
 			continue
