@@ -28,17 +28,31 @@ import (
 )
 
 func Test_loadConfigIntoStruct(t *testing.T) {
-	os.Setenv("NUTS_E", "nvironment")
-	defer os.Unsetenv("NUTS_E")
-	flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
-	flagSet.String("f", "lag", "A great option")
-	type Target struct {
-		F string `koanf:"f"`
-		E string `koanf:"e"`
-	}
-	var target Target
-	err := loadConfigIntoStruct(flagSet, &target, koanf.New(defaultDelimiter))
-	assert.NoError(t, err)
-	assert.Equal(t, "lag", target.F)
-	assert.Equal(t, "nvironment", target.E)
+	t.Run("scalar values from env", func(t *testing.T) {
+		os.Setenv("NUTS_E", "nvironment")
+		defer os.Unsetenv("NUTS_E")
+		flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		flagSet.String("f", "lag", "A great option")
+		type Target struct {
+			F string `koanf:"f"`
+			E string `koanf:"e"`
+		}
+		var target Target
+		err := loadConfigIntoStruct(flagSet, &target, koanf.New(defaultDelimiter))
+		assert.NoError(t, err)
+		assert.Equal(t, "lag", target.F)
+		assert.Equal(t, "nvironment", target.E)
+	})
+	t.Run("support for listed values from env and CLI", func(t *testing.T) {
+		os.Setenv("NUTS_LIST", "a, b, c,d")
+		defer os.Unsetenv("NUTS_LIST")
+		flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		type Target struct {
+			List []string `koanf:"list"`
+		}
+		var target Target
+		err := loadConfigIntoStruct(flagSet, &target, koanf.New(defaultDelimiter))
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"a", "b", "c", "d"}, target.List)
+	})
 }
