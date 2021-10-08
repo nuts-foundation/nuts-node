@@ -20,6 +20,7 @@ package p2p
 
 import (
 	"errors"
+	"fmt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"sync"
@@ -86,9 +87,8 @@ func (conn *managedConnection) send(message *transport.NetworkMessage) error {
 		return errors.New("can't send on closed connection")
 	}
 	if len(conn.outMessages) >= cap(conn.outMessages) {
-		// We need to find out if, and when happens. If this can be triggered by the remote node (e.g. by being slow to respond),
-		// it needs measures to prevent it from DoS-ing the local node. By disconnecting or just ignoring the message, for example.
-		log.Logger().Warnf("Outbound message backlog for peer has reached its max capacity, this can hurt performance of the local node (peer=%s,cap=%d).", conn.Peer, cap(conn.outMessages))
+		// This node is a slow responder, we'll have to drop this message because our backlog is full.
+		return fmt.Errorf("peer's outbound message backlog has reached max capacity, message is dropped (peer=%s,backlog-size=%d)", conn.Peer, cap(conn.outMessages))
 	}
 	conn.outMessages <- message
 	return nil
