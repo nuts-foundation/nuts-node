@@ -19,7 +19,6 @@
 package network
 
 import (
-	"context"
 	"fmt"
 	"hash/crc32"
 	"path"
@@ -97,7 +96,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	// Now assert that all nodes have received all transactions
 	waitForTransactions := func(node string, graph dag.DAG) bool {
 		return waitFor(t, func() (bool, error) {
-			if docs, err := graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime()); err != nil {
+			if docs, err := graph.FindBetween(dag.MinTime(), dag.MaxTime()); err != nil {
 				return false, err
 			} else {
 				return len(docs) == expectedDocLogSize, nil

@@ -1,7 +1,6 @@
 package dag
 
 import (
-	"context"
 	crypto2 "crypto"
 	"errors"
 	"fmt"
@@ -16,12 +15,12 @@ import (
 var ErrPreviousTransactionMissing = errors.New("transaction is referring to non-existing previous transaction")
 
 // Verifier defines the API of a DAG verifier, used to check the validity of a transaction.
-type Verifier func(ctx context.Context, tx Transaction, graph DAG) error
+type Verifier func(tx Transaction, graph DAG) error
 
 // NewTransactionSignatureVerifier creates a transaction verifier that checks the signature of the transaction.
 // It uses the given KeyResolver to resolves keys that aren't embedded in the transaction.
 func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
-	return func(_ context.Context, tx Transaction, _ DAG) error {
+	return func(tx Transaction, _ DAG) error {
 		var signingKey crypto2.PublicKey
 		if tx.SigningKey() != nil {
 			if err := tx.SigningKey().Raw(&signingKey); err != nil {
@@ -44,9 +43,9 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 
 // NewPrevTransactionsVerifier creates a transaction verifier that asserts that all previous transactions are known.
 func NewPrevTransactionsVerifier() Verifier {
-	return func(ctx context.Context, tx Transaction, graph DAG) error {
+	return func(tx Transaction, graph DAG) error {
 		for _, prev := range tx.Previous() {
-			present, err := graph.IsPresent(ctx, prev)
+			present, err := graph.IsPresent(prev)
 			if err != nil {
 				return err
 			}
@@ -61,7 +60,7 @@ func NewPrevTransactionsVerifier() Verifier {
 // NewSigningTimeVerifier creates a transaction verifier that asserts that signing time of transactions aren't
 // further than 1 day in the future, since that complicates head calculation.
 func NewSigningTimeVerifier() Verifier {
-	return func(_ context.Context, tx Transaction, _ DAG) error {
+	return func(tx Transaction, _ DAG) error {
 		if time.Now().Add(24 * time.Hour).Before(tx.SigningTime()) {
 			return fmt.Errorf("transaction signing time too far in the future: %s", tx.SigningTime())
 		}

@@ -19,7 +19,6 @@
 package dag
 
 import (
-	"context"
 	"fmt"
 	"strings"
 )
@@ -57,7 +56,7 @@ func NewDotGraphVisitor(labelStyle LabelStyle) *DotGraphVisitor {
 }
 
 // Accept adds a transaction to the dot graph. Should be called by the DAG walker.
-func (d *DotGraphVisitor) Accept(_ context.Context, transaction Transaction) bool {
+func (d *DotGraphVisitor) Accept(transaction Transaction) bool {
 	d.counter++
 	d.nodes = append(d.nodes, fmt.Sprintf("  \"%s\"[label=\"%s (%d)\"]", transaction.Ref().String(), d.label(transaction), d.counter))
 	for _, prev := range transaction.Previous() {
