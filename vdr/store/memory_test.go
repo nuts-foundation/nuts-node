@@ -17,6 +17,7 @@ package store
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -249,6 +250,52 @@ func TestMemory_Update(t *testing.T) {
 		err = store.Update(*did1, h, doc, &meta)
 		assert.Equal(t, types.ErrDeactivated, err)
 	})
+}
+
+func TestMemory_Parallelism(t *testing.T) {
+	// This test, when run with -race, assures access to internals is synchronized
+	store := NewMemoryStore()
+	did1, _ := did.ParseDID("did:nuts:1")
+	did2, _ := did.ParseDID("did:nuts:2")
+	doc := did.Document{
+		ID: *did1,
+	}
+	doc2 := did.Document{
+		ID: *did2,
+	}
+	meta := types.DocumentMetadata{}
+
+	// Make sure update, resolve and iterate have something to work on
+	_ = store.Write(doc, meta)
+
+	// Prepare functions to be called
+	wg := sync.WaitGroup{}
+	funcs := []func() {
+		func() {
+			_ = store.Write(doc2, meta)
+		},
+		func() {
+			_ = store.Iterate(func(_ did.Document, _ types.DocumentMetadata) error {
+				return nil
+			})
+		},
+		func() {
+			_ = store.Update(*did1, hash.EmptyHash(), doc, &meta)
+		},
+		func() {
+			_, _, _ = store.Resolve(*did1, nil)
+		},
+	}
+	wg.Add(len(funcs))
+
+	// Execute functions and wait for them to finish
+	for _, fn := range funcs {
+		go func(actual func()) {
+			actual()
+			wg.Done()
+		}(fn)
+	}
+	wg.Wait()
 }
 
 func TestMemory_Iterate(t *testing.T) {
