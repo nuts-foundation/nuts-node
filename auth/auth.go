@@ -5,9 +5,10 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/didman"
 	"path"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/didman"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/contract"
@@ -147,7 +148,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 
 	auth.oauthClient = oauth.NewOAuthService(auth.registry, nameResolver, auth.vcr, auth.serviceResolver, auth.keyStore, auth.contractClient)
 
-	if err := auth.oauthClient.Configure(); err != nil {
+	if err := auth.oauthClient.Configure(auth.config.ClockSkew); err != nil {
 		return err
 	}
 

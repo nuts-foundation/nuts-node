@@ -20,7 +20,8 @@ func TestFlagSet(t *testing.T) {
 
 	sort.Strings(keys)
 
-	assert.Equal(t, keys, []string{
+	assert.Equal(t, []string{
+		ConfClockSkew,
 		ConfContractValidators,
 		ConfHTTPTimeout,
 		ConfAutoUpdateIrmaSchemas,
@@ -28,5 +29,5 @@ func TestFlagSet(t *testing.T) {
 		ConfPublicURL,
 		ConfNetworkEnableTLS,
 		ConfNetworkTrustStoreFile,
-	})
+	}, keys)
 }

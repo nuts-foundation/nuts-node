@@ -571,6 +571,20 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		assert.Equal(t, requesterDID.String(), tokenCtx.jwtBearerToken.Issuer())
 		assert.Equal(t, requesterSigningKeyID.String(), tokenCtx.kid)
 	})
+
+	t.Run("valid token with clock diff", func(t *testing.T) {
+		ctx := createContext(t)
+		ctx.oauthService.clockSkew = 5000
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Set(jwt.IssuedAtKey, time.Now().Add(-6 * time.Second))
+		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(-4000 * time.Millisecond))
+		signToken(tokenCtx)
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).Return(requesterSigningKey.PublicKey, nil)
+
+		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
+		assert.NoError(t, err)
+	})
 }
 
 func TestService_buildAccessToken(t *testing.T) {
@@ -863,7 +877,7 @@ func TestAuth_Configure(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		assert.NoError(t, ctx.oauthService.Configure())
+		assert.NoError(t, ctx.oauthService.Configure(0))
 	})
 }
 

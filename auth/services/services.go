@@ -6,13 +6,12 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 )
 
 // OAuthClient is the client interface for the OAuth service
 type OAuthClient interface {
-	Configure() error
+	Configure(clockSkew int) error
 	CreateAccessToken(request CreateAccessTokenRequest) (*AccessTokenResult, error)
 	CreateJwtGrant(request CreateJwtGrantRequest) (*JwtBearerTokenResult, error)
 	GetOAuthEndpointURL(service string, authorizer did.DID) (url.URL, error)

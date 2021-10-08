@@ -8,6 +8,9 @@ import (
 // ConfPublicURL is the config key for the public URL the http/irma server can be discovered
 const ConfPublicURL = "auth.publicurl"
 
+// ConfClockSkew is the config key for allowed JWT clockskew (deviance of iat, exp) in milliseconds
+const ConfClockSkew = "auth.clockskew"
+
 // ConfContractValidators is the config key for defining which contract validators to use
 const ConfContractValidators = "auth.contractvalidators"
 
@@ -35,6 +38,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.String(ConfPublicURL, defs.PublicURL, "public URL which can be reached by a users IRMA client, this should include the scheme and domain: https://example.com. Additional paths should only be added if some sort of url-rewriting is done in a reverse-proxy.")
 	flags.Bool(ConfAutoUpdateIrmaSchemas, defs.IrmaAutoUpdateSchemas, "set if you want automatically update the IRMA schemas every 60 minutes.")
 	flags.Int(ConfHTTPTimeout, defs.HTTPTimeout, "HTTP timeout (in seconds) used by the Auth API HTTP client")
+	flags.Int(ConfClockSkew, defs.ClockSkew, "Allowed JWT Clock skew in milliseconds")
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
 	flags.Bool(ConfNetworkEnableTLS, defs.EnableTLS, "Enables or disables TLS support")
 	flags.String(ConfNetworkTrustStoreFile, defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")

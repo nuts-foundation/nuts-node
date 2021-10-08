@@ -39,17 +39,17 @@ func (m *MockOAuthClient) EXPECT() *MockOAuthClientMockRecorder {
 }
 
 // Configure mocks base method.
-func (m *MockOAuthClient) Configure() error {
+func (m *MockOAuthClient) Configure(clockSkew int) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Configure")
+	ret := m.ctrl.Call(m, "Configure", clockSkew)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Configure indicates an expected call of Configure.
-func (mr *MockOAuthClientMockRecorder) Configure() *gomock.Call {
+func (mr *MockOAuthClientMockRecorder) Configure(clockSkew interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockOAuthClient)(nil).Configure))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockOAuthClient)(nil).Configure), clockSkew)
 }
 
 // CreateAccessToken mocks base method.
