@@ -381,7 +381,11 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthInvalidRequest, ErrorDescription: errDesc}
 		return ctx.JSON(http.StatusBadRequest, errorResponse)
 	}
-	response := AccessTokenResponse{AccessToken: acResponse.AccessToken}
+	response := AccessTokenResponse{
+		AccessToken: acResponse.AccessToken,
+		ExpiresIn:   acResponse.ExpiresIn,
+		TokenType:   "bearer", // bearer token type according to RFC6750/	RFC6749
+	}
 
 	return ctx.JSON(http.StatusOK, response)
 }
