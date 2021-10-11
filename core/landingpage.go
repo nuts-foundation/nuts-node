@@ -9,8 +9,10 @@ import (
 //go:embed landingpage.html
 var landingPageResource embed.FS
 
+// LandingPage is a Routable that exposes a landing page at the node's HTTP root (`/`).
 type LandingPage struct{}
 
+// Routes registers the landing page on the given EchoRouter.
 func (l LandingPage) Routes(router EchoRouter) {
 	router.Add("GET", "/", func(context echo.Context) error {
 		contents, err := l.load()
