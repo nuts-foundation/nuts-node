@@ -139,18 +139,15 @@ func Test_connection_send(t *testing.T) {
 	})
 	t.Run("backlog is full", func(t *testing.T) {
 		conn := newConnection(Peer{}, nil)
-		wg := sync.WaitGroup{}
-		const numberOfMessages = outMessagesBacklog + 1
-		wg.Add(numberOfMessages)
-		go func() {
-			for i := 0; i < numberOfMessages; i++ {
-				wg.Done()
-				err := conn.send(&transport.NetworkMessage{})
-				assert.NoError(t, err)
+		for i := 0; i < outMessagesBacklog; i++ {
+			err := conn.send(&transport.NetworkMessage{})
+			if !assert.NoError(t, err) {
+				return
 			}
-		}()
-		wg.Wait()
-		time.Sleep(50 * time.Millisecond) // Wait a bit for all calls to be performed
+		}
+		// This last one should spill the bucket
+		err := conn.send(&transport.NetworkMessage{})
+		assert.EqualError(t, err, "peer's outbound message backlog has reached max capacity, message is dropped (peer=@,backlog-size=1000)")
 		assert.Len(t, conn.outMessages, outMessagesBacklog)
 	})
 }
