@@ -75,8 +75,6 @@ func Test_connection_exchange(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		wg := sync.WaitGroup{}
-		wg.Add(backlogSize + 1)
 		messenger := NewMockgrpcMessenger(ctrl)
 
 		var callCount int32
@@ -84,18 +82,16 @@ func Test_connection_exchange(t *testing.T) {
 			if atomic.AddInt32(&callCount, 1) >= backlogSize+2 {
 				return nil, io.EOF
 			}
-			wg.Done()
 			return &transport.NetworkMessage{}, nil
 		})
 
 		conn := newConnection(Peer{}, messenger)
 		q := messageQueue{c: make(chan PeerMessage, backlogSize)}
 
-		go func() {
-			conn.exchange(q)
-		}()
-		wg.Wait()
-		time.Sleep(50 * time.Millisecond) // Wait a bit for all calls to be performed
+		// When the inbound queue is full it shouldn't block, and since Recv() returns EOF after backlog + 1,
+		// exchange() shouldn't block.
+		conn.exchange(q)
+
 		assert.Len(t, q.c, backlogSize)
 	})
 }
