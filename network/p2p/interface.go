@@ -105,6 +105,8 @@ type AdapterConfig struct {
 	ServerCert tls.Certificate
 	// TrustStore contains the trust anchors used when verifying remote a peer's TLS certificate.
 	TrustStore *x509.CertPool
+	// RevokedCertificateDB contains the database for revoked certificates
+	RevokedCertificateDB *core.RevokedCertificateDB
 }
 
 func (cfg AdapterConfig) tlsEnabled() bool {

@@ -60,6 +60,7 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 // Network implements Transactions interface and Engine functions.
 type Network struct {
 	config                 Config
+	lastTransactionTracker lastTransactionTracker
 	p2pNetwork             p2p.Adapter
 	protocol               proto.Protocol
 	graph                  dag.DAG
@@ -68,7 +69,6 @@ type Network struct {
 	keyResolver            types.KeyResolver
 	startTime              atomic.Value
 	peerID                 p2p.PeerID
-	lastTransactionTracker lastTransactionTracker
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -105,6 +105,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if bboltErr != nil {
 		return fmt.Errorf("unable to create BBolt database: %w", bboltErr)
 	}
+
 	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
@@ -114,11 +115,13 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		time.Duration(n.config.AdvertDiagnosticsInterval)*time.Millisecond,
 		time.Duration(n.config.CollectMissingPayloadsInterval)*time.Millisecond,
 		n.peerID)
+
 	networkConfig, p2pErr := n.buildP2PConfig(n.peerID)
 	if p2pErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", p2pErr)
 		return nil
 	}
+
 	return n.p2pNetwork.Configure(*networkConfig)
 }
 
@@ -135,6 +138,7 @@ func (n *Network) Config() interface{} {
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
+
 	if n.p2pNetwork.Configured() {
 		// It's possible that the Nuts node isn't bootstrapped (e.g. TLS configuration incomplete) but that shouldn't
 		// prevent it from starting. In that case the network will be in 'offline mode', meaning it can be read from
@@ -145,12 +149,15 @@ func (n *Network) Start() error {
 	} else {
 		log.Logger().Warn("Network engine is in offline mode (P2P layer not configured).")
 	}
+
 	n.protocol.Start()
 	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
 	n.publisher.Start()
+
 	if err := n.graph.Verify(context.Background()); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -263,10 +270,14 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) 
 			return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", n.config.CertFile, n.config.CertKeyFile)
 		}
 
-		cfg.ClientCert = clientCertificate
-		if cfg.TrustStore, err = core.LoadTrustStore(n.config.TrustStoreFile); err != nil {
+		trustStore, err := core.LoadTrustStore(n.config.TrustStoreFile)
+		if err != nil {
 			return nil, err
 		}
+
+		cfg.ClientCert = clientCertificate
+		cfg.TrustStore = trustStore.CertPool
+		cfg.RevokedCertificateDB = core.NewRevokedCertificateDB(500, trustStore.CRLEndpoints)
 
 		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
 		if n.config.GrpcAddr != "" {
