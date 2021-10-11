@@ -125,7 +125,8 @@ func (conn *managedConnection) exchange(messageReceiver messageQueue) {
 				// We need to find out if, and when happens. This can probably be triggered by sending lots of messages.
 				// It probably doesn't cause issues for the health of the local node, but it might hurt the connection to the particular peer.
 				// We might need measures to solve it, like disconnecting or just ignoring the message, for example.
-				log.Logger().Warnf("Inbound message backlog for peer has reached its max capacity, connection to the peer will be unstable (peer=%s,cap=%d).", conn.Peer, cap(messageReceiver.c))
+				log.Logger().Warnf("Inbound message backlog for peer has reached its max capacity, message is dropped (peer=%s,backlog-size=%d).", conn.Peer, cap(messageReceiver.c))
+				continue
 			}
 			messageReceiver.c <- *message
 		case <-conn.closer:
