@@ -166,7 +166,8 @@ func CreateSystem() *core.System {
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 
-	// add engine specific routes
+	// Register HTTP routes
+	system.RegisterRoutes(&core.LandingPage{})
 	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
 
