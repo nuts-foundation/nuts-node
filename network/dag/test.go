@@ -41,8 +41,7 @@ func CreateTestTransactionWithJWK(num uint32, prevs ...hash.SHA256Hash) Transact
 // CreateSignedTestTransaction creates a signed transaction with more control
 // The JWK is attached, rather than referred to using the kid.
 func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, payloadType string, prevs ...hash.SHA256Hash) Transaction {
-	payloadHash := hash.SHA256Hash{}
-	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], payloadNum)
+	payloadHash := NumberToSHA256Hash(payloadNum)
 	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevs)
 	signer := crypto2.NewTestKey(fmt.Sprintf("%d", payloadNum))
 	signedTransaction, err := NewTransactionSigner(signer, true).Sign(unsignedTransaction, signingTime)
@@ -51,6 +50,14 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, paylo
 	}
 	return signedTransaction
 
+}
+
+// NumberToSHA256Hash makes a SHA256 hash of the given number in Big Endian notation (so '1' becomes `000..(etc)..0001`).
+// Useful for generating readable, predictable hashes for unit tests.
+func NumberToSHA256Hash(num uint32) hash.SHA256Hash {
+	h := hash.SHA256Hash{}
+	binary.BigEndian.PutUint32(h[hash.SHA256HashSize-4:], num)
+	return h
 }
 
 // CreateTestTransaction creates a transaction with the given num as payload hash and signs it with a random EC key.
