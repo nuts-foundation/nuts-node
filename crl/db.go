@@ -16,6 +16,7 @@ import (
 	"github.com/spaolacci/murmur3"
 )
 
+// DB synchronizes CRLs and validates revoked certificates
 type DB struct {
 	bitSet       *BitSet
 	lock         sync.RWMutex
@@ -23,6 +24,7 @@ type DB struct {
 	lists        map[string]*pkix.CertificateList
 }
 
+// NewDB returns a new instance of the CRL database
 func NewDB(bitSetSize int, certificates []*x509.Certificate) *DB {
 	return &DB{
 		bitSet:       NewBitSet(bitSetSize),
@@ -44,6 +46,7 @@ func (db *DB) hash(issuer string, serialNumber *big.Int) int64 {
 	return int64(math.Abs(float64(hash)))
 }
 
+// IsRevoked checks whether the certificate was revoked or not
 func (db *DB) IsRevoked(issuer string, serialNumber *big.Int) bool {
 	bitNum := db.hash(issuer, serialNumber) % int64(db.bitSet.Len())
 	if !db.bitSet.IsSet(bitNum) {
@@ -145,6 +148,7 @@ func (db *DB) IsValid(maxOffsetDays int) bool {
 	return true
 }
 
+// Configure adds a callback to the TLS config to check if the peer certificate was revoked
 func (db *DB) Configure(config *tls.Config) {
 	verifyPeerCertificate := config.VerifyPeerCertificate
 

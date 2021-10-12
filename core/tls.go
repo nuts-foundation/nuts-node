@@ -31,11 +31,13 @@ func parseCertificates(data []byte) (certificates []*x509.Certificate, _ error) 
 	return
 }
 
+// TrustStore contains both a CertPool and the actual certificates
 type TrustStore struct {
 	CertPool     *x509.CertPool
 	certificates []*x509.Certificate
 }
 
+// Certificates returns a copy of the certificates within the CertPool
 func (store *TrustStore) Certificates() []*x509.Certificate {
 	return store.certificates[:]
 }
