@@ -29,7 +29,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/tidwall/gjson v1.9.2
+	github.com/tidwall/gjson v1.9.3
 	go.etcd.io/bbolt v1.3.6
 	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
@@ -99,7 +99,7 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/templexxx/cpufeat v0.0.0-20180724012125-cef66df7f161 // indirect
 	github.com/templexxx/xor v0.0.0-20181023030647-4e92f724b73b // indirect
-	github.com/tidwall/match v1.1.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/timshannon/bolthold v0.0.0-20190812165541-a85bcc049a2e // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
