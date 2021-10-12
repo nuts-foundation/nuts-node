@@ -96,7 +96,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
 		return err
 	}
-	db, bboltErr := bbolt.Open(dbFile, boltDBFileMode, bbolt.DefaultOptions)
+
+	// for tests we set NoSync to true, this option can only be set through code
+	options := *bbolt.DefaultOptions
+	options.NoSync = config.TestMode
+	db, bboltErr := bbolt.Open(dbFile, boltDBFileMode, &options)
 	if bboltErr != nil {
 		return fmt.Errorf("unable to create BBolt database: %w", bboltErr)
 	}

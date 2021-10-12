@@ -102,7 +102,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	}
 
 	// setup DB connection
-	if c.store, err = leia.NewStore(fsPath); err != nil {
+	if c.store, err = leia.NewStore(fsPath, config.TestMode); err != nil {
 		return err
 	}
 

@@ -21,9 +21,10 @@ package core
 
 import (
 	"errors"
-	"github.com/sirupsen/logrus"
 	"os"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/parsers/yaml"
@@ -52,6 +53,7 @@ type ServerConfig struct {
 	Strictmode bool             `koanf:"strictmode"`
 	Datadir    string           `koanf:"datadir"`
 	HTTP       GlobalHTTPConfig `koanf:"http"`
+	TestMode   bool             `koanf:"-"`
 	configMap  *koanf.Koanf
 }
 

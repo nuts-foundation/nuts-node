@@ -22,11 +22,12 @@ import (
 	"crypto"
 	"encoding/binary"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"go.etcd.io/bbolt"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/test/io"
+	"go.etcd.io/bbolt"
 
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -103,7 +104,9 @@ func graphG() []Transaction {
 }
 
 func createBBoltDB(testDirectory string) *bbolt.DB {
-	db, err := bbolt.Open(path.Join(testDirectory, "dag.db"), 0600, bbolt.DefaultOptions)
+	options := *bbolt.DefaultOptions
+	options.NoSync = true
+	db, err := bbolt.Open(path.Join(testDirectory, "dag.db"), 0600, &options)
 	if err != nil {
 		panic(err)
 	}

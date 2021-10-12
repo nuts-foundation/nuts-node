@@ -30,7 +30,7 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 	config := TestNetworkConfig()
 	vdrStore := store.NewMemoryStore()
 	newInstance := NewNetworkInstance(config, doc.KeyResolver{Store: vdrStore})
-	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
+	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory, TestMode: true}); err != nil {
 		logrus.Fatal(err)
 	}
 	return newInstance

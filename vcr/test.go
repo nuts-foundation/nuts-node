@@ -48,7 +48,7 @@ func NewTestVCRInstance(testDirectory string) *vcr {
 		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 	).(*vcr)
 
-	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
+	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory, TestMode: true}); err != nil {
 		logrus.Fatal(err)
 	}
 
@@ -75,7 +75,7 @@ func newMockContext(t *testing.T) mockContext {
 	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx).(*vcr)
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 
-	if err := vcr.Configure(core.ServerConfig{Datadir: testDir}); err != nil {
+	if err := vcr.Configure(core.ServerConfig{Datadir: testDir, TestMode: true}); err != nil {
 		t.Fatal(err)
 	}
 	return mockContext{
