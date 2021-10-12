@@ -19,6 +19,7 @@ import (
 // DB synchronizes CRLs and validates revoked certificates
 type DB struct {
 	bitSet       *BitSet
+	httpClient   *http.Client
 	lock         sync.RWMutex
 	certificates []*x509.Certificate
 	lists        map[string]*pkix.CertificateList
@@ -26,7 +27,13 @@ type DB struct {
 
 // NewDB returns a new instance of the CRL database
 func NewDB(bitSetSize int, certificates []*x509.Certificate) *DB {
+	return NewDBWithHTTPClient(bitSetSize, certificates, http.DefaultClient)
+}
+
+// NewDBWithHTTPClient returns a new instance with a pre-configured HTTP client
+func NewDBWithHTTPClient(bitSetSize int, certificates []*x509.Certificate, httpClient *http.Client) *DB {
 	return &DB{
+		httpClient:   httpClient,
 		bitSet:       NewBitSet(bitSetSize),
 		certificates: certificates,
 		lists:        map[string]*pkix.CertificateList{},
@@ -97,7 +104,7 @@ func (db *DB) verifyCRL(crl *pkix.CertificateList) error {
 }
 
 func (db *DB) downloadCRL(endpoint string) error {
-	response, err := http.DefaultClient.Get(endpoint)
+	response, err := db.httpClient.Get(endpoint)
 	if err != nil {
 		return err
 	}
