@@ -29,20 +29,20 @@ func NewDB(bitSetSize int, endpoints []string) *DB {
 }
 
 func (db *DB) setRevoked(issuer string, serialNumber *big.Int) {
-	bitNum := db.hash(issuer, serialNumber) % db.bitSet.Len()
+	bitNum := db.hash(issuer, serialNumber) % int64(db.bitSet.Len())
 
 	db.bitSet.Set(bitNum)
 }
 
-func (db *DB) hash(issuer string, serialNumber *big.Int) int {
+func (db *DB) hash(issuer string, serialNumber *big.Int) int64 {
 	data := append([]byte(issuer), serialNumber.Bytes()...)
-	hash := int(murmur3.Sum64(data))
+	hash := int64(murmur3.Sum64(data))
 
-	return int(math.Abs(float64(hash)))
+	return int64(math.Abs(float64(hash)))
 }
 
 func (db *DB) IsRevoked(issuer string, serialNumber *big.Int) bool {
-	bitNum := db.hash(issuer, serialNumber) % db.bitSet.Len()
+	bitNum := db.hash(issuer, serialNumber) % int64(db.bitSet.Len())
 	if !db.bitSet.IsSet(bitNum) {
 		return false
 	}

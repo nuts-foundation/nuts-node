@@ -12,13 +12,13 @@ func NewBitSet(size int) *BitSet {
 	return &BitSet{bits: make([]atomic.Value, size)}
 }
 
-// IsSet checks wether the bit at index `index` was set
-func (set *BitSet) IsSet(index int) bool {
+// IsSet checks whether the bit at index `index` was set
+func (set *BitSet) IsSet(index int64) bool {
 	return set.bits[index].Load() != nil
 }
 
 // Set sets the bit at index `index`
-func (set *BitSet) Set(index int) {
+func (set *BitSet) Set(index int64) {
 	set.bits[index].Store(true)
 }
 
