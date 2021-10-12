@@ -22,8 +22,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/jws"
+	"math/rand"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -92,6 +95,38 @@ func TestBBoltDAG_Get(t *testing.T) {
 		actual, err := graph.Get(ctx, hash.SHA256Sum([]byte{1, 2, 3}))
 		assert.NoError(t, err)
 		assert.Nil(t, actual)
+	})
+	t.Run("bbolt byte slice is copied", func(t *testing.T) {
+		// This test the fixing of https://github.com/nuts-foundation/nuts-node/issues/488: "Fix and debug strange memory corruption issue".
+		// It was caused by using a []byte returned from BBolt after the TX was closed (parsing it as JWS), which is illegal.
+		// It happened when there was concurrent read/write access to BBolt (e.g. adding and reading TXs concurrently).
+		graph := CreateDAG(t)
+		// Create root TX
+		rootTX := CreateTestTransactionWithJWK(uint32(0))
+		graph.Add(context.Background(), rootTX)
+		// Create and read TXs in parallel to trigger error scenario
+		const numTX = 10
+		wg := sync.WaitGroup{}
+		wg.Add(numTX)
+		for i := 0; i < numTX; i++ {
+			go func() {
+				defer wg.Done()
+				cxt := context.Background()
+				tx := CreateTestTransactionWithJWK(uint32(rand.Int31n(100000)), rootTX.Ref())
+				if !assert.NoError(t, graph.Add(cxt, tx)) {
+					return
+				}
+				actual, err := graph.Get(cxt, tx.Ref())
+				if !assert.NoError(t, err) {
+					return
+				}
+				_, err = jws.Parse(actual.Data())
+				if !assert.NoError(t, err) {
+					return
+				}
+			}()
+		}
+		wg.Wait()
 	})
 }
 
