@@ -1,9 +1,11 @@
 package crl
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -141,6 +143,40 @@ func (db *DB) IsValid(maxOffsetDays int) bool {
 	}
 
 	return true
+}
+
+func (db *DB) Configure(config *tls.Config) {
+	verifyPeerCertificate := config.VerifyPeerCertificate
+
+	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		// If the CRL db is outdated kill the connection
+		if !db.IsValid(0) {
+			return errors.New("CRL database is outdated, certificate revocation can't be checked")
+		}
+
+		var raw []byte
+
+		for _, rawCert := range rawCerts {
+			raw = append(raw, rawCert...)
+		}
+
+		certificates, err := x509.ParseCertificates(raw)
+		if err != nil {
+			return err
+		}
+
+		for _, certificate := range certificates {
+			if db.IsRevoked(certificate.Issuer.String(), certificate.SerialNumber) {
+				return fmt.Errorf("certificate is revoked: %s", certificate.Subject.String())
+			}
+		}
+
+		if verifyPeerCertificate != nil {
+			return verifyPeerCertificate(rawCerts, verifiedChains)
+		}
+
+		return nil
+	}
 }
 
 // Sync downloads, updates and verifies CRLs

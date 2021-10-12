@@ -21,7 +21,6 @@ package p2p
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -348,39 +347,15 @@ func (n *adapter) startConnecting(newConnector *connector) {
 			var tlsConfig *tls.Config
 
 			if n.config.tlsEnabled() {
-				revokedCertificateDB := n.config.RevokedCertificateDB
-
 				tlsConfig = &tls.Config{
 					Certificates: []tls.Certificate{
 						n.config.ClientCert,
 					},
 					RootCAs: n.config.TrustStore,
-					VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
-						// If the CRL db is outdated kill the connection
-						if !revokedCertificateDB.IsValid(0) {
-							return errors.New("CRL database is outdated, certificate revocation can't be checked")
-						}
-
-						var raw []byte
-
-						for _, rawCert := range rawCerts {
-							raw = append(raw, rawCert...)
-						}
-
-						certificates, err := x509.ParseCertificates(raw)
-						if err != nil {
-							return err
-						}
-
-						for _, certificate := range certificates {
-							if revokedCertificateDB.IsRevoked(certificate.Issuer.String(), certificate.SerialNumber) {
-								return fmt.Errorf("certificate is revoked: %s", certificate.Subject.String())
-							}
-						}
-
-						return nil
-					},
 				}
+
+				// Configure support for checking revoked certificates
+				n.config.RevokedCertificateDB.Configure(tlsConfig)
 			}
 			if peer, stream, err := newConnector.doConnect(n.config.PeerID, tlsConfig); err != nil {
 				waitPeriod := newConnector.backoff.Backoff()
@@ -399,6 +374,7 @@ func (n *adapter) startConnecting(newConnector *connector) {
 				time.Sleep(RandomBackoff(time.Second, 5*time.Second))
 			}
 		}
+
 		// We check whether we should (re)connect to the registered peers every second. Should be OK since it's a cheap check.
 		time.Sleep(time.Second)
 	}
