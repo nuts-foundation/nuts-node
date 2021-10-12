@@ -10,6 +10,7 @@ import (
 const (
 	pkiOverheidRootCA   = "../network/test/KPN_PKIoverheid_Server_CA_2020.pem"
 	revokedSerialNumber = "700448342687279468507609366171471963528520738260"
+	revokedIssuerName   = "CN=Staat der Nederlanden Domein Server CA 2020,O=Staat der Nederlanden,C=NL"
 )
 
 func TestDB_IsRevoked(t *testing.T) {
@@ -25,6 +26,6 @@ func TestDB_IsRevoked(t *testing.T) {
 	revocationDB := NewDB(1000, store.CRLEndpoints)
 	revocationDB.Sync()
 
-	isRevoked := revocationDB.IsRevoked(sn)
+	isRevoked := revocationDB.IsRevoked(revokedIssuerName, sn)
 	assert.True(t, isRevoked)
 }

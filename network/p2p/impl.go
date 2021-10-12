@@ -359,7 +359,7 @@ func (n *adapter) startConnecting(newConnector *connector) {
 						}
 
 						for _, certificate := range certificates {
-							if revokedCertificateDB.IsRevoked(certificate.SerialNumber) {
+							if revokedCertificateDB.IsRevoked(certificate.Issuer.String(), certificate.SerialNumber) {
 								return fmt.Errorf("certificate is revoked: %s", certificate.Subject.String())
 							}
 						}

@@ -28,20 +28,21 @@ func NewDB(bitSetSize int, endpoints []string) *DB {
 	}
 }
 
-func (db *DB) setRevoked(serialNumber *big.Int) {
-	bitNum := db.hash(serialNumber) % db.bitSet.Len()
+func (db *DB) setRevoked(issuer string, serialNumber *big.Int) {
+	bitNum := db.hash(issuer, serialNumber) % db.bitSet.Len()
 
 	db.bitSet.Set(bitNum)
 }
 
-func (db *DB) hash(serialNumber *big.Int) int {
-	hash := int(murmur3.Sum64(serialNumber.Bytes()))
+func (db *DB) hash(issuer string, serialNumber *big.Int) int {
+	data := append([]byte(issuer), serialNumber.Bytes()...)
+	hash := int(murmur3.Sum64(data))
 
 	return int(math.Abs(float64(hash)))
 }
 
-func (db *DB) IsRevoked(serialNumber *big.Int) bool {
-	bitNum := db.hash(serialNumber) % db.bitSet.Len()
+func (db *DB) IsRevoked(issuer string, serialNumber *big.Int) bool {
+	bitNum := db.hash(issuer, serialNumber) % db.bitSet.Len()
 	if !db.bitSet.IsSet(bitNum) {
 		return false
 	}
@@ -49,9 +50,14 @@ func (db *DB) IsRevoked(serialNumber *big.Int) bool {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
+	sn := serialNumber.String()
+
 	for _, list := range db.lists {
+		listIssuerName := list.TBSCertList.Issuer.String()
+
 		for _, cert := range list.TBSCertList.RevokedCertificates {
-			if cert.SerialNumber.String() == serialNumber.String() {
+			if listIssuerName == issuer &&
+				cert.SerialNumber.String() == sn {
 				return true
 			}
 		}
@@ -93,8 +99,10 @@ func (db *DB) downloadCRL(endpoint string) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
+	issuerName := crl.TBSCertList.Issuer.String()
+
 	for _, cert := range crl.TBSCertList.RevokedCertificates {
-		db.setRevoked(cert.SerialNumber)
+		db.setRevoked(issuerName, cert.SerialNumber)
 	}
 
 	db.lists[endpoint] = crl
