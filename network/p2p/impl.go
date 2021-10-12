@@ -259,6 +259,15 @@ func (n *adapter) Start() error {
 				ClientCAs:    n.config.TrustStore,
 			})))
 		}
+
+		if n.config.RevokedCertificateDB != nil {
+			go func() {
+				if err := n.config.RevokedCertificateDB.Sync(); err != nil {
+					log.Logger().Errorf("CRL synchronization failed: %s", err.Error())
+				}
+			}()
+		}
+
 		n.startServing(serverOpts)
 	}
 
@@ -347,6 +356,11 @@ func (n *adapter) startConnecting(newConnector *connector) {
 					},
 					RootCAs: n.config.TrustStore,
 					VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+						// If the CRL db is outdated kill the connection
+						if !revokedCertificateDB.IsValid(0) {
+							return errors.New("CRL database is outdated, certificate revocation can't be checked")
+						}
+
 						var raw []byte
 
 						for _, rawCert := range rawCerts {

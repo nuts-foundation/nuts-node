@@ -4,21 +4,21 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
-	"github.com/sirupsen/logrus"
-	"github.com/spaolacci/murmur3"
 	"io/ioutil"
 	"math"
 	"math/big"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/spaolacci/murmur3"
 )
 
 type DB struct {
 	bitSet       *BitSet
+	lock         sync.RWMutex
 	certificates []*x509.Certificate
 	lists        map[string]*pkix.CertificateList
-	lock         sync.RWMutex
 }
 
 func NewDB(bitSetSize int, certificates []*x509.Certificate) *DB {
@@ -127,7 +127,24 @@ func (db *DB) downloadCRL(endpoint string) error {
 	return nil
 }
 
-func (db *DB) Sync() {
+// IsValid returns whether all the CRLs are downloaded and are not outdated (based on the offset)
+func (db *DB) IsValid(maxOffsetDays int) bool {
+	db.lock.RLock()
+	defer db.lock.RUnlock()
+
+	now := time.Now().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
+
+	for _, list := range db.lists {
+		if list.HasExpired(now) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Sync downloads, updates and verifies CRLs
+func (db *DB) Sync() error {
 	var endpoints []string
 
 	for _, certificate := range db.certificates {
@@ -146,15 +163,32 @@ func (db *DB) Sync() {
 	wc := sync.WaitGroup{}
 	wc.Add(len(endpoints))
 
+	errorsChan := make(chan error)
+
+	go func() {
+		wc.Wait()
+		close(errorsChan)
+	}()
+
 	for _, endpoint := range endpoints {
 		go func(e string) {
 			defer wc.Done()
 
 			if err := db.updateCRL(e); err != nil {
-				logrus.Errorf("failed to download CRL for '%s': %#v", e, err)
+				errorsChan <- err
 			}
 		}(endpoint)
 	}
 
-	wc.Wait()
+	var syncErrors []error
+
+	for err := range errorsChan {
+		syncErrors = append(syncErrors, err)
+	}
+
+	if len(syncErrors) == 0 {
+		return nil
+	}
+
+	return &SyncError{errors: syncErrors}
 }

@@ -23,9 +23,13 @@ func TestDB_IsRevoked(t *testing.T) {
 	store, err := core.LoadTrustStore(pkiOverheidRootCA)
 	assert.NoError(t, err)
 
-	revocationDB := NewDB(1000, store.Certificates())
-	revocationDB.Sync()
+	db := NewDB(1000, store.Certificates())
 
-	isRevoked := revocationDB.IsRevoked(revokedIssuerName, sn)
+	err = db.Sync()
+	assert.NoError(t, err)
+
+	isRevoked := db.IsRevoked(revokedIssuerName, sn)
 	assert.True(t, isRevoked)
+
+	assert.True(t, db.IsValid(0))
 }

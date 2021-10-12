@@ -108,6 +108,8 @@ type AdapterConfig struct {
 	TrustStore *x509.CertPool
 	// RevokedCertificateDB contains the database for revoked certificates
 	RevokedCertificateDB *crl.DB
+	// MaxCRLValidityDays contains the number of days that a CRL can be outdated
+	MaxCRLValidityDays int
 }
 
 func (cfg AdapterConfig) tlsEnabled() bool {
