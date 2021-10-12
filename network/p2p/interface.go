@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crl"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -106,7 +107,7 @@ type AdapterConfig struct {
 	// TrustStore contains the trust anchors used when verifying remote a peer's TLS certificate.
 	TrustStore *x509.CertPool
 	// RevokedCertificateDB contains the database for revoked certificates
-	RevokedCertificateDB *core.RevokedCertificateDB
+	RevokedCertificateDB *crl.DB
 }
 
 func (cfg AdapterConfig) tlsEnabled() bool {

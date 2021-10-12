@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"os"
 	"path"
 	"path/filepath"
@@ -277,7 +278,7 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) 
 
 		cfg.ClientCert = clientCertificate
 		cfg.TrustStore = trustStore.CertPool
-		cfg.RevokedCertificateDB = core.NewRevokedCertificateDB(500, trustStore.CRLEndpoints)
+		cfg.RevokedCertificateDB = crl.NewDB(500, trustStore.CRLEndpoints)
 
 		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
 		if n.config.GrpcAddr != "" {
