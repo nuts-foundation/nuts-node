@@ -33,7 +33,11 @@ func parseCertificates(data []byte) (certificates []*x509.Certificate, _ error) 
 
 type TrustStore struct {
 	CertPool     *x509.CertPool
-	CRLEndpoints []string
+	certificates []*x509.Certificate
+}
+
+func (store *TrustStore) Certificates() []*x509.Certificate {
+	return store.certificates[:]
 }
 
 // LoadTrustStore creates a x509 certificate pool based on a truststore file
@@ -49,18 +53,15 @@ func LoadTrustStore(trustStoreFile string) (*TrustStore, error) {
 	}
 
 	var (
-		crlEndpoints []string
-		certPool     = x509.NewCertPool()
+		certPool = x509.NewCertPool()
 	)
 
 	for _, certificate := range certificates {
-		crlEndpoints = append(crlEndpoints, certificate.CRLDistributionPoints...)
-
 		certPool.AddCert(certificate)
 	}
 
 	return &TrustStore{
 		CertPool:     certPool,
-		CRLEndpoints: crlEndpoints,
+		certificates: certificates,
 	}, nil
 }

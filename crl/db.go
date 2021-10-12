@@ -3,6 +3,7 @@ package crl
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spaolacci/murmur3"
 	"io/ioutil"
@@ -14,17 +15,17 @@ import (
 )
 
 type DB struct {
-	bitSet    *BitSet
-	endpoints []string
-	lists     map[string]*pkix.CertificateList
-	lock      sync.RWMutex
+	bitSet       *BitSet
+	certificates []*x509.Certificate
+	lists        map[string]*pkix.CertificateList
+	lock         sync.RWMutex
 }
 
-func NewDB(bitSetSize int, endpoints []string) *DB {
+func NewDB(bitSetSize int, certificates []*x509.Certificate) *DB {
 	return &DB{
-		bitSet:    NewBitSet(bitSetSize),
-		endpoints: endpoints,
-		lists:     map[string]*pkix.CertificateList{},
+		bitSet:       NewBitSet(bitSetSize),
+		certificates: certificates,
+		lists:        map[string]*pkix.CertificateList{},
 	}
 }
 
@@ -78,6 +79,18 @@ func (db *DB) updateCRL(endpoint string) error {
 	return nil
 }
 
+func (db *DB) verifyCRL(crl *pkix.CertificateList) error {
+	issuerName := crl.TBSCertList.Issuer.String()
+
+	for _, certificate := range db.certificates {
+		if certificate.Subject.String() == issuerName {
+			return certificate.CheckCRLSignature(crl)
+		}
+	}
+
+	return errors.New("CRL signature could not be validated against known certificates")
+}
+
 func (db *DB) downloadCRL(endpoint string) error {
 	response, err := http.DefaultClient.Get(endpoint)
 	if err != nil {
@@ -96,6 +109,10 @@ func (db *DB) downloadCRL(endpoint string) error {
 		return err
 	}
 
+	if err := db.verifyCRL(crl); err != nil {
+		return err
+	}
+
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
@@ -111,15 +128,30 @@ func (db *DB) downloadCRL(endpoint string) error {
 }
 
 func (db *DB) Sync() {
-	wc := sync.WaitGroup{}
-	wc.Add(len(db.endpoints))
+	var endpoints []string
 
-	for _, endpoint := range db.endpoints {
-		go func(ep string) {
+	for _, certificate := range db.certificates {
+	lookup:
+		for _, endpoint := range certificate.CRLDistributionPoints {
+			for _, existingEndpoint := range endpoints {
+				if endpoint == existingEndpoint {
+					continue lookup
+				}
+			}
+
+			endpoints = append(endpoints, endpoint)
+		}
+	}
+
+	wc := sync.WaitGroup{}
+	wc.Add(len(endpoints))
+
+	for _, endpoint := range endpoints {
+		go func(e string) {
 			defer wc.Done()
 
-			if err := db.updateCRL(ep); err != nil {
-				logrus.Errorf("failed to download CRL for '%s': %#v", ep, err)
+			if err := db.updateCRL(e); err != nil {
+				logrus.Errorf("failed to download CRL for '%s': %#v", e, err)
 			}
 		}(endpoint)
 	}
