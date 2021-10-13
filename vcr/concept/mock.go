@@ -48,6 +48,20 @@ func (mr *MockReaderMockRecorder) Concepts() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Concepts", reflect.TypeOf((*MockReader)(nil).Concepts))
 }
 
+// HasCredentialType mocks base method.
+func (m *MockReader) HasCredentialType(credentialType string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HasCredentialType", credentialType)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// HasCredentialType indicates an expected call of HasCredentialType.
+func (mr *MockReaderMockRecorder) HasCredentialType(credentialType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasCredentialType", reflect.TypeOf((*MockReader)(nil).HasCredentialType), credentialType)
+}
+
 // QueryFor mocks base method.
 func (m *MockReader) QueryFor(concept string) (Query, error) {
 	m.ctrl.T.Helper()
@@ -164,6 +178,20 @@ func (m *MockRegistry) Concepts() []Config {
 func (mr *MockRegistryMockRecorder) Concepts() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Concepts", reflect.TypeOf((*MockRegistry)(nil).Concepts))
+}
+
+// HasCredentialType mocks base method.
+func (m *MockRegistry) HasCredentialType(credentialType string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HasCredentialType", credentialType)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// HasCredentialType indicates an expected call of HasCredentialType.
+func (mr *MockRegistryMockRecorder) HasCredentialType(credentialType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasCredentialType", reflect.TypeOf((*MockRegistry)(nil).HasCredentialType), credentialType)
 }
 
 // QueryFor mocks base method.

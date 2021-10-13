@@ -361,6 +361,51 @@ func TestVcr_Issue(t *testing.T) {
 		assert.Contains(t, proof[0].Jws, "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..")
 	})
 
+	t.Run("ok - unknown type", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+
+		cred := validNutsOrganizationCredential()
+		uri, _ := ssi.ParseURI("unknownType")
+		cred.Type = []ssi.URI{*uri}
+
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.tx.EXPECT().CreateTransaction(
+			vcDocumentType,
+			gomock.Any(),
+			gomock.Any(),
+			false,
+			gomock.Any(),
+			documentMetadata.SourceTransactions,
+		).Return(nil, nil)
+
+		issued, err := instance.Issue(*cred)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.NotNil(t, issued)
+		assert.True(t, ctx.vcr.registry.HasCredentialType("unknownType"))
+	})
+
+	t.Run("error - unknown type in strict mode", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		instance.config = Config{strictMode: true}
+
+		cred := validNutsOrganizationCredential()
+		uri, _ := ssi.ParseURI("unknownType")
+		cred.Type = []ssi.URI{*uri}
+
+		_, err := instance.Issue(*cred)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "cannot issue non-predefined credential types is strict mode")
+	})
+
 	t.Run("error - too many types", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr

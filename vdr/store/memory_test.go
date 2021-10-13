@@ -270,7 +270,7 @@ func TestMemory_Parallelism(t *testing.T) {
 
 	// Prepare functions to be called
 	wg := sync.WaitGroup{}
-	funcs := []func() {
+	funcs := []func(){
 		func() {
 			_ = store.Write(doc2, meta)
 		},
