@@ -18,11 +18,12 @@ import (
 
 // DB synchronizes CRLs and validates revoked certificates
 type DB struct {
-	bitSet       *BitSet
-	httpClient   *http.Client
-	lock         sync.RWMutex
-	certificates []*x509.Certificate
-	lists        map[string]*pkix.CertificateList
+	bitSet           *BitSet
+	httpClient       *http.Client
+	certificatesLock sync.RWMutex
+	certificates     []*x509.Certificate
+	listsLock        sync.RWMutex
+	lists            map[string]*pkix.CertificateList
 }
 
 // NewDB returns a new instance of the CRL database
@@ -60,8 +61,8 @@ func (db *DB) IsRevoked(issuer string, serialNumber *big.Int) bool {
 		return false
 	}
 
-	db.lock.RLock()
-	defer db.lock.RUnlock()
+	db.listsLock.RLock()
+	defer db.listsLock.RUnlock()
 
 	sn := serialNumber.String()
 
@@ -80,9 +81,9 @@ func (db *DB) IsRevoked(issuer string, serialNumber *big.Int) bool {
 }
 
 func (db *DB) updateCRL(endpoint string) error {
-	db.lock.RLock()
+	db.listsLock.RLock()
 	crl, ok := db.lists[endpoint]
-	db.lock.RUnlock()
+	db.listsLock.RUnlock()
 
 	if !ok || crl.HasExpired(time.Now()) {
 		return db.downloadCRL(endpoint)
@@ -92,6 +93,9 @@ func (db *DB) updateCRL(endpoint string) error {
 }
 
 func (db *DB) verifyCRL(crl *pkix.CertificateList) error {
+	db.certificatesLock.RLock()
+	defer db.certificatesLock.RUnlock()
+
 	issuerName := crl.TBSCertList.Issuer.String()
 
 	for _, certificate := range db.certificates {
@@ -125,8 +129,8 @@ func (db *DB) downloadCRL(endpoint string) error {
 		return err
 	}
 
-	db.lock.Lock()
-	defer db.lock.Unlock()
+	db.listsLock.Lock()
+	defer db.listsLock.Unlock()
 
 	issuerName := crl.TBSCertList.Issuer.String()
 
@@ -141,8 +145,8 @@ func (db *DB) downloadCRL(endpoint string) error {
 
 // IsValid returns whether all the CRLs are downloaded and are not outdated (based on the offset)
 func (db *DB) IsValid(maxOffsetDays int) bool {
-	db.lock.RLock()
-	defer db.lock.RUnlock()
+	db.listsLock.RLock()
+	defer db.listsLock.RUnlock()
 
 	now := time.Now().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
 
@@ -155,16 +159,48 @@ func (db *DB) IsValid(maxOffsetDays int) bool {
 	return true
 }
 
+func (db *DB) appendCertificates(certificates []*x509.Certificate) {
+	db.certificatesLock.Lock()
+	defer db.certificatesLock.Unlock()
+
+importLoop:
+	for _, certificate := range certificates {
+		subject := certificate.Subject.String()
+
+		for _, dbCertificate := range db.certificates {
+			if dbCertificate.Subject.String() == subject {
+				continue importLoop
+			}
+		}
+
+		db.certificates = append(db.certificates, certificate)
+	}
+}
+
 // Configure adds a callback to the TLS config to check if the peer certificate was revoked
 func (db *DB) Configure(config *tls.Config) {
 	verifyPeerCertificate := config.VerifyPeerCertificate
 
 	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		// Import unknown certificates
+		var verifiedCerts []*x509.Certificate
+
+		for _, chain := range verifiedChains {
+			for _, verifiedCert := range chain {
+				if verifiedCert.IsCA {
+					verifiedCerts = append(verifiedCerts, verifiedCert)
+				}
+			}
+		}
+
+		db.appendCertificates(verifiedCerts)
+
 		// If the CRL db is outdated kill the connection
 		if !db.IsValid(0) {
 			return errors.New("CRL database is outdated, certificate revocation can't be checked")
 		}
 
+		// Parse certificates and check if they are revoked
 		var raw []byte
 
 		for _, rawCert := range rawCerts {
@@ -190,9 +226,9 @@ func (db *DB) Configure(config *tls.Config) {
 	}
 }
 
-// Sync downloads, updates and verifies CRLs
-func (db *DB) Sync() error {
-	var endpoints []string
+func (db *DB) parseCRLEndpoints() (endpoints []string) {
+	db.certificatesLock.RLock()
+	defer db.certificatesLock.RUnlock()
 
 	for _, certificate := range db.certificates {
 	lookup:
@@ -206,6 +242,13 @@ func (db *DB) Sync() error {
 			endpoints = append(endpoints, endpoint)
 		}
 	}
+
+	return
+}
+
+// Sync downloads, updates and verifies CRLs
+func (db *DB) Sync() error {
+	endpoints := db.parseCRLEndpoints()
 
 	wc := sync.WaitGroup{}
 	wc.Add(len(endpoints))
