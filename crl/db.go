@@ -21,8 +21,8 @@ type DB struct {
 	bitSet           *BitSet
 	httpClient       *http.Client
 	certificatesLock sync.RWMutex
-	certificates     []*x509.Certificate
 	listsLock        sync.RWMutex
+	certificates     map[string]*x509.Certificate
 	lists            map[string]*pkix.CertificateList
 }
 
@@ -33,10 +33,16 @@ func NewDB(bitSetSize int, certificates []*x509.Certificate) *DB {
 
 // NewDBWithHTTPClient returns a new instance with a pre-configured HTTP client
 func NewDBWithHTTPClient(bitSetSize int, certificates []*x509.Certificate, httpClient *http.Client) *DB {
+	certMap := map[string]*x509.Certificate{}
+
+	for _, certificate := range certificates {
+		certMap[certificate.Subject.String()] = certificate
+	}
+
 	return &DB{
 		httpClient:   httpClient,
 		bitSet:       NewBitSet(bitSetSize),
-		certificates: certificates,
+		certificates: certMap,
 		lists:        map[string]*pkix.CertificateList{},
 	}
 }
@@ -98,13 +104,12 @@ func (db *DB) verifyCRL(crl *pkix.CertificateList) error {
 
 	issuerName := crl.TBSCertList.Issuer.String()
 
-	for _, certificate := range db.certificates {
-		if certificate.Subject.String() == issuerName {
-			return certificate.CheckCRLSignature(crl)
-		}
+	certificate, ok := db.certificates[issuerName]
+	if !ok {
+		return errors.New("CRL signature could not be validated against known certificates")
 	}
 
-	return errors.New("CRL signature could not be validated against known certificates")
+	return certificate.CheckCRLSignature(crl)
 }
 
 func (db *DB) downloadCRL(endpoint string) error {
@@ -163,17 +168,12 @@ func (db *DB) appendCertificates(certificates []*x509.Certificate) {
 	db.certificatesLock.Lock()
 	defer db.certificatesLock.Unlock()
 
-importLoop:
 	for _, certificate := range certificates {
 		subject := certificate.Subject.String()
 
-		for _, dbCertificate := range db.certificates {
-			if dbCertificate.Subject.String() == subject {
-				continue importLoop
-			}
+		if _, ok := db.certificates[subject]; !ok {
+			db.certificates[subject] = certificate
 		}
-
-		db.certificates = append(db.certificates, certificate)
 	}
 }
 
