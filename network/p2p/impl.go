@@ -355,7 +355,7 @@ func (n *adapter) startConnecting(newConnector *connector) {
 				}
 
 				// Configure support for checking revoked certificates
-				n.config.RevokedCertificateDB.Configure(tlsConfig)
+				n.config.RevokedCertificateDB.Configure(tlsConfig, n.config.MaxCRLValidityDays)
 			}
 			if peer, stream, err := newConnector.doConnect(n.config.PeerID, tlsConfig); err != nil {
 				waitPeriod := newConnector.backoff.Backoff()

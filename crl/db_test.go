@@ -105,7 +105,7 @@ func TestDB_Configured(t *testing.T) {
 	db := NewDB(1, []*x509.Certificate{})
 
 	config := &tls.Config{}
-	db.Configure(config)
+	db.Configure(config, 0)
 
 	assert.NotNil(t, config.VerifyPeerCertificate)
 

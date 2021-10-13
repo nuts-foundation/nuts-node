@@ -150,9 +150,19 @@ func (db *DB) downloadCRL(endpoint string) error {
 
 // IsValid returns whether all the CRLs are downloaded and are not outdated (based on the offset)
 func (db *DB) IsValid(maxOffsetDays int) bool {
+	endpoints := db.parseCRLEndpoints()
+
 	db.listsLock.RLock()
 	defer db.listsLock.RUnlock()
 
+	// Check if all CRLs have been downloaded
+	for _, endpoint := range endpoints {
+		if _, ok := db.lists[endpoint]; !ok {
+			return false
+		}
+	}
+
+	// Verify that none of the CRLs are outdated
 	now := time.Now().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
 
 	for _, list := range db.lists {
@@ -178,7 +188,7 @@ func (db *DB) appendCertificates(certificates []*x509.Certificate) {
 }
 
 // Configure adds a callback to the TLS config to check if the peer certificate was revoked
-func (db *DB) Configure(config *tls.Config) {
+func (db *DB) Configure(config *tls.Config, maxValidityDays int) {
 	verifyPeerCertificate := config.VerifyPeerCertificate
 
 	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
@@ -194,11 +204,6 @@ func (db *DB) Configure(config *tls.Config) {
 		}
 
 		db.appendCertificates(verifiedCerts)
-
-		// If the CRL db is outdated kill the connection
-		if !db.IsValid(0) {
-			return errors.New("CRL database is outdated, certificate revocation can't be checked")
-		}
 
 		// Parse certificates and check if they are revoked
 		var raw []byte
@@ -216,6 +221,11 @@ func (db *DB) Configure(config *tls.Config) {
 			if db.IsRevoked(certificate.Issuer.String(), certificate.SerialNumber) {
 				return fmt.Errorf("certificate is revoked: %s", certificate.Subject.String())
 			}
+		}
+
+		// If the CRL db is outdated kill the connection
+		if !db.IsValid(maxValidityDays) {
+			return errors.New("CRL database is outdated, certificate revocation can't be checked")
 		}
 
 		if verifyPeerCertificate != nil {
