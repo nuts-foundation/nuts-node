@@ -5,6 +5,7 @@ import (
 	"encoding/asn1"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/auth/assets"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"io/fs"
 	"strings"
 
@@ -111,8 +112,8 @@ func validUziSigningAlgs() []jwa.SignatureAlgorithm {
 // NewUziValidator creates a new UziValidator.
 // It accepts a UziEnv and preloads corresponding certificate tree.
 // It accepts a contract template store which is used to check if the signed contract exists and is valid.
-// It accepts an optional CRLGetter. If non is given, the CachedHttpCrlService is used as default
-func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, crls CRLGetter) (validator *UziValidator, err error) {
+// It accepts an optional CRL database. If non is given, it will create one based on the root and intermediate certificates.
+func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, db crl.DB) (validator *UziValidator, err error) {
 	var roots []*x509.Certificate
 	var intermediates []*x509.Certificate
 
@@ -153,12 +154,22 @@ func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, crls
 		return nil, fmt.Errorf("unknown uzi environment: %s", env)
 	}
 
-	if crls == nil {
-		crls = NewCachedHTTPCRLGetter()
+	if db == nil {
+		var certs []*x509.Certificate
+
+		for _, root := range roots {
+			certs = append(certs, root)
+		}
+
+		for _, intermediate := range intermediates {
+			certs = append(certs, intermediate)
+		}
+
+		db = crl.NewDB(500, certs)
 	}
 
 	validator = &UziValidator{
-		validator:         NewJwtX509Validator(roots, intermediates, validUziSigningAlgs(), crls),
+		validator:         NewJwtX509Validator(roots, intermediates, validUziSigningAlgs(), db),
 		contractTemplates: contractTemplates,
 	}
 	return

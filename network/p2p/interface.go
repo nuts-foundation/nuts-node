@@ -107,7 +107,7 @@ type AdapterConfig struct {
 	// TrustStore contains the trust anchors used when verifying remote a peer's TLS certificate.
 	TrustStore *x509.CertPool
 	// RevokedCertificateDB contains the database for revoked certificates
-	RevokedCertificateDB *crl.DB
+	RevokedCertificateDB crl.DB
 	// MaxCRLValidityDays contains the number of days that a CRL can be outdated
 	MaxCRLValidityDays int
 }

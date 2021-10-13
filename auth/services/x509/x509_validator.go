@@ -6,7 +6,9 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwa"
@@ -27,7 +29,7 @@ type JwtX509Validator struct {
 	roots              []*x509.Certificate
 	intermediates      []*x509.Certificate
 	allowedSigningAlgs []jwa.SignatureAlgorithm
-	crls               CRLGetter
+	db                 crl.DB
 }
 
 // generalNames defines the asn1 data structure of the generalNames as defined in rfc5280#section-4.2.1.6
@@ -71,13 +73,13 @@ func (j JwtX509Token) SubjectAltNameOtherNames() ([]string, error) {
 // NewJwtX509Validator creates a new NewJwtX509Validator.
 // It accepts root and intermediate certificates to validate the chain.
 // It accepts a list of valid signature algorithms
-// It accepts a CRL getter
-func NewJwtX509Validator(roots, intermediates []*x509.Certificate, allowedSigAlgs []jwa.SignatureAlgorithm, crls CRLGetter) *JwtX509Validator {
+// It accepts a CRL database
+func NewJwtX509Validator(roots, intermediates []*x509.Certificate, allowedSigAlgs []jwa.SignatureAlgorithm, db crl.DB) *JwtX509Validator {
 	return &JwtX509Validator{
 		roots:              roots,
 		intermediates:      intermediates,
 		allowedSigningAlgs: allowedSigAlgs,
-		crls:               crls,
+		db:                 db,
 	}
 }
 
@@ -177,6 +179,14 @@ func (validator JwtX509Validator) Verify(x509Token *JwtX509Token) error {
 		return err
 	}
 
+	if err := validator.db.Sync(); err != nil {
+		return err
+	}
+
+	if !validator.db.IsValid(0) {
+		return errors.New("unable to verify revoked certificates because the CRL database is outdated")
+	}
+
 	for _, verifiedChain := range verifiedChains {
 		err := validator.checkCertRevocation(verifiedChain)
 		if err != nil {
@@ -245,30 +255,17 @@ func (validator JwtX509Validator) verifyCertChain(chain []*x509.Certificate, che
 // The order of the certificates should be that each certificate is issued by the next one. The root comes last.
 func (validator JwtX509Validator) checkCertRevocation(verifiedChain []*x509.Certificate) error {
 	for i, certToCheck := range verifiedChain {
-		// issuer is normally the next cert in the chain, except for the root which is self signed
+		// issuer is normally the next cert in the chain, except for the root which is self-signed
 		issuerIdx := 1 + i
+
 		if issuerIdx == len(verifiedChain) {
 			issuerIdx = i
 		}
 
-		for _, crlPoint := range certToCheck.CRLDistributionPoints {
-			crl, err := validator.crls.GetCRL(crlPoint)
-			if err != nil {
-				return fmt.Errorf("unable to get the crl for cert '%s': %w", certToCheck.Subject.String(), err)
-			}
-			if crl.HasExpired(nowFunc()) {
-				return fmt.Errorf("crl has expired since: %s", crl.TBSCertList.NextUpdate.String())
-			}
-			if err := verifiedChain[issuerIdx].CheckCRLSignature(crl); err != nil {
-				return fmt.Errorf("crl is not signed by the certs issuer: %w", err)
-			}
-			revokedCerts := crl.TBSCertList.RevokedCertificates
-			for _, revoked := range revokedCerts {
-				if certToCheck.SerialNumber.Cmp(revoked.SerialNumber) == 0 {
-					return fmt.Errorf("cert with serial '%s' and subject '%s' is revoked", certToCheck.SerialNumber.String(), certToCheck.Subject.String())
-				}
-			}
+		if validator.db.IsRevoked(certToCheck.Issuer.String(), certToCheck.SerialNumber) {
+			return fmt.Errorf("cert with serial '%s' and subject '%s' is revoked", certToCheck.SerialNumber.String(), certToCheck.Subject.String())
 		}
 	}
+
 	return nil
 }

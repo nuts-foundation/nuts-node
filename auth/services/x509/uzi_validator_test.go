@@ -31,15 +31,7 @@ func TestUziValidator(t *testing.T) {
 	t.Skip("Still uses v1 contract, migrate to v3")
 
 	t.Run("ok - acceptation environment", func(t *testing.T) {
-		crls, err := NewMockCrlService([]string{
-			"http://www.uzi-register-test.nl/cdp/test_uzi-register_medewerker_op_naam_ca_g3.crl",
-			"http://www.uzi-register-test.nl/cdp/test_zorg_csp_level_2_persoon_ca_g3.crl",
-			"http://www.uzi-register-test.nl/cdp/test_zorg_csp_root_ca_g3.crl"})
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		uziValidator, err := NewUziValidator(UziAcceptation, &contract.StandardContractTemplates, crls)
+		uziValidator, err := NewUziValidator(UziAcceptation, &contract.StandardContractTemplates, nil)
 		if !assert.NoError(t, err) {
 			return
 		}

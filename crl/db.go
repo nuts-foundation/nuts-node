@@ -16,8 +16,15 @@ import (
 	"github.com/spaolacci/murmur3"
 )
 
-// DB synchronizes CRLs and validates revoked certificates
-type DB struct {
+type DB interface {
+	Sync() error
+	IsValid(maxOffsetDays int) bool
+	Configure(config *tls.Config, maxValidityDays int)
+	IsRevoked(issuer string, serialNumber *big.Int) bool
+}
+
+// dbImpl synchronizes CRLs and validates revoked certificates
+type dbImpl struct {
 	bitSet           *BitSet
 	httpClient       *http.Client
 	certificatesLock sync.RWMutex
@@ -27,19 +34,19 @@ type DB struct {
 }
 
 // NewDB returns a new instance of the CRL database
-func NewDB(bitSetSize int, certificates []*x509.Certificate) *DB {
+func NewDB(bitSetSize int, certificates []*x509.Certificate) *dbImpl {
 	return NewDBWithHTTPClient(bitSetSize, certificates, http.DefaultClient)
 }
 
 // NewDBWithHTTPClient returns a new instance with a pre-configured HTTP client
-func NewDBWithHTTPClient(bitSetSize int, certificates []*x509.Certificate, httpClient *http.Client) *DB {
+func NewDBWithHTTPClient(bitSetSize int, certificates []*x509.Certificate, httpClient *http.Client) *dbImpl {
 	certMap := map[string]*x509.Certificate{}
 
 	for _, certificate := range certificates {
 		certMap[certificate.Subject.String()] = certificate
 	}
 
-	return &DB{
+	return &dbImpl{
 		httpClient:   httpClient,
 		bitSet:       NewBitSet(bitSetSize),
 		certificates: certMap,
@@ -47,13 +54,13 @@ func NewDBWithHTTPClient(bitSetSize int, certificates []*x509.Certificate, httpC
 	}
 }
 
-func (db *DB) setRevoked(issuer string, serialNumber *big.Int) {
+func (db *dbImpl) setRevoked(issuer string, serialNumber *big.Int) {
 	bitNum := db.hash(issuer, serialNumber) % int64(db.bitSet.Len())
 
 	db.bitSet.Set(bitNum)
 }
 
-func (db *DB) hash(issuer string, serialNumber *big.Int) int64 {
+func (db *dbImpl) hash(issuer string, serialNumber *big.Int) int64 {
 	data := append([]byte(issuer), serialNumber.Bytes()...)
 	hash := int64(murmur3.Sum64(data))
 
@@ -61,7 +68,7 @@ func (db *DB) hash(issuer string, serialNumber *big.Int) int64 {
 }
 
 // IsRevoked checks whether the certificate was revoked or not
-func (db *DB) IsRevoked(issuer string, serialNumber *big.Int) bool {
+func (db *dbImpl) IsRevoked(issuer string, serialNumber *big.Int) bool {
 	bitNum := db.hash(issuer, serialNumber) % int64(db.bitSet.Len())
 	if !db.bitSet.IsSet(bitNum) {
 		return false
@@ -84,7 +91,7 @@ func (db *DB) IsRevoked(issuer string, serialNumber *big.Int) bool {
 	return false
 }
 
-func (db *DB) updateCRL(endpoint string) error {
+func (db *dbImpl) updateCRL(endpoint string) error {
 	db.listsLock.RLock()
 	crl, ok := db.lists[endpoint]
 	db.listsLock.RUnlock()
@@ -96,7 +103,7 @@ func (db *DB) updateCRL(endpoint string) error {
 	return nil
 }
 
-func (db *DB) verifyCRL(crl *pkix.CertificateList) error {
+func (db *dbImpl) verifyCRL(crl *pkix.CertificateList) error {
 	db.certificatesLock.RLock()
 	defer db.certificatesLock.RUnlock()
 
@@ -110,7 +117,7 @@ func (db *DB) verifyCRL(crl *pkix.CertificateList) error {
 	return certificate.CheckCRLSignature(crl)
 }
 
-func (db *DB) downloadCRL(endpoint string) error {
+func (db *dbImpl) downloadCRL(endpoint string) error {
 	response, err := db.httpClient.Get(endpoint)
 	if err != nil {
 		return err
@@ -147,7 +154,7 @@ func (db *DB) downloadCRL(endpoint string) error {
 }
 
 // IsValid returns whether all the CRLs are downloaded and are not outdated (based on the offset)
-func (db *DB) IsValid(maxOffsetDays int) bool {
+func (db *dbImpl) IsValid(maxOffsetDays int) bool {
 	endpoints := db.parseCRLEndpoints()
 
 	db.listsLock.RLock()
@@ -172,7 +179,7 @@ func (db *DB) IsValid(maxOffsetDays int) bool {
 	return true
 }
 
-func (db *DB) appendCertificates(certificates []*x509.Certificate) {
+func (db *dbImpl) appendCertificates(certificates []*x509.Certificate) {
 	db.certificatesLock.Lock()
 	defer db.certificatesLock.Unlock()
 
@@ -186,7 +193,7 @@ func (db *DB) appendCertificates(certificates []*x509.Certificate) {
 }
 
 // Configure adds a callback to the TLS config to check if the peer certificate was revoked
-func (db *DB) Configure(config *tls.Config, maxValidityDays int) {
+func (db *dbImpl) Configure(config *tls.Config, maxValidityDays int) {
 	verifyPeerCertificate := config.VerifyPeerCertificate
 
 	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
@@ -234,7 +241,7 @@ func (db *DB) Configure(config *tls.Config, maxValidityDays int) {
 	}
 }
 
-func (db *DB) parseCRLEndpoints() (endpoints []string) {
+func (db *dbImpl) parseCRLEndpoints() (endpoints []string) {
 	db.certificatesLock.RLock()
 	defer db.certificatesLock.RUnlock()
 
@@ -255,7 +262,7 @@ func (db *DB) parseCRLEndpoints() (endpoints []string) {
 }
 
 // Sync downloads, updates and verifies CRLs
-func (db *DB) Sync() error {
+func (db *dbImpl) Sync() error {
 	endpoints := db.parseCRLEndpoints()
 
 	wc := sync.WaitGroup{}
