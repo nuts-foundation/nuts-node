@@ -70,14 +70,12 @@ func (db *DB) IsRevoked(issuer string, serialNumber *big.Int) bool {
 	db.listsLock.RLock()
 	defer db.listsLock.RUnlock()
 
-	sn := serialNumber.String()
-
 	for _, list := range db.lists {
 		listIssuerName := list.TBSCertList.Issuer.String()
 
 		for _, cert := range list.TBSCertList.RevokedCertificates {
 			if listIssuerName == issuer &&
-				cert.SerialNumber.String() == sn {
+				cert.SerialNumber.Cmp(serialNumber) == 0 {
 				return true
 			}
 		}
