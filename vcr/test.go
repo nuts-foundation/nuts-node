@@ -39,7 +39,8 @@ const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlO
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.
 func NewTestVCRInstance(testDirectory string) *vcr {
-
+	// speedup tests
+	noSync = true
 	// give network a sub directory to avoid duplicate networks in tests
 	newInstance := NewVCRInstance(
 		nil,
@@ -48,7 +49,7 @@ func NewTestVCRInstance(testDirectory string) *vcr {
 		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 	).(*vcr)
 
-	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory, TestMode: true}); err != nil {
+	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)
 	}
 
@@ -65,6 +66,9 @@ type mockContext struct {
 }
 
 func newMockContext(t *testing.T) mockContext {
+	// speedup tests
+	noSync = true
+
 	testDir := io.TestDirectory(t)
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
@@ -75,7 +79,7 @@ func newMockContext(t *testing.T) mockContext {
 	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx).(*vcr)
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 
-	if err := vcr.Configure(core.ServerConfig{Datadir: testDir, TestMode: true}); err != nil {
+	if err := vcr.Configure(core.ServerConfig{Datadir: testDir}); err != nil {
 		t.Fatal(err)
 	}
 	return mockContext{

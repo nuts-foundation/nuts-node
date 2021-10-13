@@ -53,7 +53,6 @@ type ServerConfig struct {
 	Strictmode bool             `koanf:"strictmode"`
 	Datadir    string           `koanf:"datadir"`
 	HTTP       GlobalHTTPConfig `koanf:"http"`
-	TestMode   bool             `koanf:"-"`
 	configMap  *koanf.Koanf
 }
 

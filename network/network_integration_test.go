@@ -115,6 +115,9 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 }
 
 func resetIntegrationTest() {
+	// in an integration test we want everything to work as intended, disable test speedup and re-enable file sync for bbolt
+	defaultBBoltOptions.NoSync = false
+	
 	receivedTransactions = make(map[string][]dag.Transaction, 0)
 }
 

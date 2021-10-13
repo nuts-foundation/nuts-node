@@ -54,6 +54,9 @@ const (
 	ModuleName = "Network"
 )
 
+// defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
+var defaultBBoltOptions = bbolt.DefaultOptions
+
 // Network implements Transactions interface and Engine functions.
 type Network struct {
 	config                 Config
@@ -98,9 +101,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	// for tests we set NoSync to true, this option can only be set through code
-	options := *bbolt.DefaultOptions
-	options.NoSync = config.TestMode
-	db, bboltErr := bbolt.Open(dbFile, boltDBFileMode, &options)
+	db, bboltErr := bbolt.Open(dbFile, boltDBFileMode, defaultBBoltOptions)
 	if bboltErr != nil {
 		return fmt.Errorf("unable to create BBolt database: %w", bboltErr)
 	}
