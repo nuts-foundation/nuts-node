@@ -134,6 +134,23 @@ func TestRegistry_Concepts(t *testing.T) {
 	assert.Equal(t, "human", cs[0].Concept)
 }
 
+func TestRegistry_HasCredentialType(t *testing.T) {
+	r := NewRegistry().(*registry)
+
+	err := r.Add(ExampleConfig)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	t.Run("true", func(t *testing.T) {
+		assert.True(t, r.HasCredentialType(ExampleType))
+	})
+
+	t.Run("false", func(t *testing.T) {
+		assert.False(t, r.HasCredentialType("other"))
+	})
+}
+
 func TestRegistry_QueryFor(t *testing.T) {
 	r := NewRegistry().(*registry)
 

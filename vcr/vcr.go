@@ -86,6 +86,10 @@ func (c *vcr) Registry() concept.Reader {
 
 func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
+
+	// store strictMode
+	c.config = Config{strictMode: config.Strictmode}
+
 	fsPath := path.Join(config.Datadir, "vcr", "credentials.db")
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 
@@ -237,21 +241,30 @@ func (c *vcr) search(query concept.Query, allowUntrusted bool, resolveTime *time
 }
 
 func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-	validator, builder := credential.FindValidatorAndBuilder(template)
-	if validator == nil || builder == nil {
-		return nil, errors.New("unknown credential type")
-	}
-
 	if len(template.Type) != 1 {
 		return nil, errors.New("can only issue credential with 1 type")
 	}
-	templateType := template.Type[0]
+	validator, builder := credential.FindValidatorAndBuilder(template)
 
-	var credential vc.VerifiableCredential
-	credential.Type = template.Type
-	credential.CredentialSubject = template.CredentialSubject
-	credential.Issuer = template.Issuer
-	credential.ExpirationDate = template.ExpirationDate
+	templateType := template.Type[0]
+	templateTypeString := templateType.String()
+	if !c.registry.HasCredentialType(templateTypeString) {
+		if c.config.strictMode {
+			return nil, errors.New("cannot issue non-predefined credential types is strict mode")
+		}
+		// non-strictmode, add the credential type to the registry
+		c.registry.Add(concept.Config{
+			Concept:        templateTypeString,
+			CredentialType: templateTypeString,
+		})
+	}
+
+	credential := vc.VerifiableCredential{
+		Type:              template.Type,
+		CredentialSubject: template.CredentialSubject,
+		Issuer:            template.Issuer,
+		ExpirationDate:    template.ExpirationDate,
+	}
 
 	// find issuer
 	issuer, err := did.ParseDID(credential.Issuer.String())

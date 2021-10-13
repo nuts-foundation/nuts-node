@@ -22,7 +22,10 @@ package vcr
 const moduleName = "Verifiable Credential Store"
 
 // Config holds the config for the vcr engine
-type Config struct{}
+type Config struct {
+	// strictMode is a copy from the core server config
+	strictMode bool
+}
 
 // DefaultConfig returns a fresh Config filled with default values
 func DefaultConfig() Config {
