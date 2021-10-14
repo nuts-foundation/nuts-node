@@ -21,9 +21,10 @@ package core
 
 import (
 	"errors"
-	"github.com/sirupsen/logrus"
 	"os"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/parsers/yaml"

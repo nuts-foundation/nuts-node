@@ -52,6 +52,9 @@ const maxSkew = 5 * time.Second
 
 var timeFunc = time.Now
 
+// noSync is used to disable bbolt syncing on go-leia during tests
+var noSync bool
+
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
 	r := &vcr{
@@ -106,7 +109,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	}
 
 	// setup DB connection
-	if c.store, err = leia.NewStore(fsPath); err != nil {
+	if c.store, err = leia.NewStore(fsPath, noSync); err != nil {
 		return err
 	}
 

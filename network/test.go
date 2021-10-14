@@ -27,6 +27,8 @@ import (
 
 // NewTestNetworkInstance creates a new Transactions instance that writes it data to a test directory.
 func NewTestNetworkInstance(testDirectory string) *Network {
+	// speedup tests by disabling file sync
+	defaultBBoltOptions.NoSync = true
 	config := TestNetworkConfig()
 	vdrStore := store.NewMemoryStore()
 	newInstance := NewNetworkInstance(config, doc.KeyResolver{Store: vdrStore})
