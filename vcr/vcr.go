@@ -51,6 +51,7 @@ import (
 const maxSkew = 5 * time.Second
 
 var timeFunc = time.Now
+
 // noSync is used to disable bbolt syncing on go-leia during tests
 var noSync bool
 
