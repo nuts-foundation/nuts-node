@@ -154,6 +154,7 @@ verbosity                               info              Log level (trace, debu
 http.default.address                    \:1323             Address and port the server will be listening to
 http.default.cors.origin                []                When set, enables CORS from the specified origins for the on default HTTP interface.
 **Auth**
+auth.clockskew                          5000              Allowed JWT Clock skew in milliseconds
 auth.contractvalidators                 [irma,uzi,dummy]  sets the different contract validators to use
 auth.http.timeout                       30                HTTP timeout (in seconds) used by the Auth API HTTP client
 auth.irma.autoupdateschemas             true              set if you want automatically update the IRMA schemas every 60 minutes.

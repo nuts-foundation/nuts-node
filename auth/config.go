@@ -6,6 +6,7 @@ type Config struct {
 	IrmaAutoUpdateSchemas bool     `koanf:"auth.irma.autoupdateschemas"`
 	HTTPTimeout           int      `koanf:"auth.http.timeout"`
 	PublicURL             string   `koanf:"auth.publicurl"`
+	ClockSkew             int      `koanf:"auth.clockskew"`
 	ContractValidators    []string `koanf:"auth.contractvalidators"`
 	CertFile              string   `koanf:"network.certfile"`
 	CertKeyFile           string   `koanf:"network.certkeyfile"`
@@ -19,6 +20,7 @@ func DefaultConfig() Config {
 		IrmaSchemeManager:     "pbdf",
 		IrmaAutoUpdateSchemas: true,
 		HTTPTimeout:           30,
+		ClockSkew:             5000,
 		ContractValidators:    []string{"irma", "uzi", "dummy"},
 	}
 }
