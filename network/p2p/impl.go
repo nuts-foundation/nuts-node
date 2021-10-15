@@ -259,10 +259,10 @@ func (n *adapter) Start() error {
 			})))
 		}
 
-		if n.config.RevokedCertificateDB != nil {
+		if n.config.CRLValidator != nil {
 			go func() {
 				for {
-					if err := n.config.RevokedCertificateDB.Sync(); err != nil {
+					if err := n.config.CRLValidator.Sync(); err != nil {
 						log.Logger().Errorf("CRL synchronization failed: %s", err.Error())
 					}
 
@@ -359,7 +359,7 @@ func (n *adapter) startConnecting(newConnector *connector) {
 				}
 
 				// Configure support for checking revoked certificates
-				n.config.RevokedCertificateDB.Configure(tlsConfig, n.config.MaxCRLValidityDays)
+				n.config.CRLValidator.Configure(tlsConfig, n.config.MaxCRLValidityDays)
 			}
 			if peer, stream, err := newConnector.doConnect(n.config.PeerID, tlsConfig); err != nil {
 				waitPeriod := newConnector.backoff.Backoff()

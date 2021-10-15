@@ -113,7 +113,7 @@ func validUziSigningAlgs() []jwa.SignatureAlgorithm {
 // It accepts a UziEnv and preloads corresponding certificate tree.
 // It accepts a contract template store which is used to check if the signed contract exists and is valid.
 // It accepts an optional CRL database. If non is given, it will create one based on the root and intermediate certificates.
-func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, db crl.DB) (validator *UziValidator, err error) {
+func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, crlValidator crl.Validator) (validator *UziValidator, err error) {
 	var (
 		roots         []*x509.Certificate
 		intermediates []*x509.Certificate
@@ -156,12 +156,12 @@ func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, db c
 		return nil, fmt.Errorf("unknown uzi environment: %s", env)
 	}
 
-	if db == nil {
-		db = crl.NewDB(500, append(roots[:], intermediates...))
+	if crlValidator == nil {
+		crlValidator = crl.NewValidator(append(roots[:], intermediates...))
 	}
 
 	validator = &UziValidator{
-		validator:         NewJwtX509Validator(roots, intermediates, validUziSigningAlgs(), db),
+		validator:         NewJwtX509Validator(roots, intermediates, validUziSigningAlgs(), crlValidator),
 		contractTemplates: contractTemplates,
 	}
 

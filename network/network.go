@@ -279,7 +279,7 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) 
 		cfg.ClientCert = clientCertificate
 		cfg.TrustStore = trustStore.CertPool
 		cfg.MaxCRLValidityDays = n.config.MaxCRLValidityDays
-		cfg.RevokedCertificateDB = crl.NewDB(500, trustStore.Certificates())
+		cfg.CRLValidator = crl.NewValidator(trustStore.Certificates())
 
 		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
 		if n.config.GrpcAddr != "" {

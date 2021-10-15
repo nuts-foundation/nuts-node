@@ -89,16 +89,16 @@ func Test_adapter_Configure(t *testing.T) {
 	t.Run("configures CRL check when TLS is enabled", func(t *testing.T) {
 		trustPool := x509.NewCertPool()
 
-		db := crl.NewMockDB(gomock.NewController(t))
+		db := crl.NewMockValidator(gomock.NewController(t))
 		db.EXPECT().Sync().Return(nil)
 		db.EXPECT().Configure(gomock.Any(), 0)
 
 		network := NewAdapter().(*adapter)
 		network.Configure(AdapterConfig{
-			PeerID:               "foo",
-			ListenAddress:        "127.0.0.1:0",
-			TrustStore:           trustPool,
-			RevokedCertificateDB: db,
+			PeerID:        "foo",
+			ListenAddress: "127.0.0.1:0",
+			TrustStore:    trustPool,
+			CRLValidator:  db,
 		})
 		network.Start()
 

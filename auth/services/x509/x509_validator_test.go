@@ -333,10 +333,10 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 	}
 
 	t.Run("ok - valid jwt", func(t *testing.T) {
-		db := crl.NewMockDB(gomock.NewController(t))
+		db := crl.NewMockValidator(gomock.NewController(t))
 
 		db.EXPECT().Sync().Return(nil)
-		db.EXPECT().IsValid(0).Return(true)
+		db.EXPECT().IsSynced(0).Return(true)
 		db.EXPECT().IsRevoked(rootCert.Issuer.String(), rootCert.SerialNumber).Return(false)
 		db.EXPECT().IsRevoked(intermediateCert.Issuer.String(), intermediateCert.SerialNumber).Return(false)
 		db.EXPECT().IsRevoked(leafCert.Issuer.String(), leafCert.SerialNumber).Return(false)
@@ -398,8 +398,8 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 	})
 }
 
-func newMockDB(t *testing.T, rootCert, intermediateCert, leafCert *x509.Certificate, intermediateRevoked bool) crl.DB {
-	db := crl.NewMockDB(gomock.NewController(t))
+func NewMockValidator(t *testing.T, rootCert, intermediateCert, leafCert *x509.Certificate, intermediateRevoked bool) crl.Validator {
+	db := crl.NewMockValidator(gomock.NewController(t))
 
 	if !intermediateRevoked {
 		db.EXPECT().IsRevoked(rootCert.Issuer.String(), rootCert.SerialNumber).Return(false)
@@ -433,7 +433,7 @@ func TestJwtX509Validator_checkCertRevocation(t *testing.T) {
 				[]*x509.Certificate{rootCert},
 				[]*x509.Certificate{intermediateCert},
 				[]jwa.SignatureAlgorithm{jwa.RS256},
-				newMockDB(t, rootCert, intermediateCert, leafCert, false),
+				NewMockValidator(t, rootCert, intermediateCert, leafCert, false),
 			)
 			assert.NoError(t, validator.checkCertRevocation([]*x509.Certificate{leafCert, intermediateCert, rootCert}))
 		})
@@ -472,7 +472,7 @@ func TestJwtX509Validator_checkCertRevocation(t *testing.T) {
 				[]*x509.Certificate{rootCert},
 				[]*x509.Certificate{intermediateCert},
 				[]jwa.SignatureAlgorithm{jwa.RS256},
-				newMockDB(t, rootCert, intermediateCert, leafCert, false),
+				NewMockValidator(t, rootCert, intermediateCert, leafCert, false),
 			)
 
 			err = validator.checkCertRevocation([]*x509.Certificate{leafCert, intermediateCert, rootCert})
@@ -484,7 +484,7 @@ func TestJwtX509Validator_checkCertRevocation(t *testing.T) {
 				[]*x509.Certificate{rootCert},
 				[]*x509.Certificate{intermediateCert},
 				[]jwa.SignatureAlgorithm{jwa.RS256},
-				newMockDB(t, rootCert, intermediateCert, leafCert, true),
+				NewMockValidator(t, rootCert, intermediateCert, leafCert, true),
 			)
 
 			err = validator.checkCertRevocation([]*x509.Certificate{leafCert, intermediateCert, rootCert})

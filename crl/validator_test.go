@@ -33,9 +33,9 @@ func TestDB_Sync(t *testing.T) {
 
 	httpClient := &http.Client{Transport: &fakeTransport{}}
 
-	db := NewDBWithHTTPClient(1000, store.Certificates(), httpClient)
+	crlValidator := NewValidatorWithHTTPClient(store.Certificates(), httpClient)
 
-	err = db.Sync()
+	err = crlValidator.Sync()
 	assert.Error(t, err)
 }
 
@@ -52,15 +52,15 @@ func TestDB_IsRevoked(t *testing.T) {
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
 		assert.NoError(t, err)
 
-		db := NewDB(1000, store.Certificates())
+		crlValidator := NewValidator(store.Certificates())
 
-		err = db.Sync()
+		err = crlValidator.Sync()
 		assert.NoError(t, err)
 
-		isRevoked := db.IsRevoked(revokedIssuerName, sn)
+		isRevoked := crlValidator.IsRevoked(revokedIssuerName, sn)
 		assert.True(t, isRevoked)
 
-		assert.True(t, db.IsValid(0))
+		assert.True(t, crlValidator.IsSynced(0))
 	})
 
 	t.Run("should return false if the certificate was not revoked even though the bit was set", func(t *testing.T) {
@@ -69,18 +69,18 @@ func TestDB_IsRevoked(t *testing.T) {
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
 		assert.NoError(t, err)
 
-		db := NewDB(1000, store.Certificates()).(*dbImpl)
+		crlValidator := NewValidator(store.Certificates()).(*validator)
 
-		err = db.Sync()
+		err = crlValidator.Sync()
 		assert.NoError(t, err)
 
-		db.bitSet = NewBitSet(1)
-		db.bitSet.Set(0)
+		crlValidator.bitSet = NewBitSet(1)
+		crlValidator.bitSet.Set(0)
 
-		isRevoked := db.IsRevoked(revokedIssuerName, big.NewInt(100))
+		isRevoked := crlValidator.IsRevoked(revokedIssuerName, big.NewInt(100))
 		assert.False(t, isRevoked)
 
-		assert.True(t, db.IsValid(0))
+		assert.True(t, crlValidator.IsSynced(0))
 	})
 
 	t.Run("should return false when the bit was not set and shouldn't check the actual certificate", func(t *testing.T) {
@@ -89,23 +89,24 @@ func TestDB_IsRevoked(t *testing.T) {
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
 		assert.NoError(t, err)
 
-		db := NewDB(1000, store.Certificates()).(*dbImpl)
+		crlValidator := NewValidator(store.Certificates()).(*validator)
 
-		err = db.Sync()
+		err = crlValidator.Sync()
 		assert.NoError(t, err)
 
-		db.bitSet = NewBitSet(1)
+		crlValidator.bitSet = NewBitSet(1)
 
-		isRevoked := db.IsRevoked(revokedIssuerName, sn)
+		isRevoked := crlValidator.IsRevoked(revokedIssuerName, sn)
 		assert.False(t, isRevoked)
 	})
 }
 
 func TestDB_Configured(t *testing.T) {
-	db := NewDB(1, []*x509.Certificate{})
+	crlValidator := NewValidator([]*x509.Certificate{}).(*validator)
+	crlValidator.bitSet = NewBitSet(1)
 
 	config := &tls.Config{}
-	db.Configure(config, 0)
+	crlValidator.Configure(config, 0)
 
 	assert.NotNil(t, config.VerifyPeerCertificate)
 
