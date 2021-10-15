@@ -20,7 +20,7 @@ var ErrPreviousTransactionMissing = errors.New("transaction is referring to non-
 type Verifier func(ctx context.Context, tx Transaction, graph DAG) error
 
 // didDocumentResolveEPoch represents the epoch on which DID Document resolving switched from time based to hash based
-var didDocumentResolveEPoch = time.Unix(1632444887, 0)
+var didDocumentResolveEPoch = time.Unix(1638000000, 0)
 
 // NewTransactionSignatureVerifier creates a transaction verifier that checks the signature of the transaction.
 // It uses the given KeyResolver to resolves keys that aren't embedded in the transaction.
