@@ -261,8 +261,12 @@ func (n *adapter) Start() error {
 
 		if n.config.RevokedCertificateDB != nil {
 			go func() {
-				if err := n.config.RevokedCertificateDB.Sync(); err != nil {
-					log.Logger().Errorf("CRL synchronization failed: %s", err.Error())
+				for {
+					if err := n.config.RevokedCertificateDB.Sync(); err != nil {
+						log.Logger().Errorf("CRL synchronization failed: %s", err.Error())
+					}
+
+					time.Sleep(time.Minute)
 				}
 			}()
 		}
