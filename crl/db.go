@@ -16,6 +16,7 @@ import (
 	"github.com/spaolacci/murmur3"
 )
 
+// DB synchronizes CRLs and validates revoked certificates
 type DB interface {
 	Sync() error
 	IsValid(maxOffsetDays int) bool
@@ -23,7 +24,6 @@ type DB interface {
 	IsRevoked(issuer string, serialNumber *big.Int) bool
 }
 
-// dbImpl synchronizes CRLs and validates revoked certificates
 type dbImpl struct {
 	bitSet           *BitSet
 	httpClient       *http.Client
@@ -34,12 +34,12 @@ type dbImpl struct {
 }
 
 // NewDB returns a new instance of the CRL database
-func NewDB(bitSetSize int, certificates []*x509.Certificate) *dbImpl {
+func NewDB(bitSetSize int, certificates []*x509.Certificate) DB {
 	return NewDBWithHTTPClient(bitSetSize, certificates, http.DefaultClient)
 }
 
 // NewDBWithHTTPClient returns a new instance with a pre-configured HTTP client
-func NewDBWithHTTPClient(bitSetSize int, certificates []*x509.Certificate, httpClient *http.Client) *dbImpl {
+func NewDBWithHTTPClient(bitSetSize int, certificates []*x509.Certificate, httpClient *http.Client) DB {
 	certMap := map[string]*x509.Certificate{}
 
 	for _, certificate := range certificates {
@@ -194,8 +194,6 @@ func (db *dbImpl) appendCertificates(certificates []*x509.Certificate) {
 
 // Configure adds a callback to the TLS config to check if the peer certificate was revoked
 func (db *dbImpl) Configure(config *tls.Config, maxValidityDays int) {
-	verifyPeerCertificate := config.VerifyPeerCertificate
-
 	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 		// Import unknown certificates
 		var verifiedCerts []*x509.Certificate
@@ -231,10 +229,6 @@ func (db *dbImpl) Configure(config *tls.Config, maxValidityDays int) {
 		// If the CRL db is outdated kill the connection
 		if !db.IsValid(maxValidityDays) {
 			return errors.New("CRL database is outdated, certificate revocation can't be checked")
-		}
-
-		if verifyPeerCertificate != nil {
-			return verifyPeerCertificate(rawCerts, verifiedChains)
 		}
 
 		return nil

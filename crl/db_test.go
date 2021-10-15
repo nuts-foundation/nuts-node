@@ -69,7 +69,7 @@ func TestDB_IsRevoked(t *testing.T) {
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
 		assert.NoError(t, err)
 
-		db := NewDB(1000, store.Certificates())
+		db := NewDB(1000, store.Certificates()).(*dbImpl)
 
 		err = db.Sync()
 		assert.NoError(t, err)
@@ -89,7 +89,7 @@ func TestDB_IsRevoked(t *testing.T) {
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
 		assert.NoError(t, err)
 
-		db := NewDB(1000, store.Certificates())
+		db := NewDB(1000, store.Certificates()).(*dbImpl)
 
 		err = db.Sync()
 		assert.NoError(t, err)
