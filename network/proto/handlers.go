@@ -72,7 +72,7 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 	// the blocks to synchronize which is way easier. It could just lead to a little synchronization delay at midnight.
 	localCurrentBlockDate := getBlockTimestamp(getCurrentBlock(localBlocks).start)
 	if localCurrentBlockDate != advertHash.CurrentBlockDate {
-		// Log level is INFO which might prove to be too verbose, but we'll have to find out in an actual network.
+		// Logger level is INFO which might prove to be too verbose, but we'll have to find out in an actual network.
 		log.Logger().Infof("Peer's current block date differs (probably due to clock skew) which is not supported, broadcast is ignored (peer=%s,local blockdate=%d,peer blockdate=%d)", peer, localCurrentBlockDate, advertHash.CurrentBlockDate)
 		return
 	}

@@ -32,7 +32,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/logging"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/core"
 )
@@ -393,13 +393,13 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 // VerifyAccessToken handles the http request (from the vendor's EPD/XIS) for verifying an access token received from a remote Nuts node.
 func (w Wrapper) VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error {
 	if len(params.Authorization) == 0 {
-		logging.Log().Warn("No authorization header given")
+		log.Logger().Warn("No authorization header given")
 		return ctx.NoContent(http.StatusForbidden)
 	}
 
 	index := strings.Index(strings.ToLower(params.Authorization), bearerTokenHeaderPrefix)
 	if index != 0 {
-		logging.Log().Warn("Authorization does not contain bearer token")
+		log.Logger().Warn("Authorization does not contain bearer token")
 		return ctx.NoContent(http.StatusForbidden)
 	}
 
@@ -407,7 +407,7 @@ func (w Wrapper) VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenPar
 
 	_, err := w.Auth.OAuthClient().IntrospectAccessToken(token)
 	if err != nil {
-		logging.Log().WithError(err).Warn("Error while inspecting access token")
+		log.Logger().WithError(err).Warn("Error while inspecting access token")
 		return ctx.NoContent(http.StatusForbidden)
 	}
 
@@ -428,7 +428,7 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 
 	claims, err := w.Auth.OAuthClient().IntrospectAccessToken(token)
 	if err != nil {
-		logging.Log().WithError(err).Warn("Error while inspecting access token")
+		log.Logger().WithError(err).Warn("Error while inspecting access token")
 		return ctx.JSON(http.StatusOK, introspectionResponse)
 	}
 

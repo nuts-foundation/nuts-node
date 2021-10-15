@@ -187,7 +187,7 @@ type Named interface {
 	Name() string
 }
 
-// Injectable marks a engine capable of Config injection
+// Injectable marks an engine capable of Config injection
 type Injectable interface {
 	Named
 	// Config returns a pointer to the struct that holds the Config.

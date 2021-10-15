@@ -29,7 +29,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/vcr/logging"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/metadata"
@@ -280,7 +280,7 @@ func Test_adapter_Connect(t *testing.T) {
 		<-network.peerConnectedChannel    // Wait until connected
 		assert.Equal(t, connectivity.Ready, conn2.GetState())
 		// 3. Close second connection from client side
-		logging.Log().Info("closing second connection")
+		log.Logger().Info("closing second connection")
 		err := conn2.Close()
 		if !assert.NoError(t, err) {
 			return

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2021. Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,16 +16,15 @@
  *
  */
 
-package logging
+package log
 
 import (
 	"github.com/sirupsen/logrus"
 )
 
-var _logger = logrus.StandardLogger().WithField("module", "VCR")
+var _logger = logrus.StandardLogger().WithField("module", "Didman")
 
-// Log returns a logger which should be used for logging in this engine. It adds fields so
-// log entries from this engine can be recognized as such.
-func Log() *logrus.Entry {
+// Logger returns a logger with the module field set to the ModuleName
+func Logger() *logrus.Entry {
 	return _logger
 }
