@@ -20,6 +20,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"sort"
 	"strings"
 )
@@ -64,7 +65,7 @@ func (p peersStatistic) String() string {
 
 // ownPeerIDStatistic contains the node's own peer ID.
 type ownPeerIDStatistic struct {
-	peerID PeerID
+	peerID types.PeerID
 }
 
 // Name returns the name of the statistic.

@@ -19,7 +19,7 @@
 package proto
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -27,7 +27,7 @@ import (
 )
 
 func TestPeerOmnihashStatistic(t *testing.T) {
-	diagnostic := newPeerOmnihashStatistic(map[p2p.PeerID]hash.SHA256Hash{"abc": hash.FromSlice([]byte{1, 2, 3})})
+	diagnostic := newPeerOmnihashStatistic(map[types.PeerID]hash.SHA256Hash{"abc": hash.FromSlice([]byte{1, 2, 3})})
 	assert.Equal(t, diagnostic.String(), "0102030000000000000000000000000000000000000000000000000000000000={abc}")
 	assert.NotEmpty(t, diagnostic.Name())
 }

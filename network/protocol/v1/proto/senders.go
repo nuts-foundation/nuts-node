@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"math"
@@ -20,12 +21,12 @@ const estimatedMessageSizeMargin = 0.75
 // implementation of non-functional requirements like throttling.
 type messageSender interface {
 	broadcastAdvertHashes(blocks []dagBlock)
-	broadcastDiagnostics(diagnostics Diagnostics)
+	broadcastDiagnostics(diagnostics types.Diagnostics)
 	broadcastTransactionPayloadQuery(payloadHash hash.SHA256Hash)
-	sendTransactionListQuery(peer p2p.PeerID, blockDate time.Time)
-	sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, date time.Time)
-	sendTransactionPayloadQuery(peer p2p.PeerID, payloadHash hash.SHA256Hash)
-	sendTransactionPayload(peer p2p.PeerID, payloadHash hash.SHA256Hash, data []byte)
+	sendTransactionListQuery(peer types.PeerID, blockDate time.Time)
+	sendTransactionList(peer types.PeerID, transactions []dag.Transaction, date time.Time)
+	sendTransactionPayloadQuery(peer types.PeerID, payloadHash hash.SHA256Hash)
+	sendTransactionPayload(peer types.PeerID, payloadHash hash.SHA256Hash, data []byte)
 }
 
 type defaultMessageSender struct {
@@ -34,7 +35,7 @@ type defaultMessageSender struct {
 	transactionsPerMessage int
 }
 
-func (s defaultMessageSender) doSend(peer p2p.PeerID, envelope *transport.NetworkMessage) {
+func (s defaultMessageSender) doSend(peer types.PeerID, envelope *transport.NetworkMessage) {
 	if err := s.p2p.Send(peer, envelope); err != nil {
 		log.Logger().Warnf("Error while sending message to peer (peer=%s, msg=%T): %v", peer, envelope.Message, err)
 	}
@@ -50,7 +51,7 @@ func (s defaultMessageSender) broadcastAdvertHashes(blocks []dagBlock) {
 	s.p2p.Broadcast(&envelope)
 }
 
-func (s defaultMessageSender) broadcastDiagnostics(diagnostics Diagnostics) {
+func (s defaultMessageSender) broadcastDiagnostics(diagnostics types.Diagnostics) {
 	envelope := createEnvelope()
 	message := transport.Diagnostics{
 		Uptime:               uint32(diagnostics.Uptime.Seconds()),
@@ -65,7 +66,7 @@ func (s defaultMessageSender) broadcastDiagnostics(diagnostics Diagnostics) {
 	s.p2p.Broadcast(&envelope)
 }
 
-func (s defaultMessageSender) sendTransactionListQuery(peer p2p.PeerID, blockDate time.Time) {
+func (s defaultMessageSender) sendTransactionListQuery(peer types.PeerID, blockDate time.Time) {
 	envelope := createEnvelope()
 	// TODO: timestamp=0 becomes disallowed when https://github.com/nuts-foundation/nuts-specification/issues/57 is implemented
 	timestamp := int64(0)
@@ -76,7 +77,7 @@ func (s defaultMessageSender) sendTransactionListQuery(peer p2p.PeerID, blockDat
 	s.doSend(peer, &envelope)
 }
 
-func (s defaultMessageSender) sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, blockDate time.Time) {
+func (s defaultMessageSender) sendTransactionList(peer types.PeerID, transactions []dag.Transaction, blockDate time.Time) {
 	if len(transactions) == 0 {
 		// messages are asynchronous so the requester is not waiting for a response
 		return
@@ -105,11 +106,11 @@ func (s defaultMessageSender) sendTransactionList(peer p2p.PeerID, transactions 
 	}
 }
 
-func (s defaultMessageSender) sendTransactionPayloadQuery(peer p2p.PeerID, payloadHash hash.SHA256Hash) {
+func (s defaultMessageSender) sendTransactionPayloadQuery(peer types.PeerID, payloadHash hash.SHA256Hash) {
 	s.doSend(peer, createTransactionPayloadQueryMessage(payloadHash))
 }
 
-func (s defaultMessageSender) sendTransactionPayload(peer p2p.PeerID, payloadHash hash.SHA256Hash, data []byte) {
+func (s defaultMessageSender) sendTransactionPayload(peer types.PeerID, payloadHash hash.SHA256Hash, data []byte) {
 	envelope := createEnvelope()
 	envelope.Message = &transport.NetworkMessage_TransactionPayload{TransactionPayload: &transport.TransactionPayload{
 		PayloadHash: payloadHash.Slice(),

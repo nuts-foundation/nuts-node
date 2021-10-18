@@ -23,6 +23,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crl"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -45,7 +46,7 @@ type Adapter interface {
 	// ReceivedMessages returns a queue containing all messages received from our peers. It must be drained, because when its buffer is full the producer (Adapter) is blocked.
 	ReceivedMessages() MessageQueue
 	// Send sends a message to a specific peer.
-	Send(peer PeerID, message *transport.NetworkMessage) error
+	Send(peer types.PeerID, message *transport.NetworkMessage) error
 	// Broadcast sends a message to all peers.
 	Broadcast(message *transport.NetworkMessage)
 	// Peers returns our peers (remote nodes we're currently connected to).
@@ -65,7 +66,7 @@ type MessageQueue interface {
 // Peer holds the properties of a remote node we're connected to
 type Peer struct {
 	// ID holds the unique identificator of the peer
-	ID PeerID
+	ID types.PeerID
 	// Address holds the remote address of the node we're actually connected to
 	Address string
 }
@@ -75,18 +76,10 @@ func (p Peer) String() string {
 	return fmt.Sprintf("%s@%s", p.ID, p.Address)
 }
 
-// PeerID defines a peer's unique identifier.
-type PeerID string
-
-// String returns the PeerID as string.
-func (p PeerID) String() string {
-	return string(p)
-}
-
 // PeerMessage defines a message received from a peer.
 type PeerMessage struct {
 	// Peer identifies who sent the message.
-	Peer PeerID
+	Peer types.PeerID
 	// Message contains the received message.
 	Message *transport.NetworkMessage
 }
@@ -94,7 +87,7 @@ type PeerMessage struct {
 // AdapterConfig contains configuration for the P2P adapter.
 type AdapterConfig struct {
 	// PeerID contains the ID of the local node.
-	PeerID PeerID
+	PeerID types.PeerID
 	// ListenAddress specifies the socket address the gRPC server should listen on.
 	// If not set, the node will not accept incoming connections (but outbound connections can still be made).
 	ListenAddress string

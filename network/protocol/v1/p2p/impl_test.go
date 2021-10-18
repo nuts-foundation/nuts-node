@@ -21,6 +21,8 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	transport2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"github.com/nuts-foundation/nuts-node/crl"
 	"io"
 	"net"
@@ -29,7 +31,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
@@ -222,7 +223,7 @@ func Test_adapter_Connect(t *testing.T) {
 		// Connection is now live and receiving. Check that the connection is registered
 		assert.Len(t, network.Peers(), 1)
 		// Now close the connection and wait for the Connect() function to finish, indicating the connection is closed and cleaned up
-		network.conns.close(PeerID(peerID))
+		network.conns.close(types.PeerID(peerID))
 		connectWaiter.Wait()
 		// Now we shouldn't have any connections left
 		assert.Empty(t, network.Peers())

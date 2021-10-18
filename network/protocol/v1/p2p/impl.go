@@ -23,6 +23,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"net"
 	"strings"
@@ -107,7 +108,7 @@ func (n adapter) ReceivedMessages() MessageQueue {
 	return n.receivedMessages
 }
 
-func (n adapter) Send(peerID PeerID, message *transport.NetworkMessage) error {
+func (n adapter) Send(peerID types.PeerID, message *transport.NetworkMessage) error {
 	conn := n.conns.get(peerID)
 	if conn == nil {
 		return fmt.Errorf("unknown peer: %s", peerID)
@@ -121,7 +122,7 @@ type connector struct {
 	dialer
 }
 
-func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*Peer, transport.Network_ConnectClient, error) {
+func (c *connector) doConnect(ownID types.PeerID, tlsConfig *tls.Config) (*Peer, transport.Network_ConnectClient, error) {
 	log.Logger().Debugf("Connecting to peer: %v", c.address)
 
 	ctx := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
@@ -166,7 +167,7 @@ func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*Peer, trans
 	}, messenger, nil
 }
 
-func readClientHeaders(gate transport.Network_ConnectClient) (PeerID, error) {
+func readClientHeaders(gate transport.Network_ConnectClient) (types.PeerID, error) {
 	serverHeader, err := gate.Header()
 	if err != nil {
 		return "", err
@@ -175,7 +176,7 @@ func readClientHeaders(gate transport.Network_ConnectClient) (PeerID, error) {
 	return readHeaders(serverHeader)
 }
 
-func readHeaders(metadata metadata.MD) (PeerID, error) {
+func readHeaders(metadata metadata.MD) (types.PeerID, error) {
 	serverPeerID, err := peerIDFromMetadata(metadata)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse PeerID: %w", err)
@@ -337,7 +338,7 @@ func (n *adapter) connectToNewPeers() {
 }
 
 func (n *adapter) startConnecting(newConnector *connector) {
-	var resolvedPeerID PeerID
+	var resolvedPeerID types.PeerID
 	for {
 		if n.shouldConnectTo(newConnector.address, resolvedPeerID) {
 			var tlsConfig *tls.Config
@@ -377,7 +378,7 @@ func (n *adapter) startConnecting(newConnector *connector) {
 }
 
 // shouldConnectTo checks whether we should connect to the given node.
-func (n *adapter) shouldConnectTo(address string, peerID PeerID) bool {
+func (n *adapter) shouldConnectTo(address string, peerID types.PeerID) bool {
 	normalizedAddress := normalizeAddress(address)
 	if normalizedAddress == normalizeAddress(n.getLocalAddress()) {
 		// We're not going to connect to our own node

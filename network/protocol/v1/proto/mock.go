@@ -5,6 +5,7 @@
 package proto
 
 import (
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	reflect "reflect"
 	time "time"
@@ -38,7 +39,7 @@ func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 }
 
 // Configure mocks base method.
-func (m *MockProtocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() Diagnostics, advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval time.Duration, peerID p2p.PeerID) {
+func (m *MockProtocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() types.Diagnostics, advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval time.Duration, peerID types.PeerID) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Configure", p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval, peerID)
 }
@@ -64,10 +65,10 @@ func (mr *MockProtocolMockRecorder) Diagnostics() *gomock.Call {
 }
 
 // PeerDiagnostics mocks base method.
-func (m *MockProtocol) PeerDiagnostics() map[p2p.PeerID]Diagnostics {
+func (m *MockProtocol) PeerDiagnostics() map[types.PeerID]types.Diagnostics {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PeerDiagnostics")
-	ret0, _ := ret[0].(map[p2p.PeerID]Diagnostics)
+	ret0, _ := ret[0].(map[types.PeerID]types.Diagnostics)
 	return ret0
 }
 

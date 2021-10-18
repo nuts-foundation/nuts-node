@@ -20,7 +20,8 @@ package network
 
 import (
 	"errors"
-	p2p2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
 	"testing"
 	"time"
@@ -31,19 +32,19 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
 
 type networkTestContext struct {
 	network     *Network
-	p2pAdapter  *p2p2.MockAdapter
+	p2pAdapter  *p2p.MockAdapter
 	protocol    *proto.MockProtocol
 	graph       *dag.MockDAG
 	payload     *dag.MockPayloadStore
 	keyStore    *crypto.MockKeyStore
 	publisher   *dag.MockPublisher
-	keyResolver *types.MockKeyResolver
+	keyResolver *vdrTypes.MockKeyResolver
 }
 
 func TestNetwork_ListTransactions(t *testing.T) {
@@ -353,20 +354,20 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 	const txNum = 5
 	const expectedVersion = "0"
 	const expectedID = "https://github.com/nuts-foundation/nuts-node"
-	expectedPeer := p2p2.Peer{ID: "abc", Address: "123"}
+	expectedPeer := p2p.Peer{ID: "abc", Address: "123"}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	cxt := createNetwork(ctrl)
 	cxt.graph.EXPECT().Statistics(gomock.Any()).Return(dag.Statistics{NumberOfTransactions: txNum})
 
-	cxt.p2pAdapter.EXPECT().Peers().Return([]p2p2.Peer{expectedPeer})
+	cxt.p2pAdapter.EXPECT().Peers().Return([]p2p.Peer{expectedPeer})
 
 	actual := cxt.network.collectDiagnostics()
 
 	assert.Equal(t, expectedID, actual.SoftwareID)
 	assert.Equal(t, expectedVersion, actual.SoftwareVersion)
-	assert.Equal(t, []p2p2.PeerID{expectedPeer.ID}, actual.Peers)
+	assert.Equal(t, []types.PeerID{expectedPeer.ID}, actual.Peers)
 	assert.Equal(t, uint32(txNum), actual.NumberOfTransactions)
 	assert.NotEmpty(t, actual.Uptime)
 }
@@ -380,7 +381,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		cxt.network.config.EnableTLS = true
 		cxt.network.config.CertFile = "test/certificate-and-key.pem"
 		cxt.network.config.CertKeyFile = "test/certificate-and-key.pem"
-		cfg, err := cxt.network.buildP2PConfig("")
+		cfg, err := cxt.network.buildAdapterConfig("")
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
 		assert.NotNil(t, cfg.ClientCert.PrivateKey)
@@ -392,7 +393,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.network.config.GrpcAddr = ":5555"
 		cxt.network.config.EnableTLS = false
-		cfg, err := cxt.network.buildP2PConfig("")
+		cfg, err := cxt.network.buildAdapterConfig("")
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
 		assert.Nil(t, cfg.ClientCert.PrivateKey)
@@ -404,7 +405,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.network.config.GrpcAddr = ""
 		cxt.network.config.EnableTLS = true
-		cfg, err := cxt.network.buildP2PConfig("")
+		cfg, err := cxt.network.buildAdapterConfig("")
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
 		assert.NotNil(t, cfg.ClientCert.PrivateKey)
@@ -417,7 +418,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		cxt.network.config.CertFile = "test/non-existent.pem"
 		cxt.network.config.CertKeyFile = "test/non-existent.pem"
 		cxt.network.config.EnableTLS = true
-		cfg, err := cxt.network.buildP2PConfig("")
+		cfg, err := cxt.network.buildAdapterConfig("")
 		assert.Nil(t, cfg)
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
@@ -455,7 +456,7 @@ func Test_lastTransactionTracker(t *testing.T) {
 }
 
 func createNetwork(ctrl *gomock.Controller) *networkTestContext {
-	p2pAdapter := p2p2.NewMockAdapter(ctrl)
+	p2pAdapter := p2p.NewMockAdapter(ctrl)
 	protocol := proto.NewMockProtocol(ctrl)
 	graph := dag.NewMockDAG(ctrl)
 	payload := dag.NewMockPayloadStore(ctrl)
@@ -466,7 +467,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
 	networkConfig.EnableTLS = true
 	keyStore := crypto.NewMockKeyStore(ctrl)
-	keyResolver := types.NewMockKeyResolver(ctrl)
+	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	network := NewNetworkInstance(networkConfig, keyResolver)
 	network.p2pNetwork = p2pAdapter
 	network.protocol = protocol

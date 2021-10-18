@@ -20,7 +20,8 @@ package proto
 
 import (
 	"fmt"
-	p2p2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
@@ -28,13 +29,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	log "github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
 // protocol is thread-safe when callers use the Protocol interface
 type protocol struct {
-	p2pNetwork   p2p2.Adapter
-	graph        dag.DAG
+	p2pNetwork p2p.Adapter
+	graph      dag.DAG
 	payloadStore dag.PayloadStore
 	sender       messageSender
 	// TODO: What if no-one is actually listening to this queue? Maybe we should create it when someone asks for it (lazy initialization)?
@@ -42,11 +43,11 @@ type protocol struct {
 	receivedTransactionHashes *chanPeerHashQueue
 
 	// peerDiagnostics contains diagnostic information of the node's peers. The key contains the remote peer's ID. Access must be protected using peerDiagnosticsMutex
-	peerDiagnostics      map[p2p2.PeerID]Diagnostics
+	peerDiagnostics      map[types.PeerID]types.Diagnostics
 	peerDiagnosticsMutex *sync.Mutex
 
 	// peerOmnihashes contains the omnihashes of our peers. Access must be protected using peerOmnihashMutex
-	peerOmnihashes      map[p2p2.PeerID]hash.SHA256Hash
+	peerOmnihashes      map[types.PeerID]hash.SHA256Hash
 	peerOmnihashChannel chan PeerOmnihash
 	peerOmnihashMutex   *sync.Mutex
 
@@ -57,9 +58,9 @@ type protocol struct {
 	advertDiagnosticsInterval      time.Duration
 	collectMissingPayloadsInterval time.Duration
 	// diagnosticsProvider is a function for collecting diagnostics from the local node which can be shared with peers.
-	diagnosticsProvider func() Diagnostics
+	diagnosticsProvider func() types.Diagnostics
 	// peerID contains our own peer ID which can be logged for debugging purposes
-	peerID p2p2.PeerID
+	peerID types.PeerID
 }
 
 func (p *protocol) Diagnostics() []core.DiagnosticResult {
@@ -81,14 +82,14 @@ func (p *protocol) Diagnostics() []core.DiagnosticResult {
 	return diagnostics
 }
 
-func (p *protocol) PeerDiagnostics() map[p2p2.PeerID]Diagnostics {
+func (p *protocol) PeerDiagnostics() map[types.PeerID]types.Diagnostics {
 	p.peerDiagnosticsMutex.Lock()
 	defer p.peerDiagnosticsMutex.Unlock()
 	// Clone map to avoid racy behaviour
-	result := make(map[p2p2.PeerID]Diagnostics, len(p.peerDiagnostics))
+	result := make(map[types.PeerID]types.Diagnostics, len(p.peerDiagnostics))
 	for key, value := range p.peerDiagnostics {
 		clone := value
-		clone.Peers = append([]p2p2.PeerID(nil), value.Peers...)
+		clone.Peers = append([]types.PeerID(nil), value.Peers...)
 		result[key] = clone
 	}
 	return result
@@ -97,9 +98,9 @@ func (p *protocol) PeerDiagnostics() map[p2p2.PeerID]Diagnostics {
 // NewProtocol creates a new instance of Protocol
 func NewProtocol() Protocol {
 	p := &protocol{
-		peerDiagnostics:      make(map[p2p2.PeerID]Diagnostics, 0),
+		peerDiagnostics:      make(map[types.PeerID]types.Diagnostics, 0),
 		peerDiagnosticsMutex: &sync.Mutex{},
-		peerOmnihashes:       make(map[p2p2.PeerID]hash.SHA256Hash),
+		peerOmnihashes:       make(map[types.PeerID]hash.SHA256Hash),
 		peerOmnihashChannel:  make(chan PeerOmnihash, 100),
 		peerOmnihashMutex:    &sync.Mutex{},
 		blocks:               newDAGBlocks(),
@@ -107,9 +108,9 @@ func NewProtocol() Protocol {
 	return p
 }
 
-func (p *protocol) Configure(p2pNetwork p2p2.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore,
-	diagnosticsProvider func() Diagnostics, advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration,
-	collectMissingPayloadsInterval time.Duration, peerID p2p2.PeerID) {
+func (p *protocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore,
+	diagnosticsProvider func() types.Diagnostics, advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration,
+	collectMissingPayloadsInterval time.Duration, peerID types.PeerID) {
 	p.p2pNetwork = p2pNetwork
 	p.graph = graph
 	p.payloadStore = payloadStore
@@ -118,7 +119,7 @@ func (p *protocol) Configure(p2pNetwork p2p2.Adapter, graph dag.DAG, publisher d
 	p.collectMissingPayloadsInterval = collectMissingPayloadsInterval
 	p.diagnosticsProvider = diagnosticsProvider
 	p.peerID = peerID
-	p.sender = defaultMessageSender{p2p: p.p2pNetwork, maxMessageSize: p2p2.MaxMessageSizeInBytes}
+	p.sender = defaultMessageSender{p2p: p.p2pNetwork, maxMessageSize: p2p.MaxMessageSizeInBytes}
 	p.missingPayloadCollector = broadcastingMissingPayloadCollector{
 		graph:        p.graph,
 		payloadStore: p.payloadStore,
@@ -181,20 +182,20 @@ func (p protocol) startCollectingMissingPayloads() {
 	}
 }
 
-func (p *protocol) startUpdatingDiagnostics(peerConnected chan p2p2.Peer, peerDisconnected chan p2p2.Peer) {
+func (p *protocol) startUpdatingDiagnostics(peerConnected chan p2p.Peer, peerDisconnected chan p2p.Peer) {
 	for {
 		p.updateDiagnostics(peerConnected, peerDisconnected)
 	}
 }
 
-func (p *protocol) updateDiagnostics(peerConnected chan p2p2.Peer, peerDisconnected chan p2p2.Peer) {
+func (p *protocol) updateDiagnostics(peerConnected chan p2p.Peer, peerDisconnected chan p2p.Peer) {
 	select {
 	case peer := <-peerConnected:
 		withLock(p.peerOmnihashMutex, func() {
 			p.peerOmnihashes[peer.ID] = hash.EmptyHash()
 		})
 		withLock(p.peerDiagnosticsMutex, func() {
-			p.peerDiagnostics[peer.ID] = Diagnostics{}
+			p.peerDiagnostics[peer.ID] = types.Diagnostics{}
 		})
 		break
 	case peer := <-peerDisconnected:
@@ -213,7 +214,7 @@ func (p *protocol) updateDiagnostics(peerConnected chan p2p2.Peer, peerDisconnec
 	}
 }
 
-func (p protocol) consumeMessages(queue p2p2.MessageQueue) {
+func (p protocol) consumeMessages(queue p2p.MessageQueue) {
 	for {
 		peerMsg := queue.Get()
 		if err := p.handleMessage(peerMsg); err != nil {

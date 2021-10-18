@@ -21,6 +21,7 @@ package network
 import (
 	"context"
 	"fmt"
+	v1 "github.com/nuts-foundation/nuts-node/network/protocol/v1"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
 	"hash/crc32"
@@ -151,13 +152,15 @@ func startNode(name string, directory string, configurers ...func(*Config)) (*Ne
 	mutex.Unlock()
 	// Create Network instance
 	config := Config{
-		GrpcAddr:                  fmt.Sprintf(":%d", nameToPort(name)),
-		CertFile:                  "test/certificate-and-key.pem",
-		CertKeyFile:               "test/certificate-and-key.pem",
-		TrustStoreFile:            "test/truststore.pem",
-		EnableTLS:                 true,
-		AdvertHashesInterval:      500,
-		AdvertDiagnosticsInterval: 5000,
+		GrpcAddr:       fmt.Sprintf(":%d", nameToPort(name)),
+		CertFile:       "test/certificate-and-key.pem",
+		CertKeyFile:    "test/certificate-and-key.pem",
+		TrustStoreFile: "test/truststore.pem",
+		EnableTLS:      true,
+		ProtocolV1: v1.ProtocolV1Config{
+			AdvertHashesInterval:      500,
+			AdvertDiagnosticsInterval: 5000,
+		},
 	}
 	for _, c := range configurers {
 		c(&config)

@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"github.com/sirupsen/logrus"
@@ -64,7 +65,7 @@ func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
 	return nil
 }
 
-func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.AdvertHashes) {
+func (p *protocol) handleAdvertHashes(peer types.PeerID, advertHash *transport.AdvertHashes) {
 	log.Logger().Tracef("Received adverted hashes from peer: %s", peer)
 
 	localBlocks := p.blocks.get()
@@ -110,7 +111,7 @@ func (p *protocol) handleAdvertHashes(peer p2p.PeerID, advertHash *transport.Adv
 // checkPeerBlocks compares the blocks we've received from a peer with the ones of the local DAG. If it finds heads in the
 // peer blocks that aren't present on the local DAG is will query that block's transactions.
 // localBlocks must not include the historic block.
-func (p *protocol) checkPeerBlocks(peer p2p.PeerID, peerBlocks []*transport.BlockHashes, localBlocks []dagBlock) {
+func (p *protocol) checkPeerBlocks(peer types.PeerID, peerBlocks []*transport.BlockHashes, localBlocks []dagBlock) {
 	for i := 0; i < len(peerBlocks); i++ {
 		localBlock := localBlocks[i]
 		peerBlock := peerBlocks[i]
@@ -142,7 +143,7 @@ func (p *protocol) checkPeerBlocks(peer p2p.PeerID, peerBlocks []*transport.Bloc
 	}
 }
 
-func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport.TransactionPayload) {
+func (p *protocol) handleTransactionPayload(peer types.PeerID, contents *transport.TransactionPayload) {
 	payloadHash := hash.FromSlice(contents.PayloadHash)
 	ctx := context.Background()
 	log.Logger().Infof("Received transaction payload from peer (peer=%s,payloadHash=%s,len=%d)", peer, payloadHash, len(contents.Data))
@@ -160,7 +161,7 @@ func (p *protocol) handleTransactionPayload(peer p2p.PeerID, contents *transport
 	}
 }
 
-func (p *protocol) handleTransactionPayloadQuery(peer p2p.PeerID, query *transport.TransactionPayloadQuery) error {
+func (p *protocol) handleTransactionPayloadQuery(peer types.PeerID, query *transport.TransactionPayloadQuery) error {
 	payloadHash := hash.FromSlice(query.PayloadHash)
 	log.Logger().Tracef("Received transaction payload query from peer (peer=%s, payloadHash=%s)", peer, payloadHash)
 	data, err := p.payloadStore.ReadPayload(context.Background(), payloadHash)
@@ -174,7 +175,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer p2p.PeerID, query *transpo
 	return nil
 }
 
-func (p *protocol) handleTransactionList(peer p2p.PeerID, transactionList *transport.TransactionList) error {
+func (p *protocol) handleTransactionList(peer types.PeerID, transactionList *transport.TransactionList) error {
 	// TODO: Only process transaction list if we actually queried it (but be aware of pagination)
 	// TODO: Do something with blockDate
 	log.Logger().Tracef("Received transaction list from peer (peer=%s)", peer)
@@ -213,7 +214,7 @@ func (p *protocol) handleTransactionList(peer p2p.PeerID, transactionList *trans
 
 // checkTransactionOnLocalNode checks whether the given transaction is present on the local node, adds it if not and/or queries
 // the payload if it (the payload) it not present. If we have both transaction and payload, nothing is done.
-func (p *protocol) checkTransactionOnLocalNode(ctx context.Context, peer p2p.PeerID, transactionRef hash.SHA256Hash, data []byte) error {
+func (p *protocol) checkTransactionOnLocalNode(ctx context.Context, peer types.PeerID, transactionRef hash.SHA256Hash, data []byte) error {
 	// TODO: Make this a bit smarter.
 	var transaction dag.Transaction
 	var err error
@@ -242,7 +243,7 @@ func (p *protocol) checkTransactionOnLocalNode(ctx context.Context, peer p2p.Pee
 	return nil
 }
 
-func (p *protocol) handleTransactionListQuery(peer p2p.PeerID, blockDateInt uint32) error {
+func (p *protocol) handleTransactionListQuery(peer types.PeerID, blockDateInt uint32) error {
 	var startDate time.Time
 	var endDate time.Time
 	if blockDateInt == 0 {
@@ -263,15 +264,15 @@ func (p *protocol) handleTransactionListQuery(peer p2p.PeerID, blockDateInt uint
 	return nil
 }
 
-func (p *protocol) handleDiagnostics(peer p2p.PeerID, response *transport.Diagnostics) {
-	diagnostics := Diagnostics{
+func (p *protocol) handleDiagnostics(peer types.PeerID, response *transport.Diagnostics) {
+	diagnostics := types.Diagnostics{
 		Uptime:               time.Duration(response.Uptime) * time.Second,
 		NumberOfTransactions: response.NumberOfTransactions,
 		SoftwareVersion:      response.SoftwareVersion,
 		SoftwareID:           response.SoftwareID,
 	}
 	for _, peer := range response.Peers {
-		diagnostics.Peers = append(diagnostics.Peers, p2p.PeerID(peer))
+		diagnostics.Peers = append(diagnostics.Peers, types.PeerID(peer))
 	}
 	withLock(p.peerDiagnosticsMutex, func() {
 		p.peerDiagnostics[peer] = diagnostics

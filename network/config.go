@@ -1,5 +1,7 @@
 package network
 
+import v1 "github.com/nuts-foundation/nuts-node/network/protocol/v1"
+
 // Config holds the config for Transactions
 type Config struct {
 	// Socket address for gRPC to listen on
@@ -15,22 +17,15 @@ type Config struct {
 	// MaxCRLValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
 	MaxCRLValidityDays int `koanf:"network.maxcrlvaliditydays"`
 
-	// AdvertHashesInterval specifies how often (in milliseconds) the node should broadcasts its last hashes,
-	// so other nodes can compare and synchronize.
-	AdvertHashesInterval int `koanf:"network.adverthashesinterval"`
-	// AdvertDiagnosticsInterval specifies how often (in milliseconds) the node should query its peers for diagnostic information.
-	AdvertDiagnosticsInterval int `koanf:"network.advertdiagnosticsinterval"`
-	// CollectMissingPayloadsInterval specifies how often (in milliseconds) the node should query peers for missing payloads.
-	CollectMissingPayloadsInterval int `koanf:"network.collectmissingpayloadsinterval"`
+	// ProtocolV1 specifies config for protocol v1
+	ProtocolV1 v1.ProtocolV1Config `koanf:"network.v1"`
 }
 
 // DefaultConfig returns the default NetworkEngine configuration.
 func DefaultConfig() Config {
 	return Config{
-		GrpcAddr:                       ":5555",
-		EnableTLS:                      true,
-		AdvertHashesInterval:           2000,
-		AdvertDiagnosticsInterval:      5000,
-		CollectMissingPayloadsInterval: 60000,
+		GrpcAddr:   ":5555",
+		EnableTLS:  true,
+		ProtocolV1: v1.DefaultConfig(),
 	}
 }

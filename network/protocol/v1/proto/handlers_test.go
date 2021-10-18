@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"testing"
@@ -15,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const peer = p2p.PeerID("test-peer")
+const peer = types.PeerID("test-peer")
 
 var payload = []byte("Hello, World!")
 var payloadHash = hash.SHA256Sum([]byte{1, 2, 3})
@@ -309,7 +310,7 @@ func TestProtocol_handleDiagnostics(t *testing.T) {
 		assert.NoError(t, err)
 		actual := ctx.instance.peerDiagnostics[peer]
 		assert.Equal(t, 1000*time.Second, actual.Uptime)
-		assert.Equal(t, []p2p.PeerID{"test"}, actual.Peers)
+		assert.Equal(t, []types.PeerID{"test"}, actual.Peers)
 		assert.Equal(t, uint32(5), actual.NumberOfTransactions)
 		assert.Equal(t, "1.0", actual.SoftwareVersion)
 		assert.Equal(t, "TEST", actual.SoftwareID)

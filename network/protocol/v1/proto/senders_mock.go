@@ -5,7 +5,7 @@
 package proto
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	reflect "reflect"
 	time "time"
 
@@ -50,7 +50,7 @@ func (mr *MockmessageSenderMockRecorder) broadcastAdvertHashes(blocks interface{
 }
 
 // broadcastDiagnostics mocks base method.
-func (m *MockmessageSender) broadcastDiagnostics(diagnostics Diagnostics) {
+func (m *MockmessageSender) broadcastDiagnostics(diagnostics types.Diagnostics) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "broadcastDiagnostics", diagnostics)
 }
@@ -74,7 +74,7 @@ func (mr *MockmessageSenderMockRecorder) broadcastTransactionPayloadQuery(payloa
 }
 
 // sendTransactionList mocks base method.
-func (m *MockmessageSender) sendTransactionList(peer p2p.PeerID, transactions []dag.Transaction, date time.Time) {
+func (m *MockmessageSender) sendTransactionList(peer types.PeerID, transactions []dag.Transaction, date time.Time) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "sendTransactionList", peer, transactions, date)
 }
@@ -86,7 +86,7 @@ func (mr *MockmessageSenderMockRecorder) sendTransactionList(peer, transactions,
 }
 
 // sendTransactionListQuery mocks base method.
-func (m *MockmessageSender) sendTransactionListQuery(peer p2p.PeerID, blockDate time.Time) {
+func (m *MockmessageSender) sendTransactionListQuery(peer types.PeerID, blockDate time.Time) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "sendTransactionListQuery", peer, blockDate)
 }
@@ -98,7 +98,7 @@ func (mr *MockmessageSenderMockRecorder) sendTransactionListQuery(peer, blockDat
 }
 
 // sendTransactionPayload mocks base method.
-func (m *MockmessageSender) sendTransactionPayload(peer p2p.PeerID, payloadHash hash.SHA256Hash, data []byte) {
+func (m *MockmessageSender) sendTransactionPayload(peer types.PeerID, payloadHash hash.SHA256Hash, data []byte) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "sendTransactionPayload", peer, payloadHash, data)
 }
@@ -110,7 +110,7 @@ func (mr *MockmessageSenderMockRecorder) sendTransactionPayload(peer, payloadHas
 }
 
 // sendTransactionPayloadQuery mocks base method.
-func (m *MockmessageSender) sendTransactionPayloadQuery(peer p2p.PeerID, payloadHash hash.SHA256Hash) {
+func (m *MockmessageSender) sendTransactionPayloadQuery(peer types.PeerID, payloadHash hash.SHA256Hash) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "sendTransactionPayloadQuery", peer, payloadHash)
 }

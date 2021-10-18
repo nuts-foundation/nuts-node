@@ -23,8 +23,10 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crl"
-	p2p2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
-	proto2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
+	"github.com/nuts-foundation/nuts-node/network/protocol"
+	networkTypes "github.com/nuts-foundation/nuts-node/network/protocol/types"
+	v1 "github.com/nuts-foundation/nuts-node/network/protocol/v1"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"os"
 	"path"
 	"path/filepath"
@@ -62,14 +64,13 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 type Network struct {
 	config                 Config
 	lastTransactionTracker lastTransactionTracker
-	p2pNetwork             p2p2.Adapter
-	protocol               proto2.Protocol
+	protocol               protocol.Protocol
 	graph                  dag.DAG
 	publisher              dag.Publisher
 	payloadStore           dag.PayloadStore
 	keyResolver            types.KeyResolver
 	startTime              atomic.Value
-	peerID                 p2p2.PeerID
+	peerID                 networkTypes.PeerID
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -87,8 +88,6 @@ func NewNetworkInstance(config Config, keyResolver types.KeyResolver) *Network {
 	result := &Network{
 		config:                 config,
 		keyResolver:            keyResolver,
-		p2pNetwork:             p2p2.NewAdapter(),
-		protocol:               proto2.NewProtocol(),
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
 	return result
@@ -110,20 +109,14 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
-	n.peerID = p2p2.PeerID(uuid.New().String())
-	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics,
-		time.Duration(n.config.AdvertHashesInterval)*time.Millisecond,
-		time.Duration(n.config.AdvertDiagnosticsInterval)*time.Millisecond,
-		time.Duration(n.config.CollectMissingPayloadsInterval)*time.Millisecond,
-		n.peerID)
-
-	networkConfig, p2pErr := n.buildP2PConfig(n.peerID)
-	if p2pErr != nil {
-		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", p2pErr)
+	n.peerID = networkTypes.PeerID(uuid.New().String())
+	networkConfig, cfgErr := n.buildAdapterConfig(n.peerID)
+	if cfgErr != nil {
+		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", cfgErr)
 		return nil
 	}
-
-	return n.p2pNetwork.Configure(*networkConfig)
+	n.protocol = v1.NewProtocolV1(n.config.ProtocolV1, *networkConfig)
+	return n.protocol.Configure(n.graph, n.publisher, n.payloadStore, n.collectDiagnostics, n.peerID)
 }
 
 // Name returns the module name.
@@ -139,19 +132,10 @@ func (n *Network) Config() interface{} {
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
-
-	if n.p2pNetwork.Configured() {
-		// It's possible that the Nuts node isn't bootstrapped (e.g. TLS configuration incomplete) but that shouldn't
-		// prevent it from starting. In that case the network will be in 'offline mode', meaning it can be read from
-		// and written to, but it will not try to connect to other peers.
-		if err := n.p2pNetwork.Start(); err != nil {
-			return err
-		}
-	} else {
-		log.Logger().Warn("Network engine is in offline mode (P2P layer not configured).")
+	err := n.protocol.Start()
+	if err != nil {
+		return err
 	}
-
-	n.protocol.Start()
 	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
 	n.publisher.Start()
 
@@ -239,14 +223,13 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 
 // Shutdown cleans up any leftover go routines
 func (n *Network) Shutdown() error {
-	return n.p2pNetwork.Stop()
+	return n.protocol.Stop()
 }
 
 // Diagnostics collects and returns diagnostics for the Network engine.
 func (n *Network) Diagnostics() []core.DiagnosticResult {
 	var results = make([]core.DiagnosticResult, 0)
 	results = append(results, n.protocol.Diagnostics()...)
-	results = append(results, n.p2pNetwork.Diagnostics()...)
 	if graph, ok := n.graph.(core.Diagnosable); ok {
 		results = append(results, graph.Diagnostics()...)
 	}
@@ -254,12 +237,13 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 }
 
 // PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
-func (n *Network) PeerDiagnostics() map[p2p2.PeerID]proto2.Diagnostics {
+func (n *Network) PeerDiagnostics() map[networkTypes.PeerID]networkTypes.Diagnostics {
 	return n.protocol.PeerDiagnostics()
 }
 
-func (n *Network) buildP2PConfig(peerID p2p2.PeerID) (*p2p2.AdapterConfig, error) {
-	cfg := p2p2.AdapterConfig{
+// TODO: Untangle from v1 and move to protocol package
+func (n *Network) buildAdapterConfig(peerID networkTypes.PeerID) (*p2p.AdapterConfig, error) {
+	cfg := p2p.AdapterConfig{
 		ListenAddress:  n.config.GrpcAddr,
 		BootstrapNodes: n.config.BootstrapNodes,
 		PeerID:         peerID,
@@ -292,15 +276,15 @@ func (n *Network) buildP2PConfig(peerID p2p2.PeerID) (*p2p2.AdapterConfig, error
 	return &cfg, nil
 }
 
-func (n *Network) collectDiagnostics() proto2.Diagnostics {
-	result := proto2.Diagnostics{
+func (n *Network) collectDiagnostics() networkTypes.Diagnostics {
+	result := networkTypes.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
 		NumberOfTransactions: uint32(n.graph.Statistics(context.Background()).NumberOfTransactions),
 		SoftwareVersion:      core.GitCommit,
 		SoftwareID:           softwareID,
 	}
-	for _, peer := range n.p2pNetwork.Peers() {
-		result.Peers = append(result.Peers, peer.ID)
+	for peerID, _ := range n.protocol.PeerDiagnostics() {
+		result.Peers = append(result.Peers, peerID)
 	}
 	return result
 }

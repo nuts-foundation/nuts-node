@@ -21,13 +21,13 @@ package proto
 import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"sort"
 	"strings"
 )
 
-func newPeerOmnihashStatistic(input map[p2p.PeerID]hash.SHA256Hash) peerOmnihashStatistic {
-	var inputCopy = make(map[p2p.PeerID]hash.SHA256Hash, len(input))
+func newPeerOmnihashStatistic(input map[types.PeerID]hash.SHA256Hash) peerOmnihashStatistic {
+	var inputCopy = make(map[types.PeerID]hash.SHA256Hash, len(input))
 	for k, v := range input {
 		inputCopy[k] = v.Clone()
 	}
@@ -35,7 +35,7 @@ func newPeerOmnihashStatistic(input map[p2p.PeerID]hash.SHA256Hash) peerOmnihash
 }
 
 type peerOmnihashStatistic struct {
-	peerHashes map[p2p.PeerID]hash.SHA256Hash
+	peerHashes map[types.PeerID]hash.SHA256Hash
 }
 
 func (d peerOmnihashStatistic) Name() string {

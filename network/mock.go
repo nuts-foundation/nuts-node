@@ -5,8 +5,7 @@
 package network
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
-	"github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	reflect "reflect"
 	time "time"
 
@@ -100,10 +99,10 @@ func (mr *MockTransactionsMockRecorder) ListTransactions() *gomock.Call {
 }
 
 // PeerDiagnostics mocks base method.
-func (m *MockTransactions) PeerDiagnostics() map[p2p.PeerID]proto.Diagnostics {
+func (m *MockTransactions) PeerDiagnostics() map[types.PeerID]types.Diagnostics {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PeerDiagnostics")
-	ret0, _ := ret[0].(map[p2p.PeerID]proto.Diagnostics)
+	ret0, _ := ret[0].(map[types.PeerID]types.Diagnostics)
 	return ret0
 }
 

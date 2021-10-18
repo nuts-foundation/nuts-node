@@ -1,7 +1,8 @@
 package proto
 
 import (
-	p2p2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"testing"
 	"time"
@@ -12,14 +13,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createMessageSender(t *testing.T) (defaultMessageSender, *p2p2.MockAdapter) {
+func createMessageSender(t *testing.T) (defaultMessageSender, *p2p.MockAdapter) {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(func() {
 		ctrl.Finish()
 	})
-	p2pInterface := p2p2.NewMockAdapter(ctrl)
+	p2pInterface := p2p.NewMockAdapter(ctrl)
 	sender := defaultMessageSender{p2p: p2pInterface}
-	sender.maxMessageSize = p2p2.MaxMessageSizeInBytes
+	sender.maxMessageSize = p2p.MaxMessageSizeInBytes
 	return sender, p2pInterface
 }
 
@@ -48,9 +49,9 @@ func Test_defaultMessageSender_broadcastDiagnostics(t *testing.T) {
 		SoftwareVersion:      "1.0",
 		SoftwareID:           "Test",
 	}}})
-	sender.broadcastDiagnostics(Diagnostics{
+	sender.broadcastDiagnostics(types.Diagnostics{
 		Uptime:               1000 * time.Second,
-		Peers:                []p2p2.PeerID{"foobar"},
+		Peers:                []types.PeerID{"foobar"},
 		NumberOfTransactions: 5,
 		SoftwareVersion:      "1.0",
 		SoftwareID:           "Test",
@@ -89,7 +90,7 @@ func Test_defaultMessageSender_sendTransactionList(t *testing.T) {
 		sender, mock := createMessageSender(t)
 		sender.maxMessageSize = maxMessageSize
 		sentMessages := map[byte]bool{}
-		mock.EXPECT().Send(peer, gomock.Any()).DoAndReturn(func(_ p2p2.PeerID, msg *transport.NetworkMessage) error {
+		mock.EXPECT().Send(peer, gomock.Any()).DoAndReturn(func(_ types.PeerID, msg *transport.NetworkMessage) error {
 			for _, tx := range msg.GetTransactionList().Transactions {
 				if sentMessages[tx.Data[0]] {
 					t.Fatalf("transaction sent twice (idx: %d)", tx.Data[0])

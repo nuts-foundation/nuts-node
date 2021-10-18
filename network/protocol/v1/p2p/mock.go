@@ -5,6 +5,7 @@
 package p2p
 
 import (
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	reflect "reflect"
 
@@ -147,7 +148,7 @@ func (mr *MockAdapterMockRecorder) ReceivedMessages() *gomock.Call {
 }
 
 // Send mocks base method.
-func (m *MockAdapter) Send(peer PeerID, message *transport.NetworkMessage) error {
+func (m *MockAdapter) Send(peer types.PeerID, message *transport.NetworkMessage) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", peer, message)
 	ret0, _ := ret[0].(error)

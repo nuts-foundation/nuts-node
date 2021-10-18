@@ -20,6 +20,7 @@ package proto
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"time"
 
@@ -42,14 +43,14 @@ var ErrUnsupportedProtocolVersion = errors.New("unsupported protocol version")
 type Protocol interface {
 	core.Diagnosable
 	// Configure configures the Protocol. Must be called before Start().
-	Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() Diagnostics,
-		advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration, collectMissingPayloadsInterval time.Duration, peerID p2p.PeerID)
+	Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() types.Diagnostics,
+		advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration, collectMissingPayloadsInterval time.Duration, peerID types.PeerID)
 	// Start the Protocol (sending and receiving of messages).
 	Start()
 	// Stop the Protocol.
 	Stop()
 	// PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
-	PeerDiagnostics() map[p2p.PeerID]Diagnostics
+	PeerDiagnostics() map[types.PeerID]types.Diagnostics
 }
 
 // PeerOmnihashQueue is a queue which contains the omnihashes (DAG reduced to a single hash) from our peers.
@@ -61,22 +62,8 @@ type PeerOmnihashQueue interface {
 // PeerOmnihash describes a peer and its DAG reduced to a single hash.
 type PeerOmnihash struct {
 	// Peer holds the ID of the peer we got the hash from.
-	Peer p2p.PeerID
+	Peer types.PeerID
 	// Hash holds the actual hash.
 	Hash hash.SHA256Hash
 }
 
-// Diagnostics contains information that is shared to this node's peers on request.
-type Diagnostics struct {
-	// Uptime the uptime (time since the node started) in seconds.
-	Uptime time.Duration `json:"uptime"`
-	// Peers contains the peer IDs of the node's peers.
-	Peers []p2p.PeerID `json:"peers"`
-	// NumberOfTransactions contains the total number of transactions on the node's DAG.
-	NumberOfTransactions uint32 `json:"transactionNum"`
-	// SoftwareVersion contains an indication of the software version of the node. It's recommended to use a (Git) commit ID that uniquely resolves to a code revision, alternatively a semantic version could be used (e.g. 1.2.5).
-	SoftwareVersion string `json:"softwareVersion"`
-	// SoftwareID contains an indication of the vendor of the software of the node. For open source implementations it's recommended to specify URL to the public, open source repository.
-	// Proprietary implementations could specify the product's or vendor's name.
-	SoftwareID string `json:"softwareID"`
-}

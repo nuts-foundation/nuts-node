@@ -21,6 +21,7 @@ package p2p
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -165,7 +166,7 @@ func (conn *managedConnection) close() {
 
 // receiveMessages spawns a goroutine that receives messages and puts them on the returned channel. The goroutine
 // can only be stopped by closing the underlying gRPC connection.
-func receiveMessages(peerID PeerID, messenger grpcMessenger) chan *PeerMessage {
+func receiveMessages(peerID types.PeerID, messenger grpcMessenger) chan *PeerMessage {
 	result := make(chan *PeerMessage, 10)
 	go func() {
 		for {
@@ -193,15 +194,15 @@ func receiveMessages(peerID PeerID, messenger grpcMessenger) chan *PeerMessage {
 func newConnectionManager() *connectionManager {
 	return &connectionManager{
 		mux:         &sync.RWMutex{},
-		conns:       make(map[PeerID]*managedConnection, 0),
-		peersByAddr: make(map[string]PeerID, 0),
+		conns:       make(map[types.PeerID]*managedConnection, 0),
+		peersByAddr: make(map[string]types.PeerID, 0),
 	}
 }
 
 type connectionManager struct {
 	mux         *sync.RWMutex
-	conns       map[PeerID]*managedConnection
-	peersByAddr map[string]PeerID
+	conns       map[types.PeerID]*managedConnection
+	peersByAddr map[string]types.PeerID
 }
 
 // register adds a new connection associated with peer. It uses the given messenger to send/receive messages.
@@ -230,7 +231,7 @@ func (mgr *connectionManager) isConnected(addr string) bool {
 }
 
 // get returns the connection associated with peer, or nil if it isn't connected.
-func (mgr *connectionManager) get(peer PeerID) connection {
+func (mgr *connectionManager) get(peer types.PeerID) connection {
 	mgr.mux.RLock()
 	defer mgr.mux.RUnlock()
 	conn, ok := mgr.conns[peer]
@@ -241,7 +242,7 @@ func (mgr *connectionManager) get(peer PeerID) connection {
 }
 
 // close closes the connection associated with peer. It returns true if the peer was connected, otherwise false.
-func (mgr *connectionManager) close(peer PeerID) bool {
+func (mgr *connectionManager) close(peer types.PeerID) bool {
 	mgr.mux.Lock()
 	defer mgr.mux.Unlock()
 	conn, ok := mgr.conns[peer]
@@ -261,8 +262,8 @@ func (mgr *connectionManager) stop() {
 	for _, conn := range mgr.conns {
 		conn.close()
 	}
-	mgr.conns = map[PeerID]*managedConnection{}
-	mgr.peersByAddr = map[string]PeerID{}
+	mgr.conns = map[types.PeerID]*managedConnection{}
+	mgr.peersByAddr = map[string]types.PeerID{}
 }
 
 // forEach applies fn to each connection.

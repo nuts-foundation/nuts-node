@@ -20,6 +20,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"net"
 	"strings"
 
@@ -46,14 +47,14 @@ func normalizeAddress(addr string) string {
 	return normalizedAddr
 }
 
-func peerIDFromMetadata(md metadata.MD) (PeerID, error) {
+func peerIDFromMetadata(md metadata.MD) (types.PeerID, error) {
 	values := md.Get(peerIDHeader)
 	if len(values) == 0 {
 		return "", fmt.Errorf("peer didn't send %s header", peerIDHeader)
 	} else if len(values) > 1 {
 		return "", fmt.Errorf("peer sent multiple values for %s header", peerIDHeader)
 	}
-	peerID := PeerID(strings.TrimSpace(values[0]))
+	peerID := types.PeerID(strings.TrimSpace(values[0]))
 	if peerID == "" {
 		return "", fmt.Errorf("peer sent empty %s header", peerIDHeader)
 	}
@@ -71,7 +72,7 @@ func protocolVersionFromMetadata(md metadata.MD) (string, error) {
 	return strings.TrimSpace(values[0]), nil
 }
 
-func constructMetadata(peerID PeerID) metadata.MD {
+func constructMetadata(peerID types.PeerID) metadata.MD {
 	return metadata.New(map[string]string{
 		peerIDHeader:          string(peerID),
 		protocolVersionHeader: protocolVersionV1,
