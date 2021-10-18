@@ -19,9 +19,6 @@ var ErrPreviousTransactionMissing = errors.New("transaction is referring to non-
 // Verifier defines the API of a DAG verifier, used to check the validity of a transaction.
 type Verifier func(ctx context.Context, tx Transaction, graph DAG) error
 
-// didDocumentResolveEPoch represents the epoch on which DID Document resolving switched from time based to hash based
-var didDocumentResolveEPoch = time.Unix(1638000000, 0)
-
 // NewTransactionSignatureVerifier creates a transaction verifier that checks the signature of the transaction.
 // It uses the given KeyResolver to resolves keys that aren't embedded in the transaction.
 func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
@@ -33,10 +30,10 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 			}
 		} else {
 			signingTime := tx.SigningTime()
-			if signingTime.After(didDocumentResolveEPoch) {
-				pk, err := resolver.ResolvePublicKeyFromSourceTransaction(tx.SigningKeyID(), tx.Previous())
+			if signingTime.After(types.DIDDocumentResolveEpoch) {
+				pk, err := resolver.ResolvePublicKey(tx.SigningKeyID(), tx.Previous())
 				if err != nil {
-					return fmt.Errorf("unable to verify transaction signature, can't resolve key by TX ref (kid=%s, txhash=%s): %w", tx.SigningKeyID(), tx.Ref().String(), err)
+					return fmt.Errorf("unable to verify transaction signature, can't resolve key by TX ref (kid=%s, tx=%s): %w", tx.SigningKeyID(), tx.Ref().String(), err)
 				}
 				signingKey = pk
 			} else {

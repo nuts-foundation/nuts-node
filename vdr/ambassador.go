@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -169,7 +168,12 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 
 	// In an update, only the keyID is provided in the network document. Resolve the key from the key store
 	// This should succeed since the signature of the network document has already been verified.
-	pKey, err := n.keyResolver.ResolvePublicKeyInTime(transaction.SigningKeyID(), &signingTime)
+	var pKey crypto.PublicKey
+	if signingTime.After(types.DIDDocumentResolveEpoch) {
+		pKey, err = n.keyResolver.ResolvePublicKey(transaction.SigningKeyID(), transaction.Previous())
+	} else {
+		pKey, err = n.keyResolver.ResolvePublicKeyInTime(transaction.SigningKeyID(), &signingTime)
+	}
 	if err != nil {
 		return fmt.Errorf("unable to resolve signingkey: %w", err)
 	}
@@ -252,9 +256,9 @@ func checkTransactionIntegrity(transaction dag.Transaction) error {
 		return fmt.Errorf("payloadHash must be provided")
 	}
 
-	// Signing time should be set and lay in the past:
-	if transaction.SigningTime().IsZero() || transaction.SigningTime().After(time.Now()) {
-		return fmt.Errorf("signingTime must be set and in the past")
+	// Signing time should be set:
+	if transaction.SigningTime().IsZero() {
+		return fmt.Errorf("signingTime must be set")
 	}
 
 	return nil

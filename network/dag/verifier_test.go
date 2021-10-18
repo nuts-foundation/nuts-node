@@ -79,12 +79,12 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		assert.EqualError(t, err, "failed to build public key: invalid curve algorithm P-invalid")
 	})
 	t.Run("unable to resolve key by time", func(t *testing.T) {
-		aWhileBack := didDocumentResolveEPoch.Add(-1 * time.Second)
+		aWhileBack := types.DIDDocumentResolveEpoch.Add(-1 * time.Second)
 		d := CreateSignedTestTransaction(1, aWhileBack, "foo/bar", false)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
+		keyResolver.EXPECT().ResolvePublicKeyInTime(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 		err := NewTransactionSignatureVerifier(keyResolver)(context.Background(), d, nil)
 		if !assert.Error(t, err) {
 			return
@@ -93,13 +93,13 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed")
 	})
 	t.Run("unable to resolve key by hash", func(t *testing.T) {
-		after := didDocumentResolveEPoch.Add(1 * time.Second)
+		after := types.DIDDocumentResolveEpoch.Add(1 * time.Second)
 		root := hash.SHA256Sum([]byte("root"))
 		d := CreateSignedTestTransaction(1, after, "foo/bar", false, root)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolvePublicKeyFromOriginatingTransaction(gomock.Any(), []hash.SHA256Hash{root}).Return(nil, errors.New("failed"))
+		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), []hash.SHA256Hash{root}).Return(nil, errors.New("failed"))
 		err := NewTransactionSignatureVerifier(keyResolver)(context.Background(), d, nil)
 		if !assert.Error(t, err) {
 			return

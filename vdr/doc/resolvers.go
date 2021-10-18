@@ -206,9 +206,9 @@ func (r KeyResolver) ResolvePublicKeyInTime(kid string, validAt *time.Time) (cry
 	})
 }
 
-func (r KeyResolver) ResolvePublicKeyFromSourceTransaction(kid string, hashes []hash.SHA256Hash) (crypto.PublicKey, error) {
+func (r KeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
 	// try all keys, continue when err == types.ErrNotFound
-	for _, h := range hashes {
+	for _, h := range sourceTransactionsRefs {
 		publicKey, err := r.resolvePublicKey(kid, types.ResolveMetadata{
 			SourceTransaction: &h,
 		})

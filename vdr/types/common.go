@@ -50,6 +50,9 @@ var ErrDIDAlreadyExists = errors.New("DID document already exists in the store")
 // ErrDuplicateService is returned when a DID Document contains a multiple services with the same type
 var ErrDuplicateService = errors.New("service type is duplicate")
 
+// DIDDocumentResolveEpoch represents the epoch on which DID Document resolving switched from time based to hash based
+var DIDDocumentResolveEpoch = time.Unix(1638000000, 0)
+
 type deactivatedError struct {
 	msg string
 }

@@ -82,15 +82,15 @@ type KeyResolver interface {
 	// ResolveAssertionKeyID look for a valid assertion key for the give DID. If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key is found.
 	ResolveAssertionKeyID(id did.DID) (ssi.URI, error)
-	// ResolvePublicKey loads the key from a DID Document
+	// ResolvePublicKeyInTime loads the key from a DID Document
 	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
 	// It returns ErrNotFound when the DID Document can't be found.
 	ResolvePublicKeyInTime(kid string, validAt *time.Time) (crypto.PublicKey, error)
-	// ResolvePublicKeyFromOriginatingTransaction loads the key from a DID Document where the DID Document
-	// was created with one of the given payload hashes
+	// ResolvePublicKey loads the key from a DID Document where the DID Document
+	// was created with one of the given tx refs
 	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
 	// It returns ErrNotFound when the DID Document can't be found.
-	ResolvePublicKeyFromSourceTransaction(kid string, hashes []hash.SHA256Hash) (crypto.PublicKey, error)
+	ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error)
 }
 
 // DocIterator is the function type for iterating over the all current DID Documents in the store
