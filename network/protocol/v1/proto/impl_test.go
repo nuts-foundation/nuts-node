@@ -5,7 +5,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
+	p2p2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -19,7 +19,7 @@ func Test_ProtocolLifecycle(t *testing.T) {
 	publisher := dag.NewMockPublisher(mockCtrl)
 	publisher.EXPECT().Subscribe("*", gomock.Any())
 
-	instance.Configure(p2p.NewAdapter(), dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), nil, time.Second*2, time.Second*5, 10*time.Second, "local")
+	instance.Configure(p2p2.NewAdapter(), dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), nil, time.Second*2, time.Second*5, 10*time.Second, "local")
 	instance.Start()
 	instance.Stop()
 }
@@ -28,7 +28,7 @@ func Test_Protocol_PeerDiagnostics(t *testing.T) {
 	instance := NewProtocol().(*protocol)
 
 	instance.peerDiagnostics[peer] = Diagnostics{
-		Peers:           []p2p.PeerID{"some-peer"},
+		Peers:           []p2p2.PeerID{"some-peer"},
 		SoftwareVersion: "1.0",
 	}
 	diagnostics := instance.PeerDiagnostics()
@@ -36,7 +36,7 @@ func Test_Protocol_PeerDiagnostics(t *testing.T) {
 	assert.Len(t, diagnostics, 1)
 	actual := diagnostics[peer]
 	assert.Equal(t, "1.0", actual.SoftwareVersion)
-	assert.Equal(t, []p2p.PeerID{"some-peer"}, actual.Peers)
+	assert.Equal(t, []p2p2.PeerID{"some-peer"}, actual.Peers)
 }
 
 func Test_Protocol_StartAdvertingDiagnostics(t *testing.T) {
@@ -57,14 +57,14 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		instance := NewProtocol().(*protocol)
 		instance.missingPayloadCollector = payloadCollector
 		instance.peerOmnihashChannel = make(chan PeerOmnihash, 1)
-		peerConnected := make(chan p2p.Peer, 1)
-		peerDisconnected := make(chan p2p.Peer, 1)
+		peerConnected := make(chan p2p2.Peer, 1)
+		peerDisconnected := make(chan p2p2.Peer, 1)
 
 		stats := instance.Diagnostics()[0].(peerOmnihashStatistic)
 		assert.Empty(t, stats.peerHashes)
 
 		// Peer connects
-		peerConnected <- p2p.Peer{ID: peer}
+		peerConnected <- p2p2.Peer{ID: peer}
 		instance.updateDiagnostics(peerConnected, peerDisconnected)
 		stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
 		assert.Len(t, stats.peerHashes, 1)
@@ -78,7 +78,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		assert.Equal(t, peerHash, stats.peerHashes[peer])
 
 		// Peer disconnects
-		peerDisconnected <- p2p.Peer{ID: peer}
+		peerDisconnected <- p2p2.Peer{ID: peer}
 		instance.updateDiagnostics(peerConnected, peerDisconnected)
 		stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
 		assert.Empty(t, stats.peerHashes)

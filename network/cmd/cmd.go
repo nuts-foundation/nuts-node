@@ -19,10 +19,10 @@
 package cmd
 
 import (
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"sort"
 	"strings"
 
-	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 

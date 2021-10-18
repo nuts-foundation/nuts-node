@@ -20,7 +20,7 @@ package v1
 
 import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"net/http"
 
 	"github.com/labstack/echo/v4"

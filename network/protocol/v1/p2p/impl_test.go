@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
@@ -194,8 +194,8 @@ func Test_adapter_Connect(t *testing.T) {
 
 		recvWaiter := sync.WaitGroup{}
 		recvWaiter.Add(1)
-		mockConnection := func() *transport.MockNetwork_ConnectServer {
-			conn := transport.NewMockNetwork_ConnectServer(ctrl)
+		mockConnection := func() *transport2.MockNetwork_ConnectServer {
+			conn := transport2.NewMockNetwork_ConnectServer(ctrl)
 			ctx := metadata.NewIncomingContext(peer.NewContext(context.Background(), &peer.Peer{
 				Addr: &net.IPAddr{
 					IP: net.IPv4(127, 0, 0, 1),
@@ -238,8 +238,8 @@ func Test_adapter_Connect(t *testing.T) {
 			ListenAddress: "127.0.0.1:0",
 		})
 
-		mockConnection := func() *transport.MockNetwork_ConnectServer {
-			conn := transport.NewMockNetwork_ConnectServer(ctrl)
+		mockConnection := func() *transport2.MockNetwork_ConnectServer {
+			conn := transport2.NewMockNetwork_ConnectServer(ctrl)
 			ctx := metadata.NewIncomingContext(peer.NewContext(context.Background(), &peer.Peer{
 				Addr: &net.IPAddr{
 					IP: net.IPv4(127, 0, 0, 1),
@@ -273,7 +273,7 @@ func Test_adapter_Connect(t *testing.T) {
 			// Perform connection in goroutine to force parallelism server-side, just like it would at run-time.
 			wg := sync.WaitGroup{}
 			wg.Add(1)
-			var client transport.Network_ConnectClient
+			var client transport2.Network_ConnectClient
 			var conn *grpc.ClientConn
 			go func() {
 				defer wg.Done()
@@ -284,7 +284,7 @@ func Test_adapter_Connect(t *testing.T) {
 					t.FailNow()
 				}
 
-				service := transport.NewNetworkClient(conn)
+				service := transport2.NewNetworkClient(conn)
 				client, err = service.Connect(ctx)
 				if !assert.NoError(t, err) {
 					t.FailNow()
@@ -410,7 +410,7 @@ func Test_adapter_Send(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		network := NewAdapter().(*adapter)
 		conn := network.conns.register(Peer{ID: peerID, Address: addr}, nil).(*managedConnection)
-		err := network.Send(peerID, &transport.NetworkMessage{})
+		err := network.Send(peerID, &transport2.NetworkMessage{})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -418,7 +418,7 @@ func Test_adapter_Send(t *testing.T) {
 	})
 	t.Run("unknown peer", func(t *testing.T) {
 		network := NewAdapter().(*adapter)
-		err := network.Send(peerID, &transport.NetworkMessage{})
+		err := network.Send(peerID, &transport2.NetworkMessage{})
 		assert.EqualError(t, err, "unknown peer: foobar")
 	})
 	t.Run("concurrent call on closing connection", func(t *testing.T) {
@@ -428,7 +428,7 @@ func Test_adapter_Send(t *testing.T) {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			_ = network.Send(peerID, &transport.NetworkMessage{})
+			_ = network.Send(peerID, &transport2.NetworkMessage{})
 		}()
 		go func() {
 			defer wg.Done()
@@ -445,7 +445,7 @@ func Test_adapter_Broadcast(t *testing.T) {
 	peer1 := network.conns.register(Peer{ID: peer1ID, Address: addr}, nil).(*managedConnection)
 	peer2 := network.conns.register(Peer{ID: peer2ID, Address: addr}, nil).(*managedConnection)
 	t.Run("ok", func(t *testing.T) {
-		network.Broadcast(&transport.NetworkMessage{})
+		network.Broadcast(&transport2.NetworkMessage{})
 		for _, conn := range network.conns.conns {
 			assert.Len(t, conn.outMessages, 1)
 		}
@@ -456,7 +456,7 @@ func Test_adapter_Broadcast(t *testing.T) {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			network.Broadcast(&transport.NetworkMessage{})
+			network.Broadcast(&transport2.NetworkMessage{})
 		}()
 		go func() {
 			defer wg.Done()

@@ -20,6 +20,8 @@ package network
 
 import (
 	"errors"
+	p2p2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
 	"testing"
 	"time"
 
@@ -28,8 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
-	"github.com/nuts-foundation/nuts-node/network/proto"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -37,7 +37,7 @@ import (
 
 type networkTestContext struct {
 	network     *Network
-	p2pAdapter  *p2p.MockAdapter
+	p2pAdapter  *p2p2.MockAdapter
 	protocol    *proto.MockProtocol
 	graph       *dag.MockDAG
 	payload     *dag.MockPayloadStore
@@ -353,20 +353,20 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 	const txNum = 5
 	const expectedVersion = "0"
 	const expectedID = "https://github.com/nuts-foundation/nuts-node"
-	expectedPeer := p2p.Peer{ID: "abc", Address: "123"}
+	expectedPeer := p2p2.Peer{ID: "abc", Address: "123"}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	cxt := createNetwork(ctrl)
 	cxt.graph.EXPECT().Statistics(gomock.Any()).Return(dag.Statistics{NumberOfTransactions: txNum})
 
-	cxt.p2pAdapter.EXPECT().Peers().Return([]p2p.Peer{expectedPeer})
+	cxt.p2pAdapter.EXPECT().Peers().Return([]p2p2.Peer{expectedPeer})
 
 	actual := cxt.network.collectDiagnostics()
 
 	assert.Equal(t, expectedID, actual.SoftwareID)
 	assert.Equal(t, expectedVersion, actual.SoftwareVersion)
-	assert.Equal(t, []p2p.PeerID{expectedPeer.ID}, actual.Peers)
+	assert.Equal(t, []p2p2.PeerID{expectedPeer.ID}, actual.Peers)
 	assert.Equal(t, uint32(txNum), actual.NumberOfTransactions)
 	assert.NotEmpty(t, actual.Uptime)
 }
@@ -455,7 +455,7 @@ func Test_lastTransactionTracker(t *testing.T) {
 }
 
 func createNetwork(ctrl *gomock.Controller) *networkTestContext {
-	p2pAdapter := p2p.NewMockAdapter(ctrl)
+	p2pAdapter := p2p2.NewMockAdapter(ctrl)
 	protocol := proto.NewMockProtocol(ctrl)
 	graph := dag.NewMockDAG(ctrl)
 	payload := dag.NewMockPayloadStore(ctrl)

@@ -5,6 +5,8 @@
 package network
 
 import (
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
 	reflect "reflect"
 	time "time"
 
@@ -12,8 +14,6 @@ import (
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
-	p2p "github.com/nuts-foundation/nuts-node/network/p2p"
-	proto "github.com/nuts-foundation/nuts-node/network/proto"
 )
 
 // MockTransactions is a mock of Transactions interface.

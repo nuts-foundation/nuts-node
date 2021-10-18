@@ -19,12 +19,12 @@
 package network
 
 import (
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/stretchr/testify/assert"
 
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"

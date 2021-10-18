@@ -17,7 +17,7 @@
  */
 syntax = "proto3";
 
-option go_package = "github.com/nuts-foundation/nuts-node/network/transport";
+option go_package = "github.com/nuts-foundation/nuts-node/network/protocol/transport";
 
 package transport;
 

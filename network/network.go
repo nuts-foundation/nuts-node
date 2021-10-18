@@ -23,6 +23,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crl"
+	p2p2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	proto2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
 	"os"
 	"path"
 	"path/filepath"
@@ -39,8 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
-	"github.com/nuts-foundation/nuts-node/network/proto"
 	"go.etcd.io/bbolt"
 )
 
@@ -62,14 +62,14 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 type Network struct {
 	config                 Config
 	lastTransactionTracker lastTransactionTracker
-	p2pNetwork             p2p.Adapter
-	protocol               proto.Protocol
+	p2pNetwork             p2p2.Adapter
+	protocol               proto2.Protocol
 	graph                  dag.DAG
 	publisher              dag.Publisher
 	payloadStore           dag.PayloadStore
 	keyResolver            types.KeyResolver
 	startTime              atomic.Value
-	peerID                 p2p.PeerID
+	peerID                 p2p2.PeerID
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -87,8 +87,8 @@ func NewNetworkInstance(config Config, keyResolver types.KeyResolver) *Network {
 	result := &Network{
 		config:                 config,
 		keyResolver:            keyResolver,
-		p2pNetwork:             p2p.NewAdapter(),
-		protocol:               proto.NewProtocol(),
+		p2pNetwork:             p2p2.NewAdapter(),
+		protocol:               proto2.NewProtocol(),
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
 	return result
@@ -110,7 +110,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
-	n.peerID = p2p.PeerID(uuid.New().String())
+	n.peerID = p2p2.PeerID(uuid.New().String())
 	n.protocol.Configure(n.p2pNetwork, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics,
 		time.Duration(n.config.AdvertHashesInterval)*time.Millisecond,
 		time.Duration(n.config.AdvertDiagnosticsInterval)*time.Millisecond,
@@ -254,12 +254,12 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 }
 
 // PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
-func (n *Network) PeerDiagnostics() map[p2p.PeerID]proto.Diagnostics {
+func (n *Network) PeerDiagnostics() map[p2p2.PeerID]proto2.Diagnostics {
 	return n.protocol.PeerDiagnostics()
 }
 
-func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) {
-	cfg := p2p.AdapterConfig{
+func (n *Network) buildP2PConfig(peerID p2p2.PeerID) (*p2p2.AdapterConfig, error) {
+	cfg := p2p2.AdapterConfig{
 		ListenAddress:  n.config.GrpcAddr,
 		BootstrapNodes: n.config.BootstrapNodes,
 		PeerID:         peerID,
@@ -292,8 +292,8 @@ func (n *Network) buildP2PConfig(peerID p2p.PeerID) (*p2p.AdapterConfig, error) 
 	return &cfg, nil
 }
 
-func (n *Network) collectDiagnostics() proto.Diagnostics {
-	result := proto.Diagnostics{
+func (n *Network) collectDiagnostics() proto2.Diagnostics {
+	result := proto2.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
 		NumberOfTransactions: uint32(n.graph.Statistics(context.Background()).NumberOfTransactions),
 		SoftwareVersion:      core.GitCommit,

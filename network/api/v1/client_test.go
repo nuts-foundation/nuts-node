@@ -20,7 +20,7 @@ package v1
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"net/http"
 	"net/http/httptest"
 	"testing"

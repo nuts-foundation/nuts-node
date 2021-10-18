@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"io"
 	"runtime"
 	"sync"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
 )
 

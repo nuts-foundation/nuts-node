@@ -19,8 +19,8 @@
 package network
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/p2p"
-	"github.com/nuts-foundation/nuts-node/network/proto"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto"

@@ -21,12 +21,12 @@ package p2p
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"sync"
 
 	log "github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 )
 

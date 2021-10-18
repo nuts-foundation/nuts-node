@@ -21,7 +21,7 @@ package proto
 import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"sort"
 	"strings"
 )

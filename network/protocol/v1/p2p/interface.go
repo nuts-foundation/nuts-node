@@ -23,9 +23,9 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crl"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
 // Adapter defines the API for the P2P layer, used to connect to peers and exchange messages.

@@ -1,14 +1,14 @@
 package proto
 
 import (
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"math"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -29,8 +29,8 @@ type messageSender interface {
 }
 
 type defaultMessageSender struct {
-	p2p                    p2p.Adapter
-	maxMessageSize         int
+	p2p            p2p.Adapter
+	maxMessageSize int
 	transactionsPerMessage int
 }
 

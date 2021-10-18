@@ -2,7 +2,7 @@ package v1
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/network/proto"
+	"github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
 	"time"
 )
 
