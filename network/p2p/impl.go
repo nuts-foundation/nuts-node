@@ -124,7 +124,10 @@ type connector struct {
 func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*Peer, transport.Network_ConnectClient, error) {
 	log.Logger().Debugf("Connecting to peer: %v", c.address)
 	cxt := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
-	dialContext, _ := context.WithTimeout(cxt, 5*time.Second)
+
+	dialContext, cancel := context.WithTimeout(cxt, 5*time.Second)
+	defer cancel()
+
 	dialOptions := []grpc.DialOption{
 		grpc.WithBlock(),                 // Dial should block until connection succeeded (or time-out expired)
 		grpc.WithReturnConnectionError(), // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
