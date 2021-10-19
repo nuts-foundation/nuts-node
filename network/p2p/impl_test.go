@@ -116,6 +116,8 @@ func Test_adapter_Configure(t *testing.T) {
 
 		willConnect := network.ConnectToPeer(peer.config.ListenAddress)
 		assert.True(t, willConnect)
+
+		time.Sleep(time.Second)
 	})
 }
 
