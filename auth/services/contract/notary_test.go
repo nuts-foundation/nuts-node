@@ -19,10 +19,18 @@
 package contract
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+	irma "github.com/privacybydesign/irmago"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/auth/services"
+	irmaService "github.com/nuts-foundation/nuts-node/auth/services/irma"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -31,11 +39,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/nuts-foundation/nuts-node/auth/contract"
 )
 
 const orgName = "CareBears"
@@ -45,7 +48,7 @@ var orgConcept = concept.Concept{"organization": concept.Concept{"name": orgName
 
 var orgID = *vdr.TestDIDA
 
-func Test_contractNotaryService_DrawUpContract(t *testing.T) {
+func TestContract_DrawUpContract(t *testing.T) {
 	template := contract.Template{
 		Template: "Organisation Name: {{legal_entity}} in {{legal_entity_city}}, valid from {{valid_from}} to {{valid_to}}",
 	}
@@ -99,10 +102,10 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
 		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
-		timenow = func() time.Time {
+		timeNow = func() time.Time {
 			return time.Time{}.Add(10 * time.Second)
 		}
-		defer func() { timenow = time.Now }()
+		defer func() { timeNow = time.Now }()
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, time.Time{}, 0)
 		if !assert.NoError(t, err) {
 			return
@@ -218,51 +221,228 @@ func Test_contractNotaryService_DrawUpContract(t *testing.T) {
 func TestNewContractNotary(t *testing.T) {
 	t.Run("adds all services", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
-		instance := NewContractNotary(
+		instance := NewNotary(
+			Config{
+				ContractValidity: 60 * time.Minute,
+			},
+			vcr.NewMockResolver(gomock.NewController(t)),
 			vcr.NewTestVCRInstance(testDir),
 			doc.KeyResolver{Store: store.NewMemoryStore()},
 			crypto.NewTestCryptoInstance(testDir),
-			60*time.Minute,
 		)
 
 		if !assert.NotNil(t, instance) {
 			return
 		}
 
-		service, ok := instance.(*contractNotaryService)
+		n, ok := instance.(*notary)
 		if !assert.True(t, ok) {
 			return
 		}
 
-		assert.NotNil(t, service.privateKeyStore)
-		assert.NotNil(t, service.conceptFinder)
-		assert.NotNil(t, service.keyResolver)
-		assert.NotNil(t, service.contractValidity)
+		assert.NotNil(t, n.privateKeyStore)
+		assert.NotNil(t, n.conceptFinder)
+		assert.NotNil(t, n.keyResolver)
+		assert.NotNil(t, n.config.ContractValidity)
+	})
+}
+
+const qrURL = "https://api.nuts-test.example" + irmaService.IrmaMountPath + "/123-session-ref-123"
+
+func TestService_CreateContractSession(t *testing.T) {
+	t.Run("Create a new session", func(t *testing.T) {
+		ctx := buildContext(t)
+		defer ctx.ctrl.Finish()
+
+		request := services.CreateSessionRequest{
+			Message:      "message to sign",
+			SigningMeans: irmaService.ContractFormat,
+		}
+		ctx.signerMock.EXPECT().StartSigningSession(gomock.Any()).Return(irmaService.SessionPtr{ID: "abc-sessionid-abc", QrCodeInfo: irma.Qr{URL: qrURL, Type: irma.ActionSigning}}, nil)
+
+		result, err := ctx.notary.CreateSigningSession(request)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		irmaResult := result.(irmaService.SessionPtr)
+
+		assert.Equal(t, irmaResult.QrCodeInfo.URL, qrURL, "qrCode should contain the correct URL")
+		assert.Equal(t, irmaResult.QrCodeInfo.Type, irma.ActionSigning, "qrCode type should be signing")
+	})
+}
+
+func TestContract_Configure(t *testing.T) {
+	t.Run("ok - config valid", func(t *testing.T) {
+		c := notary{
+			config: Config{
+				PublicURL:             "url",
+				IrmaConfigPath:        "../../../development/irma",
+				IrmaSchemeManager:     "empty",
+				AutoUpdateIrmaSchemas: false,
+				ContractValidators:    []string{"irma", "dummy"},
+			},
+		}
+
+		assert.NoError(t, c.Configure())
+	})
+}
+
+func TestContract_VerifyVP(t *testing.T) {
+	t.Run("ok - valid VP", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		rawVP, err := json.Marshal(struct {
+			Type []string
+		}{Type: []string{"bar"}})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		mockVerifier := services.NewMockContractClient(ctrl)
+		mockVerifier.EXPECT().VerifyVP(rawVP, nil).Return(services.TestVPVerificationResult{Val: contract.Valid}, nil)
+
+		validator := notary{verifiers: map[contract.VPType]contract.VPVerifier{"bar": mockVerifier}}
+
+		validationResult, err := validator.VerifyVP(rawVP, nil)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		if !assert.NotNil(t, validationResult) {
+			return
+		}
+		assert.Equal(t, contract.Valid, validationResult.Validity())
+	})
+
+	t.Run("nok - unknown VerifiablePresentation", func(t *testing.T) {
+		validator := notary{}
+
+		rawVP, err := json.Marshal(struct {
+			Type []string
+		}{Type: []string{"bar"}})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		validationResult, err := validator.VerifyVP(rawVP, nil)
+		if !assert.Error(t, err) {
+			return
+		}
+		if !assert.Nil(t, validationResult) {
+			return
+		}
+		assert.Equal(t, "unknown VerifiablePresentation type: bar", err.Error())
+	})
+
+	t.Run("nok - missing custom type", func(t *testing.T) {
+		validator := notary{}
+
+		rawVP, err := json.Marshal(struct {
+			foo string
+		}{foo: "bar"})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		validationResult, err := validator.VerifyVP(rawVP, nil)
+		if !assert.Error(t, err) {
+			return
+		}
+		if !assert.Nil(t, validationResult) {
+			return
+		}
+		assert.Equal(t, "unprocessable VerifiablePresentation, exactly 1 custom type is expected", err.Error())
+	})
+
+	t.Run("nok - invalid rawVP", func(t *testing.T) {
+		validator := notary{}
+		validationResult, err := validator.VerifyVP([]byte{}, nil)
+		if !assert.Error(t, err) {
+			return
+		}
+		if !assert.Nil(t, validationResult) {
+			return
+		}
+		assert.Equal(t, "unable to verifyVP: unexpected end of JSON input", err.Error())
+	})
+}
+
+func TestContract_SigningSessionStatus(t *testing.T) {
+	t.Run("ok - valid session", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		sessionID := "123"
+
+		mockSigner := contract.NewMockSigner(ctrl)
+		mockSigner.EXPECT().SigningSessionStatus(sessionID).Return(&contract.MockSigningSessionResult{}, nil)
+
+		validator := notary{signers: map[contract.SigningMeans]contract.Signer{"bar": mockSigner}}
+
+		signingSessionResult, err := validator.SigningSessionStatus(sessionID)
+		if !assert.NoError(t, err) {
+			return
+		}
+		if !assert.NotNil(t, signingSessionResult) {
+			return
+		}
+	})
+
+	t.Run("nok - session not found", func(t *testing.T) {
+		validator := notary{}
+		sessionID := "123"
+		signingSesionResult, err := validator.SigningSessionStatus(sessionID)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		if !assert.Nil(t, signingSesionResult) {
+			return
+		}
+		assert.Equal(t, "session not found", err.Error())
 	})
 }
 
 type testContext struct {
-	ctrl         *gomock.Controller
+	ctrl *gomock.Controller
+
+	signerMock   *contract.MockSigner
 	nameResolver *vcr.MockConceptFinder
 	keyResolver  *types.MockKeyResolver
 	keyStore     *crypto.MockKeyStore
-	notary       contractNotaryService
+	notary       notary
 }
 
 func buildContext(t *testing.T) *testContext {
 	ctrl := gomock.NewController(t)
+
+	signerMock := contract.NewMockSigner(ctrl)
+
+	signers := map[contract.SigningMeans]contract.Signer{}
+	signers["irma"] = signerMock
+
 	ctx := &testContext{
 		ctrl:         ctrl,
 		nameResolver: vcr.NewMockConceptFinder(ctrl),
 		keyResolver:  types.NewMockKeyResolver(ctrl),
 		keyStore:     crypto.NewMockKeyStore(ctrl),
+		signerMock:   signerMock,
 	}
-	notary := contractNotaryService{
-		keyResolver:      ctx.keyResolver,
-		privateKeyStore:  ctx.keyStore,
-		conceptFinder:    ctx.nameResolver,
-		contractValidity: 15 * time.Minute,
+
+	notary := notary{
+		keyResolver:     ctx.keyResolver,
+		privateKeyStore: ctx.keyStore,
+		conceptFinder:   ctx.nameResolver,
+		signers:         signers,
+		config: Config{
+			ContractValidity: 15 * time.Minute,
+		},
 	}
+
 	ctx.notary = notary
+
 	return ctx
 }
