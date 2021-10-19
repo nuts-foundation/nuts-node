@@ -39,19 +39,17 @@ const UziProduction UziEnv = "production"
 // https://acceptatie.zorgcsp.nl/ca-certificaten
 const UziAcceptation UziEnv = "acceptation"
 
-func getUziAttributeNames() []string {
-	// A list of Uzi attribute names used to sign the message
-	// See table 12 on page 62 of the Certification Practice Statement (CPS) UZI-register v10.x
-	// https://zorgcsp.nl/Media/Default/documenten/2020-05-06_RK1%20CPS%20UZI-register%20V10.0.pdf
-	return []string{
-		"oidCa",
-		"version",
-		"uziNr",
-		"cardType",
-		"orgID",
-		"roleCode",
-		"agbCode",
-	}
+// A list of Uzi attribute names used to sign the message
+// See table 12 on page 62 of the Certification Practice Statement (CPS) UZI-register v10.x
+// https://zorgcsp.nl/Media/Default/documenten/2020-05-06_RK1%20CPS%20UZI-register%20V10.0.pdf
+var uziAttributeNames = []string{
+	"oidCa",
+	"version",
+	"uziNr",
+	"cardType",
+	"orgID",
+	"roleCode",
+	"agbCode",
 }
 
 // SignerAttributes returns the attributes from the Uzi card used in the signature.
@@ -66,15 +64,15 @@ func (t UziSignedToken) SignerAttributes() (map[string]string, error) {
 
 	for _, otherNameStr := range otherNames {
 		parts := strings.Split(otherNameStr, "-")
-		attrNames := getUziAttributeNames()
-		if len(parts) != len(attrNames) {
+		if len(parts) != len(uziAttributeNames) {
 			continue
 		}
 
-		for idx, name := range getUziAttributeNames() {
+		for idx, name := range uziAttributeNames {
 			res[name] = parts[idx]
 		}
 	}
+
 	return res, nil
 }
 
