@@ -51,20 +51,6 @@ func (mr *MockAuthenticationServicesMockRecorder) ClientCertificate() *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClientCertificate", reflect.TypeOf((*MockAuthenticationServices)(nil).ClientCertificate))
 }
 
-// ContractClient mocks base method.
-func (m *MockAuthenticationServices) ContractClient() services.ContractClient {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ContractClient")
-	ret0, _ := ret[0].(services.ContractClient)
-	return ret0
-}
-
-// ContractClient indicates an expected call of ContractClient.
-func (mr *MockAuthenticationServicesMockRecorder) ContractClient() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContractClient", reflect.TypeOf((*MockAuthenticationServices)(nil).ContractClient))
-}
-
 // ContractNotary mocks base method.
 func (m *MockAuthenticationServices) ContractNotary() services.ContractNotary {
 	m.ctrl.T.Helper()

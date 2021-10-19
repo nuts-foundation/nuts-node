@@ -12,8 +12,6 @@ import (
 type AuthenticationServices interface {
 	// OAuthClient returns an instance of OAuthClient
 	OAuthClient() services.OAuthClient
-	// ContractClient returns an instance of ContractClient
-	ContractClient() services.ContractClient
 	// ContractNotary returns an instance of ContractNotary
 	ContractNotary() services.ContractNotary
 	// HTTPTimeout returns the HTTP timeout to use for the Auth API HTTP client

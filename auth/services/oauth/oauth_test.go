@@ -125,7 +125,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, requesterDID.String()).MinTimes(1).Return(orgConceptName, nil)
-		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(nil, errors.New("identity validation failed"))
+		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(nil, errors.New("identity validation failed"))
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
@@ -166,7 +166,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
-		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{Val: contract.Invalid}, nil)
+		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{Val: contract.Invalid}, nil)
 
 		tokenCtx := validContext()
 		signToken(tokenCtx)
@@ -213,7 +213,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAT", nil)
-		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
+		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
 			Val:         contract.Valid,
 			DAttributes: map[string]string{"name": "Henk de Vries"},
 			CAttributes: map[string]string{"legal_entity": "Carebears", "legal_entity_city": "Caretown"},
@@ -1000,21 +1000,21 @@ func signToken(context *validationContext) {
 }
 
 type testContext struct {
-	ctrl               *gomock.Controller
-	contractClientMock *services.MockContractClient
-	privateKeyStore    *crypto.MockKeyStore
-	nameResolver       *vcr.MockConceptFinder
-	vcValidator        *vcr.MockValidator
-	didResolver        *types.MockStore
-	keyResolver        *types.MockKeyResolver
-	serviceResolver    *didman.MockServiceResolver
-	oauthService       *service
+	ctrl            *gomock.Controller
+	contractNotary  *services.MockContractNotary
+	privateKeyStore *crypto.MockKeyStore
+	nameResolver    *vcr.MockConceptFinder
+	vcValidator     *vcr.MockValidator
+	didResolver     *types.MockStore
+	keyResolver     *types.MockKeyResolver
+	serviceResolver *didman.MockServiceResolver
+	oauthService    *service
 }
 
 var createContext = func(t *testing.T) *testContext {
 	ctrl := gomock.NewController(t)
 
-	contractClientMock := services.NewMockContractClient(ctrl)
+	contractNotaryMock := services.NewMockContractNotary(ctrl)
 	privateKeyStore := crypto.NewMockKeyStore(ctrl)
 	nameResolver := vcr.NewMockConceptFinder(ctrl)
 	vcValidator := vcr.NewMockValidator(ctrl)
@@ -1023,18 +1023,18 @@ var createContext = func(t *testing.T) *testContext {
 	didResolver := types.NewMockStore(ctrl)
 
 	return &testContext{
-		ctrl:               ctrl,
-		contractClientMock: contractClientMock,
-		privateKeyStore:    privateKeyStore,
-		keyResolver:        keyResolver,
-		nameResolver:       nameResolver,
-		serviceResolver:    serviceResolver,
-		vcValidator:        vcValidator,
-		didResolver:        didResolver,
+		ctrl:            ctrl,
+		contractNotary:  contractNotaryMock,
+		privateKeyStore: privateKeyStore,
+		keyResolver:     keyResolver,
+		nameResolver:    nameResolver,
+		serviceResolver: serviceResolver,
+		vcValidator:     vcValidator,
+		didResolver:     didResolver,
 		oauthService: &service{
 			docResolver:     doc.Resolver{Store: didResolver},
 			keyResolver:     keyResolver,
-			contractClient:  contractClientMock,
+			contractNotary:  contractNotaryMock,
 			privateKeyStore: privateKeyStore,
 			conceptFinder:   nameResolver,
 			serviceResolver: serviceResolver,

@@ -61,7 +61,7 @@ type service struct {
 	vcValidator     vcr.Validator
 	keyResolver     types.KeyResolver
 	privateKeyStore nutsCrypto.KeyStore
-	contractClient  services.ContractClient
+	contractNotary  services.ContractNotary
 	serviceResolver didman.ServiceResolver
 
 	clockSkew time.Duration
@@ -134,20 +134,20 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValidator vcr.Validator, serviceResolver didman.ServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractClient services.ContractClient) services.OAuthClient {
+func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValidator vcr.Validator, serviceResolver didman.ServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary) services.OAuthClient {
 	return &service{
 		docResolver:     doc.Resolver{Store: store},
 		keyResolver:     doc.KeyResolver{Store: store},
 		serviceResolver: serviceResolver,
-		contractClient:  contractClient,
+		contractNotary:  contractNotary,
 		conceptFinder:   conceptFinder,
 		vcValidator:     vcValidator,
 		privateKeyStore: privateKeyStore,
 	}
 }
 
-// OauthBearerTokenMaxValidity is the number of seconds that a bearer token is valid
-const OauthBearerTokenMaxValidity = 5
+// BearerTokenMaxValidity is the number of seconds that a bearer token is valid
+const BearerTokenMaxValidity = 5
 
 // Configure the service
 func (s *service) Configure(clockSkew int) error {
@@ -169,7 +169,7 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 	}
 
 	// check the maximum validity, according to RFC003 §5.2.1.4
-	if context.jwtBearerToken.Expiration().Sub(context.jwtBearerToken.IssuedAt()).Seconds() > OauthBearerTokenMaxValidity {
+	if context.jwtBearerToken.Expiration().Sub(context.jwtBearerToken.IssuedAt()).Seconds() > BearerTokenMaxValidity {
 		return nil, errors.New("JWT validity too long")
 	}
 
@@ -195,7 +195,7 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 			return nil, fmt.Errorf("failed to decode base64 usi field: %w", err)
 		}
 
-		if context.contractVerificationResult, err = s.contractClient.VerifyVP(decoded, nil); err != nil {
+		if context.contractVerificationResult, err = s.contractNotary.VerifyVP(decoded, nil); err != nil {
 			return nil, fmt.Errorf("identity verification failed: %w", err)
 		}
 
@@ -447,7 +447,7 @@ var timeFunc = time.Now
 func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) map[string]interface{} {
 	result := map[string]interface{}{}
 	result[jwt.AudienceKey] = audience
-	result[jwt.ExpirationKey] = timeFunc().Add(OauthBearerTokenMaxValidity * time.Second).Unix()
+	result[jwt.ExpirationKey] = timeFunc().Add(BearerTokenMaxValidity * time.Second).Unix()
 	result[jwt.IssuedAtKey] = timeFunc().Unix()
 	result[jwt.IssuerKey] = request.Requester
 	result[jwt.NotBeforeKey] = 0

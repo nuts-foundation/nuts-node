@@ -22,7 +22,7 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 			// strip the prefix
 			request.URL.Path = strings.Split(request.URL.Path, irma.IrmaMountPath)[1]
 		}
-		w.Auth.ContractClient().HandlerFunc()(writer, request)
+		w.Auth.ContractNotary().HandlerFunc()(writer, request)
 	}
 	// wrap the http handler in a echo handler
 	irmaEchoHandler := echo.WrapHandler(http.HandlerFunc(rewriteFunc))

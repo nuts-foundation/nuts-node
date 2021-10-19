@@ -301,7 +301,7 @@ func TestContract_VerifyVP(t *testing.T) {
 			return
 		}
 
-		mockVerifier := services.NewMockContractClient(ctrl)
+		mockVerifier := services.NewMockContractNotary(ctrl)
 		mockVerifier.EXPECT().VerifyVP(rawVP, nil).Return(services.TestVPVerificationResult{Val: contract.Valid}, nil)
 
 		validator := notary{verifiers: map[contract.VPType]contract.VPVerifier{"bar": mockVerifier}}
