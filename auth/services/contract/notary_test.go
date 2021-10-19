@@ -66,7 +66,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 		if !assert.NoError(t, err) {
@@ -83,7 +83,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, 0)
 		if !assert.NoError(t, err) {
@@ -100,7 +100,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		timeNow = func() time.Time {
 			return time.Time{}.Add(10 * time.Second)
@@ -134,7 +134,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"city": orgCity}}, nil)
+		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"city": orgCity}}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 
@@ -148,7 +148,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"name": orgName}}, nil)
+		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"name": orgName}}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 
@@ -189,7 +189,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(nil, errors.New("error occurred"))
+		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(nil, errors.New("error occurred"))
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 		if assert.Error(t, err) {
@@ -204,7 +204,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		template := contract.Template{
 			Template: "Organisation Name: {{{legal_entity}}, valid from {{valid_from}} to {{valid_to}}",
@@ -225,7 +225,6 @@ func TestNewContractNotary(t *testing.T) {
 			Config{
 				ContractValidity: 60 * time.Minute,
 			},
-			vcr.NewMockResolver(gomock.NewController(t)),
 			vcr.NewTestVCRInstance(testDir),
 			doc.KeyResolver{Store: store.NewMemoryStore()},
 			crypto.NewTestCryptoInstance(testDir),
@@ -240,9 +239,9 @@ func TestNewContractNotary(t *testing.T) {
 			return
 		}
 
-		assert.NotNil(t, n.privateKeyStore)
-		assert.NotNil(t, n.conceptFinder)
+		assert.NotNil(t, n.vcr)
 		assert.NotNil(t, n.keyResolver)
+		assert.NotNil(t, n.privateKeyStore)
 		assert.NotNil(t, n.config.ContractValidity)
 	})
 }
@@ -409,11 +408,11 @@ func TestContract_SigningSessionStatus(t *testing.T) {
 type testContext struct {
 	ctrl *gomock.Controller
 
-	signerMock   *contract.MockSigner
-	nameResolver *vcr.MockConceptFinder
-	keyResolver  *types.MockKeyResolver
-	keyStore     *crypto.MockKeyStore
-	notary       notary
+	signerMock  *contract.MockSigner
+	vcr         *vcr.MockVCR
+	keyResolver *types.MockKeyResolver
+	keyStore    *crypto.MockKeyStore
+	notary      notary
 }
 
 func buildContext(t *testing.T) *testContext {
@@ -425,17 +424,17 @@ func buildContext(t *testing.T) *testContext {
 	signers["irma"] = signerMock
 
 	ctx := &testContext{
-		ctrl:         ctrl,
-		nameResolver: vcr.NewMockConceptFinder(ctrl),
-		keyResolver:  types.NewMockKeyResolver(ctrl),
-		keyStore:     crypto.NewMockKeyStore(ctrl),
-		signerMock:   signerMock,
+		ctrl:        ctrl,
+		vcr:         vcr.NewMockVCR(ctrl),
+		keyResolver: types.NewMockKeyResolver(ctrl),
+		keyStore:    crypto.NewMockKeyStore(ctrl),
+		signerMock:  signerMock,
 	}
 
 	notary := notary{
 		keyResolver:     ctx.keyResolver,
 		privateKeyStore: ctx.keyStore,
-		conceptFinder:   ctx.nameResolver,
+		vcr:             ctx.vcr,
 		signers:         signers,
 		config: Config{
 			ContractValidity: 15 * time.Minute,

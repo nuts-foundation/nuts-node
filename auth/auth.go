@@ -115,7 +115,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 
 	keyResolver := doc.KeyResolver{Store: auth.registry}
 
-	auth.contractNotary = contract.NewNotary(cfg, auth.vcr, auth.vcr, keyResolver, auth.keyStore)
+	auth.contractNotary = contract.NewNotary(cfg, auth.vcr, keyResolver, auth.keyStore)
 
 	if config.Strictmode && !auth.config.EnableTLS {
 		return errors.New("in strictmode auth.enabletls must be true")

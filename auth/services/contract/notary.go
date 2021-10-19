@@ -74,24 +74,22 @@ func (c Config) hasContractValidator(cv string) bool {
 
 type notary struct {
 	config            Config
-	conceptFinder     vcr.ConceptFinder
 	keyResolver       types.KeyResolver
 	privateKeyStore   crypto.KeyStore
 	irmaServiceConfig irma.ValidatorConfig
 	irmaServer        *irmaserver.Server
 	verifiers         map[contract.VPType]contract.VPVerifier
 	signers           map[contract.SigningMeans]contract.Signer
-	vcResolver        vcr.Resolver
+	vcr               vcr.VCR
 }
 
 var timeNow = time.Now
 
 // NewNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewNotary(config Config, vcResolver vcr.Resolver, finder vcr.ConceptFinder, keyResolver types.KeyResolver, keyStore crypto.KeyStore) services.ContractNotary {
+func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore) services.ContractNotary {
 	return &notary{
 		config:          config,
-		vcResolver:      vcResolver,
-		conceptFinder:   finder,
+		vcr:             vcr,
 		keyResolver:     keyResolver,
 		privateKeyStore: keyStore,
 	}
@@ -114,7 +112,7 @@ func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, valid
 	}
 
 	// DrawUpContract draws up a contract for a specific organization from a template
-	result, err := n.conceptFinder.Get(concept.OrganizationConcept, false, orgID.String())
+	result, err := n.vcr.Get(concept.OrganizationConcept, false, orgID.String())
 	if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
