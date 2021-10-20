@@ -56,14 +56,13 @@ type TestContext struct {
 	echoMock           *mock.MockContext
 	authMock           pkg2.AuthenticationServices
 	notaryMock         *services.MockContractNotary
-	contractClientMock *services.MockContractClient
+	contractClientMock *services.MockContractNotary
 	oauthClientMock    *services.MockOAuthClient
 	wrapper            Wrapper
 }
 
 type mockAuthClient struct {
 	ctrl               *gomock.Controller
-	mockContractClient *services.MockContractClient
 	mockContractNotary *services.MockContractNotary
 	mockOAuthClient    *services.MockOAuthClient
 }
@@ -88,10 +87,6 @@ func (m *mockAuthClient) OAuthClient() services.OAuthClient {
 	return m.mockOAuthClient
 }
 
-func (m *mockAuthClient) ContractClient() services.ContractClient {
-	return m.mockContractClient
-}
-
 func (m *mockAuthClient) ContractNotary() services.ContractNotary {
 	return m.mockContractNotary
 }
@@ -99,13 +94,11 @@ func (m *mockAuthClient) ContractNotary() services.ContractNotary {
 func createContext(t *testing.T) *TestContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	mockContractClient := services.NewMockContractClient(ctrl)
 	mockContractNotary := services.NewMockContractNotary(ctrl)
 	mockOAuthClient := services.NewMockOAuthClient(ctrl)
 
 	authMock := &mockAuthClient{
 		ctrl:               ctrl,
-		mockContractClient: mockContractClient,
 		mockContractNotary: mockContractNotary,
 		mockOAuthClient:    mockOAuthClient,
 	}
@@ -115,7 +108,7 @@ func createContext(t *testing.T) *TestContext {
 		echoMock:           mock.NewMockContext(ctrl),
 		authMock:           authMock,
 		notaryMock:         mockContractNotary,
-		contractClientMock: mockContractClient,
+		contractClientMock: mockContractNotary,
 		oauthClientMock:    mockOAuthClient,
 		wrapper:            Wrapper{Auth: authMock},
 	}

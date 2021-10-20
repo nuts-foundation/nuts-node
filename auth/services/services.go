@@ -35,15 +35,12 @@ type VPProofValueParser interface {
 	Verify(token SignedToken) error
 }
 
-// ContractNotary defines the interface to draw up a contract.
+// ContractNotary defines the functions for creating, validating verifiable credentials and draw up a contract.
 type ContractNotary interface {
+	contract.VPVerifier
+
 	// DrawUpContract draws up a contract from a template and returns a Contract which than can be signed by the user.
 	DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration) (*contract.Contract, error)
-}
-
-// ContractClient defines functions for creating and validating verifiable credentials
-type ContractClient interface {
-	contract.VPVerifier
 
 	// CreateSigningSession creates a signing session for the requested contract and means
 	CreateSigningSession(sessionRequest CreateSessionRequest) (contract.SessionPointer, error)

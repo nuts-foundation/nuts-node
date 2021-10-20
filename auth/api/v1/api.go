@@ -76,7 +76,7 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 }
 
 // VerifySignature handles the VerifySignature http request.
-// It parses the request body, parses the verifiable presentation and calls the ContractClient to verify the VP.
+// It parses the request body, parses the verifiable presentation and calls the ContractNotary to verify the VP.
 func (w Wrapper) VerifySignature(ctx echo.Context) error {
 	requestParams := new(SignatureVerificationRequest)
 	if err := ctx.Bind(requestParams); err != nil {
@@ -94,7 +94,7 @@ func (w Wrapper) VerifySignature(ctx echo.Context) error {
 			return core.InvalidInputError("could not parse checkTime: %w", err)
 		}
 	}
-	validationResult, err := w.Auth.ContractClient().VerifyVP(rawVP, &checkTime)
+	validationResult, err := w.Auth.ContractNotary().VerifyVP(rawVP, &checkTime)
 	if err != nil {
 		return core.InvalidInputError("unable to verify the verifiable presentation: %w", err)
 	}
@@ -133,7 +133,7 @@ func (w Wrapper) CreateSignSession(ctx echo.Context) error {
 		SigningMeans: contract.SigningMeans(requestParams.Means),
 		Message:      requestParams.Payload,
 	}
-	sessionPtr, err := w.Auth.ContractClient().CreateSigningSession(createSessionRequest)
+	sessionPtr, err := w.Auth.ContractNotary().CreateSigningSession(createSessionRequest)
 	if err != nil {
 		return core.InvalidInputError("unable to create sign challenge: %w", err)
 	}
@@ -154,7 +154,7 @@ func (w Wrapper) CreateSignSession(ctx echo.Context) error {
 
 // GetSignSessionStatus handles the http requests for getting the current status of a signing session.
 func (w Wrapper) GetSignSessionStatus(ctx echo.Context, sessionID string) error {
-	sessionStatus, err := w.Auth.ContractClient().SigningSessionStatus(sessionID)
+	sessionStatus, err := w.Auth.ContractNotary().SigningSessionStatus(sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to get session status for %s, reason: %w", sessionID, err)
 	}

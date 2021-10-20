@@ -13,7 +13,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
-	"github.com/nuts-foundation/nuts-node/auth/services/validator"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -30,7 +29,6 @@ const contractValidity = 60 * time.Minute
 type Auth struct {
 	config            Config
 	oauthClient       services.OAuthClient
-	contractClient    services.ContractClient
 	contractNotary    services.ContractNotary
 	keyStore          crypto.KeyStore
 	registry          types.Store
@@ -89,11 +87,6 @@ func (auth *Auth) OAuthClient() services.OAuthClient {
 	return auth.oauthClient
 }
 
-// ContractClient returns an instance of ContractClient
-func (auth *Auth) ContractClient() services.ContractClient {
-	return auth.contractClient
-}
-
 // Configure the Auth struct by creating a validator and create an Irma server
 func (auth *Auth) Configure(config core.ServerConfig) error {
 	if auth.config.IrmaSchemeManager == "" {
@@ -111,19 +104,18 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		auth.config.PublicURL = "http://" + config.HTTP.Address
 	}
 
-	cfg := validator.Config{
+	cfg := contract.Config{
 		PublicURL:             auth.config.PublicURL,
 		IrmaConfigPath:        path.Join(config.Datadir, "irma"),
 		IrmaSchemeManager:     auth.config.IrmaSchemeManager,
 		AutoUpdateIrmaSchemas: auth.config.IrmaAutoUpdateSchemas,
 		ContractValidators:    auth.config.ContractValidators,
+		ContractValidity:      contractValidity,
 	}
 
-	nameResolver := auth.vcr
 	keyResolver := doc.KeyResolver{Store: auth.registry}
 
-	auth.contractClient = validator.NewContractInstance(cfg, keyResolver, auth.vcr, auth.keyStore)
-	auth.contractNotary = contract.NewContractNotary(nameResolver, keyResolver, auth.keyStore, contractValidity)
+	auth.contractNotary = contract.NewNotary(cfg, auth.vcr, keyResolver, auth.keyStore)
 
 	if config.Strictmode && !auth.config.EnableTLS {
 		return errors.New("in strictmode auth.enabletls must be true")
@@ -142,11 +134,11 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		auth.clientCertificate = &clientCertificate
 	}
 
-	if err := auth.contractClient.Configure(); err != nil {
+	if err := auth.contractNotary.Configure(); err != nil {
 		return err
 	}
 
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, nameResolver, auth.vcr, auth.serviceResolver, auth.keyStore, auth.contractClient)
+	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr, auth.serviceResolver, auth.keyStore, auth.contractNotary)
 
 	if err := auth.oauthClient.Configure(auth.config.ClockSkew); err != nil {
 		return err
