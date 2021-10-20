@@ -5,6 +5,7 @@ import (
 	"encoding/asn1"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/auth/assets"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"io/fs"
 	"strings"
 
@@ -38,19 +39,17 @@ const UziProduction UziEnv = "production"
 // https://acceptatie.zorgcsp.nl/ca-certificaten
 const UziAcceptation UziEnv = "acceptation"
 
-func getUziAttributeNames() []string {
-	// A list of Uzi attribute names used to sign the message
-	// See table 12 on page 62 of the Certification Practice Statement (CPS) UZI-register v10.x
-	// https://zorgcsp.nl/Media/Default/documenten/2020-05-06_RK1%20CPS%20UZI-register%20V10.0.pdf
-	return []string{
-		"oidCa",
-		"version",
-		"uziNr",
-		"cardType",
-		"orgID",
-		"roleCode",
-		"agbCode",
-	}
+// A list of Uzi attribute names used to sign the message
+// See table 12 on page 62 of the Certification Practice Statement (CPS) UZI-register v10.x
+// https://zorgcsp.nl/Media/Default/documenten/2020-05-06_RK1%20CPS%20UZI-register%20V10.0.pdf
+var uziAttributeNames = []string{
+	"oidCa",
+	"version",
+	"uziNr",
+	"cardType",
+	"orgID",
+	"roleCode",
+	"agbCode",
 }
 
 // SignerAttributes returns the attributes from the Uzi card used in the signature.
@@ -65,15 +64,15 @@ func (t UziSignedToken) SignerAttributes() (map[string]string, error) {
 
 	for _, otherNameStr := range otherNames {
 		parts := strings.Split(otherNameStr, "-")
-		attrNames := getUziAttributeNames()
-		if len(parts) != len(attrNames) {
+		if len(parts) != len(uziAttributeNames) {
 			continue
 		}
 
-		for idx, name := range getUziAttributeNames() {
+		for idx, name := range uziAttributeNames {
 			res[name] = parts[idx]
 		}
 	}
+
 	return res, nil
 }
 
@@ -111,10 +110,12 @@ func validUziSigningAlgs() []jwa.SignatureAlgorithm {
 // NewUziValidator creates a new UziValidator.
 // It accepts a UziEnv and preloads corresponding certificate tree.
 // It accepts a contract template store which is used to check if the signed contract exists and is valid.
-// It accepts an optional CRLGetter. If non is given, the CachedHttpCrlService is used as default
-func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, crls CRLGetter) (validator *UziValidator, err error) {
-	var roots []*x509.Certificate
-	var intermediates []*x509.Certificate
+// It accepts an optional CRL database. If non is given, it will create one based on the root and intermediate certificates.
+func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, crlValidator crl.Validator) (validator *UziValidator, err error) {
+	var (
+		roots         []*x509.Certificate
+		intermediates []*x509.Certificate
+	)
 
 	if env == UziProduction {
 		roots, err = certsFromAssets([]string{
@@ -153,14 +154,15 @@ func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, crls
 		return nil, fmt.Errorf("unknown uzi environment: %s", env)
 	}
 
-	if crls == nil {
-		crls = NewCachedHTTPCRLGetter()
+	if crlValidator == nil {
+		crlValidator = crl.NewValidator(append(roots[:], intermediates...))
 	}
 
 	validator = &UziValidator{
-		validator:         NewJwtX509Validator(roots, intermediates, validUziSigningAlgs(), crls),
+		validator:         NewJwtX509Validator(roots, intermediates, validUziSigningAlgs(), crlValidator),
 		contractTemplates: contractTemplates,
 	}
+
 	return
 }
 

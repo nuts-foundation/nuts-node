@@ -8,6 +8,8 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"fmt"
+	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"math/big"
 	"testing"
 	"time"
@@ -331,7 +333,15 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 	}
 
 	t.Run("ok - valid jwt", func(t *testing.T) {
-		validator := NewJwtX509Validator([]*x509.Certificate{rootCert}, []*x509.Certificate{intermediateCert}, []jwa.SignatureAlgorithm{jwa.RS256}, nil)
+		db := crl.NewMockValidator(gomock.NewController(t))
+
+		db.EXPECT().Sync().Return(nil)
+		db.EXPECT().IsSynced(0).Return(true)
+		db.EXPECT().IsRevoked(rootCert.Issuer.String(), rootCert.SerialNumber).Return(false)
+		db.EXPECT().IsRevoked(intermediateCert.Issuer.String(), intermediateCert.SerialNumber).Return(false)
+		db.EXPECT().IsRevoked(leafCert.Issuer.String(), leafCert.SerialNumber).Return(false)
+
+		validator := NewJwtX509Validator([]*x509.Certificate{rootCert}, []*x509.Certificate{intermediateCert}, []jwa.SignatureAlgorithm{jwa.RS256}, db)
 
 		theJwt := jwt.New()
 		theJwt.Set(jwt.IssuedAtKey, time.Now())
@@ -388,8 +398,20 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 	})
 }
 
-func TestJwtX509Validator_checkCertRevocation(t *testing.T) {
+func NewMockValidator(t *testing.T, rootCert, intermediateCert, leafCert *x509.Certificate, intermediateRevoked bool) crl.Validator {
+	db := crl.NewMockValidator(gomock.NewController(t))
 
+	if !intermediateRevoked {
+		db.EXPECT().IsRevoked(rootCert.Issuer.String(), rootCert.SerialNumber).Return(false)
+	}
+
+	db.EXPECT().IsRevoked(intermediateCert.Issuer.String(), intermediateCert.SerialNumber).Return(intermediateRevoked)
+	db.EXPECT().IsRevoked(leafCert.Issuer.String(), leafCert.SerialNumber).Return(false)
+
+	return db
+}
+
+func TestJwtX509Validator_checkCertRevocation(t *testing.T) {
 	t.Run("no crls in chain", func(t *testing.T) {
 		rootCert, rootCertKey, err := createTestRootCert()
 		if !assert.NoError(t, err) {
@@ -406,10 +428,13 @@ func TestJwtX509Validator_checkCertRevocation(t *testing.T) {
 			return
 		}
 
-		crls := newMemoryCRLService()
-
 		t.Run("ok", func(t *testing.T) {
-			validator := NewJwtX509Validator([]*x509.Certificate{rootCert}, []*x509.Certificate{intermediateCert}, []jwa.SignatureAlgorithm{jwa.RS256}, crls)
+			validator := NewJwtX509Validator(
+				[]*x509.Certificate{rootCert},
+				[]*x509.Certificate{intermediateCert},
+				[]jwa.SignatureAlgorithm{jwa.RS256},
+				NewMockValidator(t, rootCert, intermediateCert, leafCert, false),
+			)
 			assert.NoError(t, validator.checkCertRevocation([]*x509.Certificate{leafCert, intermediateCert, rootCert}))
 		})
 	})
@@ -431,14 +456,6 @@ func TestJwtX509Validator_checkCertRevocation(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		rawCrl, err := createCrl(nil, rootCert, rootCertKey, []*x509.Certificate{intermediateCert})
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		crl, err := x509.ParseCRL(rawCrl)
-		crls := newMemoryCRLService()
-		crls.crls[crlUrl] = crl
 
 		t.Run("ok - this intermediate is not revoked", func(t *testing.T) {
 			intermediateCert, intermediateCerKey, err := createIntermediateCertWithCrl(rootCert, rootCertKey, crlUrl)
@@ -451,18 +468,29 @@ func TestJwtX509Validator_checkCertRevocation(t *testing.T) {
 				return
 			}
 
-			validator := NewJwtX509Validator([]*x509.Certificate{rootCert}, []*x509.Certificate{intermediateCert}, []jwa.SignatureAlgorithm{jwa.RS256}, crls)
+			validator := NewJwtX509Validator(
+				[]*x509.Certificate{rootCert},
+				[]*x509.Certificate{intermediateCert},
+				[]jwa.SignatureAlgorithm{jwa.RS256},
+				NewMockValidator(t, rootCert, intermediateCert, leafCert, false),
+			)
+
 			err = validator.checkCertRevocation([]*x509.Certificate{leafCert, intermediateCert, rootCert})
 			assert.NoError(t, err)
 		})
 
 		t.Run("nok - intermediate is revoked", func(t *testing.T) {
-			validator := NewJwtX509Validator([]*x509.Certificate{rootCert}, []*x509.Certificate{intermediateCert}, []jwa.SignatureAlgorithm{jwa.RS256}, crls)
+			validator := NewJwtX509Validator(
+				[]*x509.Certificate{rootCert},
+				[]*x509.Certificate{intermediateCert},
+				[]jwa.SignatureAlgorithm{jwa.RS256},
+				NewMockValidator(t, rootCert, intermediateCert, leafCert, true),
+			)
+
 			err = validator.checkCertRevocation([]*x509.Certificate{leafCert, intermediateCert, rootCert})
 			if assert.Error(t, err) {
 				assert.Equal(t, fmt.Sprintf("cert with serial '%s' and subject '%s' is revoked", intermediateCert.SerialNumber.String(), intermediateCert.Subject.String()), err.Error())
 			}
-
 		})
 	})
 }

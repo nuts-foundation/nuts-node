@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"io"
 	"net"
 	"sync"
@@ -83,6 +84,40 @@ func Test_adapter_Configure(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Len(t, network.(*adapter).connectorAddChannel, 2)
+	})
+
+	t.Run("configures CRL check when TLS is enabled", func(t *testing.T) {
+		trustPool := x509.NewCertPool()
+
+		db := crl.NewMockValidator(gomock.NewController(t))
+		db.EXPECT().Sync().Return(nil)
+		db.EXPECT().Configure(gomock.Any(), 0)
+
+		network := NewAdapter().(*adapter)
+		network.Configure(AdapterConfig{
+			PeerID:        "foo",
+			ListenAddress: "127.0.0.1:0",
+			TrustStore:    trustPool,
+			CRLValidator:  db,
+		})
+		network.Start()
+
+		peer := NewAdapter().(*adapter)
+		peer.Configure(AdapterConfig{
+			PeerID:        "baz",
+			ListenAddress: "127.0.0.1:0",
+		})
+		peer.Start()
+
+		waitForGRPCStart()
+
+		defer network.Stop()
+		defer peer.Stop()
+
+		willConnect := network.ConnectToPeer(peer.config.ListenAddress)
+		assert.True(t, willConnect)
+
+		time.Sleep(time.Second)
 	})
 }
 

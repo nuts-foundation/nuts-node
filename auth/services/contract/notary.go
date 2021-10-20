@@ -191,8 +191,7 @@ func (n *notary) Configure() (err error) {
 	}
 
 	if _, ok := cvMap[uzi.ContractFormat]; ok {
-		crlGetter := x509.NewCachedHTTPCRLGetter()
-		uziValidator, err := x509.NewUziValidator(x509.UziAcceptation, &contract.StandardContractTemplates, crlGetter)
+		uziValidator, err := x509.NewUziValidator(x509.UziAcceptation, &contract.StandardContractTemplates, nil)
 		uziVerifier := uzi.Verifier{UziValidator: uziValidator}
 
 		if err != nil {

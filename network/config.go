@@ -12,6 +12,9 @@ type Config struct {
 	CertKeyFile    string   `koanf:"network.certkeyfile"`
 	TrustStoreFile string   `koanf:"network.truststorefile"`
 
+	// MaxCRLValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
+	MaxCRLValidityDays int `koanf:"network.maxcrlvaliditydays"`
+
 	// AdvertHashesInterval specifies how often (in milliseconds) the node should broadcasts its last hashes,
 	// so other nodes can compare and synchronize.
 	AdvertHashesInterval int `koanf:"network.adverthashesinterval"`

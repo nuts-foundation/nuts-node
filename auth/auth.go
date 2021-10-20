@@ -125,12 +125,13 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		if err != nil {
 			return fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", auth.config.CertFile, auth.config.CertKeyFile, err)
 		}
+
 		trustStore, err := core.LoadTrustStore(auth.config.TrustStoreFile)
 		if err != nil {
 			return err
 		}
 
-		auth.trustStore = trustStore
+		auth.trustStore = trustStore.CertPool
 		auth.clientCertificate = &clientCertificate
 	}
 

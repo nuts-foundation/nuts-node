@@ -123,9 +123,10 @@ type connector struct {
 
 func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*Peer, transport.Network_ConnectClient, error) {
 	log.Logger().Debugf("Connecting to peer: %v", c.address)
-	cxt := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
 
-	dialContext, cancel := context.WithTimeout(cxt, 5*time.Second)
+	ctx := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
+
+	dialContext, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	dialOptions := []grpc.DialOption{
@@ -146,7 +147,7 @@ func (c *connector) doConnect(ownID PeerID, tlsConfig *tls.Config) (*Peer, trans
 		return nil, nil, errors2.Wrap(err, "unable to connect")
 	}
 	client := transport.NewNetworkClient(grpcConn)
-	messenger, err := client.Connect(cxt)
+	messenger, err := client.Connect(ctx)
 	if err != nil {
 		log.Logger().Warnf("Failed to set up stream (addr=%s): %v", c.address, err)
 		_ = grpcConn.Close()
@@ -233,7 +234,9 @@ func (n *adapter) Configure(config AdapterConfig) error {
 func (n *adapter) Start() error {
 	n.serverMutex.Lock()
 	defer n.serverMutex.Unlock()
+
 	log.Logger().Debugf("Starting gRPC P2P node (ID: %s)", n.config.PeerID)
+
 	if n.config.ListenAddress != "" {
 		log.Logger().Debugf("Starting gRPC server on %s", n.config.ListenAddress)
 		serverOpts := []grpc.ServerOption{
@@ -255,10 +258,25 @@ func (n *adapter) Start() error {
 				ClientCAs:    n.config.TrustStore,
 			})))
 		}
+
+		if n.config.CRLValidator != nil {
+			go func() {
+				for {
+					if err := n.config.CRLValidator.Sync(); err != nil {
+						log.Logger().Errorf("CRL synchronization failed: %s", err.Error())
+					}
+
+					time.Sleep(time.Minute)
+				}
+			}()
+		}
+
 		n.startServing(serverOpts)
 	}
+
 	// Start client
 	go n.connectToNewPeers()
+
 	return nil
 }
 
@@ -317,8 +335,10 @@ func (n *adapter) connectToNewPeers() {
 				backoff: defaultBackoff(),
 				dialer:  n.grpcDialer,
 			}
+
 			n.connectors[address] = newConnector
 			log.Logger().Debugf("Added remote peer (address=%s)", address)
+
 			go n.startConnecting(newConnector)
 		}
 	}
@@ -329,11 +349,17 @@ func (n *adapter) startConnecting(newConnector *connector) {
 	for {
 		if n.shouldConnectTo(newConnector.address, resolvedPeerID) {
 			var tlsConfig *tls.Config
+
 			if n.config.tlsEnabled() {
 				tlsConfig = &tls.Config{
-					Certificates: []tls.Certificate{n.config.ClientCert},
-					RootCAs:      n.config.TrustStore,
+					Certificates: []tls.Certificate{
+						n.config.ClientCert,
+					},
+					RootCAs: n.config.TrustStore,
 				}
+
+				// Configure support for checking revoked certificates
+				n.config.CRLValidator.Configure(tlsConfig, n.config.MaxCRLValidityDays)
 			}
 			if peer, stream, err := newConnector.doConnect(n.config.PeerID, tlsConfig); err != nil {
 				waitPeriod := newConnector.backoff.Backoff()
@@ -352,6 +378,7 @@ func (n *adapter) startConnecting(newConnector *connector) {
 				time.Sleep(RandomBackoff(time.Second, 5*time.Second))
 			}
 		}
+
 		// We check whether we should (re)connect to the registered peers every second. Should be OK since it's a cheap check.
 		time.Sleep(time.Second)
 	}

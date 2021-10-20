@@ -1,6 +1,9 @@
 package x509
 
 import (
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"testing"
 	"time"
 
@@ -19,6 +22,7 @@ func TestNewUziValidator(t *testing.T) {
 			return
 		}
 	})
+
 	t.Run("acceptation certificates", func(t *testing.T) {
 		_, err := NewUziValidator(UziAcceptation, &contract.StandardContractTemplates, nil)
 		if !assert.NoError(t, err) {
@@ -27,19 +31,52 @@ func TestNewUziValidator(t *testing.T) {
 	})
 }
 
+func TestUziValidator_SignedAttributes(t *testing.T) {
+	cert := &x509.Certificate{}
+
+	asnName, err := asn1.Marshal("0-1-2-3-4-5-6")
+	assert.NoError(t, err)
+
+	asnNames, err := asn1.Marshal(generalNames{
+		OtherName: otherName{
+			OID: asn1.ObjectIdentifier{1, 1, 1, 1},
+			Value: asn1.RawValue{
+				Class: asn1.ClassContextSpecific,
+				Bytes: asnName,
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	cert.Extensions = append(cert.Extensions, pkix.Extension{
+		Id:    subjectAltNameID,
+		Value: asnNames,
+	})
+
+	uziToken := UziSignedToken{
+		jwtX509Token: &JwtX509Token{chain: []*x509.Certificate{cert}},
+		contract:     &contract.Contract{},
+	}
+
+	attr, err := uziToken.SignerAttributes()
+
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]string{
+		"oidCa":    "0",
+		"version":  "1",
+		"uziNr":    "2",
+		"cardType": "3",
+		"orgID":    "4",
+		"roleCode": "5",
+		"agbCode":  "6",
+	}, attr)
+}
+
 func TestUziValidator(t *testing.T) {
 	t.Skip("Still uses v1 contract, migrate to v3")
 
 	t.Run("ok - acceptation environment", func(t *testing.T) {
-		crls, err := NewMockCrlService([]string{
-			"http://www.uzi-register-test.nl/cdp/test_uzi-register_medewerker_op_naam_ca_g3.crl",
-			"http://www.uzi-register-test.nl/cdp/test_zorg_csp_level_2_persoon_ca_g3.crl",
-			"http://www.uzi-register-test.nl/cdp/test_zorg_csp_root_ca_g3.crl"})
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		uziValidator, err := NewUziValidator(UziAcceptation, &contract.StandardContractTemplates, crls)
+		uziValidator, err := NewUziValidator(UziAcceptation, &contract.StandardContractTemplates, nil)
 		if !assert.NoError(t, err) {
 			return
 		}

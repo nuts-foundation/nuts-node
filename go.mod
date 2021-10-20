@@ -26,6 +26,7 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.8.1
+	github.com/spaolacci/murmur3 v1.1.0
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
@@ -96,7 +97,6 @@ require (
 	github.com/prometheus/common v0.26.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/sietseringers/go-sse v0.0.0-20200801161811-e2cf2c63ca50 // indirect
-	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/templexxx/cpufeat v0.0.0-20180724012125-cef66df7f161 // indirect
 	github.com/templexxx/xor v0.0.0-20181023030647-4e92f724b73b // indirect
 	github.com/tidwall/match v1.1.1 // indirect
