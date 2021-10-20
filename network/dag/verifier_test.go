@@ -21,7 +21,6 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 	prev := hash.SHA256Sum([]byte{1, 2, 3})
 	t.Run("ok - prev is present", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		ctx := context.Background()
 		graph := NewMockDAG(ctrl)
 		graph.EXPECT().IsPresent(ctx, prev).Return(true, nil)
@@ -31,7 +30,6 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 	})
 	t.Run("failed - prev not present", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		ctx := context.Background()
 		graph := NewMockDAG(ctrl)
 		graph.EXPECT().IsPresent(ctx, prev).Return(false, nil)
@@ -82,7 +80,6 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		aWhileBack := types.DIDDocumentResolveEpoch.Add(-1 * time.Second)
 		d := CreateSignedTestTransaction(1, aWhileBack, "foo/bar", false)
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		keyResolver := types.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolvePublicKeyInTime(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 		err := NewTransactionSignatureVerifier(keyResolver)(context.Background(), d, nil)
@@ -97,7 +94,6 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		root := hash.SHA256Sum([]byte("root"))
 		d := CreateSignedTestTransaction(1, after, "foo/bar", false, root)
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		keyResolver := types.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), []hash.SHA256Hash{root}).Return(nil, errors.New("failed"))
 		err := NewTransactionSignatureVerifier(keyResolver)(context.Background(), d, nil)

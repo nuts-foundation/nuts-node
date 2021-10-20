@@ -117,7 +117,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("create ok - a new document", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		didDocument, signingKey, err := newDidDoc()
 		if !assert.NoError(t, err) {
@@ -151,7 +150,6 @@ func Test_ambassador_callback(t *testing.T) {
 	//   many keys will already be in the keyStore. This test checks if the ErrKeyAlreadyExists is handled ok
 	t.Run("ok - adding a key which already exists", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		didDocument, signingKey, err := newDidDoc()
 		if !assert.NoError(t, err) {
@@ -214,7 +212,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("create nok - fails without embedded key", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		id, _ := did.ParseDID("did:foo:bar")
 		emptyDIDDocument := doc.CreateDocument()
@@ -239,7 +236,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("create nok - fails when DID does not matches signing key", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		signingKey, _ := jwk.New(pair.PublicKey)
@@ -262,7 +258,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("update ok - with a deactivated document", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		didDocument, signingKey, err := newDidDoc()
 		if !assert.NoError(t, err) {
@@ -314,7 +309,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("update ok - with the exact same document", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		didDocument, signingKey, err := newDidDoc()
 		if !assert.NoError(t, err) {
@@ -361,7 +355,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("update ok - with hash based resolution", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		didDocument, signingKey, err := newDidDoc()
 		if !assert.NoError(t, err) {
@@ -409,7 +402,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("update ok - where the document is not the controller", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		controllerDoc, signingKey, _ := newDidDoc()
 		didDocument, _, _ := newDidDocWithOptions(types.DIDCreationOptions{Controllers: []did.DID{controllerDoc.ID}})
@@ -452,7 +444,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("update ok - update with a new capabilityInvocation key", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
@@ -495,7 +486,6 @@ func Test_ambassador_callback(t *testing.T) {
 	t.Run("ok - update of document which is controlled by another DID document", func(t *testing.T) {
 		// setup mocks:
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		// Create a fresh DID Document
 		didDocument, _, err := newDidDoc()
@@ -566,7 +556,6 @@ func Test_ambassador_callback(t *testing.T) {
 
 		// setup mocks:
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		// Create a fresh DID Document
 		didDocument, documentSigningKey, err := newDidDoc()

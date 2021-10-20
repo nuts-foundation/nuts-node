@@ -51,6 +51,7 @@ var ErrDIDAlreadyExists = errors.New("DID document already exists in the store")
 var ErrDuplicateService = errors.New("service type is duplicate")
 
 // DIDDocumentResolveEpoch represents the epoch on which DID Document resolving switched from time based to hash based
+// GMT: Saturday, 27 November 2021 08:00:00
 var DIDDocumentResolveEpoch = time.Unix(1638000000, 0)
 
 type deactivatedError struct {
