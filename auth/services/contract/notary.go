@@ -146,7 +146,6 @@ func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, valid
 	return drawnUpContract, nil
 }
 
-// Configure already a good candidate for removal
 func (n *notary) Configure() (err error) {
 	n.verifiers = map[contract.VPType]contract.VPVerifier{}
 	n.signers = map[contract.SigningMeans]contract.Signer{}
