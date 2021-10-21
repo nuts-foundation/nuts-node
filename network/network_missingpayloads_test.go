@@ -32,6 +32,8 @@ import (
 // TestNetworkIntegration_Pagination tests whether TransactionList messages are paginated when the transactions on the DAG
 // exceed Protobuf's max message size.
 func TestNetworkIntegration_MissingPayloads(t *testing.T) {
+	t.Logf("Running test: %s", t.Name())
+
 	resetIntegrationTest()
 	testDirectory := io.TestDirectory(t)
 	key := nutsCrypto.NewTestKey("key")

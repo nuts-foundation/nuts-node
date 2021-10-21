@@ -34,6 +34,8 @@ import (
 // TestNetworkIntegration_Pagination tests whether TransactionList messages are paginated when the transactions on the DAG
 // exceed Protobuf's max message size.
 func TestNetworkIntegration_Pagination(t *testing.T) {
+	t.Logf("Running test: %s", t.Name())
+
 	p2p.MaxMessageSizeInBytes = 4 * 1024 // 4kb
 	const numberOfTransactions = 19      // 20 transactions equals +/- 12.6kb (which exceeds the set limit of 10kb)
 

@@ -47,6 +47,7 @@ var mutex = sync.Mutex{}
 var receivedTransactions = make(map[string][]dag.Transaction, 0)
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
+	t.Logf("Running test: %s", t.Name())
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest()
 	key := nutsCrypto.NewTestKey("key")
