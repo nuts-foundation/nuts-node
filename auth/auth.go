@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crl"
-	"github.com/sirupsen/logrus"
 	"path"
 	"time"
 
@@ -167,7 +166,7 @@ func (auth *Auth) Start() error {
 				break processLoop
 			case <-ticker.C:
 				if err := auth.crlValidator.Sync(); err != nil {
-					logrus.Errorf("CRL synchronization failed: %s", err.Error())
+					Logger().Errorf("CRL synchronization failed: %s", err.Error())
 				}
 			}
 		}
