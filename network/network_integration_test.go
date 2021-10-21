@@ -40,7 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 )
 
-const defaultTimeout = 2 * time.Second
+const defaultTimeout = 5 * time.Second
 const payloadType = "test/transaction"
 
 var mutex = sync.Mutex{}
@@ -156,6 +156,7 @@ func startNode(name string, directory string, configurers ...func(*Config)) (*Ne
 		TrustStoreFile: "test/truststore.pem",
 		EnableTLS:      true,
 		ProtocolV1: v1.ProtocolV1Config{
+			Online:                    true,
 			AdvertHashesInterval:      500,
 			AdvertDiagnosticsInterval: 5000,
 		},
