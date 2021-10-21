@@ -310,10 +310,11 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		moduleConfig := Config{
-			GrpcAddr:    ":5555",
-			EnableTLS:   true,
-			CertFile:    "test/certificate-and-key.pem",
-			CertKeyFile: "test/certificate-and-key.pem",
+			GrpcAddr:       ":5555",
+			EnableTLS:      true,
+			TrustStoreFile: "test/truststore.pem",
+			CertFile:       "test/certificate-and-key.pem",
+			CertKeyFile:    "test/certificate-and-key.pem",
 		}
 		cfg, err := buildAdapterConfig(moduleConfig, "")
 		assert.NotNil(t, cfg)
@@ -332,10 +333,13 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		assert.Nil(t, cfg.ClientCert.PrivateKey)
 		assert.Nil(t, cfg.ServerCert.PrivateKey)
 	})
-	t.Run("ok - gRPC server not bound", func(t *testing.T) {
+	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
 		moduleConfig := Config{
 			GrpcAddr:  "",
 			EnableTLS: true,
+			TrustStoreFile: "test/truststore.pem",
+			CertFile:       "test/certificate-and-key.pem",
+			CertKeyFile:    "test/certificate-and-key.pem",
 		}
 		cfg, err := buildAdapterConfig(moduleConfig, "")
 		assert.NotNil(t, cfg)
