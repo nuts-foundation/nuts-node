@@ -58,14 +58,14 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		instance := NewProtocol().(*protocol)
 		instance.missingPayloadCollector = payloadCollector
 		instance.peerOmnihashChannel = make(chan PeerOmnihash, 1)
-		peerConnected := make(chan p2p.Peer, 1)
-		peerDisconnected := make(chan p2p.Peer, 1)
+		peerConnected := make(chan types.Peer, 1)
+		peerDisconnected := make(chan types.Peer, 1)
 
 		stats := instance.Diagnostics()[0].(peerOmnihashStatistic)
 		assert.Empty(t, stats.peerHashes)
 
 		// Peer connects
-		peerConnected <- p2p.Peer{ID: peer}
+		peerConnected <- types.Peer{ID: peer}
 		instance.updateDiagnostics(peerConnected, peerDisconnected)
 		stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
 		assert.Len(t, stats.peerHashes, 1)
@@ -79,7 +79,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		assert.Equal(t, peerHash, stats.peerHashes[peer])
 
 		// Peer disconnects
-		peerDisconnected <- p2p.Peer{ID: peer}
+		peerDisconnected <- types.Peer{ID: peer}
 		instance.updateDiagnostics(peerConnected, peerDisconnected)
 		stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
 		assert.Empty(t, stats.peerHashes)

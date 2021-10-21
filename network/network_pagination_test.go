@@ -58,10 +58,10 @@ func TestNetworkIntegration_Pagination(t *testing.T) {
 		}
 	}
 
-	node2.p2pNetwork.ConnectToPeer(nameToAddress("pagination_node1"))
+	node2.connectionManager.Connect(nameToAddress("pagination_node1"))
 	// Wait until nodes are connected
 	if !waitFor(t, func() (bool, error) {
-		return len(node1.p2pNetwork.Peers()) == 1 && len(node2.p2pNetwork.Peers()) == 1, nil
+		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to have a peer") {
 		return
 	}

@@ -46,10 +46,10 @@ type connection interface {
 	// send sends the given message to the peer. It should not be called if exchange() isn't called yet.
 	send(message *transport.NetworkMessage) error
 	// peer returns information about the peer associated with this connection.
-	peer() Peer
+	peer() types.Peer
 }
 
-func newConnection(peer Peer, messenger grpcMessenger) *managedConnection {
+func newConnection(peer types.Peer, messenger grpcMessenger) *managedConnection {
 	return &managedConnection{
 		Peer:        peer,
 		messenger:   messenger,
@@ -61,7 +61,7 @@ func newConnection(peer Peer, messenger grpcMessenger) *managedConnection {
 
 // managedConnection represents a bidirectional connection with a peer, managed by connectionManager.
 type managedConnection struct {
-	Peer
+	types.Peer
 	// messenger is used to send and receive messages
 	messenger grpcMessenger
 	// grpcConn is only filled for peers where we're the connecting party
@@ -75,7 +75,7 @@ type managedConnection struct {
 	mux *sync.Mutex
 }
 
-func (conn *managedConnection) peer() Peer {
+func (conn *managedConnection) peer() types.Peer {
 	conn.mux.Lock()
 	defer conn.mux.Unlock()
 	return conn.Peer
@@ -207,7 +207,7 @@ type connectionManager struct {
 
 // register adds a new connection associated with peer. It uses the given messenger to send/receive messages.
 // If a connection with peer already exists, it is closed (and the new one is accepted).
-func (mgr *connectionManager) register(peer Peer, messenger grpcMessenger) connection {
+func (mgr *connectionManager) register(peer types.Peer, messenger grpcMessenger) connection {
 	if mgr.close(peer.ID) {
 		log.Logger().Warnf("Already connected to peer, closed old connection (peer=%s)", peer)
 	}

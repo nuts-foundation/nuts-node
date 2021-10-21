@@ -21,7 +21,6 @@ package p2p
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
@@ -34,8 +33,6 @@ type Adapter interface {
 	core.Diagnosable
 	// Configure configures the Adapter. Must be called before Start().
 	Configure(config AdapterConfig) error
-	// Configured returns whether the system is configured or not
-	Configured() bool
 	// Start starts the P2P network on the local node.
 	Start() error
 	// Stop stops the P2P network on the local node.
@@ -50,10 +47,10 @@ type Adapter interface {
 	// Broadcast sends a message to all peers.
 	Broadcast(message *transport.NetworkMessage)
 	// Peers returns our peers (remote nodes we're currently connected to).
-	Peers() []Peer
+	Peers() []types.Peer
 	// EventChannels returns the channels that are used to communicate P2P network events on. They MUST be listened
 	// on by a consumer.
-	EventChannels() (peerConnected chan Peer, peerDisconnected chan Peer)
+	EventChannels() (peerConnected chan types.Peer, peerDisconnected chan types.Peer)
 }
 
 // MessageQueue defines an interfaces for reading incoming network messages from a queue.
@@ -61,19 +58,6 @@ type MessageQueue interface {
 	// Get returns the next message from the queue, blocking until a message is available. When the queue is shutdown
 	// it returns nil.
 	Get() PeerMessage
-}
-
-// Peer holds the properties of a remote node we're connected to
-type Peer struct {
-	// ID holds the unique identificator of the peer
-	ID types.PeerID
-	// Address holds the remote address of the node we're actually connected to
-	Address string
-}
-
-// String returns the peer as string.
-func (p Peer) String() string {
-	return fmt.Sprintf("%s@%s", p.ID, p.Address)
 }
 
 // PeerMessage defines a message received from a peer.

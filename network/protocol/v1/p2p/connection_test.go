@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"io"
 	"runtime"
@@ -16,7 +17,7 @@ import (
 
 func Test_connection_close(t *testing.T) {
 	t.Run("already closed", func(t *testing.T) {
-		conn := newConnection(Peer{}, nil)
+		conn := newConnection(types.Peer{}, nil)
 		conn.close()
 		conn.close()
 	})
@@ -31,7 +32,7 @@ func Test_connection_exchange(t *testing.T) {
 		messenger.EXPECT().Recv().DoAndReturn(func() (interface{}, error) {
 			return nil, io.EOF
 		})
-		conn := newConnection(Peer{}, messenger)
+		conn := newConnection(types.Peer{}, messenger)
 		if !invokeWaitFor(func() {
 			conn.exchange(messageQueue{})
 		}, time.Second) {
@@ -51,7 +52,7 @@ func Test_connection_exchange(t *testing.T) {
 			wg.Wait()
 			return nil, io.EOF
 		})
-		conn := newConnection(Peer{}, messenger)
+		conn := newConnection(types.Peer{}, messenger)
 
 		wg.Add(1)
 		go func() {
@@ -67,7 +68,7 @@ func Test_connection_exchange(t *testing.T) {
 		}
 	})
 	t.Run("messenger is nil", func(t *testing.T) {
-		conn := newConnection(Peer{}, nil)
+		conn := newConnection(types.Peer{}, nil)
 		conn.exchange(messageQueue{})
 	})
 	t.Run("backlog is full", func(t *testing.T) {
@@ -85,7 +86,7 @@ func Test_connection_exchange(t *testing.T) {
 			return &transport.NetworkMessage{}, nil
 		})
 
-		conn := newConnection(Peer{}, messenger)
+		conn := newConnection(types.Peer{}, messenger)
 		q := messageQueue{c: make(chan PeerMessage, backlogSize)}
 
 		// When the inbound queue is full it shouldn't block, and since Recv() returns EOF after backlog + 1,
@@ -115,7 +116,7 @@ func Test_connection_send(t *testing.T) {
 		})
 
 		// Create connection, start message sending goroutine
-		conn := newConnection(Peer{}, messenger)
+		conn := newConnection(types.Peer{}, messenger)
 		defer conn.close()
 		go conn.exchange(messageQueue{})
 
@@ -128,13 +129,13 @@ func Test_connection_send(t *testing.T) {
 		assert.True(t, waitFor(&wg, time.Second), "time-out while waiting for message to arrive")
 	})
 	t.Run("send on closed connection", func(t *testing.T) {
-		conn := newConnection(Peer{}, nil)
+		conn := newConnection(types.Peer{}, nil)
 		conn.close()
 		err := conn.send(&transport.NetworkMessage{})
 		assert.EqualError(t, err, "can't send on closed connection")
 	})
 	t.Run("backlog is full", func(t *testing.T) {
-		conn := newConnection(Peer{}, nil)
+		conn := newConnection(types.Peer{}, nil)
 		for i := 0; i < outMessagesBacklog; i++ {
 			err := conn.send(&transport.NetworkMessage{})
 			if !assert.NoError(t, err) {
@@ -165,7 +166,7 @@ func Test_connection_receiveMessages(t *testing.T) {
 	})
 
 	// Create connection, start message receiving goroutine
-	conn := newConnection(Peer{}, messenger)
+	conn := newConnection(types.Peer{}, messenger)
 	defer conn.close()
 	c := receiveMessages(conn.ID, conn.messenger)
 
@@ -218,16 +219,16 @@ const id = "foo"
 func Test_connectionManager_register(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		mgr := newConnectionManager()
-		conn := mgr.register(Peer{ID: id, Address: addr}, nil)
+		conn := mgr.register(types.Peer{ID: id, Address: addr}, nil)
 		assert.NotNil(t, conn)
 		assert.Len(t, mgr.peersByAddr, 1)
 	})
 	t.Run("duplicate connection closes first", func(t *testing.T) {
 		mgr := newConnectionManager()
-		conn1 := mgr.register(Peer{ID: id, Address: addr}, nil).(*managedConnection)
+		conn1 := mgr.register(types.Peer{ID: id, Address: addr}, nil).(*managedConnection)
 		assert.Empty(t, conn1.closer) // assert first one connected
 		// Now register second one, disconnect first
-		conn2 := mgr.register(Peer{ID: id, Address: addr + "2"}, nil).(*managedConnection)
+		conn2 := mgr.register(types.Peer{ID: id, Address: addr + "2"}, nil).(*managedConnection)
 		assert.NotEmpty(t, conn1.closer) // assert first one disconnected
 		assert.Empty(t, conn2.closer)    // assert second one connected
 
@@ -238,7 +239,7 @@ func Test_connectionManager_register(t *testing.T) {
 func Test_connectionManager_get(t *testing.T) {
 	t.Run("exists", func(t *testing.T) {
 		mgr := newConnectionManager()
-		conn := mgr.register(Peer{ID: id, Address: addr}, nil)
+		conn := mgr.register(types.Peer{ID: id, Address: addr}, nil)
 		assert.Equal(t, conn, mgr.get(id))
 	})
 	t.Run("does not exists", func(t *testing.T) {
@@ -250,7 +251,7 @@ func Test_connectionManager_get(t *testing.T) {
 func Test_connectionManager_isConnected(t *testing.T) {
 	t.Run("exists", func(t *testing.T) {
 		mgr := newConnectionManager()
-		_ = mgr.register(Peer{ID: id, Address: addr}, nil)
+		_ = mgr.register(types.Peer{ID: id, Address: addr}, nil)
 		assert.True(t, mgr.isConnected(addr))
 	})
 	t.Run("does not exists", func(t *testing.T) {
@@ -262,7 +263,7 @@ func Test_connectionManager_isConnected(t *testing.T) {
 func Test_connectionManager_close(t *testing.T) {
 	t.Run("exists", func(t *testing.T) {
 		mgr := newConnectionManager()
-		_ = mgr.register(Peer{ID: id, Address: addr}, nil)
+		_ = mgr.register(types.Peer{ID: id, Address: addr}, nil)
 		assert.True(t, mgr.close(id))
 	})
 	t.Run("does not exists", func(t *testing.T) {
@@ -273,7 +274,7 @@ func Test_connectionManager_close(t *testing.T) {
 
 func Test_connectionManager_stop(t *testing.T) {
 	mgr := newConnectionManager()
-	_ = mgr.register(Peer{ID: id, Address: addr}, nil)
+	_ = mgr.register(types.Peer{ID: id, Address: addr}, nil)
 	mgr.stop()
 	assert.Empty(t, mgr.conns)
 }
@@ -290,8 +291,8 @@ func Test_connectionManager_forEach(t *testing.T) {
 	t.Run("non-empty", func(t *testing.T) {
 		calls := 0
 		mgr := newConnectionManager()
-		_ = mgr.register(Peer{ID: id, Address: addr}, nil)
-		_ = mgr.register(Peer{ID: id + "2", Address: addr + "2"}, nil)
+		_ = mgr.register(types.Peer{ID: id, Address: addr}, nil)
+		_ = mgr.register(types.Peer{ID: id + "2", Address: addr + "2"}, nil)
 		mgr.forEach(func(conn connection) {
 			calls++
 		})

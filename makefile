@@ -17,13 +17,15 @@ gen-mocks:
 	mockgen -destination=crypto/mock.go -package=crypto -source=crypto/interface.go
 	mockgen -destination=crypto/storage/mock.go -package=storage -source=crypto/storage/storage.go
 	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did/did
+	mockgen -destination=network/mock.go -package=network -source=network/interface.go
+	mockgen -destination=network/connection_manager_mock.go -package=network -source=network/connection_manager.go
+	mockgen -destination=network/protocol/protocol_mock.go -package=protocol -source=network/protocol/protocol.go Protocol
 	mockgen -destination=network/protocol/v1/proto/mock.go -package=proto -source=network/protocol/v1/proto/interface.go Protocol
 	mockgen -destination=network/protocol/v1/proto/senders_mock.go -package=proto -source=network/protocol/v1/proto/senders.go messageSender
 	mockgen -destination=network/protocol/v1/proto/payload_collector_mock.go -package=proto -source=network/protocol/v1/proto/payload_collector.go
-	mockgen -destination=network/protocol/v1/p2p/mock.go -package=p2p -source=network/protocol/p2p/interface.go P2PNetwork
+	mockgen -destination=network/protocol/v1/p2p/mock.go -package=p2p -source=network/protocol/v1/p2p/interface.go P2PNetwork
 	mockgen -destination=network/protocol/v1/p2p/connection_mock.go -package=p2p -source=network/protocol/v1/p2p/connection.go grpcMessenger
 	mockgen -destination=network/protocol/v1/transport/network_grpc_mock.go -package=transport -source=network/protocol/v1/transport/network_grpc.pb.go
-	mockgen -destination=network/mock.go -package=network -source=network/interface.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go DAG PayloadStore
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
 	mockgen -destination=vcr/concept/mock.go -package=concept -source=vcr/concept/registry.go Registry

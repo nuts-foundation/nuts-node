@@ -61,22 +61,17 @@ type adapter struct {
 	// connectorAddChannel is used to communicate addresses of remote peers to connect to.
 	connectorAddChannel chan string
 	// Event channels which are listened to by, peers connects/disconnects
-	peerConnectedChannel    chan Peer
-	peerDisconnectedChannel chan Peer
+	peerConnectedChannel    chan types.Peer
+	peerDisconnectedChannel chan types.Peer
 
 	conns *connectionManager
 
 	receivedMessages messageQueue
 	grpcDialer       dialer
-	configured       bool
 }
 
-func (n adapter) EventChannels() (peerConnected chan Peer, peerDisconnected chan Peer) {
+func (n adapter) EventChannels() (peerConnected chan types.Peer, peerDisconnected chan types.Peer) {
 	return n.peerConnectedChannel, n.peerDisconnectedChannel
-}
-
-func (n adapter) Configured() bool {
-	return n.configured
 }
 
 func (n adapter) Diagnostics() []core.DiagnosticResult {
@@ -88,8 +83,8 @@ func (n adapter) Diagnostics() []core.DiagnosticResult {
 	}
 }
 
-func (n *adapter) Peers() []Peer {
-	var result []Peer
+func (n *adapter) Peers() []types.Peer {
+	var result []types.Peer
 	n.conns.forEach(func(conn connection) {
 		result = append(result, conn.peer())
 	})
@@ -122,7 +117,7 @@ type connector struct {
 	dialer
 }
 
-func (c *connector) doConnect(ownID types.PeerID, tlsConfig *tls.Config) (*Peer, transport.Network_ConnectClient, error) {
+func (c *connector) doConnect(ownID types.PeerID, tlsConfig *tls.Config) (*types.Peer, transport.Network_ConnectClient, error) {
 	log.Logger().Debugf("Connecting to peer: %v", c.address)
 
 	ctx := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
@@ -161,7 +156,7 @@ func (c *connector) doConnect(ownID types.PeerID, tlsConfig *tls.Config) (*Peer,
 		_ = grpcConn.Close()
 		return nil, nil, err
 	}
-	return &Peer{
+	return &types.Peer{
 		ID:      serverPeerID,
 		Address: c.address,
 	}, messenger, nil
@@ -201,8 +196,8 @@ func NewAdapter() Adapter {
 		conns:                   newConnectionManager(),
 		connectors:              make(map[string]*connector, 0),
 		connectorAddChannel:     make(chan string, connectingQueueChannelSize),
-		peerConnectedChannel:    make(chan Peer, eventChannelSize),
-		peerDisconnectedChannel: make(chan Peer, eventChannelSize),
+		peerConnectedChannel:    make(chan types.Peer, eventChannelSize),
+		peerDisconnectedChannel: make(chan types.Peer, eventChannelSize),
 		serverMutex:             &sync.Mutex{},
 		receivedMessages:        messageQueue{c: make(chan PeerMessage, messageBacklogChannelSize)},
 		grpcDialer:              grpc.DialContext,
@@ -222,7 +217,6 @@ func (n *adapter) Configure(config AdapterConfig) error {
 		return errors.New("PeerID is empty")
 	}
 	n.config = config
-	n.configured = true
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
 			continue
@@ -420,7 +414,7 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 		return fmt.Errorf("client connection (peer=%s) rejected: %w", peerCtx.Addr, err)
 	}
 
-	peer := Peer{
+	peer := types.Peer{
 		ID:      peerID,
 		Address: peerCtx.Addr.String(),
 	}
@@ -436,7 +430,7 @@ func (n adapter) Connect(stream transport.Network_ConnectServer) error {
 // acceptPeer registers a connection, associating the gRPC stream with the given peer. It starts the goroutines required
 // for receiving and sending messages from/to the peer. It should be called from the gRPC service handler,
 // so when this function exits (and the service handler as well), goroutines spawned for calling Recv() will exit.
-func (n *adapter) acceptPeer(peer Peer, stream grpcMessenger) {
+func (n *adapter) acceptPeer(peer types.Peer, stream grpcMessenger) {
 	conn := n.conns.register(peer, stream)
 	n.peerConnectedChannel <- conn.peer()
 	conn.exchange(n.receivedMessages)

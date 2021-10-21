@@ -41,7 +41,7 @@ func TestNetworkIntegration_MissingPayloads(t *testing.T) {
 		return
 	}
 	node2, err := startNode("node2", path.Join(testDirectory, "node2"), func(config *Config) {
-		config.CollectMissingPayloadsInterval = 50
+		config.ProtocolV1.CollectMissingPayloadsInterval = 50
 	})
 	if !assert.NoError(t, err) {
 		return
@@ -61,10 +61,10 @@ func TestNetworkIntegration_MissingPayloads(t *testing.T) {
 
 	node1.payloadStore.WritePayload(context.Background(), tx1.PayloadHash(), nil)
 
-	node2.p2pNetwork.ConnectToPeer(nameToAddress("node1"))
+	node2.connectionManager.Connect(nameToAddress("node1"))
 	// Wait until nodes are connected
 	if !waitFor(t, func() (bool, error) {
-		return len(node1.p2pNetwork.Peers()) == 1 && len(node2.p2pNetwork.Peers()) == 1, nil
+		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to have 2 peers") {
 		return
 	}

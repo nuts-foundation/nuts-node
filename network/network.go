@@ -64,7 +64,8 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 type Network struct {
 	config                 Config
 	lastTransactionTracker lastTransactionTracker
-	protocol               protocol.Protocol
+	protocols              []protocol.Protocol
+	connectionManager      ConnectionManager
 	graph                  dag.DAG
 	publisher              dag.Publisher
 	payloadStore           dag.PayloadStore
@@ -110,13 +111,22 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	n.peerID = networkTypes.PeerID(uuid.New().String())
-	networkConfig, cfgErr := n.buildAdapterConfig(n.peerID)
+	adapterConfig, cfgErr := buildAdapterConfig(n.config, n.peerID)
 	if cfgErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", cfgErr)
-		return nil
+		adapterConfig = &p2p.AdapterConfig{PeerID: n.peerID}
+		n.config.ProtocolV1.Online = false
 	}
-	n.protocol = v1.NewProtocolV1(n.config.ProtocolV1, *networkConfig)
-	return n.protocol.Configure(n.graph, n.publisher, n.payloadStore, n.collectDiagnostics, n.peerID)
+	// Configure protocols
+	n.protocols = []protocol.Protocol{v1.NewProtocolV1(n.config.ProtocolV1, *adapterConfig)}
+	for _, prot := range n.protocols {
+		err := prot.Configure(n.graph, n.publisher, n.payloadStore, n.collectDiagnostics)
+		if err != nil {
+			return err
+		}
+	}
+	n.connectionManager = NewConnectionManager(n.protocols...)
+	return nil
 }
 
 // Name returns the module name.
@@ -132,9 +142,11 @@ func (n *Network) Config() interface{} {
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
-	err := n.protocol.Start()
-	if err != nil {
-		return err
+	for _, prot := range n.protocols {
+		err := prot.Start()
+		if err != nil {
+			return err
+		}
 	}
 	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
 	n.publisher.Start()
@@ -223,13 +235,22 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 
 // Shutdown cleans up any leftover go routines
 func (n *Network) Shutdown() error {
-	return n.protocol.Stop()
+	var err error
+	for _, prot := range n.protocols {
+		err = prot.Stop()
+		if err != nil {
+			log.Logger().Errorf("Error shutting down protocol: %v", err)
+		}
+	}
+	return err
 }
 
 // Diagnostics collects and returns diagnostics for the Network engine.
 func (n *Network) Diagnostics() []core.DiagnosticResult {
 	var results = make([]core.DiagnosticResult, 0)
-	results = append(results, n.protocol.Diagnostics()...)
+	for _, prot := range n.protocols {
+		results = append(results, prot.Diagnostics()...)
+	}
 	if graph, ok := n.graph.(core.Diagnosable); ok {
 		results = append(results, graph.Diagnostics()...)
 	}
@@ -238,35 +259,43 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 
 // PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 func (n *Network) PeerDiagnostics() map[networkTypes.PeerID]networkTypes.Diagnostics {
-	return n.protocol.PeerDiagnostics()
+	result := make(map[networkTypes.PeerID]networkTypes.Diagnostics, 0)
+	// We assume higher protocol versions (later in the slice) have better/more accurate diagnostics,
+	// so for now they're copied over diagnostics of earlier versions.
+	for _, prot := range n.protocols {
+		for peerID, peerDiagnostics := range prot.PeerDiagnostics() {
+			result[peerID] = peerDiagnostics
+		}
+	}
+	return result
 }
 
-// TODO: Untangle from v1 and move to protocol package
-func (n *Network) buildAdapterConfig(peerID networkTypes.PeerID) (*p2p.AdapterConfig, error) {
+// TODO: Untangle from v1 and move to ConnectionManager/ManagedConnection
+func buildAdapterConfig(moduleConfig Config, peerID networkTypes.PeerID) (*p2p.AdapterConfig, error) {
 	cfg := p2p.AdapterConfig{
-		ListenAddress:  n.config.GrpcAddr,
-		BootstrapNodes: n.config.BootstrapNodes,
+		ListenAddress:  moduleConfig.GrpcAddr,
+		BootstrapNodes: moduleConfig.BootstrapNodes,
 		PeerID:         peerID,
 	}
 
-	if n.config.EnableTLS {
-		clientCertificate, err := tls.LoadX509KeyPair(n.config.CertFile, n.config.CertKeyFile)
+	if moduleConfig.EnableTLS {
+		clientCertificate, err := tls.LoadX509KeyPair(moduleConfig.CertFile, moduleConfig.CertKeyFile)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", n.config.CertFile, n.config.CertKeyFile)
+			return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", moduleConfig.CertFile, moduleConfig.CertKeyFile)
 		}
 
-		trustStore, err := core.LoadTrustStore(n.config.TrustStoreFile)
+		trustStore, err := core.LoadTrustStore(moduleConfig.TrustStoreFile)
 		if err != nil {
 			return nil, err
 		}
 
 		cfg.ClientCert = clientCertificate
 		cfg.TrustStore = trustStore.CertPool
-		cfg.MaxCRLValidityDays = n.config.MaxCRLValidityDays
+		cfg.MaxCRLValidityDays = moduleConfig.MaxCRLValidityDays
 		cfg.CRLValidator = crl.NewValidator(trustStore.Certificates())
 
 		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
-		if n.config.GrpcAddr != "" {
+		if moduleConfig.GrpcAddr != "" {
 			cfg.ServerCert = cfg.ClientCert
 		}
 	} else {
@@ -283,8 +312,8 @@ func (n *Network) collectDiagnostics() networkTypes.Diagnostics {
 		SoftwareVersion:      core.GitCommit,
 		SoftwareID:           softwareID,
 	}
-	for peerID, _ := range n.protocol.PeerDiagnostics() {
-		result.Peers = append(result.Peers, peerID)
+	for _, peer := range n.connectionManager.Peers() {
+		result.Peers = append(result.Peers, peer.ID)
 	}
 	return result
 }

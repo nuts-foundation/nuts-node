@@ -42,7 +42,7 @@ func (n numberOfPeersStatistic) String() string {
 
 // peersStatistic contains the node's peers it's connected to.
 type peersStatistic struct {
-	peers []Peer
+	peers []types.Peer
 }
 
 // Name returns the name of the statistic.

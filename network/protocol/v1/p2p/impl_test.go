@@ -21,9 +21,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	transport2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"io"
 	"net"
 	"sync"
@@ -57,7 +57,6 @@ func Test_adapter_Configure(t *testing.T) {
 			return
 		}
 		assert.Len(t, network.(*adapter).connectorAddChannel, 2)
-		assert.True(t, network.Configured())
 	})
 	t.Run("ok - ssl offloading", func(t *testing.T) {
 		network := NewAdapter()
@@ -70,7 +69,6 @@ func Test_adapter_Configure(t *testing.T) {
 			return
 		}
 		assert.Len(t, network.(*adapter).connectorAddChannel, 2)
-		assert.True(t, network.Configured())
 	})
 	t.Run("error - no peer ID", func(t *testing.T) {
 		network := NewAdapter()
@@ -410,7 +408,7 @@ func Test_adapter_Send(t *testing.T) {
 	const addr = "foo"
 	t.Run("ok", func(t *testing.T) {
 		network := NewAdapter().(*adapter)
-		conn := network.conns.register(Peer{ID: peerID, Address: addr}, nil).(*managedConnection)
+		conn := network.conns.register(types.Peer{ID: peerID, Address: addr}, nil).(*managedConnection)
 		err := network.Send(peerID, &transport2.NetworkMessage{})
 		if !assert.NoError(t, err) {
 			return
@@ -424,7 +422,7 @@ func Test_adapter_Send(t *testing.T) {
 	})
 	t.Run("concurrent call on closing connection", func(t *testing.T) {
 		network := NewAdapter().(*adapter)
-		conn := network.conns.register(Peer{ID: peerID, Address: addr}, nil).(*managedConnection)
+		conn := network.conns.register(types.Peer{ID: peerID, Address: addr}, nil).(*managedConnection)
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		go func() {
@@ -443,8 +441,8 @@ func Test_adapter_Broadcast(t *testing.T) {
 	const peer1ID = "foobar1"
 	const peer2ID = "foobar2"
 	network := NewAdapter().(*adapter)
-	peer1 := network.conns.register(Peer{ID: peer1ID, Address: addr}, nil).(*managedConnection)
-	peer2 := network.conns.register(Peer{ID: peer2ID, Address: addr}, nil).(*managedConnection)
+	peer1 := network.conns.register(types.Peer{ID: peer1ID, Address: addr}, nil).(*managedConnection)
+	peer2 := network.conns.register(types.Peer{ID: peer2ID, Address: addr}, nil).(*managedConnection)
 	t.Run("ok", func(t *testing.T) {
 		network.Broadcast(&transport2.NetworkMessage{})
 		for _, conn := range network.conns.conns {
@@ -472,7 +470,7 @@ func Test_adapter_Broadcast(t *testing.T) {
 func Test_adapter_shouldConnectTo(t *testing.T) {
 	sut := NewAdapter().(*adapter)
 	sut.config.ListenAddress = "some-address:5555"
-	sut.conns.register(Peer{
+	sut.conns.register(types.Peer{
 		ID:      "peer",
 		Address: "peer:5555",
 	}, nil)

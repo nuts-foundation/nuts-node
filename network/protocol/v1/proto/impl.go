@@ -182,13 +182,13 @@ func (p protocol) startCollectingMissingPayloads() {
 	}
 }
 
-func (p *protocol) startUpdatingDiagnostics(peerConnected chan p2p.Peer, peerDisconnected chan p2p.Peer) {
+func (p *protocol) startUpdatingDiagnostics(peerConnected chan types.Peer, peerDisconnected chan types.Peer) {
 	for {
 		p.updateDiagnostics(peerConnected, peerDisconnected)
 	}
 }
 
-func (p *protocol) updateDiagnostics(peerConnected chan p2p.Peer, peerDisconnected chan p2p.Peer) {
+func (p *protocol) updateDiagnostics(peerConnected chan types.Peer, peerDisconnected chan types.Peer) {
 	select {
 	case peer := <-peerConnected:
 		withLock(p.peerOmnihashMutex, func() {

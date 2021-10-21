@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // PeerID defines a peer's unique identifier.
 type PeerID string
@@ -8,6 +11,19 @@ type PeerID string
 // String returns the PeerID as string.
 func (p PeerID) String() string {
 	return string(p)
+}
+
+// Peer holds the properties of a remote node we're connected to
+type Peer struct {
+	// ID holds the unique identificator of the peer
+	ID PeerID
+	// Address holds the remote address of the node we're actually connected to
+	Address string
+}
+
+// String returns the peer as string.
+func (p Peer) String() string {
+	return fmt.Sprintf("%s@%s", p.ID, p.Address)
 }
 
 // Diagnostics contains information that is shared to this node's peers on request.

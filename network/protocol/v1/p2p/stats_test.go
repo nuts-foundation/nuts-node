@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"github.com/magiconair/properties/assert"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ func Test_NumberOfPeersStatistic(t *testing.T) {
 }
 
 func Test_PeersStatistic(t *testing.T) {
-	statistic := peersStatistic{peers: []Peer{
+	statistic := peersStatistic{peers: []types.Peer{
 		{ID: "abc", Address: "localhost:8080"},
 		{ID: "def", Address: "remote:8081"},
 	}}

@@ -22,8 +22,6 @@ import (
 	"context"
 	"fmt"
 	v1 "github.com/nuts-foundation/nuts-node/network/protocol/v1"
-	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
-	"github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
 	"hash/crc32"
 	"path"
 	"sync"
@@ -64,12 +62,12 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	node1.p2pNetwork.ConnectToPeer(nameToAddress("integration_bootstrap"))
+	node1.connectionManager.Connect(nameToAddress("integration_bootstrap"))
 	node2, err := startNode("integration_node2", path.Join(testDirectory, "node2"))
 	if !assert.NoError(t, err) {
 		return
 	}
-	node2.p2pNetwork.ConnectToPeer(nameToAddress("integration_bootstrap"))
+	node2.connectionManager.Connect(nameToAddress("integration_bootstrap"))
 	defer func() {
 		node2.Shutdown()
 		node1.Shutdown()
@@ -78,7 +76,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 
 	// Wait until nodes are connected
 	if !waitFor(t, func() (bool, error) {
-		return len(bootstrap.p2pNetwork.Peers()) == 2, nil
+		return len(bootstrap.connectionManager.Peers()) == 2, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
 		return
 	}
@@ -166,8 +164,6 @@ func startNode(name string, directory string, configurers ...func(*Config)) (*Ne
 		c(&config)
 	}
 	instance := &Network{
-		p2pNetwork:             p2p.NewAdapter(),
-		protocol:               proto.NewProtocol(),
 		config:                 config,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
