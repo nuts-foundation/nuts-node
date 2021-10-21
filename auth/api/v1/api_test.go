@@ -20,7 +20,6 @@ package v1
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -71,16 +70,8 @@ func (m *mockAuthClient) HTTPTimeout() time.Duration {
 	return 10 * time.Second
 }
 
-func (m *mockAuthClient) TrustStore() *x509.CertPool {
+func (m *mockAuthClient) TLSConfig() *tls.Config {
 	return nil
-}
-
-func (m *mockAuthClient) ClientCertificate() *tls.Certificate {
-	return nil
-}
-
-func (m *mockAuthClient) TLSEnabled() bool {
-	return false
 }
 
 func (m *mockAuthClient) OAuthClient() services.OAuthClient {

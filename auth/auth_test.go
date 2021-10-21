@@ -30,7 +30,7 @@ func TestAuth_Configure(t *testing.T) {
 			return
 		}
 
-		assert.NotNil(t, i.trustStore)
+		assert.NotNil(t, i.tlsConfig)
 	})
 
 	t.Run("error - no publicUrl", func(t *testing.T) {
