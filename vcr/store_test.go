@@ -33,9 +33,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
@@ -63,7 +61,6 @@ func TestVcr_StoreCredential(t *testing.T) {
 			timeFunc = time.Now
 		}()
 
-		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
 		ctx.docResolver.EXPECT().Resolve(*did, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
@@ -74,8 +71,6 @@ func TestVcr_StoreCredential(t *testing.T) {
 
 	t.Run("error - validation", func(t *testing.T) {
 		ctx := newMockContext(t)
-
-		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
 		err := ctx.vcr.StoreCredential(vc.VerifiableCredential{})
 
@@ -99,7 +94,6 @@ func TestVcr_StoreRevocation(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), gomock.Any()).Return(pk, nil)
 
 		err := ctx.vcr.StoreRevocation(r)
@@ -109,8 +103,6 @@ func TestVcr_StoreRevocation(t *testing.T) {
 
 	t.Run("error - validation", func(t *testing.T) {
 		ctx := newMockContext(t)
-
-		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
 		err := ctx.vcr.StoreRevocation(credential.Revocation{})
 

@@ -29,6 +29,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -199,16 +200,37 @@ func ExtractAssertionKeyID(doc did.Document) (ssi.URI, error) {
 	return ssi.URI{}, types.ErrKeyNotFound
 }
 
-func (r KeyResolver) ResolvePublicKey(kid string, validAt *time.Time) (crypto.PublicKey, error) {
+func (r KeyResolver) ResolvePublicKeyInTime(kid string, validAt *time.Time) (crypto.PublicKey, error) {
+	return r.resolvePublicKey(kid, types.ResolveMetadata{
+		ResolveTime: validAt,
+	})
+}
+
+func (r KeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
+	// try all keys, continue when err == types.ErrNotFound
+	for _, h := range sourceTransactionsRefs {
+		publicKey, err := r.resolvePublicKey(kid, types.ResolveMetadata{
+			SourceTransaction: &h,
+		})
+		if err == nil {
+			return publicKey, nil
+		}
+		if err != types.ErrNotFound {
+			return nil, err
+		}
+	}
+
+	return nil, types.ErrNotFound
+}
+
+func (r KeyResolver) resolvePublicKey(kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
 	did, err := did.ParseDIDURL(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)
 	}
 	didCopy := *did
 	didCopy.Fragment = ""
-	doc, _, err := r.Store.Resolve(didCopy, &types.ResolveMetadata{
-		ResolveTime: validAt,
-	})
+	doc, _, err := r.Store.Resolve(didCopy, &metadata)
 	if err != nil {
 		return nil, err
 	}

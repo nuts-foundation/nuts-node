@@ -222,18 +222,33 @@ func (mr *MockKeyResolverMockRecorder) ResolveAssertionKeyID(id interface{}) *go
 }
 
 // ResolvePublicKey mocks base method.
-func (m *MockKeyResolver) ResolvePublicKey(kid string, validAt *time.Time) (crypto.PublicKey, error) {
+func (m *MockKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolvePublicKey", kid, validAt)
+	ret := m.ctrl.Call(m, "ResolvePublicKey", kid, sourceTransactionsRefs)
 	ret0, _ := ret[0].(crypto.PublicKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ResolvePublicKey indicates an expected call of ResolvePublicKey.
-func (mr *MockKeyResolverMockRecorder) ResolvePublicKey(kid, validAt interface{}) *gomock.Call {
+func (mr *MockKeyResolverMockRecorder) ResolvePublicKey(kid, sourceTransactionsRefs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolvePublicKey", reflect.TypeOf((*MockKeyResolver)(nil).ResolvePublicKey), kid, validAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolvePublicKey", reflect.TypeOf((*MockKeyResolver)(nil).ResolvePublicKey), kid, sourceTransactionsRefs)
+}
+
+// ResolvePublicKeyInTime mocks base method.
+func (m *MockKeyResolver) ResolvePublicKeyInTime(kid string, validAt *time.Time) (crypto.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolvePublicKeyInTime", kid, validAt)
+	ret0, _ := ret[0].(crypto.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolvePublicKeyInTime indicates an expected call of ResolvePublicKeyInTime.
+func (mr *MockKeyResolverMockRecorder) ResolvePublicKeyInTime(kid, validAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolvePublicKeyInTime", reflect.TypeOf((*MockKeyResolver)(nil).ResolvePublicKeyInTime), kid, validAt)
 }
 
 // ResolveSigningKey mocks base method.

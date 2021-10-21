@@ -28,6 +28,7 @@ import (
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/stretchr/testify/assert"
 
@@ -422,10 +423,21 @@ func TestKeyResolver_ResolvePublicKey(t *testing.T) {
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(DefaultCreationOptions())
 	doc.AddAssertionMethod(doc.VerificationMethod[0])
-	didStore.Write(*doc, types.DocumentMetadata{})
+	txHash := hash.FromSlice([]byte("hash"))
+	didStore.Write(*doc, types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{txHash}})
 
 	t.Run("ok", func(t *testing.T) {
-		key, err := keyResolver.ResolvePublicKey(kid, nil)
+		key, err := keyResolver.ResolvePublicKeyInTime(kid, nil)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.NotNil(t, key)
+	})
+
+	t.Run("ok by hash", func(t *testing.T) {
+		key, err := keyResolver.ResolvePublicKey(kid, []hash.SHA256Hash{txHash})
 
 		if !assert.NoError(t, err) {
 			return
@@ -435,14 +447,14 @@ func TestKeyResolver_ResolvePublicKey(t *testing.T) {
 	})
 
 	t.Run("error - invalid kid", func(t *testing.T) {
-		key, err := keyResolver.ResolvePublicKey("not_a_did", nil)
+		key, err := keyResolver.ResolvePublicKeyInTime("not_a_did", nil)
 
 		assert.Error(t, err)
 		assert.Nil(t, key)
 	})
 
 	t.Run("error - unknown did", func(t *testing.T) {
-		_, err := keyResolver.ResolvePublicKey("did:nuts:a", nil)
+		_, err := keyResolver.ResolvePublicKeyInTime("did:nuts:a", nil)
 
 		if !assert.Error(t, err) {
 			return
@@ -451,7 +463,7 @@ func TestKeyResolver_ResolvePublicKey(t *testing.T) {
 	})
 
 	t.Run("error - unknown key in document", func(t *testing.T) {
-		_, err := keyResolver.ResolvePublicKey(kid[:len(kid)-2], nil)
+		_, err := keyResolver.ResolvePublicKeyInTime(kid[:len(kid)-2], nil)
 
 		if !assert.Error(t, err) {
 			return

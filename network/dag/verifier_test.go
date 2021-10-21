@@ -6,21 +6,21 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func Test_PrevTransactionVerifier(t *testing.T) {
 	prev := hash.SHA256Sum([]byte{1, 2, 3})
 	t.Run("ok - prev is present", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		ctx := context.Background()
 		graph := NewMockDAG(ctrl)
 		graph.EXPECT().IsPresent(ctx, prev).Return(true, nil)
@@ -30,7 +30,6 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 	})
 	t.Run("failed - prev not present", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		ctx := context.Background()
 		graph := NewMockDAG(ctrl)
 		graph.EXPECT().IsPresent(ctx, prev).Return(false, nil)
@@ -77,32 +76,53 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		err := NewTransactionSignatureVerifier(nil)(context.Background(), transaction, nil)
 		assert.EqualError(t, err, "failed to build public key: invalid curve algorithm P-invalid")
 	})
-	t.Run("unable to resolve key", func(t *testing.T) {
-		d, _, _ := CreateTestTransaction(1)
+	t.Run("unable to resolve key by time", func(t *testing.T) {
+		aWhileBack := types.DIDDocumentResolveEpoch.Add(-1 * time.Second)
+		d := CreateSignedTestTransaction(1, aWhileBack, "foo/bar", false)
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
+		keyResolver.EXPECT().ResolvePublicKeyInTime(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 		err := NewTransactionSignatureVerifier(keyResolver)(context.Background(), d, nil)
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "unable to verify transaction signature, can't resolve key by signing time")
+		assert.Contains(t, err.Error(), "failed")
+	})
+	t.Run("unable to resolve key by hash", func(t *testing.T) {
+		after := types.DIDDocumentResolveEpoch.Add(1 * time.Second)
+		root := hash.SHA256Sum([]byte("root"))
+		d := CreateSignedTestTransaction(1, after, "foo/bar", false, root)
+		ctrl := gomock.NewController(t)
+		keyResolver := types.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), []hash.SHA256Hash{root}).Return(nil, errors.New("failed"))
+		err := NewTransactionSignatureVerifier(keyResolver)(context.Background(), d, nil)
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "unable to verify transaction signature, can't resolve key by TX ref")
 		assert.Contains(t, err.Error(), "failed")
 	})
 }
 
 func TestSigningTimeVerifier(t *testing.T) {
 	t.Run("signed now", func(t *testing.T) {
-		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, time.Now(), "test/test"), nil)
+		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, time.Now(), "test/test", true), nil)
 		assert.NoError(t, err)
 	})
 	t.Run("signed in history", func(t *testing.T) {
-		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, time.Now().AddDate(-1, 0, 0), "test/test"), nil)
+		aWhileBack := time.Now().AddDate(-1, 0, 0)
+		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, aWhileBack, "test/test", true), nil)
 		assert.NoError(t, err)
 	})
 	t.Run("signed a few hours in the future", func(t *testing.T) {
-		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, time.Now().Add(time.Hour*2), "test/test"), nil)
+		soon := time.Now().Add(time.Hour * 2)
+		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, soon, "test/test", true), nil)
 		assert.NoError(t, err)
 	})
 	t.Run("error - signed a day in the future", func(t *testing.T) {
-		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, time.Now().Add(time.Hour*24+time.Minute), "test/test"), nil)
+		later := time.Now().Add(time.Hour*24 + time.Minute)
+		err := NewSigningTimeVerifier()(context.Background(), CreateSignedTestTransaction(1, later, "test/test", true), nil)
 		assert.Error(t, err)
 	})
 }
