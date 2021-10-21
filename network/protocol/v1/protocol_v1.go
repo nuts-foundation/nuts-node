@@ -25,6 +25,7 @@ type ProtocolV1Config struct {
 	CollectMissingPayloadsInterval int `koanf:"network.v1.collectmissingpayloadsinterval"`
 }
 
+// DefaultConfig returns the default configuration for protocol v1.
 func DefaultConfig() ProtocolV1Config {
 	return ProtocolV1Config{
 		Online:                         true,
@@ -34,6 +35,7 @@ func DefaultConfig() ProtocolV1Config {
 	}
 }
 
+// NewProtocolV1 returns a new instance of the protocol v1 implementation.
 func NewProtocolV1(config ProtocolV1Config, networkConfig p2p.AdapterConfig) protocol.Protocol {
 	return &protocolV1{
 		config:        config,

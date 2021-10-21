@@ -34,8 +34,8 @@ import (
 
 // protocol is thread-safe when callers use the Protocol interface
 type protocol struct {
-	p2pNetwork p2p.Adapter
-	graph      dag.DAG
+	p2pNetwork   p2p.Adapter
+	graph        dag.DAG
 	payloadStore dag.PayloadStore
 	sender       messageSender
 	// TODO: What if no-one is actually listening to this queue? Maybe we should create it when someone asks for it (lazy initialization)?

@@ -30,8 +30,8 @@ type messageSender interface {
 }
 
 type defaultMessageSender struct {
-	p2p            p2p.Adapter
-	maxMessageSize int
+	p2p                    p2p.Adapter
+	maxMessageSize         int
 	transactionsPerMessage int
 }
 

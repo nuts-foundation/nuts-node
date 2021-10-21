@@ -14,6 +14,7 @@ type ConnectionManager interface {
 	Peers() []types.Peer
 }
 
+// NewConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
 func NewConnectionManager(protocols ...protocol.Protocol) ConnectionManager {
 	if len(protocols) > 1 {
 		// TODO: Support multiple protocol versions
