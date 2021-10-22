@@ -5,6 +5,7 @@
 package crl
 
 import (
+	context "context"
 	tls "crypto/tls"
 	big "math/big"
 	reflect "reflect"
@@ -87,4 +88,16 @@ func (m *MockValidator) Sync() error {
 func (mr *MockValidatorMockRecorder) Sync() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sync", reflect.TypeOf((*MockValidator)(nil).Sync))
+}
+
+// SyncLoop mocks base method.
+func (m *MockValidator) SyncLoop(ctx context.Context) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SyncLoop", ctx)
+}
+
+// SyncLoop indicates an expected call of SyncLoop.
+func (mr *MockValidatorMockRecorder) SyncLoop(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncLoop", reflect.TypeOf((*MockValidator)(nil).SyncLoop), ctx)
 }

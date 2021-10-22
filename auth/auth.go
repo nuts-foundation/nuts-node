@@ -8,7 +8,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
@@ -156,21 +155,9 @@ func (auth *Auth) Start() error {
 
 	auth.shutdownFunc = cancel
 
-	go func() {
-		ticker := time.NewTicker(time.Minute)
-
-	processLoop:
-		for {
-			select {
-			case <-ctx.Done():
-				break processLoop
-			case <-ticker.C:
-				if err := auth.crlValidator.Sync(); err != nil {
-					log.Logger().Errorf("CRL synchronization failed: %s", err.Error())
-				}
-			}
-		}
-	}()
+	if auth.crlValidator != nil {
+		auth.crlValidator.SyncLoop(ctx)
+	}
 
 	return nil
 }

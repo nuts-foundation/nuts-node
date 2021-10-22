@@ -90,7 +90,7 @@ func Test_adapter_Configure(t *testing.T) {
 		trustPool := x509.NewCertPool()
 
 		db := crl.NewMockValidator(gomock.NewController(t))
-		db.EXPECT().Sync().Return(nil)
+		db.EXPECT().SyncLoop(gomock.Any())
 		db.EXPECT().Configure(gomock.Any(), 0)
 
 		network := NewAdapter().(*adapter)
