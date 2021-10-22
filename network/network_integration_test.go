@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	v1 "github.com/nuts-foundation/nuts-node/network/protocol/v1"
+	"github.com/nuts-foundation/nuts-node/test"
 	"hash/crc32"
 	"path"
 	"sync"
@@ -47,7 +48,6 @@ var mutex = sync.Mutex{}
 var receivedTransactions = make(map[string][]dag.Transaction, 0)
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
-	t.Logf("Running test: %s", t.Name())
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest()
 	key := nutsCrypto.NewTestKey("key")
@@ -76,7 +76,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	}()
 
 	// Wait until nodes are connected
-	if !waitFor(t, func() (bool, error) {
+	if !test.WaitFor(t, func() (bool, error) {
 		return len(bootstrap.connectionManager.Peers()) == 2, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
 		return
@@ -96,7 +96,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 
 	// Now assert that all nodes have received all transactions
 	waitForTransactions := func(node string, graph dag.DAG) bool {
-		return waitFor(t, func() (bool, error) {
+		return test.WaitFor(t, func() (bool, error) {
 			if docs, err := graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime()); err != nil {
 				return false, err
 			} else {
@@ -127,7 +127,7 @@ func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCr
 		return true
 	}
 	for _, receiver := range receivers {
-		if !waitFor(t, func() (bool, error) {
+		if !test.WaitFor(t, func() (bool, error) {
 			mutex.Lock()
 			defer mutex.Unlock()
 			for _, receivedDoc := range receivedTransactions[receiver] {
@@ -143,7 +143,7 @@ func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCr
 	return true
 }
 
-func startNode(name string, directory string, configurers ...func(*Config)) (*Network, error) {
+func startNode(name string, directory string) (*Network, error) {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
 	core.NewServerConfig().Load(&cobra.Command{})
@@ -151,19 +151,15 @@ func startNode(name string, directory string, configurers ...func(*Config)) (*Ne
 	mutex.Unlock()
 	// Create Network instance
 	config := Config{
-		GrpcAddr:       fmt.Sprintf(":%d", nameToPort(name)),
+		GrpcAddr:       fmt.Sprintf("localhost:%d", nameToPort(name)),
 		CertFile:       "test/certificate-and-key.pem",
 		CertKeyFile:    "test/certificate-and-key.pem",
 		TrustStoreFile: "test/truststore.pem",
 		EnableTLS:      true,
 		ProtocolV1: v1.Config{
-			Online:                    true,
 			AdvertHashesInterval:      500,
 			AdvertDiagnosticsInterval: 5000,
 		},
-	}
-	for _, c := range configurers {
-		c(&config)
 	}
 	instance := &Network{
 		config:                 config,
@@ -193,22 +189,3 @@ func nameToAddress(name string) string {
 	return fmt.Sprintf("localhost:%d", nameToPort(name))
 }
 
-type predicate func() (bool, error)
-
-func waitFor(t *testing.T, p predicate, timeout time.Duration, message string, msgArgs ...interface{}) bool {
-	deadline := time.Now().Add(timeout)
-	for {
-		b, err := p()
-		if !assert.NoError(t, err) {
-			return false
-		}
-		if b {
-			return true
-		}
-		if time.Now().After(deadline) {
-			assert.Fail(t, fmt.Sprintf(message, msgArgs...))
-			return false
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-}

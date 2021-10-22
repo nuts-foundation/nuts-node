@@ -281,7 +281,7 @@ func TestNetwork_Shutdown(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.protocol.EXPECT().Stop().Return(errors.New("failed"))
 		err := cxt.network.Shutdown()
-		assert.EqualError(t, err, "failed")
+		assert.EqualError(t, err, "unable to stop one or more protocols: [failed]")
 	})
 }
 

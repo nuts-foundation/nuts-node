@@ -234,14 +234,17 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 
 // Shutdown cleans up any leftover go routines
 func (n *Network) Shutdown() error {
-	var err error
+	var protocolErrors []error
 	for _, prot := range n.protocols {
-		err = prot.Stop()
+		err := prot.Stop()
 		if err != nil {
-			log.Logger().Errorf("Error shutting down protocol: %v", err)
+			protocolErrors = append(protocolErrors, err)
 		}
 	}
-	return err
+	if len(protocolErrors) > 0 {
+		return fmt.Errorf("unable to stop one or more protocols: %v", protocolErrors)
+	}
+	return nil
 }
 
 // Diagnostics collects and returns diagnostics for the Network engine.

@@ -40,6 +40,7 @@ var ErrUnsupportedProtocolVersion = errors.New("unsupported protocol version")
 
 // Protocol defines the API for the protocol layer, which is a high-level interface to interact with the network. It responds
 // from (peer) messages received through the P2P layer.
+// TODO: Since refactoring the networking to support multiple protocol versions, this type name has become ambiguous. Maybe something like `Messaging` is better.
 type Protocol interface {
 	core.Diagnosable
 	// Configure configures the Protocol. Must be called before Start().
