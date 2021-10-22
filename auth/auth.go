@@ -5,17 +5,17 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"path"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/didman"
-
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -166,7 +166,7 @@ func (auth *Auth) Start() error {
 				break processLoop
 			case <-ticker.C:
 				if err := auth.crlValidator.Sync(); err != nil {
-					Logger().Errorf("CRL synchronization failed: %s", err.Error())
+					log.Logger().Errorf("CRL synchronization failed: %s", err.Error())
 				}
 			}
 		}
