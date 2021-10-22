@@ -19,7 +19,6 @@ require (
 	github.com/magiconair/properties v1.8.5
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mdp/qrterminal/v3 v3.0.0
-	github.com/nats-io/jsm.go v0.0.26
 	github.com/nats-io/nats-server/v2 v2.6.2
 	github.com/nats-io/nats.go v1.13.0
 	github.com/nuts-foundation/go-did v0.1.1
@@ -55,7 +54,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.0-20210816181553-5444fa50b93d // indirect
-	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/eknkc/basex v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
