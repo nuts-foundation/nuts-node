@@ -15,18 +15,18 @@ import (
 func Test_ProtocolLifecycle(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	instance := NewProtocol()
 
 	publisher := dag.NewMockPublisher(mockCtrl)
 	publisher.EXPECT().Subscribe("*", gomock.Any())
 
-	instance.Configure(p2p.NewAdapter(), dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), nil, time.Second*2, time.Second*5, 10*time.Second, "local")
+	instance := NewProtocol(p2p.NewAdapter(), dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), nil, )
+	instance.Configure(time.Second*2, time.Second*5, 10*time.Second, "local")
 	instance.Start()
 	instance.Stop()
 }
 
 func Test_Protocol_PeerDiagnostics(t *testing.T) {
-	instance := NewProtocol().(*protocol)
+	instance := NewProtocol(nil, nil, nil, nil, nil).(*protocol)
 
 	instance.peerDiagnostics[peer] = types.Diagnostics{
 		Peers:           []types.PeerID{"some-peer"},
@@ -42,7 +42,7 @@ func Test_Protocol_PeerDiagnostics(t *testing.T) {
 
 func Test_Protocol_StartAdvertingDiagnostics(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
-		instance := NewProtocol().(*protocol)
+		instance := NewProtocol(nil, nil, nil, nil, nil).(*protocol)
 		instance.advertDiagnosticsInterval = 0 * time.Second // this is what would be configured
 		instance.startAdvertingDiagnostics()
 		// This is a blocking function when the feature is enabled, so if we reach the end of the test everything works as intended.
@@ -55,7 +55,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		payloadCollector := NewMockmissingPayloadCollector(ctrl)
 		payloadCollector.EXPECT().findMissingPayloads().AnyTimes().Return(nil, nil)
 
-		instance := NewProtocol().(*protocol)
+		instance := NewProtocol(nil, nil, nil, nil, nil).(*protocol)
 		instance.missingPayloadCollector = payloadCollector
 		instance.peerOmnihashChannel = make(chan PeerOmnihash, 1)
 		peerConnected := make(chan types.Peer, 1)
@@ -90,7 +90,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		payloadCollector := NewMockmissingPayloadCollector(ctrl)
 		payloadCollector.EXPECT().findMissingPayloads().Return([]hash.SHA256Hash{{1}}, nil)
 
-		instance := NewProtocol().(*protocol)
+		instance := NewProtocol(nil, nil, nil, nil, nil).(*protocol)
 		instance.missingPayloadCollector = payloadCollector
 		diagnostics := instance.Diagnostics()
 		assert.Equal(t, "[Protocol] Missing Payload Hashes", diagnostics[1].Name())
@@ -102,7 +102,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		payloadCollector := NewMockmissingPayloadCollector(ctrl)
 		payloadCollector.EXPECT().findMissingPayloads().Return(nil, errors.New("oops"))
 
-		instance := NewProtocol().(*protocol)
+		instance := NewProtocol(nil, nil, nil, nil, nil).(*protocol)
 		instance.missingPayloadCollector = payloadCollector
 		diagnostics := instance.Diagnostics()
 		assert.Equal(t, "[Protocol] Missing Payload Hashes", diagnostics[1].Name())

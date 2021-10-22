@@ -10,9 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	core "github.com/nuts-foundation/nuts-node/core"
-	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	types "github.com/nuts-foundation/nuts-node/network/protocol/types"
-	p2p "github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 )
 
 // MockProtocol is a mock of Protocol interface.
@@ -39,15 +37,15 @@ func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 }
 
 // Configure mocks base method.
-func (m *MockProtocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() types.Diagnostics, advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval time.Duration, peerID types.PeerID) {
+func (m *MockProtocol) Configure(advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval time.Duration, peerID types.PeerID) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Configure", p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval, peerID)
+	m.ctrl.Call(m, "Configure", advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval, peerID)
 }
 
 // Configure indicates an expected call of Configure.
-func (mr *MockProtocolMockRecorder) Configure(p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval, peerID interface{}) *gomock.Call {
+func (mr *MockProtocolMockRecorder) Configure(advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval, peerID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), p2pNetwork, graph, publisher, payloadStore, diagnosticsProvider, advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval, peerID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), advertHashesInterval, advertDiagnosticsInterval, collectMissingPayloadsInterval, peerID)
 }
 
 // Diagnostics mocks base method.

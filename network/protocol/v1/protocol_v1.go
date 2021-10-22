@@ -31,14 +31,15 @@ func DefaultConfig() Config {
 	}
 }
 
-// NewProtocolV1 returns a new instance of the protocol v1 implementation.
-func NewProtocolV1(config Config, adapterConfig p2p.AdapterConfig) protocol.Protocol {
+// New returns a new instance of the protocol v1 implementation.
+func New(config Config, adapterConfig p2p.AdapterConfig, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() types.Diagnostics) protocol.Protocol {
+	adapter := p2p.NewAdapter()
 	return &protocolV1{
 		config:        config,
 		adapterConfig: adapterConfig,
 		online:        adapterConfig.Valid,
-		adapter:       p2p.NewAdapter(),
-		protocol:      proto.NewProtocol(),
+		adapter:       adapter,
+		protocol:      proto.NewProtocol(adapter, graph, publisher, payloadStore, diagnosticsProvider),
 	}
 }
 
@@ -50,8 +51,8 @@ type protocolV1 struct {
 	online        bool
 }
 
-func (p protocolV1) Configure(graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() types.Diagnostics) error {
-	p.protocol.Configure(p.adapter, graph, publisher, payloadStore, diagnosticsProvider,
+func (p protocolV1) Configure() error {
+	p.protocol.Configure(
 		time.Duration(p.config.AdvertHashesInterval)*time.Millisecond,
 		time.Duration(p.config.AdvertDiagnosticsInterval)*time.Millisecond,
 		time.Duration(p.config.CollectMissingPayloadsInterval)*time.Millisecond,

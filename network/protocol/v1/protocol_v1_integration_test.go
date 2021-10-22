@@ -110,8 +110,8 @@ func TestProtocolV1_Pagination(t *testing.T) {
 	}
 	_ = node1.payloadStore.WritePayload(context.Background(), rootTX.PayloadHash(), []byte{2, 2, 2})
 	prev := rootTX
-	for i := 0; i < numberOfTransactions - 1; i++ { // minus 1 to subtract root TX
-		tx, _, _ := dag.CreateTestTransaction(uint32(i + 2), prev.Ref())
+	for i := 0; i < numberOfTransactions-1; i++ { // minus 1 to subtract root TX
+		tx, _, _ := dag.CreateTestTransaction(uint32(i+2), prev.Ref())
 		err := node1.graph.Add(context.Background(), tx)
 		if !assert.NoError(t, err) {
 			return
@@ -183,16 +183,14 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	for _, c := range configurers {
 		c(cfg)
 	}
-	ctx.protocol = NewProtocolV1(*cfg, p2p.AdapterConfig{
+	ctx.protocol = New(*cfg, p2p.AdapterConfig{
 		Valid:          true,
 		PeerID:         types.PeerID(name),
 		ListenAddress:  fmt.Sprintf("localhost:%d", nameToPort(name)),
 		BootstrapNodes: nil,
-	}).(*protocolV1)
+	}, ctx.graph, publisher, ctx.payloadStore, dummyDiagnostics).(*protocolV1)
 
-	if err = ctx.protocol.Configure(ctx.graph, publisher, ctx.payloadStore, func() types.Diagnostics {
-		return types.Diagnostics{}
-	}); err != nil {
+	if err = ctx.protocol.Configure(); err != nil {
 		t.Fatal(err)
 	}
 	if err = ctx.protocol.Start(); err != nil {

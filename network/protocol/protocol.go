@@ -2,14 +2,13 @@ package protocol
 
 import (
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 )
 
 // Protocol is a self-contained process that can exchange network data (e.g. DAG transactions or private credentials) with other parties on the network.
 type Protocol interface {
-	// Configure configures the Protocol implementation.
-	Configure(graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() types.Diagnostics) error
+	// Configure configures the Protocol implementation, must be called before Start().
+	Configure() error
 	// Start starts the Protocol implementation.
 	Start() error
 	// Stop stops the Protocol implementation.

@@ -34,7 +34,7 @@ import (
 
 // protocol is thread-safe when callers use the Protocol interface
 type protocol struct {
-	p2pNetwork   p2p.Adapter
+	adapter      p2p.Adapter
 	graph        dag.DAG
 	payloadStore dag.PayloadStore
 	sender       messageSender
@@ -60,7 +60,8 @@ type protocol struct {
 	// diagnosticsProvider is a function for collecting diagnostics from the local node which can be shared with peers.
 	diagnosticsProvider func() types.Diagnostics
 	// peerID contains our own peer ID which can be logged for debugging purposes
-	peerID types.PeerID
+	peerID    types.PeerID
+	publisher dag.Publisher
 }
 
 func (p *protocol) Diagnostics() []core.DiagnosticResult {
@@ -96,7 +97,7 @@ func (p *protocol) PeerDiagnostics() map[types.PeerID]types.Diagnostics {
 }
 
 // NewProtocol creates a new instance of Protocol
-func NewProtocol() Protocol {
+func NewProtocol(adapter p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() types.Diagnostics) Protocol {
 	p := &protocol{
 		peerDiagnostics:      make(map[types.PeerID]types.Diagnostics, 0),
 		peerDiagnosticsMutex: &sync.Mutex{},
@@ -104,33 +105,32 @@ func NewProtocol() Protocol {
 		peerOmnihashChannel:  make(chan PeerOmnihash, 100),
 		peerOmnihashMutex:    &sync.Mutex{},
 		blocks:               newDAGBlocks(),
+		graph:                graph,
+		payloadStore:         payloadStore,
+		publisher:            publisher,
+		diagnosticsProvider:  diagnosticsProvider,
+		adapter:              adapter,
 	}
 	return p
 }
 
-func (p *protocol) Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore,
-	diagnosticsProvider func() types.Diagnostics, advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration,
-	collectMissingPayloadsInterval time.Duration, peerID types.PeerID) {
-	p.p2pNetwork = p2pNetwork
-	p.graph = graph
-	p.payloadStore = payloadStore
+func (p *protocol) Configure(advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration, collectMissingPayloadsInterval time.Duration, peerID types.PeerID) {
 	p.advertHashesInterval = advertHashesInterval
 	p.advertDiagnosticsInterval = advertDiagnosticsInterval
 	p.collectMissingPayloadsInterval = collectMissingPayloadsInterval
-	p.diagnosticsProvider = diagnosticsProvider
 	p.peerID = peerID
-	p.sender = defaultMessageSender{p2p: p.p2pNetwork, maxMessageSize: p2p.MaxMessageSizeInBytes}
+	p.sender = defaultMessageSender{p2p: p.adapter, maxMessageSize: p2p.MaxMessageSizeInBytes}
 	p.missingPayloadCollector = broadcastingMissingPayloadCollector{
 		graph:        p.graph,
 		payloadStore: p.payloadStore,
 		sender:       p.sender,
 	}
-	publisher.Subscribe(dag.AnyPayloadType, p.blocks.addTransaction)
+	p.publisher.Subscribe(dag.AnyPayloadType, p.blocks.addTransaction)
 }
 
 func (p *protocol) Start() {
-	go p.consumeMessages(p.p2pNetwork.ReceivedMessages())
-	peerConnected, peerDisconnected := p.p2pNetwork.EventChannels()
+	go p.consumeMessages(p.adapter.ReceivedMessages())
+	peerConnected, peerDisconnected := p.adapter.EventChannels()
 	go p.startUpdatingDiagnostics(peerConnected, peerDisconnected)
 	go p.startAdvertingHashes()
 	go p.startAdvertingDiagnostics()

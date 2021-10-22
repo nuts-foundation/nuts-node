@@ -21,12 +21,10 @@ package proto
 import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
-	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 )
 
 // Version holds the number of the version of this protocol implementation.
@@ -44,8 +42,7 @@ var ErrUnsupportedProtocolVersion = errors.New("unsupported protocol version")
 type Protocol interface {
 	core.Diagnosable
 	// Configure configures the Protocol. Must be called before Start().
-	Configure(p2pNetwork p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() types.Diagnostics,
-		advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration, collectMissingPayloadsInterval time.Duration, peerID types.PeerID)
+	Configure(advertHashesInterval time.Duration, advertDiagnosticsInterval time.Duration, collectMissingPayloadsInterval time.Duration, peerID types.PeerID)
 	// Start the Protocol (sending and receiving of messages).
 	Start()
 	// Stop the Protocol.

@@ -9,7 +9,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	core "github.com/nuts-foundation/nuts-node/core"
-	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	types "github.com/nuts-foundation/nuts-node/network/protocol/types"
 )
 
@@ -37,17 +36,17 @@ func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 }
 
 // Configure mocks base method.
-func (m *MockProtocol) Configure(graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() types.Diagnostics) error {
+func (m *MockProtocol) Configure() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Configure", graph, publisher, payloadStore, diagnosticsProvider)
+	ret := m.ctrl.Call(m, "Configure")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Configure indicates an expected call of Configure.
-func (mr *MockProtocolMockRecorder) Configure(graph, publisher, payloadStore, diagnosticsProvider interface{}) *gomock.Call {
+func (mr *MockProtocolMockRecorder) Configure() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), graph, publisher, payloadStore, diagnosticsProvider)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure))
 }
 
 // Connect mocks base method.

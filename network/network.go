@@ -117,9 +117,9 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		adapterConfig = &p2p.AdapterConfig{PeerID: n.peerID, Valid: false}
 	}
 	// Configure protocols
-	n.protocols = []protocol.Protocol{v1.NewProtocolV1(n.config.ProtocolV1, *adapterConfig)}
+	n.protocols = []protocol.Protocol{v1.New(n.config.ProtocolV1, *adapterConfig, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics)}
 	for _, prot := range n.protocols {
-		err := prot.Configure(n.graph, n.publisher, n.payloadStore, n.collectDiagnostics)
+		err := prot.Configure()
 		if err != nil {
 			return err
 		}
