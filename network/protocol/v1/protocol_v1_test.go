@@ -11,7 +11,7 @@ import (
 )
 
 func TestProtocolV1_Configure(t *testing.T) {
-	adapterConfig := p2p.AdapterConfig{PeerID: "peer-id"}
+	adapterConfig := p2p.AdapterConfig{PeerID: "peer-id", Valid: true}
 	t.Run("online", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -38,9 +38,7 @@ func TestProtocolV1_Configure(t *testing.T) {
 		underlyingProto := proto.NewMockProtocol(ctrl)
 		underlyingProto.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), adapterConfig.PeerID)
 
-		cfg := DefaultConfig()
-		cfg.Online = false
-		v1 := NewProtocolV1(cfg, p2p.AdapterConfig{PeerID: "peer-id"}).(*protocolV1)
+		v1 := NewProtocolV1(DefaultConfig(), p2p.AdapterConfig{PeerID: "peer-id"}).(*protocolV1)
 		v1.adapter = adapter
 		v1.protocol = underlyingProto
 
@@ -61,7 +59,7 @@ func TestProtocolV1_Start(t *testing.T) {
 		underlyingProto := proto.NewMockProtocol(ctrl)
 		underlyingProto.EXPECT().Start()
 
-		v1 := NewProtocolV1(DefaultConfig(), p2p.AdapterConfig{PeerID: "peer-id"}).(*protocolV1)
+		v1 := NewProtocolV1(DefaultConfig(), p2p.AdapterConfig{PeerID: "peer-id", Valid: true}).(*protocolV1)
 		v1.adapter = adapter
 		v1.protocol = underlyingProto
 		assert.NoError(t, v1.Start())
@@ -74,9 +72,7 @@ func TestProtocolV1_Start(t *testing.T) {
 		underlyingProto := proto.NewMockProtocol(ctrl)
 		underlyingProto.EXPECT().Start()
 
-		cfg := DefaultConfig()
-		cfg.Online = false
-		v1 := NewProtocolV1(cfg, p2p.AdapterConfig{PeerID: "peer-id"}).(*protocolV1)
+		v1 := NewProtocolV1(DefaultConfig(), p2p.AdapterConfig{PeerID: "peer-id"}).(*protocolV1)
 		v1.adapter = adapter
 		v1.protocol = underlyingProto
 		assert.NoError(t, v1.Start())
@@ -93,7 +89,7 @@ func TestProtocolV1_Stop(t *testing.T) {
 		underlyingProto := proto.NewMockProtocol(ctrl)
 		underlyingProto.EXPECT().Stop()
 
-		v1 := NewProtocolV1(DefaultConfig(), p2p.AdapterConfig{PeerID: "peer-id"}).(*protocolV1)
+		v1 := NewProtocolV1(DefaultConfig(), p2p.AdapterConfig{PeerID: "peer-id", Valid: true}).(*protocolV1)
 		v1.adapter = adapter
 		v1.protocol = underlyingProto
 		assert.NoError(t, v1.Stop())
@@ -106,9 +102,7 @@ func TestProtocolV1_Stop(t *testing.T) {
 		underlyingProto := proto.NewMockProtocol(ctrl)
 		underlyingProto.EXPECT().Stop()
 
-		cfg := DefaultConfig()
-		cfg.Online = false
-		v1 := NewProtocolV1(cfg, p2p.AdapterConfig{PeerID: "peer-id"}).(*protocolV1)
+		v1 := NewProtocolV1(DefaultConfig(), p2p.AdapterConfig{PeerID: "peer-id"}).(*protocolV1)
 		v1.adapter = adapter
 		v1.protocol = underlyingProto
 		assert.NoError(t, v1.Stop())

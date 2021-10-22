@@ -11,11 +11,8 @@ import (
 	"time"
 )
 
-// ProtocolV1Config specifies config for protocol v1
-type ProtocolV1Config struct {
-	// Online indicates whether all configuration required for connecting the node to the network is valid.
-	// If false, the node can start, but it will operate in offline mode.
-	Online bool
+// Config specifies config for protocol v1
+type Config struct {
 	// AdvertHashesInterval specifies how often (in milliseconds) the node should broadcasts its last hashes,
 	// so other nodes can compare and synchronize.
 	AdvertHashesInterval int `koanf:"network.v1.adverthashesinterval"`
@@ -26,9 +23,8 @@ type ProtocolV1Config struct {
 }
 
 // DefaultConfig returns the default configuration for protocol v1.
-func DefaultConfig() ProtocolV1Config {
-	return ProtocolV1Config{
-		Online:                         true,
+func DefaultConfig() Config {
+	return Config{
 		AdvertHashesInterval:           2000,
 		AdvertDiagnosticsInterval:      5000,
 		CollectMissingPayloadsInterval: 60000,
@@ -36,20 +32,22 @@ func DefaultConfig() ProtocolV1Config {
 }
 
 // NewProtocolV1 returns a new instance of the protocol v1 implementation.
-func NewProtocolV1(config ProtocolV1Config, networkConfig p2p.AdapterConfig) protocol.Protocol {
+func NewProtocolV1(config Config, adapterConfig p2p.AdapterConfig) protocol.Protocol {
 	return &protocolV1{
 		config:        config,
-		adapterConfig: networkConfig,
+		adapterConfig: adapterConfig,
+		online:        adapterConfig.Valid,
 		adapter:       p2p.NewAdapter(),
 		protocol:      proto.NewProtocol(),
 	}
 }
 
 type protocolV1 struct {
-	config        ProtocolV1Config
+	config        Config
 	adapter       p2p.Adapter
 	protocol      proto.Protocol
 	adapterConfig p2p.AdapterConfig
+	online        bool
 }
 
 func (p protocolV1) Configure(graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() types.Diagnostics) error {
@@ -58,7 +56,7 @@ func (p protocolV1) Configure(graph dag.DAG, publisher dag.Publisher, payloadSto
 		time.Duration(p.config.AdvertDiagnosticsInterval)*time.Millisecond,
 		time.Duration(p.config.CollectMissingPayloadsInterval)*time.Millisecond,
 		p.adapterConfig.PeerID)
-	if p.config.Online {
+	if p.online {
 		return p.adapter.Configure(p.adapterConfig)
 	}
 	return nil
@@ -68,7 +66,7 @@ func (p protocolV1) Start() error {
 	// It's possible that the Nuts node isn't bootstrapped (e.g. TLS configuration incomplete) but that shouldn't
 	// prevent it from starting. In that case the network will be in 'offline mode', meaning it can be read from
 	// and written to, but it will not try to connect to other peers.
-	if p.config.Online {
+	if p.online {
 		if err := p.adapter.Start(); err != nil {
 			return err
 		}
@@ -81,7 +79,7 @@ func (p protocolV1) Start() error {
 
 func (p protocolV1) Stop() error {
 	p.protocol.Stop()
-	if p.config.Online {
+	if p.online {
 		return p.adapter.Stop()
 	}
 	return nil

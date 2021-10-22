@@ -18,7 +18,7 @@ type Config struct {
 	MaxCRLValidityDays int `koanf:"network.maxcrlvaliditydays"`
 
 	// ProtocolV1 specifies config for protocol v1
-	ProtocolV1 v1.ProtocolV1Config `koanf:"network.v1"`
+	ProtocolV1 v1.Config `koanf:"network.v1"`
 }
 
 // DefaultConfig returns the default NetworkEngine configuration.

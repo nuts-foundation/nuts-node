@@ -129,5 +129,5 @@ var Network_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "protocol/transport/network.proto",
+	Metadata: "protocol/v1/transport/network.proto",
 }

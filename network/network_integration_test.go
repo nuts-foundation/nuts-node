@@ -156,7 +156,7 @@ func startNode(name string, directory string, configurers ...func(*Config)) (*Ne
 		CertKeyFile:    "test/certificate-and-key.pem",
 		TrustStoreFile: "test/truststore.pem",
 		EnableTLS:      true,
-		ProtocolV1: v1.ProtocolV1Config{
+		ProtocolV1: v1.Config{
 			Online:                    true,
 			AdvertHashesInterval:      500,
 			AdvertDiagnosticsInterval: 5000,

@@ -114,8 +114,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	adapterConfig, cfgErr := buildAdapterConfig(n.config, n.peerID)
 	if cfgErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", cfgErr)
-		adapterConfig = &p2p.AdapterConfig{PeerID: n.peerID}
-		n.config.ProtocolV1.Online = false
+		adapterConfig = &p2p.AdapterConfig{PeerID: n.peerID, Valid: false}
 	}
 	// Configure protocols
 	n.protocols = []protocol.Protocol{v1.NewProtocolV1(n.config.ProtocolV1, *adapterConfig)}
@@ -125,7 +124,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			return err
 		}
 	}
-	n.connectionManager = NewConnectionManager(n.protocols...)
+	n.connectionManager = newConnectionManager(n.protocols...)
 	return nil
 }
 
@@ -276,6 +275,7 @@ func buildAdapterConfig(moduleConfig Config, peerID networkTypes.PeerID) (*p2p.A
 		ListenAddress:  moduleConfig.GrpcAddr,
 		BootstrapNodes: moduleConfig.BootstrapNodes,
 		PeerID:         peerID,
+		Valid:          true,
 	}
 
 	if moduleConfig.EnableTLS {

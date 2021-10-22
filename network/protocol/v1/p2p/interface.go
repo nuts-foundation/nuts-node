@@ -70,6 +70,9 @@ type PeerMessage struct {
 
 // AdapterConfig contains configuration for the P2P adapter.
 type AdapterConfig struct {
+	// Valid indicates whether all configuration required for connecting the node to the network is present.
+	// If false, the node can start, but it will operate in offline mode.
+	Valid bool
 	// PeerID contains the ID of the local node.
 	PeerID types.PeerID
 	// ListenAddress specifies the socket address the gRPC server should listen on.
