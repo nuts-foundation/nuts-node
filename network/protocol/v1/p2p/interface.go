@@ -78,8 +78,6 @@ type AdapterConfig struct {
 	// ListenAddress specifies the socket address the gRPC server should listen on.
 	// If not set, the node will not accept incoming connections (but outbound connections can still be made).
 	ListenAddress string
-	// BootstrapNodes contains the addresses of the remote nodes to initially connect to.
-	BootstrapNodes []string
 	// ServerCert specifies the TLS client certificate. If set the client should open a TLS socket, otherwise plain TCP.
 	ClientCert tls.Certificate
 	// ServerCert specifies the TLS server certificate. If set the server should open a TLS socket, otherwise plain TCP.

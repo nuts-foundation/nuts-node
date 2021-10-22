@@ -217,12 +217,6 @@ func (n *adapter) Configure(config AdapterConfig) error {
 		return errors.New("PeerID is empty")
 	}
 	n.config = config
-	for _, bootstrapNode := range n.config.BootstrapNodes {
-		if len(strings.TrimSpace(bootstrapNode)) == 0 {
-			continue
-		}
-		n.ConnectToPeer(bootstrapNode)
-	}
 	return nil
 }
 

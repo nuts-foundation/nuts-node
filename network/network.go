@@ -30,6 +30,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -124,7 +125,16 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			return err
 		}
 	}
-	n.connectionManager = newConnectionManager(n.protocols...)
+	// Setup connection manager, load with bootstrap nodes
+	if n.connectionManager == nil {
+		n.connectionManager = newConnectionManager(n.protocols...)
+	}
+	for _, bootstrapNode := range n.config.BootstrapNodes {
+		if len(strings.TrimSpace(bootstrapNode)) == 0 {
+			continue
+		}
+		n.connectionManager.Connect(bootstrapNode)
+	}
 	return nil
 }
 
@@ -276,7 +286,6 @@ func (n *Network) PeerDiagnostics() map[networkTypes.PeerID]networkTypes.Diagnos
 func buildAdapterConfig(moduleConfig Config, peerID networkTypes.PeerID) (*p2p.AdapterConfig, error) {
 	cfg := p2p.AdapterConfig{
 		ListenAddress:  moduleConfig.GrpcAddr,
-		BootstrapNodes: moduleConfig.BootstrapNodes,
 		PeerID:         peerID,
 		Valid:          true,
 	}

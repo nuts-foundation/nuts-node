@@ -46,43 +46,25 @@ func waitForGRPCStart() {
 }
 
 func Test_adapter_Configure(t *testing.T) {
-	t.Run("ok - configure registers bootstrap nodes", func(t *testing.T) {
-		network := NewAdapter()
-		err := network.Configure(AdapterConfig{
-			PeerID:         "foo",
-			ListenAddress:  "127.0.0.1:0",
-			BootstrapNodes: []string{"foo:555", "bar:5554"},
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Len(t, network.(*adapter).connectorAddChannel, 2)
-	})
 	t.Run("ok - ssl offloading", func(t *testing.T) {
 		network := NewAdapter()
 		err := network.Configure(AdapterConfig{
 			PeerID:         "foo",
 			ListenAddress:  "127.0.0.1:0",
-			BootstrapNodes: []string{"foo:555", "bar:5554"},
 		})
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Len(t, network.(*adapter).connectorAddChannel, 2)
+		defer network.Stop()
+		err = network.Start()
+		if !assert.NoError(t, err) {
+			return
+		}
 	})
 	t.Run("error - no peer ID", func(t *testing.T) {
 		network := NewAdapter()
 		err := network.Configure(AdapterConfig{})
 		assert.Error(t, err)
-	})
-	t.Run("ok - empty bootstrap node address is skipped", func(t *testing.T) {
-		network := NewAdapter()
-		err := network.Configure(AdapterConfig{
-			BootstrapNodes: []string{"A", " ", "B"},
-			PeerID:         "foo",
-		})
-		assert.NoError(t, err)
-		assert.Len(t, network.(*adapter).connectorAddChannel, 2)
 	})
 
 	t.Run("configures CRL check when TLS is enabled", func(t *testing.T) {
@@ -388,7 +370,6 @@ func Test_adapter_GetLocalAddress(t *testing.T) {
 	err := network.Configure(AdapterConfig{
 		PeerID:         "foo",
 		ListenAddress:  "127.0.0.1:0",
-		BootstrapNodes: []string{"foo:555", "bar:5554"},
 		TrustStore:     x509.NewCertPool(),
 	})
 	if !assert.NoError(t, err) {
