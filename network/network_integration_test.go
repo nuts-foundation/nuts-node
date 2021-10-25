@@ -21,6 +21,8 @@ package network
 import (
 	"context"
 	"fmt"
+	v1 "github.com/nuts-foundation/nuts-node/network/protocol/v1"
+	"github.com/nuts-foundation/nuts-node/test"
 	"hash/crc32"
 	"path"
 	"sync"
@@ -36,12 +38,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
-	"github.com/nuts-foundation/nuts-node/network/proto"
 	"github.com/nuts-foundation/nuts-node/test/io"
 )
 
-const defaultTimeout = 2 * time.Second
+const defaultTimeout = 5 * time.Second
 const payloadType = "test/transaction"
 
 var mutex = sync.Mutex{}
@@ -63,12 +63,12 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	node1.p2pNetwork.ConnectToPeer(nameToAddress("integration_bootstrap"))
+	node1.connectionManager.Connect(nameToAddress("integration_bootstrap"))
 	node2, err := startNode("integration_node2", path.Join(testDirectory, "node2"))
 	if !assert.NoError(t, err) {
 		return
 	}
-	node2.p2pNetwork.ConnectToPeer(nameToAddress("integration_bootstrap"))
+	node2.connectionManager.Connect(nameToAddress("integration_bootstrap"))
 	defer func() {
 		node2.Shutdown()
 		node1.Shutdown()
@@ -76,8 +76,8 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	}()
 
 	// Wait until nodes are connected
-	if !waitFor(t, func() (bool, error) {
-		return len(bootstrap.p2pNetwork.Peers()) == 2, nil
+	if !test.WaitFor(t, func() (bool, error) {
+		return len(bootstrap.connectionManager.Peers()) == 2, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
 		return
 	}
@@ -96,7 +96,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 
 	// Now assert that all nodes have received all transactions
 	waitForTransactions := func(node string, graph dag.DAG) bool {
-		return waitFor(t, func() (bool, error) {
+		return test.WaitFor(t, func() (bool, error) {
 			if docs, err := graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime()); err != nil {
 				return false, err
 			} else {
@@ -127,7 +127,7 @@ func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCr
 		return true
 	}
 	for _, receiver := range receivers {
-		if !waitFor(t, func() (bool, error) {
+		if !test.WaitFor(t, func() (bool, error) {
 			mutex.Lock()
 			defer mutex.Unlock()
 			for _, receivedDoc := range receivedTransactions[receiver] {
@@ -143,7 +143,7 @@ func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCr
 	return true
 }
 
-func startNode(name string, directory string, configurers ...func(*Config)) (*Network, error) {
+func startNode(name string, directory string) (*Network, error) {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
 	core.NewServerConfig().Load(&cobra.Command{})
@@ -151,20 +151,17 @@ func startNode(name string, directory string, configurers ...func(*Config)) (*Ne
 	mutex.Unlock()
 	// Create Network instance
 	config := Config{
-		GrpcAddr:                  fmt.Sprintf(":%d", nameToPort(name)),
-		CertFile:                  "test/certificate-and-key.pem",
-		CertKeyFile:               "test/certificate-and-key.pem",
-		TrustStoreFile:            "test/truststore.pem",
-		EnableTLS:                 true,
-		AdvertHashesInterval:      500,
-		AdvertDiagnosticsInterval: 5000,
-	}
-	for _, c := range configurers {
-		c(&config)
+		GrpcAddr:       fmt.Sprintf("localhost:%d", nameToPort(name)),
+		CertFile:       "test/certificate-and-key.pem",
+		CertKeyFile:    "test/certificate-and-key.pem",
+		TrustStoreFile: "test/truststore.pem",
+		EnableTLS:      true,
+		ProtocolV1: v1.Config{
+			AdvertHashesInterval:      500,
+			AdvertDiagnosticsInterval: 5000,
+		},
 	}
 	instance := &Network{
-		p2pNetwork:             p2p.NewAdapter(),
-		protocol:               proto.NewProtocol(),
 		config:                 config,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
@@ -192,22 +189,3 @@ func nameToAddress(name string) string {
 	return fmt.Sprintf("localhost:%d", nameToPort(name))
 }
 
-type predicate func() (bool, error)
-
-func waitFor(t *testing.T, p predicate, timeout time.Duration, message string, msgArgs ...interface{}) bool {
-	deadline := time.Now().Add(timeout)
-	for {
-		b, err := p()
-		if !assert.NoError(t, err) {
-			return false
-		}
-		if b {
-			return true
-		}
-		if time.Now().After(deadline) {
-			assert.Fail(t, fmt.Sprintf(message, msgArgs...))
-			return false
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-}

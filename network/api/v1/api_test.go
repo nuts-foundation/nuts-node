@@ -22,8 +22,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/network/p2p"
-	"github.com/nuts-foundation/nuts-node/network/proto"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -135,9 +134,9 @@ func TestApiWrapper_GetPeerDiagnostics(t *testing.T) {
 
 	var networkClient = network.NewMockTransactions(mockCtrl)
 	e, wrapper := initMockEcho(networkClient)
-	networkClient.EXPECT().PeerDiagnostics().Return(map[p2p.PeerID]proto.Diagnostics{"foo": {
+	networkClient.EXPECT().PeerDiagnostics().Return(map[types.PeerID]types.Diagnostics{"foo": {
 		Uptime:               1000 * time.Second,
-		Peers:                []p2p.PeerID{"bar"},
+		Peers:                []types.PeerID{"bar"},
 		NumberOfTransactions: 5,
 		SoftwareVersion:      "1.0",
 		SoftwareID:           "Test",
@@ -306,7 +305,7 @@ func TestWrapper_GetPeerDiagnostics(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		expected := map[p2p.PeerID]proto.Diagnostics{"foo": {Uptime: 50 * time.Second}}
+		expected := map[types.PeerID]types.Diagnostics{"foo": {Uptime: 50 * time.Second}}
 		networkClient.EXPECT().PeerDiagnostics().Return(expected)
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
@@ -317,7 +316,7 @@ func TestWrapper_GetPeerDiagnostics(t *testing.T) {
 		err := wrapper.GetPeerDiagnostics(c)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
-		actual := map[p2p.PeerID]PeerDiagnostics{}
+		actual := map[types.PeerID]PeerDiagnostics{}
 		json.Unmarshal(rec.Body.Bytes(), &actual)
 		assert.Equal(t, PeerDiagnostics(expected["foo"]), actual["foo"])
 	})

@@ -12,8 +12,7 @@ import (
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
-	p2p "github.com/nuts-foundation/nuts-node/network/p2p"
-	proto "github.com/nuts-foundation/nuts-node/network/proto"
+	types "github.com/nuts-foundation/nuts-node/network/protocol/types"
 )
 
 // MockTransactions is a mock of Transactions interface.
@@ -100,10 +99,10 @@ func (mr *MockTransactionsMockRecorder) ListTransactions() *gomock.Call {
 }
 
 // PeerDiagnostics mocks base method.
-func (m *MockTransactions) PeerDiagnostics() map[p2p.PeerID]proto.Diagnostics {
+func (m *MockTransactions) PeerDiagnostics() map[types.PeerID]types.Diagnostics {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PeerDiagnostics")
-	ret0, _ := ret[0].(map[p2p.PeerID]proto.Diagnostics)
+	ret0, _ := ret[0].(map[types.PeerID]types.Diagnostics)
 	return ret0
 }
 

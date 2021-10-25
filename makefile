@@ -6,7 +6,7 @@ install-tools:
 	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.8.2
 	go install github.com/golang/mock/mockgen@v1.6.0
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
 
 gen-readme:
 	./generate_readme.sh
@@ -17,14 +17,16 @@ gen-mocks:
 	mockgen -destination=crypto/mock.go -package=crypto -source=crypto/interface.go
 	mockgen -destination=crypto/storage/mock.go -package=storage -source=crypto/storage/storage.go
 	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did/did
-	mockgen -destination=network/proto/mock.go -package=proto -source=network/proto/interface.go Protocol
-	mockgen -destination=network/proto/senders_mock.go -package=proto -source=network/proto/senders.go messageSender
-	mockgen -destination=network/proto/payload_collector_mock.go -package=proto -source=network/proto/payload_collector.go
-	mockgen -destination=network/p2p/mock.go -package=p2p -source=network/p2p/interface.go P2PNetwork
-	mockgen -destination=network/p2p/connection_mock.go -package=p2p -source=network/p2p/connection.go grpcMessenger
 	mockgen -destination=network/mock.go -package=network -source=network/interface.go
+	mockgen -destination=network/connection_manager_mock.go -package=network -source=network/connection_manager.go
+	mockgen -destination=network/protocol/protocol_mock.go -package=protocol -source=network/protocol/protocol.go Protocol
+	mockgen -destination=network/protocol/v1/proto/mock.go -package=proto -source=network/protocol/v1/proto/interface.go Protocol
+	mockgen -destination=network/protocol/v1/proto/senders_mock.go -package=proto -source=network/protocol/v1/proto/senders.go messageSender
+	mockgen -destination=network/protocol/v1/proto/payload_collector_mock.go -package=proto -source=network/protocol/v1/proto/payload_collector.go
+	mockgen -destination=network/protocol/v1/p2p/mock.go -package=p2p -source=network/protocol/v1/p2p/interface.go P2PNetwork
+	mockgen -destination=network/protocol/v1/p2p/connection_mock.go -package=p2p -source=network/protocol/v1/p2p/connection.go grpcMessenger
+	mockgen -destination=network/protocol/v1/transport/network_grpc_mock.go -package=transport -source=network/protocol/v1/transport/network_grpc.pb.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go DAG PayloadStore
-	mockgen -destination=network/transport/network_grpc_mock.go -package=transport -source=network/transport/network_grpc.pb.go
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
 	mockgen -destination=vcr/concept/mock.go -package=concept -source=vcr/concept/registry.go Registry
 	mockgen -destination=auth/mock.go -package=auth -source=auth/interface.go
@@ -42,8 +44,8 @@ gen-api:
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 -exclude-schemas ContactInformation,OrganizationSearchResult docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 
 gen-protobuf:
-	protoc --go_out=paths=source_relative:network -I network network/transport/network.proto
-	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/network.proto
+	protoc --go_out=paths=source_relative:network -I network network/protocol/v1/transport/network.proto
+	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/protocol/v1/transport/network.proto
 
 gen-docs:
 	go run ./docs

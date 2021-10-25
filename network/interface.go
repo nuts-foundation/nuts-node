@@ -19,8 +19,7 @@
 package network
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/p2p"
-	"github.com/nuts-foundation/nuts-node/network/proto"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -48,5 +47,5 @@ type Transactions interface {
 	// Walk walks the DAG starting at the root, calling `visitor` for every transaction.
 	Walk(visitor dag.Visitor) error
 	// PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
-	PeerDiagnostics() map[p2p.PeerID]proto.Diagnostics
+	PeerDiagnostics() map[types.PeerID]types.Diagnostics
 }

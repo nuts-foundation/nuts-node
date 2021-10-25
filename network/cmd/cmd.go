@@ -19,16 +19,16 @@
 package cmd
 
 import (
+	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"sort"
 	"strings"
 
-	"github.com/nuts-foundation/nuts-node/network/p2p"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network"
 	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 )
@@ -48,9 +48,9 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("network.certkeyfile", defs.CertKeyFile, "PEM file containing the private key of the server certificate. "+
 		"Required when `network.enabletls` is `true`.")
 	flagSet.String("network.truststorefile", defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
-	flagSet.Int("network.adverthashesinterval", defs.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
-	flagSet.Int("network.advertdiagnosticsinterval", defs.AdvertDiagnosticsInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")
-	flagSet.Int("network.collectmissingpayloadsinterval", defs.CollectMissingPayloadsInterval, "Interval (in milliseconds) that specifies how often the node should check for missing payloads and broadcast its peers for it (specify 0 to disable). "+
+	flagSet.Int("network.v1.adverthashesinterval", defs.ProtocolV1.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
+	flagSet.Int("network.v1.advertdiagnosticsinterval", defs.ProtocolV1.AdvertDiagnosticsInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")
+	flagSet.Int("network.v1.collectmissingpayloadsinterval", defs.ProtocolV1.CollectMissingPayloadsInterval, "Interval (in milliseconds) that specifies how often the node should check for missing payloads and broadcast its peers for it (specify 0 to disable). "+
 		"This check might be heavy on larger DAGs so make sure not to run it too often.")
 	return flagSet
 }
@@ -164,7 +164,7 @@ func peersCommand() *cobra.Command {
 
 			cmd.Printf("Listing %d peers:\n", len(peers))
 			for _, curr := range sortedPeers {
-				peer := p2p.PeerID(curr)
+				peer := types.PeerID(curr)
 				cmd.Printf("\n%s\n", peer)
 				cmd.Printf("  SoftwareID:            %s\n", peers[peer].SoftwareID)
 				cmd.Printf("  SoftwareVersion:           %s\n", peers[peer].SoftwareVersion)
