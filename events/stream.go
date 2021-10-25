@@ -97,7 +97,7 @@ func (stream *stream) ClientOpts() []nats.SubOpt {
 	return stream.clientOpts[:]
 }
 
-func (stream *stream) create(conn *nats.Conn) error {
+func (stream *stream) create(conn Conn) error {
 	if stream.created.Load() != nil {
 		return nil
 	}
@@ -122,7 +122,7 @@ func (stream *stream) create(conn *nats.Conn) error {
 	return nil
 }
 
-func (stream *stream) Subscribe(conn *nats.Conn, subject string) (chan *nats.Msg, error) {
+func (stream *stream) Subscribe(conn Conn, subject string) (chan *nats.Msg, error) {
 	if err := stream.create(conn); err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (stream *stream) Subscribe(conn *nats.Conn, subject string) (chan *nats.Msg
 	return msgChan, nil
 }
 
-func (stream *stream) Publish(conn *nats.Conn, msg *nats.Msg, opts ...nats.PubOpt) error {
+func (stream *stream) Publish(conn Conn, msg *nats.Msg, opts ...nats.PubOpt) error {
 	if stream.middleware != nil {
 		if err := stream.middleware(msg); err != nil {
 			return err

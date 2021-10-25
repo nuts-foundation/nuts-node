@@ -70,7 +70,7 @@ func (m *manager) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-func (m *manager) getClient() (*nats.Conn, error) {
+func (m *manager) getClient() (Conn, error) {
 	if !m.server.ReadyForConnections(0) {
 		return nil, errors.New("server is not ready for connection")
 	}
@@ -85,8 +85,8 @@ func (m *manager) getClient() (*nats.Conn, error) {
 
 func (m *manager) startRetryHandler() {
 	var (
+		conn    Conn
 		msgChan chan *nats.Msg
-		conn    *nats.Conn
 	)
 
 	// Wait until a connection has established
