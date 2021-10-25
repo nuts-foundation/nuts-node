@@ -72,7 +72,7 @@ func (m *manager) Configure(config core.ServerConfig) error {
 
 func (m *manager) getClient() (Conn, error) {
 	if !m.server.ReadyForConnections(0) {
-		return nil, errors.New("server is not ready for connection")
+		return nil, errors.New("server is not ready for connections")
 	}
 
 	conn, err := nats.Connect(m.server.ClientURL())

@@ -2,10 +2,12 @@ package events
 
 import "github.com/nats-io/nats.go"
 
+// Conn defines the methods required in the NATS connection structure
 type Conn interface {
 	JetStream(opts ...nats.JSOpt) (nats.JetStreamContext, error)
 }
 
+// JetStreamContext defines the interface for the JetStreamContext of the NATS connection
 type JetStreamContext interface {
 	nats.JetStreamContext
 	StreamInfo(stream string, opts ...nats.JSOpt) (*nats.StreamInfo, error)
