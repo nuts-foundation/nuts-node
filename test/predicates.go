@@ -23,6 +23,6 @@ func WaitFor(t *testing.T, p Predicate, timeout time.Duration, message string, m
 			assert.Fail(t, fmt.Sprintf(message, msgArgs...))
 			return false
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 }
