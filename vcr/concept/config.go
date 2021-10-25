@@ -36,6 +36,8 @@ type Config struct {
 	CredentialType string `yaml:"credentialType"`
 	// Indices contains a set of Index values
 	Indices []Index `yaml:"indices"`
+	// Public indicates if this credential may be published on the DAG
+	Public bool `yaml:"public"`
 	// Template is the string template for outputting a credential to a common format
 	// Each <<JSONPath>> value is substituted with the outcome of the JSONPath query
 	Template *string `yaml:"template"`

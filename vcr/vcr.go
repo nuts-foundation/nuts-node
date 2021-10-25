@@ -63,6 +63,7 @@ var noSync bool
 func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
 	r := &vcr{
 		config:      DefaultConfig(),
+		conclave:    conclave{docResolver: docResolver},
 		docResolver: docResolver,
 		keyStore:    keyStore,
 		keyResolver: keyResolver,
@@ -78,6 +79,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 type vcr struct {
 	registry    concept.Registry
 	config      Config
+	conclave    conclave
 	store       leia.Store
 	keyStore    crypto.KeyStore
 	docResolver vdr.DocResolver
@@ -276,15 +278,17 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 
 	templateType := template.Type[0]
 	templateTypeString := templateType.String()
-	if !c.registry.HasCredentialType(templateTypeString) {
+	conceptConfig := c.registry.FindByType(templateTypeString)
+	if conceptConfig == nil {
 		if c.config.strictMode {
-			return nil, errors.New("cannot issue non-predefined credential types is strict mode")
+			return nil, errors.New("cannot issue non-predefined credential types in strict mode")
 		}
 		// non-strictmode, add the credential type to the registry
-		c.registry.Add(concept.Config{
+		conceptConfig = &concept.Config{
 			Concept:        templateTypeString,
 			CredentialType: templateTypeString,
-		})
+		}
+		c.registry.Add(*conceptConfig)
 	}
 
 	credential := vc.VerifiableCredential{
@@ -329,6 +333,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		return nil, err
 	}
 
+	// TODO move this code to .TARGET when v2 protocol comes operational
 	payload, _ := json.Marshal(credential)
 
 	tx := network.TransactionTemplate(vcDocumentType, payload, key).
@@ -338,7 +343,20 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
-	log.Logger().Infof("Verifiable Credential issued (id=%s,type=%s)", credential.ID, templateType)
+	log.Logger().Infof("Verifiable Credential published (id=%s,type=%s)", credential.ID, templateType)
+
+	if conceptConfig.Public {
+		// .TARGET
+	} else {
+		if err = c.conclave.Send(credential); err != nil {
+			// TODO uncomment when operational
+			//return nil, fmt.Errorf("failed to send credential: %w", err)
+			// TODO remove
+			log.Logger().Errorf("failed to send credential: %w", err)
+		}
+		// TODO uncomment
+		// log.Logger().Infof("Verifiable Credential added to messaging queue delivery (id=%s,type=%s)", credential.ID, templateType)
+	}
 
 	if !c.trustConfig.IsTrusted(templateType, issuer.URI()) {
 		log.Logger().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuer, templateType)

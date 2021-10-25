@@ -27,8 +27,8 @@ import (
 type Reader interface {
 	// Concepts returns a list of concept configs
 	Concepts() []Config
-	// HasCredentialType returns true if the given credentialType is registered
-	HasCredentialType(credentialType string) bool
+	// FindByType returns the Config if the given credentialType is registered, nil otherwise
+	FindByType(credentialType string) *Config
 	// QueryFor creates a query for the given concept.
 	// The query is preloaded with required fixed values like the type.
 	// It returns ErrUnknownConcept if the concept is not found
@@ -130,13 +130,15 @@ func (r *registry) QueryFor(concept string) (Query, error) {
 	return &q, nil
 }
 
-func (r *registry) HasCredentialType(credentialType string) bool {
+func (r *registry) FindByType(credentialType string) *Config {
+	var returnValue Config
 	for _, c := range r.configs {
 		if c.CredentialType == credentialType {
-			return true
+			returnValue = c
+			break
 		}
 	}
-	return false
+	return &returnValue
 }
 
 func (r *registry) hasConcept(concept string) bool {
