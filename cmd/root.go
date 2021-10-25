@@ -24,24 +24,22 @@ import (
 	"io"
 	"os"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
 	"github.com/nuts-foundation/nuts-node/auth"
 	authIrmaAPI "github.com/nuts-foundation/nuts-node/auth/api/irma"
 	authAPI "github.com/nuts-foundation/nuts-node/auth/api/v1"
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
-	"github.com/nuts-foundation/nuts-node/core/status"
-	"github.com/nuts-foundation/nuts-node/didman"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
-
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/core/status"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	cryptoAPI "github.com/nuts-foundation/nuts-node/crypto/api/v1"
 	cryptoCmd "github.com/nuts-foundation/nuts-node/crypto/cmd"
+	"github.com/nuts-foundation/nuts-node/didman"
 	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
+	"github.com/nuts-foundation/nuts-node/events"
+	eventsCmd "github.com/nuts-foundation/nuts-node/events/cmd"
 	"github.com/nuts-foundation/nuts-node/network"
 	networkAPI "github.com/nuts-foundation/nuts-node/network/api/v1"
 	networkCmd "github.com/nuts-foundation/nuts-node/network/cmd"
@@ -51,6 +49,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 )
 
 var stdOutWriter io.Writer = os.Stdout
@@ -232,4 +232,5 @@ func addFlagSets(cmd *cobra.Command) {
 	cmd.PersistentFlags().AddFlagSet(networkCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(vdrCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(authCmd.FlagSet())
+	cmd.PersistentFlags().AddFlagSet(eventsCmd.FlagSet())
 }

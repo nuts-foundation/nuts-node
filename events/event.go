@@ -59,7 +59,7 @@ func (m *manager) Name() string {
 }
 
 func (m *manager) Config() interface{} {
-	return m.config
+	return &m.config
 }
 
 func (m *manager) Configure(config core.ServerConfig) error {

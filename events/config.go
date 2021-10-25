@@ -23,7 +23,7 @@ package events
 type Config struct {
 	Port       int    `koanf:"events.nats.port"`
 	Hostname   string `koanf:"events.nats.hostname"`
-	StorageDir string `koanf:"events.storagedir"`
+	StorageDir string `koanf:"events.nats.storagedir"`
 }
 
 // DefaultConfig returns an instance of Config with the default values.
