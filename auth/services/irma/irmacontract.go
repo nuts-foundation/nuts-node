@@ -23,14 +23,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/logging"
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/auth/services"
-
 	"github.com/nuts-foundation/nuts-node/auth/contract"
-
+	"github.com/nuts-foundation/nuts-node/auth/log"
+	"github.com/nuts-foundation/nuts-node/auth/services"
 	irma "github.com/privacybydesign/irmago"
 )
 
@@ -147,7 +145,7 @@ func parseSignerAttributes(strictMode bool, attributes [][]*irma.DisclosedAttrib
 		// Check schemeManager. Only the pdbf root is accepted in strictMode.
 		schemeManager := att.Identifier.Root()
 		if strictMode && schemeManager != "pbdf" {
-			logging.Log().Infof("IRMA schemeManager %s is not valid in strictMode", schemeManager)
+			log.Logger().Infof("IRMA schemeManager %s is not valid in strictMode", schemeManager)
 			continue
 		}
 		identifier := att.Identifier.String()
@@ -239,7 +237,7 @@ func (cv *contractVerifier) verifyRequiredAttributes(signedIrmaContract *SignedI
 			disclosedAttributes = append(disclosedAttributes, k)
 		}
 		validationResult.ValidationResult = services.Invalid
-		logging.Log().Warnf("missing required attributes in signature. found: %v, needed: %v, disclosed: %v", foundAttributes, requiredAttributes, disclosedAttributes)
+		log.Logger().Warnf("missing required attributes in signature. found: %v, needed: %v, disclosed: %v", foundAttributes, requiredAttributes, disclosedAttributes)
 	}
 
 	return validationResult, nil

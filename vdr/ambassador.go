@@ -29,7 +29,7 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
-	"github.com/nuts-foundation/nuts-node/vdr/logging"
+	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -82,7 +82,7 @@ var thumbprintAlg = crypto.SHA256
 // The rules are based on the Nuts RFC006
 // payload should be a json encoded did.document
 func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
-	logging.Log().Debugf("Processing DID document received from Nuts Network (ref=%s)", tx.Ref())
+	log.Logger().Debugf("Processing DID document received from Nuts Network (ref=%s)", tx.Ref())
 	if err := checkTransactionIntegrity(tx); err != nil {
 		return fmt.Errorf("callback could not process new DID Document: %w", err)
 	}
@@ -109,7 +109,7 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 }
 
 func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
-	logging.Log().Debugf("Handling DID document creation (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+	log.Logger().Debugf("Handling DID document creation (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	// Check if the DID matches the fingerprint of the tx signing key:
 	if transaction.SigningKey() == nil {
 		return fmt.Errorf("callback could not process new DID Document: signingKey for new DID Documents must be set")
@@ -139,13 +139,13 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 	}
 	err = n.didStore.Write(proposedDIDDocument, documentMetadata)
 	if err == nil {
-		logging.Log().Infof("DID document registered (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+		log.Logger().Infof("DID document registered (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	}
 	return err
 }
 
 func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
-	logging.Log().Debugf("Handling DID document update (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+	log.Logger().Debugf("Handling DID document update (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	// Resolve latest version of DID Document
 	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
 	if err != nil {
@@ -217,7 +217,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	}
 	err = n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 	if err == nil {
-		logging.Log().Infof("DID document updated (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+		log.Logger().Infof("DID document updated (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	}
 	return err
 }

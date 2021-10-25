@@ -29,7 +29,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/didman/logging"
+	"github.com/nuts-foundation/nuts-node/didman/log"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -93,10 +93,10 @@ func (d *didman) Name() string {
 }
 
 func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Service, error) {
-	logging.Log().Debugf("Adding endpoint (did: %s, type: %s, url: %s)", id.String(), serviceType, u.String())
+	log.Logger().Debugf("Adding endpoint (did: %s, type: %s, url: %s)", id.String(), serviceType, u.String())
 	service, err := d.addService(id, serviceType, u.String(), nil)
 	if err == nil {
-		logging.Log().Infof("Endpoint added (did: %s, type: %s, url: %s)", id.String(), serviceType, u.String())
+		log.Logger().Infof("Endpoint added (did: %s, type: %s, url: %s)", id.String(), serviceType, u.String())
 	}
 	return service, err
 }
@@ -132,7 +132,7 @@ func (d *didman) GetCompoundServices(id did.DID) ([]did.Service, error) {
 }
 
 func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error) {
-	logging.Log().Debugf("Adding compound service (did: %s, type: %s, endpoints: %v)", id.String(), serviceType, endpoints)
+	log.Logger().Debugf("Adding compound service (did: %s, type: %s, endpoints: %v)", id.String(), serviceType, endpoints)
 	if err := d.validateCompoundServiceEndpoint(endpoints); err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints ma
 
 	service, err := d.addService(id, serviceType, serviceEndpoint, nil)
 	if err == nil {
-		logging.Log().Infof("Compound service added (did: %s, type: %s, endpoints: %s)", id.String(), serviceType, endpoints)
+		log.Logger().Infof("Compound service added (did: %s, type: %s, endpoints: %s)", id.String(), serviceType, endpoints)
 	}
 
 	return service, err
@@ -200,7 +200,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 }
 
 func (d *didman) DeleteService(serviceID ssi.URI) error {
-	logging.Log().Debugf("Deleting service (id: %s)", serviceID.String())
+	log.Logger().Debugf("Deleting service (id: %s)", serviceID.String())
 	id, err := did.ParseDIDURL(serviceID.String())
 	if err != nil {
 		return err
@@ -237,13 +237,13 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 
 	err = d.vdr.Update(*id, meta.Hash, *doc, nil)
 	if err == nil {
-		logging.Log().Infof("Service removed (id: %s)", serviceID.String())
+		log.Logger().Infof("Service removed (id: %s)", serviceID.String())
 	}
 	return err
 }
 
 func (d *didman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
-	logging.Log().Debugf("Updating contact information service (did: %s, info: %v)", id.String(), information)
+	log.Logger().Debugf("Updating contact information service (did: %s, info: %v)", id.String(), information)
 
 	// transform ContactInformation to map[string]interface{}
 	serviceEndpoint := map[string]interface{}{
@@ -265,7 +265,7 @@ func (d *didman) UpdateContactInformation(id did.DID, information ContactInforma
 		doc.Service = doc.Service[0:i]
 	})
 	if err == nil {
-		logging.Log().Infof("Contact Information Endpoint added (did: %s)", id.String())
+		log.Logger().Infof("Contact Information Endpoint added (did: %s)", id.String())
 	}
 	return &information, err
 }
@@ -350,7 +350,7 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []concept.Concept
 		}
 		if document == nil {
 			// DID Document might be deactivated, so just log a warning and omit this entry from the search.
-			logging.Log().Warnf("Unable to resolve organization DID Document (DID=%s): %v", organizationDID, err)
+			log.Logger().Warnf("Unable to resolve organization DID Document (DID=%s): %v", organizationDID, err)
 			continue
 		}
 		didDocuments[j] = document

@@ -1,4 +1,4 @@
-package logging
+package log
 
 import (
 	"testing"
@@ -8,9 +8,9 @@ import (
 
 func TestLog(t *testing.T) {
 	t.Run("can log", func(t *testing.T) {
-		Log().Info("Works")
+		Logger().Info("Works")
 	})
 	t.Run("has correct module field", func(t *testing.T) {
-		assert.Equal(t, Log().Data["module"], "VCR")
+		assert.Equal(t, Logger().Data["module"], "VCR")
 	})
 }

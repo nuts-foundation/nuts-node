@@ -38,7 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
-	"github.com/nuts-foundation/nuts-node/vdr/logging"
+	"github.com/nuts-foundation/nuts-node/vdr/log"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -64,7 +64,7 @@ func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.T
 	return &VDR{
 		config:            config,
 		network:           networkClient,
-		_logger:           logging.Log(),
+		_logger:           log.Logger(),
 		store:             store,
 		didDocCreator:     doc.Creator{KeyStore: cryptoClient},
 		didDocResolver:    doc.Resolver{Store: store},
@@ -123,7 +123,7 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 
 // Create generates a new DID Document
 func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key, error) {
-	logging.Log().Debug("Creating new DID Document.")
+	log.Logger().Debug("Creating new DID Document.")
 	doc, key, err := r.didDocCreator.Create(options)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create DID document: %w", err)
@@ -139,14 +139,14 @@ func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key
 		return nil, nil, fmt.Errorf("could not store DID document in network: %w", err)
 	}
 
-	logging.Log().Infof("New DID Document created (DID=%s)", doc.ID)
+	log.Logger().Infof("New DID Document created (DID=%s)", doc.ID)
 
 	return doc, key, nil
 }
 
 // Update updates a DID Document based on the DID and current hash
 func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
-	logging.Log().Debugf("Updating DID Document (DID=%s)", id)
+	log.Logger().Debugf("Updating DID Document (DID=%s)", id)
 	resolverMetadata := &types.ResolveMetadata{
 		Hash:             &current,
 		AllowDeactivated: true,
@@ -184,9 +184,9 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 
 	_, err = r.network.CreateTransaction(didDocumentType, payload, key, false, time.Now(), previousTransactions)
 	if err == nil {
-		logging.Log().Infof("DID Document updated (DID=%s)", id)
+		log.Logger().Infof("DID Document updated (DID=%s)", id)
 	} else {
-		logging.Log().WithError(err).Warn("Unable to update DID document")
+		log.Logger().WithError(err).Warn("Unable to update DID document")
 		if errors.Is(err, crypto.ErrKeyNotFound) {
 			return types.ErrDIDNotManagedByThisNode
 		}

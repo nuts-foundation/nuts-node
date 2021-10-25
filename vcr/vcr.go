@@ -40,7 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/logging"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	doc2 "github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
@@ -194,7 +194,7 @@ func (c *vcr) initIndices() error {
 			}
 
 			leiaIndex := leia.NewIndex(index.Name, leiaParts...)
-			logging.Log().Debugf("Adding index %s to %s using: %v", index.Name, config.CredentialType, leiaIndex)
+			log.Logger().Debugf("Adding index %s to %s using: %v", index.Name, config.CredentialType, leiaIndex)
 
 			if err := collection.AddIndex(leiaIndex); err != nil {
 				return err
@@ -310,15 +310,15 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
-	logging.Log().Infof("Verifiable Credential issued (id=%s,type=%s)", credential.ID, templateType)
+	log.Logger().Infof("Verifiable Credential issued (id=%s,type=%s)", credential.ID, templateType)
 
 	if !c.trustConfig.IsTrusted(templateType, issuer.URI()) {
-		logging.Log().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuer, templateType)
+		log.Logger().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuer, templateType)
 		if err := c.Trust(templateType, issuer.URI()); err != nil {
 			return &credential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuer, templateType, err)
 		}
 	} else {
-		logging.Log().Debugf("Issuer already trusted (did=%s,type=%s)", *issuer, templateType)
+		log.Logger().Debugf("Issuer already trusted (did=%s,type=%s)", *issuer, templateType)
 	}
 
 	return &credential, nil
@@ -543,7 +543,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("failed to publish revocation: %w", err)
 	}
 
-	logging.Log().Infof("Verifiable Credential revoked (id=%s)", target.ID)
+	log.Logger().Infof("Verifiable Credential revoked (id=%s)", target.ID)
 
 	return &r, nil
 }
@@ -551,7 +551,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
 	err := c.trustConfig.AddTrust(credentialType, issuer)
 	if err != nil {
-		logging.Log().Infof("Added trust for Verifiable Credential issuer (type=%s, issuer=%s)", credentialType, issuer)
+		log.Logger().Infof("Added trust for Verifiable Credential issuer (type=%s, issuer=%s)", credentialType, issuer)
 	}
 	return err
 }
@@ -559,7 +559,7 @@ func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
 func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
 	err := c.trustConfig.RemoveTrust(credentialType, issuer)
 	if err != nil {
-		logging.Log().Infof("Untrusted for Verifiable Credential issuer (type=%s, issuer=%s)", credentialType, issuer)
+		log.Logger().Infof("Untrusted for Verifiable Credential issuer (type=%s, issuer=%s)", credentialType, issuer)
 	}
 	return err
 }
@@ -573,7 +573,7 @@ func (c *vcr) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
 		}
 	}
 
-	logging.Log().Warnf("No credential with type %s configured", credentialType.String())
+	log.Logger().Warnf("No credential with type %s configured", credentialType.String())
 
 	return nil, ErrInvalidCredential
 }
@@ -607,7 +607,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	})
 	if err != nil {
 		if errors.Is(err, leia.ErrNoIndex) {
-			logging.Log().Warnf("No index with field 'issuer' found for %s", credentialType.String())
+			log.Logger().Warnf("No index with field 'issuer' found for %s", credentialType.String())
 
 			return nil, ErrInvalidCredential
 		}

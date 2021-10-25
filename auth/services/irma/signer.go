@@ -27,7 +27,7 @@ import (
 
 	"github.com/mdp/qrterminal/v3"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/logging"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/pkg/errors"
 	irmago "github.com/privacybydesign/irmago"
@@ -89,12 +89,12 @@ func (v Service) StartSigningSession(rawContractText string) (contract.SessionPo
 
 	// Start an IRMA session
 	sessionPointer, token, _, err := v.IrmaSessionHandler.StartSession(signatureRequest, func(result *server.SessionResult) {
-		logging.Log().Debugf("session done, result: %s", server.ToJson(result))
+		log.Logger().Debugf("session done, result: %s", server.ToJson(result))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error while creating session: %w", err)
 	}
-	logging.Log().Debugf("session created with token: %s", token)
+	log.Logger().Debugf("session created with token: %s", token)
 
 	// Return the sessionPointer and sessionId
 	challenge := SessionPtr{
