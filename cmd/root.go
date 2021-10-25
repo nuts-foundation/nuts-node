@@ -30,6 +30,7 @@ import (
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core/status"
 	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 
@@ -157,6 +158,7 @@ func CreateSystem() *core.System {
 	keyResolver := doc.KeyResolver{Store: store}
 	docResolver := doc.Resolver{Store: store}
 
+	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, store)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance)
@@ -184,6 +186,7 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 
 	// Register engines
+	system.RegisterEngine(eventManager)
 	system.RegisterEngine(statusEngine)
 	system.RegisterEngine(metricsEngine)
 	system.RegisterEngine(cryptoInstance)
