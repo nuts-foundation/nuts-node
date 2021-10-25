@@ -285,9 +285,9 @@ func (n *Network) PeerDiagnostics() map[networkTypes.PeerID]networkTypes.Diagnos
 // TODO: Untangle from v1 and move to ConnectionManager/ManagedConnection
 func buildAdapterConfig(moduleConfig Config, peerID networkTypes.PeerID) (*p2p.AdapterConfig, error) {
 	cfg := p2p.AdapterConfig{
-		ListenAddress:  moduleConfig.GrpcAddr,
-		PeerID:         peerID,
-		Valid:          true,
+		ListenAddress: moduleConfig.GrpcAddr,
+		PeerID:        peerID,
+		Valid:         true,
 	}
 
 	if moduleConfig.EnableTLS {
