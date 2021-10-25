@@ -19,20 +19,18 @@
 package p2p
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"github.com/nuts-foundation/nuts-node/crl"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/network/protocol"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
-
-	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // Adapter defines the API for the P2P layer, used to connect to peers and exchange messages.
 type Adapter interface {
+	protocol.GRPCServiceProvider
 	core.Diagnosable
 	// Configure configures the Adapter. Must be called before Start().
-	Configure(config AdapterConfig) error
+	Configure() error
 	// Start starts the P2P network on the local node.
 	Start() error
 	// Stop stops the P2P network on the local node.
@@ -66,30 +64,4 @@ type PeerMessage struct {
 	Peer types.PeerID
 	// Message contains the received message.
 	Message *transport.NetworkMessage
-}
-
-// AdapterConfig contains configuration for the P2P adapter.
-type AdapterConfig struct {
-	// Valid indicates whether all configuration required for connecting the node to the network is present.
-	// If false, the node can start, but it will operate in offline mode.
-	Valid bool
-	// PeerID contains the ID of the local node.
-	PeerID types.PeerID
-	// ListenAddress specifies the socket address the gRPC server should listen on.
-	// If not set, the node will not accept incoming connections (but outbound connections can still be made).
-	ListenAddress string
-	// ServerCert specifies the TLS client certificate. If set the client should open a TLS socket, otherwise plain TCP.
-	ClientCert tls.Certificate
-	// ServerCert specifies the TLS server certificate. If set the server should open a TLS socket, otherwise plain TCP.
-	ServerCert tls.Certificate
-	// TrustStore contains the trust anchors used when verifying remote a peer's TLS certificate.
-	TrustStore *x509.CertPool
-	// CRLValidator contains the database for revoked certificates
-	CRLValidator crl.Validator
-	// MaxCRLValidityDays contains the number of days that a CRL can be outdated
-	MaxCRLValidityDays int
-}
-
-func (cfg AdapterConfig) tlsEnabled() bool {
-	return cfg.TrustStore != nil
 }

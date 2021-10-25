@@ -1,7 +1,6 @@
 package network
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/protocol"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 )
 
@@ -12,26 +11,10 @@ type ConnectionManager interface {
 
 	// Peers returns a slice containing the peers that are currently connected.
 	Peers() []types.Peer
-}
 
-// newConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func newConnectionManager(protocols ...protocol.Protocol) ConnectionManager {
-	if len(protocols) > 1 {
-		// TODO: Support multiple protocol versions
-		panic("ConnectionManager: multiple protocols currently not supported")
-	}
-	return &simpleConnectionManager{protocol: protocols[0]}
-}
+	// Start instructs the ConnectionManager to start accepting connections and prepare to make outbound connections.
+	Start() error
 
-// simpleConnectionManager is a ConnectionManager that does not discover peers on its own, but just connects to the peers for which Connect() is called.
-type simpleConnectionManager struct {
-	protocol protocol.Protocol
-}
-
-func (s simpleConnectionManager) Connect(peerAddress string) {
-	s.protocol.Connect(peerAddress)
-}
-
-func (s simpleConnectionManager) Peers() []types.Peer {
-	return s.protocol.Peers()
+	// Stop shuts down the connections made by the ConnectionManager.
+	Stop()
 }

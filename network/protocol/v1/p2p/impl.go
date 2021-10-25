@@ -25,9 +25,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
-	"net"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -51,10 +49,6 @@ var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 
 type adapter struct {
 	config AdapterConfig
-
-	grpcServer  *grpc.Server
-	serverMutex *sync.Mutex
-	listener    net.Listener
 
 	// connectors contains the list of peers we're currently trying to connect to.
 	connectors map[string]*connector
@@ -198,7 +192,6 @@ func NewAdapter() Adapter {
 		connectorAddChannel:     make(chan string, connectingQueueChannelSize),
 		peerConnectedChannel:    make(chan types.Peer, eventChannelSize),
 		peerDisconnectedChannel: make(chan types.Peer, eventChannelSize),
-		serverMutex:             &sync.Mutex{},
 		receivedMessages:        messageQueue{c: make(chan PeerMessage, messageBacklogChannelSize)},
 		grpcDialer:              grpc.DialContext,
 	}
@@ -220,78 +213,21 @@ func (n *adapter) Configure(config AdapterConfig) error {
 	return nil
 }
 
+func (n adapter) RegisterService(registrar grpc.ServiceRegistrar) {
+	transport.RegisterNetworkServer(registrar, n)
+}
+
 func (n *adapter) Start() error {
-	n.serverMutex.Lock()
-	defer n.serverMutex.Unlock()
-
-	log.Logger().Debugf("Starting gRPC P2P node (ID: %s)", n.config.PeerID)
-
-	if n.config.ListenAddress != "" {
-		log.Logger().Debugf("Starting gRPC server on %s", n.config.ListenAddress)
-		serverOpts := []grpc.ServerOption{
-			grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
-			grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
-		}
-		var err error
-		n.listener, err = net.Listen("tcp", n.config.ListenAddress)
-		if err != nil {
-			return err
-		}
-		// Set ListenAddress to actual interface address resolved by `Listen()`
-		n.config.ListenAddress = n.listener.Addr().String()
-		// Configure TLS if enabled
-		if n.config.tlsEnabled() {
-			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(&tls.Config{
-				Certificates: []tls.Certificate{n.config.ServerCert},
-				ClientAuth:   tls.RequireAndVerifyClientCert,
-				ClientCAs:    n.config.TrustStore,
-			})))
-		}
-
-		if n.config.CRLValidator != nil {
-			n.config.CRLValidator.SyncLoop(context.TODO())
-		}
-
-		n.startServing(serverOpts)
-	}
-
 	// Start client
 	go n.connectToNewPeers()
-
 	return nil
 }
 
-func (n *adapter) startServing(serverOpts []grpc.ServerOption) {
-	server := grpc.NewServer(serverOpts...)
-	n.grpcServer = server
-	transport.RegisterNetworkServer(server, n)
-	go func() {
-		err := server.Serve(n.listener)
-		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Logger().Errorf("gRPC server errored: %v", err)
-			_ = n.Stop()
-		}
-	}()
-}
-
 func (n *adapter) Stop() error {
-	n.serverMutex.Lock()
-	defer n.serverMutex.Unlock()
 	// Stop client
 	close(n.connectorAddChannel)
 	n.conns.stop()
-	// Stop gRPC server
-	if n.grpcServer != nil {
-		n.grpcServer.Stop()
-		n.grpcServer = nil
-	}
-	// Stop TCP listener
-	if n.listener != nil {
-		if err := n.listener.Close(); err != nil {
-			log.Logger().Warn("Error while closing server listener: ", err)
-		}
-		n.listener = nil
-	}
+
 	return nil
 }
 
@@ -338,9 +274,6 @@ func (n *adapter) startConnecting(newConnector *connector) {
 					},
 					RootCAs: n.config.TrustStore,
 				}
-
-				// Configure support for checking revoked certificates
-				n.config.CRLValidator.Configure(tlsConfig, n.config.MaxCRLValidityDays)
 			}
 			if peer, stream, err := newConnector.doConnect(n.config.PeerID, tlsConfig); err != nil {
 				waitPeriod := newConnector.backoff.Backoff()

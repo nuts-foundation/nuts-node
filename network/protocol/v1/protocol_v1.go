@@ -8,6 +8,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
+	"google.golang.org/grpc"
 	"time"
 )
 
@@ -100,4 +101,8 @@ func (p protocolV1) Connect(peerAddress string) {
 
 func (p protocolV1) Peers() []types.Peer {
 	return p.adapter.Peers()
+}
+
+func (p protocolV1) RegisterService(registrar grpc.ServiceRegistrar) {
+	p.adapter.RegisterService(registrar)
 }

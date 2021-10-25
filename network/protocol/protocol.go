@@ -3,6 +3,7 @@ package protocol
 import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	"google.golang.org/grpc"
 )
 
 // Protocol is a self-contained process that can exchange network data (e.g. DAG transactions or private credentials) with other parties on the network.
@@ -25,4 +26,9 @@ type Protocol interface {
 	// Peers returns a slice containing the peers that are currently connected.
 	// TODO: After refactoring ManagedConnection, this function moves to NetworkManager
 	Peers() []types.Peer
+}
+
+// GRPCServiceProvider allows Protocol implementations to expose a gRPC service.
+type GRPCServiceProvider interface {
+	RegisterService(registrar grpc.ServiceRegistrar)
 }

@@ -112,7 +112,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	n.peerID = networkTypes.PeerID(uuid.New().String())
-	adapterConfig, cfgErr := buildAdapterConfig(n.config, n.peerID)
+	adapterConfig, cfgErr := buildGRPCConfig(n.config, n.peerID)
 	if cfgErr != nil {
 		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", cfgErr)
 		adapterConfig = &p2p.AdapterConfig{PeerID: n.peerID, Valid: false}
@@ -127,7 +127,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 	// Setup connection manager, load with bootstrap nodes
 	if n.connectionManager == nil {
-		n.connectionManager = newConnectionManager(n.protocols...)
+		n.connectionManager = newGRPCConnectionManager(n.protocols...)
 	}
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
@@ -280,41 +280,6 @@ func (n *Network) PeerDiagnostics() map[networkTypes.PeerID]networkTypes.Diagnos
 		}
 	}
 	return result
-}
-
-// TODO: Untangle from v1 and move to ConnectionManager/ManagedConnection
-func buildAdapterConfig(moduleConfig Config, peerID networkTypes.PeerID) (*p2p.AdapterConfig, error) {
-	cfg := p2p.AdapterConfig{
-		ListenAddress: moduleConfig.GrpcAddr,
-		PeerID:        peerID,
-		Valid:         true,
-	}
-
-	if moduleConfig.EnableTLS {
-		clientCertificate, err := tls.LoadX509KeyPair(moduleConfig.CertFile, moduleConfig.CertKeyFile)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", moduleConfig.CertFile, moduleConfig.CertKeyFile)
-		}
-
-		trustStore, err := core.LoadTrustStore(moduleConfig.TrustStoreFile)
-		if err != nil {
-			return nil, err
-		}
-
-		cfg.ClientCert = clientCertificate
-		cfg.TrustStore = trustStore.CertPool
-		cfg.MaxCRLValidityDays = moduleConfig.MaxCRLValidityDays
-		cfg.CRLValidator = crl.NewValidator(trustStore.Certificates())
-
-		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
-		if moduleConfig.GrpcAddr != "" {
-			cfg.ServerCert = cfg.ClientCert
-		}
-	} else {
-		log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
-	}
-
-	return &cfg, nil
 }
 
 func (n *Network) collectDiagnostics() networkTypes.Diagnostics {

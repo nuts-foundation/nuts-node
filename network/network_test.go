@@ -319,7 +319,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 			CertFile:       "test/certificate-and-key.pem",
 			CertKeyFile:    "test/certificate-and-key.pem",
 		}
-		cfg, err := buildAdapterConfig(moduleConfig, "")
+		cfg, err := buildGRPCConfig(moduleConfig, "")
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
 		assert.NotNil(t, cfg.ClientCert.PrivateKey)
@@ -330,7 +330,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 			GrpcAddr:  ":5555",
 			EnableTLS: false,
 		}
-		cfg, err := buildAdapterConfig(moduleConfig, "")
+		cfg, err := buildGRPCConfig(moduleConfig, "")
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
 		assert.Nil(t, cfg.ClientCert.PrivateKey)
@@ -344,7 +344,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 			CertFile:       "test/certificate-and-key.pem",
 			CertKeyFile:    "test/certificate-and-key.pem",
 		}
-		cfg, err := buildAdapterConfig(moduleConfig, "")
+		cfg, err := buildGRPCConfig(moduleConfig, "")
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
 		assert.NotNil(t, cfg.ClientCert.PrivateKey)
@@ -356,7 +356,7 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 			CertKeyFile: "test/non-existent.pem",
 			EnableTLS:   true,
 		}
-		cfg, err := buildAdapterConfig(moduleConfig, "")
+		cfg, err := buildGRPCConfig(moduleConfig, "")
 		assert.Nil(t, cfg)
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
