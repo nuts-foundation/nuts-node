@@ -1,11 +1,13 @@
 package crl
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -29,6 +31,7 @@ func hash(issuer string, serialNumber *big.Int) int64 {
 // Validator synchronizes CRLs and validates revoked certificates
 type Validator interface {
 	Sync() error
+	SyncLoop(ctx context.Context)
 	IsSynced(maxOffsetDays int) bool
 	Configure(config *tls.Config, maxValidityDays int)
 	IsRevoked(issuer string, serialNumber *big.Int) bool
@@ -64,23 +67,23 @@ func NewValidatorWithHTTPClient(certificates []*x509.Certificate, httpClient *ht
 	}
 }
 
-func (db *validator) setRevoked(issuer string, serialNumber *big.Int) {
-	bitNum := hash(issuer, serialNumber) % int64(db.bitSet.Len())
+func (v *validator) setRevoked(issuer string, serialNumber *big.Int) {
+	bitNum := hash(issuer, serialNumber) % int64(v.bitSet.Len())
 
-	db.bitSet.Set(bitNum)
+	v.bitSet.Set(bitNum)
 }
 
 // IsRevoked checks whether the certificate was revoked or not
-func (db *validator) IsRevoked(issuer string, serialNumber *big.Int) bool {
-	bitNum := hash(issuer, serialNumber) % int64(db.bitSet.Len())
-	if !db.bitSet.IsSet(bitNum) {
+func (v *validator) IsRevoked(issuer string, serialNumber *big.Int) bool {
+	bitNum := hash(issuer, serialNumber) % int64(v.bitSet.Len())
+	if !v.bitSet.IsSet(bitNum) {
 		return false
 	}
 
-	db.listsLock.RLock()
-	defer db.listsLock.RUnlock()
+	v.listsLock.RLock()
+	defer v.listsLock.RUnlock()
 
-	for _, list := range db.lists {
+	for _, list := range v.lists {
 		listIssuerName := list.TBSCertList.Issuer.String()
 
 		for _, cert := range list.TBSCertList.RevokedCertificates {
@@ -94,25 +97,25 @@ func (db *validator) IsRevoked(issuer string, serialNumber *big.Int) bool {
 	return false
 }
 
-func (db *validator) updateCRL(endpoint string) error {
-	db.listsLock.RLock()
-	crl, ok := db.lists[endpoint]
-	db.listsLock.RUnlock()
+func (v *validator) updateCRL(endpoint string) error {
+	v.listsLock.RLock()
+	crl, ok := v.lists[endpoint]
+	v.listsLock.RUnlock()
 
 	if !ok || crl.HasExpired(time.Now()) {
-		return db.downloadCRL(endpoint)
+		return v.downloadCRL(endpoint)
 	}
 
 	return nil
 }
 
-func (db *validator) verifyCRL(crl *pkix.CertificateList) error {
-	db.certificatesLock.RLock()
-	defer db.certificatesLock.RUnlock()
+func (v *validator) verifyCRL(crl *pkix.CertificateList) error {
+	v.certificatesLock.RLock()
+	defer v.certificatesLock.RUnlock()
 
 	issuerName := crl.TBSCertList.Issuer.String()
 
-	certificate, ok := db.certificates[issuerName]
+	certificate, ok := v.certificates[issuerName]
 	if !ok {
 		return errors.New("CRL signature could not be validated against known certificates")
 	}
@@ -120,8 +123,8 @@ func (db *validator) verifyCRL(crl *pkix.CertificateList) error {
 	return certificate.CheckCRLSignature(crl)
 }
 
-func (db *validator) downloadCRL(endpoint string) error {
-	response, err := db.httpClient.Get(endpoint)
+func (v *validator) downloadCRL(endpoint string) error {
+	response, err := v.httpClient.Get(endpoint)
 	if err != nil {
 		return err
 	}
@@ -138,34 +141,34 @@ func (db *validator) downloadCRL(endpoint string) error {
 		return err
 	}
 
-	if err := db.verifyCRL(crl); err != nil {
+	if err := v.verifyCRL(crl); err != nil {
 		return err
 	}
 
-	db.listsLock.Lock()
-	defer db.listsLock.Unlock()
+	v.listsLock.Lock()
+	defer v.listsLock.Unlock()
 
 	issuerName := crl.TBSCertList.Issuer.String()
 
 	for _, cert := range crl.TBSCertList.RevokedCertificates {
-		db.setRevoked(issuerName, cert.SerialNumber)
+		v.setRevoked(issuerName, cert.SerialNumber)
 	}
 
-	db.lists[endpoint] = crl
+	v.lists[endpoint] = crl
 
 	return nil
 }
 
 // IsSynced returns whether all the CRLs are downloaded and are not outdated (based on the offset)
-func (db *validator) IsSynced(maxOffsetDays int) bool {
-	endpoints := db.parseCRLEndpoints()
+func (v *validator) IsSynced(maxOffsetDays int) bool {
+	endpoints := v.parseCRLEndpoints()
 
-	db.listsLock.RLock()
-	defer db.listsLock.RUnlock()
+	v.listsLock.RLock()
+	defer v.listsLock.RUnlock()
 
 	// Check if all CRLs have been downloaded
 	for _, endpoint := range endpoints {
-		if _, ok := db.lists[endpoint]; !ok {
+		if _, ok := v.lists[endpoint]; !ok {
 			return false
 		}
 	}
@@ -173,7 +176,7 @@ func (db *validator) IsSynced(maxOffsetDays int) bool {
 	// Verify that none of the CRLs are outdated
 	now := time.Now().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
 
-	for _, list := range db.lists {
+	for _, list := range v.lists {
 		if list.HasExpired(now) {
 			return false
 		}
@@ -182,21 +185,21 @@ func (db *validator) IsSynced(maxOffsetDays int) bool {
 	return true
 }
 
-func (db *validator) appendCertificates(certificates []*x509.Certificate) {
-	db.certificatesLock.Lock()
-	defer db.certificatesLock.Unlock()
+func (v *validator) appendCertificates(certificates []*x509.Certificate) {
+	v.certificatesLock.Lock()
+	defer v.certificatesLock.Unlock()
 
 	for _, certificate := range certificates {
 		subject := certificate.Subject.String()
 
-		if _, ok := db.certificates[subject]; !ok {
-			db.certificates[subject] = certificate
+		if _, ok := v.certificates[subject]; !ok {
+			v.certificates[subject] = certificate
 		}
 	}
 }
 
 // Configure adds a callback to the TLS config to check if the peer certificate was revoked
-func (db *validator) Configure(config *tls.Config, maxValidityDays int) {
+func (v *validator) Configure(config *tls.Config, maxValidityDays int) {
 	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 		// Import unknown certificates
 		var verifiedCerts []*x509.Certificate
@@ -209,7 +212,7 @@ func (db *validator) Configure(config *tls.Config, maxValidityDays int) {
 			}
 		}
 
-		db.appendCertificates(verifiedCerts)
+		v.appendCertificates(verifiedCerts)
 
 		// Parse certificates and check if they are revoked
 		var raw []byte
@@ -224,13 +227,13 @@ func (db *validator) Configure(config *tls.Config, maxValidityDays int) {
 		}
 
 		for _, certificate := range certificates {
-			if db.IsRevoked(certificate.Issuer.String(), certificate.SerialNumber) {
+			if v.IsRevoked(certificate.Issuer.String(), certificate.SerialNumber) {
 				return fmt.Errorf("certificate with issuer '%s' is revoked: %s", certificate.Issuer.String(), certificate.Subject.String())
 			}
 		}
 
-		// If the CRL db is outdated kill the connection
-		if !db.IsSynced(maxValidityDays) {
+		// If the CRL validator is outdated kill the connection
+		if !v.IsSynced(maxValidityDays) {
 			return errors.New("CRL database is outdated, certificate revocation can't be checked")
 		}
 
@@ -238,11 +241,11 @@ func (db *validator) Configure(config *tls.Config, maxValidityDays int) {
 	}
 }
 
-func (db *validator) parseCRLEndpoints() (endpoints []string) {
-	db.certificatesLock.RLock()
-	defer db.certificatesLock.RUnlock()
+func (v *validator) parseCRLEndpoints() (endpoints []string) {
+	v.certificatesLock.RLock()
+	defer v.certificatesLock.RUnlock()
 
-	for _, certificate := range db.certificates {
+	for _, certificate := range v.certificates {
 	lookup:
 		for _, endpoint := range certificate.CRLDistributionPoints {
 			for _, existingEndpoint := range endpoints {
@@ -259,8 +262,8 @@ func (db *validator) parseCRLEndpoints() (endpoints []string) {
 }
 
 // Sync downloads, updates and verifies CRLs
-func (db *validator) Sync() error {
-	endpoints := db.parseCRLEndpoints()
+func (v *validator) Sync() error {
+	endpoints := v.parseCRLEndpoints()
 
 	wc := sync.WaitGroup{}
 	wc.Add(len(endpoints))
@@ -276,7 +279,7 @@ func (db *validator) Sync() error {
 		go func(e string) {
 			defer wc.Done()
 
-			if err := db.updateCRL(e); err != nil {
+			if err := v.updateCRL(e); err != nil {
 				errorsChan <- err
 			}
 		}(endpoint)
@@ -293,4 +296,22 @@ func (db *validator) Sync() error {
 	}
 
 	return &SyncError{errors: syncErrors}
+}
+
+func (v *validator) SyncLoop(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+
+	processLoop:
+		for {
+			select {
+			case <-ctx.Done():
+				break processLoop
+			case <-ticker.C:
+				if err := v.Sync(); err != nil {
+					logrus.Errorf("CRL synchronization failed: %s", err.Error())
+				}
+			}
+		}
+	}()
 }

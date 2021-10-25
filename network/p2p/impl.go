@@ -260,15 +260,7 @@ func (n *adapter) Start() error {
 		}
 
 		if n.config.CRLValidator != nil {
-			go func() {
-				for {
-					if err := n.config.CRLValidator.Sync(); err != nil {
-						log.Logger().Errorf("CRL synchronization failed: %s", err.Error())
-					}
-
-					time.Sleep(time.Minute)
-				}
-			}()
+			n.config.CRLValidator.SyncLoop(context.TODO())
 		}
 
 		n.startServing(serverOpts)

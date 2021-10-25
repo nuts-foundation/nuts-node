@@ -1,20 +1,20 @@
 package auth
 
 import (
+	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"path"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/didman"
-
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -27,15 +27,16 @@ const contractValidity = 60 * time.Minute
 
 // Auth is the main struct of the Auth service
 type Auth struct {
-	config            Config
-	oauthClient       services.OAuthClient
-	contractNotary    services.ContractNotary
-	keyStore          crypto.KeyStore
-	registry          types.Store
-	vcr               vcr.VCR
-	trustStore        *x509.CertPool
-	clientCertificate *tls.Certificate
-	serviceResolver   didman.ServiceResolver
+	config          Config
+	oauthClient     services.OAuthClient
+	contractNotary  services.ContractNotary
+	serviceResolver didman.ServiceResolver
+	keyStore        crypto.KeyStore
+	registry        types.Store
+	vcr             vcr.VCR
+	tlsConfig       *tls.Config
+	crlValidator    crl.Validator
+	shutdownFunc    func()
 }
 
 // Name returns the name of the module.
@@ -53,17 +54,9 @@ func (auth *Auth) HTTPTimeout() time.Duration {
 	return time.Duration(auth.config.HTTPTimeout) * time.Second
 }
 
-// TrustStore contains an x509 certificate pool (only when TLS is enabled)
-func (auth *Auth) TrustStore() *x509.CertPool {
-	return auth.trustStore
-}
-
-func (auth *Auth) TLSEnabled() bool {
-	return auth.config.EnableTLS
-}
-
-func (auth *Auth) ClientCertificate() *tls.Certificate {
-	return auth.clientCertificate
+// TLSConfig returns the TLS configuration when TLS is enabled and nil if it's disabled
+func (auth *Auth) TLSConfig() *tls.Config {
+	return auth.tlsConfig
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.
@@ -79,6 +72,7 @@ func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore 
 		keyStore:        keyStore,
 		vcr:             vcr,
 		serviceResolver: serviceResolver,
+		shutdownFunc:    func() {},
 	}
 }
 
@@ -92,6 +86,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	if auth.config.IrmaSchemeManager == "" {
 		return errors.New("IRMA SchemeManager must be set")
 	}
+
 	if config.Strictmode && auth.config.IrmaSchemeManager != "pbdf" {
 		return errors.New("in strictmode the only valid irma-scheme-manager is 'pbdf'")
 	}
@@ -101,25 +96,23 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		if config.Strictmode {
 			return ErrMissingPublicURL
 		}
+
 		auth.config.PublicURL = "http://" + config.HTTP.Address
 	}
 
-	cfg := contract.Config{
+	auth.contractNotary = contract.NewNotary(contract.Config{
 		PublicURL:             auth.config.PublicURL,
 		IrmaConfigPath:        path.Join(config.Datadir, "irma"),
 		IrmaSchemeManager:     auth.config.IrmaSchemeManager,
 		AutoUpdateIrmaSchemas: auth.config.IrmaAutoUpdateSchemas,
 		ContractValidators:    auth.config.ContractValidators,
 		ContractValidity:      contractValidity,
-	}
-
-	keyResolver := doc.KeyResolver{Store: auth.registry}
-
-	auth.contractNotary = contract.NewNotary(cfg, auth.vcr, keyResolver, auth.keyStore)
+	}, auth.vcr, doc.KeyResolver{Store: auth.registry}, auth.keyStore)
 
 	if config.Strictmode && !auth.config.EnableTLS {
 		return errors.New("in strictmode auth.enabletls must be true")
 	}
+
 	if auth.config.EnableTLS {
 		clientCertificate, err := tls.LoadX509KeyPair(auth.config.CertFile, auth.config.CertKeyFile)
 		if err != nil {
@@ -131,8 +124,16 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		auth.trustStore = trustStore.CertPool
-		auth.clientCertificate = &clientCertificate
+		tlsConfig := &tls.Config{
+			Certificates: []tls.Certificate{clientCertificate},
+			RootCAs:      trustStore.CertPool,
+		}
+
+		validator := crl.NewValidator(trustStore.Certificates())
+		validator.Configure(tlsConfig, auth.config.MaxCRLValidityDays)
+
+		auth.crlValidator = validator
+		auth.tlsConfig = tlsConfig
 	}
 
 	if err := auth.contractNotary.Configure(); err != nil {
@@ -144,6 +145,26 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	if err := auth.oauthClient.Configure(auth.config.ClockSkew); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// Start starts the CRL validator synchronization loop
+func (auth *Auth) Start() error {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	auth.shutdownFunc = cancel
+
+	if auth.crlValidator != nil {
+		auth.crlValidator.SyncLoop(ctx)
+	}
+
+	return nil
+}
+
+// Shutdown stops the CRL validator synchronization loop
+func (auth *Auth) Shutdown() error {
+	auth.shutdownFunc()
 
 	return nil
 }

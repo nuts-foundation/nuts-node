@@ -12,6 +12,7 @@ type Config struct {
 	CertKeyFile           string   `koanf:"network.certkeyfile"`
 	EnableTLS             bool     `koanf:"network.enabletls"`
 	TrustStoreFile        string   `koanf:"network.truststorefile"`
+	MaxCRLValidityDays    int      `koanf:"network.maxcrlvaliditydays"`
 }
 
 // DefaultConfig returns an instance of Config with the default values.

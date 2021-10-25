@@ -2,7 +2,6 @@ package auth
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
@@ -16,10 +15,6 @@ type AuthenticationServices interface {
 	ContractNotary() services.ContractNotary
 	// HTTPTimeout returns the HTTP timeout to use for the Auth API HTTP client
 	HTTPTimeout() time.Duration
-	// TrustStore contains an certificate pool (only when TLS is enabled)
-	TrustStore() *x509.CertPool
-	// ClientCertificate returns a tls.Certificate (only when TLS is enabled)
-	ClientCertificate() *tls.Certificate
-	// TLSEnabled returns true if TLS is enabled (mTLS)
-	TLSEnabled() bool
+	// TLSConfig returns the TLS configuration when TLS is enabled and nil if it's disabled
+	TLSConfig() *tls.Config
 }

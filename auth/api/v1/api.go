@@ -19,7 +19,6 @@
 package v1
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -322,15 +321,11 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 	}
 
 	httpClient := &http.Client{}
+	tlsConfig := w.Auth.TLSConfig()
 
-	if w.Auth.TLSEnabled() {
-		trustStore := w.Auth.TrustStore()
-		clientCertificate := w.Auth.ClientCertificate()
+	if tlsConfig != nil {
 		httpClient.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{
-				Certificates: []tls.Certificate{*clientCertificate},
-				RootCAs:      trustStore,
-			},
+			TLSClientConfig: tlsConfig,
 		}
 	}
 
