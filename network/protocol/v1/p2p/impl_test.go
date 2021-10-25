@@ -60,6 +60,7 @@ func Test_adapter_Configure(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
+		waitForGRPCStart()
 	})
 	t.Run("error - no peer ID", func(t *testing.T) {
 		network := NewAdapter()
