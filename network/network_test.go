@@ -123,7 +123,10 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1")
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2")
+		cfg := core.ServerConfig{Datadir: io.TestDirectory(t)}
+		err := cxt.network.Configure(cfg)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -401,6 +404,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	networkConfig.CertFile = "test/certificate-and-key.pem"
 	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
 	networkConfig.EnableTLS = true
+	networkConfig.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
 	keyStore := crypto.NewMockKeyStore(ctrl)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	network := NewNetworkInstance(networkConfig, keyResolver)

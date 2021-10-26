@@ -187,7 +187,6 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		Valid:          true,
 		PeerID:         types.PeerID(name),
 		ListenAddress:  fmt.Sprintf("localhost:%d", nameToPort(name)),
-		BootstrapNodes: nil,
 	}, ctx.graph, publisher, ctx.payloadStore, dummyDiagnostics).(*protocolV1)
 
 	if err = ctx.protocol.Configure(); err != nil {

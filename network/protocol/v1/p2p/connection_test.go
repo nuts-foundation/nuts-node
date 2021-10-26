@@ -5,7 +5,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 	"io"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -103,15 +102,12 @@ func Test_connection_send(t *testing.T) {
 		defer ctrl.Finish()
 		messenger := NewMockgrpcMessenger(ctrl)
 
-		// Signal waitgroup when a message is sent
-		wg := sync.WaitGroup{}
-		wg.Add(1)
 		messenger.EXPECT().Send(gomock.Any()).DoAndReturn(func(_ interface{}) error {
-			wg.Done()
 			return nil
 		})
-		messenger.EXPECT().Recv().DoAndReturn(func() (interface{}, error) {
-			wg.Wait()
+
+		// Recv() must return EOF, otherwise exchange() won't return
+		messenger.EXPECT().Recv().AnyTimes().DoAndReturn(func() (interface{}, error) {
 			return nil, io.EOF
 		})
 
@@ -120,13 +116,12 @@ func Test_connection_send(t *testing.T) {
 		defer conn.close()
 		go conn.exchange(messageQueue{})
 
-		// Send message and wait for it to be sent
+		// Send message, then call exchange() in a blocking manner, it exits because Recv() return EOF.
 		err := conn.send(&transport.NetworkMessage{})
-		runtime.Gosched() // make sure exchange() goroutine is getting a slice of CPU
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.True(t, waitFor(&wg, time.Second), "time-out while waiting for message to arrive")
+		conn.exchange(messageQueue{})
 	})
 	t.Run("send on closed connection", func(t *testing.T) {
 		conn := newConnection(types.Peer{}, nil)
