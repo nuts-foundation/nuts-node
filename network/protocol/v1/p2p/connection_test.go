@@ -114,7 +114,6 @@ func Test_connection_send(t *testing.T) {
 		// Create connection, start message sending goroutine
 		conn := newConnection(types.Peer{}, messenger)
 		defer conn.close()
-		go conn.exchange(messageQueue{})
 
 		// Send message, then call exchange() in a blocking manner, it exits because Recv() return EOF.
 		err := conn.send(&transport.NetworkMessage{})
