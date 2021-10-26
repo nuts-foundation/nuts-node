@@ -20,6 +20,7 @@ package network
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/network/net"
 	"github.com/nuts-foundation/nuts-node/network/protocol"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"testing"
@@ -35,9 +36,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var tlsEnabled = true
+var tlsDisabled = false
+
 type networkTestContext struct {
 	network           *Network
-	connectionManager *MockConnectionManager
+	connectionManager *net.MockConnectionManager
 	graph             *dag.MockDAG
 	payload           *dag.MockPayloadStore
 	keyStore          *crypto.MockKeyStore
@@ -147,6 +151,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		defer ctrl.Finish()
 		payload := []byte("Hello, World!")
 		cxt := createNetwork(ctrl)
+		cxt.connectionManager.EXPECT().Start()
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify(gomock.Any())
 		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
@@ -166,6 +171,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+		cxt.connectionManager.EXPECT().Start()
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify(gomock.Any())
 		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
@@ -185,6 +191,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+		cxt.connectionManager.EXPECT().Start()
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify(gomock.Any())
 
@@ -219,6 +226,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+		cxt.connectionManager.EXPECT().Start()
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify(gomock.Any())
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
@@ -246,6 +254,7 @@ func TestNetwork_Start(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+		cxt.connectionManager.EXPECT().Start()
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify(gomock.Any())
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
@@ -260,6 +269,7 @@ func TestNetwork_Start(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+		cxt.connectionManager.EXPECT().Start()
 		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify(gomock.Any()).Return(errors.New("failed"))
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
@@ -314,12 +324,12 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		moduleConfig := Config{
 			GrpcAddr:       ":5555",
-			EnableTLS:      true,
+			EnableTLS:      &tlsEnabled,
 			TrustStoreFile: "test/truststore.pem",
 			CertFile:       "test/certificate-and-key.pem",
 			CertKeyFile:    "test/certificate-and-key.pem",
 		}
-		cfg, err := buildGRPCConfig(moduleConfig, "")
+		cfg, err := buildGRPCConfig(moduleConfig, "", false)
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
 		assert.NotNil(t, cfg.ClientCert.PrivateKey)
@@ -328,9 +338,9 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 	t.Run("ok - TLS disabled", func(t *testing.T) {
 		moduleConfig := Config{
 			GrpcAddr:  ":5555",
-			EnableTLS: false,
+			EnableTLS: &tlsDisabled,
 		}
-		cfg, err := buildGRPCConfig(moduleConfig, "")
+		cfg, err := buildGRPCConfig(moduleConfig, "", false)
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
 		assert.Nil(t, cfg.ClientCert.PrivateKey)
@@ -339,12 +349,12 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
 		moduleConfig := Config{
 			GrpcAddr:  "",
-			EnableTLS: true,
+			EnableTLS: &tlsEnabled,
 			TrustStoreFile: "test/truststore.pem",
 			CertFile:       "test/certificate-and-key.pem",
 			CertKeyFile:    "test/certificate-and-key.pem",
 		}
-		cfg, err := buildGRPCConfig(moduleConfig, "")
+		cfg, err := buildGRPCConfig(moduleConfig, "", false)
 		assert.NotNil(t, cfg)
 		assert.NoError(t, err)
 		assert.NotNil(t, cfg.ClientCert.PrivateKey)
@@ -354,9 +364,9 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		moduleConfig := Config{
 			CertFile:    "test/non-existent.pem",
 			CertKeyFile: "test/non-existent.pem",
-			EnableTLS:   true,
+			EnableTLS:   &tlsEnabled,
 		}
-		cfg, err := buildGRPCConfig(moduleConfig, "")
+		cfg, err := buildGRPCConfig(moduleConfig, "", false)
 		assert.Nil(t, cfg)
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
@@ -398,12 +408,12 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	payload := dag.NewMockPayloadStore(ctrl)
 	publisher := dag.NewMockPublisher(ctrl)
 	prot := protocol.NewMockProtocol(ctrl)
-	connectionManager := NewMockConnectionManager(ctrl)
+	connectionManager := net.NewMockConnectionManager(ctrl)
 	networkConfig := TestNetworkConfig()
 	networkConfig.TrustStoreFile = "test/truststore.pem"
 	networkConfig.CertFile = "test/certificate-and-key.pem"
 	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
-	networkConfig.EnableTLS = true
+	networkConfig.EnableTLS = &tlsEnabled
 	networkConfig.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
 	keyStore := crypto.NewMockKeyStore(ctrl)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)

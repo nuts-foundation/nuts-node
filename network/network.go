@@ -23,10 +23,13 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crl"
+	"github.com/nuts-foundation/nuts-node/network/grpc"
+	"github.com/nuts-foundation/nuts-node/network/net"
 	"github.com/nuts-foundation/nuts-node/network/protocol"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/protocol/types"
 	v1 "github.com/nuts-foundation/nuts-node/network/protocol/v1"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/pkg/errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -35,15 +38,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/pkg/errors"
-
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
 )
 
@@ -65,9 +66,9 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 type Network struct {
 	config                 Config
 	lastTransactionTracker lastTransactionTracker
-	protocols              []protocol.Protocol
-	connectionManager      ConnectionManager
-	graph                  dag.DAG
+	protocols         []protocol.Protocol
+	connectionManager net.ConnectionManager
+	graph             dag.DAG
 	publisher              dag.Publisher
 	payloadStore           dag.PayloadStore
 	keyResolver            types.KeyResolver
@@ -112,13 +113,20 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	n.peerID = networkTypes.PeerID(uuid.New().String())
-	adapterConfig, cfgErr := buildGRPCConfig(n.config, n.peerID)
-	if cfgErr != nil {
-		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", cfgErr)
-		adapterConfig = &p2p.AdapterConfig{PeerID: n.peerID, Valid: false}
+
+	grpcConfig, err := buildGRPCConfig(n.config, n.peerID, config.Strictmode)
+	if err != nil {
+		return err
 	}
 	// Configure protocols
-	n.protocols = []protocol.Protocol{v1.New(n.config.ProtocolV1, *adapterConfig, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics)}
+	n.protocols = []protocol.Protocol{
+		v1.New(n.config.ProtocolV1, p2p.AdapterConfig{
+			PeerID:        n.peerID,
+			ListenAddress: grpcConfig.ListenAddress,
+			ClientCert:    grpcConfig.ClientCert,
+			TrustStore:    grpcConfig.TrustStore,
+		}, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
+	}
 	for _, prot := range n.protocols {
 		err := prot.Configure()
 		if err != nil {
@@ -127,7 +135,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 	// Setup connection manager, load with bootstrap nodes
 	if n.connectionManager == nil {
-		n.connectionManager = newGRPCConnectionManager(n.protocols...)
+		n.connectionManager = grpc.NewGRPCConnectionManager(*grpcConfig, n.protocols...)
 	}
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
@@ -136,6 +144,46 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		n.connectionManager.Connect(bootstrapNode)
 	}
 	return nil
+}
+
+
+// TODO: Untangle from v1 and move to ConnectionManager/ManagedConnection
+func buildGRPCConfig(moduleConfig Config, peerID networkTypes.PeerID, strictMode bool) (*grpc.Config, error) {
+	cfg := grpc.Config{
+		ListenAddress: moduleConfig.GrpcAddr,
+		PeerID:        peerID,
+	}
+
+	// To disable TLS in strictmode, `EnableTLS` must explicitly be set to "off"
+	if !moduleConfig.TLSEnabled() && moduleConfig.EnableTLS == nil && strictMode {
+		return nil, errors.New("to disable TLS in strict mode, explicitly specify enableTLS=false")
+	}
+
+	if moduleConfig.TLSEnabled() {
+		clientCertificate, err := tls.LoadX509KeyPair(moduleConfig.CertFile, moduleConfig.CertKeyFile)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", moduleConfig.CertFile, moduleConfig.CertKeyFile)
+		}
+
+		trustStore, err := core.LoadTrustStore(moduleConfig.TrustStoreFile)
+		if err != nil {
+			return nil, err
+		}
+
+		cfg.ClientCert = clientCertificate
+		cfg.TrustStore = trustStore.CertPool
+		cfg.MaxCRLValidityDays = moduleConfig.MaxCRLValidityDays
+		cfg.CRLValidator = crl.NewValidator(trustStore.Certificates())
+
+		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
+		if moduleConfig.GrpcAddr != "" {
+			cfg.ServerCert = cfg.ClientCert
+		}
+	} else {
+		log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
+	}
+
+	return &cfg, nil
 }
 
 // Name returns the module name.
@@ -151,6 +199,10 @@ func (n *Network) Config() interface{} {
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
+	err := n.connectionManager.Start()
+	if err != nil {
+		return err
+	}
 	for _, prot := range n.protocols {
 		err := prot.Start()
 		if err != nil {

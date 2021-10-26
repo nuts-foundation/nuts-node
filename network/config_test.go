@@ -9,7 +9,7 @@ import (
 
 func TestDefaultConfig(t *testing.T) {
 	defs := DefaultConfig()
-	assert.True(t, defs.EnableTLS)
+	assert.False(t, defs.TLSEnabled())
 	assert.Equal(t, ":5555", defs.GrpcAddr)
 }
 

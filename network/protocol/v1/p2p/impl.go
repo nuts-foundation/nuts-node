@@ -23,21 +23,21 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/grpc"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
+	grpcLib "google.golang.org/grpc"
 	"strings"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	errors2 "github.com/pkg/errors"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
-	grpcPeer "google.golang.org/grpc/peer"
 )
 
-type dialer func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error)
+type dialer func(ctx context.Context, target string, opts ...grpcLib.DialOption) (conn *grpcLib.ClientConn, err error)
 
 const connectingQueueChannelSize = 100
 const eventChannelSize = 100
@@ -61,7 +61,8 @@ type adapter struct {
 	conns *connectionManager
 
 	receivedMessages messageQueue
-	grpcDialer       dialer
+	grpcDialer dialer
+	acceptor   grpc.StreamAcceptor
 }
 
 func (n adapter) EventChannels() (peerConnected chan types.Peer, peerDisconnected chan types.Peer) {
@@ -119,18 +120,18 @@ func (c *connector) doConnect(ownID types.PeerID, tlsConfig *tls.Config) (*types
 	dialContext, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	dialOptions := []grpc.DialOption{
-		grpc.WithBlock(),                 // Dial should block until connection succeeded (or time-out expired)
-		grpc.WithReturnConnectionError(), // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(MaxMessageSizeInBytes),
-			grpc.MaxCallSendMsgSize(MaxMessageSizeInBytes),
+	dialOptions := []grpcLib.DialOption{
+		grpcLib.WithBlock(),                 // Dial should block until connection succeeded (or time-out expired)
+		grpcLib.WithReturnConnectionError(), // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
+		grpcLib.WithDefaultCallOptions(
+			grpcLib.MaxCallRecvMsgSize(MaxMessageSizeInBytes),
+			grpcLib.MaxCallSendMsgSize(MaxMessageSizeInBytes),
 		),
 	}
 	if tlsConfig != nil {
-		dialOptions = append(dialOptions, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // TLS authentication
+		dialOptions = append(dialOptions, grpcLib.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // TLS authentication
 	} else {
-		dialOptions = append(dialOptions, grpc.WithInsecure()) // No TLS, requires 'insecure' flag
+		dialOptions = append(dialOptions, grpcLib.WithInsecure()) // No TLS, requires 'insecure' flag
 	}
 	grpcConn, err := c.dialer(dialContext, c.address, dialOptions...)
 	if err != nil {
@@ -173,14 +174,6 @@ func readHeaders(metadata metadata.MD) (types.PeerID, error) {
 	if serverPeerID == "" {
 		return "", errors.New("peer didn't sent a PeerID")
 	}
-
-	peerVersion, err := protocolVersionFromMetadata(metadata)
-	if err != nil {
-		return "", err
-	}
-	if peerVersion != protocolVersionV1 {
-		return "", fmt.Errorf("peer uses incorrect protocol version: %s", peerVersion)
-	}
 	return serverPeerID, nil
 }
 
@@ -193,7 +186,7 @@ func NewAdapter() Adapter {
 		peerConnectedChannel:    make(chan types.Peer, eventChannelSize),
 		peerDisconnectedChannel: make(chan types.Peer, eventChannelSize),
 		receivedMessages:        messageQueue{c: make(chan PeerMessage, messageBacklogChannelSize)},
-		grpcDialer:              grpc.DialContext,
+		grpcDialer:              grpcLib.DialContext,
 	}
 }
 
@@ -213,7 +206,8 @@ func (n *adapter) Configure(config AdapterConfig) error {
 	return nil
 }
 
-func (n adapter) RegisterService(registrar grpc.ServiceRegistrar) {
+func (n *adapter) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.StreamAcceptor) {
+	n.acceptor = acceptor
 	transport.RegisterNetworkServer(registrar, n)
 }
 
@@ -285,7 +279,7 @@ func (n *adapter) startConnecting(newConnector *connector) {
 				// We might already have a connection to this peer, in case it connected to the local node first.
 				// That's why we store the peer's ID, so we can check whether we're already connected to the peer next time before reconnecting.
 				resolvedPeerID = peer.ID
-				n.acceptPeer(*peer, stream)
+				n.acceptPeer(*peer, stream, nil)
 				// When the peer's reconnection timing is very close to the local node's (because they're running the same software),
 				// they might reconnect to each other at the same time after a disconnect.
 				// So we add a bit of randomness before reconnecting, making the chance they reconnect at the same time a lot smaller.
@@ -329,36 +323,21 @@ func (n *adapter) getLocalAddress() string {
 
 // Connect is the callback that is called from the GRPC layer when a new client connects
 func (n adapter) Connect(stream transport.Network_ConnectServer) error {
-	peerCtx, _ := grpcPeer.FromContext(stream.Context())
-	log.Logger().Tracef("New peer connected from %s", peerCtx.Addr)
-	md, ok := metadata.FromIncomingContext(stream.Context())
-	if !ok {
-		return errors.New("unable to get metadata")
+	accepted, peer, closer := n.acceptor(stream)
+	if !accepted {
+		// TODO: Is returning this error a nice way of signaling the client, or does it result in lots of error logging?
+		return errors.New("connection rejected")
 	}
-
-	peerID, err := readHeaders(md)
-	if err != nil {
-		return fmt.Errorf("client connection (peer=%s) rejected: %w", peerCtx.Addr, err)
-	}
-
-	peer := types.Peer{
-		ID:      peerID,
-		Address: peerCtx.Addr.String(),
-	}
-	log.Logger().Infof("New peer connected (peer=%s)", peer)
-	// We received our peer's PeerID, now send our own.
-	if err := stream.SendHeader(constructMetadata(n.config.PeerID)); err != nil {
-		return fmt.Errorf("unable to send headers: %w", err)
-	}
-	n.acceptPeer(peer, stream)
+	n.acceptPeer(peer, stream, closer)
 	return nil
 }
 
 // acceptPeer registers a connection, associating the gRPC stream with the given peer. It starts the goroutines required
 // for receiving and sending messages from/to the peer. It should be called from the gRPC service handler,
 // so when this function exits (and the service handler as well), goroutines spawned for calling Recv() will exit.
-func (n *adapter) acceptPeer(peer types.Peer, stream grpcMessenger) {
-	conn := n.conns.register(peer, stream)
+func (n *adapter) acceptPeer(peer types.Peer, stream grpcMessenger, closer chan struct{}) {
+	conn := n.conns.register(peer, stream, closer)
+
 	n.peerConnectedChannel <- conn.peer()
 	conn.exchange(n.receivedMessages)
 	// Previous call was blocking, if we reach this the connection has either errored out, been disconnected

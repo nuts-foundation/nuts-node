@@ -3,12 +3,12 @@ package v1
 import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/grpc"
 	"github.com/nuts-foundation/nuts-node/network/protocol"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/proto"
-	"google.golang.org/grpc"
+	grpcLib "google.golang.org/grpc"
 	"time"
 )
 
@@ -38,7 +38,6 @@ func New(config Config, adapterConfig p2p.AdapterConfig, graph dag.DAG, publishe
 	return &protocolV1{
 		config:        config,
 		adapterConfig: adapterConfig,
-		online:        adapterConfig.Valid,
 		adapter:       adapter,
 		protocol:      proto.NewProtocol(adapter, graph, publisher, payloadStore, diagnosticsProvider),
 	}
@@ -49,7 +48,6 @@ type protocolV1 struct {
 	adapter       p2p.Adapter
 	protocol      proto.Protocol
 	adapterConfig p2p.AdapterConfig
-	online        bool
 }
 
 func (p protocolV1) Configure() error {
@@ -58,22 +56,12 @@ func (p protocolV1) Configure() error {
 		time.Duration(p.config.AdvertDiagnosticsInterval)*time.Millisecond,
 		time.Duration(p.config.CollectMissingPayloadsInterval)*time.Millisecond,
 		p.adapterConfig.PeerID)
-	if p.online {
-		return p.adapter.Configure(p.adapterConfig)
-	}
-	return nil
+	return p.adapter.Configure(p.adapterConfig)
 }
 
 func (p protocolV1) Start() error {
-	// It's possible that the Nuts node isn't bootstrapped (e.g. TLS configuration incomplete) but that shouldn't
-	// prevent it from starting. In that case the network will be in 'offline mode', meaning it can be read from
-	// and written to, but it will not try to connect to other peers.
-	if p.online {
-		if err := p.adapter.Start(); err != nil {
-			return err
-		}
-	} else {
-		log.Logger().Warn("Network protocol v1 is in offline mode.")
+	if err := p.adapter.Start(); err != nil {
+		return err
 	}
 	p.protocol.Start()
 	return nil
@@ -81,10 +69,7 @@ func (p protocolV1) Start() error {
 
 func (p protocolV1) Stop() error {
 	p.protocol.Stop()
-	if p.online {
-		return p.adapter.Stop()
-	}
-	return nil
+	return p.adapter.Stop()
 }
 
 func (p protocolV1) Diagnostics() []core.DiagnosticResult {
@@ -103,6 +88,6 @@ func (p protocolV1) Peers() []types.Peer {
 	return p.adapter.Peers()
 }
 
-func (p protocolV1) RegisterService(registrar grpc.ServiceRegistrar) {
-	p.adapter.RegisterService(registrar)
+func (p protocolV1) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.StreamAcceptor) {
+	p.adapter.RegisterService(registrar, acceptor)
 }

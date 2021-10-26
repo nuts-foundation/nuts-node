@@ -19,18 +19,20 @@
 package p2p
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network/protocol"
+	"github.com/nuts-foundation/nuts-node/network/grpc"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
 )
 
 // Adapter defines the API for the P2P layer, used to connect to peers and exchange messages.
 type Adapter interface {
-	protocol.GRPCServiceProvider
+	grpc.ServiceImplementor
 	core.Diagnosable
 	// Configure configures the Adapter. Must be called before Start().
-	Configure() error
+	Configure(config AdapterConfig) error
 	// Start starts the P2P network on the local node.
 	Start() error
 	// Stop stops the P2P network on the local node.
@@ -64,4 +66,19 @@ type PeerMessage struct {
 	Peer types.PeerID
 	// Message contains the received message.
 	Message *transport.NetworkMessage
+}
+
+// AdapterConfig contains configuration for the P2P adapter.
+type AdapterConfig struct {
+	// PeerID contains the ID of the local node.
+	PeerID types.PeerID
+	// ServerCert specifies the TLS client certificate. If set the client should open a TLS socket, otherwise plain TCP.
+	ClientCert tls.Certificate
+	// TrustStore contains the trust anchors used when verifying remote a peer's TLS certificate.
+	TrustStore    *x509.CertPool
+	ListenAddress string
+}
+
+func (cfg AdapterConfig) tlsEnabled() bool {
+	return cfg.TrustStore != nil
 }

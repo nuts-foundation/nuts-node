@@ -9,8 +9,10 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	core "github.com/nuts-foundation/nuts-node/core"
+	grpc "github.com/nuts-foundation/nuts-node/network/grpc"
 	types "github.com/nuts-foundation/nuts-node/network/protocol/types"
 	transport "github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
+	grpc0 "google.golang.org/grpc"
 )
 
 // MockAdapter is a mock of Adapter interface.
@@ -131,6 +133,18 @@ func (m *MockAdapter) ReceivedMessages() MessageQueue {
 func (mr *MockAdapterMockRecorder) ReceivedMessages() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceivedMessages", reflect.TypeOf((*MockAdapter)(nil).ReceivedMessages))
+}
+
+// RegisterService mocks base method.
+func (m *MockAdapter) RegisterService(registrar grpc0.ServiceRegistrar, acceptorCallback grpc.StreamAcceptor) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RegisterService", registrar, acceptorCallback)
+}
+
+// RegisterService indicates an expected call of RegisterService.
+func (mr *MockAdapterMockRecorder) RegisterService(registrar, acceptorCallback interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterService", reflect.TypeOf((*MockAdapter)(nil).RegisterService), registrar, acceptorCallback)
 }
 
 // Send mocks base method.

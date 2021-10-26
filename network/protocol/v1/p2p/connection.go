@@ -49,14 +49,20 @@ type connection interface {
 	peer() types.Peer
 }
 
-func newConnection(peer types.Peer, messenger grpcMessenger) *managedConnection {
-	return &managedConnection{
+func newConnection(peer types.Peer, messenger grpcMessenger, closer chan struct{}) *managedConnection {
+	result := &managedConnection{
 		Peer:        peer,
 		messenger:   messenger,
 		outMessages: make(chan *transport.NetworkMessage, outMessagesBacklog),
-		closer:      make(chan struct{}, 1),
 		mux:         &sync.Mutex{},
 	}
+	if closer == nil {
+		result.ownsCloser = true
+		result.closer = make(chan struct{}, 1)
+	} else {
+		result.closer = closer
+	}
+	return result
 }
 
 // managedConnection represents a bidirectional connection with a peer, managed by connectionManager.
@@ -71,6 +77,11 @@ type managedConnection struct {
 	//   on a channel so that each peer can have its own goroutine sending messages (consuming messages from this channel)
 	outMessages chan *transport.NetworkMessage
 	closer      chan struct{}
+	// ownsCloser indicates whether the closer was created by this type, and thus should be fed when close() is called.
+	// TODO: Temporarily required since inbound connections are already managed by the generic gRPC connection manager.
+	//       but outbound connections are still managed by protocol v1. After those are moved as well,
+	//       this type will probably be gone completely.
+	ownsCloser bool
 	// mux is used to secure access to the internals of this struct since they're accessed concurrently
 	mux *sync.Mutex
 }
@@ -147,7 +158,7 @@ func (conn *managedConnection) close() {
 	log.Logger().Debugf("Connection is closing (peer-id=%s)", conn.ID)
 
 	// Signal send/receive loop connection is closing
-	if len(conn.closer) == 0 {
+	if conn.ownsCloser && len(conn.closer) == 0 {
 		conn.closer <- struct{}{}
 	}
 	// Close our client connection (not applicable if we're the server side of the connection)
@@ -207,12 +218,12 @@ type connectionManager struct {
 
 // register adds a new connection associated with peer. It uses the given messenger to send/receive messages.
 // If a connection with peer already exists, it is closed (and the new one is accepted).
-func (mgr *connectionManager) register(peer types.Peer, messenger grpcMessenger) connection {
+func (mgr *connectionManager) register(peer types.Peer, messenger grpcMessenger, closer chan struct{}) connection {
 	if mgr.close(peer.ID) {
 		log.Logger().Warnf("Already connected to peer, closed old connection (peer=%s)", peer)
 	}
 
-	conn := newConnection(peer, messenger)
+	conn := newConnection(peer, messenger, closer)
 
 	mgr.mux.Lock()
 	defer mgr.mux.Unlock()

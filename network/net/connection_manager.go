@@ -1,4 +1,4 @@
-package network
+package net
 
 import (
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"

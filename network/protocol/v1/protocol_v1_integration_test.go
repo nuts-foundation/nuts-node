@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/grpc"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
@@ -183,13 +184,22 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	for _, c := range configurers {
 		c(cfg)
 	}
+	peerID := types.PeerID(name)
+	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
 	ctx.protocol = New(*cfg, p2p.AdapterConfig{
-		Valid:          true,
-		PeerID:         types.PeerID(name),
-		ListenAddress:  fmt.Sprintf("localhost:%d", nameToPort(name)),
+		PeerID:        peerID,
+		ListenAddress: listenAddress,
 	}, ctx.graph, publisher, ctx.payloadStore, dummyDiagnostics).(*protocolV1)
 
+	connectionManager := grpc.NewGRPCConnectionManager(grpc.Config{
+		PeerID:        peerID,
+		ListenAddress: listenAddress,
+	}, ctx.protocol)
+
 	if err = ctx.protocol.Configure(); err != nil {
+		t.Fatal(err)
+	}
+	if err = connectionManager.Start(); err != nil {
 		t.Fatal(err)
 	}
 	if err = ctx.protocol.Start(); err != nil {
@@ -197,6 +207,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 	t.Cleanup(func() {
 		_ = ctx.protocol.Stop()
+		connectionManager.Stop()
 	})
 	return ctx
 }

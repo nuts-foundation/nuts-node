@@ -18,26 +18,16 @@
 package p2p
 
 import (
-	"context"
-	"crypto/tls"
 	"crypto/x509"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/network/protocol/types"
 	transport2 "github.com/nuts-foundation/nuts-node/network/protocol/v1/transport"
+	"google.golang.org/grpc"
 	"io"
-	"net"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
-	"google.golang.org/grpc/test/bufconn"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,98 +57,6 @@ func Test_adapter_Configure(t *testing.T) {
 		err := network.Configure(AdapterConfig{})
 		assert.Error(t, err)
 	})
-
-	t.Run("configures CRL check when TLS is enabled", func(t *testing.T) {
-		trustPool := x509.NewCertPool()
-
-		db := crl.NewMockValidator(gomock.NewController(t))
-		db.EXPECT().SyncLoop(gomock.Any())
-		db.EXPECT().Configure(gomock.Any(), 0)
-
-		network := NewAdapter().(*adapter)
-		network.Configure(AdapterConfig{
-			PeerID:        "foo",
-			ListenAddress: "127.0.0.1:0",
-			TrustStore:    trustPool,
-			CRLValidator:  db,
-		})
-		network.Start()
-
-		peer := NewAdapter().(*adapter)
-		peer.Configure(AdapterConfig{
-			PeerID:        "baz",
-			ListenAddress: "127.0.0.1:0",
-		})
-		peer.Start()
-
-		waitForGRPCStart()
-
-		defer network.Stop()
-		defer peer.Stop()
-
-		willConnect := network.ConnectToPeer(peer.config.ListenAddress)
-		assert.True(t, willConnect)
-
-		time.Sleep(time.Second)
-	})
-}
-
-func Test_adapter_Start(t *testing.T) {
-	t.Run("ok - gRPC server not bound", func(t *testing.T) {
-		network := NewAdapter().(*adapter)
-		err := network.Configure(AdapterConfig{
-			PeerID:     "foo",
-			TrustStore: x509.NewCertPool(),
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-		err = network.Start()
-		waitForGRPCStart()
-		assert.Nil(t, network.listener)
-		defer network.Stop()
-		if !assert.NoError(t, err) {
-			return
-		}
-	})
-	t.Run("ok - gRPC server bound, TLS enabled", func(t *testing.T) {
-		network := NewAdapter().(*adapter)
-		serverCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
-		err := network.Configure(AdapterConfig{
-			PeerID:        "foo",
-			ServerCert:    serverCert,
-			ListenAddress: "127.0.0.1:0",
-			TrustStore:    x509.NewCertPool(),
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-		err = network.Start()
-		waitForGRPCStart()
-		assert.NotNil(t, network.listener)
-		defer network.Stop()
-		if !assert.NoError(t, err) {
-			return
-		}
-	})
-	t.Run("ok - gRPC server bound, TLS disabled", func(t *testing.T) {
-		network := NewAdapter().(*adapter)
-		err := network.Configure(AdapterConfig{
-			PeerID:        "foo",
-			ListenAddress: "127.0.0.1:0",
-			TrustStore:    x509.NewCertPool(),
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-		err = network.Start()
-		waitForGRPCStart()
-		assert.NotNil(t, network.listener)
-		defer network.Stop()
-		if !assert.NoError(t, err) {
-			return
-		}
-	})
 }
 
 func Test_adapter_Connect(t *testing.T) {
@@ -168,23 +66,22 @@ func Test_adapter_Connect(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		network := NewAdapter().(*adapter)
-		network.Configure(AdapterConfig{
+		adapter := NewAdapter().(*adapter)
+		adapter.Configure(AdapterConfig{
 			PeerID:        "foo",
 			ListenAddress: "127.0.0.1:0",
 		})
+		adapter.acceptor = func(_ grpc.ServerStream) (accepted bool, peer types.Peer, closer chan struct{}) {
+			accepted = true
+			peer = types.Peer{ID: peerID}
+			closer = nil
+			return
+		}
 
 		recvWaiter := sync.WaitGroup{}
 		recvWaiter.Add(1)
 		mockConnection := func() *transport2.MockNetwork_ConnectServer {
 			conn := transport2.NewMockNetwork_ConnectServer(ctrl)
-			ctx := metadata.NewIncomingContext(peer.NewContext(context.Background(), &peer.Peer{
-				Addr: &net.IPAddr{
-					IP: net.IPv4(127, 0, 0, 1),
-				},
-			}), metadata.Pairs(peerIDHeader, peerID))
-			conn.EXPECT().Context().AnyTimes().Return(ctx)
-			conn.EXPECT().SendHeader(gomock.Any())
 			conn.EXPECT().Recv().DoAndReturn(func() (interface{}, error) {
 				recvWaiter.Done()
 				time.Sleep(time.Second)
@@ -197,113 +94,89 @@ func Test_adapter_Connect(t *testing.T) {
 		connectWaiter.Add(1)
 		// Connect() is a blocking call, so we run it in a goroutine
 		go func() {
-			network.Connect(mockConnection())
+			adapter.Connect(mockConnection())
 			connectWaiter.Done()
 		}()
 		recvWaiter.Wait()
 		// Connection is now live and receiving. Check that the connection is registered
-		assert.Len(t, network.Peers(), 1)
+		assert.Len(t, adapter.Peers(), 1)
 		// Now close the connection and wait for the Connect() function to finish, indicating the connection is closed and cleaned up
-		network.conns.close(types.PeerID(peerID))
+		adapter.conns.close(peerID)
 		connectWaiter.Wait()
 		// Now we shouldn't have any connections left
-		assert.Empty(t, network.Peers())
+		assert.Empty(t, adapter.Peers())
 	})
 
-	t.Run("error - incorrect server protocol version", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		network := NewAdapter().(*adapter)
-		network.Configure(AdapterConfig{
-			PeerID:        "foo",
-			ListenAddress: "127.0.0.1:0",
-		})
-
-		mockConnection := func() *transport2.MockNetwork_ConnectServer {
-			conn := transport2.NewMockNetwork_ConnectServer(ctrl)
-			ctx := metadata.NewIncomingContext(peer.NewContext(context.Background(), &peer.Peer{
-				Addr: &net.IPAddr{
-					IP: net.IPv4(127, 0, 0, 1),
-				},
-			}), metadata.Pairs(peerIDHeader, peerID, protocolVersionHeader, "v2"))
-			conn.EXPECT().Context().AnyTimes().Return(ctx)
-			return conn
-		}
-
-		err := network.Connect(mockConnection())
-		assert.EqualError(t, err, "client connection (peer=127.0.0.1) rejected: peer uses incorrect protocol version: v2")
-	})
-
-	t.Run("second connection from same peer, disconnect first (uses actual in-memory gRPC connection)", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		network := NewAdapter().(*adapter)
-		network.Configure(AdapterConfig{
-			PeerID:        "foo",
-			ListenAddress: "127.0.0.1:0",
-		})
-		// Use gRPC bufconn listener
-		network.listener = bufconn.Listen(1024 * 1024)
-		network.startServing(nil)
-		dialFn := func(_ context.Context, _ string) (net.Conn, error) {
-			return network.listener.(*bufconn.Listener).Dial()
-		}
-
-		connect := func() (*grpc.ClientConn, *sync.WaitGroup) {
-			// Perform connection in goroutine to force parallelism server-side, just like it would at run-time.
-			wg := sync.WaitGroup{}
-			wg.Add(1)
-			var client transport2.Network_ConnectClient
-			var conn *grpc.ClientConn
-			go func() {
-				defer wg.Done()
-				ctx := metadata.NewOutgoingContext(context.Background(), constructMetadata(peerID))
-				var err error
-				conn, err = grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(dialFn), grpc.WithInsecure(), grpc.WithBlock())
-				if !assert.NoError(t, err) {
-					t.FailNow()
-				}
-
-				service := transport2.NewNetworkClient(conn)
-				client, err = service.Connect(ctx)
-				if !assert.NoError(t, err) {
-					t.FailNow()
-				}
-			}()
-			wg.Wait()
-
-			// client.Recv() blocks until the connection is closed, so we call it in a goroutine which communicates
-			// with a wait group to signal the caller.
-			recvWatcher := &sync.WaitGroup{}
-			recvWatcher.Add(1)
-			go func() {
-				client.Recv()
-				recvWatcher.Done()
-			}()
-
-			return conn, recvWatcher
-		}
-
-		// 1. First connection
-		conn1, conn1Recv := connect()
-		<-network.peerConnectedChannel // Wait until connected
-		assert.Equal(t, connectivity.Ready, conn1.GetState())
-		// 2. Second connection, should close first connection
-		conn2, _ := connect()
-		<-network.peerDisconnectedChannel // Wait until first connection is marked closed
-		conn1Recv.Wait()                  // Assert first connection is closed
-		<-network.peerConnectedChannel    // Wait until connected
-		assert.Equal(t, connectivity.Ready, conn2.GetState())
-		// 3. Close second connection from client side
-		log.Logger().Info("closing second connection")
-		err := conn2.Close()
-		if !assert.NoError(t, err) {
-			return
-		}
-		<-network.peerDisconnectedChannel // Wait until second connection is marked closed
-	})
+	// TODO
+	//t.Run("second connection from same peer, disconnect first (uses actual in-memory gRPC connection)", func(t *testing.T) {
+	//	ctrl := gomock.NewController(t)
+	//	defer ctrl.Finish()
+	//
+	//	network := NewAdapter().(*adapter)
+	//	network.Configure(AdapterConfig{
+	//		PeerID:        "foo",
+	//		ListenAddress: "127.0.0.1:0",
+	//	})
+	//	// Use gRPC bufconn listener
+	//	network.listener = bufconn.Listen(1024 * 1024)
+	//	network.startServing(nil)
+	//	dialFn := func(_ context.Context, _ string) (net.Conn, error) {
+	//		return network.listener.(*bufconn.Listener).Dial()
+	//	}
+	//
+	//	connect := func() (*grpc.ClientConn, *sync.WaitGroup) {
+	//		// Perform connection in goroutine to force parallelism server-side, just like it would at run-time.
+	//		wg := sync.WaitGroup{}
+	//		wg.Add(1)
+	//		var client transport2.Network_ConnectClient
+	//		var conn *grpc.ClientConn
+	//		go func() {
+	//			defer wg.Done()
+	//			ctx := metadata.NewOutgoingContext(context.Background(), constructMetadata(peerID))
+	//			var err error
+	//			conn, err = grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(dialFn), grpc.WithInsecure(), grpc.WithBlock())
+	//			if !assert.NoError(t, err) {
+	//				t.FailNow()
+	//			}
+	//
+	//			service := transport2.NewNetworkClient(conn)
+	//			client, err = service.Connect(ctx)
+	//			if !assert.NoError(t, err) {
+	//				t.FailNow()
+	//			}
+	//		}()
+	//		wg.Wait()
+	//
+	//		// client.Recv() blocks until the connection is closed, so we call it in a goroutine which communicates
+	//		// with a wait group to signal the caller.
+	//		recvWatcher := &sync.WaitGroup{}
+	//		recvWatcher.Add(1)
+	//		go func() {
+	//			client.Recv()
+	//			recvWatcher.Done()
+	//		}()
+	//
+	//		return conn, recvWatcher
+	//	}
+	//
+	//	// 1. First connection
+	//	conn1, conn1Recv := connect()
+	//	<-network.peerConnectedChannel // Wait until connected
+	//	assert.Equal(t, connectivity.Ready, conn1.GetState())
+	//	// 2. Second connection, should close first connection
+	//	conn2, _ := connect()
+	//	<-network.peerDisconnectedChannel // Wait until first connection is marked closed
+	//	conn1Recv.Wait()                  // Assert first connection is closed
+	//	<-network.peerConnectedChannel    // Wait until connected
+	//	assert.Equal(t, connectivity.Ready, conn2.GetState())
+	//	// 3. Close second connection from client side
+	//	log.Logger().Info("closing second connection")
+	//	err := conn2.Close()
+	//	if !assert.NoError(t, err) {
+	//		return
+	//	}
+	//	<-network.peerDisconnectedChannel // Wait until second connection is marked closed
+	//})
 }
 
 func Test_adapter_ConnectToPeer(t *testing.T) {
@@ -322,42 +195,6 @@ func Test_adapter_ConnectToPeer(t *testing.T) {
 		willConnect := network.ConnectToPeer(network.config.ListenAddress)
 
 		assert.False(t, willConnect)
-	})
-
-	t.Run("connect to peer", func(t *testing.T) {
-		network := NewAdapter().(*adapter)
-		network.Configure(AdapterConfig{
-			PeerID:        "foo",
-			ListenAddress: "127.0.0.1:0",
-		})
-		network.Start()
-
-		peer := NewAdapter().(*adapter)
-		peer.Configure(AdapterConfig{
-			PeerID:        "baz",
-			ListenAddress: "127.0.0.1:0",
-		})
-		peer.Start()
-
-		waitForGRPCStart()
-
-		defer network.Stop()
-		defer peer.Stop()
-
-		willConnect := network.ConnectToPeer(peer.config.ListenAddress)
-		assert.True(t, willConnect)
-
-		// Now wait for peer to actually connect
-		startTime := time.Now()
-		for {
-			if len(network.Peers()) > 0 {
-				// OK
-				break
-			}
-			if time.Now().Sub(startTime).Seconds() >= 2 {
-				t.Fatal("time-out: expected 1 peer")
-			}
-		}
 	})
 }
 
@@ -390,7 +227,7 @@ func Test_adapter_Send(t *testing.T) {
 	const addr = "foo"
 	t.Run("ok", func(t *testing.T) {
 		network := NewAdapter().(*adapter)
-		conn := network.conns.register(types.Peer{ID: peerID, Address: addr}, nil).(*managedConnection)
+		conn := network.conns.register(types.Peer{ID: peerID, Address: addr}, nil, nil).(*managedConnection)
 		err := network.Send(peerID, &transport2.NetworkMessage{})
 		if !assert.NoError(t, err) {
 			return
@@ -404,7 +241,7 @@ func Test_adapter_Send(t *testing.T) {
 	})
 	t.Run("concurrent call on closing connection", func(t *testing.T) {
 		network := NewAdapter().(*adapter)
-		conn := network.conns.register(types.Peer{ID: peerID, Address: addr}, nil).(*managedConnection)
+		conn := network.conns.register(types.Peer{ID: peerID, Address: addr}, nil, nil).(*managedConnection)
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		go func() {
@@ -423,8 +260,8 @@ func Test_adapter_Broadcast(t *testing.T) {
 	const peer1ID = "foobar1"
 	const peer2ID = "foobar2"
 	network := NewAdapter().(*adapter)
-	peer1 := network.conns.register(types.Peer{ID: peer1ID, Address: addr}, nil).(*managedConnection)
-	peer2 := network.conns.register(types.Peer{ID: peer2ID, Address: addr}, nil).(*managedConnection)
+	peer1 := network.conns.register(types.Peer{ID: peer1ID, Address: addr}, nil, nil).(*managedConnection)
+	peer2 := network.conns.register(types.Peer{ID: peer2ID, Address: addr}, nil, nil).(*managedConnection)
 	t.Run("ok", func(t *testing.T) {
 		network.Broadcast(&transport2.NetworkMessage{})
 		for _, conn := range network.conns.conns {
@@ -455,7 +292,7 @@ func Test_adapter_shouldConnectTo(t *testing.T) {
 	sut.conns.register(types.Peer{
 		ID:      "peer",
 		Address: "peer:5555",
-	}, nil)
+	}, nil, nil)
 	t.Run("localhost", func(t *testing.T) {
 		assert.False(t, sut.shouldConnectTo("some-address:5555", ""))
 	})
