@@ -34,9 +34,9 @@ func NewGRPCConnectionManager(config Config, protocols ...protocol.Protocol) net
 		panic("ConnectionManager: multiple protocols currently not supported")
 	}
 	return &grpcConnectionManager{
-		protocols:   protocols,
-		config:      config,
-		connections: connections{mux: &sync.Mutex{}},
+		protocols:       protocols,
+		config:          config,
+		connections:     connections{mux: &sync.Mutex{}},
 		grpcServerMutex: &sync.Mutex{},
 	}
 }

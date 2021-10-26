@@ -348,8 +348,8 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 	})
 	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
 		moduleConfig := Config{
-			GrpcAddr:  "",
-			EnableTLS: &tlsEnabled,
+			GrpcAddr:       "",
+			EnableTLS:      &tlsEnabled,
 			TrustStoreFile: "test/truststore.pem",
 			CertFile:       "test/certificate-and-key.pem",
 			CertKeyFile:    "test/certificate-and-key.pem",

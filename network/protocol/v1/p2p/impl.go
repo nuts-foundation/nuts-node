@@ -61,8 +61,8 @@ type adapter struct {
 	conns *connectionManager
 
 	receivedMessages messageQueue
-	grpcDialer dialer
-	acceptor   grpc.StreamAcceptor
+	grpcDialer       dialer
+	acceptor         grpc.StreamAcceptor
 }
 
 func (n adapter) EventChannels() (peerConnected chan types.Peer, peerDisconnected chan types.Peer) {

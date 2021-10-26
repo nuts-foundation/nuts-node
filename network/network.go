@@ -66,9 +66,9 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 type Network struct {
 	config                 Config
 	lastTransactionTracker lastTransactionTracker
-	protocols         []protocol.Protocol
-	connectionManager net.ConnectionManager
-	graph             dag.DAG
+	protocols              []protocol.Protocol
+	connectionManager      net.ConnectionManager
+	graph                  dag.DAG
 	publisher              dag.Publisher
 	payloadStore           dag.PayloadStore
 	keyResolver            types.KeyResolver
@@ -145,7 +145,6 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 	return nil
 }
-
 
 // TODO: Untangle from v1 and move to ConnectionManager/ManagedConnection
 func buildGRPCConfig(moduleConfig Config, peerID networkTypes.PeerID, strictMode bool) (*grpc.Config, error) {

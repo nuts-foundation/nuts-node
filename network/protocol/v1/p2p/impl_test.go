@@ -39,8 +39,8 @@ func Test_adapter_Configure(t *testing.T) {
 	t.Run("ok - ssl offloading", func(t *testing.T) {
 		network := NewAdapter()
 		err := network.Configure(AdapterConfig{
-			PeerID:         "foo",
-			ListenAddress:  "127.0.0.1:0",
+			PeerID:        "foo",
+			ListenAddress: "127.0.0.1:0",
 		})
 		if !assert.NoError(t, err) {
 			return
@@ -206,9 +206,9 @@ func Test_adapter_Diagnostics(t *testing.T) {
 func Test_adapter_GetLocalAddress(t *testing.T) {
 	network := NewAdapter().(*adapter)
 	err := network.Configure(AdapterConfig{
-		PeerID:         "foo",
-		ListenAddress:  "127.0.0.1:0",
-		TrustStore:     x509.NewCertPool(),
+		PeerID:        "foo",
+		ListenAddress: "127.0.0.1:0",
+		TrustStore:    x509.NewCertPool(),
 	})
 	if !assert.NoError(t, err) {
 		return
