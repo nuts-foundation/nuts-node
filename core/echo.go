@@ -3,10 +3,12 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"strings"
 	"sync"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/sirupsen/logrus"
 )
 
 // EchoServer implements both the EchoRouter interface and Start function to aid testing.
@@ -106,15 +108,42 @@ func getGroup(path string) string {
 	return ""
 }
 
+var _logger = logrus.StandardLogger().WithField("module", "http-server")
+// Logger returns a logger which should be used for logging in this engine. It adds fields so
+// log entries from this engine can be recognized as such.
+func Logger() *logrus.Entry {
+	return _logger
+}
+
 func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
-	// Register Echo logger middleware but do not log calls to the status endpoint,
-	// since that gets called by the Docker healthcheck very, very often which leads to lots of clutter in the log.
-	loggerConfig := middleware.DefaultLoggerConfig
-	loggerConfig.Skipper = requestsStatusEndpoint
-	echoServer.Use(middleware.LoggerWithConfig(loggerConfig))
+
+	// Register logrus as the Echo logger middleware.
+	// Skip log calls to the status endpoint (it gets called often by the Docker healthcheck and pollutes the log)
+	requestLoggerConfig := middleware.RequestLoggerConfig{
+		Skipper: requestsStatusEndpoint,
+		LogURI: true,
+		LogStatus: true,
+		LogMethod: true,
+		LogRemoteIP: true,
+		LogValuesFunc: func(c echo.Context, values middleware.RequestLoggerValues) error {
+			Logger().WithFields(logrus.Fields{
+				"remote_ip": values.RemoteIP,
+				"method": values.Method,
+				"uri": values.URI,
+				"status": values.Status,
+			}).Info("request")
+
+			return nil
+		},
+	}
+	echoServer.Use(middleware.RequestLoggerWithConfig(requestLoggerConfig))
+
+	// ErrorHandler
 	echoServer.HTTPErrorHandler = createHTTPErrorHandler()
+
+	// CORS Configuration
 	if cfg.CORS.Enabled() {
 		if strictmode {
 			for _, origin := range cfg.CORS.Origin {
@@ -125,6 +154,8 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 		}
 		echoServer.Use(middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: cfg.CORS.Origin}))
 	}
+
+	// Use middleware to decode URL encoded path parameters like did%3Anuts%3A123 -> did:nuts:123
 	echoServer.Use(DecodeURIPath)
 	return echoServer, nil
 }
