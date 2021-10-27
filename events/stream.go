@@ -30,82 +30,13 @@ import (
 type Stream interface {
 	Config() *nats.StreamConfig
 	ClientOpts() []nats.SubOpt
-	Subscribe(conn *nats.Conn, subject string) (chan *nats.Msg, error)
+	Subscribe(conn Conn, subject string) (chan *nats.Msg, error)
 }
-
-var (
-	// PrivateCredentialStream defines configuration for the stream where all private credentials will be sent to
-	PrivateCredentialStream = &stream{
-		config: &nats.StreamConfig{
-			Name: "nuts-private-credentials",
-			Subjects: []string{
-				"nuts.vcr.private.*",
-			},
-			Retention:    nats.WorkQueuePolicy,
-			MaxConsumers: 1,
-			MaxMsgs:      10,
-			Storage:      nats.FileStorage,
-			Discard:      nats.DiscardNew,
-		},
-		clientOpts: []nats.SubOpt{
-			nats.AckExplicit(),
-			nats.ManualAck(),
-			nats.Durable("private-credential-stream-consumer"),
-		},
-	}
-
-	// DisposableStream defines configuration for the stream where it doesn't matter if messages are dropped
-	DisposableStream = &stream{
-		config: &nats.StreamConfig{
-			Name: "nuts-disposable",
-			Subjects: []string{
-				"nuts.auth.metrics.*",
-				"nuts.crl.metrics.*",
-				"nuts.network.metrics.*",
-				"nuts.vcr.metrics.*",
-				"nuts.vdr.metrics.*",
-			},
-			MaxMsgs:   100,
-			Retention: nats.LimitsPolicy,
-			Storage:   nats.MemoryStorage,
-			Discard:   nats.DiscardOld,
-		},
-		clientOpts: []nats.SubOpt{
-			nats.AckNone(),
-			nats.DeliverNew(),
-		},
-	}
-
-	// RetryStream defines configuration for the stream where messages will be sent back to another stream based on the time
-	RetryStream = &stream{
-		config: &nats.StreamConfig{
-			Name: "nats-retries",
-			Subjects: []string{
-				"nuts.retry",
-			},
-			Retention: nats.WorkQueuePolicy,
-			Storage:   nats.FileStorage,
-			Discard:   nats.DiscardNew,
-		},
-		clientOpts: []nats.SubOpt{
-			nats.AckExplicit(),
-			nats.ManualAck(),
-		},
-		middleware: func(msg *nats.Msg) error {
-			msg.Header.Set("subject", msg.Subject)
-			msg.Header.Set("retries", "0")
-			msg.Subject = "nuts.retry"
-
-			return nil
-		},
-	}
-)
 
 type stream struct {
 	config     *nats.StreamConfig
 	clientOpts []nats.SubOpt
 	created    atomic.Value
-	middleware func(msg *nats.Msg) error
 }
 
 func (stream *stream) Config() *nats.StreamConfig {
@@ -116,19 +47,14 @@ func (stream *stream) ClientOpts() []nats.SubOpt {
 	return stream.clientOpts[:]
 }
 
-func (stream *stream) create(conn Conn) error {
+func (stream *stream) create(ctx JetStreamContext) error {
 	if stream.created.Load() != nil {
 		return nil
 	}
 
-	js, err := conn.JetStream()
-	if err != nil {
-		return err
-	}
-
-	_, err = js.StreamInfo(stream.config.Name)
+	_, err := ctx.StreamInfo(stream.config.Name)
 	if errors.Is(err, nats.ErrStreamNotFound) {
-		_, err = js.AddStream(stream.config)
+		_, err = ctx.AddStream(stream.config)
 		if err != nil {
 			return err
 		}
@@ -142,16 +68,16 @@ func (stream *stream) create(conn Conn) error {
 }
 
 func (stream *stream) Subscribe(conn Conn, subject string) (chan *nats.Msg, error) {
-	if err := stream.create(conn); err != nil {
-		return nil, err
-	}
-
 	ctx, err := conn.JetStream()
 	if err != nil {
 		return nil, err
 	}
 
-	var msgChan chan *nats.Msg
+	if err := stream.create(ctx); err != nil {
+		return nil, err
+	}
+
+	msgChan := make(chan *nats.Msg)
 
 	_, err = ctx.ChanSubscribe(subject, msgChan)
 	if err != nil {
@@ -161,22 +87,25 @@ func (stream *stream) Subscribe(conn Conn, subject string) (chan *nats.Msg, erro
 	return msgChan, nil
 }
 
-func (stream *stream) Publish(conn Conn, msg *nats.Msg, opts ...nats.PubOpt) error {
-	if stream.middleware != nil {
-		if err := stream.middleware(msg); err != nil {
-			return err
-		}
-	}
+// NewDisposableStream configures a stream with default settings for messages with low priority
+func NewDisposableStream(name string, subjects []string, maxMessages int64) Stream {
+	return NewStream(&nats.StreamConfig{
+		Name:      name,
+		Subjects:  subjects,
+		MaxMsgs:   maxMessages,
+		Retention: nats.LimitsPolicy,
+		Storage:   nats.MemoryStorage,
+		Discard:   nats.DiscardOld,
+	}, []nats.SubOpt{
+		nats.AckNone(),
+		nats.DeliverNew(),
+	})
+}
 
-	if err := stream.create(conn); err != nil {
-		return err
+// NewStream configures a stream without any default settings
+func NewStream(config *nats.StreamConfig, clientOpts []nats.SubOpt) Stream {
+	return &stream{
+		config:     config,
+		clientOpts: clientOpts,
 	}
-
-	ctx, err := conn.JetStream()
-	if err != nil {
-		return err
-	}
-
-	_, err = ctx.PublishMsg(msg, opts...)
-	return err
 }

@@ -20,33 +20,121 @@
 package events
 
 import (
-	"github.com/golang/mock/gomock"
+	"errors"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStream_Middleware(t *testing.T) {
-	msg := nats.NewMsg("original-subject")
+func TestStream_Subscribe(t *testing.T) {
+	t.Run("subscribe works and stream is created only once", func(t *testing.T) {
+		disposableStream := NewDisposableStream("example", []string{}, 100)
 
-	err := RetryStream.middleware(msg)
-	assert.NoError(t, err)
+		mockStreamInfo := &nats.StreamInfo{}
+		ctrl := gomock.NewController(t)
 
-	assert.Equal(t, "nuts.retry", msg.Subject)
-	assert.Equal(t, "original-subject", msg.Header.Get("subject"))
-	assert.Equal(t, "0", msg.Header.Get("retries"))
+		jsFirst := NewMockJetStreamContext(ctrl)
+		jsFirst.EXPECT().StreamInfo("example").Return(nil, nats.ErrStreamNotFound)
+		jsFirst.EXPECT().AddStream(disposableStream.Config()).Return(mockStreamInfo, nil)
+		jsFirst.EXPECT().ChanSubscribe("subject", gomock.Any()).Return(&nats.Subscription{}, nil)
+
+		jsLast := NewMockJetStreamContext(ctrl)
+		jsLast.EXPECT().ChanSubscribe("subject", gomock.Any()).Return(&nats.Subscription{}, nil)
+
+		conn := NewMockConn(ctrl)
+		conn.EXPECT().JetStream().Return(jsFirst, nil)
+		conn.EXPECT().JetStream().Return(jsLast, nil)
+
+		_, err := disposableStream.Subscribe(conn, "subject")
+		assert.NoError(t, err)
+
+		// The second time it should only subscribe, not re-create the stream
+		_, err = disposableStream.Subscribe(conn, "subject")
+		assert.NoError(t, err)
+	})
+
+	t.Run("stream is not created when it exists", func(t *testing.T) {
+		disposableStream := NewDisposableStream("example", []string{}, 100)
+
+		mockStreamInfo := &nats.StreamInfo{}
+		ctrl := gomock.NewController(t)
+
+		js := NewMockJetStreamContext(ctrl)
+		js.EXPECT().StreamInfo("example").Return(mockStreamInfo, nil)
+		js.EXPECT().ChanSubscribe("subject", gomock.Any()).Return(&nats.Subscription{}, nil)
+
+		conn := NewMockConn(ctrl)
+		conn.EXPECT().JetStream().Return(js, nil)
+
+		_, err := disposableStream.Subscribe(conn, "subject")
+		assert.NoError(t, err)
+	})
+
+	t.Run("error is returned when add-stream fails", func(t *testing.T) {
+		disposableStream := NewDisposableStream("example", []string{}, 100)
+
+		ctrl := gomock.NewController(t)
+
+		js := NewMockJetStreamContext(ctrl)
+		js.EXPECT().StreamInfo("example").Return(nil, nats.ErrStreamNotFound)
+		js.EXPECT().AddStream(disposableStream.Config()).Return(nil, errors.New("random error"))
+
+		conn := NewMockConn(ctrl)
+		conn.EXPECT().JetStream().Return(js, nil)
+
+		_, err := disposableStream.Subscribe(conn, "subject")
+		assert.Error(t, err)
+	})
+
+	t.Run("error is returned when chan-subscribe fails", func(t *testing.T) {
+		disposableStream := NewDisposableStream("example", []string{}, 100)
+
+		mockStreamInfo := &nats.StreamInfo{}
+		ctrl := gomock.NewController(t)
+
+		js := NewMockJetStreamContext(ctrl)
+		js.EXPECT().StreamInfo("example").Return(mockStreamInfo, nil)
+		js.EXPECT().ChanSubscribe("subject", gomock.Any()).Return(nil, errors.New("random error"))
+
+		conn := NewMockConn(ctrl)
+		conn.EXPECT().JetStream().Return(js, nil)
+
+		_, err := disposableStream.Subscribe(conn, "subject")
+		assert.Error(t, err)
+	})
+
+	t.Run("error is returned when stream-info fails", func(t *testing.T) {
+		disposableStream := NewDisposableStream("example", []string{}, 100)
+
+		ctrl := gomock.NewController(t)
+
+		js := NewMockJetStreamContext(ctrl)
+		js.EXPECT().StreamInfo("example").Return(nil, errors.New("random error"))
+
+		conn := NewMockConn(ctrl)
+		conn.EXPECT().JetStream().Return(js, nil)
+
+		_, err := disposableStream.Subscribe(conn, "subject")
+		assert.Error(t, err)
+	})
+
+	t.Run("error is returned when jetstream fails", func(t *testing.T) {
+		disposableStream := NewDisposableStream("example", []string{}, 100)
+
+		ctrl := gomock.NewController(t)
+
+		conn := NewMockConn(ctrl)
+		conn.EXPECT().JetStream().Return(nil, errors.New("random error"))
+
+		_, err := disposableStream.Subscribe(conn, "subject")
+		assert.Error(t, err)
+	})
 }
 
-func TestStream_Publish(t *testing.T) {
-	jsMock := NewMockJetStreamContext(gomock.NewController(t))
-	jsMock.EXPECT().StreamInfo(DisposableStream.Config().Name).Return(nil, nil)
-	jsMock.EXPECT().PublishMsg(nats.NewMsg("test"))
+func TestStream_ClientOpts(t *testing.T) {
+	disposableStream := NewDisposableStream("example", []string{}, 100)
 
-	conn := NewMockConn(gomock.NewController(t))
-	conn.EXPECT().JetStream().Return(jsMock, nil)
-	conn.EXPECT().JetStream().Return(jsMock, nil)
-
-	err := DisposableStream.Publish(conn, nats.NewMsg("test"))
-	assert.NoError(t, err)
+	assert.Len(t, disposableStream.ClientOpts(), 2)
 }
