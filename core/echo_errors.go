@@ -3,9 +3,10 @@ package core
 import (
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
-	"net/http"
 	"schneider.vip/problem"
 )
 
@@ -20,6 +21,8 @@ const OperationIDContextKey = "!!OperationId"
 // for logging/error returning.
 const ModuleNameContextKey = "!!ModuleName"
 const unmappedStatusCode = 0
+
+
 
 func createHTTPErrorHandler() echo.HTTPErrorHandler {
 	return func(err error, ctx echo.Context) {
@@ -58,6 +61,7 @@ func createHTTPErrorHandler() echo.HTTPErrorHandler {
 // Error returns an error that maps to a HTTP status
 func Error(statusCode int, errStr string, args ...interface{}) error {
 	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: statusCode}
+	return echo.NewHTTPError(statusCode, )
 }
 
 // NotFoundError returns an error that maps to a HTTP 404 Status Not Found.

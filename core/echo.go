@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 
@@ -115,30 +116,53 @@ func Logger() *logrus.Entry {
 	return _logger
 }
 
+// loggerConfig Contains the configuration for the loggerMiddleware.
+// Currently, this only allows for configuration of skip paths
+type loggerConfig struct {
+	// Skipper defines a function to skip middleware.
+	Skipper middleware.Skipper
+}
+
+// loggerMiddleware Is a custom logger middleware.
+// Should be added as the outer middleware to catch all errors and potential status rewrites
+// The current RequestLogger is not usable with our custom problem errors.
+// See https://github.com/labstack/echo/issues/2015
+func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) (err error) {
+			if config.Skipper(c) {
+				return next(c)
+			}
+			err = next(c)
+			req := c.Request()
+			res := c.Response()
+
+			status := res.Status
+			if err != nil {
+				switch errWithStatus := err.(type) {
+				case *echo.HTTPError:
+					status = errWithStatus.Code
+				case httpStatusCodeError:
+					status = errWithStatus.statusCode
+				default:
+					status = http.StatusInternalServerError
+				}
+			}
+
+			Logger().WithFields(logrus.Fields{
+				"remote_ip": c.RealIP(),
+				"method": req.Method,
+				"uri": req.RequestURI,
+				"status": status,
+			}).Info("request")
+			return
+		}
+	}
+}
+
 func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
-
-	// Register logrus as the Echo logger middleware.
-	// Skip log calls to the status endpoint (it gets called often by the Docker healthcheck and pollutes the log)
-	requestLoggerConfig := middleware.RequestLoggerConfig{
-		Skipper: requestsStatusEndpoint,
-		LogURI: true,
-		LogStatus: true,
-		LogMethod: true,
-		LogRemoteIP: true,
-		LogValuesFunc: func(c echo.Context, values middleware.RequestLoggerValues) error {
-			Logger().WithFields(logrus.Fields{
-				"remote_ip": values.RemoteIP,
-				"method": values.Method,
-				"uri": values.URI,
-				"status": values.Status,
-			}).Info("request")
-
-			return nil
-		},
-	}
-	echoServer.Use(middleware.RequestLoggerWithConfig(requestLoggerConfig))
 
 	// ErrorHandler
 	echoServer.HTTPErrorHandler = createHTTPErrorHandler()
@@ -157,6 +181,9 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 
 	// Use middleware to decode URL encoded path parameters like did%3Anuts%3A123 -> did:nuts:123
 	echoServer.Use(DecodeURIPath)
+
+	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: requestsStatusEndpoint}))
+
 	return echoServer, nil
 }
 
