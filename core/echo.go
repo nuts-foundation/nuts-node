@@ -122,6 +122,7 @@ func Logger() *logrus.Entry {
 type loggerConfig struct {
 	// Skipper defines a function to skip middleware.
 	Skipper middleware.Skipper
+	logger  *logrus.Entry
 }
 
 // loggerMiddleware Is a custom logger middleware.
@@ -131,7 +132,7 @@ type loggerConfig struct {
 func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) (err error) {
-			if config.Skipper(c) {
+			if config.Skipper != nil  && config.Skipper(c) {
 				return next(c)
 			}
 			err = next(c)
@@ -150,7 +151,7 @@ func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 				}
 			}
 
-			Logger().WithFields(logrus.Fields{
+			config.logger.WithFields(logrus.Fields{
 				"remote_ip": c.RealIP(),
 				"method":    req.Method,
 				"uri":       req.RequestURI,
@@ -183,7 +184,7 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 	// Use middleware to decode URL encoded path parameters like did%3Anuts%3A123 -> did:nuts:123
 	echoServer.Use(DecodeURIPath)
 
-	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: requestsStatusEndpoint}))
+	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: requestsStatusEndpoint, logger: Logger()}))
 
 	return echoServer, nil
 }

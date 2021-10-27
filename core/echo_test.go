@@ -1,12 +1,17 @@
 package core
 
 import (
+	"errors"
 	"fmt"
-	"github.com/golang/mock/gomock"
-	"github.com/labstack/echo/v4"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_MultiEcho_Bind(t *testing.T) {
@@ -150,5 +155,85 @@ func Test_requestsStatusEndpoint(t *testing.T) {
 		assert.False(t, requestsStatusEndpoint(ctx))
 		req.RequestURI = "/foobar"
 		assert.False(t, requestsStatusEndpoint(ctx))
+	})
+}
+
+func Test_loggerMiddleware(t *testing.T) {
+	t.Run("it logs", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		response  := &echo.Response{}
+		echoMock := mock.NewMockContext(ctrl)
+		echoMock.EXPECT().NoContent(http.StatusNoContent).Do(func(status int) {response.Status = status})
+		echoMock.EXPECT().Request().Return(&http.Request{RequestURI: "/test"})
+		echoMock.EXPECT().Response().Return(response)
+		echoMock.EXPECT().RealIP().Return("::1")
+
+		logger, hook := test.NewNullLogger()
+		logFunc := loggerMiddleware(loggerConfig{logger: logger.WithFields(logrus.Fields{})})
+		err := logFunc(func(context echo.Context) error {
+			return context.NoContent(http.StatusNoContent)
+		})(echoMock)
+
+		assert.NoError(t, err)
+		assert.Len(t, hook.Entries, 1)
+		assert.Equal(t, "::1", hook.LastEntry().Data["remote_ip"])
+		assert.Equal(t, http.StatusNoContent, hook.LastEntry().Data["status"])
+		assert.Equal(t, "/test", hook.LastEntry().Data["uri"])
+		ctrl.Finish()
+	})
+
+	t.Run("it handles echo.HTTPErrors", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		echoMock := mock.NewMockContext(ctrl)
+		echoMock.EXPECT().Request().Return(&http.Request{})
+		echoMock.EXPECT().Response().Return(&echo.Response{Status: http.StatusOK})
+		echoMock.EXPECT().RealIP().Return("::1")
+
+		logger, hook := test.NewNullLogger()
+		logFunc := loggerMiddleware(loggerConfig{logger: logger.WithFields(logrus.Fields{})})
+		_ = logFunc(func(context echo.Context) error {
+			return echo.NewHTTPError(http.StatusForbidden)
+		})(echoMock)
+
+		assert.Len(t, hook.Entries, 1)
+		assert.Equal(t, http.StatusForbidden, hook.LastEntry().Data["status"])
+		ctrl.Finish()
+
+	})
+
+	t.Run("it handles httpStatusCodeError", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		echoMock := mock.NewMockContext(ctrl)
+		echoMock.EXPECT().Request().Return(&http.Request{})
+		echoMock.EXPECT().Response().Return(&echo.Response{Status: http.StatusOK})
+		echoMock.EXPECT().RealIP().Return("::1")
+
+		logger, hook := test.NewNullLogger()
+		logFunc := loggerMiddleware(loggerConfig{logger: logger.WithFields(logrus.Fields{})})
+		_ = logFunc(func(context echo.Context) error {
+			return NotFoundError("not found")
+		})(echoMock)
+
+		assert.Len(t, hook.Entries, 1)
+		assert.Equal(t, http.StatusNotFound, hook.LastEntry().Data["status"])
+		ctrl.Finish()
+	})
+
+	t.Run("it handles go errors", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		echoMock := mock.NewMockContext(ctrl)
+		echoMock.EXPECT().Request().Return(&http.Request{})
+		echoMock.EXPECT().Response().Return(&echo.Response{Status: http.StatusOK})
+		echoMock.EXPECT().RealIP().Return("::1")
+
+		logger, hook := test.NewNullLogger()
+		logFunc := loggerMiddleware(loggerConfig{logger: logger.WithFields(logrus.Fields{})})
+		_ = logFunc(func(context echo.Context) error {
+			return errors.New("failed")
+		})(echoMock)
+
+		assert.Len(t, hook.Entries, 1)
+		assert.Equal(t, http.StatusInternalServerError, hook.LastEntry().Data["status"])
+		ctrl.Finish()
 	})
 }
