@@ -132,7 +132,7 @@ type loggerConfig struct {
 func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) (err error) {
-			if config.Skipper != nil  && config.Skipper(c) {
+			if config.Skipper != nil && config.Skipper(c) {
 				return next(c)
 			}
 			err = next(c)
