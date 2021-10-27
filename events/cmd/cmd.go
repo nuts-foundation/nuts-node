@@ -15,6 +15,7 @@ const ConfEventsHostname = "events.nats.hostname"
 // ConfEventsStorageDir defines the storage directory for file-backed streams in the NATS server
 const ConfEventsStorageDir = "events.nats.storagedir"
 
+// FlagSet defines the set of flags that sets the events engine configuration
 func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("events", pflag.ContinueOnError)
 
