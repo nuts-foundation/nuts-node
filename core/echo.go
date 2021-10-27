@@ -110,6 +110,7 @@ func getGroup(path string) string {
 }
 
 var _logger = logrus.StandardLogger().WithField("module", "http-server")
+
 // Logger returns a logger which should be used for logging in this engine. It adds fields so
 // log entries from this engine can be recognized as such.
 func Logger() *logrus.Entry {
@@ -151,9 +152,9 @@ func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 
 			Logger().WithFields(logrus.Fields{
 				"remote_ip": c.RealIP(),
-				"method": req.Method,
-				"uri": req.RequestURI,
-				"status": status,
+				"method":    req.Method,
+				"uri":       req.RequestURI,
+				"status":    status,
 			}).Info("request")
 			return
 		}

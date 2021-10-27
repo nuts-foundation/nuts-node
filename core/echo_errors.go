@@ -22,8 +22,6 @@ const OperationIDContextKey = "!!OperationId"
 const ModuleNameContextKey = "!!ModuleName"
 const unmappedStatusCode = 0
 
-
-
 func createHTTPErrorHandler() echo.HTTPErrorHandler {
 	return func(err error, ctx echo.Context) {
 		// HTTPErrors occur e.g. when a parameter bind fails. We map this to a httpStatusCodeError so its status code
@@ -61,7 +59,7 @@ func createHTTPErrorHandler() echo.HTTPErrorHandler {
 // Error returns an error that maps to a HTTP status
 func Error(statusCode int, errStr string, args ...interface{}) error {
 	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: statusCode}
-	return echo.NewHTTPError(statusCode, )
+	return echo.NewHTTPError(statusCode)
 }
 
 // NotFoundError returns an error that maps to a HTTP 404 Status Not Found.
