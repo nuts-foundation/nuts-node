@@ -3,6 +3,8 @@ package cmd
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"os"
 	"testing"
@@ -15,6 +17,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 )
+
+const grpcListenAddressEnvKey = "NUTS_NETWORK_GRPCADDR"
 
 func Test_rootCmd(t *testing.T) {
 	t.Run("no args prints help", func(t *testing.T) {
@@ -73,6 +77,9 @@ func Test_serverCmd(t *testing.T) {
 		echoServer.EXPECT().Add(http.MethodPut, gomock.Any(), gomock.Any()).AnyTimes()
 		echoServer.EXPECT().Start(gomock.Any())
 
+		os.Setenv(grpcListenAddressEnvKey, fmt.Sprintf("localhost:%d", test.FreeTCPPort()))
+		defer os.Unsetenv(grpcListenAddressEnvKey)
+
 		testDirectory := io.TestDirectory(t)
 		os.Setenv("NUTS_DATADIR", testDirectory)
 		defer os.Unsetenv("NUTS_DATADIR")
@@ -93,6 +100,9 @@ func Test_serverCmd(t *testing.T) {
 		assert.Equal(t, testDirectory, m.TestConfig.Datadir)
 	})
 	t.Run("defaults and alt binds are used", func(t *testing.T) {
+		os.Setenv(grpcListenAddressEnvKey, fmt.Sprintf("localhost:%d", test.FreeTCPPort()))
+		defer os.Unsetenv(grpcListenAddressEnvKey)
+
 		var echoServers []*http2.StubEchoServer
 		system := CreateSystem()
 		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {

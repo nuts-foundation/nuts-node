@@ -20,9 +20,7 @@ package network
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/network/net"
-	"github.com/nuts-foundation/nuts-node/network/protocol"
-	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"testing"
 	"time"
 
@@ -41,13 +39,13 @@ var tlsDisabled = false
 
 type networkTestContext struct {
 	network           *Network
-	connectionManager *net.MockConnectionManager
+	connectionManager *transport.MockConnectionManager
 	graph             *dag.MockDAG
 	payload           *dag.MockPayloadStore
 	keyStore          *crypto.MockKeyStore
 	publisher         *dag.MockPublisher
 	keyResolver       *vdrTypes.MockKeyResolver
-	protocol          *protocol.MockProtocol
+	protocol          *transport.MockProtocol
 }
 
 func TestNetwork_ListTransactions(t *testing.T) {
@@ -269,8 +267,6 @@ func TestNetwork_Start(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.connectionManager.EXPECT().Start()
-		cxt.protocol.EXPECT().Start()
 		cxt.graph.EXPECT().Verify(gomock.Any()).Return(errors.New("failed"))
 		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
@@ -302,20 +298,20 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 	const txNum = 5
 	const expectedVersion = "0"
 	const expectedID = "https://github.com/nuts-foundation/nuts-node"
-	expectedPeer := types.Peer{ID: "abc", Address: "123"}
+	expectedPeer := transport.Peer{ID: "abc", Address: "123"}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	cxt := createNetwork(ctrl)
 	cxt.graph.EXPECT().Statistics(gomock.Any()).Return(dag.Statistics{NumberOfTransactions: txNum})
 
-	cxt.connectionManager.EXPECT().Peers().Return([]types.Peer{expectedPeer})
+	cxt.connectionManager.EXPECT().Peers().Return([]transport.Peer{expectedPeer})
 
 	actual := cxt.network.collectDiagnostics()
 
 	assert.Equal(t, expectedID, actual.SoftwareID)
 	assert.Equal(t, expectedVersion, actual.SoftwareVersion)
-	assert.Equal(t, []types.PeerID{expectedPeer.ID}, actual.Peers)
+	assert.Equal(t, []transport.PeerID{expectedPeer.ID}, actual.Peers)
 	assert.Equal(t, uint32(txNum), actual.NumberOfTransactions)
 	assert.NotEmpty(t, actual.Uptime)
 }
@@ -407,8 +403,8 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	graph := dag.NewMockDAG(ctrl)
 	payload := dag.NewMockPayloadStore(ctrl)
 	publisher := dag.NewMockPublisher(ctrl)
-	prot := protocol.NewMockProtocol(ctrl)
-	connectionManager := net.NewMockConnectionManager(ctrl)
+	prot := transport.NewMockProtocol(ctrl)
+	connectionManager := transport.NewMockConnectionManager(ctrl)
 	networkConfig := TestNetworkConfig()
 	networkConfig.TrustStoreFile = "test/truststore.pem"
 	networkConfig.CertFile = "test/certificate-and-key.pem"
@@ -421,7 +417,7 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	network.connectionManager = connectionManager
 	network.graph = graph
 	network.payloadStore = payload
-	network.protocols = []protocol.Protocol{prot}
+	network.protocols = []transport.Protocol{prot}
 	network.publisher = publisher
 	network.startTime.Store(time.Now())
 	return &networkTestContext{

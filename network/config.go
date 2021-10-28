@@ -1,6 +1,8 @@
 package network
 
-import v1 "github.com/nuts-foundation/nuts-node/network/protocol/v1"
+import (
+	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+)
 
 // Config holds the config for Transactions
 type Config struct {

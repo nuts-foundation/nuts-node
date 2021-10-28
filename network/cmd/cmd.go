@@ -20,7 +20,7 @@ package cmd
 
 import (
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"sort"
 	"strings"
 
@@ -164,7 +164,7 @@ func peersCommand() *cobra.Command {
 
 			cmd.Printf("Listing %d peers:\n", len(peers))
 			for _, curr := range sortedPeers {
-				peer := types.PeerID(curr)
+				peer := transport.PeerID(curr)
 				cmd.Printf("\n%s\n", peer)
 				cmd.Printf("  SoftwareID:            %s\n", peers[peer].SoftwareID)
 				cmd.Printf("  SoftwareVersion:           %s\n", peers[peer].SoftwareVersion)

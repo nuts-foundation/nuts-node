@@ -21,7 +21,7 @@ package network
 import (
 	"context"
 	"fmt"
-	v1 "github.com/nuts-foundation/nuts-node/network/protocol/v1"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1"
 	"github.com/nuts-foundation/nuts-node/test"
 	"hash/crc32"
 	"path"

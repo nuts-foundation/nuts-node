@@ -20,7 +20,7 @@ package v1
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -110,7 +110,7 @@ func TestHttpClient_GetTransactionPayload(t *testing.T) {
 
 func TestHTTPClient_GetPeerDiagnostics(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
-		expected := map[types.PeerID]PeerDiagnostics{"foo": {Uptime: 50 * time.Second}}
+		expected := map[transport.PeerID]PeerDiagnostics{"foo": {Uptime: 50 * time.Second}}
 		expectedData, _ := json.Marshal(expected)
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: expectedData})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}

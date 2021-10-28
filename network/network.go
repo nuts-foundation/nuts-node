@@ -23,12 +23,10 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crl"
-	"github.com/nuts-foundation/nuts-node/network/grpc"
-	"github.com/nuts-foundation/nuts-node/network/net"
-	"github.com/nuts-foundation/nuts-node/network/protocol"
-	networkTypes "github.com/nuts-foundation/nuts-node/network/protocol/types"
-	v1 "github.com/nuts-foundation/nuts-node/network/protocol/v1"
-	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
 	"github.com/pkg/errors"
 	"os"
 	"path"
@@ -66,14 +64,14 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 type Network struct {
 	config                 Config
 	lastTransactionTracker lastTransactionTracker
-	protocols              []protocol.Protocol
-	connectionManager      net.ConnectionManager
+	protocols              []transport.Protocol
+	connectionManager      transport.ConnectionManager
 	graph                  dag.DAG
 	publisher              dag.Publisher
 	payloadStore           dag.PayloadStore
 	keyResolver            types.KeyResolver
-	startTime              atomic.Value
-	peerID                 networkTypes.PeerID
+	startTime atomic.Value
+	peerID    transport.PeerID
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -112,14 +110,14 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
-	n.peerID = networkTypes.PeerID(uuid.New().String())
+	n.peerID = transport.PeerID(uuid.New().String())
 
 	grpcConfig, err := buildGRPCConfig(n.config, n.peerID, config.Strictmode)
 	if err != nil {
 		return err
 	}
 	// Configure protocols
-	n.protocols = []protocol.Protocol{
+	n.protocols = []transport.Protocol{
 		v1.New(n.config.ProtocolV1, p2p.AdapterConfig{
 			PeerID:        n.peerID,
 			ListenAddress: grpcConfig.ListenAddress,
@@ -147,7 +145,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 }
 
 // TODO: Untangle from v1 and move to ConnectionManager/ManagedConnection
-func buildGRPCConfig(moduleConfig Config, peerID networkTypes.PeerID, strictMode bool) (*grpc.Config, error) {
+func buildGRPCConfig(moduleConfig Config, peerID transport.PeerID, strictMode bool) (*grpc.Config, error) {
 	cfg := grpc.Config{
 		ListenAddress: moduleConfig.GrpcAddr,
 		PeerID:        peerID,
@@ -198,6 +196,13 @@ func (n *Network) Config() interface{} {
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
+	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
+	n.publisher.Start()
+
+	if err := n.graph.Verify(context.Background()); err != nil {
+		return err
+	}
+
 	err := n.connectionManager.Start()
 	if err != nil {
 		return err
@@ -207,12 +212,6 @@ func (n *Network) Start() error {
 		if err != nil {
 			return err
 		}
-	}
-	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
-	n.publisher.Start()
-
-	if err := n.graph.Verify(context.Background()); err != nil {
-		return err
 	}
 
 	return nil
@@ -321,8 +320,8 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 }
 
 // PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
-func (n *Network) PeerDiagnostics() map[networkTypes.PeerID]networkTypes.Diagnostics {
-	result := make(map[networkTypes.PeerID]networkTypes.Diagnostics, 0)
+func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
+	result := make(map[transport.PeerID]transport.Diagnostics, 0)
 	// We assume higher protocol versions (later in the slice) have better/more accurate diagnostics,
 	// so for now they're copied over diagnostics of earlier versions.
 	for _, prot := range n.protocols {
@@ -333,8 +332,8 @@ func (n *Network) PeerDiagnostics() map[networkTypes.PeerID]networkTypes.Diagnos
 	return result
 }
 
-func (n *Network) collectDiagnostics() networkTypes.Diagnostics {
-	result := networkTypes.Diagnostics{
+func (n *Network) collectDiagnostics() transport.Diagnostics {
+	result := transport.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
 		NumberOfTransactions: uint32(n.graph.Statistics(context.Background()).NumberOfTransactions),
 		SoftwareVersion:      core.GitCommit,

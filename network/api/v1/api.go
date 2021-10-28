@@ -20,7 +20,7 @@ package v1
 
 import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -98,7 +98,7 @@ func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) er
 // GetPeerDiagnostics returns the diagnostics of the node's peers
 func (a Wrapper) GetPeerDiagnostics(ctx echo.Context) error {
 	diagnostics := a.Service.PeerDiagnostics()
-	result := make(map[types.PeerID]PeerDiagnostics, len(diagnostics))
+	result := make(map[transport.PeerID]PeerDiagnostics, len(diagnostics))
 	for k, v := range diagnostics {
 		result[k] = PeerDiagnostics(v)
 	}
