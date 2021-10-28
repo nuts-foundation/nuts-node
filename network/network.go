@@ -70,8 +70,8 @@ type Network struct {
 	publisher              dag.Publisher
 	payloadStore           dag.PayloadStore
 	keyResolver            types.KeyResolver
-	startTime atomic.Value
-	peerID    transport.PeerID
+	startTime              atomic.Value
+	peerID                 transport.PeerID
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.

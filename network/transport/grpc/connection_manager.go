@@ -41,7 +41,7 @@ func NewGRPCConnectionManager(config Config, protocols ...transport.Protocol) tr
 
 // grpcConnectionManager is a ConnectionManager that does not discover peers on its own, but just connects to the peers for which Connect() is called.
 type grpcConnectionManager struct {
-	protocols   []transport.Protocol
+	protocols       []transport.Protocol
 	config          Config
 	connections     *connectionList
 	grpcServer      *grpc.Server
