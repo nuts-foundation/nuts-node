@@ -316,7 +316,7 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 	assert.NotEmpty(t, actual.Uptime)
 }
 
-func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
+func TestNetwork_buildGRPCConfig(t *testing.T) {
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		moduleConfig := Config{
 			GrpcAddr:       ":5555",
@@ -365,6 +365,13 @@ func TestNetwork_buildP2PNetworkConfig(t *testing.T) {
 		cfg, err := buildGRPCConfig(moduleConfig, "", false)
 		assert.Nil(t, cfg)
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
+	})
+	t.Run("error - TLS can't be implicitly disabled in strict mode", func(t *testing.T) {
+		moduleConfig := Config{
+			GrpcAddr:  ":5555",
+		}
+		_, err := buildGRPCConfig(moduleConfig, "", true)
+		assert.EqualError(t, err, "to disable TLS in strict mode, explicitly specify enableTLS=false")
 	})
 }
 

@@ -23,6 +23,7 @@ type Config struct {
 	ProtocolV1 v1.Config `koanf:"network.v1"`
 }
 
+// TLSEnabled indicates whether TLS should be enabled or not for incoming traffic.
 func (c Config) TLSEnabled() bool {
 	if c.EnableTLS != nil {
 		return *c.EnableTLS
