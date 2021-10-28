@@ -7,7 +7,6 @@ import (
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
 )
 
-
 // Config holds values for configuring the gRPC ConnectionManager.
 type Config struct {
 	// PeerID contains the ID of the local node.
