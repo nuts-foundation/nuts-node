@@ -59,7 +59,6 @@ func createHTTPErrorHandler() echo.HTTPErrorHandler {
 // Error returns an error that maps to a HTTP status
 func Error(statusCode int, errStr string, args ...interface{}) error {
 	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: statusCode}
-	return echo.NewHTTPError(statusCode)
 }
 
 // NotFoundError returns an error that maps to a HTTP 404 Status Not Found.
