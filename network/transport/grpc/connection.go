@@ -8,7 +8,7 @@ import (
 type managedConnection struct {
 	peer    transport.Peer
 	closers []chan struct{}
-	mux     *sync.Mutex
+	mux     sync.Mutex
 }
 
 func (mc *managedConnection) closer() chan struct{} {
@@ -31,7 +31,7 @@ func (mc *managedConnection) close() {
 }
 
 type connectionList struct {
-	mux  *sync.Mutex
+	mux  sync.Mutex
 	list []*managedConnection
 }
 
@@ -44,16 +44,31 @@ func (c *connectionList) closeAll() {
 	}
 }
 
-func (c *connectionList) getOrRegister(peer transport.Peer) managedConnection {
+func (c *connectionList) getOrRegister(peer transport.Peer) *managedConnection {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
 	// Check whether we're already connected to this peer (by ID)
 	for _, curr := range c.list {
 		if curr.peer.ID == peer.ID {
-			return *curr
+			return curr
 		}
 	}
 
-	return managedConnection{peer: peer, mux: &sync.Mutex{}}
+	result := &managedConnection{peer: peer}
+	c.list = append(c.list, result)
+	return result
+}
+
+func (c *connectionList) connected(peerID transport.PeerID) bool {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	for _, curr := range c.list {
+		if curr.peer.ID == peerID {
+			return true
+		}
+	}
+
+	return false
 }

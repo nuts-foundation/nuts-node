@@ -34,7 +34,7 @@ func NewGRPCConnectionManager(config Config, protocols ...transport.Protocol) tr
 	return &grpcConnectionManager{
 		protocols:       protocols,
 		config:          config,
-		connections:     connectionList{mux: &sync.Mutex{}},
+		connections:     &connectionList{},
 		grpcServerMutex: &sync.Mutex{},
 	}
 }
@@ -43,7 +43,7 @@ func NewGRPCConnectionManager(config Config, protocols ...transport.Protocol) tr
 type grpcConnectionManager struct {
 	protocols   []transport.Protocol
 	config          Config
-	connections     connectionList
+	connections     *connectionList
 	grpcServer      *grpc.Server
 	grpcServerMutex *sync.Mutex
 	listener        net.Listener
@@ -136,7 +136,7 @@ func (s grpcConnectionManager) RegisterService(desc *grpc.ServiceDesc, impl inte
 	s.grpcServer.RegisterService(desc, impl)
 }
 
-func (s grpcConnectionManager) acceptGRPCStream(stream grpc.ServerStream) (bool, transport.Peer, chan struct{}) {
+func (s *grpcConnectionManager) acceptGRPCStream(stream grpc.ServerStream) (bool, transport.Peer, chan struct{}) {
 	peerCtx, _ := grpcPeer.FromContext(stream.Context())
 	log.Logger().Tracef("New peer connected from %s", peerCtx.Addr)
 
@@ -151,11 +151,17 @@ func (s grpcConnectionManager) acceptGRPCStream(stream grpc.ServerStream) (bool,
 		log.Logger().Errorf("Unable to accept gRPC stream (remote address: %s), unable to read peer ID: %v", peerCtx.Addr, err)
 		return false, transport.Peer{}, nil
 	}
-	// TODO: Check already connected?
 	peer := transport.Peer{
 		ID:      peerID,
 		Address: peerCtx.Addr.String(),
 	}
+
+	// Check already connected?
+	if s.connections.connected(peerID) {
+		log.Logger().Infof("Rejecting connection, peer already connected: %s", peer)
+		return false, peer, nil
+	}
+
 	log.Logger().Infof("New peer connected (peer=%s)", peer)
 	// We received our peer's PeerID, now send our own.
 	if err := stream.SendHeader(constructMetadata(s.config.PeerID)); err != nil {
