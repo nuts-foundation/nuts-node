@@ -20,35 +20,61 @@
 package events
 
 import (
+	"path"
+
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/events/log"
 
-	nats "github.com/nats-io/nats-server/v2/server"
+	natsServer "github.com/nats-io/nats-server/v2/server"
 )
 
 const moduleName = "Event manager"
 
 type manager struct {
-	server *nats.Server
+	config *Config
+	server *natsServer.Server
 }
 
 // NewManager returns a new event manager
 func NewManager() Event {
-	return &manager{}
+	return &manager{config: &Config{}}
 }
 
 func (m *manager) Name() string {
 	return moduleName
 }
 
+func (m *manager) Config() interface{} {
+	return &m.config
+}
+
+func (m *manager) Configure(config core.ServerConfig) error {
+	if m.config.StorageDir == "" {
+		m.config.StorageDir = path.Join(config.Datadir, "events")
+	}
+
+	return nil
+}
+
 func (m *manager) Start() error {
 	log.Logger().Debugf("starting %s", moduleName)
-	server, err := nats.NewServer(&nats.Options{})
+
+	server, err := natsServer.NewServer(&natsServer.Options{
+		JetStream: true,
+		Port:      m.config.Port,
+		Host:      m.config.Hostname,
+		StoreDir:  m.config.StorageDir,
+	})
 	if err != nil {
 		return err
 	}
+
 	m.server = server
+
 	server.Start()
+
 	log.Logger().Infof("started %s", moduleName)
+
 	return nil
 }
 
@@ -58,10 +84,11 @@ func (m *manager) Shutdown() error {
 	}
 
 	log.Logger().Debugf("shutting down %s", moduleName)
-	// give shutdown command
+
 	m.server.Shutdown()
-	// wait for shutdown to complete
 	m.server.WaitForShutdown()
+
 	log.Logger().Infof("%s shutdown complete", moduleName)
+
 	return nil
 }
