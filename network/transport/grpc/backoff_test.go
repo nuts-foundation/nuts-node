@@ -16,7 +16,7 @@
  *
  */
 
-package p2p
+package grpc
 
 import (
 	"testing"

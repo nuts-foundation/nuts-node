@@ -19,38 +19,27 @@
 package p2p
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"github.com/nuts-foundation/nuts-node/core"
+	"context"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
+	grpcLib "google.golang.org/grpc"
 )
 
 // Adapter defines the API for the P2P layer, used to connect to peers and exchange messages.
 type Adapter interface {
-	grpc.ServiceImplementor
-	core.Diagnosable
-	// Configure configures the Adapter. Must be called before Start().
-	Configure(config AdapterConfig) error
-	// Start starts the P2P network on the local node.
-	Start() error
-	// Stop stops the P2P network on the local node.
-	Stop() error
-	// ConnectToPeer adds a remote node to the local node's view of the network, so it can become one of our peers.
-	// If we'll try to connect to the remote node, true is returned, otherwise false.
-	ConnectToPeer(address string) bool
+	grpc.InboundStreamer
+
 	// ReceivedMessages returns a queue containing all messages received from our peers. It must be drained, because when its buffer is full the producer (Adapter) is blocked.
 	ReceivedMessages() MessageQueue
 	// Send sends a message to a specific peer.
 	Send(peer transport.PeerID, message *protobuf.NetworkMessage) error
 	// Broadcast sends a message to all peers.
 	Broadcast(message *protobuf.NetworkMessage)
-	// Peers returns our peers (remote nodes we're currently connected to).
-	Peers() []transport.Peer
 	// EventChannels returns the channels that are used to communicate P2P network events on. They MUST be listened
 	// on by a consumer.
 	EventChannels() (peerConnected chan transport.Peer, peerDisconnected chan transport.Peer)
+	OpenStream(ctx context.Context, grpcConn *grpcLib.ClientConn, conn func(stream grpcLib.ClientStream) (transport.Peer, error), i <-chan struct{}) (context.Context, error)
 }
 
 // MessageQueue defines an interfaces for reading incoming network messages from a queue.
@@ -66,19 +55,4 @@ type PeerMessage struct {
 	Peer transport.PeerID
 	// Message contains the received message.
 	Message *protobuf.NetworkMessage
-}
-
-// AdapterConfig contains configuration for the P2P adapter.
-type AdapterConfig struct {
-	// PeerID contains the ID of the local node.
-	PeerID transport.PeerID
-	// ServerCert specifies the TLS client certificate. If set the client should open a TLS socket, otherwise plain TCP.
-	ClientCert tls.Certificate
-	// TrustStore contains the trust anchors used when verifying remote a peer's TLS certificate.
-	TrustStore    *x509.CertPool
-	ListenAddress string
-}
-
-func (cfg AdapterConfig) tlsEnabled() bool {
-	return cfg.TrustStore != nil
 }

@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -28,6 +29,9 @@ import (
 	grpcLib "google.golang.org/grpc"
 	"time"
 )
+
+var _ grpc.InboundStreamer = &protocolV1{}
+var _ grpc.OutboundStreamer = &protocolV1{}
 
 // Config specifies config for protocol v1
 type Config struct {
@@ -50,59 +54,47 @@ func DefaultConfig() Config {
 }
 
 // New returns a new instance of the protocol v1 implementation.
-func New(config Config, adapterConfig p2p.AdapterConfig, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) transport.Protocol {
+func New(config Config, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) transport.Protocol {
 	adapter := p2p.NewAdapter()
 	return &protocolV1{
-		config:        config,
-		adapterConfig: adapterConfig,
-		adapter:       adapter,
-		protocol:      logic.NewProtocol(adapter, graph, publisher, payloadStore, diagnosticsProvider),
+		config:   config,
+		adapter:  adapter,
+		protocol: logic.NewProtocol(adapter, graph, publisher, payloadStore, diagnosticsProvider),
 	}
 }
 
 type protocolV1 struct {
-	config        Config
-	adapter       p2p.Adapter
-	protocol      logic.Protocol
-	adapterConfig p2p.AdapterConfig
+	config   Config
+	adapter  p2p.Adapter
+	protocol logic.Protocol
 }
 
-func (p protocolV1) Configure() error {
+func (p protocolV1) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream) (transport.Peer, error), closer <-chan struct{}) (context.Context, error) {
+	return p.adapter.OpenStream(outgoingContext, grpcConn, callback, closer)
+}
+
+func (p protocolV1) Configure(peerID transport.PeerID) {
 	p.protocol.Configure(
 		time.Duration(p.config.AdvertHashesInterval)*time.Millisecond,
 		time.Duration(p.config.AdvertDiagnosticsInterval)*time.Millisecond,
 		time.Duration(p.config.CollectMissingPayloadsInterval)*time.Millisecond,
-		p.adapterConfig.PeerID)
-	return p.adapter.Configure(p.adapterConfig)
+		peerID)
 }
 
-func (p protocolV1) Start() error {
-	if err := p.adapter.Start(); err != nil {
-		return err
-	}
+func (p protocolV1) Start() {
 	p.protocol.Start()
-	return nil
 }
 
-func (p protocolV1) Stop() error {
+func (p protocolV1) Stop() {
 	p.protocol.Stop()
-	return p.adapter.Stop()
 }
 
 func (p protocolV1) Diagnostics() []core.DiagnosticResult {
-	return append(p.protocol.Diagnostics(), p.adapter.Diagnostics()...)
+	return p.protocol.Diagnostics()
 }
 
 func (p protocolV1) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	return p.protocol.PeerDiagnostics()
-}
-
-func (p protocolV1) Connect(peerAddress string) {
-	_ = p.adapter.ConnectToPeer(peerAddress)
-}
-
-func (p protocolV1) Peers() []transport.Peer {
-	return p.adapter.Peers()
 }
 
 func (p protocolV1) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.StreamAcceptor) {

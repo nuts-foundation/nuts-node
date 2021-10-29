@@ -71,10 +71,10 @@ func TestProtocolV1_MissingPayloads(t *testing.T) {
 		return
 	}
 
-	node2.protocol.Connect(nameToAddress("node1"))
+	node2.connectionManager.Connect(nameToAddress("node1"))
 	// Wait until nodes are connected
 	if !test.WaitFor(t, func() (bool, error) {
-		return len(node1.protocol.Peers()) == 1 && len(node2.protocol.Peers()) == 1, nil
+		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
 	}, integrationTestTimeout, "time-out while waiting for node 1 and 2 to have 2 peers") {
 		return
 	}
@@ -121,10 +121,10 @@ func TestProtocolV1_Pagination(t *testing.T) {
 		prev = tx
 	}
 
-	node2.protocol.Connect(nameToAddress("pagination_node1"))
+	node2.connectionManager.Connect(nameToAddress("pagination_node1"))
 	// Wait until nodes are connected
 	if !test.WaitFor(t, func() (bool, error) {
-		return len(node1.protocol.Peers()) == 1 && len(node2.protocol.Peers()) == 1, nil
+		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
 	}, integrationTestTimeout, "time-out while waiting for node 1 and 2 to have a peer") {
 		return
 	}
@@ -137,11 +137,12 @@ func TestProtocolV1_Pagination(t *testing.T) {
 }
 
 type integrationTestContext struct {
-	protocol     *protocolV1
-	receivedTXs  []dag.Transaction
-	mux          *sync.Mutex
-	graph        dag.DAG
-	payloadStore dag.PayloadStore
+	protocol          *protocolV1
+	receivedTXs       []dag.Transaction
+	mux               *sync.Mutex
+	graph             dag.DAG
+	payloadStore      dag.PayloadStore
+	connectionManager transport.ConnectionManager
 }
 
 func (i *integrationTestContext) countTXs() int {
@@ -186,25 +187,18 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 	peerID := transport.PeerID(name)
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
-	ctx.protocol = New(*cfg, p2p.AdapterConfig{
-		PeerID:        peerID,
-		ListenAddress: listenAddress,
-	}, ctx.graph, publisher, ctx.payloadStore, dummyDiagnostics).(*protocolV1)
+	ctx.protocol = New(*cfg, ctx.graph, publisher, ctx.payloadStore, dummyDiagnostics).(*protocolV1)
 
-	connectionManager := grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), ctx.protocol)
+	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), ctx.protocol)
 
-	if err = ctx.protocol.Configure(); err != nil {
+	ctx.protocol.Configure(peerID)
+	if err = ctx.connectionManager.Start(); err != nil {
 		t.Fatal(err)
 	}
-	if err = connectionManager.Start(); err != nil {
-		t.Fatal(err)
-	}
-	if err = ctx.protocol.Start(); err != nil {
-		t.Fatal(err)
-	}
+	ctx.protocol.Start()
 	t.Cleanup(func() {
-		_ = ctx.protocol.Stop()
-		connectionManager.Stop()
+		ctx.protocol.Stop()
+		ctx.connectionManager.Stop()
 	})
 	return ctx
 }

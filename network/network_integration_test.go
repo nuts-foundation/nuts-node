@@ -55,25 +55,11 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 
 	// Start 3 nodes: bootstrap, node1 and node2. Node 1 and 2 connect to the bootstrap node and should discover
 	// each other that way.
-	bootstrap, err := startNode("integration_bootstrap", path.Join(testDirectory, "bootstrap"))
-	if !assert.NoError(t, err) {
-		return
-	}
-	node1, err := startNode("integration_node1", path.Join(testDirectory, "node1"))
-	if !assert.NoError(t, err) {
-		return
-	}
+	bootstrap := startNode(t, "integration_bootstrap", testDirectory)
+	node1 := startNode(t, "integration_node1", testDirectory)
 	node1.connectionManager.Connect(nameToAddress("integration_bootstrap"))
-	node2, err := startNode("integration_node2", path.Join(testDirectory, "node2"))
-	if !assert.NoError(t, err) {
-		return
-	}
+	node2 := startNode(t, "integration_node2", testDirectory)
 	node2.connectionManager.Connect(nameToAddress("integration_bootstrap"))
-	defer func() {
-		node2.Shutdown()
-		node1.Shutdown()
-		bootstrap.Shutdown()
-	}()
 
 	// Wait until nodes are connected
 	if !test.WaitFor(t, func() (bool, error) {
@@ -82,7 +68,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 		return
 	}
 
-	// Publish first transaction on node1 and we expect in to come out on node2 and bootstrap
+	// Publish first transaction on node1, we expect in to come out on node2 and bootstrap
 	if !addTransactionAndWaitForItToArrive(t, "doc1", key, node1, "integration_node2", "integration_bootstrap") {
 		return
 	}
@@ -114,6 +100,54 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	fmt.Printf("%v\n", node2.Diagnostics())
 }
 
+func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
+	testDirectory := io.TestDirectory(t)
+	resetIntegrationTest()
+
+	// Start 2 nodes: node1 and node2, where each connects to the other
+	node1 := startNode(t, "node1", testDirectory)
+	node2 := startNode(t, "node2", testDirectory)
+
+	// Now connect node1 to node2 and wait for them to set up
+	node1.connectionManager.Connect(nameToAddress("node2"))
+	if !test.WaitFor(t, func() (bool, error) {
+		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
+	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
+		return
+	}
+
+	// Now instruct node2 to connect to node1
+	node2.connectionManager.Connect(nameToAddress("node1"))
+	time.Sleep(time.Second)
+	assert.Len(t, node1.connectionManager.Peers(), 1)
+	assert.Len(t, node2.connectionManager.Peers(), 1)
+}
+
+func TestNetworkIntegration_NodeDisconnects(t *testing.T) {
+	testDirectory := io.TestDirectory(t)
+	resetIntegrationTest()
+
+	// Start 2 nodes: node1 and node2, then node2 shuts down, which node1 should notice
+	node1 := startNode(t, "node1", testDirectory)
+	node2 := startNode(t, "node2", testDirectory)
+
+	// Now connect node1 to node2 and wait for them to set up
+	node1.connectionManager.Connect(nameToAddress("node2"))
+	if !test.WaitFor(t, func() (bool, error) {
+		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
+	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
+		return
+	}
+
+	// Now shut down node2 and for wait node1 to notice it
+	_ = node2.Shutdown()
+	if !test.WaitFor(t, func() (bool, error) {
+		return len(node1.connectionManager.Peers()) == 0, nil
+	}, defaultTimeout, "time-out while waiting for node 1 to notice shut down node") {
+		return
+	}
+}
+
 func resetIntegrationTest() {
 	// in an integration test we want everything to work as intended, disable test speedup and re-enable file sync for bbolt
 	defaultBBoltOptions.NoSync = false
@@ -143,7 +177,7 @@ func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCr
 	return true
 }
 
-func startNode(name string, directory string) (*Network, error) {
+func startNode(t *testing.T, name string, testDirectory string) *Network {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
 	core.NewServerConfig().Load(&cobra.Command{})
@@ -165,11 +199,11 @@ func startNode(name string, directory string) (*Network, error) {
 		config:                 config,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
-	if err := instance.Configure(core.ServerConfig{Datadir: directory}); err != nil {
-		return nil, err
+	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {
+		t.Fatal(err)
 	}
 	if err := instance.Start(); err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
 	instance.Subscribe(payloadType, func(transaction dag.Transaction, payload []byte) error {
 		mutex.Lock()
@@ -178,7 +212,10 @@ func startNode(name string, directory string) (*Network, error) {
 		receivedTransactions[name] = append(receivedTransactions[name], transaction)
 		return nil
 	})
-	return instance, nil
+	t.Cleanup(func() {
+		_ = instance.Shutdown()
+	})
+	return instance
 }
 
 func nameToPort(name string) int {

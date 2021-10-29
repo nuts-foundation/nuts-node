@@ -22,6 +22,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+	"github.com/pkg/errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -29,12 +33,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
-	"github.com/pkg/errors"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -127,22 +125,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	// Configure protocols
-	v1Cfg := p2p.AdapterConfig{
-		PeerID:        n.peerID,
-		ListenAddress: n.config.GrpcAddr,
-	}
-	if n.config.EnableTLS {
-		v1Cfg.ClientCert = clientCert
-		v1Cfg.TrustStore = trustStore.CertPool
-	}
 	n.protocols = []transport.Protocol{
-		v1.New(n.config.ProtocolV1, v1Cfg, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
+		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
 	}
 	for _, prot := range n.protocols {
-		err := prot.Configure()
-		if err != nil {
-			return err
-		}
+		prot.Configure(n.peerID)
 	}
 	// Setup connection manager, load with bootstrap nodes
 	if n.connectionManager == nil {
@@ -198,10 +185,7 @@ func (n *Network) Start() error {
 		return err
 	}
 	for _, prot := range n.protocols {
-		err := prot.Start()
-		if err != nil {
-			return err
-		}
+		prot.Start()
 	}
 
 	return nil
@@ -284,16 +268,10 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 
 // Shutdown cleans up any leftover go routines
 func (n *Network) Shutdown() error {
-	var protocolErrors []error
 	for _, prot := range n.protocols {
-		err := prot.Stop()
-		if err != nil {
-			protocolErrors = append(protocolErrors, err)
-		}
+		prot.Stop()
 	}
-	if len(protocolErrors) > 0 {
-		return fmt.Errorf("unable to stop one or more protocols: %v", protocolErrors)
-	}
+	n.connectionManager.Stop()
 	return nil
 }
 

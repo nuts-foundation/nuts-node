@@ -332,17 +332,10 @@ func TestNetwork_Shutdown(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+		cxt.connectionManager.EXPECT().Stop()
 		cxt.protocol.EXPECT().Stop()
 		err := cxt.network.Shutdown()
 		assert.NoError(t, err)
-	})
-	t.Run("error - stop returns error", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		cxt := createNetwork(ctrl)
-		cxt.protocol.EXPECT().Stop().Return(errors.New("failed"))
-		err := cxt.network.Shutdown()
-		assert.EqualError(t, err, "unable to stop one or more protocols: [failed]")
 	})
 }
 

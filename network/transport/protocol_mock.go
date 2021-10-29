@@ -35,29 +35,15 @@ func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 }
 
 // Configure mocks base method.
-func (m *MockProtocol) Configure() error {
+func (m *MockProtocol) Configure(peerID PeerID) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Configure")
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "Configure", peerID)
 }
 
 // Configure indicates an expected call of Configure.
-func (mr *MockProtocolMockRecorder) Configure() *gomock.Call {
+func (mr *MockProtocolMockRecorder) Configure(peerID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure))
-}
-
-// Connect mocks base method.
-func (m *MockProtocol) Connect(peerAddress string) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Connect", peerAddress)
-}
-
-// Connect indicates an expected call of Connect.
-func (mr *MockProtocolMockRecorder) Connect(peerAddress interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockProtocol)(nil).Connect), peerAddress)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), peerID)
 }
 
 // Diagnostics mocks base method.
@@ -88,26 +74,10 @@ func (mr *MockProtocolMockRecorder) PeerDiagnostics() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerDiagnostics", reflect.TypeOf((*MockProtocol)(nil).PeerDiagnostics))
 }
 
-// Peers mocks base method.
-func (m *MockProtocol) Peers() []Peer {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Peers")
-	ret0, _ := ret[0].([]Peer)
-	return ret0
-}
-
-// Peers indicates an expected call of Peers.
-func (mr *MockProtocolMockRecorder) Peers() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peers", reflect.TypeOf((*MockProtocol)(nil).Peers))
-}
-
 // Start mocks base method.
-func (m *MockProtocol) Start() error {
+func (m *MockProtocol) Start() {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Start")
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "Start")
 }
 
 // Start indicates an expected call of Start.
@@ -117,11 +87,9 @@ func (mr *MockProtocolMockRecorder) Start() *gomock.Call {
 }
 
 // Stop mocks base method.
-func (m *MockProtocol) Stop() error {
+func (m *MockProtocol) Stop() {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Stop")
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "Stop")
 }
 
 // Stop indicates an expected call of Stop.
