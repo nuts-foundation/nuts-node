@@ -27,7 +27,6 @@ func TestFlagSet(t *testing.T) {
 		ConfAutoUpdateIrmaSchemas,
 		ConfIrmaSchemeManager,
 		ConfPublicURL,
-		ConfNetworkEnableTLS,
 		ConfNetworkTrustStoreFile,
 	}, keys)
 }

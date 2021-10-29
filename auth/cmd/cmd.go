@@ -23,9 +23,6 @@ const ConfIrmaSchemeManager = "auth.irma.schememanager"
 // ConfHTTPTimeout defines a timeout (in seconds) which is used by the Auth API HTTP client
 const ConfHTTPTimeout = "auth.http.timeout"
 
-// ConfNetworkEnableTLS enables or disables TLS support
-const ConfNetworkEnableTLS = "network.enabletls"
-
 // ConfNetworkTrustStoreFile defines a file to use as a TLS truststore
 const ConfNetworkTrustStoreFile = "network.truststorefile"
 
@@ -40,7 +37,6 @@ func FlagSet() *pflag.FlagSet {
 	flags.Int(ConfHTTPTimeout, defs.HTTPTimeout, "HTTP timeout (in seconds) used by the Auth API HTTP client")
 	flags.Int(ConfClockSkew, defs.ClockSkew, "Allowed JWT Clock skew in milliseconds")
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
-	flags.Bool(ConfNetworkEnableTLS, defs.EnableTLS, "Enables or disables TLS support")
 	flags.String(ConfNetworkTrustStoreFile, defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 
 	return flags

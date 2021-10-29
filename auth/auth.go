@@ -109,11 +109,11 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		ContractValidity:      contractValidity,
 	}, auth.vcr, doc.KeyResolver{Store: auth.registry}, auth.keyStore)
 
-	if config.Strictmode && !auth.config.EnableTLS {
-		return errors.New("in strictmode auth.enabletls must be true")
+	if config.Strictmode && !auth.config.tlsEnabled() {
+		return errors.New("in strictmode TLS must be enabled")
 	}
 
-	if auth.config.EnableTLS {
+	if auth.config.tlsEnabled() {
 		clientCertificate, err := tls.LoadX509KeyPair(auth.config.CertFile, auth.config.CertKeyFile)
 		if err != nil {
 			return fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", auth.config.CertFile, auth.config.CertKeyFile, err)

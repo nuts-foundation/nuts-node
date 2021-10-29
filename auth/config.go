@@ -10,7 +10,6 @@ type Config struct {
 	ContractValidators    []string `koanf:"auth.contractvalidators"`
 	CertFile              string   `koanf:"network.certfile"`
 	CertKeyFile           string   `koanf:"network.certkeyfile"`
-	EnableTLS             bool     `koanf:"network.enabletls"`
 	TrustStoreFile        string   `koanf:"network.truststorefile"`
 	MaxCRLValidityDays    int      `koanf:"network.maxcrlvaliditydays"`
 }
@@ -24,4 +23,8 @@ func DefaultConfig() Config {
 		ClockSkew:             5000,
 		ContractValidators:    []string{"irma", "uzi", "dummy"},
 	}
+}
+
+func (c Config) tlsEnabled() bool {
+	return c.CertFile != "" || c.CertKeyFile != ""
 }
