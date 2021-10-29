@@ -28,8 +28,11 @@ import (
 
 // Stream contains configuration for a NATS stream both on the server and client side
 type Stream interface {
+	// Config returns the server configuration of the NATS stream
 	Config() *nats.StreamConfig
+	// ClientOpts returns the NATS client subscribe options
 	ClientOpts() []nats.SubOpt
+	// Subscribe subscribes to a channel on the NATS server and returns a channel on which messages will be send
 	Subscribe(conn Conn, subject string) (chan *nats.Msg, error)
 }
 
