@@ -19,7 +19,10 @@
 
 package events
 
-import "github.com/nats-io/nats.go"
+import (
+	"fmt"
+	"github.com/nats-io/nats.go"
+)
 
 // Conn defines the methods required in the NATS connection structure
 type Conn interface {
@@ -33,4 +36,9 @@ type JetStreamContext interface {
 	AddStream(cfg *nats.StreamConfig, opts ...nats.JSOpt) (*nats.StreamInfo, error)
 	ChanSubscribe(subj string, ch chan *nats.Msg, opts ...nats.SubOpt) (*nats.Subscription, error)
 	PublishMsg(m *nats.Msg, opts ...nats.PubOpt) (*nats.PubAck, error)
+}
+
+// Connect connects to a NATS server based on the hostname and port
+func Connect(hostname string, port int) (Conn, error) {
+	return nats.Connect(fmt.Sprintf("%s:%d", hostname, port))
 }
