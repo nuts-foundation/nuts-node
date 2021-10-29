@@ -90,7 +90,7 @@ func (stream *stream) Subscribe(conn Conn, subject string) (chan *nats.Msg, erro
 	return msgChan, nil
 }
 
-// NewDisposableStream configures a stream with default settings for messages with low priority
+// NewDisposableStream configures a stream with memory storage, discard old policy and a message limit retention policy
 func NewDisposableStream(name string, subjects []string, maxMessages int64) Stream {
 	return NewStream(&nats.StreamConfig{
 		Name:      name,
