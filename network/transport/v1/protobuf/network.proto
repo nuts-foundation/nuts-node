@@ -17,9 +17,9 @@
  */
 syntax = "proto3";
 
-option go_package = "github.com/nuts-foundation/nuts-node/network/protocol/transport";
+option go_package = "github.com/nuts-foundation/nuts-node/network/protocol/protobuf";
 
-package transport;
+package protobuf;
 
 service Network {
   // Connect is used to setup a bidirectional streaming gRPC connection over which network messages can be sent.

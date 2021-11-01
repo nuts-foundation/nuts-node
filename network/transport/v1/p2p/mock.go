@@ -11,7 +11,7 @@ import (
 	core "github.com/nuts-foundation/nuts-node/core"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
 	grpc "github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	transport0 "github.com/nuts-foundation/nuts-node/network/transport/v1/transport"
+	protobuf "github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	grpc0 "google.golang.org/grpc"
 )
 
@@ -39,7 +39,7 @@ func (m *MockAdapter) EXPECT() *MockAdapterMockRecorder {
 }
 
 // Broadcast mocks base method.
-func (m *MockAdapter) Broadcast(message *transport0.NetworkMessage) {
+func (m *MockAdapter) Broadcast(message *protobuf.NetworkMessage) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Broadcast", message)
 }
@@ -148,7 +148,7 @@ func (mr *MockAdapterMockRecorder) RegisterService(registrar, acceptorCallback i
 }
 
 // Send mocks base method.
-func (m *MockAdapter) Send(peer transport.PeerID, message *transport0.NetworkMessage) error {
+func (m *MockAdapter) Send(peer transport.PeerID, message *protobuf.NetworkMessage) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", peer, message)
 	ret0, _ := ret[0].(error)

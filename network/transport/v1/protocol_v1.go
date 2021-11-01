@@ -5,8 +5,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/logic"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/proto"
 	grpcLib "google.golang.org/grpc"
 	"time"
 )
@@ -38,14 +38,14 @@ func New(config Config, adapterConfig p2p.AdapterConfig, graph dag.DAG, publishe
 		config:        config,
 		adapterConfig: adapterConfig,
 		adapter:       adapter,
-		protocol:      proto.NewProtocol(adapter, graph, publisher, payloadStore, diagnosticsProvider),
+		protocol:      logic.NewProtocol(adapter, graph, publisher, payloadStore, diagnosticsProvider),
 	}
 }
 
 type protocolV1 struct {
 	config        Config
 	adapter       p2p.Adapter
-	protocol      proto.Protocol
+	protocol      logic.Protocol
 	adapterConfig p2p.AdapterConfig
 }
 

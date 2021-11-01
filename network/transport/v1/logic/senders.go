@@ -1,9 +1,9 @@
-package proto
+package logic
 
 import (
-	transport2 "github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"math"
 	"time"
 
@@ -21,12 +21,12 @@ const estimatedMessageSizeMargin = 0.75
 // implementation of non-functional requirements like throttling.
 type messageSender interface {
 	broadcastAdvertHashes(blocks []dagBlock)
-	broadcastDiagnostics(diagnostics transport2.Diagnostics)
+	broadcastDiagnostics(diagnostics transport.Diagnostics)
 	broadcastTransactionPayloadQuery(payloadHash hash.SHA256Hash)
-	sendTransactionListQuery(peer transport2.PeerID, blockDate time.Time)
-	sendTransactionList(peer transport2.PeerID, transactions []dag.Transaction, date time.Time)
-	sendTransactionPayloadQuery(peer transport2.PeerID, payloadHash hash.SHA256Hash)
-	sendTransactionPayload(peer transport2.PeerID, payloadHash hash.SHA256Hash, data []byte)
+	sendTransactionListQuery(peer transport.PeerID, blockDate time.Time)
+	sendTransactionList(peer transport.PeerID, transactions []dag.Transaction, date time.Time)
+	sendTransactionPayloadQuery(peer transport.PeerID, payloadHash hash.SHA256Hash)
+	sendTransactionPayload(peer transport.PeerID, payloadHash hash.SHA256Hash, data []byte)
 }
 
 type defaultMessageSender struct {
@@ -35,7 +35,7 @@ type defaultMessageSender struct {
 	transactionsPerMessage int
 }
 
-func (s defaultMessageSender) doSend(peer transport2.PeerID, envelope *transport.NetworkMessage) {
+func (s defaultMessageSender) doSend(peer transport.PeerID, envelope *protobuf.NetworkMessage) {
 	if err := s.p2p.Send(peer, envelope); err != nil {
 		log.Logger().Warnf("Error while sending message to peer (peer=%s, msg=%T): %v", peer, envelope.Message, err)
 	}
@@ -51,9 +51,9 @@ func (s defaultMessageSender) broadcastAdvertHashes(blocks []dagBlock) {
 	s.p2p.Broadcast(&envelope)
 }
 
-func (s defaultMessageSender) broadcastDiagnostics(diagnostics transport2.Diagnostics) {
+func (s defaultMessageSender) broadcastDiagnostics(diagnostics transport.Diagnostics) {
 	envelope := createEnvelope()
-	message := transport.Diagnostics{
+	message := protobuf.Diagnostics{
 		Uptime:               uint32(diagnostics.Uptime.Seconds()),
 		NumberOfTransactions: diagnostics.NumberOfTransactions,
 		SoftwareVersion:      diagnostics.SoftwareVersion,
@@ -62,22 +62,22 @@ func (s defaultMessageSender) broadcastDiagnostics(diagnostics transport2.Diagno
 	for _, peer := range diagnostics.Peers {
 		message.Peers = append(message.Peers, peer.String())
 	}
-	envelope.Message = &transport.NetworkMessage_DiagnosticsBroadcast{DiagnosticsBroadcast: &message}
+	envelope.Message = &protobuf.NetworkMessage_DiagnosticsBroadcast{DiagnosticsBroadcast: &message}
 	s.p2p.Broadcast(&envelope)
 }
 
-func (s defaultMessageSender) sendTransactionListQuery(peer transport2.PeerID, blockDate time.Time) {
+func (s defaultMessageSender) sendTransactionListQuery(peer transport.PeerID, blockDate time.Time) {
 	envelope := createEnvelope()
 	// TODO: timestamp=0 becomes disallowed when https://github.com/nuts-foundation/nuts-specification/issues/57 is implemented
 	timestamp := int64(0)
 	if !blockDate.IsZero() {
 		timestamp = blockDate.Unix()
 	}
-	envelope.Message = &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: uint32(timestamp)}}
+	envelope.Message = &protobuf.NetworkMessage_TransactionListQuery{TransactionListQuery: &protobuf.TransactionListQuery{BlockDate: uint32(timestamp)}}
 	s.doSend(peer, &envelope)
 }
 
-func (s defaultMessageSender) sendTransactionList(peer transport2.PeerID, transactions []dag.Transaction, blockDate time.Time) {
+func (s defaultMessageSender) sendTransactionList(peer transport.PeerID, transactions []dag.Transaction, blockDate time.Time) {
 	if len(transactions) == 0 {
 		// messages are asynchronous so the requester is not waiting for a response
 		return
@@ -101,18 +101,18 @@ func (s defaultMessageSender) sendTransactionList(peer transport2.PeerID, transa
 			upper = len(tl)
 		}
 		envelope := createEnvelope()
-		envelope.Message = &transport.NetworkMessage_TransactionList{TransactionList: &transport.TransactionList{Transactions: tl[i*transactionsPerMessage : upper], BlockDate: uint32(blockDate.Unix())}}
+		envelope.Message = &protobuf.NetworkMessage_TransactionList{TransactionList: &protobuf.TransactionList{Transactions: tl[i*transactionsPerMessage : upper], BlockDate: uint32(blockDate.Unix())}}
 		s.doSend(peer, &envelope)
 	}
 }
 
-func (s defaultMessageSender) sendTransactionPayloadQuery(peer transport2.PeerID, payloadHash hash.SHA256Hash) {
+func (s defaultMessageSender) sendTransactionPayloadQuery(peer transport.PeerID, payloadHash hash.SHA256Hash) {
 	s.doSend(peer, createTransactionPayloadQueryMessage(payloadHash))
 }
 
-func (s defaultMessageSender) sendTransactionPayload(peer transport2.PeerID, payloadHash hash.SHA256Hash, data []byte) {
+func (s defaultMessageSender) sendTransactionPayload(peer transport.PeerID, payloadHash hash.SHA256Hash, data []byte) {
 	envelope := createEnvelope()
-	envelope.Message = &transport.NetworkMessage_TransactionPayload{TransactionPayload: &transport.TransactionPayload{
+	envelope.Message = &protobuf.NetworkMessage_TransactionPayload{TransactionPayload: &protobuf.TransactionPayload{
 		PayloadHash: payloadHash.Slice(),
 		Data:        data,
 	}}
@@ -125,20 +125,20 @@ func (s defaultMessageSender) getTransactionsPerMessage(transactions []dag.Trans
 	}
 
 	sizeMsg := createEnvelope()
-	sizeMsg.Message = &transport.NetworkMessage_TransactionList{TransactionList: &transport.TransactionList{Transactions: toNetworkTransactions([]dag.Transaction{transactions[0]}), BlockDate: uint32(time.Now().Unix())}}
+	sizeMsg.Message = &protobuf.NetworkMessage_TransactionList{TransactionList: &protobuf.TransactionList{Transactions: toNetworkTransactions([]dag.Transaction{transactions[0]}), BlockDate: uint32(time.Now().Unix())}}
 	messageSizePerTX := proto.Size(sizeMsg.ProtoReflect().Interface())
 	s.transactionsPerMessage = int(math.Floor(float64(s.maxMessageSize) * estimatedMessageSizeMargin / float64(messageSizePerTX)))
 	return s.transactionsPerMessage
 }
 
-func createEnvelope() transport.NetworkMessage {
-	return transport.NetworkMessage{}
+func createEnvelope() protobuf.NetworkMessage {
+	return protobuf.NetworkMessage{}
 }
 
-func createTransactionPayloadQueryMessage(payloadHash hash.SHA256Hash) *transport.NetworkMessage {
+func createTransactionPayloadQueryMessage(payloadHash hash.SHA256Hash) *protobuf.NetworkMessage {
 	envelope := createEnvelope()
-	envelope.Message = &transport.NetworkMessage_TransactionPayloadQuery{
-		TransactionPayloadQuery: &transport.TransactionPayloadQuery{PayloadHash: payloadHash.Slice()},
+	envelope.Message = &protobuf.NetworkMessage_TransactionPayloadQuery{
+		TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{PayloadHash: payloadHash.Slice()},
 	}
 	return &envelope
 }

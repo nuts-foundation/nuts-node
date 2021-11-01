@@ -22,9 +22,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"github.com/nuts-foundation/nuts-node/core"
-	transport2 "github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 )
 
 // Adapter defines the API for the P2P layer, used to connect to peers and exchange messages.
@@ -43,14 +43,14 @@ type Adapter interface {
 	// ReceivedMessages returns a queue containing all messages received from our peers. It must be drained, because when its buffer is full the producer (Adapter) is blocked.
 	ReceivedMessages() MessageQueue
 	// Send sends a message to a specific peer.
-	Send(peer transport2.PeerID, message *transport.NetworkMessage) error
+	Send(peer transport.PeerID, message *protobuf.NetworkMessage) error
 	// Broadcast sends a message to all peers.
-	Broadcast(message *transport.NetworkMessage)
+	Broadcast(message *protobuf.NetworkMessage)
 	// Peers returns our peers (remote nodes we're currently connected to).
-	Peers() []transport2.Peer
+	Peers() []transport.Peer
 	// EventChannels returns the channels that are used to communicate P2P network events on. They MUST be listened
 	// on by a consumer.
-	EventChannels() (peerConnected chan transport2.Peer, peerDisconnected chan transport2.Peer)
+	EventChannels() (peerConnected chan transport.Peer, peerDisconnected chan transport.Peer)
 }
 
 // MessageQueue defines an interfaces for reading incoming network messages from a queue.
@@ -63,15 +63,15 @@ type MessageQueue interface {
 // PeerMessage defines a message received from a peer.
 type PeerMessage struct {
 	// Peer identifies who sent the message.
-	Peer transport2.PeerID
+	Peer transport.PeerID
 	// Message contains the received message.
-	Message *transport.NetworkMessage
+	Message *protobuf.NetworkMessage
 }
 
 // AdapterConfig contains configuration for the P2P adapter.
 type AdapterConfig struct {
 	// PeerID contains the ID of the local node.
-	PeerID transport2.PeerID
+	PeerID transport.PeerID
 	// ServerCert specifies the TLS client certificate. If set the client should open a TLS socket, otherwise plain TCP.
 	ClientCert tls.Certificate
 	// TrustStore contains the trust anchors used when verifying remote a peer's TLS certificate.

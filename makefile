@@ -20,12 +20,12 @@ gen-mocks:
 	mockgen -destination=network/mock.go -package=network -source=network/interface.go
 	mockgen -destination=network/transport/connection_manager_mock.go -package=transport -source=network/transport/connection_manager.go
 	mockgen -destination=network/transport/protocol_mock.go -package=transport -source=network/transport/protocol.go Protocol
-	mockgen -destination=network/transport/v1/proto/mock.go -package=proto -source=network/transport/v1/proto/interface.go Protocol
-	mockgen -destination=network/transport/v1/proto/senders_mock.go -package=proto -source=network/transport/v1/proto/senders.go messageSender
-	mockgen -destination=network/transport/v1/proto/payload_collector_mock.go -package=proto -source=network/transport/v1/proto/payload_collector.go
+	mockgen -destination=network/transport/v1/logic/mock.go -package=logic -source=network/transport/v1/logic/interface.go Protocol
+	mockgen -destination=network/transport/v1/logic/senders_mock.go -package=logic -source=network/transport/v1/logic/senders.go messageSender
+	mockgen -destination=network/transport/v1/logic/payload_collector_mock.go -package=logic -source=network/transport/v1/logic/payload_collector.go
 	mockgen -destination=network/transport/v1/p2p/mock.go -package=p2p -source=network/transport/v1/p2p/interface.go P2PNetwork
 	mockgen -destination=network/transport/v1/p2p/connection_mock.go -package=p2p -source=network/transport/v1/p2p/connection.go grpcMessenger
-	mockgen -destination=network/transport/v1/transport/network_grpc_mock.go -package=transport -source=network/transport/v1/transport/network_grpc.pb.go
+	mockgen -destination=network/transport/v1/protobuf/network_grpc_mock.go -package=protobuf -source=network/transport/v1/protobuf/network_grpc.pb.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go DAG PayloadStore
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
 	mockgen -destination=vcr/concept/mock.go -package=concept -source=vcr/concept/registry.go Registry
@@ -44,8 +44,8 @@ gen-api:
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 -exclude-schemas ContactInformation,OrganizationSearchResult docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 
 gen-protobuf:
-	protoc --go_out=paths=source_relative:network -I network network/protocol/v1/transport/network.proto
-	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/protocol/v1/transport/network.proto
+	protoc --go_out=paths=source_relative:network -I network network/transport/v1/protobuf/network.proto
+	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/v1/protobuf/network.proto
 
 gen-docs:
 	go run ./docs

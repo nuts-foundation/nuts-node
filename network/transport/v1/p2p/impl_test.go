@@ -19,8 +19,8 @@ package p2p
 
 import (
 	"crypto/x509"
-	transport2 "github.com/nuts-foundation/nuts-node/network/transport"
-	transport3 "github.com/nuts-foundation/nuts-node/network/transport/v1/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"google.golang.org/grpc"
 	"io"
 	"sync"
@@ -71,17 +71,17 @@ func Test_adapter_Connect(t *testing.T) {
 			PeerID:        "foo",
 			ListenAddress: "127.0.0.1:0",
 		})
-		adapter.acceptor = func(_ grpc.ServerStream) (accepted bool, peer transport2.Peer, closer chan struct{}) {
+		adapter.acceptor = func(_ grpc.ServerStream) (accepted bool, peer transport.Peer, closer chan struct{}) {
 			accepted = true
-			peer = transport2.Peer{ID: peerID}
+			peer = transport.Peer{ID: peerID}
 			closer = nil
 			return
 		}
 
 		recvWaiter := sync.WaitGroup{}
 		recvWaiter.Add(1)
-		mockConnection := func() *transport3.MockNetwork_ConnectServer {
-			conn := transport3.NewMockNetwork_ConnectServer(ctrl)
+		mockConnection := func() *protobuf.MockNetwork_ConnectServer {
+			conn := protobuf.NewMockNetwork_ConnectServer(ctrl)
 			conn.EXPECT().Recv().DoAndReturn(func() (interface{}, error) {
 				recvWaiter.Done()
 				time.Sleep(time.Second)
@@ -128,7 +128,7 @@ func Test_adapter_Connect(t *testing.T) {
 	//		// Perform connection in goroutine to force parallelism server-side, just like it would at run-time.
 	//		wg := sync.WaitGroup{}
 	//		wg.Add(1)
-	//		var client transport2.Network_ConnectClient
+	//		var client transport.Network_ConnectClient
 	//		var conn *grpc.ClientConn
 	//		go func() {
 	//			defer wg.Done()
@@ -139,7 +139,7 @@ func Test_adapter_Connect(t *testing.T) {
 	//				t.FailNow()
 	//			}
 	//
-	//			service := transport2.NewNetworkClient(conn)
+	//			service := transport.NewNetworkClient(conn)
 	//			client, err = service.Connect(ctx)
 	//			if !assert.NoError(t, err) {
 	//				t.FailNow()
@@ -227,8 +227,8 @@ func Test_adapter_Send(t *testing.T) {
 	const addr = "foo"
 	t.Run("ok", func(t *testing.T) {
 		network := NewAdapter().(*adapter)
-		conn := network.conns.register(transport2.Peer{ID: peerID, Address: addr}, nil, nil).(*managedConnection)
-		err := network.Send(peerID, &transport3.NetworkMessage{})
+		conn := network.conns.register(transport.Peer{ID: peerID, Address: addr}, nil, nil).(*managedConnection)
+		err := network.Send(peerID, &protobuf.NetworkMessage{})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -236,17 +236,17 @@ func Test_adapter_Send(t *testing.T) {
 	})
 	t.Run("unknown peer", func(t *testing.T) {
 		network := NewAdapter().(*adapter)
-		err := network.Send(peerID, &transport3.NetworkMessage{})
+		err := network.Send(peerID, &protobuf.NetworkMessage{})
 		assert.EqualError(t, err, "unknown peer: foobar")
 	})
 	t.Run("concurrent call on closing connection", func(t *testing.T) {
 		network := NewAdapter().(*adapter)
-		conn := network.conns.register(transport2.Peer{ID: peerID, Address: addr}, nil, nil).(*managedConnection)
+		conn := network.conns.register(transport.Peer{ID: peerID, Address: addr}, nil, nil).(*managedConnection)
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			_ = network.Send(peerID, &transport3.NetworkMessage{})
+			_ = network.Send(peerID, &protobuf.NetworkMessage{})
 		}()
 		go func() {
 			defer wg.Done()
@@ -260,10 +260,10 @@ func Test_adapter_Broadcast(t *testing.T) {
 	const peer1ID = "foobar1"
 	const peer2ID = "foobar2"
 	network := NewAdapter().(*adapter)
-	peer1 := network.conns.register(transport2.Peer{ID: peer1ID, Address: addr}, nil, nil).(*managedConnection)
-	peer2 := network.conns.register(transport2.Peer{ID: peer2ID, Address: addr}, nil, nil).(*managedConnection)
+	peer1 := network.conns.register(transport.Peer{ID: peer1ID, Address: addr}, nil, nil).(*managedConnection)
+	peer2 := network.conns.register(transport.Peer{ID: peer2ID, Address: addr}, nil, nil).(*managedConnection)
 	t.Run("ok", func(t *testing.T) {
-		network.Broadcast(&transport3.NetworkMessage{})
+		network.Broadcast(&protobuf.NetworkMessage{})
 		for _, conn := range network.conns.conns {
 			assert.Len(t, conn.outMessages, 1)
 		}
@@ -274,7 +274,7 @@ func Test_adapter_Broadcast(t *testing.T) {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			network.Broadcast(&transport3.NetworkMessage{})
+			network.Broadcast(&protobuf.NetworkMessage{})
 		}()
 		go func() {
 			defer wg.Done()
@@ -289,7 +289,7 @@ func Test_adapter_Broadcast(t *testing.T) {
 func Test_adapter_shouldConnectTo(t *testing.T) {
 	sut := NewAdapter().(*adapter)
 	sut.config.ListenAddress = "some-address:5555"
-	sut.conns.register(transport2.Peer{
+	sut.conns.register(transport.Peer{
 		ID:      "peer",
 		Address: "peer:5555",
 	}, nil, nil)

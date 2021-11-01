@@ -9,7 +9,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
-	transport0 "github.com/nuts-foundation/nuts-node/network/transport/v1/transport"
+	protobuf "github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 )
 
 // MockgrpcMessenger is a mock of grpcMessenger interface.
@@ -36,10 +36,10 @@ func (m *MockgrpcMessenger) EXPECT() *MockgrpcMessengerMockRecorder {
 }
 
 // Recv mocks base method.
-func (m *MockgrpcMessenger) Recv() (*transport0.NetworkMessage, error) {
+func (m *MockgrpcMessenger) Recv() (*protobuf.NetworkMessage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Recv")
-	ret0, _ := ret[0].(*transport0.NetworkMessage)
+	ret0, _ := ret[0].(*protobuf.NetworkMessage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -51,7 +51,7 @@ func (mr *MockgrpcMessengerMockRecorder) Recv() *gomock.Call {
 }
 
 // Send mocks base method.
-func (m *MockgrpcMessenger) Send(message *transport0.NetworkMessage) error {
+func (m *MockgrpcMessenger) Send(message *protobuf.NetworkMessage) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", message)
 	ret0, _ := ret[0].(error)
@@ -114,7 +114,7 @@ func (mr *MockconnectionMockRecorder) peer() *gomock.Call {
 }
 
 // send mocks base method.
-func (m *Mockconnection) send(message *transport0.NetworkMessage) error {
+func (m *Mockconnection) send(message *protobuf.NetworkMessage) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "send", message)
 	ret0, _ := ret[0].(error)

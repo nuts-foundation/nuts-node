@@ -16,7 +16,7 @@
  *
  */
 
-package proto
+package logic
 
 import (
 	"github.com/nuts-foundation/nuts-node/network/transport"

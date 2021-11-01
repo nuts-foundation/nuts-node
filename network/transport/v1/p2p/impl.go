@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	transport3 "github.com/nuts-foundation/nuts-node/network/transport/v1/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	grpcLib "google.golang.org/grpc"
 	"strings"
 	"time"
@@ -86,7 +86,7 @@ func (n *adapter) Peers() []transport.Peer {
 	return result
 }
 
-func (n *adapter) Broadcast(message *transport3.NetworkMessage) {
+func (n *adapter) Broadcast(message *protobuf.NetworkMessage) {
 	n.conns.forEach(func(conn connection) {
 		if err := conn.send(message); err != nil {
 			log.Logger().Warnf("Unable to broadcast to %s: %v", conn.peer().ID, err)
@@ -98,7 +98,7 @@ func (n adapter) ReceivedMessages() MessageQueue {
 	return n.receivedMessages
 }
 
-func (n adapter) Send(peerID transport.PeerID, message *transport3.NetworkMessage) error {
+func (n adapter) Send(peerID transport.PeerID, message *protobuf.NetworkMessage) error {
 	conn := n.conns.get(peerID)
 	if conn == nil {
 		return fmt.Errorf("unknown peer: %s", peerID)
@@ -112,7 +112,7 @@ type connector struct {
 	dialer
 }
 
-func (c *connector) doConnect(ownID transport.PeerID, tlsConfig *tls.Config) (*transport.Peer, transport3.Network_ConnectClient, error) {
+func (c *connector) doConnect(ownID transport.PeerID, tlsConfig *tls.Config) (*transport.Peer, protobuf.Network_ConnectClient, error) {
 	log.Logger().Debugf("Connecting to peer: %v", c.address)
 
 	ctx := metadata.NewOutgoingContext(context.Background(), constructMetadata(ownID))
@@ -137,7 +137,7 @@ func (c *connector) doConnect(ownID transport.PeerID, tlsConfig *tls.Config) (*t
 	if err != nil {
 		return nil, nil, errors2.Wrap(err, "unable to connect")
 	}
-	client := transport3.NewNetworkClient(grpcConn)
+	client := protobuf.NewNetworkClient(grpcConn)
 	messenger, err := client.Connect(ctx)
 	if err != nil {
 		log.Logger().Warnf("Failed to set up stream (addr=%s): %v", c.address, err)
@@ -157,7 +157,7 @@ func (c *connector) doConnect(ownID transport.PeerID, tlsConfig *tls.Config) (*t
 	}, messenger, nil
 }
 
-func readClientHeaders(gate transport3.Network_ConnectClient) (transport.PeerID, error) {
+func readClientHeaders(gate protobuf.Network_ConnectClient) (transport.PeerID, error) {
 	serverHeader, err := gate.Header()
 	if err != nil {
 		return "", err
@@ -208,7 +208,7 @@ func (n *adapter) Configure(config AdapterConfig) error {
 
 func (n *adapter) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.StreamAcceptor) {
 	n.acceptor = acceptor
-	transport3.RegisterNetworkServer(registrar, n)
+	protobuf.RegisterNetworkServer(registrar, n)
 }
 
 func (n *adapter) Start() error {
@@ -322,7 +322,7 @@ func (n *adapter) getLocalAddress() string {
 }
 
 // Connect is the callback that is called from the GRPC layer when a new client connects
-func (n adapter) Connect(stream transport3.Network_ConnectServer) error {
+func (n adapter) Connect(stream protobuf.Network_ConnectServer) error {
 	accepted, peer, closer := n.acceptor(stream)
 	if !accepted {
 		// TODO: Is returning this error a nice way of signaling the client, or does it result in lots of error logging?

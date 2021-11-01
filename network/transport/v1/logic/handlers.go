@@ -16,7 +16,7 @@
  *
  */
 
-package proto
+package logic
 
 import (
 	"context"
@@ -25,9 +25,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	transport2 "github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"github.com/sirupsen/logrus"
 	"time"
 )
@@ -37,27 +37,27 @@ func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
 	networkMessage := peerMsg.Message
 	log.Logger().Tracef("Received message from peer (peer=%s,msg=%T)", peer, networkMessage)
 	switch msg := networkMessage.Message.(type) {
-	case *transport.NetworkMessage_AdvertHashes:
+	case *protobuf.NetworkMessage_AdvertHashes:
 		if msg.AdvertHashes != nil {
 			p.handleAdvertHashes(peer, msg.AdvertHashes)
 		}
-	case *transport.NetworkMessage_TransactionListQuery:
+	case *protobuf.NetworkMessage_TransactionListQuery:
 		if msg.TransactionListQuery != nil {
 			return p.handleTransactionListQuery(peer, msg.TransactionListQuery.BlockDate)
 		}
-	case *transport.NetworkMessage_TransactionList:
+	case *protobuf.NetworkMessage_TransactionList:
 		if msg.TransactionList != nil {
 			return p.handleTransactionList(peer, msg.TransactionList)
 		}
-	case *transport.NetworkMessage_TransactionPayloadQuery:
+	case *protobuf.NetworkMessage_TransactionPayloadQuery:
 		if msg.TransactionPayloadQuery != nil && msg.TransactionPayloadQuery.PayloadHash != nil {
 			return p.handleTransactionPayloadQuery(peer, msg.TransactionPayloadQuery)
 		}
-	case *transport.NetworkMessage_TransactionPayload:
+	case *protobuf.NetworkMessage_TransactionPayload:
 		if msg.TransactionPayload != nil && msg.TransactionPayload.PayloadHash != nil && msg.TransactionPayload.Data != nil {
 			p.handleTransactionPayload(peer, msg.TransactionPayload)
 		}
-	case *transport.NetworkMessage_DiagnosticsBroadcast:
+	case *protobuf.NetworkMessage_DiagnosticsBroadcast:
 		p.handleDiagnostics(peer, msg.DiagnosticsBroadcast)
 	default:
 		log.Logger().Infof("Envelope doesn't contain any (handleable) messages, peer sent an empty message or protocol version might differ? (peer=%s)", peerMsg)
@@ -65,7 +65,7 @@ func (p *protocol) handleMessage(peerMsg p2p.PeerMessage) error {
 	return nil
 }
 
-func (p *protocol) handleAdvertHashes(peer transport2.PeerID, advertHash *transport.AdvertHashes) {
+func (p *protocol) handleAdvertHashes(peer transport.PeerID, advertHash *protobuf.AdvertHashes) {
 	log.Logger().Tracef("Received adverted hashes from peer: %s", peer)
 
 	localBlocks := p.blocks.get()
@@ -111,7 +111,7 @@ func (p *protocol) handleAdvertHashes(peer transport2.PeerID, advertHash *transp
 // checkPeerBlocks compares the blocks we've received from a peer with the ones of the local DAG. If it finds heads in the
 // peer blocks that aren't present on the local DAG is will query that block's transactions.
 // localBlocks must not include the historic block.
-func (p *protocol) checkPeerBlocks(peer transport2.PeerID, peerBlocks []*transport.BlockHashes, localBlocks []dagBlock) {
+func (p *protocol) checkPeerBlocks(peer transport.PeerID, peerBlocks []*protobuf.BlockHashes, localBlocks []dagBlock) {
 	for i := 0; i < len(peerBlocks); i++ {
 		localBlock := localBlocks[i]
 		peerBlock := peerBlocks[i]
@@ -143,7 +143,7 @@ func (p *protocol) checkPeerBlocks(peer transport2.PeerID, peerBlocks []*transpo
 	}
 }
 
-func (p *protocol) handleTransactionPayload(peer transport2.PeerID, contents *transport.TransactionPayload) {
+func (p *protocol) handleTransactionPayload(peer transport.PeerID, contents *protobuf.TransactionPayload) {
 	payloadHash := hash.FromSlice(contents.PayloadHash)
 	ctx := context.Background()
 	log.Logger().Infof("Received transaction payload from peer (peer=%s,payloadHash=%s,len=%d)", peer, payloadHash, len(contents.Data))
@@ -161,7 +161,7 @@ func (p *protocol) handleTransactionPayload(peer transport2.PeerID, contents *tr
 	}
 }
 
-func (p *protocol) handleTransactionPayloadQuery(peer transport2.PeerID, query *transport.TransactionPayloadQuery) error {
+func (p *protocol) handleTransactionPayloadQuery(peer transport.PeerID, query *protobuf.TransactionPayloadQuery) error {
 	payloadHash := hash.FromSlice(query.PayloadHash)
 	log.Logger().Tracef("Received transaction payload query from peer (peer=%s, payloadHash=%s)", peer, payloadHash)
 	data, err := p.payloadStore.ReadPayload(context.Background(), payloadHash)
@@ -175,7 +175,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport2.PeerID, query *
 	return nil
 }
 
-func (p *protocol) handleTransactionList(peer transport2.PeerID, transactionList *transport.TransactionList) error {
+func (p *protocol) handleTransactionList(peer transport.PeerID, transactionList *protobuf.TransactionList) error {
 	// TODO: Only process transaction list if we actually queried it (but be aware of pagination)
 	// TODO: Do something with blockDate
 	log.Logger().Tracef("Received transaction list from peer (peer=%s)", peer)
@@ -214,7 +214,7 @@ func (p *protocol) handleTransactionList(peer transport2.PeerID, transactionList
 
 // checkTransactionOnLocalNode checks whether the given transaction is present on the local node, adds it if not and/or queries
 // the payload if it (the payload) it not present. If we have both transaction and payload, nothing is done.
-func (p *protocol) checkTransactionOnLocalNode(ctx context.Context, peer transport2.PeerID, transactionRef hash.SHA256Hash, data []byte) error {
+func (p *protocol) checkTransactionOnLocalNode(ctx context.Context, peer transport.PeerID, transactionRef hash.SHA256Hash, data []byte) error {
 	// TODO: Make this a bit smarter.
 	var transaction dag.Transaction
 	var err error
@@ -243,7 +243,7 @@ func (p *protocol) checkTransactionOnLocalNode(ctx context.Context, peer transpo
 	return nil
 }
 
-func (p *protocol) handleTransactionListQuery(peer transport2.PeerID, blockDateInt uint32) error {
+func (p *protocol) handleTransactionListQuery(peer transport.PeerID, blockDateInt uint32) error {
 	var startDate time.Time
 	var endDate time.Time
 	if blockDateInt == 0 {
@@ -264,27 +264,27 @@ func (p *protocol) handleTransactionListQuery(peer transport2.PeerID, blockDateI
 	return nil
 }
 
-func (p *protocol) handleDiagnostics(peer transport2.PeerID, response *transport.Diagnostics) {
-	diagnostics := transport2.Diagnostics{
+func (p *protocol) handleDiagnostics(peer transport.PeerID, response *protobuf.Diagnostics) {
+	diagnostics := transport.Diagnostics{
 		Uptime:               time.Duration(response.Uptime) * time.Second,
 		NumberOfTransactions: response.NumberOfTransactions,
 		SoftwareVersion:      response.SoftwareVersion,
 		SoftwareID:           response.SoftwareID,
 	}
 	for _, peer := range response.Peers {
-		diagnostics.Peers = append(diagnostics.Peers, transport2.PeerID(peer))
+		diagnostics.Peers = append(diagnostics.Peers, transport.PeerID(peer))
 	}
 	withLock(p.peerDiagnosticsMutex, func() {
 		p.peerDiagnostics[peer] = diagnostics
 	})
 }
 
-func createAdvertHashesMessage(blocks []dagBlock) *transport.NetworkMessage_AdvertHashes {
-	protoBlocks := make([]*transport.BlockHashes, len(blocks)-1)
+func createAdvertHashesMessage(blocks []dagBlock) *protobuf.NetworkMessage_AdvertHashes {
+	protoBlocks := make([]*protobuf.BlockHashes, len(blocks)-1)
 	for blockIdx, currBlock := range blocks {
 		// First block = historic block, which isn't added in full but as XOR of its heads
 		if blockIdx > 0 {
-			protoBlocks[blockIdx-1] = &transport.BlockHashes{Hashes: make([][]byte, len(currBlock.heads))}
+			protoBlocks[blockIdx-1] = &protobuf.BlockHashes{Hashes: make([][]byte, len(currBlock.heads))}
 			for headIdx, currHead := range currBlock.heads {
 				protoBlocks[blockIdx-1].Hashes[headIdx] = currHead.Slice()
 			}
@@ -293,17 +293,17 @@ func createAdvertHashesMessage(blocks []dagBlock) *transport.NetworkMessage_Adve
 	log.Logger().Tracef("Broadcasting heads: %v", blocks)
 	historicBlock := getHistoricBlock(blocks) // First block is historic block
 	currentBlock := getCurrentBlock(blocks)   // Last block is current block
-	return &transport.NetworkMessage_AdvertHashes{AdvertHashes: &transport.AdvertHashes{
+	return &protobuf.NetworkMessage_AdvertHashes{AdvertHashes: &protobuf.AdvertHashes{
 		Blocks:           protoBlocks,
 		HistoricHash:     historicBlock.xor().Slice(),
 		CurrentBlockDate: getBlockTimestamp(currentBlock.start),
 	}}
 }
 
-func toNetworkTransactions(transactions []dag.Transaction) []*transport.Transaction {
-	result := make([]*transport.Transaction, len(transactions))
+func toNetworkTransactions(transactions []dag.Transaction) []*protobuf.Transaction {
+	result := make([]*protobuf.Transaction, len(transactions))
 	for i, transaction := range transactions {
-		result[i] = &transport.Transaction{
+		result[i] = &protobuf.Transaction{
 			Hash: transaction.Ref().Slice(),
 			Data: transaction.Data(),
 		}

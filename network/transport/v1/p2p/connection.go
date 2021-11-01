@@ -21,21 +21,21 @@ package p2p
 import (
 	"errors"
 	"fmt"
-	transport2 "github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"sync"
 
-	log "github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"google.golang.org/grpc"
 )
 
 const outMessagesBacklog = 1000 // TODO: Does this number make sense? Should also be configurable?
 
 type grpcMessenger interface {
-	Send(message *transport.NetworkMessage) error
-	Recv() (*transport.NetworkMessage, error)
+	Send(message *protobuf.NetworkMessage) error
+	Recv() (*protobuf.NetworkMessage, error)
 }
 
 type connection interface {
@@ -44,16 +44,16 @@ type connection interface {
 	// by either the peer or the local node.
 	exchange(messageReceiver messageQueue)
 	// send sends the given message to the peer. It should not be called if exchange() isn't called yet.
-	send(message *transport.NetworkMessage) error
+	send(message *protobuf.NetworkMessage) error
 	// peer returns information about the peer associated with this connection.
-	peer() transport2.Peer
+	peer() transport.Peer
 }
 
-func newConnection(peer transport2.Peer, messenger grpcMessenger, closer chan struct{}) *managedConnection {
+func newConnection(peer transport.Peer, messenger grpcMessenger, closer chan struct{}) *managedConnection {
 	result := &managedConnection{
 		Peer:        peer,
 		messenger:   messenger,
-		outMessages: make(chan *transport.NetworkMessage, outMessagesBacklog),
+		outMessages: make(chan *protobuf.NetworkMessage, outMessagesBacklog),
 		mux:         &sync.Mutex{},
 	}
 	if closer == nil {
@@ -67,7 +67,7 @@ func newConnection(peer transport2.Peer, messenger grpcMessenger, closer chan st
 
 // managedConnection represents a bidirectional connection with a peer, managed by connectionManager.
 type managedConnection struct {
-	transport2.Peer
+	transport.Peer
 	// messenger is used to send and receive messages
 	messenger grpcMessenger
 	// grpcConn is only filled for peers where we're the connecting party
@@ -75,7 +75,7 @@ type managedConnection struct {
 	// outMessages contains the messages we want to send to the peer.
 	//   According to the docs it's unsafe to simultaneously call stream.Send() from multiple goroutines so we put them
 	//   on a channel so that each peer can have its own goroutine sending messages (consuming messages from this channel)
-	outMessages chan *transport.NetworkMessage
+	outMessages chan *protobuf.NetworkMessage
 	closer      chan struct{}
 	// ownsCloser indicates whether the closer was created by this type, and thus should be fed when close() is called.
 	// TODO: Temporarily required since inbound connections are already managed by the generic gRPC connection manager.
@@ -86,13 +86,13 @@ type managedConnection struct {
 	mux *sync.Mutex
 }
 
-func (conn *managedConnection) peer() transport2.Peer {
+func (conn *managedConnection) peer() transport.Peer {
 	conn.mux.Lock()
 	defer conn.mux.Unlock()
 	return conn.Peer
 }
 
-func (conn *managedConnection) send(message *transport.NetworkMessage) error {
+func (conn *managedConnection) send(message *protobuf.NetworkMessage) error {
 	conn.mux.Lock()
 	defer conn.mux.Unlock()
 	if conn.outMessages == nil {
@@ -177,7 +177,7 @@ func (conn *managedConnection) close() {
 
 // receiveMessages spawns a goroutine that receives messages and puts them on the returned channel. The goroutine
 // can only be stopped by closing the underlying gRPC connection.
-func receiveMessages(peerID transport2.PeerID, messenger grpcMessenger) chan *PeerMessage {
+func receiveMessages(peerID transport.PeerID, messenger grpcMessenger) chan *PeerMessage {
 	result := make(chan *PeerMessage, 10)
 	go func() {
 		for {
@@ -205,20 +205,20 @@ func receiveMessages(peerID transport2.PeerID, messenger grpcMessenger) chan *Pe
 func newConnectionManager() *connectionManager {
 	return &connectionManager{
 		mux:         &sync.RWMutex{},
-		conns:       make(map[transport2.PeerID]*managedConnection, 0),
-		peersByAddr: make(map[string]transport2.PeerID, 0),
+		conns:       make(map[transport.PeerID]*managedConnection, 0),
+		peersByAddr: make(map[string]transport.PeerID, 0),
 	}
 }
 
 type connectionManager struct {
 	mux         *sync.RWMutex
-	conns       map[transport2.PeerID]*managedConnection
-	peersByAddr map[string]transport2.PeerID
+	conns       map[transport.PeerID]*managedConnection
+	peersByAddr map[string]transport.PeerID
 }
 
 // register adds a new connection associated with peer. It uses the given messenger to send/receive messages.
 // If a connection with peer already exists, it is closed (and the new one is accepted).
-func (mgr *connectionManager) register(peer transport2.Peer, messenger grpcMessenger, closer chan struct{}) connection {
+func (mgr *connectionManager) register(peer transport.Peer, messenger grpcMessenger, closer chan struct{}) connection {
 	if mgr.close(peer.ID) {
 		log.Logger().Warnf("Already connected to peer, closed old connection (peer=%s)", peer)
 	}
@@ -242,7 +242,7 @@ func (mgr *connectionManager) isConnected(addr string) bool {
 }
 
 // get returns the connection associated with peer, or nil if it isn't connected.
-func (mgr *connectionManager) get(peer transport2.PeerID) connection {
+func (mgr *connectionManager) get(peer transport.PeerID) connection {
 	mgr.mux.RLock()
 	defer mgr.mux.RUnlock()
 	conn, ok := mgr.conns[peer]
@@ -253,7 +253,7 @@ func (mgr *connectionManager) get(peer transport2.PeerID) connection {
 }
 
 // close closes the connection associated with peer. It returns true if the peer was connected, otherwise false.
-func (mgr *connectionManager) close(peer transport2.PeerID) bool {
+func (mgr *connectionManager) close(peer transport.PeerID) bool {
 	mgr.mux.Lock()
 	defer mgr.mux.Unlock()
 	conn, ok := mgr.conns[peer]
@@ -273,8 +273,8 @@ func (mgr *connectionManager) stop() {
 	for _, conn := range mgr.conns {
 		conn.close()
 	}
-	mgr.conns = map[transport2.PeerID]*managedConnection{}
-	mgr.peersByAddr = map[string]transport2.PeerID{}
+	mgr.conns = map[transport.PeerID]*managedConnection{}
+	mgr.peersByAddr = map[string]transport.PeerID{}
 }
 
 // forEach applies fn to each connection.

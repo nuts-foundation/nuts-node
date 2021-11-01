@@ -1,12 +1,12 @@
-package proto
+package logic
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	transport2 "github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"testing"
 	"time"
 
@@ -16,19 +16,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const peer = transport2.PeerID("test-peer")
+const peer = transport.PeerID("test-peer")
 
 var payload = []byte("Hello, World!")
 var payloadHash = hash.SHA256Sum([]byte{1, 2, 3})
 
 func TestProtocol_HandleAdvertedHashes(t *testing.T) {
 	t.Run("no body (faulty use of protocol)", func(t *testing.T) {
-		err := newContext(t).handle(&transport.NetworkMessage_AdvertHashes{})
+		err := newContext(t).handle(&protobuf.NetworkMessage_AdvertHashes{})
 		assert.NoError(t, err)
 	})
 	t.Run("body empty (faulty use of protocol)", func(t *testing.T) {
-		msg := &transport.NetworkMessage_AdvertHashes{}
-		msg.AdvertHashes = &transport.AdvertHashes{}
+		msg := &protobuf.NetworkMessage_AdvertHashes{}
+		msg.AdvertHashes = &protobuf.AdvertHashes{}
 		err := newContext(t).handle(msg)
 		assert.NoError(t, err)
 	})
@@ -95,14 +95,14 @@ func TestProtocol_HandleAdvertedHashes(t *testing.T) {
 
 func TestProtocol_HandleTransactionListQuery(t *testing.T) {
 	t.Run("no body (faulty use of protocol)", func(t *testing.T) {
-		err := newContext(t).handle(&transport.NetworkMessage_TransactionListQuery{})
+		err := newContext(t).handle(&protobuf.NetworkMessage_TransactionListQuery{})
 		assert.NoError(t, err)
 	})
 	t.Run("supplied block date is zero, requests historic block (allowed for now)", func(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().FindBetween(gomock.Any(), time.Time{}, ctx.instance.blocks.get()[1].start)
 		ctx.sender().EXPECT().sendTransactionList(peer, gomock.Any(), time.Time{})
-		msg := &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: 0}}
+		msg := &protobuf.NetworkMessage_TransactionListQuery{TransactionListQuery: &protobuf.TransactionListQuery{BlockDate: 0}}
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
 	})
@@ -110,7 +110,7 @@ func TestProtocol_HandleTransactionListQuery(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().FindBetween(gomock.Any(), gomock.Any(), gomock.Any())
 		ctx.sender().EXPECT().sendTransactionList(peer, gomock.Any(), gomock.Any())
-		msg := &transport.NetworkMessage_TransactionListQuery{TransactionListQuery: &transport.TransactionListQuery{BlockDate: getBlockTimestamp(time.Now())}}
+		msg := &protobuf.NetworkMessage_TransactionListQuery{TransactionListQuery: &protobuf.TransactionListQuery{BlockDate: getBlockTimestamp(time.Now())}}
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
 	})
@@ -118,18 +118,18 @@ func TestProtocol_HandleTransactionListQuery(t *testing.T) {
 
 func TestProtocol_HandleTransactionList(t *testing.T) {
 	t.Run("no body (faulty use of protocol)", func(t *testing.T) {
-		err := newContext(t).handle(&transport.NetworkMessage_TransactionList{})
+		err := newContext(t).handle(&protobuf.NetworkMessage_TransactionList{})
 		assert.NoError(t, err)
 	})
 	t.Run("body empty (faulty use of protocol)", func(t *testing.T) {
-		msg := &transport.NetworkMessage_TransactionList{}
-		msg.TransactionList = &transport.TransactionList{}
+		msg := &protobuf.NetworkMessage_TransactionList{}
+		msg.TransactionList = &protobuf.TransactionList{}
 		err := newContext(t).handle(msg)
 		assert.NoError(t, err)
 	})
 	t.Run("empty list", func(t *testing.T) {
 		ctx := newContext(t)
-		msg := &transport.NetworkMessage_TransactionList{TransactionList: &transport.TransactionList{}}
+		msg := &protobuf.NetworkMessage_TransactionList{TransactionList: &protobuf.TransactionList{}}
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
 	})
@@ -138,8 +138,8 @@ func TestProtocol_HandleTransactionList(t *testing.T) {
 		tx, _, _ := dag.CreateTestTransaction(1)
 		ctx.graph().EXPECT().IsPresent(gomock.Any(), tx.Ref()).Return(true, nil)
 		ctx.payloadStore().EXPECT().IsPresent(gomock.Any(), tx.PayloadHash()).Return(true, nil)
-		msg := &transport.NetworkMessage_TransactionList{
-			TransactionList: &transport.TransactionList{
+		msg := &protobuf.NetworkMessage_TransactionList{
+			TransactionList: &protobuf.TransactionList{
 				BlockDate:    getBlockTimestamp(time.Now()),
 				Transactions: toNetworkTransactions([]dag.Transaction{tx}),
 			},
@@ -158,8 +158,8 @@ func TestProtocol_HandleTransactionList(t *testing.T) {
 		tx1, _, _ := dag.CreateTestTransaction(1)
 		ctx.graph().EXPECT().IsPresent(gomock.Any(), tx1.Ref()).Return(false, nil)
 		ctx.graph().EXPECT().Add(gomock.Any(), tx1).Return(errors.New("failed"))
-		msg := &transport.NetworkMessage_TransactionList{
-			TransactionList: &transport.TransactionList{
+		msg := &protobuf.NetworkMessage_TransactionList{
+			TransactionList: &protobuf.TransactionList{
 				BlockDate:    getBlockTimestamp(time.Now()),
 				Transactions: toNetworkTransactions([]dag.Transaction{tx1}),
 			},
@@ -182,8 +182,8 @@ func TestProtocol_HandleTransactionList(t *testing.T) {
 		tx3, _, _ := dag.CreateTestTransaction(1)
 		testCtx.graph().EXPECT().IsPresent(ctx, tx3.Ref()).MinTimes(1).Return(true, nil)
 		testCtx.payloadStore().EXPECT().IsPresent(ctx, tx3.PayloadHash()).Return(true, nil)
-		msg := &transport.NetworkMessage_TransactionList{
-			TransactionList: &transport.TransactionList{
+		msg := &protobuf.NetworkMessage_TransactionList{
+			TransactionList: &protobuf.TransactionList{
 				BlockDate:    getBlockTimestamp(time.Now()),
 				Transactions: toNetworkTransactions([]dag.Transaction{tx1, tx2, tx3}),
 			},
@@ -195,18 +195,18 @@ func TestProtocol_HandleTransactionList(t *testing.T) {
 
 func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 	t.Run("no body (faulty use of protocol)", func(t *testing.T) {
-		err := newContext(t).handle(&transport.NetworkMessage_TransactionPayloadQuery{})
+		err := newContext(t).handle(&protobuf.NetworkMessage_TransactionPayloadQuery{})
 		assert.NoError(t, err)
 	})
 	t.Run("body empty (faulty use of protocol)", func(t *testing.T) {
-		msg := &transport.NetworkMessage_TransactionPayloadQuery{}
-		msg.TransactionPayloadQuery = &transport.TransactionPayloadQuery{}
+		msg := &protobuf.NetworkMessage_TransactionPayloadQuery{}
+		msg.TransactionPayloadQuery = &protobuf.TransactionPayloadQuery{}
 		err := newContext(t).handle(msg)
 		assert.NoError(t, err)
 	})
 	t.Run("empty payload hash (faulty use of protocol)", func(t *testing.T) {
 		ctx := newContext(t)
-		msg := &transport.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &transport.TransactionPayloadQuery{}}
+		msg := &protobuf.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{}}
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
 	})
@@ -216,7 +216,7 @@ func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 		ctx.payloadStore().EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(payload, nil)
 		payloadHash := hash.SHA256Sum([]byte{1, 2, 3})
 		ctx.sender().EXPECT().sendTransactionPayload(peer, payloadHash, payload)
-		msg := &transport.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &transport.TransactionPayloadQuery{
+		msg := &protobuf.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{
 			PayloadHash: payloadHash.Slice(),
 		}}
 		err := ctx.handle(msg)
@@ -227,7 +227,7 @@ func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 		ctx.payloadStore().EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(nil, nil)
 		payloadHash := hash.SHA256Sum([]byte{1, 2, 3})
 		ctx.sender().EXPECT().sendTransactionPayload(peer, payloadHash, nil)
-		msg := &transport.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &transport.TransactionPayloadQuery{
+		msg := &protobuf.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{
 			PayloadHash: payloadHash.Slice(),
 		}}
 		err := ctx.handle(msg)
@@ -237,18 +237,18 @@ func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 
 func TestProtocol_HandleTransactionPayload(t *testing.T) {
 	t.Run("no body (faulty use of protocol)", func(t *testing.T) {
-		err := newContext(t).handle(&transport.NetworkMessage_TransactionPayload{})
+		err := newContext(t).handle(&protobuf.NetworkMessage_TransactionPayload{})
 		assert.NoError(t, err)
 	})
 	t.Run("body empty (faulty use of protocol)", func(t *testing.T) {
-		msg := &transport.NetworkMessage_TransactionPayload{}
-		msg.TransactionPayload = &transport.TransactionPayload{}
+		msg := &protobuf.NetworkMessage_TransactionPayload{}
+		msg.TransactionPayload = &protobuf.TransactionPayload{}
 		err := newContext(t).handle(msg)
 		assert.NoError(t, err)
 	})
 	t.Run("empty payload hash (faulty use of protocol)", func(t *testing.T) {
 		ctx := newContext(t)
-		msg := &transport.NetworkMessage_TransactionPayload{TransactionPayload: &transport.TransactionPayload{}}
+		msg := &protobuf.NetworkMessage_TransactionPayload{TransactionPayload: &protobuf.TransactionPayload{}}
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
 	})
@@ -257,7 +257,7 @@ func TestProtocol_HandleTransactionPayload(t *testing.T) {
 		ctx.graph().EXPECT().GetByPayloadHash(gomock.Any(), payloadHash).Return([]dag.Transaction{&testTX{}}, nil)
 		ctx.payloadStore().EXPECT().IsPresent(gomock.Any(), payloadHash).Return(false, nil)
 		ctx.payloadStore().EXPECT().WritePayload(gomock.Any(), payloadHash, payload).Return(nil)
-		msg := &transport.NetworkMessage_TransactionPayload{TransactionPayload: &transport.TransactionPayload{
+		msg := &protobuf.NetworkMessage_TransactionPayload{TransactionPayload: &protobuf.TransactionPayload{
 			Data:        payload,
 			PayloadHash: payloadHash.Slice(),
 		}}
@@ -268,7 +268,7 @@ func TestProtocol_HandleTransactionPayload(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().GetByPayloadHash(gomock.Any(), payloadHash).Return([]dag.Transaction{&testTX{}}, nil)
 		ctx.payloadStore().EXPECT().IsPresent(gomock.Any(), payloadHash).Return(true, nil)
-		msg := &transport.NetworkMessage_TransactionPayload{TransactionPayload: &transport.TransactionPayload{
+		msg := &protobuf.NetworkMessage_TransactionPayload{TransactionPayload: &protobuf.TransactionPayload{
 			Data:        payload,
 			PayloadHash: payloadHash.Slice(),
 		}}
@@ -278,7 +278,7 @@ func TestProtocol_HandleTransactionPayload(t *testing.T) {
 	t.Run("peer sent payload, unknown transaction (attacker flow)", func(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().GetByPayloadHash(gomock.Any(), payloadHash).Return([]dag.Transaction{}, nil)
-		msg := &transport.NetworkMessage_TransactionPayload{TransactionPayload: &transport.TransactionPayload{
+		msg := &protobuf.NetworkMessage_TransactionPayload{TransactionPayload: &protobuf.TransactionPayload{
 			Data:        payload,
 			PayloadHash: payloadHash.Slice(),
 		}}
@@ -287,7 +287,7 @@ func TestProtocol_HandleTransactionPayload(t *testing.T) {
 	})
 	t.Run("peer didn't send payload (alt. flow)", func(t *testing.T) {
 		ctx := newContext(t)
-		msg := &transport.NetworkMessage_TransactionPayload{TransactionPayload: &transport.TransactionPayload{
+		msg := &protobuf.NetworkMessage_TransactionPayload{TransactionPayload: &protobuf.TransactionPayload{
 			PayloadHash: payloadHash.Slice(),
 		}}
 		err := ctx.handle(msg)
@@ -298,7 +298,7 @@ func TestProtocol_HandleTransactionPayload(t *testing.T) {
 func TestProtocol_handleDiagnostics(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newContext(t)
-		msg := &transport.NetworkMessage_DiagnosticsBroadcast{DiagnosticsBroadcast: &transport.Diagnostics{
+		msg := &protobuf.NetworkMessage_DiagnosticsBroadcast{DiagnosticsBroadcast: &protobuf.Diagnostics{
 			Uptime:               1000,
 			Peers:                []string{"test"},
 			NumberOfTransactions: 5,
@@ -310,7 +310,7 @@ func TestProtocol_handleDiagnostics(t *testing.T) {
 		assert.NoError(t, err)
 		actual := ctx.instance.peerDiagnostics[peer]
 		assert.Equal(t, 1000*time.Second, actual.Uptime)
-		assert.Equal(t, []transport2.PeerID{"test"}, actual.Peers)
+		assert.Equal(t, []transport.PeerID{"test"}, actual.Peers)
 		assert.Equal(t, uint32(5), actual.NumberOfTransactions)
 		assert.Equal(t, "1.0", actual.SoftwareVersion)
 		assert.Equal(t, "TEST", actual.SoftwareID)
@@ -439,17 +439,17 @@ func (ctx testContext) handle(msg interface{}) error {
 	}
 	envelope := createEnvelope()
 	switch msg := msg.(type) {
-	case *transport.NetworkMessage_AdvertHashes:
+	case *protobuf.NetworkMessage_AdvertHashes:
 		envelope.Message = msg
-	case *transport.NetworkMessage_TransactionListQuery:
+	case *protobuf.NetworkMessage_TransactionListQuery:
 		envelope.Message = msg
-	case *transport.NetworkMessage_TransactionList:
+	case *protobuf.NetworkMessage_TransactionList:
 		envelope.Message = msg
-	case *transport.NetworkMessage_TransactionPayloadQuery:
+	case *protobuf.NetworkMessage_TransactionPayloadQuery:
 		envelope.Message = msg
-	case *transport.NetworkMessage_TransactionPayload:
+	case *protobuf.NetworkMessage_TransactionPayload:
 		envelope.Message = msg
-	case *transport.NetworkMessage_DiagnosticsBroadcast:
+	case *protobuf.NetworkMessage_DiagnosticsBroadcast:
 		envelope.Message = msg
 	default:
 		panic(fmt.Sprintf("Can't handle msg type: %T", msg))

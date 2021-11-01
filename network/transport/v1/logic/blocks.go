@@ -16,7 +16,7 @@
  *
  */
 
-package proto
+package logic
 
 import (
 	"fmt"
