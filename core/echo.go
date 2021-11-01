@@ -3,10 +3,13 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/sirupsen/logrus"
 )
 
 // EchoServer implements both the EchoRouter interface and Start function to aid testing.
@@ -106,15 +109,67 @@ func getGroup(path string) string {
 	return ""
 }
 
+var _logger = logrus.StandardLogger().WithField("module", "http-server")
+
+// Logger returns a logger which should be used for logging in this engine. It adds fields so
+// log entries from this engine can be recognized as such.
+func Logger() *logrus.Entry {
+	return _logger
+}
+
+// loggerConfig Contains the configuration for the loggerMiddleware.
+// Currently, this only allows for configuration of skip paths
+type loggerConfig struct {
+	// Skipper defines a function to skip middleware.
+	Skipper middleware.Skipper
+	logger  *logrus.Entry
+}
+
+// loggerMiddleware Is a custom logger middleware.
+// Should be added as the outer middleware to catch all errors and potential status rewrites
+// The current RequestLogger is not usable with our custom problem errors.
+// See https://github.com/labstack/echo/issues/2015
+func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) (err error) {
+			if config.Skipper != nil && config.Skipper(c) {
+				return next(c)
+			}
+			err = next(c)
+			req := c.Request()
+			res := c.Response()
+
+			status := res.Status
+			if err != nil {
+				switch errWithStatus := err.(type) {
+				case *echo.HTTPError:
+					status = errWithStatus.Code
+				case httpStatusCodeError:
+					status = errWithStatus.statusCode
+				default:
+					status = http.StatusInternalServerError
+				}
+			}
+
+			config.logger.WithFields(logrus.Fields{
+				"remote_ip": c.RealIP(),
+				"method":    req.Method,
+				"uri":       req.RequestURI,
+				"status":    status,
+			}).Info("request")
+			return
+		}
+	}
+}
+
 func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
-	// Register Echo logger middleware but do not log calls to the status endpoint,
-	// since that gets called by the Docker healthcheck very, very often which leads to lots of clutter in the log.
-	loggerConfig := middleware.DefaultLoggerConfig
-	loggerConfig.Skipper = requestsStatusEndpoint
-	echoServer.Use(middleware.LoggerWithConfig(loggerConfig))
+
+	// ErrorHandler
 	echoServer.HTTPErrorHandler = createHTTPErrorHandler()
+
+	// CORS Configuration
 	if cfg.CORS.Enabled() {
 		if strictmode {
 			for _, origin := range cfg.CORS.Origin {
@@ -125,7 +180,12 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 		}
 		echoServer.Use(middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: cfg.CORS.Origin}))
 	}
+
+	// Use middleware to decode URL encoded path parameters like did%3Anuts%3A123 -> did:nuts:123
 	echoServer.Use(DecodeURIPath)
+
+	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: requestsStatusEndpoint, logger: Logger()}))
+
 	return echoServer, nil
 }
 
