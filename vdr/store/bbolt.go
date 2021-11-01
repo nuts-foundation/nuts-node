@@ -125,7 +125,7 @@ func (store *bboltStore) filterDocument(doc *documentVersion, metadata *vdr.Reso
 		return vdr.ErrNotFound
 	}
 
-	// Verify creation and update time
+	// Filter on creation and update time
 	if metadata.ResolveTime != nil {
 		resolveTime := *metadata.ResolveTime
 
@@ -140,7 +140,7 @@ func (store *bboltStore) filterDocument(doc *documentVersion, metadata *vdr.Reso
 		}
 	}
 
-	// Verify KeyTransaction
+	// Filter on SourceTransaction
 	if metadata.SourceTransaction != nil {
 		for i, keyTx := range doc.Metadata.SourceTransactions {
 			if keyTx.Equals(*metadata.SourceTransaction) {
