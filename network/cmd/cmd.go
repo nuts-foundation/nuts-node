@@ -20,7 +20,7 @@ package cmd
 
 import (
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"sort"
 	"strings"
 
@@ -41,8 +41,8 @@ func FlagSet() *pflag.FlagSet {
 		"If empty the gRPC server won't be started and other nodes will not be able to connect to this node "+
 		"(outbound connections can still be made).")
 	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "List of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
-	flagSet.Bool("network.enabletls", defs.EnableTLS, "Whether to enable TLS for incoming and outgoing gRPC connections. "+
-		"If set to `true` (which is default) `certfile` and `certkeyfile` MUST be configured.")
+	flagSet.Bool("network.enabletls", defs.TLSEnabled(), "Whether to enable TLS for incoming and outgoing gRPC connections. "+
+		"When `certfile` or `certkeyfile` is specified it defaults to `true`, otherwise `false`.")
 	flagSet.String("network.certfile", defs.CertFile, "PEM file containing the server certificate for the gRPC server. "+
 		"Required when `enableTLS` is `true`.")
 	flagSet.String("network.certkeyfile", defs.CertKeyFile, "PEM file containing the private key of the server certificate. "+
@@ -164,7 +164,7 @@ func peersCommand() *cobra.Command {
 
 			cmd.Printf("Listing %d peers:\n", len(peers))
 			for _, curr := range sortedPeers {
-				peer := types.PeerID(curr)
+				peer := transport.PeerID(curr)
 				cmd.Printf("\n%s\n", peer)
 				cmd.Printf("  SoftwareID:            %s\n", peers[peer].SoftwareID)
 				cmd.Printf("  SoftwareVersion:           %s\n", peers[peer].SoftwareVersion)

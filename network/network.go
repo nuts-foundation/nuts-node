@@ -22,11 +22,11 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crl"
-	"github.com/nuts-foundation/nuts-node/network/protocol"
-	networkTypes "github.com/nuts-foundation/nuts-node/network/protocol/types"
-	v1 "github.com/nuts-foundation/nuts-node/network/protocol/v1"
-	"github.com/nuts-foundation/nuts-node/network/protocol/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
+	"github.com/pkg/errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -35,15 +35,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/pkg/errors"
-
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
 )
 
@@ -65,14 +63,14 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 type Network struct {
 	config                 Config
 	lastTransactionTracker lastTransactionTracker
-	protocols              []protocol.Protocol
-	connectionManager      ConnectionManager
+	protocols              []transport.Protocol
+	connectionManager      transport.ConnectionManager
 	graph                  dag.DAG
 	publisher              dag.Publisher
 	payloadStore           dag.PayloadStore
 	keyResolver            types.KeyResolver
 	startTime              atomic.Value
-	peerID                 networkTypes.PeerID
+	peerID                 transport.PeerID
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -111,14 +109,35 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
-	n.peerID = networkTypes.PeerID(uuid.New().String())
-	adapterConfig, cfgErr := buildAdapterConfig(n.config, n.peerID)
-	if cfgErr != nil {
-		log.Logger().Warnf("Unable to build P2P layer config, network will be offline (reason: %v)", cfgErr)
-		adapterConfig = &p2p.AdapterConfig{PeerID: n.peerID, Valid: false}
+	n.peerID = transport.PeerID(uuid.New().String())
+
+	// TLS
+	// To disable TLS in strictmode, `EnableTLS` must explicitly be set to "off"
+	if !n.config.TLSEnabled() && n.config.EnableTLS == nil && config.Strictmode {
+		return errors.New("to disable TLS in strict mode, explicitly specify enableTLS=false")
 	}
+	var clientCert tls.Certificate
+	var trustStore *core.TrustStore
+	if n.config.TLSEnabled() {
+		var err error
+		clientCert, trustStore, err = loadCertificateAndTrustStore(n.config)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Configure protocols
-	n.protocols = []protocol.Protocol{v1.New(n.config.ProtocolV1, *adapterConfig, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics)}
+	v1Cfg := p2p.AdapterConfig{
+		PeerID:        n.peerID,
+		ListenAddress: n.config.GrpcAddr,
+	}
+	if n.config.TLSEnabled() {
+		v1Cfg.ClientCert = clientCert
+		v1Cfg.TrustStore = trustStore.CertPool
+	}
+	n.protocols = []transport.Protocol{
+		v1.New(n.config.ProtocolV1, v1Cfg, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
+	}
 	for _, prot := range n.protocols {
 		err := prot.Configure()
 		if err != nil {
@@ -127,7 +146,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 	// Setup connection manager, load with bootstrap nodes
 	if n.connectionManager == nil {
-		n.connectionManager = newConnectionManager(n.protocols...)
+		var grpcOpts []grpc.ConfigOption
+		if n.config.TLSEnabled() {
+			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
+		}
+		n.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...), n.protocols...)
 	}
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
@@ -136,6 +159,18 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		n.connectionManager.Connect(bootstrapNode)
 	}
 	return nil
+}
+
+func loadCertificateAndTrustStore(moduleConfig Config) (tls.Certificate, *core.TrustStore, error) {
+	clientCertificate, err := tls.LoadX509KeyPair(moduleConfig.CertFile, moduleConfig.CertKeyFile)
+	if err != nil {
+		return tls.Certificate{}, nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", moduleConfig.CertFile, moduleConfig.CertKeyFile)
+	}
+	trustStore, err := core.LoadTrustStore(moduleConfig.TrustStoreFile)
+	if err != nil {
+		return tls.Certificate{}, nil, err
+	}
+	return clientCertificate, trustStore, nil
 }
 
 // Name returns the module name.
@@ -151,17 +186,22 @@ func (n *Network) Config() interface{} {
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
-	for _, prot := range n.protocols {
-		err := prot.Start()
-		if err != nil {
-			return err
-		}
-	}
 	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
 	n.publisher.Start()
 
 	if err := n.graph.Verify(context.Background()); err != nil {
 		return err
+	}
+
+	err := n.connectionManager.Start()
+	if err != nil {
+		return err
+	}
+	for _, prot := range n.protocols {
+		err := prot.Start()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -270,8 +310,8 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 }
 
 // PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
-func (n *Network) PeerDiagnostics() map[networkTypes.PeerID]networkTypes.Diagnostics {
-	result := make(map[networkTypes.PeerID]networkTypes.Diagnostics, 0)
+func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
+	result := make(map[transport.PeerID]transport.Diagnostics, 0)
 	// We assume higher protocol versions (later in the slice) have better/more accurate diagnostics,
 	// so for now they're copied over diagnostics of earlier versions.
 	for _, prot := range n.protocols {
@@ -282,43 +322,8 @@ func (n *Network) PeerDiagnostics() map[networkTypes.PeerID]networkTypes.Diagnos
 	return result
 }
 
-// TODO: Untangle from v1 and move to ConnectionManager/ManagedConnection
-func buildAdapterConfig(moduleConfig Config, peerID networkTypes.PeerID) (*p2p.AdapterConfig, error) {
-	cfg := p2p.AdapterConfig{
-		ListenAddress: moduleConfig.GrpcAddr,
-		PeerID:        peerID,
-		Valid:         true,
-	}
-
-	if moduleConfig.EnableTLS {
-		clientCertificate, err := tls.LoadX509KeyPair(moduleConfig.CertFile, moduleConfig.CertKeyFile)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", moduleConfig.CertFile, moduleConfig.CertKeyFile)
-		}
-
-		trustStore, err := core.LoadTrustStore(moduleConfig.TrustStoreFile)
-		if err != nil {
-			return nil, err
-		}
-
-		cfg.ClientCert = clientCertificate
-		cfg.TrustStore = trustStore.CertPool
-		cfg.MaxCRLValidityDays = moduleConfig.MaxCRLValidityDays
-		cfg.CRLValidator = crl.NewValidator(trustStore.Certificates())
-
-		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
-		if moduleConfig.GrpcAddr != "" {
-			cfg.ServerCert = cfg.ClientCert
-		}
-	} else {
-		log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
-	}
-
-	return &cfg, nil
-}
-
-func (n *Network) collectDiagnostics() networkTypes.Diagnostics {
-	result := networkTypes.Diagnostics{
+func (n *Network) collectDiagnostics() transport.Diagnostics {
+	result := transport.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
 		NumberOfTransactions: uint32(n.graph.Statistics(context.Background()).NumberOfTransactions),
 		SoftwareVersion:      core.GitCommit,

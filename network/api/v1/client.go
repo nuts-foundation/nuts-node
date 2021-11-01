@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"io"
 	"net/http"
 	"strings"
@@ -100,7 +100,7 @@ func (hb HTTPClient) ListTransactions() ([]dag.Transaction, error) {
 }
 
 // GetPeerDiagnostics retrieves diagnostic information on the node's peers.
-func (hb HTTPClient) GetPeerDiagnostics() (map[types.PeerID]PeerDiagnostics, error) {
+func (hb HTTPClient) GetPeerDiagnostics() (map[transport.PeerID]PeerDiagnostics, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
 	defer cancel()
 	response, err := hb.client().GetPeerDiagnostics(ctx)
@@ -114,7 +114,7 @@ func (hb HTTPClient) GetPeerDiagnostics() (map[types.PeerID]PeerDiagnostics, err
 	if err != nil {
 		return nil, err
 	}
-	result := make(map[types.PeerID]PeerDiagnostics, 0)
+	result := make(map[transport.PeerID]PeerDiagnostics, 0)
 	err = json.Unmarshal(responseData, &result)
 	return result, err
 }

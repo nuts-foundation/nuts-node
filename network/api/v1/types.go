@@ -2,16 +2,16 @@ package v1
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/network/protocol/types"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"time"
 )
 
 // PeerDiagnostics defines the type for diagnostics of a peer
-type PeerDiagnostics types.Diagnostics
+type PeerDiagnostics transport.Diagnostics
 
 // UnmarshalJSON is the custom JSON unmarshaler for PeerDiagnostics
 func (p *PeerDiagnostics) UnmarshalJSON(bytes []byte) error {
-	result := types.Diagnostics{}
+	result := transport.Diagnostics{}
 	err := json.Unmarshal(bytes, &result)
 	if err == nil {
 		result.Uptime = result.Uptime * time.Second
@@ -22,7 +22,7 @@ func (p *PeerDiagnostics) UnmarshalJSON(bytes []byte) error {
 
 // MarshalJSON is the custom JSON marshaler for PeerDiagnostics
 func (p PeerDiagnostics) MarshalJSON() ([]byte, error) {
-	cp := types.Diagnostics(p)
+	cp := transport.Diagnostics(p)
 	cp.Uptime = cp.Uptime / time.Second
 	return json.Marshal(cp)
 }
