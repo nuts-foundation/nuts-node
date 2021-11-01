@@ -76,6 +76,8 @@ func (s *grpcConnectionManager) Start() error {
 			// Configure support for checking revoked certificates
 			s.config.CRLValidator.SyncLoop(context.TODO())
 			s.config.CRLValidator.Configure(tlsConfig, s.config.MaxCRLValidityDays)
+		} else {
+			log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
 		}
 
 		// Create gRPC server for inbound connectionList and associate it with the protocols

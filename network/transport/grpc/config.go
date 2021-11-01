@@ -3,9 +3,36 @@ package grpc
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crl"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
 )
+
+type ConfigOption func(config *Config)
+
+func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...ConfigOption) *Config {
+	cfg := &Config{
+		ListenAddress: grpcAddress,
+		PeerID:        peerID,
+	}
+	for _, opt := range options {
+		opt(cfg)
+	}
+	return cfg
+}
+
+func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, maxCRLValidityDays int) ConfigOption {
+	return func(config *Config) {
+		config.ClientCert = clientCertificate
+		config.TrustStore = trustStore.CertPool
+		config.CRLValidator = crl.NewValidator(trustStore.Certificates())
+		config.MaxCRLValidityDays = maxCRLValidityDays
+		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
+		if config.ListenAddress != "" {
+			config.ServerCert = config.ClientCert
+		}
+	}
+}
 
 // Config holds values for configuring the gRPC ConnectionManager.
 type Config struct {
@@ -14,7 +41,7 @@ type Config struct {
 	// ListenAddress specifies the socket address the gRPC server should listen on.
 	// If not set, the node will not accept incoming connectionList (but outbound connectionList can still be made).
 	ListenAddress string
-	// ServerCert specifies the TLS client certificate. If set the client should open a TLS socket, otherwise plain TCP.
+	// ClientCert specifies the TLS client certificate. If set the client should open a TLS socket, otherwise plain TCP.
 	ClientCert tls.Certificate
 	// ServerCert specifies the TLS server certificate. If set the server should open a TLS socket, otherwise plain TCP.
 	ServerCert tls.Certificate

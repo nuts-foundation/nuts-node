@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1"
@@ -144,18 +143,14 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-// TODO: Untangle from v1 and move to ConnectionManager/ManagedConnection
-func buildGRPCConfig(moduleConfig Config, peerID transport.PeerID, strictMode bool) (*grpc.Config, error) {
-	cfg := grpc.Config{
-		ListenAddress: moduleConfig.GrpcAddr,
-		PeerID:        peerID,
-	}
 
+func buildGRPCConfig(moduleConfig Config, peerID transport.PeerID, strictMode bool) (*grpc.Config, error) {
 	// To disable TLS in strictmode, `EnableTLS` must explicitly be set to "off"
 	if !moduleConfig.TLSEnabled() && moduleConfig.EnableTLS == nil && strictMode {
 		return nil, errors.New("to disable TLS in strict mode, explicitly specify enableTLS=false")
 	}
 
+	var opts []grpc.ConfigOption
 	if moduleConfig.TLSEnabled() {
 		clientCertificate, err := tls.LoadX509KeyPair(moduleConfig.CertFile, moduleConfig.CertKeyFile)
 		if err != nil {
@@ -167,20 +162,9 @@ func buildGRPCConfig(moduleConfig Config, peerID transport.PeerID, strictMode bo
 			return nil, err
 		}
 
-		cfg.ClientCert = clientCertificate
-		cfg.TrustStore = trustStore.CertPool
-		cfg.MaxCRLValidityDays = moduleConfig.MaxCRLValidityDays
-		cfg.CRLValidator = crl.NewValidator(trustStore.Certificates())
-
-		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
-		if moduleConfig.GrpcAddr != "" {
-			cfg.ServerCert = cfg.ClientCert
-		}
-	} else {
-		log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
+		opts = append(opts, grpc.WithTLS(clientCertificate, trustStore, moduleConfig.MaxCRLValidityDays))
 	}
-
-	return &cfg, nil
+	return grpc.NewConfig(moduleConfig.GrpcAddr, peerID, opts...), nil
 }
 
 // Name returns the module name.
