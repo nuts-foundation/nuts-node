@@ -34,6 +34,10 @@ type documentVersionList struct {
 }
 
 func (entry documentVersionList) Latest() hash.SHA256Hash {
+	if len(entry.Versions) == 0 {
+		return hash.EmptyHash()
+	}
+
 	return entry.Versions[len(entry.Versions)-1]
 }
 
