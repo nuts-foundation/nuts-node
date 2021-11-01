@@ -127,7 +127,7 @@ func (store *bboltStore) Iterate(fn vdr.DocIterator) error {
 
 func (store *bboltStore) filterDocument(doc *documentVersion, metadata *vdr.ResolveMetadata) error {
 	// Verify deactivated
-	if IsDeactivated(doc.Document) {
+	if IsDeactivated(doc.Document) && (metadata == nil || !metadata.AllowDeactivated) {
 		return vdr.ErrDeactivated
 	}
 
@@ -206,14 +206,14 @@ func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (doc
 			return err
 		}
 
-		if err := store.filterDocument(doc, metadata); err == nil {
-			document = &doc.Document
-			documentMeta = &doc.Metadata
-
-			return nil
+		if err := store.filterDocument(doc, metadata); err != nil {
+			return err
 		}
 
-		return vdr.ErrNotFound
+		document = &doc.Document
+		documentMeta = &doc.Metadata
+
+		return nil
 	})
 
 	return
