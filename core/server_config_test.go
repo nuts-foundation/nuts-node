@@ -44,6 +44,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		}
 
 		assert.Equal(t, defaultLogLevel, cfg.Verbosity)
+		assert.Equal(t, defaultLoggerFormat, cfg.LoggerFormat)
 		assert.Equal(t, defaultStrictMode, cfg.Strictmode)
 		assert.Equal(t, defaultHTTPInterface, cfg.HTTP.Address)
 		assert.Empty(t, cfg.HTTP.AltBinds)
@@ -98,6 +99,18 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		err := cfg.Load(cmd)
 
 		assert.Error(t, err)
+	})
+
+	t.Run("Returns error for incorrect logger format", func(t *testing.T) {
+		defer reset()
+		os.Args = []string{"command", "--loggerformat", "fluffy"}
+		cfg := NewServerConfig()
+		cmd := testCommand()
+
+		err := cfg.Load(cmd)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "invalid formatter: 'fluffy'")
 	})
 
 	t.Run("Strict-mode is off by default", func(t *testing.T) {

@@ -21,6 +21,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -46,14 +47,17 @@ const defaultStrictMode = false
 const defaultDatadir = "./data"
 const defaultLogLevel = "info"
 const loggerLevelFlag = "verbosity"
+const defaultLoggerFormat = "text"
+const loggerFormatFlag = "loggerformat"
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
-	Verbosity  string           `koanf:"verbosity"`
-	Strictmode bool             `koanf:"strictmode"`
-	Datadir    string           `koanf:"datadir"`
-	HTTP       GlobalHTTPConfig `koanf:"http"`
-	configMap  *koanf.Koanf
+	Verbosity    string           `koanf:"verbosity"`
+	LoggerFormat string           `koanf:"loggerformat"`
+	Strictmode   bool             `koanf:"strictmode"`
+	Datadir      string           `koanf:"datadir"`
+	HTTP         GlobalHTTPConfig `koanf:"http"`
+	configMap    *koanf.Koanf
 }
 
 // GlobalHTTPConfig is the top-level config struct for HTTP interfaces.
@@ -88,10 +92,11 @@ func (cors HTTPCORSConfig) Enabled() bool {
 // NewServerConfig creates a new config with some defaults
 func NewServerConfig() *ServerConfig {
 	return &ServerConfig{
-		configMap:  koanf.New(defaultDelimiter),
-		Verbosity:  defaultLogLevel,
-		Strictmode: defaultStrictMode,
-		Datadir:    defaultDatadir,
+		configMap:    koanf.New(defaultDelimiter),
+		Verbosity:    defaultLogLevel,
+		LoggerFormat: defaultLoggerFormat,
+		Strictmode:   defaultStrictMode,
+		Datadir:      defaultDatadir,
 		HTTP: GlobalHTTPConfig{
 			HTTPConfig: HTTPConfig{
 				Address: defaultHTTPInterface,
@@ -123,6 +128,16 @@ func (ngc *ServerConfig) Load(cmd *cobra.Command) (err error) {
 		return err
 	}
 	logrus.SetLevel(lvl)
+
+	switch ngc.LoggerFormat {
+	case "text":
+		logrus.SetFormatter(&logrus.TextFormatter{})
+	case "json":
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+	default:
+		return fmt.Errorf("invalid formatter: '%s'", ngc.LoggerFormat)
+	}
+
 	return nil
 }
 
@@ -153,6 +168,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("server", pflag.ContinueOnError)
 	flagSet.String(configFileFlag, defaultConfigFile, "Nuts config file")
 	flagSet.String(loggerLevelFlag, defaultLogLevel, "Log level (trace, debug, info, warn, error)")
+	flagSet.String(loggerFormatFlag, defaultLoggerFormat, "Log format (text, json)")
 	flagSet.String(serverAddressFlag, defaultHTTPInterface, "Address and port the server will be listening to")
 	flagSet.Bool(strictModeFlag, defaultStrictMode, "When set, insecure settings are forbidden.")
 	flagSet.String(datadirFlag, defaultDatadir, "Directory where the node stores its files.")
