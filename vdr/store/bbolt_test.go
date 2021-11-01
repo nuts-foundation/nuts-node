@@ -60,16 +60,26 @@ func TestBBoltStore_Resolve(t *testing.T) {
 		Controller: []did.DID{*did1},
 	}
 
-	//upd := time.Now().Add(time.Hour * 24)
-	h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
+	firstHash, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4619")
 	txHash := hash.FromSlice([]byte("keyTransactionHash"))
-	meta := types.DocumentMetadata{
-		Created:            time.Now().Add(time.Hour * -24),
-		Hash:               h,
+	firstMeta := types.DocumentMetadata{
+		Created:            time.Now().Add(time.Hour * -48),
+		Hash:               firstHash,
 		SourceTransactions: []hash.SHA256Hash{txHash},
 	}
 
-	_ = store.Write(doc, meta)
+	err := store.Write(doc, firstMeta)
+	assert.NoError(t, err)
+
+	latestHash, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
+	meta := types.DocumentMetadata{
+		Created:            time.Now().Add(time.Hour * -24),
+		Hash:               latestHash,
+		SourceTransactions: []hash.SHA256Hash{txHash},
+	}
+
+	err = store.Update(*did1, firstHash, doc, &meta)
+	assert.NoError(t, err)
 
 	t.Run("returns ErrNotFound on unknown did", func(t *testing.T) {
 		did2, _ := did.ParseDID("did:nuts:2")
@@ -84,6 +94,12 @@ func TestBBoltStore_Resolve(t *testing.T) {
 		}
 		assert.NotNil(t, d)
 		assert.NotNil(t, m)
+	})
+
+	t.Run("only returns the last document", func(t *testing.T) {
+		_, m, err := store.Resolve(*did1, &types.ResolveMetadata{Hash: &firstHash})
+		assert.Error(t, err)
+		assert.Nil(t, m)
 	})
 
 	t.Run("returns document with resolve metadata - selection on date", func(t *testing.T) {
@@ -108,7 +124,7 @@ func TestBBoltStore_Resolve(t *testing.T) {
 
 	t.Run("returns document with resolve metadata - selection on hash", func(t *testing.T) {
 		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
-			Hash: &h,
+			Hash: &latestHash,
 		})
 		if !assert.NoError(t, err) {
 			return
@@ -130,7 +146,7 @@ func TestBBoltStore_Resolve(t *testing.T) {
 
 	t.Run("returns no document with resolve metadata - selection on KeyTransaction", func(t *testing.T) {
 		_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
-			SourceTransaction: &h,
+			SourceTransaction: &latestHash,
 		})
 		if !assert.Error(t, err) {
 			return

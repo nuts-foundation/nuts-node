@@ -125,6 +125,11 @@ func (store *bboltStore) filterDocument(doc *documentVersion, metadata *vdr.Reso
 		return nil
 	}
 
+	// Filter on hash
+	if metadata.Hash != nil && !doc.Metadata.Hash.Equals(*metadata.Hash) {
+		return vdr.ErrNotFound
+	}
+
 	// Verify creation and update time
 	if metadata.ResolveTime != nil {
 		resolveTime := *metadata.ResolveTime
@@ -164,23 +169,6 @@ func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (doc
 			return vdr.ErrNotFound
 		}
 
-		// If `metadata.Hash` is set we can fetch the document without iterating
-		if metadata != nil && metadata.Hash != nil {
-			doc, err := store.getDocumentVersion(documents, id, *metadata.Hash)
-			if err != nil {
-				return nil
-			}
-
-			if err := store.filterDocument(doc, metadata); err != nil {
-				return err
-			}
-
-			document = &doc.Document
-			documentMeta = &doc.Metadata
-
-			return nil
-		}
-
 		versions := tx.Bucket(versionsBucket)
 		if versions == nil {
 			return vdr.ErrNotFound
@@ -197,24 +185,22 @@ func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (doc
 			return err
 		}
 
-		for _, versionHash := range versionList.Versions {
-			data = documents.Get(store.getDocumentKey(id, versionHash))
-			if data == nil {
-				continue
-			}
+		data = documents.Get(store.getDocumentKey(id, versionList.Latest()))
+		if data == nil {
+			return vdr.ErrNotFound
+		}
 
-			doc := &documentVersion{}
+		doc := &documentVersion{}
 
-			if err := json.Unmarshal(data, doc); err != nil {
-				return err
-			}
+		if err := json.Unmarshal(data, doc); err != nil {
+			return err
+		}
 
-			if err := store.filterDocument(doc, metadata); err == nil {
-				document = &doc.Document
-				documentMeta = &doc.Metadata
+		if err := store.filterDocument(doc, metadata); err == nil {
+			document = &doc.Document
+			documentMeta = &doc.Metadata
 
-				return nil
-			}
+			return nil
 		}
 
 		return vdr.ErrNotFound
