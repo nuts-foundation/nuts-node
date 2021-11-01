@@ -57,7 +57,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 		serverCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
 		cm := NewGRPCConnectionManager(Config{
-			PeerID:        "foo",
+			peerID:        "foo",
 			ListenAddress: fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()),
 			ServerCert:    serverCert,
 			TrustStore:    x509.NewCertPool(),
@@ -73,7 +73,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 	t.Run("ok - gRPC server bound, TLS disabled", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{
-			PeerID:        "foo",
+			peerID:        "foo",
 			ListenAddress: fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()),
 		}).(*grpcConnectionManager)
 		err := cm.Start()
@@ -108,7 +108,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 func Test_grpcConnectionManager_acceptGRPCStream(t *testing.T) {
 	t.Run("new client", func(t *testing.T) {
-		cm := NewGRPCConnectionManager(Config{PeerID: "server-peer-id"}).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}).(*grpcConnectionManager)
 
 		serverStream := &stubServerStream{clientMetadata: constructMetadata("client-peer-id")}
 		accepted, peerInfo, closer := cm.acceptGRPCStream(serverStream)
@@ -125,7 +125,7 @@ func Test_grpcConnectionManager_acceptGRPCStream(t *testing.T) {
 		assert.Len(t, cm.connections.list, 1)
 	})
 	t.Run("already connected client", func(t *testing.T) {
-		cm := NewGRPCConnectionManager(Config{PeerID: "server-peer-id"}).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}).(*grpcConnectionManager)
 
 		serverStream1 := &stubServerStream{clientMetadata: constructMetadata("client-peer-id")}
 		accepted, _, _ := cm.acceptGRPCStream(serverStream1)

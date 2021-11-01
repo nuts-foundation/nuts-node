@@ -166,7 +166,7 @@ func (s *grpcConnectionManager) acceptGRPCStream(stream grpc.ServerStream) (bool
 
 	log.Logger().Infof("New peer connected (peer=%s)", peer)
 	// We received our peer's PeerID, now send our own.
-	if err := stream.SendHeader(constructMetadata(s.config.PeerID)); err != nil {
+	if err := stream.SendHeader(constructMetadata(s.config.peerID)); err != nil {
 		log.Logger().Errorf("Unable to accept gRPC stream (remote address: %s), unable to send headers: %v", peerCtx.Addr, err)
 		return false, transport.Peer{}, nil
 	}

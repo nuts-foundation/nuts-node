@@ -111,18 +111,32 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	n.peerID = transport.PeerID(uuid.New().String())
 
-	grpcConfig, err := buildGRPCConfig(n.config, n.peerID, config.Strictmode)
-	if err != nil {
-		return err
+	// TLS
+	// To disable TLS in strictmode, `EnableTLS` must explicitly be set to "off"
+	if !n.config.TLSEnabled() && n.config.EnableTLS == nil && config.Strictmode {
+		return errors.New("to disable TLS in strict mode, explicitly specify enableTLS=false")
 	}
+	var clientCert tls.Certificate
+	var trustStore *core.TrustStore
+	if n.config.TLSEnabled() {
+		var err error
+		clientCert, trustStore, err = loadCertificateAndTrustStore(n.config)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Configure protocols
+	v1Cfg := p2p.AdapterConfig{
+		PeerID:        n.peerID,
+		ListenAddress: n.config.GrpcAddr,
+	}
+	if n.config.TLSEnabled() {
+		v1Cfg.ClientCert = clientCert
+		v1Cfg.TrustStore = trustStore.CertPool
+	}
 	n.protocols = []transport.Protocol{
-		v1.New(n.config.ProtocolV1, p2p.AdapterConfig{
-			PeerID:        n.peerID,
-			ListenAddress: grpcConfig.ListenAddress,
-			ClientCert:    grpcConfig.ClientCert,
-			TrustStore:    grpcConfig.TrustStore,
-		}, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
+		v1.New(n.config.ProtocolV1, v1Cfg, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
 	}
 	for _, prot := range n.protocols {
 		err := prot.Configure()
@@ -132,7 +146,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 	// Setup connection manager, load with bootstrap nodes
 	if n.connectionManager == nil {
-		n.connectionManager = grpc.NewGRPCConnectionManager(*grpcConfig, n.protocols...)
+		var grpcOpts []grpc.ConfigOption
+		if n.config.TLSEnabled() {
+			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
+		}
+		n.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...), n.protocols...)
 	}
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
@@ -143,27 +161,16 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-func buildGRPCConfig(moduleConfig Config, peerID transport.PeerID, strictMode bool) (*grpc.Config, error) {
-	// To disable TLS in strictmode, `EnableTLS` must explicitly be set to "off"
-	if !moduleConfig.TLSEnabled() && moduleConfig.EnableTLS == nil && strictMode {
-		return nil, errors.New("to disable TLS in strict mode, explicitly specify enableTLS=false")
+func loadCertificateAndTrustStore(moduleConfig Config) (tls.Certificate, *core.TrustStore, error) {
+	clientCertificate, err := tls.LoadX509KeyPair(moduleConfig.CertFile, moduleConfig.CertKeyFile)
+	if err != nil {
+		return tls.Certificate{}, nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", moduleConfig.CertFile, moduleConfig.CertKeyFile)
 	}
-
-	var opts []grpc.ConfigOption
-	if moduleConfig.TLSEnabled() {
-		clientCertificate, err := tls.LoadX509KeyPair(moduleConfig.CertFile, moduleConfig.CertKeyFile)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", moduleConfig.CertFile, moduleConfig.CertKeyFile)
-		}
-
-		trustStore, err := core.LoadTrustStore(moduleConfig.TrustStoreFile)
-		if err != nil {
-			return nil, err
-		}
-
-		opts = append(opts, grpc.WithTLS(clientCertificate, trustStore, moduleConfig.MaxCRLValidityDays))
+	trustStore, err := core.LoadTrustStore(moduleConfig.TrustStoreFile)
+	if err != nil {
+		return tls.Certificate{}, nil, err
 	}
-	return grpc.NewConfig(moduleConfig.GrpcAddr, peerID, opts...), nil
+	return clientCertificate, trustStore, nil
 }
 
 // Name returns the module name.

@@ -191,10 +191,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		ListenAddress: listenAddress,
 	}, ctx.graph, publisher, ctx.payloadStore, dummyDiagnostics).(*protocolV1)
 
-	connectionManager := grpc.NewGRPCConnectionManager(grpc.Config{
-		PeerID:        peerID,
-		ListenAddress: listenAddress,
-	}, ctx.protocol)
+	connectionManager := grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), ctx.protocol)
 
 	if err = ctx.protocol.Configure(); err != nil {
 		t.Fatal(err)

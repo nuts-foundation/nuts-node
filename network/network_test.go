@@ -121,17 +121,72 @@ func TestNetwork_Diagnostics(t *testing.T) {
 }
 
 func TestNetwork_Configure(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
+	t.Run("ok - configures bootstrap nodes", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(ctrl, func(config *Config) {
+			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
+		})
 		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1")
 		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2")
-		cfg := core.ServerConfig{Datadir: io.TestDirectory(t)}
-		err := cxt.network.Configure(cfg)
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
 		}
+	})
+	t.Run("ok - TLS enabled", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl)
+		cxt.network.connectionManager = nil
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+	t.Run("ok - TLS disabled", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl, func(config *Config) {
+			config.EnableTLS = &tlsDisabled
+		})
+		cxt.network.connectionManager = nil
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl, func(config *Config) {
+			config.GrpcAddr = ""
+		})
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+	t.Run("error - unable to load key pair from file", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl, func(config *Config) {
+			config.CertFile = "test/non-existent.pem"
+			config.CertKeyFile = "test/non-existent.pem"
+		})
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
+	})
+	t.Run("error - TLS can't be implicitly disabled in strict mode", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl, func(config *Config) {
+			config.EnableTLS = nil
+			config.CertFile = ""
+			config.CertKeyFile = ""
+		})
+		err := cxt.network.Configure(core.ServerConfig{Strictmode: true, Datadir: io.TestDirectory(t)})
+		assert.EqualError(t, err, "to disable TLS in strict mode, explicitly specify enableTLS=false")
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -316,65 +371,6 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 	assert.NotEmpty(t, actual.Uptime)
 }
 
-func TestNetwork_buildGRPCConfig(t *testing.T) {
-	t.Run("ok - TLS enabled", func(t *testing.T) {
-		moduleConfig := Config{
-			GrpcAddr:       ":5555",
-			EnableTLS:      &tlsEnabled,
-			TrustStoreFile: "test/truststore.pem",
-			CertFile:       "test/certificate-and-key.pem",
-			CertKeyFile:    "test/certificate-and-key.pem",
-		}
-		cfg, err := buildGRPCConfig(moduleConfig, "", false)
-		assert.NotNil(t, cfg)
-		assert.NoError(t, err)
-		assert.NotNil(t, cfg.ClientCert.PrivateKey)
-		assert.NotNil(t, cfg.ServerCert.PrivateKey)
-	})
-	t.Run("ok - TLS disabled", func(t *testing.T) {
-		moduleConfig := Config{
-			GrpcAddr:  ":5555",
-			EnableTLS: &tlsDisabled,
-		}
-		cfg, err := buildGRPCConfig(moduleConfig, "", false)
-		assert.NotNil(t, cfg)
-		assert.NoError(t, err)
-		assert.Nil(t, cfg.ClientCert.PrivateKey)
-		assert.Nil(t, cfg.ServerCert.PrivateKey)
-	})
-	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
-		moduleConfig := Config{
-			GrpcAddr:       "",
-			EnableTLS:      &tlsEnabled,
-			TrustStoreFile: "test/truststore.pem",
-			CertFile:       "test/certificate-and-key.pem",
-			CertKeyFile:    "test/certificate-and-key.pem",
-		}
-		cfg, err := buildGRPCConfig(moduleConfig, "", false)
-		assert.NotNil(t, cfg)
-		assert.NoError(t, err)
-		assert.NotNil(t, cfg.ClientCert.PrivateKey)
-		assert.Nil(t, cfg.ServerCert.PrivateKey)
-	})
-	t.Run("error - unable to load key pair from file", func(t *testing.T) {
-		moduleConfig := Config{
-			CertFile:    "test/non-existent.pem",
-			CertKeyFile: "test/non-existent.pem",
-			EnableTLS:   &tlsEnabled,
-		}
-		cfg, err := buildGRPCConfig(moduleConfig, "", false)
-		assert.Nil(t, cfg)
-		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
-	})
-	t.Run("error - TLS can't be implicitly disabled in strict mode", func(t *testing.T) {
-		moduleConfig := Config{
-			GrpcAddr:  ":5555",
-		}
-		_, err := buildGRPCConfig(moduleConfig, "", true)
-		assert.EqualError(t, err, "to disable TLS in strict mode, explicitly specify enableTLS=false")
-	})
-}
-
 func Test_lastTransactionTracker(t *testing.T) {
 	tracker := lastTransactionTracker{headRefs: map[hash.SHA256Hash]bool{}}
 
@@ -406,7 +402,7 @@ func Test_lastTransactionTracker(t *testing.T) {
 	assert.Contains(t, tracker.heads(), tx3.Ref())
 }
 
-func createNetwork(ctrl *gomock.Controller) *networkTestContext {
+func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *networkTestContext {
 	graph := dag.NewMockDAG(ctrl)
 	payload := dag.NewMockPayloadStore(ctrl)
 	publisher := dag.NewMockPublisher(ctrl)
@@ -417,12 +413,14 @@ func createNetwork(ctrl *gomock.Controller) *networkTestContext {
 	networkConfig.CertFile = "test/certificate-and-key.pem"
 	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
 	networkConfig.EnableTLS = &tlsEnabled
-	networkConfig.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
+	for _, fn := range cfgFn {
+		fn(&networkConfig)
+	}
 	keyStore := crypto.NewMockKeyStore(ctrl)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	network := NewNetworkInstance(networkConfig, keyResolver)
-	network.connectionManager = connectionManager
 	network.graph = graph
+	network.connectionManager = connectionManager
 	network.payloadStore = payload
 	network.protocols = []transport.Protocol{prot}
 	network.publisher = publisher

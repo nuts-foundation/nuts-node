@@ -12,13 +12,13 @@ import (
 type ConfigOption func(config *Config)
 
 // NewConfig creates a new Config, used for configuring a gRPC ConnectionManager.
-func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...ConfigOption) *Config {
-	cfg := &Config{
+func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...ConfigOption) Config {
+	cfg := Config{
 		ListenAddress: grpcAddress,
-		PeerID:        peerID,
+		peerID:        peerID,
 	}
 	for _, opt := range options {
-		opt(cfg)
+		opt(&cfg)
 	}
 	return cfg
 }
@@ -40,7 +40,7 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, max
 // Config holds values for configuring the gRPC ConnectionManager.
 type Config struct {
 	// PeerID contains the ID of the local node.
-	PeerID networkTypes.PeerID
+	peerID networkTypes.PeerID
 	// ListenAddress specifies the socket address the gRPC server should listen on.
 	// If not set, the node will not accept incoming connectionList (but outbound connectionList can still be made).
 	ListenAddress string

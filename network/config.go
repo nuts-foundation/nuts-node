@@ -28,7 +28,7 @@ func (c Config) TLSEnabled() bool {
 	if c.EnableTLS != nil {
 		return *c.EnableTLS
 	}
-	return c.CertFile != "" || c.CertKeyFile != "" || c.TrustStoreFile != ""
+	return c.CertFile != "" || c.CertKeyFile != ""
 }
 
 // DefaultConfig returns the default NetworkEngine configuration.
