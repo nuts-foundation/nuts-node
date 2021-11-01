@@ -380,3 +380,28 @@ func TestBBoltStore_Iterate(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestBBoltStore_DeactivatedFilter(t *testing.T) {
+	store := newBBoltTestStore(t)
+	did1, _ := did.ParseDID("did:nuts:1")
+	doc := did.Document{
+		ID:         *did1,
+	}
+	h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
+	meta := types.DocumentMetadata{
+		Hash: h,
+	}
+
+	_ = store.Write(doc, meta)
+
+	t.Run("returns error when document is deactivated", func(t *testing.T) {
+		_, _, err := store.Resolve(*did1, nil)
+		assert.ErrorIs(t, types.ErrDeactivated, err)
+	})
+
+	t.Run("returns deactivated document when allow deactivated is enabled in metadata", func(t *testing.T) {
+		result, _, err := store.Resolve(*did1, &types.ResolveMetadata{AllowDeactivated: true})
+		assert.NoError(t, err)
+		assert.Equal(t, doc, *result)
+	})
+}
