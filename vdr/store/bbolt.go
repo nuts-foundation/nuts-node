@@ -36,10 +36,6 @@ func NewBBoltStore(db *bbolt.DB) vdr.Store {
 	return &bboltStore{db: db}
 }
 
-func (store *bboltStore) getDocumentKey(id did.DID, hash hash.SHA256Hash) []byte {
-	return append([]byte(id.String()), hash.Slice()...)
-}
-
 func (store *bboltStore) storeDocument(tx *bbolt.Tx, document did.Document, metadata vdr.DocumentMetadata) error {
 	documents, err := tx.CreateBucketIfNotExists(documentsBucket)
 	if err != nil {
@@ -54,15 +50,15 @@ func (store *bboltStore) storeDocument(tx *bbolt.Tx, document did.Document, meta
 		return err
 	}
 
-	if err := documents.Put(store.getDocumentKey(document.ID, metadata.Hash), data); err != nil {
+	if err := documents.Put(metadata.Hash.Slice(), data); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (store *bboltStore) getDocumentVersion(bucket *bbolt.Bucket, id did.DID, hash hash.SHA256Hash) (*documentVersion, error) {
-	data := bucket.Get(store.getDocumentKey(id, hash))
+func (store *bboltStore) getDocumentVersion(bucket *bbolt.Bucket, hash hash.SHA256Hash) (*documentVersion, error) {
+	data := bucket.Get(hash.Slice())
 	if data == nil {
 		return nil, nil
 	}
@@ -96,8 +92,7 @@ func (store *bboltStore) Iterate(fn vdr.DocIterator) error {
 				return err
 			}
 
-			id, _ := did.ParseDID(string(key))
-			doc, err := store.getDocumentVersion(documents, *id, versionList.Latest())
+			doc, err := store.getDocumentVersion(documents, versionList.Latest())
 			if err != nil {
 				return err
 			}
@@ -185,7 +180,7 @@ func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (doc
 			return err
 		}
 
-		data = documents.Get(store.getDocumentKey(id, versionList.Latest()))
+		data = documents.Get(versionList.Latest().Slice())
 		if data == nil {
 			return vdr.ErrNotFound
 		}
