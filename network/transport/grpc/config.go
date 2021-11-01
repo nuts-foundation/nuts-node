@@ -8,8 +8,10 @@ import (
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
 )
 
+// ConfigOption is used to build Config.
 type ConfigOption func(config *Config)
 
+// NewConfig creates a new Config, used for configuring a gRPC ConnectionManager.
 func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...ConfigOption) *Config {
 	cfg := &Config{
 		ListenAddress: grpcAddress,
@@ -21,6 +23,7 @@ func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...Config
 	return cfg
 }
 
+// WithTLS enables TLS for gRPC ConnectionManager.
 func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, maxCRLValidityDays int) ConfigOption {
 	return func(config *Config) {
 		config.ClientCert = clientCertificate

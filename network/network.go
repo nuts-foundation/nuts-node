@@ -143,7 +143,6 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-
 func buildGRPCConfig(moduleConfig Config, peerID transport.PeerID, strictMode bool) (*grpc.Config, error) {
 	// To disable TLS in strictmode, `EnableTLS` must explicitly be set to "off"
 	if !moduleConfig.TLSEnabled() && moduleConfig.EnableTLS == nil && strictMode {
