@@ -161,9 +161,9 @@ func Test_requestsStatusEndpoint(t *testing.T) {
 func Test_loggerMiddleware(t *testing.T) {
 	t.Run("it logs", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		response  := &echo.Response{}
+		response := &echo.Response{}
 		echoMock := mock.NewMockContext(ctrl)
-		echoMock.EXPECT().NoContent(http.StatusNoContent).Do(func(status int) {response.Status = status})
+		echoMock.EXPECT().NoContent(http.StatusNoContent).Do(func(status int) { response.Status = status })
 		echoMock.EXPECT().Request().Return(&http.Request{RequestURI: "/test"})
 		echoMock.EXPECT().Response().Return(response)
 		echoMock.EXPECT().RealIP().Return("::1")

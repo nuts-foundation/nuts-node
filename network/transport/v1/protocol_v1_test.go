@@ -4,8 +4,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/logic"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

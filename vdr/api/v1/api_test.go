@@ -210,10 +210,9 @@ func TestWrapper_GetDID(t *testing.T) {
 		ctx := newMockContext(t)
 
 		invalidVersionId := "123"
-		err := ctx.client.GetDID(ctx.echo, "given hash is not valid: encoding/hex: odd length hex string", GetDIDParams{&invalidVersionId})
+		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{&invalidVersionId})
 
-		assert.ErrorIs(t, err, did.ErrInvalidDID)
-		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
+		assert.ErrorIs(t, err, core.Error(http.StatusBadRequest, "foo"))
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
