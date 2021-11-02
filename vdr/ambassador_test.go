@@ -293,6 +293,7 @@ func Test_ambassador_callback(t *testing.T) {
 			Updated:            &signingTime,
 			Hash:               payloadHash,
 			Deactivated:        true,
+			PreviousHash:       &currentPayloadHash,
 			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 		var pKey crypto2.PublicKey
@@ -339,6 +340,7 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            createdAt,
 			Updated:            &signingTime,
 			Hash:               payloadHash,
+			PreviousHash:       &currentPayloadHash,
 			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 		var pKey crypto2.PublicKey
@@ -386,6 +388,7 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            createdAt,
 			Updated:            &tx.signingTime,
 			Hash:               payloadHash,
+			PreviousHash:       &currentPayloadHash,
 			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 		var pKey crypto2.PublicKey
@@ -428,6 +431,7 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            createdAt,
 			Updated:            &signingTime,
 			Hash:               payloadHash,
+			PreviousHash:       &currentMetadata.Hash,
 			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 		var pKey crypto2.PublicKey
@@ -469,6 +473,7 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            createdAt,
 			Updated:            &signingTime,
 			Hash:               payloadHash,
+			PreviousHash:       &currentMetadata.Hash,
 			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 		var pKey crypto2.PublicKey
@@ -538,6 +543,7 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            createdAt,
 			Updated:            &signingTime,
 			Hash:               payloadHash,
+			PreviousHash:       &currentMetadata.Hash,
 			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 
@@ -655,6 +661,7 @@ func Test_ambassador_callback(t *testing.T) {
 			Created:            signingTime,
 			Updated:            &signingTime,
 			Hash:               payloadHash,
+			PreviousHash:       &didMetadata.Hash,
 			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), tx.Ref()},
 		}
 

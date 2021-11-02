@@ -88,7 +88,13 @@ func (m DocumentMetadata) Copy() DocumentMetadata {
 		updated := *m.Updated
 		m.Updated = &updated
 	}
+
+	if m.PreviousHash != nil {
+		prevHash := *m.PreviousHash
+		m.PreviousHash = &prevHash
+	}
 	m.SourceTransactions = append(m.SourceTransactions[:0:0], m.SourceTransactions...)
+
 	return m
 }
 
