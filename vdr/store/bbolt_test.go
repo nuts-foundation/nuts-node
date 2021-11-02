@@ -99,19 +99,14 @@ func TestBBoltStore_Resolve(t *testing.T) {
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 
-	t.Run("returns document without resolve metadata", func(t *testing.T) {
+	t.Run("returns the last document without resolve metadata", func(t *testing.T) {
 		d, m, err := store.Resolve(*did1, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
 		assert.NotNil(t, d)
 		assert.NotNil(t, m)
-	})
-
-	t.Run("only returns the last document", func(t *testing.T) {
-		_, m, err := store.Resolve(*did1, &types.ResolveMetadata{Hash: &firstHash})
-		assert.Error(t, err)
-		assert.Nil(t, m)
+		assert.Equal(t, m.Hash, latestHash)
 	})
 
 	t.Run("returns document with resolve metadata - selection on date", func(t *testing.T) {
@@ -136,7 +131,7 @@ func TestBBoltStore_Resolve(t *testing.T) {
 
 	t.Run("returns document with resolve metadata - selection on hash", func(t *testing.T) {
 		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
-			Hash: &latestHash,
+			Hash: &firstHash,
 		})
 		if !assert.NoError(t, err) {
 			return
@@ -382,7 +377,7 @@ func TestBBoltStore_DeactivatedFilter(t *testing.T) {
 	store := newBBoltTestStore(t)
 	did1, _ := did.ParseDID("did:nuts:1")
 	doc := did.Document{
-		ID:         *did1,
+		ID: *did1,
 	}
 	h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 	meta := types.DocumentMetadata{

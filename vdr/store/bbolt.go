@@ -17,6 +17,7 @@ package store
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
@@ -175,7 +176,10 @@ func (store *bboltStore) filterDocument(doc *documentVersion, metadata *vdr.Reso
 	return nil
 }
 
-// Resolve returns the DID Document for the provided DID
+// Resolve returns the DID Document for the provided DID.
+// If metadata is not provided the latest version is returned.
+// If metadata is provided then the result is filtered or scoped on that metadata.
+// It returns ErrNotFound if there are no corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata
 func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (document *did.Document, documentMeta *vdr.DocumentMetadata, txErr error) {
 	txErr = store.db.View(func(tx *bbolt.Tx) error {
 		documents := tx.Bucket(documentsBucket)
@@ -199,7 +203,13 @@ func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (doc
 			return err
 		}
 
-		data = documents.Get(versionList.Latest().Slice())
+		versionHash := versionList.Latest()
+
+		if metadata != nil && metadata.Hash != nil {
+			versionHash = *metadata.Hash
+		}
+
+		data = documents.Get(versionHash.Slice())
 		if data == nil {
 			return vdr.ErrNotFound
 		}
@@ -257,6 +267,10 @@ func (store *bboltStore) Write(document did.Document, metadata vdr.DocumentMetad
 
 // Update replaces the DID document identified by DID with the nextVersion
 func (store *bboltStore) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *vdr.DocumentMetadata) error {
+	if metadata == nil {
+		return errors.New("unable to update document without metadata")
+	}
+
 	return store.db.Update(func(tx *bbolt.Tx) error {
 		versions, err := tx.CreateBucketIfNotExists(versionsBucket)
 		if err != nil {
