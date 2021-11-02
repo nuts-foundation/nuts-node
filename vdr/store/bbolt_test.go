@@ -58,12 +58,9 @@ func TestBBoltStore_Write(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("returns error when already exist", func(t *testing.T) {
+	t.Run("doesn't return an error when already exist", func(t *testing.T) {
 		err := store.Write(doc, meta)
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Equal(t, types.ErrDIDAlreadyExists, err)
+		assert.NoError(t, err)
 	})
 }
 

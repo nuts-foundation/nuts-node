@@ -234,7 +234,7 @@ func (store *bboltStore) Write(document did.Document, metadata vdr.DocumentMetad
 		key := []byte(document.ID.String())
 
 		if versions.Get(key) != nil {
-			return vdr.ErrDIDAlreadyExists
+			return nil
 		}
 
 		// Store versions entry
