@@ -73,6 +73,8 @@ type DocumentMetadata struct {
 	Updated *time.Time `json:"updated,omitempty"`
 	// Hash of DID document bytes. Is equal to payloadHash in network layer.
 	Hash hash.SHA256Hash `json:"hash"`
+	// PreviousHash of the previous version of this DID document
+	PreviousHash *hash.SHA256Hash `json:"previousHash,omitempty"`
 	// SourceTransactions points to the transaction(s) that created the current version of this DID Document.
 	// If multiple transactions are listed, the DID Document is conflicted
 	SourceTransactions []hash.SHA256Hash `json:"txs"`

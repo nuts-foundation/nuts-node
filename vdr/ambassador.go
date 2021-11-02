@@ -212,6 +212,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		Created:            currentDIDMeta.Created,
 		Updated:            &updatedAt,
 		Hash:               transaction.PayloadHash(),
+		PreviousHash:       &currentDIDMeta.Hash,
 		Deactivated:        store.IsDeactivated(proposedDIDDocument),
 		SourceTransactions: sourceTransactions,
 	}
