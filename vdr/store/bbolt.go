@@ -17,51 +17,133 @@ package store
 
 import (
 	"encoding/json"
+	"time"
+
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-leia"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-	"go.etcd.io/bbolt"
 )
 
-type documentVersion struct {
-	Document did.Document
-	Metadata vdr.DocumentMetadata
+type documentEntry struct {
+	Document did.Document			`json:"document"`
+	Metadata vdr.DocumentMetadata	`json:"metadata"`
 }
-
-type documentVersionList struct {
-	Deactivated bool
-	Versions    []hash.SHA256Hash
-}
-
-func (entry documentVersionList) Latest() hash.SHA256Hash {
-	if len(entry.Versions) == 0 {
-		return hash.EmptyHash()
-	}
-
-	return entry.Versions[len(entry.Versions)-1]
-}
-
-var (
-	documentsBucket = []byte("vdrDocuments")
-	versionsBucket  = []byte("vdrDocumentVersions")
-)
 
 type bboltStore struct {
-	db *bbolt.DB
+	db leia.Store
+}
+
+var refFunc = func(doc leia.Document) leia.Reference {
+	entry := &documentEntry{}
+
+	if err := json.Unmarshal(doc.Bytes(), entry); err != nil {
+		return nil
+	}
+
+	return entry.Metadata.Hash.Slice()
 }
 
 // NewBBoltStore returns an instance of a BBolt based VDR store
-func NewBBoltStore(db *bbolt.DB) vdr.Store {
-	return &bboltStore{db: db}
-}
-
-func (store *bboltStore) storeDocument(tx *bbolt.Tx, document did.Document, metadata vdr.DocumentMetadata) error {
-	documents, err := tx.CreateBucketIfNotExists(documentsBucket)
+func NewBBoltStore(dbLoc string) (vdr.Store, error) {
+	store, err := leia.NewStore(dbLoc, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	data, err := json.Marshal(documentVersion{
+	collection := store.Collection("vdr", refFunc)
+
+	// more indices can be added when needed to reduce Iteration
+	collection.AddIndex(leia.NewIndex("id", leia.NewFieldIndexer("document.id")))
+
+	return &bboltStore{db: store}, nil
+}
+
+func (store *bboltStore) collection() leia.Collection {
+	return store.db.Collection("vdr", refFunc)
+}
+
+// Iterate loops over all the latest versions of the stored DID Documents and applies fn
+func (store *bboltStore) Iterate(fn vdr.DocIterator) error {
+	return store.collection().Iterate(nil, func(key leia.Reference, value []byte) error {
+		entry := &documentEntry{}
+
+		if err := json.Unmarshal(value, entry); err != nil {
+			return nil
+		}
+		fn(entry.Document, entry.Metadata)
+
+		return nil
+	})
+}
+
+// Resolve returns the DID Document for the provided DID
+func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (*did.Document, *vdr.DocumentMetadata, error) {
+	if metadata != nil && metadata.Hash != nil {
+		bytes, err := store.collection().Get(metadata.Hash.Slice())
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if bytes == nil {
+			return nil, nil, vdr.ErrNotFound
+		}
+
+		entry := documentEntry{}
+		if err = json.Unmarshal(bytes.Bytes(), &entry); err != nil {
+			return nil, nil, err
+		}
+
+		return &entry.Document, &entry.Metadata, nil
+	}
+
+	query := createQuery(id, metadata)
+
+	results, err := store.collection().Find(query)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, docBytes := range results {
+		entry := documentEntry{}
+		if err = json.Unmarshal(docBytes.Bytes(), &entry); err != nil {
+			return nil, nil, err
+		}
+		if entry.Metadata.Next == nil {
+			return &entry.Document, &entry.Metadata, nil
+		}
+	}
+
+	return nil, nil, vdr.ErrNotFound
+}
+
+func createQuery(id did.DID, metadata *vdr.ResolveMetadata) leia.Query {
+	q := leia.New(leia.Eq("document.id", id.String()))
+
+	if metadata == nil {
+		return q
+	}
+
+	if metadata.SourceTransaction != nil {
+		q = q.And(leia.Eq("metadata.txs", metadata.SourceTransaction.String()))
+	}
+
+	if !metadata.AllowDeactivated {
+		q.And(leia.Eq("metadata.deactivated", false))
+	}
+
+	if metadata.ResolveTime != nil {
+		q = q.And(leia.Range("metadata.created", int64(0), metadata.ResolveTime.Unix()))
+		// or nil?
+		//q = q.And(leia.Range("metadata.updated", metadata.ResolveTime.Unix(), ^uint(0)))
+	}
+
+	return q
+}
+
+// Write writes a DID Document
+func (store *bboltStore) Write(document did.Document, metadata vdr.DocumentMetadata) error {
+	data, err := json.Marshal(documentEntry{
 		Document: document,
 		Metadata: metadata,
 	})
@@ -69,237 +151,30 @@ func (store *bboltStore) storeDocument(tx *bbolt.Tx, document did.Document, meta
 		return err
 	}
 
-	if err := documents.Put(metadata.Hash.Slice(), data); err != nil {
+	if err := store.collection().Add([]leia.Document{leia.DocumentFromBytes(data)}); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (store *bboltStore) getDocumentVersion(bucket *bbolt.Bucket, hash hash.SHA256Hash) (*documentVersion, error) {
-	data := bucket.Get(hash.Slice())
-	if data == nil {
-		return nil, nil
-	}
-
-	result := &documentVersion{}
-
-	if err := json.Unmarshal(data, result); err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-// Iterate loops over all the latest versions of the stored DID Documents and applies fn
-func (store *bboltStore) Iterate(fn vdr.DocIterator) error {
-	return store.db.View(func(tx *bbolt.Tx) error {
-		versions := tx.Bucket(versionsBucket)
-		if versions == nil {
-			return nil
-		}
-
-		documents := tx.Bucket(documentsBucket)
-		if documents == nil {
-			return nil
-		}
-
-		if err := versions.ForEach(func(key, data []byte) error {
-			versionList := &documentVersionList{}
-
-			if err := json.Unmarshal(data, versionList); err != nil {
-				return err
-			}
-
-			doc, err := store.getDocumentVersion(documents, versionList.Latest())
-			if err != nil {
-				return err
-			}
-
-			if err := fn(doc.Document, doc.Metadata); err != nil {
-				return err
-			}
-
-			return nil
-		}); err != nil {
-			return err
-		}
-
-		return nil
-	})
-}
-
-func (store *bboltStore) filterDocument(doc *documentVersion, metadata *vdr.ResolveMetadata) error {
-	// Verify deactivated
-	if IsDeactivated(doc.Document) && (metadata == nil || !metadata.AllowDeactivated) {
-		return vdr.ErrDeactivated
-	}
-
-	if metadata == nil {
-		return nil
-	}
-
-	// Filter on hash
-	if metadata.Hash != nil && !doc.Metadata.Hash.Equals(*metadata.Hash) {
-		return vdr.ErrNotFound
-	}
-
-	// Filter on creation and update time
-	if metadata.ResolveTime != nil {
-		resolveTime := *metadata.ResolveTime
-
-		if doc.Metadata.Created.After(resolveTime) {
-			return vdr.ErrNotFound
-		}
-
-		if doc.Metadata.Updated != nil {
-			if doc.Metadata.Updated.After(resolveTime) {
-				return vdr.ErrNotFound
-			}
-		}
-	}
-
-	// Filter on SourceTransaction
-	if metadata.SourceTransaction != nil {
-		for i, keyTx := range doc.Metadata.SourceTransactions {
-			if keyTx.Equals(*metadata.SourceTransaction) {
-				break
-			}
-
-			if i == len(doc.Metadata.SourceTransactions)-1 {
-				return vdr.ErrNotFound
-			}
-		}
-	}
-
-	return nil
-}
-
-// Resolve returns the DID Document for the provided DID
-func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (document *did.Document, documentMeta *vdr.DocumentMetadata, txErr error) {
-	txErr = store.db.View(func(tx *bbolt.Tx) error {
-		documents := tx.Bucket(documentsBucket)
-		if documents == nil {
-			return vdr.ErrNotFound
-		}
-
-		versions := tx.Bucket(versionsBucket)
-		if versions == nil {
-			return vdr.ErrNotFound
-		}
-
-		versionList := &documentVersionList{}
-
-		data := versions.Get([]byte(id.String()))
-		if data == nil {
-			return vdr.ErrNotFound
-		}
-
-		if err := json.Unmarshal(data, versionList); err != nil {
-			return err
-		}
-
-		data = documents.Get(versionList.Latest().Slice())
-		if data == nil {
-			return vdr.ErrNotFound
-		}
-
-		doc := &documentVersion{}
-
-		if err := json.Unmarshal(data, doc); err != nil {
-			return err
-		}
-
-		if err := store.filterDocument(doc, metadata); err != nil {
-			return err
-		}
-
-		document = &doc.Document
-		documentMeta = &doc.Metadata
-
-		return nil
-	})
-
-	return
-}
-
-// Write writes a DID Document
-func (store *bboltStore) Write(document did.Document, metadata vdr.DocumentMetadata) error {
-	return store.db.Update(func(tx *bbolt.Tx) error {
-		versions, err := tx.CreateBucketIfNotExists(versionsBucket)
-		if err != nil {
-			return err
-		}
-
-		key := []byte(document.ID.String())
-
-		if versions.Get(key) != nil {
-			return nil
-		}
-
-		// Store versions entry
-		data, err := json.Marshal(documentVersionList{
-			Deactivated: IsDeactivated(document),
-			Versions:    []hash.SHA256Hash{metadata.Hash},
-		})
-		if err != nil {
-			return err
-		}
-
-		if err := versions.Put([]byte(document.ID.String()), data); err != nil {
-			return err
-		}
-
-		// Store the actual document
-		return store.storeDocument(tx, document, metadata)
-	})
-}
-
 // Update replaces the DID document identified by DID with the nextVersion
 func (store *bboltStore) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *vdr.DocumentMetadata) error {
-	return store.db.Update(func(tx *bbolt.Tx) error {
-		versions, err := tx.CreateBucketIfNotExists(versionsBucket)
-		if err != nil {
-			return err
-		}
+	curr, meta, err := store.Resolve(id, &vdr.ResolveMetadata{Hash: &current})
+	if err != nil {
+		return err
+	}
 
-		versionKey := []byte(id.String())
+	// store new
+	metadata.Previous = &current
+	if err = store.Write(next, *metadata); err != nil {
+		return err
+	}
 
-		// Lookup the version information
-		data := versions.Get(versionKey)
-		if data == nil {
-			return vdr.ErrNotFound
-		}
+	// update old
+	meta.Next = &metadata.Hash
+	now := time.Now()
+	meta.Updated = &now
 
-		versionList := &documentVersionList{}
-
-		if err := json.Unmarshal(data, versionList); err != nil {
-			return err
-		}
-
-		if versionList.Deactivated {
-			return vdr.ErrDeactivated
-		}
-
-		// Verify if the current version hash exists, if so append it
-		if versionList.Versions[len(versionList.Versions)-1] != current {
-			return vdr.ErrUpdateOnOutdatedData
-		}
-
-		// Update version information
-		versionList.Versions = append(versionList.Versions, metadata.Hash)
-		versionList.Deactivated = versionList.Deactivated || IsDeactivated(next)
-
-		data, err = json.Marshal(versionList)
-		if err != nil {
-			return err
-		}
-
-		if err := versions.Put(versionKey, data); err != nil {
-			return err
-		}
-
-		// Store the document
-		return store.storeDocument(tx, next, *metadata)
-	})
+	return store.Write(*curr, *meta)
 }

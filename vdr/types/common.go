@@ -78,6 +78,10 @@ type DocumentMetadata struct {
 	SourceTransactions []hash.SHA256Hash `json:"txs"`
 	// Deactivated indicates if the document is deactivated
 	Deactivated bool `json:"deactivated"`
+	// Next points to the next version
+	Next *hash.SHA256Hash `json:"next"`
+	// Previous points to the previous version
+	Previous *hash.SHA256Hash `json:"previous"`
 }
 
 // Copy creates a deep copy of DocumentMetadata

@@ -17,13 +17,13 @@ package store
 
 import (
 	"errors"
-	"io/ioutil"
-	"path/filepath"
+	"path"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"go.etcd.io/bbolt"
 
@@ -35,13 +35,14 @@ func newBBoltTestStore(t *testing.T) *bboltStore {
 	opts := *bbolt.DefaultOptions
 	opts.NoSync = true
 
-	dir, err := ioutil.TempDir("/tmp", "go_test_vdr_bboltstore")
-	assert.NoError(t, err)
+	dir := io.TestDirectory(t)
+	db := path.Join(dir, "test.db")
 
-	db, err := bbolt.Open(filepath.Join(dir, "bbolt.db"), 0644, &opts)
-	assert.NoError(t, err)
-
-	return NewBBoltStore(db).(*bboltStore)
+	store, err := NewBBoltStore(db)
+	if err != nil {
+		panic(err)
+	}
+	return store.(*bboltStore)
 }
 
 func TestBBoltStore_Write(t *testing.T) {

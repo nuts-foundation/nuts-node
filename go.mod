@@ -41,6 +41,8 @@ require (
 	schneider.vip/problem v1.6.0
 )
 
+replace github.com/nuts-foundation/go-leia => ../go-leia
+
 require (
 	github.com/alexandrevicenzi/go-sse v1.3.1-0.20200117161408-7b23d5ff7420 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
