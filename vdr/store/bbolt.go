@@ -18,10 +18,12 @@ package store
 import (
 	"encoding/json"
 	"errors"
+
 	"github.com/nuts-foundation/go-did/did"
+	"go.etcd.io/bbolt"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-	"go.etcd.io/bbolt"
 )
 
 type documentVersion struct {
@@ -32,6 +34,38 @@ type documentVersion struct {
 type documentVersionList struct {
 	Deactivated bool
 	Versions    []hash.SHA256Hash
+}
+
+func parseDocumentVersionList(input []byte) documentVersionList {
+	if len(input) == 0 {
+		return documentVersionList{}
+	}
+
+	list := documentVersionList{Deactivated: input[0] == 1}
+	input = input[1:]
+	amount := (len(input) - (len(input) % hash.SHA256HashSize)) / hash.SHA256HashSize
+
+	list.Versions = make([]hash.SHA256Hash, amount)
+
+	for i := 0; i < amount; i++ {
+		list.Versions[i] = hash.FromSlice(input[i*hash.SHA256HashSize : i*hash.SHA256HashSize+hash.SHA256HashSize])
+	}
+
+	return list
+}
+
+func (entry documentVersionList) encode() (output []byte) {
+	if entry.Deactivated {
+		output = append(output, 1)
+	} else {
+		output = append(output, 0)
+	}
+
+	for _, version := range entry.Versions {
+		output = append(output, version.Slice()...)
+	}
+
+	return
 }
 
 func (entry documentVersionList) Latest() hash.SHA256Hash {
@@ -106,11 +140,7 @@ func (store *bboltStore) Iterate(fn vdr.DocIterator) error {
 		}
 
 		if err := versions.ForEach(func(key, data []byte) error {
-			versionList := &documentVersionList{}
-
-			if err := json.Unmarshal(data, versionList); err != nil {
-				return err
-			}
+			versionList := parseDocumentVersionList(data)
 
 			doc, err := store.getDocumentVersion(documents, versionList.Latest())
 			if err != nil {
@@ -192,17 +222,12 @@ func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (doc
 			return vdr.ErrNotFound
 		}
 
-		versionList := &documentVersionList{}
-
 		data := versions.Get([]byte(id.String()))
 		if data == nil {
 			return vdr.ErrNotFound
 		}
 
-		if err := json.Unmarshal(data, versionList); err != nil {
-			return err
-		}
-
+		versionList := parseDocumentVersionList(data)
 		versionHash := versionList.Latest()
 
 		if metadata != nil && metadata.Hash != nil {
@@ -248,15 +273,12 @@ func (store *bboltStore) Write(document did.Document, metadata vdr.DocumentMetad
 		}
 
 		// Store versions entry
-		data, err := json.Marshal(documentVersionList{
+		versionList := documentVersionList{
 			Deactivated: IsDeactivated(document),
 			Versions:    []hash.SHA256Hash{metadata.Hash},
-		})
-		if err != nil {
-			return err
 		}
 
-		if err := versions.Put([]byte(document.ID.String()), data); err != nil {
+		if err := versions.Put([]byte(document.ID.String()), versionList.encode()); err != nil {
 			return err
 		}
 
@@ -285,11 +307,7 @@ func (store *bboltStore) Update(id did.DID, current hash.SHA256Hash, next did.Do
 			return vdr.ErrNotFound
 		}
 
-		versionList := &documentVersionList{}
-
-		if err := json.Unmarshal(data, versionList); err != nil {
-			return err
-		}
+		versionList := parseDocumentVersionList(data)
 
 		if versionList.Deactivated {
 			return vdr.ErrDeactivated
@@ -304,12 +322,7 @@ func (store *bboltStore) Update(id did.DID, current hash.SHA256Hash, next did.Do
 		versionList.Versions = append(versionList.Versions, metadata.Hash)
 		versionList.Deactivated = versionList.Deactivated || IsDeactivated(next)
 
-		data, err = json.Marshal(versionList)
-		if err != nil {
-			return err
-		}
-
-		if err := versions.Put(versionKey, data); err != nil {
+		if err := versions.Put(versionKey, versionList.encode()); err != nil {
 			return err
 		}
 
