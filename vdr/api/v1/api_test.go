@@ -210,7 +210,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		ctx := newMockContext(t)
 
 		invalidVersionId := "123"
-		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{&invalidVersionId})
+		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{VersionId: &invalidVersionId})
 
 		assert.ErrorIs(t, err, core.Error(http.StatusBadRequest, "foo"))
 	})

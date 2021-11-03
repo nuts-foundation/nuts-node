@@ -52,11 +52,24 @@ paths:
         - name: versionId
           in: query
           description: |
-            If a versionId DID parameter is provided, the DID resolution algorithm returns a specific version of the DID document.
+            If a versionId parameter is provided, the DID resolution algorithm returns a specific version of the DID document.
             The version is the Sha256 hash of the document.
+            The DID parameters versionId and versionTime are mutually exclusive.
+
             See [the did resolution spec about versioning](https://w3c-ccg.github.io/did-resolution/#versioning)
           required: false
-          example: "did:nuts:1234?versionId=4960afbdf21280ef248081e6e52317735bbb929a204351291b773c252afeebf4"
+          example: "4960afbdf21280ef248081e6e52317735bbb929a204351291b773c252afeebf4"
+          schema:
+            type: string
+        - name: versionTime
+          in: query
+          description: |
+            If a versionTime parameter is provided, the DID resolution algorithm returns a specific version of the DID document.
+            The DID parameters versionId and versionTime are mutually exclusive.
+
+            See [the did resolution spec about versioning](https://w3c-ccg.github.io/did-resolution/#versioning)
+          required: false
+          example: "2021-011-03T08:25:13Z"
           schema:
             type: string
       summary: "Resolves a Nuts DID document"
