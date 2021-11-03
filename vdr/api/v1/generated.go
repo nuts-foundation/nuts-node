@@ -69,10 +69,18 @@ type CreateDIDJSONBody DIDCreateRequest
 
 // GetDIDParams defines parameters for GetDID.
 type GetDIDParams struct {
-	// If a versionId DID parameter is provided, the DID resolution algorithm returns a specific version of the DID document.
+	// If a versionId parameter is provided, the DID resolution algorithm returns a specific version of the DID document.
 	// The version is the Sha256 hash of the document.
+	// The DID parameters versionId and versionTime are mutually exclusive.
+	//
 	// See [the did resolution spec about versioning](https://w3c-ccg.github.io/did-resolution/#versioning)
 	VersionId *string `json:"versionId,omitempty"`
+
+	// If a versionTime parameter is provided, the DID resolution algorithm returns a specific version of the DID document.
+	// The DID parameters versionId and versionTime are mutually exclusive.
+	//
+	// See [the did resolution spec about versioning](https://w3c-ccg.github.io/did-resolution/#versioning)
+	VersionTime *string `json:"versionTime,omitempty"`
 }
 
 // UpdateDIDJSONBody defines parameters for UpdateDID.
@@ -423,6 +431,22 @@ func NewGetDIDRequest(server string, did string, params *GetDIDParams) (*http.Re
 	if params.VersionId != nil {
 
 		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "versionId", runtime.ParamLocationQuery, *params.VersionId); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.VersionTime != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "versionTime", runtime.ParamLocationQuery, *params.VersionTime); err != nil {
 			return nil, err
 		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 			return nil, err
@@ -1079,6 +1103,13 @@ func (w *ServerInterfaceWrapper) GetDID(ctx echo.Context) error {
 	err = runtime.BindQueryParameter("form", true, false, "versionId", ctx.QueryParams(), &params.VersionId)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter versionId: %s", err))
+	}
+
+	// ------------- Optional query parameter "versionTime" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "versionTime", ctx.QueryParams(), &params.VersionTime)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter versionTime: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
