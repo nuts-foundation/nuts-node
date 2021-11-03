@@ -262,25 +262,30 @@ components:
       required:
         - created
         - hash
-        - originJWSHash
-        - version
         - deactivated
+        - txs
       properties:
         created:
           description: Time when DID document was created in rfc3339 form.
           type: string
-        hash:
-          description: Sha256 in hex form of the DID document contents.
-          type: string
-        originJWSHash:
-          description: Sha256 in hex form of the transaction in which the DID document was published.
-          type: string
         updated:
           description: Time when DID document was updated in rfc3339 form.
           type: string
-        version:
-          description: Version of the DID document, starting at 1.
-          type: integer
+        hash:
+          description: Sha256 in hex form of the DID document contents.
+          type: string
+        previousHash:
+          description: Sha256 in hex form of the previous version of this DID document.
+          type: string
+        txs:
+          description: |
+            txs lists the transaction(s) that created the current version of this DID Document.
+            If multiple transactions are listed, the DID Document is conflicted
+          type: array
+          items:
+            type: string
+            description: Sha256 in hex form of the transaction
+            example: "24af55bd08bfe42c603b87565c31ae8f2770e820c4b32e1e928244775ab3ed19"
         deactivated:
           description: Whether the DID document has been deactivated.
           type: boolean

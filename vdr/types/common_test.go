@@ -38,10 +38,11 @@ func TestCopy(t *testing.T) {
 		Created:            timeBefore,
 		Updated:            &timeNow,
 		Hash:               h,
+		PreviousHash:       &h,
 		Deactivated:        false,
 		SourceTransactions: []hash.SHA256Hash{h},
 	}
-	numFields := 5
+	numFields := 6
 
 	t.Run("returns error if metadata can be manipulated", func(t *testing.T) {
 		var metaCopy DocumentMetadata
@@ -58,6 +59,10 @@ func TestCopy(t *testing.T) {
 		// Hash
 		metaCopy.Hash[0] = 0
 		assert.NotEqual(t, metaCopy.Hash, meta.Hash, "Hash is not deep-copied")
+
+		// PreviousHash
+		metaCopy.PreviousHash[0] = 0
+		assert.NotEqual(t, metaCopy.PreviousHash, meta.PreviousHash, "PreviousHash is not deep-copied")
 
 		// SourceTransactions
 		metaCopy.SourceTransactions[0] = hash.SHA256Hash{20}
