@@ -15,7 +15,7 @@ require (
 	github.com/jinzhu/gorm v1.9.14 // indirect
 	github.com/knadh/koanf v0.16.0
 	github.com/labstack/echo/v4 v4.6.1
-	github.com/lestrrat-go/jwx v1.2.7
+	github.com/lestrrat-go/jwx v1.2.9
 	github.com/magiconair/properties v1.8.5
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mdp/qrterminal/v3 v3.0.0
@@ -61,7 +61,7 @@ require (
 	github.com/getsentry/raven-go v0.0.0-20180121060056-563b81fc02b7 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
-	github.com/goccy/go-json v0.7.8 // indirect
+	github.com/goccy/go-json v0.7.10 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
@@ -120,7 +120,6 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	rsc.io/qr v0.2.0 // indirect
