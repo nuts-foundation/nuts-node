@@ -48,6 +48,17 @@ paths:
         schema:
           type: string
     get:
+      parameters:
+        - name: versionId
+          in: query
+          description: |
+            If a versionId DID parameter is provided, the DID resolution algorithm returns a specific version of the DID document.
+            The version is the Sha256 hash of the document.
+            See [the did resolution spec about versioning](https://w3c-ccg.github.io/did-resolution/#versioning)
+          required: false
+          example: "did:nuts:1234?versionId=4960afbdf21280ef248081e6e52317735bbb929a204351291b773c252afeebf4"
+          schema:
+            type: string
       summary: "Resolves a Nuts DID document"
       description: |
         Resolves a Nuts DID document. It also resolves deactivated documents.

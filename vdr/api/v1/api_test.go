@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
@@ -166,8 +167,30 @@ func TestWrapper_GetDID(t *testing.T) {
 		})
 
 		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(didDoc, meta, nil)
-		err := ctx.client.GetDID(ctx.echo, id.String())
+		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{})
 
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, *id, didResolutionResult.Document.ID)
+	})
+
+	t.Run("ok - with versionId", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		didResolutionResult := DIDResolutionResult{}
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
+			didResolutionResult = f2.(DIDResolutionResult)
+			return nil
+		})
+
+		versionId := "e6efa34322812bd5ddec7f1aa3389957a2c35d19949913287407cb1068e16eb9"
+		expectedVersionHash, err := hash.ParseHex(versionId)
+		if !assert.NoError(t, err) {
+			return
+		}
+		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true, Hash: &expectedVersionHash}).Return(didDoc, meta, nil)
+		err = ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{VersionId: &versionId})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -177,17 +200,26 @@ func TestWrapper_GetDID(t *testing.T) {
 	t.Run("error - wrong did format", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		err := ctx.client.GetDID(ctx.echo, "not a did")
+		err := ctx.client.GetDID(ctx.echo, "not a did", GetDIDParams{})
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
 		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
+	})
+
+	t.Run("error - wrong versionId format", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		invalidVersionId := "123"
+		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{&invalidVersionId})
+
+		assert.ErrorIs(t, err, core.Error(http.StatusBadRequest, "foo"))
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
 		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, types.ErrNotFound)
-		err := ctx.client.GetDID(ctx.echo, id.String())
+		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{})
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
@@ -197,7 +229,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		ctx := newMockContext(t)
 
 		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, errors.New("b00m!"))
-		err := ctx.client.GetDID(ctx.echo, id.String())
+		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{})
 
 		assert.Error(t, err)
 	})

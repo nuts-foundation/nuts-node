@@ -67,6 +67,14 @@ type DIDUpdateRequest struct {
 // CreateDIDJSONBody defines parameters for CreateDID.
 type CreateDIDJSONBody DIDCreateRequest
 
+// GetDIDParams defines parameters for GetDID.
+type GetDIDParams struct {
+	// If a versionId DID parameter is provided, the DID resolution algorithm returns a specific version of the DID document.
+	// The version is the Sha256 hash of the document.
+	// See [the did resolution spec about versioning](https://w3c-ccg.github.io/did-resolution/#versioning)
+	VersionId *string `json:"versionId,omitempty"`
+}
+
 // UpdateDIDJSONBody defines parameters for UpdateDID.
 type UpdateDIDJSONBody DIDUpdateRequest
 
@@ -161,7 +169,7 @@ type ClientInterface interface {
 	DeactivateDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetDID request
-	GetDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetDID(ctx context.Context, did string, params *GetDIDParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateDID request with any body
 	UpdateDIDWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -223,8 +231,8 @@ func (c *Client) DeactivateDID(ctx context.Context, did string, reqEditors ...Re
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetDIDRequest(c.Server, did)
+func (c *Client) GetDID(ctx context.Context, did string, params *GetDIDParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDIDRequest(c.Server, did, params)
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +393,7 @@ func NewDeactivateDIDRequest(server string, did string) (*http.Request, error) {
 }
 
 // NewGetDIDRequest generates requests for GetDID
-func NewGetDIDRequest(server string, did string) (*http.Request, error) {
+func NewGetDIDRequest(server string, did string, params *GetDIDParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -409,6 +417,26 @@ func NewGetDIDRequest(server string, did string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	queryValues := queryURL.Query()
+
+	if params.VersionId != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "versionId", runtime.ParamLocationQuery, *params.VersionId); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -595,7 +623,7 @@ type ClientWithResponsesInterface interface {
 	DeactivateDIDWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*DeactivateDIDResponse, error)
 
 	// GetDID request
-	GetDIDWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetDIDResponse, error)
+	GetDIDWithResponse(ctx context.Context, did string, params *GetDIDParams, reqEditors ...RequestEditorFn) (*GetDIDResponse, error)
 
 	// UpdateDID request with any body
 	UpdateDIDWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDIDResponse, error)
@@ -794,8 +822,8 @@ func (c *ClientWithResponses) DeactivateDIDWithResponse(ctx context.Context, did
 }
 
 // GetDIDWithResponse request returning *GetDIDResponse
-func (c *ClientWithResponses) GetDIDWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetDIDResponse, error) {
-	rsp, err := c.GetDID(ctx, did, reqEditors...)
+func (c *ClientWithResponses) GetDIDWithResponse(ctx context.Context, did string, params *GetDIDParams, reqEditors ...RequestEditorFn) (*GetDIDResponse, error) {
+	rsp, err := c.GetDID(ctx, did, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -982,7 +1010,7 @@ type ServerInterface interface {
 	DeactivateDID(ctx echo.Context, did string) error
 	// Resolves a Nuts DID document
 	// (GET /internal/vdr/v1/did/{did})
-	GetDID(ctx echo.Context, did string) error
+	GetDID(ctx echo.Context, did string, params GetDIDParams) error
 	// Updates a Nuts DID document.
 	// (PUT /internal/vdr/v1/did/{did})
 	UpdateDID(ctx echo.Context, did string) error
@@ -1044,8 +1072,17 @@ func (w *ServerInterfaceWrapper) GetDID(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDIDParams
+	// ------------- Optional query parameter "versionId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "versionId", ctx.QueryParams(), &params.VersionId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter versionId: %s", err))
+	}
+
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetDID(ctx, did)
+	err = w.Handler.GetDID(ctx, did, params)
 	return err
 }
 

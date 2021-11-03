@@ -23,7 +23,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"io"
 	"net/http"
 	"time"
@@ -67,7 +66,7 @@ func (hb HTTPClient) Get(DID string) (*DIDDocument, *DIDDocumentMetadata, error)
 	ctx, cancel := hb.withTimeout()
 	defer cancel()
 
-	response, err := hb.client().GetDID(ctx, DID)
+	response, err := hb.client().GetDID(ctx, DID, &GetDIDParams{})
 	if err != nil {
 		return nil, nil, err
 	}

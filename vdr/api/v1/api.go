@@ -148,14 +148,22 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 }
 
 // GetDID returns a DID document and DID document metadata based on a DID.
-func (a Wrapper) GetDID(ctx echo.Context, targetDID string) error {
+func (a *Wrapper) GetDID(ctx echo.Context, targetDID string, params GetDIDParams) error {
 	d, err := did.ParseDID(targetDID)
 	if err != nil {
-		return err
+		return core.InvalidInputError("given did is not valid: %w", err)
+	}
+	resolverMetadata := &types.ResolveMetadata{AllowDeactivated: true}
+
+	if params.VersionId != nil {
+		versionHash, err := hash.ParseHex(*params.VersionId)
+		if err != nil {
+			return core.InvalidInputError("given hash is not valid: %w", err)
+		}
+		resolverMetadata.Hash = &versionHash
 	}
 
-	// no params in the API for now
-	doc, meta, err := a.DocResolver.Resolve(*d, &types.ResolveMetadata{AllowDeactivated: true})
+	doc, meta, err := a.DocResolver.Resolve(*d, resolverMetadata)
 	if err != nil {
 		return err
 	}
