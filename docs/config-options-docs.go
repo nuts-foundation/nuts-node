@@ -56,7 +56,7 @@ func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}) (*pflag.F
 	structType := reflect.TypeOf(config).Elem()
 
 	if structType.Kind() != reflect.Struct {
-		return nil, errors.New("config has not the type struct (perhaps its a pointer?)")
+		return nil, errors.New("config has not the type struct (perhaps it's a pointer?)")
 	}
 
 	for i := 0; i < structType.NumField(); i++ {
