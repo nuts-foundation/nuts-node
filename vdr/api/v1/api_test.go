@@ -19,6 +19,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -156,6 +157,8 @@ func TestWrapper_GetDID(t *testing.T) {
 		ID: *id,
 	}
 	meta := &types.DocumentMetadata{}
+	versionId := "e6efa34322812bd5ddec7f1aa3389957a2c35d19949913287407cb1068e16eb9"
+	versionTime := "2021-11-03T08:25:13Z"
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -184,13 +187,34 @@ func TestWrapper_GetDID(t *testing.T) {
 			return nil
 		})
 
-		versionId := "e6efa34322812bd5ddec7f1aa3389957a2c35d19949913287407cb1068e16eb9"
 		expectedVersionHash, err := hash.ParseHex(versionId)
 		if !assert.NoError(t, err) {
 			return
 		}
 		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true, Hash: &expectedVersionHash}).Return(didDoc, meta, nil)
 		err = ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{VersionId: &versionId})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, *id, didResolutionResult.Document.ID)
+	})
+
+	t.Run("ok - with versionTime", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		didResolutionResult := DIDResolutionResult{}
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
+			didResolutionResult = f2.(DIDResolutionResult)
+			return nil
+		})
+
+		expectedTime, err := time.Parse(time.RFC3339, versionTime)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true, ResolveTime: &expectedTime}).Return(didDoc, meta, nil)
+		err = ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{VersionTime: &versionTime})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -212,7 +236,29 @@ func TestWrapper_GetDID(t *testing.T) {
 		invalidVersionId := "123"
 		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{VersionId: &invalidVersionId})
 
-		assert.ErrorIs(t, err, core.Error(http.StatusBadRequest, "foo"))
+		assert.ErrorIs(t, err, core.Error(http.StatusBadRequest, ""))
+		assert.Equal(t, "given hash is not valid: encoding/hex: odd length hex string", err.Error())
+	})
+
+	t.Run("error - wrong versionTime format", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		invalidVersionTime := "not a time"
+		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{VersionTime: &invalidVersionTime})
+		assert.ErrorIs(t, err, core.Error(http.StatusBadRequest, ""))
+		assert.Equal(t, "versionTime has invalid format: parsing time \"not a time\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"not a time\" as \"2006\"" , err.Error())
+	})
+
+	t.Run("error - versionId and versionTime are mutually exclusive", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{
+			VersionId:   &versionId,
+			VersionTime: &versionTime,
+		})
+
+		assert.ErrorIs(t, err, core.Error(http.StatusBadRequest, ""))
+		assert.Equal(t, "versionId and versionTime are mutually exclusive", err.Error())
 	})
 
 	t.Run("error - not found", func(t *testing.T) {

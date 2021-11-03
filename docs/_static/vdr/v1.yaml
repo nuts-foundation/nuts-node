@@ -69,7 +69,7 @@ paths:
 
             See [the did resolution spec about versioning](https://w3c-ccg.github.io/did-resolution/#versioning)
           required: false
-          example: "2021-011-03T08:25:13Z"
+          example: "2021-11-03T08:25:13Z"
           schema:
             type: string
       summary: "Resolves a Nuts DID document"
