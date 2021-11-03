@@ -31,13 +31,13 @@ import (
 const moduleName = "Event manager"
 
 type manager struct {
-	config *Config
+	config Config
 	server *natsServer.Server
 }
 
 // NewManager returns a new event manager
 func NewManager() Event {
-	return &manager{config: &Config{}}
+	return &manager{config: Config{}}
 }
 
 func (m *manager) Name() string {
