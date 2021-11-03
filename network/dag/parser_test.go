@@ -71,7 +71,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - input not a JWS (JSON serialization format)", func(t *testing.T) {
 		tx, err := ParseTransaction([]byte("{}"))
 		assert.Nil(t, tx)
-		assert.EqualError(t, err, "unable to parse transaction: failed to unmarshal jws message: \"payload\" must be non-empty")
+		assert.EqualError(t, err, "unable to parse transaction: failed to unmarshal jws message: required field \"signatures\" not present")
 	})
 	t.Run("error - sigt header is missing", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)
