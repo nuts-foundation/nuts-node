@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -36,7 +37,10 @@ func generateServerOptions(system *core.System) {
 
 	system.VisitEngines(func(engine core.Engine) {
 		if m, ok := engine.(core.Injectable); ok {
-			flagsForEngine := extractFlagsForEngine(globalFlags, m.Config())
+			flagsForEngine, err := extractFlagsForEngine(globalFlags, m.Config())
+			if err != nil {
+				panic(fmt.Sprintf("unable to generate server options for engine '%s': %s", m.Name(), err.Error()))
+			}
 			if flagsForEngine.HasAvailableFlags() {
 				flags[m.Name()] = flagsForEngine
 			}
@@ -46,10 +50,14 @@ func generateServerOptions(system *core.System) {
 	generatePartitionedConfigOptionsDocs("docs/pages/configuration/server_options.rst", flags)
 }
 
-func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}) *pflag.FlagSet {
+func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}) (*pflag.FlagSet, error) {
 	result := pflag.FlagSet{}
 	flagNames := []string{}
 	structType := reflect.TypeOf(config).Elem()
+
+	if structType.Kind() != reflect.Struct {
+		return nil, errors.New("config has not the type struct (perhaps its a pointer?)")
+	}
 
 	for i := 0; i < structType.NumField(); i++ {
 		fieldType := structType.Field(i)
@@ -76,7 +84,7 @@ func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}) *pflag.Fl
 		}
 	})
 
-	return &result
+	return &result, nil
 }
 
 func generatePartitionedConfigOptionsDocs(fileName string, flags map[string]*pflag.FlagSet) {
