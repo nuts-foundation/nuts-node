@@ -22,6 +22,7 @@ package v1
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/doc"
@@ -156,11 +157,22 @@ func (a *Wrapper) GetDID(ctx echo.Context, targetDID string, params GetDIDParams
 	resolverMetadata := &types.ResolveMetadata{AllowDeactivated: true}
 
 	if params.VersionId != nil {
+		if params.VersionTime != nil {
+			return core.InvalidInputError("versionId and versionTime are mutually exclusive")
+		}
 		versionHash, err := hash.ParseHex(*params.VersionId)
 		if err != nil {
 			return core.InvalidInputError("given hash is not valid: %w", err)
 		}
 		resolverMetadata.Hash = &versionHash
+	}
+
+	if params.VersionTime != nil {
+		versionTime, err := time.Parse(time.RFC3339, *params.VersionTime)
+		if err != nil {
+			return core.InvalidInputError("versionTime has invalid format: %w", err)
+		}
+		resolverMetadata.ResolveTime = &versionTime
 	}
 
 	doc, meta, err := a.DocResolver.Resolve(*d, resolverMetadata)
