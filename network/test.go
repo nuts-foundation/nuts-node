@@ -41,8 +41,6 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 // TestNetworkConfig creates new network config with a test directory as data path.
 func TestNetworkConfig() Config {
 	config := DefaultConfig()
-	config.GrpcAddr = ":5555"
-	enableTLS := false
-	config.EnableTLS = &enableTLS
+	config.EnableTLS = false
 	return config
 }

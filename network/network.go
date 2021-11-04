@@ -112,18 +112,16 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.peerID = transport.PeerID(uuid.New().String())
 
 	// TLS
-	// To disable TLS in strictmode, `EnableTLS` must explicitly be set to "off"
-	if !n.config.TLSEnabled() && n.config.EnableTLS == nil && config.Strictmode {
-		return errors.New("to disable TLS in strict mode, explicitly specify enableTLS=false")
-	}
 	var clientCert tls.Certificate
 	var trustStore *core.TrustStore
-	if n.config.TLSEnabled() {
+	if n.config.EnableTLS {
 		var err error
 		clientCert, trustStore, err = loadCertificateAndTrustStore(n.config)
 		if err != nil {
 			return err
 		}
+	} else if len(n.config.CertFile) > 0 || len(n.config.CertKeyFile) > 0 {
+		log.Logger().Warn("TLS is disabled but CertFile and/or CertKeyFile is set. Did you really mean to disable TLS?")
 	}
 
 	// Configure protocols
@@ -131,7 +129,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		PeerID:        n.peerID,
 		ListenAddress: n.config.GrpcAddr,
 	}
-	if n.config.TLSEnabled() {
+	if n.config.EnableTLS {
 		v1Cfg.ClientCert = clientCert
 		v1Cfg.TrustStore = trustStore.CertPool
 	}
@@ -147,7 +145,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Setup connection manager, load with bootstrap nodes
 	if n.connectionManager == nil {
 		var grpcOpts []grpc.ConfigOption
-		if n.config.TLSEnabled() {
+		if n.config.EnableTLS {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
 		}
 		n.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...), n.protocols...)

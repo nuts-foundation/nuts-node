@@ -19,6 +19,7 @@ import (
 )
 
 const grpcListenAddressEnvKey = "NUTS_NETWORK_GRPCADDR"
+const enableTLSEnvKey = "NUTS_NETWORK_ENABLETLS"
 
 func Test_rootCmd(t *testing.T) {
 	t.Run("no args prints help", func(t *testing.T) {
@@ -102,6 +103,8 @@ func Test_serverCmd(t *testing.T) {
 	t.Run("defaults and alt binds are used", func(t *testing.T) {
 		os.Setenv(grpcListenAddressEnvKey, fmt.Sprintf("localhost:%d", test.FreeTCPPort()))
 		defer os.Unsetenv(grpcListenAddressEnvKey)
+		os.Setenv(enableTLSEnvKey, "false")
+		defer os.Unsetenv(enableTLSEnvKey)
 
 		var echoServers []*http2.StubEchoServer
 		system := CreateSystem()
