@@ -31,7 +31,7 @@ func NewNetworkClient(cc grpc.ClientConnInterface) NetworkClient {
 }
 
 func (c *networkClient) Connect(ctx context.Context, opts ...grpc.CallOption) (Network_ConnectClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Network_ServiceDesc.Streams[0], "/protobuf.Network/Connect", opts...)
+	stream, err := c.cc.NewStream(ctx, &Network_ServiceDesc.Streams[0], "/transport.Network/Connect", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func (x *networkConnectServer) Recv() (*NetworkMessage, error) {
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Network_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "protobuf.Network",
+	ServiceName: "transport.Network",
 	HandlerType: (*NetworkServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
