@@ -57,9 +57,9 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	// each other that way.
 	bootstrap := startNode(t, "integration_bootstrap", testDirectory)
 	node1 := startNode(t, "integration_node1", testDirectory)
-	node1.connectionManager.Connect(nameToAddress("integration_bootstrap"))
+	node1.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
 	node2 := startNode(t, "integration_node2", testDirectory)
-	node2.connectionManager.Connect(nameToAddress("integration_bootstrap"))
+	node2.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
 
 	// Wait until nodes are connected
 	if !test.WaitFor(t, func() (bool, error) {
@@ -109,7 +109,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	node2 := startNode(t, "node2", testDirectory)
 
 	// Now connect node1 to node2 and wait for them to set up
-	node1.connectionManager.Connect(nameToAddress("node2"))
+	node1.connectionManager.Connect(nameToAddress(t, "node2"))
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
@@ -117,7 +117,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	}
 
 	// Now instruct node2 to connect to node1
-	node2.connectionManager.Connect(nameToAddress("node1"))
+	node2.connectionManager.Connect(nameToAddress(t, "node1"))
 	time.Sleep(time.Second)
 	assert.Len(t, node1.connectionManager.Peers(), 1)
 	assert.Len(t, node2.connectionManager.Peers(), 1)
@@ -132,7 +132,7 @@ func TestNetworkIntegration_NodeDisconnects(t *testing.T) {
 	node2 := startNode(t, "node2", testDirectory)
 
 	// Now connect node1 to node2 and wait for them to set up
-	node1.connectionManager.Connect(nameToAddress("node2"))
+	node1.connectionManager.Connect(nameToAddress(t, "node2"))
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
@@ -185,7 +185,7 @@ func startNode(t *testing.T, name string, testDirectory string) *Network {
 	mutex.Unlock()
 	// Create Network instance
 	config := Config{
-		GrpcAddr:       fmt.Sprintf("localhost:%d", nameToPort(name)),
+		GrpcAddr:       fmt.Sprintf("localhost:%d", nameToPort(t, name)),
 		CertFile:       "test/certificate-and-key.pem",
 		CertKeyFile:    "test/certificate-and-key.pem",
 		TrustStoreFile: "test/truststore.pem",
@@ -218,10 +218,10 @@ func startNode(t *testing.T, name string, testDirectory string) *Network {
 	return instance
 }
 
-func nameToPort(name string) int {
-	return int(crc32.ChecksumIEEE([]byte(name))%9000 + 1000)
+func nameToPort(t *testing.T, name string) int {
+	return int(crc32.ChecksumIEEE([]byte(t.Name() + "/" + name))%9000 + 1000)
 }
 
-func nameToAddress(name string) string {
-	return fmt.Sprintf("localhost:%d", nameToPort(name))
+func nameToAddress(t *testing.T, name string) string {
+	return fmt.Sprintf("localhost:%d", nameToPort(t, name))
 }
