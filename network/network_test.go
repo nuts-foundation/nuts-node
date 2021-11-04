@@ -34,9 +34,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var tlsEnabled = true
-var tlsDisabled = false
-
 type networkTestContext struct {
 	network           *Network
 	connectionManager *transport.MockConnectionManager
@@ -148,7 +145,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl, func(config *Config) {
-			config.EnableTLS = &tlsDisabled
+			config.EnableTLS = false
 		})
 		cxt.network.connectionManager = nil
 		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
@@ -167,6 +164,17 @@ func TestNetwork_Configure(t *testing.T) {
 			return
 		}
 	})
+	t.Run("warn - TLS disabled but CertFile configured (logs warning)", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl, func(config *Config) {
+			config.EnableTLS = false
+		})
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
 	t.Run("error - unable to load key pair from file", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -176,17 +184,6 @@ func TestNetwork_Configure(t *testing.T) {
 		})
 		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
-	})
-	t.Run("error - TLS can't be implicitly disabled in strict mode", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		cxt := createNetwork(ctrl, func(config *Config) {
-			config.EnableTLS = nil
-			config.CertFile = ""
-			config.CertKeyFile = ""
-		})
-		err := cxt.network.Configure(core.ServerConfig{Strictmode: true, Datadir: io.TestDirectory(t)})
-		assert.EqualError(t, err, "to disable TLS in strict mode, explicitly specify enableTLS=false")
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -409,10 +406,10 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	prot := transport.NewMockProtocol(ctrl)
 	connectionManager := transport.NewMockConnectionManager(ctrl)
 	networkConfig := TestNetworkConfig()
+	networkConfig.EnableTLS = true
 	networkConfig.TrustStoreFile = "test/truststore.pem"
 	networkConfig.CertFile = "test/certificate-and-key.pem"
 	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
-	networkConfig.EnableTLS = &tlsEnabled
 	for _, fn := range cfgFn {
 		fn(&networkConfig)
 	}

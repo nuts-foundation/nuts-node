@@ -150,13 +150,12 @@ func startNode(name string, directory string) (*Network, error) {
 	mutex.Lock()
 	mutex.Unlock()
 	// Create Network instance
-	enableTLS := true
 	config := Config{
 		GrpcAddr:       fmt.Sprintf("localhost:%d", nameToPort(name)),
 		CertFile:       "test/certificate-and-key.pem",
 		CertKeyFile:    "test/certificate-and-key.pem",
 		TrustStoreFile: "test/truststore.pem",
-		EnableTLS:      &enableTLS,
+		EnableTLS:      true,
 		ProtocolV1: v1.Config{
 			AdvertHashesInterval:      500,
 			AdvertDiagnosticsInterval: 5000,

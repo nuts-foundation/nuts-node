@@ -6,7 +6,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
-
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,6 +14,8 @@ import (
 
 func TestAuth_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
+		os.Setenv("NUTS_NETWORK_ENABLETLS", "false")
+		defer os.Unsetenv("NUTS_NETWORK_ENABLETLS")
 		i := NewTestAuthInstance(io.TestDirectory(t))
 		_ = i.Configure(*core.NewServerConfig())
 	})
