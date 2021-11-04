@@ -166,7 +166,6 @@ func (s grpcConnectionManager) Connect(peerAddress string) {
 			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.getPeer(), err)
 			connection.close()
 		}
-		// TODO: What about reconnecting?
 	})
 }
 
@@ -230,7 +229,6 @@ func (s *grpcConnectionManager) openOutboundStreams(connection *managedConnectio
 			return fmt.Errorf("%T failed to open gRPC stream: %w", prot, err)
 		}
 
-		// TODO: Review whether this works as intended
 		go func() {
 			// Waits for the clientStream to be done (other side closed the stream), then we close the connection on our side
 			<-streamContext.Done()

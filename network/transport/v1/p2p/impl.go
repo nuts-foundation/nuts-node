@@ -141,10 +141,11 @@ func (n adapter) Connect(stream protobuf.Network_ConnectServer) error {
 	return nil
 }
 
-// acceptPeer registers a connection, associating the gRPC stream with the given peer. It starts the goroutines required
-// for receiving and sending messages from/to the peer. It should be called from the gRPC service handler,
-// so when this function exits (and the service handler as well), goroutines spawned for calling Recv() will exit.
-// TODO: Review godoc
+// acceptPeer registers a connection, associating the gRPC stream with the given peer.
+// It starts the goroutines required for receiving and sending messages from/to the peer.
+// It should be called from the gRPC service handler (inbound) and for outbound gRPC service calls.
+// This function does not block: the spawned goroutines exit when it reads an item from the closer channel.
+// When the service call is aborted (either by the local node or the remote peer) it cancels the returned context.
 func (n *adapter) acceptPeer(peer transport.Peer, messenger grpcMessenger, closer <-chan struct{}) context.Context {
 	out := make(chan *protobuf.NetworkMessage, outMessagesBacklog)
 	n.peerMux.Lock()

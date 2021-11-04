@@ -123,11 +123,16 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	assert.Len(t, node2.connectionManager.Peers(), 1)
 }
 
-func TestNetworkIntegration_NodeDisconnects(t *testing.T) {
+func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest()
 
-	// Start 2 nodes: node1 and node2, then node2 shuts down, which node1 should notice
+	// Given node1 and node2
+	// Given node1 connects to node2
+	// When node2 shuts down
+	// Then node1 isn't connected to node2
+	// When node2 starts again
+	// Then node1 should reconnect to node2
 	node1 := startNode(t, "node1", testDirectory)
 	node2 := startNode(t, "node2", testDirectory)
 
@@ -144,6 +149,16 @@ func TestNetworkIntegration_NodeDisconnects(t *testing.T) {
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.connectionManager.Peers()) == 0, nil
 	}, defaultTimeout, "time-out while waiting for node 1 to notice shut down node") {
+		return
+	}
+
+	// Now start node2 again, node1 should reconnect
+	if err := node2.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if !test.WaitFor(t, func() (bool, error) {
+		return len(node1.connectionManager.Peers()) == 1, nil
+	}, defaultTimeout, "time-out while waiting for node 1 to reconnect to node 2") {
 		return
 	}
 }
