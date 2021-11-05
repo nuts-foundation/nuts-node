@@ -190,43 +190,10 @@ func (s *grpcConnectionManager) openOutboundStreams(connection *managedConnectio
 			// Not a gRPC streaming protocol
 			continue
 		}
-		outgoingContext := metadata.NewOutgoingContext(context.Background(), constructMetadata(s.config.peerID))
-		streamContext, err := grpcProtocol.OpenStream(outgoingContext, grpcConn, func(clientStream grpc.ClientStream) (transport.Peer, error) {
-			// Read peer ID from metadata
-			peerHeaders, err := clientStream.Header()
-			if err != nil {
-				return transport.Peer{}, fmt.Errorf("%T: failed to read gRPC headers: %w", prot, err)
-			}
-			peerID, err := readMetadata(peerHeaders)
-			if err != nil {
-				return transport.Peer{}, fmt.Errorf("%T: failed to read peer ID header: %w", prot, err)
-			}
-
-			// Check whether we're already connected
-			if s.connections.connected(transport.Peer{ID: peerID}) {
-				// This can happen when the peer connected to us previously, and now we connect back to them.
-				// TODO: Although nothing breaks, this spams the log of this node with warnings and errors because,
-				//       the outbound connector just keeps connecting. There are 2 solutions to this:
-				//       1. Merge the connection that was created to make the outbound connection with the existing inbound connection (complicated)
-				//       2. Return the resolved peer ID to the outbound connector, which in turn checks whether its already connected to that peer (more dependency hell).
-				log.Logger().Warnf("We connected to a peer that we're already connected to (peer=%s)", peerID)
-				return transport.Peer{}, ErrAlreadyConnected
-			}
-
-			if !connection.verifyOrSetPeerID(peerID) {
-				return transport.Peer{}, fmt.Errorf("%T: peer sent invalid ID (id=%s)", prot, peerID)
-			}
-
-			connection.registerClientStream(clientStream)
-
-			return transport.Peer{
-				ID:      peerID,
-				Address: grpcConn.Target(),
-			}, nil
-		}, connection.closer())
+		streamContext, err := s.openOutboundStream(connection, grpcConn, grpcProtocol)
 		if err != nil {
-			// TODO: Check: is it because the protocol isn't supported by the client, or some other error?
-			return fmt.Errorf("%T failed to open gRPC stream: %w", prot, err)
+			log.Logger().Warnf("%T: Failed to open gRPC stream (addr=%s): %v", prot, grpcConn.Target(), err)
+			continue
 		}
 
 		go func() {
@@ -242,6 +209,47 @@ func (s *grpcConnectionManager) openOutboundStreams(connection *managedConnectio
 	}
 	<-connection.closer() // block until connection is closed
 	return nil
+}
+
+func (s *grpcConnectionManager) openOutboundStream(connection *managedConnection, grpcConn *grpc.ClientConn, grpcProtocol OutboundStreamer) (context.Context, error) {
+	outgoingContext := metadata.NewOutgoingContext(context.Background(), constructMetadata(s.config.peerID))
+	streamContext, err := grpcProtocol.OpenStream(outgoingContext, grpcConn, func(clientStream grpc.ClientStream) (transport.Peer, error) {
+		// Read peer ID from metadata
+		peerHeaders, err := clientStream.Header()
+		if err != nil {
+			return transport.Peer{}, fmt.Errorf("failed to read gRPC headers: %w", err)
+		}
+		if len(peerHeaders) == 0 {
+			return transport.Peer{}, fmt.Errorf("peer didn't send any headers, maybe the protocol version is not supported")
+		}
+		peerID, err := readMetadata(peerHeaders)
+		if err != nil {
+			return transport.Peer{}, fmt.Errorf("failed to read peer ID header: %w", err)
+		}
+
+		// Check whether we're already connected
+		if s.connections.connected(transport.Peer{ID: peerID}) {
+			// This can happen when the peer connected to us previously, and now we connect back to them.
+			// TODO: Although nothing breaks, this spams the log of this node with warnings and errors because,
+			//       the outbound connector just keeps connecting. There are 2 solutions to this:
+			//       1. Merge the connection that was created to make the outbound connection with the existing inbound connection (complicated)
+			//       2. Return the resolved peer ID to the outbound connector, which in turn checks whether its already connected to that peer (more dependency hell).
+			log.Logger().Warnf("We connected to a peer that we're already connected to (peer=%s)", peerID)
+			return transport.Peer{}, ErrAlreadyConnected
+		}
+
+		if !connection.verifyOrSetPeerID(peerID) {
+			return transport.Peer{}, fmt.Errorf("peer sent invalid ID (id=%s)", peerID)
+		}
+
+		connection.registerClientStream(clientStream)
+
+		return transport.Peer{
+			ID:      peerID,
+			Address: grpcConn.Target(),
+		}, nil
+	}, connection.closer())
+	return streamContext, err
 }
 
 func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStream) (transport.Peer, chan struct{}, error) {

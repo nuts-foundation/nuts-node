@@ -29,10 +29,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/test/bufconn"
 	"net"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -59,6 +62,23 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		cm.Connect(peerAddress)
 		cm.Connect(peerAddress)
 		assert.Len(t, cm.connections.list, 1)
+	})
+
+	t.Run("already connected to the peer (inbound)", func(t *testing.T) {
+		serverCfg, serverListener := NewBufconnConfig("server")
+		server := NewGRPCConnectionManager(serverCfg).(*grpcConnectionManager)
+		if err := server.Start(); err != nil {
+			t.Fatal(err)
+		}
+		defer server.Stop()
+
+		clientCfg, _ := NewBufconnConfig("client", WithBufconnDialer(serverListener))
+		client := NewGRPCConnectionManager(clientCfg, &TestProtocol{}).(*grpcConnectionManager)
+		if err := client.Start(); err != nil {
+			t.Fatal(err)
+		}
+		defer server.Stop()
+		client.Connect("server")
 	})
 }
 
@@ -152,6 +172,35 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 		assert.NoError(t, cm.Start())
 		cm.Stop()
+	})
+}
+
+func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
+	t.Run("client does not support gRPC protocol implementation", func(t *testing.T) {
+		serverCfg, serverListener := NewBufconnConfig("server")
+		server := NewGRPCConnectionManager(serverCfg).(*grpcConnectionManager)
+		if err := server.Start(); err != nil {
+			t.Fatal(err)
+		}
+		defer server.Stop()
+
+		clientCfg, _ := NewBufconnConfig("client", WithBufconnDialer(serverListener))
+		client := NewGRPCConnectionManager(clientCfg, &TestProtocol{}).(*grpcConnectionManager)
+
+		var capturedError atomic.Value
+		var waiter sync.WaitGroup
+		waiter.Add(1)
+
+		connection, _ := client.connections.getOrRegister(transport.Peer{Address: "server"}, client.dialer)
+		connection.open(nil, func(grpcConn *grpc.ClientConn) {
+			_, err := client.openOutboundStream(connection, grpcConn, &TestProtocol{})
+			capturedError.Store(err)
+			waiter.Done()
+			connection.close()
+		})
+
+		waiter.Wait()
+		assert.EqualError(t, capturedError.Load().(error), "peer didn't send any headers, maybe the protocol version is not supported")
 	})
 }
 

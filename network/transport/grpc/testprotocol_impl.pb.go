@@ -32,7 +32,7 @@ func (s *TestProtocol) RegisterService(registrar grpc.ServiceRegistrar, acceptor
 
 func (s *TestProtocol) OpenStream(outgoingContext context.Context, grpcConn *grpc.ClientConn, callback func(stream grpc.ClientStream) (transport.Peer, error), closer <-chan struct{}) (context.Context, error) {
 	client := NewTestClient(grpcConn)
-	clientStream, err := client.DoStuff(outgoingContext)
+	clientStream, err := client.DoStuff(outgoingContext, grpc.FailFastCallOption{FailFast: true})
 	if err != nil {
 		return nil, err
 	}
@@ -40,6 +40,7 @@ func (s *TestProtocol) OpenStream(outgoingContext context.Context, grpcConn *grp
 	s.peer = peer
 	if err != nil {
 		_ = clientStream.CloseSend()
+		return nil, err
 	}
 	<-closer
 	return context.Background(), nil
