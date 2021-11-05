@@ -158,7 +158,7 @@ func (s grpcConnectionManager) Connect(peerAddress string) {
 			RootCAs: s.config.trustStore,
 		}
 	}
-	
+
 	connection.open(tlsConfig, func(grpcConn *grpc.ClientConn) {
 		// Callback must block until streams or the connection is closed, then the connector will reconnect.
 		err := s.openOutboundStreams(connection, grpcConn)
