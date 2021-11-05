@@ -63,7 +63,6 @@ func (mc *managedConnection) close() {
 			closer <- struct{}{}
 		}
 	}
-	// TODO: Should we wait until the closer channels have been drained?
 
 	mc.grpcOutboundStreams = nil
 	mc.grpcInboundStreams = nil

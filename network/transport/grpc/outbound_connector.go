@@ -31,11 +31,6 @@ func (c *outboundConnector) loopConnect() {
 			time.Sleep(waitPeriod)
 		} else {
 			c.backoff.Reset()
-			// Since outgoing connections only get the peer's address as input, it doesn't know the peer's ID when initially connecting.
-			// We might already have a connection to this peer, in case it connected to the local node first.
-			// That's why we store the peer's ID, so we can check whether we're already connected to the peer next time before reconnecting.
-			// TODO
-			//resolvedPeerID = peer.ID
 
 			// Invoke callback, blocks until the peer disconnects
 			c.connectedCallback(stream)
