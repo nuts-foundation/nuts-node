@@ -49,7 +49,10 @@ gen-protobuf:
 	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/v1/protobuf/network.proto
 
 gen-docs:
-	go run ./docs
+	go run ./docs docs
+
+fix-copyright:
+	go run ./docs copyright
 
 test:
 	go test ./...

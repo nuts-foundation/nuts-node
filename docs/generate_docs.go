@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func main() {
+func generateDocs() {
 	system := cmd.CreateSystem()
 	generateClientOptions(system)
 	generateServerOptions(system)
