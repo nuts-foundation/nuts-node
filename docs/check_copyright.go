@@ -1,14 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 )
 
-const copyrightText = `/*
- * Copyright (C) 2021 Nuts community
+var yearRegex = regexp.MustCompilePOSIX("Copyright \\(C\\) ([0-9]{4})(\\.?) Nuts community")
+
+var yearRegexReplacement = fmt.Sprintf("Copyright (C) %d Nuts community", time.Now().Year())
+
+var copyrightText = fmt.Sprintf(`/*
+ * %s
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,16 +32,17 @@ const copyrightText = `/*
  *
  */
 
-`
+`,yearRegexReplacement)
+
 
 func fixCopyright() {
-	dir := "../"
+	dir := "./"
 	// Assert we're in the right directory
-	if _, err := os.Stat(path.Join(dir, "main.go")); err != nil {
+	if _, err := os.Stat(path.Join(dir, ".gitignore")); err != nil {
 		panic("incorrect directory")
 	}
 
-	err := filepath.Walk("../",
+	err := filepath.Walk(dir,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -60,14 +68,19 @@ func fixCopyright() {
 				return nil
 			}
 
-			// Looking for "Copyright (C) 2021 Nuts community", but we don't care about the year
+			// Looking for "Copyright (C) (year) Nuts community"
 			if strings.Contains(dataStr, "Copyright (C)") && strings.Contains(dataStr, "Nuts community") {
-				return nil
+				// See if we have to adjust the year
+				dataWithYear := string(yearRegex.ReplaceAll(data, []byte(yearRegexReplacement)))
+				if dataWithYear == dataStr {
+					// Up-to-date
+					return nil
+				}
+				dataStr = dataWithYear
+			} else {
+				dataStr = copyrightText + dataStr
 			}
-
 			println("Fixing copyright notice on", path)
-			dataStr = copyrightText + dataStr
-
 			if err := os.WriteFile(path, []byte(dataStr), info.Mode()); err != nil {
 				return err
 			}
