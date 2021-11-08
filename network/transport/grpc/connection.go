@@ -26,7 +26,41 @@ import (
 	"sync/atomic"
 )
 
-type managedConnection struct {
+// managedConnection is created by grpcConnectionManager to register a connection to a peer.
+// The connection can be either inbound or outbound. The presence of a managedConnection for a peer doesn't imply
+// there's an actual connection, because it might still be trying to establish an outbound connection to the given peer.
+type managedConnection interface {
+	// close shuts down active inbound or outbound streams and stops active outbound connectors.
+	close()
+	getPeer() transport.Peer
+	connected() bool
+	// open instructs the managedConnection to start connecting to the remote peer (attempting an outbound connection).
+	open(config *tls.Config, callback func(grpcConn *grpc.ClientConn))
+	// registerClientStream adds the given grpc.ClientStream to this managedConnection. It is closed when close() is called.
+	registerClientStream(stream grpc.ClientStream)
+	// registerServerStream adds the given grpc.ServerStream to this managedConnection.
+	registerServerStream(stream grpc.ServerStream)
+	// closer returns a channel that receives an item when the managedConnection is closing.
+	// Each time it is called a new channel will be returned. All channels will be published to when it is closing.
+	closer() <-chan struct{}
+	// verifyOrSetPeerID checks whether the given transport.PeerID matches the one currently set for this connection.
+	// If no transport.PeerID is set on this connection it just sets it. Subsequent calls must then match it.
+	// This method is used to:
+	// - Initial discovery of the peer's transport.PeerID, setting it when it isn't known before connecting.
+	// - Verify multiple active protocols to the same peer all send the same transport.PeerID.
+	// It returns false if the given transport.PeerID doesn't match the previously set transport.PeerID.
+	verifyOrSetPeerID(id transport.PeerID) bool
+}
+
+func createConnection(dialer dialer, peer transport.Peer) managedConnection {
+	result := &conn{
+		dialer: dialer,
+	}
+	result.peer.Store(peer)
+	return result
+}
+
+type conn struct {
 	peer                   atomic.Value
 	closers                []chan struct{}
 	mux                    sync.Mutex
@@ -37,16 +71,12 @@ type managedConnection struct {
 	dialer                 dialer
 }
 
-func (mc *managedConnection) getPeer() transport.Peer {
+func (mc *conn) getPeer() transport.Peer {
 	peer, _ := mc.peer.Load().(transport.Peer)
 	return peer
 }
 
-func (mc *managedConnection) setPeer(value transport.Peer) {
-	mc.peer.Store(value)
-}
-
-func (mc *managedConnection) closer() chan struct{} {
+func (mc *conn) closer() <-chan struct{} {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 	closer := make(chan struct{}, 1)
@@ -54,7 +84,7 @@ func (mc *managedConnection) closer() chan struct{} {
 	return closer
 }
 
-func (mc *managedConnection) close() {
+func (mc *conn) close() {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
@@ -74,40 +104,31 @@ func (mc *managedConnection) close() {
 	}
 }
 
-// verifyOrSetPeerID checks whether the given transport.PeerID matches the one currently set for this connection.
-// If no transport.PeerID is set on this connection it just sets it. Subsequent calls must then match it.
-// This method is used to:
-// - Initial discovery of the peer's transport.PeerID, setting it when it isn't known before connecting.
-// - Verify multiple active protocols to the same peer all send the same transport.PeerID.
-// It returns false if the given transport.PeerID doesn't match the previously set transport.PeerID.
-func (mc *managedConnection) verifyOrSetPeerID(id transport.PeerID) bool {
+func (mc *conn) verifyOrSetPeerID(id transport.PeerID) bool {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 	currentPeer := mc.getPeer()
 	if len(currentPeer.ID) == 0 {
 		currentPeer.ID = id
-		mc.setPeer(currentPeer)
+		mc.peer.Store(currentPeer)
 		return true
 	}
 	return currentPeer.ID == id
 }
 
-// registerClientStream adds the given grpc.ClientStream to this managedConnection. It is closed when close() is called.
-func (mc *managedConnection) registerClientStream(clientStream grpc.ClientStream) {
+func (mc *conn) registerClientStream(clientStream grpc.ClientStream) {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 	mc.grpcOutboundStreams = append(mc.grpcOutboundStreams, clientStream)
 }
 
-// registerServerStream adds the given grpc.ServerStream to this managedConnection.
-func (mc *managedConnection) registerServerStream(serverStream grpc.ServerStream) {
+func (mc *conn) registerServerStream(serverStream grpc.ServerStream) {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 	mc.grpcInboundStreams = append(mc.grpcInboundStreams, serverStream)
 }
 
-// open instructs the managedConnection to start connecting to the remote peer (attempting an outbound connection).
-func (mc *managedConnection) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn)) {
+func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn)) {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
@@ -133,7 +154,7 @@ func (mc *managedConnection) open(tlsConfig *tls.Config, connectedCallback func(
 	go mc.connector.loopConnect()
 }
 
-func (mc *managedConnection) connected() bool {
+func (mc *conn) connected() bool {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 

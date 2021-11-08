@@ -27,14 +27,14 @@ import (
 	"time"
 )
 
-func Test_managedConnection_close(t *testing.T) {
+func Test_conn_close(t *testing.T) {
 	t.Run("no closers", func(t *testing.T) {
-		conn := managedConnection{}
+		conn := conn{}
 		conn.close()
 		assert.Empty(t, conn.closers)
 	})
 	t.Run("multiple closers", func(t *testing.T) {
-		conn := managedConnection{}
+		conn := conn{}
 		c1 := conn.closer()
 		c2 := conn.closer()
 		conn.close()
@@ -42,7 +42,7 @@ func Test_managedConnection_close(t *testing.T) {
 		assert.Len(t, c2, 1)
 	})
 	t.Run("multiple calls does not block", func(t *testing.T) {
-		conn := managedConnection{}
+		conn := conn{}
 		c := conn.closer()
 		conn.close()
 		conn.close()

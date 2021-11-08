@@ -19,18 +19,18 @@
 package grpc
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crl"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
 	"net"
 )
 
-func defaultListenerCreator(addr string) (net.Listener, error) {
+// tcpListenerCreator starts a TCP listener for the inbound gRPC server on the given address.
+// It's used by default when running the Nuts node, but unit tests can use an alternative listener creator (e.g. bufconn for in-memory channels).
+func tcpListenerCreator(addr string) (net.Listener, error) {
 	return net.Listen("tcp", addr)
 }
 
@@ -43,22 +43,12 @@ func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...Config
 		listenAddress: grpcAddress,
 		peerID:        peerID,
 		dialer:        grpc.DialContext,
-		listener:      defaultListenerCreator,
+		listener:      tcpListenerCreator,
 	}
 	for _, opt := range options {
 		opt(&cfg)
 	}
 	return cfg
-}
-
-// NewBufconnConfig creates a new Config like NewConfig, but configures an in-memory bufconn listener instead of a TCP listener.
-func NewBufconnConfig(peerID networkTypes.PeerID, options ...ConfigOption) (Config, *bufconn.Listener) {
-	bufnet := bufconn.Listen(1024 * 1024)
-	return NewConfig("bufnet", peerID, append(options[:], func(config *Config) {
-		config.listener = func(_ string) (net.Listener, error) {
-			return bufnet, nil
-		}
-	})...), bufnet
 }
 
 // WithTLS enables TLS for gRPC ConnectionManager.
@@ -71,17 +61,6 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, max
 		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
 		if config.listenAddress != "" {
 			config.serverCert = config.clientCert
-		}
-	}
-}
-
-// WithBufconnDialer can be used to redirect outbound connections to a predetermined bufconn listener.
-func WithBufconnDialer(listener *bufconn.Listener) ConfigOption {
-	return func(config *Config) {
-		config.dialer = func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
-			return grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
-				return listener.Dial()
-			}), grpc.WithInsecure())
 		}
 	}
 }

@@ -40,6 +40,27 @@ import (
 	"time"
 )
 
+// newBufconnConfig creates a new Config like NewConfig, but configures an in-memory bufconn listener instead of a TCP listener.
+func newBufconnConfig(peerID transport.PeerID, options ...ConfigOption) (Config, *bufconn.Listener) {
+	bufnet := bufconn.Listen(1024 * 1024)
+	return NewConfig("bufnet", peerID, append(options[:], func(config *Config) {
+		config.listener = func(_ string) (net.Listener, error) {
+			return bufnet, nil
+		}
+	})...), bufnet
+}
+
+// withBufconnDialer can be used to redirect outbound connections to a predetermined bufconn listener.
+func withBufconnDialer(listener *bufconn.Listener) ConfigOption {
+	return func(config *Config) {
+		config.dialer = func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+			return grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+				return listener.Dial()
+			}), grpc.WithInsecure())
+		}
+	}
+}
+
 func Test_grpcConnectionManager_Connect(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -65,14 +86,14 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 	})
 
 	t.Run("already connected to the peer (inbound)", func(t *testing.T) {
-		serverCfg, serverListener := NewBufconnConfig("server")
+		serverCfg, serverListener := newBufconnConfig("server")
 		server := NewGRPCConnectionManager(serverCfg).(*grpcConnectionManager)
 		if err := server.Start(); err != nil {
 			t.Fatal(err)
 		}
 		defer server.Stop()
 
-		clientCfg, _ := NewBufconnConfig("client", WithBufconnDialer(serverListener))
+		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		client := NewGRPCConnectionManager(clientCfg, &TestProtocol{}).(*grpcConnectionManager)
 		if err := client.Start(); err != nil {
 			t.Fatal(err)
@@ -85,7 +106,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 func Test_grpcConnectionManager_Peers(t *testing.T) {
 	create := func(t *testing.T, opts ...ConfigOption) (*grpcConnectionManager, *TestProtocol, *bufconn.Listener) {
 		proto := &TestProtocol{}
-		cfg, listener := NewBufconnConfig(transport.PeerID(t.Name()), opts...)
+		cfg, listener := newBufconnConfig(transport.PeerID(t.Name()), opts...)
 		cm := NewGRPCConnectionManager(cfg, proto).(*grpcConnectionManager)
 		if err := cm.Start(); err != nil {
 			t.Fatal(err)
@@ -102,7 +123,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 	})
 	t.Run("1 peer (1 connection)", func(t *testing.T) {
 		_, _, listener := create(t)
-		cm2, _, _ := create(t, WithBufconnDialer(listener))
+		cm2, _, _ := create(t, withBufconnDialer(listener))
 		cm2.Connect("bufnet")
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm2.Peers()) > 0, nil
@@ -167,7 +188,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 			trustStore:         x509.NewCertPool(),
 			crlValidator:       validator,
 			maxCRLValidityDays: 10,
-			listener:           defaultListenerCreator,
+			listener:           tcpListenerCreator,
 		}, p)
 
 		assert.NoError(t, cm.Start())
@@ -177,14 +198,14 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 	t.Run("client does not support gRPC protocol implementation", func(t *testing.T) {
-		serverCfg, serverListener := NewBufconnConfig("server")
+		serverCfg, serverListener := newBufconnConfig("server")
 		server := NewGRPCConnectionManager(serverCfg).(*grpcConnectionManager)
 		if err := server.Start(); err != nil {
 			t.Fatal(err)
 		}
 		defer server.Stop()
 
-		clientCfg, _ := NewBufconnConfig("client", WithBufconnDialer(serverListener))
+		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		client := NewGRPCConnectionManager(clientCfg, &TestProtocol{}).(*grpcConnectionManager)
 
 		var capturedError atomic.Value

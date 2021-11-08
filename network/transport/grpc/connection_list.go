@@ -7,7 +7,7 @@ import (
 
 type connectionList struct {
 	mux  sync.Mutex
-	list []*managedConnection
+	list []managedConnection
 }
 
 func (c *connectionList) closeAll() {
@@ -23,7 +23,7 @@ func (c *connectionList) closeAll() {
 // If no connections match the given peer it creates a new one.
 // It returns false if the peer matched an existing connection.
 // It returns true if a new connection was created.
-func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (*managedConnection, bool) {
+func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (managedConnection, bool) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -40,8 +40,7 @@ func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (*man
 		}
 	}
 
-	result := &managedConnection{dialer: dialer}
-	result.setPeer(peer)
+	result := createConnection(dialer, peer)
 	c.list = append(c.list, result)
 	return result, true
 }

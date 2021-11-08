@@ -40,4 +40,4 @@ type OutboundStreamer interface {
 // - `peer` which holds information about the specific peer.
 // - `closer` channel which is used to signal when the stream must be closed.
 // - `error` which indicates whether the stream has been accepted or not. If not accepted, the stream must be terminated and the error returned to the client.
-type StreamAcceptor func(serverStream grpc.ServerStream) (peer transport.Peer, closer chan struct{}, err error)
+type StreamAcceptor func(serverStream grpc.ServerStream) (peer transport.Peer, closer <-chan struct{}, err error)

@@ -77,53 +77,56 @@ func (s *grpcConnectionManager) Start() error {
 	s.grpcServerMutex.Lock()
 	defer s.grpcServerMutex.Unlock()
 
-	if s.config.listenAddress != "" {
-		log.Logger().Infof("Starting gRPC server on %s", s.config.listenAddress)
-		serverOpts := []grpc.ServerOption{
-			grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
-			grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
-		}
-		var err error
-		s.listener, err = s.listenerCreator(s.config.listenAddress)
-		if err != nil {
-			return err
-		}
-		// Configure TLS if enabled
-		if s.config.tlsEnabled() {
-			tlsConfig := &tls.Config{
-				Certificates: []tls.Certificate{s.config.serverCert},
-				ClientAuth:   tls.RequireAndVerifyClientCert,
-				ClientCAs:    s.config.trustStore,
-			}
-			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
-
-			// Configure support for checking revoked certificates
-			s.config.crlValidator.SyncLoop(context.TODO())
-			s.config.crlValidator.Configure(tlsConfig, s.config.maxCRLValidityDays)
-		} else {
-			log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
-		}
-
-		// Create gRPC server for inbound connectionList and associate it with the protocols
-		s.grpcServer = grpc.NewServer(serverOpts...)
-		for _, prot := range s.protocols {
-			grpcProtocol, ok := prot.(InboundStreamer)
-			if ok {
-				grpcProtocol.RegisterService(s, s.handleInboundStream)
-			}
-		}
-
-		// Start serving from the gRPC server
-		go func(server *grpc.Server, listener net.Listener) {
-			err := server.Serve(listener)
-			if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-				log.Logger().Errorf("gRPC server errored: %v", err)
-				s.Stop()
-			}
-		}(s.grpcServer, s.listener)
-	} else {
+	if s.config.listenAddress == "" {
 		log.Logger().Info("Not starting gRPC server, connections will only be outbound.")
+		return nil
 	}
+
+	log.Logger().Debugf("Starting gRPC server on %s", s.config.listenAddress)
+	serverOpts := []grpc.ServerOption{
+		grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
+		grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
+	}
+	var err error
+	s.listener, err = s.listenerCreator(s.config.listenAddress)
+	if err != nil {
+		return err
+	}
+	// Configure TLS if enabled
+	if s.config.tlsEnabled() {
+		tlsConfig := &tls.Config{
+			Certificates: []tls.Certificate{s.config.serverCert},
+			ClientAuth:   tls.RequireAndVerifyClientCert,
+			ClientCAs:    s.config.trustStore,
+		}
+		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
+
+		// Configure support for checking revoked certificates
+		s.config.crlValidator.SyncLoop(context.TODO())
+		s.config.crlValidator.Configure(tlsConfig, s.config.maxCRLValidityDays)
+	} else {
+		log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
+	}
+
+	// Create gRPC server for inbound connectionList and associate it with the protocols
+	s.grpcServer = grpc.NewServer(serverOpts...)
+	for _, prot := range s.protocols {
+		grpcProtocol, ok := prot.(InboundStreamer)
+		if ok {
+			grpcProtocol.RegisterService(s, s.handleInboundStream)
+		}
+	}
+
+	// Start serving from the gRPC server
+	go func(server *grpc.Server, listener net.Listener) {
+		err := server.Serve(listener)
+		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			log.Logger().Errorf("gRPC server errored: %v", err)
+			s.Stop()
+		}
+	}(s.grpcServer, s.listener)
+
+	log.Logger().Infof("gRPC server started on %s", s.config.listenAddress)
 	return nil
 }
 
@@ -181,7 +184,7 @@ func (s grpcConnectionManager) RegisterService(desc *grpc.ServiceDesc, impl inte
 // openOutboundStreams instructs the protocols that support gRPC streaming to open their streams.
 // The resulting grpc.ClientStream(s) must be registered on the managedConnection.
 // If an error is returned the connection should be closed.
-func (s *grpcConnectionManager) openOutboundStreams(connection *managedConnection, grpcConn *grpc.ClientConn) error {
+func (s *grpcConnectionManager) openOutboundStreams(connection managedConnection, grpcConn *grpc.ClientConn) error {
 	protocolNum := 0
 	// Call gRPC-enabled protocols, block until they close
 	for _, prot := range s.protocols {
@@ -211,7 +214,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection *managedConnectio
 	return nil
 }
 
-func (s *grpcConnectionManager) openOutboundStream(connection *managedConnection, grpcConn *grpc.ClientConn, grpcProtocol OutboundStreamer) (context.Context, error) {
+func (s *grpcConnectionManager) openOutboundStream(connection managedConnection, grpcConn *grpc.ClientConn, grpcProtocol OutboundStreamer) (context.Context, error) {
 	outgoingContext := metadata.NewOutgoingContext(context.Background(), constructMetadata(s.config.peerID))
 	streamContext, err := grpcProtocol.OpenStream(outgoingContext, grpcConn, func(clientStream grpc.ClientStream) (transport.Peer, error) {
 		// Read peer ID from metadata
@@ -252,7 +255,7 @@ func (s *grpcConnectionManager) openOutboundStream(connection *managedConnection
 	return streamContext, err
 }
 
-func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStream) (transport.Peer, chan struct{}, error) {
+func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStream) (transport.Peer, <-chan struct{}, error) {
 	peerCtx, _ := grpcPeer.FromContext(inboundStream.Context())
 	log.Logger().Tracef("New peer connected from %s", peerCtx.Addr)
 
