@@ -72,6 +72,7 @@ type conn struct {
 }
 
 func (mc *conn) getPeer() transport.Peer {
+	// Populated through createConnection and verifyOrSetPeerID
 	peer, _ := mc.peer.Load().(transport.Peer)
 	return peer
 }
