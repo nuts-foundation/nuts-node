@@ -280,8 +280,6 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 	}
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?
-
-	// TODO: what if we had an outbound outboundConnector which couldn't connect, and now the peer connects inbound?
 	if s.connections.connected(transport.Peer{ID: peerID}) {
 		return peer, nil, ErrAlreadyConnected
 	}
