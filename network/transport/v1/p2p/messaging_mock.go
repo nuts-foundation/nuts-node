@@ -8,7 +8,6 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	transport "github.com/nuts-foundation/nuts-node/network/transport"
 	protobuf "github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 )
 
@@ -62,67 +61,4 @@ func (m *MockgrpcMessenger) Send(message *protobuf.NetworkMessage) error {
 func (mr *MockgrpcMessengerMockRecorder) Send(message interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockgrpcMessenger)(nil).Send), message)
-}
-
-// Mockconnection is a mock of connection interface.
-type Mockconnection struct {
-	ctrl     *gomock.Controller
-	recorder *MockconnectionMockRecorder
-}
-
-// MockconnectionMockRecorder is the mock recorder for Mockconnection.
-type MockconnectionMockRecorder struct {
-	mock *Mockconnection
-}
-
-// NewMockconnection creates a new mock instance.
-func NewMockconnection(ctrl *gomock.Controller) *Mockconnection {
-	mock := &Mockconnection{ctrl: ctrl}
-	mock.recorder = &MockconnectionMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *Mockconnection) EXPECT() *MockconnectionMockRecorder {
-	return m.recorder
-}
-
-// exchange mocks base method.
-func (m *Mockconnection) exchange(messageReceiver messageQueue) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "exchange", messageReceiver)
-}
-
-// exchange indicates an expected call of exchange.
-func (mr *MockconnectionMockRecorder) exchange(messageReceiver interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "exchange", reflect.TypeOf((*Mockconnection)(nil).exchange), messageReceiver)
-}
-
-// peer mocks base method.
-func (m *Mockconnection) peer() transport.Peer {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "peer")
-	ret0, _ := ret[0].(transport.Peer)
-	return ret0
-}
-
-// peer indicates an expected call of peer.
-func (mr *MockconnectionMockRecorder) peer() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "peer", reflect.TypeOf((*Mockconnection)(nil).peer))
-}
-
-// send mocks base method.
-func (m *Mockconnection) send(message *protobuf.NetworkMessage) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "send", message)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// send indicates an expected call of send.
-func (mr *MockconnectionMockRecorder) send(message interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "send", reflect.TypeOf((*Mockconnection)(nil).send), message)
 }

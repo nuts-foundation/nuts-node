@@ -278,6 +278,7 @@ func (n *Network) Shutdown() error {
 // Diagnostics collects and returns diagnostics for the Network engine.
 func (n *Network) Diagnostics() []core.DiagnosticResult {
 	var results = make([]core.DiagnosticResult, 0)
+	results = append(results, n.connectionManager.Diagnostics()...)
 	for _, prot := range n.protocols {
 		results = append(results, prot.Diagnostics()...)
 	}

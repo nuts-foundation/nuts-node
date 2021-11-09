@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/pkg/errors"
@@ -174,6 +175,15 @@ func (s grpcConnectionManager) Connect(peerAddress string) {
 
 func (s grpcConnectionManager) Peers() []transport.Peer {
 	return s.connections.listConnected()
+}
+
+func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
+	peers := s.connections.listConnected()
+	return []core.DiagnosticResult{
+		ownPeerIDStatistic{s.config.peerID},
+		numberOfPeersStatistic{numberOfPeers: len(peers)},
+		peersStatistic{peers: peers},
+	}
 }
 
 // RegisterService implements grpc.ServiceRegistrar to register the gRPC services protocols expose.

@@ -32,7 +32,7 @@ type numberOfPeersStatistic struct {
 
 // Name returns the name of the statistic.
 func (n numberOfPeersStatistic) Name() string {
-	return "[P2P Network] Connected peers #"
+	return "[P2P] Connected peers #"
 }
 
 // String returns the statistic as string.
@@ -47,7 +47,7 @@ type peersStatistic struct {
 
 // Name returns the name of the statistic.
 func (p peersStatistic) Name() string {
-	return "[P2P Network] Connected peers"
+	return "[P2P] Connected peers"
 }
 
 // String returns the statistic as string.
@@ -70,7 +70,7 @@ type ownPeerIDStatistic struct {
 
 // Name returns the name of the statistic.
 func (o ownPeerIDStatistic) Name() string {
-	return "[P2P Network] Peer ID of local node"
+	return "[P2P] Peer ID of local node"
 }
 
 // String returns the statistic as string.

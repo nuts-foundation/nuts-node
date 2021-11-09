@@ -111,9 +111,10 @@ func TestNetwork_Diagnostics(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
+		cxt.connectionManager.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
 		cxt.protocol.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
 		diagnostics := cxt.network.Diagnostics()
-		assert.Len(t, diagnostics, 2)
+		assert.Len(t, diagnostics, 4)
 	})
 }
 

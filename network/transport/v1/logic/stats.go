@@ -39,7 +39,7 @@ type peerOmnihashStatistic struct {
 }
 
 func (d peerOmnihashStatistic) Name() string {
-	return "[Protocol] Peer omnihashes"
+	return "[Protocol v1] Peer omnihashes"
 }
 
 func (d peerOmnihashStatistic) String() string {

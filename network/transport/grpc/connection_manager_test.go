@@ -33,6 +33,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/test/bufconn"
+	"hash/crc32"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -196,6 +197,24 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 }
 
+func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
+	const peerID = "server-peer-id"
+	t.Run("no peers", func(t *testing.T) {
+		cm := NewGRPCConnectionManager(Config{peerID: peerID}).(*grpcConnectionManager)
+		assert.Len(t, cm.Diagnostics(), 3)
+		assert.Equal(t, cm.Diagnostics()[0].String(), peerID)
+	})
+	t.Run("with peers", func(t *testing.T) {
+		cm := NewGRPCConnectionManager(Config{peerID: peerID}).(*grpcConnectionManager)
+		cm.handleInboundStream(newServerStream("peer1"))
+		cm.handleInboundStream(newServerStream("peer2"))
+
+		assert.Len(t, cm.Diagnostics(), 3)
+		assert.Equal(t, "2", cm.Diagnostics()[1].String())
+		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", cm.Diagnostics()[2].String())
+	})
+}
+
 func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 	t.Run("client does not support gRPC protocol implementation", func(t *testing.T) {
 		serverCfg, serverListener := newBufconnConfig("server")
@@ -301,7 +320,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 
 func newServerStream(clientPeerID transport.PeerID) *stubServerStream {
 	ctx := metadata.NewIncomingContext(context.Background(), constructMetadata(clientPeerID))
-	ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.IPAddr{IP: net.ParseIP("127.0.0.1")}})
+	ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: int(crc32.ChecksumIEEE([]byte(clientPeerID))%9000 + 1000)}})
 	ctx, cancelFunc := context.WithCancel(ctx)
 
 	return &stubServerStream{

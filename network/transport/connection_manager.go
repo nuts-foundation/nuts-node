@@ -18,8 +18,12 @@
 
 package transport
 
+import "github.com/nuts-foundation/nuts-node/core"
+
 // ConnectionManager manages the connections to peers, making outbound connections if required. It also determines the network layout.
 type ConnectionManager interface {
+	core.Diagnosable
+
 	// Connect attempts to make an outbound connection to the given peer if it's not already connected.
 	Connect(peerAddress string)
 
