@@ -198,6 +198,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection managedConnection
 			log.Logger().Warnf("%T: Failed to open gRPC stream (addr=%s): %v", prot, grpcConn.Target(), err)
 			continue
 		}
+		log.Logger().Debugf("%T: Opened gRPC stream (peer=%s)", prot, connection.getPeer())
 
 		go func() {
 			// Waits for the clientStream to be done (other side closed the stream), then we close the connection on our side
