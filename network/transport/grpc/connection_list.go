@@ -40,7 +40,10 @@ func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (mana
 		}
 	}
 
-	result := createConnection(dialer, peer)
+	result := createConnection(dialer, peer, func(target managedConnection) {
+		// When the all inbound streams are closed, remove it from the list.
+		c.remove(target)
+	})
 	c.list = append(c.list, result)
 	return result, true
 }
@@ -69,4 +72,18 @@ func (c *connectionList) listConnected() []transport.Peer {
 		}
 	}
 	return result
+}
+
+func (c *connectionList) remove(target managedConnection) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	var j int
+	for _, curr := range c.list {
+		if curr != target {
+			c.list[j] = curr
+			j++
+		}
+	}
+	c.list = c.list[:j]
 }

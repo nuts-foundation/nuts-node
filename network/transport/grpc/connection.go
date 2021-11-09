@@ -52,23 +52,25 @@ type managedConnection interface {
 	verifyOrSetPeerID(id transport.PeerID) bool
 }
 
-func createConnection(dialer dialer, peer transport.Peer) managedConnection {
+func createConnection(dialer dialer, peer transport.Peer, inboundStreamsClosedCallback func(managedConnection)) managedConnection {
 	result := &conn{
-		dialer: dialer,
+		dialer:                       dialer,
+		inboundStreamsClosedCallback: inboundStreamsClosedCallback,
 	}
 	result.peer.Store(peer)
 	return result
 }
 
 type conn struct {
-	peer                   atomic.Value
-	closers                []chan struct{}
-	mux                    sync.Mutex
-	connector              *outboundConnector
-	grpcOutboundConnection *grpc.ClientConn
-	grpcOutboundStreams    []grpc.ClientStream
-	grpcInboundStreams     []grpc.ServerStream
-	dialer                 dialer
+	peer                         atomic.Value
+	closers                      []chan struct{}
+	mux                          sync.Mutex
+	connector                    *outboundConnector
+	grpcOutboundConnection       *grpc.ClientConn
+	grpcOutboundStreams          []grpc.ClientStream
+	grpcInboundStreams           []grpc.ServerStream
+	inboundStreamsClosedCallback func(managedConnection)
+	dialer                       dialer
 }
 
 func (mc *conn) getPeer() transport.Peer {
@@ -127,6 +129,26 @@ func (mc *conn) registerServerStream(serverStream grpc.ServerStream) {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 	mc.grpcInboundStreams = append(mc.grpcInboundStreams, serverStream)
+
+	go func() {
+		// Wait for the serverStream to close. Then remove it, and if it was the last one, callback
+		<-serverStream.Context().Done()
+		mc.mux.Lock()
+		defer mc.mux.Unlock()
+		// Remove this stream from the inbound stream list
+		var j int
+		for _, curr := range mc.grpcInboundStreams {
+			if curr != serverStream {
+				mc.grpcInboundStreams[j] = curr
+				j++
+			}
+		}
+		mc.grpcInboundStreams = mc.grpcInboundStreams[:j]
+		// If empty, remove.
+		if len(mc.grpcInboundStreams) == 0 {
+			mc.inboundStreamsClosedCallback(mc)
+		}
+	}()
 }
 
 func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn)) {

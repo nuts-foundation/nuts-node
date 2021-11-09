@@ -229,7 +229,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 	t.Run("new client", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}).(*grpcConnectionManager)
 
-		serverStream := &stubServerStream{clientMetadata: constructMetadata("client-peer-id")}
+		serverStream := newServerStream("client-peer-id")
 		peerInfo, closer, err := cm.handleInboundStream(serverStream)
 
 		if !assert.NoError(t, err) {
@@ -248,12 +248,12 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 	t.Run("already connected client", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}).(*grpcConnectionManager)
 
-		serverStream1 := &stubServerStream{clientMetadata: constructMetadata("client-peer-id")}
+		serverStream1 := newServerStream("client-peer-id")
 		_, _, err := cm.handleInboundStream(serverStream1)
 		assert.NoError(t, err)
 
 		// Second connection with same peer ID is rejected
-		serverStream2 := &stubServerStream{clientMetadata: constructMetadata("client-peer-id")}
+		serverStream2 := newServerStream("client-peer-id")
 		_, _, err = cm.handleInboundStream(serverStream2)
 		assert.EqualError(t, err, "already connected")
 
@@ -264,7 +264,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}).(*grpcConnectionManager)
 
 		serverStream1 := newServerStream("client-peer-id")
-		accepted, _, _ := cm.acceptGRPCStream(serverStream1)
+		accepted, _, _ := cm.handleInboundStream(serverStream1)
 		assert.True(t, accepted)
 
 		// Simulate a stream close
@@ -276,11 +276,32 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 			return len(cm.connections.list) == 0, nil
 		}, time.Second * 2, "time-out while waiting for closed inbound connection to be removed")
 	})
+	t.Run("peer closes connection, connection is removed from list", func(t *testing.T) {
+		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}).(*grpcConnectionManager)
+
+		serverStream := newServerStream("client-peer-id")
+
+		cm.handleInboundStream(serverStream)
+
+		cm.connections.mux.Lock()
+		if !assert.Len(t, cm.connections.list, 1) {
+			return
+		}
+		cm.connections.mux.Unlock()
+
+		serverStream.cancelFunc()
+
+		test.WaitFor(t, func() (bool, error) {
+			cm.connections.mux.Lock()
+			defer cm.connections.mux.Unlock()
+			return len(cm.connections.list) == 0, nil
+		}, time.Second, "Time-out while waiting for connection to be removed from connection list")
+	})
 }
 
 func newServerStream(clientPeerID transport.PeerID) *stubServerStream {
 	ctx := metadata.NewIncomingContext(context.Background(), constructMetadata(clientPeerID))
-	ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: int(crc32.ChecksumIEEE([]byte(clientPeerID))%9000 + 1000)}})
+	ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.IPAddr{IP: net.ParseIP("127.0.0.1")}})
 	ctx, cancelFunc := context.WithCancel(ctx)
 
 	return &stubServerStream{

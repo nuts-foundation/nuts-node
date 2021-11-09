@@ -36,3 +36,16 @@ func Test_connectionList_getOrRegister(t *testing.T) {
 		assert.NotEqual(t, connA, connB)
 	})
 }
+
+func Test_connectionList_remove(t *testing.T) {
+	cn := connectionList{}
+	connA, _ := cn.getOrRegister(transport.Peer{ID: "a"}, nil)
+	connB, _ := cn.getOrRegister(transport.Peer{ID: "b"}, nil)
+	connC, _ := cn.getOrRegister(transport.Peer{ID: "c"}, nil)
+
+	assert.Len(t, cn.list, 3)
+	cn.remove(connB)
+	assert.Len(t, cn.list, 2)
+	assert.Contains(t, cn.list, connA)
+	assert.Contains(t, cn.list, connC)
+}
