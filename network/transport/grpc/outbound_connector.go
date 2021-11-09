@@ -13,6 +13,19 @@ import (
 
 type dialer func(ctx context.Context, target string, opts ...grpcLib.DialOption) (conn *grpcLib.ClientConn, err error)
 
+func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Config, shouldConnect func() bool, connectedCallback func(conn *grpcLib.ClientConn)) *outboundConnector {
+	return &outboundConnector{
+		address:           address,
+		dialer:            dialer,
+		tlsConfig:         tlsConfig,
+		shouldConnect:     shouldConnect,
+		connectedCallback: connectedCallback,
+		connectedBackoff: func() {
+			time.Sleep(time.Second)
+		},
+	}
+}
+
 type outboundConnector struct {
 	address string
 	dialer
@@ -20,11 +33,17 @@ type outboundConnector struct {
 	tlsConfig         *tls.Config
 	localPeerID       transport.PeerID
 	connectedCallback func(conn *grpcLib.ClientConn)
+	// shouldConnect returns whether the connector must try to connect. If it returns false, it backs off.
+	shouldConnect    func() bool
+	connectedBackoff func()
 }
 
 func (c *outboundConnector) loopConnect() {
 	for {
-		// TODO: What if we received an inbound connection at the same time?
+		if !c.shouldConnect() {
+			c.connectedBackoff()
+			continue
+		}
 		if stream, err := c.tryConnect(); err != nil {
 			waitPeriod := c.backoff.Backoff()
 			log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), c.address, err)

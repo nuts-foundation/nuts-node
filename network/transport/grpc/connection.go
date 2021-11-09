@@ -162,18 +162,15 @@ func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grp
 
 	mc.closers = nil
 
-	mc.connector = &outboundConnector{
-		address:   mc.getPeer().Address,
-		dialer:    mc.dialer,
-		tlsConfig: tlsConfig,
-		connectedCallback: func(conn *grpc.ClientConn) {
-			mc.mux.Lock()
-			mc.grpcOutboundConnection = conn
-			mc.mux.Unlock()
+	mc.connector = createOutboundConnector(mc.getPeer().Address, mc.dialer, tlsConfig, func() bool {
+		return !mc.connected()
+	}, func(conn *grpc.ClientConn) {
+		mc.mux.Lock()
+		mc.grpcOutboundConnection = conn
+		mc.mux.Unlock()
 
-			connectedCallback(conn)
-		},
-	}
+		connectedCallback(conn)
+	})
 	go mc.connector.loopConnect()
 }
 
