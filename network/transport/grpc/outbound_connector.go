@@ -63,7 +63,7 @@ func (c *outboundConnector) loopConnect() {
 }
 
 func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
-	log.Logger().Infof("Connecting to peer: %v", c.address)
+	log.Logger().Infof("Connecting to peer: %s", c.address)
 
 	dialContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -85,5 +85,6 @@ func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect: %w", err)
 	}
+	log.Logger().Infof("Connected to peer (outbound): %s", c.address)
 	return grpcConn, nil
 }
