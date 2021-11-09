@@ -27,7 +27,6 @@ import (
 	"testing"
 )
 
-
 func TestProtocolV1_Configure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

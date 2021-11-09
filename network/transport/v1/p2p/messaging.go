@@ -34,17 +34,6 @@ type grpcMessenger interface {
 	Recv() (*protobuf.NetworkMessage, error)
 }
 
-type connection interface {
-	// exchange must be called on the connection for it to start sending (using send()) and receiving messages.
-	// Received messages are passed to the messageReceiver message queue. It blocks until the connection is closed,
-	// by either the peer or the local node.
-	exchange(messageReceiver messageQueue)
-	// send sends the given message to the peer. It should not be called if exchange() isn't called yet.
-	send(message *protobuf.NetworkMessage) error
-	// peer returns information about the peer associated with this connection.
-	peer() transport.Peer
-}
-
 func exchange(peer transport.Peer, messageReceiver messageQueue, out <-chan *protobuf.NetworkMessage, messenger grpcMessenger, closer <-chan struct{}, cancelFunc context.CancelFunc) {
 	// Use copies of pointers to prevent nil deref when close() is called
 	in := receiveMessages(peer.ID, messenger)

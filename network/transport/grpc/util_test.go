@@ -25,24 +25,6 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func Test_normalizeAddress(t *testing.T) {
-	t.Run("invalid address", func(t *testing.T) {
-		assert.Equal(t, "not a valid address", normalizeAddress("not a valid address"))
-	})
-	t.Run("address is already normalized (IP)", func(t *testing.T) {
-		assert.Equal(t, "1.2.3.4:1234", normalizeAddress("1.2.3.4:1234"))
-	})
-	t.Run("address is already normalized (hostname)", func(t *testing.T) {
-		assert.Equal(t, "foobar:1234", normalizeAddress("foobar:1234"))
-	})
-	t.Run("address is localhost (hostname)", func(t *testing.T) {
-		assert.Equal(t, "127.0.0.1:1234", normalizeAddress("localhost:1234"))
-	})
-	t.Run("address is localhost (IP)", func(t *testing.T) {
-		assert.Equal(t, "127.0.0.1:1234", normalizeAddress("127.0.0.1:1234"))
-	})
-}
-
 func Test_readMetadata(t *testing.T) {
 	t.Run("ok - roundtrip", func(t *testing.T) {
 		md := constructMetadata("1234")

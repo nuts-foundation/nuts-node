@@ -4,25 +4,8 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc/metadata"
-	"net"
 	"strings"
 )
-
-func normalizeAddress(addr string) string {
-	var normalizedAddr string
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		normalizedAddr = addr
-	} else {
-		if host == "localhost" {
-			host = "127.0.0.1"
-			normalizedAddr = net.JoinHostPort(host, port)
-		} else {
-			normalizedAddr = addr
-		}
-	}
-	return normalizedAddr
-}
 
 func readMetadata(md metadata.MD) (transport.PeerID, error) {
 	values := md.Get(peerIDHeader)

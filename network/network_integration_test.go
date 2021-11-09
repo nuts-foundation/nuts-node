@@ -234,7 +234,7 @@ func startNode(t *testing.T, name string, testDirectory string) *Network {
 }
 
 func nameToPort(t *testing.T, name string) int {
-	return int(crc32.ChecksumIEEE([]byte(t.Name() + "/" + name))%9000 + 1000)
+	return int(crc32.ChecksumIEEE([]byte(t.Name()+"/"+name))%9000 + 1000)
 }
 
 func nameToAddress(t *testing.T, name string) string {
