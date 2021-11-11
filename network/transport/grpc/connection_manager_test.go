@@ -283,8 +283,8 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}).(*grpcConnectionManager)
 
 		serverStream1 := newServerStream("client-peer-id")
-		accepted, _, _ := cm.handleInboundStream(serverStream1)
-		assert.True(t, accepted)
+		_, _, err := cm.handleInboundStream(serverStream1)
+		assert.NoError(t, err)
 
 		// Simulate a stream close
 		serverStream1.cancelFunc()
@@ -294,27 +294,6 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 			defer cm.connections.mux.Unlock()
 			return len(cm.connections.list) == 0, nil
 		}, time.Second * 2, "time-out while waiting for closed inbound connection to be removed")
-	})
-	t.Run("peer closes connection, connection is removed from list", func(t *testing.T) {
-		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}).(*grpcConnectionManager)
-
-		serverStream := newServerStream("client-peer-id")
-
-		cm.handleInboundStream(serverStream)
-
-		cm.connections.mux.Lock()
-		if !assert.Len(t, cm.connections.list, 1) {
-			return
-		}
-		cm.connections.mux.Unlock()
-
-		serverStream.cancelFunc()
-
-		test.WaitFor(t, func() (bool, error) {
-			cm.connections.mux.Lock()
-			defer cm.connections.mux.Unlock()
-			return len(cm.connections.list) == 0, nil
-		}, time.Second, "Time-out while waiting for connection to be removed from connection list")
 	})
 }
 

@@ -186,17 +186,3 @@ func (mc *conn) connected() bool {
 	}
 	return false
 }
-
-func (c *connectionList) remove(target *managedConnection) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	var j int
-	for _, curr := range c.list {
-		if curr != target {
-			c.list[j] = curr
-			j++
-		}
-	}
-	c.list = c.list[:j]
-}
