@@ -32,8 +32,7 @@ var copyrightText = fmt.Sprintf(`/*
  *
  */
 
-`,yearRegexReplacement)
-
+`, yearRegexReplacement)
 
 func fixCopyright() {
 	dir := "./"

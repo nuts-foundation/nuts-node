@@ -248,7 +248,7 @@ func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA2
 		binary.BigEndian.PutUint32(clockBytes, lcValue)
 		cursor := lcBucket.Cursor()
 
-		outer:
+	outer:
 		for _, list := cursor.Seek(clockBytes); list != nil; _, list = cursor.Next() {
 
 			parsed := parseHashList(list)

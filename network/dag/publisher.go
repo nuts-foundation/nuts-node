@@ -30,12 +30,12 @@ import (
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
 func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
 	publisher := &replayingDAGPublisher{
-		subscribers:  map[string]Receiver{},
-		resumeAt:     list.New(),
+		subscribers:         map[string]Receiver{},
+		resumeAt:            list.New(),
 		visitedTransactions: map[hash.SHA256Hash]bool{},
-		payloadStore: payloadStore,
-		dag:          dag,
-		publishMux:   &sync.Mutex{},
+		payloadStore:        payloadStore,
+		dag:                 dag,
+		publishMux:          &sync.Mutex{},
 	}
 	dag.RegisterObserver(publisher.TransactionAdded)
 	payloadStore.RegisterObserver(publisher.PayloadWritten)
@@ -43,12 +43,12 @@ func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
 }
 
 type replayingDAGPublisher struct {
-	subscribers  map[string]Receiver
-	resumeAt     *list.List
+	subscribers         map[string]Receiver
+	resumeAt            *list.List
 	visitedTransactions map[hash.SHA256Hash]bool
-	payloadStore PayloadStore
-	dag          DAG
-	publishMux   *sync.Mutex // all calls to publish() must be wrapped in this mutex
+	payloadStore        PayloadStore
+	dag                 DAG
+	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
 
 func (s *replayingDAGPublisher) PayloadWritten(ctx context.Context, _ interface{}) {
@@ -119,7 +119,7 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 				s.visitedTransactions[txRef] = true
 			}
 		}
-		if outcome && currentRef.Equals(txRef){
+		if outcome && currentRef.Equals(txRef) {
 			s.resumeAt.Remove(front)
 		}
 		return outcome

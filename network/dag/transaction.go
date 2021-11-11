@@ -156,8 +156,8 @@ type transaction struct {
 	signingAlgorithm jwa.SignatureAlgorithm
 	version          Version
 	lamportClock     uint32
-	data []byte
-	ref  hash.SHA256Hash
+	data             []byte
+	ref              hash.SHA256Hash
 }
 
 func (d transaction) MarshalJSON() ([]byte, error) {

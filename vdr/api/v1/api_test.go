@@ -246,7 +246,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		invalidVersionTime := "not a time"
 		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{VersionTime: &invalidVersionTime})
 		assert.ErrorIs(t, err, core.Error(http.StatusBadRequest, ""))
-		assert.Equal(t, "versionTime has invalid format: parsing time \"not a time\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"not a time\" as \"2006\"" , err.Error())
+		assert.Equal(t, "versionTime has invalid format: parsing time \"not a time\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"not a time\" as \"2006\"", err.Error())
 	})
 
 	t.Run("error - versionId and versionTime are mutually exclusive", func(t *testing.T) {
