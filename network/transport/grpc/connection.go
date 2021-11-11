@@ -33,7 +33,7 @@ type managedConnection interface {
 	// close shuts down active inbound or outbound streams and stops active outbound connectors.
 	close()
 	getPeer() transport.Peer
-	connected() bool
+	connected(protocol string) bool
 	// open instructs the managedConnection to start connecting to the remote peer (attempting an outbound connection).
 	open(config *tls.Config, callback func(grpcConn *grpc.ClientConn))
 	// registerClientStream adds the given grpc.ClientStream to this managedConnection. It is closed when close() is called.
@@ -163,7 +163,7 @@ func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grp
 	mc.closers = nil
 
 	mc.connector = createOutboundConnector(mc.getPeer().Address, mc.dialer, tlsConfig, func() bool {
-		return !mc.connected()
+		return !mc.connected("")
 	}, func(conn *grpc.ClientConn) {
 		mc.mux.Lock()
 		mc.grpcOutboundConnection = conn
@@ -174,10 +174,11 @@ func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grp
 	go mc.connector.loopConnect()
 }
 
-func (mc *conn) connected() bool {
+func (mc *conn) connected(protocol string) bool {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
+	// TODO: Check protocol
 	if len(mc.grpcOutboundStreams) > 0 {
 		return true
 	}

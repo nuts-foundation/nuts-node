@@ -48,10 +48,6 @@ var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
 func NewGRPCConnectionManager(config Config, protocols ...transport.Protocol) transport.ConnectionManager {
-	if len(protocols) > 1 {
-		// TODO: Support multiple protocol versions
-		panic("ConnectionManager: multiple protocols currently not supported")
-	}
 	return &grpcConnectionManager{
 		protocols:       protocols,
 		config:          config,

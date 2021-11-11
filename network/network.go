@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/pkg/errors"
 	"os"
 	"path"
@@ -127,6 +128,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Configure protocols
 	n.protocols = []transport.Protocol{
 		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
+		v2.New(),
 	}
 	for _, prot := range n.protocols {
 		prot.Configure(n.peerID)
