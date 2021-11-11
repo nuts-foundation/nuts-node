@@ -198,7 +198,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 
 	// check if the transactions contains all SourceTransactions
 	missedTransactions := missingTransactions(currentDIDMeta.SourceTransactions, transaction.Previous())
-	sourceTransactions := append(missedTransactions, transaction.Ref())
+	sourceTransactions := uniqueTransactions(missedTransactions, transaction.Ref())
 	if len(missedTransactions) != 0 {
 		mergedDoc, err := doc.MergeDocuments(*currentDIDDocument, proposedDIDDocument)
 		if err != nil {
@@ -241,6 +241,21 @@ func missingTransactions(current []hash.SHA256Hash, incoming []hash.SHA256Hash) 
 	}
 
 	return current[:j]
+}
+
+// missingTransactions does: Set(current + incoming).
+func uniqueTransactions(current []hash.SHA256Hash, incoming hash.SHA256Hash) []hash.SHA256Hash {
+	set := map[hash.SHA256Hash]bool{incoming: true}
+	for _, h := range current {
+		set[h] = true
+	}
+
+	list := make([]hash.SHA256Hash, 0)
+	for k := range set {
+		list = append(list, k)
+	}
+
+	return list
 }
 
 // checkTransactionIntegrity performs basic integrity checks on the Transaction fields

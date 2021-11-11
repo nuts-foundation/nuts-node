@@ -114,6 +114,10 @@ func (s testTransaction) Data() []byte {
 	panic("implement me")
 }
 
+func (s testTransaction) Clock() uint32 {
+	panic("implement me")
+}
+
 const signingKeyID = "did:nuts:123#validKeyID123"
 
 func Test_ambassador_callback(t *testing.T) {

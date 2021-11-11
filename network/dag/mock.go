@@ -199,17 +199,17 @@ func (mr *MockDAGMockRecorder) Verify(ctx interface{}) *gomock.Call {
 }
 
 // Walk mocks base method.
-func (m *MockDAG) Walk(ctx context.Context, algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error {
+func (m *MockDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Walk", ctx, algo, visitor, startAt)
+	ret := m.ctrl.Call(m, "Walk", ctx, visitor, startAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Walk indicates an expected call of Walk.
-func (mr *MockDAGMockRecorder) Walk(ctx, algo, visitor, startAt interface{}) *gomock.Call {
+func (mr *MockDAGMockRecorder) Walk(ctx, visitor, startAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockDAG)(nil).Walk), ctx, algo, visitor, startAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockDAG)(nil).Walk), ctx, visitor, startAt)
 }
 
 // MockPublisher is a mock of Publisher interface.
