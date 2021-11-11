@@ -20,8 +20,11 @@ package grpc
 
 import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func Test_connectionList_closeAll(t *testing.T) {
@@ -72,4 +75,58 @@ func Test_managedConnection_close(t *testing.T) {
 		conn.close()
 		assert.Len(t, c, 1)
 	})
+}
+
+func Test_managedConnection_registerServerStream(t *testing.T) {
+	t.Run("cancelling before-last stream does not invoke callback", func(t *testing.T) {
+		called := atomic.Value{}
+		called.Store(false)
+		conn := managedConnection{inboundStreamsClosedCallback: func(connection *managedConnection) {
+			called.Store(true)
+		}}
+		stream1 := newServerStream("foo")
+		stream2 := newServerStream("foo")
+		conn.registerServerStream(stream1)
+		conn.registerServerStream(stream2)
+		stream1.cancelFunc()
+
+		test.WaitFor(t, func() (bool, error) {
+			conn.mux.Lock()
+			defer conn.mux.Unlock()
+			return len(conn.grpcInboundStreams) == 1, nil
+		}, time.Second, "time-out while waiting for closed stream to be cleaned up")
+
+		assert.False(t, called.Load().(bool))
+	})
+	t.Run("cancelling last stream invokes callback", func(t *testing.T) {
+		called := atomic.Value{}
+		called.Store(false)
+		conn := managedConnection{inboundStreamsClosedCallback: func(connection *managedConnection) {
+			called.Store(true)
+		}}
+		stream := newServerStream("foo")
+		conn.registerServerStream(stream)
+		stream.cancelFunc()
+
+		test.WaitFor(t, func() (bool, error) {
+			conn.mux.Lock()
+			defer conn.mux.Unlock()
+			return len(conn.grpcInboundStreams) == 0, nil
+		}, time.Second, "time-out while waiting for closed stream to be cleaned up")
+
+		assert.True(t, called.Load().(bool))
+	})
+}
+
+func Test_connectionList_remove(t *testing.T) {
+	cn := connectionList{}
+	connA := cn.getOrRegister(transport.Peer{ID: "a"})
+	connB := cn.getOrRegister(transport.Peer{ID: "b"})
+	connC := cn.getOrRegister(transport.Peer{ID: "c"})
+
+	assert.Len(t, cn.list, 3)
+	cn.remove(connB)
+	assert.Len(t, cn.list, 2)
+	assert.Contains(t, cn.list, connA)
+	assert.Contains(t, cn.list, connC)
 }

@@ -190,6 +190,7 @@ func (s *grpcConnectionManager) acceptGRPCStream(stream grpc.ServerStream) (bool
 	}
 
 	connection := s.connections.getOrRegister(peer)
+	connection.registerServerStream(stream)
 	return true, peer, connection.closer()
 }
 
