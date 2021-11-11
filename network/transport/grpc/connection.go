@@ -20,13 +20,16 @@ package grpc
 
 import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"google.golang.org/grpc"
 	"sync"
 )
 
 type managedConnection struct {
-	peer    transport.Peer
-	closers []chan struct{}
-	mux     sync.Mutex
+	peer                         transport.Peer
+	closers                      []chan struct{}
+	mux                          sync.Mutex
+	grpcInboundStreams           []grpc.ServerStream
+	inboundStreamsClosedCallback func(*managedConnection)
 }
 
 func (mc *managedConnection) closer() chan struct{} {
@@ -46,6 +49,32 @@ func (mc *managedConnection) close() {
 			closer <- struct{}{}
 		}
 	}
+}
+
+func (mc *managedConnection) registerServerStream(serverStream grpc.ServerStream) {
+	mc.mux.Lock()
+	defer mc.mux.Unlock()
+	mc.grpcInboundStreams = append(mc.grpcInboundStreams, serverStream)
+
+	go func() {
+		// Wait for the serverStream to close. Then remove it, and if it was the last one, callback
+		<-serverStream.Context().Done()
+		mc.mux.Lock()
+		defer mc.mux.Unlock()
+		// Remove this stream from the inbound stream list
+		var j int
+		for _, curr := range mc.grpcInboundStreams {
+			if curr != serverStream {
+				mc.grpcInboundStreams[j] = curr
+				j++
+			}
+		}
+		mc.grpcInboundStreams = mc.grpcInboundStreams[:j]
+		// If empty, remove.
+		if len(mc.grpcInboundStreams) == 0 {
+			mc.inboundStreamsClosedCallback(mc)
+		}
+	}()
 }
 
 type connectionList struct {
@@ -73,7 +102,13 @@ func (c *connectionList) getOrRegister(peer transport.Peer) *managedConnection {
 		}
 	}
 
-	result := &managedConnection{peer: peer}
+	result := &managedConnection{
+		peer: peer,
+		inboundStreamsClosedCallback: func(target *managedConnection) {
+			// When the all inbound streams are closed, remove it from the list.
+			c.remove(target)
+		},
+	}
 	c.list = append(c.list, result)
 	return result
 }
@@ -89,4 +124,18 @@ func (c *connectionList) connected(peerID transport.PeerID) bool {
 	}
 
 	return false
+}
+
+func (c *connectionList) remove(target *managedConnection) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	var j int
+	for _, curr := range c.list {
+		if curr != target {
+			c.list[j] = curr
+			j++
+		}
+	}
+	c.list = c.list[:j]
 }

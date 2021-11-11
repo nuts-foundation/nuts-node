@@ -30,8 +30,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"hash/crc32"
 	"net"
 	"testing"
+	"time"
 )
 
 func Test_grpcConnectionManager_Connect(t *testing.T) {
@@ -128,12 +130,12 @@ func Test_grpcConnectionManager_acceptGRPCStream(t *testing.T) {
 	t.Run("new client", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}).(*grpcConnectionManager)
 
-		serverStream := &stubServerStream{clientMetadata: constructMetadata("client-peer-id")}
+		serverStream := newServerStream("client-peer-id")
 		accepted, peerInfo, closer := cm.acceptGRPCStream(serverStream)
 
 		assert.True(t, accepted) // not already connected
 		assert.Equal(t, transport.PeerID("client-peer-id"), peerInfo.ID)
-		assert.Equal(t, "127.0.0.1", peerInfo.Address)
+		assert.Equal(t, "127.0.0.1:9522", peerInfo.Address)
 		assert.NotNil(t, closer)
 		// Assert headers sent to client
 		assert.Equal(t, "server-peer-id", serverStream.sentHeaders.Get("peerID")[0])
@@ -145,23 +147,51 @@ func Test_grpcConnectionManager_acceptGRPCStream(t *testing.T) {
 	t.Run("already connected client", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}).(*grpcConnectionManager)
 
-		serverStream1 := &stubServerStream{clientMetadata: constructMetadata("client-peer-id")}
+		serverStream1 := newServerStream("client-peer-id")
 		accepted, _, _ := cm.acceptGRPCStream(serverStream1)
 		assert.True(t, accepted)
 
 		// Second connection with same peer ID is rejected
-		serverStream2 := &stubServerStream{clientMetadata: constructMetadata("client-peer-id")}
+		serverStream2 := newServerStream("client-peer-id")
 		accepted2, _, _ := cm.acceptGRPCStream(serverStream2)
 		assert.False(t, accepted2)
 
 		// Assert only first connection was registered
 		assert.Len(t, cm.connections.list, 1)
 	})
+	t.Run("closing connection removes it from list", func(t *testing.T) {
+		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}).(*grpcConnectionManager)
+
+		serverStream1 := newServerStream("client-peer-id")
+		accepted, _, _ := cm.acceptGRPCStream(serverStream1)
+		assert.True(t, accepted)
+
+		// Simulate a stream close
+		serverStream1.cancelFunc()
+
+		test.WaitFor(t, func() (bool, error) {
+			cm.connections.mux.Lock()
+			defer cm.connections.mux.Unlock()
+			return len(cm.connections.list) == 0, nil
+		}, time.Second * 2, "time-out while waiting for closed inbound connection to be removed")
+	})
+}
+
+func newServerStream(clientPeerID transport.PeerID) *stubServerStream {
+	ctx := metadata.NewIncomingContext(context.Background(), constructMetadata(clientPeerID))
+	ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: int(crc32.ChecksumIEEE([]byte(clientPeerID))%9000 + 1000)}})
+	ctx, cancelFunc := context.WithCancel(ctx)
+
+	return &stubServerStream{
+		ctx:        ctx,
+		cancelFunc: cancelFunc,
+	}
 }
 
 type stubServerStream struct {
-	clientMetadata metadata.MD
-	sentHeaders    metadata.MD
+	sentHeaders metadata.MD
+	cancelFunc  context.CancelFunc
+	ctx         context.Context
 }
 
 func (s stubServerStream) SetHeader(md metadata.MD) error {
@@ -178,10 +208,7 @@ func (s stubServerStream) SetTrailer(md metadata.MD) {
 }
 
 func (s stubServerStream) Context() context.Context {
-	ctx := context.Background()
-	ctx = metadata.NewIncomingContext(ctx, s.clientMetadata)
-	ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.IPAddr{IP: net.ParseIP("127.0.0.1")}})
-	return ctx
+	return s.ctx
 }
 
 func (s stubServerStream) SendMsg(m interface{}) error {
