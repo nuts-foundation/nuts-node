@@ -684,7 +684,7 @@ func Test_ambassador_callback(t *testing.T) {
 			Updated:            &signingTime,
 			Hash:               payloadHash,
 			PreviousHash:       &didMetadata.Hash,
-			SourceTransactions: []hash.SHA256Hash{tx.Ref(), hash.EmptyHash()},
+			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), tx.Ref()},
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(&didDocument, &didMetadata, nil).Times(2)

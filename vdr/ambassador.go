@@ -245,7 +245,7 @@ func missingTransactions(current []hash.SHA256Hash, incoming []hash.SHA256Hash) 
 
 // missingTransactions does: Set(current + incoming).
 func uniqueTransactions(current []hash.SHA256Hash, incoming hash.SHA256Hash) []hash.SHA256Hash {
-	set := map[hash.SHA256Hash]bool{incoming: true}
+	set := map[hash.SHA256Hash]bool{}
 	for _, h := range current {
 		set[h] = true
 	}
@@ -254,6 +254,7 @@ func uniqueTransactions(current []hash.SHA256Hash, incoming hash.SHA256Hash) []h
 	for k := range set {
 		list = append(list, k)
 	}
+	list = append(list, incoming)
 
 	return list
 }
