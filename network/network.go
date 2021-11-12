@@ -108,7 +108,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
-	// todo migrate DAG => from nexts to lcIndexBucket/lcBucket
+	// migrate DAG to add Clock values
+	if err := n.graph.Migrate(); err != nil {
+		return fmt.Errorf("unable to migrate DAG: %w", err)
+	}
+
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	n.peerID = transport.PeerID(uuid.New().String())

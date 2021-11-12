@@ -58,7 +58,10 @@ type DAG interface {
 	Heads(ctx context.Context) []hash.SHA256Hash
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
 	Verify(ctx context.Context) error
+	// Statistics returns data for the statistics page
 	Statistics(ctx context.Context) Statistics
+	// Migrate makes changes to the DB when needed
+	Migrate() error
 }
 
 // Statistics holds data about the current state of the DAG.

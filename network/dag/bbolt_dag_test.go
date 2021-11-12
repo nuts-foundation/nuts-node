@@ -268,12 +268,9 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		db := createBBoltDB(testDirectory)
 
 		err := db.Update(func(tx *bbolt.Tx) error {
-			lcBucket, _ := tx.CreateBucketIfNotExists([]byte(lcBucket))
-			lcIndexBucket , _ := tx.CreateBucketIfNotExists([]byte(lcIndexBucket))
-
-			_ = addToLCIndex(lcBucket, lcIndexBucket, A)
-			_ = addToLCIndex(lcBucket, lcIndexBucket, B)
-			_ = addToLCIndex(lcBucket, lcIndexBucket, C)
+			_ = addToLCIndex(tx, A)
+			_ = addToLCIndex(tx, B)
+			_ = addToLCIndex(tx, C)
 
 			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
 			assertClock(t, tx, 0, A.Ref())
@@ -294,12 +291,9 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		C := CreateTestTransactionWithJWK(2, A.Ref())
 
 		err := db.Update(func(tx *bbolt.Tx) error {
-			lcBucket, _ := tx.CreateBucketIfNotExists([]byte(lcBucket))
-			lcIndexBucket , _ := tx.CreateBucketIfNotExists([]byte(lcIndexBucket))
-
-			_ = addToLCIndex(lcBucket, lcIndexBucket, A)
-			_ = addToLCIndex(lcBucket, lcIndexBucket, B)
-			_ = addToLCIndex(lcBucket, lcIndexBucket, C)
+			_ = addToLCIndex(tx, A)
+			_ = addToLCIndex(tx, B)
+			_ = addToLCIndex(tx, C)
 
 			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
 			assertClock(t, tx, 0, A.Ref())
@@ -318,10 +312,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		db := createBBoltDB(testDirectory)
 
 		err := db.Update(func(tx *bbolt.Tx) error {
-			lcBucket, _ := tx.CreateBucketIfNotExists([]byte(lcBucket))
-			lcIndexBucket , _ := tx.CreateBucketIfNotExists([]byte(lcIndexBucket))
-
-			return addToLCIndex(lcBucket, lcIndexBucket, B)
+			return addToLCIndex(tx, B)
 		})
 
 		assert.Error(t, err)

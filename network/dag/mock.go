@@ -129,6 +129,20 @@ func (mr *MockDAGMockRecorder) IsPresent(ctx, ref interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockDAG)(nil).IsPresent), ctx, ref)
 }
 
+// Migrate mocks base method.
+func (m *MockDAG) Migrate() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Migrate")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Migrate indicates an expected call of Migrate.
+func (mr *MockDAGMockRecorder) Migrate() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Migrate", reflect.TypeOf((*MockDAG)(nil).Migrate))
+}
+
 // PayloadHashes mocks base method.
 func (m *MockDAG) PayloadHashes(ctx context.Context, visitor func(hash.SHA256Hash) error) error {
 	m.ctrl.T.Helper()

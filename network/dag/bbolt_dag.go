@@ -42,6 +42,13 @@ const payloadIndexBucket = "payloadIndex"
 // headsBucket contains the name of the bucket the holds the heads.
 const headsBucket = "heads"
 
+// nextsBucket is the name of the Bolt bucket that holds the forward transaction references (a.k.a. "nexts") as transaction
+// refs. The value ([]byte) should be split in chunks of HashSize where each entry is a forward reference (next).
+const nextsBucket = "nexts"
+
+// rootsTransactionKey is the name of the bucket entry that holds the refs of the root transactions.
+const rootsTransactionKey = "roots"
+
 // lcIndexBucket is the name of the bucket that holds the mappings from TX ref to lamport clock value. This is required for V1 transactions that are missing the lc header.
 const lcIndexBucket = "lcIndex"
 
@@ -107,6 +114,43 @@ func (d dataSizeStatistic) String() string {
 // NewBBoltDAG creates a etcd/bbolt backed DAG using the given database.
 func NewBBoltDAG(db *bbolt.DB, txVerifiers ...Verifier) DAG {
 	return &bboltDAG{db: db, txVerifiers: txVerifiers}
+}
+
+func (dag *bboltDAG) Migrate() error {
+	// We'll take the root and then use nexts to add the Transactions in the right order
+	return dag.db.Update(func(tx *bbolt.Tx) error {
+		nexts := tx.Bucket([]byte(nextsBucket))
+		if nexts == nil {
+			// already migrated
+			return nil
+		}
+
+		// get root
+		transactions := tx.Bucket([]byte(transactionsBucket))
+		roots := parseHashList(transactions.Get([]byte(rootsTransactionKey)))
+
+		if err := migrateAddClocks(tx, []hash.SHA256Hash{roots[0]}); err != nil {
+			return err
+		}
+
+		// remove nexts
+		return tx.DeleteBucket([]byte(nextsBucket))
+	})
+}
+
+func migrateAddClocks(tx *bbolt.Tx, refs []hash.SHA256Hash) error {
+	for _, ref := range refs {
+		transaction, err := getTransaction(ref, tx)
+		if err != nil {
+			return err
+		}
+		if err := addToLCIndex(tx, transaction); err != nil {
+			return err
+		}
+		return migrateAddClocks(tx, transaction.Previous())
+	}
+
+	return nil
 }
 
 func (dag *bboltDAG) RegisterObserver(observer Observer) {
@@ -310,7 +354,7 @@ func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
 	ref := transaction.Ref()
 	refSlice := ref.Slice()
 	err := bboltTXUpdate(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
-		transactions, lc, lcIndex, payloadIndex, heads, err := getBuckets(tx)
+		transactions, lc, _, payloadIndex, heads, err := getBuckets(tx)
 		if err != nil {
 			return err
 		}
@@ -323,7 +367,7 @@ func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
 				return errRootAlreadyExists
 			}
 		}
-		if err := addToLCIndex(lc, lcIndex, transaction); err != nil {
+		if err := addToLCIndex(tx, transaction); err != nil {
 			return fmt.Errorf("unable to calculate LC value for %s: %w", ref, err)
 		}
 		if err := transactions.Put(refSlice, transaction.Data()); err != nil {
@@ -354,7 +398,16 @@ func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
 	return err
 }
 
-func addToLCIndex(lc *bbolt.Bucket, lcIndex *bbolt.Bucket, transaction Transaction) error {
+func addToLCIndex(tx *bbolt.Tx, transaction Transaction) error {
+	lc, err := tx.CreateBucketIfNotExists([]byte(lcBucket))
+	if err != nil {
+		return err
+	}
+	lcIndex, err := tx.CreateBucketIfNotExists([]byte(lcIndexBucket))
+	if err != nil {
+		return err
+	}
+
 	clock := uint32(0)
 	ref := transaction.Ref()
 
