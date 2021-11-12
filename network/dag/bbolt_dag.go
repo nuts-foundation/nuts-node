@@ -118,39 +118,72 @@ func NewBBoltDAG(db *bbolt.DB, txVerifiers ...Verifier) DAG {
 
 func (dag *bboltDAG) Migrate() error {
 	// We'll take the root and then use nexts to add the Transactions in the right order
-	return dag.db.Update(func(tx *bbolt.Tx) error {
-		nexts := tx.Bucket([]byte(nextsBucket))
-		if nexts == nil {
+	err := dag.db.Update(func(tx *bbolt.Tx) error {
+		if tx.Bucket([]byte(nextsBucket)) == nil {
 			// already migrated
 			return nil
 		}
+
+		log.Logger().Info("DAG migrations: adding logical clock values to transactions")
 
 		// get root
 		transactions := tx.Bucket([]byte(transactionsBucket))
 		roots := parseHashList(transactions.Get([]byte(rootsTransactionKey)))
 
-		if err := migrateAddClocks(tx, []hash.SHA256Hash{roots[0]}); err != nil {
-			return err
+		for nexts, err := migrateAddClocks(tx, []hash.SHA256Hash{roots[0]}); len(nexts) != 0; nexts, err = migrateAddClocks(tx, nexts) {
+			if err != nil {
+				return err
+			}
 		}
 
 		// remove nexts
 		return tx.DeleteBucket([]byte(nextsBucket))
 	})
-}
-
-func migrateAddClocks(tx *bbolt.Tx, refs []hash.SHA256Hash) error {
-	for _, ref := range refs {
-		transaction, err := getTransaction(ref, tx)
-		if err != nil {
-			return err
-		}
-		if err := addToLCIndex(tx, transaction); err != nil {
-			return err
-		}
-		return migrateAddClocks(tx, transaction.Previous())
+	if err != nil {
+		return err
 	}
 
+	log.Logger().Info("DAG migrations: done")
 	return nil
+}
+
+func migrateAddClocks(tx *bbolt.Tx, refs []hash.SHA256Hash) ([]hash.SHA256Hash, error) {
+	nextBucket := tx.Bucket([]byte(nextsBucket))
+	txBucket := tx.Bucket([]byte(transactionsBucket))
+	var nexts []hash.SHA256Hash
+	var retry []hash.SHA256Hash
+
+	for _, ref := range refs {
+		transaction, err := ParseTransaction(txBucket.Get(ref.Slice()))
+		if err != nil {
+			return nexts, err
+		}
+		// we need to go through the prevs to guarantee ordering
+		if err := addToLCIndex(tx, transaction); err != nil {
+			// try later since we might have to process a branch first
+			retry = append(retry, ref)
+		}
+
+		// find next TXs from nexts bucket
+		nexts = append(nexts, parseHashList(nextBucket.Get(ref.Slice()))...)
+	}
+
+	return unique(append(nexts, retry...)), nil
+}
+
+func unique(list []hash.SHA256Hash) []hash.SHA256Hash {
+	set := map[hash.SHA256Hash]bool{}
+
+	for _, v := range list {
+		set[v] = true
+	}
+
+	result := make([]hash.SHA256Hash, 0)
+	for k := range set {
+		result = append(result, k)
+	}
+
+	return result
 }
 
 func (dag *bboltDAG) RegisterObserver(observer Observer) {
@@ -411,6 +444,11 @@ func addToLCIndex(tx *bbolt.Tx, transaction Transaction) error {
 	clock := uint32(0)
 	ref := transaction.Ref()
 
+	if lcIndex.Get(ref.Slice()) != nil {
+		// already added
+		return nil
+	}
+
 	for _, prev := range transaction.Previous() {
 		lClockBytes := lcIndex.Get(prev.Slice())
 		if lClockBytes == nil {
@@ -424,12 +462,15 @@ func addToLCIndex(tx *bbolt.Tx, transaction Transaction) error {
 
 	clockBytes := clockToBytes(clock)
 	currentRefs := lc.Get(clockBytes)
+
 	if err := lc.Put(clockBytes, appendHashList(currentRefs, ref)); err != nil {
 		return err
 	}
 	if err := lcIndex.Put(ref.Slice(), clockBytes); err != nil {
 		return err
 	}
+
+	log.Logger().Tracef("storing transaction logical clock, txRef: %s, clock: %d", ref.String(), clock)
 
 	return nil
 }

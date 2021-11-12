@@ -247,7 +247,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 			return expected[i].Compare(expected[j]) <= 0
 		})
 
-		assert.Equal(t, len(refs), len(expected))
+		assert.Equal(t, len(expected), len(refs))
 		for i := range refs {
 			assert.True(t, refs[i].Equals(expected[i]))
 		}
@@ -278,6 +278,26 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 			assertClock(t, tx, 1, B.Ref())
 			assertRefs(t, tx, 2, []hash.SHA256Hash{C.Ref()})
 			assertClock(t, tx, 2, C.Ref())
+
+			return nil
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("Ok double add", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		db := createBBoltDB(testDirectory)
+
+		err := db.Update(func(tx *bbolt.Tx) error {
+			_ = addToLCIndex(tx, A)
+			_ = addToLCIndex(tx, B)
+			_ = addToLCIndex(tx, B)
+
+			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
+			assertClock(t, tx, 0, A.Ref())
+			assertRefs(t, tx, 1, []hash.SHA256Hash{B.Ref()})
+			assertClock(t, tx, 1, B.Ref())
 
 			return nil
 		})
