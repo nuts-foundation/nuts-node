@@ -319,6 +319,128 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 
 }
 
+func TestBBoltDAG_Migrate(t *testing.T) {
+	A := CreateTestTransactionWithJWK(0)
+	B := CreateTestTransactionWithJWK(1, A.Ref())
+	C := CreateTestTransactionWithJWK(2, A.Ref())
+	D := CreateTestTransactionWithJWK(3, A.Ref(), C.Ref())
+
+	putTransaction := func(tx *bbolt.Tx, transaction Transaction, nexts []hash.SHA256Hash) {
+		// create correct buckets and add root
+		txBucket, _ := tx.CreateBucketIfNotExists([]byte(transactionsBucket))
+		nextBucket, _ := tx.CreateBucketIfNotExists([]byte(nextsBucket))
+		txBucket.Put(transaction.Ref().Slice(), transaction.Data())
+		nextBytes := []byte{}
+		for _, n := range nexts {
+			nextBytes = appendHashList(nextBytes, n)
+		}
+		nextBucket.Put(transaction.Ref().Slice(), nextBytes)
+	}
+
+	putRoot := func(tx *bbolt.Tx, transaction Transaction, nexts []hash.SHA256Hash) {
+		txBucket, _ := tx.CreateBucketIfNotExists([]byte(transactionsBucket))
+		txBucket.Put([]byte(rootsTransactionKey), transaction.Ref().Slice())
+		putTransaction(tx, transaction, nexts)
+	}
+
+	t.Run("ok - already ran", func(t *testing.T) {
+		graph := CreateDAG(t).(*bboltDAG)
+
+		err := graph.Migrate()
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+
+	t.Run("ok - root is translated", func(t *testing.T) {
+		graph := CreateDAG(t).(*bboltDAG)
+		graph.db.Update(func(tx *bbolt.Tx) error {
+			putRoot(tx, A, []hash.SHA256Hash{})
+			return nil
+		})
+
+		err := graph.Migrate()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		graph.db.View(func(tx *bbolt.Tx) error {
+			clockBucket := tx.Bucket([]byte(clockBucket))
+			root := clockBucket.Get(clockToBytes(0))
+			assert.Len(t, root, 32)
+			assert.Nil(t, tx.Bucket([]byte(nextsBucket)))
+			return nil
+		})
+	})
+
+	t.Run("ok - simple graph is translated", func(t *testing.T) {
+		graph := CreateDAG(t).(*bboltDAG)
+		graph.db.Update(func(tx *bbolt.Tx) error {
+			putRoot(tx, A, []hash.SHA256Hash{B.Ref()})
+			putTransaction(tx, B, []hash.SHA256Hash{})
+			return nil
+		})
+
+		err := graph.Migrate()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		graph.db.View(func(tx *bbolt.Tx) error {
+			clockBucket := tx.Bucket([]byte(clockBucket))
+			atOne := clockBucket.Get(clockToBytes(1))
+			assert.Len(t, atOne, 32)
+			return nil
+		})
+	})
+
+	t.Run("ok - branch is translated", func(t *testing.T) {
+		graph := CreateDAG(t).(*bboltDAG)
+		graph.db.Update(func(tx *bbolt.Tx) error {
+			putRoot(tx, A, []hash.SHA256Hash{B.Ref(), C.Ref()})
+			putTransaction(tx, B, []hash.SHA256Hash{})
+			putTransaction(tx, C, []hash.SHA256Hash{})
+			return nil
+		})
+
+		err := graph.Migrate()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		graph.db.View(func(tx *bbolt.Tx) error {
+			clockBucket := tx.Bucket([]byte(clockBucket))
+			atOne := clockBucket.Get(clockToBytes(1))
+			assert.Len(t, atOne, 64)
+			return nil
+		})
+	})
+
+	t.Run("ok - more complicated", func(t *testing.T) {
+		graph := CreateDAG(t).(*bboltDAG)
+		graph.db.Update(func(tx *bbolt.Tx) error {
+			// create correct buckets and add root
+			putRoot(tx, A, []hash.SHA256Hash{B.Ref(), C.Ref(), D.Ref()})
+			putTransaction(tx, B, []hash.SHA256Hash{D.Ref()})
+			putTransaction(tx, C, []hash.SHA256Hash{})
+			putTransaction(tx, D, []hash.SHA256Hash{})
+			return nil
+		})
+
+		err := graph.Migrate()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		graph.db.View(func(tx *bbolt.Tx) error {
+			clockBucket := tx.Bucket([]byte(clockBucket))
+			atOne := clockBucket.Get(clockToBytes(2))
+			assert.Len(t, atOne, 32)
+			return nil
+		})
+	})
+}
+
 func TestBBoltDAG_Walk(t *testing.T) {
 	t.Run("ok - empty graph", func(t *testing.T) {
 		ctx := context.Background()
