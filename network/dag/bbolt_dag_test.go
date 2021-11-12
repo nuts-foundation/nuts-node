@@ -143,8 +143,7 @@ func TestBBoltDAG_Add(t *testing.T) {
 
 		assert.NoError(t, err)
 		visitor := trackingVisitor{}
-		root, _ := graph.Root(ctx)
-		err = graph.Walk(ctx, visitor.Accept, root)
+		err = graph.Walk(ctx, visitor.Accept, hash.EmptyHash())
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -326,8 +325,7 @@ func TestBBoltDAG_Walk(t *testing.T) {
 		graph := CreateDAG(t)
 		visitor := trackingVisitor{}
 
-		root, _ := graph.Root(ctx)
-		err := graph.Walk(ctx, visitor.Accept, root)
+		err := graph.Walk(ctx, visitor.Accept, hash.EmptyHash())
 		if !assert.NoError(t, err) {
 			return
 		}

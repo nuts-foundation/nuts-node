@@ -44,8 +44,6 @@ type DAG interface {
 	// FindBetween finds all transactions which signing time lies between startInclude and endExclusive.
 	// It returns the transactions in DAG walking order.
 	FindBetween(ctx context.Context, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error)
-	// Root returns the root hash of the DAG. If there's no root an empty hash is returned. If an error occurs, it is returned.
-	Root(ctx context.Context) (hash.SHA256Hash, error)
 	// Get retrieves a specific transaction from the DAG. If it isn't found, nil is returned.
 	Get(ctx context.Context, ref hash.SHA256Hash) (Transaction, error)
 	// GetByPayloadHash retrieves all transactions that refer to the specified payload.

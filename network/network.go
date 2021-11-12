@@ -77,11 +77,7 @@ type Network struct {
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
 func (n *Network) Walk(visitor dag.Visitor) error {
 	ctx := context.Background()
-	root, err := n.graph.Root(ctx)
-	if err != nil {
-		return err
-	}
-	return n.graph.Walk(ctx, visitor, root)
+	return n.graph.Walk(ctx, visitor, hash.EmptyHash())
 }
 
 // NewNetworkInstance creates a new Network engine instance.

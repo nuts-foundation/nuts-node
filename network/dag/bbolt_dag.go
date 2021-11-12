@@ -274,16 +274,12 @@ func (dag bboltDAG) Heads(ctx context.Context) []hash.SHA256Hash {
 
 func (dag *bboltDAG) FindBetween(ctx context.Context, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error) {
 	var result []Transaction
-	rootTX, err := dag.Root(ctx)
-	if err != nil {
-		return nil, err
-	}
-	err = dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
+	err := dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
 		if !transaction.SigningTime().Before(startInclusive) && transaction.SigningTime().Before(endExclusive) {
 			result = append(result, transaction)
 		}
 		return true
-	}, rootTX)
+	}, hash.EmptyHash())
 	return result, err
 }
 
@@ -350,18 +346,6 @@ func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA2
 
 		return nil
 	})
-}
-
-func (dag bboltDAG) Root(ctx context.Context) (hash hash.SHA256Hash, err error) {
-	err = bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
-		if lcBucket := tx.Bucket([]byte(clockBucket)); lcBucket != nil {
-			if roots := getRoots(lcBucket); len(roots) >= 1 {
-				hash = roots[0]
-			}
-		}
-		return nil
-	})
-	return
 }
 
 func (dag bboltDAG) Statistics(ctx context.Context) Statistics {

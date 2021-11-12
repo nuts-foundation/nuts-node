@@ -169,21 +169,6 @@ func (mr *MockDAGMockRecorder) RegisterObserver(observer interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterObserver", reflect.TypeOf((*MockDAG)(nil).RegisterObserver), observer)
 }
 
-// Root mocks base method.
-func (m *MockDAG) Root(ctx context.Context) (hash.SHA256Hash, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Root", ctx)
-	ret0, _ := ret[0].(hash.SHA256Hash)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Root indicates an expected call of Root.
-func (mr *MockDAGMockRecorder) Root(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Root", reflect.TypeOf((*MockDAG)(nil).Root), ctx)
-}
-
 // Statistics mocks base method.
 func (m *MockDAG) Statistics(ctx context.Context) Statistics {
 	m.ctrl.T.Helper()
