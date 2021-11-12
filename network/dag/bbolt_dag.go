@@ -39,9 +39,6 @@ const transactionsBucket = "documents"
 // the payload.
 const payloadIndexBucket = "payloadIndex"
 
-// headsBucket contains the name of the bucket the holds the heads.
-const headsBucket = "heads"
-
 // nextsBucket is the name of the Bolt bucket that holds the forward transaction references (a.k.a. "nexts") as transaction
 // refs. The value ([]byte) should be split in chunks of HashSize where each entry is a forward reference (next).
 const nextsBucket = "nexts"
@@ -49,11 +46,14 @@ const nextsBucket = "nexts"
 // rootsTransactionKey is the name of the bucket entry that holds the refs of the root transactions.
 const rootsTransactionKey = "roots"
 
-// lcIndexBucket is the name of the bucket that holds the mappings from TX ref to lamport clock value. This is required for V1 transactions that are missing the lc header.
-const lcIndexBucket = "lcIndex"
+// headsBucket contains the name of the bucket the holds the heads.
+const headsBucket = "heads"
 
-// lcBucket is the name of the bucket that uses the Lamport clock as index to a set of TX refs.
-const lcBucket = "lc"
+// clockIndexBucket is the name of the bucket that holds the mappings from TX ref to lamport clock value. This is required for V1 transactions that are missing the lc header.
+const clockIndexBucket = "clockIndex"
+
+// clockBucket is the name of the bucket that uses the Lamport clock as index to a set of TX refs.
+const clockBucket = "clocks"
 
 type bboltDAG struct {
 	db          *bbolt.DB
@@ -137,7 +137,11 @@ func (dag *bboltDAG) Migrate() error {
 		}
 
 		// remove nexts
-		return tx.DeleteBucket([]byte(nextsBucket))
+		if err := tx.DeleteBucket([]byte(nextsBucket)); err != nil {
+			return err
+		}
+		// remove root
+		return transactions.Delete([]byte(rootsTransactionKey))
 	})
 	if err != nil {
 		return err
@@ -158,9 +162,9 @@ func migrateAddClocks(tx *bbolt.Tx, refs []hash.SHA256Hash) ([]hash.SHA256Hash, 
 		if err != nil {
 			return nexts, err
 		}
-		// we need to go through the prevs to guarantee ordering
-		if err := addToLCIndex(tx, transaction); err != nil {
-			// try later since we might have to process a branch first
+		// indexClockValue uses the prevs to guarantee ordering
+		if err := indexClockValue(tx, transaction); err != nil {
+			// we hit a branch and have processed a TX to soon, retry later
 			retry = append(retry, ref)
 		}
 
@@ -168,6 +172,7 @@ func migrateAddClocks(tx *bbolt.Tx, refs []hash.SHA256Hash) ([]hash.SHA256Hash, 
 		nexts = append(nexts, parseHashList(nextBucket.Get(ref.Slice()))...)
 	}
 
+	// nexts have a lot of doubles
 	return unique(append(nexts, retry...)), nil
 }
 
@@ -308,25 +313,27 @@ func (dag *bboltDAG) Add(ctx context.Context, transactions ...Transaction) error
 func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
 	return bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
 		transactions := tx.Bucket([]byte(transactionsBucket))
-		lcBucket := tx.Bucket([]byte(lcBucket))
+		clocksBucket := tx.Bucket([]byte(clockBucket))
 		if transactions == nil {
 			// DAG is empty
 			return nil
 		}
 
-		// we find the LC value of the TX ref
-		lcValue, err := getClock(tx, startAt)
-		if err != nil {
+		// we find the clock value of the TX ref
+		// an empty hash means start at root
+		clockValue, err := getClock(tx, startAt)
+		if !hash.EmptyHash().Equals(startAt) && err != nil {
 			return err
 		}
 
 		// initiate a cursor and start from the given lcValue
-		cursor := lcBucket.Cursor()
+		cursor := clocksBucket.Cursor()
 
 	outer:
-		for _, list := cursor.Seek(clockToBytes(lcValue)); list != nil; _, list = cursor.Next() {
+		for _, list := cursor.Seek(clockToBytes(clockValue)); list != nil; _, list = cursor.Next() {
 
 			parsed := parseHashList(list)
+			// according to RFC004, lower byte value refs go first
 			sort.Slice(parsed, func(i, j int) bool {
 				return parsed[i].Compare(parsed[j]) <= 0
 			})
@@ -347,7 +354,7 @@ func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA2
 
 func (dag bboltDAG) Root(ctx context.Context) (hash hash.SHA256Hash, err error) {
 	err = bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
-		if lcBucket := tx.Bucket([]byte(lcBucket)); lcBucket != nil {
+		if lcBucket := tx.Bucket([]byte(clockBucket)); lcBucket != nil {
 			if roots := getRoots(lcBucket); len(roots) >= 1 {
 				hash = roots[0]
 			}
@@ -400,7 +407,7 @@ func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
 				return errRootAlreadyExists
 			}
 		}
-		if err := addToLCIndex(tx, transaction); err != nil {
+		if err := indexClockValue(tx, transaction); err != nil {
 			return fmt.Errorf("unable to calculate LC value for %s: %w", ref, err)
 		}
 		if err := transactions.Put(refSlice, transaction.Data()); err != nil {
@@ -431,12 +438,12 @@ func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
 	return err
 }
 
-func addToLCIndex(tx *bbolt.Tx, transaction Transaction) error {
-	lc, err := tx.CreateBucketIfNotExists([]byte(lcBucket))
+func indexClockValue(tx *bbolt.Tx, transaction Transaction) error {
+	lc, err := tx.CreateBucketIfNotExists([]byte(clockBucket))
 	if err != nil {
 		return err
 	}
-	lcIndex, err := tx.CreateBucketIfNotExists([]byte(lcIndexBucket))
+	lcIndex, err := tx.CreateBucketIfNotExists([]byte(clockIndexBucket))
 	if err != nil {
 		return err
 	}
@@ -475,14 +482,15 @@ func addToLCIndex(tx *bbolt.Tx, transaction Transaction) error {
 	return nil
 }
 
+// getClock returns errNoClockValue if no clock value can be found for the given hash
 func getClock(tx *bbolt.Tx, hash hash.SHA256Hash) (uint32, error) {
-	lcIndex := tx.Bucket([]byte(lcIndexBucket))
+	lcIndex := tx.Bucket([]byte(clockIndexBucket))
 	if lcIndex == nil {
-		return 0, fmt.Errorf("clock value not found for TX ref: %s", hash.String())
+		return 0, errNoClockValue
 	}
 	lClockBytes := lcIndex.Get(hash.Slice())
 	if lClockBytes == nil {
-		return 0, fmt.Errorf("clock value not found for TX ref: %s", hash.String())
+		return 0, errNoClockValue
 	}
 	// can't be nil due to Previous must exist checks
 	return bytesToClock(lClockBytes), nil
@@ -502,10 +510,10 @@ func getBuckets(tx *bbolt.Tx) (transactions, lc, lcIndex, payloadIndex, heads *b
 	if transactions, err = tx.CreateBucketIfNotExists([]byte(transactionsBucket)); err != nil {
 		return
 	}
-	if lc, err = tx.CreateBucketIfNotExists([]byte(lcBucket)); err != nil {
+	if lc, err = tx.CreateBucketIfNotExists([]byte(clockBucket)); err != nil {
 		return
 	}
-	if lcIndex, err = tx.CreateBucketIfNotExists([]byte(lcIndexBucket)); err != nil {
+	if lcIndex, err = tx.CreateBucketIfNotExists([]byte(clockIndexBucket)); err != nil {
 		return
 	}
 	if payloadIndex, err = tx.CreateBucketIfNotExists([]byte(payloadIndexBucket)); err != nil {

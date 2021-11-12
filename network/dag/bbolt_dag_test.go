@@ -176,26 +176,6 @@ func TestBBoltDAG_Add(t *testing.T) {
 		actual, _ := graph.FindBetween(ctx, MinTime(), MaxTime())
 		assert.Len(t, actual, 1)
 	})
-	//t.Run("ok - out of order", func(t *testing.T) {
-	//	ctx := context.Background()
-	//	graph := CreateDAG(t)
-	//	transactions := graphF()
-	//
-	//	for i := len(transactions) - 1; i >= 0; i-- {
-	//		err := graph.Add(ctx, transactions[i])
-	//		if !assert.NoError(t, err) {
-	//			return
-	//		}
-	//	}
-	//
-	//	visitor := trackingVisitor{}
-	//	root, _ := graph.Root(ctx)
-	//	err := graph.Walk(ctx, NewBFSWalkerAlgorithm(), visitor.Accept, root)
-	//	if !assert.NoError(t, err) {
-	//		return
-	//	}
-	//	assert.Regexp(t, "0, (1, 2|2, 1), (3, 4|4, 3), 5", visitor.JoinRefsAsString())
-	//})
 	t.Run("error - verifier failed", func(t *testing.T) {
 		ctx := context.Background()
 		graph := CreateDAG(t, func(_ context.Context, _ Transaction, _ DAG) error {
@@ -232,7 +212,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 	C := CreateTestTransactionWithJWK(2, B.Ref())
 
 	assertRefs := func(t *testing.T, tx *bbolt.Tx, clock uint32, expected []hash.SHA256Hash) {
-		lcBucket, _ := tx.CreateBucketIfNotExists([]byte(lcBucket))
+		lcBucket, _ := tx.CreateBucketIfNotExists([]byte(clockBucket))
 
 		ref := lcBucket.Get(clockToBytes(clock))
 		if !assert.NotNil(t, ref) {
@@ -253,7 +233,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		}
 	}
 	assertClock := func(t *testing.T, tx *bbolt.Tx, clock uint32, expected hash.SHA256Hash) {
-		lcIndexBucket, _ := tx.CreateBucketIfNotExists([]byte(lcIndexBucket))
+		lcIndexBucket, _ := tx.CreateBucketIfNotExists([]byte(clockIndexBucket))
 
 		clockBytes := lcIndexBucket.Get(expected.Slice())
 		if !assert.NotNil(t, clockBytes) {
@@ -268,9 +248,9 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		db := createBBoltDB(testDirectory)
 
 		err := db.Update(func(tx *bbolt.Tx) error {
-			_ = addToLCIndex(tx, A)
-			_ = addToLCIndex(tx, B)
-			_ = addToLCIndex(tx, C)
+			_ = indexClockValue(tx, A)
+			_ = indexClockValue(tx, B)
+			_ = indexClockValue(tx, C)
 
 			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
 			assertClock(t, tx, 0, A.Ref())
@@ -290,9 +270,9 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		db := createBBoltDB(testDirectory)
 
 		err := db.Update(func(tx *bbolt.Tx) error {
-			_ = addToLCIndex(tx, A)
-			_ = addToLCIndex(tx, B)
-			_ = addToLCIndex(tx, B)
+			_ = indexClockValue(tx, A)
+			_ = indexClockValue(tx, B)
+			_ = indexClockValue(tx, B)
 
 			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
 			assertClock(t, tx, 0, A.Ref())
@@ -311,9 +291,9 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		C := CreateTestTransactionWithJWK(2, A.Ref())
 
 		err := db.Update(func(tx *bbolt.Tx) error {
-			_ = addToLCIndex(tx, A)
-			_ = addToLCIndex(tx, B)
-			_ = addToLCIndex(tx, C)
+			_ = indexClockValue(tx, A)
+			_ = indexClockValue(tx, B)
+			_ = indexClockValue(tx, C)
 
 			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
 			assertClock(t, tx, 0, A.Ref())
@@ -332,7 +312,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		db := createBBoltDB(testDirectory)
 
 		err := db.Update(func(tx *bbolt.Tx) error {
-			return addToLCIndex(tx, B)
+			return indexClockValue(tx, B)
 		})
 
 		assert.Error(t, err)
@@ -353,6 +333,21 @@ func TestBBoltDAG_Walk(t *testing.T) {
 		}
 
 		assert.Empty(t, visitor.transactions)
+	})
+
+	t.Run("ok - start at root for empty hash", func(t *testing.T) {
+		ctx := context.Background()
+		graph := CreateDAG(t)
+		visitor := trackingVisitor{}
+		transaction := CreateTestTransactionWithJWK(1)
+		_ = graph.Add(ctx, transaction)
+
+		err := graph.Walk(ctx, visitor.Accept, hash.EmptyHash())
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, visitor.transactions, 1)
 	})
 }
 

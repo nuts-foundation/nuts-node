@@ -84,18 +84,12 @@ func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver)
 
 func (s replayingDAGPublisher) Start() {
 	ctx := context.Background()
-	root, err := s.dag.Root(ctx)
-	if err != nil {
-		log.Logger().Errorf("Unable to retrieve DAG root for replaying subscriptions: %v", err)
-		return
-	}
-	if !root.Empty() {
-		s.publishMux.Lock()
-		defer s.publishMux.Unlock()
+	s.publishMux.Lock()
+	defer s.publishMux.Unlock()
 
-		s.resumeAt.PushBack(root)
-		s.publish(ctx)
-	}
+	// since the walker starts at root for an empty hash, no need to find the root first
+	s.resumeAt.PushBack(hash.EmptyHash())
+	s.publish(ctx)
 
 	log.Logger().Debug("Finished replaying DAG")
 }

@@ -30,6 +30,7 @@ import (
 const AnyPayloadType = "*"
 
 var errRootAlreadyExists = errors.New("root transaction already exists")
+var errNoClockValue = errors.New("missing clock value")
 
 // DAG is a directed acyclic graph consisting of nodes (transactions) referring to preceding nodes.
 type DAG interface {
