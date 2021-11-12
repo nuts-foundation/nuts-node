@@ -32,7 +32,7 @@ type InboundStreamer interface {
 // OutboundStreamer allows Protocol implementations to call a gRPC stream on a remote peer.
 type OutboundStreamer interface {
 	// OpenStream start a gRPC stream on a remote peer. It must not be blocking.
-	OpenStream(context.Context, *grpc.ClientConn, func(stream grpc.ClientStream) (transport.Peer, error), <-chan struct{}) (context.Context, error)
+	OpenStream(context.Context, *grpc.ClientConn, func(stream grpc.ClientStream, method string) (transport.Peer, error), <-chan struct{}) (context.Context, error)
 }
 
 // StreamAcceptor defines a function for accepting gRPC streams.

@@ -66,7 +66,7 @@ func (mr *MockAdapterMockRecorder) EventChannels() *gomock.Call {
 }
 
 // OpenStream mocks base method.
-func (m *MockAdapter) OpenStream(ctx context.Context, grpcConn *grpc0.ClientConn, conn func(grpc0.ClientStream) (transport.Peer, error), i <-chan struct{}) (context.Context, error) {
+func (m *MockAdapter) OpenStream(ctx context.Context, grpcConn *grpc0.ClientConn, conn func(grpc0.ClientStream, string) (transport.Peer, error), i <-chan struct{}) (context.Context, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "OpenStream", ctx, grpcConn, conn, i)
 	ret0, _ := ret[0].(context.Context)

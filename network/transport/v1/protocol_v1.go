@@ -69,7 +69,7 @@ type protocolV1 struct {
 	protocol logic.Protocol
 }
 
-func (p protocolV1) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream) (transport.Peer, error), closer <-chan struct{}) (context.Context, error) {
+func (p protocolV1) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream, method string) (transport.Peer, error), closer <-chan struct{}) (context.Context, error) {
 	return p.adapter.OpenStream(outgoingContext, grpcConn, callback, closer)
 }
 

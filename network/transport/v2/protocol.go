@@ -43,10 +43,10 @@ func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 }
 
 // OpenStream is called when an outbound stream is opened to a remote peer.
-func (p protocol) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream) (transport.Peer, error), closer <-chan struct{}) (context.Context, error) {
+func (p protocol) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream, method string) (transport.Peer, error), closer <-chan struct{}) (context.Context, error) {
 	client := NewProtocolClient(grpcConn)
 	stream, err := client.Stream(outgoingContext)
-	peer, err := callback(stream)
+	peer, err := callback(stream, grpc.GetStreamMethod(Protocol_ServiceDesc.ServiceName, Protocol_ServiceDesc.Streams[0]))
 	if err != nil {
 		_ = stream.CloseSend()
 		return nil, err
@@ -57,8 +57,13 @@ func (p protocol) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.
 		return nil, fmt.Errorf("unable to say hello: %w", err)
 	}
 
-	p.receiveMessages(peer, stream)
-	return context.Background(), nil
+	ctx, cancelFn := context.WithCancel(context.Background())
+	go func() {
+		p.receiveMessages(peer, stream)
+		cancelFn()
+	}()
+
+	return ctx, nil
 }
 
 // Stream is called when a peer opens a stream to the local node (inbound connections).
@@ -73,7 +78,10 @@ func (p protocol) Stream(stream Protocol_StreamServer) error {
 	if err != nil {
 		return fmt.Errorf("unable to say hello: %w", err)
 	}
-	p.receiveMessages(peer, stream)
+
+	go func() {
+		p.receiveMessages(peer, stream)
+	}()
 	<-closer
 	return nil
 }
@@ -81,24 +89,22 @@ func (p protocol) Stream(stream Protocol_StreamServer) error {
 func (p protocol) receiveMessages(peer transport.Peer, stream grpc.StreamReceiver) {
 	grpc.ReceiveMessages(stream, func() interface{} {
 		return &Message{}
-	}, func(rawMsg interface{}, err error) {
-		if err != nil {
-			errStatus, isStatusError := status.FromError(err)
-			if isStatusError && errStatus.Code() == codes.Canceled {
-				log.Logger().Infof("%T: Peer closed connection (peer=%s)", p, peer)
-			} else {
-				log.Logger().Warnf("%T: Peer connection error (peer=%s): %v", p, peer, err)
-			}
-			return
-		}
+	}, func(rawMsg interface{}) {
 		p.handle(peer, rawMsg.(*Message))
+	}, func(err error) {
+		errStatus, isStatusError := status.FromError(err)
+		if isStatusError && errStatus.Code() == codes.Canceled {
+			log.Logger().Infof("%T: Peer closed connection (peer=%s)", p, peer)
+		} else {
+			log.Logger().Warnf("%T: Peer connection error (peer=%s): %v", p, peer, err)
+		}
 	})
 }
 
 func (p protocol) handle(peer transport.Peer, message *Message) {
 	switch message.Message.(type) {
 	case *Message_Hello:
-		log.Logger().Info("%T: %s said hello", p, peer)
+		log.Logger().Infof("%T: %s said hello", p, peer)
 	default:
 		log.Logger().Warnf("%T: Envelope doesn't contain any (handleable) messages, peer sent an empty message or protocol implementation might differ? (peer=%s)", p, peer)
 	}

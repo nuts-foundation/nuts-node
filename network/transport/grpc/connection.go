@@ -20,6 +20,7 @@ package grpc
 
 import (
 	"crypto/tls"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 	"sync"
@@ -37,9 +38,9 @@ type managedConnection interface {
 	// open instructs the managedConnection to start connecting to the remote peer (attempting an outbound connection).
 	open(config *tls.Config, callback func(grpcConn *grpc.ClientConn))
 	// registerClientStream adds the given grpc.ClientStream to this managedConnection. It is closed when close() is called.
-	registerClientStream(stream grpc.ClientStream)
+	registerClientStream(stream grpc.ClientStream, method string) error
 	// registerServerStream adds the given grpc.ServerStream to this managedConnection.
-	registerServerStream(stream grpc.ServerStream)
+	registerServerStream(stream grpc.ServerStream) error
 	// closer returns a channel that receives an item when the managedConnection is closing.
 	// Each time it is called a new channel will be returned. All channels will be published to when it is closing.
 	closer() <-chan struct{}
@@ -56,6 +57,8 @@ func createConnection(dialer dialer, peer transport.Peer, inboundStreamsClosedCa
 	result := &conn{
 		dialer:                       dialer,
 		inboundStreamsClosedCallback: inboundStreamsClosedCallback,
+		grpcInboundStreams:           make(map[string]grpc.ServerStream),
+		grpcOutboundStreams:          make(map[string]grpc.ClientStream),
 	}
 	result.peer.Store(peer)
 	return result
@@ -67,8 +70,8 @@ type conn struct {
 	mux                          sync.Mutex
 	connector                    *outboundConnector
 	grpcOutboundConnection       *grpc.ClientConn
-	grpcOutboundStreams          []grpc.ClientStream
-	grpcInboundStreams           []grpc.ServerStream
+	grpcOutboundStreams          map[string]grpc.ClientStream
+	grpcInboundStreams           map[string]grpc.ServerStream
 	inboundStreamsClosedCallback func(managedConnection)
 	dialer                       dialer
 }
@@ -119,36 +122,42 @@ func (mc *conn) verifyOrSetPeerID(id transport.PeerID) bool {
 	return currentPeer.ID == id
 }
 
-func (mc *conn) registerClientStream(clientStream grpc.ClientStream) {
+func (mc *conn) registerClientStream(clientStream grpc.ClientStream, method string) error {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
-	mc.grpcOutboundStreams = append(mc.grpcOutboundStreams, clientStream)
+
+	if _, exists := mc.grpcOutboundStreams[method]; exists {
+		return fmt.Errorf("peer is already connected (method=%s)", method)
+	}
+
+	mc.grpcOutboundStreams[method] = clientStream
+	return nil
 }
 
-func (mc *conn) registerServerStream(serverStream grpc.ServerStream) {
+func (mc *conn) registerServerStream(serverStream grpc.ServerStream) error {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
-	mc.grpcInboundStreams = append(mc.grpcInboundStreams, serverStream)
+
+	method := grpc.ServerTransportStreamFromContext(serverStream.Context()).Method()
+	if _, exists := mc.grpcInboundStreams[method]; exists {
+		return fmt.Errorf("peer is already connected (method=%s)", method)
+	}
+
+	mc.grpcInboundStreams[method] = serverStream
 
 	go func() {
 		// Wait for the serverStream to close. Then remove it, and if it was the last one, callback
 		<-serverStream.Context().Done()
 		mc.mux.Lock()
 		defer mc.mux.Unlock()
-		// Remove this stream from the inbound stream list
-		var j int
-		for _, curr := range mc.grpcInboundStreams {
-			if curr != serverStream {
-				mc.grpcInboundStreams[j] = curr
-				j++
-			}
-		}
-		mc.grpcInboundStreams = mc.grpcInboundStreams[:j]
+		// Remove this stream from the inbound stream registry
+		delete(mc.grpcInboundStreams, method)
 		// If empty, remove.
 		if len(mc.grpcInboundStreams) == 0 {
 			mc.inboundStreamsClosedCallback(mc)
 		}
 	}()
+	return nil
 }
 
 func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn)) {
@@ -178,7 +187,18 @@ func (mc *conn) connected(protocol string) bool {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
-	// TODO: Check protocol
+	if len(protocol) > 0 {
+		// Check for specific protocol
+		if len(mc.grpcOutboundStreams) > 0 {
+			return true
+		}
+		if mc.grpcInboundStreams[protocol] != nil {
+			return true
+		}
+		return false
+	}
+
+	// Check on any protocol
 	if len(mc.grpcOutboundStreams) > 0 {
 		return true
 	}

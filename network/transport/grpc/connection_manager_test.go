@@ -274,7 +274,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		// Second connection with same peer ID is rejected
 		serverStream2 := newServerStream("client-peer-id")
 		_, _, err = cm.handleInboundStream(serverStream2)
-		assert.EqualError(t, err, "already connected")
+		assert.EqualError(t, err, "peer is already connected (method=/unit/test)")
 
 		// Assert only first connection was registered
 		assert.Len(t, cm.connections.list, 1)
@@ -300,6 +300,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 func newServerStream(clientPeerID transport.PeerID) *stubServerStream {
 	ctx := metadata.NewIncomingContext(context.Background(), constructMetadata(clientPeerID))
 	ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: int(crc32.ChecksumIEEE([]byte(clientPeerID))%9000 + 1000)}})
+	ctx = grpc.NewContextWithServerTransportStream(ctx, &stubServerTransportStream{method: "/unit/test"})
 	ctx, cancelFunc := context.WithCancel(ctx)
 
 	return &stubServerStream{
@@ -336,5 +337,25 @@ func (s stubServerStream) SendMsg(m interface{}) error {
 }
 
 func (s stubServerStream) RecvMsg(m interface{}) error {
+	panic("implement me")
+}
+
+type stubServerTransportStream struct {
+	method string
+}
+
+func (s stubServerTransportStream) Method() string {
+	return s.method
+}
+
+func (s stubServerTransportStream) SetHeader(md metadata.MD) error {
+	panic("implement me")
+}
+
+func (s stubServerTransportStream) SendHeader(md metadata.MD) error {
+	panic("implement me")
+}
+
+func (s stubServerTransportStream) SetTrailer(md metadata.MD) error {
 	panic("implement me")
 }

@@ -66,19 +66,6 @@ func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (mana
 	return result, true
 }
 
-func (c *connectionList) connected(peer transport.Peer, protocol string) bool {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	for _, curr := range c.list {
-		currPeer := curr.getPeer()
-		if len(currPeer.ID) > 0 && currPeer.ID == peer.ID || len(currPeer.Address) > 0 && currPeer.Address == peer.Address {
-			return curr.connected(protocol)
-		}
-	}
-	return false
-}
-
 func (c *connectionList) listConnected() []transport.Peer {
 	c.mux.Lock()
 	defer c.mux.Unlock()

@@ -223,7 +223,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection managedConnection
 
 func (s *grpcConnectionManager) openOutboundStream(connection managedConnection, grpcConn *grpc.ClientConn, grpcProtocol OutboundStreamer) (context.Context, error) {
 	outgoingContext := metadata.NewOutgoingContext(context.Background(), constructMetadata(s.config.peerID))
-	streamContext, err := grpcProtocol.OpenStream(outgoingContext, grpcConn, func(clientStream grpc.ClientStream) (transport.Peer, error) {
+	streamContext, err := grpcProtocol.OpenStream(outgoingContext, grpcConn, func(clientStream grpc.ClientStream, method string) (transport.Peer, error) {
 		// Read peer ID from metadata
 		peerHeaders, err := clientStream.Header()
 		if err != nil {
@@ -237,8 +237,12 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 			return transport.Peer{}, fmt.Errorf("failed to read peer ID header: %w", err)
 		}
 
-		// Check whether we're already connected
-		if s.connections.connected(transport.Peer{ID: peerID}) {
+		if !connection.verifyOrSetPeerID(peerID) {
+			return transport.Peer{}, fmt.Errorf("peer sent invalid ID (id=%s)", peerID)
+		}
+
+		err = connection.registerClientStream(clientStream, method)
+		if err != nil {
 			// This can happen when the peer connected to us previously, and now we connect back to them.
 			// TODO: Although nothing breaks, this spams the log of this node with warnings and errors because,
 			//       the outbound connector just keeps connecting. There are 2 solutions to this:
@@ -247,12 +251,6 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 			log.Logger().Warnf("We connected to a peer that we're already connected to (peer=%s)", peerID)
 			return transport.Peer{}, ErrAlreadyConnected
 		}
-
-		if !connection.verifyOrSetPeerID(peerID) {
-			return transport.Peer{}, fmt.Errorf("peer sent invalid ID (id=%s)", peerID)
-		}
-
-		connection.registerClientStream(clientStream)
 
 		return transport.Peer{
 			ID:      peerID,
@@ -285,15 +283,14 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 		ID:      peerID,
 		Address: peerCtx.Addr.String(),
 	}
-	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
-	//       Use address from peer context?
-	if s.connections.connected(transport.Peer{ID: peerID}) {
-		return peer, nil, ErrAlreadyConnected
-	}
-
 	log.Logger().Infof("New peer connected (peer=%s)", peer)
 
+	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
+	//       Use address from peer context?
 	connection, _ := s.connections.getOrRegister(peer, s.dialer)
-	connection.registerServerStream(inboundStream)
+	err = connection.registerServerStream(inboundStream)
+	if err != nil {
+		return peer, nil, err
+	}
 	return peer, connection.closer(), nil
 }

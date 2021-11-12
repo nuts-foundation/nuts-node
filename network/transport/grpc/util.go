@@ -21,6 +21,7 @@ package grpc
 import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"strings"
 )
@@ -44,4 +45,8 @@ func constructMetadata(peerID transport.PeerID) metadata.MD {
 		peerIDHeader:          string(peerID),
 		protocolVersionHeader: protocolVersionV1, // required for backwards compatibility with v1
 	})
+}
+
+func GetStreamMethod(serviceName string, stream grpc.StreamDesc) string {
+	return fmt.Sprintf("/%s/%s", serviceName, stream.StreamName)
 }
