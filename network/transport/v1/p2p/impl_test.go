@@ -84,15 +84,21 @@ func Test_adapter_Send(t *testing.T) {
 		messenger := NewMockgrpcMessenger(ctrl)
 
 		// Make sure Send() doesn't process messages from the backlog draining it, so block it until the test finishes.
-		wg := sync.WaitGroup{}
-		wg.Add(1)
+		senderStarted := sync.WaitGroup{}
+		senderStarted.Add(1)
+		senderStartedOnce := sync.Once{}
+		testDone := sync.WaitGroup{}
+		testDone.Add(1)
 		messenger.EXPECT().Send(gomock.Any()).MinTimes(1).DoAndReturn(func(_ interface{}) error {
-			wg.Wait()
+			senderStartedOnce.Do(func() {
+				senderStarted.Done()
+			})
+			testDone.Wait()
 			return nil
 		})
 		messenger.EXPECT().Recv().AnyTimes().DoAndReturn(func() (interface{}, error) {
 			// Recv() is also called, so let it wait as well.
-			wg.Wait()
+			testDone.Wait()
 			return nil, nil
 		})
 
@@ -103,18 +109,27 @@ func Test_adapter_Send(t *testing.T) {
 		adapter := NewAdapter().(*adapter)
 		_ = adapter.acceptPeer(transport.Peer{ID: peerID}, messenger, closer)
 
-		for i := 0; i < outMessagesBacklog+1; i++ {
+		// First one is taken and put into Send(), which blocks
+		err := adapter.Send(peerID, &protobuf.NetworkMessage{})
+		if !assert.NoError(t, err) {
+			return
+		}
+		senderStarted.Wait()
+
+		// Now fill the backlog
+		for i := 0; i < outMessagesBacklog; i++ {
 			err := adapter.Send(peerID, &protobuf.NetworkMessage{})
 			if !assert.NoError(t, err) {
 				return
 			}
 		}
+
 		// This last one should spill the bucket
-		err := adapter.Send(peerID, &protobuf.NetworkMessage{})
+		err = adapter.Send(peerID, &protobuf.NetworkMessage{})
 		assert.EqualError(t, err, "peer's outbound message backlog has reached max capacity, message is dropped (peer=foobar,backlog-size=1000)")
 		assert.Len(t, adapter.peerOutMessages[peerID], outMessagesBacklog)
 
-		wg.Done()
+		testDone.Done()
 	})
 }
 
