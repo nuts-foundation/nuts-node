@@ -244,7 +244,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 			return refs[i].Compare(refs[j]) <= 0
 		})
 		sort.Slice(expected, func(i, j int) bool {
-			return refs[i].Compare(refs[j]) <= 0
+			return expected[i].Compare(expected[j]) <= 0
 		})
 
 		assert.Equal(t, len(refs), len(expected))
