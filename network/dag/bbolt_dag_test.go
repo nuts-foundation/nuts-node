@@ -30,6 +30,8 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/jws"
+	"github.com/nuts-foundation/nuts-node/test/io"
+	"go.etcd.io/bbolt"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
@@ -222,6 +224,109 @@ func TestBBoltDAG_Add(t *testing.T) {
 		err := graph.Add(ctx, A, B, C)
 		assert.EqualError(t, err, "")
 	})
+}
+
+func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
+	A := CreateTestTransactionWithJWK(0)
+	B := CreateTestTransactionWithJWK(1, A.Ref())
+	C := CreateTestTransactionWithJWK(2, B.Ref())
+
+	assertRefs := func(t *testing.T, tx *bbolt.Tx, clock uint32, expected []hash.SHA256Hash) {
+		lcBucket, _ := tx.CreateBucketIfNotExists([]byte(lcBucket))
+
+		ref := lcBucket.Get(clockToBytes(clock))
+		if !assert.NotNil(t, ref) {
+			return
+		}
+
+		refs := parseHashList(ref)
+		sort.Slice(refs, func(i, j int) bool {
+			return refs[i].Compare(refs[j]) <= 0
+		})
+		sort.Slice(expected, func(i, j int) bool {
+			return refs[i].Compare(refs[j]) <= 0
+		})
+
+		assert.Equal(t, len(refs), len(expected))
+		for i := range refs {
+			assert.True(t, refs[i].Equals(expected[i]))
+		}
+	}
+	assertClock := func(t *testing.T, tx *bbolt.Tx, clock uint32, expected hash.SHA256Hash) {
+		lcIndexBucket, _ := tx.CreateBucketIfNotExists([]byte(lcIndexBucket))
+
+		clockBytes := lcIndexBucket.Get(expected.Slice())
+		if !assert.NotNil(t, clockBytes) {
+			return
+		}
+
+		assert.Equal(t, clock, bytesToClock(clockBytes))
+	}
+
+	t.Run("Ok threesome", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		db := createBBoltDB(testDirectory)
+
+		err := db.Update(func(tx *bbolt.Tx) error {
+			lcBucket, _ := tx.CreateBucketIfNotExists([]byte(lcBucket))
+			lcIndexBucket , _ := tx.CreateBucketIfNotExists([]byte(lcIndexBucket))
+
+			_ = addToLCIndex(lcBucket, lcIndexBucket, A)
+			_ = addToLCIndex(lcBucket, lcIndexBucket, B)
+			_ = addToLCIndex(lcBucket, lcIndexBucket, C)
+
+			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
+			assertClock(t, tx, 0, A.Ref())
+			assertRefs(t, tx, 1, []hash.SHA256Hash{B.Ref()})
+			assertClock(t, tx, 1, B.Ref())
+			assertRefs(t, tx, 2, []hash.SHA256Hash{C.Ref()})
+			assertClock(t, tx, 2, C.Ref())
+
+			return nil
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("Ok branch", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		db := createBBoltDB(testDirectory)
+		C := CreateTestTransactionWithJWK(2, A.Ref())
+
+		err := db.Update(func(tx *bbolt.Tx) error {
+			lcBucket, _ := tx.CreateBucketIfNotExists([]byte(lcBucket))
+			lcIndexBucket , _ := tx.CreateBucketIfNotExists([]byte(lcIndexBucket))
+
+			_ = addToLCIndex(lcBucket, lcIndexBucket, A)
+			_ = addToLCIndex(lcBucket, lcIndexBucket, B)
+			_ = addToLCIndex(lcBucket, lcIndexBucket, C)
+
+			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
+			assertClock(t, tx, 0, A.Ref())
+			assertRefs(t, tx, 1, []hash.SHA256Hash{B.Ref(), C.Ref()})
+			assertClock(t, tx, 1, B.Ref())
+			assertClock(t, tx, 1, C.Ref())
+
+			return nil
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("err - missing prev", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		db := createBBoltDB(testDirectory)
+
+		err := db.Update(func(tx *bbolt.Tx) error {
+			lcBucket, _ := tx.CreateBucketIfNotExists([]byte(lcBucket))
+			lcIndexBucket , _ := tx.CreateBucketIfNotExists([]byte(lcIndexBucket))
+
+			return addToLCIndex(lcBucket, lcIndexBucket, B)
+		})
+
+		assert.Error(t, err)
+	})
+
 }
 
 func TestBBoltDAG_Walk(t *testing.T) {

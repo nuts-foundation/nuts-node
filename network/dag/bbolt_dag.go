@@ -244,12 +244,10 @@ func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA2
 		}
 
 		// initiate a cursor and start from the given lcValue
-		clockBytes := make([]byte, 4)
-		binary.BigEndian.PutUint32(clockBytes, lcValue)
 		cursor := lcBucket.Cursor()
 
 	outer:
-		for _, list := cursor.Seek(clockBytes); list != nil; _, list = cursor.Next() {
+		for _, list := cursor.Seek(clockToBytes(lcValue)); list != nil; _, list = cursor.Next() {
 
 			parsed := parseHashList(list)
 			sort.Slice(parsed, func(i, j int) bool {
@@ -358,7 +356,6 @@ func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
 
 func addToLCIndex(lc *bbolt.Bucket, lcIndex *bbolt.Bucket, transaction Transaction) error {
 	clock := uint32(0)
-	clockBytes := make([]byte, 4)
 	ref := transaction.Ref()
 
 	for _, prev := range transaction.Previous() {
@@ -366,13 +363,13 @@ func addToLCIndex(lc *bbolt.Bucket, lcIndex *bbolt.Bucket, transaction Transacti
 		if lClockBytes == nil {
 			return fmt.Errorf("clock value not found for TX ref: %s", prev.String())
 		}
-		lClock := binary.BigEndian.Uint32(lClockBytes)
+		lClock := bytesToClock(lClockBytes)
 		if lClock >= clock {
 			clock = lClock + 1
 		}
 	}
 
-	binary.BigEndian.PutUint32(clockBytes, clock)
+	clockBytes := clockToBytes(clock)
 	currentRefs := lc.Get(clockBytes)
 	if err := lc.Put(clockBytes, appendHashList(currentRefs, ref)); err != nil {
 		return err
@@ -394,7 +391,17 @@ func getClock(tx *bbolt.Tx, hash hash.SHA256Hash) (uint32, error) {
 		return 0, fmt.Errorf("clock value not found for TX ref: %s", hash.String())
 	}
 	// can't be nil due to Previous must exist checks
-	return binary.BigEndian.Uint32(lClockBytes), nil
+	return bytesToClock(lClockBytes), nil
+}
+
+func bytesToClock(clockBytes []byte) uint32 {
+	return binary.BigEndian.Uint32(clockBytes)
+}
+
+func clockToBytes(clock uint32) []byte {
+	clockBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(clockBytes, clock)
+	return clockBytes[:]
 }
 
 func getBuckets(tx *bbolt.Tx) (transactions, lc, lcIndex, payloadIndex, heads *bbolt.Bucket, err error) {
@@ -417,10 +424,7 @@ func getBuckets(tx *bbolt.Tx) (transactions, lc, lcIndex, payloadIndex, heads *b
 }
 
 func getRoots(lcBucket *bbolt.Bucket) []hash.SHA256Hash {
-	clockBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(clockBytes, 0)
-
-	return parseHashList(lcBucket.Get(clockBytes)) // no need to copy, calls FromSlice() (which copies)
+	return parseHashList(lcBucket.Get(clockToBytes(0))) // no need to copy, calls FromSlice() (which copies)
 }
 
 func getTransaction(hash hash.SHA256Hash, tx *bbolt.Tx) (Transaction, error) {

@@ -843,6 +843,35 @@ func Test_missingTransactions(t *testing.T) {
 	})
 }
 
+func Test_uniqueTransactions(t *testing.T) {
+	h1 := hash.SHA256Sum([]byte("hash1"))
+	h2 := hash.SHA256Sum([]byte("hash2"))
+
+	t.Run("ok - empty list", func(t *testing.T) {
+		current := []hash.SHA256Hash{}
+
+		unique := uniqueTransactions(current, h1)
+
+		assert.Len(t, unique, 1)
+	})
+
+	t.Run("ok - no overlap", func(t *testing.T) {
+		current := []hash.SHA256Hash{h2}
+
+		unique := uniqueTransactions(current, h1)
+
+		assert.Len(t, unique, 2)
+	})
+
+	t.Run("ok - duplicates", func(t *testing.T) {
+		current := []hash.SHA256Hash{h1, h2}
+
+		unique := uniqueTransactions(current, h1)
+
+		assert.Len(t, unique, 2)
+	})
+}
+
 func newDidDocWithOptions(opts types.DIDCreationOptions) (did.Document, jwk.Key, error) {
 	kc := &mockKeyCreator{}
 	docCreator := doc.Creator{KeyStore: kc}
