@@ -133,6 +133,10 @@ func (w *Wrapper) GetCompoundServices(ctx echo.Context, didStr string) error {
 	if err != nil {
 		return err
 	}
+	// Service may return nil for empty arrays, map to empty array to avoid returning null from the REST API
+	if services == nil {
+		services = make([]did.Service, 0)
+	}
 	return ctx.JSON(http.StatusOK, services)
 }
 
@@ -285,6 +289,10 @@ func (w *Wrapper) SearchOrganizations(ctx echo.Context, params SearchOrganizatio
 	results, err := w.Didman.SearchOrganizations(params.Query, params.DidServiceType)
 	if err != nil {
 		return err
+	}
+	// Service may return nil for empty arrays, map to empty array to avoid returning null from the REST API
+	if results == nil {
+		results = make([]OrganizationSearchResult, 0)
 	}
 	return ctx.JSON(http.StatusOK, results)
 }
