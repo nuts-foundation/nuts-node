@@ -19,7 +19,6 @@
 package logic
 
 import (
-	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
 	"github.com/sirupsen/logrus"
@@ -76,8 +75,8 @@ func (p *protocol) Diagnostics() []core.DiagnosticResult {
 		log.Logger().Errorf("Error while collecting missing payloads: %s", err)
 	}
 	diagnostics = append(diagnostics, &core.GenericDiagnosticResult{
-		Title:   "[Protocol v1] Missing Payload Hashes",
-		Outcome: fmt.Sprintf("%v", missingPayloads),
+		Title:   "[Protocol] Missing Payload Hashes",
+		Outcome: missingPayloads,
 	})
 
 	return diagnostics

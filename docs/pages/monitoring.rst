@@ -24,14 +24,16 @@ Basic diagnostics
 
     GET /status/diagnostics
 
-It'll return some text displaying the current status of the various services
+It'll return some text displaying the current status of the various services:
 
 .. code-block:: text
 
     Status
-        Registered engines: Status,Logging
+        Registered engines: [Status Logging]
     Logging
         verbosity: INFO
+
+If you supply `application/json` for the `Accept` HTTP header it will return the diagnostics in JSON format.
 
 Metrics
 *******

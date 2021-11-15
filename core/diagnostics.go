@@ -19,19 +19,28 @@
 
 package core
 
+import "fmt"
+
 // DiagnosticResult are the result of different checks giving information on how well the system is doing
 type DiagnosticResult interface {
 	// Name returns a simple and understandable name of the check
 	Name() string
 
-	// String returns the outcome of the check
+	// Result returns the outcome of the check in its original format. This may be any type that can be marshalled by the JSON package.
+	Result() interface{}
+
+	// String returns the outcome of the check formatted as string
 	String() string
 }
 
 // GenericDiagnosticResult is a simple implementation of the DiagnosticResult interface
 type GenericDiagnosticResult struct {
 	Title   string
-	Outcome string
+	Outcome interface{}
+}
+
+func (gdr *GenericDiagnosticResult) Result() interface{} {
+	return gdr.Outcome
 }
 
 // Name returns the name of the GenericDiagnosticResult
@@ -41,5 +50,6 @@ func (gdr *GenericDiagnosticResult) Name() string {
 
 // String returns the outcome of the GenericDiagnosticResult
 func (gdr *GenericDiagnosticResult) String() string {
-	return gdr.Outcome
+	return fmt.Sprintf("%v", gdr.Outcome)
 }
+

@@ -30,6 +30,10 @@ type numberOfPeersStatistic struct {
 	numberOfPeers int
 }
 
+func (n numberOfPeersStatistic) Result() interface{} {
+	return n.numberOfPeers
+}
+
 // Name returns the name of the statistic.
 func (n numberOfPeersStatistic) Name() string {
 	return "[P2P] Connected peers #"
@@ -43,6 +47,10 @@ func (n numberOfPeersStatistic) String() string {
 // peersStatistic contains the node's peers it's connected to.
 type peersStatistic struct {
 	peers []transport.Peer
+}
+
+func (p peersStatistic) Result() interface{} {
+	return p.peers
 }
 
 // Name returns the name of the statistic.
@@ -66,6 +74,10 @@ func (p peersStatistic) String() string {
 // ownPeerIDStatistic contains the node's own peer ID.
 type ownPeerIDStatistic struct {
 	peerID transport.PeerID
+}
+
+func (o ownPeerIDStatistic) Result() interface{} {
+	return o.peerID
 }
 
 // Name returns the name of the statistic.
