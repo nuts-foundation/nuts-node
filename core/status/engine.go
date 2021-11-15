@@ -61,9 +61,8 @@ func (s *status) diagnosticsOverview(ctx echo.Context) error {
 	hdr := ctx.Request().Header.Get("Accept")
 	if strings.HasPrefix(hdr, "application/json") {
 		return ctx.JSON(http.StatusOK, s.diagnosticsSummaryAsMap(diagnostics))
-	} else {
-		return ctx.String(http.StatusOK, s.diagnosticsSummaryAsText(diagnostics))
 	}
+	return ctx.String(http.StatusOK, s.diagnosticsSummaryAsText(diagnostics))
 }
 
 func (s *status) diagnosticsSummaryAsText(diagnostics map[string][]core.DiagnosticResult) string {

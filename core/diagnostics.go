@@ -39,6 +39,7 @@ type GenericDiagnosticResult struct {
 	Outcome interface{}
 }
 
+// Result returns the raw outcome of the GenericDiagnosticResult
 func (gdr *GenericDiagnosticResult) Result() interface{} {
 	return gdr.Outcome
 }
@@ -52,4 +53,3 @@ func (gdr *GenericDiagnosticResult) Name() string {
 func (gdr *GenericDiagnosticResult) String() string {
 	return fmt.Sprintf("%v", gdr.Outcome)
 }
-
