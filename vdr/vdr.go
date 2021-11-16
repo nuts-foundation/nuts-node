@@ -102,6 +102,8 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 	return conflictedDocs, conflictedMeta, err
 }
 
+// ManagedDIDs returns the DIDs that can be managed by the local node.
+// It does not return the DIDs that are deactivated.
 func (r *VDR) ManagedDIDs() ([]did.DID, error) {
 	var result []did.DID
 	kids := r.keyStore.List()

@@ -188,6 +188,7 @@ func (a *Wrapper) GetDID(ctx echo.Context, targetDID string, params GetDIDParams
 	return ctx.JSON(http.StatusOK, resolutionResult)
 }
 
+// ListManagedDIDs returns the DIDs that can be managed by the local node.
 func (a *Wrapper) ListManagedDIDs(ctx echo.Context) error {
 	dids, err := a.VDR.ManagedDIDs()
 	if err != nil {

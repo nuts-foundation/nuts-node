@@ -143,7 +143,6 @@ func (client *Crypto) Resolve(kid string) (Key, error) {
 	}, nil
 }
 
-
 type keySelector struct {
 	privateKey crypto.Signer
 	kid        string

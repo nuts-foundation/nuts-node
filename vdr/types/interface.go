@@ -119,7 +119,8 @@ type VDR interface {
 	// ConflictedDocuments returns the DID Document and metadata of all documents with a conflict.
 	ConflictedDocuments() ([]did.Document, []DocumentMetadata, error)
 
-	// ManagedDIDs returns the DIDs that can be managed by the local node. This does not return the DIDs that
+	// ManagedDIDs returns the DIDs that can be managed by the local node.
+	// It does not return the DIDs that are deactivated.
 	ManagedDIDs() ([]did.DID, error)
 }
 
