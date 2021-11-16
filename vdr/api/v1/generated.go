@@ -165,6 +165,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// ListManagedDIDs request
+	ListManagedDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CreateDID request with any body
 	CreateDIDWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -189,6 +192,18 @@ type ClientInterface interface {
 
 	// DeleteVerificationMethod request
 	DeleteVerificationMethod(ctx context.Context, did string, kid string, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) ListManagedDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListManagedDIDsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) CreateDIDWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -297,6 +312,33 @@ func (c *Client) DeleteVerificationMethod(ctx context.Context, did string, kid s
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewListManagedDIDsRequest generates requests for ListManagedDIDs
+func NewListManagedDIDsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vdr/v1/did")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewCreateDIDRequest calls the generic CreateDID builder with application/json body
@@ -635,6 +677,9 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// ListManagedDIDs request
+	ListManagedDIDsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListManagedDIDsResponse, error)
+
 	// CreateDID request with any body
 	CreateDIDWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDIDResponse, error)
 
@@ -659,6 +704,28 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteVerificationMethod request
 	DeleteVerificationMethodWithResponse(ctx context.Context, did string, kid string, reqEditors ...RequestEditorFn) (*DeleteVerificationMethodResponse, error)
+}
+
+type ListManagedDIDsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]string
+}
+
+// Status returns HTTPResponse.Status
+func (r ListManagedDIDsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListManagedDIDsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type CreateDIDResponse struct {
@@ -810,6 +877,15 @@ func (r DeleteVerificationMethodResponse) StatusCode() int {
 	return 0
 }
 
+// ListManagedDIDsWithResponse request returning *ListManagedDIDsResponse
+func (c *ClientWithResponses) ListManagedDIDsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListManagedDIDsResponse, error) {
+	rsp, err := c.ListManagedDIDs(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListManagedDIDsResponse(rsp)
+}
+
 // CreateDIDWithBodyWithResponse request with arbitrary body returning *CreateDIDResponse
 func (c *ClientWithResponses) CreateDIDWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDIDResponse, error) {
 	rsp, err := c.CreateDIDWithBody(ctx, contentType, body, reqEditors...)
@@ -887,6 +963,32 @@ func (c *ClientWithResponses) DeleteVerificationMethodWithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseDeleteVerificationMethodResponse(rsp)
+}
+
+// ParseListManagedDIDsResponse parses an HTTP response from a ListManagedDIDsWithResponse call
+func ParseListManagedDIDsResponse(rsp *http.Response) (*ListManagedDIDsResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListManagedDIDsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseCreateDIDResponse parses an HTTP response from a CreateDIDWithResponse call
@@ -1023,6 +1125,9 @@ func ParseDeleteVerificationMethodResponse(rsp *http.Response) (*DeleteVerificat
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Returns the DIDs managed by this node.
+	// (GET /internal/vdr/v1/did)
+	ListManagedDIDs(ctx echo.Context) error
 	// Creates a new Nuts DID
 	// (POST /internal/vdr/v1/did)
 	CreateDID(ctx echo.Context) error
@@ -1049,6 +1154,15 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// ListManagedDIDs converts echo context to params.
+func (w *ServerInterfaceWrapper) ListManagedDIDs(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.ListManagedDIDs(ctx)
+	return err
 }
 
 // CreateDID converts echo context to params.
@@ -1205,6 +1319,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
 	// so it can be used in error reporting middleware.
+	router.Add(http.MethodGet, baseURL+"/internal/vdr/v1/did", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("ListManagedDIDs", context)
+		return wrapper.ListManagedDIDs(context)
+	})
 	router.Add(http.MethodPost, baseURL+"/internal/vdr/v1/did", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("CreateDID", context)
 		return wrapper.CreateDID(context)

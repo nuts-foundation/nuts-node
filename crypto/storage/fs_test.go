@@ -19,7 +19,10 @@
 package storage
 
 import (
+	"fmt"
 	"os"
+	"path"
+	"sort"
 	"testing"
 	"time"
 
@@ -67,6 +70,29 @@ func Test_fs_GetPublicKey(t *testing.T) {
 		assert.Equal(t, key, entry.JWK())
 		assert.Equal(t, time.Duration(0), now.Sub(entry.Period.Begin))
 	})
+}
+
+func Test_fs_ListPrivateKeys(t *testing.T) {
+	storage, _ := NewFileSystemBackend(io.TestDirectory(t))
+	backend := storage.(*fileSystemBackend)
+
+	// Generate a few keys
+	pk := test.GenerateECKey()
+	for i := 0; i < 5; i++ {
+		kid := fmt.Sprintf("key-%d", i)
+		_ = backend.SavePrivateKey(kid, pk)
+	}
+
+	// Store some other cruft that shouldn't return as private key
+	_ = os.WriteFile(path.Join(backend.fspath, "foo.txt"), []byte{1, 2, 3}, os.ModePerm)
+	_ = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
+	_ = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_private.bin"), []byte{1, 2, 3}, os.ModePerm)
+	_ = os.Mkdir(path.Join(backend.fspath, "subdir"), os.ModePerm)
+	_ = os.WriteFile(path.Join(backend.fspath, "subdir", "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
+
+	keys := backend.ListPrivateKeys()
+	sort.Strings(keys)
+	assert.Equal(t, []string{"key-0", "key-1", "key-2", "key-3", "key-4"}, keys)
 }
 
 func Test_fs_GetPrivateKey(t *testing.T) {

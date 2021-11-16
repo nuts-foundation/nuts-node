@@ -124,6 +124,11 @@ func (client *Crypto) Exists(kid string) bool {
 	return client.Storage.PrivateKeyExists(kid)
 }
 
+// List returns the KIDs of the private keys that are present in the key store.
+func (client *Crypto) List() []string {
+	return client.Storage.ListPrivateKeys()
+}
+
 func (client *Crypto) Resolve(kid string) (Key, error) {
 	keypair, err := client.Storage.GetPrivateKey(kid)
 	if err != nil {
@@ -137,6 +142,7 @@ func (client *Crypto) Resolve(kid string) (Key, error) {
 		kid:        kid,
 	}, nil
 }
+
 
 type keySelector struct {
 	privateKey crypto.Signer

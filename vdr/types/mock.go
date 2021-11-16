@@ -417,6 +417,21 @@ func (mr *MockVDRMockRecorder) Create(options interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), options)
 }
 
+// ManagedDIDs mocks base method.
+func (m *MockVDR) ManagedDIDs() ([]did.DID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ManagedDIDs")
+	ret0, _ := ret[0].([]did.DID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ManagedDIDs indicates an expected call of ManagedDIDs.
+func (mr *MockVDRMockRecorder) ManagedDIDs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ManagedDIDs", reflect.TypeOf((*MockVDR)(nil).ManagedDIDs))
+}
+
 // Update mocks base method.
 func (m *MockVDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error {
 	m.ctrl.T.Helper()

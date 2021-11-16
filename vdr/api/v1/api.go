@@ -188,6 +188,14 @@ func (a *Wrapper) GetDID(ctx echo.Context, targetDID string, params GetDIDParams
 	return ctx.JSON(http.StatusOK, resolutionResult)
 }
 
+func (a *Wrapper) ListManagedDIDs(ctx echo.Context) error {
+	dids, err := a.VDR.ManagedDIDs()
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, dids)
+}
+
 func (a *Wrapper) ConflictedDIDs(ctx echo.Context) error {
 	docs, metas, err := a.VDR.ConflictedDocuments()
 	if err != nil {

@@ -289,6 +289,46 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 	})
 }
 
+func TestVDR_ManagedDIDs(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	keyStore := crypto.NewMockKeyStore(ctrl)
+
+	keyA1 := *TestDIDA
+	keyA1.Fragment = "cap-inv"
+	keyA2 := *TestDIDA
+	keyA2.Fragment = "other"
+	docA := did.Document{
+		ID:                   *TestDIDA,
+		CapabilityInvocation: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: keyA1, Controller: *TestDIDA}}},
+		AssertionMethod:      []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: keyA2, Controller: *TestDIDA}}},
+	}
+
+	keyB := *TestDIDB
+	keyB.Fragment = "cap-inv"
+	docB := did.Document{ID: *TestDIDB, CapabilityInvocation: []did.VerificationRelationship{{VerificationMethod: &did.VerificationMethod{ID: keyB, Controller: *TestDIDB}}}}
+
+	// This DID can't be resolved
+	didC, _ := did.ParseDID("did:nuts:other")
+	keyC := *didC
+	keyC.Fragment = "cap-inv"
+
+	keyStore.EXPECT().List().Return([]string{keyA1.String(), keyB.String(), keyA2.String(), keyC.String()})
+
+	s := store.NewMemoryStore()
+	_ = s.Write(docA, types.DocumentMetadata{})
+	_ = s.Write(docB, types.DocumentMetadata{})
+
+	vdr := NewVDR(Config{}, keyStore, nil, s)
+
+	actual, err := vdr.ManagedDIDs()
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.Len(t, actual, 2)
+	assert.Contains(t, actual, docA.ID)
+	assert.Contains(t, actual, docB.ID)
+}
+
 func TestVDR_resolveControllerKey(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
 	controllerId, _ := did.ParseDID("did:nuts:1234")

@@ -86,6 +86,20 @@ func (mr *MockKeyStoreMockRecorder) Exists(kid interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockKeyStore)(nil).Exists), kid)
 }
 
+// List mocks base method.
+func (m *MockKeyStore) List() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// List indicates an expected call of List.
+func (mr *MockKeyStoreMockRecorder) List() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockKeyStore)(nil).List))
+}
+
 // New mocks base method.
 func (m *MockKeyStore) New(namingFunc KIDNamingFunc) (Key, error) {
 	m.ctrl.T.Helper()

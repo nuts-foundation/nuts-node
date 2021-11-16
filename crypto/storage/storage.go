@@ -37,6 +37,8 @@ type Storage interface {
 	GetPrivateKey(kid string) (crypto.Signer, error)
 	PrivateKeyExists(kid string) bool
 	SavePrivateKey(kid string, key crypto.PrivateKey) error
+	// ListPrivateKeys returns the KIDs of the private keys that are present.
+	ListPrivateKeys() []string
 
 	// GetPublicKey returns the public key and the period it is valid in.
 	GetPublicKey(kid string) (PublicKeyEntry, error)

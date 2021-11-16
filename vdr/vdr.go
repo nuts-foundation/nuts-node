@@ -102,6 +102,48 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 	return conflictedDocs, conflictedMeta, err
 }
 
+func (r *VDR) ManagedDIDs() ([]did.DID, error) {
+	var result []did.DID
+	kids := r.keyStore.List()
+
+	// There can be multiple keys for a DID, so we only resolve DID documents once.
+	resolved := make(map[string]bool, 0)
+	for _, kid := range kids {
+		didURL, _ := did.ParseDIDURL(kid)
+		justDID := *didURL
+		justDID.Fragment = ""
+		justDID.Path = ""
+		justDID.Query = ""
+
+		if resolved[justDID.String()] {
+			continue
+		}
+
+		// Resolve DID document
+		document, _, err := r.didDocResolver.Resolve(justDID, nil)
+		resolved[justDID.String()] = true
+		if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrDeactivated) || errors.Is(err, types.ErrNoActiveController) {
+			continue
+		} else if err != nil {
+			return nil, fmt.Errorf("unable to resolve DID (did=%s): %w", justDID, err)
+		}
+
+		// Add the DID to the result list if we have at least one of the capability invocation keys
+	outer:
+		for _, key := range document.CapabilityInvocation {
+			keyID := key.ID.String()
+			for _, curr := range kids {
+				if curr == keyID {
+					result = append(result, justDID)
+					break outer
+				}
+			}
+		}
+	}
+
+	return result, nil
+}
+
 // Diagnostics returns the diagnostics for this engine
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	// return # conflicted docs

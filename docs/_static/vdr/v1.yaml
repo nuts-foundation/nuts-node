@@ -37,6 +37,28 @@ paths:
                 $ref: '#/components/schemas/DIDDocument'
         default:
           $ref: '../common/error_response.yaml'
+    get:
+      summary: Returns the DIDs managed by this node.
+      description: |
+        A DID can be managed by a node when at least one of its active private keys is present.
+        This operation will return those DIDs. It will not return deactivated DIDs.
+
+        error returns:
+        * 500 - An error occurred while processing the request
+      operationId: "listManagedDIDs"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: "DIDs that can be managed by this node."
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vdr/v1/did/{did}:
     parameters:
       - name: did
