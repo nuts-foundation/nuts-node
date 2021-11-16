@@ -209,11 +209,8 @@ func (dag bboltDAG) Get(ctx context.Context, ref hash.SHA256Hash) (Transaction, 
 	var result Transaction
 	var err error
 	err = bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
-		if transactions := tx.Bucket([]byte(transactionsBucket)); transactions != nil {
-			result, err = getTransaction(ref, tx)
-			return err
-		}
-		return nil
+		result, err = getTransaction(ref, tx)
+		return err
 	})
 	return result, err
 }

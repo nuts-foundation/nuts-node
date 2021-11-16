@@ -469,6 +469,28 @@ func TestBBoltDAG_Walk(t *testing.T) {
 
 		assert.Len(t, visitor.transactions, 1)
 	})
+
+	t.Run("ok - TXs processing in right order", func(t *testing.T) {
+		ctx := context.Background()
+		graph := CreateDAG(t)
+		visitor := trackingVisitor{}
+		A := CreateTestTransactionWithJWK(1)
+		B := CreateTestTransactionWithJWK(2, A.Ref())
+		C := CreateTestTransactionWithJWK(3, A.Ref())
+		D := CreateTestTransactionWithJWK(4, C.Ref(), B.Ref())
+		_ = graph.Add(ctx, A, B, C, D)
+
+		err := graph.Walk(ctx, visitor.Accept, hash.EmptyHash())
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, visitor.transactions, 4)
+		assert.Equal(t, A.Ref().String(), visitor.transactions[0].Ref().String())
+		// the smallest byte value should have been processed first
+		assert.True(t, visitor.transactions[1].Ref().Compare(visitor.transactions[2].Ref()) <= 0)
+		assert.Equal(t, D.Ref().String(), visitor.transactions[3].Ref().String())
+	})
 }
 
 func TestBBoltDAG_Observe(t *testing.T) {
