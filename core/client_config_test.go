@@ -21,9 +21,11 @@ package core
 
 import (
 	"github.com/knadh/koanf"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"os"
+	"path"
 	"testing"
 	"time"
 )
@@ -113,5 +115,71 @@ func TestNewClientConfigForCommand(t *testing.T) {
 		assert.Equal(t, "localhost:1323", cfg.Address)
 		assert.Equal(t, 10*time.Second, cfg.Timeout)
 		assert.Equal(t, "info", cfg.Verbosity)
+	})
+}
+
+func TestClientConfig_GetAuthToken(t *testing.T) {
+	t.Run("not set", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		userHomeDirFn = func() (string, error) {
+			return testDirectory, nil
+		}
+
+		token, err := ClientConfig{}.GetAuthToken()
+
+		assert.NoError(t, err)
+		assert.Empty(t, token)
+	})
+	t.Run("set", func(t *testing.T) {
+		token, err := ClientConfig{Token: "foo"}.GetAuthToken()
+
+		assert.NoError(t, err)
+		assert.Equal(t, "foo", token)
+	})
+	t.Run("set in config takes precedence over from disk", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		userHomeDirFn = func() (string, error) {
+			return testDirectory, nil
+		}
+		_ = os.WriteFile(path.Join(testDirectory, clientConfigFileName), []byte("from disk"), 0644)
+
+		token, err := ClientConfig{Token: "set in config"}.GetAuthToken()
+
+		assert.NoError(t, err)
+		assert.Equal(t, "set in config", token)
+	})
+	t.Run("read from disk (explicitly set)", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		fileName := path.Join(testDirectory, clientConfigFileName)
+		_ = os.WriteFile(fileName, []byte("foo"), 0644)
+
+		token, err := ClientConfig{TokenFile: fileName}.GetAuthToken()
+
+		assert.NoError(t, err)
+		assert.Equal(t, "foo", token)
+	})
+	t.Run("read from disk (fallback to home dir)", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		userHomeDirFn = func() (string, error) {
+			return testDirectory, nil
+		}
+		_ = os.WriteFile(path.Join(testDirectory, clientConfigFileName), []byte("foo"), 0644)
+
+		token, err := ClientConfig{}.GetAuthToken()
+
+		assert.NoError(t, err)
+		assert.Equal(t, "foo", token)
+	})
+	t.Run("error - unable to read from disk (file is a directory)", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		userHomeDirFn = func() (string, error) {
+			return testDirectory, nil
+		}
+		_ = os.MkdirAll(path.Join(testDirectory, clientConfigFileName), os.ModePerm)
+
+		token, err := ClientConfig{}.GetAuthToken()
+
+		assert.ErrorContains(t, err, "unable to read auth token from file")
+		assert.Empty(t, token)
 	})
 }

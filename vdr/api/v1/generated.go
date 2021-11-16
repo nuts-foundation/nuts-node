@@ -18,6 +18,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const (
+	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
+)
+
 // DIDCreateRequest defines model for DIDCreateRequest.
 type DIDCreateRequest struct {
 	// indicates if the generated key pair can be used for assertions.
@@ -1055,6 +1059,8 @@ type ServerInterfaceWrapper struct {
 func (w *ServerInterfaceWrapper) CreateDID(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.CreateDID(ctx)
 	return err
@@ -1063,6 +1069,8 @@ func (w *ServerInterfaceWrapper) CreateDID(ctx echo.Context) error {
 // ConflictedDIDs converts echo context to params.
 func (w *ServerInterfaceWrapper) ConflictedDIDs(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.ConflictedDIDs(ctx)
@@ -1080,6 +1088,8 @@ func (w *ServerInterfaceWrapper) DeactivateDID(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.DeactivateDID(ctx, did)
 	return err
@@ -1095,6 +1105,8 @@ func (w *ServerInterfaceWrapper) GetDID(ctx echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetDIDParams
@@ -1128,6 +1140,8 @@ func (w *ServerInterfaceWrapper) UpdateDID(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.UpdateDID(ctx, did)
 	return err
@@ -1143,6 +1157,8 @@ func (w *ServerInterfaceWrapper) AddNewVerificationMethod(ctx echo.Context) erro
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.AddNewVerificationMethod(ctx, did)
@@ -1167,6 +1183,8 @@ func (w *ServerInterfaceWrapper) DeleteVerificationMethod(ctx echo.Context) erro
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter kid: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.DeleteVerificationMethod(ctx, did, kid)

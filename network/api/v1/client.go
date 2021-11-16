@@ -21,13 +21,9 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"io"
 	"net/http"
-	"strings"
-	"time"
-
-	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -36,15 +32,14 @@ import (
 
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
-	ServerAddress string
-	Timeout       time.Duration
+	core.ClientConfig
 }
 
 // GetTransactionPayload retrieves the transaction payload for the given transaction. If the transaction or payload is not found
 // nil is returned.
 func (hb HTTPClient) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
-	defer cancel()
+	ctx := context.Background()
+
 	res, err := hb.client().GetTransactionPayload(ctx, transactionRef.String())
 	if err != nil {
 		return nil, err
@@ -60,8 +55,7 @@ func (hb HTTPClient) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]by
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
 func (hb HTTPClient) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
-	defer cancel()
+	ctx := context.Background()
 	res, err := hb.client().GetTransaction(ctx, transactionRef.String())
 	if err != nil {
 		return nil, err
@@ -71,8 +65,7 @@ func (hb HTTPClient) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transac
 
 // ListTransactions returns all transactions known to this network instance.
 func (hb HTTPClient) ListTransactions() ([]dag.Transaction, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
-	defer cancel()
+	ctx := context.Background()
 	res, err := hb.client().ListTransactions(ctx)
 	if err != nil {
 		return nil, err
@@ -102,8 +95,7 @@ func (hb HTTPClient) ListTransactions() ([]dag.Transaction, error) {
 
 // GetPeerDiagnostics retrieves diagnostic information on the node's peers.
 func (hb HTTPClient) GetPeerDiagnostics() (map[transport.PeerID]PeerDiagnostics, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
-	defer cancel()
+	ctx := context.Background()
 	response, err := hb.client().GetPeerDiagnostics(ctx)
 	if err != nil {
 		return nil, err
@@ -122,8 +114,7 @@ func (hb HTTPClient) GetPeerDiagnostics() (map[transport.PeerID]PeerDiagnostics,
 
 // Reprocess triggers reprocessing of transactions with the given content type
 func (hb HTTPClient) Reprocess(contentType string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
-	defer cancel()
+	ctx := context.Background()
 	response, err := hb.client().Reprocess(ctx, &ReprocessParams{Type: &contentType})
 	if err != nil {
 		return err
@@ -135,12 +126,7 @@ func (hb HTTPClient) Reprocess(contentType string) error {
 }
 
 func (hb HTTPClient) client() ClientInterface {
-	url := hb.ServerAddress
-	if !strings.Contains(url, "http") {
-		url = fmt.Sprintf("http://%v", hb.ServerAddress)
-	}
-
-	response, err := NewClientWithResponses(url)
+	response, err := NewClientWithResponses(hb.GetAddress(), WithHTTPClient(core.MustCreateHTTPClient(hb.ClientConfig)))
 	if err != nil {
 		panic(err)
 	}

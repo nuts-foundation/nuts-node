@@ -18,6 +18,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const (
+	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
+)
+
 // A creation request for a compound service with endpoints and/or references to endpoints.
 type CompoundService struct {
 	Id string `json:"id"`
@@ -1395,6 +1399,8 @@ func (w *ServerInterfaceWrapper) GetCompoundServices(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetCompoundServices(ctx, did)
 	return err
@@ -1410,6 +1416,8 @@ func (w *ServerInterfaceWrapper) AddCompoundService(ctx echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.AddCompoundService(ctx, did)
@@ -1443,6 +1451,8 @@ func (w *ServerInterfaceWrapper) GetCompoundServiceEndpoint(ctx echo.Context) er
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter endpointType: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetCompoundServiceEndpointParams
 	// ------------- Optional query parameter "resolve" -------------
@@ -1468,6 +1478,8 @@ func (w *ServerInterfaceWrapper) GetContactInformation(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetContactInformation(ctx, did)
 	return err
@@ -1484,6 +1496,8 @@ func (w *ServerInterfaceWrapper) UpdateContactInformation(ctx echo.Context) erro
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.UpdateContactInformation(ctx, did)
 	return err
@@ -1499,6 +1513,8 @@ func (w *ServerInterfaceWrapper) AddEndpoint(ctx echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.AddEndpoint(ctx, did)
@@ -1524,6 +1540,8 @@ func (w *ServerInterfaceWrapper) DeleteEndpointsByType(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter type: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.DeleteEndpointsByType(ctx, did, pType)
 	return err
@@ -1532,6 +1550,8 @@ func (w *ServerInterfaceWrapper) DeleteEndpointsByType(ctx echo.Context) error {
 // SearchOrganizations converts echo context to params.
 func (w *ServerInterfaceWrapper) SearchOrganizations(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params SearchOrganizationsParams
@@ -1564,6 +1584,8 @@ func (w *ServerInterfaceWrapper) DeleteService(ctx echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.DeleteService(ctx, id)

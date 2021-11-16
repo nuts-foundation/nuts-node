@@ -23,37 +23,27 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 	"net/http"
-	"time"
-
-	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
-	ServerAddress string
-	Timeout       time.Duration
+	core.ClientConfig
 }
 
 func (hb HTTPClient) client() ClientInterface {
-	url := hb.ServerAddress
-
-	response, err := NewClientWithResponses(url)
+	response, err := NewClientWithResponses(hb.GetAddress(), WithHTTPClient(core.MustCreateHTTPClient(hb.ClientConfig)))
 	if err != nil {
 		panic(err)
 	}
 	return response
 }
 
-func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), hb.Timeout)
-}
-
 // Trust sends a request to the node to trust a specific issuer for a credential type
 func (hb HTTPClient) Trust(credentialType string, issuer string) error {
-	ctx, cancel := hb.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 
 	body := TrustIssuerJSONRequestBody{
 		CredentialType: credentialType,
@@ -70,8 +60,7 @@ func (hb HTTPClient) Trust(credentialType string, issuer string) error {
 
 // Untrust sends a request to the node to untrust a specific issuer for a credential type
 func (hb HTTPClient) Untrust(credentialType string, issuer string) error {
-	ctx, cancel := hb.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 
 	body := UntrustIssuerJSONRequestBody{
 		CredentialType: credentialType,
@@ -88,16 +77,14 @@ func (hb HTTPClient) Untrust(credentialType string, issuer string) error {
 
 // Trusted lists the trusted issuers for the given credential type
 func (hb HTTPClient) Trusted(credentialType string) ([]string, error) {
-	ctx, cancel := hb.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 
 	return handleTrustedResponse(hb.client().ListTrusted(ctx, credentialType))
 }
 
 // Untrusted lists the untrusted issuers for the given credential type
 func (hb HTTPClient) Untrusted(credentialType string) ([]string, error) {
-	ctx, cancel := hb.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 
 	return handleTrustedResponse(hb.client().ListUntrusted(ctx, credentialType))
 }

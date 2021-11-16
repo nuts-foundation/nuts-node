@@ -31,9 +31,12 @@ import (
 func main() {
 	// Listen for interrupt signals (CTRL/CMD+C, OS instructing the process to stop) to cancel context.
 	ctx := context.Background()
-	ctx, _ = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	ctx, cancelNotify := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer cancelNotify()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	err := cmd.Execute(ctx, cmd.CreateSystem())
+	err := cmd.Execute(ctx, cmd.CreateSystem(cancel))
 	if err != nil {
 		logrus.Error(err)
 	}

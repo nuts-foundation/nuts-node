@@ -21,20 +21,13 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	httpEngine "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/spf13/pflag"
 	"io"
-	"net/http"
 	"os"
 	"runtime/pprof"
-
-	"github.com/nuts-foundation/nuts-node/storage"
-
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"go.uber.org/atomic"
 
 	"github.com/nuts-foundation/nuts-node/auth"
 	authIrmaAPI "github.com/nuts-foundation/nuts-node/auth/api/irma"
@@ -50,6 +43,8 @@ import (
 	didmanCmd "github.com/nuts-foundation/nuts-node/didman/cmd"
 	"github.com/nuts-foundation/nuts-node/events"
 	eventsCmd "github.com/nuts-foundation/nuts-node/events/cmd"
+	httpCmd "github.com/nuts-foundation/nuts-node/http/cmd"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
 	networkAPI "github.com/nuts-foundation/nuts-node/network/api/v1"
 	networkCmd "github.com/nuts-foundation/nuts-node/network/cmd"
@@ -62,6 +57,8 @@ import (
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 var stdOutWriter io.Writer = os.Stdout
@@ -139,49 +136,33 @@ func startServer(ctx context.Context, system *core.System) error {
 		return err
 	}
 
+	// register HTTP routes (lookup router in engines first)
+	var router core.EchoRouter
+	system.VisitEngines(func(curr core.Engine) {
+		if instance, ok := curr.(*httpEngine.Engine); ok {
+			router = instance.Router()
+		}
+	})
+	for _, r := range system.Routers {
+		r.Routes(router)
+	}
+
 	// start engines
 	if err := system.Start(); err != nil {
 		return err
 	}
 
-	// init HTTP interfaces and routes
-	echoServer, err := core.NewMultiEcho(system.EchoCreator, system.Config.HTTP.HTTPConfig)
-	if err != nil {
-		return err
-	}
-	for httpGroup, httpConfig := range system.Config.HTTP.AltBinds {
-		if err := echoServer.Bind(httpGroup, httpConfig); err != nil {
-			return err
-		}
-	}
-	for _, r := range system.Routers {
-		r.Routes(echoServer)
-	}
-
-	serverCtx, cancel := context.WithCancel(ctx)
-
-	// Start Echo server, cancels the server context when it exits/errors, so the shutdown sequence will run.
-	var serverError atomic.Error
-	go func() {
-		if err := echoServer.Start(); err != nil {
-			if !errors.Is(err, http.ErrServerClosed) {
-				serverError.Store(err)
-			}
-		}
-		cancel()
-	}()
-
 	// Wait until instructed to shut down when instructed through context cancellation (e.g. SIGINT signal or Echo server error/exit)
-	<-serverCtx.Done()
+	<-ctx.Done()
 	logrus.Info("Shutting down...")
-	echoServer.Shutdown()
-	if err := system.Shutdown(); err != nil {
+	err := system.Shutdown()
+	if err != nil {
 		logrus.Errorf("Error shutting down system: %v", err)
 	} else {
 		logrus.Info("Shutdown complete. Goodbye!")
 	}
 
-	return serverError.Load()
+	return err
 }
 
 // CreateCommand creates the command with all subcommands to run the system.
@@ -193,11 +174,12 @@ func CreateCommand(system *core.System) *cobra.Command {
 }
 
 // CreateSystem creates the system and registers all default engines.
-func CreateSystem() *core.System {
+func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system := core.NewSystem()
 
 	// Create instances
 	cryptoInstance := crypto.NewCryptoInstance()
+	httpServerInstance := httpEngine.New(shutdownCallback, cryptoInstance)
 	jsonld := jsonld.NewJSONLDInstance()
 	storageInstance := storage.New()
 	didStore := store.NewStore(storageInstance.GetProvider(vdr.ModuleName))
@@ -243,6 +225,9 @@ func CreateSystem() *core.System {
 	system.RegisterEngine(vdrInstance)
 	system.RegisterEngine(authInstance)
 	system.RegisterEngine(didmanInstance)
+	// HTTP engine MUST be registered last, because when started it dispatches HTTP calls to the registered routes.
+	// Registering is last makes sure all engines are started and ready to accept requests.
+	system.RegisterEngine(httpServerInstance)
 
 	return system
 }
@@ -276,6 +261,7 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		createServerCommand(system),
 		createPrintConfigCommand(system),
 		cryptoCmd.ServerCmd(),
+		httpCmd.ServerCmd(),
 	}
 	flagSet := serverConfigFlags()
 	registerFlags(serverCommands, flagSet)
@@ -296,6 +282,7 @@ func serverConfigFlags() *pflag.FlagSet {
 
 	set.AddFlagSet(core.FlagSet())
 	set.AddFlagSet(cryptoCmd.FlagSet())
+	set.AddFlagSet(httpCmd.FlagSet())
 	set.AddFlagSet(storageCmd.FlagSet())
 	set.AddFlagSet(networkCmd.FlagSet())
 	set.AddFlagSet(vdrCmd.FlagSet())

@@ -21,14 +21,9 @@ package core
 
 import (
 	"errors"
-	"fmt"
-	"io"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/labstack/echo/v4"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
@@ -135,28 +130,6 @@ func TestSystem_Migrate(t *testing.T) {
 	})
 }
 
-func TestSystem_DefaultEchoServer(t *testing.T) {
-	t.Run("no args", func(t *testing.T) {
-		system := NewSystem()
-		server, _, err := system.EchoCreator(HTTPConfig{})
-		assert.NotNil(t, server)
-		assert.NoError(t, err)
-	})
-	t.Run("enable CORS", func(t *testing.T) {
-		system := NewSystem()
-		server, _, err := system.EchoCreator(HTTPConfig{CORS: HTTPCORSConfig{[]string{"*"}}})
-		assert.NotNil(t, server)
-		assert.NoError(t, err)
-	})
-	t.Run("enable CORS (* not allowed in strict mode)", func(t *testing.T) {
-		system := NewSystem()
-		system.Config.Strictmode = true
-		server, _, err := system.EchoCreator(HTTPConfig{CORS: HTTPCORSConfig{[]string{"*"}}})
-		assert.Error(t, err)
-		assert.Nil(t, server)
-	})
-}
-
 func TestSystem_Diagnostics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -240,43 +213,5 @@ func TestSystem_Load(t *testing.T) {
 		if assert.Len(t, target.F, 1) {
 			assert.Equal(t, "once", target.F[0])
 		}
-	})
-}
-
-func TestDecodeURIPath(t *testing.T) {
-	rawParam := "urn:oid:2.16.840.1.113883.2.4.6.1:87654321"
-	encodedParam := "urn%3Aoid%3A2.16.840.1.113883.2.4.6.1%3A87654321"
-
-	t.Run("without middleware, it returns the encoded param", func(t *testing.T) {
-		e := echo.New()
-		r := e.Router()
-		r.Add(http.MethodGet, "/api/:someparam", func(context echo.Context) error {
-			param := context.Param("someparam")
-			return context.Blob(200, "text/plain", []byte(param))
-		})
-
-		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/%v", encodedParam), nil)
-		rec := httptest.NewRecorder()
-		e.ServeHTTP(rec, req)
-		defer rec.Result().Body.Close()
-		bodyBytes, _ := io.ReadAll(rec.Result().Body)
-		assert.Equal(t, encodedParam, string(bodyBytes))
-	})
-
-	t.Run("with middleware, it return the decoded param", func(t *testing.T) {
-		e := echo.New()
-		r := e.Router()
-		e.Use(DecodeURIPath)
-		r.Add(http.MethodGet, "/api/:someparam", func(context echo.Context) error {
-			param := context.Param("someparam")
-			return context.Blob(200, "text/plain", []byte(param))
-		})
-
-		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/%v", encodedParam), nil)
-		rec := httptest.NewRecorder()
-		e.ServeHTTP(rec, req)
-		defer rec.Result().Body.Close()
-		bodyBytes, _ := io.ReadAll(rec.Result().Body)
-		assert.Equal(t, rawParam, string(bodyBytes))
 	})
 }

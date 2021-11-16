@@ -46,8 +46,6 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		assert.Equal(t, "info", cfg.Verbosity)
 		assert.Equal(t, "text", cfg.LoggerFormat)
 		assert.Equal(t, false, cfg.Strictmode)
-		assert.Equal(t, ":1323", cfg.HTTP.Address)
-		assert.Empty(t, cfg.HTTP.AltBinds)
 	})
 
 	t.Run("Sets global Env prefix", func(t *testing.T) {
@@ -133,21 +131,6 @@ func TestNewNutsConfig_Load(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.True(t, cfg.Strictmode)
-	})
-
-	t.Run("alt http configuration", func(t *testing.T) {
-		defer reset()
-		os.Args = []string{"command", "--configfile", "test/config/http.yaml"}
-		cfg := NewServerConfig()
-		cmd := testCommand()
-
-		err := cfg.Load(cmd.Flags())
-		assert.Equal(t, cfg.HTTP.Address, "alternative:1323")
-		assert.Len(t, cfg.HTTP.AltBinds, 2)
-		assert.Equal(t, cfg.HTTP.AltBinds["internal"].Address, "localhost:1111")
-		assert.Equal(t, cfg.HTTP.AltBinds["admin"].Address, "localhost:2222")
-
-		assert.NoError(t, err)
 	})
 
 	t.Run("error - incorrect yaml", func(t *testing.T) {
@@ -289,5 +272,47 @@ func TestTLSConfig_LoadCertificate(t *testing.T) {
 
 		assert.Empty(t, certificate)
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
+	})
+	t.Run("use of legacy properties", func(t *testing.T) {
+		cfg := *NewServerConfig()
+		cfg.LegacyTLS.CertFile = "test/non-existent.pem"
+		cfg.LegacyTLS.CertKeyFile = "test/non-existent.pem"
+		certificate, err := cfg.TLS.LoadCertificate()
+
+		assert.Empty(t, certificate)
+		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
+	})
+}
+
+func TestTLSConfig_LoadTrustStore(t *testing.T) {
+	t.Run("error - file does not exist", func(t *testing.T) {
+		cfg := *NewServerConfig()
+		cfg.TLS.TrustStoreFile = "test/non-existent.pem"
+		ts, err := cfg.TLS.LoadTrustStore()
+
+		assert.Empty(t, ts)
+		assert.EqualError(t, err, "unable to read trust store (file=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
+	})
+	t.Run("use of legacy properties", func(t *testing.T) {
+		cfg := *NewServerConfig()
+		cfg.LegacyTLS.TrustStoreFile = "test/non-existent.pem"
+		ts, err := cfg.TLS.LoadTrustStore()
+
+		assert.Empty(t, ts)
+		assert.EqualError(t, err, "unable to read trust store (file=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
+	})
+}
+
+func TestTLSConfig_GetCRLMaxValidityDays(t *testing.T) {
+	t.Run("tls", func(t *testing.T) {
+		cfg := *NewServerConfig()
+		cfg.TLS.CRL.MaxValidityDays = 1
+		assert.Equal(t, cfg.TLS.GetCRLMaxValidityDays(), 1)
+	})
+	t.Run("legacy", func(t *testing.T) {
+		cfg := *NewServerConfig()
+		cfg.TLS.CRL.MaxValidityDays = 1
+		cfg.LegacyTLS.MaxCRLValidityDays = 5
+		assert.Equal(t, cfg.TLS.GetCRLMaxValidityDays(), 5)
 	})
 }

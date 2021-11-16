@@ -22,6 +22,7 @@ package echo
 import (
 	"context"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net"
 	"net/http"
 	"os"
@@ -68,7 +69,10 @@ func TestStatusCodes(t *testing.T) {
 
 func startServer(t *testing.T) string {
 	testDir := io.TestDirectory(t)
-	system := cmd.CreateSystem()
+	var system *core.System
+	system = cmd.CreateSystem(func() {
+		_ = system.Shutdown()
+	})
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// command line arguments
