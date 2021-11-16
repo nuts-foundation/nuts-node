@@ -15,7 +15,7 @@ require (
 	github.com/jinzhu/gorm v1.9.14 // indirect
 	github.com/knadh/koanf v0.16.0
 	github.com/labstack/echo/v4 v4.6.1
-	github.com/lestrrat-go/jwx v1.2.10
+	github.com/lestrrat-go/jwx v1.2.11
 	github.com/magiconair/properties v1.8.5
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mdp/qrterminal/v3 v3.0.0
