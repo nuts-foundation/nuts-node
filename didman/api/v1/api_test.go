@@ -389,6 +389,13 @@ func TestWrapper_GetCompoundServices(t *testing.T) {
 		err := ctx.wrapper.GetCompoundServices(ctx.echo, idStr)
 		assert.NoError(t, err)
 	})
+	t.Run("no results (nil maps to empty array)", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.didman.EXPECT().GetCompoundServices(*id).Return(nil, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, []did.Service{})
+		err := ctx.wrapper.GetCompoundServices(ctx.echo, idStr)
+		assert.NoError(t, err)
+	})
 	t.Run("error - invalid DID", func(t *testing.T) {
 		invalidDIDStr := "nuts:123"
 		ctx := newMockContext(t)
@@ -615,6 +622,19 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 		results := []OrganizationSearchResult{{DIDDocument: did.Document{ID: *id}, Organization: map[string]interface{}{"name": "bar"}}}
 		ctx.didman.EXPECT().SearchOrganizations("query", &serviceType).Return(results, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, results)
+
+		err := ctx.wrapper.SearchOrganizations(ctx.echo, SearchOrganizationsParams{
+			Query:          "query",
+			DidServiceType: &serviceType,
+		})
+
+		assert.NoError(t, err)
+	})
+	t.Run("no results", func(t *testing.T) {
+		ctx := newMockContext(t)
+		serviceType := "service"
+		ctx.didman.EXPECT().SearchOrganizations("query", &serviceType).Return(nil, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, []OrganizationSearchResult{})
 
 		err := ctx.wrapper.SearchOrganizations(ctx.echo, SearchOrganizationsParams{
 			Query:          "query",
