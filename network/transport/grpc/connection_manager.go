@@ -164,7 +164,7 @@ func (s grpcConnectionManager) Connect(peerAddress string) {
 		err := s.openOutboundStreams(connection, grpcConn)
 		if err != nil {
 			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.getPeer(), err)
-			connection.close()
+			connection.disconnect()
 		}
 	})
 }
@@ -207,9 +207,9 @@ func (s *grpcConnectionManager) openOutboundStreams(connection managedConnection
 		log.Logger().Debugf("%T: Opened gRPC stream (peer=%s)", prot, connection.getPeer())
 
 		go func() {
-			// Waits for the clientStream to be done (other side closed the stream), then we close the connection on our side
+			// Waits for the clientStream to be done (other side closed the stream), then we disconnect the connection on our side
 			<-streamContext.Done()
-			connection.close()
+			connection.disconnect()
 		}()
 
 		protocolNum++
@@ -283,7 +283,7 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 		ID:      peerID,
 		Address: peerCtx.Addr.String(),
 	}
-	log.Logger().Infof("New peer connected (peer=%s)", peer)
+	log.Logger().Debugf("New inbound stream from peer (peer=%s,protocol=%T)", peer, inboundStream)
 
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?

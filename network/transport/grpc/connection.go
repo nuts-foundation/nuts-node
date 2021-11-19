@@ -31,7 +31,10 @@ import (
 // The connection can be either inbound or outbound. The presence of a managedConnection for a peer doesn't imply
 // there's an actual connection, because it might still be trying to establish an outbound connection to the given peer.
 type managedConnection interface {
+	// disconnect shuts down active inbound or outbound streams.
+	disconnect()
 	// close shuts down active inbound or outbound streams and stops active outbound connectors.
+	// After calling close() the managedConnection cannot be reused.
 	close()
 	getPeer() transport.Peer
 	connected(protocol string) bool
@@ -90,20 +93,41 @@ func (mc *conn) closer() <-chan struct{} {
 	return closer
 }
 
+func (mc *conn) disconnect() {
+	mc.mux.Lock()
+	defer mc.mux.Unlock()
+
+	mc.doDisconnect()
+}
+
 func (mc *conn) close() {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
+	mc.doDisconnect()
+	if mc.connector != nil {
+		mc.connector.stop()
+		mc.connector = nil
+	}
+
+	mc.grpcInboundStreams = nil
+	mc.grpcOutboundStreams = nil
+	mc.closers = nil
+}
+
+func (mc *conn) doDisconnect() {
+	// Call closers, signals inbound stream processors to close the stream
 	for _, closer := range mc.closers {
 		if len(closer) == 0 { // make sure we don't block should this function be called twice
 			closer <- struct{}{}
 		}
 	}
 
-	mc.grpcOutboundStreams = nil
-	mc.grpcInboundStreams = nil
+	// Clean up incoming connections
+	mc.grpcInboundStreams = make(map[string]grpc.ServerStream)
 
-	// Close the grpc.ClientConn (outbound connection)
+	// Clean up outbound connections
+	mc.grpcOutboundStreams = make(map[string]grpc.ClientStream)
 	if mc.grpcOutboundConnection != nil {
 		_ = mc.grpcOutboundConnection.Close()
 		mc.grpcOutboundConnection = nil
@@ -140,6 +164,9 @@ func (mc *conn) registerServerStream(serverStream grpc.ServerStream) error {
 
 	method := grpc.ServerTransportStreamFromContext(serverStream.Context()).Method()
 	if _, exists := mc.grpcInboundStreams[method]; exists {
+		return fmt.Errorf("peer is already connected (method=%s)", method)
+	}
+	if _, exists := mc.grpcOutboundStreams[method]; exists {
 		return fmt.Errorf("peer is already connected (method=%s)", method)
 	}
 
@@ -180,7 +207,7 @@ func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grp
 
 		connectedCallback(conn)
 	})
-	go mc.connector.loopConnect()
+	mc.connector.start()
 }
 
 func (mc *conn) connected(protocol string) bool {

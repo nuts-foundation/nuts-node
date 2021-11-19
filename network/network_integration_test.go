@@ -117,10 +117,12 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	}
 
 	// Now instruct node2 to connect to node1
+	t.Log("Instructing node2 to connect to node1")
 	node2.connectionManager.Connect(nameToAddress(t, "node1"))
 	time.Sleep(time.Second)
 	assert.Len(t, node1.connectionManager.Peers(), 1)
 	assert.Len(t, node2.connectionManager.Peers(), 1)
+	t.Log("Finished")
 }
 
 func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {

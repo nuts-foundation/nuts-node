@@ -35,6 +35,7 @@ func (c *connectionList) closeAll() {
 	for _, curr := range c.list {
 		curr.close()
 	}
+	c.list = nil
 }
 
 // getOrRegister retrieves the connection that matches the given peer (either on ID or address).
