@@ -40,6 +40,9 @@ type DAG interface {
 	Add(ctx context.Context, transactions ...Transaction) error
 	// Walk visits every node of the DAG, starting at the given hash working its way down each level until every leaf is visited.
 	// when startAt is an empty hash, the walker starts at the root node.
+	// The walker will resolve the given starting hash to a clock value.
+	// The walk will be clock based so some transactions may be revisited due to existing branches.
+	// Precautions must be taken to handle revisited transactions.
 	Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error
 	// FindBetween finds all transactions which signing time lies between startInclude and endExclusive.
 	// It returns the transactions in DAG walking order.
