@@ -395,11 +395,9 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 	t.Run("make request", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
-		subj := "urn:oid:2.16.840.1.113883.2.4.6.3:9999990"
 		body := CreateJwtGrantRequest{
 			Requester:  vdr.TestDIDA.String(),
 			Authorizer: vdr.TestDIDB.String(),
-			Subject:    &subj,
 			Identity:   "irma-token",
 			Service:    "service",
 		}
@@ -412,7 +410,6 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 			Requester:     body.Requester,
 			Authorizer:    body.Authorizer,
 			IdentityToken: &body.Identity,
-			Subject:       body.Subject,
 			Service:       "service",
 		}
 
@@ -427,13 +424,11 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 
 func TestWrapper_RequestAccessToken(t *testing.T) {
 	testID := "test-id"
-	testSubject := "test-testSubject"
 	fakeRequest := RequestAccessTokenRequest{
 		Requester:  vdr.TestDIDA.String(),
 		Authorizer: vdr.TestDIDB.String(),
 		Identity:   testID,
 		Service:    "test-service",
-		Subject:    &testSubject,
 	}
 
 	t.Run("returns_error_when_request_is_invalid", func(t *testing.T) {
@@ -464,7 +459,6 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				Authorizer:    vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
-				Subject:       &testSubject,
 			}).
 			Return(nil, errors.New("random error"))
 
@@ -492,7 +486,6 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				Authorizer:    "invalid..!!",
 				IdentityToken: &testID,
 				Service:       "test-service",
-				Subject:       &testSubject,
 			}).
 			Return(&services.JwtBearerTokenResult{
 				BearerToken: "jwt-bearer-token",
@@ -519,7 +512,6 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				Authorizer:    vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
-				Subject:       &testSubject,
 			}).
 			Return(&services.JwtBearerTokenResult{
 				BearerToken: "jwt-bearer-token",
@@ -550,7 +542,6 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				Authorizer:    vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
-				Subject:       &testSubject,
 			}).
 			Return(&services.JwtBearerTokenResult{
 				BearerToken: "jwt-bearer-token",
@@ -622,7 +613,6 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				Authorizer:    vdr.TestDIDB.String(),
 				IdentityToken: &testID,
 				Service:       "test-service",
-				Subject:       &testSubject,
 				Credentials:   credentials,
 			}).
 			Return(&services.JwtBearerTokenResult{
@@ -835,7 +825,6 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		exp := 1581412667
 		iat := 1581411767
 		iss := vdr.TestDIDB.String()
-		sid := "urn:oid:2.16.840.1.113883.2.4.6.3:999999990"
 		service := "service"
 		ctx.oauthClientMock.EXPECT().IntrospectAccessToken(request.Token).Return(
 			&services.NutsAccessToken{
@@ -844,7 +833,6 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 				IssuedAt:    int64(iat),
 				Issuer:      iss,
 				Subject:     aid,
-				SubjectID:   &sid,
 				Service:     service,
 				Credentials: []string{"credentialID"},
 			}, nil)
@@ -857,7 +845,6 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			Exp:    &exp,
 			Iat:    &iat,
 			Iss:    &iss,
-			Sid:    &sid,
 			Sub:    &aid,
 			//Uid:    &uid,
 			Service: &service,

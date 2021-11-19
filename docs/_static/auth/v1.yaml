@@ -576,8 +576,6 @@ components:
         - service
         - credentials
       properties:
-        subject:
-          type: string
         authorizer:
           type: string
         requester:
@@ -618,8 +616,6 @@ components:
         - service
         - credentials
       properties:
-        subject:
-          type: string
         authorizer:
           type: string
         requester:
@@ -717,10 +713,6 @@ components:
           description: |
             The subject is always the acting party, thus the care organization requesting access to data.
           example: "did:nuts:128903fjgfslcnmgpe84"
-        sid:
-          type: string
-          description: The Nuts subject id, patient identifier in the form of an oid encoded BSN.
-          example: "urn:oid:2.16.840.1.113883.2.4.6.3:9999990"
         aud:
           type: string
           description: |

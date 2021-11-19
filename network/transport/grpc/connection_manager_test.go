@@ -293,7 +293,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 			cm.connections.mux.Lock()
 			defer cm.connections.mux.Unlock()
 			return len(cm.connections.list) == 0, nil
-		}, time.Second * 2, "time-out while waiting for closed inbound connection to be removed")
+		}, time.Second*2, "time-out while waiting for closed inbound connection to be removed")
 	})
 }
 

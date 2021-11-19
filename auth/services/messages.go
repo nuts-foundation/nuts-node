@@ -51,7 +51,6 @@ type CreateJwtGrantRequest struct {
 	Authorizer    string
 	IdentityToken *string
 	Service       string
-	Subject       *string
 	Credentials   []vc.VerifiableCredential
 }
 
@@ -72,7 +71,6 @@ type JwtBearerTokenResult struct {
 // Its contents are derived from a Jwt Bearer token. The Jwt Bearer token is verified by the authorization server and
 // stripped from the proof to make it compact.
 type NutsAccessToken struct {
-	SubjectID  *string `json:"sid,omitempty"`
 	Service    string  `json:"service"`
 	Initials   *string `json:"initials,omitempty"`
 	Prefix     *string `json:"prefix,omitempty"`
