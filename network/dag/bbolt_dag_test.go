@@ -604,8 +604,8 @@ func TestBBoltDAG_Diagnostics(t *testing.T) {
 
 	actual := strings.Join(lines, "\n")
 	expected := fmt.Sprintf(`dag_heads: [`+doc1.Ref().String()+`]
-dag_transaction_count: 1
-dag_stored_database_size_bytes: %d`, dbSize.DataSize)
+dag_stored_database_size_bytes: %d
+dag_transaction_count: 1`, dbSize.DataSize)
 	assert.Equal(t, expected, actual)
 }
 
