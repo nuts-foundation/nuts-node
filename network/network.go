@@ -22,11 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
-	"github.com/pkg/errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -34,6 +29,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
+	"github.com/pkg/errors"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -76,11 +77,7 @@ type Network struct {
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
 func (n *Network) Walk(visitor dag.Visitor) error {
 	ctx := context.Background()
-	root, err := n.graph.Root(ctx)
-	if err != nil {
-		return err
-	}
-	return n.graph.Walk(ctx, dag.NewBFSWalkerAlgorithm(), visitor, root)
+	return n.graph.Walk(ctx, visitor, hash.EmptyHash())
 }
 
 // NewNetworkInstance creates a new Network engine instance.
@@ -107,6 +104,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
+	// migrate DAG to add Clock values
+	if err := n.graph.Migrate(); err != nil {
+		return fmt.Errorf("unable to migrate DAG: %w", err)
+	}
+
 	n.payloadStore = dag.NewBBoltPayloadStore(db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	n.peerID = transport.PeerID(uuid.New().String())

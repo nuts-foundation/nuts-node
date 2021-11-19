@@ -20,13 +20,14 @@ package logic
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/stretchr/testify/assert"
-	"strings"
-	"testing"
-	"time"
 )
 
 type testCase struct {
@@ -353,6 +354,10 @@ func (t testTX) SigningAlgorithm() string {
 }
 
 func (t testTX) MarshalJSON() ([]byte, error) {
+	panic("implement me")
+}
+
+func (t testTX) Clock() uint32 {
 	panic("implement me")
 }
 

@@ -114,6 +114,10 @@ func (s testTransaction) Data() []byte {
 	panic("implement me")
 }
 
+func (s testTransaction) Clock() uint32 {
+	panic("implement me")
+}
+
 const signingKeyID = "did:nuts:123#validKeyID123"
 
 func Test_ambassador_callback(t *testing.T) {
@@ -836,6 +840,35 @@ func Test_missingTransactions(t *testing.T) {
 		diff := missingTransactions(current, incoming)
 
 		assert.Empty(t, diff)
+	})
+}
+
+func Test_uniqueTransactions(t *testing.T) {
+	h1 := hash.SHA256Sum([]byte("hash1"))
+	h2 := hash.SHA256Sum([]byte("hash2"))
+
+	t.Run("ok - empty list", func(t *testing.T) {
+		current := []hash.SHA256Hash{}
+
+		unique := uniqueTransactions(current, h1)
+
+		assert.Len(t, unique, 1)
+	})
+
+	t.Run("ok - no overlap", func(t *testing.T) {
+		current := []hash.SHA256Hash{h2}
+
+		unique := uniqueTransactions(current, h1)
+
+		assert.Len(t, unique, 2)
+	})
+
+	t.Run("ok - duplicates", func(t *testing.T) {
+		current := []hash.SHA256Hash{h1, h2}
+
+		unique := uniqueTransactions(current, h1)
+
+		assert.Len(t, unique, 2)
 	})
 }
 

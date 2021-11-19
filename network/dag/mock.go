@@ -129,6 +129,20 @@ func (mr *MockDAGMockRecorder) IsPresent(ctx, ref interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockDAG)(nil).IsPresent), ctx, ref)
 }
 
+// Migrate mocks base method.
+func (m *MockDAG) Migrate() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Migrate")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Migrate indicates an expected call of Migrate.
+func (mr *MockDAGMockRecorder) Migrate() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Migrate", reflect.TypeOf((*MockDAG)(nil).Migrate))
+}
+
 // PayloadHashes mocks base method.
 func (m *MockDAG) PayloadHashes(ctx context.Context, visitor func(hash.SHA256Hash) error) error {
 	m.ctrl.T.Helper()
@@ -153,21 +167,6 @@ func (m *MockDAG) RegisterObserver(observer Observer) {
 func (mr *MockDAGMockRecorder) RegisterObserver(observer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterObserver", reflect.TypeOf((*MockDAG)(nil).RegisterObserver), observer)
-}
-
-// Root mocks base method.
-func (m *MockDAG) Root(ctx context.Context) (hash.SHA256Hash, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Root", ctx)
-	ret0, _ := ret[0].(hash.SHA256Hash)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Root indicates an expected call of Root.
-func (mr *MockDAGMockRecorder) Root(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Root", reflect.TypeOf((*MockDAG)(nil).Root), ctx)
 }
 
 // Statistics mocks base method.
@@ -199,17 +198,17 @@ func (mr *MockDAGMockRecorder) Verify(ctx interface{}) *gomock.Call {
 }
 
 // Walk mocks base method.
-func (m *MockDAG) Walk(ctx context.Context, algo WalkerAlgorithm, visitor Visitor, startAt hash.SHA256Hash) error {
+func (m *MockDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Walk", ctx, algo, visitor, startAt)
+	ret := m.ctrl.Call(m, "Walk", ctx, visitor, startAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Walk indicates an expected call of Walk.
-func (mr *MockDAGMockRecorder) Walk(ctx, algo, visitor, startAt interface{}) *gomock.Call {
+func (mr *MockDAGMockRecorder) Walk(ctx, visitor, startAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockDAG)(nil).Walk), ctx, algo, visitor, startAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockDAG)(nil).Walk), ctx, visitor, startAt)
 }
 
 // MockPublisher is a mock of Publisher interface.
