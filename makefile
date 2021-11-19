@@ -24,7 +24,7 @@ gen-mocks:
 	mockgen -destination=network/transport/v1/logic/senders_mock.go -package=logic -source=network/transport/v1/logic/senders.go messageSender
 	mockgen -destination=network/transport/v1/logic/payload_collector_mock.go -package=logic -source=network/transport/v1/logic/payload_collector.go
 	mockgen -destination=network/transport/v1/p2p/mock.go -package=p2p -source=network/transport/v1/p2p/interface.go P2PNetwork
-	mockgen -destination=network/transport/v1/p2p/connection_mock.go -package=p2p -source=network/transport/v1/p2p/connection.go grpcMessenger
+	mockgen -destination=network/transport/v1/p2p/messaging_mock.go -package=p2p -source=network/transport/v1/p2p/messaging.go grpcMessenger
 	mockgen -destination=network/transport/v1/protobuf/network_grpc_mock.go -package=protobuf -source=network/transport/v1/protobuf/network_grpc.pb.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go DAG PayloadStore
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
@@ -47,6 +47,8 @@ gen-api:
 gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/v1/protobuf/network.proto
 	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/v1/protobuf/network.proto
+	protoc --go_out=paths=source_relative:network -I network network/transport/grpc/testprotocol.proto
+	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/grpc/testprotocol.proto
 
 gen-docs:
 	go run ./docs docs

@@ -19,18 +19,25 @@
 package grpc
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 )
 
-// ServiceImplementor allows Protocol implementations to expose a gRPC service.
-type ServiceImplementor interface {
+// InboundStreamer allows Protocol implementations to expose gRPC streaming services.
+type InboundStreamer interface {
 	RegisterService(registrar grpc.ServiceRegistrar, acceptorCallback StreamAcceptor)
+}
+
+// OutboundStreamer allows Protocol implementations to call a gRPC stream on a remote peer.
+type OutboundStreamer interface {
+	// OpenStream start a gRPC stream on a remote peer. It must not be blocking.
+	OpenStream(context.Context, *grpc.ClientConn, func(stream grpc.ClientStream) (transport.Peer, error), <-chan struct{}) (context.Context, error)
 }
 
 // StreamAcceptor defines a function for accepting gRPC streams.
 // The following values are returned:
-// - `accepted` which indicates whether the stream has been accepted or not. If not accepted, the stream must be terminated.
 // - `peer` which holds information about the specific peer.
 // - `closer` channel which is used to signal when the stream must be closed.
-type StreamAcceptor func(serverStream grpc.ServerStream) (accepted bool, peer transport.Peer, closer chan struct{})
+// - `error` which indicates whether the stream has been accepted or not. If not accepted, the stream must be terminated and the error returned to the client.
+type StreamAcceptor func(serverStream grpc.ServerStream) (peer transport.Peer, closer <-chan struct{}, err error)

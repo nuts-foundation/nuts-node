@@ -19,7 +19,6 @@
 package grpc
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"sync/atomic"
@@ -27,39 +26,14 @@ import (
 	"time"
 )
 
-func Test_connectionList_closeAll(t *testing.T) {
-	cn := connectionList{}
-	connA := cn.getOrRegister(transport.Peer{ID: "a"}).closer()
-	connB := cn.getOrRegister(transport.Peer{ID: "b"}).closer()
-	cn.closeAll()
-
-	assert.Len(t, connA, 1)
-	assert.Len(t, connB, 1)
-}
-
-func Test_connectionList_getOrRegister(t *testing.T) {
-	t.Run("second call with same peer ID should return same connection", func(t *testing.T) {
-		cn := connectionList{}
-		connA := cn.getOrRegister(transport.Peer{ID: "a"})
-		connASecondCall := cn.getOrRegister(transport.Peer{ID: "a"})
-		assert.Equal(t, connA, connASecondCall)
-	})
-	t.Run("call with other peer ID should return same connection", func(t *testing.T) {
-		cn := connectionList{}
-		connA := cn.getOrRegister(transport.Peer{ID: "a"})
-		connB := cn.getOrRegister(transport.Peer{ID: "b"})
-		assert.NotEqual(t, connA, connB)
-	})
-}
-
-func Test_managedConnection_close(t *testing.T) {
+func Test_conn_close(t *testing.T) {
 	t.Run("no closers", func(t *testing.T) {
-		conn := managedConnection{}
+		conn := conn{}
 		conn.close()
 		assert.Empty(t, conn.closers)
 	})
 	t.Run("multiple closers", func(t *testing.T) {
-		conn := managedConnection{}
+		conn := conn{}
 		c1 := conn.closer()
 		c2 := conn.closer()
 		conn.close()
@@ -67,7 +41,7 @@ func Test_managedConnection_close(t *testing.T) {
 		assert.Len(t, c2, 1)
 	})
 	t.Run("multiple calls does not block", func(t *testing.T) {
-		conn := managedConnection{}
+		conn := conn{}
 		c := conn.closer()
 		conn.close()
 		conn.close()
@@ -77,11 +51,11 @@ func Test_managedConnection_close(t *testing.T) {
 	})
 }
 
-func Test_managedConnection_registerServerStream(t *testing.T) {
+func Test_conn_registerServerStream(t *testing.T) {
 	t.Run("cancelling before-last stream does not invoke callback", func(t *testing.T) {
 		called := atomic.Value{}
 		called.Store(false)
-		conn := managedConnection{inboundStreamsClosedCallback: func(connection *managedConnection) {
+		conn := conn{inboundStreamsClosedCallback: func(connection managedConnection) {
 			called.Store(true)
 		}}
 		stream1 := newServerStream("foo")
@@ -101,7 +75,7 @@ func Test_managedConnection_registerServerStream(t *testing.T) {
 	t.Run("cancelling last stream invokes callback", func(t *testing.T) {
 		called := atomic.Value{}
 		called.Store(false)
-		conn := managedConnection{inboundStreamsClosedCallback: func(connection *managedConnection) {
+		conn := conn{inboundStreamsClosedCallback: func(connection managedConnection) {
 			called.Store(true)
 		}}
 		stream := newServerStream("foo")
@@ -116,17 +90,4 @@ func Test_managedConnection_registerServerStream(t *testing.T) {
 
 		assert.True(t, called.Load().(bool))
 	})
-}
-
-func Test_connectionList_remove(t *testing.T) {
-	cn := connectionList{}
-	connA := cn.getOrRegister(transport.Peer{ID: "a"})
-	connB := cn.getOrRegister(transport.Peer{ID: "b"})
-	connC := cn.getOrRegister(transport.Peer{ID: "c"})
-
-	assert.Len(t, cn.list, 3)
-	cn.remove(connB)
-	assert.Len(t, cn.list, 2)
-	assert.Contains(t, cn.list, connA)
-	assert.Contains(t, cn.list, connC)
 }

@@ -16,23 +16,34 @@
  *
  */
 
-package transport
+package p2p
 
-import "github.com/nuts-foundation/nuts-node/core"
+import (
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
+	"sync"
+)
 
-// ConnectionManager manages the connections to peers, making outbound connections if required. It also determines the network layout.
-type ConnectionManager interface {
-	core.Diagnosable
+type stubMessenger struct {
+	out []*protobuf.NetworkMessage
+	sync.Mutex
+	recvWaitGroup sync.WaitGroup
+}
 
-	// Connect attempts to make an outbound connection to the given peer if it's not already connected.
-	Connect(peerAddress string)
+func (s *stubMessenger) MessagesSent() int {
+	s.Lock()
+	defer s.Unlock()
+	return len(s.out)
+}
 
-	// Peers returns a slice containing the peers that are currently connected.
-	Peers() []Peer
+func (s *stubMessenger) Send(message *protobuf.NetworkMessage) error {
+	s.Lock()
+	defer s.Unlock()
+	s.out = append(s.out, message)
+	return nil
+}
 
-	// Start instructs the ConnectionManager to start accepting connections and prepare to make outbound connections.
-	Start() error
-
-	// Stop shuts down the connections made by the ConnectionManager.
-	Stop()
+func (s *stubMessenger) Recv() (*protobuf.NetworkMessage, error) {
+	s.recvWaitGroup.Add(1)
+	s.recvWaitGroup.Wait()
+	return nil, nil
 }

@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	core "github.com/nuts-foundation/nuts-node/core"
 )
 
 // MockConnectionManager is a mock of ConnectionManager interface.
@@ -43,6 +44,20 @@ func (m *MockConnectionManager) Connect(peerAddress string) {
 func (mr *MockConnectionManagerMockRecorder) Connect(peerAddress interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockConnectionManager)(nil).Connect), peerAddress)
+}
+
+// Diagnostics mocks base method.
+func (m *MockConnectionManager) Diagnostics() []core.DiagnosticResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Diagnostics")
+	ret0, _ := ret[0].([]core.DiagnosticResult)
+	return ret0
+}
+
+// Diagnostics indicates an expected call of Diagnostics.
+func (mr *MockConnectionManagerMockRecorder) Diagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockConnectionManager)(nil).Diagnostics))
 }
 
 // Peers mocks base method.

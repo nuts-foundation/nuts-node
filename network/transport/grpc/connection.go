@@ -19,20 +19,67 @@
 package grpc
 
 import (
+	"crypto/tls"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 	"sync"
+	"sync/atomic"
 )
 
-type managedConnection struct {
-	peer                         transport.Peer
-	closers                      []chan struct{}
-	mux                          sync.Mutex
-	grpcInboundStreams           []grpc.ServerStream
-	inboundStreamsClosedCallback func(*managedConnection)
+// managedConnection is created by grpcConnectionManager to register a connection to a peer.
+// The connection can be either inbound or outbound. The presence of a managedConnection for a peer doesn't imply
+// there's an actual connection, because it might still be trying to establish an outbound connection to the given peer.
+type managedConnection interface {
+	// close shuts down active inbound or outbound streams and stops active outbound connectors.
+	close()
+	getPeer() transport.Peer
+	connected() bool
+	// open instructs the managedConnection to start connecting to the remote peer (attempting an outbound connection).
+	open(config *tls.Config, callback func(grpcConn *grpc.ClientConn))
+	// registerClientStream adds the given grpc.ClientStream to this managedConnection. It is closed when close() is called.
+	registerClientStream(stream grpc.ClientStream)
+	// registerServerStream adds the given grpc.ServerStream to this managedConnection.
+	registerServerStream(stream grpc.ServerStream)
+	// closer returns a channel that receives an item when the managedConnection is closing.
+	// Each time it is called a new channel will be returned. All channels will be published to when it is closing.
+	closer() <-chan struct{}
+	// verifyOrSetPeerID checks whether the given transport.PeerID matches the one currently set for this connection.
+	// If no transport.PeerID is set on this connection it just sets it. Subsequent calls must then match it.
+	// This method is used to:
+	// - Initial discovery of the peer's transport.PeerID, setting it when it isn't known before connecting.
+	// - Verify multiple active protocols to the same peer all send the same transport.PeerID.
+	// It returns false if the given transport.PeerID doesn't match the previously set transport.PeerID.
+	verifyOrSetPeerID(id transport.PeerID) bool
 }
 
-func (mc *managedConnection) closer() chan struct{} {
+func createConnection(dialer dialer, peer transport.Peer, inboundStreamsClosedCallback func(managedConnection)) managedConnection {
+	result := &conn{
+		dialer:                       dialer,
+		inboundStreamsClosedCallback: inboundStreamsClosedCallback,
+	}
+	result.peer.Store(peer)
+	return result
+}
+
+type conn struct {
+	peer                         atomic.Value
+	closers                      []chan struct{}
+	mux                          sync.Mutex
+	connector                    *outboundConnector
+	grpcOutboundConnection       *grpc.ClientConn
+	grpcOutboundStreams          []grpc.ClientStream
+	grpcInboundStreams           []grpc.ServerStream
+	inboundStreamsClosedCallback func(managedConnection)
+	dialer                       dialer
+}
+
+func (mc *conn) getPeer() transport.Peer {
+	// Populated through createConnection and verifyOrSetPeerID
+	peer, _ := mc.peer.Load().(transport.Peer)
+	return peer
+}
+
+func (mc *conn) closer() <-chan struct{} {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 	closer := make(chan struct{}, 1)
@@ -40,7 +87,7 @@ func (mc *managedConnection) closer() chan struct{} {
 	return closer
 }
 
-func (mc *managedConnection) close() {
+func (mc *conn) close() {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
@@ -49,9 +96,36 @@ func (mc *managedConnection) close() {
 			closer <- struct{}{}
 		}
 	}
+
+	mc.grpcOutboundStreams = nil
+	mc.grpcInboundStreams = nil
+
+	// Close the grpc.ClientConn (outbound connection)
+	if mc.grpcOutboundConnection != nil {
+		_ = mc.grpcOutboundConnection.Close()
+		mc.grpcOutboundConnection = nil
+	}
 }
 
-func (mc *managedConnection) registerServerStream(serverStream grpc.ServerStream) {
+func (mc *conn) verifyOrSetPeerID(id transport.PeerID) bool {
+	mc.mux.Lock()
+	defer mc.mux.Unlock()
+	currentPeer := mc.getPeer()
+	if len(currentPeer.ID) == 0 {
+		currentPeer.ID = id
+		mc.peer.Store(currentPeer)
+		return true
+	}
+	return currentPeer.ID == id
+}
+
+func (mc *conn) registerClientStream(clientStream grpc.ClientStream) {
+	mc.mux.Lock()
+	defer mc.mux.Unlock()
+	mc.grpcOutboundStreams = append(mc.grpcOutboundStreams, clientStream)
+}
+
+func (mc *conn) registerServerStream(serverStream grpc.ServerStream) {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 	mc.grpcInboundStreams = append(mc.grpcInboundStreams, serverStream)
@@ -77,65 +151,38 @@ func (mc *managedConnection) registerServerStream(serverStream grpc.ServerStream
 	}()
 }
 
-type connectionList struct {
-	mux  sync.Mutex
-	list []*managedConnection
+func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn)) {
+	mc.mux.Lock()
+	defer mc.mux.Unlock()
+
+	if mc.connector != nil {
+		// Already connecting
+		return
+	}
+
+	mc.closers = nil
+
+	mc.connector = createOutboundConnector(mc.getPeer().Address, mc.dialer, tlsConfig, func() bool {
+		return !mc.connected()
+	}, func(conn *grpc.ClientConn) {
+		mc.mux.Lock()
+		mc.grpcOutboundConnection = conn
+		mc.mux.Unlock()
+
+		connectedCallback(conn)
+	})
+	go mc.connector.loopConnect()
 }
 
-func (c *connectionList) closeAll() {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+func (mc *conn) connected() bool {
+	mc.mux.Lock()
+	defer mc.mux.Unlock()
 
-	for _, curr := range c.list {
-		curr.close()
+	if len(mc.grpcOutboundStreams) > 0 {
+		return true
 	}
-}
-
-func (c *connectionList) getOrRegister(peer transport.Peer) *managedConnection {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	// Check whether we're already connected to this peer (by ID)
-	for _, curr := range c.list {
-		if curr.peer.ID == peer.ID {
-			return curr
-		}
+	if len(mc.grpcInboundStreams) > 0 {
+		return true
 	}
-
-	result := &managedConnection{
-		peer: peer,
-		inboundStreamsClosedCallback: func(target *managedConnection) {
-			// When the all inbound streams are closed, remove it from the list.
-			c.remove(target)
-		},
-	}
-	c.list = append(c.list, result)
-	return result
-}
-
-func (c *connectionList) connected(peerID transport.PeerID) bool {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	for _, curr := range c.list {
-		if curr.peer.ID == peerID {
-			return true
-		}
-	}
-
 	return false
-}
-
-func (c *connectionList) remove(target *managedConnection) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	var j int
-	for _, curr := range c.list {
-		if curr != target {
-			c.list[j] = curr
-			j++
-		}
-	}
-	c.list = c.list[:j]
 }

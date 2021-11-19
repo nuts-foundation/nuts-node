@@ -76,7 +76,7 @@ func (p *protocol) Diagnostics() []core.DiagnosticResult {
 		log.Logger().Errorf("Error while collecting missing payloads: %s", err)
 	}
 	diagnostics = append(diagnostics, &core.GenericDiagnosticResult{
-		Title:   "[Protocol] Missing Payload Hashes",
+		Title:   "[Protocol v1] Missing Payload Hashes",
 		Outcome: fmt.Sprintf("%v", missingPayloads),
 	})
 

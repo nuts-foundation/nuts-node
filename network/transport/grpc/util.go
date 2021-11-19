@@ -16,38 +16,16 @@
  *
  */
 
-package p2p
+package grpc
 
 import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"net"
-	"strings"
-
 	"google.golang.org/grpc/metadata"
+	"strings"
 )
 
-const protocolVersionV1 = "v1"
-const protocolVersionHeader = "version"
-const peerIDHeader = "peerID"
-
-func normalizeAddress(addr string) string {
-	var normalizedAddr string
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		normalizedAddr = addr
-	} else {
-		if host == "localhost" {
-			host = "127.0.0.1"
-			normalizedAddr = net.JoinHostPort(host, port)
-		} else {
-			normalizedAddr = addr
-		}
-	}
-	return normalizedAddr
-}
-
-func peerIDFromMetadata(md metadata.MD) (transport.PeerID, error) {
+func readMetadata(md metadata.MD) (transport.PeerID, error) {
 	values := md.Get(peerIDHeader)
 	if len(values) == 0 {
 		return "", fmt.Errorf("peer didn't send %s header", peerIDHeader)
@@ -61,20 +39,9 @@ func peerIDFromMetadata(md metadata.MD) (transport.PeerID, error) {
 	return peerID, nil
 }
 
-func protocolVersionFromMetadata(md metadata.MD) (string, error) {
-	values := md.Get(protocolVersionHeader)
-	if len(values) == 0 {
-		// no version means v1 for backwards compatibility
-		return protocolVersionV1, nil
-	} else if len(values) > 1 {
-		return "", fmt.Errorf("peer sent multiple values for %s header", protocolVersionHeader)
-	}
-	return strings.TrimSpace(values[0]), nil
-}
-
 func constructMetadata(peerID transport.PeerID) metadata.MD {
 	return metadata.New(map[string]string{
 		peerIDHeader:          string(peerID),
-		protocolVersionHeader: protocolVersionV1,
+		protocolVersionHeader: protocolVersionV1, // required for backwards compatibility with v1
 	})
 }

@@ -25,21 +25,13 @@ import (
 // Protocol is a self-contained process that can exchange network data (e.g. DAG transactions or private credentials) with other parties on the network.
 type Protocol interface {
 	// Configure configures the Protocol implementation, must be called before Start().
-	Configure() error
+	Configure(peerID PeerID)
 	// Start starts the Protocol implementation.
-	Start() error
+	Start()
 	// Stop stops the Protocol implementation.
-	Stop() error
+	Stop()
 	// Diagnostics collects and returns diagnostical information on the protocol.
 	Diagnostics() []core.DiagnosticResult
 	// PeerDiagnostics collects and returns diagnostical information on the peers the protocol is communicating with.
 	PeerDiagnostics() map[PeerID]Diagnostics
-
-	// Connect attempts to make an outbound connection to the given peer if it's not already connected.
-	// TODO: After refactoring ManagedConnection, this function moves to NetworkManager
-	Connect(peerAddress string)
-
-	// Peers returns a slice containing the peers that are currently connected.
-	// TODO: After refactoring ManagedConnection, this function moves to NetworkManager
-	Peers() []Peer
 }
