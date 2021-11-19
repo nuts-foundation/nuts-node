@@ -13,6 +13,9 @@ Below you can discover the Nuts Node APIs and download their OpenAPI specificati
 - `Network <../_static/network/v1.yaml>`_
 - `Auth <../_static/auth/v1.yaml>`_
 
+.. raw:: html
+
+    &nbsp;
 
 .. raw:: html
 
