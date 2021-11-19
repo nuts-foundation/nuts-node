@@ -18,7 +18,7 @@
 
 package vdr
 
-const moduleName = "Verifiable Data Registry"
+const moduleName = "VDR"
 
 // Config holds the config for the VDR engine
 type Config struct{}

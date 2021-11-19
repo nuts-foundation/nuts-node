@@ -70,8 +70,9 @@ func (s *status) diagnosticsSummaryAsText(diagnostics map[string][]core.Diagnost
 	// Re-loop over engines to retain order
 	s.system.VisitEngines(func(engine core.Engine) {
 		if m, ok := engine.(core.ViewableDiagnostics); ok {
-			lines = append(lines, m.Name())
-			for _, d := range diagnostics[m.Name()] {
+			lcName := strings.ToLower(strings.ToLower(m.Name()))
+			lines = append(lines, lcName)
+			for _, d := range diagnostics[lcName] {
 				lines = append(lines, fmt.Sprintf("\t%s: %s", d.Name(), d.String()))
 			}
 		}
@@ -95,11 +96,11 @@ func (s *status) diagnosticsSummaryAsMap(diagnostics map[string][]core.Diagnosti
 // The results are a list of all registered engines
 func (s *status) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{
-		&core.GenericDiagnosticResult{Title: "Registered engines", Outcome: s.listAllEngines()},
-		&core.GenericDiagnosticResult{Title: "Uptime", Outcome: time.Now().Sub(s.startTime).Truncate(time.Second)},
-		&core.GenericDiagnosticResult{Title: "SoftwareVersion", Outcome: core.Version()},
-		&core.GenericDiagnosticResult{Title: "Git commit", Outcome: core.GitCommit},
-		&core.GenericDiagnosticResult{Title: "OS/Arch", Outcome: core.OSArch()},
+		&core.GenericDiagnosticResult{Title: "engines", Outcome: s.listAllEngines()},
+		&core.GenericDiagnosticResult{Title: "uptime", Outcome: time.Now().Sub(s.startTime).Truncate(time.Second)},
+		&core.GenericDiagnosticResult{Title: "software_version", Outcome: core.Version()},
+		&core.GenericDiagnosticResult{Title: "git_commit", Outcome: core.GitCommit},
+		&core.GenericDiagnosticResult{Title: "os_arch", Outcome: core.OSArch()},
 	}
 }
 
@@ -117,13 +118,13 @@ func (s *status) collectDiagnostics() map[string][]core.DiagnosticResult {
 	result := make(map[string][]core.DiagnosticResult, 0)
 	s.system.VisitEngines(func(engine core.Engine) {
 		if m, ok := engine.(core.ViewableDiagnostics); ok {
-			result[m.Name()] = m.Diagnostics()
+			result[strings.ToLower(m.Name())] = m.Diagnostics()
 		}
 	})
 	return result
 }
 
-// statusOK returns 200 OK with a "OK" body
+// statusOK returns 200 OK with an "OK" body
 func statusOK(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "OK")
 }

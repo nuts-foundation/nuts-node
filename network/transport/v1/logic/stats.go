@@ -44,7 +44,7 @@ func (d peerOmnihashStatistic) Result() interface{} {
 }
 
 func (d peerOmnihashStatistic) Name() string {
-	return "[Protocol v1] Peer omnihashes"
+	return "v1_protocol_peer_omnihashes"
 }
 
 func (d peerOmnihashStatistic) String() string {

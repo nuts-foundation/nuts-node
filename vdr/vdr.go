@@ -115,7 +115,7 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 
 	return []core.DiagnosticResult{
 		&core.GenericDiagnosticResult{
-			Title:   "# Conflicted DID Documents",
+			Title:   "conflicted_did_documents_count",
 			Outcome: count,
 		},
 	}
