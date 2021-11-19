@@ -57,8 +57,8 @@ type outboundConnector struct {
 	shouldConnect    func() bool
 	connectedBackoff func(cancelCtx context.Context)
 	// cancelFunc is used to signal the async connector loop (and specifically waits/sleeps) to abort.
-	cancelFunc       func()
-	stopped          *atomic.Value
+	cancelFunc func()
+	stopped    *atomic.Value
 }
 
 func (c *outboundConnector) start() {

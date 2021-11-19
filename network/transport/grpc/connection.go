@@ -27,6 +27,8 @@ import (
 	"sync/atomic"
 )
 
+const AnyProtocol = "*"
+
 // managedConnection is created by grpcConnectionManager to register a connection to a peer.
 // The connection can be either inbound or outbound. The presence of a managedConnection for a peer doesn't imply
 // there's an actual connection, because it might still be trying to establish an outbound connection to the given peer.
@@ -199,7 +201,7 @@ func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grp
 	mc.closers = nil
 
 	mc.connector = createOutboundConnector(mc.getPeer().Address, mc.dialer, tlsConfig, func() bool {
-		return !mc.connected("")
+		return !mc.connected(AnyProtocol)
 	}, func(conn *grpc.ClientConn) {
 		mc.mux.Lock()
 		mc.grpcOutboundConnection = conn
@@ -214,9 +216,9 @@ func (mc *conn) connected(protocol string) bool {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
-	if len(protocol) > 0 {
+	if protocol != AnyProtocol {
 		// Check for specific protocol
-		if len(mc.grpcOutboundStreams) > 0 {
+		if mc.grpcOutboundStreams[protocol] != nil {
 			return true
 		}
 		if mc.grpcInboundStreams[protocol] != nil {

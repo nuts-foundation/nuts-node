@@ -73,7 +73,7 @@ func (c *connectionList) listConnected() []transport.Peer {
 
 	var result []transport.Peer
 	for _, curr := range c.list {
-		if curr.connected("") {
+		if curr.connected(AnyProtocol) {
 			result = append(result, curr.getPeer())
 		}
 	}
