@@ -111,7 +111,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		instance := NewProtocol(nil, nil, nil, nil, nil).(*protocol)
 		instance.missingPayloadCollector = payloadCollector
 		diagnostics := instance.Diagnostics()
-		assert.Equal(t, "v1_protocol_missing_payload_hashes", diagnostics[1].Name())
+		assert.Equal(t, "v1_missing_payload_hashes", diagnostics[1].Name())
 		assert.Equal(t, "[0100000000000000000000000000000000000000000000000000000000000000]", diagnostics[1].String())
 	})
 
@@ -123,7 +123,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		instance := NewProtocol(nil, nil, nil, nil, nil).(*protocol)
 		instance.missingPayloadCollector = payloadCollector
 		diagnostics := instance.Diagnostics()
-		assert.Equal(t, "v1_protocol_missing_payload_hashes", diagnostics[1].Name())
+		assert.Equal(t, "v1_missing_payload_hashes", diagnostics[1].Name())
 		assert.Empty(t, "", diagnostics[1].String())
 	})
 }

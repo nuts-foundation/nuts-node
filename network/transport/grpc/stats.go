@@ -36,7 +36,7 @@ func (n numberOfPeersStatistic) Result() interface{} {
 
 // Name returns the name of the statistic.
 func (n numberOfPeersStatistic) Name() string {
-	return "v1_p2p_connected_peers_count"
+	return "connected_peers_count"
 }
 
 // String returns the statistic as string.
@@ -55,7 +55,7 @@ func (p peersStatistic) Result() interface{} {
 
 // Name returns the name of the statistic.
 func (p peersStatistic) Name() string {
-	return "v1_p2p_connected_peers"
+	return "connected_peers"
 }
 
 // String returns the statistic as string.
@@ -82,7 +82,7 @@ func (o ownPeerIDStatistic) Result() interface{} {
 
 // Name returns the name of the statistic.
 func (o ownPeerIDStatistic) Name() string {
-	return "v1_p2p_peer_id"
+	return "peer_id"
 }
 
 // String returns the statistic as string.
