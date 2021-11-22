@@ -88,18 +88,17 @@ func (p protocol) Stream(stream Protocol_StreamServer) error {
 }
 
 func (p protocol) receiveMessages(peer transport.Peer, stream grpc.StreamReceiver) {
-	grpc.ReceiveMessages(stream, func() interface{} {
+	err := grpc.ReceiveMessages(stream, func() interface{} {
 		return &Message{}
 	}, func(rawMsg interface{}) {
 		p.handle(peer, rawMsg.(*Message))
-	}, func(err error) {
-		errStatus, isStatusError := status.FromError(err)
-		if isStatusError && errStatus.Code() == codes.Canceled {
-			log.Logger().Infof("%T: Peer closed connection (peer=%s)", p, peer)
-		} else {
-			log.Logger().Warnf("%T: Peer connection error (peer=%s): %v", p, peer, err)
-		}
 	})
+	errStatus, isStatusError := status.FromError(err)
+	if isStatusError && errStatus.Code() == codes.Canceled {
+		log.Logger().Infof("%T: Peer closed connection (peer=%s)", p, peer)
+	} else {
+		log.Logger().Warnf("%T: Peer connection error (peer=%s): %v", p, peer, err)
+	}
 }
 
 func (p protocol) handle(peer transport.Peer, message *Message) {
