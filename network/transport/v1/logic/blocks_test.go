@@ -307,6 +307,7 @@ type testTX struct {
 	data []byte
 	prev []hash.SHA256Hash
 	sigt time.Time
+	toAddr []byte
 }
 
 func (t testTX) Ref() hash.SHA256Hash {
@@ -346,7 +347,7 @@ func (t testTX) SigningKey() jwk.Key {
 }
 
 func (t testTX) To() []byte {
-	panic("implement me")
+	return t.toAddr
 }
 
 func (t testTX) SigningKeyID() string {

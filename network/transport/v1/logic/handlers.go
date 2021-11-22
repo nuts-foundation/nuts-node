@@ -164,14 +164,34 @@ func (p *protocol) handleTransactionPayload(peer transport.PeerID, contents *pro
 func (p *protocol) handleTransactionPayloadQuery(peer transport.PeerID, query *protobuf.TransactionPayloadQuery) error {
 	payloadHash := hash.FromSlice(query.PayloadHash)
 	log.Logger().Tracef("Received transaction payload query from peer (peer=%s, payloadHash=%s)", peer, payloadHash)
-	data, err := p.payloadStore.ReadPayload(context.Background(), payloadHash)
+
+	ctx := context.Background()
+
+	transactions, err := p.graph.GetByPayloadHash(ctx, payloadHash)
 	if err != nil {
 		return err
 	}
+
+	// We need to return an empty payload for transactions with a to address in v1 protocol
+	for _, tx := range transactions {
+		if len(tx.To()) > 0 {
+			p.sender.sendTransactionPayload(peer, payloadHash, []byte{})
+
+			return nil
+		}
+	}
+
+	data, err := p.payloadStore.ReadPayload(ctx, payloadHash)
+	if err != nil {
+		return err
+	}
+
 	if data == nil {
 		log.Logger().Debugf("Peer queried us for transaction payload, but seems like we don't have it (peer=%s,payloadHash=%s)", peer, payloadHash)
 	}
+
 	p.sender.sendTransactionPayload(peer, payloadHash, data)
+
 	return nil
 }
 

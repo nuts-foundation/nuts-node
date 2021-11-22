@@ -231,9 +231,27 @@ func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 	t.Run("payload present (happy flow)", func(t *testing.T) {
 		ctx := newContext(t)
 		payload := []byte("Hello, World!")
-		ctx.payloadStore().EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(payload, nil)
 		payloadHash := hash.SHA256Sum([]byte{1, 2, 3})
+
+		ctx.graph().EXPECT().GetByPayloadHash(gomock.Any(), payloadHash).Return([]dag.Transaction{}, nil)
+		ctx.payloadStore().EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(payload, nil)
 		ctx.sender().EXPECT().sendTransactionPayload(peer, payloadHash, payload)
+		msg := &protobuf.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{
+			PayloadHash: payloadHash.Slice(),
+		}}
+		err := ctx.handle(msg)
+		assert.NoError(t, err)
+	})
+	t.Run("payload present but with to addr header", func(t *testing.T) {
+		ctx := newContext(t)
+		payloadHash := hash.SHA256Sum([]byte{1, 2, 3})
+
+		ctx.graph().EXPECT().GetByPayloadHash(gomock.Any(), payloadHash).Return([]dag.Transaction{
+			&testTX{
+				toAddr: []byte{1},
+			},
+		}, nil)
+		ctx.sender().EXPECT().sendTransactionPayload(peer, payloadHash, []byte{})
 		msg := &protobuf.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{
 			PayloadHash: payloadHash.Slice(),
 		}}
@@ -242,8 +260,10 @@ func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 	})
 	t.Run("payload not present (alt. flow)", func(t *testing.T) {
 		ctx := newContext(t)
-		ctx.payloadStore().EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(nil, nil)
 		payloadHash := hash.SHA256Sum([]byte{1, 2, 3})
+
+		ctx.graph().EXPECT().GetByPayloadHash(gomock.Any(), payloadHash).Return([]dag.Transaction{}, nil)
+		ctx.payloadStore().EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(nil, nil)
 		ctx.sender().EXPECT().sendTransactionPayload(peer, payloadHash, nil)
 		msg := &protobuf.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{
 			PayloadHash: payloadHash.Slice(),
