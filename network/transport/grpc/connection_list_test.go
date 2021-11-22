@@ -26,14 +26,20 @@ import (
 
 func Test_connectionList_closeAll(t *testing.T) {
 	cn := connectionList{}
+
 	connA, _ := cn.getOrRegister(transport.Peer{ID: "a"}, nil)
-	closerA := connA.closer()
+	connA.registerServerStream(newServerStream("b"))
+	doneA := connA.context().Done()
+
 	connB, _ := cn.getOrRegister(transport.Peer{ID: "b"}, nil)
-	closerB := connB.closer()
+	connB.registerServerStream(newServerStream("a"))
+	doneB := connB.context().Done()
+
 	cn.closeAll()
 
-	assert.Len(t, closerA, 1)
-	assert.Len(t, closerB, 1)
+	// Assert contexts are closed
+	<-doneA
+	<-doneB
 }
 
 func Test_connectionList_getOrRegister(t *testing.T) {

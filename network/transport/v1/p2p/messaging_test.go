@@ -19,6 +19,7 @@
 package p2p
 
 import (
+	"context"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
@@ -42,7 +43,7 @@ func Test_exchange(t *testing.T) {
 			return nil, io.EOF
 		})
 		if !invokeWaitFor(func() {
-			exchange(transport.Peer{}, messageQueue{}, make(chan *protobuf.NetworkMessage, 1), messenger, make(chan struct{}, 1), func() {})
+			exchange(transport.Peer{}, messageQueue{}, make(chan *protobuf.NetworkMessage, 1), messenger, context.Background(), func() {})
 		}, time.Second) {
 			t.Fatal("expected exchange() to return due to Recv() EOF")
 		}
@@ -61,17 +62,17 @@ func Test_exchange(t *testing.T) {
 			return nil, io.EOF
 		})
 
-		closer := make(chan struct{}, 1)
+		ctx, cancel := context.WithCancel(context.Background())
 
 		wg.Add(1)
 		go func() {
-			exchange(transport.Peer{}, messageQueue{}, make(chan *protobuf.NetworkMessage, 1), messenger, closer, func() {})
+			exchange(transport.Peer{}, messageQueue{}, make(chan *protobuf.NetworkMessage, 1), messenger, ctx, func() {})
 			wg.Done()
 		}()
 		// make sure exchange() called Recv(), otherwise the test will sometimes fail
 		recvWaiter.Wait()
 
-		closer <- struct{}{}
+		cancel()
 		if !waitFor(&wg, time.Second) {
 			t.Fatal("expected exchange() to return due to closer")
 		}
@@ -95,7 +96,7 @@ func Test_exchange(t *testing.T) {
 
 		// When the inbound queue is full it shouldn't block, and since Recv() returns EOF after backlog + 1,
 		// exchange() shouldn't block.
-		exchange(transport.Peer{}, q, make(chan *protobuf.NetworkMessage, 1), messenger, make(chan struct{}, 1), func() {})
+		exchange(transport.Peer{}, q, make(chan *protobuf.NetworkMessage, 1), messenger, context.Background(), func() {})
 
 		assert.Len(t, q.c, backlogSize)
 	})

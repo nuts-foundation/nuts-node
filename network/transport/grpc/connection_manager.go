@@ -60,14 +60,15 @@ func NewGRPCConnectionManager(config Config, protocols ...transport.Protocol) tr
 
 // grpcConnectionManager is a ConnectionManager that does not discover peers on its own, but just connects to the peers for which Connect() is called.
 type grpcConnectionManager struct {
-	protocols       []transport.Protocol
-	config          Config
-	connections     *connectionList
-	grpcServer      *grpc.Server
-	grpcServerMutex *sync.Mutex
-	listener        net.Listener
-	listenerCreator func(string) (net.Listener, error)
-	dialer          dialer
+	protocols        []transport.Protocol
+	config           Config
+	connections      *connectionList
+	grpcServer       *grpc.Server
+	grpcServerMutex  *sync.Mutex
+	listener         net.Listener
+	listenerCreator  func(string) (net.Listener, error)
+	dialer           dialer
+	stopCRLValidator func()
 }
 
 func (s *grpcConnectionManager) Start() error {
@@ -99,7 +100,9 @@ func (s *grpcConnectionManager) Start() error {
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 
 		// Configure support for checking revoked certificates
-		s.config.crlValidator.SyncLoop(context.TODO())
+		var crlValidatorCtx context.Context
+		crlValidatorCtx, s.stopCRLValidator = context.WithCancel(context.Background())
+		s.config.crlValidator.SyncLoop(crlValidatorCtx)
 		s.config.crlValidator.Configure(tlsConfig, s.config.maxCRLValidityDays)
 	} else {
 		log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
@@ -139,6 +142,10 @@ func (s grpcConnectionManager) Stop() {
 		s.grpcServer.GracefulStop()
 		s.grpcServer = nil
 		s.listener = nil // TCP listener is stopped by calling grpcServer.Stop()
+	}
+
+	if s.stopCRLValidator != nil {
+		s.stopCRLValidator()
 	}
 }
 
@@ -217,7 +224,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection managedConnection
 	if protocolNum == 0 {
 		return fmt.Errorf("could not use any of the supported protocols to communicate with peer (id=%s)", connection.getPeer())
 	}
-	<-connection.closer() // block until connection is closed
+	<-connection.context().Done() // block until connection is closed
 	return nil
 }
 
@@ -256,11 +263,11 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 			ID:      peerID,
 			Address: grpcConn.Target(),
 		}, nil
-	}, connection.closer())
+	})
 	return streamContext, err
 }
 
-func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStream) (transport.Peer, <-chan struct{}, error) {
+func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStream) (transport.Peer, context.Context, error) {
 	peerCtx, _ := grpcPeer.FromContext(inboundStream.Context())
 	log.Logger().Tracef("New peer connected from %s", peerCtx.Addr)
 
@@ -292,5 +299,5 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 	if err != nil {
 		return peer, nil, err
 	}
-	return peer, connection.closer(), nil
+	return peer, connection.context(), nil
 }

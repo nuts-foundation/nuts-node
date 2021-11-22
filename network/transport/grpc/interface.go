@@ -26,18 +26,18 @@ import (
 
 // InboundStreamer allows Protocol implementations to expose gRPC streaming services.
 type InboundStreamer interface {
-	RegisterService(registrar grpc.ServiceRegistrar, acceptorCallback StreamAcceptor)
+	RegisterService(registrar grpc.ServiceRegistrar, acceptorCallback InboundStreamHandler)
 }
 
 // OutboundStreamer allows Protocol implementations to call a gRPC stream on a remote peer.
 type OutboundStreamer interface {
 	// OpenStream start a gRPC stream on a remote peer. It must not be blocking.
-	OpenStream(context.Context, *grpc.ClientConn, func(stream grpc.ClientStream, method string) (transport.Peer, error), <-chan struct{}) (context.Context, error)
+	OpenStream(context.Context, *grpc.ClientConn, func(stream grpc.ClientStream, method string) (transport.Peer, error)) (context.Context, error)
 }
 
-// StreamAcceptor defines a function for accepting gRPC streams.
+// InboundStreamHandler defines a function for accepting gRPC streams.
 // The following values are returned:
 // - `peer` which holds information about the specific peer.
-// - `closer` channel which is used to signal when the stream must be closed.
+// - `ctx` a context that can be used to wait until the connection has been closed.
 // - `error` which indicates whether the stream has been accepted or not. If not accepted, the stream must be terminated and the error returned to the client.
-type StreamAcceptor func(serverStream grpc.ServerStream) (peer transport.Peer, closer <-chan struct{}, err error)
+type InboundStreamHandler func(serverStream grpc.ServerStream) (peer transport.Peer, ctx context.Context, err error)

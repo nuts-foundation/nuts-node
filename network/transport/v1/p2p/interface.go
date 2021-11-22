@@ -39,7 +39,7 @@ type Adapter interface {
 	// EventChannels returns the channels that are used to communicate P2P network events on. They MUST be listened
 	// on by a consumer.
 	EventChannels() (peerConnected chan transport.Peer, peerDisconnected chan transport.Peer)
-	OpenStream(ctx context.Context, grpcConn *grpcLib.ClientConn, conn func(stream grpcLib.ClientStream, method string) (transport.Peer, error), i <-chan struct{}) (context.Context, error)
+	OpenStream(ctx context.Context, grpcConn *grpcLib.ClientConn, conn func(stream grpcLib.ClientStream, method string) (transport.Peer, error)) (context.Context, error)
 }
 
 // MessageQueue defines an interfaces for reading incoming network messages from a queue.

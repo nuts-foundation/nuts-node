@@ -17,10 +17,10 @@ func New() transport.Protocol {
 }
 
 type protocol struct {
-	acceptor grpc.StreamAcceptor
+	acceptor grpc.InboundStreamHandler
 }
 
-func (p protocol) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.StreamAcceptor) {
+func (p protocol) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.InboundStreamHandler) {
 	p.acceptor = acceptor
 	RegisterProtocolServer(registrar, p)
 }
@@ -43,7 +43,7 @@ func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 }
 
 // OpenStream is called when an outbound stream is opened to a remote peer.
-func (p protocol) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream, method string) (transport.Peer, error), closer <-chan struct{}) (context.Context, error) {
+func (p protocol) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream, method string) (transport.Peer, error)) (context.Context, error) {
 	client := NewProtocolClient(grpcConn)
 	stream, err := client.Stream(outgoingContext)
 	peer, err := callback(stream, grpc.GetStreamMethod(Protocol_ServiceDesc.ServiceName, Protocol_ServiceDesc.Streams[0]))
@@ -68,7 +68,7 @@ func (p protocol) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.
 
 // Stream is called when a peer opens a stream to the local node (inbound connections).
 func (p protocol) Stream(stream Protocol_StreamServer) error {
-	peer, closer, err := p.acceptor(stream)
+	peer, ctx, err := p.acceptor(stream)
 	if err != nil {
 		log.Logger().Warnf("ProtocolV2: Inbound stream not accepted, returning error to client: %v", err)
 		return err
@@ -82,7 +82,7 @@ func (p protocol) Stream(stream Protocol_StreamServer) error {
 	go func() {
 		p.receiveMessages(peer, stream)
 	}()
-	<-closer
+	<-ctx.Done()
 	return nil
 }
 
