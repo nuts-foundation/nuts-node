@@ -345,6 +345,10 @@ func (t testTX) SigningKey() jwk.Key {
 	panic("implement me")
 }
 
+func (t testTX) To() []byte {
+	panic("implement me")
+}
+
 func (t testTX) SigningKeyID() string {
 	panic("implement me")
 }

@@ -37,6 +37,7 @@ const currentVersion = 1
 const signingTimeHeader = "sigt"
 const versionHeader = "ver"
 const previousHeader = "prevs"
+const toHeader = "to"
 
 var allowedAlgos = []jwa.SignatureAlgorithm{jwa.ES256, jwa.ES384, jwa.ES512, jwa.PS256, jwa.PS384, jwa.PS512}
 
@@ -50,6 +51,7 @@ var invalidHeaderErrFmt = "invalid %s header"
 // UnsignedTransaction holds the base properties of a transaction which can be signed to create a Transaction.
 type UnsignedTransaction interface {
 	NetworkHeader
+	Addressable
 	PayloadReferencer
 }
 
@@ -91,11 +93,18 @@ type Referencable interface {
 	Ref() hash.SHA256Hash
 }
 
+// Addressable contains the To function which allows returning the address of the recipient
+type Addressable interface {
+	// To contains the encrypted address of the recipient
+	To() []byte
+}
+
 // Transaction defines a signed distributed transaction as described by RFC004 - Distributed Transaction Format.
 type Transaction interface {
 	UnsignedTransaction
 	Signable
 	Referencable
+	Addressable
 	json.Marshaler
 	// Data returns the byte representation of this transaction which can be used for transport.
 	Data() []byte
@@ -158,10 +167,15 @@ type transaction struct {
 	lamportClock     uint32
 	data             []byte
 	ref              hash.SHA256Hash
+	toAddr           []byte
 }
 
 func (d transaction) MarshalJSON() ([]byte, error) {
 	return json.Marshal(string(d.Data()))
+}
+
+func (d transaction) To() []byte {
+	return d.toAddr
 }
 
 func (d transaction) Data() []byte {

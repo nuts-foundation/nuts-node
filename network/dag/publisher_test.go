@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -106,6 +107,22 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		})
 		publisher.publishTransaction(ctx, transaction)
 		assert.True(t, received)
+	})
+	t.Run("not received when transaction with to header is skipped", func(t *testing.T) {
+		publisher, ctrl, _ := createPublisher(t)
+		defer ctrl.Finish()
+		ctx := context.Background()
+
+		transaction := CreateSignedTestTransaction(1, time.Now(), []byte{9, 8, 7}, "foo/bar", true)
+
+		received := false
+		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+			assert.Equal(t, transaction, actualTransaction)
+			received = true
+			return nil
+		})
+		publisher.publishTransaction(ctx, transaction)
+		assert.False(t, received)
 	})
 	t.Run("payload not present (but present later)", func(t *testing.T) {
 		publisher, ctrl, store := createPublisher(t)

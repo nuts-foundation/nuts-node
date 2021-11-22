@@ -41,9 +41,9 @@ func TestFlagSet(t *testing.T) {
 }
 
 func TestCmd_List(t *testing.T) {
-	t1 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(0)*time.Second), "zfoo/bar", true)
-	t2 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(60)*time.Second), "bar/foo", true)
-	t3 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(30)*time.Second), "1foo/bar", true)
+	t1 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(0)*time.Second), nil, "zfoo/bar", true)
+	t2 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(60)*time.Second), nil, "bar/foo", true)
+	t3 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(30)*time.Second), nil, "1foo/bar", true)
 	response := []interface{}{string(t1.Data()), string(t2.Data()), string(t3.Data())}
 	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
 	defer s.Close()

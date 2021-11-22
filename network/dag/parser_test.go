@@ -21,6 +21,7 @@ package dag
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"encoding/base64"
 	"testing"
 	"time"
 
@@ -38,6 +39,7 @@ func TestParseTransaction(t *testing.T) {
 	payloadAsBytes := []byte(payload.String())
 	t.Run("ok", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
+		_ = headers.Set("to", base64.StdEncoding.EncodeToString([]byte{5, 6, 7}))
 		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
 
 		transaction, err := ParseTransaction(signature)
@@ -50,16 +52,19 @@ func TestParseTransaction(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
+
 		assert.NotNil(t, transaction)
 		if !assert.NoError(t, err) {
 			return
 		}
+
 		assert.Equal(t, payload, transaction.PayloadHash())
 		assert.Equal(t, key.PublicKey, actualKey)
 		assert.Equal(t, 1, int(transaction.Version()))
 		assert.Equal(t, "foo/bar", transaction.PayloadType())
 		assert.Equal(t, time.UTC, transaction.SigningTime().Location())
 		assert.Equal(t, headers.PrivateParams()[previousHeader].([]string)[0], transaction.Previous()[0].String())
+		assert.Equal(t, transaction.To(), []byte{5, 6, 7})
 		assert.NotNil(t, transaction.Data())
 		assert.False(t, transaction.Ref().Empty())
 	})
@@ -72,6 +77,17 @@ func TestParseTransaction(t *testing.T) {
 		tx, err := ParseTransaction([]byte("{}"))
 		assert.Nil(t, tx)
 		assert.EqualError(t, err, "unable to parse transaction: failed to unmarshal jws message: required field \"signatures\" not present")
+	})
+	t.Run("error - to header has invalid type", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", false)
+		_ = headers.Set("to", 100)
+
+		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+
+		transaction, err := ParseTransaction(signature)
+
+		assert.Nil(t, transaction)
+		assert.EqualError(t, err, "transaction validation failed: invalid to header")
 	})
 	t.Run("error - sigt header is missing", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)

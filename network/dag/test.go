@@ -36,14 +36,19 @@ import (
 // CreateTestTransactionWithJWK creates a transaction with the given num as payload hash and signs it with a random EC key.
 // The JWK is attached, rather than referred to using the kid.
 func CreateTestTransactionWithJWK(num uint32, prevs ...hash.SHA256Hash) Transaction {
-	return CreateSignedTestTransaction(num, time.Now(), "foo/bar", true, prevs...)
+	return CreateSignedTestTransaction(num, time.Now(), nil, "foo/bar", true, prevs...)
 }
 
 // CreateSignedTestTransaction creates a signed transaction with more control
-func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, payloadType string, attach bool, prevs ...hash.SHA256Hash) Transaction {
+func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, to []byte, payloadType string, attach bool, prevs ...hash.SHA256Hash) Transaction {
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], payloadNum)
 	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevs)
+
+	if to != nil {
+		unsignedTransaction.(*transaction).toAddr = to
+	}
+
 	signer := crypto2.NewTestKey(fmt.Sprintf("%d", payloadNum))
 	signedTransaction, err := NewTransactionSigner(signer, attach).Sign(unsignedTransaction, signingTime)
 	if err != nil {

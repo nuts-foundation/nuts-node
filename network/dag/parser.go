@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -51,6 +52,7 @@ func ParseTransaction(input []byte) (Transaction, error) {
 		parseSigningTime,
 		parseVersion,
 		parsePrevious,
+		parseTo,
 	}
 
 	result := &transaction{}
@@ -162,6 +164,27 @@ func parsePrevious(transaction *transaction, headers jws.Headers, _ *jws.Message
 		}
 		return nil
 	}
+}
+
+func parseTo(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
+	toAddr, ok := headers.Get(toHeader)
+	if !ok {
+		return nil
+	}
+
+	toAddrStr, ok := toAddr.(string)
+	if !ok {
+		return transactionValidationError(invalidHeaderErrFmt, toHeader)
+	}
+
+	addr, err := base64.StdEncoding.DecodeString(toAddrStr)
+	if err != nil {
+		return transactionValidationError(invalidHeaderErrFmt, toHeader)
+	}
+
+	transaction.toAddr = addr
+
+	return nil
 }
 
 func isAlgoAllowed(algo jwa.SignatureAlgorithm) bool {

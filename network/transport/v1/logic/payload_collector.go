@@ -41,9 +41,23 @@ func (c broadcastingMissingPayloadCollector) findMissingPayloads() ([]hash.SHA25
 			if err != nil {
 				return fmt.Errorf("error while checking presence of payload hash (hash=%s): %w", payloadHash, err)
 			}
+
 			if !present {
+				transactions, err := c.graph.GetByPayloadHash(ctx, payloadHash)
+				if err != nil {
+					return fmt.Errorf("error while checking presence of payload hash (hash=%s): %w", payloadHash, err)
+				}
+
+				// If one of the transactions contains a to address, we need to ignore it as it should be handled by the v2 protocol
+				for _, tx := range transactions {
+					if len(tx.To()) > 0 {
+						return nil
+					}
+				}
+
 				missingPayloadHashes = append(missingPayloadHashes, payloadHash)
 			}
+
 			return nil
 		})
 	})
