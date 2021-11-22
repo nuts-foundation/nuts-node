@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 )
 
+// AnyProtocol is a constant for checking the connectivity on any supported protocol.
 const AnyProtocol = "*"
 
 // managedConnection is created by grpcConnectionManager to register a connection to a peer.

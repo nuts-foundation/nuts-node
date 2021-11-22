@@ -43,7 +43,7 @@ func Test_exchange(t *testing.T) {
 			return nil, io.EOF
 		})
 		if !invokeWaitFor(func() {
-			exchange(transport.Peer{}, messageQueue{}, make(chan *protobuf.NetworkMessage, 1), messenger, context.Background(), func() {})
+			exchange(context.Background(), transport.Peer{}, messageQueue{}, make(chan *protobuf.NetworkMessage, 1), messenger, func() {})
 		}, time.Second) {
 			t.Fatal("expected exchange() to return due to Recv() EOF")
 		}
@@ -66,7 +66,7 @@ func Test_exchange(t *testing.T) {
 
 		wg.Add(1)
 		go func() {
-			exchange(transport.Peer{}, messageQueue{}, make(chan *protobuf.NetworkMessage, 1), messenger, ctx, func() {})
+			exchange(ctx, transport.Peer{}, messageQueue{}, make(chan *protobuf.NetworkMessage, 1), messenger, func() {})
 			wg.Done()
 		}()
 		// make sure exchange() called Recv(), otherwise the test will sometimes fail
@@ -96,7 +96,7 @@ func Test_exchange(t *testing.T) {
 
 		// When the inbound queue is full it shouldn't block, and since Recv() returns EOF after backlog + 1,
 		// exchange() shouldn't block.
-		exchange(transport.Peer{}, q, make(chan *protobuf.NetworkMessage, 1), messenger, context.Background(), func() {})
+		exchange(context.Background(), transport.Peer{}, q, make(chan *protobuf.NetworkMessage, 1), messenger, func() {})
 
 		assert.Len(t, q.c, backlogSize)
 	})

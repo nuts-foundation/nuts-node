@@ -49,6 +49,7 @@ func constructMetadata(peerID transport.PeerID) metadata.MD {
 	})
 }
 
+// GetStreamMethod formats the method name for the given stream.
 func GetStreamMethod(serviceName string, stream grpc.StreamDesc) string {
 	return fmt.Sprintf("/%s/%s", serviceName, stream.StreamName)
 }

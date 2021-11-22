@@ -41,7 +41,7 @@ func Test_adapter_Send(t *testing.T) {
 
 		adapter := NewAdapter().(*adapter)
 		ctx, cancel := context.WithCancel(context.Background())
-		_ = adapter.acceptPeer(transport.Peer{ID: peerID}, messenger, ctx)
+		_ = adapter.acceptPeer(ctx, transport.Peer{ID: peerID}, messenger)
 		err := adapter.Send(peerID, &protobuf.NetworkMessage{})
 		if !assert.NoError(t, err) {
 			return
@@ -66,7 +66,7 @@ func Test_adapter_Send(t *testing.T) {
 
 		adapter := NewAdapter().(*adapter)
 		ctx, cancel := context.WithCancel(context.Background())
-		_ = adapter.acceptPeer(transport.Peer{ID: peerID}, messenger, ctx)
+		_ = adapter.acceptPeer(ctx, transport.Peer{ID: peerID}, messenger)
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		go func() {
@@ -107,7 +107,7 @@ func Test_adapter_Send(t *testing.T) {
 			cancel()
 		}()
 		adapter := NewAdapter().(*adapter)
-		_ = adapter.acceptPeer(transport.Peer{ID: peerID}, messenger, ctx)
+		_ = adapter.acceptPeer(ctx, transport.Peer{ID: peerID}, messenger)
 
 		// First one is taken and put into Send(), which blocks
 		err := adapter.Send(peerID, &protobuf.NetworkMessage{})
@@ -141,8 +141,8 @@ func Test_adapter_Broadcast(t *testing.T) {
 	messenger1 := &stubMessenger{}
 	messenger2 := &stubMessenger{}
 
-	_ = adapter.acceptPeer(transport.Peer{ID: peer1ID}, messenger1, context.Background())
-	_ = adapter.acceptPeer(transport.Peer{ID: peer2ID}, messenger2, context.Background())
+	_ = adapter.acceptPeer(context.Background(), transport.Peer{ID: peer1ID}, messenger1)
+	_ = adapter.acceptPeer(context.Background(), transport.Peer{ID: peer2ID}, messenger2)
 
 	adapter.Broadcast(&protobuf.NetworkMessage{})
 

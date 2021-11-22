@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// New creates an instance of the v2 protocol.
 func New() transport.Protocol {
 	return &protocol{}
 }

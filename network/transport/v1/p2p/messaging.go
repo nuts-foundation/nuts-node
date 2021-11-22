@@ -34,7 +34,7 @@ type grpcMessenger interface {
 	Recv() (*protobuf.NetworkMessage, error)
 }
 
-func exchange(peer transport.Peer, messageReceiver messageQueue, out <-chan *protobuf.NetworkMessage, messenger grpcMessenger, ctx context.Context, cancelFunc context.CancelFunc) {
+func exchange(ctx context.Context, peer transport.Peer, messageReceiver messageQueue, out <-chan *protobuf.NetworkMessage, messenger grpcMessenger, cancelFunc context.CancelFunc) {
 	// Use copies of pointers to prevent nil deref when close() is called
 	in := receiveMessages(peer.ID, messenger)
 	done := ctx.Done()
