@@ -70,7 +70,7 @@ type grpcConnectionManager struct {
 	listener         net.Listener
 	listenerCreator  func(string) (net.Listener, error)
 	dialer           dialer
-	nodeDIDReader    transport.NodeDIDReader
+	nodeDIDReader   transport.NodeDIDResolver
 	stopCRLValidator func()
 }
 
@@ -322,7 +322,7 @@ func (s *grpcConnectionManager) constructMetadata() (metadata.MD, error) {
 		protocolVersionHeader: protocolVersionV1, // required for backwards compatibility with v1
 	})
 
-	nodeDID, err := s.nodeDIDReader.ReadNodeDID()
+	nodeDID, err := s.nodeDIDReader.Resolve()
 	if err != nil {
 		return nil, fmt.Errorf("error reading local node DID: %w", err)
 	}

@@ -40,18 +40,18 @@ type ConnectionManager interface {
 	Stop()
 }
 
-// NodeDIDReader defines an interface for types that resolve the local node's DID, which is used to identify the node on the network.
-type NodeDIDReader interface {
-	// ReadNodeDID tries to resolve the node DID. If it's absent, an empty DID is returned. In any other non-successful case an error is returned.
-	ReadNodeDID() (did.DID, error)
+// NodeDIDResolver defines an interface for types that resolve the local node's DID, which is used to identify the node on the network.
+type NodeDIDResolver interface {
+	// Resolve tries to resolve the node DID. If it's absent, an empty DID is returned. In any other non-successful case an error is returned.
+	Resolve() (did.DID, error)
 }
 
-// FixedNodeDIDReader is a NodeDIDReader that returns a preset DID.
-type FixedNodeDIDReader struct {
+// FixedNodeDIDResolver is a NodeDIDResolver that returns a preset DID.
+type FixedNodeDIDResolver struct {
 	NodeDID did.DID
 }
 
-func (f FixedNodeDIDReader) ReadNodeDID() (did.DID, error) {
+func (f FixedNodeDIDResolver) Resolve() (did.DID, error) {
 	return f.NodeDID, nil
 }
 

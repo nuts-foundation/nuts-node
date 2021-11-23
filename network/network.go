@@ -146,7 +146,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
 		}
 		// Resolve node DID
-		var nodeDIDReader transport.FixedNodeDIDReader
+		var nodeDIDReader transport.FixedNodeDIDResolver
 		if n.config.NodeDID != "" {
 			var err error
 			n.configuredNodeDID, err = did.ParseDID(n.config.NodeDID)
