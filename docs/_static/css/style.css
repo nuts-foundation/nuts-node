@@ -5,3 +5,16 @@
 ul.current {
     margin-bottom: 2em;
 }
+
+#nuts-node-apis ul li {
+    list-style: disc;
+    margin-left: 24px;
+}
+
+#nuts-node-apis ul li p {
+    margin: 0px;
+}
+
+.wy-menu-vertical > p {
+    margin: 24px 0 24px;
+}

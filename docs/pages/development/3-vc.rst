@@ -124,7 +124,7 @@ NutsOrganizationCredential
    :literal:
 
 NutsAuthorizationCredential
-==========================
+===========================
 
 .. include:: ../../../vcr/assets/NutsAuthorizationCredential.config.yaml
    :literal:
