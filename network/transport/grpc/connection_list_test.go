@@ -29,11 +29,11 @@ func Test_connectionList_closeAll(t *testing.T) {
 	cn := connectionList{}
 
 	connA, _ := cn.getOrRegister(transport.Peer{ID: "a"}, nil)
-	connA.registerServerStream(newServerStream("b"))
+	connA.registerServerStream(newServerStream("b", ""))
 	doneA := connA.context().Done()
 
 	connB, _ := cn.getOrRegister(transport.Peer{ID: "b"}, nil)
-	connB.registerServerStream(newServerStream("a"))
+	connB.registerServerStream(newServerStream("a", ""))
 	doneB := connB.context().Done()
 
 	cn.closeAll()

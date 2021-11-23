@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1"
@@ -71,8 +72,9 @@ type Network struct {
 	keyResolver            types.KeyResolver
 	startTime              atomic.Value
 	peerID                 transport.PeerID
+	configuredNodeDID      *did.DID
+	didDocumentResolver    types.DocResolver
 	db                     *bbolt.DB
-	started                bool
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -139,10 +141,22 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Setup connection manager, load with bootstrap nodes
 	if n.connectionManager == nil {
 		var grpcOpts []grpc.ConfigOption
+		// Configure TLS
 		if n.config.EnableTLS {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
 		}
-		n.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...), n.protocols...)
+		// Resolve node DID
+		var nodeDIDReader transport.FixedNodeDIDReader
+		if n.config.NodeDID != "" {
+			var err error
+			n.configuredNodeDID, err = did.ParseDID(n.config.NodeDID)
+			if err != nil {
+				return fmt.Errorf("configured NodeDID is invalid: %w", err)
+			}
+			nodeDIDReader.NodeDID = *n.configuredNodeDID
+		}
+		// Instantiate
+		n.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...), nodeDIDReader, n.protocols...)
 	}
 	return nil
 }
@@ -177,6 +191,14 @@ func (n *Network) Start() error {
 
 	if err := n.graph.Verify(context.Background()); err != nil {
 		return err
+	}
+
+	// Sanity check for configured node DID: can we resolve it?
+	if n.configuredNodeDID != nil {
+		_, _, err := n.didDocumentResolver.Resolve(*n.configuredNodeDID, nil)
+		if err != nil {
+			return fmt.Errorf("configured NodeDID could not be resolved (did=%s): %w", n.configuredNodeDID, err)
+		}
 	}
 
 	err := n.connectionManager.Start()

@@ -21,6 +21,7 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -28,26 +29,44 @@ import (
 	"time"
 )
 
-func readMetadata(md metadata.MD) (transport.PeerID, error) {
-	values := md.Get(peerIDHeader)
-	if len(values) == 0 {
-		return "", fmt.Errorf("peer didn't send %s header", peerIDHeader)
-	} else if len(values) > 1 {
-		return "", fmt.Errorf("peer sent multiple values for %s header", peerIDHeader)
+func readMetadata(md metadata.MD) (transport.PeerID, did.DID, error) {
+	val := func(key string, required bool) (string, error) {
+		values := md.Get(key)
+		if len(values) == 0 {
+			if !required {
+				return "", nil
+			}
+			return "", fmt.Errorf("peer didn't send %s header", key)
+		} else if len(values) > 1 {
+			return "", fmt.Errorf("peer sent multiple values for %s header", key)
+		}
+		return strings.TrimSpace(values[0]), nil
 	}
-	peerID := transport.PeerID(strings.TrimSpace(values[0]))
-	if peerID == "" {
-		return "", fmt.Errorf("peer sent empty %s header", peerIDHeader)
+
+	// Parse Peer ID
+	peerIDStr, err := val(peerIDHeader, true)
+	if err != nil {
+		return "", did.DID{}, err
 	}
-	return peerID, nil
+	if peerIDStr == "" {
+		return "", did.DID{}, fmt.Errorf("peer sent empty %s header", peerIDHeader)
+	}
+	// Parse Node DID
+	nodeDIDStr, err := val(nodeDIDHeader, false)
+	if err != nil {
+		return "", did.DID{}, err
+	}
+	var nodeDID did.DID
+	if nodeDIDStr != "" {
+		parsedNodeDID, err := did.ParseDID(nodeDIDStr)
+		if err != nil {
+			return "", did.DID{}, fmt.Errorf("peer sent invalid node DID: %w", err)
+		}
+		nodeDID = *parsedNodeDID
+	}
+	return transport.PeerID(peerIDStr), nodeDID, nil
 }
 
-func constructMetadata(peerID transport.PeerID) metadata.MD {
-	return metadata.New(map[string]string{
-		peerIDHeader:          string(peerID),
-		protocolVersionHeader: protocolVersionV1, // required for backwards compatibility with v1
-	})
-}
 
 // GetStreamMethod formats the method name for the given stream.
 func GetStreamMethod(serviceName string, stream grpc.StreamDesc) string {

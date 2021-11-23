@@ -20,6 +20,7 @@ package transport
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"time"
 )
 
@@ -37,6 +38,8 @@ type Peer struct {
 	ID PeerID
 	// Address holds the remote address of the node we're actually connected to
 	Address string
+	// NodeDID holds the DID that the peer uses to identify its node on the network.
+	NodeDID did.DID
 }
 
 // String returns the peer as string.

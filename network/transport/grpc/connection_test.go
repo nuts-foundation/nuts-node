@@ -57,8 +57,8 @@ func Test_conn_registerServerStream(t *testing.T) {
 		conn := createConnection(nil, transport.Peer{}, func(connection managedConnection) {
 			called.Store(true)
 		}).(*conn)
-		stream1 := newServerStream("foo")
-		stream2 := newServerStream("foo")
+		stream1 := newServerStream("foo", "")
+		stream2 := newServerStream("foo", "")
 		conn.registerServerStream(stream1)
 		conn.registerServerStream(stream2)
 		stream1.cancelFunc()
@@ -77,7 +77,7 @@ func Test_conn_registerServerStream(t *testing.T) {
 		conn := createConnection(nil, transport.Peer{}, func(connection managedConnection) {
 			called.Store(true)
 		}).(*conn)
-		stream := newServerStream("foo")
+		stream := newServerStream("foo", "")
 		conn.registerServerStream(stream)
 		stream.cancelFunc()
 

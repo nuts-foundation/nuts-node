@@ -18,7 +18,10 @@
 
 package transport
 
-import "github.com/nuts-foundation/nuts-node/core"
+import (
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
+)
 
 // ConnectionManager manages the connections to peers, making outbound connections if required. It also determines the network layout.
 type ConnectionManager interface {
@@ -36,3 +39,19 @@ type ConnectionManager interface {
 	// Stop shuts down the connections made by the ConnectionManager.
 	Stop()
 }
+
+// NodeDIDReader defines an interface for types that resolve the local node's DID, which is used to identify the node on the network.
+type NodeDIDReader interface {
+	// ReadNodeDID tries to resolve the node DID. If it's absent, an empty DID is returned. In any other non-successful case an error is returned.
+	ReadNodeDID() (did.DID, error)
+}
+
+// FixedNodeDIDReader is a NodeDIDReader that returns a preset DID.
+type FixedNodeDIDReader struct {
+	NodeDID did.DID
+}
+
+func (f FixedNodeDIDReader) ReadNodeDID() (did.DID, error) {
+	return f.NodeDID, nil
+}
+

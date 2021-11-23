@@ -39,6 +39,7 @@ const defaultMaxMessageSizeInBytes = 1024 * 512
 const protocolVersionV1 = "v1"          // required for backwards compatibility with v1
 const protocolVersionHeader = "version" // required for backwards compatibility with v1
 const peerIDHeader = "peerID"
+const nodeDIDHeader = "nodeDID"
 
 // ErrAlreadyConnected indicates the node is already connected to the peer.
 var ErrAlreadyConnected = errors.New("already connected")
@@ -47,9 +48,10 @@ var ErrAlreadyConnected = errors.New("already connected")
 var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func NewGRPCConnectionManager(config Config, protocols ...transport.Protocol) transport.ConnectionManager {
+func NewGRPCConnectionManager(config Config, nodeDIDReader transport.NodeDIDReader, protocols ...transport.Protocol) transport.ConnectionManager {
 	return &grpcConnectionManager{
 		protocols:       protocols,
+		nodeDIDReader:   nodeDIDReader,
 		config:          config,
 		connections:     &connectionList{},
 		grpcServerMutex: &sync.Mutex{},
@@ -68,6 +70,7 @@ type grpcConnectionManager struct {
 	listener         net.Listener
 	listenerCreator  func(string) (net.Listener, error)
 	dialer           dialer
+	nodeDIDReader    transport.NodeDIDReader
 	stopCRLValidator func()
 }
 
@@ -229,7 +232,11 @@ func (s *grpcConnectionManager) openOutboundStreams(connection managedConnection
 }
 
 func (s *grpcConnectionManager) openOutboundStream(connection managedConnection, grpcConn *grpc.ClientConn, grpcProtocol OutboundStreamer) (context.Context, error) {
-	outgoingContext := metadata.NewOutgoingContext(context.Background(), constructMetadata(s.config.peerID))
+	md, err := s.constructMetadata()
+	if err != nil {
+		return nil, err
+	}
+	outgoingContext := metadata.NewOutgoingContext(context.Background(), md)
 	streamContext, err := grpcProtocol.OpenStream(outgoingContext, grpcConn, func(clientStream grpc.ClientStream, method string) (transport.Peer, error) {
 		// Read peer ID from metadata
 		peerHeaders, err := clientStream.Header()
@@ -239,11 +246,12 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 		if len(peerHeaders) == 0 {
 			return transport.Peer{}, fmt.Errorf("peer didn't send any headers, maybe the protocol version is not supported")
 		}
-		peerID, err := readMetadata(peerHeaders)
+		peerID, nodeDID, err := readMetadata(peerHeaders)
 		if err != nil {
 			return transport.Peer{}, fmt.Errorf("failed to read peer ID header: %w", err)
 		}
 
+		// TODO: Set and authenticate NodeDID as well
 		if !connection.verifyOrSetPeerID(peerID) {
 			return transport.Peer{}, fmt.Errorf("peer sent invalid ID (id=%s)", peerID)
 		}
@@ -262,6 +270,7 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 		return transport.Peer{
 			ID:      peerID,
 			Address: grpcConn.Target(),
+			NodeDID: nodeDID,
 		}, nil
 	})
 	return streamContext, err
@@ -271,8 +280,12 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 	peerCtx, _ := grpcPeer.FromContext(inboundStream.Context())
 	log.Logger().Tracef("New peer connected from %s", peerCtx.Addr)
 
-	// Send our Peer ID
-	if err := inboundStream.SendHeader(constructMetadata(s.config.peerID)); err != nil {
+	// Send our headers
+	md, err := s.constructMetadata()
+	if err != nil {
+		return transport.Peer{}, nil, err
+	}
+	if err := inboundStream.SendHeader(md); err != nil {
 		log.Logger().Errorf("Unable to accept gRPC stream (remote address: %s), unable to send headers: %v", peerCtx.Addr, err)
 		return transport.Peer{}, nil, errors.New("unable to send headers")
 	}
@@ -282,13 +295,14 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 	if !ok {
 		return transport.Peer{}, nil, errors.New("unable to read metadata")
 	}
-	peerID, err := readMetadata(md)
+	peerID, nodeDID, err := readMetadata(md)
 	if err != nil {
 		return transport.Peer{}, nil, errors.New("unable to read peer ID")
 	}
 	peer := transport.Peer{
 		ID:      peerID,
 		Address: peerCtx.Addr.String(),
+		NodeDID: nodeDID,
 	}
 	log.Logger().Debugf("New inbound stream from peer (peer=%s,protocol=%T)", peer, inboundStream)
 
@@ -300,4 +314,20 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 		return peer, nil, err
 	}
 	return peer, connection.context(), nil
+}
+
+func (s *grpcConnectionManager) constructMetadata() (metadata.MD, error) {
+	md := metadata.New(map[string]string{
+		peerIDHeader:          string(s.config.peerID),
+		protocolVersionHeader: protocolVersionV1, // required for backwards compatibility with v1
+	})
+
+	nodeDID, err := s.nodeDIDReader.ReadNodeDID()
+	if err != nil {
+		return nil, fmt.Errorf("error reading local node DID: %w", err)
+	}
+	if !nodeDID.Empty() {
+		md.Set(nodeDIDHeader, nodeDID.String())
+	}
+	return md, nil
 }
