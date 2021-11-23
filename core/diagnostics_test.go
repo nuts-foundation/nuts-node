@@ -36,3 +36,9 @@ func TestGenericDiagnosticResult_String(t *testing.T) {
 
 	assert.Equal(t, "test", gdr.String())
 }
+
+func TestGenericDiagnosticResult_Result(t *testing.T) {
+	gdr := GenericDiagnosticResult{Outcome: 5}
+
+	assert.Equal(t, 5, gdr.Result())
+}

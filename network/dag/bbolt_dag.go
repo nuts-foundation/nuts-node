@@ -79,8 +79,12 @@ type headsStatistic struct {
 	heads []hash.SHA256Hash
 }
 
+func (d headsStatistic) Result() interface{} {
+	return d.heads
+}
+
 func (d headsStatistic) Name() string {
-	return "[DAG] Heads"
+	return "dag_heads"
 }
 
 func (d headsStatistic) String() string {
@@ -91,8 +95,12 @@ type numberOfTransactionsStatistic struct {
 	numberOfTransactions int
 }
 
+func (d numberOfTransactionsStatistic) Result() interface{} {
+	return d.numberOfTransactions
+}
+
 func (d numberOfTransactionsStatistic) Name() string {
-	return "[DAG] Number of transactions"
+	return "dag_transaction_count"
 }
 
 func (d numberOfTransactionsStatistic) String() string {
@@ -103,8 +111,12 @@ type dataSizeStatistic struct {
 	sizeInBytes int
 }
 
+func (d dataSizeStatistic) Result() interface{} {
+	return d.sizeInBytes
+}
+
 func (d dataSizeStatistic) Name() string {
-	return "[DAG] Stored database size (bytes)"
+	return "dag_stored_database_size_bytes"
 }
 
 func (d dataSizeStatistic) String() string {

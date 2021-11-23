@@ -38,8 +38,13 @@ type peerOmnihashStatistic struct {
 	peerHashes map[transport.PeerID]hash.SHA256Hash
 }
 
+func (d peerOmnihashStatistic) Result() interface{} {
+	// Clone value to avoid accidental changes from the outside
+	return newPeerOmnihashStatistic(d.peerHashes).peerHashes
+}
+
 func (d peerOmnihashStatistic) Name() string {
-	return "[Protocol v1] Peer omnihashes"
+	return "v1_peer_omnihashes"
 }
 
 func (d peerOmnihashStatistic) String() string {

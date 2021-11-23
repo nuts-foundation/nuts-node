@@ -431,6 +431,10 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 type stat struct {
 }
 
+func (s stat) Result() interface{} {
+	return "value"
+}
+
 func (s stat) Name() string {
 	return "key"
 }

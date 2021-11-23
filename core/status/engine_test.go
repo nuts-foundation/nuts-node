@@ -52,28 +52,39 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 		ds := system.(*status).Diagnostics()
 		assert.Len(t, ds, 5)
 		// Registered engines
-		assert.Equal(t, "Registered engines", ds[0].Name())
-		assert.Equal(t, "Status,Metrics", ds[0].String())
+		assert.Equal(t, "engines", ds[0].Name())
+		assert.Equal(t, "[Status Metrics]", ds[0].String())
 		// Uptime
-		assert.Equal(t, "Uptime", ds[1].Name())
+		assert.Equal(t, "uptime", ds[1].Name())
 		assert.NotEmpty(t, ds[1].String())
 		// SoftwareVersion
-		assert.Equal(t, "SoftwareVersion", ds[2].Name())
+		assert.Equal(t, "software_version", ds[2].Name())
 		assert.Equal(t, core.Version(), ds[2].String())
 		// Commit
-		assert.Equal(t, "Git commit", ds[3].Name())
+		assert.Equal(t, "git_commit", ds[3].Name())
 		assert.Equal(t, "0", ds[3].String())
 		// Os/Arg
-		assert.Equal(t, "OS/Arch", ds[4].Name())
+		assert.Equal(t, "os_arch", ds[4].Name())
 		assert.Equal(t, core.OSArch(), ds[4].String())
 	})
 
-	t.Run("diagnosticsOverview() renders text output of diagnostics", func(t *testing.T) {
+	t.Run("diagnosticsOverview() text output", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		echo := mock.NewMockContext(ctrl)
+		echo.EXPECT().Request().Return(&http.Request{Header: map[string][]string{}})
 
-		echo.EXPECT().String(http.StatusOK, test.Contains("Registered engines: Status,Metrics"))
+		echo.EXPECT().String(http.StatusOK, test.Contains("engines: [Status Metrics]"))
+
+		(&status{system: system}).diagnosticsOverview(echo)
+	})
+	t.Run("diagnosticsOverview() JSON output", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		echo := mock.NewMockContext(ctrl)
+		echo.EXPECT().Request().Return(&http.Request{Header: map[string][]string{"Accept": {"application/json"}}})
+
+		echo.EXPECT().JSON(http.StatusOK, gomock.Any())
 
 		(&status{system: system}).diagnosticsOverview(echo)
 	})

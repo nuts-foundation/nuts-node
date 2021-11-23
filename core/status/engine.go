@@ -57,16 +57,22 @@ func (s *status) Routes(router core.EchoRouter) {
 }
 
 func (s *status) diagnosticsOverview(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, s.diagnosticsSummaryAsText())
+	diagnostics := s.collectDiagnostics()
+	hdr := ctx.Request().Header.Get("Accept")
+	if strings.HasPrefix(hdr, "application/json") {
+		return ctx.JSON(http.StatusOK, s.diagnosticsSummaryAsMap(diagnostics))
+	}
+	return ctx.String(http.StatusOK, s.diagnosticsSummaryAsText(diagnostics))
 }
 
-func (s *status) diagnosticsSummaryAsText() string {
+func (s *status) diagnosticsSummaryAsText(diagnostics map[string][]core.DiagnosticResult) string {
 	var lines []string
+	// Re-loop over engines to retain order
 	s.system.VisitEngines(func(engine core.Engine) {
 		if m, ok := engine.(core.ViewableDiagnostics); ok {
-			lines = append(lines, m.Name())
-			diagnostics := m.Diagnostics()
-			for _, d := range diagnostics {
+			lcName := strings.ToLower(strings.ToLower(m.Name()))
+			lines = append(lines, lcName)
+			for _, d := range diagnostics[lcName] {
 				lines = append(lines, fmt.Sprintf("\t%s: %s", d.Name(), d.String()))
 			}
 		}
@@ -74,15 +80,27 @@ func (s *status) diagnosticsSummaryAsText() string {
 	return strings.Join(lines, "\n")
 }
 
+func (s *status) diagnosticsSummaryAsMap(diagnostics map[string][]core.DiagnosticResult) map[string]map[string]interface{} {
+	result := make(map[string]map[string]interface{})
+	for engine, results := range diagnostics {
+		engineResults := make(map[string]interface{}, 0)
+		for _, curr := range results {
+			engineResults[curr.Name()] = curr.Result()
+		}
+		result[engine] = engineResults
+	}
+	return result
+}
+
 // Diagnostics returns list of DiagnosticResult for the StatusEngine.
 // The results are a list of all registered engines
 func (s *status) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{
-		&core.GenericDiagnosticResult{Title: "Registered engines", Outcome: strings.Join(s.listAllEngines(), ",")},
-		&core.GenericDiagnosticResult{Title: "Uptime", Outcome: time.Now().Sub(s.startTime).String()},
-		&core.GenericDiagnosticResult{Title: "SoftwareVersion", Outcome: core.Version()},
-		&core.GenericDiagnosticResult{Title: "Git commit", Outcome: core.GitCommit},
-		&core.GenericDiagnosticResult{Title: "OS/Arch", Outcome: core.OSArch()},
+		&core.GenericDiagnosticResult{Title: "engines", Outcome: s.listAllEngines()},
+		&core.GenericDiagnosticResult{Title: "uptime", Outcome: time.Now().Sub(s.startTime).Truncate(time.Second)},
+		&core.GenericDiagnosticResult{Title: "software_version", Outcome: core.Version()},
+		&core.GenericDiagnosticResult{Title: "git_commit", Outcome: core.GitCommit},
+		&core.GenericDiagnosticResult{Title: "os_arch", Outcome: core.OSArch()},
 	}
 }
 
@@ -96,7 +114,17 @@ func (s *status) listAllEngines() []string {
 	return names
 }
 
-// statusOK returns 200 OK with a "OK" body
+func (s *status) collectDiagnostics() map[string][]core.DiagnosticResult {
+	result := make(map[string][]core.DiagnosticResult, 0)
+	s.system.VisitEngines(func(engine core.Engine) {
+		if m, ok := engine.(core.ViewableDiagnostics); ok {
+			result[strings.ToLower(m.Name())] = m.Diagnostics()
+		}
+	})
+	return result
+}
+
+// statusOK returns 200 OK with an "OK" body
 func statusOK(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "OK")
 }
