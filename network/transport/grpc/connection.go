@@ -74,7 +74,7 @@ type conn struct {
 	peer                         atomic.Value
 	ctx                          context.Context
 	cancelCtx                    func()
-	mux                          sync.Mutex
+	mux                          sync.RWMutex
 	connector                    *outboundConnector
 	grpcOutboundConnection       *grpc.ClientConn
 	grpcOutboundStreams          map[string]grpc.ClientStream
@@ -114,8 +114,8 @@ func (mc *conn) close() {
 }
 
 func (mc *conn) context() context.Context {
-	mc.mux.Lock()
-	defer mc.mux.Unlock()
+	mc.mux.RLock()
+	defer mc.mux.RUnlock()
 	return mc.ctx
 }
 
@@ -151,13 +151,18 @@ func (mc *conn) registerClientStream(clientStream grpc.ClientStream, method stri
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
-	if mc.ctx == nil {
-		mc.ctx, mc.cancelCtx = context.WithCancel(clientStream.Context())
-	}
-
 	if _, exists := mc.grpcOutboundStreams[method]; exists {
 		return fmt.Errorf("peer is already connected (method=%s)", method)
 	}
+
+	// when the gRPC stream cancels, cancel the connection's context
+	if mc.ctx == nil {
+		mc.ctx, mc.cancelCtx = context.WithCancel(context.Background())
+	}
+	go func(cancel func()) {
+		<-clientStream.Context().Done()
+		cancel()
+	}(mc.cancelCtx)
 
 	mc.grpcOutboundStreams[method] = clientStream
 	return nil
@@ -166,10 +171,6 @@ func (mc *conn) registerClientStream(clientStream grpc.ClientStream, method stri
 func (mc *conn) registerServerStream(serverStream grpc.ServerStream) error {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
-
-	if mc.ctx == nil {
-		mc.ctx, mc.cancelCtx = context.WithCancel(serverStream.Context())
-	}
 
 	method := grpc.ServerTransportStreamFromContext(serverStream.Context()).Method()
 	if _, exists := mc.grpcInboundStreams[method]; exists {
@@ -181,9 +182,14 @@ func (mc *conn) registerServerStream(serverStream grpc.ServerStream) error {
 
 	mc.grpcInboundStreams[method] = serverStream
 
-	go func() {
+	// when the gRPC stream cancels, cancel the connection's context
+	if mc.ctx == nil {
+		mc.ctx, mc.cancelCtx = context.WithCancel(context.Background())
+	}
+	go func(cancel func()) {
 		// Wait for the serverStream to close. Then remove it, and if it was the last one, callback
 		<-serverStream.Context().Done()
+		cancel()
 		mc.mux.Lock()
 		defer mc.mux.Unlock()
 		// Remove this stream from the inbound stream registry
@@ -192,7 +198,7 @@ func (mc *conn) registerServerStream(serverStream grpc.ServerStream) error {
 		if len(mc.grpcInboundStreams) == 0 {
 			mc.inboundStreamsClosedCallback(mc)
 		}
-	}()
+	}(mc.cancelCtx)
 	return nil
 }
 
@@ -218,8 +224,8 @@ func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grp
 }
 
 func (mc *conn) connected(protocol string) bool {
-	mc.mux.Lock()
-	defer mc.mux.Unlock()
+	mc.mux.RLock()
+	defer mc.mux.RUnlock()
 
 	if protocol != AnyProtocol {
 		// Check for specific protocol
