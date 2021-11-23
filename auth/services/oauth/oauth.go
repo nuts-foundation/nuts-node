@@ -51,7 +51,6 @@ const errInvalidOrganizationVC = "requester has invalid organization VC: %w"
 const errInvalidVCClaim = "invalid jwt.vcs: %w"
 
 const vcClaim = "vcs"
-const subjectIDClaim = "sid"
 const purposeOfUseClaim = "purposeOfUseClaim"
 const userIdentityClaim = "usi"
 
@@ -76,10 +75,6 @@ type validationContext struct {
 	purposeOfUse               string
 	credentialIDs              []string
 	contractVerificationResult contract.VPVerificationResult
-}
-
-func (c validationContext) subjectID() *string {
-	return c.stringVal(subjectIDClaim)
 }
 
 func (c validationContext) userIdentity() *string {
@@ -456,9 +451,6 @@ func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) 
 	if request.IdentityToken != nil {
 		result[userIdentityClaim] = *request.IdentityToken
 	}
-	if request.Subject != nil {
-		result[subjectIDClaim] = *request.Subject
-	}
 	result[vcClaim] = request.Credentials
 
 	return result
@@ -530,7 +522,6 @@ func (s *service) buildAccessToken(context *validationContext) (string, services
 
 	issueTime := time.Now()
 
-	at.SubjectID = context.subjectID()
 	at.Service = context.purposeOfUse
 	at.Expiration = time.Now().Add(time.Minute * 15).UTC().Unix() // Expires in 15 minutes
 	at.IssuedAt = issueTime.UTC().Unix()

@@ -636,13 +636,11 @@ func TestService_buildAccessToken(t *testing.T) {
 }
 
 func TestService_CreateJwtBearerToken(t *testing.T) {
-	sid := "789"
 	usi := "irma identity token"
 
 	request := services.CreateJwtGrantRequest{
 		Authorizer:    authorizerDID.String(),
 		Requester:     requesterDID.String(),
-		Subject:       &sid,
 		IdentityToken: &usi,
 		Service:       expectedService,
 	}
@@ -739,7 +737,6 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 		request := services.CreateJwtGrantRequest{
 			Requester:     requesterDID.String(),
-			Subject:       &sid,
 			IdentityToken: &usi,
 		}
 
@@ -768,14 +765,12 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 func Test_claimsFromRequest(t *testing.T) {
 	ctx := createContext(t)
 	defer ctx.ctrl.Finish()
-	sid := "789"
 	usi := "irma identity token"
 
 	t.Run("ok", func(t *testing.T) {
 		request := services.CreateJwtGrantRequest{
 			Authorizer:    authorizerDID.String(),
 			Requester:     requesterDID.String(),
-			Subject:       &sid,
 			IdentityToken: &usi,
 			Service:       "service",
 		}
@@ -796,7 +791,6 @@ func Test_claimsFromRequest(t *testing.T) {
 		assert.Equal(t, 0, claims[jwt.NotBeforeKey])
 		assert.Equal(t, request.Authorizer, claims[jwt.SubjectKey])
 		assert.Equal(t, *request.IdentityToken, claims["usi"])
-		assert.Equal(t, *request.Subject, claims["sid"])
 		assert.Equal(t, request.Service, claims[purposeOfUseClaim])
 	})
 
@@ -922,7 +916,6 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 }
 
 func validContext() *validationContext {
-	sid := "subject"
 	usi := base64.StdEncoding.EncodeToString([]byte("irma identity token"))
 
 	cred := credential.ValidExplicitNutsAuthorizationCredential()
@@ -939,7 +932,6 @@ func validContext() *validationContext {
 		jwt.NotBeforeKey:  0,
 		jwt.SubjectKey:    authorizerDID.String(),
 		userIdentityClaim: usi,
-		subjectIDClaim:    sid,
 		purposeOfUseClaim: expectedService,
 		vcClaim:           []interface{}{credMap},
 	}
@@ -957,7 +949,6 @@ func validContext() *validationContext {
 }
 
 func validAccessToken() *validationContext {
-	sid := "subject"
 	usi := base64.StdEncoding.EncodeToString([]byte("irma identity token"))
 
 	claims := map[string]interface{}{
@@ -969,7 +960,6 @@ func validAccessToken() *validationContext {
 		jwt.NotBeforeKey:  0,
 		jwt.IssuerKey:     authorizerDID.String(),
 		userIdentityClaim: usi,
-		subjectIDClaim:    sid,
 		purposeOfUseClaim: expectedService,
 		vcClaim:           []string{"credential"},
 	}

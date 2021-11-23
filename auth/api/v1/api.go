@@ -277,7 +277,6 @@ func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 		Authorizer:    requestBody.Authorizer,
 		IdentityToken: makeStringPointer(requestBody.Identity),
 		Service:       requestBody.Service,
-		Subject:       requestBody.Subject,
 		Credentials:   requestBody.Credentials,
 	}
 
@@ -301,7 +300,6 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		Authorizer:    requestBody.Authorizer,
 		IdentityToken: makeStringPointer(requestBody.Identity),
 		Service:       requestBody.Service,
-		Subject:       requestBody.Subject,
 		Credentials:   requestBody.Credentials,
 	}
 
@@ -437,7 +435,6 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		Aud:        &claims.Audience,
 		Exp:        &exp,
 		Iat:        &iat,
-		Sid:        claims.SubjectID,
 		Service:    &claims.Service,
 		Initials:   claims.Initials,
 		Prefix:     claims.Prefix,

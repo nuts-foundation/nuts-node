@@ -144,8 +144,7 @@ type CreateJwtGrantRequest struct {
 	Requester string `json:"requester"`
 
 	// The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
-	Service string  `json:"service"`
-	Subject *string `json:"subject,omitempty"`
+	Service string `json:"service"`
 }
 
 // CredentialIssuer defines model for CredentialIssuer.
@@ -204,8 +203,7 @@ type RequestAccessTokenRequest struct {
 	Requester string `json:"requester"`
 
 	// The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
-	Service string  `json:"service"`
-	Subject *string `json:"subject,omitempty"`
+	Service string `json:"service"`
 }
 
 // SignSessionRequest defines model for SignSessionRequest.
@@ -304,9 +302,6 @@ type TokenIntrospectionResponse struct {
 	// Surname prefix
 	Prefix  *string `json:"prefix,omitempty"`
 	Service *string `json:"service,omitempty"`
-
-	// The Nuts subject id, patient identifier in the form of an oid encoded BSN.
-	Sid *string `json:"sid,omitempty"`
 
 	// The subject is always the acting party, thus the care organization requesting access to data.
 	Sub *string   `json:"sub,omitempty"`
