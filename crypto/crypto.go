@@ -119,6 +119,10 @@ func generateECKeyPair() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 }
 
+func (client *Crypto) List() []string {
+	return client.Storage.ListPrivateKeys()
+}
+
 // Exists checks storage for an entry for the given legal entity and returns true if it exists
 func (client *Crypto) Exists(kid string) bool {
 	return client.Storage.PrivateKeyExists(kid)
@@ -139,7 +143,7 @@ func (client *Crypto) Resolve(kid string) (Key, error) {
 }
 
 type keySelector struct {
-	privateKey crypto.Signer
+	privateKey storage.PrivateKey
 	kid        string
 }
 
@@ -149,6 +153,10 @@ func (e keySelector) Signer() crypto.Signer {
 
 func (e keySelector) KID() string {
 	return e.kid
+}
+
+func (e keySelector) Private() crypto.PrivateKey {
+	return e.privateKey
 }
 
 func (e keySelector) Public() crypto.PublicKey {

@@ -20,6 +20,7 @@ package types
 
 import (
 	"crypto"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -91,6 +92,8 @@ type KeyResolver interface {
 	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
 	// It returns ErrNotFound when the DID Document can't be found.
 	ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error)
+	// ResolveKey loads the key based on the transaction which will either load it directly or resolve it through the KeyResolver
+	ResolveKey(transaction dag.Transaction) (crypto.PublicKey, error)
 }
 
 // DocIterator is the function type for iterating over the all current DID Documents in the store

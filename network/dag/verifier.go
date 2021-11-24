@@ -20,7 +20,6 @@ package dag
 
 import (
 	"context"
-	crypto2 "crypto"
 	"errors"
 	"fmt"
 	"time"
@@ -41,31 +40,14 @@ type Verifier func(ctx context.Context, tx Transaction, graph DAG) error
 // It uses the given KeyResolver to resolves keys that aren't embedded in the transaction.
 func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 	return func(ctx context.Context, tx Transaction, dag DAG) error {
-		var signingKey crypto2.PublicKey
-		if tx.SigningKey() != nil {
-			if err := tx.SigningKey().Raw(&signingKey); err != nil {
-				return err
-			}
-		} else {
-			signingTime := tx.SigningTime()
-			if signingTime.After(types.DIDDocumentResolveEpoch) {
-				pk, err := resolver.ResolvePublicKey(tx.SigningKeyID(), tx.Previous())
-				if err != nil {
-					return fmt.Errorf("unable to verify transaction signature, can't resolve key by TX ref (kid=%s, tx=%s): %w", tx.SigningKeyID(), tx.Ref().String(), err)
-				}
-				signingKey = pk
-			} else {
-				// legacy resolving for older documents
-				pk, err := resolver.ResolvePublicKeyInTime(tx.SigningKeyID(), &signingTime)
-				if err != nil {
-					return fmt.Errorf("unable to verify transaction signature, can't resolve key by signing time (kid=%s): %w", tx.SigningKeyID(), err)
-				}
-				signingKey = pk
-			}
+		signingKey, err := resolver.ResolveKey(tx)
+		if err != nil {
+			return fmt.Errorf("unable to verify transaction signature: %w", err)
 		}
+
 		// TODO: jws.Verify parses the JWS again, which we already did when parsing the transaction. If we want to optimize
 		// this we need to implement a custom verifier.
-		_, err := jws.Verify(tx.Data(), jwa.SignatureAlgorithm(tx.SigningAlgorithm()), signingKey)
+		_, err = jws.Verify(tx.Data(), jwa.SignatureAlgorithm(tx.SigningAlgorithm()), signingKey)
 		return err
 	}
 }

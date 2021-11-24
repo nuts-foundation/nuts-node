@@ -21,10 +21,13 @@ package dag
 import (
 	"container/list"
 	"context"
+	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"sync"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
@@ -46,8 +49,10 @@ type replayingDAGPublisher struct {
 	subscribers         map[string]Receiver
 	resumeAt            *list.List
 	visitedTransactions map[hash.SHA256Hash]bool
-	payloadStore        PayloadStore
 	dag                 DAG
+	payloadStore        PayloadStore
+	docResolver         types.DocResolver
+	keyStore            crypto.KeyStore
 	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
 
@@ -123,9 +128,36 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 	}
 }
 
+func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) error {
+	privateKeys := s.keyStore.List()
+
+	for _, keyID := range privateKeys {
+		key, err := s.keyStore.Resolve(keyID)
+		if err != nil {
+			// We could fail here, but it might as well be that this isn't the key we're looking for anyway
+			continue
+		}
+
+		addr, err := s.keyStore.Decrypt(key, tx.To())
+		if err != nil {
+			continue
+		}
+
+		panic(fmt.Sprintf("got addr: %s", addr))
+	}
+
+	// We weren't able to decrypt the 'To' address, so it probably wasn't meant for us
+	return nil
+}
+
 func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transaction Transaction) bool {
 	// We need to skip transactions with a to addr header as it should be handled by the v2 protocol
 	if len(transaction.To()) > 0 {
+		if err := s.handlePrivateTransaction(transaction); err != nil {
+			log.Logger().Errorf("unable to handle private transaction: (ref=%s) %v", transaction.Ref(), err)
+			return false
+		}
+
 		return true
 	}
 

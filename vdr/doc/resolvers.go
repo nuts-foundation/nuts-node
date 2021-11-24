@@ -25,6 +25,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -221,6 +222,34 @@ func (r KeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.
 	}
 
 	return nil, types.ErrNotFound
+}
+
+func (r KeyResolver) ResolveKey(tx dag.Transaction) (crypto.PublicKey, error) {
+	var signingKey crypto.PublicKey
+
+	if tx.SigningKey() != nil {
+		if err := tx.SigningKey().Raw(&signingKey); err != nil {
+			return nil, err
+		}
+	} else {
+		signingTime := tx.SigningTime()
+		if signingTime.After(types.DIDDocumentResolveEpoch) {
+			pk, err := r.ResolvePublicKey(tx.SigningKeyID(), tx.Previous())
+			if err != nil {
+				return nil, fmt.Errorf("unable to resolve key by TX ref (kid=%s, tx=%s): %w", tx.SigningKeyID(), tx.Ref().String(), err)
+			}
+			signingKey = pk
+		} else {
+			// legacy resolving for older documents
+			pk, err := r.ResolvePublicKeyInTime(tx.SigningKeyID(), &signingTime)
+			if err != nil {
+				return nil, fmt.Errorf("unable to resolve key by signing time (kid=%s): %w", tx.SigningKeyID(), err)
+			}
+			signingKey = pk
+		}
+	}
+
+	return signingKey, nil
 }
 
 func (r KeyResolver) resolvePublicKey(kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {

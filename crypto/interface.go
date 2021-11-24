@@ -43,9 +43,18 @@ type KeyStore interface {
 	Exists(kid string) bool
 	// Resolve returns a Key for the given KID. ErrKeyNotFound is returned for an unknown KID.
 	Resolve(kid string) (Key, error)
+	// List returns all key IDs in the store
+	List() []string
 
+	ECIES
 	KeyCreator
 	JWTSigner
+}
+
+// ECIES is the interface to support Elliptic Curve Integrated Encryption Scheme
+type ECIES interface {
+	Encrypt(key Key, plaintext []byte) ([]byte, error)
+	Decrypt(key Key, ciphertext []byte) ([]byte, error)
 }
 
 // JWTSigner is the interface used to sign authorization tokens.
@@ -63,4 +72,6 @@ type Key interface {
 	KID() string
 	// Public returns the public key. This is a short-hand for Signer().Public()
 	Public() crypto.PublicKey
+	// Private returns a crypto.PrivateKey.
+	Private() crypto.PrivateKey
 }

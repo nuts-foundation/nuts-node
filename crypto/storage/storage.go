@@ -32,11 +32,16 @@ import (
 // ErrNotFound indicates that the specified crypto storage entry couldn't be found.
 var ErrNotFound = errors.New("entry not found")
 
+type PrivateKey interface {
+	crypto.Signer
+}
+
 // Storage interface containing functions for storing and retrieving keys.
 type Storage interface {
-	GetPrivateKey(kid string) (crypto.Signer, error)
+	GetPrivateKey(kid string) (PrivateKey, error)
 	PrivateKeyExists(kid string) bool
 	SavePrivateKey(kid string, key crypto.PrivateKey) error
+	ListPrivateKeys() []string
 
 	// GetPublicKey returns the public key and the period it is valid in.
 	GetPublicKey(kid string) (PublicKeyEntry, error)

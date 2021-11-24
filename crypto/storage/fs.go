@@ -23,8 +23,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
@@ -73,6 +75,22 @@ func NewFileSystemBackend(fspath string) (Storage, error) {
 	}
 
 	return fsc, nil
+}
+
+func (fsc *fileSystemBackend) ListPrivateKeys() (keys []string) {
+	suffix := fmt.Sprintf("_%s", privateKeyEntry)
+
+	_ = filepath.Walk(fsc.fspath, func(path string, info fs.FileInfo, err error) error {
+		if info.IsDir() || !strings.HasSuffix(info.Name(), suffix) {
+			return nil
+		}
+
+		keys = append(keys, info.Name()[:len(info.Name())-len(suffix)])
+
+		return nil
+	})
+
+	return
 }
 
 func (fsc *fileSystemBackend) PrivateKeyExists(kid string) bool {
