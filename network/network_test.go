@@ -119,19 +119,6 @@ func TestNetwork_Diagnostics(t *testing.T) {
 }
 
 func TestNetwork_Configure(t *testing.T) {
-	t.Run("ok - configures bootstrap nodes", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		cxt := createNetwork(ctrl, func(config *Config) {
-			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
-		})
-		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1")
-		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2")
-		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-		if !assert.NoError(t, err) {
-			return
-		}
-	})
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -315,6 +302,24 @@ func TestNetwork_Start(t *testing.T) {
 			return
 		}
 		assert.NotNil(t, cxt.network.startTime.Load())
+	})
+	t.Run("ok - connects to bootstrap nodes", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl, func(config *Config) {
+			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
+		})
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1")
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2")
+		cxt.connectionManager.EXPECT().Start()
+		cxt.protocol.EXPECT().Start()
+		cxt.graph.EXPECT().Verify(gomock.Any())
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
+		cxt.publisher.EXPECT().Start()
+		err := cxt.network.Start()
+		if !assert.NoError(t, err) {
+			return
+		}
 	})
 	t.Run("error - DAG verification failed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

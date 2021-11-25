@@ -141,12 +141,6 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		}
 		n.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...), n.protocols...)
 	}
-	for _, bootstrapNode := range n.config.BootstrapNodes {
-		if len(strings.TrimSpace(bootstrapNode)) == 0 {
-			continue
-		}
-		n.connectionManager.Connect(bootstrapNode)
-	}
 	return nil
 }
 
@@ -188,6 +182,13 @@ func (n *Network) Start() error {
 	}
 	for _, prot := range n.protocols {
 		prot.Start()
+	}
+	// Start connecting to bootstrap nodes
+	for _, bootstrapNode := range n.config.BootstrapNodes {
+		if len(strings.TrimSpace(bootstrapNode)) == 0 {
+			continue
+		}
+		n.connectionManager.Connect(bootstrapNode)
 	}
 
 	return nil
