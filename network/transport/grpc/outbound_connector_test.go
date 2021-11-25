@@ -19,6 +19,7 @@
 package grpc
 
 import (
+	"context"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
@@ -52,11 +53,11 @@ func Test_connector_loopConnect(t *testing.T) {
 			calls <- struct{}{}
 			return false
 		}, nil)
-		connector.connectedBackoff = func() {
+		connector.connectedBackoff = func(_ context.Context) {
 			// nothing
 		}
 
-		go connector.loopConnect()
+		connector.start()
 
 		// Wait for 3 calls, should be enough to assert the connection isn't made
 		for i := 0; i < 3; i++ {

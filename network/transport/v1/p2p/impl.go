@@ -51,18 +51,18 @@ type adapter struct {
 	peerMux *sync.Mutex
 
 	receivedMessages messageQueue
-	acceptor         grpc.StreamAcceptor
+	acceptor         grpc.InboundStreamHandler
 }
 
-func (n adapter) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream) (transport.Peer, error), closer <-chan struct{}) (context.Context, error) {
+func (n adapter) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream, method string) (transport.Peer, error)) (context.Context, error) {
 	client := protobuf.NewNetworkClient(grpcConn)
 	messenger, err := client.Connect(outgoingContext)
-	peer, err := callback(messenger)
+	peer, err := callback(messenger, grpc.GetStreamMethod(protobuf.Network_ServiceDesc.ServiceName, protobuf.Network_ServiceDesc.Streams[0]))
 	if err != nil {
 		_ = messenger.CloseSend()
 		return nil, err
 	}
-	return n.acceptPeer(peer, messenger, closer), nil
+	return n.acceptPeer(outgoingContext, peer, messenger), nil
 }
 
 func (n adapter) EventChannels() (peerConnected chan transport.Peer, peerDisconnected chan transport.Peer) {
@@ -124,7 +124,7 @@ func (m messageQueue) Get() PeerMessage {
 	return <-m.c
 }
 
-func (n *adapter) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.StreamAcceptor) {
+func (n *adapter) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.InboundStreamHandler) {
 	n.acceptor = acceptor
 	protobuf.RegisterNetworkServer(registrar, n)
 }
@@ -136,7 +136,7 @@ func (n adapter) Connect(stream protobuf.Network_ConnectServer) error {
 		log.Logger().Warnf("ProtocolV1: Inbound stream not accepted, returning error to client: %v", err)
 		return err
 	}
-	ctx := n.acceptPeer(peer, stream, closer)
+	ctx := n.acceptPeer(closer, peer, stream)
 	<-ctx.Done()
 	return nil
 }
@@ -146,7 +146,7 @@ func (n adapter) Connect(stream protobuf.Network_ConnectServer) error {
 // It should be called from the gRPC service handler (inbound) and for outbound gRPC service calls.
 // This function does not block: the spawned goroutines exit when it reads an item from the closer channel.
 // When the service call is aborted (either by the local node or the remote peer) it cancels the returned context.
-func (n *adapter) acceptPeer(peer transport.Peer, messenger grpcMessenger, closer <-chan struct{}) context.Context {
+func (n *adapter) acceptPeer(ctx context.Context, peer transport.Peer, messenger grpcMessenger) context.Context {
 	out := make(chan *protobuf.NetworkMessage, outMessagesBacklog)
 	n.peerMux.Lock()
 	n.peerOutMessages[peer.ID] = out
@@ -154,7 +154,7 @@ func (n *adapter) acceptPeer(peer transport.Peer, messenger grpcMessenger, close
 	n.peerMux.Unlock()
 	streamContext, cancelFunc := context.WithCancel(context.Background())
 	go func() {
-		exchange(peer, n.receivedMessages, out, messenger, closer, cancelFunc)
+		exchange(ctx, peer, n.receivedMessages, out, messenger, cancelFunc)
 		n.peerMux.Lock()
 		delete(n.peerOutMessages, peer.ID)
 		delete(n.peerMessengers, peer.ID)

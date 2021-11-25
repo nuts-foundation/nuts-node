@@ -26,7 +26,7 @@ import (
 )
 
 type TestProtocol struct {
-	acceptorCallback StreamAcceptor
+	acceptorCallback InboundStreamHandler
 	peer             transport.Peer
 	inboundCalled    bool
 	outboundCalled   bool
@@ -43,24 +43,24 @@ func (s *TestProtocol) DoStuff(serverStream Test_DoStuffServer) error {
 	return nil
 }
 
-func (s *TestProtocol) RegisterService(registrar grpc.ServiceRegistrar, acceptorCallback StreamAcceptor) {
+func (s *TestProtocol) RegisterService(registrar grpc.ServiceRegistrar, acceptorCallback InboundStreamHandler) {
 	s.acceptorCallback = acceptorCallback
 	RegisterTestServer(registrar, s)
 }
 
-func (s *TestProtocol) OpenStream(outgoingContext context.Context, grpcConn *grpc.ClientConn, callback func(stream grpc.ClientStream) (transport.Peer, error), closer <-chan struct{}) (context.Context, error) {
+func (s *TestProtocol) OpenStream(outgoingContext context.Context, grpcConn *grpc.ClientConn, callback func(stream grpc.ClientStream, method string) (transport.Peer, error)) (context.Context, error) {
 	client := NewTestClient(grpcConn)
 	clientStream, err := client.DoStuff(outgoingContext, grpc.FailFastCallOption{FailFast: true})
 	if err != nil {
 		return nil, err
 	}
-	peer, err := callback(clientStream)
+	peer, err := callback(clientStream, "testprotocol")
 	s.peer = peer
 	if err != nil {
 		_ = clientStream.CloseSend()
 		return nil, err
 	}
-	<-closer
+	<-outgoingContext.Done()
 	return context.Background(), nil
 }
 

@@ -66,18 +66,18 @@ func (mr *MockAdapterMockRecorder) EventChannels() *gomock.Call {
 }
 
 // OpenStream mocks base method.
-func (m *MockAdapter) OpenStream(ctx context.Context, grpcConn *grpc0.ClientConn, conn func(grpc0.ClientStream) (transport.Peer, error), i <-chan struct{}) (context.Context, error) {
+func (m *MockAdapter) OpenStream(ctx context.Context, grpcConn *grpc0.ClientConn, conn func(grpc0.ClientStream, string) (transport.Peer, error)) (context.Context, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OpenStream", ctx, grpcConn, conn, i)
+	ret := m.ctrl.Call(m, "OpenStream", ctx, grpcConn, conn)
 	ret0, _ := ret[0].(context.Context)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // OpenStream indicates an expected call of OpenStream.
-func (mr *MockAdapterMockRecorder) OpenStream(ctx, grpcConn, conn, i interface{}) *gomock.Call {
+func (mr *MockAdapterMockRecorder) OpenStream(ctx, grpcConn, conn interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenStream", reflect.TypeOf((*MockAdapter)(nil).OpenStream), ctx, grpcConn, conn, i)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenStream", reflect.TypeOf((*MockAdapter)(nil).OpenStream), ctx, grpcConn, conn)
 }
 
 // ReceivedMessages mocks base method.
@@ -95,7 +95,7 @@ func (mr *MockAdapterMockRecorder) ReceivedMessages() *gomock.Call {
 }
 
 // RegisterService mocks base method.
-func (m *MockAdapter) RegisterService(registrar grpc0.ServiceRegistrar, acceptorCallback grpc.StreamAcceptor) {
+func (m *MockAdapter) RegisterService(registrar grpc0.ServiceRegistrar, acceptorCallback grpc.InboundStreamHandler) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "RegisterService", registrar, acceptorCallback)
 }

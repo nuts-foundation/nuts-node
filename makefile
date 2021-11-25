@@ -47,6 +47,8 @@ gen-api:
 gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/v1/protobuf/network.proto
 	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/v1/protobuf/network.proto
+	protoc --go_out=paths=source_relative:network -I network network/transport/v2/protocol.proto
+	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/v2/protocol.proto
 	protoc --go_out=paths=source_relative:network -I network network/transport/grpc/testprotocol.proto
 	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/grpc/testprotocol.proto
 

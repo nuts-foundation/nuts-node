@@ -48,10 +48,6 @@ var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
 func NewGRPCConnectionManager(config Config, protocols ...transport.Protocol) transport.ConnectionManager {
-	if len(protocols) > 1 {
-		// TODO: Support multiple protocol versions
-		panic("ConnectionManager: multiple protocols currently not supported")
-	}
 	return &grpcConnectionManager{
 		protocols:       protocols,
 		config:          config,
@@ -64,14 +60,15 @@ func NewGRPCConnectionManager(config Config, protocols ...transport.Protocol) tr
 
 // grpcConnectionManager is a ConnectionManager that does not discover peers on its own, but just connects to the peers for which Connect() is called.
 type grpcConnectionManager struct {
-	protocols       []transport.Protocol
-	config          Config
-	connections     *connectionList
-	grpcServer      *grpc.Server
-	grpcServerMutex *sync.Mutex
-	listener        net.Listener
-	listenerCreator func(string) (net.Listener, error)
-	dialer          dialer
+	protocols        []transport.Protocol
+	config           Config
+	connections      *connectionList
+	grpcServer       *grpc.Server
+	grpcServerMutex  *sync.Mutex
+	listener         net.Listener
+	listenerCreator  func(string) (net.Listener, error)
+	dialer           dialer
+	stopCRLValidator func()
 }
 
 func (s *grpcConnectionManager) Start() error {
@@ -103,7 +100,9 @@ func (s *grpcConnectionManager) Start() error {
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 
 		// Configure support for checking revoked certificates
-		s.config.crlValidator.SyncLoop(context.TODO())
+		var crlValidatorCtx context.Context
+		crlValidatorCtx, s.stopCRLValidator = context.WithCancel(context.Background())
+		s.config.crlValidator.SyncLoop(crlValidatorCtx)
 		s.config.crlValidator.Configure(tlsConfig, s.config.maxCRLValidityDays)
 	} else {
 		log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
@@ -144,6 +143,10 @@ func (s grpcConnectionManager) Stop() {
 		s.grpcServer = nil
 		s.listener = nil // TCP listener is stopped by calling grpcServer.Stop()
 	}
+
+	if s.stopCRLValidator != nil {
+		s.stopCRLValidator()
+	}
 }
 
 func (s grpcConnectionManager) Connect(peerAddress string) {
@@ -168,7 +171,7 @@ func (s grpcConnectionManager) Connect(peerAddress string) {
 		err := s.openOutboundStreams(connection, grpcConn)
 		if err != nil {
 			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.getPeer(), err)
-			connection.close()
+			connection.disconnect()
 		}
 	})
 }
@@ -211,9 +214,9 @@ func (s *grpcConnectionManager) openOutboundStreams(connection managedConnection
 		log.Logger().Debugf("%T: Opened gRPC stream (peer=%s)", prot, connection.getPeer())
 
 		go func() {
-			// Waits for the clientStream to be done (other side closed the stream), then we close the connection on our side
+			// Waits for the clientStream to be done (other side closed the stream), then we disconnect the connection on our side
 			<-streamContext.Done()
-			connection.close()
+			connection.disconnect()
 		}()
 
 		protocolNum++
@@ -221,13 +224,13 @@ func (s *grpcConnectionManager) openOutboundStreams(connection managedConnection
 	if protocolNum == 0 {
 		return fmt.Errorf("could not use any of the supported protocols to communicate with peer (id=%s)", connection.getPeer())
 	}
-	<-connection.closer() // block until connection is closed
+	<-connection.context().Done() // block until connection is closed
 	return nil
 }
 
 func (s *grpcConnectionManager) openOutboundStream(connection managedConnection, grpcConn *grpc.ClientConn, grpcProtocol OutboundStreamer) (context.Context, error) {
 	outgoingContext := metadata.NewOutgoingContext(context.Background(), constructMetadata(s.config.peerID))
-	streamContext, err := grpcProtocol.OpenStream(outgoingContext, grpcConn, func(clientStream grpc.ClientStream) (transport.Peer, error) {
+	streamContext, err := grpcProtocol.OpenStream(outgoingContext, grpcConn, func(clientStream grpc.ClientStream, method string) (transport.Peer, error) {
 		// Read peer ID from metadata
 		peerHeaders, err := clientStream.Header()
 		if err != nil {
@@ -241,8 +244,12 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 			return transport.Peer{}, fmt.Errorf("failed to read peer ID header: %w", err)
 		}
 
-		// Check whether we're already connected
-		if s.connections.connected(transport.Peer{ID: peerID}) {
+		if !connection.verifyOrSetPeerID(peerID) {
+			return transport.Peer{}, fmt.Errorf("peer sent invalid ID (id=%s)", peerID)
+		}
+
+		err = connection.registerClientStream(clientStream, method)
+		if err != nil {
 			// This can happen when the peer connected to us previously, and now we connect back to them.
 			// TODO: Although nothing breaks, this spams the log of this node with warnings and errors because,
 			//       the outbound connector just keeps connecting. There are 2 solutions to this:
@@ -252,21 +259,15 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 			return transport.Peer{}, ErrAlreadyConnected
 		}
 
-		if !connection.verifyOrSetPeerID(peerID) {
-			return transport.Peer{}, fmt.Errorf("peer sent invalid ID (id=%s)", peerID)
-		}
-
-		connection.registerClientStream(clientStream)
-
 		return transport.Peer{
 			ID:      peerID,
 			Address: grpcConn.Target(),
 		}, nil
-	}, connection.closer())
+	})
 	return streamContext, err
 }
 
-func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStream) (transport.Peer, <-chan struct{}, error) {
+func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStream) (transport.Peer, context.Context, error) {
 	peerCtx, _ := grpcPeer.FromContext(inboundStream.Context())
 	log.Logger().Tracef("New peer connected from %s", peerCtx.Addr)
 
@@ -289,15 +290,14 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 		ID:      peerID,
 		Address: peerCtx.Addr.String(),
 	}
+	log.Logger().Debugf("New inbound stream from peer (peer=%s,protocol=%T)", peer, inboundStream)
+
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?
-	if s.connections.connected(transport.Peer{ID: peerID}) {
-		return peer, nil, ErrAlreadyConnected
-	}
-
-	log.Logger().Infof("New peer connected (peer=%s)", peer)
-
 	connection, _ := s.connections.getOrRegister(peer, s.dialer)
-	connection.registerServerStream(inboundStream)
-	return peer, connection.closer(), nil
+	err = connection.registerServerStream(inboundStream)
+	if err != nil {
+		return peer, nil, err
+	}
+	return peer, connection.context(), nil
 }

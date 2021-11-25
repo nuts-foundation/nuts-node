@@ -35,6 +35,7 @@ func (c *connectionList) closeAll() {
 	for _, curr := range c.list {
 		curr.close()
 	}
+	c.list = nil
 }
 
 // getOrRegister retrieves the connection that matches the given peer (either on ID or address).
@@ -66,26 +67,13 @@ func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (mana
 	return result, true
 }
 
-func (c *connectionList) connected(peer transport.Peer) bool {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	for _, curr := range c.list {
-		currPeer := curr.getPeer()
-		if len(currPeer.ID) > 0 && currPeer.ID == peer.ID || len(currPeer.Address) > 0 && currPeer.Address == peer.Address {
-			return curr.connected()
-		}
-	}
-	return false
-}
-
 func (c *connectionList) listConnected() []transport.Peer {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
 	var result []transport.Peer
 	for _, curr := range c.list {
-		if curr.connected() {
+		if curr.connected(AnyProtocol) {
 			result = append(result, curr.getPeer())
 		}
 	}

@@ -69,8 +69,8 @@ type protocolV1 struct {
 	protocol logic.Protocol
 }
 
-func (p protocolV1) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream) (transport.Peer, error), closer <-chan struct{}) (context.Context, error) {
-	return p.adapter.OpenStream(outgoingContext, grpcConn, callback, closer)
+func (p protocolV1) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream, method string) (transport.Peer, error)) (context.Context, error) {
+	return p.adapter.OpenStream(outgoingContext, grpcConn, callback)
 }
 
 func (p protocolV1) Configure(peerID transport.PeerID) {
@@ -97,6 +97,6 @@ func (p protocolV1) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics
 	return p.protocol.PeerDiagnostics()
 }
 
-func (p protocolV1) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.StreamAcceptor) {
+func (p protocolV1) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.InboundStreamHandler) {
 	p.adapter.RegisterService(registrar, acceptor)
 }

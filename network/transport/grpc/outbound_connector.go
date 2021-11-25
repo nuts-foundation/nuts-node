@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	grpcLib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"sync/atomic"
 	"time"
 )
 
@@ -38,8 +39,9 @@ func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Confi
 		tlsConfig:         tlsConfig,
 		shouldConnect:     shouldConnect,
 		connectedCallback: connectedCallback,
-		connectedBackoff: func() {
-			time.Sleep(time.Second)
+		stopped:           &atomic.Value{},
+		connectedBackoff: func(cancelCtx context.Context) {
+			sleepWithCancel(cancelCtx, 2*time.Second)
 		},
 	}
 }
@@ -53,30 +55,48 @@ type outboundConnector struct {
 	connectedCallback func(conn *grpcLib.ClientConn)
 	// shouldConnect returns whether the connector must try to connect. If it returns false, it backs off.
 	shouldConnect    func() bool
-	connectedBackoff func()
+	connectedBackoff func(cancelCtx context.Context)
+	// cancelFunc is used to signal the async connector loop (and specifically waits/sleeps) to abort.
+	cancelFunc func()
+	stopped    *atomic.Value
 }
 
-func (c *outboundConnector) loopConnect() {
-	for {
-		if !c.shouldConnect() {
-			c.connectedBackoff()
-			continue
-		}
-		if stream, err := c.tryConnect(); err != nil {
-			waitPeriod := c.backoff.Backoff()
-			log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), c.address, err)
-			time.Sleep(waitPeriod)
-		} else {
-			c.backoff.Reset()
+func (c *outboundConnector) start() {
+	var cancelCtx context.Context
+	cancelCtx, c.cancelFunc = context.WithCancel(context.Background())
+	c.stopped.Store(false)
+	go func() {
+		for {
+			if c.stopped.Load().(bool) {
+				return
+			}
+			if !c.shouldConnect() {
+				c.connectedBackoff(cancelCtx)
+				continue
+			}
+			if stream, err := c.tryConnect(); err != nil {
+				waitPeriod := c.backoff.Backoff()
+				log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), c.address, err)
+				sleepWithCancel(cancelCtx, waitPeriod)
+			} else {
+				c.backoff.Reset()
 
-			// Invoke callback, blocks until the peer disconnects
-			c.connectedCallback(stream)
+				// Invoke callback, blocks until the peer disconnects
+				c.connectedCallback(stream)
 
-			// When the peer's reconnection timing is very close to the local node's (because they're running the same software),
-			// they might reconnect to each other at the same time after a disconnect.
-			// So we add a bit of randomness before reconnecting, making the chance they reconnect at the same time a lot smaller.
-			time.Sleep(RandomBackoff(time.Second, 5*time.Second))
+				// When the peer's reconnection timing is very close to the local node's (because they're running the same software),
+				// they might reconnect to each other at the same time after a disconnect.
+				// So we add a bit of randomness before reconnecting, making the chance they reconnect at the same time a lot smaller.
+				sleepWithCancel(cancelCtx, RandomBackoff(time.Second, 5*time.Second))
+			}
 		}
+	}()
+}
+
+func (c *outboundConnector) stop() {
+	c.stopped.Store(true)
+	if c.cancelFunc != nil {
+		c.cancelFunc()
 	}
 }
 

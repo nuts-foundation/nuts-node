@@ -18,6 +18,7 @@
 package p2p
 
 import (
+	"context"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
@@ -39,14 +40,13 @@ func Test_adapter_Send(t *testing.T) {
 		messenger.EXPECT().Recv().AnyTimes()
 
 		adapter := NewAdapter().(*adapter)
-		closer := make(chan struct{}, 1)
-		ctx := adapter.acceptPeer(transport.Peer{ID: peerID}, messenger, closer)
+		ctx, cancel := context.WithCancel(context.Background())
+		_ = adapter.acceptPeer(ctx, transport.Peer{ID: peerID}, messenger)
 		err := adapter.Send(peerID, &protobuf.NetworkMessage{})
 		if !assert.NoError(t, err) {
 			return
 		}
-		ctx.Done()
-		closer <- struct{}{}
+		cancel()
 
 		adapter.peerMux.Lock()
 		defer adapter.peerMux.Unlock()
@@ -65,8 +65,8 @@ func Test_adapter_Send(t *testing.T) {
 		messenger.EXPECT().Recv().AnyTimes()
 
 		adapter := NewAdapter().(*adapter)
-		closer := make(chan struct{}, 1)
-		_ = adapter.acceptPeer(transport.Peer{ID: peerID}, messenger, closer)
+		ctx, cancel := context.WithCancel(context.Background())
+		_ = adapter.acceptPeer(ctx, transport.Peer{ID: peerID}, messenger)
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		go func() {
@@ -75,7 +75,7 @@ func Test_adapter_Send(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			closer <- struct{}{}
+			cancel()
 		}()
 		wg.Wait()
 	})
@@ -102,12 +102,12 @@ func Test_adapter_Send(t *testing.T) {
 			return nil, nil
 		})
 
-		closer := make(chan struct{}, 1)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer func() {
-			closer <- struct{}{}
+			cancel()
 		}()
 		adapter := NewAdapter().(*adapter)
-		_ = adapter.acceptPeer(transport.Peer{ID: peerID}, messenger, closer)
+		_ = adapter.acceptPeer(ctx, transport.Peer{ID: peerID}, messenger)
 
 		// First one is taken and put into Send(), which blocks
 		err := adapter.Send(peerID, &protobuf.NetworkMessage{})
@@ -141,10 +141,8 @@ func Test_adapter_Broadcast(t *testing.T) {
 	messenger1 := &stubMessenger{}
 	messenger2 := &stubMessenger{}
 
-	closer := make(chan struct{}, 1)
-
-	_ = adapter.acceptPeer(transport.Peer{ID: peer1ID}, messenger1, closer)
-	_ = adapter.acceptPeer(transport.Peer{ID: peer2ID}, messenger2, closer)
+	_ = adapter.acceptPeer(context.Background(), transport.Peer{ID: peer1ID}, messenger1)
+	_ = adapter.acceptPeer(context.Background(), transport.Peer{ID: peer2ID}, messenger2)
 
 	adapter.Broadcast(&protobuf.NetworkMessage{})
 

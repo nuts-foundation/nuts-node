@@ -19,30 +19,40 @@
 package grpc
 
 import (
+	"context"
 	"crypto/tls"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 	"sync"
 	"sync/atomic"
 )
 
+// AnyProtocol is a constant for checking the connectivity on any supported protocol.
+const AnyProtocol = "*"
+
 // managedConnection is created by grpcConnectionManager to register a connection to a peer.
 // The connection can be either inbound or outbound. The presence of a managedConnection for a peer doesn't imply
 // there's an actual connection, because it might still be trying to establish an outbound connection to the given peer.
 type managedConnection interface {
+	// disconnect shuts down active inbound or outbound streams.
+	disconnect()
 	// close shuts down active inbound or outbound streams and stops active outbound connectors.
+	// After calling close() the managedConnection cannot be reused.
 	close()
 	getPeer() transport.Peer
-	connected() bool
+	connected(protocol string) bool
 	// open instructs the managedConnection to start connecting to the remote peer (attempting an outbound connection).
 	open(config *tls.Config, callback func(grpcConn *grpc.ClientConn))
-	// registerClientStream adds the given grpc.ClientStream to this managedConnection. It is closed when close() is called.
-	registerClientStream(stream grpc.ClientStream)
+	// registerClientStream adds the given grpc.ClientStream to this managedConnection under the given method,
+	// which holds the fully qualified name of the gRPC stream call. It can be formatted using grpc.GetStreamMethod
+	// (the gRPC library does not provide it for grpc.ClientStream, like it does for server grpc.ServerStream).
+	// The stream is closed when close() is called.
+	registerClientStream(stream grpc.ClientStream, method string) error
 	// registerServerStream adds the given grpc.ServerStream to this managedConnection.
-	registerServerStream(stream grpc.ServerStream)
-	// closer returns a channel that receives an item when the managedConnection is closing.
-	// Each time it is called a new channel will be returned. All channels will be published to when it is closing.
-	closer() <-chan struct{}
+	registerServerStream(stream grpc.ServerStream) error
+	// context returns the context that is cancelled when the connection is closed.
+	context() context.Context
 	// verifyOrSetPeerID checks whether the given transport.PeerID matches the one currently set for this connection.
 	// If no transport.PeerID is set on this connection it just sets it. Subsequent calls must then match it.
 	// This method is used to:
@@ -56,6 +66,8 @@ func createConnection(dialer dialer, peer transport.Peer, inboundStreamsClosedCa
 	result := &conn{
 		dialer:                       dialer,
 		inboundStreamsClosedCallback: inboundStreamsClosedCallback,
+		grpcInboundStreams:           make(map[string]grpc.ServerStream),
+		grpcOutboundStreams:          make(map[string]grpc.ClientStream),
 	}
 	result.peer.Store(peer)
 	return result
@@ -63,12 +75,13 @@ func createConnection(dialer dialer, peer transport.Peer, inboundStreamsClosedCa
 
 type conn struct {
 	peer                         atomic.Value
-	closers                      []chan struct{}
-	mux                          sync.Mutex
+	ctx                          context.Context
+	cancelCtx                    func()
+	mux                          sync.RWMutex
 	connector                    *outboundConnector
 	grpcOutboundConnection       *grpc.ClientConn
-	grpcOutboundStreams          []grpc.ClientStream
-	grpcInboundStreams           []grpc.ServerStream
+	grpcOutboundStreams          map[string]grpc.ClientStream
+	grpcInboundStreams           map[string]grpc.ServerStream
 	inboundStreamsClosedCallback func(managedConnection)
 	dialer                       dialer
 }
@@ -79,28 +92,46 @@ func (mc *conn) getPeer() transport.Peer {
 	return peer
 }
 
-func (mc *conn) closer() <-chan struct{} {
+func (mc *conn) disconnect() {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
-	closer := make(chan struct{}, 1)
-	mc.closers = append(mc.closers, closer)
-	return closer
+
+	mc.doDisconnect()
 }
 
 func (mc *conn) close() {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
-	for _, closer := range mc.closers {
-		if len(closer) == 0 { // make sure we don't block should this function be called twice
-			closer <- struct{}{}
-		}
+	if mc.connector != nil {
+		mc.connector.stop()
+		mc.connector = nil
 	}
 
-	mc.grpcOutboundStreams = nil
-	mc.grpcInboundStreams = nil
+	mc.doDisconnect()
 
-	// Close the grpc.ClientConn (outbound connection)
+	mc.grpcInboundStreams = nil
+	mc.grpcOutboundStreams = nil
+	mc.cancelCtx = nil
+	mc.ctx = nil
+}
+
+func (mc *conn) context() context.Context {
+	mc.mux.RLock()
+	defer mc.mux.RUnlock()
+	return mc.ctx
+}
+
+func (mc *conn) doDisconnect() {
+	if mc.cancelCtx != nil {
+		mc.cancelCtx()
+	}
+
+	// Clean up incoming connections
+	mc.grpcInboundStreams = make(map[string]grpc.ServerStream)
+
+	// Clean up outbound connections
+	mc.grpcOutboundStreams = make(map[string]grpc.ClientStream)
 	if mc.grpcOutboundConnection != nil {
 		_ = mc.grpcOutboundConnection.Close()
 		mc.grpcOutboundConnection = nil
@@ -119,36 +150,59 @@ func (mc *conn) verifyOrSetPeerID(id transport.PeerID) bool {
 	return currentPeer.ID == id
 }
 
-func (mc *conn) registerClientStream(clientStream grpc.ClientStream) {
+func (mc *conn) registerClientStream(clientStream grpc.ClientStream, method string) error {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
-	mc.grpcOutboundStreams = append(mc.grpcOutboundStreams, clientStream)
+
+	if _, exists := mc.grpcOutboundStreams[method]; exists {
+		return fmt.Errorf("peer is already connected (method=%s)", method)
+	}
+
+	// when the gRPC stream cancels, cancel the connection's context
+	if mc.ctx == nil {
+		mc.ctx, mc.cancelCtx = context.WithCancel(context.Background())
+	}
+	go func(cancel func()) {
+		<-clientStream.Context().Done()
+		cancel()
+	}(mc.cancelCtx)
+
+	mc.grpcOutboundStreams[method] = clientStream
+	return nil
 }
 
-func (mc *conn) registerServerStream(serverStream grpc.ServerStream) {
+func (mc *conn) registerServerStream(serverStream grpc.ServerStream) error {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
-	mc.grpcInboundStreams = append(mc.grpcInboundStreams, serverStream)
 
-	go func() {
+	method := grpc.ServerTransportStreamFromContext(serverStream.Context()).Method()
+	if _, exists := mc.grpcInboundStreams[method]; exists {
+		return fmt.Errorf("peer is already connected (method=%s)", method)
+	}
+	if _, exists := mc.grpcOutboundStreams[method]; exists {
+		return fmt.Errorf("peer is already connected (method=%s)", method)
+	}
+
+	mc.grpcInboundStreams[method] = serverStream
+
+	// when the gRPC stream cancels, cancel the connection's context
+	if mc.ctx == nil {
+		mc.ctx, mc.cancelCtx = context.WithCancel(context.Background())
+	}
+	go func(cancel func()) {
 		// Wait for the serverStream to close. Then remove it, and if it was the last one, callback
 		<-serverStream.Context().Done()
+		cancel()
 		mc.mux.Lock()
 		defer mc.mux.Unlock()
-		// Remove this stream from the inbound stream list
-		var j int
-		for _, curr := range mc.grpcInboundStreams {
-			if curr != serverStream {
-				mc.grpcInboundStreams[j] = curr
-				j++
-			}
-		}
-		mc.grpcInboundStreams = mc.grpcInboundStreams[:j]
+		// Remove this stream from the inbound stream registry
+		delete(mc.grpcInboundStreams, method)
 		// If empty, remove.
 		if len(mc.grpcInboundStreams) == 0 {
 			mc.inboundStreamsClosedCallback(mc)
 		}
-	}()
+	}(mc.cancelCtx)
+	return nil
 }
 
 func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn)) {
@@ -160,10 +214,8 @@ func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grp
 		return
 	}
 
-	mc.closers = nil
-
 	mc.connector = createOutboundConnector(mc.getPeer().Address, mc.dialer, tlsConfig, func() bool {
-		return !mc.connected()
+		return !mc.connected(AnyProtocol)
 	}, func(conn *grpc.ClientConn) {
 		mc.mux.Lock()
 		mc.grpcOutboundConnection = conn
@@ -171,13 +223,25 @@ func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grp
 
 		connectedCallback(conn)
 	})
-	go mc.connector.loopConnect()
+	mc.connector.start()
 }
 
-func (mc *conn) connected() bool {
-	mc.mux.Lock()
-	defer mc.mux.Unlock()
+func (mc *conn) connected(protocol string) bool {
+	mc.mux.RLock()
+	defer mc.mux.RUnlock()
 
+	if protocol != AnyProtocol {
+		// Check for specific protocol
+		if mc.grpcOutboundStreams[protocol] != nil {
+			return true
+		}
+		if mc.grpcInboundStreams[protocol] != nil {
+			return true
+		}
+		return false
+	}
+
+	// Check on any protocol
 	if len(mc.grpcOutboundStreams) > 0 {
 		return true
 	}
