@@ -48,10 +48,10 @@ var ErrAlreadyConnected = errors.New("already connected")
 var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func NewGRPCConnectionManager(config Config, nodeDIDReader transport.NodeDIDReader, protocols ...transport.Protocol) transport.ConnectionManager {
+func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDResolver, protocols ...transport.Protocol) transport.ConnectionManager {
 	return &grpcConnectionManager{
 		protocols:       protocols,
-		nodeDIDReader:   nodeDIDReader,
+		nodeDIDResolver: nodeDIDResolver,
 		config:          config,
 		connections:     &connectionList{},
 		grpcServerMutex: &sync.Mutex{},
@@ -70,7 +70,7 @@ type grpcConnectionManager struct {
 	listener         net.Listener
 	listenerCreator  func(string) (net.Listener, error)
 	dialer           dialer
-	nodeDIDReader   transport.NodeDIDResolver
+	nodeDIDResolver  transport.NodeDIDResolver
 	stopCRLValidator func()
 }
 
@@ -322,7 +322,7 @@ func (s *grpcConnectionManager) constructMetadata() (metadata.MD, error) {
 		protocolVersionHeader: protocolVersionV1, // required for backwards compatibility with v1
 	})
 
-	nodeDID, err := s.nodeDIDReader.Resolve()
+	nodeDID, err := s.nodeDIDResolver.Resolve()
 	if err != nil {
 		return nil, fmt.Errorf("error reading local node DID: %w", err)
 	}
