@@ -20,6 +20,7 @@ package network
 
 import (
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/sirupsen/logrus"
@@ -31,7 +32,7 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 	defaultBBoltOptions.NoSync = true
 	config := TestNetworkConfig()
 	vdrStore := store.NewMemoryStore()
-	newInstance := NewNetworkInstance(config, doc.KeyResolver{Store: vdrStore})
+	newInstance := NewNetworkInstance(config, doc.KeyResolver{Store: vdrStore}, crypto.NewTestCryptoInstance(testDirectory))
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)
 	}

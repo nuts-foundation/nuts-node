@@ -69,6 +69,7 @@ type Network struct {
 	graph                  dag.DAG
 	publisher              dag.Publisher
 	payloadStore           dag.PayloadStore
+	privateKeyResolver     crypto.KeyResolver
 	keyResolver            types.KeyResolver
 	startTime              atomic.Value
 	peerID                 transport.PeerID
@@ -84,10 +85,11 @@ func (n *Network) Walk(visitor dag.Visitor) error {
 }
 
 // NewNetworkInstance creates a new Network engine instance.
-func NewNetworkInstance(config Config, keyResolver types.KeyResolver) *Network {
+func NewNetworkInstance(config Config, keyResolver types.KeyResolver, privateKeyResolver crypto.KeyResolver) *Network {
 	result := &Network{
 		config:                 config,
 		keyResolver:            keyResolver,
+		privateKeyResolver:     privateKeyResolver,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
 	return result
@@ -186,21 +188,30 @@ func (n *Network) Config() interface{} {
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
+
+	// Load DAG and start publishing
 	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
 	n.publisher.Start()
-
 	if err := n.graph.Verify(context.Background()); err != nil {
 		return err
 	}
 
 	// Sanity check for configured node DID: can we resolve it?
 	if n.configuredNodeDID != nil {
-		_, _, err := n.didDocumentResolver.Resolve(*n.configuredNodeDID, nil)
+		doc, _, err := n.didDocumentResolver.Resolve(*n.configuredNodeDID, nil)
 		if err != nil {
-			return fmt.Errorf("configured NodeDID could not be resolved (did=%s): %w", n.configuredNodeDID, err)
+			return fmt.Errorf("invalid NodeDID configuration: DID document can't be resolved (did=%s): %w", n.configuredNodeDID, err)
+		}
+		if len(doc.KeyAgreement) == 0 {
+			return fmt.Errorf("invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=%s)", n.configuredNodeDID)
+		}
+		kid := doc.KeyAgreement[0].ID.String()
+		if !n.privateKeyResolver.Exists(kid) {
+			return fmt.Errorf("invalid NodeDID configuration: keyAgreement private key is not present in key store (did=%s,kid=%s)", n.configuredNodeDID, kid)
 		}
 	}
 
+	// Start connection management and protocols
 	err := n.connectionManager.Start()
 	if err != nil {
 		return err
@@ -208,6 +219,7 @@ func (n *Network) Start() error {
 	for _, prot := range n.protocols {
 		prot.Start()
 	}
+
 	// Start connecting to bootstrap nodes
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
