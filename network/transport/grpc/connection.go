@@ -44,7 +44,10 @@ type managedConnection interface {
 	connected(protocol string) bool
 	// open instructs the managedConnection to start connecting to the remote peer (attempting an outbound connection).
 	open(config *tls.Config, callback func(grpcConn *grpc.ClientConn))
-	// registerClientStream adds the given grpc.ClientStream to this managedConnection. It is closed when close() is called.
+	// registerClientStream adds the given grpc.ClientStream to this managedConnection under the given method,
+	// which holds the fully qualified name of the gRPC stream call. It can be formatted using grpc.GetStreamMethod
+	// (the gRPC library does not provide it for grpc.ClientStream, like it does for server grpc.ServerStream).
+	// The stream is closed when close() is called.
 	registerClientStream(stream grpc.ClientStream, method string) error
 	// registerServerStream adds the given grpc.ServerStream to this managedConnection.
 	registerServerStream(stream grpc.ServerStream) error

@@ -22,6 +22,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func Test_connectionList_closeAll(t *testing.T) {
@@ -37,9 +38,22 @@ func Test_connectionList_closeAll(t *testing.T) {
 
 	cn.closeAll()
 
-	// Assert contexts are closed
-	<-doneA
-	<-doneB
+	allDone := make(chan struct{}, 1)
+	go func() {
+		<-doneA
+		<-doneB
+		allDone <- struct{}{}
+	}()
+
+	// Wait for done channels (with timeout)
+	timeout := time.NewTimer(time.Second)
+	select {
+	case <-timeout.C:
+		t.Fatal("timeout")
+	case <-allDone:
+		// all is OK
+		timeout.Stop()
+	}
 }
 
 func Test_connectionList_getOrRegister(t *testing.T) {
