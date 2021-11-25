@@ -49,6 +49,7 @@ func Test_missingPayloadCollector(t *testing.T) {
 	})
 	payloadStore.EXPECT().IsPresent(ctx, tx0.PayloadHash()).Return(true, nil)
 	payloadStore.EXPECT().IsPresent(ctx, tx1.PayloadHash()).Return(false, nil)
+	graph.EXPECT().GetByPayloadHash(ctx, tx1.PayloadHash()).Return([]dag.Transaction{}, nil)
 
 	sender := NewMockmessageSender(ctrl)
 	sender.EXPECT().broadcastTransactionPayloadQuery(tx1.PayloadHash())

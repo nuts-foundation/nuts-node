@@ -83,6 +83,11 @@ func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time
 		previousHeader:     prevsAsString,
 		versionHeader:      input.Version(),
 	}
+
+	if input.To() != nil {
+		headerMap[toHeader] = input.To()
+	}
+
 	if d.attach {
 		headerMap[jws.CriticalKey] = append(headerMap[jws.CriticalKey].([]string), jws.JWKKey)
 		headerMap[jws.JWKKey] = key

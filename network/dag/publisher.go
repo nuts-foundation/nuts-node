@@ -124,11 +124,17 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 }
 
 func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transaction Transaction) bool {
+	// We need to skip transactions with a to addr header as it should be handled by the v2 protocol
+	if len(transaction.To()) > 0 {
+		return true
+	}
+
 	payload, err := s.payloadStore.ReadPayload(ctx, transaction.PayloadHash())
 	if err != nil {
 		log.Logger().Errorf("Unable to read payload to publish DAG: (ref=%s) %v", transaction.Ref(), err)
 		return false
 	}
+
 	if payload == nil {
 		// We haven't got the payload, break of processing for this branch
 		return false
@@ -143,5 +149,6 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 			log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
 		}
 	}
+
 	return true
 }

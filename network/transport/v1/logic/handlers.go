@@ -218,10 +218,13 @@ func (p *protocol) checkTransactionOnLocalNode(ctx context.Context, peer transpo
 	// TODO: Make this a bit smarter.
 	var transaction dag.Transaction
 	var err error
+
 	if transaction, err = dag.ParseTransaction(data); err != nil {
 		return fmt.Errorf("received transaction is invalid (peer=%s,pref=%s): %w", peer, transactionRef, err)
 	}
+
 	queryContents := false
+
 	if present, err := p.graph.IsPresent(ctx, transactionRef); err != nil {
 		return err
 	} else if !present {
@@ -234,12 +237,19 @@ func (p *protocol) checkTransactionOnLocalNode(ctx context.Context, peer transpo
 	} else {
 		queryContents = !payloadPresent
 	}
+
 	if queryContents {
+		// If the transaction contains a to address, we need to ignore it as it should be handled by the v2 protocol
+		if len(transaction.To()) > 0 {
+			return nil
+		}
+
 		// TODO: Currently we send the query to the peer that sent us the hash, but this peer might not have the
 		//   transaction contents. We need a smarter way to get it from a peer who does.
 		log.Logger().Infof("Received transaction hash from peer that we don't have yet or we're missing its contents, will query it (peer=%s,hash=%s)", peer, transactionRef)
 		p.sender.sendTransactionPayloadQuery(peer, transaction.PayloadHash())
 	}
+
 	return nil
 }
 

@@ -69,6 +69,7 @@ type testTransaction struct {
 	payloadHash  hash.SHA256Hash
 	payloadType  string
 	prevs        []hash.SHA256Hash
+	toAddr       []byte
 }
 
 func (s testTransaction) SigningKey() jwk.Key {
@@ -85,6 +86,10 @@ func (s testTransaction) SigningTime() time.Time {
 
 func (s testTransaction) Ref() hash.SHA256Hash {
 	return s.ref
+}
+
+func (s testTransaction) To() []byte {
+	return s.toAddr
 }
 
 func (s testTransaction) PayloadHash() hash.SHA256Hash {
