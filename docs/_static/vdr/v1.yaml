@@ -389,7 +389,7 @@ components:
         capabilityDelegation:
           type: boolean
           description: indicates if the generated key pair can be used for capability delegations.
-          default: false
+          default: true
         keyAgreement:
           type: boolean
           description: indicates if the generated key pair can be used for Key agreements.

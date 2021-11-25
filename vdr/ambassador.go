@@ -295,7 +295,7 @@ func (n ambassador) isUpdate(doc did.Document) (bool, error) {
 	_, _, err := n.didStore.Resolve(doc.ID, nil)
 	result := true
 
-	if err == types.ErrNotFound {
+	if errors.Is(err, types.ErrNotFound) {
 		return false, nil
 	}
 

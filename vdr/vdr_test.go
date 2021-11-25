@@ -181,6 +181,7 @@ func TestVDR_Create(t *testing.T) {
 		}
 		nextDIDDocument.AddCapabilityInvocation(vm)
 		nextDIDDocument.AddAssertionMethod(vm)
+		nextDIDDocument.AddKeyAgreement(vm)
 		expectedPayload, _ := json.Marshal(nextDIDDocument)
 
 		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)

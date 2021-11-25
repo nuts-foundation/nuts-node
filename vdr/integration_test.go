@@ -144,6 +144,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docA.AssertionMethod = []did.VerificationRelationship{}
 	docA.CapabilityInvocation = []did.VerificationRelationship{}
 	docA.VerificationMethod = []*did.VerificationMethod{}
+	docA.KeyAgreement = []did.VerificationRelationship{}
 	err = vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
 	if !assert.NoError(t, err,
 		"unable to update documentA with a new controller") {

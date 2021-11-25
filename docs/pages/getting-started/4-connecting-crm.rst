@@ -49,6 +49,7 @@ Consult the :ref:`configuration reference <nuts-node-config>` on how to configur
     POST <internal-node-address>/internal/vdr/v1/did
     {
         "selfControl": true,
+        "keyAgreement": true,
         "assertionMethod": true,
         "capabilityInvocation": true
     }
@@ -79,6 +80,9 @@ If all is well, the node will respond with a DID Document similar to:
         "did:nuts:2mF6KT6eiSx5y2fwTP4Y42yMUh91zGVkbu4KMARvCJz9#_TKzHv2jFIyvdTGF1Dsgwngfdg3SH6TpDv0Ta1aOEkw"
       ],
       "assertion": [
+        "did:nuts:2mF6KT6eiSx5y2fwTP4Y42yMUh91zGVkbu4KMARvCJz9#_TKzHv2jFIyvdTGF1Dsgwngfdg3SH6TpDv0Ta1aOEkw"
+      ],
+      "keyAgreement": [
         "did:nuts:2mF6KT6eiSx5y2fwTP4Y42yMUh91zGVkbu4KMARvCJz9#_TKzHv2jFIyvdTGF1Dsgwngfdg3SH6TpDv0Ta1aOEkw"
       ],
       "service": []

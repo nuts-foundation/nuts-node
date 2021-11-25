@@ -45,7 +45,7 @@ func TestDefaultCreationOptions(t *testing.T) {
 	assert.False(t, ops.Authentication)
 	assert.False(t, ops.CapabilityDelegation)
 	assert.True(t, ops.CapabilityInvocation)
-	assert.False(t, ops.KeyAgreement)
+	assert.True(t, ops.KeyAgreement)
 	assert.True(t, ops.SelfControl)
 	assert.Empty(t, ops.Controllers)
 }
