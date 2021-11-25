@@ -22,15 +22,31 @@ option go_package = "github.com/nuts-foundation/nuts-node/network/transport/v2";
 package v2;
 
 service Protocol {
-  rpc Stream (stream Message) returns (stream Message) {
+  rpc Stream (stream Envelope) returns (stream Envelope) {
   }
 }
 
-message Message {
-  oneof message {
-    HelloMessage hello = 1000;
+message Envelope {
+  oneof Message {
+    Hello hello = 1000;
+    TransactionPayloadQuery transactionPayloadQuery = 100;
+    TransactionPayload transactionPayload = 101;
   }
 }
 
-message HelloMessage {
+// TransactionPayloadQuery is a message used to query the payload of a transaction.
+message TransactionPayloadQuery {
+  // transactionRef contains the reference (hash) of the transaction, which payload the node would like to receive, as specified by RFC004.
+  bytes transactionRef = 1;
+}
+
+// TransactionPayload is the response message for TransactionPayloadQuery.
+message TransactionPayload {
+  // transactionRef contains the reference to the transaction which' payload was requested.
+  bytes transactionRef = 1;
+  // data contains the actual payload.
+  bytes data = 10;
+}
+
+message Hello {
 }

@@ -54,11 +54,9 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 
 }
 
-// CreateTestTransaction creates a transaction with the given num as payload hash and signs it with a random EC key.
-func CreateTestTransaction(num uint32, prevs ...hash.SHA256Hash) (Transaction, string, crypto.PublicKey) {
-	payloadHash := hash.SHA256Hash{}
-	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
-	unsignedTransaction, _ := NewTransaction(payloadHash, "foo/bar", prevs, nil)
+// CreateTestTransactionEx creates a transaction with the given payload hash and signs it with a random EC key.
+func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participants EncryptedPAL, prevs ...hash.SHA256Hash) (Transaction, string, crypto.PublicKey) {
+	unsignedTransaction, _ := NewTransaction(payloadHash, "foo/bar", prevs, participants)
 	kid := fmt.Sprintf("%d", num)
 	signer := crypto2.NewTestKey(kid)
 	signedTransaction, err := NewTransactionSigner(signer, false).Sign(unsignedTransaction, time.Now())
@@ -66,6 +64,13 @@ func CreateTestTransaction(num uint32, prevs ...hash.SHA256Hash) (Transaction, s
 		panic(err)
 	}
 	return signedTransaction, kid, signer.Public()
+}
+
+// CreateTestTransaction creates a transaction with the given num as payload hash and signs it with a random EC key.
+func CreateTestTransaction(num uint32, prevs ...hash.SHA256Hash) (Transaction, string, crypto.PublicKey) {
+	payloadHash := hash.SHA256Hash{}
+	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
+	return CreateTestTransactionEx(num, payloadHash, nil, prevs...)
 }
 
 // graphF creates the following graph:

@@ -151,7 +151,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Configure protocols
 	n.protocols = []transport.Protocol{
 		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
-		v2.New(),
+		v2.New(n.graph, n.payloadStore),
 	}
 	for _, prot := range n.protocols {
 		prot.Configure(n.peerID)

@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
@@ -31,13 +32,19 @@ import (
 var _ grpc.Protocol = (*protocol)(nil)
 
 // New creates an instance of the v2 protocol.
-func New() transport.Protocol {
-	return &protocol{}
+func New(graph dag.DAG, payloadStore dag.PayloadStore) transport.Protocol {
+	return &protocol{
+		graph:        graph,
+		payloadStore: payloadStore,
+	}
 }
 
 type protocol struct {
 	connectionList    grpc.ConnectionList
 	connectionManager transport.ConnectionManager
+
+	payloadStore dag.PayloadStore
+	graph        dag.DAG
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn) (grpcLib.ClientStream, error) {
