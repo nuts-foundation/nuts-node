@@ -205,9 +205,11 @@ func (n *Network) Start() error {
 		if len(doc.KeyAgreement) == 0 {
 			return fmt.Errorf("invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=%s)", n.configuredNodeDID)
 		}
-		kid := doc.KeyAgreement[0].ID.String()
-		if !n.privateKeyResolver.Exists(kid) {
-			return fmt.Errorf("invalid NodeDID configuration: keyAgreement private key is not present in key store (did=%s,kid=%s)", n.configuredNodeDID, kid)
+
+		for _, keyAgreement := range doc.KeyAgreement {
+			if !n.privateKeyResolver.Exists(keyAgreement.ID.String()) {
+				return fmt.Errorf("invalid NodeDID configuration: keyAgreement private key is not present in key store (did=%s,kid=%s)", n.configuredNodeDID, keyAgreement.ID)
+			}
 		}
 	}
 
