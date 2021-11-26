@@ -155,9 +155,7 @@ func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
 	}
 
 	// Now start node2 again, node1 should reconnect
-	if err := node2.Start(); err != nil {
-		t.Fatal(err)
-	}
+	node2 = startNode(t, "node2", testDirectory) // important to start a new instance, otherwise PeerID isn't regenerated
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.connectionManager.Peers()) == 1, nil
 	}, defaultTimeout, "time-out while waiting for node 1 to reconnect to node 2") {
@@ -198,8 +196,6 @@ func startNode(t *testing.T, name string, testDirectory string) *Network {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
 	core.NewServerConfig().Load(&cobra.Command{})
-	mutex.Lock()
-	mutex.Unlock()
 	// Create Network instance
 	config := Config{
 		GrpcAddr:       fmt.Sprintf("localhost:%d", nameToPort(t, name)),
