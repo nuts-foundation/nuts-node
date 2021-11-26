@@ -136,6 +136,9 @@ func (mc *conn) doDisconnect() {
 		_ = mc.grpcOutboundConnection.Close()
 		mc.grpcOutboundConnection = nil
 	}
+
+	// Reset peer ID, since when it reconnects it might have changed (due to a reboot)
+	mc.peer.Store(transport.Peer{})
 }
 
 func (mc *conn) verifyOrSetPeerID(id transport.PeerID) bool {

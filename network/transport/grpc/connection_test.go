@@ -42,6 +42,12 @@ func Test_conn_close(t *testing.T) {
 		conn.close()
 		assert.True(t, called)
 	})
+	t.Run("resets peer ID", func(t *testing.T) {
+		conn := conn{}
+		conn.verifyOrSetPeerID("foo")
+		conn.close()
+		assert.Empty(t, conn.getPeer())
+	})
 }
 
 func Test_conn_registerServerStream(t *testing.T) {
