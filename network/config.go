@@ -37,6 +37,10 @@ type Config struct {
 	// MaxCRLValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
 	MaxCRLValidityDays int `koanf:"network.maxcrlvaliditydays"`
 
+	// NodeDID defines the DID of the organization that operates this node, typically a vendor for EPD software.
+	// It is used to identify it on the network.
+	NodeDID string `koanf:"network.nodedid"`
+
 	// ProtocolV1 specifies config for protocol v1
 	ProtocolV1 v1.Config `koanf:"network.v1"`
 }

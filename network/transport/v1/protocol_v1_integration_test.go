@@ -21,6 +21,7 @@ package v1
 import (
 	"context"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -190,7 +191,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
 	ctx.protocol = New(*cfg, ctx.graph, publisher, ctx.payloadStore, dummyDiagnostics).(*protocolV1)
 
-	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), ctx.protocol)
+	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, ctx.protocol)
 
 	ctx.protocol.Configure(peerID)
 	if err = ctx.connectionManager.Start(); err != nil {

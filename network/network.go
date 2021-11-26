@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1"
@@ -68,11 +69,13 @@ type Network struct {
 	graph                  dag.DAG
 	publisher              dag.Publisher
 	payloadStore           dag.PayloadStore
+	privateKeyResolver     crypto.KeyResolver
 	keyResolver            types.KeyResolver
 	startTime              atomic.Value
 	peerID                 transport.PeerID
+	configuredNodeDID      *did.DID
+	didDocumentResolver    types.DocResolver
 	db                     *bbolt.DB
-	started                bool
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -82,10 +85,11 @@ func (n *Network) Walk(visitor dag.Visitor) error {
 }
 
 // NewNetworkInstance creates a new Network engine instance.
-func NewNetworkInstance(config Config, keyResolver types.KeyResolver) *Network {
+func NewNetworkInstance(config Config, keyResolver types.KeyResolver, privateKeyResolver crypto.KeyResolver) *Network {
 	result := &Network{
 		config:                 config,
 		keyResolver:            keyResolver,
+		privateKeyResolver:     privateKeyResolver,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
 	return result
@@ -139,10 +143,22 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Setup connection manager, load with bootstrap nodes
 	if n.connectionManager == nil {
 		var grpcOpts []grpc.ConfigOption
+		// Configure TLS
 		if n.config.EnableTLS {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
 		}
-		n.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...), n.protocols...)
+		// Resolve node DID
+		var nodeDIDReader transport.FixedNodeDIDResolver
+		if n.config.NodeDID != "" {
+			var err error
+			n.configuredNodeDID, err = did.ParseDID(n.config.NodeDID)
+			if err != nil {
+				return fmt.Errorf("configured NodeDID is invalid: %w", err)
+			}
+			nodeDIDReader.NodeDID = *n.configuredNodeDID
+		}
+		// Instantiate
+		n.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...), nodeDIDReader, n.protocols...)
 	}
 	return nil
 }
@@ -172,13 +188,32 @@ func (n *Network) Config() interface{} {
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
+
+	// Load DAG and start publishing
 	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
 	n.publisher.Start()
-
 	if err := n.graph.Verify(context.Background()); err != nil {
 		return err
 	}
 
+	// Sanity check for configured node DID: can we resolve it?
+	if n.configuredNodeDID != nil {
+		doc, _, err := n.didDocumentResolver.Resolve(*n.configuredNodeDID, nil)
+		if err != nil {
+			return fmt.Errorf("invalid NodeDID configuration: DID document can't be resolved (did=%s): %w", n.configuredNodeDID, err)
+		}
+		if len(doc.KeyAgreement) == 0 {
+			return fmt.Errorf("invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=%s)", n.configuredNodeDID)
+		}
+
+		for _, keyAgreement := range doc.KeyAgreement {
+			if !n.privateKeyResolver.Exists(keyAgreement.ID.String()) {
+				return fmt.Errorf("invalid NodeDID configuration: keyAgreement private key is not present in key store (did=%s,kid=%s)", n.configuredNodeDID, keyAgreement.ID)
+			}
+		}
+	}
+
+	// Start connection management and protocols
 	err := n.connectionManager.Start()
 	if err != nil {
 		return err
@@ -186,6 +221,7 @@ func (n *Network) Start() error {
 	for _, prot := range n.protocols {
 		prot.Start()
 	}
+
 	// Start connecting to bootstrap nodes
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {

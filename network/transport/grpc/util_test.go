@@ -27,43 +27,46 @@ import (
 
 func Test_readMetadata(t *testing.T) {
 	t.Run("ok - roundtrip", func(t *testing.T) {
-		md := constructMetadata("1234")
-		peerID, err := readMetadata(md)
+		peerID, nodeDID, err := readMetadata(metadata.New(map[string]string{
+			peerIDHeader:  "1234",
+			nodeDIDHeader: "did:nuts:test",
+		}))
 		if !assert.NoError(t, err) {
 			return
 		}
 		assert.Equal(t, "1234", peerID.String())
+		assert.Equal(t, "did:nuts:test", nodeDID.String())
 	})
-	t.Run("error - multiple values", func(t *testing.T) {
+	t.Run("error - multiple values for peer ID", func(t *testing.T) {
 		md := metadata.MD{}
 		md.Append(peerIDHeader, "1")
 		md.Append(peerIDHeader, "2")
-		peerID, err := readMetadata(md)
+		peerID, nodeDID, err := readMetadata(md)
 		assert.EqualError(t, err, "peer sent multiple values for peerID header")
 		assert.Empty(t, peerID.String())
+		assert.Empty(t, nodeDID)
 	})
-	t.Run("error - no values", func(t *testing.T) {
+	t.Run("error - no values for peer ID", func(t *testing.T) {
 		md := metadata.MD{}
-		peerID, err := readMetadata(md)
+		peerID, nodeDID, err := readMetadata(md)
 		assert.EqualError(t, err, "peer didn't send peerID header")
 		assert.Empty(t, peerID.String())
+		assert.Empty(t, nodeDID)
 	})
-	t.Run("error - empty value", func(t *testing.T) {
+	t.Run("error - empty value for peer ID", func(t *testing.T) {
 		md := metadata.MD{}
 		md.Set(peerIDHeader, "  ")
-		peerID, err := readMetadata(md)
+		peerID, _, err := readMetadata(md)
 		assert.EqualError(t, err, "peer sent empty peerID header")
 		assert.Empty(t, peerID.String())
 	})
-}
-
-func Test_constructMetadata(t *testing.T) {
-	t.Run("set default protocol version", func(t *testing.T) {
-		md := constructMetadata("1234")
-
-		v := md.Get(protocolVersionHeader)
-
-		assert.Len(t, v, 1)
-		assert.Equal(t, protocolVersionV1, v[0])
+	t.Run("error - invalid node DID", func(t *testing.T) {
+		md := metadata.MD{}
+		md.Set(peerIDHeader, "1")
+		md.Set(nodeDIDHeader, "invalid")
+		peerID, nodeDID, err := readMetadata(md)
+		assert.EqualError(t, err, "peer sent invalid node DID: invalid DID: input does not begin with 'did:' prefix")
+		assert.Empty(t, peerID.String())
+		assert.Empty(t, nodeDID)
 	})
 }

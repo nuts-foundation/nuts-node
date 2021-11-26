@@ -173,6 +173,7 @@ network.certfile                                             PEM file containing
 network.certkeyfile                                          PEM file containing the private key of the server certificate. Required when `network.enabletls` is `true`.
 network.enabletls                          true              Whether to enable TLS for incoming and outgoing gRPC connections. When `certfile` or `certkeyfile` is specified it defaults to `true`, otherwise `false`.
 network.grpcaddr                           \:5555             Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made).
+network.nodedid                                              Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
 network.truststorefile                                       PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
 network.v1.advertdiagnosticsinterval       5000              Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).
 network.v1.adverthashesinterval            2000              Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.

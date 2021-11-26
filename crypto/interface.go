@@ -36,15 +36,19 @@ type KeyCreator interface {
 	New(namingFunc KIDNamingFunc) (Key, error)
 }
 
-// KeyStore defines the functions for working with private keys.
-type KeyStore interface {
+// KeyResolver is the interface for resolving keys.
+type KeyResolver interface {
 	// Exists returns if the specified private key exists.
 	// If an error occurs, false is also returned
 	Exists(kid string) bool
 	// Resolve returns a Key for the given KID. ErrKeyNotFound is returned for an unknown KID.
 	Resolve(kid string) (Key, error)
+}
 
+// KeyStore defines the functions for working with private keys.
+type KeyStore interface {
 	KeyCreator
+	KeyResolver
 	JWTSigner
 }
 
