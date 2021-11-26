@@ -72,6 +72,7 @@ type Network struct {
 	startTime              atomic.Value
 	peerID                 transport.PeerID
 	db                     *bbolt.DB
+	started                bool
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -279,11 +280,13 @@ func (n *Network) Shutdown() error {
 	n.connectionManager.Stop()
 
 	// Close BBolt database
-	err := n.db.Close()
-	if err != nil {
-		return err
+	if n.db != nil {
+		err := n.db.Close()
+		if err != nil {
+			return err
+		}
+		n.db = nil
 	}
-	n.db = nil
 
 	return nil
 }

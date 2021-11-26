@@ -342,6 +342,19 @@ func TestNetwork_Shutdown(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, cxt.network.db)
 	})
+	t.Run("multiple calls", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl)
+		cxt.protocol.EXPECT().Stop().MinTimes(1)
+		cxt.connectionManager.EXPECT().Stop().MinTimes(1)
+		err := cxt.network.Shutdown()
+		assert.NoError(t, err)
+		err = cxt.network.Shutdown()
+		assert.NoError(t, err)
+		err = cxt.network.Shutdown()
+		assert.NoError(t, err)
+	})
 }
 
 func TestNetwork_collectDiagnostics(t *testing.T) {
