@@ -64,7 +64,19 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
 		ctx.docResolver.EXPECT().Resolve(*did, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
-		err := ctx.vcr.StoreCredential(target)
+		err := ctx.vcr.StoreCredential(target, nil)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - with validAt", func(t *testing.T) {
+		ctx := newMockContext(t)
+		now := time.Now()
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), &now).Return(pk, nil)
+		ctx.docResolver.EXPECT().Resolve(*did, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
+
+		err := ctx.vcr.StoreCredential(target, &now)
 
 		assert.NoError(t, err)
 	})
@@ -72,7 +84,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("error - validation", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		err := ctx.vcr.StoreCredential(vc.VerifiableCredential{})
+		err := ctx.vcr.StoreCredential(vc.VerifiableCredential{}, nil)
 
 		assert.Error(t, err)
 	})
