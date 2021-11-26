@@ -124,6 +124,8 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 }
 
 func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
+	t.SkipNow()
+
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest()
 

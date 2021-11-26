@@ -71,6 +71,8 @@ type Network struct {
 	keyResolver            types.KeyResolver
 	startTime              atomic.Value
 	peerID                 transport.PeerID
+	db                     *bbolt.DB
+	started                bool
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -97,18 +99,19 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	// for tests we set NoSync to true, this option can only be set through code
-	db, bboltErr := bbolt.Open(dbFile, boltDBFileMode, defaultBBoltOptions)
+	var bboltErr error
+	n.db, bboltErr = bbolt.Open(dbFile, boltDBFileMode, defaultBBoltOptions)
 	if bboltErr != nil {
 		return fmt.Errorf("unable to create BBolt database: %w", bboltErr)
 	}
 
-	n.graph = dag.NewBBoltDAG(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
+	n.graph = dag.NewBBoltDAG(n.db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
 	// migrate DAG to add Clock values
 	if err := n.graph.Migrate(); err != nil {
 		return fmt.Errorf("unable to migrate DAG: %w", err)
 	}
 
-	n.payloadStore = dag.NewBBoltPayloadStore(db)
+	n.payloadStore = dag.NewBBoltPayloadStore(n.db)
 	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	n.peerID = transport.PeerID(uuid.New().String())
 
@@ -271,10 +274,21 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 
 // Shutdown cleans up any leftover go routines
 func (n *Network) Shutdown() error {
+	// Stop protocols and connection manager
 	for _, prot := range n.protocols {
 		prot.Stop()
 	}
 	n.connectionManager.Stop()
+
+	// Close BBolt database
+	if n.db != nil {
+		err := n.db.Close()
+		if err != nil {
+			return err
+		}
+		n.db = nil
+	}
+
 	return nil
 }
 
