@@ -21,6 +21,7 @@ package dag
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/events"
 	"testing"
 	"time"
 
@@ -36,7 +37,8 @@ func TestReplayingPublisher(t *testing.T) {
 		db := createBBoltDB(testDirectory)
 		dag := NewBBoltDAG(db)
 		payloadStore := NewBBoltPayloadStore(db)
-		publisher := NewReplayingDAGPublisher(payloadStore, dag).(*replayingDAGPublisher)
+		privateTxCtx := events.NewMockJetStreamContext(gomock.NewController(t))
+		publisher := NewReplayingDAGPublisher(privateTxCtx, payloadStore, dag).(*replayingDAGPublisher)
 		received := false
 		transaction := CreateTestTransactionWithJWK(1)
 		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
@@ -68,7 +70,8 @@ func TestReplayingPublisher(t *testing.T) {
 			return
 		}
 
-		publisher := NewReplayingDAGPublisher(payloadStore, dag).(*replayingDAGPublisher)
+		privateTxCtx := events.NewMockJetStreamContext(gomock.NewController(t))
+		publisher := NewReplayingDAGPublisher(privateTxCtx, payloadStore, dag).(*replayingDAGPublisher)
 		received := false
 		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
@@ -83,7 +86,7 @@ func TestReplayingPublisher(t *testing.T) {
 
 func TestReplayingPublisher_publishTransaction(t *testing.T) {
 	t.Run("no subscribers", func(t *testing.T) {
-		publisher, ctrl, store := createPublisher(t)
+		publisher, ctrl, _, store := createPublisher(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
 
@@ -92,7 +95,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		publisher.publishTransaction(ctx, CreateTestTransactionWithJWK(1))
 	})
 	t.Run("single subscriber", func(t *testing.T) {
-		publisher, ctrl, store := createPublisher(t)
+		publisher, ctrl, _, store := createPublisher(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
 
@@ -109,13 +112,14 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		assert.True(t, received)
 	})
 	t.Run("not received when transaction with to header is skipped", func(t *testing.T) {
-		publisher, ctrl, _ := createPublisher(t)
+		publisher, ctrl, privateTxCtx, _ := createPublisher(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
 
 		transaction := CreateSignedTestTransaction(1, time.Now(), []byte{9, 8, 7}, "foo/bar", true)
 
 		received := false
+		privateTxCtx.EXPECT().PublishAsync(privateTransactionsSubject, gomock.Any()).Return(nil, nil)
 		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
 			received = true
@@ -125,7 +129,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		assert.False(t, received)
 	})
 	t.Run("payload not present (but present later)", func(t *testing.T) {
-		publisher, ctrl, store := createPublisher(t)
+		publisher, ctrl, _, store := createPublisher(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
 
@@ -148,7 +152,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		assert.True(t, received)
 	})
 	t.Run("error reading payload", func(t *testing.T) {
-		publisher, ctrl, store := createPublisher(t)
+		publisher, ctrl, _, store := createPublisher(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
 
@@ -164,7 +168,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		assert.False(t, received)
 	})
 	t.Run("multiple subscribers", func(t *testing.T) {
-		publisher, ctrl, store := createPublisher(t)
+		publisher, ctrl, _, store := createPublisher(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
 
@@ -183,7 +187,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		assert.Equal(t, 2, calls)
 	})
 	t.Run("multiple subscribers, first fails", func(t *testing.T) {
-		publisher, ctrl, store := createPublisher(t)
+		publisher, ctrl, _, store := createPublisher(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
 
@@ -201,12 +205,13 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 	})
 }
 
-func createPublisher(t *testing.T) (*replayingDAGPublisher, *gomock.Controller, *MockPayloadStore) {
+func createPublisher(t *testing.T) (*replayingDAGPublisher, *gomock.Controller, *events.MockJetStreamContext, *MockPayloadStore) {
 	ctrl := gomock.NewController(t)
 	payloadStore := NewMockPayloadStore(ctrl)
 	payloadStore.EXPECT().RegisterObserver(gomock.Any())
 	dag := NewMockDAG(ctrl)
 	dag.EXPECT().RegisterObserver(gomock.Any())
-	publisher := NewReplayingDAGPublisher(payloadStore, dag).(*replayingDAGPublisher)
-	return publisher, ctrl, payloadStore
+	privateTxCtx := events.NewMockJetStreamContext(ctrl)
+	publisher := NewReplayingDAGPublisher(privateTxCtx, payloadStore, dag).(*replayingDAGPublisher)
+	return publisher, ctrl, privateTxCtx, payloadStore
 }

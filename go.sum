@@ -130,6 +130,8 @@ github.com/dgrijalva/jwt-go v3.2.1-0.20200107013213-dc14462fd587+incompatible h1
 github.com/dgrijalva/jwt-go v3.2.1-0.20200107013213-dc14462fd587+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-sip13 v0.0.0-20181026042036-e10d5fee7954/go.mod h1:vAd38F8PWV+bWy6jNmig1y/TA+kYO4g3RSRF0IAv0no=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
+github.com/ecies/go v1.0.1 h1:LYDUdQBzWPgCOuwoGl3qPECiKXwqE0+tA9JM1kvIpfw=
+github.com/ecies/go v1.0.1/go.mod h1:PmJ1sVvvBvd/aZfw4JPBW9QL/Wy+0al8xtPYqd+T6sw=
 github.com/edsrzf/mmap-go v1.0.0 h1:CEBF7HpRnUCSJgGUb5h1Gm7e3VkmVDrR8lvWVLtrOFw=
 github.com/edsrzf/mmap-go v1.0.0/go.mod h1:YO35OhQPt3KJa3ryjFM5Bs14WD66h8eGKpfaBNrHW5M=
 github.com/eknkc/basex v1.0.0 h1:R2zGRGJAcqEES03GqHU9leUF5n4Pg6ahazPbSTQWCWc=
@@ -146,6 +148,8 @@ github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 h1:Yzb9+7DP
 github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5/go.mod h1:a2zkGnVExMxdzMo3M0Hi/3sEU+cWnZpSni0O6/Yb/P0=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/structs v1.1.0/go.mod h1:9NiDSp5zOcgEDl+j00MP/WkGVPOlPRLejGD8Ga6PJ7M=
+github.com/fomichev/secp256k1 v0.0.0-20180413221153-00116ff8c62f h1:YbIfHI+s+tauzUAdNw+lF8a9o056PoIPaLGodgh5D7g=
+github.com/fomichev/secp256k1 v0.0.0-20180413221153-00116ff8c62f/go.mod h1:X4BmRxczPduAy11nSLYwnR11VuvnbG7ozOTDKLHhx70=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWoS4=
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=

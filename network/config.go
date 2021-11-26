@@ -33,6 +33,8 @@ type Config struct {
 	CertFile       string   `koanf:"network.certfile"`
 	CertKeyFile    string   `koanf:"network.certkeyfile"`
 	TrustStoreFile string   `koanf:"network.truststorefile"`
+	// Timeout of the NATS client connection
+	NatsTimeout int `koanf:"network.natstimeout"`
 
 	// MaxCRLValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
 	MaxCRLValidityDays int `koanf:"network.maxcrlvaliditydays"`
@@ -41,6 +43,11 @@ type Config struct {
 	// It is used to identify it on the network.
 	NodeDID string `koanf:"network.nodedid"`
 
+	// NATS configuration for the replay DAG publisher
+	NatsPort       int    `koanf:"events.nats.port"`
+	NatsHostname   string `koanf:"events.nats.hostname"`
+	NatsStorageDir string `koanf:"events.nats.storagedir"`
+
 	// ProtocolV1 specifies config for protocol v1
 	ProtocolV1 v1.Config `koanf:"network.v1"`
 }
@@ -48,8 +55,9 @@ type Config struct {
 // DefaultConfig returns the default NetworkEngine configuration.
 func DefaultConfig() Config {
 	return Config{
-		GrpcAddr:   ":5555",
-		ProtocolV1: v1.DefaultConfig(),
-		EnableTLS:  true,
+		GrpcAddr:    ":5555",
+		ProtocolV1:  v1.DefaultConfig(),
+		EnableTLS:   true,
+		NatsTimeout: 30,
 	}
 }

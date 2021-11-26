@@ -19,7 +19,9 @@
 package storage
 
 import (
+	"fmt"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -125,4 +127,32 @@ func Test_fs_KeyExistsFor(t *testing.T) {
 		storage.SavePrivateKey(kid, pk)
 		assert.True(t, storage.PrivateKeyExists(kid))
 	})
+}
+
+func Test_fs_ListPrivateKeys(t *testing.T) {
+	storage, _ := NewFileSystemBackend(io.TestDirectory(t))
+	backend := storage.(*fileSystemBackend)
+
+	// Generate a few keys
+	pk := test.GenerateECKey()
+	for i := 0; i < 5; i++ {
+		kid := fmt.Sprintf("key-%d", i)
+		_ = backend.SavePrivateKey(kid, pk)
+	}
+
+	// Store some other cruft that shouldn't return as private key
+	err := os.WriteFile(path.Join(backend.fspath, "foo.txt"), []byte{1, 2, 3}, os.ModePerm)
+	assert.NoError(t, err)
+
+	err = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
+	assert.NoError(t, err)
+
+	err = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_private.bin"), []byte{1, 2, 3}, os.ModePerm)
+	assert.NoError(t, err)
+
+	err = os.Mkdir(path.Join(backend.fspath, "subdir"), os.ModePerm)
+	assert.NoError(t, err)
+
+	err = os.WriteFile(path.Join(backend.fspath, "subdir", "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
+	assert.NoError(t, err)
 }

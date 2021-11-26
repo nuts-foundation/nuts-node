@@ -22,13 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1"
-	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
-	"github.com/pkg/errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -38,13 +31,22 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/pkg/errors"
+	"go.etcd.io/bbolt"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"go.etcd.io/bbolt"
 )
 
 const (
@@ -115,8 +117,21 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		return fmt.Errorf("unable to migrate DAG: %w", err)
 	}
 
+	// NATS
+	natsAddr := fmt.Sprintf("%s:%d", n.config.NatsHostname, n.config.NatsPort)
+
+	conn, err := nats.Connect(natsAddr, nats.RetryOnFailedConnect(true), nats.Timeout(time.Duration(n.config.NatsTimeout)*time.Second))
+	if err != nil {
+		return fmt.Errorf("unable to connect to NATS at '%s': %w", natsAddr, err)
+	}
+
+	privateTxCtx, err := conn.JetStream()
+	if err != nil {
+		return fmt.Errorf("unable to connect to NATS at '%s': %w", natsAddr, err)
+	}
+
 	n.payloadStore = dag.NewBBoltPayloadStore(n.db)
-	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
+	n.publisher = dag.NewReplayingDAGPublisher(privateTxCtx, n.payloadStore, n.graph)
 	n.peerID = transport.PeerID(uuid.New().String())
 
 	// TLS

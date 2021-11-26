@@ -175,6 +175,7 @@ network.enabletls                          true              Whether to enable T
 network.grpcaddr                           \:5555             Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made).
 network.nodedid                                              Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
 network.truststorefile                                       PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
+network.natstimeout                        30                Timeout for NATS connections (in seconds)
 network.v1.advertdiagnosticsinterval       5000              Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).
 network.v1.adverthashesinterval            2000              Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.
 network.v1.collectmissingpayloadsinterval  60000             Interval (in milliseconds) that specifies how often the node should check for missing payloads and broadcast its peers for it (specify 0 to disable). This check might be heavy on larger DAGs so make sure not to run it too often.
