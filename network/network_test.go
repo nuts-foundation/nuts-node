@@ -334,9 +334,13 @@ func TestNetwork_Shutdown(t *testing.T) {
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.connectionManager.EXPECT().Stop()
-		cxt.protocol.EXPECT().Stop()
-		err := cxt.network.Shutdown()
+		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		if !assert.NoError(t, err) {
+			return
+		}
+		err = cxt.network.Shutdown()
 		assert.NoError(t, err)
+		assert.Nil(t, cxt.network.db)
 	})
 }
 
