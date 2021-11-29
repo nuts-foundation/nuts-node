@@ -49,6 +49,58 @@ func (mr *MockKeyCreatorMockRecorder) New(namingFunc interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockKeyCreator)(nil).New), namingFunc)
 }
 
+// MockKeyResolver is a mock of KeyResolver interface.
+type MockKeyResolver struct {
+	ctrl     *gomock.Controller
+	recorder *MockKeyResolverMockRecorder
+}
+
+// MockKeyResolverMockRecorder is the mock recorder for MockKeyResolver.
+type MockKeyResolverMockRecorder struct {
+	mock *MockKeyResolver
+}
+
+// NewMockKeyResolver creates a new mock instance.
+func NewMockKeyResolver(ctrl *gomock.Controller) *MockKeyResolver {
+	mock := &MockKeyResolver{ctrl: ctrl}
+	mock.recorder = &MockKeyResolverMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockKeyResolver) EXPECT() *MockKeyResolverMockRecorder {
+	return m.recorder
+}
+
+// Exists mocks base method.
+func (m *MockKeyResolver) Exists(kid string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Exists", kid)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Exists indicates an expected call of Exists.
+func (mr *MockKeyResolverMockRecorder) Exists(kid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockKeyResolver)(nil).Exists), kid)
+}
+
+// Resolve mocks base method.
+func (m *MockKeyResolver) Resolve(kid string) (Key, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Resolve", kid)
+	ret0, _ := ret[0].(Key)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Resolve indicates an expected call of Resolve.
+func (mr *MockKeyResolverMockRecorder) Resolve(kid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockKeyResolver)(nil).Resolve), kid)
+}
+
 // MockKeyStore is a mock of KeyStore interface.
 type MockKeyStore struct {
 	ctrl     *gomock.Controller

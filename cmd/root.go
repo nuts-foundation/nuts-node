@@ -111,6 +111,11 @@ func startServer(system *core.System) error {
 		return err
 	}
 
+	// migrate DBs if needed
+	if err := system.Migrate(); err != nil {
+		return err
+	}
+
 	// start engines
 	if err := system.Start(); err != nil {
 		return err
