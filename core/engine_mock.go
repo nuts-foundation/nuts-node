@@ -96,6 +96,43 @@ func (mr *MockRunnableMockRecorder) Start() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockRunnable)(nil).Start))
 }
 
+// MockMigratable is a mock of Migratable interface.
+type MockMigratable struct {
+	ctrl     *gomock.Controller
+	recorder *MockMigratableMockRecorder
+}
+
+// MockMigratableMockRecorder is the mock recorder for MockMigratable.
+type MockMigratableMockRecorder struct {
+	mock *MockMigratable
+}
+
+// NewMockMigratable creates a new mock instance.
+func NewMockMigratable(ctrl *gomock.Controller) *MockMigratable {
+	mock := &MockMigratable{ctrl: ctrl}
+	mock.recorder = &MockMigratableMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockMigratable) EXPECT() *MockMigratableMockRecorder {
+	return m.recorder
+}
+
+// Migrate mocks base method.
+func (m *MockMigratable) Migrate() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Migrate")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Migrate indicates an expected call of Migrate.
+func (mr *MockMigratableMockRecorder) Migrate() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Migrate", reflect.TypeOf((*MockMigratable)(nil).Migrate))
+}
+
 // MockConfigurable is a mock of Configurable interface.
 type MockConfigurable struct {
 	ctrl     *gomock.Controller

@@ -70,7 +70,6 @@ func TestSystem_Shutdown(t *testing.T) {
 func TestSystem_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		r := NewMockConfigurable(ctrl)
 		r.EXPECT().Configure(gomock.Any())
@@ -84,6 +83,29 @@ func TestSystem_Configure(t *testing.T) {
 		system := NewSystem()
 		system.Config = &ServerConfig{Datadir: "engine_test.go"}
 		assert.Error(t, system.Configure())
+	})
+}
+
+func TestSystem_Migrate(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		r := NewMockMigratable(ctrl)
+		system := NewSystem()
+		system.RegisterEngine(r)
+
+		r.EXPECT().Migrate()
+
+		assert.NoError(t, system.Migrate())
+	})
+	t.Run("error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		r := NewMockMigratable(ctrl)
+		system := NewSystem()
+		system.RegisterEngine(r)
+
+		r.EXPECT().Migrate().Return(errors.New("b00m!"))
+
+		assert.Error(t, system.Migrate())
 	})
 }
 

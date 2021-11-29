@@ -22,10 +22,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"os"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/test"
 
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/spf13/cobra"
@@ -167,6 +168,17 @@ func Test_serverCmd(t *testing.T) {
 		system.Config.HTTP.AltBinds["internal"] = core.HTTPConfig{Address: "localhost:7642"}
 		err := startServer(system)
 		assert.EqualError(t, err, "unable to start")
+	})
+	t.Run("migration fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		r := core.NewMockMigratable(ctrl)
+		system := core.NewSystem()
+		system.RegisterEngine(r)
+		os.Args = []string{"nuts", "server"}
+
+		r.EXPECT().Migrate().Return(errors.New("b00m!"))
+
+		assert.Error(t, startServer(system))
 	})
 }
 

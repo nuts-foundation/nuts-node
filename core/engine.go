@@ -122,6 +122,18 @@ func (system *System) Configure() error {
 	})
 }
 
+// Migrate migrates data structures in an engine if needed.
+func (system *System) Migrate() error {
+	var err error
+	return system.VisitEnginesE(func(engine Engine) error {
+		// only if Engine is migratable
+		if m, ok := engine.(Migratable); ok {
+			err = m.Migrate()
+		}
+		return err
+	})
+}
+
 // VisitEngines applies the given function on all engines in the system.
 func (system *System) VisitEngines(visitor func(engine Engine)) {
 	_ = system.VisitEnginesE(func(engine Engine) error {
@@ -158,6 +170,13 @@ func (system *System) RegisterRoutes(router Routable) {
 type Runnable interface {
 	Start() error
 	Shutdown() error
+}
+
+// Migratable is the interface that defines if an engine is migratable.
+// If an engine is migratable, Migrate is called between Configure() and Start().
+// Migrations may require their own DB connection, they are closed before Start() is called.
+type Migratable interface {
+	Migrate() error
 }
 
 // Configurable is the interface that contains the Configure method.

@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	did "github.com/nuts-foundation/go-did/did"
 	core "github.com/nuts-foundation/nuts-node/core"
 )
 
@@ -98,4 +99,42 @@ func (m *MockConnectionManager) Stop() {
 func (mr *MockConnectionManagerMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockConnectionManager)(nil).Stop))
+}
+
+// MockNodeDIDResolver is a mock of NodeDIDResolver interface.
+type MockNodeDIDResolver struct {
+	ctrl     *gomock.Controller
+	recorder *MockNodeDIDResolverMockRecorder
+}
+
+// MockNodeDIDResolverMockRecorder is the mock recorder for MockNodeDIDResolver.
+type MockNodeDIDResolverMockRecorder struct {
+	mock *MockNodeDIDResolver
+}
+
+// NewMockNodeDIDResolver creates a new mock instance.
+func NewMockNodeDIDResolver(ctrl *gomock.Controller) *MockNodeDIDResolver {
+	mock := &MockNodeDIDResolver{ctrl: ctrl}
+	mock.recorder = &MockNodeDIDResolverMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockNodeDIDResolver) EXPECT() *MockNodeDIDResolverMockRecorder {
+	return m.recorder
+}
+
+// Resolve mocks base method.
+func (m *MockNodeDIDResolver) Resolve() (did.DID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Resolve")
+	ret0, _ := ret[0].(did.DID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Resolve indicates an expected call of Resolve.
+func (mr *MockNodeDIDResolverMockRecorder) Resolve() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockNodeDIDResolver)(nil).Resolve))
 }
