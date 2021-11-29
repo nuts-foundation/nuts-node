@@ -21,6 +21,7 @@ package vcr
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
@@ -31,9 +32,9 @@ import (
 
 const revocationCollection = "_revocation"
 
-func (c *vcr) StoreCredential(credential vc.VerifiableCredential) error {
+func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.Time) error {
 	// verify first
-	if err := c.Verify(credential, nil); err != nil {
+	if err := c.Verify(credential, validAt); err != nil {
 		return err
 	}
 

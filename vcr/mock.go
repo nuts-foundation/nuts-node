@@ -129,17 +129,17 @@ func (m *MockWriter) EXPECT() *MockWriterMockRecorder {
 }
 
 // StoreCredential mocks base method.
-func (m *MockWriter) StoreCredential(vc vc.VerifiableCredential) error {
+func (m *MockWriter) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreCredential", vc)
+	ret := m.ctrl.Call(m, "StoreCredential", vc, validAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // StoreCredential indicates an expected call of StoreCredential.
-func (mr *MockWriterMockRecorder) StoreCredential(vc interface{}) *gomock.Call {
+func (mr *MockWriterMockRecorder) StoreCredential(vc, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockWriter)(nil).StoreCredential), vc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockWriter)(nil).StoreCredential), vc, validAt)
 }
 
 // StoreRevocation mocks base method.
@@ -402,17 +402,17 @@ func (mr *MockVCRMockRecorder) Search(conceptName, allowUntrusted, query interfa
 }
 
 // StoreCredential mocks base method.
-func (m *MockVCR) StoreCredential(vc vc.VerifiableCredential) error {
+func (m *MockVCR) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreCredential", vc)
+	ret := m.ctrl.Call(m, "StoreCredential", vc, validAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // StoreCredential indicates an expected call of StoreCredential.
-func (mr *MockVCRMockRecorder) StoreCredential(vc interface{}) *gomock.Call {
+func (mr *MockVCRMockRecorder) StoreCredential(vc, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockVCR)(nil).StoreCredential), vc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockVCR)(nil).StoreCredential), vc, validAt)
 }
 
 // StoreRevocation mocks base method.

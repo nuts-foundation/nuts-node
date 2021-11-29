@@ -67,7 +67,8 @@ func (n ambassador) vcCallback(tx dag.Transaction, payload []byte) error {
 	}
 
 	// Verify and store
-	return n.writer.StoreCredential(target)
+	validAt := tx.SigningTime()
+	return n.writer.StoreCredential(target, &validAt)
 }
 
 // rCallback gets called when new credential revocations are received by the network. All checks on the signature are already performed.
