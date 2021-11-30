@@ -12,8 +12,8 @@ LABEL maintainer="wout.slakhorst@nuts.nl"
 
 RUN apk update \
  && apk add --no-cache \
-            gcc=10.3.1_git20210424-r2 \
-            musl-dev=1.2.2-r3 \
+            gcc=10.3.1_git20211027-r0 \
+            musl-dev=1.2.2-r7 \
  && update-ca-certificates
 
 ENV GO111MODULE on
