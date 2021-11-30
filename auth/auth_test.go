@@ -19,13 +19,14 @@
 package auth
 
 import (
+	"os"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
-	"os"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -34,7 +35,7 @@ func TestAuth_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		os.Setenv("NUTS_NETWORK_ENABLETLS", "false")
 		defer os.Unsetenv("NUTS_NETWORK_ENABLETLS")
-		i := NewTestAuthInstance(io.TestDirectory(t))
+		i := NewTestAuthInstance(t)
 		_ = i.Configure(*core.NewServerConfig())
 	})
 
@@ -113,7 +114,7 @@ func TestAuth_Configure(t *testing.T) {
 func testInstance(t *testing.T, cfg Config) *Auth {
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
-	vcrInstance := vcr.NewTestVCRInstance(testDirectory)
+	vcrInstance := vcr.NewTestVCRInstance(t, testDirectory)
 	return NewAuthInstance(cfg, store.NewMemoryStore(), vcrInstance, cryptoInstance, nil)
 }
 

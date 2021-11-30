@@ -5,6 +5,7 @@
 package vcr
 
 import (
+	context "context"
 	reflect "reflect"
 	time "time"
 
@@ -54,18 +55,18 @@ func (mr *MockConceptFinderMockRecorder) Get(conceptName, allowUntrusted, subjec
 }
 
 // Search mocks base method.
-func (m *MockConceptFinder) Search(conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error) {
+func (m *MockConceptFinder) Search(ctx context.Context, conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", conceptName, allowUntrusted, query)
+	ret := m.ctrl.Call(m, "Search", ctx, conceptName, allowUntrusted, query)
 	ret0, _ := ret[0].([]concept.Concept)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Search indicates an expected call of Search.
-func (mr *MockConceptFinderMockRecorder) Search(conceptName, allowUntrusted, query interface{}) *gomock.Call {
+func (mr *MockConceptFinderMockRecorder) Search(ctx, conceptName, allowUntrusted, query interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockConceptFinder)(nil).Search), conceptName, allowUntrusted, query)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockConceptFinder)(nil).Search), ctx, conceptName, allowUntrusted, query)
 }
 
 // MockValidator is a mock of Validator interface.
@@ -387,18 +388,18 @@ func (mr *MockVCRMockRecorder) Revoke(ID interface{}) *gomock.Call {
 }
 
 // Search mocks base method.
-func (m *MockVCR) Search(conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error) {
+func (m *MockVCR) Search(ctx context.Context, conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", conceptName, allowUntrusted, query)
+	ret := m.ctrl.Call(m, "Search", ctx, conceptName, allowUntrusted, query)
 	ret0, _ := ret[0].([]concept.Concept)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Search indicates an expected call of Search.
-func (mr *MockVCRMockRecorder) Search(conceptName, allowUntrusted, query interface{}) *gomock.Call {
+func (mr *MockVCRMockRecorder) Search(ctx, conceptName, allowUntrusted, query interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), conceptName, allowUntrusted, query)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), ctx, conceptName, allowUntrusted, query)
 }
 
 // StoreCredential mocks base method.

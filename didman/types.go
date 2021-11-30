@@ -20,6 +20,7 @@
 package didman
 
 import (
+	"context"
 	"net/url"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -70,7 +71,7 @@ type Didman interface {
 
 	// SearchOrganizations searches VCR for organizations which's name matches the given query.
 	// It then optionally filters on those which have a service of the specified type on their DID Document.
-	SearchOrganizations(query string, didServiceType *string) ([]OrganizationSearchResult, error)
+	SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error)
 }
 
 // ServiceResolver defines high-level operations for resolving services of DID documents.

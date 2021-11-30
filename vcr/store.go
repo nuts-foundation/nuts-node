@@ -26,7 +26,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 
-	"github.com/nuts-foundation/go-leia"
+	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 

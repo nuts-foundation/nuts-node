@@ -30,7 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/sirupsen/logrus"
 )
 
 // keyID matches the keys in /test
@@ -38,7 +37,7 @@ const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlO
 
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.
-func NewTestVCRInstance(testDirectory string) *vcr {
+func NewTestVCRInstance(t *testing.T, testDirectory string) *vcr {
 	// speedup tests
 	noSync = true
 	// give network a sub directory to avoid duplicate networks in tests
@@ -50,7 +49,10 @@ func NewTestVCRInstance(testDirectory string) *vcr {
 	).(*vcr)
 
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
-		logrus.Fatal(err)
+		t.Fatal(err)
+	}
+	if err := newInstance.Start(); err != nil {
+		t.Fatal(err)
 	}
 
 	return newInstance
@@ -82,6 +84,12 @@ func newMockContext(t *testing.T) mockContext {
 	if err := vcr.Configure(core.ServerConfig{Datadir: testDir}); err != nil {
 		t.Fatal(err)
 	}
+	if err := vcr.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		vcr.Shutdown()
+	})
 	return mockContext{
 		ctrl:        ctrl,
 		crypto:      crypto,

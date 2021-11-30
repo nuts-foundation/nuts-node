@@ -20,10 +20,12 @@
 package vcr
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -33,7 +35,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/go-leia"
+	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -91,9 +93,8 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
 
 	// store strictMode
-	c.config = Config{strictMode: config.Strictmode}
+	c.config = Config{strictMode: config.Strictmode, datadir: config.Datadir}
 
-	fsPath := path.Join(config.Datadir, "vcr", "credentials.db")
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 
 	// load VC concept templates
@@ -104,12 +105,30 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	// load trusted issuers
 	c.trustConfig = trust.NewConfig(tcPath)
 
-	if err = c.trustConfig.Load(); err != nil {
-		return err
+	return c.trustConfig.Load()
+}
+
+func (c *vcr) credentialsDBPath() string {
+	return path.Join(c.config.datadir, "vcr", "credentials.db")
+}
+
+func (c *vcr) Migrate() error {
+	// the migration to go-leia V2 needs a fresh DB
+	// The DAG is rewalked so all entries are added
+	// just delete
+	// TODO remove after all parties in development network have migrated.
+	err := os.Remove(c.credentialsDBPath())
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
 	}
+	return err
+}
+
+func (c *vcr) Start() error {
+	var err error
 
 	// setup DB connection
-	if c.store, err = leia.NewStore(fsPath, noSync); err != nil {
+	if c.store, err = leia.NewStore(c.credentialsDBPath(), noSync); err != nil {
 		return err
 	}
 
@@ -122,6 +141,10 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.ambassador.Configure()
 
 	return nil
+}
+
+func (c *vcr) Shutdown() error {
+	return c.store.Close()
 }
 
 func (c *vcr) loadTemplates() error {
@@ -217,13 +240,13 @@ func (c *vcr) Config() interface{} {
 
 // search for matching credentials based upon a query. It returns an empty list if no matches have been found.
 // The optional resolveTime will search for credentials at that point in time.
-func (c *vcr) search(query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
+func (c *vcr) search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	//transform query to leia query, for each template a query is returned
 	queries := c.convert(query)
 
 	var VCs = make([]vc.VerifiableCredential, 0)
 	for vcType, q := range queries {
-		docs, err := c.store.Collection(vcType).Find(q)
+		docs, err := c.store.Collection(vcType).Find(ctx, q)
 		if err != nil {
 			return nil, err
 		}
@@ -406,7 +429,7 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	q := leia.New(qp)
 
 	for _, t := range c.registry.Concepts() {
-		docs, err := c.store.Collection(t.CredentialType).Find(q)
+		docs, err := c.store.Collection(t.CredentialType).Find(context.TODO(), q)
 		if err != nil {
 			return credential, err
 		}
@@ -626,7 +649,7 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 	q.AddClause(concept.Eq(concept.SubjectField, subject))
 
 	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
-	vcs, err := c.search(q, allowUntrusted, nil)
+	vcs, err := c.search(context.TODO(), q, allowUntrusted, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -639,7 +662,7 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 	return c.Registry().Transform(conceptName, vcs[0])
 }
 
-func (c *vcr) Search(conceptName string, allowUntrusted bool, queryParams map[string]string) ([]concept.Concept, error) {
+func (c *vcr) Search(ctx context.Context, conceptName string, allowUntrusted bool, queryParams map[string]string) ([]concept.Concept, error) {
 	query, err := c.registry.QueryFor(conceptName)
 	if err != nil {
 		return nil, err
@@ -649,7 +672,7 @@ func (c *vcr) Search(conceptName string, allowUntrusted bool, queryParams map[st
 		query.AddClause(concept.Prefix(key, value))
 	}
 
-	results, err := c.search(query, allowUntrusted, nil)
+	results, err := c.search(ctx, query, allowUntrusted, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -720,7 +743,7 @@ func (c *vcr) isRevoked(ID ssi.URI) (bool, error) {
 	q := leia.New(qp)
 
 	gIndex := c.revocationIndex()
-	docs, err := gIndex.Find(q)
+	docs, err := gIndex.Find(context.TODO(), q)
 	if err != nil {
 		return false, err
 	}
