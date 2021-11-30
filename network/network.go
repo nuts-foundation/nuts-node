@@ -22,6 +22,13 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/pkg/errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -29,13 +36,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1"
-	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
-	"github.com/pkg/errors"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -158,7 +158,12 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			nodeDIDReader.NodeDID = *n.configuredNodeDID
 		}
 		// Instantiate
-		n.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...), nodeDIDReader, n.protocols...)
+		n.connectionManager = grpc.NewGRPCConnectionManager(
+			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
+			nodeDIDReader,
+			doc.NewServiceResolver(n.didDocumentResolver),
+			n.protocols...,
+		)
 	}
 	return nil
 }

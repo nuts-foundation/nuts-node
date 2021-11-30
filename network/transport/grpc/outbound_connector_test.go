@@ -29,7 +29,7 @@ import (
 
 func Test_connector_doConnect(t *testing.T) {
 	serverConfig := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "server")
-	cm := NewGRPCConnectionManager(serverConfig, &stubNodeDIDReader{})
+	cm := NewGRPCConnectionManager(serverConfig, &stubNodeDIDReader{}, nil)
 	if !assert.NoError(t, cm.Start()) {
 		return
 	}

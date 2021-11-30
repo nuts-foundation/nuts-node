@@ -25,6 +25,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -35,6 +36,9 @@ import (
 
 // ErrNestedDocumentsTooDeep is returned when a DID Document contains a multiple services with the same type
 var ErrNestedDocumentsTooDeep = errors.New("DID Document controller structure has too many indirections")
+
+const serviceTypeQueryParameter = "type"
+const serviceEndpointPath = "serviceEndpoint"
 
 const maxControllerDepth = 5
 
@@ -241,4 +245,128 @@ func (r KeyResolver) resolvePublicKey(kid string, metadata types.ResolveMetadata
 	}
 
 	return vm.PublicKey()
+}
+
+type ServiceResolver interface {
+	// ResolveService looks up the DID document of the specified query and then tries to find the service with the specified type.
+	// The query must be in the form of a service query, e.g. `did:nuts:12345/serviceEndpoint?type=some-type`.
+	// The maxDepth indicates how deep references are followed. If maxDepth = 0, no references are followed (and an error is returned if the given query resolves to a reference).
+	// If the DID document or service is not found, a reference can't be resolved or the references exceed maxDepth, an error is returned.
+	ResolveService(query ssi.URI, maxDepth int) (did.Service, error)
+
+	// ResolveServiceEx tries to resolve a DID service from the given endpoint URI, following references (URIs that begin with 'did:').
+	// When the endpoint is a reference it resolves it up until the (per spec) max reference depth. When resolving a reference it recursively calls itself with depth + 1.
+	// The documentCache map is used to avoid resolving the same document over and over again, which might be a (slightly more) expensive operation.
+	ResolveServiceEx(endpoint ssi.URI, depth int, maxDepth int, documentCache map[string]*did.Document) (did.Service, error)
+}
+
+func NewServiceResolver(documentResolver types.DocResolver) ServiceResolver {
+	return &serviceResolver{doc: documentResolver}
+}
+
+type serviceResolver struct {
+	doc types.DocResolver
+}
+
+// ResolveService looks up the DID document of the specified query and then tries to find the service with the specified type.
+// The query must be in the form of a service query, e.g. `did:nuts:12345/serviceEndpoint?type=some-type`.
+// The maxDepth indicates how deep references are followed. If maxDepth = 0, no references are followed (and an error is returned if the given query resolves to a reference).
+// If the DID document or service is not found, a reference can't be resolved or the references exceed maxDepth, an error is returned.
+func (s serviceResolver) ResolveService(query ssi.URI, maxDepth int) (did.Service, error) {
+	return s.ResolveServiceEx(query, 0, maxDepth, map[string]*did.Document{})
+}
+
+// ResolveServiceEx tries to resolve a DID service from the given endpoint URI, following references (URIs that begin with 'did:').
+// When the endpoint is a reference it resolves it up until the (per spec) max reference depth. When resolving a reference it recursively calls itself with depth + 1.
+// The documentCache map is used to avoid resolving the same document over and over again, which might be a (slightly more) expensive operation.
+func (s serviceResolver) ResolveServiceEx(endpoint ssi.URI, depth int, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
+	if depth >= maxDepth {
+		return did.Service{}, types.ErrServiceReferenceToDeep
+	}
+
+	referencedDID, err := did.ParseDIDURL(endpoint.String())
+	if err != nil {
+		// Shouldn't happen, because only DID URLs are passed?
+		return did.Service{}, err
+	}
+	referencedDID.Query = ""
+	referencedDID.Path = ""
+	referencedDID.Fragment = ""
+	referencedDID.PathSegments = nil
+	var document *did.Document
+	if document = documentCache[referencedDID.String()]; document == nil {
+		document, _, err = s.doc.Resolve(*referencedDID, nil)
+		if err != nil {
+			return did.Service{}, err
+		}
+		documentCache[referencedDID.String()] = document
+	}
+
+	var service *did.Service
+	for _, curr := range document.Service {
+		if curr.Type == endpoint.Query().Get(serviceTypeQueryParameter) {
+			service = &curr
+			break
+		}
+	}
+	if service == nil {
+		return did.Service{}, types.ErrServiceNotFound
+	}
+
+	var endpointURL string
+	if service.UnmarshalServiceEndpoint(&endpointURL) == nil {
+		// Service endpoint is a string, if it's a reference we need to resolve it
+		if IsServiceReference(endpointURL) {
+			// Looks like a reference, recurse
+			resolvedEndpointURI, err := ssi.ParseURI(endpointURL)
+			if err != nil {
+				return did.Service{}, err
+			}
+			err = ValidateServiceReference(*resolvedEndpointURI)
+			if err != nil {
+				return did.Service{}, err
+			}
+			return s.ResolveServiceEx(*resolvedEndpointURI, depth+1, maxDepth, documentCache)
+		}
+	}
+	return *service, nil
+}
+
+func MakeServiceReference(subjectDID did.DID, serviceType string) ssi.URI {
+	ref := subjectDID.URI()
+	ref.Path = "/" + serviceEndpointPath
+	ref.RawQuery = fmt.Sprintf("%s=%s", serviceTypeQueryParameter, serviceType)
+	return ref
+}
+
+// IsServiceReference checks whether the given endpoint string looks like a service reference (e.g. did:nuts:1234/serviceType?type=HelloWorld).
+func IsServiceReference(endpoint string) bool {
+	return strings.HasPrefix(endpoint, "did:")
+}
+
+func ValidateServiceReference(endpointURI ssi.URI) error {
+	// Parse it as DID URL since DID URLs are rootless and thus opaque (RFC 3986), meaning the path will be part of the URI body, rather than the URI path.
+	// For DID URLs the path is parsed properly.
+	didEndpointURL, err := did.ParseDIDURL(endpointURI.String())
+	if err != nil {
+		return types.ErrInvalidServiceQuery
+	}
+	if didEndpointURL.Path != serviceEndpointPath {
+		// Service reference doesn't refer to `/serviceEndpoint`
+		return types.ErrInvalidServiceQuery
+	}
+	queriedServiceType := endpointURI.Query().Get(serviceTypeQueryParameter)
+	if len(queriedServiceType) == 0 {
+		// Service reference doesn't contain `type` query parameter
+		return types.ErrInvalidServiceQuery
+	}
+	if len(endpointURI.Query()[serviceTypeQueryParameter]) > 1 {
+		// Service reference contains more than 1 `type` query parameter
+		return types.ErrInvalidServiceQuery
+	}
+	if len(endpointURI.Query()) > 1 {
+		// Service reference contains more than just `type` query parameter
+		return types.ErrInvalidServiceQuery
+	}
+	return nil
 }

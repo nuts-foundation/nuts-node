@@ -130,11 +130,11 @@ func TestDidman_AddEndpoint(t *testing.T) {
 func TestDidman_AddCompoundService(t *testing.T) {
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
-	helloServiceQuery := referenceFor(*vdr.TestDIDA, "hello")
-	worldServiceQuery := referenceFor(*vdr.TestDIDB, "world")
-	universeServiceQuery := referenceFor(*vdr.TestDIDB, "universe")
-	universeNestedServiceQuery := referenceFor(*vdr.TestDIDB, "universe-ref")
-	cyclicServiceQuery := referenceFor(*vdr.TestDIDB, "cyclic-ref")
+	helloServiceQuery := doc.MakeServiceReference(*vdr.TestDIDA, "hello")
+	worldServiceQuery := doc.MakeServiceReference(*vdr.TestDIDB, "world")
+	universeServiceQuery := doc.MakeServiceReference(*vdr.TestDIDB, "universe")
+	universeNestedServiceQuery := doc.MakeServiceReference(*vdr.TestDIDB, "universe-ref")
+	cyclicServiceQuery := doc.MakeServiceReference(*vdr.TestDIDB, "cyclic-ref")
 	references := make(map[string]ssi.URI, 0)
 	references["hello"] = helloServiceQuery
 	references["world"] = worldServiceQuery
@@ -229,7 +229,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "hellonuts", map[string]ssi.URI{"foobar": cyclicServiceQuery})
 
-		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, ErrServiceReferenceToDeep)
+		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, types.ErrServiceReferenceToDeep)
 	})
 	t.Run("error - holder DID document can't be resolved", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -242,43 +242,35 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		invalidQuery := helloServiceQuery
 		invalidQuery.RawQuery = ""
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": invalidQuery})
-		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, ErrInvalidServiceQuery)
+		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, types.ErrInvalidServiceQuery)
 	})
-}
-
-func referenceFor(holder did.DID, referencedType string) ssi.URI {
-	result, err := ssi.ParseURI(holder.String() + "/serviceEndpoint?type=" + referencedType)
-	if err != nil {
-		panic(err)
-	}
-	return *result
 }
 
 func TestDidman_validateServiceReference(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint?type=t")
-		err := validateServiceReference(*ref)
+		err := doc.ValidateServiceReference(*ref)
 		assert.NoError(t, err)
 	})
 	t.Run("error - invalid path", func(t *testing.T) {
 		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpointWithInvalidPostfix?type=sajdklsad")
-		err := validateServiceReference(*ref)
-		assert.ErrorIs(t, err, ErrInvalidServiceQuery)
+		err := doc.ValidateServiceReference(*ref)
+		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
 	})
 	t.Run("error - too many type params", func(t *testing.T) {
 		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint?type=t1&type=t2")
-		err := validateServiceReference(*ref)
-		assert.ErrorIs(t, err, ErrInvalidServiceQuery)
+		err := doc.ValidateServiceReference(*ref)
+		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
 	})
 	t.Run("error - no type params", func(t *testing.T) {
 		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint")
-		err := validateServiceReference(*ref)
-		assert.ErrorIs(t, err, ErrInvalidServiceQuery)
+		err := doc.ValidateServiceReference(*ref)
+		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
 	})
 	t.Run("error - invalid params", func(t *testing.T) {
 		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint?type=t1&someOther=not-allowed")
-		err := validateServiceReference(*ref)
-		assert.ErrorIs(t, err, ErrInvalidServiceQuery)
+		err := doc.ValidateServiceReference(*ref)
+		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
 	})
 }
 
@@ -321,7 +313,7 @@ func TestDidman_DeleteService(t *testing.T) {
 
 		err := ctx.instance.DeleteService(nonExistingID)
 
-		assert.Equal(t, ErrServiceNotFound, err)
+		assert.Equal(t, types.ErrServiceNotFound, err)
 	})
 
 	t.Run("error - in use", func(t *testing.T) {
@@ -542,7 +534,7 @@ func TestDidman_DeleteEndpointsByType(t *testing.T) {
 		// not in use by any other document
 		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDoc, meta, nil)
 		err := ctx.instance.DeleteEndpointsByType(*id, "unknown type")
-		assert.ErrorIs(t, err, ErrServiceNotFound)
+		assert.ErrorIs(t, err, types.ErrServiceNotFound)
 	})
 
 	t.Run("error - DID document", func(t *testing.T) {
@@ -674,14 +666,14 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
 		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "non-existent", "eType", false)
-		assert.Contains(t, err.Error(), ErrServiceNotFound.Error())
+		assert.Contains(t, err.Error(), types.ErrServiceNotFound.Error())
 		assert.Empty(t, actual)
 	})
 	t.Run("error - unknown endpoint", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(didDoc, nil, nil)
 		actual, err := ctx.instance.GetCompoundServiceEndpoint(*id, "csType", "non-existent", false)
-		assert.ErrorIs(t, err, ErrServiceNotFound)
+		assert.ErrorIs(t, err, types.ErrServiceNotFound)
 		assert.Empty(t, actual)
 	})
 	t.Run("error - endpoint is not an URL", func(t *testing.T) {
