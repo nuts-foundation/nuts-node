@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"path"
 	"reflect"
 	"runtime"
 	"strings"
@@ -55,8 +54,7 @@ import (
 func TestVCR_Configure(t *testing.T) {
 
 	t.Run("loads default configs", func(t *testing.T) {
-		testDir := io.TestDirectory(t)
-		instance := NewTestVCRInstance(t, testDir)
+		instance := NewTestVCRInstance(t)
 
 		concepts := instance.registry.Concepts()
 
@@ -82,11 +80,9 @@ func TestVCR_Start(t *testing.T) {
 	})
 
 	t.Run("ok", func(t *testing.T) {
-		testDir := io.TestDirectory(t)
-		_ = NewTestVCRInstance(t, testDir)
+		instance := NewTestVCRInstance(t)
 
-		fsPath := path.Join(testDir, "vcr", "credentials.db")
-		_, err := os.Stat(fsPath)
+		_, err := os.Stat(instance.credentialsDBPath())
 		assert.NoError(t, err)
 	})
 }
@@ -306,8 +302,7 @@ func TestVCR_Resolve(t *testing.T) {
 }
 
 func TestVcr_Instance(t *testing.T) {
-	testDir := io.TestDirectory(t)
-	instance := NewTestVCRInstance(t, testDir)
+	instance := NewTestVCRInstance(t)
 
 	t.Run("ok - name", func(t *testing.T) {
 		assert.Equal(t, moduleName, instance.Name())
@@ -1012,8 +1007,7 @@ func TestVCR_Search(t *testing.T) {
 }
 
 func TestVcr_Untrusted(t *testing.T) {
-	testDir := io.TestDirectory(t)
-	instance := NewTestVCRInstance(t, testDir)
+	instance := NewTestVCRInstance(t)
 	vc := concept.TestVC()
 
 	err := instance.registry.Add(concept.ExampleConfig)
@@ -1198,8 +1192,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 func TestVcr_generateProof(t *testing.T) {
 	t.Run("incorrect key", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
-		testDir := io.TestDirectory(t)
-		instance := NewTestVCRInstance(t, testDir)
+		instance := NewTestVCRInstance(t)
 		key := crypto.TestKey{}
 		kid, _ := ssi.ParseURI(testKID)
 
@@ -1219,8 +1212,7 @@ func TestVcr_generateRevocationProof(t *testing.T) {
 		json.Unmarshal(rJSON, &r)
 
 		// default stuff
-		testDir := io.TestDirectory(t)
-		instance := NewTestVCRInstance(t, testDir)
+		instance := NewTestVCRInstance(t)
 		key := crypto.TestKey{}
 		kid, _ := ssi.ParseURI(testKID)
 

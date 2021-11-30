@@ -37,9 +37,10 @@ const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlO
 
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.
-func NewTestVCRInstance(t *testing.T, testDirectory string) *vcr {
+func NewTestVCRInstance(t *testing.T) *vcr {
 	// speedup tests
 	noSync = true
+	testDirectory := io.TestDirectory(t)
 	// give network a sub directory to avoid duplicate networks in tests
 	newInstance := NewVCRInstance(
 		nil,

@@ -32,7 +32,7 @@ func NewTestAuthInstance(t *testing.T) *Auth {
 	return NewAuthInstance(
 		TestConfig(),
 		store.NewMemoryStore(),
-		vcr.NewTestVCRInstance(t, testDirectory),
+		vcr.NewTestVCRInstance(t),
 		crypto.NewTestCryptoInstance(testDirectory),
 		nil,
 	)
