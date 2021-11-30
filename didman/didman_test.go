@@ -246,34 +246,6 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	})
 }
 
-func TestDidman_validateServiceReference(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint?type=t")
-		err := doc.ValidateServiceReference(*ref)
-		assert.NoError(t, err)
-	})
-	t.Run("error - invalid path", func(t *testing.T) {
-		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpointWithInvalidPostfix?type=sajdklsad")
-		err := doc.ValidateServiceReference(*ref)
-		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
-	})
-	t.Run("error - too many type params", func(t *testing.T) {
-		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint?type=t1&type=t2")
-		err := doc.ValidateServiceReference(*ref)
-		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
-	})
-	t.Run("error - no type params", func(t *testing.T) {
-		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint")
-		err := doc.ValidateServiceReference(*ref)
-		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
-	})
-	t.Run("error - invalid params", func(t *testing.T) {
-		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint?type=t1&someOther=not-allowed")
-		err := doc.ValidateServiceReference(*ref)
-		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
-	})
-}
-
 func TestDidman_DeleteService(t *testing.T) {
 	didDocStr := `{"service":[{"id":"did:nuts:123#1", "serviceEndpoint": "https://api.example.com"}]}`
 	doc := func() *did.Document {
