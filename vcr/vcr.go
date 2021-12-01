@@ -50,7 +50,11 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const maxSkew = 5 * time.Second
+const (
+	maxSkew = 5 * time.Second
+	// ModuleName specifies the name of this module.
+	ModuleName = "VCR"
+)
 
 var timeFunc = time.Now
 
@@ -126,6 +130,7 @@ func (c *vcr) Migrate() error {
 
 func (c *vcr) Start() error {
 	var err error
+	log.Logger().Debugf("starting %s", ModuleName)
 
 	// setup DB connection
 	if c.store, err = leia.NewStore(c.credentialsDBPath(), noSync); err != nil {
@@ -139,6 +144,8 @@ func (c *vcr) Start() error {
 
 	// start listening for new credentials
 	c.ambassador.Configure()
+
+	log.Logger().Infof("started %s", ModuleName)
 
 	return nil
 }
