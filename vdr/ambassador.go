@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -206,6 +207,11 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		}
 		proposedDIDDocument = *mergedDoc
 	}
+
+	// Stable order for metadata.SourceTransactions (derived from unordered maps): makes it easier to analyse and test.
+	sort.Slice(sourceTransactions, func(i, j int) bool {
+		return bytes.Compare(sourceTransactions[i].Slice(), sourceTransactions[j].Slice()) == 0
+	})
 
 	updatedAt := transaction.SigningTime()
 	documentMetadata := types.DocumentMetadata{
