@@ -252,7 +252,7 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 		if err != nil {
 			return transport.Peer{}, fmt.Errorf("failed to read peer ID header: %w", err)
 		}
-		
+
 		if !connection.verifyOrSetPeerID(peerID) {
 			return transport.Peer{}, fmt.Errorf("peer sent invalid ID (id=%s)", peerID)
 		}

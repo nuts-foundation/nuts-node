@@ -11,6 +11,7 @@ import (
 const serviceTypeQueryParameter = "type"
 const serviceEndpointPath = "serviceEndpoint"
 
+// MakeServiceReference creates a service reference, which can be used as query when looking up services.
 func MakeServiceReference(subjectDID did.DID, serviceType string) ssi.URI {
 	ref := subjectDID.URI()
 	ref.Opaque += "/" + serviceEndpointPath
@@ -24,6 +25,7 @@ func IsServiceReference(endpoint string) bool {
 	return strings.HasPrefix(endpoint, "did:")
 }
 
+// ValidateServiceReference checks whether the given URI matches the format for a service reference.
 func ValidateServiceReference(endpointURI ssi.URI) error {
 	// Parse it as DID URL since DID URLs are rootless and thus opaque (RFC 3986), meaning the path will be part of the URI body, rather than the URI path.
 	// For DID URLs the path is parsed properly.

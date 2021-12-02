@@ -243,6 +243,7 @@ func (r KeyResolver) resolvePublicKey(kid string, metadata types.ResolveMetadata
 	return vm.PublicKey()
 }
 
+// ServiceResolver allows looking up DID document services, following references.
 type ServiceResolver interface {
 	// ResolveService looks up the DID document of the specified query and then tries to find the service with the specified type.
 	// The query must be in the form of a service query, e.g. `did:nuts:12345/serviceEndpoint?type=some-type`.
@@ -256,6 +257,7 @@ type ServiceResolver interface {
 	ResolveServiceEx(endpoint ssi.URI, depth int, maxDepth int, documentCache map[string]*did.Document) (did.Service, error)
 }
 
+// NewServiceResolver creates a ServiceResolver with the specified types.DocResolver
 func NewServiceResolver(documentResolver types.DocResolver) ServiceResolver {
 	return &serviceResolver{doc: documentResolver}
 }
@@ -327,4 +329,3 @@ func (s serviceResolver) ResolveServiceEx(endpoint ssi.URI, depth int, maxDepth 
 	}
 	return *service, nil
 }
-
