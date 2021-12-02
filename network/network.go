@@ -186,7 +186,6 @@ func (n *Network) Config() interface{} {
 
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
-	log.Logger().Debugf("starting %s", ModuleName)
 	n.startTime.Store(time.Now())
 
 	// Load DAG and start publishing
@@ -229,8 +228,6 @@ func (n *Network) Start() error {
 		}
 		n.connectionManager.Connect(bootstrapNode)
 	}
-
-	log.Logger().Infof("started %s", ModuleName)
 
 	return nil
 }

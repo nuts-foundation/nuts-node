@@ -52,8 +52,6 @@ import (
 
 const (
 	maxSkew = 5 * time.Second
-	// ModuleName specifies the name of this module.
-	ModuleName = "VCR"
 )
 
 var timeFunc = time.Now
@@ -96,7 +94,7 @@ func (c *vcr) Registry() concept.Reader {
 func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
 
-	// store strictMode
+	// store config parameters for use in Start()
 	c.config = Config{strictMode: config.Strictmode, datadir: config.Datadir}
 
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
@@ -130,7 +128,6 @@ func (c *vcr) Migrate() error {
 
 func (c *vcr) Start() error {
 	var err error
-	log.Logger().Debugf("starting %s", ModuleName)
 
 	// setup DB connection
 	if c.store, err = leia.NewStore(c.credentialsDBPath(), noSync); err != nil {
@@ -144,8 +141,6 @@ func (c *vcr) Start() error {
 
 	// start listening for new credentials
 	c.ambassador.Configure()
-
-	log.Logger().Infof("started %s", ModuleName)
 
 	return nil
 }
