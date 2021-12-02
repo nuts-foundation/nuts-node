@@ -114,7 +114,8 @@ type Transaction interface {
 
 // NewTransaction creates a new unsigned transaction. Parameters payload and payloadType can't be empty, but prevs is optional.
 // Prevs must not contain empty or invalid hashes. Duplicate prevs will be removed when given.
-func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash) (UnsignedTransaction, error) {
+// The toAddr byte slice (may be nil) holds the encrypted recipient address, if it is a private transaction.
+func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash, toAddr []byte) (UnsignedTransaction, error) {
 	if !ValidatePayloadType(payloadType) {
 		return nil, errInvalidPayloadType
 	}
@@ -143,6 +144,7 @@ func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SH
 		payload:     payload,
 		payloadType: payloadType,
 		version:     currentVersion,
+		toAddr:      toAddr,
 	}
 	if len(deduplicated) > 0 {
 		result.prevs = append(deduplicated)

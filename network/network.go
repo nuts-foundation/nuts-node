@@ -20,6 +20,7 @@ package network
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/events"
@@ -280,9 +281,35 @@ func (n *Network) ListTransactions() ([]dag.Transaction, error) {
 	return n.graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())
 }
 
+func (n *Network) CreatePrivateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash, to did.DID) (dag.Transaction, error) {
+	document, _, err := n.didDocumentResolver.Resolve(to, &types.ResolveMetadata{AllowDeactivated: false})
+	if err != nil {
+		return nil, fmt.Errorf("error resolving 'to' receipent DID document (to=%s): %w", to, err)
+	}
+	var publicKey *ecdsa.PublicKey
+	for _, keyAgreement := range document.KeyAgreement {
+		pk, _ := keyAgreement.PublicKey()
+		ok := false
+		publicKey, ok = pk.(*ecdsa.PublicKey)
+		if ok {
+			break
+		}
+	}
+	if publicKey == nil {
+		return nil, fmt.Errorf("'to' receipent DID document does not have a suitable keyAgreement key (to=%s)", to)
+	}
+
+	// TODO: Actually encrypt
+	return n.createTransaction(payloadType, payload, key, attachKey, timestamp, additionalPrevs, []byte(to.String()))
+}
+
 // CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
 // If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
 func (n *Network) CreateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
+	return n.createTransaction(payloadType, payload, key, attachKey, timestamp, additionalPrevs, nil)
+}
+
+func (n *Network) createTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash, toAddr []byte) (dag.Transaction, error) {
 	payloadHash := hash.SHA256Sum(payload)
 	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), key.KID())
 
@@ -303,7 +330,7 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 	for _, addPrev := range additionalPrevs {
 		prevs = append(prevs, addPrev)
 	}
-	unsignedTransaction, err := dag.NewTransaction(payloadHash, payloadType, prevs)
+	unsignedTransaction, err := dag.NewTransaction(payloadHash, payloadType, prevs, toAddr)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create new transaction: %w", err)
 	}
