@@ -22,18 +22,15 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	grpcPeer "google.golang.org/grpc/peer"
 	"net"
-	"net/url"
 	"sync"
 )
 
@@ -51,32 +48,32 @@ var ErrAlreadyConnected = errors.New("already connected")
 var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDResolver, didServiceResolver doc.ServiceResolver, protocols ...transport.Protocol) transport.ConnectionManager {
+func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
 	return &grpcConnectionManager{
-		protocols:          protocols,
-		nodeDIDResolver:    nodeDIDResolver,
-		didServiceResolver: didServiceResolver,
-		config:             config,
-		connections:        &connectionList{},
-		grpcServerMutex:    &sync.Mutex{},
-		listenerCreator:    config.listener,
-		dialer:             config.dialer,
+		protocols:       protocols,
+		nodeDIDResolver: nodeDIDResolver,
+		authenticator:   authenticator,
+		config:          config,
+		connections:     &connectionList{},
+		grpcServerMutex: &sync.Mutex{},
+		listenerCreator: config.listener,
+		dialer:          config.dialer,
 	}
 }
 
 // grpcConnectionManager is a ConnectionManager that does not discover peers on its own, but just connects to the peers for which Connect() is called.
 type grpcConnectionManager struct {
-	protocols          []transport.Protocol
-	config             Config
-	connections        *connectionList
-	grpcServer         *grpc.Server
-	grpcServerMutex    *sync.Mutex
-	listener           net.Listener
-	listenerCreator    func(string) (net.Listener, error)
-	dialer             dialer
-	didServiceResolver doc.ServiceResolver
-	nodeDIDResolver    transport.NodeDIDResolver
-	stopCRLValidator   func()
+	protocols        []transport.Protocol
+	config           Config
+	connections      *connectionList
+	grpcServer       *grpc.Server
+	grpcServerMutex  *sync.Mutex
+	listener         net.Listener
+	listenerCreator  func(string) (net.Listener, error)
+	dialer           dialer
+	authenticator    Authenticator
+	nodeDIDResolver  transport.NodeDIDResolver
+	stopCRLValidator func()
 }
 
 func (s *grpcConnectionManager) Start() error {
@@ -255,10 +252,21 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 		if err != nil {
 			return transport.Peer{}, fmt.Errorf("failed to read peer ID header: %w", err)
 		}
-
-		// TODO: Set and authenticate NodeDID as well
+		
 		if !connection.verifyOrSetPeerID(peerID) {
 			return transport.Peer{}, fmt.Errorf("peer sent invalid ID (id=%s)", peerID)
+		}
+
+		peer := transport.Peer{
+			ID:      peerID,
+			Address: grpcConn.Target(),
+		}
+		if !nodeDID.Empty() {
+			peerCtx, _ := grpcPeer.FromContext(clientStream.Context())
+			peer, err = s.authenticator.Authenticate(nodeDID, *peerCtx, peer)
+			if err != nil {
+				log.Logger().Warnf("Peer node DID could not be authenticated: %s", nodeDID)
+			}
 		}
 
 		err = connection.registerClientStream(clientStream, method)
@@ -271,12 +279,7 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 			log.Logger().Warnf("We connected to a peer that we're already connected to (peer=%s)", peerID)
 			return transport.Peer{}, ErrAlreadyConnected
 		}
-
-		return transport.Peer{
-			ID:      peerID,
-			Address: grpcConn.Target(),
-			NodeDID: nodeDID,
-		}, nil
+		return peer, nil
 	})
 	return streamContext, err
 }
@@ -310,11 +313,9 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 	}
 	log.Logger().Debugf("New inbound stream from peer (peer=%s,protocol=%T)", peer, inboundStream)
 	if !nodeDID.Empty() {
-		err = s.authenticate(nodeDID, peerCtx)
+		peer, err = s.authenticator.Authenticate(nodeDID, *peerCtx, peer)
 		if err != nil {
 			log.Logger().Warnf("Peer node DID could not be authenticated: %s", nodeDID)
-		} else {
-			peer.NodeDID = nodeDID
 		}
 	}
 
@@ -342,34 +343,4 @@ func (s *grpcConnectionManager) constructMetadata() (metadata.MD, error) {
 		md.Set(nodeDIDHeader, nodeDID.String())
 	}
 	return md, nil
-}
-
-func (s *grpcConnectionManager) authenticate(nodeDID did.DID, grpcPeer *grpcPeer.Peer) error {
-	// Resolve NutsComm endpoint of contained in DID document associated with node DID
-	nutsCommService, err := s.didServiceResolver.ResolveService(doc.MakeServiceReference(nodeDID, "NutsComm"), 3)
-	var nutsCommURL *url.URL
-	if err == nil {
-		var nutsCommURLStr string
-		_ = nutsCommService.UnmarshalServiceEndpoint(&nutsCommURLStr)
-		nutsCommURL, err = url.Parse(nutsCommURLStr)
-	}
-	if err != nil {
-		return fmt.Errorf("can't resolve NutsComm service (nodeDID=%s): %w", nodeDID, err)
-	}
-
-	// Resolve peer TLS certificate DNS names
-	tlsInfo, isTLS := grpcPeer.AuthInfo.(credentials.TLSInfo)
-	if !isTLS || len(tlsInfo.State.PeerCertificates) == 0 {
-		return fmt.Errorf("missing TLS info (nodeDID=%s)", nodeDID)
-	}
-	dnsNames := tlsInfo.State.PeerCertificates[0].DNSNames
-
-	// Check whether one of the DNS names matches one of the NutsComm endpoints
-	for _, dnsName := range dnsNames {
-		if dnsName == nutsCommURL.Host {
-			log.Logger().Debugf("Connection successfully authenticated (nodeDID=%s)", nodeDID)
-			return nil
-		}
-	}
-	return fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID)
 }

@@ -17,9 +17,11 @@ gen-mocks:
 	mockgen -destination=crypto/mock.go -package=crypto -source=crypto/interface.go
 	mockgen -destination=crypto/storage/mock.go -package=storage -source=crypto/storage/storage.go
 	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did/did
+	mockgen -destination=vdr/doc/resolvers_mock.go -package=doc -source=vdr/doc/resolvers.go
 	mockgen -destination=network/mock.go -package=network -source=network/interface.go
 	mockgen -destination=network/transport/connection_manager_mock.go -package=transport -source=network/transport/connection_manager.go
 	mockgen -destination=network/transport/protocol_mock.go -package=transport -source=network/transport/protocol.go Protocol
+	mockgen -destination=network/transport/grpc/authenticator_mock.go -package=grpc -source=network/transport/grpc/authenticator.go
 	mockgen -destination=network/transport/v1/logic/mock.go -package=logic -source=network/transport/v1/logic/interface.go Protocol
 	mockgen -destination=network/transport/v1/logic/senders_mock.go -package=logic -source=network/transport/v1/logic/senders.go messageSender
 	mockgen -destination=network/transport/v1/logic/payload_collector_mock.go -package=logic -source=network/transport/v1/logic/payload_collector.go

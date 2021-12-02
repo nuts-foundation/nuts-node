@@ -193,7 +193,8 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
 	ctx.protocol = New(*cfg, ctx.graph, publisher, ctx.payloadStore, dummyDiagnostics).(*protocolV1)
 
-	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, doc.NewServiceResolver(&doc.Resolver{Store: store.NewMemoryStore()}), ctx.protocol)
+	authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(&doc.Resolver{Store: store.NewMemoryStore()}))
+	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, authenticator, ctx.protocol)
 
 	ctx.protocol.Configure(peerID)
 	if err = ctx.connectionManager.Start(); err != nil {

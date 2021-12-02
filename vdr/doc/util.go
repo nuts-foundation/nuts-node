@@ -13,9 +13,8 @@ const serviceEndpointPath = "serviceEndpoint"
 
 func MakeServiceReference(subjectDID did.DID, serviceType string) ssi.URI {
 	ref := subjectDID.URI()
+	ref.Opaque += "/" + serviceEndpointPath
 	ref.Fragment = ""
-	ref.Path = "/" + serviceEndpointPath
-	ref.RawPath = "/" + serviceEndpointPath
 	ref.RawQuery = fmt.Sprintf("%s=%s", serviceTypeQueryParameter, serviceType)
 	return ref
 }

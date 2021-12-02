@@ -39,6 +39,7 @@ type Peer struct {
 	// Address holds the remote address of the node we're actually connected to
 	Address string
 	// NodeDID holds the DID that the peer uses to identify its node on the network.
+	// It is only set when properly authenticated.
 	NodeDID did.DID
 }
 

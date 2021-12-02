@@ -151,9 +151,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	documentsCache := map[string]*did.Document{document.ID.String(): document}
 
 	// First, resolve the compound endpoint
-	compoundServiceRef := doc.MakeServiceReference(id, compoundServiceType)
-
-	compoundService, err := d.serviceResolver.ResolveServiceEx(compoundServiceRef, referenceDepth, maxServiceReferenceDepth, documentsCache)
+	compoundService, err := d.serviceResolver.ResolveServiceEx(doc.MakeServiceReference(id, compoundServiceType), referenceDepth, maxServiceReferenceDepth, documentsCache)
 	if err != nil {
 		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("unable to resolve compound service: %w", err)}
 	}
@@ -369,13 +367,14 @@ func (d *didman) resolveOrganizationDIDDocument(organization concept.Concept) (*
 // If all endpoints are valid nil is returned.
 func (d *didman) validateCompoundServiceEndpoint(endpoints map[string]ssi.URI) error {
 	// Cache resolved DID documents because most of the time a compound service will refer the same DID document in all service references.
+	cache := make(map[string]*did.Document, 0)
 	for _, serviceRef := range endpoints {
 		if doc.IsServiceReference(serviceRef.String()) {
 			err := doc.ValidateServiceReference(serviceRef)
 			if err != nil {
 				return ErrReferencedServiceNotAnEndpoint{Cause: err}
 			}
-			_, err = d.serviceResolver.ResolveService(serviceRef, maxServiceReferenceDepth)
+			_, err = d.serviceResolver.ResolveServiceEx(serviceRef, 0, maxServiceReferenceDepth, cache)
 			if err != nil {
 				return ErrReferencedServiceNotAnEndpoint{Cause: err}
 			}

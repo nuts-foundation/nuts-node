@@ -161,7 +161,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
 			nodeDIDReader,
-			doc.NewServiceResolver(n.didDocumentResolver),
+			grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver)),
 			n.protocols...,
 		)
 	}

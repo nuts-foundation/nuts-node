@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
@@ -106,33 +107,37 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 }
 
 func Test_grpcConnectionManager_Peers(t *testing.T) {
-	create := func(t *testing.T, opts ...ConfigOption) (*grpcConnectionManager, *TestProtocol, *bufconn.Listener) {
+	create := func(t *testing.T, opts ...ConfigOption) (*grpcConnectionManager, *MockAuthenticator, *TestProtocol, *bufconn.Listener) {
+		ctrl := gomock.NewController(t)
+		authenticator := NewMockAuthenticator(ctrl)
 		proto := &TestProtocol{}
 		cfg, listener := newBufconnConfig(transport.PeerID(t.Name()), opts...)
-		cm := NewGRPCConnectionManager(cfg, &stubNodeDIDReader{}, nil, proto).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(cfg, &stubNodeDIDReader{}, authenticator, proto).(*grpcConnectionManager)
 		if err := cm.Start(); err != nil {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() {
 			cm.Stop()
 		})
-		return cm, proto, listener
+		return cm, authenticator, proto, listener
 	}
 
 	t.Run("no peers", func(t *testing.T) {
-		cm, _, _ := create(t)
+		cm, _, _, _ := create(t)
 		assert.Empty(t, cm.Peers())
 	})
 	t.Run("1 peer (1 connection)", func(t *testing.T) {
-		_, _, listener := create(t)
-		cm2, _, _ := create(t, withBufconnDialer(listener))
+		_, authenticator1, _, listener := create(t)
+		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
+		cm2, authenticator2, _, _ := create(t, withBufconnDialer(listener))
+		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
 		cm2.Connect("bufnet")
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm2.Peers()) > 0, nil
 		}, time.Second*2, "waiting for peer 1 to connect")
 	})
 	t.Run("0 peers (1 connection which failed)", func(t *testing.T) {
-		cm, _, _ := create(t)
+		cm, _, _, _ := create(t)
 		cm.Connect("non-existing")
 		assert.Empty(t, cm.Peers())
 	})
@@ -247,9 +252,19 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 
 func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 	t.Run("new client", func(t *testing.T) {
-		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		expectedPeer := transport.Peer{
+			ID:      "client-peer-id",
+			Address: "127.0.0.1:9522",
+			NodeDID: did.DID{},
+		}
+		clientDID, _ := did.ParseDID("did:nuts:client")
+		expectedPeer.NodeDID = *clientDID
+		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String())
+		ctrl := gomock.NewController(t)
+		authenticator := NewMockAuthenticator(ctrl)
+		authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedPeer, nil)
+		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, &stubNodeDIDReader{}, authenticator).(*grpcConnectionManager)
 
-		serverStream := newServerStream("client-peer-id", "did:nuts:client")
 		peerInfo, closer, err := cm.handleInboundStream(serverStream)
 
 		if !assert.NoError(t, err) {
@@ -265,6 +280,24 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		assert.Equal(t, "did:nuts:test", serverStream.sentHeaders.Get("nodeDID")[0])
 
 		// Assert connection was registered
+		assert.Len(t, cm.connections.list, 1)
+	})
+	t.Run("authentication failed", func(t *testing.T) {
+		expectedPeer := transport.Peer{
+			ID:      "client-peer-id",
+			Address: "127.0.0.1:9522",
+			NodeDID: did.DID{},
+		}
+		clientDID, _ := did.ParseDID("did:nuts:client")
+		expectedPeer.NodeDID = *clientDID
+		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String())
+		ctrl := gomock.NewController(t)
+		authenticator := NewMockAuthenticator(ctrl)
+		authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedPeer, errors.New("failed"))
+		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, &stubNodeDIDReader{}, authenticator).(*grpcConnectionManager)
+
+		_, _, err := cm.handleInboundStream(serverStream)
+		assert.NoError(t, err)
 		assert.Len(t, cm.connections.list, 1)
 	})
 	t.Run("already connected client", func(t *testing.T) {
@@ -328,6 +361,8 @@ func newServerStream(clientPeerID transport.PeerID, nodeDID string) *stubServerS
 	}
 }
 
+var nodeDID, _ = did.ParseDID("did:nuts:test")
+
 type stubServerStream struct {
 	sentHeaders metadata.MD
 	cancelFunc  context.CancelFunc
@@ -383,6 +418,5 @@ type stubNodeDIDReader struct {
 }
 
 func (s stubNodeDIDReader) Resolve() (did.DID, error) {
-	result, _ := did.ParseDID("did:nuts:test")
-	return *result, nil
+	return *nodeDID, nil
 }
