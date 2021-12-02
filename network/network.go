@@ -85,11 +85,12 @@ func (n *Network) Walk(visitor dag.Visitor) error {
 }
 
 // NewNetworkInstance creates a new Network engine instance.
-func NewNetworkInstance(config Config, keyResolver types.KeyResolver, privateKeyResolver crypto.KeyResolver) *Network {
+func NewNetworkInstance(config Config, keyResolver types.KeyResolver, privateKeyResolver crypto.KeyResolver, didDocumentResolver types.DocResolver) *Network {
 	result := &Network{
 		config:                 config,
 		keyResolver:            keyResolver,
 		privateKeyResolver:     privateKeyResolver,
+		didDocumentResolver:    didDocumentResolver,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
 	return result

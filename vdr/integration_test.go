@@ -66,20 +66,18 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// DID Store
 	didStore := store.NewMemoryStore()
+	docResolver := doc.Resolver{Store: didStore}
 
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	networkCfg.EnableTLS = false
-	nutsNetwork := network.NewNetworkInstance(networkCfg, doc.KeyResolver{Store: didStore}, keyStore)
+	nutsNetwork := network.NewNetworkInstance(networkCfg, doc.KeyResolver{Store: didStore}, keyStore, docResolver)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
 
 	// Init the VDR
 	vdr := NewVDR(DefaultConfig(), keyStore, nutsNetwork, didStore)
 	vdr.Configure(nutsConfig)
-
-	// Resolver
-	docResolver := doc.Resolver{Store: didStore}
 
 	// === End of setup ===
 
@@ -240,11 +238,12 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 
 	// DID Store
 	didStore := store.NewMemoryStore()
+	docResolver := doc.Resolver{Store: didStore}
 
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	networkCfg.EnableTLS = false
-	nutsNetwork := network.NewNetworkInstance(networkCfg, doc.KeyResolver{Store: didStore}, keyStore)
+	nutsNetwork := network.NewNetworkInstance(networkCfg, doc.KeyResolver{Store: didStore}, keyStore, docResolver)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
 	defer nutsNetwork.Shutdown()
@@ -252,9 +251,6 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	// Init the VDR
 	vdr := NewVDR(DefaultConfig(), keyStore, nutsNetwork, didStore)
 	vdr.Configure(nutsConfig)
-
-	// Resolver
-	docResolver := doc.Resolver{Store: didStore}
 
 	// === End of setup ===
 
