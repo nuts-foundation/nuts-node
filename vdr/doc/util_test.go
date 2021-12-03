@@ -12,6 +12,12 @@ func Test_MakeServiceReference(t *testing.T) {
 	d, _ := did.ParseDID("did:nuts:abc")
 	assert.Equal(t, "did:nuts:abc/serviceEndpoint?type=hello", MakeServiceReference(*d, "hello").String())
 }
+
+func Test_IsServiceReference(t *testing.T) {
+	assert.True(t, IsServiceReference("did:nuts:bla"))
+	assert.False(t, IsServiceReference("nuts:did:not-a-did"))
+}
+
 func Test_ValidateServiceReference(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ref, _ := ssi.ParseURI("did:nuts:abc/serviceEndpoint?type=t")
