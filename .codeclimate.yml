@@ -16,7 +16,6 @@ exclude_patterns:
   - "**/mock.go"
   - "**/*_mock.go"
   - "docs/**/*.go"
-  - "network/transport/*.go" # generated sources
   - "**/*.pb.go"
 plugins:
   gofmt:

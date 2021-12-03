@@ -68,9 +68,6 @@ func TestVDRIntegration_Test(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	docResolver := doc.Resolver{Store: didStore}
 
-	// Resolver
-	docResolver := doc.Resolver{Store: didStore}
-
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	networkCfg.EnableTLS = false
@@ -242,9 +239,6 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 
 	// DID Store
 	didStore := store.NewMemoryStore()
-	docResolver := doc.Resolver{Store: didStore}
-
-	// Resolver
 	docResolver := doc.Resolver{Store: didStore}
 
 	// Startup the network layer

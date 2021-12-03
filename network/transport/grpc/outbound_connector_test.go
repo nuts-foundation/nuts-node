@@ -27,7 +27,7 @@ import (
 	"testing"
 )
 
-func Test_connector_doConnect(t *testing.T) {
+func Test_connector_tryConnect(t *testing.T) {
 	serverConfig := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "server")
 	cm := NewGRPCConnectionManager(serverConfig, &stubNodeDIDReader{}, nil)
 	if !assert.NoError(t, cm.Start()) {
@@ -35,16 +35,13 @@ func Test_connector_doConnect(t *testing.T) {
 	}
 	defer cm.Stop()
 
-	connector := outboundConnector{
-		address: serverConfig.listenAddress,
-		dialer:  grpc.DialContext,
-		shouldConnect: func() bool {
-			return false
-		},
-	}
+	connector := createOutboundConnector(serverConfig.listenAddress, grpc.DialContext, nil, func() bool {
+		return false
+	}, nil)
 	grpcConn, err := connector.tryConnect()
 	assert.NoError(t, err)
 	assert.NotNil(t, grpcConn)
+	assert.Equal(t, uint32(1), connector.connectAttempts())
 }
 func Test_connector_loopConnect(t *testing.T) {
 	t.Run("not connecting when already connected", func(t *testing.T) {

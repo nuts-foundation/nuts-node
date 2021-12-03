@@ -60,6 +60,8 @@ type managedConnection interface {
 	// - Verify multiple active protocols to the same peer all send the same transport.PeerID.
 	// It returns false if the given transport.PeerID doesn't match the previously set transport.PeerID.
 	verifyOrSetPeerID(id transport.PeerID) bool
+	// stats returns statistics for this connection
+	stats() transport.ConnectionStats
 }
 
 func createConnection(dialer dialer, peer transport.Peer, inboundStreamsClosedCallback func(managedConnection)) managedConnection {
@@ -252,4 +254,17 @@ func (mc *conn) connected(protocol string) bool {
 		return true
 	}
 	return false
+}
+
+func (mc *conn) stats() transport.ConnectionStats {
+	mc.mux.RLock()
+	defer mc.mux.RUnlock()
+
+	result := transport.ConnectionStats{
+		Peer: mc.peer.Load().(transport.Peer),
+	}
+	if mc.connector != nil {
+		result.ConnectAttempts = mc.connector.connectAttempts()
+	}
+	return result
 }

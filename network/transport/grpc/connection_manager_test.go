@@ -207,17 +207,15 @@ func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 	const peerID = "server-peer-id"
 	t.Run("no peers", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: peerID}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
-		assert.Len(t, cm.Diagnostics(), 3)
-		assert.Equal(t, cm.Diagnostics()[0].String(), peerID)
+		assert.Equal(t, "0", cm.Diagnostics()[1].String()) // assert number_of_peers
 	})
 	t.Run("with peers", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: peerID}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		cm.handleInboundStream(newServerStream("peer1", ""))
 		cm.handleInboundStream(newServerStream("peer2", ""))
 
-		assert.Len(t, cm.Diagnostics(), 3)
-		assert.Equal(t, "2", cm.Diagnostics()[1].String())
-		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", cm.Diagnostics()[2].String())
+		assert.Equal(t, "2", cm.Diagnostics()[1].String()) // assert number_of_peers
+		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", cm.Diagnostics()[2].String()) // assert peers
 	})
 }
 
@@ -297,8 +295,8 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, &stubNodeDIDReader{}, authenticator).(*grpcConnectionManager)
 
 		_, _, err := cm.handleInboundStream(serverStream)
-		assert.NoError(t, err)
-		assert.Len(t, cm.connections.list, 1)
+		assert.EqualError(t, err, "nodeDID authentication failed")
+		assert.Empty(t, cm.connections.list)
 	})
 	t.Run("already connected client", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)

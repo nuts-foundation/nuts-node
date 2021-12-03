@@ -62,3 +62,12 @@ type Diagnostics struct {
 	// Proprietary implementations could specify the product's or vendor's name.
 	SoftwareID string `json:"softwareID"`
 }
+
+// ConnectionStats holds statistics on the connection.
+type ConnectionStats struct {
+	// Peer identifies the subject of these statistics.
+	Peer            Peer
+	// ConnectAttempts holds the number of times the node tried to connect to the peer.
+	ConnectAttempts uint32
+}
+

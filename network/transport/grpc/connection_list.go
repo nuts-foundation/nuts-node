@@ -19,6 +19,7 @@
 package grpc
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"sync"
 )
@@ -92,4 +93,20 @@ func (c *connectionList) remove(target managedConnection) {
 		}
 	}
 	c.list = c.list[:j]
+}
+
+func (c *connectionList) Diagnostics() []core.DiagnosticResult {
+	var connectors ConnectorsStats
+	c.mux.Lock()
+	for _, curr := range c.list {
+		connectors = append(connectors, curr.stats())
+	}
+	c.mux.Unlock()
+
+	peers := c.listConnected()
+	return []core.DiagnosticResult{
+		numberOfPeersStatistic{numberOfPeers: len(peers)},
+		peersStatistic{peers: peers},
+		connectors,
+	}
 }
