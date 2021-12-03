@@ -262,7 +262,7 @@ func addKeyAgreementKeyCmd() *cobra.Command {
 		Long: "Add a key agreement key to the DID document. " +
 			"It must be a reference to an existing key in the same DID document, for instance created using the `addvm` command. " +
 			"When successful, it outputs the updated DID document.",
-		Args:  cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kid, err := did.ParseDIDURL(args[0])
 			if err != nil {
