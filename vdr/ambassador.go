@@ -209,9 +209,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	}
 
 	// Stable order for metadata.SourceTransactions (derived from unordered maps): makes it easier to analyse and test.
-	sort.Slice(sourceTransactions, func(i, j int) bool {
-		return bytes.Compare(sourceTransactions[i].Slice(), sourceTransactions[j].Slice()) == 0
-	})
+	sortHashes(sourceTransactions)
 
 	updatedAt := transaction.SigningTime()
 	documentMetadata := types.DocumentMetadata{
@@ -227,6 +225,12 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		log.Logger().Infof("DID document updated (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	}
 	return err
+}
+
+func sortHashes(input []hash.SHA256Hash) {
+	sort.Slice(input, func(i, j int) bool {
+		return bytes.Compare(input[i].Slice(), input[j].Slice()) < 0
+	})
 }
 
 // missingTransactions does: current - incoming. Non conflicted updates will have an empty slice
