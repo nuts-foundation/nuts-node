@@ -25,11 +25,10 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"path"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"path"
 )
 
 const (
@@ -39,7 +38,8 @@ const (
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage string `koanf:"crypto.storage"`
+	Storage    string `koanf:"crypto.storage"`
+	VaultToken string `koanf:"crypto.vaultToken"`
 }
 
 // DefaultCryptoConfig returns a Config with sane defaults
@@ -72,13 +72,19 @@ func (client *Crypto) Config() interface{} {
 
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
 func (client *Crypto) Configure(config core.ServerConfig) error {
-	if client.config.Storage != "fs" && client.config.Storage != "" {
-		return errors.New("only fs backend available for now")
-	}
 	var err error
-	fsPath := path.Join(config.Datadir, "crypto")
-	if client.Storage, err = storage.NewFileSystemBackend(fsPath); err != nil {
-		return err
+	switch client.config.Storage {
+	case "fs":
+		fsPath := path.Join(config.Datadir, "crypto")
+		if client.Storage, err = storage.NewFileSystemBackend(fsPath); err != nil {
+			return err
+		}
+	case "vault":
+		if client.Storage, err = storage.NewVaultKVStorage(client.config.VaultToken); err != nil {
+			return err
+		}
+	default:
+		return errors.New("only fs and vault backends available")
 	}
 	return nil
 }
