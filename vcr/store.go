@@ -31,6 +31,8 @@ import (
 )
 
 const revocationCollection = "_revocation"
+// maxFindExecutionTime indicates how long a "find by id" type query may take
+const maxFindExecutionTime = 1 * time.Second
 
 func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.Time) error {
 	// verify first

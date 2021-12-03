@@ -430,8 +430,10 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	qp := leia.Eq(concept.IDField, ID.String())
 	q := leia.New(qp)
 
+	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
+	defer cancel()
 	for _, t := range c.registry.Concepts() {
-		docs, err := c.store.Collection(t.CredentialType).Find(context.TODO(), q)
+		docs, err := c.store.Collection(t.CredentialType).Find(ctx, q)
 		if err != nil {
 			return credential, err
 		}
@@ -650,8 +652,10 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 
 	q.AddClause(concept.Eq(concept.SubjectField, subject))
 
+	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
+	defer cancel()
 	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
-	vcs, err := c.search(context.TODO(), q, allowUntrusted, nil)
+	vcs, err := c.search(ctx, q, allowUntrusted, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -745,7 +749,9 @@ func (c *vcr) isRevoked(ID ssi.URI) (bool, error) {
 	q := leia.New(qp)
 
 	gIndex := c.revocationIndex()
-	docs, err := gIndex.Find(context.TODO(), q)
+	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
+	defer cancel()
+	docs, err := gIndex.Find(ctx, q)
 	if err != nil {
 		return false, err
 	}
