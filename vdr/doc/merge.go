@@ -49,6 +49,7 @@ func MergeDocuments(docA did.Document, docB did.Document) (*did.Document, error)
 	sort.Slice(result.Context, contextSort(result))
 	sort.Slice(result.Service, serviceSort(result))
 	sort.Slice(result.VerificationMethod, verificationMethodSort(result))
+	sort.Slice(result.KeyAgreement, keyAgreementSort(result))
 	sort.Slice(result.AssertionMethod, assertionSort(result))
 	sort.Slice(result.Authentication, authenticationSort(result))
 	sort.Slice(result.CapabilityInvocation, capabilityInvocationSort(result))
@@ -82,6 +83,7 @@ func mergeKeys(docs []did.Document, result *did.Document) {
 	assertions := map[string]did.VerificationRelationship{}
 	capabilityInvocations := map[string]did.VerificationRelationship{}
 	capabilityDelegations := map[string]did.VerificationRelationship{}
+	keyAgreements := map[string]did.VerificationRelationship{}
 
 	for _, doc := range docs {
 		for _, verificationMethod := range doc.VerificationMethod {
@@ -98,6 +100,9 @@ func mergeKeys(docs []did.Document, result *did.Document) {
 		}
 		for _, capabilityDelegation := range doc.CapabilityDelegation {
 			capabilityDelegations[capabilityDelegation.ID.String()] = capabilityDelegation
+		}
+		for _, keyAgreement := range doc.KeyAgreement {
+			keyAgreements[keyAgreement.ID.String()] = keyAgreement
 		}
 	}
 	// verificationMethods from set
@@ -122,6 +127,9 @@ func mergeKeys(docs []did.Document, result *did.Document) {
 	}
 	for _, relation := range capabilityDelegations {
 		result.CapabilityDelegation = append(result.CapabilityDelegation, relation)
+	}
+	for _, relation := range keyAgreements {
+		result.KeyAgreement = append(result.KeyAgreement, relation)
 	}
 }
 
@@ -156,6 +164,14 @@ func verificationMethodSort(result *did.Document) less {
 	return func(i, j int) bool {
 		is := result.VerificationMethod[i].ID.String()
 		js := result.VerificationMethod[j].ID.String()
+		return strings.Compare(is, js) == -1
+	}
+}
+
+func keyAgreementSort(result *did.Document) less {
+	return func(i, j int) bool {
+		is := result.KeyAgreement[i].ID.String()
+		js := result.KeyAgreement[j].ID.String()
 		return strings.Compare(is, js) == -1
 	}
 }
