@@ -55,6 +55,7 @@ func Cmd() *cobra.Command {
 	cmd.AddCommand(deactivateCmd())
 	cmd.AddCommand(addVerificationMethodCmd())
 	cmd.AddCommand(deleteVerificationMethodCmd())
+	cmd.AddCommand(addKeyAgreementKeyCmd())
 
 	return cmd
 }
@@ -246,6 +247,61 @@ func addVerificationMethodCmd() *cobra.Command {
 				return fmt.Errorf("failed to add a new verification method to DID document: %s", err.Error())
 			}
 			bytes, _ := json.MarshalIndent(verificationMethod, "", "  ")
+			cmd.Printf("%s\n", string(bytes))
+			return nil
+		},
+	}
+
+	return result
+}
+
+func addKeyAgreementKeyCmd() *cobra.Command {
+	result := &cobra.Command{
+		Use:   "add-keyagreement [KID]",
+		Short: "Add a key agreement key to the DID document.",
+		Long: "Add a key agreement key to the DID document. " +
+			"It must be a reference to an existing key in the same DID document, for instance created using the `addvm` command. " +
+			"When successful, it outputs the updated DID document.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			kid, err := did.ParseDIDURL(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid key ID '%s': %w", args[0], err)
+			}
+			targetDID := *kid
+			targetDID.Fragment = ""
+			targetDID.Path = ""
+			targetDID.Query = ""
+
+			client := httpClient(core.NewClientConfig(cmd.Flags()))
+			document, metadata, err := client.Get(targetDID.String())
+			if err != nil {
+				return err
+			}
+			if metadata.Deactivated {
+				return errors.New("DID document is deactivated")
+			}
+
+			var vm *did.VerificationMethod
+			for _, curr := range document.VerificationMethod {
+				if curr.ID.Equals(*kid) {
+					vm = curr
+					break
+				}
+			}
+
+			if vm == nil {
+				return errors.New("specified KID is not a verification method in the resolved DID document")
+			}
+
+			document.KeyAgreement.Add(vm)
+
+			document, err = client.Update(targetDID.String(), metadata.Hash.String(), *document)
+			if err != nil {
+				return fmt.Errorf("error while updating the DID document: %w", err)
+			}
+
+			bytes, _ := json.MarshalIndent(document, "", "  ")
 			cmd.Printf("%s\n", string(bytes))
 			return nil
 		},
