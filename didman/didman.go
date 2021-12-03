@@ -57,8 +57,6 @@ func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
 	return fmt.Sprintf("%T", e) == fmt.Sprintf("%T", other)
 }
 
-const maxServiceReferenceDepth = 5
-
 type didman struct {
 	docResolver     types.DocResolver
 	serviceResolver doc.ServiceResolver
@@ -151,7 +149,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	documentsCache := map[string]*did.Document{document.ID.String(): document}
 
 	// First, resolve the compound endpoint
-	compoundService, err := d.serviceResolver.ResolveServiceEx(doc.MakeServiceReference(id, compoundServiceType), referenceDepth, maxServiceReferenceDepth, documentsCache)
+	compoundService, err := d.serviceResolver.ResolveEx(doc.MakeServiceReference(id, compoundServiceType), referenceDepth, doc.DefaultMaxServiceReferenceDepth, documentsCache)
 	if err != nil {
 		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("unable to resolve compound service: %w", err)}
 	}
@@ -172,7 +170,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 			// Not sure when this could ever happen
 			return "", err
 		}
-		resolvedEndpoint, err := d.serviceResolver.ResolveServiceEx(*endpointURI, referenceDepth, maxServiceReferenceDepth, documentsCache)
+		resolvedEndpoint, err := d.serviceResolver.ResolveEx(*endpointURI, referenceDepth, doc.DefaultMaxServiceReferenceDepth, documentsCache)
 		if err != nil {
 			return "", err
 		}
@@ -374,7 +372,7 @@ func (d *didman) validateCompoundServiceEndpoint(endpoints map[string]ssi.URI) e
 			if err != nil {
 				return ErrReferencedServiceNotAnEndpoint{Cause: err}
 			}
-			_, err = d.serviceResolver.ResolveServiceEx(serviceRef, 0, maxServiceReferenceDepth, cache)
+			_, err = d.serviceResolver.ResolveEx(serviceRef, 0, doc.DefaultMaxServiceReferenceDepth, cache)
 			if err != nil {
 				return ErrReferencedServiceNotAnEndpoint{Cause: err}
 			}

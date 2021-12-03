@@ -134,7 +134,6 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	worldServiceQuery := doc.MakeServiceReference(*vdr.TestDIDB, "world")
 	universeServiceQuery := doc.MakeServiceReference(*vdr.TestDIDB, "universe")
 	universeNestedServiceQuery := doc.MakeServiceReference(*vdr.TestDIDB, "universe-ref")
-	cyclicServiceQuery := doc.MakeServiceReference(*vdr.TestDIDB, "cyclic-ref")
 	references := make(map[string]ssi.URI, 0)
 	references["hello"] = helloServiceQuery
 	references["world"] = worldServiceQuery
@@ -174,10 +173,6 @@ func TestDidman_AddCompoundService(t *testing.T) {
 			{
 				Type:            "cyclic-ref",
 				ServiceEndpoint: vdr.TestDIDB.String() + "/serviceEndpoint?type=cyclic-ref",
-			},
-			{
-				Type:            "bool",
-				ServiceEndpoint: true,
 			},
 		},
 	}
@@ -222,27 +217,6 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "hellonuts", map[string]ssi.URI{"foobar": *s})
 
 		assert.NoError(t, err)
-	})
-	t.Run("error - cyclic reference (yields refs too deep)", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDB, nil).MinTimes(1).Return(&docB, meta, nil)
-
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "hellonuts", map[string]ssi.URI{"foobar": cyclicServiceQuery})
-
-		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, types.ErrServiceReferenceToDeep)
-	})
-	t.Run("error - holder DID document can't be resolved", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"foobar": helloServiceQuery})
-		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, types.ErrNotFound)
-	})
-	t.Run("error - service reference does not contain type", func(t *testing.T) {
-		ctx := newMockContext(t)
-		invalidQuery := helloServiceQuery
-		invalidQuery.RawQuery = ""
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", map[string]ssi.URI{"hello": invalidQuery})
-		assert.ErrorIs(t, err.(ErrReferencedServiceNotAnEndpoint).Cause, types.ErrInvalidServiceQuery)
 	})
 }
 

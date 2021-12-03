@@ -39,7 +39,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	dnsNames := tlsInfo.State.PeerCertificates[0].DNSNames
 
 	// Resolve NutsComm endpoint of contained in DID document associated with node DID
-	nutsCommService, err := t.serviceResolver.ResolveService(doc.MakeServiceReference(nodeDID, nutsCommServiceType), 3)
+	nutsCommService, err := t.serviceResolver.Resolve(doc.MakeServiceReference(nodeDID, nutsCommServiceType), doc.DefaultMaxServiceReferenceDepth)
 	var nutsCommURL *url.URL
 	if err == nil {
 		var nutsCommURLStr string

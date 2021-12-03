@@ -35,32 +35,32 @@ func (m *MockServiceResolver) EXPECT() *MockServiceResolverMockRecorder {
 	return m.recorder
 }
 
-// ResolveService mocks base method.
-func (m *MockServiceResolver) ResolveService(query ssi.URI, maxDepth int) (did.Service, error) {
+// Resolve mocks base method.
+func (m *MockServiceResolver) Resolve(query ssi.URI, maxDepth int) (did.Service, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveService", query, maxDepth)
+	ret := m.ctrl.Call(m, "Resolve", query, maxDepth)
 	ret0, _ := ret[0].(did.Service)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ResolveService indicates an expected call of ResolveService.
-func (mr *MockServiceResolverMockRecorder) ResolveService(query, maxDepth interface{}) *gomock.Call {
+// Resolve indicates an expected call of Resolve.
+func (mr *MockServiceResolverMockRecorder) Resolve(query, maxDepth interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveService", reflect.TypeOf((*MockServiceResolver)(nil).ResolveService), query, maxDepth)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockServiceResolver)(nil).Resolve), query, maxDepth)
 }
 
-// ResolveServiceEx mocks base method.
-func (m *MockServiceResolver) ResolveServiceEx(endpoint ssi.URI, depth, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
+// ResolveEx mocks base method.
+func (m *MockServiceResolver) ResolveEx(endpoint ssi.URI, depth, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveServiceEx", endpoint, depth, maxDepth, documentCache)
+	ret := m.ctrl.Call(m, "ResolveEx", endpoint, depth, maxDepth, documentCache)
 	ret0, _ := ret[0].(did.Service)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ResolveServiceEx indicates an expected call of ResolveServiceEx.
-func (mr *MockServiceResolverMockRecorder) ResolveServiceEx(endpoint, depth, maxDepth, documentCache interface{}) *gomock.Call {
+// ResolveEx indicates an expected call of ResolveEx.
+func (mr *MockServiceResolverMockRecorder) ResolveEx(endpoint, depth, maxDepth, documentCache interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveServiceEx", reflect.TypeOf((*MockServiceResolver)(nil).ResolveServiceEx), endpoint, depth, maxDepth, documentCache)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveEx", reflect.TypeOf((*MockServiceResolver)(nil).ResolveEx), endpoint, depth, maxDepth, documentCache)
 }

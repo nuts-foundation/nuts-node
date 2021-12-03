@@ -36,6 +36,9 @@ import (
 // ErrNestedDocumentsTooDeep is returned when a DID Document contains a multiple services with the same type
 var ErrNestedDocumentsTooDeep = errors.New("DID Document controller structure has too many indirections")
 
+// DefaultMaxServiceReferenceDepth holds the default max. allowed depth for DID service references.
+const DefaultMaxServiceReferenceDepth = 5
+
 const maxControllerDepth = 5
 
 // Resolver implements the DocResolver interface with a types.Store as backend
@@ -245,16 +248,16 @@ func (r KeyResolver) resolvePublicKey(kid string, metadata types.ResolveMetadata
 
 // ServiceResolver allows looking up DID document services, following references.
 type ServiceResolver interface {
-	// ResolveService looks up the DID document of the specified query and then tries to find the service with the specified type.
+	// Resolve looks up the DID document of the specified query and then tries to find the service with the specified type.
 	// The query must be in the form of a service query, e.g. `did:nuts:12345/serviceEndpoint?type=some-type`.
 	// The maxDepth indicates how deep references are followed. If maxDepth = 0, no references are followed (and an error is returned if the given query resolves to a reference).
 	// If the DID document or service is not found, a reference can't be resolved or the references exceed maxDepth, an error is returned.
-	ResolveService(query ssi.URI, maxDepth int) (did.Service, error)
+	Resolve(query ssi.URI, maxDepth int) (did.Service, error)
 
-	// ResolveServiceEx tries to resolve a DID service from the given endpoint URI, following references (URIs that begin with 'did:').
+	// ResolveEx tries to resolve a DID service from the given endpoint URI, following references (URIs that begin with 'did:').
 	// When the endpoint is a reference it resolves it up until the (per spec) max reference depth. When resolving a reference it recursively calls itself with depth + 1.
 	// The documentCache map is used to avoid resolving the same document over and over again, which might be a (slightly more) expensive operation.
-	ResolveServiceEx(endpoint ssi.URI, depth int, maxDepth int, documentCache map[string]*did.Document) (did.Service, error)
+	ResolveEx(endpoint ssi.URI, depth int, maxDepth int, documentCache map[string]*did.Document) (did.Service, error)
 }
 
 // NewServiceResolver creates a ServiceResolver with the specified types.DocResolver
@@ -266,11 +269,11 @@ type serviceResolver struct {
 	doc types.DocResolver
 }
 
-func (s serviceResolver) ResolveService(query ssi.URI, maxDepth int) (did.Service, error) {
-	return s.ResolveServiceEx(query, 0, maxDepth, map[string]*did.Document{})
+func (s serviceResolver) Resolve(query ssi.URI, maxDepth int) (did.Service, error) {
+	return s.ResolveEx(query, 0, maxDepth, map[string]*did.Document{})
 }
 
-func (s serviceResolver) ResolveServiceEx(endpoint ssi.URI, depth int, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
+func (s serviceResolver) ResolveEx(endpoint ssi.URI, depth int, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
 	if depth >= maxDepth {
 		return did.Service{}, types.ErrServiceReferenceToDeep
 	}
@@ -317,7 +320,7 @@ func (s serviceResolver) ResolveServiceEx(endpoint ssi.URI, depth int, maxDepth 
 			if err != nil {
 				return did.Service{}, err
 			}
-			return s.ResolveServiceEx(*resolvedEndpointURI, depth+1, maxDepth, documentCache)
+			return s.ResolveEx(*resolvedEndpointURI, depth+1, maxDepth, documentCache)
 		}
 	}
 	return *service, nil
