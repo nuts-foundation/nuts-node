@@ -701,6 +701,15 @@ func Test_ambassador_callback(t *testing.T) {
 	})
 }
 
+func Test_sortHashes(t *testing.T) {
+	h0 := hash.SHA256Hash{}
+	h1 := hash.SHA256Hash{1}
+	h2 := hash.SHA256Hash{2}
+	input := []hash.SHA256Hash{h2, h0, h1}
+	sortHashes(input)
+	assert.Equal(t, []hash.SHA256Hash{h0, h1, h2}, input)
+}
+
 func Test_handleUpdateDIDDocument(t *testing.T) {
 	t.Run("error - unable to resolve controllers", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
