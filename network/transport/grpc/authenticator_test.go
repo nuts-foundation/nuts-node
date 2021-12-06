@@ -33,7 +33,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		serviceResolver := doc.NewMockServiceResolver(ctrl)
-		serviceResolver.EXPECT().ResolveService(*query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://nuts.nl:5555"}, nil)
+		serviceResolver.EXPECT().Resolve(*query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://nuts.nl:5555"}, nil)
 		authenticator := NewTLSAuthenticator(serviceResolver)
 		grpcPeer := peer.Peer{
 			AuthInfo: credentials.TLSInfo{
@@ -53,7 +53,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 	t.Run("not authenticated, DNS names do not match", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		serviceResolver := doc.NewMockServiceResolver(ctrl)
-		serviceResolver.EXPECT().ResolveService(*query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://nootjes.nl:5555"}, nil)
+		serviceResolver.EXPECT().Resolve(*query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://nootjes.nl:5555"}, nil)
 		authenticator := NewTLSAuthenticator(serviceResolver)
 
 		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
@@ -69,7 +69,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 	t.Run("DID document not found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		serviceResolver := doc.NewMockServiceResolver(ctrl)
-		serviceResolver.EXPECT().ResolveService(*query, gomock.Any()).Return(did.Service{}, types.ErrNotFound)
+		serviceResolver.EXPECT().Resolve(*query, gomock.Any()).Return(did.Service{}, types.ErrNotFound)
 		authenticator := NewTLSAuthenticator(serviceResolver)
 
 		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
