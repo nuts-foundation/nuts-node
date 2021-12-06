@@ -54,4 +54,3 @@ type FixedNodeDIDResolver struct {
 func (f FixedNodeDIDResolver) Resolve() (did.DID, error) {
 	return f.NodeDID, nil
 }
-

@@ -20,6 +20,7 @@
 package didman
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -293,8 +294,8 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 	return nil, nil
 }
 
-func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]OrganizationSearchResult, error) {
-	organizations, err := d.vcr.Search(concept.OrganizationConcept, false, map[string]string{concept.OrganizationName: query})
+func (d *didman) SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error) {
+	organizations, err := d.vcr.Search(ctx, concept.OrganizationConcept, false, map[string]string{concept.OrganizationName: query})
 	if err != nil {
 		return nil, err
 	}

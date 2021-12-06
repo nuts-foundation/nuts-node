@@ -20,6 +20,7 @@
 package vcr
 
 import (
+	"context"
 	"embed"
 	"errors"
 	"time"
@@ -66,7 +67,8 @@ type ConceptFinder interface {
 
 	// Search for matching concepts based upon a query. It returns an empty list if no matches have been found.
 	// It also returns untrusted credentials when allowUntrusted == true
-	Search(conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error)
+	// a context must be passed to prevent long-running queries
+	Search(ctx context.Context, conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error)
 }
 
 // Validator is the VCR interface for validation options

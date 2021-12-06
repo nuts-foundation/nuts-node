@@ -22,7 +22,7 @@ require (
 	github.com/nats-io/nats-server/v2 v2.6.6
 	github.com/nats-io/nats.go v1.13.1-0.20211122170419-d7c1d78a50fc
 	github.com/nuts-foundation/go-did v0.1.1
-	github.com/nuts-foundation/go-leia v1.1.0
+	github.com/nuts-foundation/go-leia/v2 v2.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/privacybydesign/irmago v0.8.0
 	github.com/prometheus/client_golang v1.11.0

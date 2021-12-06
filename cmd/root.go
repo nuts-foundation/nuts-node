@@ -195,9 +195,10 @@ func CreateSystem() *core.System {
 	system.RegisterEngine(statusEngine)
 	system.RegisterEngine(metricsEngine)
 	system.RegisterEngine(cryptoInstance)
+	// the order of the next 3 modules is fixed due to configure and start dependencies
+	system.RegisterEngine(credentialInstance)
 	system.RegisterEngine(networkInstance)
 	system.RegisterEngine(vdrInstance)
-	system.RegisterEngine(credentialInstance)
 	system.RegisterEngine(authInstance)
 	system.RegisterEngine(didmanInstance)
 

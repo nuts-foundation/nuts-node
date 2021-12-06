@@ -19,16 +19,20 @@
 package auth
 
 import (
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 )
 
-func NewTestAuthInstance(testDirectory string) *Auth {
+func NewTestAuthInstance(t *testing.T) *Auth {
+	testDirectory := io.TestDirectory(t)
 	return NewAuthInstance(
 		TestConfig(),
 		store.NewMemoryStore(),
-		vcr.NewTestVCRInstance(testDirectory),
+		vcr.NewTestVCRInstance(t),
 		crypto.NewTestCryptoInstance(testDirectory),
 		nil,
 	)

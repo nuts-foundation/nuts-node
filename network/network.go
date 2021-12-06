@@ -22,12 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1"
-	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
-	"github.com/pkg/errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -35,6 +29,13 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
+	"github.com/pkg/errors"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -46,15 +47,13 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-// boltDBFileMode holds the Unix file mode the created BBolt database files will have.
-const boltDBFileMode = 0600
-
-// softwareID contains the name of the vendor/implementation that's published in the node's diagnostic information.
-const softwareID = "https://github.com/nuts-foundation/nuts-node"
-
 const (
+	// boltDBFileMode holds the Unix file mode the created BBolt database files will have.
+	boltDBFileMode = 0600
 	// ModuleName specifies the name of this module.
 	ModuleName = "Network"
+	// softwareID contains the name of the vendor/implementation that's published in the node's diagnostic information.
+	softwareID = "https://github.com/nuts-foundation/nuts-node"
 )
 
 // defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
