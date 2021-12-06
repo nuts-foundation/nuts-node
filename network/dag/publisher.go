@@ -21,7 +21,6 @@ package dag
 import (
 	"container/list"
 	"context"
-	"encoding/json"
 	"sync"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -132,12 +131,7 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 }
 
 func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) error {
-	body, err := json.Marshal(tx)
-	if err != nil {
-		return err
-	}
-
-	_, err = s.privateTxCtx.PublishAsync(privateTransactionsSubject, body)
+	_, err := s.privateTxCtx.PublishAsync(privateTransactionsSubject, tx.Data())
 	return err
 }
 
