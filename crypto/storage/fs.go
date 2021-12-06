@@ -20,7 +20,6 @@ package storage
 
 import (
 	"crypto"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -33,7 +32,6 @@ type entryType string
 
 const (
 	privateKeyEntry entryType = "private.pem"
-	publicKeyEntry  entryType = "public.json"
 )
 
 type fileOpenError struct {
@@ -80,7 +78,7 @@ func (fsc *fileSystemBackend) PrivateKeyExists(kid string) bool {
 	return err == nil
 }
 
-// Load the privatekey for the given legalEntity from disk. Since a legalEntity has a URI as identifier, the URI is base64 encoded and postfixed with '_private.pem'. Keys are stored in pem format and are 2k RSA keys.
+// GetPrivateKey loads the private key for the given legalEntity from disk. Since a legalEntity has a URI as identifier, the URI is base64 encoded and postfixed with '_private.pem'. Keys are stored in pem format and are 2k RSA keys.
 func (fsc *fileSystemBackend) GetPrivateKey(kid string) (crypto.Signer, error) {
 	data, err := fsc.readEntry(kid, privateKeyEntry)
 	if err != nil {
@@ -93,21 +91,7 @@ func (fsc *fileSystemBackend) GetPrivateKey(kid string) (crypto.Signer, error) {
 	return privateKey, nil
 }
 
-// Load the public key from disk, it load the private key and extract the public key from it.
-func (fsc *fileSystemBackend) GetPublicKey(kid string) (PublicKeyEntry, error) {
-	data, err := fsc.readEntry(kid, publicKeyEntry)
-	publicKeyEntry := PublicKeyEntry{}
-
-	if err != nil {
-		return publicKeyEntry, err
-	}
-
-	err = json.Unmarshal(data, &publicKeyEntry)
-
-	return publicKeyEntry, err
-}
-
-// Save the private key for the given key to disk. Files are  postfixed with '_private.pem'. Keys are stored in pem format. It also store the public key
+// SavePrivateKey saves the private key for the given key to disk. Files are  postfixed with '_private.pem'. Keys are stored in pem format. It also store the public key
 func (fsc *fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	filenamePath := fsc.getEntryPath(kid, privateKeyEntry)
 	outFile, err := os.Create(filenamePath)
@@ -124,26 +108,6 @@ func (fsc *fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) 
 	}
 
 	_, err = outFile.Write([]byte(pem))
-
-	return err
-}
-
-// Save the public key for the given key to disk. Files are  postfixed with '_public.json'. Keys are stored in JWK format.
-func (fsc *fileSystemBackend) SavePublicKey(kid string, entry PublicKeyEntry) error {
-	filenamePath := fsc.getEntryPath(kid, publicKeyEntry)
-	outFile, err := os.Create(filenamePath)
-
-	if err != nil {
-		return err
-	}
-	defer outFile.Close()
-
-	bytes, err := json.Marshal(entry)
-	if err != nil {
-		return err
-	}
-
-	_, err = outFile.Write(bytes)
 
 	return err
 }

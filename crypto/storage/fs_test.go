@@ -19,14 +19,10 @@
 package storage
 
 import (
-	"os"
-	"testing"
-	"time"
-
-	jwk "github.com/lestrrat-go/jwx/jwk"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"os"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -36,36 +32,6 @@ func Test_NewFileSystemBackend(t *testing.T) {
 		storage, err := NewFileSystemBackend("")
 		assert.EqualError(t, err, "filesystem path is empty")
 		assert.Nil(t, storage)
-	})
-}
-
-func Test_fs_GetPublicKey(t *testing.T) {
-	t.Run("non-existing entry", func(t *testing.T) {
-		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
-		_, err := storage.GetPublicKey("unknown")
-		assert.Contains(t, err.Error(), "could not open entry unknown with filename")
-	})
-	t.Run("ok", func(t *testing.T) {
-		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
-		ec := test.GenerateECKey()
-		kid := "kid"
-		now := time.Now()
-		pke := &PublicKeyEntry{Period: core.Period{Begin: now}}
-		key, _ := jwk.New(ec.Public())
-		pke.FromJWK(key)
-
-		err := storage.SavePublicKey(kid, *pke)
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		entry, err := storage.GetPublicKey(kid)
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		assert.Equal(t, key, entry.JWK())
-		assert.Equal(t, time.Duration(0), now.Sub(entry.Period.Begin))
 	})
 }
 

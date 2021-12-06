@@ -34,14 +34,12 @@ var ErrNotFound = errors.New("entry not found")
 
 // Storage interface containing functions for storing and retrieving keys.
 type Storage interface {
+	// GetPrivateKey from the storage backend and return its handler as an implementation of crypto.Signer.
 	GetPrivateKey(kid string) (crypto.Signer, error)
+	// PrivateKeyExists checks if the private key indicated with the kid is stored in the storage backend.
 	PrivateKeyExists(kid string) bool
+	// SavePrivateKey stores the key under the kid in the storage backend.
 	SavePrivateKey(kid string, key crypto.PrivateKey) error
-
-	// GetPublicKey returns the public key and the period it is valid in.
-	GetPublicKey(kid string) (PublicKeyEntry, error)
-	// SavePublicKey stores a public key entry under the given kid
-	SavePublicKey(kid string, entry PublicKeyEntry) error
 }
 
 // PublicKeyEntry is a public key entry also containing the period it's valid for.

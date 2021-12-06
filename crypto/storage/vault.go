@@ -3,14 +3,12 @@ package storage
 import (
 	"crypto"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
 const privateKeyPath = "nuts-private-keys"
-const publicKeyPath = "nuts-public-keys"
 const kvEnginePath = "kv"
 const keyName = "key"
 
@@ -18,18 +16,26 @@ type vaultKVStorage struct {
 	client *vault.Client
 }
 
-func NewVaultKVStorage(token string) (Storage, error) {
+// NewVaultKVStorage creates a new Vault backend using the kv version 1 secret engine: https://www.vaultproject.io/docs/secrets/kv
+// It currently only supports token authentication which should be provided by the token param.
+// If vaultAddr is empty, the VAULT_ADDR environment should be set.
+// If token is empty, the VAULT_TOKEN environment should be is set.
+func NewVaultKVStorage(token string, vaultAddr string) (Storage, error) {
 	config := vault.DefaultConfig()
-	config.Address = "http://127.0.0.1:8200"
 	client, err := vault.NewClient(config)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize Vault client: %w", err)
 	}
 	client.SetToken(token)
+	if vaultAddr != "" {
+		if err = client.SetAddress(vaultAddr); err != nil {
+			return nil, fmt.Errorf("vault address invalid: %w", err)
+		}
+	}
 
 	_, err = client.Logical().Read("auth/token/lookup-self")
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect to vault: unable to retrieve token status: %w", err)
+		return nil, fmt.Errorf("unable to connect to Vault: unable to retrieve token status: %w", err)
 	}
 
 	return vaultKVStorage{client: client}, nil
@@ -87,32 +93,5 @@ func (v vaultKVStorage) SavePrivateKey(kid string, key crypto.PrivateKey) error 
 	}
 
 	encodedKey := base64.RawStdEncoding.EncodeToString([]byte(pem))
-	return v.storeValue(path, keyName, []byte(encodedKey))
-}
-
-func (v vaultKVStorage) GetPublicKey(kid string) (PublicKeyEntry, error) {
-	path := fmt.Sprintf("%s/%s/%s", kvEnginePath, publicKeyPath, kid)
-	publicKeyEntry := PublicKeyEntry{}
-	value, err := v.getValue(path, keyName)
-	if err != nil {
-		return publicKeyEntry, fmt.Errorf("unable to retrieve public key from vault: %w", err)
-	}
-	jsonKey, err := base64.RawStdEncoding.DecodeString(string(value))
-	if err != nil {
-		return publicKeyEntry, fmt.Errorf("unable to base64 decode the key: %w", err)
-	}
-
-	err = json.Unmarshal(jsonKey, &publicKeyEntry)
-	return publicKeyEntry, err
-}
-
-func (v vaultKVStorage) SavePublicKey(kid string, key PublicKeyEntry) error {
-	path := fmt.Sprintf("%s/%s/%s", kvEnginePath, publicKeyPath, kid)
-	jsonKey, err := json.Marshal(key)
-	if err != nil {
-		return err
-	}
-
-	encodedKey := base64.RawStdEncoding.EncodeToString(jsonKey)
 	return v.storeValue(path, keyName, []byte(encodedKey))
 }
