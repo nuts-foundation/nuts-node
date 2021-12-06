@@ -24,7 +24,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"sync"
 	"testing"
+	"time"
 )
 
 func Test_connector_tryConnect(t *testing.T) {
@@ -43,7 +45,32 @@ func Test_connector_tryConnect(t *testing.T) {
 	assert.NotNil(t, grpcConn)
 	assert.Equal(t, uint32(1), connector.connectAttempts())
 }
-func Test_connector_loopConnect(t *testing.T) {
+
+func Test_connector_start(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		connected := make(chan struct{}, 1)
+		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+			return &grpc.ClientConn{}, nil
+		}, nil, func() bool {
+			return true
+		}, func(_ *grpc.ClientConn) bool {
+			connected <- struct{}{}
+			return true
+		})
+		bo := &trackingBackoff{mux: &sync.Mutex{}}
+		connector.backoff = bo
+		connector.connectedBackoff = func(_ context.Context) {
+			// nothing
+		}
+
+		connector.start()
+		defer connector.stop()
+
+		<-connected // wait for connected
+
+		resetCounts, _ := bo.counts()
+		assert.Equal(t, 1, resetCounts)
+	})
 	t.Run("not connecting when already connected", func(t *testing.T) {
 		calls := make(chan struct{}, 10)
 		connector := createOutboundConnector("foo", nil, nil, func() bool {
@@ -61,4 +88,53 @@ func Test_connector_loopConnect(t *testing.T) {
 			<-calls
 		}
 	})
+	t.Run("backoff when callback fails", func(t *testing.T) {
+		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+			return &grpc.ClientConn{}, nil
+		}, nil, func() bool {
+			return true
+		}, func(_ *grpc.ClientConn) bool {
+			return false
+		})
+		bo := &trackingBackoff{mux: &sync.Mutex{}}
+		connector.backoff = bo
+		connector.connectedBackoff = func(_ context.Context) {
+			// nothing
+		}
+
+		connector.start()
+		defer connector.stop()
+
+		test.WaitFor(t, func() (bool, error) {
+			_, backoffCount := bo.counts()
+			return backoffCount >= 1, nil
+		}, time.Second, "time-out while waiting for backoff to be invoked")
+		resetCounts, _ := bo.counts()
+		assert.Equal(t, 0, resetCounts)
+	})
+}
+
+type trackingBackoff struct {
+	resetCount   int
+	backoffCount int
+	mux          *sync.Mutex
+}
+
+func (t *trackingBackoff) counts() (int, int) {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	return t.resetCount, t.backoffCount
+}
+
+func (t *trackingBackoff) Reset() {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	t.resetCount++
+}
+
+func (t *trackingBackoff) Backoff() time.Duration {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	t.backoffCount++
+	return 10 * time.Millisecond // prevent spinwait
 }

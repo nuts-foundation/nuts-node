@@ -42,9 +42,9 @@ const protocolVersionHeader = "version" // required for backwards compatibility 
 const peerIDHeader = "peerID"
 const nodeDIDHeader = "nodeDID"
 
-// nodeDIDAuthFailed is the error message returned to the peer when the node DID it sent could not be authenticated.
+// ErrNodeDIDAuthFailed is the error message returned to the peer when the node DID it sent could not be authenticated.
 // It is specified by RFC017.
-const nodeDIDAuthFailed = "nodeDID authentication failed"
+var ErrNodeDIDAuthFailed = errors.New("nodeDID authentication failed")
 
 // ErrAlreadyConnected indicates the node is already connected to the peer.
 var ErrAlreadyConnected = errors.New("already connected")
@@ -176,13 +176,15 @@ func (s grpcConnectionManager) Connect(peerAddress string) {
 		}
 	}
 
-	connection.open(tlsConfig, func(grpcConn *grpc.ClientConn) {
+	connection.open(tlsConfig, func(grpcConn *grpc.ClientConn) bool {
 		// Callback must block until streams or the connection is closed, then the connector will reconnect.
 		err := s.openOutboundStreams(connection, grpcConn)
 		if err != nil {
 			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.getPeer(), err)
 			connection.disconnect()
+			return false
 		}
+		return true
 	})
 }
 
@@ -214,6 +216,11 @@ func (s *grpcConnectionManager) openOutboundStreams(connection managedConnection
 		streamContext, err := s.openOutboundStream(connection, grpcConn, grpcProtocol)
 		if err != nil {
 			log.Logger().Warnf("%T: Failed to open gRPC stream (addr=%s): %v", prot, grpcConn.Target(), err)
+			if errors.Is(err, ErrNodeDIDAuthFailed) {
+				// No need to try other protocols if node DID authentication fails: they'll fail with the same error, cluttering the log.
+				// The protocol already closed the stream in case of an error, so no need to explicitly disconnect.
+				break
+			}
 			continue
 		}
 		log.Logger().Debugf("%T: Opened gRPC stream (peer=%s)", prot, connection.getPeer())
@@ -288,7 +295,7 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 		if err != nil {
 			// Error message below is spec'd by RFC017
 			log.Logger().Warnf("Peer node DID could not be authenticated: %s", nodeDID)
-			return transport.Peer{}, errors.New(nodeDIDAuthFailed)
+			return transport.Peer{}, ErrNodeDIDAuthFailed
 		}
 		return authenticatedPeer, nil
 	}
