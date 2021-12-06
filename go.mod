@@ -7,7 +7,6 @@ require (
 	github.com/cbroglie/mustache v1.3.0
 	github.com/deepmap/oapi-codegen v1.9.0
 	github.com/dgrijalva/jwt-go v3.2.1-0.20200107013213-dc14462fd587+incompatible // indirect
-	github.com/ecies/go v1.0.1
 	github.com/go-chi/chi v4.0.2+incompatible // indirect
 	github.com/golang/mock v1.6.0
 	github.com/goodsign/monday v1.0.0
@@ -42,9 +41,12 @@ require (
 	schneider.vip/problem v1.6.0
 )
 
+require github.com/ethereum/go-ethereum v1.10.13
+
 require (
 	github.com/alexandrevicenzi/go-sse v1.3.1-0.20200117161408-7b23d5ff7420 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/bwesterb/byteswriter v1.0.0 // indirect
 	github.com/bwesterb/go-atum v1.0.0 // indirect
 	github.com/bwesterb/go-exptable v1.0.0 // indirect
@@ -57,7 +59,6 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.0-20210816181553-5444fa50b93d // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/eknkc/basex v1.0.0 // indirect
-	github.com/fomichev/secp256k1 v0.0.0-20180413221153-00116ff8c62f // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/fxamacker/cbor v1.5.0 // indirect
 	github.com/getsentry/raven-go v0.0.0-20180121060056-563b81fc02b7 // indirect

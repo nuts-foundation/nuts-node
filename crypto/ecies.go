@@ -2,31 +2,21 @@ package crypto
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
 
-	ecies "github.com/ecies/go"
+	"github.com/ethereum/go-ethereum/crypto/ecies"
 )
 
 // EciesDecrypt decrypts the `cipherText` using the Elliptic Curve Integrated Encryption Scheme
 func EciesDecrypt(privateKey *ecdsa.PrivateKey, cipherText []byte) ([]byte, error) {
-	eciesKey := &ecies.PrivateKey{
-		PublicKey: &ecies.PublicKey{
-			Curve: privateKey.Curve,
-			X:     privateKey.X,
-			Y:     privateKey.Y,
-		},
-		D: privateKey.D,
-	}
+	key := ecies.ImportECDSA(privateKey)
 
-	return ecies.Decrypt(eciesKey, cipherText)
+	return key.Decrypt(cipherText, nil, nil)
 }
 
 // EciesEncrypt encrypts the `plainText` using the Elliptic Curve Integrated Encryption Scheme
-func (client *Crypto) EciesEncrypt(publicKey *ecdsa.PublicKey, plainText []byte) ([]byte, error) {
-	eciesKey := &ecies.PublicKey{
-		Curve: publicKey.Curve,
-		X:     publicKey.X,
-		Y:     publicKey.Y,
-	}
+func EciesEncrypt(publicKey *ecdsa.PublicKey, plainText []byte) ([]byte, error) {
+	key := ecies.ImportECDSAPublic(publicKey)
 
-	return ecies.Encrypt(eciesKey, plainText)
+	return ecies.Encrypt(rand.Reader, key, plainText, nil, nil)
 }
