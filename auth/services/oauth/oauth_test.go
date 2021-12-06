@@ -724,12 +724,12 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		document := getAuthorizerDIDDocument()
 		document.Service = []did.Service{}
 
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return("", didman.ErrServiceNotFound)
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return("", types.ErrServiceNotFound)
 
 		token, err := ctx.oauthService.CreateJwtGrant(request)
 
 		assert.Empty(t, token)
-		assert.ErrorIs(t, err, didman.ErrServiceNotFound)
+		assert.ErrorIs(t, err, types.ErrServiceNotFound)
 	})
 
 	t.Run("request without authorizer", func(t *testing.T) {
@@ -879,11 +879,11 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 	t.Run("returns_error_when_resolve_compound_service_fails", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(*vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return("", didman.ErrServiceNotFound)
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(*vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return("", types.ErrServiceNotFound)
 
 		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL(expectedService, *vdr.TestDIDA)
 
-		assert.ErrorIs(t, err, didman.ErrServiceNotFound)
+		assert.ErrorIs(t, err, types.ErrServiceNotFound)
 		assert.Empty(t, parsedURL)
 	})
 
@@ -997,7 +997,7 @@ type testContext struct {
 	vcValidator     *vcr.MockValidator
 	didResolver     *types.MockStore
 	keyResolver     *types.MockKeyResolver
-	serviceResolver *didman.MockServiceResolver
+	serviceResolver *didman.MockCompoundServiceResolver
 	oauthService    *service
 }
 
@@ -1009,7 +1009,7 @@ var createContext = func(t *testing.T) *testContext {
 	nameResolver := vcr.NewMockConceptFinder(ctrl)
 	vcValidator := vcr.NewMockValidator(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
-	serviceResolver := didman.NewMockServiceResolver(ctrl)
+	serviceResolver := didman.NewMockCompoundServiceResolver(ctrl)
 	didResolver := types.NewMockStore(ctrl)
 
 	return &testContext{

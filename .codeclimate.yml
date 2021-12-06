@@ -11,11 +11,11 @@ exclude_patterns:
   - "**/test/**/*.go"
   - "**/test.go"
   - "**/*_test.go"
+  - "**/test*.go"
   - "**/mock/**/*.go"
   - "**/mock.go"
   - "**/*_mock.go"
   - "docs/**/*.go"
-  - "network/transport/*.go" # generated sources
   - "**/*.pb.go"
 plugins:
   gofmt:

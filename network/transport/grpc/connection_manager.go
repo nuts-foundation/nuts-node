@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -41,6 +42,10 @@ const protocolVersionHeader = "version" // required for backwards compatibility 
 const peerIDHeader = "peerID"
 const nodeDIDHeader = "nodeDID"
 
+// nodeDIDAuthFailed is the error message returned to the peer when the node DID it sent could not be authenticated.
+// It is specified by RFC017.
+const nodeDIDAuthFailed = "nodeDID authentication failed"
+
 // ErrAlreadyConnected indicates the node is already connected to the peer.
 var ErrAlreadyConnected = errors.New("already connected")
 
@@ -48,10 +53,11 @@ var ErrAlreadyConnected = errors.New("already connected")
 var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDResolver, protocols ...transport.Protocol) transport.ConnectionManager {
+func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
 	return &grpcConnectionManager{
 		protocols:       protocols,
 		nodeDIDResolver: nodeDIDResolver,
+		authenticator:   authenticator,
 		config:          config,
 		connections:     &connectionList{},
 		grpcServerMutex: &sync.Mutex{},
@@ -70,6 +76,7 @@ type grpcConnectionManager struct {
 	listener         net.Listener
 	listenerCreator  func(string) (net.Listener, error)
 	dialer           dialer
+	authenticator    Authenticator
 	nodeDIDResolver  transport.NodeDIDResolver
 	stopCRLValidator func()
 }
@@ -184,12 +191,7 @@ func (s grpcConnectionManager) Peers() []transport.Peer {
 }
 
 func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
-	peers := s.connections.listConnected()
-	return []core.DiagnosticResult{
-		ownPeerIDStatistic{s.config.peerID},
-		numberOfPeersStatistic{numberOfPeers: len(peers)},
-		peersStatistic{peers: peers},
-	}
+	return append([]core.DiagnosticResult{ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...)
 }
 
 // RegisterService implements grpc.ServiceRegistrar to register the gRPC services protocols expose.
@@ -251,9 +253,18 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 			return transport.Peer{}, fmt.Errorf("failed to read peer ID header: %w", err)
 		}
 
-		// TODO: Set and authenticate NodeDID as well
 		if !connection.verifyOrSetPeerID(peerID) {
 			return transport.Peer{}, fmt.Errorf("peer sent invalid ID (id=%s)", peerID)
+		}
+
+		peer := transport.Peer{
+			ID:      peerID,
+			Address: grpcConn.Target(),
+		}
+		peerFromCtx, _ := grpcPeer.FromContext(clientStream.Context())
+		peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
+		if err != nil {
+			return peer, err
 		}
 
 		err = connection.registerClientStream(clientStream, method)
@@ -266,19 +277,27 @@ func (s *grpcConnectionManager) openOutboundStream(connection managedConnection,
 			log.Logger().Warnf("We connected to a peer that we're already connected to (peer=%s)", peerID)
 			return transport.Peer{}, ErrAlreadyConnected
 		}
-
-		return transport.Peer{
-			ID:      peerID,
-			Address: grpcConn.Target(),
-			NodeDID: nodeDID,
-		}, nil
+		return peer, nil
 	})
 	return streamContext, err
 }
 
+func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Peer, peerFromCtx *grpcPeer.Peer) (transport.Peer, error) {
+	if !nodeDID.Empty() {
+		authenticatedPeer, err := s.authenticator.Authenticate(nodeDID, *peerFromCtx, peer)
+		if err != nil {
+			// Error message below is spec'd by RFC017
+			log.Logger().Warnf("Peer node DID could not be authenticated: %s", nodeDID)
+			return transport.Peer{}, errors.New(nodeDIDAuthFailed)
+		}
+		return authenticatedPeer, nil
+	}
+	return peer, nil
+}
+
 func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStream) (transport.Peer, context.Context, error) {
-	peerCtx, _ := grpcPeer.FromContext(inboundStream.Context())
-	log.Logger().Tracef("New peer connected from %s", peerCtx.Addr)
+	peerFromCtx, _ := grpcPeer.FromContext(inboundStream.Context())
+	log.Logger().Tracef("New peer connected from %s", peerFromCtx.Addr)
 
 	// Send our headers
 	md, err := s.constructMetadata()
@@ -286,7 +305,7 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 		return transport.Peer{}, nil, err
 	}
 	if err := inboundStream.SendHeader(md); err != nil {
-		log.Logger().Errorf("Unable to accept gRPC stream (remote address: %s), unable to send headers: %v", peerCtx.Addr, err)
+		log.Logger().Errorf("Unable to accept gRPC stream (remote address: %s), unable to send headers: %v", peerFromCtx.Addr, err)
 		return transport.Peer{}, nil, errors.New("unable to send headers")
 	}
 
@@ -301,10 +320,13 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 	}
 	peer := transport.Peer{
 		ID:      peerID,
-		Address: peerCtx.Addr.String(),
-		NodeDID: nodeDID,
+		Address: peerFromCtx.Addr.String(),
 	}
 	log.Logger().Debugf("New inbound stream from peer (peer=%s,protocol=%T)", peer, inboundStream)
+	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
+	if err != nil {
+		return peer, nil, err
+	}
 
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?
