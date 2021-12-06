@@ -66,8 +66,7 @@ type Diagnostics struct {
 // ConnectionStats holds statistics on the connection.
 type ConnectionStats struct {
 	// Peer identifies the subject of these statistics.
-	Peer            Peer
+	Peer Peer
 	// ConnectAttempts holds the number of times the node tried to connect to the peer.
 	ConnectAttempts uint32
 }
-
