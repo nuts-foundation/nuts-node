@@ -48,6 +48,7 @@ type Config struct {
 	ProtocolV1 v1.Config `koanf:"network.v1"`
 }
 
+// NatsConfig holds all NATS related configuration
 type NatsConfig struct {
 	Port     int    `koanf:"network.nats.port"`
 	Hostname string `koanf:"network.nats.hostname"`
