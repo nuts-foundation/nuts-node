@@ -2,7 +2,6 @@ package storage
 
 import (
 	"crypto"
-	"encoding/base64"
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
@@ -12,8 +11,13 @@ const privateKeyPath = "nuts-private-keys"
 const kvEnginePath = "kv"
 const keyName = "key"
 
+type logicaler interface {
+	Read(path string) (*vault.Secret, error)
+	Write(path string, data map[string]interface{}) (*vault.Secret, error)
+}
+
 type vaultKVStorage struct {
-	client *vault.Client
+	client logicaler
 }
 
 // NewVaultKVStorage creates a new Vault backend using the kv version 1 secret engine: https://www.vaultproject.io/docs/secrets/kv
@@ -38,7 +42,7 @@ func NewVaultKVStorage(token string, vaultAddr string) (Storage, error) {
 		return nil, fmt.Errorf("unable to connect to Vault: unable to retrieve token status: %w", err)
 	}
 
-	return vaultKVStorage{client: client}, nil
+	return vaultKVStorage{client: client.Logical()}, nil
 
 }
 
@@ -53,7 +57,7 @@ func (v vaultKVStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
 }
 
 func (v vaultKVStorage) getValue(path, key string) ([]byte, error) {
-	result, err := v.client.Logical().Read(path)
+	result, err := v.client.Read(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read private key from vault: %w", err)
 	}
@@ -68,7 +72,7 @@ func (v vaultKVStorage) getValue(path, key string) ([]byte, error) {
 	return value, nil
 }
 func (v vaultKVStorage) storeValue(path, key string, value []byte) error {
-	_, err := v.client.Logical().Write(path, map[string]interface{}{key: value})
+	_, err := v.client.Write(path, map[string]interface{}{key: value})
 	if err != nil {
 		return fmt.Errorf("unable to write private key to vault: %w", err)
 	}
@@ -77,7 +81,7 @@ func (v vaultKVStorage) storeValue(path, key string, value []byte) error {
 
 func (v vaultKVStorage) PrivateKeyExists(kid string) bool {
 	path := fmt.Sprintf("%s/%s/%s", kvEnginePath, privateKeyPath, kid)
-	result, err := v.client.Logical().Read(path)
+	result, err := v.client.Read(path)
 	if err != nil {
 		return false
 	}
@@ -92,6 +96,5 @@ func (v vaultKVStorage) SavePrivateKey(kid string, key crypto.PrivateKey) error 
 		return fmt.Errorf("unable to convert private key to pem format: %w", err)
 	}
 
-	encodedKey := base64.RawStdEncoding.EncodeToString([]byte(pem))
-	return v.storeValue(path, keyName, []byte(encodedKey))
+	return v.storeValue(path, keyName, []byte(pem))
 }
