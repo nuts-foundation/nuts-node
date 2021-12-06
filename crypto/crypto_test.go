@@ -125,7 +125,7 @@ func TestCrypto_Configure(t *testing.T) {
 		client := createCrypto(t)
 		client.config.Storage = "unknown"
 		err := client.Configure(cfg)
-		assert.EqualErrorf(t, err, "only fs backend available for now", "expected error")
+		assert.EqualErrorf(t, err, "invalid config for crypto.storage. Available options are: vaultkv, fs", "expected error")
 	})
 }
 
