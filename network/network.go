@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/events"
 	"os"
 	"path"
 	"path/filepath"
@@ -31,7 +32,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
@@ -118,16 +118,14 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	// NATS
-	natsAddr := fmt.Sprintf("%s:%d", n.config.NatsHostname, n.config.NatsPort)
-
-	conn, err := nats.Connect(natsAddr, nats.RetryOnFailedConnect(true), nats.Timeout(time.Duration(n.config.NatsTimeout)*time.Second))
+	conn, err := events.Connect(n.config.Nats.Hostname, n.config.Nats.Port, time.Duration(n.config.Nats.Timeout)*time.Second)
 	if err != nil {
-		return fmt.Errorf("unable to connect to NATS at '%s': %w", natsAddr, err)
+		return fmt.Errorf("unable to connect to NATS at '%s:%d': %w", n.config.Nats.Hostname, n.config.Nats.Port, err)
 	}
 
 	privateTxCtx, err := conn.JetStream()
 	if err != nil {
-		return fmt.Errorf("unable to connect to NATS at '%s': %w", natsAddr, err)
+		return fmt.Errorf("unable to connect to NATS at '%s:%d': %w", n.config.Nats.Hostname, n.config.Nats.Port, err)
 	}
 
 	n.payloadStore = dag.NewBBoltPayloadStore(n.db)
