@@ -121,6 +121,13 @@ func TestCrypto_Configure(t *testing.T) {
 		storageType := reflect.TypeOf(client.Storage).String()
 		assert.Equal(t, "*storage.fileSystemBackend", storageType)
 	})
+	t.Run("error - no backend in strict mode is now allowd", func(t *testing.T) {
+		client := createCrypto(t)
+		cfg := cfg
+		cfg.Strictmode = true
+		err := client.Configure(cfg)
+		assert.EqualErrorf(t, err, "you must explicitly provide a crypto storage backend in strict-mode", "expected error")
+	})
 	t.Run("error - unknown backend", func(t *testing.T) {
 		client := createCrypto(t)
 		client.config.Storage = "unknown"

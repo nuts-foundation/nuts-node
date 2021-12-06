@@ -91,10 +91,9 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 	case "":
 		if config.Strictmode {
 			return errors.New("you must explicitly provide a crypto storage backend in strict-mode")
-		} else {
-			// default to file system and run this setup again
-			return client.setupFSBackend(config)
 		}
+		// default to file system and run this setup again
+		return client.setupFSBackend(config)
 	default:
 		return errors.New("invalid config for crypto.storage. Available options are: vaultkv, fs")
 	}
