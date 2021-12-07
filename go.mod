@@ -41,12 +41,9 @@ require (
 	schneider.vip/problem v1.6.0
 )
 
-require github.com/ethereum/go-ethereum v1.10.13
-
 require (
 	github.com/alexandrevicenzi/go-sse v1.3.1-0.20200117161408-7b23d5ff7420 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/bwesterb/byteswriter v1.0.0 // indirect
 	github.com/bwesterb/go-atum v1.0.0 // indirect
 	github.com/bwesterb/go-exptable v1.0.0 // indirect
@@ -98,6 +95,7 @@ require (
 	github.com/nats-io/nkeys v0.3.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443 // indirect
+	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b // indirect
 	github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/privacybydesign/gabi v0.0.0-20210714094051-ba80a6a8c5d8 // indirect

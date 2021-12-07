@@ -4,7 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 
-	"github.com/ethereum/go-ethereum/crypto/ecies"
+	ecies "github.com/nuts-foundation/crypto-ecies"
 )
 
 // EciesDecrypt decrypts the `cipherText` using the Elliptic Curve Integrated Encryption Scheme
