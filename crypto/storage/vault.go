@@ -49,6 +49,9 @@ func NewVaultKVStorage(token string, vaultAddr string) (Storage, error) {
 func (v vaultKVStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
 	path := fmt.Sprintf("%s/%s/%s", kvEnginePath, privateKeyPath, kid)
 	value, err := v.getValue(path, keyName)
+	if err != nil {
+		return nil, err
+	}
 	privateKey, err := util.PemToPrivateKey(value)
 	if err != nil {
 		return nil, err
