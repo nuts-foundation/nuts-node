@@ -25,6 +25,17 @@ type vaultKVStorage struct {
 // If vaultAddr is empty, the VAULT_ADDR environment should be set.
 // If token is empty, the VAULT_TOKEN environment should be is set.
 func NewVaultKVStorage(token string, vaultAddr string) (Storage, error) {
+	client, err := configureVaultClient(token, vaultAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	vaultStorage := vaultKVStorage{client: client.Logical()}
+	err = vaultStorage.checkConnection()
+	return vaultStorage, err
+}
+
+func configureVaultClient(token, vaultAddr string) (*vault.Client, error) {
 	config := vault.DefaultConfig()
 	client, err := vault.NewClient(config)
 	if err != nil {
@@ -36,14 +47,18 @@ func NewVaultKVStorage(token string, vaultAddr string) (Storage, error) {
 			return nil, fmt.Errorf("vault address invalid: %w", err)
 		}
 	}
+	return client, nil
+}
 
-	_, err = client.Logical().Read("auth/token/lookup-self")
+func (v vaultKVStorage) checkConnection() error {
+	secret, err := v.client.Read("auth/token/lookup-self")
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect to Vault: unable to retrieve token status: %w", err)
+		return fmt.Errorf("unable to connect to Vault: unable to retrieve token status: %w", err)
 	}
-
-	return vaultKVStorage{client: client.Logical()}, nil
-
+	if len(secret.Data) == 0 {
+		return fmt.Errorf("could not read token information on auth/token/lookup-self")
+	}
+	return nil
 }
 
 func (v vaultKVStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
