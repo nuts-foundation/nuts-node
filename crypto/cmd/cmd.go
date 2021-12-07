@@ -27,7 +27,11 @@ import (
 
 // ConfigStorage is used as --crypto.storage config flag
 const ConfigStorage string = "crypto.storage"
+
+// ConfigVaultToken is used as --crypto.vaultToken config flag
 const ConfigVaultToken string = "crypto.vaultToken"
+
+// ConfigVaultAddr is used as --crypto.vaultAddr config flag
 const ConfigVaultAddr string = "crypto.vaultAddr"
 
 // FlagSet returns the configuration flags for crypto
