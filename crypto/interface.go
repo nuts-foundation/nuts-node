@@ -47,9 +47,16 @@ type KeyResolver interface {
 
 // KeyStore defines the functions for working with private keys.
 type KeyStore interface {
+	Decryptor
 	KeyCreator
 	KeyResolver
 	JWTSigner
+}
+
+// Decryptor is the interface to support decryption
+type Decryptor interface {
+	// Decrypt decrypts the `cipherText` with key `kid`
+	Decrypt(kid string, ciphertext []byte) ([]byte, error)
 }
 
 // JWTSigner is the interface used to sign authorization tokens.

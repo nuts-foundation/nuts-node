@@ -21,18 +21,6 @@ package v1
 import (
 	"context"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
-	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
-	"go.etcd.io/bbolt"
 	"hash/crc32"
 	"io/fs"
 	"path"
@@ -40,7 +28,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"go.etcd.io/bbolt"
+
+	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 )
 
 const integrationTestTimeout = 10 * time.Second
@@ -170,9 +173,11 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		mux: &sync.Mutex{},
 	}
 
+	privateTxCtx := events.NewMockJetStreamContext(gomock.NewController(t))
+
 	ctx.graph = dag.NewBBoltDAG(db)
 	ctx.payloadStore = dag.NewBBoltPayloadStore(db)
-	publisher := dag.NewReplayingDAGPublisher(ctx.payloadStore, ctx.graph)
+	publisher := dag.NewReplayingDAGPublisher(privateTxCtx, ctx.payloadStore, ctx.graph)
 	publisher.Subscribe(integrationTestPayloadType, func(tx dag.Transaction, payload []byte) error {
 		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
 		ctx.mux.Lock()

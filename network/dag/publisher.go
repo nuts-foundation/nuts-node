@@ -24,21 +24,27 @@ import (
 	"sync"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
+const privateTransactionsSubject = "nuts.v2.private-transactions"
+
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
-func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
+func NewReplayingDAGPublisher(privateTxCtx events.JetStreamContext, payloadStore PayloadStore, dag DAG) Publisher {
 	publisher := &replayingDAGPublisher{
 		subscribers:         map[string]Receiver{},
 		resumeAt:            list.New(),
 		visitedTransactions: map[hash.SHA256Hash]bool{},
-		payloadStore:        payloadStore,
 		dag:                 dag,
+		payloadStore:        payloadStore,
 		publishMux:          &sync.Mutex{},
+		privateTxCtx:        privateTxCtx,
 	}
+
 	dag.RegisterObserver(publisher.TransactionAdded)
 	payloadStore.RegisterObserver(publisher.PayloadWritten)
+
 	return publisher
 }
 
@@ -46,9 +52,10 @@ type replayingDAGPublisher struct {
 	subscribers         map[string]Receiver
 	resumeAt            *list.List
 	visitedTransactions map[hash.SHA256Hash]bool
-	payloadStore        PayloadStore
 	dag                 DAG
+	payloadStore        PayloadStore
 	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
+	privateTxCtx        events.JetStreamContext
 }
 
 func (s *replayingDAGPublisher) PayloadWritten(ctx context.Context, _ interface{}) {
@@ -123,9 +130,19 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 	}
 }
 
+func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) error {
+	_, err := s.privateTxCtx.PublishAsync(privateTransactionsSubject, tx.Data())
+	return err
+}
+
 func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transaction Transaction) bool {
 	// We need to skip transactions with a to addr header as it should be handled by the v2 protocol
 	if len(transaction.To()) > 0 {
+		if err := s.handlePrivateTransaction(transaction); err != nil {
+			log.Logger().Errorf("unable to handle private transaction: (ref=%s) %v", transaction.Ref(), err)
+			return false
+		}
+
 		return true
 	}
 

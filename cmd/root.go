@@ -159,16 +159,16 @@ func CreateSystem() *core.System {
 	system := core.NewSystem()
 	// Create instances
 	cryptoInstance := crypto.NewCryptoInstance()
-	store := store.NewMemoryStore()
-	keyResolver := doc.KeyResolver{Store: store}
-	docResolver := doc.Resolver{Store: store}
+	memoryStore := store.NewMemoryStore()
+	keyResolver := doc.KeyResolver{Store: memoryStore}
+	docResolver := doc.Resolver{Store: memoryStore}
 
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, docResolver)
-	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, store)
+	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, memoryStore)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance)
-	didmanInstance := didman.NewDidmanInstance(docResolver, store, vdrInstance, credentialInstance)
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), store, credentialInstance, cryptoInstance, didmanInstance)
+	didmanInstance := didman.NewDidmanInstance(docResolver, memoryStore, vdrInstance, credentialInstance)
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), memoryStore, credentialInstance, cryptoInstance, didmanInstance)
 
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()

@@ -41,8 +41,18 @@ type Config struct {
 	// It is used to identify it on the network.
 	NodeDID string `koanf:"network.nodedid"`
 
+	// NATS configuration for the replay DAG publisher
+	Nats NatsConfig `koanf:"network.nats"`
+
 	// ProtocolV1 specifies config for protocol v1
 	ProtocolV1 v1.Config `koanf:"network.v1"`
+}
+
+// NatsConfig holds all NATS related configuration
+type NatsConfig struct {
+	Port     int    `koanf:"network.nats.port"`
+	Hostname string `koanf:"network.nats.hostname"`
+	Timeout  int    `koanf:"network.nats.timeout"`
 }
 
 // DefaultConfig returns the default NetworkEngine configuration.
@@ -51,5 +61,10 @@ func DefaultConfig() Config {
 		GrpcAddr:   ":5555",
 		ProtocolV1: v1.DefaultConfig(),
 		EnableTLS:  true,
+		Nats: NatsConfig{
+			Timeout:  30,
+			Port:     4022,
+			Hostname: "localhost",
+		},
 	}
 }
