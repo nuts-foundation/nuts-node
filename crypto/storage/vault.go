@@ -23,6 +23,7 @@ import (
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"path/filepath"
 )
 
 const privateKeyPathName = "nuts-private-keys"
@@ -41,12 +42,14 @@ func DefaultVaultConfig() VaultConfig {
 	}
 }
 
+// logicaler is an interface which has been implemented by the mockVaultClient and real vault.Logical to allow testing vault without the server.
 type logicaler interface {
 	Read(path string) (*vault.Secret, error)
 	Write(path string, data map[string]interface{}) (*vault.Secret, error)
 }
 
 type vaultKVStorage struct {
+	config VaultConfig
 	client logicaler
 }
 
@@ -83,6 +86,7 @@ func configureVaultClient(token, vaultAddr string) (*vault.Client, error) {
 }
 
 func (v vaultKVStorage) checkConnection() error {
+	// Perform a token introspection to test the connection. This should be allowed by the default vault token policy.
 	secret, err := v.client.Read("auth/token/lookup-self")
 	if err != nil {
 		return fmt.Errorf("unable to connect to Vault: unable to retrieve token status: %w", err)
@@ -94,7 +98,7 @@ func (v vaultKVStorage) checkConnection() error {
 }
 
 func (v vaultKVStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
-	path := fmt.Sprintf("%s/%s/%s", kvEnginePath, privateKeyPath, kid)
+	path := privateKeyPath(v.config.PathPrefix, kid)
 	value, err := v.getValue(path, keyName)
 	if err != nil {
 		return nil, err
@@ -130,7 +134,7 @@ func (v vaultKVStorage) storeValue(path, key string, value []byte) error {
 }
 
 func (v vaultKVStorage) PrivateKeyExists(kid string) bool {
-	path := fmt.Sprintf("%s/%s/%s", kvEnginePath, privateKeyPath, kid)
+	path := privateKeyPath(v.config.PathPrefix, kid)
 	result, err := v.client.Read(path)
 	if err != nil {
 		return false
@@ -139,8 +143,14 @@ func (v vaultKVStorage) PrivateKeyExists(kid string) bool {
 	return ok
 }
 
+// privateKeyPath cleans the kid by removing optional slashes and dots and constructs the key path
+func privateKeyPath(prefix, kid string) string {
+	path := fmt.Sprintf("%s/%s/%s", prefix, privateKeyPathName, filepath.Base(kid))
+	return filepath.Clean(path)
+}
+
 func (v vaultKVStorage) SavePrivateKey(kid string, key crypto.PrivateKey) error {
-	path := fmt.Sprintf("%s/%s/%s", kvEnginePath, privateKeyPath, kid)
+	path := privateKeyPath(v.config.PathPrefix, kid)
 	pem, err := util.PrivateKeyToPem(key)
 	if err != nil {
 		return fmt.Errorf("unable to convert private key to pem format: %w", err)

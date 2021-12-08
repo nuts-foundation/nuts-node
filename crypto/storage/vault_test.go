@@ -59,7 +59,7 @@ func TestVaultKVStorage(t *testing.T) {
 	var vaultError = errors.New("vault error")
 
 	t.Run("ok - store and retrieve private key", func(t *testing.T) {
-		vaultStorage := vaultKVStorage{client: mockVaultClient{store: map[string]map[string]interface{}{}}}
+		vaultStorage := vaultKVStorage{config: DefaultVaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{}}}
 		assert.False(t, vaultStorage.PrivateKeyExists(kid), "key should not be in vault")
 		assert.NoError(t, vaultStorage.SavePrivateKey(kid, privateKey), "saving should work")
 		assert.True(t, vaultStorage.PrivateKeyExists(kid), "key should be in vault")
@@ -123,6 +123,14 @@ func TestVaultKVStorage(t *testing.T) {
 	})
 }
 
+func Test_PrivateKeyPath(t *testing.T) {
+	t.Run("it removes dot-dot-slash paths from the kid", func(t *testing.T) {
+		assert.Equal(t, "kv/nuts-private-keys/did:nuts:123#abc", privateKeyPath("kv", "did:nuts:123#abc"))
+		assert.Equal(t, "kv/nuts-private-keys/did:nuts:123#abc", privateKeyPath("kv", "../did:nuts:123#abc"))
+		assert.Equal(t, "kv/nuts-private-keys/did:nuts:123#abc", privateKeyPath("kv", "/../did:nuts:123#abc"))
+	})
+}
+
 func TestVaultKVStorage_configure(t *testing.T) {
 	t.Run("ok - configure a new vault store", func(t *testing.T) {
 		_, err := configureVaultClient("tokenString", "http://localhost:123")
@@ -133,6 +141,15 @@ func TestVaultKVStorage_configure(t *testing.T) {
 		_, err := configureVaultClient("tokenString", "%zzzzz")
 		assert.Error(t, err)
 		assert.EqualError(t, err, "vault address invalid: failed to set address: parse \"%zzzzz\": invalid URL escape \"%zz\"")
+	})
+}
+
+func TestNewVaultKVStorage(t *testing.T) {
+	t.Run("error - when no vault is running", func(t *testing.T) {
+		storage, err := NewVaultKVStorage(VaultConfig{Address: "http://example.com"})
+		assert.Error(t, err)
+		assert.EqualError(t, err, "unable to connect to Vault: unable to retrieve token status: Get \"http://example.com/v1/auth/token/lookup-self\": dial tcp: lookup example.com: no such host")
+		assert.Nil(t, storage)
 	})
 }
 

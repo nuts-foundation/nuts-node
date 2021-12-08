@@ -91,7 +91,7 @@ func (fsc *fileSystemBackend) GetPrivateKey(kid string) (crypto.Signer, error) {
 	return privateKey, nil
 }
 
-// SavePrivateKey saves the private key for the given key to disk. Files are  postfixed with '_private.pem'. Keys are stored in pem format. It also store the public key
+// SavePrivateKey saves the private key for the given key to disk. Files are  postfixed with '_private.pem'. Keys are stored in pem format.
 func (fsc *fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	filenamePath := fsc.getEntryPath(kid, privateKeyEntry)
 	outFile, err := os.Create(filenamePath)
