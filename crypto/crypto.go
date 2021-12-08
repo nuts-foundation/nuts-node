@@ -38,9 +38,10 @@ const (
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage    string `koanf:"crypto.storage"`
-	VaultToken string `koanf:"crypto.vaultToken"`
-	VaultAddr  string `koanf:"crypto.vaultAddr"`
+	Storage         string `koanf:"crypto.storage"`
+	VaultAddress    string `koanf:"crypto.vault.address"`
+	VaultToken      string `koanf:"crypto.vault.token"`
+	VaultPathPrefix string `koanf:"crypto.vault.pathprefix"`
 }
 
 // DefaultCryptoConfig returns a Config with sane defaults
@@ -78,16 +79,29 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 	return err
 }
 
+func (client *Crypto) setupVaultBackend(config core.ServerConfig) error {
+	vaultConfig := storage.DefaultVaultConfig()
+	if val := client.config.VaultToken; val != "" {
+		vaultConfig.Token = val
+	}
+	if val := client.config.VaultAddress; val != "" {
+		vaultConfig.Address = val
+	}
+	if val := client.config.VaultPathPrefix; val != "" {
+		vaultConfig.PathPrefix = val
+	}
+	var err error
+	client.Storage, err = storage.NewVaultKVStorage(vaultConfig)
+	return err
+}
+
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
 func (client *Crypto) Configure(config core.ServerConfig) error {
-	var err error
 	switch client.config.Storage {
 	case "fs":
 		return client.setupFSBackend(config)
 	case "vaultkv":
-		if client.Storage, err = storage.NewVaultKVStorage(client.config.VaultToken, client.config.VaultAddr); err != nil {
-			return err
-		}
+		return client.setupVaultBackend(config)
 	case "":
 		if config.Strictmode {
 			return errors.New("you must explicitly provide a crypto storage backend in strict-mode")

@@ -28,11 +28,11 @@ import (
 // ConfigStorage is used as --crypto.storage config flag
 const ConfigStorage string = "crypto.storage"
 
-// ConfigVaultToken is used as --crypto.vaultToken config flag
-const ConfigVaultToken string = "crypto.vaultToken"
+// ConfigVaultToken is used as --crypto.vault.token config flag
+const ConfigVaultToken string = "crypto.vault.token"
 
-// ConfigVaultAddr is used as --crypto.vaultAddr config flag
-const ConfigVaultAddr string = "crypto.vaultAddr"
+// ConfigVaultAddr is used as --crypto.vault.address config flag
+const ConfigVaultAddr string = "crypto.vault.address"
 
 // FlagSet returns the configuration flags for crypto
 func FlagSet() *pflag.FlagSet {
@@ -41,7 +41,7 @@ func FlagSet() *pflag.FlagSet {
 	defs := crypto2.DefaultCryptoConfig()
 	flags.String(ConfigStorage, defs.Storage, fmt.Sprintf("Storage to use, 'fs' for file system, vaultkv for Vault KV store, default: %s.", defs.Storage))
 	flags.String(ConfigVaultToken, defs.VaultToken, "The Vault token. If set it overwrites the VAULT_TOKEN env var.")
-	flags.String(ConfigVaultAddr, defs.VaultAddr, "The Vault address. If set it overwrites the VAULT_ADDR env var.")
+	flags.String(ConfigVaultAddr, defs.VaultAddress, fmt.Sprintf("The Vault address. If set it overwrites the VAULT_ADDR env var. default: %s", defs.VaultPathPrefix))
 
 	return flags
 }

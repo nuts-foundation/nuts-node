@@ -25,9 +25,21 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
-const privateKeyPath = "nuts-private-keys"
-const kvEnginePath = "kv"
+const privateKeyPathName = "nuts-private-keys"
+const defaultPathPrefix = "kv"
 const keyName = "key"
+
+type VaultConfig struct {
+	Token      string
+	Address    string
+	PathPrefix string
+}
+
+func DefaultVaultConfig() VaultConfig {
+	return VaultConfig{
+		PathPrefix: defaultPathPrefix,
+	}
+}
 
 type logicaler interface {
 	Read(path string) (*vault.Secret, error)
@@ -40,17 +52,19 @@ type vaultKVStorage struct {
 
 // NewVaultKVStorage creates a new Vault backend using the kv version 1 secret engine: https://www.vaultproject.io/docs/secrets/kv
 // It currently only supports token authentication which should be provided by the token param.
-// If vaultAddr is empty, the VAULT_ADDR environment should be set.
-// If token is empty, the VAULT_TOKEN environment should be is set.
-func NewVaultKVStorage(token string, vaultAddr string) (Storage, error) {
-	client, err := configureVaultClient(token, vaultAddr)
+// If config.Address is empty, the VAULT_ADDR environment should be set.
+// If config.Token is empty, the VAULT_TOKEN environment should be is set.
+func NewVaultKVStorage(config VaultConfig) (Storage, error) {
+	client, err := configureVaultClient(config.Token, config.Address)
 	if err != nil {
 		return nil, err
 	}
 
-	vaultStorage := vaultKVStorage{client: client.Logical()}
-	err = vaultStorage.checkConnection()
-	return vaultStorage, err
+	vaultStorage := vaultKVStorage{client: client.Logical(), config: config}
+	if err = vaultStorage.checkConnection(); err != nil {
+		return nil, err
+	}
+	return vaultStorage, nil
 }
 
 func configureVaultClient(token, vaultAddr string) (*vault.Client, error) {
