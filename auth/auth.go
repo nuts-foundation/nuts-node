@@ -145,6 +145,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		tlsConfig := &tls.Config{
 			Certificates: []tls.Certificate{clientCertificate},
 			RootCAs:      trustStore.CertPool,
+			MinVersion:   core.MinTLSVersion,
 		}
 
 		validator := crl.NewValidator(trustStore.Certificates())

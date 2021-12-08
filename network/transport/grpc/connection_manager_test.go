@@ -149,6 +149,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		assert.NoError(t, cm.Start())
 		assert.Nil(t, cm.listener)
 	})
+
 	t.Run("ok - gRPC server bound, TLS enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -170,6 +171,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 		assert.NotNil(t, cm.listener)
 	})
+
 	t.Run("ok - gRPC server bound, TLS disabled", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(NewConfig(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()), "foo"), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		err := cm.Start()
@@ -180,15 +182,20 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 		assert.NotNil(t, cm.listener)
 	})
+
 	t.Run("configures CRL check when TLS is enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		p := transport.NewMockProtocol(ctrl)
 
+		var tlsConfig *tls.Config
+
 		validator := crl.NewMockValidator(gomock.NewController(t))
 		validator.EXPECT().SyncLoop(gomock.Any())
-		validator.EXPECT().Configure(gomock.Any(), 10)
+		validator.EXPECT().Configure(gomock.Any(), 10).DoAndReturn(func(config *tls.Config, maxValidityDays int) {
+			tlsConfig = config
+		})
 
 		cm := NewGRPCConnectionManager(Config{
 			listenAddress:      fmt.Sprintf(":%d", test.FreeTCPPort()),
@@ -200,6 +207,8 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 		assert.NoError(t, cm.Start())
 		cm.Stop()
+
+		assert.Equal(t, core.MinTLSVersion, tlsConfig.MinVersion)
 	})
 }
 
@@ -214,7 +223,7 @@ func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 		cm.handleInboundStream(newServerStream("peer1", ""))
 		cm.handleInboundStream(newServerStream("peer2", ""))
 
-		assert.Equal(t, "2", cm.Diagnostics()[1].String()) // assert number_of_peers
+		assert.Equal(t, "2", cm.Diagnostics()[1].String())                                         // assert number_of_peers
 		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", cm.Diagnostics()[2].String()) // assert peers
 	})
 }

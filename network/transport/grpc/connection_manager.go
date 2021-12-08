@@ -106,6 +106,7 @@ func (s *grpcConnectionManager) Start() error {
 			Certificates: []tls.Certificate{s.config.serverCert},
 			ClientAuth:   tls.RequireAndVerifyClientCert,
 			ClientCAs:    s.config.trustStore,
+			MinVersion:   core.MinTLSVersion,
 		}
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 
@@ -172,7 +173,8 @@ func (s grpcConnectionManager) Connect(peerAddress string) {
 			Certificates: []tls.Certificate{
 				s.config.clientCert,
 			},
-			RootCAs: s.config.trustStore,
+			RootCAs:    s.config.trustStore,
+			MinVersion: core.MinTLSVersion,
 		}
 	}
 

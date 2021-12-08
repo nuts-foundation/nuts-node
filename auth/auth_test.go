@@ -53,6 +53,19 @@ func TestAuth_Configure(t *testing.T) {
 		assert.NotNil(t, i.tlsConfig)
 	})
 
+	t.Run("ok - TLS is properly configured", func(t *testing.T) {
+		authCfg := TestConfig()
+		authCfg.CertKeyFile = "test/certs/example.com.key"
+		authCfg.CertFile = "test/certs/example.com.pem"
+		authCfg.TrustStoreFile = "test/certs/ca.pem"
+
+		i := testInstance(t, authCfg)
+		err := i.Configure(*core.NewServerConfig())
+		assert.NoError(t, err)
+
+		assert.Equal(t, core.MinTLSVersion, i.TLSConfig().MinVersion)
+	})
+
 	t.Run("error - no publicUrl", func(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.IrmaSchemeManager = "pbdf"
@@ -105,6 +118,7 @@ func TestAuth_Configure(t *testing.T) {
 		authCfg.CertKeyFile = "test/certs/example.com.key"
 		authCfg.CertFile = "test/certs/example.com.pem"
 		authCfg.TrustStoreFile = "non-existing"
+
 		i := testInstance(t, authCfg)
 		err := i.Configure(*core.NewServerConfig())
 		assert.EqualError(t, err, "unable to read trust store (file=non-existing): open non-existing: no such file or directory")
