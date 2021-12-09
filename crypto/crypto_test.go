@@ -134,12 +134,6 @@ func TestCrypto_Configure(t *testing.T) {
 		err := client.Configure(cfg)
 		assert.EqualError(t, err, "invalid config for crypto.storage. Available options are: vaultkv, fs", "expected error")
 	})
-	t.Run("error - setting up vault gives an error without a running vault server", func(t *testing.T) {
-		crypto := Crypto{config: Config{VaultAddress: "http://example.com"}}
-		err := crypto.setupVaultBackend(core.ServerConfig{})
-		assert.Error(t, err)
-		assert.EqualError(t, err, "unable to connect to Vault: unable to retrieve token status: Get \"http://example.com/v1/auth/token/lookup-self\": dial tcp: lookup example.com: no such host")
-	})
 }
 
 func Test_CryptoGetters(t *testing.T) {
