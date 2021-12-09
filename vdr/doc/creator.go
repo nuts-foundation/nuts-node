@@ -46,7 +46,7 @@ type Creator struct {
 	KeyStore nutsCrypto.KeyCreator
 }
 
-// DefaultCreationOptions returns the default DIDCreationOptions: no controllers, CapabilityInvocation = true, AssertionMethod = true and SelfControl = true
+// DefaultCreationOptions returns the default DIDCreationOptions when creating DID Documents.
 func DefaultCreationOptions() vdr.DIDCreationOptions {
 	return vdr.DIDCreationOptions{
 		Controllers:          []did.DID{},
@@ -54,16 +54,14 @@ func DefaultCreationOptions() vdr.DIDCreationOptions {
 		Authentication:       false,
 		CapabilityDelegation: false,
 		CapabilityInvocation: true,
-		KeyAgreement:         false,
+		KeyAgreement:         true,
 		SelfControl:          true,
 	}
 }
 
 // didKIDNamingFunc is a function used to name a key used in newly generated DID Documents.
 func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
-	return getKIDName(pKey, func(key jwk.Key) (string, error) {
-		return nutsCrypto.Thumbprint(key)
-	})
+	return getKIDName(pKey, nutsCrypto.Thumbprint)
 }
 
 // didSubKIDNamingFunc returns a KIDNamingFunc that can be used as param in the KeyStore.New function.

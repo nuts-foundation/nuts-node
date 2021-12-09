@@ -39,6 +39,7 @@ type Peer struct {
 	// Address holds the remote address of the node we're actually connected to
 	Address string
 	// NodeDID holds the DID that the peer uses to identify its node on the network.
+	// It is only set when properly authenticated.
 	NodeDID did.DID
 }
 
@@ -60,4 +61,12 @@ type Diagnostics struct {
 	// SoftwareID contains an indication of the vendor of the software of the node. For open source implementations it's recommended to specify URL to the public, open source repository.
 	// Proprietary implementations could specify the product's or vendor's name.
 	SoftwareID string `json:"softwareID"`
+}
+
+// ConnectionStats holds statistics on the connection.
+type ConnectionStats struct {
+	// Peer identifies the subject of these statistics.
+	Peer Peer
+	// ConnectAttempts holds the number of times the node tried to connect to the peer.
+	ConnectAttempts uint32
 }

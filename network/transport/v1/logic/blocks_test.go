@@ -304,9 +304,9 @@ func TestMultiXOR(t *testing.T) {
 }
 
 type testTX struct {
-	data []byte
-	prev []hash.SHA256Hash
-	sigt time.Time
+	data   []byte
+	prev   []hash.SHA256Hash
+	sigt   time.Time
 	toAddr []byte
 }
 

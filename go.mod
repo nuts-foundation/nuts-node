@@ -12,13 +12,13 @@ require (
 	github.com/hashicorp/vault/api v1.3.0
 	github.com/knadh/koanf v1.3.3
 	github.com/labstack/echo/v4 v4.6.1
-	github.com/lestrrat-go/jwx v1.2.12
+	github.com/lestrrat-go/jwx v1.2.13
 	github.com/magiconair/properties v1.8.5
 	github.com/mdp/qrterminal/v3 v3.0.0
-	github.com/nats-io/nats-server/v2 v2.6.5
-	github.com/nats-io/nats.go v1.13.1-0.20211018182449-f2416a8b1483
+	github.com/nats-io/nats-server/v2 v2.6.6
+	github.com/nats-io/nats.go v1.13.1-0.20211122170419-d7c1d78a50fc
 	github.com/nuts-foundation/go-did v0.1.1
-	github.com/nuts-foundation/go-leia v1.1.0
+	github.com/nuts-foundation/go-leia/v2 v2.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/privacybydesign/irmago v0.8.0
 	github.com/prometheus/client_golang v1.11.0
@@ -62,7 +62,7 @@ require (
 	github.com/go-chi/chi v3.3.3+incompatible // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
-	github.com/goccy/go-json v0.7.10 // indirect
+	github.com/goccy/go-json v0.8.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -110,10 +110,11 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/mr-tron/base58 v1.1.3 // indirect
 	github.com/multiformats/go-multihash v0.0.11 // indirect
-	github.com/nats-io/jwt/v2 v2.1.0 // indirect
+	github.com/nats-io/jwt/v2 v2.2.0 // indirect
 	github.com/nats-io/nkeys v0.3.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443 // indirect
+	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b // indirect
 	github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8 // indirect
 	github.com/oklog/run v1.0.0 // indirect
 	github.com/pierrec/lz4 v2.5.2+incompatible // indirect

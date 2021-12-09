@@ -77,3 +77,7 @@ func (t TestKey) KID() string {
 func (t TestKey) Public() crypto.PublicKey {
 	return t.PrivateKey.Public()
 }
+
+func (t TestKey) Private() crypto.PrivateKey {
+	return t.PrivateKey
+}

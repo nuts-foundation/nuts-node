@@ -5,6 +5,7 @@
 package didman
 
 import (
+	context "context"
 	url "net/url"
 	reflect "reflect"
 
@@ -140,18 +141,18 @@ func (mr *MockDidmanMockRecorder) GetContactInformation(id interface{}) *gomock.
 }
 
 // SearchOrganizations mocks base method.
-func (m *MockDidman) SearchOrganizations(query string, didServiceType *string) ([]OrganizationSearchResult, error) {
+func (m *MockDidman) SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SearchOrganizations", query, didServiceType)
+	ret := m.ctrl.Call(m, "SearchOrganizations", ctx, query, didServiceType)
 	ret0, _ := ret[0].([]OrganizationSearchResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SearchOrganizations indicates an expected call of SearchOrganizations.
-func (mr *MockDidmanMockRecorder) SearchOrganizations(query, didServiceType interface{}) *gomock.Call {
+func (mr *MockDidmanMockRecorder) SearchOrganizations(ctx, query, didServiceType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchOrganizations", reflect.TypeOf((*MockDidman)(nil).SearchOrganizations), query, didServiceType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchOrganizations", reflect.TypeOf((*MockDidman)(nil).SearchOrganizations), ctx, query, didServiceType)
 }
 
 // UpdateContactInformation mocks base method.
@@ -169,31 +170,31 @@ func (mr *MockDidmanMockRecorder) UpdateContactInformation(id, information inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateContactInformation", reflect.TypeOf((*MockDidman)(nil).UpdateContactInformation), id, information)
 }
 
-// MockServiceResolver is a mock of ServiceResolver interface.
-type MockServiceResolver struct {
+// MockCompoundServiceResolver is a mock of CompoundServiceResolver interface.
+type MockCompoundServiceResolver struct {
 	ctrl     *gomock.Controller
-	recorder *MockServiceResolverMockRecorder
+	recorder *MockCompoundServiceResolverMockRecorder
 }
 
-// MockServiceResolverMockRecorder is the mock recorder for MockServiceResolver.
-type MockServiceResolverMockRecorder struct {
-	mock *MockServiceResolver
+// MockCompoundServiceResolverMockRecorder is the mock recorder for MockCompoundServiceResolver.
+type MockCompoundServiceResolverMockRecorder struct {
+	mock *MockCompoundServiceResolver
 }
 
-// NewMockServiceResolver creates a new mock instance.
-func NewMockServiceResolver(ctrl *gomock.Controller) *MockServiceResolver {
-	mock := &MockServiceResolver{ctrl: ctrl}
-	mock.recorder = &MockServiceResolverMockRecorder{mock}
+// NewMockCompoundServiceResolver creates a new mock instance.
+func NewMockCompoundServiceResolver(ctrl *gomock.Controller) *MockCompoundServiceResolver {
+	mock := &MockCompoundServiceResolver{ctrl: ctrl}
+	mock.recorder = &MockCompoundServiceResolverMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockServiceResolver) EXPECT() *MockServiceResolverMockRecorder {
+func (m *MockCompoundServiceResolver) EXPECT() *MockCompoundServiceResolverMockRecorder {
 	return m.recorder
 }
 
 // GetCompoundServiceEndpoint mocks base method.
-func (m *MockServiceResolver) GetCompoundServiceEndpoint(id did.DID, compoundServiceType, endpointType string, resolveReferences bool) (string, error) {
+func (m *MockCompoundServiceResolver) GetCompoundServiceEndpoint(id did.DID, compoundServiceType, endpointType string, resolveReferences bool) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCompoundServiceEndpoint", id, compoundServiceType, endpointType, resolveReferences)
 	ret0, _ := ret[0].(string)
@@ -202,13 +203,13 @@ func (m *MockServiceResolver) GetCompoundServiceEndpoint(id did.DID, compoundSer
 }
 
 // GetCompoundServiceEndpoint indicates an expected call of GetCompoundServiceEndpoint.
-func (mr *MockServiceResolverMockRecorder) GetCompoundServiceEndpoint(id, compoundServiceType, endpointType, resolveReferences interface{}) *gomock.Call {
+func (mr *MockCompoundServiceResolverMockRecorder) GetCompoundServiceEndpoint(id, compoundServiceType, endpointType, resolveReferences interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCompoundServiceEndpoint", reflect.TypeOf((*MockServiceResolver)(nil).GetCompoundServiceEndpoint), id, compoundServiceType, endpointType, resolveReferences)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCompoundServiceEndpoint", reflect.TypeOf((*MockCompoundServiceResolver)(nil).GetCompoundServiceEndpoint), id, compoundServiceType, endpointType, resolveReferences)
 }
 
 // GetCompoundServices mocks base method.
-func (m *MockServiceResolver) GetCompoundServices(id did.DID) ([]did.Service, error) {
+func (m *MockCompoundServiceResolver) GetCompoundServices(id did.DID) ([]did.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCompoundServices", id)
 	ret0, _ := ret[0].([]did.Service)
@@ -217,7 +218,7 @@ func (m *MockServiceResolver) GetCompoundServices(id did.DID) ([]did.Service, er
 }
 
 // GetCompoundServices indicates an expected call of GetCompoundServices.
-func (mr *MockServiceResolverMockRecorder) GetCompoundServices(id interface{}) *gomock.Call {
+func (mr *MockCompoundServiceResolverMockRecorder) GetCompoundServices(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCompoundServices", reflect.TypeOf((*MockServiceResolver)(nil).GetCompoundServices), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCompoundServices", reflect.TypeOf((*MockCompoundServiceResolver)(nil).GetCompoundServices), id)
 }

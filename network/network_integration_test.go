@@ -20,9 +20,16 @@ package network
 
 import (
 	"context"
+	"crypto"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1"
 	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"hash/crc32"
 	"path"
 	"sync"
@@ -46,10 +53,12 @@ const payloadType = "test/transaction"
 
 var mutex = sync.Mutex{}
 var receivedTransactions = make(map[string][]dag.Transaction, 0)
+var vdrStore vdr.Store
+var keyStore nutsCrypto.KeyStore
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest()
+	resetIntegrationTest(testDirectory)
 	key := nutsCrypto.NewTestKey("key")
 	expectedDocLogSize := 0
 
@@ -102,7 +111,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 
 func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest()
+	resetIntegrationTest(testDirectory)
 
 	// Start 2 nodes: node1 and node2, where each connects to the other
 	node1 := startNode(t, "node1", testDirectory)
@@ -123,9 +132,62 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	assert.Len(t, node2.connectionManager.Peers(), 1)
 }
 
+func TestNetworkIntegration_NodeDIDAuthenticationFailed(t *testing.T) {
+	t.Run("node DID auth on inbound connection fails", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(testDirectory)
+
+		// Start 2 nodes: node1 and node2, where node1 specifies a node DID that node2 can't authenticate
+		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory)
+
+		// Now connect node1 to node2 and wait for them to set up
+		node1.connectionManager.Connect(nameToAddress(t, "node2"))
+		if !test.WaitFor(t, func() (bool, error) {
+			diagnostics := node1.connectionManager.Diagnostics()
+			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
+			// Assert we tried to connect at least once
+			return connectorsStats[0].ConnectAttempts >= 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
+			return
+		}
+
+		// Assert there are no peers, because authentication failed
+		assert.Empty(t, node1.connectionManager.Peers())
+		assert.Empty(t, node2.connectionManager.Peers())
+	})
+	t.Run("node DID auth on outbound connection fails", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(testDirectory)
+
+		// Start 2 nodes: node1 and node2, where node2 specifies a node DID that node1 can't authenticate
+		node1 := startNode(t, "node1", testDirectory)
+		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+
+		// Now connect node1 to node2 and wait for them to set up
+		node1.connectionManager.Connect(nameToAddress(t, "node2"))
+		if !test.WaitFor(t, func() (bool, error) {
+			diagnostics := node1.connectionManager.Diagnostics()
+			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
+			// Assert we tried to connect at least once
+			return connectorsStats[0].ConnectAttempts >= 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
+			return
+		}
+
+		// Assert there are no peers, because authentication failed
+		assert.Empty(t, node1.connectionManager.Peers())
+		assert.Empty(t, node2.connectionManager.Peers())
+	})
+}
+
 func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest()
+	resetIntegrationTest(testDirectory)
 
 	// Given node1 and node2
 	// Given node1 connects to node2
@@ -161,11 +223,33 @@ func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
 	}
 }
 
-func resetIntegrationTest() {
+func resetIntegrationTest(testDirectory string) {
 	// in an integration test we want everything to work as intended, disable test speedup and re-enable file sync for bbolt
 	defaultBBoltOptions.NoSync = false
 
 	receivedTransactions = make(map[string][]dag.Transaction, 0)
+	vdrStore = store.NewMemoryStore()
+	keyStore = nutsCrypto.NewTestCryptoInstance(testDirectory)
+
+	// Write DID Document for node1
+	writeDIDDocument := func(subject string) {
+		nodeDID, _ := did.ParseDID(subject)
+		document := did.Document{ID: *nodeDID}
+		kid := *nodeDID
+		kid.Fragment = "key-1"
+		key, _ := keyStore.New(func(_ crypto.PublicKey) (string, error) {
+			return kid.String(), nil
+		})
+		verificationMethod, _ := did.NewVerificationMethod(kid, ssi.JsonWebKey2020, *nodeDID, key.Public())
+		document.VerificationMethod.Add(verificationMethod)
+		document.KeyAgreement.Add(verificationMethod)
+		err := vdrStore.Write(document, vdr.DocumentMetadata{})
+		if err != nil {
+			panic(err)
+		}
+	}
+	writeDIDDocument("did:nuts:node1")
+	writeDIDDocument("did:nuts:node2")
 }
 
 func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCrypto.Key, sender *Network, receivers ...string) bool {
@@ -190,7 +274,7 @@ func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCr
 	return true
 }
 
-func startNode(t *testing.T, name string, testDirectory string) *Network {
+func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg *Config)) *Network {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
 	core.NewServerConfig().Load(&cobra.Command{})
@@ -206,9 +290,14 @@ func startNode(t *testing.T, name string, testDirectory string) *Network {
 			AdvertDiagnosticsInterval: 5000,
 		},
 	}
+	for _, f := range opts {
+		f(&config)
+	}
 	instance := &Network{
 		config:                 config,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
+		didDocumentResolver:    doc.Resolver{Store: vdrStore},
+		privateKeyResolver: 	keyStore,
 	}
 	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {
 		t.Fatal(err)

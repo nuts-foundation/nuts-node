@@ -246,13 +246,14 @@ func TestWrapper_Search(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		var capturedConcept []concept.Concept
+		ctx.echo.EXPECT().Request().Return(&http.Request{})
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			sr := f.(*SearchRequest)
 			*sr = searchRequest
 			return nil
 		})
 		cpt := concept.Concept(map[string]interface{}{"foo": "bar"})
-		ctx.vcr.EXPECT().Search(gomock.Any(), false, map[string]string{"name": "Because we care B.V."}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search(gomock.Any(), gomock.Any(), false, map[string]string{"name": "Because we care B.V."}).Return([]concept.Concept{cpt}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			capturedConcept = f2.([]concept.Concept)
 			return nil
@@ -285,8 +286,9 @@ func TestWrapper_Search(t *testing.T) {
 		defer ctx.ctrl.Finish()
 		trueVal := true
 
+		ctx.echo.EXPECT().Request().Return(&http.Request{})
 		ctx.echo.EXPECT().Bind(gomock.Any())
-		ctx.vcr.EXPECT().Search(gomock.Any(), true, map[string]string{}).Return(nil, errors.New("b00m!"))
+		ctx.vcr.EXPECT().Search(gomock.Any(), gomock.Any(), true, map[string]string{}).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.Search(ctx.echo, "human", SearchParams{Untrusted: &trueVal})
 

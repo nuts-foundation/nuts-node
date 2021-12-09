@@ -26,11 +26,14 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 
-	"github.com/nuts-foundation/go-leia"
+	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 const revocationCollection = "_revocation"
+
+// maxFindExecutionTime indicates how long a "find by id" type query may take
+const maxFindExecutionTime = 1 * time.Second
 
 func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.Time) error {
 	// verify first

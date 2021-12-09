@@ -20,20 +20,20 @@
 package didman
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
-	"strings"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/didman/log"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/shengdoushi/base58"
+	"net/url"
 )
 
 // ModuleName contains the name of this module: Didman
@@ -41,12 +41,6 @@ const ModuleName = "Didman"
 
 // ErrServiceInUse is returned when a service is deleted but in use by other services
 var ErrServiceInUse = errors.New("service is referenced by 1 or more services")
-
-// ErrServiceNotFound is returned when the service is not found on a DID
-var ErrServiceNotFound = errors.New("service not found in DID Document")
-
-// ErrInvalidServiceQuery is returned when a compound service contains an invalid service reference.
-var ErrInvalidServiceQuery = errors.New("service query is invalid")
 
 // ErrReferencedServiceNotAnEndpoint is returned when a compound service contains a reference that does not resolve to a single endpoint URL.
 type ErrReferencedServiceNotAnEndpoint struct {
@@ -63,28 +57,22 @@ func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
 	return fmt.Sprintf("%T", e) == fmt.Sprintf("%T", other)
 }
 
-// ErrServiceReferenceToDeep is returned when a service reference is chain is nested too deeply.
-var ErrServiceReferenceToDeep = errors.New("service references are neested to deeply before resolving to a single endpoint URL")
-
-const maxServiceReferenceDepth = 5
-const serviceRefURIScheme = "did"
-const serviceTypeQueryParameter = "type"
-const serviceEndpointPath = "serviceEndpoint"
-
 type didman struct {
-	docResolver types.DocResolver
-	store       types.Store
-	vdr         types.VDR
-	vcr         vcr.VCR
+	docResolver     types.DocResolver
+	serviceResolver doc.ServiceResolver
+	store           types.Store
+	vdr             types.VDR
+	vcr             vcr.VCR
 }
 
 // NewDidmanInstance creates a new didman instance with services set
 func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR, vcr vcr.VCR) Didman {
 	return &didman{
-		docResolver: docResolver,
-		store:       store,
-		vdr:         vdr,
-		vcr:         vcr,
+		docResolver:     docResolver,
+		serviceResolver: doc.NewServiceResolver(docResolver),
+		store:           store,
+		vdr:             vdr,
+		vcr:             vcr,
 	}
 }
 
@@ -117,7 +105,7 @@ func (d *didman) DeleteEndpointsByType(id did.DID, serviceType string) error {
 		}
 	}
 	if !found {
-		return ErrServiceNotFound
+		return types.ErrServiceNotFound
 	}
 	return nil
 }
@@ -152,20 +140,16 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints ma
 }
 
 func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType string, endpointType string, resolveReferences bool) (string, error) {
-	doc, _, err := d.docResolver.Resolve(id, nil)
+	document, _, err := d.docResolver.Resolve(id, nil)
 	if err != nil {
 		return "", err
 	}
 
 	referenceDepth := 0
-	documentsCache := map[string]*did.Document{doc.ID.String(): doc}
+	documentsCache := map[string]*did.Document{document.ID.String(): document}
 
 	// First, resolve the compound endpoint
-	compoundServiceRef := id.URI()
-	compoundServiceRef.Path = "/" + serviceEndpointPath
-	compoundServiceRef.RawQuery = fmt.Sprintf("%s=%s", serviceTypeQueryParameter, compoundServiceType)
-
-	compoundService, err := d.resolveService(compoundServiceRef, referenceDepth, maxServiceReferenceDepth, documentsCache)
+	compoundService, err := d.serviceResolver.ResolveEx(doc.MakeServiceReference(id, compoundServiceType), referenceDepth, doc.DefaultMaxServiceReferenceDepth, documentsCache)
 	if err != nil {
 		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("unable to resolve compound service: %w", err)}
 	}
@@ -178,15 +162,15 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	}
 	endpoint := endpoints[endpointType]
 	if endpoint == "" {
-		return "", ErrServiceNotFound
+		return "", types.ErrServiceNotFound
 	}
-	if resolveReferences && isServiceReference(endpoint) {
+	if resolveReferences && doc.IsServiceReference(endpoint) {
 		endpointURI, err := ssi.ParseURI(endpoint)
 		if err != nil {
 			// Not sure when this could ever happen
 			return "", err
 		}
-		resolvedEndpoint, err := d.resolveService(*endpointURI, referenceDepth, maxServiceReferenceDepth, documentsCache)
+		resolvedEndpoint, err := d.serviceResolver.ResolveEx(*endpointURI, referenceDepth, doc.DefaultMaxServiceReferenceDepth, documentsCache)
 		if err != nil {
 			return "", err
 		}
@@ -231,7 +215,7 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 		}
 	}
 	if j == len(doc.Service) {
-		return ErrServiceNotFound
+		return types.ErrServiceNotFound
 	}
 	doc.Service = doc.Service[:j]
 
@@ -293,8 +277,8 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 	return nil, nil
 }
 
-func (d *didman) SearchOrganizations(query string, didServiceType *string) ([]OrganizationSearchResult, error) {
-	organizations, err := d.vcr.Search(concept.OrganizationConcept, false, map[string]string{concept.OrganizationName: query})
+func (d *didman) SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error) {
+	organizations, err := d.vcr.Search(ctx, concept.OrganizationConcept, false, map[string]string{concept.OrganizationName: query})
 	if err != nil {
 		return nil, err
 	}
@@ -381,107 +365,20 @@ func (d *didman) resolveOrganizationDIDDocument(organization concept.Concept) (*
 // If all endpoints are valid nil is returned.
 func (d *didman) validateCompoundServiceEndpoint(endpoints map[string]ssi.URI) error {
 	// Cache resolved DID documents because most of the time a compound service will refer the same DID document in all service references.
-	documents := make(map[string]*did.Document)
+	cache := make(map[string]*did.Document, 0)
 	for _, serviceRef := range endpoints {
-		if isServiceReference(serviceRef.String()) {
-			err := validateServiceReference(serviceRef)
+		if doc.IsServiceReference(serviceRef.String()) {
+			err := doc.ValidateServiceReference(serviceRef)
 			if err != nil {
 				return ErrReferencedServiceNotAnEndpoint{Cause: err}
 			}
-			_, err = d.resolveService(serviceRef, 0, maxServiceReferenceDepth, documents)
+			_, err = d.serviceResolver.ResolveEx(serviceRef, 0, doc.DefaultMaxServiceReferenceDepth, cache)
 			if err != nil {
 				return ErrReferencedServiceNotAnEndpoint{Cause: err}
 			}
 		}
 	}
 	return nil
-}
-
-// resolveService tries to resolve a DID service from the given endpoint URI, following references (URIs that begin with 'did:').
-// When the endpoint is a reference it resolves it up until the (per spec) max reference depth. When resolving a reference it recursively calls itself with depth + 1.
-// The documentCache map is used to avoid resolving the same document over and over again, which might be a (slightly more) expensive operation.
-func (d *didman) resolveService(endpoint ssi.URI, depth int, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
-	if depth >= maxDepth {
-		return did.Service{}, ErrServiceReferenceToDeep
-	}
-
-	referencedDID, err := did.ParseDIDURL(endpoint.String())
-	if err != nil {
-		// Shouldn't happen, because only DID URLs are passed?
-		return did.Service{}, err
-	}
-	referencedDID.Query = ""
-	referencedDID.Path = ""
-	referencedDID.Fragment = ""
-	referencedDID.PathSegments = nil
-	var document *did.Document
-	if document = documentCache[referencedDID.String()]; document == nil {
-		document, _, err = d.docResolver.Resolve(*referencedDID, nil)
-		if err != nil {
-			return did.Service{}, err
-		}
-		documentCache[referencedDID.String()] = document
-	}
-
-	var service *did.Service
-	for _, curr := range document.Service {
-		if curr.Type == endpoint.Query().Get(serviceTypeQueryParameter) {
-			service = &curr
-			break
-		}
-	}
-	if service == nil {
-		return did.Service{}, ErrServiceNotFound
-	}
-
-	var endpointURL string
-	if service.UnmarshalServiceEndpoint(&endpointURL) == nil {
-		// Service endpoint is a string, if it's a reference we need to resolve it
-		if isServiceReference(endpointURL) {
-			// Looks like a reference, recurse
-			resolvedEndpointURI, err := ssi.ParseURI(endpointURL)
-			if err != nil {
-				return did.Service{}, err
-			}
-			err = validateServiceReference(*resolvedEndpointURI)
-			if err != nil {
-				return did.Service{}, err
-			}
-			return d.resolveService(*resolvedEndpointURI, depth+1, maxDepth, documentCache)
-		}
-	}
-	return *service, nil
-}
-
-func validateServiceReference(endpointURI ssi.URI) error {
-	// Parse it as DID URL since DID URLs are rootless and thus opaque (RFC 3986), meaning the path will be part of the URI body, rather than the URI path.
-	// For DID URLs the path is parsed properly.
-	didEndpointURL, err := did.ParseDIDURL(endpointURI.String())
-	if err != nil {
-		return ErrInvalidServiceQuery
-	}
-	if didEndpointURL.Path != serviceEndpointPath {
-		// Service reference doesn't refer to `/serviceEndpoint`
-		return ErrInvalidServiceQuery
-	}
-	queriedServiceType := endpointURI.Query().Get(serviceTypeQueryParameter)
-	if len(queriedServiceType) == 0 {
-		// Service reference doesn't contain `type` query parameter
-		return ErrInvalidServiceQuery
-	}
-	if len(endpointURI.Query()[serviceTypeQueryParameter]) > 1 {
-		// Service reference contains more than 1 `type` query parameter
-		return ErrInvalidServiceQuery
-	}
-	if len(endpointURI.Query()) > 1 {
-		// Service reference contains more than just `type` query parameter
-		return ErrInvalidServiceQuery
-	}
-	return nil
-}
-
-func isServiceReference(endpoint string) bool {
-	return strings.HasPrefix(endpoint, serviceRefURIScheme+":")
 }
 
 func filterCompoundServices(doc *did.Document) []did.Service {

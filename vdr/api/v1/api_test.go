@@ -21,13 +21,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )

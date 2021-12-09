@@ -144,7 +144,7 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 		return err
 	}
 
-	// this API returns a DIDDocument according to spec so it may return the business object
+	// this API returns a DIDDocument according to spec, so it may return the business object
 	return ctx.JSON(http.StatusOK, *doc)
 }
 

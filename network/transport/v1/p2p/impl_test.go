@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 	"sync"
 	"testing"
 	"time"
@@ -130,6 +131,16 @@ func Test_adapter_Send(t *testing.T) {
 		assert.Len(t, adapter.peerOutMessages[peerID], outMessagesBacklog)
 
 		testDone.Done()
+	})
+}
+
+func Test_adapter_OpenStream(t *testing.T) {
+	t.Run("unable to open", func(t *testing.T) {
+		ctx := context.Background()
+		conn, _ := grpc.DialContext(ctx, "invalid-address", grpc.WithInsecure())
+		stream, err := adapter{}.OpenStream(ctx, conn, nil)
+		assert.Nil(t, stream)
+		assert.Error(t, err, "")
 	})
 }
 

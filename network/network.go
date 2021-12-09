@@ -22,12 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1"
-	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
-	"github.com/pkg/errors"
+	"github.com/nuts-foundation/nuts-node/events"
 	"os"
 	"path"
 	"path/filepath"
@@ -37,24 +32,30 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/pkg/errors"
+	"go.etcd.io/bbolt"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"go.etcd.io/bbolt"
 )
 
-// boltDBFileMode holds the Unix file mode the created BBolt database files will have.
-const boltDBFileMode = 0600
-
-// softwareID contains the name of the vendor/implementation that's published in the node's diagnostic information.
-const softwareID = "https://github.com/nuts-foundation/nuts-node"
-
 const (
+	// boltDBFileMode holds the Unix file mode the created BBolt database files will have.
+	boltDBFileMode = 0600
 	// ModuleName specifies the name of this module.
 	ModuleName = "Network"
+	// softwareID contains the name of the vendor/implementation that's published in the node's diagnostic information.
+	softwareID = "https://github.com/nuts-foundation/nuts-node"
 )
 
 // defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
@@ -116,8 +117,19 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		return fmt.Errorf("unable to migrate DAG: %w", err)
 	}
 
+	// NATS
+	conn, err := events.Connect(n.config.Nats.Hostname, n.config.Nats.Port, time.Duration(n.config.Nats.Timeout)*time.Second)
+	if err != nil {
+		return fmt.Errorf("unable to connect to NATS at '%s:%d': %w", n.config.Nats.Hostname, n.config.Nats.Port, err)
+	}
+
+	privateTxCtx, err := conn.JetStream()
+	if err != nil {
+		return fmt.Errorf("unable to connect to NATS at '%s:%d': %w", n.config.Nats.Hostname, n.config.Nats.Port, err)
+	}
+
 	n.payloadStore = dag.NewBBoltPayloadStore(n.db)
-	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
+	n.publisher = dag.NewReplayingDAGPublisher(privateTxCtx, n.payloadStore, n.graph)
 	n.peerID = transport.PeerID(uuid.New().String())
 
 	// TLS
@@ -159,7 +171,12 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			nodeDIDReader.NodeDID = *n.configuredNodeDID
 		}
 		// Instantiate
-		n.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...), nodeDIDReader, n.protocols...)
+		n.connectionManager = grpc.NewGRPCConnectionManager(
+			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
+			nodeDIDReader,
+			grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver)),
+			n.protocols...,
+		)
 	}
 	return nil
 }

@@ -14,24 +14,26 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package concept
+package crypto
 
 import (
-	gophonetics "github.com/Regis24GmbH/go-phonetics"
-	"github.com/nuts-foundation/go-leia/v2"
+	"crypto/ecdsa"
+	"errors"
 )
 
-// CologneTransformer is a go-leia compatible function for generating the phonetic representation of a string.
-func CologneTransformer(text interface{}) interface{} {
-	switch v := text.(type) {
-	case string:
-		return gophonetics.NewPhoneticCode(v)
-	case leia.Key:
-		return gophonetics.NewPhoneticCode(v.String())
+// Decrypt decrypts the `cipherText` with key `kid`
+func (client *Crypto) Decrypt(kid string, cipherText []byte) ([]byte, error) {
+	key, err := client.Storage.GetPrivateKey(kid)
+	if err != nil {
+		return nil, err
+	}
+
+	switch privateKey := key.(type) {
+	case *ecdsa.PrivateKey:
+		return EciesDecrypt(privateKey, cipherText)
 	default:
-		return text
+		return nil, errors.New("unsupported decryption key")
 	}
 }

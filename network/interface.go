@@ -19,8 +19,9 @@
 package network
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"

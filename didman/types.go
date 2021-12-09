@@ -20,6 +20,7 @@
 package didman
 
 import (
+	"context"
 	"net/url"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -31,7 +32,7 @@ const ContactInformationServiceType = "node-contact-info"
 
 // Didman groups all high-level methods for manipulating DID Documents
 type Didman interface {
-	ServiceResolver
+	CompoundServiceResolver
 
 	// AddEndpoint adds a service to a DID Document. The serviceEndpoint is set to the given URL.
 	// It returns ErrDuplicateService if a service with the given type already exists.
@@ -70,11 +71,11 @@ type Didman interface {
 
 	// SearchOrganizations searches VCR for organizations which's name matches the given query.
 	// It then optionally filters on those which have a service of the specified type on their DID Document.
-	SearchOrganizations(query string, didServiceType *string) ([]OrganizationSearchResult, error)
+	SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error)
 }
 
-// ServiceResolver defines high-level operations for resolving services of DID documents.
-type ServiceResolver interface {
+// CompoundServiceResolver defines high-level operations for resolving services of DID documents.
+type CompoundServiceResolver interface {
 	// GetCompoundServiceEndpoint retrieves the endpoint with the specified endpointType from the specified compound service.
 	// It returns the serviceEndpoint of the specified service (which must be an absolute URL endpoint).
 	// If resolveReferences is true and the specified endpointType contains a reference, it is resolved and the referenced endpoint is returned instead.

@@ -43,7 +43,7 @@ type managedConnection interface {
 	getPeer() transport.Peer
 	connected(protocol string) bool
 	// open instructs the managedConnection to start connecting to the remote peer (attempting an outbound connection).
-	open(config *tls.Config, callback func(grpcConn *grpc.ClientConn))
+	open(config *tls.Config, callback func(grpcConn *grpc.ClientConn) bool)
 	// registerClientStream adds the given grpc.ClientStream to this managedConnection under the given method,
 	// which holds the fully qualified name of the gRPC stream call. It can be formatted using grpc.GetStreamMethod
 	// (the gRPC library does not provide it for grpc.ClientStream, like it does for server grpc.ServerStream).
@@ -60,6 +60,8 @@ type managedConnection interface {
 	// - Verify multiple active protocols to the same peer all send the same transport.PeerID.
 	// It returns false if the given transport.PeerID doesn't match the previously set transport.PeerID.
 	verifyOrSetPeerID(id transport.PeerID) bool
+	// stats returns statistics for this connection
+	stats() transport.ConnectionStats
 }
 
 func createConnection(dialer dialer, peer transport.Peer, inboundStreamsClosedCallback func(managedConnection)) managedConnection {
@@ -208,7 +210,7 @@ func (mc *conn) registerServerStream(serverStream grpc.ServerStream) error {
 	return nil
 }
 
-func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn)) {
+func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn) bool) {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
@@ -219,12 +221,12 @@ func (mc *conn) open(tlsConfig *tls.Config, connectedCallback func(grpcConn *grp
 
 	mc.connector = createOutboundConnector(mc.getPeer().Address, mc.dialer, tlsConfig, func() bool {
 		return !mc.connected(AnyProtocol)
-	}, func(conn *grpc.ClientConn) {
+	}, func(conn *grpc.ClientConn) bool {
 		mc.mux.Lock()
 		mc.grpcOutboundConnection = conn
 		mc.mux.Unlock()
 
-		connectedCallback(conn)
+		return connectedCallback(conn)
 	})
 	mc.connector.start()
 }
@@ -252,4 +254,17 @@ func (mc *conn) connected(protocol string) bool {
 		return true
 	}
 	return false
+}
+
+func (mc *conn) stats() transport.ConnectionStats {
+	mc.mux.RLock()
+	defer mc.mux.RUnlock()
+
+	result := transport.ConnectionStats{
+		Peer: mc.peer.Load().(transport.Peer),
+	}
+	if mc.connector != nil {
+		result.ConnectAttempts = mc.connector.connectAttempts()
+	}
+	return result
 }

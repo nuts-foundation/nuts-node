@@ -84,7 +84,7 @@ func (w *Wrapper) Search(ctx echo.Context, conceptName string, requestParams Sea
 		untrusted = *requestParams.Untrusted
 	}
 
-	results, err := w.R.Search(conceptName, untrusted, params)
+	results, err := w.R.Search(ctx.Request().Context(), conceptName, untrusted, params)
 	if err != nil {
 		return err
 	}

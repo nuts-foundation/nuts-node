@@ -22,6 +22,7 @@ package events
 import (
 	"fmt"
 	"github.com/nats-io/nats.go"
+	"time"
 )
 
 // Conn defines the methods required in the NATS connection structure
@@ -39,6 +40,10 @@ type JetStreamContext interface {
 }
 
 // Connect connects to a NATS server based on the hostname and port
-func Connect(hostname string, port int) (Conn, error) {
-	return nats.Connect(fmt.Sprintf("%s:%d", hostname, port))
+func Connect(hostname string, port int, timeout time.Duration) (Conn, error) {
+	return nats.Connect(
+		fmt.Sprintf("%s:%d", hostname, port),
+		nats.RetryOnFailedConnect(true),
+		nats.Timeout(timeout),
+	)
 }

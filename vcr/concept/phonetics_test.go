@@ -22,7 +22,7 @@ package concept
 import (
 	"testing"
 
-	"github.com/nuts-foundation/go-leia"
+	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/stretchr/testify/assert"
 )
 

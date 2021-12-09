@@ -19,13 +19,14 @@
 package auth
 
 import (
+	"os"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
-	"os"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -34,7 +35,7 @@ func TestAuth_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		os.Setenv("NUTS_NETWORK_ENABLETLS", "false")
 		defer os.Unsetenv("NUTS_NETWORK_ENABLETLS")
-		i := NewTestAuthInstance(io.TestDirectory(t))
+		i := NewTestAuthInstance(t)
 		_ = i.Configure(*core.NewServerConfig())
 	})
 
@@ -50,6 +51,19 @@ func TestAuth_Configure(t *testing.T) {
 		}
 
 		assert.NotNil(t, i.tlsConfig)
+	})
+
+	t.Run("ok - TLS is properly configured", func(t *testing.T) {
+		authCfg := TestConfig()
+		authCfg.CertKeyFile = "test/certs/example.com.key"
+		authCfg.CertFile = "test/certs/example.com.pem"
+		authCfg.TrustStoreFile = "test/certs/ca.pem"
+
+		i := testInstance(t, authCfg)
+		err := i.Configure(*core.NewServerConfig())
+		assert.NoError(t, err)
+
+		assert.Equal(t, core.MinTLSVersion, i.TLSConfig().MinVersion)
 	})
 
 	t.Run("error - no publicUrl", func(t *testing.T) {
@@ -104,6 +118,7 @@ func TestAuth_Configure(t *testing.T) {
 		authCfg.CertKeyFile = "test/certs/example.com.key"
 		authCfg.CertFile = "test/certs/example.com.pem"
 		authCfg.TrustStoreFile = "non-existing"
+
 		i := testInstance(t, authCfg)
 		err := i.Configure(*core.NewServerConfig())
 		assert.EqualError(t, err, "unable to read trust store (file=non-existing): open non-existing: no such file or directory")
@@ -113,7 +128,7 @@ func TestAuth_Configure(t *testing.T) {
 func testInstance(t *testing.T, cfg Config) *Auth {
 	testDirectory := io.TestDirectory(t)
 	cryptoInstance := crypto.NewTestCryptoInstance(testDirectory)
-	vcrInstance := vcr.NewTestVCRInstance(testDirectory)
+	vcrInstance := vcr.NewTestVCRInstance(t)
 	return NewAuthInstance(cfg, store.NewMemoryStore(), vcrInstance, cryptoInstance, nil)
 }
 
