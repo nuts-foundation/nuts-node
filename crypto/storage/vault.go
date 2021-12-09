@@ -96,7 +96,7 @@ func (v vaultKVStorage) checkConnection() error {
 	if err != nil {
 		return fmt.Errorf("unable to connect to Vault: unable to retrieve token status: %w", err)
 	}
-	if len(secret.Data) == 0 {
+	if secret == nil || len(secret.Data) == 0 {
 		return fmt.Errorf("could not read token information on auth/token/lookup-self")
 	}
 	return nil

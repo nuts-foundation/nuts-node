@@ -25,6 +25,9 @@ import (
 	"errors"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -134,10 +137,31 @@ func TestVaultKVStorage_configure(t *testing.T) {
 }
 
 func TestNewVaultKVStorage(t *testing.T) {
-	t.Run("error - when no vault is running", func(t *testing.T) {
-		storage, err := NewVaultKVStorage(VaultConfig{Address: "http://example.com"})
+	t.Run("ok - data", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.Write([]byte("{\"data\": {\"keys\":[]}}"))
+		}))
+		defer s.Close()
+		storage, err := NewVaultKVStorage(VaultConfig{Address: s.URL})
+		assert.NoError(t, err)
+		assert.NotNil(t, storage)
+	})
+
+	t.Run("error - vault StatusUnauthorized", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.WriteHeader(http.StatusUnauthorized)
+		}))
+		defer s.Close()
+		storage, err := NewVaultKVStorage(VaultConfig{Address: s.URL})
 		assert.Error(t, err)
-		assert.EqualError(t, err, "unable to connect to Vault: unable to retrieve token status: Get \"http://example.com/v1/auth/token/lookup-self\": dial tcp: lookup example.com: no such host")
+		assert.True(t, strings.HasPrefix(err.Error(), "unable to connect to Vault: unable to retrieve token status: Error making API request"))
+		assert.Nil(t, storage)
+	})
+
+	t.Run("error - wrong URL", func(t *testing.T) {
+		storage, err := NewVaultKVStorage(VaultConfig{Address: "http://localhost"})
+		assert.Error(t, err)
+		assert.True(t, strings.HasSuffix(err.Error(), "connect: connection refused"))
 		assert.Nil(t, storage)
 	})
 }
