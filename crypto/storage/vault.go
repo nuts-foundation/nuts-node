@@ -149,6 +149,7 @@ func (v vaultKVStorage) PrivateKeyExists(kid string) bool {
 }
 
 // privateKeyPath cleans the kid by removing optional slashes and dots and constructs the key path
+// This prevents “dot-dot-slash” aka “directory traversal” attacks.
 func privateKeyPath(prefix, kid string) string {
 	path := fmt.Sprintf("%s/%s/%s", prefix, privateKeyPathName, filepath.Base(kid))
 	return filepath.Clean(path)

@@ -16,11 +16,16 @@ everything in that directory.
 The private keys are stored in a storage backend. Currently 2 options are available:
 
 * Vault:
-This storage backend is the recommended way of storing secrets. It uses the Vault KV version 1 store: https://www.vaultproject.io/docs/secrets/kv/kv-v1. All private keys are stored in the base path `kv/nuts-private-keys/*`. Each key is stored under the kid, resulting in a full key path like `kv/nuts-private-keys/did:nuts:123#abc`.
-A Vault token must be provided by either configuring it using the config `crypto.vaultToken` or setting the VAULT_TOKEN environment variable.
+This storage backend is the recommended way of storing secrets. It uses the Vault KV version 1 store:
+https://www.vaultproject.io/docs/secrets/kv/kv-v1. All private keys are stored under the path `<prefix>/nuts-private-keys/*`.
+The default prefix `kv` and can be configured using the `crypto.vault.pathprefix` option.
+Each key is stored under the kid, resulting in a full key path like `kv/nuts-private-keys/did:nuts:123#abc`.
+A Vault token must be provided by either configuring it using the config `crypto.vault.token` or setting the VAULT_TOKEN environment variable.
+The token must have a vault policy which enables READ and WRITES rights on the path. In addition it needs to READ the token information "auth/token/lookup-self" which should be part of the default policy.
 
 * Filesystem:
-This is the default backend but not recommended for production. It stores keys unencrypted on disk. Make sure to include the directory in your backups and keep these on a safe place.
+This is the default backend but not recommended for production. It stores keys unencrypted on disk. Make sure to include
+the directory in your backups and keep these on a safe place.
 If you want to use filesystem in strict-mode, you have to set it explicitly, otherwise the node fails during startup.
 
 Strict mode
