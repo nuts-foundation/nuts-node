@@ -95,18 +95,7 @@ func TestVaultKVStorage(t *testing.T) {
 		assert.EqualError(t, err, "key not found")
 	})
 
-	t.Run("error - value not a byte array", func(t *testing.T) {
-		vaultStorage := vaultKVStorage{config: DefaultVaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{"kv/nuts-private-keys/did:nuts:123#abc": {"key": "foo"}}}}
-
-		t.Run("GetPrivateKey", func(t *testing.T) {
-			_, err := vaultStorage.GetPrivateKey(kid)
-			assert.Error(t, err, "expected error on invalid value")
-			assert.EqualError(t, err, "unable to convert key result to bytes")
-		})
-
-	})
-
-	t.Run("error - pem encoding issues", func(t *testing.T) {
+	t.Run("error - encoding issues", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultVaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{"kv/nuts-private-keys/did:nuts:123#abc": {"key": []byte("foo")}}}}
 
 		t.Run("SavePrivateKey", func(t *testing.T) {
@@ -117,8 +106,8 @@ func TestVaultKVStorage(t *testing.T) {
 
 		t.Run("GetPrivateKey", func(t *testing.T) {
 			_, err := vaultStorage.GetPrivateKey(kid)
-			assert.Error(t, err, "expected pem encoding issues on invalid key")
-			assert.EqualError(t, err, "failed to decode PEM block containing private key")
+			assert.Error(t, err, "expected type conversion error on byte array")
+			assert.EqualError(t, err, "unable to convert key result to string")
 		})
 	})
 }

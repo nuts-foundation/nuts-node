@@ -103,7 +103,7 @@ func (v vaultKVStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := util.PemToPrivateKey(value)
+	privateKey, err := util.PemToPrivateKey([]byte(value))
 	if err != nil {
 		return nil, err
 	}
@@ -119,13 +119,13 @@ func (v vaultKVStorage) getValue(path, key string) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("key not found")
 	}
-	value, ok := rawValue.([]byte)
+	value, ok := rawValue.(string)
 	if !ok {
-		return nil, fmt.Errorf("unable to convert key result to bytes")
+		return nil, fmt.Errorf("unable to convert key result to string")
 	}
-	return value, nil
+	return []byte(value), nil
 }
-func (v vaultKVStorage) storeValue(path, key string, value []byte) error {
+func (v vaultKVStorage) storeValue(path, key string, value string) error {
 	_, err := v.client.Write(path, map[string]interface{}{key: value})
 	if err != nil {
 		return fmt.Errorf("unable to write private key to vault: %w", err)
@@ -156,5 +156,5 @@ func (v vaultKVStorage) SavePrivateKey(kid string, key crypto.PrivateKey) error 
 		return fmt.Errorf("unable to convert private key to pem format: %w", err)
 	}
 
-	return v.storeValue(path, keyName, []byte(pem))
+	return v.storeValue(path, keyName, pem)
 }
