@@ -30,12 +30,17 @@ const privateKeyPathName = "nuts-private-keys"
 const defaultPathPrefix = "kv"
 const keyName = "key"
 
+// VaultConfig contains the config options to configure the vaultKVStorage backend
 type VaultConfig struct {
-	Token      string
-	Address    string
+	// Token to authenticate to the Vault cluster.
+	Token string
+	// Address of the Vault cluster
+	Address string
+	// PathPrefix can be used to overwrite the default 'kv' path.
 	PathPrefix string
 }
 
+// DefaultVaultConfig returns a VaultConfig with the PathPrefix containing the default value.
 func DefaultVaultConfig() VaultConfig {
 	return VaultConfig{
 		PathPrefix: defaultPathPrefix,
