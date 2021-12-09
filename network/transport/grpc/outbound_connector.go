@@ -21,6 +21,7 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -32,9 +33,10 @@ import (
 
 type dialer func(ctx context.Context, target string, opts ...grpcLib.DialOption) (conn *grpcLib.ClientConn, err error)
 
-func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Config, shouldConnect func() bool, connectedCallback func(conn *grpcLib.ClientConn)) *outboundConnector {
+func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Config, shouldConnect func() bool, connectedCallback func(conn *grpcLib.ClientConn) bool) *outboundConnector {
 	var attempts uint32
 	return &outboundConnector{
+		backoff:           defaultBackoff(),
 		address:           address,
 		dialer:            dialer,
 		tlsConfig:         tlsConfig,
@@ -51,10 +53,12 @@ func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Confi
 type outboundConnector struct {
 	address string
 	dialer
-	backoff
-	tlsConfig         *tls.Config
-	localPeerID       transport.PeerID
-	connectedCallback func(conn *grpcLib.ClientConn)
+	backoff     Backoff
+	tlsConfig   *tls.Config
+	localPeerID transport.PeerID
+	// connectedCallback is called when the outbound connection was successful and application-level operations can be performed.
+	// If these fail and the connector should backoff before retrying, the callback should return 'false'.
+	connectedCallback func(conn *grpcLib.ClientConn) bool
 	// shouldConnect returns whether the connector must try to connect. If it returns false, it backs off.
 	shouldConnect    func() bool
 	connectedBackoff func(cancelCtx context.Context)
@@ -77,20 +81,25 @@ func (c *outboundConnector) start() {
 				c.connectedBackoff(cancelCtx)
 				continue
 			}
-			if stream, err := c.tryConnect(); err != nil {
+			stream, err := c.tryConnect()
+			if err == nil {
+				// Invoke callback, blocks until the peer disconnects
+				if !c.connectedCallback(stream) {
+					err = errors.New("protocol connection failure")
+				} else {
+					// Connection was OK, but now disconnected
+					c.backoff.Reset()
+
+					// When the peer's reconnection timing is very close to the local node's (because they're running the same software),
+					// they might reconnect to each other at the same time after a disconnect.
+					// So we add a bit of randomness before reconnecting, making the chance they reconnect at the same time a lot smaller.
+					sleepWithCancel(cancelCtx, RandomBackoff(time.Second, 5*time.Second))
+				}
+			}
+			if err != nil {
 				waitPeriod := c.backoff.Backoff()
 				log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), c.address, err)
 				sleepWithCancel(cancelCtx, waitPeriod)
-			} else {
-				c.backoff.Reset()
-
-				// Invoke callback, blocks until the peer disconnects
-				c.connectedCallback(stream)
-
-				// When the peer's reconnection timing is very close to the local node's (because they're running the same software),
-				// they might reconnect to each other at the same time after a disconnect.
-				// So we add a bit of randomness before reconnecting, making the chance they reconnect at the same time a lot smaller.
-				sleepWithCancel(cancelCtx, RandomBackoff(time.Second, 5*time.Second))
 			}
 		}
 	}()

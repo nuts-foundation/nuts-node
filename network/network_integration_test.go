@@ -133,29 +133,56 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 }
 
 func TestNetworkIntegration_NodeDIDAuthenticationFailed(t *testing.T) {
-	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest(testDirectory)
+	t.Run("node DID auth on inbound connection fails", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(testDirectory)
 
-	// Start 2 nodes: node1 and node2, where node1 specifies a node DID that node2 can't authenticate
-	node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
-		cfg.NodeDID = "did:nuts:node1"
+		// Start 2 nodes: node1 and node2, where node1 specifies a node DID that node2 can't authenticate
+		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory)
+
+		// Now connect node1 to node2 and wait for them to set up
+		node1.connectionManager.Connect(nameToAddress(t, "node2"))
+		if !test.WaitFor(t, func() (bool, error) {
+			diagnostics := node1.connectionManager.Diagnostics()
+			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
+			// Assert we tried to connect at least once
+			return connectorsStats[0].ConnectAttempts >= 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
+			return
+		}
+
+		// Assert there are no peers, because authentication failed
+		assert.Empty(t, node1.connectionManager.Peers())
+		assert.Empty(t, node2.connectionManager.Peers())
 	})
-	node2 := startNode(t, "node2", testDirectory)
+	t.Run("node DID auth on outbound connection fails", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(testDirectory)
 
-	// Now connect node1 to node2 and wait for them to set up
-	node1.connectionManager.Connect(nameToAddress(t, "node2"))
-	if !test.WaitFor(t, func() (bool, error) {
-		diagnostics := node1.connectionManager.Diagnostics()
-		connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
-		// Assert we tried to connect at least once
-		return connectorsStats[0].ConnectAttempts >= 1, nil
-	}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
-		return
-	}
+		// Start 2 nodes: node1 and node2, where node2 specifies a node DID that node1 can't authenticate
+		node1 := startNode(t, "node1", testDirectory)
+		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
 
-	// Assert there are no peers, because authentication failed
-	assert.Empty(t, node1.connectionManager.Peers())
-	assert.Empty(t, node2.connectionManager.Peers())
+		// Now connect node1 to node2 and wait for them to set up
+		node1.connectionManager.Connect(nameToAddress(t, "node2"))
+		if !test.WaitFor(t, func() (bool, error) {
+			diagnostics := node1.connectionManager.Diagnostics()
+			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
+			// Assert we tried to connect at least once
+			return connectorsStats[0].ConnectAttempts >= 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
+			return
+		}
+
+		// Assert there are no peers, because authentication failed
+		assert.Empty(t, node1.connectionManager.Peers())
+		assert.Empty(t, node2.connectionManager.Peers())
+	})
 }
 
 func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
@@ -205,20 +232,24 @@ func resetIntegrationTest(testDirectory string) {
 	keyStore = nutsCrypto.NewTestCryptoInstance(testDirectory)
 
 	// Write DID Document for node1
-	node1DID, _ := did.ParseDID("did:nuts:node1")
-	document := did.Document{ID: *node1DID}
-	kid := *node1DID
-	kid.Fragment = "key-1"
-	key, _ := keyStore.New(func(_ crypto.PublicKey) (string, error) {
-		return kid.String(), nil
-	})
-	verificationMethod, _ := did.NewVerificationMethod(kid, ssi.JsonWebKey2020, *node1DID, key.Public())
-	document.VerificationMethod.Add(verificationMethod)
-	document.KeyAgreement.Add(verificationMethod)
-	err := vdrStore.Write(document, vdr.DocumentMetadata{})
-	if err != nil {
-		panic(err)
+	writeDIDDocument := func(subject string) {
+		nodeDID, _ := did.ParseDID(subject)
+		document := did.Document{ID: *nodeDID}
+		kid := *nodeDID
+		kid.Fragment = "key-1"
+		key, _ := keyStore.New(func(_ crypto.PublicKey) (string, error) {
+			return kid.String(), nil
+		})
+		verificationMethod, _ := did.NewVerificationMethod(kid, ssi.JsonWebKey2020, *nodeDID, key.Public())
+		document.VerificationMethod.Add(verificationMethod)
+		document.KeyAgreement.Add(verificationMethod)
+		err := vdrStore.Write(document, vdr.DocumentMetadata{})
+		if err != nil {
+			panic(err)
+		}
 	}
+	writeDIDDocument("did:nuts:node1")
+	writeDIDDocument("did:nuts:node2")
 }
 
 func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCrypto.Key, sender *Network, receivers ...string) bool {
