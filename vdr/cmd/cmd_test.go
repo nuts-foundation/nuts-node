@@ -359,6 +359,72 @@ func TestEngine_Command(t *testing.T) {
 			assert.Contains(t, errBuf.String(), "failed to delete the verification method from DID document: server returned HTTP 404 (expected: 204), response: null")
 		})
 	})
+
+	t.Run("addKeyAgreement", func(t *testing.T) {
+		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		verificationMethod, _ := did.NewVerificationMethod(*vdr.TestMethodDIDA, ssi.JsonWebKey2020, *vdr.TestDIDA, pair.PublicKey)
+
+		kid := verificationMethod.ID
+
+		t.Run("ok", func(t *testing.T) {
+			document := did.Document{}
+			document.ID = *vdr.TestDIDA
+			document.VerificationMethod.Add(verificationMethod)
+			resolution := v1.DIDResolutionResult{
+				Document:         document,
+				DocumentMetadata: v1.DIDDocumentMetadata{},
+			}
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: resolution})
+
+			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
+			err := cmd.Execute()
+
+			assert.NoError(t, err)
+		})
+
+		t.Run("error - DID document is deactivated", func(t *testing.T) {
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: v1.DIDResolutionResult{
+				Document:         did.Document{ID: *vdr.TestDIDA},
+				DocumentMetadata: v1.DIDDocumentMetadata{Deactivated: true},
+			}})
+
+			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
+			err := cmd.Execute()
+
+			assert.Error(t, err)
+			assert.Contains(t, errBuf.String(), "Error: DID document is deactivated")
+		})
+
+		t.Run("error - KID is not a DID URL", func(t *testing.T) {
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK})
+
+			cmd.SetArgs([]string{"add-keyagreement", "not a DID"})
+			err := cmd.Execute()
+
+			assert.Error(t, err)
+			assert.Contains(t, errBuf.String(), "Error: invalid key ID 'not a DID'")
+		})
+
+		t.Run("error - KID does not refer to an existing verification method key", func(t *testing.T) {
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: did.Document{}})
+
+			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
+			err := cmd.Execute()
+
+			assert.Error(t, err)
+			assert.Contains(t, errBuf.String(), "specified KID is not a verification method in the resolved DID document")
+		})
+
+		t.Run("error - DID document not found", func(t *testing.T) {
+			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
+
+			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
+			err := cmd.Execute()
+
+			assert.Error(t, err)
+			assert.Contains(t, errBuf.String(), "Error: server returned HTTP 404")
+		})
+	})
 }
 
 func Test_httpClient(t *testing.T) {

@@ -57,6 +57,9 @@ type adapter struct {
 func (n adapter) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream, method string) (transport.Peer, error)) (context.Context, error) {
 	client := protobuf.NewNetworkClient(grpcConn)
 	messenger, err := client.Connect(outgoingContext)
+	if err != nil {
+		return nil, err
+	}
 	peer, err := callback(messenger, grpc.GetStreamMethod(protobuf.Network_ServiceDesc.ServiceName, protobuf.Network_ServiceDesc.Streams[0]))
 	if err != nil {
 		_ = messenger.CloseSend()

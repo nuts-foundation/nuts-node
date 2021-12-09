@@ -20,11 +20,11 @@
 package vcr
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"os"
-	"path"
 	"reflect"
 	"runtime"
 	"strings"
@@ -35,7 +35,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	did2 "github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/go-leia"
+	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
@@ -53,35 +53,37 @@ import (
 
 func TestVCR_Configure(t *testing.T) {
 
+	t.Run("loads default configs", func(t *testing.T) {
+		instance := NewTestVCRInstance(t)
+
+		concepts := instance.registry.Concepts()
+
+		if !assert.Len(t, concepts, 2) {
+			return
+		}
+
+		assert.Equal(t, "NutsAuthorizationCredential", concepts[0].CredentialType)
+		assert.Equal(t, "authorization", concepts[0].Concept)
+		assert.Equal(t, "NutsOrganizationCredential", concepts[1].CredentialType)
+		assert.Equal(t, "organization", concepts[1].Concept)
+	})
+}
+
+func TestVCR_Start(t *testing.T) {
+
 	t.Run("error - creating db", func(t *testing.T) {
 		instance := NewVCRInstance(nil, nil, nil, nil).(*vcr)
 
-		err := instance.Configure(core.ServerConfig{Datadir: "test"})
+		_ = instance.Configure(core.ServerConfig{Datadir: "test"})
+		err := instance.Start()
 		assert.Error(t, err)
 	})
 
 	t.Run("ok", func(t *testing.T) {
-		testDir := io.TestDirectory(t)
-		instance := NewTestVCRInstance(testDir)
+		instance := NewTestVCRInstance(t)
 
-		t.Run("loads default configs", func(t *testing.T) {
-			concepts := instance.registry.Concepts()
-
-			if !assert.Len(t, concepts, 2) {
-				return
-			}
-
-			assert.Equal(t, "NutsAuthorizationCredential", concepts[0].CredentialType)
-			assert.Equal(t, "authorization", concepts[0].Concept)
-			assert.Equal(t, "NutsOrganizationCredential", concepts[1].CredentialType)
-			assert.Equal(t, "organization", concepts[1].Concept)
-		})
-
-		t.Run("initializes DB", func(t *testing.T) {
-			fsPath := path.Join(testDir, "vcr", "credentials.db")
-			_, err := os.Stat(fsPath)
-			assert.NoError(t, err)
-		})
+		_, err := os.Stat(instance.credentialsDBPath())
+		assert.NoError(t, err)
 	})
 }
 
@@ -119,6 +121,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		return ctx, q
 	}
 
+	reqCtx := context.Background()
 	now := time.Now()
 	timeFunc = func() time.Time {
 		return now
@@ -132,7 +135,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
-		creds, err := ctx.vcr.search(q, false, &now)
+		creds, err := ctx.vcr.search(reqCtx, q, false, &now)
 
 		if !assert.NoError(t, err) {
 			return
@@ -150,7 +153,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 	t.Run("ok - untrusted", func(t *testing.T) {
 		ctx, q := testInstance(t)
 
-		creds, err := ctx.vcr.search(q, false, nil)
+		creds, err := ctx.vcr.search(reqCtx, q, false, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -162,7 +165,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		ctx, q := testInstance(t)
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
-		creds, err := ctx.vcr.search(q, true, nil)
+		creds, err := ctx.vcr.search(reqCtx, q, true, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -175,7 +178,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		rev := leia.DocumentFromString(concept.TestRevocation)
 		ctx.vcr.store.Collection(revocationCollection).Add([]leia.Document{rev})
-		creds, err := ctx.vcr.search(q, false, nil)
+		creds, err := ctx.vcr.search(reqCtx, q, false, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -188,7 +191,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, types.ErrNotFound)
 
-		creds, err := ctx.vcr.search(q, false, nil)
+		creds, err := ctx.vcr.search(reqCtx, q, false, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -299,8 +302,7 @@ func TestVCR_Resolve(t *testing.T) {
 }
 
 func TestVcr_Instance(t *testing.T) {
-	testDir := io.TestDirectory(t)
-	instance := NewTestVCRInstance(testDir)
+	instance := NewTestVCRInstance(t)
 
 	t.Run("ok - name", func(t *testing.T) {
 		assert.Equal(t, moduleName, instance.Name())
@@ -309,7 +311,7 @@ func TestVcr_Instance(t *testing.T) {
 	t.Run("ok - config defaults", func(t *testing.T) {
 		cfg := instance.Config().(*Config)
 
-		assert.Equal(t, DefaultConfig(), *cfg)
+		assert.Equal(t, DefaultConfig().strictMode, cfg.strictMode)
 	})
 }
 
@@ -991,22 +993,21 @@ func TestVCR_Search(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
 		doc := leia.DocumentFromString(concept.TestCredential)
 		ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
-		results, _ := ctx.vcr.Search("human", false, map[string]string{"human.eyeColour": "blue/grey"})
+		results, _ := ctx.vcr.Search(context.Background(), "human", false, map[string]string{"human.eyeColour": "blue/grey"})
 		assert.Len(t, results, 1)
 	})
 
 	t.Run("error - unknown concept", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		results, err := ctx.vcr.Search("unknown", false, map[string]string{"human.eyeColour": "blue/grey"})
+		results, err := ctx.vcr.Search(context.Background(), "unknown", false, map[string]string{"human.eyeColour": "blue/grey"})
 		assert.ErrorIs(t, err, concept.ErrUnknownConcept)
 		assert.Nil(t, results)
 	})
 }
 
 func TestVcr_Untrusted(t *testing.T) {
-	testDir := io.TestDirectory(t)
-	instance := NewTestVCRInstance(testDir)
+	instance := NewTestVCRInstance(t)
 	vc := concept.TestVC()
 
 	err := instance.registry.Add(concept.ExampleConfig)
@@ -1191,8 +1192,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 func TestVcr_generateProof(t *testing.T) {
 	t.Run("incorrect key", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
-		testDir := io.TestDirectory(t)
-		instance := NewTestVCRInstance(testDir)
+		instance := NewTestVCRInstance(t)
 		key := crypto.TestKey{}
 		kid, _ := ssi.ParseURI(testKID)
 
@@ -1212,8 +1212,7 @@ func TestVcr_generateRevocationProof(t *testing.T) {
 		json.Unmarshal(rJSON, &r)
 
 		// default stuff
-		testDir := io.TestDirectory(t)
-		instance := NewTestVCRInstance(testDir)
+		instance := NewTestVCRInstance(t)
 		key := crypto.TestKey{}
 		kid, _ := ssi.ParseURI(testKID)
 

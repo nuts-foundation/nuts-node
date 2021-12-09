@@ -19,11 +19,15 @@
 package core
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"os"
 )
+
+// MinTLSVersion defines the minimal TLS version used by all components that use TLS
+const MinTLSVersion uint16 = tls.VersionTLS13
 
 func parseCertificates(data []byte) (certificates []*x509.Certificate, _ error) {
 	for len(data) > 0 {

@@ -48,7 +48,7 @@ type Auth struct {
 	config          Config
 	oauthClient     services.OAuthClient
 	contractNotary  services.ContractNotary
-	serviceResolver didman.ServiceResolver
+	serviceResolver didman.CompoundServiceResolver
 	keyStore        crypto.KeyStore
 	registry        types.Store
 	vcr             vcr.VCR
@@ -83,7 +83,7 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.ServiceResolver) *Auth {
+func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver) *Auth {
 	return &Auth{
 		config:          config,
 		registry:        registry,
@@ -145,6 +145,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		tlsConfig := &tls.Config{
 			Certificates: []tls.Certificate{clientCertificate},
 			RootCAs:      trustStore.CertPool,
+			MinVersion:   core.MinTLSVersion,
 		}
 
 		validator := crl.NewValidator(trustStore.Certificates())

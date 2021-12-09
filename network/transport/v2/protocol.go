@@ -65,6 +65,9 @@ func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 func (p protocol) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream, method string) (transport.Peer, error)) (context.Context, error) {
 	client := NewProtocolClient(grpcConn)
 	stream, err := client.Stream(outgoingContext)
+	if err != nil {
+		return nil, err
+	}
 	peer, err := callback(stream, grpc.GetStreamMethod(Protocol_ServiceDesc.ServiceName, Protocol_ServiceDesc.Streams[0]))
 	if err != nil {
 		_ = stream.CloseSend()

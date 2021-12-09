@@ -467,9 +467,9 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 	})
 	t.Run("error mapping", func(t *testing.T) {
 		ctx := newMockContext(t)
-		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(didman.ErrServiceNotFound))
-		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(didman.ErrInvalidServiceQuery))
-		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(didman.ErrServiceReferenceToDeep))
+		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(types.ErrServiceNotFound))
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(types.ErrInvalidServiceQuery))
+		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(types.ErrServiceReferenceToDeep))
 		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(didman.ErrReferencedServiceNotAnEndpoint{}))
 		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(types.ErrNotFound))
 	})
@@ -620,7 +620,8 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 		ctx := newMockContext(t)
 		serviceType := "service"
 		results := []OrganizationSearchResult{{DIDDocument: did.Document{ID: *id}, Organization: map[string]interface{}{"name": "bar"}}}
-		ctx.didman.EXPECT().SearchOrganizations("query", &serviceType).Return(results, nil)
+		ctx.echo.EXPECT().Request().Return(&http.Request{})
+		ctx.didman.EXPECT().SearchOrganizations(gomock.Any(), "query", &serviceType).Return(results, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, results)
 
 		err := ctx.wrapper.SearchOrganizations(ctx.echo, SearchOrganizationsParams{
@@ -633,7 +634,8 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 	t.Run("no results", func(t *testing.T) {
 		ctx := newMockContext(t)
 		serviceType := "service"
-		ctx.didman.EXPECT().SearchOrganizations("query", &serviceType).Return(nil, nil)
+		ctx.echo.EXPECT().Request().Return(&http.Request{})
+		ctx.didman.EXPECT().SearchOrganizations(gomock.Any(), "query", &serviceType).Return(nil, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, []OrganizationSearchResult{})
 
 		err := ctx.wrapper.SearchOrganizations(ctx.echo, SearchOrganizationsParams{
@@ -645,7 +647,8 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("error - service fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.didman.EXPECT().SearchOrganizations("query", nil).Return(nil, types.ErrNotFound)
+		ctx.echo.EXPECT().Request().Return(&http.Request{})
+		ctx.didman.EXPECT().SearchOrganizations(gomock.Any(), "query", nil).Return(nil, types.ErrNotFound)
 		err := ctx.wrapper.SearchOrganizations(ctx.echo, SearchOrganizationsParams{Query: "query"})
 
 		assert.ErrorIs(t, err, types.ErrNotFound)

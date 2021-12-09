@@ -25,6 +25,7 @@ import (
 	"os"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -59,6 +60,8 @@ type System struct {
 	EchoCreator func(cfg HTTPConfig, strictmode bool) (EchoServer, error)
 }
 
+var coreLogger = logrus.StandardLogger().WithField("module", "core")
+
 // Load loads the config and injects config values into engines
 func (system *System) Load(cmd *cobra.Command) error {
 	if err := system.Config.Load(cmd); err != nil {
@@ -85,12 +88,26 @@ func (system *System) Diagnostics() []DiagnosticResult {
 	return result
 }
 
+func conditionalDebugf(engine Engine, fmt string) {
+	if named, ok := engine.(Named); ok {
+		coreLogger.Debugf(fmt, named.Name())
+	}
+}
+
+func conditionalInfof(engine Engine, fmt string) {
+	if named, ok := engine.(Named); ok {
+		coreLogger.Infof(fmt, named.Name())
+	}
+}
+
 // Start starts all engines in the system.
 func (system *System) Start() error {
 	var err error
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
+			conditionalDebugf(engine, "starting %s")
 			err = m.Start()
+			conditionalInfof(engine, "started %s")
 		}
 		return err
 	})
@@ -101,7 +118,9 @@ func (system *System) Shutdown() error {
 	var err error
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
+			conditionalDebugf(engine, "stopping %s")
 			err = m.Shutdown()
+			conditionalInfof(engine, "stopped %s")
 		}
 		return err
 	})
