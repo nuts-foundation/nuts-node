@@ -19,6 +19,9 @@
 package network
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -202,6 +205,33 @@ func TestNetwork_Configure(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		err := cxt.network.Configure(core.ServerConfig{Datadir: "network_test.go"})
 		assert.Error(t, err)
+	})
+}
+
+func TestNetwork_CreatePrivateTransaction(t *testing.T) {
+	key := crypto.NewTestKey("signing-key")
+	sender, _ := did.ParseDID("did:nuts:sender")
+	senderKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	receiver, _ := did.ParseDID("did:nuts:receiver")
+	receiverKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		payload := []byte("Hello, World!")
+		cxt := createNetwork(ctrl)
+		err := cxt.start()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
+		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
+
+		cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*sender).Return(senderKey.Public(), nil)
+		cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*receiver).Return(receiverKey.Public(), nil)
+
+		_, err = cxt.network.CreatePrivateTransaction(payloadType, payload, key, true, time.Now(), nil, []did.DID{*sender, *receiver})
+		assert.NoError(t, err)
 	})
 }
 

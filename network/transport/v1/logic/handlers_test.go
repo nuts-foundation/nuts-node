@@ -248,7 +248,7 @@ func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 
 		ctx.graph().EXPECT().GetByPayloadHash(gomock.Any(), payloadHash).Return([]dag.Transaction{
 			&testTX{
-				toAddr: []byte{1},
+				pal: [][]byte{{1}},
 			},
 		}, nil)
 		ctx.sender().EXPECT().sendTransactionPayload(peer, payloadHash, []byte{})

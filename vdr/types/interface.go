@@ -82,6 +82,9 @@ type KeyResolver interface {
 	// ResolveAssertionKeyID look for a valid assertion key for the give DID. If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key is found.
 	ResolveAssertionKeyID(id did.DID) (ssi.URI, error)
+	// ResolveKeyAgreementKey look for a valid keyAgreement key for the give DID. If multiple keys are valid, the first one is returned.
+	// An ErrKeyNotFound is returned when no key is found.
+	ResolveKeyAgreementKey(id did.DID) (crypto.PublicKey, error)
 	// ResolvePublicKeyInTime loads the key from a DID Document
 	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
 	// It returns ErrNotFound when the DID Document can't be found.

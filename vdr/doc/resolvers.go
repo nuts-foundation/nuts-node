@@ -190,6 +190,19 @@ func (r KeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
 	return ExtractAssertionKeyID(*doc)
 }
 
+// ResolveKeyAgreementKey resolves the public key of the first valid KeyAgreement of an indicated DID document in the current state.
+// If the document has no KeyAgreements, types.ErrKeyNotFound is returned.
+func (r KeyResolver) ResolveKeyAgreementKey(id did.DID) (crypto.PublicKey, error) {
+	doc, _, err := r.Store.Resolve(id, nil)
+	if err != nil {
+		return ssi.URI{}, err
+	}
+	if len(doc.KeyAgreement) == 0 {
+		return nil, types.ErrKeyNotFound
+	}
+	return doc.KeyAgreement[0].PublicKey()
+}
+
 // ExtractAssertionKeyID returns a assertionMethod ID from the given DID document.
 // it returns types.ErrKeyNotFound is no assertionMethod key is present.
 func ExtractAssertionKeyID(doc did.Document) (ssi.URI, error) {

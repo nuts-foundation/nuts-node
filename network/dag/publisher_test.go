@@ -116,7 +116,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		defer ctrl.Finish()
 		ctx := context.Background()
 
-		transaction := CreateSignedTestTransaction(1, time.Now(), []byte{9, 8, 7}, "foo/bar", true)
+		transaction := CreateSignedTestTransaction(1, time.Now(), [][]byte{{9, 8, 7}}, "foo/bar", true)
 
 		received := false
 		privateTxCtx.EXPECT().PublishAsync(privateTransactionsSubject, gomock.Any()).Return(nil, nil)

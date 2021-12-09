@@ -84,8 +84,8 @@ func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time
 		versionHeader:      input.Version(),
 	}
 
-	if input.To() != nil {
-		headerMap[toHeader] = input.To()
+	if input.Pal() != nil {
+		headerMap[palHeader] = input.Pal()
 	}
 
 	if d.attach {
