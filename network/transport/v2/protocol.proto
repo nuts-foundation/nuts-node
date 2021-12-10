@@ -22,31 +22,83 @@ option go_package = "github.com/nuts-foundation/nuts-node/network/transport/v2";
 package v2;
 
 service Protocol {
-  rpc Stream (stream Envelope) returns (stream Envelope) {
+  rpc Stream (stream Message) returns (stream Message) {
   }
 }
 
-message Envelope {
-  oneof Message {
-    Hello hello = 1000;
-    TransactionPayloadQuery transactionPayloadQuery = 100;
-    TransactionPayload transactionPayload = 101;
+message Message {
+  oneof message {
+      AdvertState advertState = 100;
+      TransactionSet transactionSet = 101;
+      TransactionListQuery transactionListQuery = 102;
+      TransactionRangeQuery transactionRangeQuery = 103;
+      TransactionList transactionList = 104;
+      HelloMessage hello = 1000;
   }
 }
 
-// TransactionPayloadQuery is a message used to query the payload of a transaction.
-message TransactionPayloadQuery {
-  // transactionRef contains the reference (hash) of the transaction, which payload the node would like to receive, as specified by RFC004.
-  bytes transactionRef = 1;
+message HelloMessage {
 }
 
-// TransactionPayload is the response message for TransactionPayloadQuery.
-message TransactionPayload {
-  // transactionRef contains the reference to the transaction which' payload was requested.
-  bytes transactionRef = 1;
-  // data contains the actual payload.
-  bytes data = 10;
+// TransactionRef represents a transaction reference on the DAG.
+message TransactionRef {
+  // hash contains the reference of the transaction, as specified by RFC004.
+  bytes hash = 1;
 }
 
-message Hello {
+// Transaction represents a transaction on the DAG.
+message Transaction {
+  // hash contains the reference of the transaction, as specified by RFC004.
+  TransactionRef hash = 1;
+  // data contains the data of the transaction, which is a JWS as specified by RFC004.
+  bytes data = 2;
+  // payload contains the payload when it may be attached but wasn't so in the transaction already
+  optional bytes payload = 3;
+}
+
+// AdvertState is a message broadcast to inform peers of the node's DAG state.
+message AdvertState {
+  // XOR contains the XOR'ed value of all transaction references.
+  bytes XOR = 1;
+  // LC contains the highest transaction Lamport Clock value.
+  uint32 LC = 2;
+  // token contains the authorization token for the response.
+  bytes token = 3;
+}
+
+// TransactionSet contains an IBLT as a response to an AdvertState message
+message TransactionSet {
+  // token contains the authorization token.
+  bytes token = 1;
+  // LC contains the highest transaction Lamport Clock value from the sender of this message.
+  uint32 LC = 2;
+  // LC_req contains the LC value that was sent in the AdvertState message
+  uint32 LC_req = 3;
+  // IBLT contains the serialized IBLT. The first byte indicates the serialization format of the IBLT.
+  bytes IBLT = 4;
+}
+
+// TransactionListQuery is a request for transactions by references
+message TransactionListQuery {
+  // token contains the authorization token for the response.
+  bytes token = 1;
+  // refs is the list of requested transactions by reference
+  repeated TransactionRef refs = 2;
+}
+
+// TransactionRangeQuery is a request for transactions by LC range
+message TransactionRangeQuery {
+  // token contains the authorization token for the response.
+  bytes token = 1;
+  // begin indicates the beginning of the requested range (inclusive)
+  uint32 begin = 2;
+  // end indicates the end of the requested range (inclusive)
+  uint32 end = 3;
+}
+
+message TransactionList {
+  // token contains the authorization token for the response.
+  bytes token = 1;
+  // transactions contains a list of transactions sorted by LC value
+  repeated Transaction transactions = 2;
 }
