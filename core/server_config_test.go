@@ -206,20 +206,41 @@ func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 	cmd := testCommand()
 	flagSet := pflag.NewFlagSet("dummy", pflag.ContinueOnError)
 	flagSet.String("key", "", "")
-	flagSet.Parse([]string{"--key", "value"})
+	flagSet.String("sub.test", "", "")
+	flagSet.String("subptr.test", "", "")
+
+	err := flagSet.Parse([]string{"--key", "value", "--sub.test", "testvalue", "--subptr.test", "test2value"})
+	assert.NoError(t, err)
+
 	cmd.PersistentFlags().AddFlagSet(flagSet)
+
 	in := &TestEngine{
 		TestConfig: TestEngineConfig{},
 	}
 
 	t.Run("param is injected", func(t *testing.T) {
-		cfg.Load(cmd)
-		err := cfg.InjectIntoEngine(in)
+		err := cfg.Load(cmd)
+		assert.NoError(t, err)
+
+		err = cfg.InjectIntoEngine(in)
 		if !assert.NoError(t, err) {
 			return
 		}
 
 		assert.Equal(t, "value", in.TestConfig.Key)
+	})
+
+	t.Run("param is injected recursively", func(t *testing.T) {
+		err := cfg.Load(cmd)
+		assert.NoError(t, err)
+
+		err = cfg.InjectIntoEngine(in)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, "testvalue", in.TestConfig.Sub.Test)
+		assert.Equal(t, "test2value", in.TestConfig.SubPtr.Test)
 	})
 }
 

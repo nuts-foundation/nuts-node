@@ -23,15 +23,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -184,7 +184,51 @@ func (ngc *ServerConfig) PrintConfig() string {
 
 // InjectIntoEngine takes the loaded config and sets the engine's config struct
 func (ngc *ServerConfig) InjectIntoEngine(e Injectable) error {
-	return ngc.configMap.UnmarshalWithConf("", e.Config(), koanf.UnmarshalConf{
+	return unmarshalRecursive([]string{}, e.Config(), ngc.configMap)
+}
+
+func elemType(ty reflect.Type) (reflect.Type, bool) {
+	isPtr := ty.Kind() == reflect.Ptr
+
+	if isPtr {
+		return ty.Elem(), true
+	}
+
+	return ty, false
+}
+
+func unmarshalRecursive(path []string, config interface{}, configMap *koanf.Koanf) error {
+	if err := configMap.UnmarshalWithConf(strings.Join(path, "."), config, koanf.UnmarshalConf{
 		FlatPaths: true,
-	})
+	}); err != nil {
+		return err
+	}
+
+	configType, isPtr := elemType(reflect.TypeOf(config))
+
+	// If `config` is a struct or a pointer to a struct we're iterating its fields to find structs
+	if configType.Kind() == reflect.Struct {
+		valueOfConfig := reflect.ValueOf(config)
+
+		if isPtr {
+			valueOfConfig = valueOfConfig.Elem()
+		}
+
+		for i := 0; i < configType.NumField(); i++ {
+			field := configType.Field(i)
+			fieldType, _ := elemType(field.Type)
+			tagValue := field.Tag.Get("koanf")
+
+			// Unmarshal this field if it's a struct, and it has a `koanf` tag
+			if fieldType.Kind() == reflect.Struct && tagValue != "" {
+				fieldAddr := valueOfConfig.Field(i).Addr()
+
+				if err := unmarshalRecursive(append(path, tagValue), fieldAddr.Interface(), configMap); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }

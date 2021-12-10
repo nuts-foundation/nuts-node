@@ -37,11 +37,11 @@ var _ grpc.OutboundStreamer = &protocolV1{}
 type Config struct {
 	// AdvertHashesInterval specifies how often (in milliseconds) the node should broadcasts its last hashes,
 	// so other nodes can compare and synchronize.
-	AdvertHashesInterval int `koanf:"network.v1.adverthashesinterval"`
+	AdvertHashesInterval int `koanf:"adverthashesinterval"`
 	// AdvertDiagnosticsInterval specifies how often (in milliseconds) the node should query its peers for diagnostic information.
-	AdvertDiagnosticsInterval int `koanf:"network.v1.advertdiagnosticsinterval"`
+	AdvertDiagnosticsInterval int `koanf:"advertdiagnosticsinterval"`
 	// CollectMissingPayloadsInterval specifies how often (in milliseconds) the node should query peers for missing payloads.
-	CollectMissingPayloadsInterval int `koanf:"network.v1.collectmissingpayloadsinterval"`
+	CollectMissingPayloadsInterval int `koanf:"collectmissingpayloadsinterval"`
 }
 
 // DefaultConfig returns the default configuration for protocol v1.

@@ -22,9 +22,17 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// TestEngineConfig defines the configuration for the test engine
 type TestEngineConfig struct {
-	Key     string `koanf:"key"`
-	Datadir string `koanf:"datadir"`
+	Key     string               `koanf:"key"`
+	Datadir string               `koanf:"datadir"`
+	Sub     TestEngineSubConfig  `koanf:"sub"`
+	SubPtr  *TestEngineSubConfig `koanf:"subptr"`
+}
+
+// TestEngineSubConfig defines the `sub` configuration for the test engine
+type TestEngineSubConfig struct {
+	Test string `koanf:"test"`
 }
 
 type TestEngine struct {
