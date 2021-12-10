@@ -19,10 +19,9 @@
 package network
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/transport"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.

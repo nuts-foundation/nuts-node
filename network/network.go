@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/events"
 	"os"
 	"path"
 	"path/filepath"
@@ -30,6 +29,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/events"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
@@ -48,6 +49,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
+
+var _ Transactions = (*Network)(nil)
 
 const (
 	// boltDBFileMode holds the Unix file mode the created BBolt database files will have.

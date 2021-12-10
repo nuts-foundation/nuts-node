@@ -131,14 +131,12 @@ func (r *registry) QueryFor(concept string) (Query, error) {
 }
 
 func (r *registry) FindByType(credentialType string) *Config {
-	var returnValue Config
 	for _, c := range r.configs {
 		if c.CredentialType == credentialType {
-			returnValue = c
-			break
+			return &c
 		}
 	}
-	return &returnValue
+	return nil
 }
 
 func (r *registry) hasConcept(concept string) bool {

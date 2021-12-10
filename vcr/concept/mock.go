@@ -48,18 +48,18 @@ func (mr *MockReaderMockRecorder) Concepts() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Concepts", reflect.TypeOf((*MockReader)(nil).Concepts))
 }
 
-// HasCredentialType mocks base method.
-func (m *MockReader) HasCredentialType(credentialType string) bool {
+// FindByType mocks base method.
+func (m *MockReader) FindByType(credentialType string) *Config {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HasCredentialType", credentialType)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "FindByType", credentialType)
+	ret0, _ := ret[0].(*Config)
 	return ret0
 }
 
-// HasCredentialType indicates an expected call of HasCredentialType.
-func (mr *MockReaderMockRecorder) HasCredentialType(credentialType interface{}) *gomock.Call {
+// FindByType indicates an expected call of FindByType.
+func (mr *MockReaderMockRecorder) FindByType(credentialType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasCredentialType", reflect.TypeOf((*MockReader)(nil).HasCredentialType), credentialType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByType", reflect.TypeOf((*MockReader)(nil).FindByType), credentialType)
 }
 
 // QueryFor mocks base method.
@@ -180,18 +180,18 @@ func (mr *MockRegistryMockRecorder) Concepts() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Concepts", reflect.TypeOf((*MockRegistry)(nil).Concepts))
 }
 
-// HasCredentialType mocks base method.
-func (m *MockRegistry) HasCredentialType(credentialType string) bool {
+// FindByType mocks base method.
+func (m *MockRegistry) FindByType(credentialType string) *Config {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HasCredentialType", credentialType)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "FindByType", credentialType)
+	ret0, _ := ret[0].(*Config)
 	return ret0
 }
 
-// HasCredentialType indicates an expected call of HasCredentialType.
-func (mr *MockRegistryMockRecorder) HasCredentialType(credentialType interface{}) *gomock.Call {
+// FindByType indicates an expected call of FindByType.
+func (mr *MockRegistryMockRecorder) FindByType(credentialType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasCredentialType", reflect.TypeOf((*MockRegistry)(nil).HasCredentialType), credentialType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByType", reflect.TypeOf((*MockRegistry)(nil).FindByType), credentialType)
 }
 
 // QueryFor mocks base method.
