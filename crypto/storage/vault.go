@@ -33,11 +33,11 @@ const keyName = "key"
 // VaultConfig contains the config options to configure the vaultKVStorage backend
 type VaultConfig struct {
 	// Token to authenticate to the Vault cluster.
-	Token string
+	Token string `koanf:"token"`
 	// Address of the Vault cluster
-	Address string
+	Address string `koanf:"address"`
 	// PathPrefix can be used to overwrite the default 'kv' path.
-	PathPrefix string
+	PathPrefix string `koanf:"pathprefix"`
 }
 
 // DefaultVaultConfig returns a VaultConfig with the PathPrefix containing the default value.

@@ -38,16 +38,15 @@ const (
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage         string `koanf:"crypto.storage"`
-	VaultAddress    string `koanf:"crypto.vault.address"`
-	VaultToken      string `koanf:"crypto.vault.token"`
-	VaultPathPrefix string `koanf:"crypto.vault.pathprefix"`
+	Storage string              `koanf:"crypto.storage"`
+	Vault   storage.VaultConfig `koanf:"crypto.vault"`
 }
 
 // DefaultCryptoConfig returns a Config with sane defaults
 func DefaultCryptoConfig() Config {
 	return Config{
 		Storage: "fs",
+		Vault:   storage.DefaultVaultConfig(),
 	}
 }
 
@@ -79,19 +78,9 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 	return err
 }
 
-func (client *Crypto) setupVaultBackend(config core.ServerConfig) error {
-	vaultConfig := storage.DefaultVaultConfig()
-	if val := client.config.VaultToken; val != "" {
-		vaultConfig.Token = val
-	}
-	if val := client.config.VaultAddress; val != "" {
-		vaultConfig.Address = val
-	}
-	if val := client.config.VaultPathPrefix; val != "" {
-		vaultConfig.PathPrefix = val
-	}
+func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 	var err error
-	client.Storage, err = storage.NewVaultKVStorage(vaultConfig)
+	client.Storage, err = storage.NewVaultKVStorage(client.config.Vault)
 	return err
 }
 
