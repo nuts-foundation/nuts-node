@@ -24,20 +24,15 @@ import (
 
 // TestEngineConfig defines the configuration for the test engine
 type TestEngineConfig struct {
-	Key     string                  `koanf:"key"`
-	Datadir string                  `koanf:"datadir"`
-	Sub     TestEngineSubConfig     `koanf:"sub"`
-	SubPtr  *TestEngineSubPtrConfig `koanf:"subptr"`
+	Key     string               `koanf:"key"`
+	Datadir string               `koanf:"datadir"`
+	Sub     TestEngineSubConfig  `koanf:"sub"`
+	SubPtr  *TestEngineSubConfig `koanf:"subptr"`
 }
 
 // TestEngineSubConfig defines the `sub` configuration for the test engine
 type TestEngineSubConfig struct {
-	Test string `koanf:"sub.test"`
-}
-
-// TestEngineSubPtrConfig defines the `subptr` configuration for the test engine
-type TestEngineSubPtrConfig struct {
-	Test string `koanf:"subptr.test"`
+	Test string `koanf:"test"`
 }
 
 type TestEngine struct {

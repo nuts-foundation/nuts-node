@@ -184,7 +184,7 @@ func (ngc *ServerConfig) PrintConfig() string {
 
 // InjectIntoEngine takes the loaded config and sets the engine's config struct
 func (ngc *ServerConfig) InjectIntoEngine(e Injectable) error {
-	return unmarshalRecursive(e.Config(), ngc.configMap)
+	return unmarshalRecursive([]string{}, e.Config(), ngc.configMap)
 }
 
 func elemType(ty reflect.Type) (reflect.Type, bool) {
@@ -197,8 +197,8 @@ func elemType(ty reflect.Type) (reflect.Type, bool) {
 	return ty, false
 }
 
-func unmarshalRecursive(config interface{}, configMap *koanf.Koanf) error {
-	if err := configMap.UnmarshalWithConf("", config, koanf.UnmarshalConf{
+func unmarshalRecursive(path []string, config interface{}, configMap *koanf.Koanf) error {
+	if err := configMap.UnmarshalWithConf(strings.Join(path, "."), config, koanf.UnmarshalConf{
 		FlatPaths: true,
 	}); err != nil {
 		return err
@@ -217,12 +217,13 @@ func unmarshalRecursive(config interface{}, configMap *koanf.Koanf) error {
 		for i := 0; i < configType.NumField(); i++ {
 			field := configType.Field(i)
 			fieldType, _ := elemType(field.Type)
+			tagValue := field.Tag.Get("koanf")
 
 			// Unmarshal this field if it's a struct, and it has a `koanf` tag
-			if fieldType.Kind() == reflect.Struct && field.Tag.Get("koanf") != "" {
+			if fieldType.Kind() == reflect.Struct && tagValue != "" {
 				fieldAddr := valueOfConfig.Field(i).Addr()
 
-				if err := unmarshalRecursive(fieldAddr.Interface(), configMap); err != nil {
+				if err := unmarshalRecursive(append(path, tagValue), fieldAddr.Interface(), configMap); err != nil {
 					return err
 				}
 			}

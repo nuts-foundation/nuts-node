@@ -50,9 +50,9 @@ type Config struct {
 
 // NatsConfig holds all NATS related configuration
 type NatsConfig struct {
-	Port     int    `koanf:"network.nats.port"`
-	Hostname string `koanf:"network.nats.hostname"`
-	Timeout  int    `koanf:"network.nats.timeout"`
+	Port     int    `koanf:"port"`
+	Hostname string `koanf:"hostname"`
+	Timeout  int    `koanf:"timeout"`
 }
 
 // DefaultConfig returns the default NetworkEngine configuration.
