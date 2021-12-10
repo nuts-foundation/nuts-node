@@ -20,7 +20,6 @@ package storage
 
 import (
 	"crypto"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
@@ -32,7 +31,6 @@ type entryType string
 
 const (
 	privateKeyEntry entryType = "private.pem"
-	publicKeyEntry  entryType = "public.json"
 )
 
 type fileOpenError struct {
@@ -92,21 +90,7 @@ func (fsc *fileSystemBackend) GetPrivateKey(kid string) (crypto.Signer, error) {
 	return privateKey, nil
 }
 
-// GetPublicKey loads the public key from disk, it loads the private key and extract the public key from it.
-func (fsc *fileSystemBackend) GetPublicKey(kid string) (PublicKeyEntry, error) {
-	data, err := fsc.readEntry(kid, publicKeyEntry)
-	publicKeyEntry := PublicKeyEntry{}
-
-	if err != nil {
-		return publicKeyEntry, err
-	}
-
-	err = json.Unmarshal(data, &publicKeyEntry)
-
-	return publicKeyEntry, err
-}
-
-// SavePrivateKey saves the private key for the given key to disk. Files are postfixed with '_private.pem'. Keys are stored in pem format. It also store the public key
+// SavePrivateKey saves the private key for the given key to disk. Files are postfixed with '_private.pem'. Keys are stored in pem format.
 func (fsc *fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	filenamePath := fsc.getEntryPath(kid, privateKeyEntry)
 	outFile, err := os.Create(filenamePath)
@@ -123,26 +107,6 @@ func (fsc *fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) 
 	}
 
 	_, err = outFile.Write([]byte(pem))
-
-	return err
-}
-
-// SavePublicKey saves the public key for the given key to disk. Files are postfixed with '_public.json'. Keys are stored in JWK format.
-func (fsc *fileSystemBackend) SavePublicKey(kid string, entry PublicKeyEntry) error {
-	filenamePath := fsc.getEntryPath(kid, publicKeyEntry)
-	outFile, err := os.Create(filenamePath)
-
-	if err != nil {
-		return err
-	}
-	defer outFile.Close()
-
-	bytes, err := json.Marshal(entry)
-	if err != nil {
-		return err
-	}
-
-	_, err = outFile.Write(bytes)
 
 	return err
 }

@@ -25,11 +25,10 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"path"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"path"
 )
 
 const (
@@ -39,13 +38,15 @@ const (
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage string `koanf:"crypto.storage"`
+	Storage string              `koanf:"crypto.storage"`
+	Vault   storage.VaultConfig `koanf:"crypto.vault"`
 }
 
 // DefaultCryptoConfig returns a Config with sane defaults
 func DefaultCryptoConfig() Config {
 	return Config{
 		Storage: "fs",
+		Vault:   storage.DefaultVaultConfig(),
 	}
 }
 
@@ -70,15 +71,34 @@ func (client *Crypto) Config() interface{} {
 	return &client.config
 }
 
+func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
+	fsPath := path.Join(config.Datadir, "crypto")
+	var err error
+	client.Storage, err = storage.NewFileSystemBackend(fsPath)
+	return err
+}
+
+func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
+	var err error
+	client.Storage, err = storage.NewVaultKVStorage(client.config.Vault)
+	return err
+}
+
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
 func (client *Crypto) Configure(config core.ServerConfig) error {
-	if client.config.Storage != "fs" && client.config.Storage != "" {
-		return errors.New("only fs backend available for now")
-	}
-	var err error
-	fsPath := path.Join(config.Datadir, "crypto")
-	if client.Storage, err = storage.NewFileSystemBackend(fsPath); err != nil {
-		return err
+	switch client.config.Storage {
+	case "fs":
+		return client.setupFSBackend(config)
+	case "vaultkv":
+		return client.setupVaultBackend(config)
+	case "":
+		if config.Strictmode {
+			return errors.New("backend must be explicitly set in strict mode")
+		}
+		// default to file system and run this setup again
+		return client.setupFSBackend(config)
+	default:
+		return errors.New("invalid config for crypto.storage. Available options are: vaultkv, fs")
 	}
 	return nil
 }
