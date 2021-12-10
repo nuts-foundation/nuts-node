@@ -98,8 +98,8 @@ type Referencable interface {
 
 // Addressable contains the Pal function which allows returning the addresses of the recipients
 type Addressable interface {
-	// Pal contains the encrypted addresses of the recipients
-	Pal() [][]byte
+	// PAL contains the encrypted addresses of the participants
+	PAL() [][]byte
 }
 
 // Transaction defines a signed distributed transaction as described by RFC004 - Distributed Transaction Format.
@@ -179,7 +179,7 @@ func (d transaction) MarshalJSON() ([]byte, error) {
 	return json.Marshal(string(d.Data()))
 }
 
-func (d transaction) Pal() [][]byte {
+func (d transaction) PAL() [][]byte {
 	return d.pal
 }
 

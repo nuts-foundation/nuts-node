@@ -242,7 +242,7 @@ func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
 	})
-	t.Run("payload present but with to addr header", func(t *testing.T) {
+	t.Run("payload present but with PAL header", func(t *testing.T) {
 		ctx := newContext(t)
 		payloadHash := hash.SHA256Sum([]byte{1, 2, 3})
 

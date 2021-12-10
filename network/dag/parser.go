@@ -26,6 +26,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
@@ -52,7 +53,7 @@ func ParseTransaction(input []byte) (Transaction, error) {
 		parseSigningTime,
 		parseVersion,
 		parsePrevious,
-		parsePal,
+		parsePAL,
 	}
 
 	result := &transaction{}
@@ -166,7 +167,7 @@ func parsePrevious(transaction *transaction, headers jws.Headers, _ *jws.Message
 	}
 }
 
-func parsePal(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
+func parsePAL(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	rawPal, ok := headers.Get(palHeader)
 	if !ok {
 		return nil

@@ -88,7 +88,7 @@ func (s testTransaction) Ref() hash.SHA256Hash {
 	return s.ref
 }
 
-func (s testTransaction) Pal() [][]byte {
+func (s testTransaction) PAL() [][]byte {
 	return s.pal
 }
 

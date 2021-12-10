@@ -346,7 +346,7 @@ func (t testTX) SigningKey() jwk.Key {
 	panic("implement me")
 }
 
-func (t testTX) Pal() [][]byte {
+func (t testTX) PAL() [][]byte {
 	return t.pal
 }
 

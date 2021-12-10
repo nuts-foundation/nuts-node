@@ -111,7 +111,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		publisher.publishTransaction(ctx, transaction)
 		assert.True(t, received)
 	})
-	t.Run("not received when transaction with to header is skipped", func(t *testing.T) {
+	t.Run("not received when transaction with pal header is skipped", func(t *testing.T) {
 		publisher, ctrl, privateTxCtx, _ := createPublisher(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
