@@ -47,6 +47,16 @@ type networkTestContext struct {
 	docResolver       *vdrTypes.MockDocResolver
 }
 
+func (cxt *networkTestContext) start() error {
+	cxt.connectionManager.EXPECT().Start()
+	cxt.protocol.EXPECT().Start()
+	cxt.graph.EXPECT().Verify(gomock.Any())
+	cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
+	cxt.publisher.EXPECT().Start()
+
+	return cxt.network.Start()
+}
+
 func TestNetwork_ListTransactions(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -202,18 +212,14 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		defer ctrl.Finish()
 		payload := []byte("Hello, World!")
 		cxt := createNetwork(ctrl)
-		cxt.connectionManager.EXPECT().Start()
-		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
-		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
-		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
-
-		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
-		cxt.publisher.EXPECT().Start()
-		err := cxt.network.Start()
+		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
 		}
+
+		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
+		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
+
 		_, err = cxt.network.CreateTransaction(payloadType, payload, key, true, time.Now(), []hash.SHA256Hash{})
 		assert.NoError(t, err)
 	})
@@ -222,17 +228,12 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.connectionManager.EXPECT().Start()
-		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
-		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
-		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
-		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
-		cxt.publisher.EXPECT().Start()
-		err := cxt.network.Start()
+		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
 		}
+		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
+		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
 		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{})
 		assert.NoError(t, err)
 		assert.Len(t, tx.Previous(), 0)
@@ -242,9 +243,6 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.connectionManager.EXPECT().Start()
-		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
 
 		// Register root TX on head tracker
 		rootTX, _, _ := dag.CreateTestTransaction(0)
@@ -257,12 +255,12 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
 		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
-		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
-		cxt.publisher.EXPECT().Start()
-		err := cxt.network.Start()
+
+		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
 		}
+
 		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{additionalPrev.Ref()})
 
 		if !assert.NoError(t, err) {
@@ -277,12 +275,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.connectionManager.EXPECT().Start()
-		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
-		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
-		cxt.publisher.EXPECT().Start()
-		err := cxt.network.Start()
+		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -305,12 +298,7 @@ func TestNetwork_Start(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.connectionManager.EXPECT().Start()
-		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
-		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
-		cxt.publisher.EXPECT().Start()
-		err := cxt.network.Start()
+		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -324,12 +312,7 @@ func TestNetwork_Start(t *testing.T) {
 		})
 		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1")
 		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2")
-		cxt.connectionManager.EXPECT().Start()
-		cxt.protocol.EXPECT().Start()
-		cxt.graph.EXPECT().Verify(gomock.Any())
-		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
-		cxt.publisher.EXPECT().Start()
-		err := cxt.network.Start()
+		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -360,13 +343,8 @@ func TestNetwork_Start(t *testing.T) {
 			cxt := createNetwork(ctrl)
 			cxt.network.configuredNodeDID = nodeDID
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(documentWithKeyAgreement, &vdrTypes.DocumentMetadata{}, nil)
-			cxt.connectionManager.EXPECT().Start()
-			cxt.protocol.EXPECT().Start()
-			cxt.graph.EXPECT().Verify(gomock.Any())
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
-			cxt.publisher.EXPECT().Start()
-			err := cxt.network.Start()
+			err := cxt.start()
 			assert.NoError(t, err)
 		})
 		t.Run("error - configured node DID does not resolve to a DID document", func(t *testing.T) {
