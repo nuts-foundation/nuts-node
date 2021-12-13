@@ -308,7 +308,7 @@ func (n *Network) CreateTransaction(spec TransactionBuilder) (dag.Transaction, e
 	var pal [][]byte
 	var err error
 	if len(spec.Participants) > 0 {
-		pal, err = dag.EncryptPal(n.keyResolver, spec.Participants)
+		pal, err = dag.EncryptPAL(n.keyResolver, spec.Participants)
 		if err != nil {
 			return nil, fmt.Errorf("unable to encrypt PAL header for new transaction: %w", err)
 		}

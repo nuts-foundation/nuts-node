@@ -11,10 +11,13 @@ import (
 	"strings"
 )
 
-func EncryptPal(keyResolver types.KeyResolver, participantsAddrs []did.DID) ([][]byte, error) {
+// EncryptPAL encodes and encrypts the given participant DIDs as PAL header.
+// It uses the given types.KeyResolver to look up the public encryption key for each participant,
+// and then encrypts the PAL header using each.
+func EncryptPAL(keyResolver types.KeyResolver, participants []did.DID) ([][]byte, error) {
 	var encryptionKeys []*ecdsa.PublicKey
 	var recipientStrs []string
-	for _, recipient := range participantsAddrs {
+	for _, recipient := range participants {
 		recipientStrs = append(recipientStrs, recipient.String())
 		rawKak, err := keyResolver.ResolveKeyAgreementKey(recipient)
 		if err != nil {
@@ -41,7 +44,14 @@ func EncryptPal(keyResolver types.KeyResolver, participantsAddrs []did.DID) ([][
 	return cipherTexts, nil
 }
 
-func DecryptPal(pal [][]byte, keyAgreementKIDs []string, decryptor crypto.Decryptor) ([]did.DID, error) {
+// DecryptPAL decrypts the given encrypted PAL header, yielding the decoded transaction participant DIDs.
+// It attempts to decrypt the PAL header with the given keyAgreement keys, specified by key ID.
+// If the header can't be decrypted with any of the given keys, nil (without an error) is returned.
+// - If the header can be decrypted with (one of) the given keys, the DIDs are decoded and returned.
+// An error is returned in the following cases:
+// - If one of the attempted keyAgreement keys is not found or of an unsupported type, an error is returned.
+// - If one of the decrypted participants isn't a valid DID.
+func DecryptPAL(pal [][]byte, keyAgreementKIDs []string, decryptor crypto.Decryptor) ([]did.DID, error) {
 	var decrypted []byte
 	var err error
 outer:
