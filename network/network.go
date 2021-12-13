@@ -280,27 +280,15 @@ func (n *Network) ListTransactions() ([]dag.Transaction, error) {
 	return n.graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())
 }
 
-func (n *Network) CreatePrivateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash, participants []did.DID) (dag.Transaction, error) {
-	pal, err := dag.EncryptPal(n.keyResolver, participants)
-	if err != nil {
-		return nil, err
-	}
-	return n.createTransaction(payloadType, payload, key, attachKey, timestamp, additionalPrevs, pal)
-}
-
 // CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
 // If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
-func (n *Network) CreateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
-	return n.createTransaction(payloadType, payload, key, attachKey, timestamp, additionalPrevs, nil)
-}
-
-func (n *Network) createTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash, pal [][]byte) (dag.Transaction, error) {
-	payloadHash := hash.SHA256Sum(payload)
-	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s,private=%v)", payloadHash, payloadType, len(payload), key.KID(), len(pal) > 0)
+func (n *Network) CreateTransaction(spec TransactionBuilder) (dag.Transaction, error) {
+	payloadHash := hash.SHA256Sum(spec.Payload)
+	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s,private=%v)", payloadHash, spec.PayloadType, len(spec.Payload), spec.Key.KID(), len(spec.Participants) > 0)
 
 	// Assert that all additional prevs are present and its payload is there
 	ctx := context.Background()
-	for _, prev := range additionalPrevs {
+	for _, prev := range spec.AdditionalPrevs {
 		isPresent, err := n.isPayloadPresent(ctx, prev)
 		if err != nil {
 			return nil, err
@@ -310,19 +298,35 @@ func (n *Network) createTransaction(payloadType string, payload []byte, key cryp
 		}
 	}
 
-	// Create transaction
+	// Collect prevs
 	prevs := n.lastTransactionTracker.heads()
-	for _, addPrev := range additionalPrevs {
+	for _, addPrev := range spec.AdditionalPrevs {
 		prevs = append(prevs, addPrev)
 	}
-	unsignedTransaction, err := dag.NewTransaction(payloadHash, payloadType, prevs, pal)
+
+	// Encrypt PAL, making the TX private (if participants are specified)
+	var pal [][]byte
+	var err error
+	if len(spec.Participants) > 0 {
+		pal, err = dag.EncryptPal(n.keyResolver, spec.Participants)
+		if err != nil {
+			return nil, fmt.Errorf("unable to encrypt PAL header for new transaction: %w", err)
+		}
+	}
+
+	// Create transaction
+	unsignedTransaction, err := dag.NewTransaction(payloadHash, spec.PayloadType, prevs, pal)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create new transaction: %w", err)
 	}
 	// Sign it
 	var transaction dag.Transaction
 	var signer dag.TransactionSigner
-	signer = dag.NewTransactionSigner(key, attachKey)
+	signer = dag.NewTransactionSigner(spec.Key, spec.AttachKey)
+	timestamp := time.Now()
+	if !spec.Timestamp.IsZero() {
+		timestamp = spec.Timestamp
+	}
 	transaction, err = signer.Sign(unsignedTransaction, timestamp)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign newly created transaction: %w", err)
@@ -331,10 +335,10 @@ func (n *Network) createTransaction(payloadType string, payload []byte, key cryp
 	if err = n.graph.Add(ctx, transaction); err != nil {
 		return nil, fmt.Errorf("unable to add newly created transaction to DAG: %w", err)
 	}
-	if err = n.payloadStore.WritePayload(ctx, payloadHash, payload); err != nil {
+	if err = n.payloadStore.WritePayload(ctx, payloadHash, spec.Payload); err != nil {
 		return nil, fmt.Errorf("unable to store payload of newly created transaction: %w", err)
 	}
-	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), payloadType, len(payload))
+	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), spec.PayloadType, len(spec.Payload))
 	return transaction, nil
 }
 

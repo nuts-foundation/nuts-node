@@ -42,7 +42,8 @@ type defaultBuilder struct {
 	vcType string
 }
 
-var nowFunc = time.Now
+// NowFunc is used to store a function that returns the current time. This can be changed when you want to mock the current time.
+var NowFunc = time.Now
 
 func (d defaultBuilder) Fill(credential *vc.VerifiableCredential) {
 	credential.Context = []ssi.URI{vc.VCContextV1URI(), *NutsContextURI}
@@ -56,7 +57,7 @@ func (d defaultBuilder) Fill(credential *vc.VerifiableCredential) {
 	if !credential.IsType(*builderType) {
 		credential.Type = append(credential.Type, *builderType)
 	}
-	credential.IssuanceDate = nowFunc()
+	credential.IssuanceDate = NowFunc()
 	credential.ID = generateID(credential.Issuer)
 
 	return

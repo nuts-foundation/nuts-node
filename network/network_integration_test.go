@@ -253,7 +253,7 @@ func resetIntegrationTest(testDirectory string) {
 }
 
 func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCrypto.Key, sender *Network, receivers ...string) bool {
-	expectedTransaction, err := sender.CreateTransaction(payloadType, []byte(payload), key, true, time.Now(), []hash.SHA256Hash{})
+	expectedTransaction, err := sender.CreateTransaction(NewTransaction(payloadType, []byte(payload), key).WithAttachKey())
 	if !assert.NoError(t, err) {
 		return true
 	}

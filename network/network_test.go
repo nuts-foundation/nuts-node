@@ -208,33 +208,6 @@ func TestNetwork_Configure(t *testing.T) {
 	})
 }
 
-func TestNetwork_CreatePrivateTransaction(t *testing.T) {
-	key := crypto.NewTestKey("signing-key")
-	sender, _ := did.ParseDID("did:nuts:sender")
-	senderKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	receiver, _ := did.ParseDID("did:nuts:receiver")
-	receiverKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	t.Run("ok", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		payload := []byte("Hello, World!")
-		cxt := createNetwork(ctrl)
-		err := cxt.start()
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
-		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
-
-		cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*sender).Return(senderKey.Public(), nil)
-		cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*receiver).Return(receiverKey.Public(), nil)
-
-		_, err = cxt.network.CreatePrivateTransaction(payloadType, payload, key, true, time.Now(), nil, []did.DID{*sender, *receiver})
-		assert.NoError(t, err)
-	})
-}
-
 func TestNetwork_CreateTransaction(t *testing.T) {
 	key := crypto.NewTestKey("signing-key")
 	t.Run("ok - attach key", func(t *testing.T) {
@@ -250,7 +223,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
 		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
 
-		_, err = cxt.network.CreateTransaction(payloadType, payload, key, true, time.Now(), []hash.SHA256Hash{})
+		_, err = cxt.network.CreateTransaction(NewTransaction(payloadType, payload, key).WithAttachKey())
 		assert.NoError(t, err)
 	})
 	t.Run("ok - detached key", func(t *testing.T) {
@@ -264,7 +237,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		}
 		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
 		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{})
+		tx, err := cxt.network.CreateTransaction(NewTransaction(payloadType, payload, key))
 		assert.NoError(t, err)
 		assert.Len(t, tx.Previous(), 0)
 	})
@@ -291,7 +264,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			return
 		}
 
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{additionalPrev.Ref()})
+		tx, err := cxt.network.CreateTransaction(NewTransaction(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 
 		if !assert.NoError(t, err) {
 			return
@@ -315,11 +288,37 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.graph.EXPECT().Get(gomock.Any(), prev.Ref()).Return(prev, nil)
 		cxt.payload.EXPECT().IsPresent(gomock.Any(), prev.PayloadHash()).Return(false, nil)
 
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{prev.Ref()})
+		tx, err := cxt.network.CreateTransaction(NewTransaction(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{prev.Ref()}))
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "additional prev is unknown or missing payload")
 		assert.Nil(t, tx)
+	})
+	t.Run("private transaction", func(t *testing.T) {
+		key := crypto.NewTestKey("signing-key")
+		sender, _ := did.ParseDID("did:nuts:sender")
+		senderKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		receiver, _ := did.ParseDID("did:nuts:receiver")
+		receiverKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		t.Run("ok", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			payload := []byte("Hello, World!")
+			cxt := createNetwork(ctrl)
+			err := cxt.start()
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
+			cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
+
+			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*sender).Return(senderKey.Public(), nil)
+			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*receiver).Return(receiverKey.Public(), nil)
+
+			_, err = cxt.network.CreateTransaction(NewTransaction(payloadType, payload, key).WithPrivate([]did.DID{*sender, *receiver}))
+			assert.NoError(t, err)
+		})
 	})
 }
 

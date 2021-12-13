@@ -45,7 +45,7 @@ func BuildRevocation(credential vc.VerifiableCredential) Revocation {
 	return Revocation{
 		Issuer:  credential.Issuer,
 		Subject: *credential.ID,
-		Date:    nowFunc(),
+		Date:    NowFunc(),
 	}
 }
 
