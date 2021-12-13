@@ -12,6 +12,9 @@ import (
 	"strings"
 )
 
+// palHeaderDIDSeparator holds the character(s) that separate DID entries in the PAL header, before being encrypted.
+const palHeaderDIDSeparator = "\n"
+
 // PAL holds the list of participants of a transaction.
 type PAL []did.DID
 
@@ -33,7 +36,7 @@ func (pal PAL) Encrypt(keyResolver types.KeyResolver) (EncryptedPAL, error) {
 		}
 		encryptionKeys = append(encryptionKeys, kak)
 	}
-	plaintext := bytes.Join(recipients, []byte("\n"))
+	plaintext := bytes.Join(recipients, []byte(palHeaderDIDSeparator))
 
 	// Encrypt plaintext with each KAK
 	var cipherTexts [][]byte
@@ -83,7 +86,7 @@ outer:
 	}
 
 	var participants []did.DID
-	for _, curr := range strings.Split(string(decrypted), "\n") {
+	for _, curr := range strings.Split(string(decrypted), palHeaderDIDSeparator) {
 		participant, err := did.ParseDID(curr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid participant (did=%s): %w", curr, err)
