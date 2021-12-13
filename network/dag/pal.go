@@ -1,6 +1,7 @@
 package dag
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
@@ -16,9 +17,9 @@ import (
 // and then encrypts the PAL header using each.
 func EncryptPAL(keyResolver types.KeyResolver, participants []did.DID) ([][]byte, error) {
 	var encryptionKeys []*ecdsa.PublicKey
-	var recipientStrs []string
+	var recipients [][]byte
 	for _, recipient := range participants {
-		recipientStrs = append(recipientStrs, recipient.String())
+		recipients = append(recipients, []byte(recipient.String()))
 		rawKak, err := keyResolver.ResolveKeyAgreementKey(recipient)
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve keyAgreement key (recipient=%s): %w", recipient, err)
@@ -29,7 +30,7 @@ func EncryptPAL(keyResolver types.KeyResolver, participants []did.DID) ([][]byte
 		}
 		encryptionKeys = append(encryptionKeys, kak)
 	}
-	plaintext := []byte(strings.Join(recipientStrs, "\n"))
+	plaintext := bytes.Join(recipients, []byte("\n"))
 
 	// Encrypt plaintext with each KAK
 	var cipherTexts [][]byte
