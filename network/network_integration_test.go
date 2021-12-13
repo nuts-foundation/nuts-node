@@ -58,7 +58,7 @@ var keyStore nutsCrypto.KeyStore
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest(testDirectory)
+	resetIntegrationTest()
 	key := nutsCrypto.NewTestKey("key")
 	expectedDocLogSize := 0
 
@@ -111,7 +111,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 
 func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest(testDirectory)
+	resetIntegrationTest()
 
 	// Start 2 nodes: node1 and node2, where each connects to the other
 	node1 := startNode(t, "node1", testDirectory)
@@ -135,7 +135,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 func TestNetworkIntegration_NodeDIDAuthenticationFailed(t *testing.T) {
 	t.Run("node DID auth on inbound connection fails", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest(testDirectory)
+		resetIntegrationTest()
 
 		// Start 2 nodes: node1 and node2, where node1 specifies a node DID that node2 can't authenticate
 		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
@@ -160,7 +160,7 @@ func TestNetworkIntegration_NodeDIDAuthenticationFailed(t *testing.T) {
 	})
 	t.Run("node DID auth on outbound connection fails", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest(testDirectory)
+		resetIntegrationTest()
 
 		// Start 2 nodes: node1 and node2, where node2 specifies a node DID that node1 can't authenticate
 		node1 := startNode(t, "node1", testDirectory)
@@ -187,7 +187,7 @@ func TestNetworkIntegration_NodeDIDAuthenticationFailed(t *testing.T) {
 
 func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest(testDirectory)
+	resetIntegrationTest()
 
 	// Given node1 and node2
 	// Given node1 connects to node2
@@ -223,13 +223,13 @@ func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
 	}
 }
 
-func resetIntegrationTest(testDirectory string) {
+func resetIntegrationTest() {
 	// in an integration test we want everything to work as intended, disable test speedup and re-enable file sync for bbolt
 	defaultBBoltOptions.NoSync = false
 
 	receivedTransactions = make(map[string][]dag.Transaction, 0)
 	vdrStore = store.NewMemoryStore()
-	keyStore = nutsCrypto.NewTestCryptoInstance(testDirectory)
+	keyStore = nutsCrypto.NewTestCryptoInstance()
 
 	// Write DID Document for node1
 	writeDIDDocument := func(subject string) {

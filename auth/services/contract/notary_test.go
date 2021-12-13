@@ -32,7 +32,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	irmaService "github.com/nuts-foundation/nuts-node/auth/services/irma"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -220,14 +219,13 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 func TestNewContractNotary(t *testing.T) {
 	t.Run("adds all services", func(t *testing.T) {
-		testDir := io.TestDirectory(t)
 		instance := NewNotary(
 			Config{
 				ContractValidity: 60 * time.Minute,
 			},
 			vcr.NewTestVCRInstance(t),
 			doc.KeyResolver{Store: store.NewMemoryStore()},
-			crypto.NewTestCryptoInstance(testDir),
+			crypto.NewTestCryptoInstance(),
 		)
 
 		if !assert.NotNil(t, instance) {

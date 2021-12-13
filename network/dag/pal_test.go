@@ -33,7 +33,7 @@ func TestEncryptPal(t *testing.T) {
 		}
 
 		// Decrypt
-		keyStore := crypto.NewTestCryptoInstance("")
+		keyStore := crypto.NewTestCryptoInstance()
 		keyStore.Storage.SavePrivateKey("kid-B", pkB)
 		actual, err := DecryptPAL(pal, []string{"kid-B"}, keyStore)
 		if !assert.NoError(t, err) {
@@ -69,20 +69,20 @@ func TestEncryptPal(t *testing.T) {
 func TestDecryptPal(t *testing.T) {
 	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	t.Run("ok - not decryptable, no matching private keys", func(t *testing.T) {
-		keyStore := crypto.NewTestCryptoInstance("")
+		keyStore := crypto.NewTestCryptoInstance()
 		keyStore.Storage.SavePrivateKey("kid-1", pk)
 		actual, err := DecryptPAL([][]byte{{1, 2}, {3}}, []string{"kid-1"}, keyStore)
 		assert.Nil(t, actual)
 		assert.NoError(t, err)
 	})
 	t.Run("error - private key is missing", func(t *testing.T) {
-		keyStore := crypto.NewTestCryptoInstance("")
+		keyStore := crypto.NewTestCryptoInstance()
 		actual, err := DecryptPAL([][]byte{{1, 2}, {3}}, []string{"kid-1"}, keyStore)
 		assert.Nil(t, actual)
 		assert.EqualError(t, err, "private key of DID keyAgreement not found (kid=kid-1)")
 	})
 	t.Run("error - invalid DID in decrypted PAL", func(t *testing.T) {
-		keyStore := crypto.NewTestCryptoInstance("")
+		keyStore := crypto.NewTestCryptoInstance()
 		keyStore.Storage.SavePrivateKey("kid-1", pk)
 		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), []byte{1, 2, 3})
 		actual, err := DecryptPAL([][]byte{cipherText}, []string{"kid-1"}, keyStore)

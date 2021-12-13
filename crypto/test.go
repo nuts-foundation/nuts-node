@@ -28,7 +28,7 @@ import (
 
 // NewTestCryptoInstance returns a new Crypto instance to be used for integration tests. Any data is stored in the
 // specified test directory.
-func NewTestCryptoInstance(testDirectory string) *Crypto {
+func NewTestCryptoInstance() *Crypto {
 	newInstance := NewCryptoInstance()
 	newInstance.Storage = NewMemoryStorage()
 	return newInstance
