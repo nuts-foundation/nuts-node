@@ -118,7 +118,7 @@ type Transaction interface {
 // NewTransaction creates a new unsigned transaction. Parameters payload and payloadType can't be empty, but prevs is optional.
 // Prevs must not contain empty or invalid hashes. Duplicate prevs will be removed when given.
 // The pal byte slice (may be nil) holds the encrypted recipient address, if it is a private transaction.
-func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash, pal [][]byte) (UnsignedTransaction, error) {
+func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash, pal EncryptedPAL) (UnsignedTransaction, error) {
 	if !ValidatePayloadType(payloadType) {
 		return nil, errInvalidPayloadType
 	}

@@ -36,11 +36,11 @@ func TestBuildRevocation(t *testing.T) {
 	json.Unmarshal(vcData, &target)
 
 	at := time.Now()
-	NowFunc = func() time.Time {
+	nowFunc = func() time.Time {
 		return at
 	}
 	defer func() {
-		NowFunc = time.Now
+		nowFunc = time.Now
 	}()
 
 	r := BuildRevocation(target)

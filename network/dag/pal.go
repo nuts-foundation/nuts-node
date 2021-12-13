@@ -12,13 +12,16 @@ import (
 	"strings"
 )
 
-// EncryptPAL encodes and encrypts the given participant DIDs as PAL header.
+// PAL holds the list of participants of a transaction.
+type PAL []did.DID
+
+// Encrypt encodes and encrypts the given participant DIDs.
 // It uses the given types.KeyResolver to look up the public encryption key for each participant,
 // and then encrypts the PAL header using each.
-func EncryptPAL(keyResolver types.KeyResolver, participants []did.DID) ([][]byte, error) {
+func (pal PAL) Encrypt(keyResolver types.KeyResolver) (EncryptedPAL, error) {
 	var encryptionKeys []*ecdsa.PublicKey
 	var recipients [][]byte
-	for _, recipient := range participants {
+	for _, recipient := range pal {
 		recipients = append(recipients, []byte(recipient.String()))
 		rawKak, err := keyResolver.ResolveKeyAgreementKey(recipient)
 		if err != nil {
@@ -45,18 +48,21 @@ func EncryptPAL(keyResolver types.KeyResolver, participants []did.DID) ([][]byte
 	return cipherTexts, nil
 }
 
-// DecryptPAL decrypts the given encrypted PAL header, yielding the decoded transaction participant DIDs.
+// EncryptedPAL holds the list of participants of a transaction, but encrypted. It can be decrypted into a PAL.
+type EncryptedPAL [][]byte
+
+// Decrypt decrypts the given encrypted PAL header, yielding the decoded transaction participant DIDs.
 // It attempts to decrypt the PAL header with the given keyAgreement keys, specified by key ID.
 // If the header can't be decrypted with any of the given keys, nil (without an error) is returned.
 // - If the header can be decrypted with (one of) the given keys, the DIDs are decoded and returned.
 // An error is returned in the following cases:
 // - If one of the attempted keyAgreement keys is not found or of an unsupported type, an error is returned.
 // - If one of the decrypted participants isn't a valid DID.
-func DecryptPAL(pal [][]byte, keyAgreementKIDs []string, decryptor crypto.Decryptor) ([]did.DID, error) {
+func (epal EncryptedPAL) Decrypt(keyAgreementKIDs []string, decryptor crypto.Decryptor) (PAL, error) {
 	var decrypted []byte
 	var err error
 outer:
-	for _, encrypted := range pal {
+	for _, encrypted := range epal {
 		for _, kak := range keyAgreementKIDs {
 			log.Logger().Tracef("Trying key %s to decrypt PAL header...", kak)
 			decrypted, err = decryptor.Decrypt(kak, encrypted)

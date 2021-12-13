@@ -331,7 +331,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 
 	payload, _ := json.Marshal(credential)
 
-	tx := network.NewTransaction(vcDocumentType, payload, key).
+	tx := network.NewTXTemplate(vcDocumentType, payload, key).
 		WithTimestamp(credential.IssuanceDate).
 		WithAdditionalPrevs(meta.SourceTransactions)
 	_, err = c.network.CreateTransaction(tx)
@@ -568,7 +568,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 
 	payload, _ := json.Marshal(r)
 
-	tx := network.NewTransaction(revocationDocumentType, payload, key).
+	tx := network.NewTXTemplate(revocationDocumentType, payload, key).
 		WithTimestamp(r.Date).
 		WithAdditionalPrevs(meta.SourceTransactions)
 	_, err = c.network.CreateTransaction(tx)

@@ -59,10 +59,10 @@ func TestDefaultBuilder_Fill(t *testing.T) {
 		Issuer: *issuer,
 	}
 	defer func() {
-		NowFunc = time.Now
+		nowFunc = time.Now
 	}()
 	checkTime := time.Now()
-	NowFunc = func() time.Time {
+	nowFunc = func() time.Time {
 		return checkTime
 	}
 

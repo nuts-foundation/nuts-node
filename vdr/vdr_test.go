@@ -184,7 +184,7 @@ func TestVDR_Create(t *testing.T) {
 		expectedPayload, _ := json.Marshal(nextDIDDocument)
 
 		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(network.NewTransaction(expectedPayloadType, expectedPayload, key).WithAttachKey())
+		ctx.mockNetwork.EXPECT().CreateTransaction(network.NewTXTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey())
 
 		didDoc, key, err := ctx.vdr.Create(doc.DefaultCreationOptions())
 

@@ -36,7 +36,7 @@ type Transactions interface {
 	// GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
 	GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error)
 	// CreateTransaction creates a new transaction according to the given spec.
-	CreateTransaction(spec TransactionBuilder) (dag.Transaction, error)
+	CreateTransaction(spec TransactionTemplate) (dag.Transaction, error)
 	// ListTransactions returns all transactions known to this Network instance.
 	ListTransactions() ([]dag.Transaction, error)
 	// Walk walks the DAG starting at the root, calling `visitor` for every transaction.

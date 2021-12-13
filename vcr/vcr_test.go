@@ -336,8 +336,8 @@ func TestVcr_Issue(t *testing.T) {
 		testKey := crypto.NewTestKey("kid")
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(testKey, nil)
 		ctx.tx.EXPECT().CreateTransaction(
-			mock.MatchedBy(func(spec network.TransactionBuilder) bool {
-				return spec.PayloadType == vcDocumentType && !spec.AttachKey && spec.Key == testKey
+			mock.MatchedBy(func(spec network.TransactionTemplate) bool {
+				return spec.PayloadType() == vcDocumentType && !spec.AttachKey() && spec.Key() == testKey
 			}),
 		)
 
@@ -826,8 +826,8 @@ func TestVcr_Revoke(t *testing.T) {
 		ctx.vcr.writeCredential(vc)
 		ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(&document, &documentMetadata, nil)
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil)
-		ctx.tx.EXPECT().CreateTransaction(mock.MatchedBy(func(spec network.TransactionBuilder) bool {
-			return spec.PayloadType == revocationDocumentType && !spec.AttachKey
+		ctx.tx.EXPECT().CreateTransaction(mock.MatchedBy(func(spec network.TransactionTemplate) bool {
+			return spec.PayloadType() == revocationDocumentType && !spec.AttachKey()
 		}))
 		r, err := ctx.vcr.Revoke(*vc.ID)
 

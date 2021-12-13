@@ -26,8 +26,8 @@ func TestEncryptPal(t *testing.T) {
 		keyResolver := types.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolveKeyAgreementKey(*pA).Return(pkA.Public(), nil)
 		keyResolver.EXPECT().ResolveKeyAgreementKey(*pB).Return(pkB.Public(), nil)
-		expected := []did.DID{*pA, *pB}
-		pal, err := EncryptPAL(keyResolver, expected)
+		expected := PAL{*pA, *pB}
+		pal, err := expected.Encrypt(keyResolver)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -35,7 +35,7 @@ func TestEncryptPal(t *testing.T) {
 		// Decrypt
 		keyStore := crypto.NewTestCryptoInstance()
 		keyStore.Storage.SavePrivateKey("kid-B", pkB)
-		actual, err := DecryptPAL(pal, []string{"kid-B"}, keyStore)
+		actual, err := pal.Decrypt([]string{"kid-B"}, keyStore)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -44,7 +44,7 @@ func TestEncryptPal(t *testing.T) {
 	t.Run("ok - empty input yields empty output", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		keyResolver := types.NewMockKeyResolver(ctrl)
-		pal, err := EncryptPAL(keyResolver, []did.DID{})
+		pal, err := PAL{}.Encrypt(keyResolver)
 		assert.Nil(t, pal)
 		assert.NoError(t, err)
 	})
@@ -52,7 +52,7 @@ func TestEncryptPal(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		keyResolver := types.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolveKeyAgreementKey(*pA).Return(&rsa.PublicKey{}, nil)
-		pal, err := EncryptPAL(keyResolver, []did.DID{*pA})
+		pal, err := PAL{*pA}.Encrypt(keyResolver)
 		assert.Nil(t, pal)
 		assert.EqualError(t, err, "resolved keyAgreement key is not an elliptic curve key (recipient=did:nuts:A)")
 	})
@@ -60,7 +60,7 @@ func TestEncryptPal(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		keyResolver := types.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolveKeyAgreementKey(*pA).Return(nil, types.ErrKeyNotFound)
-		pal, err := EncryptPAL(keyResolver, []did.DID{*pA})
+		pal, err := PAL{*pA}.Encrypt(keyResolver)
 		assert.Nil(t, pal)
 		assert.EqualError(t, err, "unable to resolve keyAgreement key (recipient=did:nuts:A): key not found in DID document")
 	})
@@ -71,13 +71,13 @@ func TestDecryptPal(t *testing.T) {
 	t.Run("ok - not decryptable, no matching private keys", func(t *testing.T) {
 		keyStore := crypto.NewTestCryptoInstance()
 		keyStore.Storage.SavePrivateKey("kid-1", pk)
-		actual, err := DecryptPAL([][]byte{{1, 2}, {3}}, []string{"kid-1"}, keyStore)
+		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt([]string{"kid-1"}, keyStore)
 		assert.Nil(t, actual)
 		assert.NoError(t, err)
 	})
 	t.Run("error - private key is missing", func(t *testing.T) {
 		keyStore := crypto.NewTestCryptoInstance()
-		actual, err := DecryptPAL([][]byte{{1, 2}, {3}}, []string{"kid-1"}, keyStore)
+		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt([]string{"kid-1"}, keyStore)
 		assert.Nil(t, actual)
 		assert.EqualError(t, err, "private key of DID keyAgreement not found (kid=kid-1)")
 	})
@@ -85,7 +85,7 @@ func TestDecryptPal(t *testing.T) {
 		keyStore := crypto.NewTestCryptoInstance()
 		keyStore.Storage.SavePrivateKey("kid-1", pk)
 		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), []byte{1, 2, 3})
-		actual, err := DecryptPAL([][]byte{cipherText}, []string{"kid-1"}, keyStore)
+		actual, err := EncryptedPAL{cipherText}.Decrypt([]string{"kid-1"}, keyStore)
 		assert.Nil(t, actual)
 		assert.EqualError(t, err, "invalid participant (did=\x01\x02\x03): invalid DID: input length is less than 7")
 	})
