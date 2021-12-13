@@ -19,6 +19,10 @@
 package crl
 
 import (
+	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -39,13 +43,63 @@ const (
 	revokedIssuerName   = "CN=Staat der Nederlanden Domein Server CA 2020,O=Staat der Nederlanden,C=NL"
 )
 
-type fakeTransport struct{}
-
-func (transport *fakeTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
-	return nil, errors.New("random error")
+type fakeTransport struct {
+	responseData []byte
 }
 
-func TestDB_Sync(t *testing.T) {
+type readCloser struct {
+	data *bytes.Reader
+}
+
+func (s readCloser) Read(p []byte) (n int, err error) {
+	return s.data.Read(p)
+}
+
+func (s readCloser) Close() error {
+	return nil
+}
+
+func (transport *fakeTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
+	if transport.responseData == nil {
+		return nil, errors.New("random error")
+	}
+	return &http.Response{Body: readCloser{data: bytes.NewReader(transport.responseData)}}, nil
+}
+
+func TestValidator_downloadCRL(t *testing.T) {
+	t.Run("invalid URL", func(t *testing.T) {
+		httpClient := &http.Client{Transport: &fakeTransport{}}
+		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
+		err := v.downloadCRL("file:///non-existing")
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "file:///non-existing")
+	})
+	t.Run("invalid CRL", func(t *testing.T) {
+		httpClient := &http.Client{Transport: &fakeTransport{responseData: []byte("Definitely not a CRL")}}
+		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
+		err := v.downloadCRL("URL-to-CRL")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unable to parse downloaded CRL (url=URL-to-CRL)")
+	})
+	t.Run("invalid signature", func(t *testing.T) {
+		// Create a CRL with an invalid signature (valid issuer cert, but signed with random private key)
+		trustStore, _ := core.LoadTrustStore(pkiOverheidRootCA)
+		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		crlWithInvalidSig, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{Number: big.NewInt(1024)}, trustStore.Certificates()[0], privateKey)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		httpClient := &http.Client{Transport: &fakeTransport{responseData: crlWithInvalidSig}}
+		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
+		err = v.downloadCRL("CRL with invalid signature")
+		assert.EqualError(t, err, "CRL verification failed (issuer=CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL): CRL signature could not be validated against known certificates")
+	})
+}
+
+func TestValidator_Sync(t *testing.T) {
 	store, err := core.LoadTrustStore(pkiOverheidRootCA)
 	assert.NoError(t, err)
 
@@ -57,7 +111,7 @@ func TestDB_Sync(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestDB_IsRevoked(t *testing.T) {
+func TestValidator_IsRevoked(t *testing.T) {
 	sn := new(big.Int)
 
 	if _, ok := sn.SetString(revokedSerialNumber, 10); !ok {
@@ -119,7 +173,7 @@ func TestDB_IsRevoked(t *testing.T) {
 	})
 }
 
-func TestDB_Configured(t *testing.T) {
+func TestValidator_Configured(t *testing.T) {
 	crlValidator := NewValidator([]*x509.Certificate{}).(*validator)
 	crlValidator.bitSet = NewBitSet(1)
 
