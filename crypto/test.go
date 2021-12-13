@@ -23,19 +23,14 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-
-	"github.com/nuts-foundation/nuts-node/core"
-
-	"github.com/sirupsen/logrus"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 
 // NewTestCryptoInstance returns a new Crypto instance to be used for integration tests. Any data is stored in the
 // specified test directory.
 func NewTestCryptoInstance(testDirectory string) *Crypto {
 	newInstance := NewCryptoInstance()
-	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
-		logrus.Fatal(err)
-	}
+	newInstance.Storage = NewMemoryStorage()
 	return newInstance
 }
 
@@ -50,6 +45,30 @@ func ErrorNamingFunc(err error) KIDNamingFunc {
 	return func(key crypto.PublicKey) (string, error) {
 		return "", err
 	}
+}
+
+func NewMemoryStorage() storage.Storage {
+	return memoryStorage{}
+}
+
+type memoryStorage map[string]crypto.PrivateKey
+
+func (m memoryStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
+	pk, ok := m[kid]
+	if !ok {
+		return nil, ErrKeyNotFound
+	}
+	return pk.(crypto.Signer), nil
+}
+
+func (m memoryStorage) PrivateKeyExists(kid string) bool {
+	_, ok := m[kid]
+	return ok
+}
+
+func (m memoryStorage) SavePrivateKey(kid string, key crypto.PrivateKey) error {
+	m[kid] = key
+	return nil
 }
 
 func NewTestKey(kid string) Key {

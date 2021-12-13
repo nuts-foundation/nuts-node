@@ -2,6 +2,7 @@ package dag
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -48,6 +49,9 @@ outer:
 		for _, kak := range keyAgreementKIDs {
 			log.Logger().Tracef("Trying key %s to decrypt PAL header...", kak)
 			decrypted, err = decryptor.Decrypt(kak, encrypted)
+			if errors.Is(err, crypto.ErrKeyNotFound) {
+				return nil, fmt.Errorf("private key of DID keyAgreement not found (kid=%s)", kak)
+			}
 			if err != nil {
 				log.Logger().Tracef("Unsuccessful: %v", err)
 			} else {
@@ -62,7 +66,7 @@ outer:
 	}
 
 	var participants []did.DID
-	for _, curr := range strings.Split(string(decrypted), "\\n") {
+	for _, curr := range strings.Split(string(decrypted), "\n") {
 		participant, err := did.ParseDID(curr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid participant (did=%s): %w", curr, err)
