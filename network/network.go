@@ -280,15 +280,14 @@ func (n *Network) ListTransactions() ([]dag.Transaction, error) {
 	return n.graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())
 }
 
-// CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
-// If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
-func (n *Network) CreateTransaction(spec TransactionTemplate) (dag.Transaction, error) {
-	payloadHash := hash.SHA256Sum(spec.payload)
-	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s,private=%v)", payloadHash, spec.PayloadType, len(spec.payload), spec.key.KID(), len(spec.participants) > 0)
+// CreateTransaction creates a new transaction from the given template.
+func (n *Network) CreateTransaction(template TransactionTemplate) (dag.Transaction, error) {
+	payloadHash := hash.SHA256Sum(template.payload)
+	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s,private=%v)", payloadHash, template.PayloadType, len(template.payload), template.key.KID(), len(template.participants) > 0)
 
 	// Assert that all additional prevs are present and its payload is there
 	ctx := context.Background()
-	for _, prev := range spec.additionalPrevs {
+	for _, prev := range template.additionalPrevs {
 		isPresent, err := n.isPayloadPresent(ctx, prev)
 		if err != nil {
 			return nil, err
@@ -300,32 +299,32 @@ func (n *Network) CreateTransaction(spec TransactionTemplate) (dag.Transaction, 
 
 	// Collect prevs
 	prevs := n.lastTransactionTracker.heads()
-	for _, addPrev := range spec.additionalPrevs {
+	for _, addPrev := range template.additionalPrevs {
 		prevs = append(prevs, addPrev)
 	}
 
 	// Encrypt PAL, making the TX private (if participants are specified)
 	var pal [][]byte
 	var err error
-	if len(spec.participants) > 0 {
-		pal, err = spec.participants.Encrypt(n.keyResolver)
+	if len(template.participants) > 0 {
+		pal, err = template.participants.Encrypt(n.keyResolver)
 		if err != nil {
 			return nil, fmt.Errorf("unable to encrypt PAL header for new transaction: %w", err)
 		}
 	}
 
 	// Create transaction
-	unsignedTransaction, err := dag.NewTransaction(payloadHash, spec.payloadType, prevs, pal)
+	unsignedTransaction, err := dag.NewTransaction(payloadHash, template.payloadType, prevs, pal)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create new transaction: %w", err)
 	}
 	// Sign it
 	var transaction dag.Transaction
 	var signer dag.TransactionSigner
-	signer = dag.NewTransactionSigner(spec.key, spec.attachKey)
+	signer = dag.NewTransactionSigner(template.key, template.attachKey)
 	timestamp := time.Now()
-	if !spec.timestamp.IsZero() {
-		timestamp = spec.timestamp
+	if !template.timestamp.IsZero() {
+		timestamp = template.timestamp
 	}
 	transaction, err = signer.Sign(unsignedTransaction, timestamp)
 	if err != nil {
@@ -335,10 +334,10 @@ func (n *Network) CreateTransaction(spec TransactionTemplate) (dag.Transaction, 
 	if err = n.graph.Add(ctx, transaction); err != nil {
 		return nil, fmt.Errorf("unable to add newly created transaction to DAG: %w", err)
 	}
-	if err = n.payloadStore.WritePayload(ctx, payloadHash, spec.payload); err != nil {
+	if err = n.payloadStore.WritePayload(ctx, payloadHash, template.payload); err != nil {
 		return nil, fmt.Errorf("unable to store payload of newly created transaction: %w", err)
 	}
-	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), spec.PayloadType, len(spec.payload))
+	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), template.PayloadType, len(template.payload))
 	return transaction, nil
 }
 
