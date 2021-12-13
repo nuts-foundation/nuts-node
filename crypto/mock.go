@@ -198,31 +198,31 @@ func (mr *MockKeyStoreMockRecorder) SignJWT(claims, kid interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWT", reflect.TypeOf((*MockKeyStore)(nil).SignJWT), claims, kid)
 }
 
-// MockDecryptor is a mock of Decryptor interface.
-type MockDecryptor struct {
+// MockDecrypter is a mock of Decrypter interface.
+type MockDecrypter struct {
 	ctrl     *gomock.Controller
-	recorder *MockDecryptorMockRecorder
+	recorder *MockDecrypterMockRecorder
 }
 
-// MockDecryptorMockRecorder is the mock recorder for MockDecryptor.
-type MockDecryptorMockRecorder struct {
-	mock *MockDecryptor
+// MockDecrypterMockRecorder is the mock recorder for MockDecrypter.
+type MockDecrypterMockRecorder struct {
+	mock *MockDecrypter
 }
 
-// NewMockDecryptor creates a new mock instance.
-func NewMockDecryptor(ctrl *gomock.Controller) *MockDecryptor {
-	mock := &MockDecryptor{ctrl: ctrl}
-	mock.recorder = &MockDecryptorMockRecorder{mock}
+// NewMockDecrypter creates a new mock instance.
+func NewMockDecrypter(ctrl *gomock.Controller) *MockDecrypter {
+	mock := &MockDecrypter{ctrl: ctrl}
+	mock.recorder = &MockDecrypterMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockDecryptor) EXPECT() *MockDecryptorMockRecorder {
+func (m *MockDecrypter) EXPECT() *MockDecrypterMockRecorder {
 	return m.recorder
 }
 
 // Decrypt mocks base method.
-func (m *MockDecryptor) Decrypt(kid string, ciphertext []byte) ([]byte, error) {
+func (m *MockDecrypter) Decrypt(kid string, ciphertext []byte) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Decrypt", kid, ciphertext)
 	ret0, _ := ret[0].([]byte)
@@ -231,9 +231,9 @@ func (m *MockDecryptor) Decrypt(kid string, ciphertext []byte) ([]byte, error) {
 }
 
 // Decrypt indicates an expected call of Decrypt.
-func (mr *MockDecryptorMockRecorder) Decrypt(kid, ciphertext interface{}) *gomock.Call {
+func (mr *MockDecrypterMockRecorder) Decrypt(kid, ciphertext interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockDecryptor)(nil).Decrypt), kid, ciphertext)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockDecrypter)(nil).Decrypt), kid, ciphertext)
 }
 
 // MockJWTSigner is a mock of JWTSigner interface.

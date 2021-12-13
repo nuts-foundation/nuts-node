@@ -32,7 +32,8 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 	defaultBBoltOptions.NoSync = true
 	config := TestNetworkConfig()
 	vdrStore := store.NewMemoryStore()
-	newInstance := NewNetworkInstance(config, doc.KeyResolver{Store: vdrStore}, crypto.NewTestCryptoInstance(), doc.Resolver{Store: vdrStore})
+	cryptoInstance := crypto.NewTestCryptoInstance()
+	newInstance := NewNetworkInstance(config, doc.KeyResolver{Store: vdrStore}, cryptoInstance, cryptoInstance, doc.Resolver{Store: vdrStore})
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)
 	}

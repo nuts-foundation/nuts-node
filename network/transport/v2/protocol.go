@@ -20,15 +20,26 @@ package v2
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
+
+	"github.com/nats-io/nats.go"
+	"github.com/sirupsen/logrus"
+	grpcLib "google.golang.org/grpc"
+
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	grpcLib "google.golang.org/grpc"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var _ grpc.Protocol = (*protocol)(nil)
+
+var natsConnectHandler = events.Connect
 
 // Config specifies config for protocol v2
 type Config struct {
@@ -55,18 +66,26 @@ func DefaultConfig() Config {
 }
 
 // New creates an instance of the v2 protocol.
-func New(config Config, graph dag.DAG, payloadStore dag.PayloadStore) grpc.Protocol {
+func New(config Config, nodeDIDResolver transport.NodeDIDResolver, graph dag.DAG, payloadStore dag.PayloadStore, docResolver vdr.DocResolver, decrypter crypto.Decrypter) transport.Protocol {
 	return &protocol{
-		config:       config,
-		graph:        graph,
-		payloadStore: payloadStore,
+		config:          config,
+		graph:           graph,
+		nodeDIDResolver: nodeDIDResolver,
+		payloadStore:    payloadStore,
+		decrypter:       decrypter,
+		docResolver:     docResolver,
 	}
 }
 
 type protocol struct {
+	cancel            func()
+	ctx               context.Context
 	config            Config
 	graph             dag.DAG
+	nodeDIDResolver   transport.NodeDIDResolver
 	payloadStore      dag.PayloadStore
+	decrypter         crypto.Decrypter
+	docResolver       vdr.DocResolver
 	connectionList    grpc.ConnectionList
 	connectionManager transport.ConnectionManager
 }
@@ -96,10 +115,120 @@ func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
 func (p protocol) Configure(_ transport.PeerID) {
 }
 
-func (p protocol) Start() {
+func (p *protocol) setupNatsHandler() error {
+	conn, err := natsConnectHandler(
+		p.config.Nats.Hostname,
+		p.config.Nats.Port,
+		time.Duration(p.config.Nats.Timeout)*time.Second,
+	)
+	if err != nil {
+		return err
+	}
+
+	js, err := conn.JetStream()
+	if err != nil {
+		return err
+	}
+
+	if _, err = js.Subscribe(events.PrivateTransactionsSubject, func(msg *nats.Msg) {
+		if err := p.handlePrivateTx(msg); err != nil {
+			logrus.Errorf("failed to handle private transaction: %v", err)
+
+			if err := msg.Nak(); err != nil {
+				logrus.Errorf("failed to NACK private transaction event: %v", err)
+			}
+
+			return
+		}
+
+		if err := msg.Ack(); err != nil {
+			logrus.Errorf("failed to ACK private transaction event: %v", err)
+		}
+	}); err != nil {
+		conn.Close()
+		return err
+	}
+
+	go func() {
+		<-p.ctx.Done()
+		conn.Close()
+	}()
+
+	return nil
 }
 
-func (p protocol) Stop() {
+func (p *protocol) Start() {
+	p.ctx, p.cancel = context.WithCancel(context.Background())
+
+	go func() {
+		for {
+			if err := p.setupNatsHandler(); err != nil {
+				logrus.Errorf("failed to setup NATS handler: %v", err)
+
+				select {
+				case <-p.ctx.Done():
+					return
+				case <-time.After(5 * time.Second):
+					continue
+				}
+			}
+
+			return
+		}
+	}()
+}
+
+func (p *protocol) handlePrivateTx(msg *nats.Msg) error {
+	nodeDID, err := p.nodeDIDResolver.Resolve()
+	if err != nil {
+		return err
+	}
+
+	if nodeDID.Empty() {
+		return errors.New("node DID is not set")
+	}
+
+	doc, _, err := p.docResolver.Resolve(nodeDID, nil)
+	if err != nil {
+		return err
+	}
+
+	keyAgreementIDs := make([]string, len(doc.KeyAgreement))
+
+	for i, keyAgreement := range doc.KeyAgreement {
+		keyAgreementIDs[i] = keyAgreement.ID.String()
+	}
+
+	tx, err := dag.ParseTransaction(msg.Data)
+	if err != nil {
+		return err
+	}
+
+	if len(tx.PAL()) == 0 {
+		return errors.New("PAL header is empty")
+	}
+
+	epal := dag.EncryptedPAL(tx.PAL())
+
+	pal, err := epal.Decrypt(keyAgreementIDs, p.decrypter)
+	if err != nil {
+		return err
+	}
+
+	// We weren't able to decrypt the PAL, so it wasn't meant for us
+	if pal == nil {
+		return nil
+	}
+
+	fmt.Println(pal)
+
+	return nil
+}
+
+func (p *protocol) Stop() {
+	if p.cancel != nil {
+		p.cancel()
+	}
 }
 
 func (p protocol) Diagnostics() []core.DiagnosticResult {

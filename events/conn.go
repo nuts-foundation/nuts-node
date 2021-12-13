@@ -27,6 +27,7 @@ import (
 
 // Conn defines the methods required in the NATS connection structure
 type Conn interface {
+	Close()
 	JetStream(opts ...nats.JSOpt) (nats.JetStreamContext, error)
 }
 
@@ -39,7 +40,7 @@ type JetStreamContext interface {
 	PublishMsg(m *nats.Msg, opts ...nats.PubOpt) (*nats.PubAck, error)
 }
 
-// Connect connects to a NATS server based on the hostname and port
+// Connect connects to a NATS server based on the hostname, port and timeout
 func Connect(hostname string, port int, timeout time.Duration) (Conn, error) {
 	return nats.Connect(
 		fmt.Sprintf("%s:%d", hostname, port),

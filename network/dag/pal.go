@@ -79,7 +79,7 @@ type EncryptedPAL [][]byte
 // An error is returned in the following cases:
 // - If one of the attempted keyAgreement keys is not found or of an unsupported type, an error is returned.
 // - If one of the decrypted participants isn't a valid DID.
-func (epal EncryptedPAL) Decrypt(keyAgreementKIDs []string, decryptor crypto.Decryptor) (PAL, error) {
+func (epal EncryptedPAL) Decrypt(keyAgreementKIDs []string, decryptor crypto.Decrypter) (PAL, error) {
 	var decrypted []byte
 	var err error
 outer:

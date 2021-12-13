@@ -563,9 +563,10 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 		fn(&networkConfig)
 	}
 	keyStore := crypto.NewMockKeyStore(ctrl)
+	decrypter := crypto.NewMockDecrypter(ctrl)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	docResolver := vdrTypes.NewMockDocResolver(ctrl)
-	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, docResolver)
+	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver)
 	network.graph = graph
 	network.connectionManager = connectionManager
 	network.payloadStore = payload
