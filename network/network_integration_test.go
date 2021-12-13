@@ -253,7 +253,7 @@ func resetIntegrationTest() {
 }
 
 func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCrypto.Key, sender *Network, receivers ...string) bool {
-	expectedTransaction, err := sender.CreateTransaction(NewTXTemplate(payloadType, []byte(payload), key).WithAttachKey())
+	expectedTransaction, err := sender.CreateTransaction(TransactionTemplate(payloadType, []byte(payload), key).WithAttachKey())
 	if !assert.NoError(t, err) {
 		return true
 	}

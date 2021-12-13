@@ -37,7 +37,7 @@ func (m *MockTransactions) EXPECT() *MockTransactionsMockRecorder {
 }
 
 // CreateTransaction mocks base method.
-func (m *MockTransactions) CreateTransaction(spec TransactionTemplate) (dag.Transaction, error) {
+func (m *MockTransactions) CreateTransaction(spec Template) (dag.Transaction, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateTransaction", spec)
 	ret0, _ := ret[0].(dag.Transaction)

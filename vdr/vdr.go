@@ -132,7 +132,7 @@ func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key
 		return nil, nil, err
 	}
 
-	tx := network.NewTXTemplate(didDocumentType, payload, key).WithAttachKey()
+	tx := network.TransactionTemplate(didDocumentType, payload, key).WithAttachKey()
 	_, err = r.network.CreateTransaction(tx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not store DID document in network: %w", err)
@@ -181,7 +181,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	// a DIDDocument update must point to its previous version, current heads and the controller TX (for signing key transaction ordering)
 	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
 
-	tx := network.NewTXTemplate(didDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
+	tx := network.TransactionTemplate(didDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
 	_, err = r.network.CreateTransaction(tx)
 	if err == nil {
 		log.Logger().Infof("DID Document updated (DID=%s)", id)

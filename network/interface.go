@@ -30,13 +30,13 @@ type Transactions interface {
 	// Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
 	// is received for the specified type.
 	Subscribe(payloadType string, receiver dag.Receiver)
-	// GetTransactionPayload retrieves the transaction payload for the given transaction. If the transaction or payload is not found
+	// GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
 	// nil is returned.
 	GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error)
 	// GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
 	GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error)
 	// CreateTransaction creates a new transaction according to the given spec.
-	CreateTransaction(spec TransactionTemplate) (dag.Transaction, error)
+	CreateTransaction(spec Template) (dag.Transaction, error)
 	// ListTransactions returns all transactions known to this Network instance.
 	ListTransactions() ([]dag.Transaction, error)
 	// Walk walks the DAG starting at the root, calling `visitor` for every transaction.
