@@ -52,7 +52,7 @@ func TestNewTransaction(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Len(t, transaction.Pal(), 2)
+		assert.Len(t, transaction.PAL(), 2)
 	})
 	t.Run("ok - with duplicates", func(t *testing.T) {
 		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash, hash}, nil)
