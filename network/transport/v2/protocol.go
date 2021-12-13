@@ -30,20 +30,45 @@ import (
 
 var _ grpc.Protocol = (*protocol)(nil)
 
+// Config specifies config for protocol v2
+type Config struct {
+	// NATS configuration for the replay DAG publisher
+	Nats NatsConfig `koanf:"nats"`
+}
+
+// NatsConfig holds all NATS related configuration
+type NatsConfig struct {
+	Port     int    `koanf:"port"`
+	Hostname string `koanf:"hostname"`
+	Timeout  int    `koanf:"timeout"`
+}
+
+// DefaultConfig returns the default config for protocol v2
+func DefaultConfig() Config {
+	return Config{
+		Nats: NatsConfig{
+			Port:     4222,
+			Hostname: "localhost",
+			Timeout:  30,
+		},
+	}
+}
+
 // New creates an instance of the v2 protocol.
-func New(graph dag.DAG, payloadStore dag.PayloadStore) grpc.Protocol {
+func New(config Config, graph dag.DAG, payloadStore dag.PayloadStore) grpc.Protocol {
 	return &protocol{
+		config:       config,
 		graph:        graph,
 		payloadStore: payloadStore,
 	}
 }
 
 type protocol struct {
+	config            Config
+	graph             dag.DAG
+	payloadStore      dag.PayloadStore
 	connectionList    grpc.ConnectionList
 	connectionManager transport.ConnectionManager
-
-	payloadStore dag.PayloadStore
-	graph        dag.DAG
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn) (grpcLib.ClientStream, error) {
@@ -82,7 +107,7 @@ func (p protocol) Diagnostics() []core.DiagnosticResult {
 }
 
 func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
-	return make(map[transport.PeerID]transport.Diagnostics, 0)
+	return make(map[transport.PeerID]transport.Diagnostics)
 }
 
 func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {

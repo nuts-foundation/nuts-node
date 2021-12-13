@@ -35,7 +35,7 @@ var _ grpc.Protocol = (*protocolV1)(nil)
 
 // Config specifies config for protocol v1
 type Config struct {
-	// AdvertHashesInterval specifies how often (in milliseconds) the node should broadcasts its last hashes,
+	// AdvertHashesInterval specifies how often (in milliseconds) the node should broadcast its last hashes,
 	// so other nodes can compare and synchronize.
 	AdvertHashesInterval int `koanf:"adverthashesinterval"`
 	// AdvertDiagnosticsInterval specifies how often (in milliseconds) the node should query its peers for diagnostic information.

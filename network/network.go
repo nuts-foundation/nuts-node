@@ -122,14 +122,16 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	// NATS
-	conn, err := events.Connect(n.config.Nats.Hostname, n.config.Nats.Port, time.Duration(n.config.Nats.Timeout)*time.Second)
+	nats := n.config.ProtocolV2.Nats
+
+	conn, err := events.Connect(nats.Hostname, nats.Port, time.Duration(nats.Timeout)*time.Second)
 	if err != nil {
-		return fmt.Errorf("unable to connect to NATS at '%s:%d': %w", n.config.Nats.Hostname, n.config.Nats.Port, err)
+		return fmt.Errorf("unable to connect to NATS at '%s:%d': %w", nats.Hostname, nats.Port, err)
 	}
 
 	privateTxCtx, err := conn.JetStream()
 	if err != nil {
-		return fmt.Errorf("unable to connect to NATS at '%s:%d': %w", n.config.Nats.Hostname, n.config.Nats.Port, err)
+		return fmt.Errorf("unable to connect to NATS at '%s:%d': %w", nats.Hostname, nats.Port, err)
 	}
 
 	n.payloadStore = dag.NewBBoltPayloadStore(n.db)
@@ -152,7 +154,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Configure protocols
 	n.protocols = []transport.Protocol{
 		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
-		v2.New(n.graph, n.payloadStore),
+		v2.New(n.config.ProtocolV2, n.graph, n.payloadStore),
 	}
 	for _, prot := range n.protocols {
 		prot.Configure(n.peerID)

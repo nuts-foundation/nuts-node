@@ -28,8 +28,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
-const privateTransactionsSubject = "nuts.v2.private-transactions"
-
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
 func NewReplayingDAGPublisher(privateTxCtx events.JetStreamContext, payloadStore PayloadStore, dag DAG) Publisher {
 	publisher := &replayingDAGPublisher{
@@ -131,7 +129,7 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 }
 
 func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) error {
-	_, err := s.privateTxCtx.PublishAsync(privateTransactionsSubject, tx.Data())
+	_, err := s.privateTxCtx.PublishAsync(events.PrivateTransactionsSubject, tx.Data())
 	return err
 }
 
