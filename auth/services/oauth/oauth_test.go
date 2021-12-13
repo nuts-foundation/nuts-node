@@ -573,6 +573,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 	})
 
 	t.Run("valid token with clock diff", func(t *testing.T) {
+		// a token created 10 minutes ago, valid until 4 minutes ago. But due to clock skew of 5 minutes, it should still be valid.
 		ctx := createContext(t)
 		ctx.oauthService.clockSkew = 5 * time.Minute
 		tokenCtx := validContext()
