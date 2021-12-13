@@ -29,7 +29,7 @@ import (
 
 // OAuthClient is the client interface for the OAuth service
 type OAuthClient interface {
-	Configure(clockSkew int) error
+	Configure(clockSkewInMilliseconds int) error
 	CreateAccessToken(request CreateAccessTokenRequest) (*AccessTokenResult, error)
 	CreateJwtGrant(request CreateJwtGrantRequest) (*JwtBearerTokenResult, error)
 	GetOAuthEndpointURL(service string, authorizer did.DID) (url.URL, error)

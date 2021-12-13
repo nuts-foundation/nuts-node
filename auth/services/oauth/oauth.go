@@ -145,8 +145,8 @@ func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValid
 const BearerTokenMaxValidity = 5
 
 // Configure the service
-func (s *service) Configure(clockSkew int) error {
-	s.clockSkew = time.Duration(clockSkew)
+func (s *service) Configure(clockSkewInMilliseconds int) error {
+	s.clockSkew = time.Duration(clockSkewInMilliseconds) * time.Millisecond
 	return nil
 }
 
