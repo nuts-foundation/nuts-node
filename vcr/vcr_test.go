@@ -827,7 +827,7 @@ func TestVcr_Revoke(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(&document, &documentMetadata, nil)
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(mock.MatchedBy(func(spec network.Template) bool {
-			return spec.PayloadType() == revocationDocumentType && !spec.AttachKey()
+			return spec.Type == revocationDocumentType && !spec.AttachKey
 		}))
 		r, err := ctx.vcr.Revoke(*vc.ID)
 
