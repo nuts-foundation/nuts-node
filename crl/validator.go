@@ -151,16 +151,16 @@ func (v *validator) downloadCRL(endpoint string) error {
 
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to download CRL (url=%s): %w", endpoint, err)
 	}
 
 	crl, err := x509.ParseCRL(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to parse downloaded CRL (url=%s): %w", endpoint, err)
 	}
 
 	if err := v.verifyCRL(crl); err != nil {
-		return err
+		return fmt.Errorf("CRL verification failed (issuer=%s): %w", crl.TBSCertList.Issuer.String(), err)
 	}
 
 	v.listsLock.Lock()
