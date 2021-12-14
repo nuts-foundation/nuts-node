@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/test"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	irma "github.com/privacybydesign/irmago"
 	irmaservercore "github.com/privacybydesign/irmago/server"
 	"github.com/stretchr/testify/assert"
@@ -157,5 +156,5 @@ func defaultValidator(t *testing.T) (Service, crypto.KeyStore) {
 	return Service{
 		IrmaConfig:        irmaConfig,
 		ContractTemplates: contract.StandardContractTemplates,
-	}, crypto.NewTestCryptoInstance(io.TestDirectory(t))
+	}, crypto.NewTestCryptoInstance()
 }

@@ -174,7 +174,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.PeerID, query *p
 
 	// We need to return an empty payload for transactions with a to address in v1 protocol
 	for _, tx := range transactions {
-		if len(tx.To()) > 0 {
+		if len(tx.PAL()) > 0 {
 			p.sender.sendTransactionPayload(peer, payloadHash, []byte{})
 
 			return nil
@@ -260,7 +260,7 @@ func (p *protocol) checkTransactionOnLocalNode(ctx context.Context, peer transpo
 
 	if queryContents {
 		// If the transaction contains a to address, we need to ignore it as it should be handled by the v2 protocol
-		if len(transaction.To()) > 0 {
+		if len(transaction.PAL()) > 0 {
 			return nil
 		}
 

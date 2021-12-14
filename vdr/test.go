@@ -41,7 +41,7 @@ var TestMethodDIDB, _ = did.ParseDIDURL(TestDIDB.String() + "#abc-method-2")
 func NewTestVDRInstance(testDirectory string) *VDR {
 	config := TestVDRConfig()
 	didStore := store.NewMemoryStore()
-	return NewVDR(config, crypto.NewTestCryptoInstance(testDirectory), network.NewTestNetworkInstance(testDirectory), didStore)
+	return NewVDR(config, crypto.NewTestCryptoInstance(), network.NewTestNetworkInstance(testDirectory), didStore)
 }
 
 func TestVDRConfig() Config {

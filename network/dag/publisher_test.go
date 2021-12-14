@@ -111,12 +111,12 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		publisher.publishTransaction(ctx, transaction)
 		assert.True(t, received)
 	})
-	t.Run("not received when transaction with to header is skipped", func(t *testing.T) {
+	t.Run("not received when transaction with pal header is skipped", func(t *testing.T) {
 		publisher, ctrl, privateTxCtx, _ := createPublisher(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
 
-		transaction := CreateSignedTestTransaction(1, time.Now(), []byte{9, 8, 7}, "foo/bar", true)
+		transaction := CreateSignedTestTransaction(1, time.Now(), [][]byte{{9, 8, 7}}, "foo/bar", true)
 
 		received := false
 		privateTxCtx.EXPECT().PublishAsync(privateTransactionsSubject, gomock.Any()).Return(nil, nil)

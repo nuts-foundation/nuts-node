@@ -6,10 +6,8 @@ package network
 
 import (
 	reflect "reflect"
-	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
@@ -39,18 +37,18 @@ func (m *MockTransactions) EXPECT() *MockTransactionsMockRecorder {
 }
 
 // CreateTransaction mocks base method.
-func (m *MockTransactions) CreateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
+func (m *MockTransactions) CreateTransaction(spec Template) (dag.Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateTransaction", payloadType, payload, key, attachKey, timestamp, additionalPrevs)
+	ret := m.ctrl.Call(m, "CreateTransaction", spec)
 	ret0, _ := ret[0].(dag.Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateTransaction indicates an expected call of CreateTransaction.
-func (mr *MockTransactionsMockRecorder) CreateTransaction(payloadType, payload, key, attachKey, timestamp, additionalPrevs interface{}) *gomock.Call {
+func (mr *MockTransactionsMockRecorder) CreateTransaction(spec interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), payloadType, payload, key, attachKey, timestamp, additionalPrevs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), spec)
 }
 
 // GetTransaction mocks base method.

@@ -19,6 +19,9 @@
 package network
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -51,7 +54,7 @@ func (cxt *networkTestContext) start() error {
 	cxt.connectionManager.EXPECT().Start()
 	cxt.protocol.EXPECT().Start()
 	cxt.graph.EXPECT().Verify(gomock.Any())
-	cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
+	cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 	cxt.publisher.EXPECT().Start()
 
 	return cxt.network.Start()
@@ -220,7 +223,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
 		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
 
-		_, err = cxt.network.CreateTransaction(payloadType, payload, key, true, time.Now(), []hash.SHA256Hash{})
+		_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAttachKey())
 		assert.NoError(t, err)
 	})
 	t.Run("ok - detached key", func(t *testing.T) {
@@ -234,7 +237,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		}
 		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
 		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{})
+		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key))
 		assert.NoError(t, err)
 		assert.Len(t, tx.Previous(), 0)
 	})
@@ -261,7 +264,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			return
 		}
 
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{additionalPrev.Ref()})
+		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 
 		if !assert.NoError(t, err) {
 			return
@@ -285,11 +288,37 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.graph.EXPECT().Get(gomock.Any(), prev.Ref()).Return(prev, nil)
 		cxt.payload.EXPECT().IsPresent(gomock.Any(), prev.PayloadHash()).Return(false, nil)
 
-		tx, err := cxt.network.CreateTransaction(payloadType, payload, key, false, time.Now(), []hash.SHA256Hash{prev.Ref()})
+		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{prev.Ref()}))
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "additional prev is unknown or missing payload")
 		assert.Nil(t, tx)
+	})
+	t.Run("private transaction", func(t *testing.T) {
+		key := crypto.NewTestKey("signing-key")
+		sender, _ := did.ParseDID("did:nuts:sender")
+		senderKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		receiver, _ := did.ParseDID("did:nuts:receiver")
+		receiverKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		t.Run("ok", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			payload := []byte("Hello, World!")
+			cxt := createNetwork(ctrl)
+			err := cxt.start()
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
+			cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
+
+			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*sender).Return(senderKey.Public(), nil)
+			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*receiver).Return(receiverKey.Public(), nil)
+
+			_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithPrivate([]did.DID{*sender, *receiver}))
+			assert.NoError(t, err)
+		})
 	})
 }
 
@@ -322,7 +351,7 @@ func TestNetwork_Start(t *testing.T) {
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.graph.EXPECT().Verify(gomock.Any()).Return(errors.New("failed"))
-		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
+		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		assert.EqualError(t, err, "failed")
@@ -354,7 +383,7 @@ func TestNetwork_Start(t *testing.T) {
 			cxt.network.configuredNodeDID = nodeDID
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 			cxt.graph.EXPECT().Verify(gomock.Any())
-			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
+			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 			cxt.publisher.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.ErrorIs(t, err, did.DeactivatedErr)
@@ -366,7 +395,7 @@ func TestNetwork_Start(t *testing.T) {
 			cxt.network.configuredNodeDID = nodeDID
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.graph.EXPECT().Verify(gomock.Any())
-			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
+			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 			cxt.publisher.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.EqualError(t, err, "invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=did:nuts:test)")
@@ -379,7 +408,7 @@ func TestNetwork_Start(t *testing.T) {
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(documentWithKeyAgreement, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.graph.EXPECT().Verify(gomock.Any())
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(false)
-			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-payload tracking subscriber
+			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 			cxt.publisher.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.EqualError(t, err, "invalid NodeDID configuration: keyAgreement private key is not present in key store (did=did:nuts:test,kid=did:nuts:test#some-key)")

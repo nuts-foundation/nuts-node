@@ -34,10 +34,13 @@ import (
 type Version int
 
 const currentVersion = 1
-const signingTimeHeader = "sigt"
-const versionHeader = "ver"
-const previousHeader = "prevs"
-const toHeader = "to"
+
+const (
+	signingTimeHeader = "sigt"
+	versionHeader     = "ver"
+	previousHeader    = "prevs"
+	palHeader         = "pal"
+)
 
 var allowedAlgos = []jwa.SignatureAlgorithm{jwa.ES256, jwa.ES384, jwa.ES512, jwa.PS256, jwa.PS384, jwa.PS512}
 
@@ -93,10 +96,10 @@ type Referencable interface {
 	Ref() hash.SHA256Hash
 }
 
-// Addressable contains the To function which allows returning the address of the recipient
+// Addressable contains the Pal function which allows returning the addresses of the recipients
 type Addressable interface {
-	// To contains the encrypted address of the recipient
-	To() []byte
+	// PAL contains the encrypted addresses of the participants
+	PAL() [][]byte
 }
 
 // Transaction defines a signed distributed transaction as described by RFC004 - Distributed Transaction Format.
@@ -114,7 +117,8 @@ type Transaction interface {
 
 // NewTransaction creates a new unsigned transaction. Parameters payload and payloadType can't be empty, but prevs is optional.
 // Prevs must not contain empty or invalid hashes. Duplicate prevs will be removed when given.
-func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash) (UnsignedTransaction, error) {
+// The pal byte slice (may be nil) holds the encrypted recipient address, if it is a private transaction.
+func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash, pal EncryptedPAL) (UnsignedTransaction, error) {
 	if !ValidatePayloadType(payloadType) {
 		return nil, errInvalidPayloadType
 	}
@@ -143,6 +147,7 @@ func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SH
 		payload:     payload,
 		payloadType: payloadType,
 		version:     currentVersion,
+		pal:         pal,
 	}
 	if len(deduplicated) > 0 {
 		result.prevs = append(deduplicated)
@@ -167,15 +172,15 @@ type transaction struct {
 	lamportClock     uint32
 	data             []byte
 	ref              hash.SHA256Hash
-	toAddr           []byte
+	pal              [][]byte
 }
 
 func (d transaction) MarshalJSON() ([]byte, error) {
 	return json.Marshal(string(d.Data()))
 }
 
-func (d transaction) To() []byte {
-	return d.toAddr
+func (d transaction) PAL() [][]byte {
+	return d.pal
 }
 
 func (d transaction) Data() []byte {

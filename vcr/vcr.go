@@ -331,7 +331,10 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 
 	payload, _ := json.Marshal(credential)
 
-	_, err = c.network.CreateTransaction(vcDocumentType, payload, key, false, credential.IssuanceDate, meta.SourceTransactions)
+	tx := network.TransactionTemplate(vcDocumentType, payload, key).
+		WithTimestamp(credential.IssuanceDate).
+		WithAdditionalPrevs(meta.SourceTransactions)
+	_, err = c.network.CreateTransaction(tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
@@ -565,7 +568,10 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 
 	payload, _ := json.Marshal(r)
 
-	_, err = c.network.CreateTransaction(revocationDocumentType, payload, key, false, r.Date, meta.SourceTransactions)
+	tx := network.TransactionTemplate(revocationDocumentType, payload, key).
+		WithTimestamp(r.Date).
+		WithAdditionalPrevs(meta.SourceTransactions)
+	_, err = c.network.CreateTransaction(tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish revocation: %w", err)
 	}

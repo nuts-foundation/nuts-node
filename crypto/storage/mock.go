@@ -49,21 +49,6 @@ func (mr *MockStorageMockRecorder) GetPrivateKey(kid interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivateKey", reflect.TypeOf((*MockStorage)(nil).GetPrivateKey), kid)
 }
 
-// GetPublicKey mocks base method.
-func (m *MockStorage) GetPublicKey(kid string) (PublicKeyEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPublicKey", kid)
-	ret0, _ := ret[0].(PublicKeyEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetPublicKey indicates an expected call of GetPublicKey.
-func (mr *MockStorageMockRecorder) GetPublicKey(kid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPublicKey", reflect.TypeOf((*MockStorage)(nil).GetPublicKey), kid)
-}
-
 // PrivateKeyExists mocks base method.
 func (m *MockStorage) PrivateKeyExists(kid string) bool {
 	m.ctrl.T.Helper()
@@ -90,18 +75,4 @@ func (m *MockStorage) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 func (mr *MockStorageMockRecorder) SavePrivateKey(kid, key interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SavePrivateKey", reflect.TypeOf((*MockStorage)(nil).SavePrivateKey), kid, key)
-}
-
-// SavePublicKey mocks base method.
-func (m *MockStorage) SavePublicKey(kid string, entry PublicKeyEntry) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SavePublicKey", kid, entry)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SavePublicKey indicates an expected call of SavePublicKey.
-func (mr *MockStorageMockRecorder) SavePublicKey(kid, entry interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SavePublicKey", reflect.TypeOf((*MockStorage)(nil).SavePublicKey), kid, entry)
 }

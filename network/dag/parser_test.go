@@ -39,7 +39,7 @@ func TestParseTransaction(t *testing.T) {
 	payloadAsBytes := []byte(payload.String())
 	t.Run("ok", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
-		_ = headers.Set("to", base64.StdEncoding.EncodeToString([]byte{5, 6, 7}))
+		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7})})
 		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
 
 		transaction, err := ParseTransaction(signature)
@@ -64,7 +64,7 @@ func TestParseTransaction(t *testing.T) {
 		assert.Equal(t, "foo/bar", transaction.PayloadType())
 		assert.Equal(t, time.UTC, transaction.SigningTime().Location())
 		assert.Equal(t, headers.PrivateParams()[previousHeader].([]string)[0], transaction.Previous()[0].String())
-		assert.Equal(t, transaction.To(), []byte{5, 6, 7})
+		assert.Equal(t, transaction.PAL(), [][]byte{{5, 6, 7}})
 		assert.NotNil(t, transaction.Data())
 		assert.False(t, transaction.Ref().Empty())
 	})
@@ -78,16 +78,16 @@ func TestParseTransaction(t *testing.T) {
 		assert.Nil(t, tx)
 		assert.EqualError(t, err, "unable to parse transaction: failed to unmarshal jws message: required field \"signatures\" not present")
 	})
-	t.Run("error - to header has invalid type", func(t *testing.T) {
+	t.Run("error - pal header has invalid type", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)
-		_ = headers.Set("to", 100)
+		_ = headers.Set("pal", 100)
 
 		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
 
 		transaction, err := ParseTransaction(signature)
 
 		assert.Nil(t, transaction)
-		assert.EqualError(t, err, "transaction validation failed: invalid to header")
+		assert.EqualError(t, err, "transaction validation failed: invalid pal header")
 	})
 	t.Run("error - sigt header is missing", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)

@@ -96,11 +96,10 @@ func TestVDR_Update(t *testing.T) {
 		resolvedMetadata := types.DocumentMetadata{
 			SourceTransactions: []hash.SHA256Hash{currentHash},
 		}
-		expectedPayload, _ := json.Marshal(nextDIDDocument)
 		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		ctx.mockStore.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, gomock.Any(), false, gomock.Any(), []hash.SHA256Hash{currentHash, currentHash})
+		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any())
 
 		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
 
@@ -185,7 +184,7 @@ func TestVDR_Create(t *testing.T) {
 		expectedPayload, _ := json.Marshal(nextDIDDocument)
 
 		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, expectedPayload, key, true, gomock.Any(), gomock.Any())
+		ctx.mockNetwork.EXPECT().CreateTransaction(network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey())
 
 		didDoc, key, err := ctx.vdr.Create(doc.DefaultCreationOptions())
 
@@ -207,7 +206,7 @@ func TestVDR_Create(t *testing.T) {
 		ctx := newVDRTestCtx(t)
 		key := crypto.NewTestKey("did:nuts:123#key-1")
 		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(expectedPayloadType, gomock.Any(), key, true, gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
+		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		_, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
 

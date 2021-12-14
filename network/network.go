@@ -262,7 +262,7 @@ func (n *Network) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transactio
 	return n.graph.Get(context.Background(), transactionRef)
 }
 
-// GetTransactionPayload retrieves the transaction payload for the given transaction. If the transaction or payload is not found
+// GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
 // nil is returned.
 func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
 	transaction, err := n.graph.Get(context.Background(), transactionRef)
@@ -280,15 +280,14 @@ func (n *Network) ListTransactions() ([]dag.Transaction, error) {
 	return n.graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())
 }
 
-// CreateTransaction creates a new transaction with the specified payload, and signs it using the specified key.
-// If the key should be inside the transaction (instead of being referred to) `attachKey` should be true.
-func (n *Network) CreateTransaction(payloadType string, payload []byte, key crypto.Key, attachKey bool, timestamp time.Time, additionalPrevs []hash.SHA256Hash) (dag.Transaction, error) {
-	payloadHash := hash.SHA256Sum(payload)
-	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s)", payloadHash, payloadType, len(payload), key.KID())
+// CreateTransaction creates a new transaction from the given template.
+func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) {
+	payloadHash := hash.SHA256Sum(template.Payload)
+	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s,private=%v)", payloadHash, template.Type, len(template.Payload), template.Key.KID(), len(template.Participants) > 0)
 
-	// Assert that all additional prevs are present and its payload is there
+	// Assert that all additional prevs are present and its Payload is there
 	ctx := context.Background()
-	for _, prev := range additionalPrevs {
+	for _, prev := range template.AdditionalPrevs {
 		isPresent, err := n.isPayloadPresent(ctx, prev)
 		if err != nil {
 			return nil, err
@@ -298,19 +297,35 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 		}
 	}
 
-	// Create transaction
+	// Collect prevs
 	prevs := n.lastTransactionTracker.heads()
-	for _, addPrev := range additionalPrevs {
+	for _, addPrev := range template.AdditionalPrevs {
 		prevs = append(prevs, addPrev)
 	}
-	unsignedTransaction, err := dag.NewTransaction(payloadHash, payloadType, prevs)
+
+	// Encrypt PAL, making the TX private (if participants are specified)
+	var pal [][]byte
+	var err error
+	if len(template.Participants) > 0 {
+		pal, err = template.Participants.Encrypt(n.keyResolver)
+		if err != nil {
+			return nil, fmt.Errorf("unable to encrypt PAL header for new transaction: %w", err)
+		}
+	}
+
+	// Create transaction
+	unsignedTransaction, err := dag.NewTransaction(payloadHash, template.Type, prevs, pal)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create new transaction: %w", err)
 	}
 	// Sign it
 	var transaction dag.Transaction
 	var signer dag.TransactionSigner
-	signer = dag.NewTransactionSigner(key, attachKey)
+	signer = dag.NewTransactionSigner(template.Key, template.AttachKey)
+	timestamp := time.Now()
+	if !template.Timestamp.IsZero() {
+		timestamp = template.Timestamp
+	}
 	transaction, err = signer.Sign(unsignedTransaction, timestamp)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign newly created transaction: %w", err)
@@ -319,10 +334,10 @@ func (n *Network) CreateTransaction(payloadType string, payload []byte, key cryp
 	if err = n.graph.Add(ctx, transaction); err != nil {
 		return nil, fmt.Errorf("unable to add newly created transaction to DAG: %w", err)
 	}
-	if err = n.payloadStore.WritePayload(ctx, payloadHash, payload); err != nil {
+	if err = n.payloadStore.WritePayload(ctx, payloadHash, template.Payload); err != nil {
 		return nil, fmt.Errorf("unable to store payload of newly created transaction: %w", err)
 	}
-	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), payloadType, len(payload))
+	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), template.Type, len(template.Payload))
 	return transaction, nil
 }
 

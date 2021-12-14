@@ -242,13 +242,13 @@ func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
 	})
-	t.Run("payload present but with to addr header", func(t *testing.T) {
+	t.Run("payload present but with PAL header", func(t *testing.T) {
 		ctx := newContext(t)
 		payloadHash := hash.SHA256Sum([]byte{1, 2, 3})
 
 		ctx.graph().EXPECT().GetByPayloadHash(gomock.Any(), payloadHash).Return([]dag.Transaction{
 			&testTX{
-				toAddr: []byte{1},
+				pal: [][]byte{{1}},
 			},
 		}, nil)
 		ctx.sender().EXPECT().sendTransactionPayload(peer, payloadHash, []byte{})

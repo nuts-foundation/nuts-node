@@ -42,6 +42,7 @@ type defaultBuilder struct {
 	vcType string
 }
 
+// nowFunc is used to store a function that returns the current time. This can be changed when you want to mock the current time.
 var nowFunc = time.Now
 
 func (d defaultBuilder) Fill(credential *vc.VerifiableCredential) {

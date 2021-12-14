@@ -136,8 +136,8 @@ func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) error {
 }
 
 func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transaction Transaction) bool {
-	// We need to skip transactions with a to addr header as it should be handled by the v2 protocol
-	if len(transaction.To()) > 0 {
+	// We need to skip transactions with PAL header as it should be handled by the v2 protocol
+	if len(transaction.PAL()) > 0 {
 		if err := s.handlePrivateTransaction(transaction); err != nil {
 			log.Logger().Errorf("unable to handle private transaction: (ref=%s) %v", transaction.Ref(), err)
 			return false

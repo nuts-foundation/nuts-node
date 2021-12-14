@@ -40,14 +40,10 @@ func CreateTestTransactionWithJWK(num uint32, prevs ...hash.SHA256Hash) Transact
 }
 
 // CreateSignedTestTransaction creates a signed transaction with more control
-func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, to []byte, payloadType string, attach bool, prevs ...hash.SHA256Hash) Transaction {
+func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [][]byte, payloadType string, attach bool, prevs ...hash.SHA256Hash) Transaction {
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], payloadNum)
-	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevs)
-
-	if to != nil {
-		unsignedTransaction.(*transaction).toAddr = to
-	}
+	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevs, pal)
 
 	signer := crypto2.NewTestKey(fmt.Sprintf("%d", payloadNum))
 	signedTransaction, err := NewTransactionSigner(signer, attach).Sign(unsignedTransaction, signingTime)
@@ -62,7 +58,7 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, to []
 func CreateTestTransaction(num uint32, prevs ...hash.SHA256Hash) (Transaction, string, crypto.PublicKey) {
 	payloadHash := hash.SHA256Hash{}
 	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
-	unsignedTransaction, _ := NewTransaction(payloadHash, "foo/bar", prevs)
+	unsignedTransaction, _ := NewTransaction(payloadHash, "foo/bar", prevs, nil)
 	kid := fmt.Sprintf("%d", num)
 	signer := crypto2.NewTestKey(kid)
 	signedTransaction, err := NewTransactionSigner(signer, false).Sign(unsignedTransaction, time.Now())

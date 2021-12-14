@@ -22,18 +22,16 @@ import (
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 )
 
 func NewTestAuthInstance(t *testing.T) *Auth {
-	testDirectory := io.TestDirectory(t)
 	return NewAuthInstance(
 		TestConfig(),
 		store.NewMemoryStore(),
 		vcr.NewTestVCRInstance(t),
-		crypto.NewTestCryptoInstance(testDirectory),
+		crypto.NewTestCryptoInstance(),
 		nil,
 	)
 }

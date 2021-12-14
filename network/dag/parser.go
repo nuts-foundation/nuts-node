@@ -26,6 +26,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
@@ -52,7 +53,7 @@ func ParseTransaction(input []byte) (Transaction, error) {
 		parseSigningTime,
 		parseVersion,
 		parsePrevious,
-		parseTo,
+		parsePAL,
 	}
 
 	result := &transaction{}
@@ -166,24 +167,24 @@ func parsePrevious(transaction *transaction, headers jws.Headers, _ *jws.Message
 	}
 }
 
-func parseTo(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	toAddr, ok := headers.Get(toHeader)
+func parsePAL(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
+	rawPal, ok := headers.Get(palHeader)
 	if !ok {
 		return nil
 	}
-
-	toAddrStr, ok := toAddr.(string)
+	palEncoded, ok := rawPal.([]interface{})
 	if !ok {
-		return transactionValidationError(invalidHeaderErrFmt, toHeader)
+		return transactionValidationError(invalidHeaderErrFmt, palHeader)
 	}
-
-	addr, err := base64.StdEncoding.DecodeString(toAddrStr)
-	if err != nil {
-		return transactionValidationError(invalidHeaderErrFmt, toHeader)
+	var pal [][]byte
+	for _, curr := range palEncoded {
+		decoded, err := base64.StdEncoding.DecodeString(fmt.Sprintf("%s", curr))
+		if err != nil {
+			return transactionValidationError(invalidHeaderErrFmt, palHeader)
+		}
+		pal = append(pal, decoded)
 	}
-
-	transaction.toAddr = addr
-
+	transaction.pal = pal
 	return nil
 }
 
