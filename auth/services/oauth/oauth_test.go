@@ -573,17 +573,33 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 	})
 
 	t.Run("valid token with clock diff", func(t *testing.T) {
+		// a token created 10 minutes ago, valid until 4 minutes ago. But due to clock skew of 5 minutes, it should still be valid.
 		ctx := createContext(t)
-		ctx.oauthService.clockSkew = 5000
+		ctx.oauthService.clockSkew = 5 * time.Minute
 		tokenCtx := validContext()
-		tokenCtx.jwtBearerToken.Set(jwt.IssuedAtKey, time.Now().Add(-6*time.Second))
-		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(-4000*time.Millisecond))
+		tokenCtx.jwtBearerToken.Set(jwt.IssuedAtKey, time.Now().Add(-10*time.Minute))
+		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(-4*time.Minute))
 		signToken(tokenCtx)
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).Return(requesterSigningKey.PublicKey, nil)
 
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
 		assert.NoError(t, err)
+	})
+
+	t.Run("expired token", func(t *testing.T) {
+		// a token created 10 minutes ago, valid until 4 minutes ago. Just a very small clock skew allowed, so it should be expired.
+		ctx := createContext(t)
+		ctx.oauthService.clockSkew = 1 * time.Millisecond // because 0 multiplied by 0 equals 0, rather use 1 millisecond (small clock skew), better test.
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Set(jwt.IssuedAtKey, time.Now().Add(-10*time.Minute))
+		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(-4*time.Minute))
+		signToken(tokenCtx)
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).Return(requesterSigningKey.PublicKey, nil)
+
+		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
+		assert.EqualError(t, err, "exp not satisfied")
 	})
 }
 
@@ -871,7 +887,9 @@ func TestAuth_Configure(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		assert.NoError(t, ctx.oauthService.Configure(0))
+		err := ctx.oauthService.Configure(1000 * 60)
+		assert.NoError(t, err)
+		assert.Equal(t, time.Minute, ctx.oauthService.clockSkew)
 	})
 }
 

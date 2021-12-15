@@ -145,8 +145,8 @@ func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValid
 const BearerTokenMaxValidity = 5
 
 // Configure the service
-func (s *service) Configure(clockSkew int) error {
-	s.clockSkew = time.Duration(clockSkew)
+func (s *service) Configure(clockSkewInMilliseconds int) error {
+	s.clockSkew = time.Duration(clockSkewInMilliseconds) * time.Millisecond
 	return nil
 }
 
@@ -462,7 +462,7 @@ func (s *service) parseAndValidateJwtBearerToken(context *validationContext) err
 	token, err := nutsCrypto.ParseJWT(context.rawJwtBearerToken, func(kid string) (crypto.PublicKey, error) {
 		kidHdr = kid
 		return s.keyResolver.ResolveSigningKey(kid, nil)
-	}, jwt.WithAcceptableSkew(s.clockSkew*time.Millisecond))
+	}, jwt.WithAcceptableSkew(s.clockSkew))
 	if err != nil {
 		return err
 	}
@@ -480,7 +480,7 @@ func (s *service) IntrospectAccessToken(accessToken string) (*services.NutsAcces
 			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
 		}
 		return s.keyResolver.ResolveSigningKey(kid, nil)
-	}, jwt.WithAcceptableSkew(s.clockSkew*time.Millisecond))
+	}, jwt.WithAcceptableSkew(s.clockSkew))
 	if err != nil {
 		return nil, err
 	}
