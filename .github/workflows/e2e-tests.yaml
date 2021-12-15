@@ -14,6 +14,9 @@ on:
 
 jobs:
   e2e-test:
+    permissions:
+      packages: write
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,6 +45,7 @@ jobs:
 
       - name: Build and push
         uses: docker/build-push-action@v2
+        if: ${{ github.actor != 'dependabot' }}
         with:
           context: .
           file: Dockerfile
@@ -50,6 +54,16 @@ jobs:
           tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}
           secrets: |
             GIT_AUTH_TOKEN=${{ secrets.PACKAGE_SECRET }}
+
+      - name: Build and push dependabot
+        uses: docker/build-push-action@v2
+        if: ${{ github.actor == 'dependabot' }}
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+          tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}
 
       - name: Run E2E tests
         run: |
@@ -63,9 +77,20 @@ jobs:
 
       - name: package cleanup
         uses: bots-house/ghcr-delete-image-action@v1.0.1
+        if: ${{ github.actor != 'dependabot' }}
         with:
           owner: nuts-foundation
           name: nuts-node-ci
           # NOTE: using Personal Access Token
           token: ${{ secrets.PACKAGE_SECRET }}
+          tag: ${{ env.SHA }}
+
+      - name: package cleanup dependabot
+        uses: bots-house/ghcr-delete-image-action@v1.0.1
+        if: ${{ github.actor == 'dependabot' }}
+        with:
+          owner: nuts-foundation
+          name: nuts-node-ci
+          # NOTE: using Personal Access Token
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.SHA }}
