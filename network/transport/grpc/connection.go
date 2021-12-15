@@ -40,6 +40,8 @@ type managedConnection interface {
 	// close shuts down active inbound or outbound streams and stops active outbound connectors.
 	// After calling close() the managedConnection cannot be reused.
 	close()
+	// waitUntilClosed blocks until the connection is closed. If it already is closed or was never open, it returns immediately.
+	waitUntilClosed()
 	getPeer() transport.Peer
 	connected(protocol string) bool
 	// open instructs the managedConnection to start connecting to the remote peer (attempting an outbound connection).
@@ -122,6 +124,18 @@ func (mc *conn) context() context.Context {
 	mc.mux.RLock()
 	defer mc.mux.RUnlock()
 	return mc.ctx
+}
+
+func (mc *conn) waitUntilClosed() {
+	mc.mux.RLock()
+	var done <-chan struct{}
+	if mc.ctx != nil {
+		done = mc.ctx.Done()
+	}
+	mc.mux.RUnlock()
+	if done != nil {
+		<-done
+	}
 }
 
 func (mc *conn) doDisconnect() {

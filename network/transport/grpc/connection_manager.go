@@ -238,7 +238,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection managedConnection
 	if protocolNum == 0 {
 		return fmt.Errorf("could not use any of the supported protocols to communicate with peer (id=%s)", connection.getPeer())
 	}
-	<-connection.context().Done() // block until connection is closed
+	connection.waitUntilClosed()
 	return nil
 }
 

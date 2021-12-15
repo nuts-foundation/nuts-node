@@ -19,9 +19,11 @@
 package grpc
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -47,6 +49,31 @@ func Test_conn_close(t *testing.T) {
 		conn.verifyOrSetPeerID("foo")
 		conn.close()
 		assert.Empty(t, conn.getPeer())
+	})
+}
+
+func Test_conn_waitUntilClosed(t *testing.T) {
+	t.Run("never open, should return immediately", func(t *testing.T) {
+		conn := conn{}
+		conn.waitUntilClosed()
+	})
+	t.Run("closed while waiting, should return almost immediately", func(t *testing.T) {
+		conn := conn{}
+		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			wg.Wait()
+			conn.close()
+		}()
+		wg.Done()
+		conn.waitUntilClosed()
+	})
+	t.Run("waiting after close, should return immediately", func(t *testing.T) {
+		conn := conn{}
+		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
+		conn.close()
+		conn.waitUntilClosed()
 	})
 }
 
