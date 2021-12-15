@@ -52,10 +52,10 @@ func Test_conn_close(t *testing.T) {
 	})
 }
 
-func Test_conn_waitTilClosed(t *testing.T) {
+func Test_conn_waitUntilClosed(t *testing.T) {
 	t.Run("never open, should return immediately", func(t *testing.T) {
 		conn := conn{}
-		conn.waitTilClosed()
+		conn.waitUntilClosed()
 	})
 	t.Run("closed while waiting, should return almost immediately", func(t *testing.T) {
 		conn := conn{}
@@ -67,13 +67,13 @@ func Test_conn_waitTilClosed(t *testing.T) {
 			conn.close()
 		}()
 		wg.Done()
-		conn.waitTilClosed()
+		conn.waitUntilClosed()
 	})
 	t.Run("waiting after close, should return immediately", func(t *testing.T) {
 		conn := conn{}
 		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
 		conn.close()
-		conn.waitTilClosed()
+		conn.waitUntilClosed()
 	})
 }
 
