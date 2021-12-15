@@ -276,18 +276,20 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 
 	templateType := template.Type[0]
 	templateTypeString := templateType.String()
-	if !c.registry.HasCredentialType(templateTypeString) {
+	conceptConfig := c.registry.FindByType(templateTypeString)
+	if conceptConfig == nil {
 		if c.config.strictMode {
-			return nil, errors.New("cannot issue non-predefined credential types is strict mode")
+			return nil, errors.New("cannot issue non-predefined credential types in strict mode")
 		}
 		// non-strictmode, add the credential type to the registry
-		c.registry.Add(concept.Config{
+		conceptConfig = &concept.Config{
 			Concept:        templateTypeString,
 			CredentialType: templateTypeString,
-		})
+		}
+		c.registry.Add(*conceptConfig)
 	}
 
-	credential := vc.VerifiableCredential{
+	verifiableCredential := vc.VerifiableCredential{
 		Type:              template.Type,
 		CredentialSubject: template.CredentialSubject,
 		Issuer:            template.Issuer,
@@ -295,7 +297,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	}
 
 	// find issuer
-	issuer, err := did.ParseDID(credential.Issuer.String())
+	issuer, err := did.ParseDID(verifiableCredential.Issuer.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
@@ -317,39 +319,59 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	}
 
 	// set defaults
-	builder.Fill(&credential)
+	builder.Fill(&verifiableCredential)
 
 	// sign
-	if err := c.generateProof(&credential, kid, key); err != nil {
+	if err := c.generateProof(&verifiableCredential, kid, key); err != nil {
 		return nil, fmt.Errorf("failed to generate credential proof: %w", err)
 	}
 
 	// do same validation as network nodes
-	if err := validator.Validate(credential); err != nil {
+	if err := validator.Validate(verifiableCredential); err != nil {
 		return nil, err
 	}
 
-	payload, _ := json.Marshal(credential)
+	// create participants list
+	participants := make([]did.DID, 0)
+	if !conceptConfig.Public {
+		var (
+			base                []credential.BaseCredentialSubject
+			credentialSubjectID *did.DID
+		)
+		err = verifiableCredential.UnmarshalCredentialSubject(&base)
+		if err == nil {
+			credentialSubjectID, err = did.ParseDID(base[0].ID) // earlier validation made sure length == 1 and ID is present
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine credentialSubject.ID: %w", err)
+		}
 
+		// participants are the issuer and the credentialSubject.id
+		participants = append(participants, *issuer)
+		participants = append(participants, *credentialSubjectID)
+	}
+
+	payload, _ := json.Marshal(verifiableCredential)
 	tx := network.TransactionTemplate(vcDocumentType, payload, key).
-		WithTimestamp(credential.IssuanceDate).
-		WithAdditionalPrevs(meta.SourceTransactions)
+		WithTimestamp(verifiableCredential.IssuanceDate).
+		WithAdditionalPrevs(meta.SourceTransactions).
+		WithPrivate(participants)
 	_, err = c.network.CreateTransaction(tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish credential: %w", err)
 	}
-	log.Logger().Infof("Verifiable Credential issued (id=%s,type=%s)", credential.ID, templateType)
+	log.Logger().Infof("Verifiable Credential published (id=%s,type=%s)", verifiableCredential.ID, templateType)
 
 	if !c.trustConfig.IsTrusted(templateType, issuer.URI()) {
 		log.Logger().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuer, templateType)
 		if err := c.Trust(templateType, issuer.URI()); err != nil {
-			return &credential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuer, templateType, err)
+			return &verifiableCredential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuer, templateType, err)
 		}
 	} else {
 		log.Logger().Debugf("Issuer already trusted (did=%s,type=%s)", *issuer, templateType)
 	}
 
-	return &credential, nil
+	return &verifiableCredential, nil
 }
 
 func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {

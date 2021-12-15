@@ -24,6 +24,7 @@ The organization credential configuration looks like this:
 
     concept: organization
     credentialType: NutsOrganizationCredential
+    public: true
     indices:
       - name: index_id
         parts:
@@ -61,6 +62,13 @@ It contains 4 main parts: `concept`, `credentialType`, `indices` and `template`.
 The NutsOrganizationCredential is mapped to the `organization` concept.
 When searching for credentials, you use the concept name. When creating a credential you use the credential type.
 When you resolve a credential, you'll always get the raw credential.
+
+Public
+======
+
+By default credential types are regarded as private. This means they are only synchronized between the issuer and credentialSubject.
+It is possible to make credentials public by creating a template for the credential type and add the `public: true` setting.
+Credentials that are created without a template are regarded as private.
 
 Indices
 =======

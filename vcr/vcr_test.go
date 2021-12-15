@@ -24,8 +24,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/stretchr/testify/mock"
 	"os"
 	"reflect"
 	"runtime"
@@ -33,9 +31,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
-	did2 "github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -91,7 +92,7 @@ func TestVCR_Start(t *testing.T) {
 
 func TestVCR_SearchInternal(t *testing.T) {
 	vc := concept.TestVC()
-	issuer, _ := did2.ParseDIDURL(vc.Issuer.String())
+	issuer, _ := did.ParseDIDURL(vc.Issuer.String())
 	testInstance := func(t2 *testing.T) (mockContext, concept.Query) {
 		ctx := newMockContext(t2)
 
@@ -222,7 +223,7 @@ func TestVCR_Resolve(t *testing.T) {
 
 	testVC := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(concept.TestCredential), &testVC)
-	issuer, _ := did2.ParseDIDURL(testVC.Issuer.String())
+	issuer, _ := did.ParseDIDURL(testVC.Issuer.String())
 
 	now := time.Now()
 	timeFunc = func() time.Time {
@@ -321,8 +322,8 @@ func TestVcr_Issue(t *testing.T) {
 	documentMetadata := types.DocumentMetadata{
 		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
 	}
-	document := did2.Document{}
-	document.AddAssertionMethod(&did2.VerificationMethod{ID: *vdr.TestMethodDIDA})
+	document := did.Document{}
+	document.AddAssertionMethod(&did.VerificationMethod{ID: *vdr.TestMethodDIDA})
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -381,7 +382,7 @@ func TestVcr_Issue(t *testing.T) {
 			return
 		}
 		assert.NotNil(t, issued)
-		assert.True(t, ctx.vcr.registry.HasCredentialType("unknownType"))
+		assert.NotNil(t, ctx.vcr.registry.FindByType("unknownType"))
 	})
 
 	t.Run("error - unknown type in strict mode", func(t *testing.T) {
@@ -398,7 +399,7 @@ func TestVcr_Issue(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.EqualError(t, err, "cannot issue non-predefined credential types is strict mode")
+		assert.EqualError(t, err, "cannot issue non-predefined credential types in strict mode")
 	})
 
 	t.Run("error - too many types", func(t *testing.T) {
@@ -526,7 +527,7 @@ func TestVcr_Validate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	issuer, _ := did2.ParseDIDURL(subject.Issuer.String())
+	issuer, _ := did.ParseDIDURL(subject.Issuer.String())
 
 	// oad pub key
 	pke := storage.PublicKeyEntry{}
@@ -612,7 +613,7 @@ func TestVcr_Verify(t *testing.T) {
 	subject := vc.VerifiableCredential{}
 	vcJSON, _ := os.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &subject)
-	issuer, _ := did2.ParseDIDURL(subject.Issuer.String())
+	issuer, _ := did.ParseDIDURL(subject.Issuer.String())
 
 	// oad pub key
 	pke := storage.PublicKeyEntry{}
@@ -815,8 +816,8 @@ func TestVcr_Revoke(t *testing.T) {
 	documentMetadata := types.DocumentMetadata{
 		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
 	}
-	document := did2.Document{}
-	document.AddAssertionMethod(&did2.VerificationMethod{ID: *vdr.TestMethodDIDA})
+	document := did.Document{}
+	document.AddAssertionMethod(&did.VerificationMethod{ID: *vdr.TestMethodDIDA})
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
