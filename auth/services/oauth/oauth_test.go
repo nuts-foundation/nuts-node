@@ -586,6 +586,21 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
 		assert.NoError(t, err)
 	})
+
+	t.Run("expired token", func(t *testing.T) {
+		// a token created 10 minutes ago, valid until 4 minutes ago. Just a very small clock skew allowed, so it should be expired.
+		ctx := createContext(t)
+		ctx.oauthService.clockSkew = 1 * time.Millisecond // because 0 multiplied by 0 equals 0, rather use 1 millisecond (small clock skew), better test.
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Set(jwt.IssuedAtKey, time.Now().Add(-10*time.Minute))
+		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(-4*time.Minute))
+		signToken(tokenCtx)
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).Return(requesterSigningKey.PublicKey, nil)
+
+		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
+		assert.EqualError(t, err, "exp not satisfied")
+	})
 }
 
 func TestService_buildAccessToken(t *testing.T) {
