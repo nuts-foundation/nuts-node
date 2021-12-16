@@ -141,9 +141,11 @@ func (s *grpcConnectionManager) Start() error {
 	// Create gRPC server for inbound connectionList and associate it with the protocols
 	s.grpcServer = grpc.NewServer(serverOpts...)
 	for _, prot := range s.protocols {
-		prot.Register(s, func(stream grpc.ServerStream) error {
-			return s.handleInboundStream(prot, stream)
-		}, s.connections)
+		func(protocol Protocol) {
+			prot.Register(s, func(stream grpc.ServerStream) error {
+				return s.handleInboundStream(protocol, stream)
+			}, s.connections)
+		}(prot)
 	}
 
 	// Start serving from the gRPC server
