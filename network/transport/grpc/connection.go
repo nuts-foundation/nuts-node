@@ -70,25 +70,24 @@ type Connection interface {
 
 func createConnection(dialer dialer, peer transport.Peer) Connection {
 	result := &conn{
-		dialer:                       dialer,
-		streams:                      make(map[string]Stream),
-		outboxes:                     make(map[string]chan interface{}),
+		dialer:   dialer,
+		streams:  make(map[string]Stream),
+		outboxes: make(map[string]chan interface{}),
 	}
 	result.peer.Store(peer)
 	return result
 }
 
 type conn struct {
-	peer                         atomic.Value
-	ctx                          context.Context
-	cancelCtx                    func()
-	mux                          sync.RWMutex
-	connector                    *outboundConnector
-	streams                map[string]Stream
-	outboxes               map[string]chan interface{}
-	grpcOutboundConnection *grpc.ClientConn
+	peer      atomic.Value
+	ctx       context.Context
+	cancelCtx func()
+	mux       sync.RWMutex
+	connector *outboundConnector
+	streams   map[string]Stream
+	outboxes  map[string]chan interface{}
 
-	dialer                       dialer
+	dialer dialer
 }
 
 func (mc *conn) Peer() transport.Peer {
@@ -262,13 +261,7 @@ func (mc *conn) startConnecting(tlsConfig *tls.Config, connectedCallback func(gr
 
 	mc.connector = createOutboundConnector(mc.Peer().Address, mc.dialer, tlsConfig, func() bool {
 		return !mc.Connected()
-	}, func(conn *grpc.ClientConn) bool {
-		mc.mux.Lock()
-		mc.grpcOutboundConnection = conn
-		mc.mux.Unlock()
-
-		return connectedCallback(conn)
-	})
+	}, connectedCallback)
 	mc.connector.start()
 }
 

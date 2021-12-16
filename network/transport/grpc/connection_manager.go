@@ -57,7 +57,7 @@ type fatalError struct {
 }
 
 func (s fatalError) Error() string {
-	return s.Error()
+	return s.error.Error()
 }
 
 func (s fatalError) Is(other error) bool {
@@ -245,7 +245,8 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 
 		clientStream, err := s.openOutboundStream(connection, protocol, grpcConn, md)
 		if err != nil {
-			log.Logger().Warnf("%T: Failed to open gRPC stream (addr=%s): %v", prot, grpcConn.Target(), err)
+			log.Logger().Warnf("%T: Failed to open gRPC stream (addr=%s): %v", protocol, grpcConn.Target(), err)
+
 			if errors.Is(err, fatalError{}) {
 				// Error indicates connection should be closed.
 				return err
