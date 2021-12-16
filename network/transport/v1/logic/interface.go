@@ -49,6 +49,7 @@ type Protocol interface {
 	Stop()
 	// PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 	PeerDiagnostics() map[transport.PeerID]transport.Diagnostics
+	Handle(peer transport.Peer, envelope interface{}) error
 }
 
 // PeerOmnihashQueue is a queue which contains the omnihashes (DAG reduced to a single hash) from our peers.

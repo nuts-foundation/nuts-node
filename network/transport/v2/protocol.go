@@ -20,15 +20,15 @@ package v2
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	grpcLib "google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
+
+var _ grpc.Protocol = (*protocol)(nil)
 
 // New creates an instance of the v2 protocol.
 func New() transport.Protocol {
@@ -36,12 +36,39 @@ func New() transport.Protocol {
 }
 
 type protocol struct {
-	acceptor grpc.InboundStreamHandler
+	connectionList grpc.ConnectionList
 }
 
-func (p protocol) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.InboundStreamHandler) {
-	p.acceptor = acceptor
-	RegisterProtocolServer(registrar, p)
+func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn) (grpcLib.ClientStream, error) {
+	return NewProtocolClient(grpcConn).Stream(outgoingContext)
+}
+
+func (p *protocol) Register(registrar grpcLib.ServiceRegistrar, acceptor func(stream grpcLib.ServerStream) error, connectionList grpc.ConnectionList) {
+	RegisterProtocolServer(registrar, &protocolServer{acceptor: acceptor})
+	p.connectionList = connectionList
+}
+
+func (p protocol) MethodName() string {
+	return grpc.GetStreamMethod(Protocol_ServiceDesc.ServiceName, Protocol_ServiceDesc.Streams[0])
+}
+
+func (p protocol) CreateEnvelope() interface{} {
+	return &Message{}
+}
+
+func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
+	return envelope.(*Message).Message
+}
+
+func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
+	envelope := raw.(*Message)
+	switch envelope.Message.(type) {
+	case *Message_Hello:
+		log.Logger().Infof("%T: %s said hello", p, peer)
+	default:
+		return errors.New("envelope doesn't contain any (handleable) messages")
+	}
+	return nil
 }
 
 func (p protocol) Configure(_ transport.PeerID) {
@@ -61,72 +88,10 @@ func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	return make(map[transport.PeerID]transport.Diagnostics, 0)
 }
 
-// OpenStream is called when an outbound stream is opened to a remote peer.
-func (p protocol) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream, method string) (transport.Peer, error)) (context.Context, error) {
-	client := NewProtocolClient(grpcConn)
-	stream, err := client.Stream(outgoingContext)
-	if err != nil {
-		return nil, err
-	}
-	peer, err := callback(stream, grpc.GetStreamMethod(Protocol_ServiceDesc.ServiceName, Protocol_ServiceDesc.Streams[0]))
-	if err != nil {
-		_ = stream.CloseSend()
-		return nil, err
-	}
-
-	err = stream.Send(&Message{Message: &Message_Hello{}})
-	if err != nil {
-		return nil, fmt.Errorf("unable to say hello: %w", err)
-	}
-
-	ctx, cancelFn := context.WithCancel(context.Background())
-	go func() {
-		p.receiveMessages(peer, stream)
-		cancelFn()
-	}()
-
-	return ctx, nil
+type protocolServer struct {
+	acceptor func(grpcLib.ServerStream) error
 }
 
-// Stream is called when a peer opens a stream to the local node (inbound connections).
-func (p protocol) Stream(stream Protocol_StreamServer) error {
-	peer, ctx, err := p.acceptor(stream)
-	if err != nil {
-		log.Logger().Warnf("ProtocolV2: Inbound stream not accepted, returning error to client: %v", err)
-		return err
-	}
-
-	err = stream.Send(&Message{Message: &Message_Hello{}})
-	if err != nil {
-		return fmt.Errorf("unable to say hello: %w", err)
-	}
-
-	go func() {
-		p.receiveMessages(peer, stream)
-	}()
-	<-ctx.Done()
-	return nil
-}
-
-func (p protocol) receiveMessages(peer transport.Peer, stream grpc.StreamReceiver) {
-	err := grpc.ReceiveMessages(stream, func() interface{} {
-		return &Message{}
-	}, func(rawMsg interface{}) {
-		p.handle(peer, rawMsg.(*Message))
-	})
-	errStatus, isStatusError := status.FromError(err)
-	if isStatusError && errStatus.Code() == codes.Canceled {
-		log.Logger().Infof("%T: Peer closed connection (peer=%s)", p, peer)
-	} else {
-		log.Logger().Warnf("%T: Peer connection error (peer=%s): %v", p, peer, err)
-	}
-}
-
-func (p protocol) handle(peer transport.Peer, message *Message) {
-	switch message.Message.(type) {
-	case *Message_Hello:
-		log.Logger().Infof("%T: %s said hello", p, peer)
-	default:
-		log.Logger().Warnf("%T: Envelope doesn't contain any (handleable) messages, peer sent an empty message or protocol implementation might differ? (peer=%s)", p, peer)
-	}
+func (p protocolServer) Stream(server Protocol_StreamServer) error {
+	return p.acceptor(server)
 }

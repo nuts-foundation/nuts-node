@@ -29,51 +29,51 @@ import (
 	"time"
 )
 
-func Test_conn_close(t *testing.T) {
+func Test_conn_disconnect(t *testing.T) {
 	t.Run("no context", func(t *testing.T) {
 		conn := conn{}
-		conn.close()
+		conn.disconnect()
 	})
-	t.Run("close cancels context", func(t *testing.T) {
+	t.Run("disconnect cancels context", func(t *testing.T) {
 		called := false
 		conn := conn{
 			cancelCtx: func() {
 				called = true
 			},
 		}
-		conn.close()
+		conn.disconnect()
 		assert.True(t, called)
 	})
-	t.Run("resets peer ID", func(t *testing.T) {
+	t.Run("disconnect resets peer ID", func(t *testing.T) {
 		conn := conn{}
 		conn.verifyOrSetPeerID("foo")
-		conn.close()
-		assert.Empty(t, conn.getPeer())
+		conn.disconnect()
+		assert.Empty(t, conn.Peer())
 	})
 }
 
-func Test_conn_waitUntilClosed(t *testing.T) {
+func Test_conn_waitUntilDisconnected(t *testing.T) {
 	t.Run("never open, should return immediately", func(t *testing.T) {
 		conn := conn{}
-		conn.waitUntilClosed()
+		conn.waitUntilDisconnected()
 	})
-	t.Run("closed while waiting, should return almost immediately", func(t *testing.T) {
+	t.Run("disconnected while waiting, should return almost immediately", func(t *testing.T) {
 		conn := conn{}
 		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
 			wg.Wait()
-			conn.close()
+			conn.disconnect()
 		}()
 		wg.Done()
-		conn.waitUntilClosed()
+		conn.waitUntilDisconnected()
 	})
-	t.Run("waiting after close, should return immediately", func(t *testing.T) {
+	t.Run("waiting after disconnect, should return immediately", func(t *testing.T) {
 		conn := conn{}
 		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
-		conn.close()
-		conn.waitUntilClosed()
+		conn.disconnect()
+		conn.waitUntilDisconnected()
 	})
 }
 
@@ -81,7 +81,7 @@ func Test_conn_registerServerStream(t *testing.T) {
 	t.Run("cancelling before-last stream does not invoke callback", func(t *testing.T) {
 		called := atomic.Value{}
 		called.Store(false)
-		conn := createConnection(nil, transport.Peer{}, func(connection managedConnection) {
+		conn := createConnection(nil, transport.Peer{}, func(connection Connection) {
 			called.Store(true)
 		}).(*conn)
 		stream1 := newServerStream("foo", "")
@@ -101,7 +101,7 @@ func Test_conn_registerServerStream(t *testing.T) {
 	t.Run("cancelling last stream invokes callback", func(t *testing.T) {
 		called := atomic.Value{}
 		called.Store(false)
-		conn := createConnection(nil, transport.Peer{}, func(connection managedConnection) {
+		conn := createConnection(nil, transport.Peer{}, func(connection Connection) {
 			called.Store(true)
 		}).(*conn)
 		stream := newServerStream("foo", "")

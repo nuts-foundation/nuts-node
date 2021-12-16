@@ -24,33 +24,54 @@ import (
 	"sync"
 )
 
-type connectionList struct {
-	mux  sync.Mutex
-	list []managedConnection
+type ConnectionList interface {
+	Get(peer transport.PeerID) Connection
+	ForEach(consumer func(connection Connection))
 }
 
-func (c *connectionList) closeAll() {
+type connectionList struct {
+	mux  sync.Mutex
+	list []Connection
+}
+
+func (c *connectionList) Get(peer transport.PeerID) Connection {
+	if len(peer.String()) == 0 {
+		return nil
+	}
+
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
 	for _, curr := range c.list {
-		curr.close()
+		if curr.Peer().ID == peer {
+			return curr
+		}
 	}
-	c.list = nil
+
+	return nil
+}
+
+func (c *connectionList) ForEach(consumer func(connection Connection)) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	for _, curr := range c.list {
+		consumer(curr)
+	}
 }
 
 // getOrRegister retrieves the connection that matches the given peer (either on ID or address).
 // If no connections match the given peer it creates a new one.
 // It returns false if the peer matched an existing connection.
 // It returns true if a new connection was created.
-func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (managedConnection, bool) {
+func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (Connection, bool) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
 	// Check whether we're already connected to this peer
 	for _, curr := range c.list {
 		// This works for both outbound and inbound
-		currPeer := curr.getPeer()
+		currPeer := curr.Peer()
 		if len(peer.ID) > 0 && currPeer.ID == peer.ID {
 			return curr, false
 		}
@@ -60,10 +81,7 @@ func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (mana
 		}
 	}
 
-	result := createConnection(dialer, peer, func(target managedConnection) {
-		// When the all inbound streams are closed, remove it from the list.
-		c.remove(target)
-	})
+	result := createConnection(dialer, peer)
 	c.list = append(c.list, result)
 	return result, true
 }
@@ -74,14 +92,14 @@ func (c *connectionList) listConnected() []transport.Peer {
 
 	var result []transport.Peer
 	for _, curr := range c.list {
-		if curr.connected(AnyProtocol) {
-			result = append(result, curr.getPeer())
+		if curr.Connected() {
+			result = append(result, curr.Peer())
 		}
 	}
 	return result
 }
 
-func (c *connectionList) remove(target managedConnection) {
+func (c *connectionList) remove(target Connection) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 

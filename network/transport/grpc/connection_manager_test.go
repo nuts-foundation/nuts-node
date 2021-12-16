@@ -245,8 +245,8 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		waiter.Add(1)
 
 		connection, _ := client.connections.getOrRegister(transport.Peer{Address: "server"}, client.dialer)
-		connection.open(nil, func(grpcConn *grpc.ClientConn) bool {
-			_, err := client.openOutboundStream(connection, grpcConn, &TestProtocol{})
+		connection.startConnecting(nil, func(grpcConn *grpc.ClientConn) bool {
+			_, err := client.acceptOutboundStream(connection, grpcConn, &TestProtocol{})
 			capturedError.Store(err)
 			waiter.Done()
 			connection.close()

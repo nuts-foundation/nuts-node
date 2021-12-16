@@ -14,7 +14,7 @@ import (
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
 )
 
-// MockmessageSender is a mock of messageSender interface.
+// MockmessageSender is a mock of messageBuilder interface.
 type MockmessageSender struct {
 	ctrl     *gomock.Controller
 	recorder *MockmessageSenderMockRecorder
@@ -50,15 +50,15 @@ func (mr *MockmessageSenderMockRecorder) broadcastAdvertHashes(blocks interface{
 }
 
 // broadcastDiagnostics mocks base method.
-func (m *MockmessageSender) broadcastDiagnostics(diagnostics transport.Diagnostics) {
+func (m *MockmessageSender) buildDiagnostics(diagnostics transport.Diagnostics) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "broadcastDiagnostics", diagnostics)
+	m.ctrl.Call(m, "buildDiagnostics", diagnostics)
 }
 
 // broadcastDiagnostics indicates an expected call of broadcastDiagnostics.
 func (mr *MockmessageSenderMockRecorder) broadcastDiagnostics(diagnostics interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastDiagnostics", reflect.TypeOf((*MockmessageSender)(nil).broadcastDiagnostics), diagnostics)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "buildDiagnostics", reflect.TypeOf((*MockmessageSender)(nil).buildDiagnostics), diagnostics)
 }
 
 // broadcastTransactionPayloadQuery mocks base method.

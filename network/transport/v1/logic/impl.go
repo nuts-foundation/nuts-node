@@ -20,7 +20,8 @@ package logic
 
 import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
@@ -33,7 +34,6 @@ import (
 
 // protocol is thread-safe when callers use the Protocol interface
 type protocol struct {
-	adapter      p2p.Adapter
 	graph        dag.DAG
 	payloadStore dag.PayloadStore
 	sender       messageSender
@@ -96,7 +96,7 @@ func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics 
 }
 
 // NewProtocol creates a new instance of Protocol
-func NewProtocol(adapter p2p.Adapter, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) Protocol {
+func NewProtocol(send func(peer transport.PeerID, envelope *protobuf.NetworkMessage), broadcast func(envelope *protobuf.NetworkMessage), graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) Protocol {
 	p := &protocol{
 		peerDiagnostics:      make(map[transport.PeerID]transport.Diagnostics, 0),
 		peerDiagnosticsMutex: &sync.Mutex{},
@@ -108,7 +108,11 @@ func NewProtocol(adapter p2p.Adapter, graph dag.DAG, publisher dag.Publisher, pa
 		payloadStore:         payloadStore,
 		publisher:            publisher,
 		diagnosticsProvider:  diagnosticsProvider,
-		adapter:              adapter,
+		sender: defaultMessageSender{
+			send:           send,
+			broadcast:      broadcast,
+			maxMessageSize: grpc.MaxMessageSizeInBytes,
+		},
 	}
 	return p
 }
@@ -118,7 +122,6 @@ func (p *protocol) Configure(advertHashesInterval time.Duration, advertDiagnosti
 	p.advertDiagnosticsInterval = advertDiagnosticsInterval
 	p.collectMissingPayloadsInterval = collectMissingPayloadsInterval
 	p.peerID = peerID
-	p.sender = defaultMessageSender{p2p: p.adapter, maxMessageSize: p2p.MaxMessageSizeInBytes}
 	p.missingPayloadCollector = broadcastingMissingPayloadCollector{
 		graph:        p.graph,
 		payloadStore: p.payloadStore,
@@ -128,9 +131,9 @@ func (p *protocol) Configure(advertHashesInterval time.Duration, advertDiagnosti
 }
 
 func (p *protocol) Start() {
-	go p.consumeMessages(p.adapter.ReceivedMessages())
-	peerConnected, peerDisconnected := p.adapter.EventChannels()
-	go p.startUpdatingDiagnostics(peerConnected, peerDisconnected)
+	// TODO
+	// peerConnected, peerDisconnected := p.adapter.EventChannels()
+	// go p.startUpdatingDiagnostics(peerConnected, peerDisconnected)
 	go p.startAdvertingHashes()
 	go p.startAdvertingDiagnostics()
 	go p.startCollectingMissingPayloads()
@@ -210,15 +213,6 @@ func (p *protocol) updateDiagnostics(peerConnected chan transport.Peer, peerDisc
 			p.peerOmnihashes[peerOmnihash.Peer] = peerOmnihash.Hash
 		})
 		break
-	}
-}
-
-func (p protocol) consumeMessages(queue p2p.MessageQueue) {
-	for {
-		peerMsg := queue.Get()
-		if err := p.handleMessage(peerMsg); err != nil {
-			log.Logger().Errorf("Error handling message (peer=%s): %v", peerMsg.Peer, err)
-		}
 	}
 }
 

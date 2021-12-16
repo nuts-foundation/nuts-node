@@ -26,42 +26,41 @@ import (
 )
 
 type TestProtocol struct {
-	acceptorCallback InboundStreamHandler
-	peer             transport.Peer
-	inboundCalled    bool
-	outboundCalled   bool
+	peer           transport.Peer
+	inboundCalled  bool
+	outboundCalled bool
+	acceptor       func(stream grpc.ServerStream) error
+}
+
+func (s *TestProtocol) MethodName() string {
+	panic("implement me")
+}
+
+func (s *TestProtocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpc.ClientConn) (grpc.ClientStream, error) {
+	client := NewTestClient(grpcConn)
+	return client.DoStuff(outgoingContext, grpc.FailFastCallOption{FailFast: true})
+}
+
+func (s *TestProtocol) Register(registrar grpc.ServiceRegistrar, acceptor func(stream grpc.ServerStream) error, connectionList ConnectionList) {
+	RegisterTestServer(registrar, s)
+	s.acceptor = acceptor
+}
+
+func (s *TestProtocol) CreateEnvelope() interface{} {
+	panic("implement me")
+}
+
+func (s *TestProtocol) Handle(peer transport.Peer, envelope interface{}) error {
+	panic("implement me")
+}
+
+func (s *TestProtocol) UnwrapMessage(envelope interface{}) interface{} {
+	panic("implement me")
 }
 
 func (s *TestProtocol) DoStuff(serverStream Test_DoStuffServer) error {
-	peer, _, err := s.acceptorCallback(serverStream)
-	if err != nil {
-		return err
-	}
-	_, _ = serverStream.Recv()
 	s.inboundCalled = true
-	s.peer = peer
-	return nil
-}
-
-func (s *TestProtocol) RegisterService(registrar grpc.ServiceRegistrar, acceptorCallback InboundStreamHandler) {
-	s.acceptorCallback = acceptorCallback
-	RegisterTestServer(registrar, s)
-}
-
-func (s *TestProtocol) OpenStream(outgoingContext context.Context, grpcConn *grpc.ClientConn, callback func(stream grpc.ClientStream, method string) (transport.Peer, error)) (context.Context, error) {
-	client := NewTestClient(grpcConn)
-	clientStream, err := client.DoStuff(outgoingContext, grpc.FailFastCallOption{FailFast: true})
-	if err != nil {
-		return nil, err
-	}
-	peer, err := callback(clientStream, "testprotocol")
-	s.peer = peer
-	if err != nil {
-		_ = clientStream.CloseSend()
-		return nil, err
-	}
-	<-outgoingContext.Done()
-	return context.Background(), nil
+	return s.acceptor(serverStream)
 }
 
 func (s TestProtocol) Configure(_ transport.PeerID) {

@@ -51,7 +51,7 @@ func Test_defaultMessageSender_broadcastAdvertHashes(t *testing.T) {
 		Blocks:           []*protobuf.BlockHashes{{Hashes: [][]byte{hash1.Slice()}}},
 		HistoricHash:     hash.EmptyHash().Slice(),
 	}}})
-	sender.broadcastAdvertHashes([]dagBlock{
+	sender.buildAdvertHashes([]dagBlock{
 		{start: time.Time{}},
 		{start: now, heads: []hash.SHA256Hash{hash1}},
 	},
@@ -67,7 +67,7 @@ func Test_defaultMessageSender_broadcastDiagnostics(t *testing.T) {
 		SoftwareVersion:      "1.0",
 		SoftwareID:           "Test",
 	}}})
-	sender.broadcastDiagnostics(transport.Diagnostics{
+	sender.buildDiagnostics(transport.Diagnostics{
 		Uptime:               1000 * time.Second,
 		Peers:                []transport.PeerID{"foobar"},
 		NumberOfTransactions: 5,
