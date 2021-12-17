@@ -13,104 +13,151 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-// MockInboundStreamer is a mock of InboundStreamer interface.
-type MockInboundStreamer struct {
+// MockProtocol is a mock of Protocol interface.
+type MockProtocol struct {
 	ctrl     *gomock.Controller
-	recorder *MockInboundStreamerMockRecorder
+	recorder *MockProtocolMockRecorder
 }
 
-// MockInboundStreamerMockRecorder is the mock recorder for MockInboundStreamer.
-type MockInboundStreamerMockRecorder struct {
-	mock *MockInboundStreamer
+// MockProtocolMockRecorder is the mock recorder for MockProtocol.
+type MockProtocolMockRecorder struct {
+	mock *MockProtocol
 }
 
-// NewMockInboundStreamer creates a new mock instance.
-func NewMockInboundStreamer(ctrl *gomock.Controller) *MockInboundStreamer {
-	mock := &MockInboundStreamer{ctrl: ctrl}
-	mock.recorder = &MockInboundStreamerMockRecorder{mock}
+// NewMockProtocol creates a new mock instance.
+func NewMockProtocol(ctrl *gomock.Controller) *MockProtocol {
+	mock := &MockProtocol{ctrl: ctrl}
+	mock.recorder = &MockProtocolMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockInboundStreamer) EXPECT() *MockInboundStreamerMockRecorder {
+func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 	return m.recorder
 }
 
-// RegisterService mocks base method.
-func (m *MockInboundStreamer) RegisterService(registrar grpc.ServiceRegistrar, acceptorCallback InboundStreamHandler) {
+// CreateClientStream mocks base method.
+func (m *MockProtocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpc.ClientConn) (grpc.ClientStream, error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterService", registrar, acceptorCallback)
-}
-
-// RegisterService indicates an expected call of RegisterService.
-func (mr *MockInboundStreamerMockRecorder) RegisterService(registrar, acceptorCallback interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterService", reflect.TypeOf((*MockInboundStreamer)(nil).RegisterService), registrar, acceptorCallback)
-}
-
-// MockOutboundStreamer is a mock of OutboundStreamer interface.
-type MockOutboundStreamer struct {
-	ctrl     *gomock.Controller
-	recorder *MockOutboundStreamerMockRecorder
-}
-
-// MockOutboundStreamerMockRecorder is the mock recorder for MockOutboundStreamer.
-type MockOutboundStreamerMockRecorder struct {
-	mock *MockOutboundStreamer
-}
-
-// NewMockOutboundStreamer creates a new mock instance.
-func NewMockOutboundStreamer(ctrl *gomock.Controller) *MockOutboundStreamer {
-	mock := &MockOutboundStreamer{ctrl: ctrl}
-	mock.recorder = &MockOutboundStreamerMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockOutboundStreamer) EXPECT() *MockOutboundStreamerMockRecorder {
-	return m.recorder
-}
-
-// OpenStream mocks base method.
-func (m *MockOutboundStreamer) OpenStream(arg0 context.Context, arg1 *grpc.ClientConn, arg2 func(grpc.ClientStream, string) (transport.Peer, error)) (context.Context, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OpenStream", arg0, arg1, arg2)
-	ret0, _ := ret[0].(context.Context)
+	ret := m.ctrl.Call(m, "CreateClientStream", outgoingContext, grpcConn)
+	ret0, _ := ret[0].(grpc.ClientStream)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// OpenStream indicates an expected call of OpenStream.
-func (mr *MockOutboundStreamerMockRecorder) OpenStream(arg0, arg1, arg2 interface{}) *gomock.Call {
+// CreateClientStream indicates an expected call of CreateClientStream.
+func (mr *MockProtocolMockRecorder) CreateClientStream(outgoingContext, grpcConn interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenStream", reflect.TypeOf((*MockOutboundStreamer)(nil).OpenStream), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateClientStream", reflect.TypeOf((*MockProtocol)(nil).CreateClientStream), outgoingContext, grpcConn)
 }
 
-// MockStreamReceiver is a mock of StreamReceiver interface.
-type MockStreamReceiver struct {
+// CreateEnvelope mocks base method.
+func (m *MockProtocol) CreateEnvelope() interface{} {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateEnvelope")
+	ret0, _ := ret[0].(interface{})
+	return ret0
+}
+
+// CreateEnvelope indicates an expected call of CreateEnvelope.
+func (mr *MockProtocolMockRecorder) CreateEnvelope() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateEnvelope", reflect.TypeOf((*MockProtocol)(nil).CreateEnvelope))
+}
+
+// Handle mocks base method.
+func (m *MockProtocol) Handle(peer transport.Peer, envelope interface{}) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Handle", peer, envelope)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Handle indicates an expected call of Handle.
+func (mr *MockProtocolMockRecorder) Handle(peer, envelope interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockProtocol)(nil).Handle), peer, envelope)
+}
+
+// MethodName mocks base method.
+func (m *MockProtocol) MethodName() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MethodName")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// MethodName indicates an expected call of MethodName.
+func (mr *MockProtocolMockRecorder) MethodName() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MethodName", reflect.TypeOf((*MockProtocol)(nil).MethodName))
+}
+
+// Register mocks base method.
+func (m *MockProtocol) Register(registrar grpc.ServiceRegistrar, acceptor func(grpc.ServerStream) error, connectionList ConnectionList, connectionManager transport.ConnectionManager) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Register", registrar, acceptor, connectionList, connectionManager)
+}
+
+// Register indicates an expected call of Register.
+func (mr *MockProtocolMockRecorder) Register(registrar, acceptor, connectionList, connectionManager interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockProtocol)(nil).Register), registrar, acceptor, connectionList, connectionManager)
+}
+
+// UnwrapMessage mocks base method.
+func (m *MockProtocol) UnwrapMessage(envelope interface{}) interface{} {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnwrapMessage", envelope)
+	ret0, _ := ret[0].(interface{})
+	return ret0
+}
+
+// UnwrapMessage indicates an expected call of UnwrapMessage.
+func (mr *MockProtocolMockRecorder) UnwrapMessage(envelope interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnwrapMessage", reflect.TypeOf((*MockProtocol)(nil).UnwrapMessage), envelope)
+}
+
+// MockStream is a mock of Stream interface.
+type MockStream struct {
 	ctrl     *gomock.Controller
-	recorder *MockStreamReceiverMockRecorder
+	recorder *MockStreamMockRecorder
 }
 
-// MockStreamReceiverMockRecorder is the mock recorder for MockStreamReceiver.
-type MockStreamReceiverMockRecorder struct {
-	mock *MockStreamReceiver
+// MockStreamMockRecorder is the mock recorder for MockStream.
+type MockStreamMockRecorder struct {
+	mock *MockStream
 }
 
-// NewMockStreamReceiver creates a new mock instance.
-func NewMockStreamReceiver(ctrl *gomock.Controller) *MockStreamReceiver {
-	mock := &MockStreamReceiver{ctrl: ctrl}
-	mock.recorder = &MockStreamReceiverMockRecorder{mock}
+// NewMockStream creates a new mock instance.
+func NewMockStream(ctrl *gomock.Controller) *MockStream {
+	mock := &MockStream{ctrl: ctrl}
+	mock.recorder = &MockStreamMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockStreamReceiver) EXPECT() *MockStreamReceiverMockRecorder {
+func (m *MockStream) EXPECT() *MockStreamMockRecorder {
 	return m.recorder
 }
 
+// Context mocks base method.
+func (m *MockStream) Context() context.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Context")
+	ret0, _ := ret[0].(context.Context)
+	return ret0
+}
+
+// Context indicates an expected call of Context.
+func (mr *MockStreamMockRecorder) Context() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Context", reflect.TypeOf((*MockStream)(nil).Context))
+}
+
 // RecvMsg mocks base method.
-func (m_2 *MockStreamReceiver) RecvMsg(m interface{}) error {
+func (m_2 *MockStream) RecvMsg(m interface{}) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
 	ret0, _ := ret[0].(error)
@@ -118,36 +165,13 @@ func (m_2 *MockStreamReceiver) RecvMsg(m interface{}) error {
 }
 
 // RecvMsg indicates an expected call of RecvMsg.
-func (mr *MockStreamReceiverMockRecorder) RecvMsg(m interface{}) *gomock.Call {
+func (mr *MockStreamMockRecorder) RecvMsg(m interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecvMsg", reflect.TypeOf((*MockStreamReceiver)(nil).RecvMsg), m)
-}
-
-// MockStreamSender is a mock of StreamSender interface.
-type MockStreamSender struct {
-	ctrl     *gomock.Controller
-	recorder *MockStreamSenderMockRecorder
-}
-
-// MockStreamSenderMockRecorder is the mock recorder for MockStreamSender.
-type MockStreamSenderMockRecorder struct {
-	mock *MockStreamSender
-}
-
-// NewMockStreamSender creates a new mock instance.
-func NewMockStreamSender(ctrl *gomock.Controller) *MockStreamSender {
-	mock := &MockStreamSender{ctrl: ctrl}
-	mock.recorder = &MockStreamSenderMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockStreamSender) EXPECT() *MockStreamSenderMockRecorder {
-	return m.recorder
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecvMsg", reflect.TypeOf((*MockStream)(nil).RecvMsg), m)
 }
 
 // SendMsg mocks base method.
-func (m_2 *MockStreamSender) SendMsg(m interface{}) error {
+func (m_2 *MockStream) SendMsg(m interface{}) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
 	ret0, _ := ret[0].(error)
@@ -155,7 +179,7 @@ func (m_2 *MockStreamSender) SendMsg(m interface{}) error {
 }
 
 // SendMsg indicates an expected call of SendMsg.
-func (mr *MockStreamSenderMockRecorder) SendMsg(m interface{}) *gomock.Call {
+func (mr *MockStreamMockRecorder) SendMsg(m interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockStreamSender)(nil).SendMsg), m)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockStream)(nil).SendMsg), m)
 }

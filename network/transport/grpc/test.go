@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
@@ -73,4 +74,72 @@ type TestNodeDIDResolver struct {
 
 func (s TestNodeDIDResolver) Resolve() (did.DID, error) {
 	return s.nodeDID, nil
+}
+
+
+type StubConnectionList struct {
+	PeerID transport.PeerID
+	Conn   *StubConnection
+}
+
+func (s *StubConnectionList) Get(peer transport.PeerID) Connection {
+	if peer == s.PeerID {
+		if s.Conn == nil {
+			s.Conn = &StubConnection{}
+		}
+		return s.Conn
+	}
+	return nil
+}
+
+func (s StubConnectionList) All() []Connection {
+	if s.Conn == nil {
+		return nil
+	}
+	return []Connection{s.Conn}
+}
+
+type StubConnection struct {
+	SentMsgs []interface{}
+}
+
+func (s *StubConnection) Send(_ Protocol, envelope interface{}) error {
+	s.SentMsgs = append(s.SentMsgs, envelope)
+	return nil
+}
+
+func (s StubConnection) Peer() transport.Peer {
+	panic("implement me")
+}
+
+func (s StubConnection) Connected() bool {
+	panic("implement me")
+}
+
+func (s StubConnection) disconnect() {
+	panic("implement me")
+}
+
+func (s StubConnection) waitUntilDisconnected() {
+	panic("implement me")
+}
+
+func (s StubConnection) startConnecting(_ *tls.Config, _ func(_ *grpc.ClientConn) bool) {
+	panic("implement me")
+}
+
+func (s StubConnection) stopConnecting() {
+	panic("implement me")
+}
+
+func (s StubConnection) registerStream(_ Protocol, _ Stream) bool {
+	panic("implement me")
+}
+
+func (s StubConnection) verifyOrSetPeerID(_ transport.PeerID) bool {
+	panic("implement me")
+}
+
+func (s StubConnection) stats() transport.ConnectionStats {
+	panic("implement me")
 }

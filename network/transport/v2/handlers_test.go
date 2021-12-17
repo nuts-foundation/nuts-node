@@ -1,12 +1,12 @@
 package v2
 
 import (
-	"errors"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -23,14 +23,11 @@ var authenticatedPeer = transport.Peer{
 	NodeDID: *peerDID,
 }
 
-func Test_protocol_logHandlerError(t *testing.T) {
-	handleErrorLogger(&TransactionPayload{}, peer, errors.New("failure"))
-}
-
 func Test_protocol_handle(t *testing.T) {
 	t.Run("no handleable messages", func(t *testing.T) {
 		p := New(nil, nil).(*protocol)
-		p.handle(peer, &Envelope{}, nil)
+		err := p.Handle(peer, &Envelope{})
+		assert.EqualError(t, err, "envelope doesn't contain any (handleable) messages")
 	})
 }
 
@@ -46,13 +43,9 @@ func Test_protocol_handleTransactionPayload(t *testing.T) {
 		payloadStore.EXPECT().WritePayload(gomock.Any(), tx.PayloadHash(), payload)
 		p := New(graph, payloadStore).(*protocol)
 
-		var reply replyCaptor
-		var err handleErrorCaptor
-		err.capture(t)
+		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: payload}}})
 
-		p.handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: payload}}}, reply.capture())
-
-		assert.NoError(t, err.value)
+		assert.NoError(t, err)
 	})
 	t.Run("error - no tx ref", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -60,15 +53,10 @@ func Test_protocol_handleTransactionPayload(t *testing.T) {
 		payloadStore := dag.NewMockPayloadStore(ctrl)
 		p := New(graph, payloadStore).(*protocol)
 
-		var reply replyCaptor
-		var err handleErrorCaptor
-		err.capture(t)
-
 		envelope := &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{}}}
-		p.handle(peer, envelope, reply.capture())
+		err := p.Handle(peer, envelope)
 
 		assert.EqualError(t, err, "message is missing transaction reference")
-		assert.Nil(t, reply.value)
 	})
 	t.Run("error - no data", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -76,14 +64,9 @@ func Test_protocol_handleTransactionPayload(t *testing.T) {
 		payloadStore := dag.NewMockPayloadStore(ctrl)
 		p := New(graph, payloadStore).(*protocol)
 
-		var reply replyCaptor
-		var err handleErrorCaptor
-		err.capture(t)
-
-		p.handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: []byte{1, 2, 3}}}}, reply.capture())
+		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: []byte{1, 2, 3}}}})
 
 		assert.EqualError(t, err, "peer does not have transaction payload (tx=0102030000000000000000000000000000000000000000000000000000000000)")
-		assert.Nil(t, reply.value)
 	})
 	t.Run("error - payload does not match hash", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -92,11 +75,7 @@ func Test_protocol_handleTransactionPayload(t *testing.T) {
 		payloadStore := dag.NewMockPayloadStore(ctrl)
 		p := New(graph, payloadStore).(*protocol)
 
-		var reply replyCaptor
-		var err handleErrorCaptor
-		err.capture(t)
-
-		p.handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: []byte("Hello, victim!")}}}, reply.capture())
+		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: []byte("Hello, victim!")}}})
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "peer sent payload that doesn't match payload hash")
@@ -108,11 +87,7 @@ func Test_protocol_handleTransactionPayload(t *testing.T) {
 		payloadStore := dag.NewMockPayloadStore(ctrl)
 		p := New(graph, payloadStore).(*protocol)
 
-		var reply replyCaptor
-		var err handleErrorCaptor
-		err.capture(t)
-
-		p.handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: payload}}}, reply.capture())
+		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: payload}}})
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "peer sent payload for non-existing transaction")
@@ -132,14 +107,13 @@ func Test_protocol_handleTransactionPayloadQuery(t *testing.T) {
 			payloadStore.EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(payload, nil)
 			p := New(graph, payloadStore).(*protocol)
 
-			var reply replyCaptor
-			var err handleErrorCaptor
-			err.capture(t)
+			conns := &grpc.StubConnectionList{PeerID: peer.ID}
+			p.connectionList = conns
 
-			p.handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}}, reply.capture())
+			err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
-			assert.NoError(t, err.value)
-			assertPayloadResponse(t, tx, payload, reply)
+			assert.NoError(t, err)
+			assertPayloadResponse(t, tx, payload, conns.Conn.SentMsgs[0])
 		})
 		t.Run("transaction not found", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -148,14 +122,13 @@ func Test_protocol_handleTransactionPayloadQuery(t *testing.T) {
 			payloadStore := dag.NewMockPayloadStore(ctrl)
 			p := New(graph, payloadStore).(*protocol)
 
-			var reply replyCaptor
-			var err handleErrorCaptor
-			err.capture(t)
+			conns := &grpc.StubConnectionList{PeerID: peer.ID}
+			p.connectionList = conns
 
-			p.handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}}, reply.capture())
+			err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
-			assert.NoError(t, err.value)
-			assertEmptyPayloadResponse(t, tx, reply)
+			assert.NoError(t, err)
+			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
 		})
 		t.Run("private transaction", func(t *testing.T) {
 
@@ -171,14 +144,13 @@ func Test_protocol_handleTransactionPayloadQuery(t *testing.T) {
 			payloadStore := dag.NewMockPayloadStore(ctrl)
 			p := New(graph, payloadStore).(*protocol)
 
-			var reply replyCaptor
-			var err handleErrorCaptor
-			err.capture(t)
+			conns := &grpc.StubConnectionList{PeerID: peer.ID}
+			p.connectionList = conns
 
-			p.handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}}, reply.capture())
+			err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
-			assert.NoError(t, err.value)
-			assertEmptyPayloadResponse(t, tx, reply)
+			assert.NoError(t, err)
+			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
 		})
 		t.Run("local node is not a participant in the TX", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -187,58 +159,26 @@ func Test_protocol_handleTransactionPayloadQuery(t *testing.T) {
 			payloadStore := dag.NewMockPayloadStore(ctrl)
 			p := New(graph, payloadStore).(*protocol)
 
-			var reply replyCaptor
-			var err handleErrorCaptor
-			err.capture(t)
+			conns := &grpc.StubConnectionList{PeerID: peer.ID}
+			p.connectionList = conns
 
-			p.handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}}, reply.capture())
+			err := p.Handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
-			assert.NoError(t, err.value)
-			assertEmptyPayloadResponse(t, tx, reply)
+			assert.NoError(t, err)
+			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
 		})
 
 	})
 }
 
-func assertPayloadResponse(t *testing.T, tx dag.Transaction, payload []byte, reply replyCaptor) bool {
+func assertPayloadResponse(t *testing.T, tx dag.Transaction, payload []byte, raw interface{}) bool {
+	envelope := raw.(*Envelope)
 	return assert.Equal(t, TransactionPayload{
 		TransactionRef: tx.Ref().Slice(),
 		Data:           payload,
-	}, *reply.value.(*Envelope_TransactionPayload).TransactionPayload)
+	}, *envelope.Message.(*Envelope_TransactionPayload).TransactionPayload)
 }
 
-func assertEmptyPayloadResponse(t *testing.T, tx dag.Transaction, reply replyCaptor) bool {
-	return assertPayloadResponse(t, tx, nil, reply)
-}
-
-type handleErrorCaptor struct {
-	value error
-}
-
-func (s handleErrorCaptor) Error() string {
-	if s.value == nil {
-		return ""
-	}
-	return s.value.Error()
-}
-
-func (s *handleErrorCaptor) capture(t *testing.T) {
-	old := handleErrorLogger
-	t.Cleanup(func() {
-		handleErrorLogger = old
-	})
-	handleErrorLogger = func(_ interface{}, _ transport.Peer, err error) {
-		s.value = err
-	}
-}
-
-type replyCaptor struct {
-	value isEnvelope_Message
-}
-
-func (s *replyCaptor) capture() func(msg isEnvelope_Message) error {
-	return func(msg isEnvelope_Message) error {
-		s.value = msg.(isEnvelope_Message)
-		return nil
-	}
+func assertEmptyPayloadResponse(t *testing.T, tx dag.Transaction, raw interface{}) bool {
+	return assertPayloadResponse(t, tx, nil, raw)
 }
