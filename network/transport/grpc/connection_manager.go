@@ -206,6 +206,7 @@ func (s grpcConnectionManager) Connect(peerAddress string) {
 		if err != nil {
 			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.Peer(), err)
 			connection.disconnect()
+			_ = grpcConn.Close()
 			return false
 		}
 		return true

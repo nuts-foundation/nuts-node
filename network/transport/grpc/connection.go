@@ -219,7 +219,9 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 				} else {
 					log.Logger().Warnf("%s: Peer connection error (peer=%s): %v", protocol.MethodName(), mc.Peer(), err)
 				}
+				mc.mux.Lock()
 				mc.cancelCtx()
+				mc.mux.Unlock()
 				break
 			}
 
