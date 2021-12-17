@@ -422,7 +422,7 @@ func newContext(t *testing.T) *testContext {
 	t.Cleanup(func() {
 		mockCtrl.Finish()
 	})
-	instance := NewProtocol(nil, nil, nil, nil, nil).(*protocol)
+	instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
 	instance.payloadStore = dag.NewMockPayloadStore(mockCtrl)
 	instance.sender = NewMockmessageSender(mockCtrl)
 	instance.graph = dag.NewMockDAG(mockCtrl)

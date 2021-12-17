@@ -31,7 +31,7 @@ type Protocol interface {
 	// CreateClientStream creates a new client for the gRPC stream.
 	CreateClientStream(outgoingContext context.Context, grpcConn *grpc.ClientConn) (grpc.ClientStream, error)
 	// Register registers the protocol implementation.
-	Register(registrar grpc.ServiceRegistrar, acceptor func(stream grpc.ServerStream) error, connectionList ConnectionList)
+	Register(registrar grpc.ServiceRegistrar, acceptor func(stream grpc.ServerStream) error, connectionList ConnectionList, connectionManager transport.ConnectionManager)
 
 	// CreateEnvelope is called to create a new, empty envelope, required for receiving messages.
 	CreateEnvelope() interface{}

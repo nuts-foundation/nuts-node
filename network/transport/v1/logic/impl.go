@@ -36,6 +36,7 @@ type protocol struct {
 	graph        dag.DAG
 	payloadStore dag.PayloadStore
 	sender       messageSender
+	connections  grpc.ConnectionList
 	// TODO: What if no-one is actually listening to this queue? Maybe we should create it when someone asks for it (lazy initialization)?
 	receivedPeerHashes        *chanPeerHashQueue
 	receivedTransactionHashes *chanPeerHashQueue
@@ -66,6 +67,13 @@ func (p *protocol) Diagnostics() []core.DiagnosticResult {
 	var diagnostics []core.DiagnosticResult
 
 	p.peerOmnihashMutex.Lock()
+	// Clean up diagnostics of disconnected peers
+	for peerID := range p.peerOmnihashes {
+		connection := p.connections.Get(peerID)
+		if connection == nil || !connection.Connected() {
+			delete(p.peerOmnihashes, peerID)
+		}
+	}
 	diagnostics = append(diagnostics, newPeerOmnihashStatistic(p.peerOmnihashes))
 	p.peerOmnihashMutex.Unlock()
 
@@ -86,16 +94,21 @@ func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics 
 	defer p.peerDiagnosticsMutex.Unlock()
 	// Clone map to avoid racy behaviour
 	result := make(map[transport.PeerID]transport.Diagnostics, len(p.peerDiagnostics))
-	for key, value := range p.peerDiagnostics {
+	for peerID, value := range p.peerDiagnostics {
+		// Clean up diagnostics of disconnected peers on the go
+		connection := p.connections.Get(peerID)
+		if connection == nil || !connection.Connected() {
+			delete(p.peerDiagnostics, peerID)
+		}
 		clone := value
 		clone.Peers = append([]transport.PeerID(nil), value.Peers...)
-		result[key] = clone
+		result[peerID] = clone
 	}
 	return result
 }
 
 // NewProtocol creates a new instance of Protocol
-func NewProtocol(gateway MessageGateway, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) Protocol {
+func NewProtocol(gateway MessageGateway, connections grpc.ConnectionList, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) Protocol {
 	p := &protocol{
 		peerDiagnostics:      make(map[transport.PeerID]transport.Diagnostics, 0),
 		peerDiagnosticsMutex: &sync.Mutex{},
@@ -107,6 +120,7 @@ func NewProtocol(gateway MessageGateway, graph dag.DAG, publisher dag.Publisher,
 		payloadStore:         payloadStore,
 		publisher:            publisher,
 		diagnosticsProvider:  diagnosticsProvider,
+		connections:          connections,
 		sender: defaultMessageSender{
 			gateway:        gateway,
 			maxMessageSize: grpc.MaxMessageSizeInBytes,
@@ -129,9 +143,7 @@ func (p *protocol) Configure(advertHashesInterval time.Duration, advertDiagnosti
 }
 
 func (p *protocol) Start() {
-	// TODO
-	// peerConnected, peerDisconnected := p.adapter.EventChannels()
-	// go p.startUpdatingDiagnostics(peerConnected, peerDisconnected)
+	go p.startUpdatingDiagnostics()
 	go p.startAdvertingHashes()
 	go p.startAdvertingDiagnostics()
 	go p.startCollectingMissingPayloads()
@@ -182,30 +194,14 @@ func (p protocol) startCollectingMissingPayloads() {
 	}
 }
 
-func (p *protocol) startUpdatingDiagnostics(peerConnected chan transport.Peer, peerDisconnected chan transport.Peer) {
+func (p *protocol) startUpdatingDiagnostics() {
 	for {
-		p.updateDiagnostics(peerConnected, peerDisconnected)
+		p.updateDiagnostics()
 	}
 }
 
-func (p *protocol) updateDiagnostics(peerConnected chan transport.Peer, peerDisconnected chan transport.Peer) {
+func (p *protocol) updateDiagnostics() {
 	select {
-	case peer := <-peerConnected:
-		withLock(p.peerOmnihashMutex, func() {
-			p.peerOmnihashes[peer.ID] = hash.EmptyHash()
-		})
-		withLock(p.peerDiagnosticsMutex, func() {
-			p.peerDiagnostics[peer.ID] = transport.Diagnostics{}
-		})
-		break
-	case peer := <-peerDisconnected:
-		withLock(p.peerOmnihashMutex, func() {
-			delete(p.peerOmnihashes, peer.ID)
-		})
-		withLock(p.peerDiagnosticsMutex, func() {
-			delete(p.peerDiagnostics, peer.ID)
-		})
-		break
 	case peerOmnihash := <-p.peerOmnihashChannel:
 		withLock(p.peerOmnihashMutex, func() {
 			p.peerOmnihashes[peerOmnihash.Peer] = peerOmnihash.Hash

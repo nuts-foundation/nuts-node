@@ -29,8 +29,8 @@ type ConnectionList interface {
 	// Get returns the Connection which is associated with the given peer ID.
 	// If there's no match, nil is returned.
 	Get(peer transport.PeerID) Connection
-	// ForEach 
-	ForEach(consumer func(connection Connection))
+	// All returns the list of connections.
+	All() []Connection
 }
 
 type connectionList struct {
@@ -55,7 +55,7 @@ func (c *connectionList) Get(peer transport.PeerID) Connection {
 	return nil
 }
 
-func (c *connectionList) ForEach(consumer func(connection Connection)) {
+func (c *connectionList) forEach(consumer func(connection Connection)) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -90,15 +90,13 @@ func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (Conn
 	return result, true
 }
 
-func (c *connectionList) listConnected() []transport.Peer {
+func (c *connectionList) All() []Connection {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	var result []transport.Peer
+	var result []Connection
 	for _, curr := range c.list {
-		if curr.Connected() {
-			result = append(result, curr.Peer())
-		}
+		result = append(result, curr)
 	}
 	return result
 }
@@ -120,12 +118,14 @@ func (c *connectionList) remove(target Connection) {
 func (c *connectionList) Diagnostics() []core.DiagnosticResult {
 	var connectors ConnectorsStats
 	c.mux.Lock()
+	defer c.mux.Unlock()
+	var peers []transport.Peer
 	for _, curr := range c.list {
 		connectors = append(connectors, curr.stats())
+		if curr.Connected() {
+			peers = append(peers, curr.Peer())
+		}
 	}
-	c.mux.Unlock()
-
-	peers := c.listConnected()
 	return []core.DiagnosticResult{
 		numberOfPeersStatistic{numberOfPeers: len(peers)},
 		peersStatistic{peers: peers},

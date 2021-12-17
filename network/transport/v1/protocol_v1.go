@@ -58,14 +58,14 @@ func New(config Config, graph dag.DAG, publisher dag.Publisher, payloadStore dag
 	result := &protocolV1{
 		config: config,
 	}
-	result.protocol = logic.NewProtocol(result, graph, publisher, payloadStore, diagnosticsProvider)
+	result.protocol = logic.NewProtocol(result, &result.connectionList, graph, publisher, payloadStore, diagnosticsProvider)
 	return result
 }
 
 type protocolV1 struct {
 	config         Config
 	protocol       logic.Protocol
-	connectionList grpc.ConnectionList
+	connectionList delegatingConnectionList
 }
 
 func (p protocolV1) MethodName() string {
@@ -77,9 +77,9 @@ func (p protocolV1) CreateClientStream(outgoingContext context.Context, grpcConn
 	return client.Connect(outgoingContext)
 }
 
-func (p *protocolV1) Register(registrar grpcLib.ServiceRegistrar, acceptor func(stream grpcLib.ServerStream) error, connectionList grpc.ConnectionList) {
+func (p *protocolV1) Register(registrar grpcLib.ServiceRegistrar, acceptor func(stream grpcLib.ServerStream) error, connectionList grpc.ConnectionList, _ transport.ConnectionManager) {
 	protobuf.RegisterNetworkServer(registrar, &protocolServer{acceptor: acceptor})
-	p.connectionList = connectionList
+	p.connectionList.target = connectionList
 }
 
 func (p protocolV1) CreateEnvelope() interface{} {
@@ -129,14 +129,14 @@ func (p *protocolV1) Send(peer transport.PeerID, envelope *protobuf.NetworkMessa
 }
 
 func (p *protocolV1) Broadcast(envelope *protobuf.NetworkMessage) {
-	p.connectionList.ForEach(func(connection grpc.Connection) {
+	for _, connection := range p.connectionList.All() {
 		if connection.Connected() {
 			err := connection.Send(p, envelope)
 			if err != nil {
-				log.Logger().Warnf("Error whil broadcasting (peer=%s): %v", connection.Peer(), err)
+				log.Logger().Warnf("Error while broadcasting (peer=%s): %v", connection.Peer(), err)
 			}
 		}
-	})
+	}
 }
 
 type protocolServer struct {
@@ -145,4 +145,17 @@ type protocolServer struct {
 
 func (p protocolServer) Connect(server protobuf.Network_ConnectServer) error {
 	return p.acceptor(server)
+}
+
+// delegatingConnectionList delegates ConnectionList calls to another implementation. Temp fix until v1/logic package is refactored into v1.
+type delegatingConnectionList struct {
+	target grpc.ConnectionList
+}
+
+func (d delegatingConnectionList) Get(peer transport.PeerID) grpc.Connection {
+	return d.target.Get(peer)
+}
+
+func (d delegatingConnectionList) All() []grpc.Connection {
+	return d.target.All()
 }

@@ -24,18 +24,13 @@ import (
 	"testing"
 )
 
-func Test_connectionList_ForEach(t *testing.T) {
+func Test_connectionList_All(t *testing.T) {
 	cn := connectionList{}
 
 	cn.getOrRegister(transport.Peer{ID: "a"}, nil)
 	cn.getOrRegister(transport.Peer{ID: "b"}, nil)
 
-	calls := 0
-	cn.ForEach(func(connection Connection) {
-		calls++
-	})
-
-	assert.Equal(t, 2, calls)
+	assert.Len(t, cn.All(), 2)
 }
 
 func Test_connectionList_getOrRegister(t *testing.T) {

@@ -144,7 +144,7 @@ func (s *grpcConnectionManager) Start() error {
 		func(protocol Protocol) {
 			prot.Register(s, func(stream grpc.ServerStream) error {
 				return s.handleInboundStream(protocol, stream)
-			}, s.connections)
+			}, s.connections, s)
 		}(prot)
 	}
 
@@ -163,7 +163,7 @@ func (s *grpcConnectionManager) Start() error {
 
 func (s *grpcConnectionManager) Stop() {
 	log.Logger().Info("Stopping gRPC connection manager")
-	s.connections.ForEach(func(connection Connection) {
+	s.connections.forEach(func(connection Connection) {
 		connection.stopConnecting()
 		connection.disconnect()
 	})
@@ -214,7 +214,13 @@ func (s grpcConnectionManager) Connect(peerAddress string) {
 }
 
 func (s grpcConnectionManager) Peers() []transport.Peer {
-	return s.connections.listConnected()
+	var peers []transport.Peer
+	for _, curr := range s.connections.All() {
+		if curr.Connected() {
+			peers = append(peers, curr.Peer())
+		}
+	}
+	return peers
 }
 
 func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {

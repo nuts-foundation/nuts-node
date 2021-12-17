@@ -41,7 +41,7 @@ type Connection interface {
 	waitUntilDisconnected()
 	// startConnecting instructs the Connection to start connecting to the remote peer (attempting an outbound connection).
 	startConnecting(config *tls.Config, callback func(grpcConn *grpc.ClientConn) bool)
-	// stopConnecting instructs the Connection to stio connecting to the remote peer.
+	// stopConnecting instructs the Connection to stop connecting to the remote peer.
 	stopConnecting()
 
 	// registerClientStream adds the given grpc.ClientStream to this Connection under the given method,

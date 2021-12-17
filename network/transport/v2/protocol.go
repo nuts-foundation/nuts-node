@@ -36,16 +36,18 @@ func New() transport.Protocol {
 }
 
 type protocol struct {
-	connectionList grpc.ConnectionList
+	connectionList    grpc.ConnectionList
+	connectionManager transport.ConnectionManager
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn) (grpcLib.ClientStream, error) {
 	return NewProtocolClient(grpcConn).Stream(outgoingContext)
 }
 
-func (p *protocol) Register(registrar grpcLib.ServiceRegistrar, acceptor func(stream grpcLib.ServerStream) error, connectionList grpc.ConnectionList) {
+func (p *protocol) Register(registrar grpcLib.ServiceRegistrar, acceptor func(stream grpcLib.ServerStream) error, connectionList grpc.ConnectionList, connectionManager transport.ConnectionManager) {
 	RegisterProtocolServer(registrar, &protocolServer{acceptor: acceptor})
 	p.connectionList = connectionList
+	p.connectionManager = connectionManager
 }
 
 func (p protocol) MethodName() string {

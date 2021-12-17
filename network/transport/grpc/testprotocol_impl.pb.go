@@ -41,7 +41,7 @@ func (s *TestProtocol) CreateClientStream(outgoingContext context.Context, grpcC
 	return client.DoStuff(outgoingContext, grpc.FailFastCallOption{FailFast: true})
 }
 
-func (s *TestProtocol) Register(registrar grpc.ServiceRegistrar, acceptor func(stream grpc.ServerStream) error, connectionList ConnectionList) {
+func (s *TestProtocol) Register(registrar grpc.ServiceRegistrar, acceptor func(stream grpc.ServerStream) error, _ ConnectionList, _ transport.ConnectionManager) {
 	RegisterTestServer(registrar, s)
 	s.acceptor = acceptor
 }
