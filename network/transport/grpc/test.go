@@ -76,7 +76,6 @@ func (s TestNodeDIDResolver) Resolve() (did.DID, error) {
 	return s.nodeDID, nil
 }
 
-
 type StubConnectionList struct {
 	PeerID transport.PeerID
 	Conn   *StubConnection
