@@ -111,15 +111,6 @@ func (mc *conn) disconnect() {
 	mc.ctx = nil
 
 	// Close streams
-	for methodName, stream := range mc.streams {
-		clientStream, ok := stream.(grpc.ClientStream)
-		if ok {
-			err := clientStream.CloseSend()
-			if err != nil {
-				log.Logger().Warnf("Error while closing client for gRPC stream %s: %v", methodName, err)
-			}
-		}
-	}
 	mc.streams = make(map[string]Stream)
 
 	// Close outboxes
@@ -235,12 +226,20 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 		for {
 			select {
 			case _ = <-done:
-				return
+				goto closeClientStream
 			case envelope := <-outbox:
 				err := stream.SendMsg(envelope)
 				if err != nil {
 					log.Logger().Warnf("Unable to send message %T, message is dropped (peer=%s): %v", envelope, mc.Peer(), err)
 				}
+			}
+		}
+	closeClientStream:
+		clientStream, ok := stream.(grpc.ClientStream)
+		if ok {
+			err := clientStream.CloseSend()
+			if err != nil {
+				log.Logger().Warnf("Error while closing client for gRPC stream %s: %v", protocol.MethodName(), err)
 			}
 		}
 	}()
