@@ -209,16 +209,38 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 }
 
+func Test_grpcConnectionManager_Stop(t *testing.T) {
+	t.Run("closes open connections", func(t *testing.T) {
+		cm := NewGRPCConnectionManager(Config{peerID: "12345"}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+
+		go cm.handleInboundStream(&TestProtocol{}, newServerStream("1234", ""))
+		test.WaitFor(t, func() (bool, error) {
+			return len(cm.Peers()) == 1, nil
+		}, 5*time.Second, "time-out while waiting for connection")
+
+		cm.Stop()
+		assert.Empty(t, cm.Peers())
+	})
+
+}
+
 func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 	const peerID = "server-peer-id"
 	t.Run("no peers", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: peerID}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		defer cm.Stop()
 		assert.Equal(t, "0", cm.Diagnostics()[1].String()) // assert number_of_peers
 	})
 	t.Run("with peers", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: peerID}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
-		cm.handleInboundStream(&TestProtocol{}, newServerStream("peer1", ""))
-		cm.handleInboundStream(&TestProtocol{}, newServerStream("peer2", ""))
+		defer cm.Stop()
+
+		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer1", ""))
+		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer2", ""))
+
+		test.WaitFor(t, func() (bool, error) {
+			return len(cm.Peers()) == 2, nil
+		}, 5*time.Second, "time-out while waiting for peers to connect")
 
 		assert.Equal(t, "2", cm.Diagnostics()[1].String())                                         // assert number_of_peers
 		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", cm.Diagnostics()[2].String()) // assert peers
@@ -252,7 +274,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		})
 
 		waiter.Wait()
-		assert.EqualError(t, capturedError.Load().(error), "peer didn't send any headers, maybe the protocol version is not supported")
+		assert.EqualError(t, capturedError.Load().(error), "could not use any of the supported protocols to communicate with peer (id=@server)")
 	})
 }
 
@@ -271,12 +293,13 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		authenticator := NewMockAuthenticator(ctrl)
 		authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedPeer, nil)
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, &stubNodeDIDReader{}, authenticator).(*grpcConnectionManager)
+		defer cm.Stop()
 
-		err := cm.handleInboundStream(protocol, serverStream)
+		go cm.handleInboundStream(protocol, serverStream)
+		test.WaitFor(t, func() (bool, error) {
+			return len(cm.Peers()) == 1, nil
+		}, 5 * time.Second, "time-out while waiting for peer")
 
-		if !assert.NoError(t, err) {
-			return
-		}
 		peerInfo := cm.Peers()[0]
 		assert.Equal(t, transport.PeerID("client-peer-id"), peerInfo.ID)
 		assert.Equal(t, "127.0.0.1:9522", peerInfo.Address)
@@ -309,28 +332,32 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 	})
 	t.Run("already connected client", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		defer cm.Stop()
 
-		serverStream1 := newServerStream("client-peer-id", "")
-		err := cm.handleInboundStream(protocol, serverStream1)
-		assert.NoError(t, err)
+		go cm.handleInboundStream(protocol, newServerStream("client-peer-id", ""))
+		test.WaitFor(t, func() (bool, error) {
+			return len(cm.Peers()) == 1, nil
+		}, 5 * time.Second, "time-out while waiting for peer")
 
 		// Second connection with same peer ID is rejected
-		serverStream2 := newServerStream("client-peer-id", "")
-		err = cm.handleInboundStream(protocol, serverStream2)
-		assert.EqualError(t, err, "peer is already connected (method=/unit/test)")
+		err := cm.handleInboundStream(protocol, newServerStream("client-peer-id", ""))
+		assert.ErrorIs(t, err, ErrAlreadyConnected)
 
 		// Assert only first connection was registered
 		assert.Len(t, cm.connections.list, 1)
 	})
 	t.Run("closing connection removes it from list", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		defer cm.Stop()
 
-		serverStream1 := newServerStream("client-peer-id", "")
-		err := cm.handleInboundStream(protocol, serverStream1)
-		assert.NoError(t, err)
+		stream := newServerStream("client-peer-id", "")
+		go cm.handleInboundStream(protocol, stream)
+		test.WaitFor(t, func() (bool, error) {
+			return len(cm.Peers()) == 1, nil
+		}, 5 * time.Second, "time-out while waiting for peer")
 
 		// Simulate a stream close
-		serverStream1.cancelFunc()
+		stream.cancelFunc()
 
 		test.WaitFor(t, func() (bool, error) {
 			cm.connections.mux.Lock()

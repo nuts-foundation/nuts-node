@@ -161,7 +161,7 @@ func (s *grpcConnectionManager) Start() error {
 	return nil
 }
 
-func (s grpcConnectionManager) Stop() {
+func (s *grpcConnectionManager) Stop() {
 	log.Logger().Info("Stopping gRPC connection manager")
 	s.connections.ForEach(func(connection Connection) {
 		connection.stopConnecting()
