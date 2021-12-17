@@ -12,9 +12,10 @@ import (
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	protobuf "github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 )
 
-// MockmessageSender is a mock of messageBuilder interface.
+// MockmessageSender is a mock of messageSender interface.
 type MockmessageSender struct {
 	ctrl     *gomock.Controller
 	recorder *MockmessageSenderMockRecorder
@@ -50,15 +51,15 @@ func (mr *MockmessageSenderMockRecorder) broadcastAdvertHashes(blocks interface{
 }
 
 // broadcastDiagnostics mocks base method.
-func (m *MockmessageSender) buildDiagnostics(diagnostics transport.Diagnostics) {
+func (m *MockmessageSender) broadcastDiagnostics(diagnostics transport.Diagnostics) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "buildDiagnostics", diagnostics)
+	m.ctrl.Call(m, "broadcastDiagnostics", diagnostics)
 }
 
 // broadcastDiagnostics indicates an expected call of broadcastDiagnostics.
 func (mr *MockmessageSenderMockRecorder) broadcastDiagnostics(diagnostics interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "buildDiagnostics", reflect.TypeOf((*MockmessageSender)(nil).buildDiagnostics), diagnostics)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastDiagnostics", reflect.TypeOf((*MockmessageSender)(nil).broadcastDiagnostics), diagnostics)
 }
 
 // broadcastTransactionPayloadQuery mocks base method.
@@ -119,4 +120,51 @@ func (m *MockmessageSender) sendTransactionPayloadQuery(peer transport.PeerID, p
 func (mr *MockmessageSenderMockRecorder) sendTransactionPayloadQuery(peer, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionPayloadQuery", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionPayloadQuery), peer, payloadHash)
+}
+
+// MockmessageGateway is a mock of messageGateway interface.
+type MockmessageGateway struct {
+	ctrl     *gomock.Controller
+	recorder *MockmessageGatewayMockRecorder
+}
+
+// MockmessageGatewayMockRecorder is the mock recorder for MockmessageGateway.
+type MockmessageGatewayMockRecorder struct {
+	mock *MockmessageGateway
+}
+
+// NewMockmessageGateway creates a new mock instance.
+func NewMockmessageGateway(ctrl *gomock.Controller) *MockmessageGateway {
+	mock := &MockmessageGateway{ctrl: ctrl}
+	mock.recorder = &MockmessageGatewayMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockmessageGateway) EXPECT() *MockmessageGatewayMockRecorder {
+	return m.recorder
+}
+
+// broadcast mocks base method.
+func (m *MockmessageGateway) broadcast(envelope *protobuf.NetworkMessage) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "broadcast", envelope)
+}
+
+// broadcast indicates an expected call of broadcast.
+func (mr *MockmessageGatewayMockRecorder) broadcast(envelope interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcast", reflect.TypeOf((*MockmessageGateway)(nil).broadcast), envelope)
+}
+
+// send mocks base method.
+func (m *MockmessageGateway) send(peer transport.PeerID, envelope *protobuf.NetworkMessage) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "send", peer, envelope)
+}
+
+// send indicates an expected call of send.
+func (mr *MockmessageGatewayMockRecorder) send(peer, envelope interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "send", reflect.TypeOf((*MockmessageGateway)(nil).send), peer, envelope)
 }

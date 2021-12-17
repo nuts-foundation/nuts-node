@@ -21,7 +21,6 @@ package logic
 import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
@@ -96,7 +95,7 @@ func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics 
 }
 
 // NewProtocol creates a new instance of Protocol
-func NewProtocol(send func(peer transport.PeerID, envelope *protobuf.NetworkMessage), broadcast func(envelope *protobuf.NetworkMessage), graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) Protocol {
+func NewProtocol(gateway messageGateway, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) Protocol {
 	p := &protocol{
 		peerDiagnostics:      make(map[transport.PeerID]transport.Diagnostics, 0),
 		peerDiagnosticsMutex: &sync.Mutex{},
@@ -109,8 +108,7 @@ func NewProtocol(send func(peer transport.PeerID, envelope *protobuf.NetworkMess
 		publisher:            publisher,
 		diagnosticsProvider:  diagnosticsProvider,
 		sender: defaultMessageSender{
-			send:           send,
-			broadcast:      broadcast,
+			gateway:        gateway,
 			maxMessageSize: grpc.MaxMessageSizeInBytes,
 		},
 	}

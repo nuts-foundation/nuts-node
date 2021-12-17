@@ -45,21 +45,25 @@ type messageSender interface {
 	sendTransactionPayload(peer transport.PeerID, payloadHash hash.SHA256Hash, data []byte)
 }
 
+type messageGateway interface {
+	send(peer transport.PeerID, envelope *protobuf.NetworkMessage)
+	broadcast(envelope *protobuf.NetworkMessage)
+}
+
 type defaultMessageSender struct {
-	send                   func(peer transport.PeerID, envelope *protobuf.NetworkMessage)
-	broadcast              func(envelope *protobuf.NetworkMessage)
+	gateway                messageGateway
 	maxMessageSize         int
 	transactionsPerMessage int
 }
 
 func (s defaultMessageSender) broadcastTransactionPayloadQuery(payloadHash hash.SHA256Hash) {
-	s.broadcast(createTransactionPayloadQueryMessage(payloadHash))
+	s.gateway.broadcast(createTransactionPayloadQueryMessage(payloadHash))
 }
 
 func (s defaultMessageSender) broadcastAdvertHashes(blocks []dagBlock) {
 	envelope := createEnvelope()
 	envelope.Message = createAdvertHashesMessage(blocks)
-	s.broadcast(&envelope)
+	s.gateway.broadcast(&envelope)
 }
 
 func (s defaultMessageSender) broadcastDiagnostics(diagnostics transport.Diagnostics) {
@@ -74,7 +78,7 @@ func (s defaultMessageSender) broadcastDiagnostics(diagnostics transport.Diagnos
 		message.Peers = append(message.Peers, peer.String())
 	}
 	envelope.Message = &protobuf.NetworkMessage_DiagnosticsBroadcast{DiagnosticsBroadcast: &message}
-	s.broadcast(&envelope)
+	s.gateway.broadcast(&envelope)
 }
 
 func (s defaultMessageSender) sendTransactionListQuery(peer transport.PeerID, blockDate time.Time) {
@@ -85,7 +89,7 @@ func (s defaultMessageSender) sendTransactionListQuery(peer transport.PeerID, bl
 		timestamp = blockDate.Unix()
 	}
 	envelope.Message = &protobuf.NetworkMessage_TransactionListQuery{TransactionListQuery: &protobuf.TransactionListQuery{BlockDate: uint32(timestamp)}}
-	s.send(peer, &envelope)
+	s.gateway.send(peer, &envelope)
 }
 
 func (s defaultMessageSender) sendTransactionList(peer transport.PeerID, transactions []dag.Transaction, blockDate time.Time) {
@@ -113,12 +117,12 @@ func (s defaultMessageSender) sendTransactionList(peer transport.PeerID, transac
 		}
 		envelope := createEnvelope()
 		envelope.Message = &protobuf.NetworkMessage_TransactionList{TransactionList: &protobuf.TransactionList{Transactions: tl[i*transactionsPerMessage : upper], BlockDate: uint32(blockDate.Unix())}}
-		s.send(peer, &envelope)
+		s.gateway.send(peer, &envelope)
 	}
 }
 
 func (s defaultMessageSender) sendTransactionPayloadQuery(peer transport.PeerID, payloadHash hash.SHA256Hash) {
-	s.send(peer, createTransactionPayloadQueryMessage(payloadHash))
+	s.gateway.send(peer, createTransactionPayloadQueryMessage(payloadHash))
 }
 
 func (s defaultMessageSender) sendTransactionPayload(peer transport.PeerID, payloadHash hash.SHA256Hash, data []byte) {
@@ -127,7 +131,7 @@ func (s defaultMessageSender) sendTransactionPayload(peer transport.PeerID, payl
 		PayloadHash: payloadHash.Slice(),
 		Data:        data,
 	}}
-	s.send(peer, &envelope)
+	s.gateway.send(peer, &envelope)
 }
 
 func (s defaultMessageSender) getTransactionsPerMessage(transactions []dag.Transaction) int {
@@ -153,7 +157,6 @@ func createTransactionPayloadQueryMessage(payloadHash hash.SHA256Hash) *protobuf
 	}
 	return &envelope
 }
-
 
 func createAdvertHashesMessage(blocks []dagBlock) *protobuf.NetworkMessage_AdvertHashes {
 	protoBlocks := make([]*protobuf.BlockHashes, len(blocks)-1)

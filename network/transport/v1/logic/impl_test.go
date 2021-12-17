@@ -24,7 +24,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -37,7 +36,7 @@ func Test_ProtocolLifecycle(t *testing.T) {
 	publisher := dag.NewMockPublisher(mockCtrl)
 	publisher.EXPECT().Subscribe("*", gomock.Any())
 
-	instance := NewProtocol(p2p.NewAdapter(), dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), nil)
+	instance := NewProtocol(NewMockmessageGateway(mockCtrl), dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), nil)
 	instance.Configure(time.Second*2, time.Second*5, 10*time.Second, "local")
 	instance.Start()
 	instance.Stop()
@@ -46,14 +45,14 @@ func Test_ProtocolLifecycle(t *testing.T) {
 func Test_Protocol_PeerDiagnostics(t *testing.T) {
 	instance := NewProtocol(nil, nil, nil, nil, nil).(*protocol)
 
-	instance.peerDiagnostics[peer] = transport.Diagnostics{
+	instance.peerDiagnostics[peerID] = transport.Diagnostics{
 		Peers:           []transport.PeerID{"some-peer"},
 		SoftwareVersion: "1.0",
 	}
 	diagnostics := instance.PeerDiagnostics()
-	instance.peerDiagnostics[peer].Peers[0] = "other-peer" // mutate entry to make sure function returns a copy
+	instance.peerDiagnostics[peerID].Peers[0] = "other-peer" // mutate entry to make sure function returns a copy
 	assert.Len(t, diagnostics, 1)
-	actual := diagnostics[peer]
+	actual := diagnostics[peerID]
 	assert.Equal(t, "1.0", actual.SoftwareVersion)
 	assert.Equal(t, []transport.PeerID{"some-peer"}, actual.Peers)
 }
@@ -83,21 +82,21 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		assert.Empty(t, stats.peerHashes)
 
 		// Peer connects
-		peerConnected <- transport.Peer{ID: peer}
+		peerConnected <- transport.Peer{ID: peerID}
 		instance.updateDiagnostics(peerConnected, peerDisconnected)
 		stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
 		assert.Len(t, stats.peerHashes, 1)
 
 		// Peer broadcasts hash
 		peerHash := hash.SHA256Sum([]byte("Hello, World!"))
-		instance.peerOmnihashChannel <- PeerOmnihash{Peer: peer, Hash: peerHash}
+		instance.peerOmnihashChannel <- PeerOmnihash{Peer: peerID, Hash: peerHash}
 		instance.updateDiagnostics(peerConnected, peerDisconnected)
 		stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
 		assert.Len(t, stats.peerHashes, 1)
-		assert.Equal(t, peerHash, stats.peerHashes[peer])
+		assert.Equal(t, peerHash, stats.peerHashes[peerID])
 
 		// Peer disconnects
-		peerDisconnected <- transport.Peer{ID: peer}
+		peerDisconnected <- transport.Peer{ID: peerID}
 		instance.updateDiagnostics(peerConnected, peerDisconnected)
 		stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
 		assert.Empty(t, stats.peerHashes)

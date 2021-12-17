@@ -20,10 +20,10 @@ package v1
 
 import (
 	"github.com/golang/mock/gomock"
+	"github.com/magiconair/properties/assert"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/logic"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
 	"testing"
 )
 
@@ -31,12 +31,10 @@ func TestProtocolV1_Configure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	adapter := p2p.NewMockAdapter(ctrl)
 	underlyingProto := logic.NewMockProtocol(ctrl)
 	underlyingProto.EXPECT().Configure(gomock.Any(), gomock.Any(), gomock.Any(), transport.PeerID("peer-id"))
 
 	v1 := New(DefaultConfig(), dag.NewMockDAG(ctrl), dag.NewMockPublisher(ctrl), dag.NewMockPayloadStore(ctrl), dummyDiagnostics).(*protocolV1)
-	v1.adapter = adapter
 	v1.protocol = underlyingProto
 
 	v1.Configure("peer-id")
@@ -46,14 +44,16 @@ func TestProtocolV1_Start(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	adapter := p2p.NewMockAdapter(ctrl)
 	underlyingProto := logic.NewMockProtocol(ctrl)
 	underlyingProto.EXPECT().Start()
 
 	v1 := New(DefaultConfig(), dag.NewMockDAG(ctrl), dag.NewMockPublisher(ctrl), dag.NewMockPayloadStore(ctrl), dummyDiagnostics).(*protocolV1)
-	v1.adapter = adapter
 	v1.protocol = underlyingProto
 	v1.Start()
+}
+
+func TestProtocolV1_MethodName(t *testing.T) {
+	assert.Equal(t, protocolV1{}.MethodName(), "/transport.Network/Connect")
 }
 
 func dummyDiagnostics() transport.Diagnostics {
@@ -64,12 +64,10 @@ func TestProtocolV1_Stop(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	adapter := p2p.NewMockAdapter(ctrl)
 	underlyingProto := logic.NewMockProtocol(ctrl)
 	underlyingProto.EXPECT().Stop()
 
 	v1 := New(DefaultConfig(), dag.NewMockDAG(ctrl), dag.NewMockPublisher(ctrl), dag.NewMockPayloadStore(ctrl), dummyDiagnostics).(*protocolV1)
-	v1.adapter = adapter
 	v1.protocol = underlyingProto
 	v1.Stop()
 }
