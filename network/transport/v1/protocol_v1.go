@@ -56,7 +56,7 @@ func DefaultConfig() Config {
 // New returns a new instance of the protocol v1 implementation.
 func New(config Config, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) transport.Protocol {
 	result := &protocolV1{
-		config:   config,
+		config: config,
 	}
 	result.protocol = logic.NewProtocol(result, graph, publisher, payloadStore, diagnosticsProvider)
 	return result

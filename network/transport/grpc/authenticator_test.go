@@ -39,7 +39,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 	cert, _ := x509.ParseCertificate(data)
 	grpcPeer := peer.Peer{
 		AuthInfo: credentials.TLSInfo{
-			State:          tls.ConnectionState{
+			State: tls.ConnectionState{
 				PeerCertificates: []*x509.Certificate{cert},
 			},
 		},
@@ -55,7 +55,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		authenticator := NewTLSAuthenticator(serviceResolver)
 		grpcPeer := peer.Peer{
 			AuthInfo: credentials.TLSInfo{
-				State:          tls.ConnectionState{
+				State: tls.ConnectionState{
 					PeerCertificates: []*x509.Certificate{cert},
 				},
 			},

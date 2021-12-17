@@ -51,8 +51,8 @@ type MessageGateway interface {
 }
 
 type defaultMessageSender struct {
-	gateway        MessageGateway
-	maxMessageSize int
+	gateway                MessageGateway
+	maxMessageSize         int
 	transactionsPerMessage int
 }
 

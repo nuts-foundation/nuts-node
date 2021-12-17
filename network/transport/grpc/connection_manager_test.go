@@ -298,7 +298,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		go cm.handleInboundStream(protocol, serverStream)
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm.Peers()) == 1, nil
-		}, 5 * time.Second, "time-out while waiting for peer")
+		}, 5*time.Second, "time-out while waiting for peer")
 
 		peerInfo := cm.Peers()[0]
 		assert.Equal(t, transport.PeerID("client-peer-id"), peerInfo.ID)
@@ -337,7 +337,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		go cm.handleInboundStream(protocol, newServerStream("client-peer-id", ""))
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm.Peers()) == 1, nil
-		}, 5 * time.Second, "time-out while waiting for peer")
+		}, 5*time.Second, "time-out while waiting for peer")
 
 		// Second connection with same peer ID is rejected
 		err := cm.handleInboundStream(protocol, newServerStream("client-peer-id", ""))
@@ -354,7 +354,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		go cm.handleInboundStream(protocol, stream)
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm.Peers()) == 1, nil
-		}, 5 * time.Second, "time-out while waiting for peer")
+		}, 5*time.Second, "time-out while waiting for peer")
 
 		// Simulate a stream close
 		stream.cancelFunc()

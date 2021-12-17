@@ -34,8 +34,9 @@ import (
 )
 
 const peerID = transport.PeerID("test-peer")
+
 var peer = transport.Peer{
-	ID:      peerID,
+	ID: peerID,
 }
 
 var payload = []byte("Hello, World!")
