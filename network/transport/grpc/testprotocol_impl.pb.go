@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// TestProtocol is an implementation of a gRPC-based protocol for testing.
 type TestProtocol struct {
 	peer           transport.Peer
 	inboundCalled  bool
@@ -32,28 +33,34 @@ type TestProtocol struct {
 	acceptor       func(stream grpc.ServerStream) error
 }
 
+// MethodName returns the gRPC method name.
 func (s *TestProtocol) MethodName() string {
 	return GetStreamMethod(Test_ServiceDesc.ServiceName, Test_ServiceDesc.Streams[0])
 }
 
+// CreateClientStream creates a gRPC ClientStream.
 func (s *TestProtocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpc.ClientConn) (grpc.ClientStream, error) {
 	client := NewTestClient(grpcConn)
 	return client.DoStuff(outgoingContext, grpc.FailFastCallOption{FailFast: true})
 }
 
+// Register registers the test protocol on the gRPC server.
 func (s *TestProtocol) Register(registrar grpc.ServiceRegistrar, acceptor func(stream grpc.ServerStream) error, _ ConnectionList, _ transport.ConnectionManager) {
 	RegisterTestServer(registrar, s)
 	s.acceptor = acceptor
 }
 
+// CreateEnvelope creates an empty test message.
 func (s *TestProtocol) CreateEnvelope() interface{} {
 	return &TestMessage{}
 }
 
+// Handle is not implemented.
 func (s *TestProtocol) Handle(peer transport.Peer, envelope interface{}) error {
 	panic("implement me")
 }
 
+// UnwrapMessage is not implemented.
 func (s *TestProtocol) UnwrapMessage(envelope interface{}) interface{} {
 	panic("implement me")
 }
