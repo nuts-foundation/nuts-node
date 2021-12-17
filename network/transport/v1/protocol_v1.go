@@ -22,16 +22,16 @@ import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/logic"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	grpcLib "google.golang.org/grpc"
 	"time"
 )
 
-var _ grpc.InboundStreamer = &protocolV1{}
-var _ grpc.OutboundStreamer = &protocolV1{}
+var _ grpc.Protocol = (*protocolV1)(nil)
 
 // Config specifies config for protocol v1
 type Config struct {
@@ -55,22 +55,39 @@ func DefaultConfig() Config {
 
 // New returns a new instance of the protocol v1 implementation.
 func New(config Config, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) transport.Protocol {
-	adapter := p2p.NewAdapter()
-	return &protocolV1{
-		config:   config,
-		adapter:  adapter,
-		protocol: logic.NewProtocol(adapter, graph, publisher, payloadStore, diagnosticsProvider),
+	result := &protocolV1{
+		config: config,
 	}
+	result.protocol = logic.NewProtocol(result, &result.connectionList, graph, publisher, payloadStore, diagnosticsProvider)
+	return result
 }
 
 type protocolV1 struct {
-	config   Config
-	adapter  p2p.Adapter
-	protocol logic.Protocol
+	config         Config
+	protocol       logic.Protocol
+	connectionList delegatingConnectionList
 }
 
-func (p protocolV1) OpenStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn, callback func(stream grpcLib.ClientStream, method string) (transport.Peer, error)) (context.Context, error) {
-	return p.adapter.OpenStream(outgoingContext, grpcConn, callback)
+func (p protocolV1) MethodName() string {
+	return grpc.GetStreamMethod(protobuf.Network_ServiceDesc.ServiceName, protobuf.Network_ServiceDesc.Streams[0])
+}
+
+func (p protocolV1) CreateClientStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn) (grpcLib.ClientStream, error) {
+	client := protobuf.NewNetworkClient(grpcConn)
+	return client.Connect(outgoingContext)
+}
+
+func (p *protocolV1) Register(registrar grpcLib.ServiceRegistrar, acceptor func(stream grpcLib.ServerStream) error, connectionList grpc.ConnectionList, _ transport.ConnectionManager) {
+	protobuf.RegisterNetworkServer(registrar, &protocolServer{acceptor: acceptor})
+	p.connectionList.target = connectionList
+}
+
+func (p protocolV1) CreateEnvelope() interface{} {
+	return &protobuf.NetworkMessage{}
+}
+
+func (p protocolV1) UnwrapMessage(raw interface{}) interface{} {
+	return raw.(*protobuf.NetworkMessage).Message
 }
 
 func (p protocolV1) Configure(peerID transport.PeerID) {
@@ -97,6 +114,48 @@ func (p protocolV1) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics
 	return p.protocol.PeerDiagnostics()
 }
 
-func (p protocolV1) RegisterService(registrar grpcLib.ServiceRegistrar, acceptor grpc.InboundStreamHandler) {
-	p.adapter.RegisterService(registrar, acceptor)
+func (p protocolV1) Handle(peer transport.Peer, envelope interface{}) error {
+	return p.protocol.Handle(peer, envelope)
+}
+
+func (p *protocolV1) Send(peer transport.PeerID, envelope *protobuf.NetworkMessage) {
+	connection := p.connectionList.Get(peer)
+	if connection != nil {
+		err := connection.Send(p, envelope)
+		if err != nil {
+			log.Logger().Warnf("Error while sending message (peer=%s): %v", connection.Peer(), err)
+		}
+	}
+}
+
+func (p *protocolV1) Broadcast(envelope *protobuf.NetworkMessage) {
+	for _, connection := range p.connectionList.All() {
+		if connection.Connected() {
+			err := connection.Send(p, envelope)
+			if err != nil {
+				log.Logger().Warnf("Error while broadcasting (peer=%s): %v", connection.Peer(), err)
+			}
+		}
+	}
+}
+
+type protocolServer struct {
+	acceptor func(grpcLib.ServerStream) error
+}
+
+func (p protocolServer) Connect(server protobuf.Network_ConnectServer) error {
+	return p.acceptor(server)
+}
+
+// delegatingConnectionList delegates ConnectionList calls to another implementation. Temp fix until v1/logic package is refactored into v1.
+type delegatingConnectionList struct {
+	target grpc.ConnectionList
+}
+
+func (d delegatingConnectionList) Get(peer transport.PeerID) grpc.Connection {
+	return d.target.Get(peer)
+}
+
+func (d delegatingConnectionList) All() []grpc.Connection {
+	return d.target.All()
 }

@@ -52,10 +52,29 @@ var ErrAlreadyConnected = errors.New("already connected")
 // MaxMessageSizeInBytes defines the maximum size of an in- or outbound gRPC/Protobuf message
 var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 
+type fatalError struct {
+	error
+}
+
+func (s fatalError) Error() string {
+	return s.error.Error()
+}
+
+func (s fatalError) Is(other error) bool {
+	_, is := other.(fatalError)
+	return is
+}
+
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
 func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
+	var grpcProtocols []Protocol
+	for _, curr := range protocols {
+		// For now, only gRPC protocols are supported
+		protocol := curr.(Protocol)
+		grpcProtocols = append(grpcProtocols, protocol)
+	}
 	return &grpcConnectionManager{
-		protocols:       protocols,
+		protocols:       grpcProtocols,
 		nodeDIDResolver: nodeDIDResolver,
 		authenticator:   authenticator,
 		config:          config,
@@ -68,7 +87,7 @@ func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDRe
 
 // grpcConnectionManager is a ConnectionManager that does not discover peers on its own, but just connects to the peers for which Connect() is called.
 type grpcConnectionManager struct {
-	protocols        []transport.Protocol
+	protocols        []Protocol
 	config           Config
 	connections      *connectionList
 	grpcServer       *grpc.Server
@@ -122,10 +141,11 @@ func (s *grpcConnectionManager) Start() error {
 	// Create gRPC server for inbound connectionList and associate it with the protocols
 	s.grpcServer = grpc.NewServer(serverOpts...)
 	for _, prot := range s.protocols {
-		grpcProtocol, ok := prot.(InboundStreamer)
-		if ok {
-			grpcProtocol.RegisterService(s, s.handleInboundStream)
-		}
+		func(protocol Protocol) {
+			prot.Register(s, func(stream grpc.ServerStream) error {
+				return s.handleInboundStream(protocol, stream)
+			}, s.connections, s)
+		}(prot)
 	}
 
 	// Start serving from the gRPC server
@@ -141,9 +161,12 @@ func (s *grpcConnectionManager) Start() error {
 	return nil
 }
 
-func (s grpcConnectionManager) Stop() {
+func (s *grpcConnectionManager) Stop() {
 	log.Logger().Info("Stopping gRPC connection manager")
-	s.connections.closeAll()
+	s.connections.forEach(func(connection Connection) {
+		connection.stopConnecting()
+		connection.disconnect()
+	})
 
 	s.grpcServerMutex.Lock()
 	defer s.grpcServerMutex.Unlock()
@@ -178,12 +201,12 @@ func (s grpcConnectionManager) Connect(peerAddress string) {
 		}
 	}
 
-	connection.open(tlsConfig, func(grpcConn *grpc.ClientConn) bool {
-		// Callback must block until streams or the connection is closed, then the connector will reconnect.
+	connection.startConnecting(tlsConfig, func(grpcConn *grpc.ClientConn) bool {
 		err := s.openOutboundStreams(connection, grpcConn)
 		if err != nil {
-			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.getPeer(), err)
+			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.Peer(), err)
 			connection.disconnect()
+			_ = grpcConn.Close()
 			return false
 		}
 		return true
@@ -191,7 +214,13 @@ func (s grpcConnectionManager) Connect(peerAddress string) {
 }
 
 func (s grpcConnectionManager) Peers() []transport.Peer {
-	return s.connections.listConnected()
+	var peers []transport.Peer
+	for _, curr := range s.connections.All() {
+		if curr.Connected() {
+			peers = append(peers, curr.Peer())
+		}
+	}
+	return peers
 }
 
 func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
@@ -204,91 +233,93 @@ func (s grpcConnectionManager) RegisterService(desc *grpc.ServiceDesc, impl inte
 }
 
 // openOutboundStreams instructs the protocols that support gRPC streaming to open their streams.
-// The resulting grpc.ClientStream(s) must be registered on the managedConnection.
+// The resulting grpc.ClientStream(s) must be registered on the Connection.
 // If an error is returned the connection should be closed.
-func (s *grpcConnectionManager) openOutboundStreams(connection managedConnection, grpcConn *grpc.ClientConn) error {
+func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcConn *grpc.ClientConn) error {
+	md, err := s.constructMetadata()
+	if err != nil {
+		return err
+	}
+
 	protocolNum := 0
 	// Call gRPC-enabled protocols, block until they close
 	for _, prot := range s.protocols {
-		grpcProtocol, ok := prot.(OutboundStreamer)
+		protocol, ok := prot.(Protocol)
 		if !ok {
 			// Not a gRPC streaming protocol
 			continue
 		}
-		streamContext, err := s.openOutboundStream(connection, grpcConn, grpcProtocol)
+
+		clientStream, err := s.openOutboundStream(connection, protocol, grpcConn, md)
 		if err != nil {
-			log.Logger().Warnf("%T: Failed to open gRPC stream (addr=%s): %v", prot, grpcConn.Target(), err)
-			if errors.Is(err, ErrNodeDIDAuthFailed) {
-				// No need to try other protocols if node DID authentication fails: they'll fail with the same error, cluttering the log.
-				// The protocol already closed the stream in case of an error, so no need to explicitly disconnect.
-				break
+			log.Logger().Warnf("%T: Failed to open gRPC stream (addr=%s): %v", protocol, grpcConn.Target(), err)
+			if errors.Is(err, fatalError{}) {
+				// Error indicates connection should be closed.
+				return err
 			}
+			// Non-fatal error: other protocols may continue
 			continue
 		}
-		log.Logger().Debugf("%T: Opened gRPC stream (peer=%s)", prot, connection.getPeer())
+		log.Logger().Debugf("%T: Opened gRPC stream (peer=%s)", prot, connection.Peer())
 
 		go func() {
 			// Waits for the clientStream to be done (other side closed the stream), then we disconnect the connection on our side
-			<-streamContext.Done()
+			<-clientStream.Context().Done()
 			connection.disconnect()
 		}()
 
 		protocolNum++
 	}
 	if protocolNum == 0 {
-		return fmt.Errorf("could not use any of the supported protocols to communicate with peer (id=%s)", connection.getPeer())
+		return fmt.Errorf("could not use any of the supported protocols to communicate with peer (id=%s)", connection.Peer())
 	}
-	connection.waitUntilClosed()
+	// Function must block until streams are closed or disconnect() is called.
+	connection.waitUntilDisconnected()
+	_ = grpcConn.Close()
 	return nil
 }
 
-func (s *grpcConnectionManager) openOutboundStream(connection managedConnection, grpcConn *grpc.ClientConn, grpcProtocol OutboundStreamer) (context.Context, error) {
-	md, err := s.constructMetadata()
-	if err != nil {
-		return nil, err
-	}
+func (s *grpcConnectionManager) openOutboundStream(connection Connection, protocol Protocol, grpcConn *grpc.ClientConn, md metadata.MD) (grpc.ClientStream, error) {
 	outgoingContext := metadata.NewOutgoingContext(context.Background(), md)
-	streamContext, err := grpcProtocol.OpenStream(outgoingContext, grpcConn, func(clientStream grpc.ClientStream, method string) (transport.Peer, error) {
-		// Read peer ID from metadata
-		peerHeaders, err := clientStream.Header()
-		if err != nil {
-			return transport.Peer{}, fmt.Errorf("failed to read gRPC headers: %w", err)
-		}
-		if len(peerHeaders) == 0 {
-			return transport.Peer{}, fmt.Errorf("peer didn't send any headers, maybe the protocol version is not supported")
-		}
-		peerID, nodeDID, err := readMetadata(peerHeaders)
-		if err != nil {
-			return transport.Peer{}, fmt.Errorf("failed to read peer ID header: %w", err)
-		}
+	clientStream, err := protocol.CreateClientStream(outgoingContext, grpcConn)
+	if err != nil {
+		return nil, fatalError{error: err}
+	}
 
-		if !connection.verifyOrSetPeerID(peerID) {
-			return transport.Peer{}, fmt.Errorf("peer sent invalid ID (id=%s)", peerID)
-		}
+	// Read peer ID from metadata
+	peerHeaders, err := clientStream.Header()
+	if err != nil {
+		return nil, fatalError{error: fmt.Errorf("failed to read gRPC headers: %w", err)}
+	}
+	if len(peerHeaders) == 0 {
+		return nil, fmt.Errorf("peer didn't send any headers, maybe the protocol version is not supported")
+	}
+	peerID, nodeDID, err := readMetadata(peerHeaders)
+	if err != nil {
+		return nil, fatalError{error: fmt.Errorf("failed to read peer ID header: %w", err)}
+	}
 
-		peer := transport.Peer{
-			ID:      peerID,
-			Address: grpcConn.Target(),
-		}
-		peerFromCtx, _ := grpcPeer.FromContext(clientStream.Context())
-		peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
-		if err != nil {
-			return peer, err
-		}
+	if !connection.verifyOrSetPeerID(peerID) {
+		return nil, fatalError{error: fmt.Errorf("peer sent invalid ID (id=%s)", peerID)}
+	}
 
-		err = connection.registerClientStream(clientStream, method)
-		if err != nil {
-			// This can happen when the peer connected to us previously, and now we connect back to them.
-			// TODO: Although nothing breaks, this spams the log of this node with warnings and errors because,
-			//       the outbound connector just keeps connecting. There are 2 solutions to this:
-			//       1. Merge the connection that was created to make the outbound connection with the existing inbound connection (complicated)
-			//       2. Return the resolved peer ID to the outbound connector, which in turn checks whether its already connected to that peer (more dependency hell).
-			log.Logger().Warnf("We connected to a peer that we're already connected to (peer=%s)", peerID)
-			return transport.Peer{}, ErrAlreadyConnected
-		}
-		return peer, nil
-	})
-	return streamContext, err
+	peer := transport.Peer{
+		ID:      peerID,
+		Address: grpcConn.Target(),
+	}
+	peerFromCtx, _ := grpcPeer.FromContext(clientStream.Context())
+	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
+	if err != nil {
+		return nil, fatalError{error: err}
+	}
+
+	if !connection.registerStream(protocol, clientStream) {
+		// This can happen when the peer connected to us previously, and now we connect back to them.
+		log.Logger().Warnf("We connected to a peer that we're already connected to (peer=%s)", peerID)
+		return nil, fatalError{error: ErrAlreadyConnected}
+	}
+
+	return clientStream, nil
 }
 
 func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Peer, peerFromCtx *grpcPeer.Peer) (transport.Peer, error) {
@@ -304,28 +335,28 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 	return peer, nil
 }
 
-func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStream) (transport.Peer, context.Context, error) {
+func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundStream grpc.ServerStream) error {
 	peerFromCtx, _ := grpcPeer.FromContext(inboundStream.Context())
 	log.Logger().Tracef("New peer connected from %s", peerFromCtx.Addr)
 
 	// Send our headers
 	md, err := s.constructMetadata()
 	if err != nil {
-		return transport.Peer{}, nil, err
+		return err
 	}
 	if err := inboundStream.SendHeader(md); err != nil {
 		log.Logger().Errorf("Unable to accept gRPC stream (remote address: %s), unable to send headers: %v", peerFromCtx.Addr, err)
-		return transport.Peer{}, nil, errors.New("unable to send headers")
+		return errors.New("unable to send headers")
 	}
 
 	// Build peer info and check it
 	md, ok := metadata.FromIncomingContext(inboundStream.Context())
 	if !ok {
-		return transport.Peer{}, nil, errors.New("unable to read metadata")
+		return errors.New("unable to read metadata")
 	}
 	peerID, nodeDID, err := readMetadata(md)
 	if err != nil {
-		return transport.Peer{}, nil, errors.New("unable to read peer ID")
+		return errors.New("unable to read peer ID")
 	}
 	peer := transport.Peer{
 		ID:      peerID,
@@ -334,17 +365,18 @@ func (s *grpcConnectionManager) handleInboundStream(inboundStream grpc.ServerStr
 	log.Logger().Debugf("New inbound stream from peer (peer=%s,protocol=%T)", peer, inboundStream)
 	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
 	if err != nil {
-		return peer, nil, err
+		return err
 	}
 
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?
 	connection, _ := s.connections.getOrRegister(peer, s.dialer)
-	err = connection.registerServerStream(inboundStream)
-	if err != nil {
-		return peer, nil, err
+	if !connection.registerStream(protocol, inboundStream) {
+		return ErrAlreadyConnected
 	}
-	return peer, connection.context(), nil
+	connection.waitUntilDisconnected()
+	s.connections.remove(connection)
+	return nil
 }
 
 func (s *grpcConnectionManager) constructMetadata() (metadata.MD, error) {

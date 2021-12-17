@@ -24,20 +24,26 @@ import (
 	"google.golang.org/grpc"
 )
 
-// InboundStreamer allows Protocol implementations to expose gRPC streaming services.
-type InboundStreamer interface {
-	RegisterService(registrar grpc.ServiceRegistrar, acceptorCallback InboundStreamHandler)
+// Protocol defines the API for streaming gRPC protocol implementations.
+type Protocol interface {
+	// MethodName returns the fully qualified name of the gRPC stream.
+	MethodName() string
+	// CreateClientStream creates a new client for the gRPC stream.
+	CreateClientStream(outgoingContext context.Context, grpcConn *grpc.ClientConn) (grpc.ClientStream, error)
+	// Register registers the protocol implementation.
+	Register(registrar grpc.ServiceRegistrar, acceptor func(stream grpc.ServerStream) error, connectionList ConnectionList, connectionManager transport.ConnectionManager)
+
+	// CreateEnvelope is called to create a new, empty envelope, required for receiving messages.
+	CreateEnvelope() interface{}
+	// Handle is called with to let the protocol handle a received message.
+	Handle(peer transport.Peer, envelope interface{}) error
+	// UnwrapMessage is used to extract the inner message from the envelope.
+	UnwrapMessage(envelope interface{}) interface{}
 }
 
-// OutboundStreamer allows Protocol implementations to call a gRPC stream on a remote peer.
-type OutboundStreamer interface {
-	// OpenStream start a gRPC stream on a remote peer. It must not be blocking.
-	OpenStream(context.Context, *grpc.ClientConn, func(stream grpc.ClientStream, method string) (transport.Peer, error)) (context.Context, error)
+// Stream bundles common functions from grpc.ServerStream and grpc.ClientStream, providing a common interface.
+type Stream interface {
+	Context() context.Context
+	SendMsg(m interface{}) error
+	RecvMsg(m interface{}) error
 }
-
-// InboundStreamHandler defines a function for accepting gRPC streams.
-// The following values are returned:
-// - `peer` which holds information about the specific peer.
-// - `ctx` a context that can be used to wait until the connection has been closed.
-// - `error` which indicates whether the stream has been accepted or not. If not accepted, the stream must be terminated and the error returned to the client.
-type InboundStreamHandler func(serverStream grpc.ServerStream) (peer transport.Peer, ctx context.Context, err error)

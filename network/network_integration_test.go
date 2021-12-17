@@ -133,7 +133,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 }
 
 func TestNetworkIntegration_NodeDIDAuthenticationFailed(t *testing.T) {
-	t.Run("node DID auth on inbound connection fails", func(t *testing.T) {
+	t.Run("node DID auth sent client (authenticated by server) fails", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest()
 
@@ -158,7 +158,7 @@ func TestNetworkIntegration_NodeDIDAuthenticationFailed(t *testing.T) {
 		assert.Empty(t, node1.connectionManager.Peers())
 		assert.Empty(t, node2.connectionManager.Peers())
 	})
-	t.Run("node DID auth on outbound connection fails", func(t *testing.T) {
+	t.Run("node DID auth sent by server (authenticated by client) fails", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest()
 

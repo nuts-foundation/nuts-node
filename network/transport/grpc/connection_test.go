@@ -21,99 +21,78 @@ package grpc
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"sync"
-	"sync/atomic"
 	"testing"
-	"time"
 )
 
-func Test_conn_close(t *testing.T) {
-	t.Run("no context", func(t *testing.T) {
+func Test_conn_disconnect(t *testing.T) {
+	t.Run("not connected", func(t *testing.T) {
 		conn := conn{}
-		conn.close()
+		conn.disconnect()
+		assert.False(t, conn.Connected())
 	})
-	t.Run("close cancels context", func(t *testing.T) {
-		called := false
-		conn := conn{
-			cancelCtx: func() {
-				called = true
-			},
-		}
-		conn.close()
-		assert.True(t, called)
+	t.Run("connected", func(t *testing.T) {
+		conn := conn{}
+		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
+		assert.True(t, conn.Connected())
+		conn.disconnect()
+		assert.False(t, conn.Connected())
 	})
 	t.Run("resets peer ID", func(t *testing.T) {
 		conn := conn{}
+		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
 		conn.verifyOrSetPeerID("foo")
-		conn.close()
-		assert.Empty(t, conn.getPeer())
+		conn.disconnect()
+		assert.Empty(t, conn.Peer())
 	})
 }
 
-func Test_conn_waitUntilClosed(t *testing.T) {
+func Test_conn_waitUntilDisconnected(t *testing.T) {
 	t.Run("never open, should return immediately", func(t *testing.T) {
 		conn := conn{}
-		conn.waitUntilClosed()
+		conn.waitUntilDisconnected()
 	})
-	t.Run("closed while waiting, should return almost immediately", func(t *testing.T) {
+	t.Run("disconnected while waiting, should return almost immediately", func(t *testing.T) {
 		conn := conn{}
 		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
 			wg.Wait()
-			conn.close()
+			conn.disconnect()
 		}()
 		wg.Done()
-		conn.waitUntilClosed()
+		conn.waitUntilDisconnected()
 	})
-	t.Run("waiting after close, should return immediately", func(t *testing.T) {
+	t.Run("waiting after disconnect, should return immediately", func(t *testing.T) {
 		conn := conn{}
 		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
-		conn.close()
-		conn.waitUntilClosed()
+		conn.disconnect()
+		conn.waitUntilDisconnected()
 	})
 }
 
-func Test_conn_registerServerStream(t *testing.T) {
-	t.Run("cancelling before-last stream does not invoke callback", func(t *testing.T) {
-		called := atomic.Value{}
-		called.Store(false)
-		conn := createConnection(nil, transport.Peer{}, func(connection managedConnection) {
-			called.Store(true)
-		}).(*conn)
-		stream1 := newServerStream("foo", "")
-		stream2 := newServerStream("foo", "")
-		conn.registerServerStream(stream1)
-		conn.registerServerStream(stream2)
-		stream1.cancelFunc()
-
-		test.WaitFor(t, func() (bool, error) {
-			conn.mux.Lock()
-			defer conn.mux.Unlock()
-			return len(conn.grpcInboundStreams) == 1, nil
-		}, time.Second, "time-out while waiting for closed stream to be cleaned up")
-
-		assert.False(t, called.Load().(bool))
-	})
-	t.Run("cancelling last stream invokes callback", func(t *testing.T) {
-		called := atomic.Value{}
-		called.Store(false)
-		conn := createConnection(nil, transport.Peer{}, func(connection managedConnection) {
-			called.Store(true)
-		}).(*conn)
+func Test_conn_registerStream(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		connection := createConnection(nil, transport.Peer{}).(*conn)
 		stream := newServerStream("foo", "")
-		conn.registerServerStream(stream)
-		stream.cancelFunc()
+		defer stream.cancelFunc()
 
-		test.WaitFor(t, func() (bool, error) {
-			conn.mux.Lock()
-			defer conn.mux.Unlock()
-			return len(conn.grpcInboundStreams) == 0, nil
-		}, time.Second, "time-out while waiting for closed stream to be cleaned up")
+		assert.False(t, connection.Connected())
+		accepted := connection.registerStream(&TestProtocol{}, stream)
+		assert.True(t, accepted)
+		assert.True(t, connection.Connected())
+	})
+	t.Run("already connected (same protocol)", func(t *testing.T) {
+		connection := createConnection(nil, transport.Peer{}).(*conn)
+		stream := newServerStream("foo", "")
+		defer stream.cancelFunc()
 
-		assert.True(t, called.Load().(bool))
+		accepted := connection.registerStream(&TestProtocol{}, stream)
+		accepted2 := connection.registerStream(&TestProtocol{}, stream)
+
+		assert.True(t, accepted)
+		assert.False(t, accepted2)
 	})
 }

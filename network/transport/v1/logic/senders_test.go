@@ -20,7 +20,7 @@ package logic
 
 import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"testing"
 	"time"
@@ -31,15 +31,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createMessageSender(t *testing.T) (defaultMessageSender, *p2p.MockAdapter) {
+func createMessageSender(t *testing.T) (defaultMessageSender, *MockMessageGateway) {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(func() {
 		ctrl.Finish()
 	})
-	p2pInterface := p2p.NewMockAdapter(ctrl)
-	sender := defaultMessageSender{p2p: p2pInterface}
-	sender.maxMessageSize = p2p.MaxMessageSizeInBytes
-	return sender, p2pInterface
+	gateway := NewMockMessageGateway(ctrl)
+	sender := defaultMessageSender{gateway: gateway}
+	sender.maxMessageSize = grpc.MaxMessageSizeInBytes
+	return sender, gateway
 }
 
 func Test_defaultMessageSender_broadcastAdvertHashes(t *testing.T) {
@@ -82,14 +82,14 @@ func Test_defaultMessageSender_sendTransactionList(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		sender, mock := createMessageSender(t)
 		tx := testTX{data: []byte{1, 2, 3}}
-		mock.EXPECT().Send(peer, &protobuf.NetworkMessage{Message: &protobuf.NetworkMessage_TransactionList{TransactionList: &protobuf.TransactionList{
+		mock.EXPECT().Send(peerID, &protobuf.NetworkMessage{Message: &protobuf.NetworkMessage_TransactionList{TransactionList: &protobuf.TransactionList{
 			BlockDate: uint32(blockDate.Unix()),
 			Transactions: []*protobuf.Transaction{{
 				Hash: tx.Ref().Slice(),
 				Data: tx.data,
 			}},
 		}}})
-		sender.sendTransactionList(peer, []dag.Transaction{tx}, blockDate)
+		sender.sendTransactionList(peerID, []dag.Transaction{tx}, blockDate)
 	})
 	t.Run("ok - paginated", func(t *testing.T) {
 		// This test checks whether transaction list responses that exceed the maximum Protobuf message size are split into
@@ -108,7 +108,7 @@ func Test_defaultMessageSender_sendTransactionList(t *testing.T) {
 		sender, mock := createMessageSender(t)
 		sender.maxMessageSize = maxMessageSize
 		sentMessages := map[byte]bool{}
-		mock.EXPECT().Send(peer, gomock.Any()).DoAndReturn(func(_ transport.PeerID, msg *protobuf.NetworkMessage) error {
+		mock.EXPECT().Send(peerID, gomock.Any()).DoAndReturn(func(_ transport.PeerID, msg *protobuf.NetworkMessage) error {
 			for _, tx := range msg.GetTransactionList().Transactions {
 				if sentMessages[tx.Data[0]] {
 					t.Fatalf("transaction sent twice (idx: %d)", tx.Data[0])
@@ -117,7 +117,7 @@ func Test_defaultMessageSender_sendTransactionList(t *testing.T) {
 			}
 			return nil
 		}).Times(numberOfMessages)
-		sender.sendTransactionList(peer, txs, blockDate)
+		sender.sendTransactionList(peerID, txs, blockDate)
 
 		assert.Len(t, sentMessages, numberOfTXs)
 		for i := 0; i < numberOfTXs; i++ {
@@ -128,7 +128,7 @@ func Test_defaultMessageSender_sendTransactionList(t *testing.T) {
 	})
 	t.Run("ok - no transactions sends nothing", func(t *testing.T) {
 		sender, _ := createMessageSender(t)
-		sender.sendTransactionList(peer, []dag.Transaction{}, blockDate)
+		sender.sendTransactionList(peerID, []dag.Transaction{}, blockDate)
 	})
 }
 
@@ -136,13 +136,13 @@ func Test_defaultMessageSender_sendTransactionListQuery(t *testing.T) {
 	t.Run("block date is set", func(t *testing.T) {
 		sender, mock := createMessageSender(t)
 		moment := time.Now()
-		mock.EXPECT().Send(peer, &protobuf.NetworkMessage{Message: &protobuf.NetworkMessage_TransactionListQuery{TransactionListQuery: &protobuf.TransactionListQuery{BlockDate: uint32(moment.Unix())}}})
-		sender.sendTransactionListQuery(peer, moment)
+		mock.EXPECT().Send(peerID, &protobuf.NetworkMessage{Message: &protobuf.NetworkMessage_TransactionListQuery{TransactionListQuery: &protobuf.TransactionListQuery{BlockDate: uint32(moment.Unix())}}})
+		sender.sendTransactionListQuery(peerID, moment)
 	})
 	t.Run("block date is zero", func(t *testing.T) {
 		sender, mock := createMessageSender(t)
-		mock.EXPECT().Send(peer, &protobuf.NetworkMessage{Message: &protobuf.NetworkMessage_TransactionListQuery{TransactionListQuery: &protobuf.TransactionListQuery{BlockDate: 0}}})
-		sender.sendTransactionListQuery(peer, time.Time{})
+		mock.EXPECT().Send(peerID, &protobuf.NetworkMessage{Message: &protobuf.NetworkMessage_TransactionListQuery{TransactionListQuery: &protobuf.TransactionListQuery{BlockDate: 0}}})
+		sender.sendTransactionListQuery(peerID, time.Time{})
 	})
 }
 
@@ -150,16 +150,16 @@ func Test_defaultMessageSender_sendTransactionPayload(t *testing.T) {
 	sender, mock := createMessageSender(t)
 	payload := []byte{1, 2, 3}
 	payloadHash := hash.SHA256Sum(payload)
-	mock.EXPECT().Send(peer, &protobuf.NetworkMessage{Message: &protobuf.NetworkMessage_TransactionPayload{TransactionPayload: &protobuf.TransactionPayload{
+	mock.EXPECT().Send(peerID, &protobuf.NetworkMessage{Message: &protobuf.NetworkMessage_TransactionPayload{TransactionPayload: &protobuf.TransactionPayload{
 		PayloadHash: payloadHash.Slice(),
 		Data:        payload,
 	}}})
-	sender.sendTransactionPayload(peer, payloadHash, payload)
+	sender.sendTransactionPayload(peerID, payloadHash, payload)
 }
 
 func Test_defaultMessageSender_sendTransactionPayloadQuery(t *testing.T) {
 	sender, mock := createMessageSender(t)
 	payloadHash := hash.SHA256Sum([]byte{1, 2, 3})
-	mock.EXPECT().Send(peer, &protobuf.NetworkMessage{Message: &protobuf.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{PayloadHash: payloadHash.Slice()}}})
-	sender.sendTransactionPayloadQuery(peer, payloadHash)
+	mock.EXPECT().Send(peerID, &protobuf.NetworkMessage{Message: &protobuf.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{PayloadHash: payloadHash.Slice()}}})
+	sender.sendTransactionPayloadQuery(peerID, payloadHash)
 }

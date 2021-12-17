@@ -28,7 +28,7 @@ service Protocol {
 
 message Message {
   oneof message {
-      HelloMessage hello = 1000;
+    HelloMessage hello = 1000;
   }
 }
 

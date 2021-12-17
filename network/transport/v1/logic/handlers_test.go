@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"testing"
 	"time"
@@ -34,7 +33,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const peer = transport.PeerID("test-peer")
+const peerID = transport.PeerID("test-peer")
+
+var peer = transport.Peer{
+	ID: peerID,
+}
 
 var payload = []byte("Hello, World!")
 var payloadHash = hash.SHA256Sum([]byte{1, 2, 3})
@@ -63,7 +66,7 @@ func TestProtocol_HandleAdvertedHashes(t *testing.T) {
 		blocks := toBlocks(ctx.transactions)
 		currentBlock := blocks[len(blocks)-1]
 		currentBlock.heads[0] = hash.SHA256Sum([]byte{1, 2, 3}) // mutilate the head of the current block
-		ctx.sender().EXPECT().sendTransactionListQuery(peer, currentBlock.start)
+		ctx.sender().EXPECT().sendTransactionListQuery(peerID, currentBlock.start)
 		msg := createAdvertHashesMessage(blocks)
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
@@ -101,7 +104,7 @@ func TestProtocol_HandleAdvertedHashes(t *testing.T) {
 	})
 	t.Run("historic block differs (queries historic block for now)", func(t *testing.T) {
 		ctx := newContext(t)
-		ctx.sender().EXPECT().sendTransactionListQuery(peer, time.Time{})
+		ctx.sender().EXPECT().sendTransactionListQuery(peerID, time.Time{})
 		blocks := toBlocks(ctx.transactions)
 		blocks[0].heads[0] = hash.SHA256Sum([]byte{1, 2, 3})
 		msg := createAdvertHashesMessage(blocks)
@@ -119,7 +122,7 @@ func TestProtocol_HandleTransactionListQuery(t *testing.T) {
 	t.Run("supplied block date is zero, requests historic block (allowed for now)", func(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().FindBetween(gomock.Any(), time.Time{}, ctx.instance.blocks.get()[1].start)
-		ctx.sender().EXPECT().sendTransactionList(peer, gomock.Any(), time.Time{})
+		ctx.sender().EXPECT().sendTransactionList(peerID, gomock.Any(), time.Time{})
 		msg := &protobuf.NetworkMessage_TransactionListQuery{TransactionListQuery: &protobuf.TransactionListQuery{BlockDate: 0}}
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
@@ -127,7 +130,7 @@ func TestProtocol_HandleTransactionListQuery(t *testing.T) {
 	t.Run("respond with transaction list (happy flow)", func(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().FindBetween(gomock.Any(), gomock.Any(), gomock.Any())
-		ctx.sender().EXPECT().sendTransactionList(peer, gomock.Any(), gomock.Any())
+		ctx.sender().EXPECT().sendTransactionList(peerID, gomock.Any(), gomock.Any())
 		msg := &protobuf.NetworkMessage_TransactionListQuery{TransactionListQuery: &protobuf.TransactionListQuery{BlockDate: getBlockTimestamp(time.Now())}}
 		err := ctx.handle(msg)
 		assert.NoError(t, err)
@@ -235,7 +238,7 @@ func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 
 		ctx.graph().EXPECT().GetByPayloadHash(gomock.Any(), payloadHash).Return([]dag.Transaction{}, nil)
 		ctx.payloadStore().EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(payload, nil)
-		ctx.sender().EXPECT().sendTransactionPayload(peer, payloadHash, payload)
+		ctx.sender().EXPECT().sendTransactionPayload(peerID, payloadHash, payload)
 		msg := &protobuf.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{
 			PayloadHash: payloadHash.Slice(),
 		}}
@@ -251,7 +254,7 @@ func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 				pal: [][]byte{{1}},
 			},
 		}, nil)
-		ctx.sender().EXPECT().sendTransactionPayload(peer, payloadHash, []byte{})
+		ctx.sender().EXPECT().sendTransactionPayload(peerID, payloadHash, []byte{})
 		msg := &protobuf.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{
 			PayloadHash: payloadHash.Slice(),
 		}}
@@ -264,7 +267,7 @@ func TestProtocol_HandleTransactionPayloadQuery(t *testing.T) {
 
 		ctx.graph().EXPECT().GetByPayloadHash(gomock.Any(), payloadHash).Return([]dag.Transaction{}, nil)
 		ctx.payloadStore().EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(nil, nil)
-		ctx.sender().EXPECT().sendTransactionPayload(peer, payloadHash, nil)
+		ctx.sender().EXPECT().sendTransactionPayload(peerID, payloadHash, nil)
 		msg := &protobuf.NetworkMessage_TransactionPayloadQuery{TransactionPayloadQuery: &protobuf.TransactionPayloadQuery{
 			PayloadHash: payloadHash.Slice(),
 		}}
@@ -346,7 +349,7 @@ func TestProtocol_handleDiagnostics(t *testing.T) {
 		err := ctx.handle(msg)
 
 		assert.NoError(t, err)
-		actual := ctx.instance.peerDiagnostics[peer]
+		actual := ctx.instance.peerDiagnostics[peerID]
 		assert.Equal(t, 1000*time.Second, actual.Uptime)
 		assert.Equal(t, []transport.PeerID{"test"}, actual.Peers)
 		assert.Equal(t, uint32(5), actual.NumberOfTransactions)
@@ -359,11 +362,8 @@ func TestProtocol_handleMessage(t *testing.T) {
 	t.Run("empty message", func(t *testing.T) {
 		ctx := newContext(t)
 		envelope := createEnvelope()
-		err := ctx.instance.handleMessage(p2p.PeerMessage{
-			Peer:    peer,
-			Message: &envelope,
-		})
-		assert.NoError(t, err)
+		err := ctx.instance.Handle(peer, &envelope)
+		assert.EqualError(t, err, "envelope doesn't contain any (handleable) messages")
 	})
 }
 
@@ -373,29 +373,29 @@ func Test_checkTransactionOnLocalNode(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().IsPresent(gomock.Any(), tx.Ref()).Return(true, nil)
 		ctx.payloadStore().EXPECT().IsPresent(gomock.Any(), tx.PayloadHash()).Return(true, nil)
-		err := ctx.instance.checkTransactionOnLocalNode(context.Background(), peer, tx.Ref(), tx.Data())
+		err := ctx.instance.checkTransactionOnLocalNode(context.Background(), peerID, tx.Ref(), tx.Data())
 		assert.NoError(t, err)
 	})
 	t.Run("payload not present (alt. flow)", func(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().IsPresent(gomock.Any(), tx.Ref()).Return(true, nil)
 		ctx.payloadStore().EXPECT().IsPresent(gomock.Any(), tx.PayloadHash()).Return(false, nil)
-		ctx.sender().EXPECT().sendTransactionPayloadQuery(peer, tx.PayloadHash())
-		err := ctx.instance.checkTransactionOnLocalNode(context.Background(), peer, tx.Ref(), tx.Data())
+		ctx.sender().EXPECT().sendTransactionPayloadQuery(peerID, tx.PayloadHash())
+		err := ctx.instance.checkTransactionOnLocalNode(context.Background(), peerID, tx.Ref(), tx.Data())
 		assert.NoError(t, err)
 	})
 	t.Run("tx not present  (alt. flow)", func(t *testing.T) {
 		ctx := newContext(t)
 		ctx.graph().EXPECT().IsPresent(gomock.Any(), tx.Ref()).Return(false, nil)
 		ctx.graph().EXPECT().Add(gomock.Any(), tx)
-		ctx.sender().EXPECT().sendTransactionPayloadQuery(peer, tx.PayloadHash())
-		err := ctx.instance.checkTransactionOnLocalNode(context.Background(), peer, tx.Ref(), tx.Data())
+		ctx.sender().EXPECT().sendTransactionPayloadQuery(peerID, tx.PayloadHash())
+		err := ctx.instance.checkTransactionOnLocalNode(context.Background(), peerID, tx.Ref(), tx.Data())
 		assert.NoError(t, err)
 	})
 	t.Run("invalid transaction", func(t *testing.T) {
 		ctx := newContext(t)
 		data := []byte{1, 2, 3}
-		err := ctx.instance.checkTransactionOnLocalNode(context.Background(), peer, hash.SHA256Sum(data), data)
+		err := ctx.instance.checkTransactionOnLocalNode(context.Background(), peerID, hash.SHA256Sum(data), data)
 		assert.Contains(t, err.Error(), "unable to parse transaction")
 	})
 }
@@ -422,7 +422,7 @@ func newContext(t *testing.T) *testContext {
 	t.Cleanup(func() {
 		mockCtrl.Finish()
 	})
-	instance := NewProtocol(nil, nil, nil, nil, nil).(*protocol)
+	instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
 	instance.payloadStore = dag.NewMockPayloadStore(mockCtrl)
 	instance.sender = NewMockmessageSender(mockCtrl)
 	instance.graph = dag.NewMockDAG(mockCtrl)
@@ -492,8 +492,5 @@ func (ctx testContext) handle(msg interface{}) error {
 	default:
 		panic(fmt.Sprintf("Can't handle msg type: %T", msg))
 	}
-	return ctx.instance.handleMessage(p2p.PeerMessage{
-		Peer:    peer,
-		Message: &envelope,
-	})
+	return ctx.instance.Handle(peer, &envelope)
 }

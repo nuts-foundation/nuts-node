@@ -22,38 +22,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
 	"testing"
-	"time"
 )
 
-func Test_connectionList_closeAll(t *testing.T) {
+func Test_connectionList_All(t *testing.T) {
 	cn := connectionList{}
 
-	connA, _ := cn.getOrRegister(transport.Peer{ID: "a"}, nil)
-	connA.registerServerStream(newServerStream("b", ""))
-	doneA := connA.context().Done()
+	cn.getOrRegister(transport.Peer{ID: "a"}, nil)
+	cn.getOrRegister(transport.Peer{ID: "b"}, nil)
 
-	connB, _ := cn.getOrRegister(transport.Peer{ID: "b"}, nil)
-	connB.registerServerStream(newServerStream("a", ""))
-	doneB := connB.context().Done()
-
-	cn.closeAll()
-
-	allDone := make(chan struct{}, 1)
-	go func() {
-		<-doneA
-		<-doneB
-		allDone <- struct{}{}
-	}()
-
-	// Wait for done channels (with timeout)
-	timeout := time.NewTimer(time.Second)
-	select {
-	case <-timeout.C:
-		t.Fatal("timeout")
-	case <-allDone:
-		// all is OK
-		timeout.Stop()
-	}
+	assert.Len(t, cn.All(), 2)
 }
 
 func Test_connectionList_getOrRegister(t *testing.T) {

@@ -39,7 +39,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/p2p"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
@@ -104,8 +103,8 @@ func TestProtocolV1_MissingPayloads(t *testing.T) {
 // TestProtocolV1_Pagination tests whether TransactionList messages are paginated when the transactions on the DAG
 // exceed Protobuf's max message size.
 func TestProtocolV1_Pagination(t *testing.T) {
-	p2p.MaxMessageSizeInBytes = 4 * 1024 // 4kb
-	const numberOfTransactions = 19      // 20 transactions equals +/- 12.6kb (which exceeds the set limit of 10kb)
+	grpc.MaxMessageSizeInBytes = 4 * 1024 // 4kb
+	const numberOfTransactions = 19       // 20 transactions equals +/- 12.6kb (which exceeds the set limit of 10kb)
 
 	node1 := startNode(t, "pagination_node1")
 	node2 := startNode(t, "pagination_node2")

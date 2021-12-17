@@ -62,6 +62,20 @@ func (mr *MockProtocolMockRecorder) Diagnostics() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockProtocol)(nil).Diagnostics))
 }
 
+// Handle mocks base method.
+func (m *MockProtocol) Handle(peer transport.Peer, envelope interface{}) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Handle", peer, envelope)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Handle indicates an expected call of Handle.
+func (mr *MockProtocolMockRecorder) Handle(peer, envelope interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockProtocol)(nil).Handle), peer, envelope)
+}
+
 // PeerDiagnostics mocks base method.
 func (m *MockProtocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	m.ctrl.T.Helper()

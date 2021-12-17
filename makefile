@@ -22,11 +22,11 @@ gen-mocks:
 	mockgen -destination=network/transport/connection_manager_mock.go -package=transport -source=network/transport/connection_manager.go
 	mockgen -destination=network/transport/protocol_mock.go -package=transport -source=network/transport/protocol.go Protocol
 	mockgen -destination=network/transport/grpc/authenticator_mock.go -package=grpc -source=network/transport/grpc/authenticator.go
+	mockgen -destination=network/transport/grpc/connection_list_mock.go -package=grpc -source=network/transport/grpc/connection_list.go
+	mockgen -destination=network/transport/grpc/connection_mock.go -package=grpc -source=network/transport/grpc/connection.go
 	mockgen -destination=network/transport/v1/logic/mock.go -package=logic -source=network/transport/v1/logic/interface.go Protocol
-	mockgen -destination=network/transport/v1/logic/senders_mock.go -package=logic -source=network/transport/v1/logic/senders.go messageSender
+	mockgen -destination=network/transport/v1/logic/senders_mock.go -package=logic -source=network/transport/v1/logic/senders.go
 	mockgen -destination=network/transport/v1/logic/payload_collector_mock.go -package=logic -source=network/transport/v1/logic/payload_collector.go
-	mockgen -destination=network/transport/v1/p2p/mock.go -package=p2p -source=network/transport/v1/p2p/interface.go P2PNetwork
-	mockgen -destination=network/transport/v1/p2p/messaging_mock.go -package=p2p -source=network/transport/v1/p2p/messaging.go grpcMessenger
 	mockgen -destination=network/transport/v1/protobuf/network_grpc_mock.go -package=protobuf -source=network/transport/v1/protobuf/network_grpc.pb.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go DAG PayloadStore
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
