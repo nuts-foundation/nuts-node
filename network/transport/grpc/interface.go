@@ -24,9 +24,13 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Protocol defines the API for streaming gRPC protocol implementations.
 type Protocol interface {
+	// MethodName returns the fully qualified name of the gRPC stream.
 	MethodName() string
+	// CreateClientStream creates a new client for the gRPC stream.
 	CreateClientStream(outgoingContext context.Context, grpcConn *grpc.ClientConn) (grpc.ClientStream, error)
+	// Register registers the protocol implementation.
 	Register(registrar grpc.ServiceRegistrar, acceptor func(stream grpc.ServerStream) error, connectionList ConnectionList)
 
 	// CreateEnvelope is called to create a new, empty envelope, required for receiving messages.

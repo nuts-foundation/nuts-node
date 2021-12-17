@@ -45,6 +45,7 @@ type messageSender interface {
 	sendTransactionPayload(peer transport.PeerID, payloadHash hash.SHA256Hash, data []byte)
 }
 
+// MessageGateway defines functions for sending network messages.
 type MessageGateway interface {
 	Send(peer transport.PeerID, envelope *protobuf.NetworkMessage)
 	Broadcast(envelope *protobuf.NetworkMessage)

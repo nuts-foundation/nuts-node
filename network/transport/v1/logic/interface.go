@@ -19,22 +19,12 @@
 package logic
 
 import (
-	"errors"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
-
-// Version holds the number of the version of this protocol implementation.
-const Version = 1
-
-// ErrMissingProtocolVersion is used when a message is received without protocol version.
-var ErrMissingProtocolVersion = errors.New("missing protocol version")
-
-// ErrUnsupportedProtocolVersion is used when a message is received with an unsupported protocol version.
-var ErrUnsupportedProtocolVersion = errors.New("unsupported protocol version")
 
 // Protocol defines the API for the protocol layer, which is a high-level interface to interact with the network. It responds
 // from (peer) messages received through the P2P layer.
@@ -49,6 +39,7 @@ type Protocol interface {
 	Stop()
 	// PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 	PeerDiagnostics() map[transport.PeerID]transport.Diagnostics
+	// Handle handles a received message.
 	Handle(peer transport.Peer, envelope interface{}) error
 }
 

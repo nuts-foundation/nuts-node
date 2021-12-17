@@ -50,6 +50,8 @@ type Connection interface {
 	// The stream is closed when close() is called.
 	registerStream(protocol Protocol, stream Stream) bool
 
+	// Send tries to send the given message over the stream of the given protocol.
+	// If there's no active stream for the protocol, or something else goes wrong, an error is returned.
 	Send(protocol Protocol, envelope interface{}) error
 
 	// verifyOrSetPeerID checks whether the given transport.PeerID matches the one currently set for this connection.
@@ -62,7 +64,9 @@ type Connection interface {
 	// stats returns statistics for this connection
 	stats() transport.ConnectionStats
 
+	// Peer returns the associated peer information of this connection. If the connection is not active, it will return an empty peer.
 	Peer() transport.Peer
+	// Connected returns whether the connection is active or not.
 	Connected() bool
 }
 

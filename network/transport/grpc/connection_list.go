@@ -24,8 +24,12 @@ import (
 	"sync"
 )
 
+// ConnectionList provides an API for protocols to query the ConnectionManager's connections.
 type ConnectionList interface {
+	// Get returns the Connection which is associated with the given peer ID.
+	// If there's no match, nil is returned.
 	Get(peer transport.PeerID) Connection
+	// ForEach 
 	ForEach(consumer func(connection Connection))
 }
 

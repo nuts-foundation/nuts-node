@@ -24,7 +24,7 @@ import (
 	"testing"
 )
 
-func Test_connectionList_forEach(t *testing.T) {
+func Test_connectionList_ForEach(t *testing.T) {
 	cn := connectionList{}
 
 	cn.getOrRegister(transport.Peer{ID: "a"}, nil)
