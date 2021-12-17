@@ -55,11 +55,11 @@ func DefaultConfig() Config {
 
 // New returns a new instance of the protocol v1 implementation.
 func New(config Config, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) transport.Protocol {
-	result := protocolV1{
+	result := &protocolV1{
 		config:   config,
 	}
-	result.protocol = logic.NewProtocol(result.send, result.broadcast, graph, publisher, payloadStore, diagnosticsProvider)
-	return &result
+	result.protocol = logic.NewProtocol(result, graph, publisher, payloadStore, diagnosticsProvider)
+	return result
 }
 
 type protocolV1 struct {
@@ -118,7 +118,7 @@ func (p protocolV1) Handle(peer transport.Peer, envelope interface{}) error {
 	return p.protocol.Handle(peer, envelope)
 }
 
-func (p *protocolV1) send(peer transport.PeerID, envelope *protobuf.NetworkMessage) {
+func (p *protocolV1) Send(peer transport.PeerID, envelope *protobuf.NetworkMessage) {
 	connection := p.connectionList.Get(peer)
 	if connection != nil {
 		err := connection.Send(p, envelope)
@@ -128,7 +128,7 @@ func (p *protocolV1) send(peer transport.PeerID, envelope *protobuf.NetworkMessa
 	}
 }
 
-func (p *protocolV1) broadcast(envelope *protobuf.NetworkMessage) {
+func (p *protocolV1) Broadcast(envelope *protobuf.NetworkMessage) {
 	p.connectionList.ForEach(func(connection grpc.Connection) {
 		if connection.Connected() {
 			err := connection.Send(p, envelope)

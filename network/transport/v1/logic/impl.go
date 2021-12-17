@@ -95,7 +95,7 @@ func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics 
 }
 
 // NewProtocol creates a new instance of Protocol
-func NewProtocol(gateway messageGateway, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) Protocol {
+func NewProtocol(gateway MessageGateway, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) Protocol {
 	p := &protocol{
 		peerDiagnostics:      make(map[transport.PeerID]transport.Diagnostics, 0),
 		peerDiagnosticsMutex: &sync.Mutex{},

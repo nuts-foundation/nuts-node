@@ -36,7 +36,7 @@ func Test_ProtocolLifecycle(t *testing.T) {
 	publisher := dag.NewMockPublisher(mockCtrl)
 	publisher.EXPECT().Subscribe("*", gomock.Any())
 
-	instance := NewProtocol(NewMockmessageGateway(mockCtrl), dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), nil)
+	instance := NewProtocol(NewMockMessageGateway(mockCtrl), dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), nil)
 	instance.Configure(time.Second*2, time.Second*5, 10*time.Second, "local")
 	instance.Start()
 	instance.Stop()

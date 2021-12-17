@@ -33,7 +33,7 @@ type TestProtocol struct {
 }
 
 func (s *TestProtocol) MethodName() string {
-	panic("implement me")
+	return GetStreamMethod(Test_ServiceDesc.ServiceName, Test_ServiceDesc.Streams[0])
 }
 
 func (s *TestProtocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpc.ClientConn) (grpc.ClientStream, error) {
@@ -47,7 +47,7 @@ func (s *TestProtocol) Register(registrar grpc.ServiceRegistrar, acceptor func(s
 }
 
 func (s *TestProtocol) CreateEnvelope() interface{} {
-	panic("implement me")
+	return &TestMessage{}
 }
 
 func (s *TestProtocol) Handle(peer transport.Peer, envelope interface{}) error {

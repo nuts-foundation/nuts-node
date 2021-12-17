@@ -52,8 +52,6 @@ type Connection interface {
 
 	Send(protocol Protocol, envelope interface{}) error
 
-	// context returns the context that is cancelled when the connection is closed.
-	context() context.Context
 	// verifyOrSetPeerID checks whether the given transport.PeerID matches the one currently set for this connection.
 	// If no transport.PeerID is set on this connection it just sets it. Subsequent calls must then match it.
 	// This method is used to:
@@ -105,10 +103,8 @@ func (mc *conn) disconnect() {
 		return
 	}
 
-	if mc.cancelCtx != nil {
-		mc.cancelCtx()
-		mc.ctx = nil
-	}
+	mc.cancelCtx()
+	mc.ctx = nil
 
 	// Close streams
 	for methodName, stream := range mc.streams {
@@ -130,12 +126,6 @@ func (mc *conn) disconnect() {
 
 	// Reset peer ID, since when it reconnects it might have changed (due to a reboot)
 	mc.peer.Store(transport.Peer{})
-}
-
-func (mc *conn) context() context.Context {
-	mc.mux.RLock()
-	defer mc.mux.RUnlock()
-	return mc.ctx
 }
 
 func (mc *conn) waitUntilDisconnected() {
