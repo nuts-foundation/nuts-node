@@ -110,10 +110,15 @@ func (v Service) StartSigningSession(rawContractText string) (contract.SessionPo
 // SigningSessionStatus returns the current status of a certain session.
 // It returns nil if the session is not found
 func (v Service) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
-	if result := v.IrmaSessionHandler.GetSessionResult(sessionID); result != nil {
-		return SigningSessionResult{SessionResult: *result}, nil
+	result, err := v.IrmaSessionHandler.GetSessionResult(sessionID);
+	if err != nil {
+		return nil, err
 	}
-	return nil, services.ErrSessionNotFound
+	if result == nil {
+		return nil, services.ErrSessionNotFound
+	}
+
+	return SigningSessionResult{SessionResult: *result}, nil
 }
 
 // SigningSessionResult implements the SigningSessionResult interface and contains the

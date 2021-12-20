@@ -21,7 +21,7 @@ require (
 	github.com/nuts-foundation/go-did v0.1.1
 	github.com/nuts-foundation/go-leia/v2 v2.0.0
 	github.com/pkg/errors v0.9.1
-	github.com/privacybydesign/irmago v0.8.0
+	github.com/privacybydesign/irmago v0.9.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.8.1
@@ -42,6 +42,7 @@ require (
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bsm/redislock v0.7.1 // indirect
 	github.com/bwesterb/byteswriter v1.0.0 // indirect
 	github.com/bwesterb/go-atum v1.0.0 // indirect
 	github.com/bwesterb/go-exptable v1.0.0 // indirect
@@ -53,7 +54,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.0-20210816181553-5444fa50b93d // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/eknkc/basex v1.0.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
@@ -62,9 +63,11 @@ require (
 	github.com/getsentry/raven-go v0.0.0-20180121060056-563b81fc02b7 // indirect
 	github.com/go-chi/chi v3.3.3+incompatible // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
+	github.com/go-redis/redis/v8 v8.8.0 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/goccy/go-json v0.8.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
+	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -135,6 +138,9 @@ require (
 	github.com/valyala/fasttemplate v1.2.1 // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	go.opentelemetry.io/otel v0.19.0 // indirect
+	go.opentelemetry.io/otel/metric v0.19.0 // indirect
+	go.opentelemetry.io/otel/trace v0.19.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20210913180222-943fd674d43e // indirect

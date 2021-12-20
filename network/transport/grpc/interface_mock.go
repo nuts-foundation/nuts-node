@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	core "github.com/nuts-foundation/nuts-node/core"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
 	grpc "google.golang.org/grpc"
 )
@@ -34,6 +35,18 @@ func NewMockProtocol(ctrl *gomock.Controller) *MockProtocol {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 	return m.recorder
+}
+
+// Configure mocks base method.
+func (m *MockProtocol) Configure(peerID transport.PeerID) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Configure", peerID)
+}
+
+// Configure indicates an expected call of Configure.
+func (mr *MockProtocolMockRecorder) Configure(peerID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockProtocol)(nil).Configure), peerID)
 }
 
 // CreateClientStream mocks base method.
@@ -65,6 +78,20 @@ func (mr *MockProtocolMockRecorder) CreateEnvelope() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateEnvelope", reflect.TypeOf((*MockProtocol)(nil).CreateEnvelope))
 }
 
+// Diagnostics mocks base method.
+func (m *MockProtocol) Diagnostics() []core.DiagnosticResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Diagnostics")
+	ret0, _ := ret[0].([]core.DiagnosticResult)
+	return ret0
+}
+
+// Diagnostics indicates an expected call of Diagnostics.
+func (mr *MockProtocolMockRecorder) Diagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockProtocol)(nil).Diagnostics))
+}
+
 // Handle mocks base method.
 func (m *MockProtocol) Handle(peer transport.Peer, envelope interface{}) error {
 	m.ctrl.T.Helper()
@@ -93,6 +120,20 @@ func (mr *MockProtocolMockRecorder) MethodName() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MethodName", reflect.TypeOf((*MockProtocol)(nil).MethodName))
 }
 
+// PeerDiagnostics mocks base method.
+func (m *MockProtocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PeerDiagnostics")
+	ret0, _ := ret[0].(map[transport.PeerID]transport.Diagnostics)
+	return ret0
+}
+
+// PeerDiagnostics indicates an expected call of PeerDiagnostics.
+func (mr *MockProtocolMockRecorder) PeerDiagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerDiagnostics", reflect.TypeOf((*MockProtocol)(nil).PeerDiagnostics))
+}
+
 // Register mocks base method.
 func (m *MockProtocol) Register(registrar grpc.ServiceRegistrar, acceptor func(grpc.ServerStream) error, connectionList ConnectionList, connectionManager transport.ConnectionManager) {
 	m.ctrl.T.Helper()
@@ -103,6 +144,30 @@ func (m *MockProtocol) Register(registrar grpc.ServiceRegistrar, acceptor func(g
 func (mr *MockProtocolMockRecorder) Register(registrar, acceptor, connectionList, connectionManager interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockProtocol)(nil).Register), registrar, acceptor, connectionList, connectionManager)
+}
+
+// Start mocks base method.
+func (m *MockProtocol) Start() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Start")
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockProtocolMockRecorder) Start() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockProtocol)(nil).Start))
+}
+
+// Stop mocks base method.
+func (m *MockProtocol) Stop() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Stop")
+}
+
+// Stop indicates an expected call of Stop.
+func (mr *MockProtocolMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockProtocol)(nil).Stop))
 }
 
 // UnwrapMessage mocks base method.

@@ -40,11 +40,11 @@ type mockIrmaClient struct {
 	sessionToken  string
 }
 
-func (m *mockIrmaClient) GetSessionResult(token string) *irmaservercore.SessionResult {
+func (m *mockIrmaClient) GetSessionResult(token string) (*irmaservercore.SessionResult, error) {
 	if m.err != nil {
-		return nil
+		return nil, nil
 	}
-	return m.sessionResult
+	return m.sessionResult, nil
 }
 
 func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercore.SessionHandler) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error) {
