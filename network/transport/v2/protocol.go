@@ -220,9 +220,17 @@ func (p *protocol) handlePrivateTx(msg *nats.Msg) error {
 		return nil
 	}
 
-	fmt.Println(pal)
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(pal[0]))
 
-	return nil
+	if conn == nil {
+		return fmt.Errorf("no connection found (DID=%s)", pal[0])
+	}
+
+	return conn.Send(p, &Envelope{Message: &Envelope_TransactionPayloadQuery{
+		TransactionPayloadQuery: &TransactionPayloadQuery{
+			TransactionRef: tx.Ref().Slice(),
+		},
+	}})
 }
 
 func (p *protocol) Stop() {
