@@ -297,7 +297,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		config:                 config,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 		didDocumentResolver:    doc.Resolver{Store: vdrStore},
-		privateKeyResolver: 	keyStore,
+		privateKeyResolver:     keyStore,
 	}
 	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {
 		t.Fatal(err)
