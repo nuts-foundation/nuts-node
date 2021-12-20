@@ -2,6 +2,7 @@ package v2
 
 import (
 	"errors"
+	"go.uber.org/atomic"
 	"testing"
 	"time"
 
@@ -19,16 +20,6 @@ import (
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-type natsConnectHandlerFunc func(hostname string, port int, timeout time.Duration) (events.Conn, error)
-
-func setupNatsConnectTestHandler(t *testing.T, handler natsConnectHandlerFunc) {
-	natsConnectHandler = handler
-
-	t.Cleanup(func() {
-		natsConnectHandler = events.Connect
-	})
-}
-
 type protocolMocks struct {
 	Graph        *dag.MockDAG
 	PayloadStore *dag.MockPayloadStore
@@ -43,6 +34,11 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	decrypter := crypto.NewMockDecrypter(ctrl)
 	graph := dag.NewMockDAG(ctrl)
 	payloadStore := dag.NewMockPayloadStore(ctrl)
+	nodeDIDResolver := transport.FixedNodeDIDResolver{}
+
+	if nodeDID != nil {
+		nodeDIDResolver.NodeDID = *nodeDID
+	}
 
 	proto := New(Config{
 		Nats: NatsConfig{
@@ -50,7 +46,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 			Hostname: "localhost",
 			Timeout:  30,
 		},
-	}, nodeDID, graph, payloadStore, docResolver, decrypter)
+	}, nodeDIDResolver, graph, payloadStore, docResolver, decrypter)
 
 	return proto.(*protocol), protocolMocks{
 		graph, payloadStore, docResolver, decrypter,
@@ -147,20 +143,25 @@ func TestProtocol_Start(t *testing.T) {
 	js.EXPECT().Subscribe(events.PrivateTransactionsSubject, gomock.Any()).Return(nil, nil)
 	conn.EXPECT().Close()
 
-	proto, _ := newTestProtocol(t, nil)
+	called := atomic.NewBool(false)
 
-	setupNatsConnectTestHandler(t, func(hostname string, port int, timeout time.Duration) (events.Conn, error) {
+	proto, _ := newTestProtocol(t, nil)
+	proto.natsConnectHandler = func(hostname string, port int, timeout time.Duration) (events.Conn, error) {
+		called.Toggle()
+
 		assert.Equal(t, 8080, port)
 		assert.Equal(t, time.Second*30, timeout)
 		assert.Equal(t, "localhost", hostname)
 
 		return conn, nil
-	})
+	}
 
 	proto.Start()
 	proto.Stop()
 
 	time.Sleep(time.Second)
+
+	assert.True(t, called.Load())
 }
 
 //nolint:funlen

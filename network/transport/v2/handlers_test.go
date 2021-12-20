@@ -35,7 +35,9 @@ func TestProtocol_handle(t *testing.T) {
 }
 
 func TestProtocol_handleHello(t *testing.T) {
-	err := newTestProtocol(t, nil).Handle(peer, &Envelope{Message: &Envelope_Hello{}})
+	proto, _ := newTestProtocol(t, nil)
+	err := proto.Handle(peer, &Envelope{Message: &Envelope_Hello{}})
+
 	assert.NoError(t, err)
 }
 

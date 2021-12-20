@@ -39,8 +39,6 @@ import (
 
 var _ grpc.Protocol = (*protocol)(nil)
 
-var natsConnectHandler = events.Connect
-
 // Config specifies config for protocol v2
 type Config struct {
 	// NATS configuration for the replay DAG publisher
@@ -68,26 +66,28 @@ func DefaultConfig() Config {
 // New creates an instance of the v2 protocol.
 func New(config Config, nodeDIDResolver transport.NodeDIDResolver, graph dag.DAG, payloadStore dag.PayloadStore, docResolver vdr.DocResolver, decrypter crypto.Decrypter) transport.Protocol {
 	return &protocol{
-		config:          config,
-		graph:           graph,
-		nodeDIDResolver: nodeDIDResolver,
-		payloadStore:    payloadStore,
-		decrypter:       decrypter,
-		docResolver:     docResolver,
+		config:             config,
+		graph:              graph,
+		nodeDIDResolver:    nodeDIDResolver,
+		payloadStore:       payloadStore,
+		decrypter:          decrypter,
+		docResolver:        docResolver,
+		natsConnectHandler: events.Connect,
 	}
 }
 
 type protocol struct {
-	cancel            func()
-	ctx               context.Context
-	config            Config
-	graph             dag.DAG
-	nodeDIDResolver   transport.NodeDIDResolver
-	payloadStore      dag.PayloadStore
-	decrypter         crypto.Decrypter
-	docResolver       vdr.DocResolver
-	connectionList    grpc.ConnectionList
-	connectionManager transport.ConnectionManager
+	cancel             func()
+	ctx                context.Context
+	config             Config
+	nodeDIDResolver    transport.NodeDIDResolver
+	graph              dag.DAG
+	payloadStore       dag.PayloadStore
+	decrypter          crypto.Decrypter
+	docResolver        vdr.DocResolver
+	natsConnectHandler events.ConnectFunc
+	connectionList     grpc.ConnectionList
+	connectionManager  transport.ConnectionManager
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn) (grpcLib.ClientStream, error) {
@@ -116,7 +116,7 @@ func (p protocol) Configure(_ transport.PeerID) {
 }
 
 func (p *protocol) setupNatsHandler() error {
-	conn, err := natsConnectHandler(
+	conn, err := p.natsConnectHandler(
 		p.config.Nats.Hostname,
 		p.config.Nats.Port,
 		time.Duration(p.config.Nats.Timeout)*time.Second,

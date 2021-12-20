@@ -40,6 +40,9 @@ type JetStreamContext interface {
 	PublishMsg(m *nats.Msg, opts ...nats.PubOpt) (*nats.PubAck, error)
 }
 
+// ConnectFunc defines the type for the NATS connect handler function
+type ConnectFunc func(hostname string, port int, timeout time.Duration) (Conn, error)
+
 // Connect connects to a NATS server based on the hostname, port and timeout
 func Connect(hostname string, port int, timeout time.Duration) (Conn, error) {
 	return nats.Connect(
