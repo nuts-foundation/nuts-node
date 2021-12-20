@@ -39,8 +39,8 @@ func (c *protocolClient) Stream(ctx context.Context, opts ...grpc.CallOption) (P
 }
 
 type Protocol_StreamClient interface {
-	Send(*Message) error
-	Recv() (*Message, error)
+	Send(*Envelope) error
+	Recv() (*Envelope, error)
 	grpc.ClientStream
 }
 
@@ -48,12 +48,12 @@ type protocolStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *protocolStreamClient) Send(m *Message) error {
+func (x *protocolStreamClient) Send(m *Envelope) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *protocolStreamClient) Recv() (*Message, error) {
-	m := new(Message)
+func (x *protocolStreamClient) Recv() (*Envelope, error) {
+	m := new(Envelope)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -91,8 +91,8 @@ func _Protocol_Stream_Handler(srv interface{}, stream grpc.ServerStream) error {
 }
 
 type Protocol_StreamServer interface {
-	Send(*Message) error
-	Recv() (*Message, error)
+	Send(*Envelope) error
+	Recv() (*Envelope, error)
 	grpc.ServerStream
 }
 
@@ -100,12 +100,12 @@ type protocolStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *protocolStreamServer) Send(m *Message) error {
+func (x *protocolStreamServer) Send(m *Envelope) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *protocolStreamServer) Recv() (*Message, error) {
-	m := new(Message)
+func (x *protocolStreamServer) Recv() (*Envelope, error) {
+	m := new(Envelope)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}

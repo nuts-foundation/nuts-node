@@ -20,9 +20,9 @@ package v2
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	grpcLib "google.golang.org/grpc"
@@ -31,13 +31,19 @@ import (
 var _ grpc.Protocol = (*protocol)(nil)
 
 // New creates an instance of the v2 protocol.
-func New() transport.Protocol {
-	return &protocol{}
+func New(graph dag.DAG, payloadStore dag.PayloadStore) grpc.Protocol {
+	return &protocol{
+		graph:        graph,
+		payloadStore: payloadStore,
+	}
 }
 
 type protocol struct {
 	connectionList    grpc.ConnectionList
 	connectionManager transport.ConnectionManager
+
+	payloadStore dag.PayloadStore
+	graph        dag.DAG
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn) (grpcLib.ClientStream, error) {
@@ -55,22 +61,11 @@ func (p protocol) MethodName() string {
 }
 
 func (p protocol) CreateEnvelope() interface{} {
-	return &Message{}
+	return &Envelope{}
 }
 
 func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
-	return envelope.(*Message).Message
-}
-
-func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
-	envelope := raw.(*Message)
-	switch envelope.Message.(type) {
-	case *Message_Hello:
-		log.Logger().Infof("%T: %s said hello", p, peer)
-	default:
-		return errors.New("envelope doesn't contain any (handleable) messages")
-	}
-	return nil
+	return envelope.(*Envelope).Message
 }
 
 func (p protocol) Configure(_ transport.PeerID) {
@@ -88,6 +83,14 @@ func (p protocol) Diagnostics() []core.DiagnosticResult {
 
 func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	return make(map[transport.PeerID]transport.Diagnostics, 0)
+}
+
+func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
+	connection := p.connectionList.Get(peer.ID)
+	if connection == nil {
+		return fmt.Errorf("unable to send message, connection not found (peer=%s)", peer)
+	}
+	return connection.Send(p, &Envelope{Message: message})
 }
 
 type protocolServer struct {

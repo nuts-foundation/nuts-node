@@ -31,7 +31,7 @@ import (
 
 func Test_connector_tryConnect(t *testing.T) {
 	serverConfig := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "server")
-	cm := NewGRPCConnectionManager(serverConfig, &stubNodeDIDReader{}, nil)
+	cm := NewGRPCConnectionManager(serverConfig, &TestNodeDIDResolver{}, nil)
 	if !assert.NoError(t, cm.Start()) {
 		return
 	}

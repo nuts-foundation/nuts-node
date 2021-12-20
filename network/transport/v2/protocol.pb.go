@@ -37,18 +37,20 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type Message struct {
+type Envelope struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Message:
-	//	*Message_Hello
-	Message isMessage_Message `protobuf_oneof:"message"`
+	//	*Envelope_Hello
+	//	*Envelope_TransactionPayloadQuery
+	//	*Envelope_TransactionPayload
+	Message isEnvelope_Message `protobuf_oneof:"Message"`
 }
 
-func (x *Message) Reset() {
-	*x = Message{}
+func (x *Envelope) Reset() {
+	*x = Envelope{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_transport_v2_protocol_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -56,13 +58,13 @@ func (x *Message) Reset() {
 	}
 }
 
-func (x *Message) String() string {
+func (x *Envelope) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Message) ProtoMessage() {}
+func (*Envelope) ProtoMessage() {}
 
-func (x *Message) ProtoReflect() protoreflect.Message {
+func (x *Envelope) ProtoReflect() protoreflect.Message {
 	mi := &file_transport_v2_protocol_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -74,43 +76,73 @@ func (x *Message) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Message.ProtoReflect.Descriptor instead.
-func (*Message) Descriptor() ([]byte, []int) {
+// Deprecated: Use Envelope.ProtoReflect.Descriptor instead.
+func (*Envelope) Descriptor() ([]byte, []int) {
 	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{0}
 }
 
-func (m *Message) GetMessage() isMessage_Message {
+func (m *Envelope) GetMessage() isEnvelope_Message {
 	if m != nil {
 		return m.Message
 	}
 	return nil
 }
 
-func (x *Message) GetHello() *HelloMessage {
-	if x, ok := x.GetMessage().(*Message_Hello); ok {
+func (x *Envelope) GetHello() *Hello {
+	if x, ok := x.GetMessage().(*Envelope_Hello); ok {
 		return x.Hello
 	}
 	return nil
 }
 
-type isMessage_Message interface {
-	isMessage_Message()
+func (x *Envelope) GetTransactionPayloadQuery() *TransactionPayloadQuery {
+	if x, ok := x.GetMessage().(*Envelope_TransactionPayloadQuery); ok {
+		return x.TransactionPayloadQuery
+	}
+	return nil
 }
 
-type Message_Hello struct {
-	Hello *HelloMessage `protobuf:"bytes,1000,opt,name=hello,proto3,oneof"`
+func (x *Envelope) GetTransactionPayload() *TransactionPayload {
+	if x, ok := x.GetMessage().(*Envelope_TransactionPayload); ok {
+		return x.TransactionPayload
+	}
+	return nil
 }
 
-func (*Message_Hello) isMessage_Message() {}
+type isEnvelope_Message interface {
+	isEnvelope_Message()
+}
 
-type HelloMessage struct {
+type Envelope_Hello struct {
+	Hello *Hello `protobuf:"bytes,1000,opt,name=hello,proto3,oneof"`
+}
+
+type Envelope_TransactionPayloadQuery struct {
+	TransactionPayloadQuery *TransactionPayloadQuery `protobuf:"bytes,100,opt,name=transactionPayloadQuery,proto3,oneof"`
+}
+
+type Envelope_TransactionPayload struct {
+	TransactionPayload *TransactionPayload `protobuf:"bytes,101,opt,name=transactionPayload,proto3,oneof"`
+}
+
+func (*Envelope_Hello) isEnvelope_Message() {}
+
+func (*Envelope_TransactionPayloadQuery) isEnvelope_Message() {}
+
+func (*Envelope_TransactionPayload) isEnvelope_Message() {}
+
+// TransactionPayloadQuery is a message used to query the payload of a transaction.
+type TransactionPayloadQuery struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+
+	// transactionRef contains the reference (hash) of the transaction, which payload the node would like to receive, as specified by RFC004.
+	TransactionRef []byte `protobuf:"bytes,1,opt,name=transactionRef,proto3" json:"transactionRef,omitempty"`
 }
 
-func (x *HelloMessage) Reset() {
-	*x = HelloMessage{}
+func (x *TransactionPayloadQuery) Reset() {
+	*x = TransactionPayloadQuery{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_transport_v2_protocol_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -118,13 +150,13 @@ func (x *HelloMessage) Reset() {
 	}
 }
 
-func (x *HelloMessage) String() string {
+func (x *TransactionPayloadQuery) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*HelloMessage) ProtoMessage() {}
+func (*TransactionPayloadQuery) ProtoMessage() {}
 
-func (x *HelloMessage) ProtoReflect() protoreflect.Message {
+func (x *TransactionPayloadQuery) ProtoReflect() protoreflect.Message {
 	mi := &file_transport_v2_protocol_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -136,9 +168,112 @@ func (x *HelloMessage) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use HelloMessage.ProtoReflect.Descriptor instead.
-func (*HelloMessage) Descriptor() ([]byte, []int) {
+// Deprecated: Use TransactionPayloadQuery.ProtoReflect.Descriptor instead.
+func (*TransactionPayloadQuery) Descriptor() ([]byte, []int) {
 	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *TransactionPayloadQuery) GetTransactionRef() []byte {
+	if x != nil {
+		return x.TransactionRef
+	}
+	return nil
+}
+
+// TransactionPayload is the response message for TransactionPayloadQuery.
+type TransactionPayload struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// transactionRef contains the reference to the transaction which' payload was requested.
+	TransactionRef []byte `protobuf:"bytes,1,opt,name=transactionRef,proto3" json:"transactionRef,omitempty"`
+	// data contains the actual payload.
+	Data []byte `protobuf:"bytes,10,opt,name=data,proto3" json:"data,omitempty"`
+}
+
+func (x *TransactionPayload) Reset() {
+	*x = TransactionPayload{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_v2_protocol_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TransactionPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransactionPayload) ProtoMessage() {}
+
+func (x *TransactionPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_v2_protocol_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransactionPayload.ProtoReflect.Descriptor instead.
+func (*TransactionPayload) Descriptor() ([]byte, []int) {
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *TransactionPayload) GetTransactionRef() []byte {
+	if x != nil {
+		return x.TransactionRef
+	}
+	return nil
+}
+
+func (x *TransactionPayload) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type Hello struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *Hello) Reset() {
+	*x = Hello{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_v2_protocol_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Hello) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Hello) ProtoMessage() {}
+
+func (x *Hello) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_v2_protocol_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Hello.ProtoReflect.Descriptor instead.
+func (*Hello) Descriptor() ([]byte, []int) {
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{3}
 }
 
 var File_transport_v2_protocol_proto protoreflect.FileDescriptor
@@ -146,19 +281,38 @@ var File_transport_v2_protocol_proto protoreflect.FileDescriptor
 var file_transport_v2_protocol_proto_rawDesc = []byte{
 	0x0a, 0x1b, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x70, 0x6f, 0x72, 0x74, 0x2f, 0x76, 0x32, 0x2f, 0x70,
 	0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x02, 0x76,
-	0x32, 0x22, 0x3f, 0x0a, 0x07, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x29, 0x0a, 0x05,
-	0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x18, 0xe8, 0x07, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x10, 0x2e, 0x76,
-	0x32, 0x2e, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x48, 0x00,
-	0x52, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x42, 0x09, 0x0a, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61,
-	0x67, 0x65, 0x22, 0x0e, 0x0a, 0x0c, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x4d, 0x65, 0x73, 0x73, 0x61,
-	0x67, 0x65, 0x32, 0x34, 0x0a, 0x08, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x12, 0x28,
-	0x0a, 0x06, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x12, 0x0b, 0x2e, 0x76, 0x32, 0x2e, 0x4d, 0x65,
-	0x73, 0x73, 0x61, 0x67, 0x65, 0x1a, 0x0b, 0x2e, 0x76, 0x32, 0x2e, 0x4d, 0x65, 0x73, 0x73, 0x61,
-	0x67, 0x65, 0x22, 0x00, 0x28, 0x01, 0x30, 0x01, 0x42, 0x3b, 0x5a, 0x39, 0x67, 0x69, 0x74, 0x68,
-	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6e, 0x75, 0x74, 0x73, 0x2d, 0x66, 0x6f, 0x75, 0x6e,
-	0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x2f, 0x6e, 0x75, 0x74, 0x73, 0x2d, 0x6e, 0x6f, 0x64, 0x65,
-	0x2f, 0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x2f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x70, 0x6f,
-	0x72, 0x74, 0x2f, 0x76, 0x32, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x32, 0x22, 0xdc, 0x01, 0x0a, 0x08, 0x45, 0x6e, 0x76, 0x65, 0x6c, 0x6f, 0x70, 0x65, 0x12, 0x22,
+	0x0a, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x18, 0xe8, 0x07, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x09,
+	0x2e, 0x76, 0x32, 0x2e, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x48, 0x00, 0x52, 0x05, 0x68, 0x65, 0x6c,
+	0x6c, 0x6f, 0x12, 0x57, 0x0a, 0x17, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f,
+	0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75, 0x65, 0x72, 0x79, 0x18, 0x64, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x76, 0x32, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63,
+	0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75, 0x65, 0x72, 0x79,
+	0x48, 0x00, 0x52, 0x17, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50,
+	0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x48, 0x0a, 0x12, 0x74,
+	0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61,
+	0x64, 0x18, 0x65, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x76, 0x32, 0x2e, 0x54, 0x72, 0x61,
+	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x48,
+	0x00, 0x52, 0x12, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61,
+	0x79, 0x6c, 0x6f, 0x61, 0x64, 0x42, 0x09, 0x0a, 0x07, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65,
+	0x22, 0x41, 0x0a, 0x17, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50,
+	0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x26, 0x0a, 0x0e, 0x74,
+	0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x66, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0c, 0x52, 0x0e, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x52, 0x65, 0x66, 0x22, 0x50, 0x0a, 0x12, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69,
+	0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x12, 0x26, 0x0a, 0x0e, 0x74, 0x72, 0x61,
+	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x66, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x0c, 0x52, 0x0e, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65,
+	0x66, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x0c, 0x52,
+	0x04, 0x64, 0x61, 0x74, 0x61, 0x22, 0x07, 0x0a, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x32, 0x36,
+	0x0a, 0x08, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x12, 0x2a, 0x0a, 0x06, 0x53, 0x74,
+	0x72, 0x65, 0x61, 0x6d, 0x12, 0x0c, 0x2e, 0x76, 0x32, 0x2e, 0x45, 0x6e, 0x76, 0x65, 0x6c, 0x6f,
+	0x70, 0x65, 0x1a, 0x0c, 0x2e, 0x76, 0x32, 0x2e, 0x45, 0x6e, 0x76, 0x65, 0x6c, 0x6f, 0x70, 0x65,
+	0x22, 0x00, 0x28, 0x01, 0x30, 0x01, 0x42, 0x3b, 0x5a, 0x39, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
+	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6e, 0x75, 0x74, 0x73, 0x2d, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x61,
+	0x74, 0x69, 0x6f, 0x6e, 0x2f, 0x6e, 0x75, 0x74, 0x73, 0x2d, 0x6e, 0x6f, 0x64, 0x65, 0x2f, 0x6e,
+	0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x2f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x70, 0x6f, 0x72, 0x74,
+	0x2f, 0x76, 0x32, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -173,20 +327,24 @@ func file_transport_v2_protocol_proto_rawDescGZIP() []byte {
 	return file_transport_v2_protocol_proto_rawDescData
 }
 
-var file_transport_v2_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_transport_v2_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_transport_v2_protocol_proto_goTypes = []interface{}{
-	(*Message)(nil),      // 0: v2.Message
-	(*HelloMessage)(nil), // 1: v2.HelloMessage
+	(*Envelope)(nil),                // 0: v2.Envelope
+	(*TransactionPayloadQuery)(nil), // 1: v2.TransactionPayloadQuery
+	(*TransactionPayload)(nil),      // 2: v2.TransactionPayload
+	(*Hello)(nil),                   // 3: v2.Hello
 }
 var file_transport_v2_protocol_proto_depIdxs = []int32{
-	1, // 0: v2.Message.hello:type_name -> v2.HelloMessage
-	0, // 1: v2.Protocol.Stream:input_type -> v2.Message
-	0, // 2: v2.Protocol.Stream:output_type -> v2.Message
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 0: v2.Envelope.hello:type_name -> v2.Hello
+	1, // 1: v2.Envelope.transactionPayloadQuery:type_name -> v2.TransactionPayloadQuery
+	2, // 2: v2.Envelope.transactionPayload:type_name -> v2.TransactionPayload
+	0, // 3: v2.Protocol.Stream:input_type -> v2.Envelope
+	0, // 4: v2.Protocol.Stream:output_type -> v2.Envelope
+	4, // [4:5] is the sub-list for method output_type
+	3, // [3:4] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_transport_v2_protocol_proto_init() }
@@ -196,7 +354,7 @@ func file_transport_v2_protocol_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_transport_v2_protocol_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Message); i {
+			switch v := v.(*Envelope); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -208,7 +366,31 @@ func file_transport_v2_protocol_proto_init() {
 			}
 		}
 		file_transport_v2_protocol_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*HelloMessage); i {
+			switch v := v.(*TransactionPayloadQuery); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_v2_protocol_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TransactionPayload); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_v2_protocol_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Hello); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -221,7 +403,9 @@ func file_transport_v2_protocol_proto_init() {
 		}
 	}
 	file_transport_v2_protocol_proto_msgTypes[0].OneofWrappers = []interface{}{
-		(*Message_Hello)(nil),
+		(*Envelope_Hello)(nil),
+		(*Envelope_TransactionPayloadQuery)(nil),
+		(*Envelope_TransactionPayload)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -229,7 +413,7 @@ func file_transport_v2_protocol_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_transport_v2_protocol_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
