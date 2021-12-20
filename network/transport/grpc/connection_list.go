@@ -26,9 +26,9 @@ import (
 
 // ConnectionList provides an API for protocols to query the ConnectionManager's connections.
 type ConnectionList interface {
-	// Get returns the Connection which is associated with the given peer ID.
+	// Get returns the first Connection which matches the predicate
 	// If there's no match, nil is returned.
-	Get(peer transport.PeerID) Connection
+	Get(query ...Predicate) Connection
 	// All returns the list of connections.
 	All() []Connection
 }
@@ -38,18 +38,24 @@ type connectionList struct {
 	list []Connection
 }
 
-func (c *connectionList) Get(peer transport.PeerID) Connection {
-	if len(peer.String()) == 0 {
+func (c *connectionList) Get(query ...Predicate) Connection {
+	// Make sure we're not returning the first random connection by accident
+	if len(query) == 0 {
 		return nil
 	}
 
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+outer:
 	for _, curr := range c.list {
-		if curr.Peer().ID == peer {
-			return curr
+		for _, predicate := range query {
+			if !predicate.Match(curr) {
+				continue outer
+			}
 		}
+
+		return curr
 	}
 
 	return nil

@@ -119,7 +119,7 @@ func (p protocolV1) Handle(peer transport.Peer, envelope interface{}) error {
 }
 
 func (p *protocolV1) Send(peer transport.PeerID, envelope *protobuf.NetworkMessage) {
-	connection := p.connectionList.Get(peer)
+	connection := p.connectionList.Get(grpc.ByPeerID(peer))
 	if connection != nil {
 		err := connection.Send(p, envelope)
 		if err != nil {
@@ -152,8 +152,8 @@ type delegatingConnectionList struct {
 	target grpc.ConnectionList
 }
 
-func (d delegatingConnectionList) Get(peer transport.PeerID) grpc.Connection {
-	return d.target.Get(peer)
+func (d delegatingConnectionList) Get(query ...grpc.Predicate) grpc.Connection {
+	return d.target.Get(query...)
 }
 
 func (d delegatingConnectionList) All() []grpc.Connection {

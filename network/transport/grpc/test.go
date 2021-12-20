@@ -77,18 +77,21 @@ func (s TestNodeDIDResolver) Resolve() (did.DID, error) {
 }
 
 type StubConnectionList struct {
-	PeerID transport.PeerID
-	Conn   *StubConnection
+	Conn *StubConnection
 }
 
-func (s *StubConnectionList) Get(peer transport.PeerID) Connection {
-	if peer == s.PeerID {
-		if s.Conn == nil {
-			s.Conn = &StubConnection{}
-		}
-		return s.Conn
+func (s *StubConnectionList) Get(query ...Predicate) Connection {
+	if s.Conn == nil {
+		return nil
 	}
-	return nil
+
+	for _, predicate := range query {
+		if !predicate.Match(s.Conn) {
+			return nil
+		}
+	}
+
+	return s.Conn
 }
 
 func (s StubConnectionList) All() []Connection {
@@ -100,6 +103,7 @@ func (s StubConnectionList) All() []Connection {
 
 type StubConnection struct {
 	SentMsgs []interface{}
+	PeerID   transport.PeerID
 }
 
 func (s *StubConnection) Send(_ Protocol, envelope interface{}) error {
@@ -108,7 +112,9 @@ func (s *StubConnection) Send(_ Protocol, envelope interface{}) error {
 }
 
 func (s StubConnection) Peer() transport.Peer {
-	panic("implement me")
+	return transport.Peer{
+		ID: s.PeerID,
+	}
 }
 
 func (s StubConnection) Connected() bool {

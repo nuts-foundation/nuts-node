@@ -103,7 +103,9 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
 			mocks.PayloadStore.EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(payload, nil)
 
-			conns := &grpc.StubConnectionList{PeerID: peer.ID}
+			conns := &grpc.StubConnectionList{
+				Conn: &grpc.StubConnection{PeerID: peer.ID},
+			}
 			p.connectionList = conns
 
 			err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
@@ -116,7 +118,9 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
 			mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(nil, nil)
 
-			conns := &grpc.StubConnectionList{PeerID: peer.ID}
+			conns := &grpc.StubConnectionList{
+				Conn: &grpc.StubConnection{PeerID: peer.ID},
+			}
 			p.connectionList = conns
 
 			err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
@@ -137,7 +141,9 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
 			mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
 
-			conns := &grpc.StubConnectionList{PeerID: peer.ID}
+			conns := &grpc.StubConnectionList{
+				Conn: &grpc.StubConnection{PeerID: peer.ID},
+			}
 			p.connectionList = conns
 
 			err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
@@ -149,7 +155,9 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
 			mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
 
-			conns := &grpc.StubConnectionList{PeerID: peer.ID}
+			conns := &grpc.StubConnectionList{
+				Conn: &grpc.StubConnection{PeerID: peer.ID},
+			}
 			p.connectionList = conns
 
 			err := p.Handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})

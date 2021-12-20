@@ -8,7 +8,6 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	transport "github.com/nuts-foundation/nuts-node/network/transport"
 )
 
 // MockConnectionList is a mock of ConnectionList interface.
@@ -49,15 +48,19 @@ func (mr *MockConnectionListMockRecorder) All() *gomock.Call {
 }
 
 // Get mocks base method.
-func (m *MockConnectionList) Get(peer transport.PeerID) Connection {
+func (m *MockConnectionList) Get(query ...Predicate) Connection {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", peer)
+	varargs := []interface{}{}
+	for _, a := range query {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Get", varargs...)
 	ret0, _ := ret[0].(Connection)
 	return ret0
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockConnectionListMockRecorder) Get(peer interface{}) *gomock.Call {
+func (mr *MockConnectionListMockRecorder) Get(query ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockConnectionList)(nil).Get), peer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockConnectionList)(nil).Get), query...)
 }

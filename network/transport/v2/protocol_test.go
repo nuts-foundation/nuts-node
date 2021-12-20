@@ -87,7 +87,7 @@ func TestProtocol_send(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		connection := grpc.NewMockConnection(ctrl)
 		connectionList := grpc.NewMockConnectionList(ctrl)
-		connectionList.EXPECT().Get(transport.PeerID("123")).Return(connection)
+		connectionList.EXPECT().Get(grpc.ByPeerID("123")).Return(connection)
 
 		p := &protocol{}
 		p.connectionList = connectionList
@@ -102,7 +102,7 @@ func TestProtocol_send(t *testing.T) {
 	t.Run("connection not found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		connectionList := grpc.NewMockConnectionList(ctrl)
-		connectionList.EXPECT().Get(transport.PeerID("123")).Return(nil)
+		connectionList.EXPECT().Get(grpc.ByPeerID("123")).Return(nil)
 
 		p := &protocol{}
 		p.connectionList = connectionList

@@ -50,7 +50,7 @@ func Test_Protocol_PeerDiagnostics(t *testing.T) {
 	connection := grpc.NewMockConnection(ctrl)
 	connection.EXPECT().Connected().Return(true)
 	connectionList := grpc.NewMockConnectionList(ctrl)
-	connectionList.EXPECT().Get(peerID).Return(connection)
+	connectionList.EXPECT().Get(grpc.ByPeerID(peerID)).Return(connection)
 
 	instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
 	instance.connections = connectionList
@@ -84,7 +84,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		connection := grpc.NewMockConnection(ctrl)
 		connection.EXPECT().Connected().Return(true)
 		connectionList := grpc.NewMockConnectionList(ctrl)
-		connectionList.EXPECT().Get(peerID).Return(connection)
+		connectionList.EXPECT().Get(grpc.ByPeerID(peerID)).Return(connection)
 
 		payloadCollector := NewMockmissingPayloadCollector(ctrl)
 		payloadCollector.EXPECT().findMissingPayloads().AnyTimes().Return(nil, nil)

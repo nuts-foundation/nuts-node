@@ -240,7 +240,7 @@ func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 }
 
 func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
-	connection := p.connectionList.Get(peer.ID)
+	connection := p.connectionList.Get(grpc.ByPeerID(peer.ID))
 	if connection == nil {
 		return fmt.Errorf("unable to send message, connection not found (peer=%s)", peer)
 	}
