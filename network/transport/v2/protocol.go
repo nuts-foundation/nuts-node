@@ -31,7 +31,7 @@ import (
 var _ grpc.Protocol = (*protocol)(nil)
 
 // New creates an instance of the v2 protocol.
-func New(graph dag.DAG, payloadStore dag.PayloadStore) transport.Protocol {
+func New(graph dag.DAG, payloadStore dag.PayloadStore) grpc.Protocol {
 	return &protocol{
 		graph:        graph,
 		payloadStore: payloadStore,

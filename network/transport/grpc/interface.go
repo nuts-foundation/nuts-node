@@ -26,6 +26,8 @@ import (
 
 // Protocol defines the API for streaming gRPC protocol implementations.
 type Protocol interface {
+	transport.Protocol
+
 	// MethodName returns the fully qualified name of the gRPC stream.
 	MethodName() string
 	// CreateClientStream creates a new client for the gRPC stream.
