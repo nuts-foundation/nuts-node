@@ -41,6 +41,17 @@ type DocResolver interface {
 	ResolveControllers(input did.Document, metadata *ResolveMetadata) ([]did.Document, error)
 }
 
+// Predicate is an interface for abstracting search options on DID documents
+type Predicate interface {
+	// Match returns true if the given DID Document passes the predicate condition
+	Match(did.Document, DocumentMetadata) bool
+}
+
+// DocFinder is the interface that groups all methods for finding DID documents based on search conditions
+type DocFinder interface {
+	Find(...Predicate) ([]did.Document, error)
+}
+
 // DocCreator is the interface that wraps the Create method
 type DocCreator interface {
 	// Create creates a new DID document and returns it.

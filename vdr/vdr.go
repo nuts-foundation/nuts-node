@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
@@ -219,4 +220,24 @@ func (r VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.Ke
 	}
 
 	return did.Document{}, nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
+}
+
+func (r *VDR) Find(predicate ...types.Predicate) ([]did.Document, error) {
+	matches := make([]did.Document, 0)
+
+	err := r.store.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
+		for _, p := range predicate {
+			if !p.Match(doc, metadata) {
+				return nil
+			}
+		}
+		matches = append(matches, doc)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return matches, err
 }
