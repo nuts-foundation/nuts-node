@@ -170,7 +170,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			if err != nil {
 				return fmt.Errorf("configured NodeDID is invalid: %w", err)
 			}
-			n.nodeDIDResolver = transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
+			n.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
 		}
 		// Instantiate
 		n.connectionManager = grpc.NewGRPCConnectionManager(
@@ -270,7 +270,7 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 	serviceRef := doc.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
 	_, err = serviceResolver.Resolve(serviceRef, doc.DefaultMaxServiceReferenceDepth)
 	if err != nil {
-		return fmt.Errorf("invalid NodeDID configuration: unable to resolve %s service endpoint (did=%s)", transport.NutsCommServiceType, nodeDID)
+		return fmt.Errorf("invalid NodeDID configuration: unable to resolve %s service endpoint (did=%s): %v", transport.NutsCommServiceType, nodeDID, err)
 	}
 	return nil
 }

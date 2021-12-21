@@ -451,7 +451,7 @@ func TestNetwork_Start(t *testing.T) {
 			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 			cxt.publisher.EXPECT().Start()
 			err := cxt.network.Start()
-			assert.EqualError(t, err, "invalid NodeDID configuration: unable to resolve NutsComm service endpoint (did=did:nuts:test)")
+			assert.EqualError(t, err, "invalid NodeDID configuration: unable to resolve NutsComm service endpoint (did=did:nuts:test): service not found in DID Document")
 		})
 	})
 }
