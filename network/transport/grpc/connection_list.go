@@ -26,7 +26,7 @@ import (
 
 // ConnectionList provides an API for protocols to query the ConnectionManager's connections.
 type ConnectionList interface {
-	// Get returns the first Connection which matches the predicate
+	// Get returns the first Connection which matches the predicates (using AND)
 	// If there's no match, nil is returned.
 	Get(query ...Predicate) Connection
 	// All returns the list of connections.

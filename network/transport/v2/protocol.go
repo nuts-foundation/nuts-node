@@ -205,7 +205,7 @@ func (p *protocol) handlePrivateTx(msg *nats.Msg) error {
 	}
 
 	if len(tx.PAL()) == 0 {
-		return errors.New("PAL header is empty")
+		return fmt.Errorf("PAL header is empty (ref=%s)", tx.Ref().String())
 	}
 
 	epal := dag.EncryptedPAL(tx.PAL())
@@ -223,7 +223,7 @@ func (p *protocol) handlePrivateTx(msg *nats.Msg) error {
 	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(pal[0]))
 
 	if conn == nil {
-		return fmt.Errorf("no connection found (DID=%s)", pal[0])
+		return fmt.Errorf("unable to retrieve payload, no connection found (ref=%s, DID=%s)", tx.Ref().String(), pal[0])
 	}
 
 	return conn.Send(p, &Envelope{Message: &Envelope_TransactionPayloadQuery{
