@@ -70,3 +70,7 @@ type ConnectionStats struct {
 	// ConnectAttempts holds the number of times the node tried to connect to the peer.
 	ConnectAttempts uint32
 }
+
+// NutsCommServiceType holds the DID document service type that specifies the Nuts network service address of the Nuts node.
+const NutsCommServiceType = "NutsComm"
+

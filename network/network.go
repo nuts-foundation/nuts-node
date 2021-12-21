@@ -222,18 +222,9 @@ func (n *Network) Start() error {
 		return err
 	}
 	if !nodeDID.Empty() {
-		doc, _, err := n.didDocumentResolver.Resolve(nodeDID, nil)
+		err := n.validateNodeDID(nodeDID)
 		if err != nil {
-			return fmt.Errorf("invalid NodeDID configuration: DID document can't be resolved (did=%s): %w", nodeDID, err)
-		}
-		if len(doc.KeyAgreement) == 0 {
-			return fmt.Errorf("invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=%s)", nodeDID)
-		}
-
-		for _, keyAgreement := range doc.KeyAgreement {
-			if !n.privateKeyResolver.Exists(keyAgreement.ID.String()) {
-				return fmt.Errorf("invalid NodeDID configuration: keyAgreement private key is not present in key store (did=%s,kid=%s)", nodeDID, keyAgreement.ID)
-			}
+			return err
 		}
 	}
 
@@ -254,6 +245,33 @@ func (n *Network) Start() error {
 		n.connectionManager.Connect(bootstrapNode)
 	}
 
+	return nil
+}
+
+func (n *Network) validateNodeDID(nodeDID did.DID) error {
+	// Check if DID document can be resolved
+	document, _, err := n.didDocumentResolver.Resolve(nodeDID, nil)
+	if err != nil {
+		return fmt.Errorf("invalid NodeDID configuration: DID document can't be resolved (did=%s): %w", nodeDID, err)
+	}
+
+	// Check if the key agreement keys can be resolved
+	if len(document.KeyAgreement) == 0 {
+		return fmt.Errorf("invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=%s)", nodeDID)
+	}
+	for _, keyAgreement := range document.KeyAgreement {
+		if !n.privateKeyResolver.Exists(keyAgreement.ID.String()) {
+			return fmt.Errorf("invalid NodeDID configuration: keyAgreement private key is not present in key store (did=%s,kid=%s)", nodeDID, keyAgreement.ID)
+		}
+	}
+
+	// Check if the DID document has a resolvable NutsComm endpoint
+	serviceResolver := doc.NewServiceResolver(n.didDocumentResolver)
+	serviceRef := doc.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
+	_, err = serviceResolver.Resolve(serviceRef, doc.DefaultMaxServiceReferenceDepth)
+	if err != nil {
+		return fmt.Errorf("invalid NodeDID configuration: unable to resolve %s service endpoint (did=%s)", transport.NutsCommServiceType, nodeDID)
+	}
 	return nil
 }
 
