@@ -29,6 +29,9 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -637,7 +640,8 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	decrypter := crypto.NewMockDecrypter(ctrl)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	docResolver := vdrTypes.NewMockDocResolver(ctrl)
-	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver)
+	docFinder := vdrTypes.NewMockDocFinder(ctrl)
+	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder)
 	network.graph = graph
 	network.connectionManager = connectionManager
 	network.payloadStore = payload
