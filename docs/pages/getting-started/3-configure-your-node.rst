@@ -71,7 +71,7 @@ Node Identity
 
 Certain data (e.g. private credentials) can only be exchanged when a peer's DID has been authenticated.
 To make sure other nodes can authenticate your node's DID you need to configure your node's identity,
-and make sure the DID document contains a `NutsComm` service that matches TLS certificate.
+and make sure the DID document contains a `NutsComm` service that matches the TLS certificate.
 
 Your node identity is expressed by a DID that is managed by your node, also known as your *vendor DID*.
 So make sure you have created a DID specific for your nodes and configure it as `network.nodedid` (see :ref:`configuration reference <nuts-node-config>`).
