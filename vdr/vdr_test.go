@@ -359,28 +359,3 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 		assert.Equal(t, types.ErrDIDNotManagedByThisNode, err)
 	})
 }
-
-func TestVDR_Find(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		didStore := store.NewMemoryStore()
-		vdr := VDR{store: didStore}
-		_ = didStore.Write(did.Document{}, types.DocumentMetadata{Deactivated: false})
-		_ = didStore.Write(did.Document{}, types.DocumentMetadata{Deactivated: true})
-
-		docs, err := vdr.Find(doc.IsActive())
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Len(t, docs, 1)
-	})
-
-	t.Run("error", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-		ctx.mockStore.EXPECT().Iterate(gomock.Any()).Return(errors.New("b00m!"))
-
-		_, err := ctx.vdr.Find(doc.IsActive())
-
-		assert.Error(t, err)
-	})
-}

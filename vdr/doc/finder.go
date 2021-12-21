@@ -84,3 +84,28 @@ type deactivatedPredicate struct {
 func (d deactivatedPredicate) Match(_ did.Document, metadata types.DocumentMetadata) bool {
 	return d.deactivated == metadata.Deactivated
 }
+
+// Finder is a helper that implements the DocFinder interface
+type Finder struct {
+	Store types.Store
+}
+
+func (f Finder) Find(predicate ...types.Predicate) ([]did.Document, error) {
+	matches := make([]did.Document, 0)
+
+	err := f.Store.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
+		for _, p := range predicate {
+			if !p.Match(doc, metadata) {
+				return nil
+			}
+		}
+		matches = append(matches, doc)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return matches, err
+}
