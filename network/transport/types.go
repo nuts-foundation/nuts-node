@@ -73,4 +73,3 @@ type ConnectionStats struct {
 
 // NutsCommServiceType holds the DID document service type that specifies the Nuts network service address of the Nuts node.
 const NutsCommServiceType = "NutsComm"
-
