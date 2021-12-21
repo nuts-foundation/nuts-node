@@ -225,10 +225,11 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 	done := mc.ctx.Done()
 
 	go func() {
+	loop:
 		for {
 			select {
 			case _ = <-done:
-				goto closeClientStream
+				break loop
 			case envelope := <-outbox:
 				err := stream.SendMsg(envelope)
 				if err != nil {
@@ -236,7 +237,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 				}
 			}
 		}
-	closeClientStream:
+		// Connection closed, see if we need to close the gRPC stream
 		clientStream, ok := stream.(grpc.ClientStream)
 		if ok {
 			err := clientStream.CloseSend()
