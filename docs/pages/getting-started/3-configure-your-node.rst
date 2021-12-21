@@ -65,3 +65,40 @@ the required Git repository, generate a private key and issues a certificate, an
 
 Note that the Git repository contains the Certificate Authority certificate (`ca.pem`) which will function as truststore.
 Copy this file as `truststore.pem` into the working directory.
+
+Node Identity
+=============
+
+Certain data (e.g. private credentials) can only be exchanged when a peer's DID has been authenticated.
+To make sure other nodes can authenticate your node's DID you need to configure your node's identity,
+and make sure the DID document contains a `NutsComm` service that matches the TLS certificate.
+
+Your node identity is expressed by a DID that is managed by your node, also known as your *vendor DID*.
+So make sure you have created a DID specific for your nodes and configure it as `network.nodedid` (see :ref:`configuration reference <nuts-node-config>`).
+
+Then you make sure the associated DID Document contains a `NutsComm` endpoint,
+where the domain part (e.g. `nuts.nl`) matches (one of) the DNS SANs in your node's TLS certificate.
+See "Node Discovery" below for more information on registering the `NutsComm` endpoint.
+
+.. note::
+
+    Multiple nodes may share the same DID, if they're governed by the same organization (e.g., clustered setups).
+
+Node Discovery
+==============
+
+To allow your Nuts node to be discovered by other nodes, so they can connect to it,
+you need to register a `NutsComm` endpoint on your vendor DID document.
+The `NutsComm` endpoint contains a URL to your node's public gRPC service,
+and must be in the form of `grpc://<host>:<port>`.
+E.g., if it were to run on `nuts.nl:5555`, the value of the `NutsComm` endpoint should be `grpc://nuts.nl:5555`
+
+You can register the `NutsComm` endpoint by calling `addEndpoint` on the DIDMan API:
+
+.. code-block:: text
+
+    POST <internal-node-address>/internal/didman/v1/did/<vendor-did>/endpoint
+    {
+        "type": "NutsComm",
+        "endpoint": "grpc://nuts.nl:5555"
+    }

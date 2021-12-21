@@ -4,6 +4,10 @@ Getting started with Authorizations
 ###################################
 
 Authorization is one of the three core concepts of Nuts (the others being identification and addressing).
+
+Introduction
+************
+
 Authorization comes in the form of a `NutsAuthorizationCredential <https://nuts-foundation.gitbook.io/drafts/rfc/rfc014-authorization-credential>`_.
 An authorization credential is a privately distributed credential that answers:
 
@@ -17,13 +21,21 @@ An authorization credential is a privately distributed credential that answers:
 Authorization credentials are issued by the same party that will also control the access to the resources.
 
 Bolt
-****
+====
 
 A Bolt is a functional and technical specification that translates a care process to technical requirements.
 An authorization is created for a particular Bolt. A Bolt specifies what the possible values of `purposeOfUse` can be.
 Each value corresponds to an access policy defined by the Bolt.
 Creating an authorization credential that is not according to a Bolt specification will have little effect or will even hinder interoperability.
 Particular requirements for a Bolt are not validated by the node, the node will only do the validations as specified.
+
+Prerequisites
+=============
+
+Since authorization credentials are privately distributed, their exchange only happens over authenticated connections.
+To query authorization credentials (issued to your care organization(s)) or let the authorized party query an authorization credential you issued,
+you need to configure your node's identity and `NutsComm` endpoint.
+See :ref:`setting up your node for a network <configure-node>` for how to achieve this.
 
 Registering a NutsAuthorizationCredential
 *****************************************
