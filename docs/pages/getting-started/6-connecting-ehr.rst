@@ -74,9 +74,13 @@ Resolving endpoints
 ===================
 
 When an organization has been selected, the next step is to resolve the technical endpoints.
-This is done by taking the compound service as specified by the Bolt and resolving each of its endpoint references to an actual URL endpoint.
-These URL endpoints are then used to execute the Bolt.
+This is done by taking the compound service as specified by the Bolt and resolving its endpoint references to an actual URL endpoints.
+You can use the DIDMan ``getCompoundServiceEndpoint`` API operation for this.
 
-.. note::
+Receiving Authorization Credentials
+***********************************
 
-    There is an unresolved task to make resolving URL endpoints for a compound easier: https://github.com/nuts-foundation/nuts-node/issues/340
+Some Bolts require authorization credentials to authenticate data exchanges. These credentials are distributed privately over an authentication connection.
+To receive privately distributed credentials issued to your care organizations,
+the DID documents of the care organizations need to contain a ``NutsComm`` service that references the vendor's.
+See :ref:`setting up your node for a network <configure-node>` for how to achieve this.

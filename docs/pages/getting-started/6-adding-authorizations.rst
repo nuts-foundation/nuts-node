@@ -34,7 +34,7 @@ Prerequisites
 
 Since authorization credentials are privately distributed, their exchange only happens over authenticated connections.
 To query authorization credentials (issued to your care organization(s)) or let the authorized party query an authorization credential you issued,
-you need to configure your node's identity and `NutsComm` endpoint.
+you need to configure your node's identity and ``NutsComm`` endpoint.
 See :ref:`setting up your node for a network <configure-node>` for how to achieve this.
 
 Registering a NutsAuthorizationCredential
