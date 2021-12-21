@@ -29,8 +29,6 @@ import (
 	"net/url"
 )
 
-const nutsCommServiceType = "NutsComm"
-
 // Authenticator verifies node identities.
 type Authenticator interface {
 	// Authenticate verifies the given nodeDID using the given grpc.Peer.
@@ -57,7 +55,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	dnsNames := tlsInfo.State.PeerCertificates[0].DNSNames
 
 	// Resolve NutsComm endpoint of contained in DID document associated with node DID
-	nutsCommService, err := t.serviceResolver.Resolve(doc.MakeServiceReference(nodeDID, nutsCommServiceType), doc.DefaultMaxServiceReferenceDepth)
+	nutsCommService, err := t.serviceResolver.Resolve(doc.MakeServiceReference(nodeDID, transport.NutsCommServiceType), doc.DefaultMaxServiceReferenceDepth)
 	var nutsCommURL *url.URL
 	if err == nil {
 		var nutsCommURLStr string
@@ -65,7 +63,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 		nutsCommURL, err = url.Parse(nutsCommURLStr)
 	}
 	if err != nil {
-		return peer, fmt.Errorf("can't resolve %s service (nodeDID=%s): %w", nutsCommServiceType, nodeDID, err)
+		return peer, fmt.Errorf("can't resolve %s service (nodeDID=%s): %w", transport.NutsCommServiceType, nodeDID, err)
 	}
 
 	// Check whether one of the DNS names matches one of the NutsComm endpoints

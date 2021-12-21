@@ -38,6 +38,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var nodeDID, _ = did.ParseDID("did:nuts:test")
+
 type networkTestContext struct {
 	network           *Network
 	connectionManager *transport.MockConnectionManager
@@ -310,6 +312,8 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 				return
 			}
 
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+
 			cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
 			cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
 
@@ -318,6 +322,19 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 			_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithPrivate([]did.DID{*sender, *receiver}))
 			assert.NoError(t, err)
+		})
+		t.Run("node DID not configured", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			payload := []byte("Hello, World!")
+			cxt := createNetwork(ctrl)
+			err := cxt.start()
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithPrivate([]did.DID{*sender, *receiver}))
+			assert.EqualError(t, err, "node DID must be configured to create private transactions")
 		})
 	})
 }
@@ -358,20 +375,30 @@ func TestNetwork_Start(t *testing.T) {
 	})
 
 	t.Run("node DID checks", func(t *testing.T) {
-		nodeDID, _ := did.ParseDID("did:nuts:test")
 		keyID := *nodeDID
 		keyID.Fragment = "some-key"
-		documentWithKeyAgreement := &did.Document{
+		documentWithoutNutsCommService := &did.Document{
 			KeyAgreement: []did.VerificationRelationship{
 				{VerificationMethod: &did.VerificationMethod{ID: keyID}},
+			},
+		}
+		completeDocument := &did.Document{
+			KeyAgreement: []did.VerificationRelationship{
+				{VerificationMethod: &did.VerificationMethod{ID: keyID}},
+			},
+			Service: []did.Service{
+				{
+					Type:            transport.NutsCommServiceType,
+					ServiceEndpoint: "grpc://nuts.nl:5555",
+				},
 			},
 		}
 		t.Run("ok - configured node DID successfully resolves", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cxt := createNetwork(ctrl)
-			cxt.network.configuredNodeDID = nodeDID
-			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(documentWithKeyAgreement, &vdrTypes.DocumentMetadata{}, nil)
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
 			err := cxt.start()
 			assert.NoError(t, err)
@@ -380,7 +407,7 @@ func TestNetwork_Start(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cxt := createNetwork(ctrl)
-			cxt.network.configuredNodeDID = nodeDID
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 			cxt.graph.EXPECT().Verify(gomock.Any())
 			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
@@ -392,7 +419,7 @@ func TestNetwork_Start(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cxt := createNetwork(ctrl)
-			cxt.network.configuredNodeDID = nodeDID
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.graph.EXPECT().Verify(gomock.Any())
 			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
@@ -404,14 +431,27 @@ func TestNetwork_Start(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cxt := createNetwork(ctrl)
-			cxt.network.configuredNodeDID = nodeDID
-			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(documentWithKeyAgreement, &vdrTypes.DocumentMetadata{}, nil)
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.graph.EXPECT().Verify(gomock.Any())
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(false)
 			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 			cxt.publisher.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.EqualError(t, err, "invalid NodeDID configuration: keyAgreement private key is not present in key store (did=did:nuts:test,kid=did:nuts:test#some-key)")
+		})
+		t.Run("error - configured node DID does not have NutsComm service", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			cxt := createNetwork(ctrl)
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(documentWithoutNutsCommService, &vdrTypes.DocumentMetadata{}, nil)
+			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
+			cxt.graph.EXPECT().Verify(gomock.Any())
+			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
+			cxt.publisher.EXPECT().Start()
+			err := cxt.network.Start()
+			assert.EqualError(t, err, "invalid NodeDID configuration: unable to resolve NutsComm service endpoint (did=did:nuts:test): service not found in DID Document")
 		})
 	})
 }

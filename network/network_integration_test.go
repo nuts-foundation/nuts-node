@@ -24,6 +24,7 @@ import (
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1"
 	"github.com/nuts-foundation/nuts-node/test"
@@ -132,7 +133,25 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	assert.Len(t, node2.connectionManager.Peers(), 1)
 }
 
-func TestNetworkIntegration_NodeDIDAuthenticationFailed(t *testing.T) {
+func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
+	t.Run("mutual auth", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest()
+
+		// Start 2 nodes: node1 and node2, where node1 specifies a node DID that node2 can't authenticate
+		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+		// Now connect node1 to node2 and wait for them to set up
+		node1.connectionManager.Connect(nameToAddress(t, "node2"))
+
+		test.WaitFor(t, func() (bool, error) {
+			return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
+	})
 	t.Run("node DID auth sent client (authenticated by server) fails", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest()
@@ -142,6 +161,10 @@ func TestNetworkIntegration_NodeDIDAuthenticationFailed(t *testing.T) {
 			cfg.NodeDID = "did:nuts:node1"
 		})
 		node2 := startNode(t, "node2", testDirectory)
+
+		// Set node DID to an unauthenticatable DID, such that authentication must fail
+		malloryDID, _ := did.ParseDID("did:nuts:mallory")
+		node1.nodeDIDResolver.(*transport.FixedNodeDIDResolver).NodeDID = *malloryDID
 
 		// Now connect node1 to node2 and wait for them to set up
 		node1.connectionManager.Connect(nameToAddress(t, "node2"))
@@ -167,6 +190,10 @@ func TestNetworkIntegration_NodeDIDAuthenticationFailed(t *testing.T) {
 		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
+
+		// Set node DID to an unauthenticatable DID, such that authentication must fail
+		malloryDID, _ := did.ParseDID("did:nuts:mallory")
+		node2.nodeDIDResolver.(*transport.FixedNodeDIDResolver).NodeDID = *malloryDID
 
 		// Now connect node1 to node2 and wait for them to set up
 		node1.connectionManager.Connect(nameToAddress(t, "node2"))
@@ -243,6 +270,10 @@ func resetIntegrationTest() {
 		verificationMethod, _ := did.NewVerificationMethod(kid, ssi.JsonWebKey2020, *nodeDID, key.Public())
 		document.VerificationMethod.Add(verificationMethod)
 		document.KeyAgreement.Add(verificationMethod)
+		document.Service = []did.Service{{
+			Type:            transport.NutsCommServiceType,
+			ServiceEndpoint: "grpc://localhost:5555", // Must match TLS SAN DNSName
+		}}
 		err := vdrStore.Write(document, vdr.DocumentMetadata{})
 		if err != nil {
 			panic(err)
@@ -298,6 +329,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 		didDocumentResolver:    doc.Resolver{Store: vdrStore},
 		privateKeyResolver:     keyStore,
+		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 	}
 	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {
 		t.Fatal(err)

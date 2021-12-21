@@ -77,8 +77,8 @@ type Network struct {
 	keyResolver            types.KeyResolver
 	startTime              atomic.Value
 	peerID                 transport.PeerID
-	configuredNodeDID      *did.DID
 	didDocumentResolver    types.DocResolver
+	nodeDIDResolver        transport.NodeDIDResolver
 	db                     *bbolt.DB
 }
 
@@ -95,6 +95,7 @@ func NewNetworkInstance(config Config, keyResolver types.KeyResolver, privateKey
 		keyResolver:            keyResolver,
 		privateKeyResolver:     privateKeyResolver,
 		didDocumentResolver:    didDocumentResolver,
+		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
 	}
 	return result
@@ -164,19 +165,17 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
 		}
 		// Resolve node DID
-		var nodeDIDReader transport.FixedNodeDIDResolver
 		if n.config.NodeDID != "" {
-			var err error
-			n.configuredNodeDID, err = did.ParseDID(n.config.NodeDID)
+			configuredNodeDID, err := did.ParseDID(n.config.NodeDID)
 			if err != nil {
 				return fmt.Errorf("configured NodeDID is invalid: %w", err)
 			}
-			nodeDIDReader.NodeDID = *n.configuredNodeDID
+			n.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
 		}
 		// Instantiate
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
-			nodeDIDReader,
+			n.nodeDIDResolver,
 			grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver)),
 			n.protocols...,
 		)
@@ -218,24 +217,19 @@ func (n *Network) Start() error {
 	}
 
 	// Sanity check for configured node DID: can we resolve it?
-	if n.configuredNodeDID != nil {
-		doc, _, err := n.didDocumentResolver.Resolve(*n.configuredNodeDID, nil)
+	nodeDID, err := n.nodeDIDResolver.Resolve()
+	if err != nil {
+		return err
+	}
+	if !nodeDID.Empty() {
+		err := n.validateNodeDID(nodeDID)
 		if err != nil {
-			return fmt.Errorf("invalid NodeDID configuration: DID document can't be resolved (did=%s): %w", n.configuredNodeDID, err)
-		}
-		if len(doc.KeyAgreement) == 0 {
-			return fmt.Errorf("invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=%s)", n.configuredNodeDID)
-		}
-
-		for _, keyAgreement := range doc.KeyAgreement {
-			if !n.privateKeyResolver.Exists(keyAgreement.ID.String()) {
-				return fmt.Errorf("invalid NodeDID configuration: keyAgreement private key is not present in key store (did=%s,kid=%s)", n.configuredNodeDID, keyAgreement.ID)
-			}
+			return err
 		}
 	}
 
 	// Start connection management and protocols
-	err := n.connectionManager.Start()
+	err = n.connectionManager.Start()
 	if err != nil {
 		return err
 	}
@@ -251,6 +245,33 @@ func (n *Network) Start() error {
 		n.connectionManager.Connect(bootstrapNode)
 	}
 
+	return nil
+}
+
+func (n *Network) validateNodeDID(nodeDID did.DID) error {
+	// Check if DID document can be resolved
+	document, _, err := n.didDocumentResolver.Resolve(nodeDID, nil)
+	if err != nil {
+		return fmt.Errorf("invalid NodeDID configuration: DID document can't be resolved (did=%s): %w", nodeDID, err)
+	}
+
+	// Check if the key agreement keys can be resolved
+	if len(document.KeyAgreement) == 0 {
+		return fmt.Errorf("invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=%s)", nodeDID)
+	}
+	for _, keyAgreement := range document.KeyAgreement {
+		if !n.privateKeyResolver.Exists(keyAgreement.ID.String()) {
+			return fmt.Errorf("invalid NodeDID configuration: keyAgreement private key is not present in key store (did=%s,kid=%s)", nodeDID, keyAgreement.ID)
+		}
+	}
+
+	// Check if the DID document has a resolvable NutsComm endpoint
+	serviceResolver := doc.NewServiceResolver(n.didDocumentResolver)
+	serviceRef := doc.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
+	_, err = serviceResolver.Resolve(serviceRef, doc.DefaultMaxServiceReferenceDepth)
+	if err != nil {
+		return fmt.Errorf("invalid NodeDID configuration: unable to resolve %s service endpoint (did=%s): %v", transport.NutsCommServiceType, nodeDID, err)
+	}
 	return nil
 }
 
@@ -297,6 +318,17 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 		}
 		if !isPresent {
 			return nil, fmt.Errorf("additional prev is unknown or missing payload (prev=%s)", prev)
+		}
+	}
+
+	// Assert node DID is configured when participants are specified
+	if len(template.Participants) > 0 {
+		nodeDID, err := n.nodeDIDResolver.Resolve()
+		if err != nil {
+			return nil, err
+		}
+		if nodeDID.Empty() {
+			return nil, errors.New("node DID must be configured to create private transactions")
 		}
 	}
 
