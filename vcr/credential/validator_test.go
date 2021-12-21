@@ -328,54 +328,6 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.Subject' is required when consentType is 'explicit'")
 	})
-
-	t.Run("failed - missing evidence", func(t *testing.T) {
-		v := ValidExplicitNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.LegalBase = LegalBase{
-			ConsentType: "explicit",
-		}
-		v.CredentialSubject[0] = cs
-
-		err := validator.Validate(*v)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.LegalBase.Evidence' is required when consentType is 'explicit'")
-	})
-
-	t.Run("failed - missing evidence.Path", func(t *testing.T) {
-		v := ValidExplicitNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.LegalBase = LegalBase{
-			ConsentType: "explicit",
-			Evidence: &Evidence{
-				Type: "application/pdf",
-			},
-		}
-		v.CredentialSubject[0] = cs
-
-		err := validator.Validate(*v)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.LegalBase.Evidence.Path' is required when consentType is 'explicit'")
-	})
-
-	t.Run("failed - missing evidence.Type", func(t *testing.T) {
-		v := ValidExplicitNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.LegalBase = LegalBase{
-			ConsentType: "explicit",
-			Evidence: &Evidence{
-				Path: "pdf/1.pdf",
-			},
-		}
-		v.CredentialSubject[0] = cs
-
-		err := validator.Validate(*v)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.LegalBase.Evidence.Type' is required when consentType is 'explicit'")
-	})
 }
 
 func validNutsOrganizationCredential() *vc.VerifiableCredential {

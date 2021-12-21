@@ -170,15 +170,6 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 		if cs.Subject == nil || len(strings.TrimSpace(*cs.Subject)) == 0 {
 			return failure("'credentialSubject.Subject' is required when consentType is 'explicit'")
 		}
-		if cs.LegalBase.Evidence == nil {
-			return failure("'credentialSubject.LegalBase.Evidence' is required when consentType is 'explicit'")
-		}
-		if len(strings.TrimSpace(cs.LegalBase.Evidence.Path)) == 0 {
-			return failure("'credentialSubject.LegalBase.Evidence.Path' is required when consentType is 'explicit'")
-		}
-		if len(strings.TrimSpace(cs.LegalBase.Evidence.Type)) == 0 {
-			return failure("'credentialSubject.LegalBase.Evidence.Type' is required when consentType is 'explicit'")
-		}
 	default:
 		return failure("'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
 	}
