@@ -102,23 +102,27 @@ func (s StubConnectionList) All() []Connection {
 }
 
 type StubConnection struct {
-	SentMsgs []interface{}
-	PeerID   transport.PeerID
+	IsConnected bool
+	NodeDID     did.DID
+	SentMsgs    []interface{}
+	PeerID      transport.PeerID
 }
 
 func (s *StubConnection) Send(_ Protocol, envelope interface{}) error {
 	s.SentMsgs = append(s.SentMsgs, envelope)
+
 	return nil
 }
 
 func (s StubConnection) Peer() transport.Peer {
 	return transport.Peer{
-		ID: s.PeerID,
+		ID:      s.PeerID,
+		NodeDID: s.NodeDID,
 	}
 }
 
 func (s StubConnection) Connected() bool {
-	panic("implement me")
+	return s.IsConnected
 }
 
 func (s StubConnection) disconnect() {
