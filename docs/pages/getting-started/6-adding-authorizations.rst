@@ -4,6 +4,10 @@ Getting started with Authorizations
 ###################################
 
 Authorization is one of the three core concepts of Nuts (the others being identification and addressing).
+
+Introduction
+************
+
 Authorization comes in the form of a `NutsAuthorizationCredential <https://nuts-foundation.gitbook.io/drafts/rfc/rfc014-authorization-credential>`_.
 An authorization credential is a privately distributed credential that answers:
 
