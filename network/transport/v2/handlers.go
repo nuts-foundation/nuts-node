@@ -20,6 +20,7 @@ func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
 	case *Envelope_Hello:
 		logMessage(msg)
 		log.Logger().Infof("%T: %s said hello", p, peer)
+		return nil
 	case *Envelope_TransactionPayloadQuery:
 		logMessage(msg)
 		return p.handleTransactionPayloadQuery(peer, msg.TransactionPayloadQuery)

@@ -31,6 +31,11 @@ func Test_protocol_handle(t *testing.T) {
 	})
 }
 
+func Test_protocol_handleHello(t *testing.T) {
+	err := New(nil, nil).Handle(peer, &Envelope{Message: &Envelope_Hello{}})
+	assert.NoError(t, err)
+}
+
 func Test_protocol_handleTransactionPayload(t *testing.T) {
 	payload := []byte("Hello, World!")
 	tx, _, _ := dag.CreateTestTransactionEx(0, hash.SHA256Sum(payload), nil)
