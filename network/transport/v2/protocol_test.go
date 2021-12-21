@@ -141,7 +141,7 @@ func TestProtocol_Start(t *testing.T) {
 	js := events.NewMockJetStreamContext(ctrl)
 
 	conn.EXPECT().JetStream().Return(js, nil)
-	js.EXPECT().Subscribe(events.PrivateTransactionsSubject, gomock.Any()).Return(nil, nil)
+	js.EXPECT().Subscribe(events.PrivateTransactionsSubject, gomock.Any(), gomock.Any()).Return(nil, nil)
 	conn.EXPECT().Close()
 
 	called := atomic.NewBool(false)

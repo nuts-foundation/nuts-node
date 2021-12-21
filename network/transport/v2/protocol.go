@@ -144,7 +144,7 @@ func (p *protocol) setupNatsHandler() error {
 		if err := msg.Ack(); err != nil {
 			logrus.Errorf("failed to ACK private transaction event: %v", err)
 		}
-	}); err != nil {
+	}, nats.AckExplicit()); err != nil {
 		conn.Close()
 		return err
 	}
