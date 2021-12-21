@@ -120,7 +120,6 @@ func TestResolveSigningKeyID(t *testing.T) {
 	})
 }
 
-
 func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	keyResolver := KeyResolver{Store: didStore}

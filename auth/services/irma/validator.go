@@ -164,7 +164,7 @@ func (v Service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time
 
 // SessionHandler is an abstraction for the Irma Server, mainly for enabling better testing
 type SessionHandler interface {
-	GetSessionResult(token string) *irmaserver.SessionResult
+	GetSessionResult(token string) (*irmaserver.SessionResult, error)
 	StartSession(request interface{}, handler irmaserver.SessionHandler) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error)
 }
 
@@ -178,7 +178,7 @@ type DefaultIrmaSessionHandler struct {
 }
 
 // GetSessionResult forwards to Irma Server instance
-func (d *DefaultIrmaSessionHandler) GetSessionResult(token string) *irmaserver.SessionResult {
+func (d *DefaultIrmaSessionHandler) GetSessionResult(token string) (*irmaserver.SessionResult, error) {
 	return d.I.GetSessionResult(irma.RequestorToken(token))
 }
 

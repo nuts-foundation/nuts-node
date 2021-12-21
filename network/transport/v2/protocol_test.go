@@ -35,7 +35,7 @@ func Test_protocol_PeerDiagnostics(t *testing.T) {
 }
 
 func Test_protocol_MethodName(t *testing.T) {
-	assert.Equal(t, "/v2.Protocol/Stream",  protocol{}.MethodName())
+	assert.Equal(t, "/v2.Protocol/Stream", protocol{}.MethodName())
 }
 
 func Test_protocol_CreateEnvelope(t *testing.T) {
