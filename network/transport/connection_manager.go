@@ -28,7 +28,9 @@ type ConnectionManager interface {
 	core.Diagnosable
 
 	// Connect attempts to make an outbound connection to the given peer if it's not already connected.
-	Connect(peerAddress string)
+	// acceptNonAuthenticated indicates if the connection must be kept even if the other end can't be authenticated.
+	// The connection can then still be used for non-authenticated purposes.
+	Connect(peerAddress string, acceptNonAuthenticated bool)
 
 	// Peers returns a slice containing the peers that are currently connected.
 	Peers() []Peer

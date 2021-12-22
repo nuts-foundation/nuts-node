@@ -20,13 +20,14 @@ package grpc
 
 import (
 	"fmt"
+	"net/url"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"google.golang.org/grpc/credentials"
 	grpcPeer "google.golang.org/grpc/peer"
-	"net/url"
 )
 
 // Authenticator verifies node identities.
@@ -47,10 +48,18 @@ type tlsAuthenticator struct {
 }
 
 func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
+	withOverride := func(peer transport.Peer, err error) (transport.Peer, error) {
+		if peer.AcceptUnauthenticated {
+			log.Logger().Warnf("Connection manually authenticated, authentication error: %v", err)
+			return peer, nil
+		}
+		return peer, err
+	}
+
 	// Resolve peer TLS certificate DNS names
 	tlsInfo, isTLS := grpcPeer.AuthInfo.(credentials.TLSInfo)
 	if !isTLS || len(tlsInfo.State.PeerCertificates) == 0 {
-		return peer, fmt.Errorf("missing TLS info (nodeDID=%s)", nodeDID)
+		return withOverride(peer, fmt.Errorf("missing TLS info (nodeDID=%s)", nodeDID))
 	}
 	dnsNames := tlsInfo.State.PeerCertificates[0].DNSNames
 
@@ -63,7 +72,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 		nutsCommURL, err = url.Parse(nutsCommURLStr)
 	}
 	if err != nil {
-		return peer, fmt.Errorf("can't resolve %s service (nodeDID=%s): %w", transport.NutsCommServiceType, nodeDID, err)
+		return withOverride(peer, fmt.Errorf("can't resolve %s service (nodeDID=%s): %w", transport.NutsCommServiceType, nodeDID, err))
 	}
 
 	// Check whether one of the DNS names matches one of the NutsComm endpoints
@@ -75,5 +84,5 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 			return peer, nil
 		}
 	}
-	return peer, fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID)
+	return withOverride(peer, fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID))
 }

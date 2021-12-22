@@ -1,6 +1,8 @@
 package v2
 
 import (
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -8,7 +10,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 var peer = transport.Peer{

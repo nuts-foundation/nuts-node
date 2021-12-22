@@ -76,8 +76,7 @@ func TestProtocolV1_MissingPayloads(t *testing.T) {
 		return
 	}
 
-	node2.connectionManager.Connect(
-		nameToAddress("node1"))
+	node2.connectionManager.Connect(nameToAddress("node1"), false)
 	// Wait until nodes are connected
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
@@ -127,7 +126,7 @@ func TestProtocolV1_Pagination(t *testing.T) {
 		prev = tx
 	}
 
-	node2.connectionManager.Connect(nameToAddress("pagination_node1"))
+	node2.connectionManager.Connect(nameToAddress("pagination_node1"), false)
 	// Wait until nodes are connected
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil

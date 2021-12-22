@@ -24,6 +24,14 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"hash/crc32"
+	"io"
+	"net"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -35,13 +43,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/test/bufconn"
-	"hash/crc32"
-	"io"
-	"net"
-	"sync"
-	"sync/atomic"
-	"testing"
-	"time"
 )
 
 // newBufconnConfig creates a new Config like NewConfig, but configures an in-memory bufconn listener instead of a TCP listener.
@@ -71,7 +72,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		peerAddress := fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort())
-		cm.Connect(peerAddress)
+		cm.Connect(peerAddress, false)
 		assert.Len(t, cm.connections.list, 1)
 	})
 
@@ -80,8 +81,8 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		peerAddress := fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort())
-		cm.Connect(peerAddress)
-		cm.Connect(peerAddress)
+		cm.Connect(peerAddress, false)
+		cm.Connect(peerAddress, false)
 		assert.Len(t, cm.connections.list, 1)
 	})
 
@@ -99,7 +100,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer server.Stop()
-		client.Connect("server")
+		client.Connect("server", false)
 	})
 }
 
@@ -128,14 +129,14 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
 		cm2, authenticator2, _, _ := create(t, withBufconnDialer(listener))
 		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
-		cm2.Connect("bufnet")
+		cm2.Connect("bufnet", false)
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm2.Peers()) > 0, nil
 		}, time.Second*2, "waiting for peer 1 to connect")
 	})
 	t.Run("0 peers (1 connection which failed)", func(t *testing.T) {
 		cm, _, _, _ := create(t)
-		cm.Connect("non-existing")
+		cm.Connect("non-existing", false)
 		assert.Empty(t, cm.Peers())
 	})
 }
