@@ -335,29 +335,9 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	}
 
 	// create participants list
-	participants := make([]did.DID, 0)
-	if !conceptConfig.Public {
-		var (
-			base                []credential.BaseCredentialSubject
-			credentialSubjectID *did.DID
-		)
-		err = verifiableCredential.UnmarshalCredentialSubject(&base)
-		if err == nil {
-			credentialSubjectID, err = did.ParseDID(base[0].ID) // earlier validation made sure length == 1 and ID is present
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to determine credentialSubject.ID: %w", err)
-		}
-
-		// participants are not the issuer and the credentialSubject.id but the DID that holds the concrete endpoint for the NutsComm service
-		for _, vcp := range []did.DID{*issuer, *credentialSubjectID} {
-			serviceOwner, err := c.resolveNutsCommServiceOwner(vcp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to resolve participating node (did=%s): %w", vcp.String(), err)
-			}
-
-			participants = append(participants, *serviceOwner)
-		}
+	participants, err := c.generateParticipants(*conceptConfig, verifiableCredential)
+	if err != nil {
+		return nil, err
 	}
 
 	payload, _ := json.Marshal(verifiableCredential)
@@ -381,6 +361,35 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	}
 
 	return &verifiableCredential, nil
+}
+
+func (c *vcr) generateParticipants(conceptConfig concept.Config, verifiableCredential vc.VerifiableCredential) ([]did.DID, error) {
+	issuer, _ := did.ParseDID(verifiableCredential.Issuer.String())
+	participants := make([]did.DID, 0)
+	if !conceptConfig.Public {
+		var (
+			base                []credential.BaseCredentialSubject
+			credentialSubjectID *did.DID
+		)
+		err := verifiableCredential.UnmarshalCredentialSubject(&base)
+		if err == nil {
+			credentialSubjectID, err = did.ParseDID(base[0].ID) // earlier validation made sure length == 1 and ID is present
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine credentialSubject.ID: %w", err)
+		}
+
+		// participants are not the issuer and the credentialSubject.id but the DID that holds the concrete endpoint for the NutsComm service
+		for _, vcp := range []did.DID{*issuer, *credentialSubjectID} {
+			serviceOwner, err := c.resolveNutsCommServiceOwner(vcp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve participating node (did=%s): %w", vcp.String(), err)
+			}
+
+			participants = append(participants, *serviceOwner)
+		}
+	}
+	return participants, nil
 }
 
 func (c *vcr) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, error) {
