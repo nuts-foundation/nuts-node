@@ -95,6 +95,31 @@ paths:
                 $ref: '#/components/schemas/Revocation'
         default:
           $ref: '../common/error_response.yaml'
+  /internal/vcr/v1/vp:
+    post:
+      summary: Create a new Verifiable Presentation for a set of Verifiable Credentials.
+      description: |
+        Given a list of VCs, create a new presentation.
+        
+        error returns:
+        * 400 - Invalid paramters
+        * 500 - An error occurred while processing the request
+      operationId: createVerifiablePresentation
+      tags:
+        - credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVerifiablePresentationRequest"
+      responses:
+        "200":
+          description: The verifiable presentation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifiablePresentation"
   /internal/vcr/v1/{concept}:
     post:
       summary: Search for a concept. A concept is backed by 1 or more VCs
@@ -404,3 +429,138 @@ components:
           example: "2012-01-02T12:00:00Z"
         credentialSubject:
           $ref: '#/components/schemas/CredentialSubject'
+    CreateVerifiablePresentationRequest:
+      type: object
+      description: A request for creating a new Verifiable Presentation for a set of Verifiable Credentials.
+      required:
+        - verifiableCredentials
+        - verificationMethod
+      properties:
+        verifiableCredentials:
+          type: array
+          items:
+            $ref: "#/components/schemas/VerifiableCredential"
+        verificationMethod:
+          description: |
+            Specifies the key identifier that must be used to sign the digital signature.
+          type: string
+        proofPurpose:
+          type: string
+          description: |
+            The specific intent for the proof, the reason why an entity created it. Acts as a safeguard to prevent the 
+            proof from being misused for a purpose other than the one it was intended for.
+        challenge:
+          type: string
+          description: |
+            A random or pseudo-random value used by some authentication protocols to mitigate replay attacks.
+        domain:
+          type: string
+          description: |
+            A string value that specifies the operational domain of a digital proof. This could be an Internet domain 
+            name like example.com, an ad-hoc value such as mycorp-level3-access, or a very specific transaction value 
+            like 8zF6T$mqP. A signer could include a domain in its digital proof to restrict its use to particular 
+            target, identified by the specified domain.
+
+    VerifiablePresentation:
+      type: object
+      description: Verifiable Presentation
+      title: Verifiable Presentation Model
+      required:
+        - "@context"
+        - type
+      properties:
+        "@context":
+          description: |
+            An ordered set where the first item is a URI https://www.w3.org/2018/credentials/v1. It is used to define 
+            terms and help to express specific identifiers in a compact manner.
+          uniqueItems: true
+          example: [
+              "https://www.w3.org/2018/credentials/v1"
+          ]
+          type: array
+          items:
+            type: string
+        id:
+          type: string
+          description: URI that is used to unambiguously refer to an object, such as a person, product, or organization.
+          example: https://example.edu/credentials/1872,
+          format: uri
+        type:
+          description: Type of the object or the datatype of the typed value.
+          example:
+            - "VerifiableCredential"
+            - "UniversityDegreeCredential"
+          type: array
+          items:
+            type: string
+        verifiableCredential:
+          description: |
+            VerifiableCredential is composed of a list containing one or more verifiable credentials, in a 
+            cryptographically verifiable format.
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifiableCredential'
+        holder:
+          type: string
+          description: "URI of the entity that is generating the presentation."
+          format: uri
+          example: "did:nuts:123"
+        proof:
+          $ref: "#/components/schemas/EmbeddedProof"
+    EmbeddedProof:
+      title: Embedded Proof
+      type: object
+      description: |
+        Cryptographic proofs that can be used to detect tampering and verify the authorship of a
+        credential or presentation. An embedded proof is a mechanism where the proof is included in
+        the data, such as a Linked Data Signature.
+      required:
+        - type
+        - created
+        - proofPurpose
+        - verificationMethod
+        - jws
+      properties:
+        type:
+          type: string
+          description: Type of the object or the datatype of the typed value.
+          example: EcdsaSecp256k1Signature2019
+        created:
+          type: string
+          description: Date and time at which proof has been created.
+          format: date-time
+          example: '2021-12-20T09:00:00Z'
+        proofPurpose:
+          type: string
+          description: |
+            It expresses the purpose of the proof and ensures the information is protected by the
+            signature.
+          example: assertionMethod
+        challenge:
+          type: string
+          description: |
+            A random or pseudo-random value, provided by the verifier, used by some authentication protocols to 
+            mitigate replay attacks.
+        domain:
+          type: string
+          description: |
+            A string value that specifies the operational domain of a digital proof. This could be an Internet domain 
+            name like example.com, an ad-hoc value such as mycorp-level3-access, or a very specific transaction value 
+            like 8zF6T$mqP. A signer could include a domain in its digital proof to restrict its use to particular 
+            target, identified by the specified domain.
+        nonce:
+          type: string
+          description: |
+            A unique string value generated by the holder, MUST only be used once for a particular domain 
+            and window of time. This value can be used to mitigate replay attacks.
+        verificationMethod:
+          type: string
+          description: |
+            Specifies the public key that can be used to verify the digital signature.
+            Dereferencing a public key URL reveals information about the controller of the key,
+            which can be checked against the issuer of the credential.
+          example: did:nuts:123#key-5
+        jws:
+          type: string
+          description: JSON Web Signature
+          example: eyJhbGciOiJFUzI1NksifQ.eyJzdWIiOiJFQlNJIDIwMTkifQ.oggE3ft3kJYPGGa9eBibpbjgeJXw4fLbVMouVoM2NfcDxsl_UUUIarsS1VpBoYEs7s9cBlc4uC0EbnJCHfVJIw

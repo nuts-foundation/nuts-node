@@ -24,6 +24,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/presentation"
+	proof "github.com/nuts-foundation/nuts-node/vcr/proof"
 	"io/fs"
 	"os"
 	"path"
@@ -340,6 +342,9 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		)
 		err = verifiableCredential.UnmarshalCredentialSubject(&base)
 		if err == nil {
+			if len(base) != 1 {
+				return nil, errors.New("could not unmarshal credentialSubject")
+			}
 			credentialSubjectID, err = did.ParseDID(base[0].ID) // earlier validation made sure length == 1 and ID is present
 		}
 		if err != nil {
@@ -820,6 +825,21 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	}
 
 	return qs
+}
+
+func (c *vcr) GeneratePresentationEmbeddedProof(presentation *presentation.VerifiablePresentation, proofOptions proof.ProofOptions) error {
+	key, err := c.keyStore.Resolve(proofOptions.KID)
+	if err != nil {
+		return fmt.Errorf("could not resolve kid: %w", err)
+	}
+
+	ldProofSigner := proof.NewLDProof(presentation, proofOptions)
+	proof, err := ldProofSigner.Sign(key)
+	if err != nil {
+		return fmt.Errorf("unable to sign ldProof: %w", err)
+	}
+	presentation.Proof = proof
+	return nil
 }
 
 func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, key crypto.Key) error {

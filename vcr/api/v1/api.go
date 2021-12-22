@@ -20,6 +20,9 @@
 package v1
 
 import (
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vcr/presentation"
+	"github.com/nuts-foundation/nuts-node/vcr/proof"
 	"net/http"
 	"time"
 
@@ -40,6 +43,47 @@ var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
 type Wrapper struct {
 	R  vcr.VCR
 	CR concept.Reader
+}
+
+func (w *Wrapper) CreateVerifiablePresentation(ctx echo.Context) error {
+	request := &CreateVerifiablePresentationRequest{}
+	if err := ctx.Bind(request); err != nil {
+		return err
+	}
+
+	if len(request.VerifiableCredentials) == 0 {
+		return core.InvalidInputError("verifiableCredentials needs at least 1 item")
+	}
+
+	method, err := ssi.ParseURI(request.VerificationMethod)
+	if err != nil {
+		return core.InvalidInputError("could not parse the verificationMethod: %w", err)
+	}
+	if method.Fragment == "" {
+		return core.InvalidInputError("missing key identifier in verificationMethod")
+	}
+
+	for _, c := range request.VerifiableCredentials {
+		if err := w.R.Validate(c, false, true, nil); err != nil {
+			return err
+		}
+	}
+	proofOptions := proof.ProofOptions{
+		KID:     request.VerificationMethod,
+		Created: time.Now(),
+		Domain:  request.Domain,
+	}
+
+	vp := presentation.VerifiablePresentation{
+		Context:              []string{"https://www.w3.org/2018/credentials/v1"},
+		Type:                 []string{"VerifiablePresentation"},
+		VerifiableCredential: &request.VerifiableCredentials,
+	}
+	err = w.R.GeneratePresentationEmbeddedProof(&vp, proofOptions)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, vp)
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -112,9 +156,15 @@ func (w *Wrapper) Revoke(ctx echo.Context, id string) error {
 // Create a Verifiable credential
 func (w *Wrapper) Create(ctx echo.Context) error {
 	requestedVC := IssueVCRequest{}
-
 	if err := ctx.Bind(&requestedVC); err != nil {
-		return err
+		return core.InvalidInputError("invalid input: %w", err)
+	}
+
+	if len(requestedVC.Type) != 1 {
+		return core.InvalidInputError("type should contain 1 value")
+	}
+	if _, err := did.ParseDID(requestedVC.Issuer.String()); err != nil {
+		return core.InvalidInputError("invalid issuer: %w", err)
 	}
 
 	vcCreated, err := w.R.Issue(requestedVC)

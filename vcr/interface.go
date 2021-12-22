@@ -23,6 +23,8 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/presentation"
+	"github.com/nuts-foundation/nuts-node/vcr/proof"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -114,6 +116,10 @@ type Resolver interface {
 	Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error)
 }
 
+type PresentationManager interface {
+	GeneratePresentationEmbeddedProof(presentation *presentation.VerifiablePresentation, proofOptions proof.ProofOptions) error
+}
+
 // VCR is the interface that covers all functionality of the vcr store.
 type VCR interface {
 	// Issue creates and publishes a new VC.
@@ -130,4 +136,5 @@ type VCR interface {
 	TrustManager
 	Validator
 	Writer
+	PresentationManager
 }
