@@ -24,6 +24,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"runtime"
@@ -324,6 +325,8 @@ func TestVcr_Issue(t *testing.T) {
 	}
 	document := did.Document{}
 	document.AddAssertionMethod(&did.VerificationMethod{ID: *vdr.TestMethodDIDA})
+	serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
+	service := did.Service{ID: *serviceID}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -364,15 +367,17 @@ func TestVcr_Issue(t *testing.T) {
 		assert.Contains(t, proof[0].Jws, "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..")
 	})
 
-	t.Run("ok - unknown type", func(t *testing.T) {
+	t.Run("ok - unknown type (also private)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-
 		cred := validNutsOrganizationCredential()
 		uri, _ := ssi.ParseURI("unknownType")
 		cred.Type = []ssi.URI{*uri}
-
+		expectedURIA, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
+		expectedURIB, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDB.String()))
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(service, nil)
+		ctx.serviceResolver.EXPECT().Resolve(*expectedURIB, 5).Return(service, nil)
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 		ctx.tx.EXPECT().CreateTransaction(gomock.Any()).Return(nil, nil)
 
@@ -383,6 +388,24 @@ func TestVcr_Issue(t *testing.T) {
 		}
 		assert.NotNil(t, issued)
 		assert.NotNil(t, ctx.vcr.registry.FindByType("unknownType"))
+	})
+
+	t.Run("error - NutsComm service resolve error", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		cred := validNutsOrganizationCredential()
+		uri, _ := ssi.ParseURI("unknownType")
+		cred.Type = []ssi.URI{*uri}
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.serviceResolver.EXPECT().Resolve(gomock.Any(), 5).Return(did.Service{}, errors.New("b00m!"))
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+
+		_, err := instance.Issue(*cred)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "failed to resolve participating node (did=did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW): could not resolve NutsComm service owner: b00m!")
 	})
 
 	t.Run("error - unknown type in strict mode", func(t *testing.T) {
@@ -1202,6 +1225,36 @@ func TestWhitespaceOrExactTokenizer(t *testing.T) {
 	input := "a b c"
 
 	assert.Equal(t, []string{"a", "b", "c", "a b c"}, whitespaceOrExactTokenizer(input))
+}
+
+func TestResolveNutsCommServiceOwner(t *testing.T) {
+	serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
+	expectedURIA, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
+	service := did.Service{ID: *serviceID}
+
+	t.Run("ok - correct did from service ID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(service, nil)
+
+		serviceOwner, err := ctx.vcr.resolveNutsCommServiceOwner(*vdr.TestDIDA)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, vdr.TestDIDA, serviceOwner)
+	})
+
+	t.Run("error from resolver", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(did.Service{}, errors.New("b00m!"))
+
+		_, err := ctx.vcr.resolveNutsCommServiceOwner(*vdr.TestDIDA)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "could not resolve NutsComm service owner: b00m!")
+	})
 }
 
 func validNutsOrganizationCredential() *vc.VerifiableCredential {
