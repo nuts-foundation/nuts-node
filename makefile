@@ -38,7 +38,7 @@ gen-mocks:
 	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
 	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
 	mockgen -destination=crl/mock.go -package crl -source=crl/validator.go Validator
-	mockgen -destination=events/mock.go -package events -source=events/conn.go Conn
+	mockgen -destination=events/mock.go -package events -source=events/conn.go Conn ConnectionPool
 
 gen-api:
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 docs/_static/crypto/v1.yaml | gofmt > crypto/api/v1/generated.go

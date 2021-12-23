@@ -20,6 +20,7 @@ package vdr
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/events"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -71,7 +72,14 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	networkCfg.EnableTLS = false
-	nutsNetwork := network.NewNetworkInstance(networkCfg, doc.KeyResolver{Store: didStore}, cryptoInstance, cryptoInstance, docResolver)
+	nutsNetwork := network.NewNetworkInstance(
+		networkCfg,
+		events.NewStubConnectionPool(),
+		doc.KeyResolver{Store: didStore},
+		cryptoInstance,
+		cryptoInstance,
+		docResolver,
+	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
 
@@ -244,7 +252,14 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	networkCfg.EnableTLS = false
-	nutsNetwork := network.NewNetworkInstance(networkCfg, doc.KeyResolver{Store: didStore}, cryptoInstance, cryptoInstance, docResolver)
+	nutsNetwork := network.NewNetworkInstance(
+		networkCfg,
+		events.NewStubConnectionPool(),
+		doc.KeyResolver{Store: didStore},
+		cryptoInstance,
+		cryptoInstance,
+		docResolver,
+	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
 	defer nutsNetwork.Shutdown()

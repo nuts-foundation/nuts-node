@@ -69,6 +69,7 @@ type Network struct {
 	config                 Config
 	lastTransactionTracker lastTransactionTracker
 	protocols              []transport.Protocol
+	eventsConnectionPool   events.ConnectionPool
 	connectionManager      transport.ConnectionManager
 	graph                  dag.DAG
 	publisher              dag.Publisher
@@ -90,7 +91,14 @@ func (n *Network) Walk(visitor dag.Visitor) error {
 }
 
 // NewNetworkInstance creates a new Network engine instance.
-func NewNetworkInstance(config Config, keyResolver types.KeyResolver, privateKeyResolver crypto.KeyResolver, decrypter crypto.Decrypter, didDocumentResolver types.DocResolver) *Network {
+func NewNetworkInstance(
+	config Config,
+	eventsConnectionPool events.ConnectionPool,
+	keyResolver types.KeyResolver,
+	privateKeyResolver crypto.KeyResolver,
+	decrypter crypto.Decrypter,
+	didDocumentResolver types.DocResolver,
+) *Network {
 	return &Network{
 		config:                 config,
 		decrypter:              decrypter,
@@ -98,6 +106,7 @@ func NewNetworkInstance(config Config, keyResolver types.KeyResolver, privateKey
 		privateKeyResolver:     privateKeyResolver,
 		didDocumentResolver:    didDocumentResolver,
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
+		eventsConnectionPool:   eventsConnectionPool,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool)},
 	}
 }
@@ -122,19 +131,12 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		return fmt.Errorf("unable to migrate DAG: %w", err)
 	}
 
-	// NATS
-	conn, err := events.Connect(
-		n.config.ProtocolV2.Nats.Hostname,
-		n.config.ProtocolV2.Nats.Port,
-		time.Duration(n.config.ProtocolV2.Nats.Timeout)*time.Second,
-	)
-	if err != nil {
-		return fmt.Errorf("unable to connect to NATS at '%s:%d': %w", n.config.ProtocolV2.Nats.Hostname, n.config.ProtocolV2.Nats.Port, err)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
 
-	privateTxCtx, err := conn.JetStream()
+	_, privateTxCtx, err := n.eventsConnectionPool.Acquire(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to connect to NATS at '%s:%d': %w", n.config.ProtocolV2.Nats.Hostname, n.config.ProtocolV2.Nats.Port, err)
+		return fmt.Errorf("failed to acquire a connection for events: %w", err)
 	}
 
 	n.payloadStore = dag.NewBBoltPayloadStore(n.db)
@@ -157,11 +159,13 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Configure protocols
 	n.protocols = []transport.Protocol{
 		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
-		v2.New(n.config.ProtocolV2, n.nodeDIDResolver, n.graph, n.payloadStore, n.didDocumentResolver, n.decrypter),
+		v2.New(n.config.ProtocolV2, n.eventsConnectionPool, n.nodeDIDResolver, n.graph, n.payloadStore, n.didDocumentResolver, n.decrypter),
 	}
+
 	for _, prot := range n.protocols {
 		prot.Configure(n.peerID)
 	}
+
 	// Setup connection manager, load with bootstrap nodes
 	if n.connectionManager == nil {
 		var grpcOpts []grpc.ConfigOption
@@ -185,6 +189,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			n.protocols...,
 		)
 	}
+
 	return nil
 }
 

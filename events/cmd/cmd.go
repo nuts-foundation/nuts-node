@@ -33,7 +33,10 @@ const ConfEventsHostname = "events.nats.hostname"
 // ConfEventsStorageDir defines the storage directory for file-backed streams in the NATS server
 const ConfEventsStorageDir = "events.nats.storagedir"
 
-// FlagSet defines the set of flags that sets the events engine configuration
+// ConfEventsTimeout defines the timeouts (in seconds) for the NATS server
+const ConfEventsTimeout = "events.nats.timeout"
+
+// FlagSet defines the set of flags that sets the events-engine configuration
 func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("events", pflag.ContinueOnError)
 
@@ -41,6 +44,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.Int(ConfEventsPort, defs.Port, "Port where the NATS server listens on")
 	flags.String(ConfEventsHostname, defs.Hostname, "Hostname for the NATS server")
 	flags.String(ConfEventsStorageDir, defs.StorageDir, "Directory where file-backed streams are stored in the NATS server")
+	flags.Int(ConfEventsTimeout, defs.Timeout, "Timeout for NATS server operations")
 
 	return flags
 }

@@ -42,5 +42,6 @@ func TestFlagSet(t *testing.T) {
 		ConfEventsHostname,
 		ConfEventsPort,
 		ConfEventsStorageDir,
+		ConfEventsTimeout,
 	}, keys)
 }

@@ -20,9 +20,14 @@
 package events
 
 import (
+	"context"
 	"fmt"
-	"github.com/nats-io/nats.go"
+	"sync/atomic"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vcr/log"
+
+	"github.com/nats-io/nats.go"
 )
 
 // Conn defines the methods required in the NATS connection structure
@@ -40,14 +45,66 @@ type JetStreamContext interface {
 	PublishMsg(m *nats.Msg, opts ...nats.PubOpt) (*nats.PubAck, error)
 }
 
-// ConnectFunc defines the type for the NATS connect handler function
-type ConnectFunc func(hostname string, port int, timeout time.Duration) (Conn, error)
+// ConnectionPool defines the interface for a NATS connection-pool
+type ConnectionPool interface {
+	Acquire(ctx context.Context) (Conn, JetStreamContext, error)
+}
 
-// Connect connects to a NATS server based on the hostname, port and timeout
-func Connect(hostname string, port int, timeout time.Duration) (Conn, error) {
-	return nats.Connect(
-		fmt.Sprintf("%s:%d", hostname, port),
-		nats.RetryOnFailedConnect(true),
-		nats.Timeout(timeout),
-	)
+type connectionAndContext struct {
+	conn Conn
+	js   JetStreamContext
+}
+
+// NATSConnectionPool implements a thread-safe pool of NATS connections (currently using a single NATS connection)
+type NATSConnectionPool struct {
+	config     *Config
+	conn       atomic.Value
+	connecting atomic.Value
+}
+
+// Acquire returns a NATS connection and JetStream context, it will connect if not already connected
+func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamContext, error) {
+	// If the connection is already set, return it
+	data := pool.conn.Load()
+	if data != nil {
+		if conn, ok := data.(connectionAndContext); ok {
+			return conn.conn, conn.js, nil
+		}
+	}
+
+	// Are we already trying to connect? If so, just wait
+	if !pool.connecting.CompareAndSwap(nil, true) {
+		select {
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		case <-time.After(time.Second):
+			return pool.Acquire(ctx)
+		}
+	}
+
+	// We're the leader, let's connect!
+	addr := fmt.Sprintf("%s:%d", pool.config.Hostname, pool.config.Port)
+
+	log.Logger().Tracef("connecting to %s", addr)
+
+	for {
+		conn, err := nats.Connect(addr, nats.RetryOnFailedConnect(true), nats.Timeout(time.Second*time.Duration(pool.config.Timeout)))
+		if err == nil {
+			js, err := conn.JetStream()
+			if err == nil {
+				pool.conn.Store(connectionAndContext{conn, js})
+
+				return conn, js, nil
+			}
+		}
+
+		log.Logger().Errorf("failed to connect to %s: %s", addr, err.Error())
+
+		select {
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		case <-time.After(time.Second):
+			continue
+		}
+	}
 }

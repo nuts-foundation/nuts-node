@@ -20,4 +20,6 @@
 package events
 
 // Event is the event manager interface that gives access to all event related functions
-type Event interface{}
+type Event interface {
+	Pool() ConnectionPool
+}

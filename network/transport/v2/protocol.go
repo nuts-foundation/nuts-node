@@ -41,53 +41,46 @@ var _ grpc.Protocol = (*protocol)(nil)
 
 // Config specifies config for protocol v2
 type Config struct {
-	// NATS configuration for the replay DAG publisher
-	Nats NatsConfig `koanf:"nats"`
-}
-
-// NatsConfig holds all NATS related configuration
-type NatsConfig struct {
-	Port     int    `koanf:"port"`
-	Hostname string `koanf:"hostname"`
-	Timeout  int    `koanf:"timeout"`
 }
 
 // DefaultConfig returns the default config for protocol v2
 func DefaultConfig() Config {
-	return Config{
-		Nats: NatsConfig{
-			Port:     4222,
-			Hostname: "localhost",
-			Timeout:  30,
-		},
-	}
+	return Config{}
 }
 
 // New creates an instance of the v2 protocol.
-func New(config Config, nodeDIDResolver transport.NodeDIDResolver, graph dag.DAG, payloadStore dag.PayloadStore, docResolver vdr.DocResolver, decrypter crypto.Decrypter) transport.Protocol {
+func New(
+	config Config,
+	eventsConnectionPool events.ConnectionPool,
+	nodeDIDResolver transport.NodeDIDResolver,
+	graph dag.DAG,
+	payloadStore dag.PayloadStore,
+	docResolver vdr.DocResolver,
+	decrypter crypto.Decrypter,
+) transport.Protocol {
 	return &protocol{
-		config:             config,
-		graph:              graph,
-		nodeDIDResolver:    nodeDIDResolver,
-		payloadStore:       payloadStore,
-		decrypter:          decrypter,
-		docResolver:        docResolver,
-		natsConnectHandler: events.Connect,
+		config:               config,
+		graph:                graph,
+		eventsConnectionPool: eventsConnectionPool,
+		nodeDIDResolver:      nodeDIDResolver,
+		payloadStore:         payloadStore,
+		decrypter:            decrypter,
+		docResolver:          docResolver,
 	}
 }
 
 type protocol struct {
-	cancel             func()
-	ctx                context.Context
-	config             Config
-	nodeDIDResolver    transport.NodeDIDResolver
-	graph              dag.DAG
-	payloadStore       dag.PayloadStore
-	decrypter          crypto.Decrypter
-	docResolver        vdr.DocResolver
-	natsConnectHandler events.ConnectFunc
-	connectionList     grpc.ConnectionList
-	connectionManager  transport.ConnectionManager
+	cancel               func()
+	config               Config
+	graph                dag.DAG
+	ctx                  context.Context
+	docResolver          vdr.DocResolver
+	payloadStore         dag.PayloadStore
+	decrypter            crypto.Decrypter
+	connectionList       grpc.ConnectionList
+	eventsConnectionPool events.ConnectionPool
+	nodeDIDResolver      transport.NodeDIDResolver
+	connectionManager    transport.ConnectionManager
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn) (grpcLib.ClientStream, error) {
@@ -116,16 +109,7 @@ func (p protocol) Configure(_ transport.PeerID) {
 }
 
 func (p *protocol) setupNatsHandler() error {
-	conn, err := p.natsConnectHandler(
-		p.config.Nats.Hostname,
-		p.config.Nats.Port,
-		time.Duration(p.config.Nats.Timeout)*time.Second,
-	)
-	if err != nil {
-		return err
-	}
-
-	js, err := conn.JetStream()
+	_, js, err := p.eventsConnectionPool.Acquire(p.ctx)
 	if err != nil {
 		return err
 	}
@@ -145,14 +129,8 @@ func (p *protocol) setupNatsHandler() error {
 			logrus.Errorf("failed to ACK private transaction event: %v", err)
 		}
 	}, nats.AckExplicit()); err != nil {
-		conn.Close()
 		return err
 	}
-
-	go func() {
-		<-p.ctx.Done()
-		conn.Close()
-	}()
 
 	return nil
 }
@@ -162,18 +140,20 @@ func (p *protocol) Start() {
 
 	go func() {
 		for {
-			if err := p.setupNatsHandler(); err != nil {
-				logrus.Errorf("failed to setup NATS handler: %v", err)
+			err := p.setupNatsHandler()
 
-				select {
-				case <-p.ctx.Done():
-					return
-				case <-time.After(5 * time.Second):
-					continue
-				}
+			if err == nil {
+				break
 			}
 
-			return
+			logrus.Errorf("failed to setup NATS handler: %v", err)
+
+			select {
+			case <-p.ctx.Done():
+				return
+			case <-time.After(5 * time.Second):
+				continue
+			}
 		}
 	}()
 }

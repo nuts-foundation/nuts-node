@@ -37,7 +37,10 @@ func TestNewManager(t *testing.T) {
 
 func TestManager_Start(t *testing.T) {
 	eventManager := NewManager().(core.Runnable)
-	eventManager.Start()
+
+	err := eventManager.Start()
+	assert.NoError(t, err)
+
 	defer eventManager.Shutdown()
 
 	t.Run("Starts a Nats server", func(t *testing.T) {

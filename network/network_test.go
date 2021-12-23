@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/golang/mock/gomock"
@@ -42,15 +43,16 @@ import (
 var nodeDID, _ = did.ParseDID("did:nuts:test")
 
 type networkTestContext struct {
-	network           *Network
-	connectionManager *transport.MockConnectionManager
-	graph             *dag.MockDAG
-	payload           *dag.MockPayloadStore
-	keyStore          *crypto.MockKeyStore
-	publisher         *dag.MockPublisher
-	keyResolver       *vdrTypes.MockKeyResolver
-	protocol          *transport.MockProtocol
-	docResolver       *vdrTypes.MockDocResolver
+	network              *Network
+	connectionManager    *transport.MockConnectionManager
+	eventsConnectionPool *events.MockConnectionPool
+	graph                *dag.MockDAG
+	payload              *dag.MockPayloadStore
+	keyStore             *crypto.MockKeyStore
+	publisher            *dag.MockPublisher
+	keyResolver          *vdrTypes.MockKeyResolver
+	protocol             *transport.MockProtocol
+	docResolver          *vdrTypes.MockDocResolver
 }
 
 func (cxt *networkTestContext) start() error {
@@ -136,77 +138,104 @@ func TestNetwork_Diagnostics(t *testing.T) {
 	})
 }
 
+//nolint:funlen
 func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - configured node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl, func(config *Config) {
+
+		ctx := createNetwork(ctrl, func(config *Config) {
 			config.NodeDID = "did:nuts:test"
 		})
-		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.eventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, nil)
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
 		}
 	})
+
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl)
-		cxt.network.connectionManager = nil
-		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
+		ctx := createNetwork(ctrl)
+		ctx.eventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, nil)
+
+		ctx.network.connectionManager = nil
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
 		}
 	})
+
 	t.Run("ok - TLS disabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl, func(config *Config) {
+
+		ctx := createNetwork(ctrl, func(config *Config) {
 			config.EnableTLS = false
 		})
-		cxt.network.connectionManager = nil
-		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.eventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, nil)
+		ctx.network.connectionManager = nil
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
 		}
 	})
+
 	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl, func(config *Config) {
+
+		ctx := createNetwork(ctrl, func(config *Config) {
 			config.GrpcAddr = ""
 		})
-		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.eventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, nil)
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
 		}
 	})
+
 	t.Run("warn - TLS disabled but CertFile configured (logs warning)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl, func(config *Config) {
+
+		ctx := createNetwork(ctrl, func(config *Config) {
 			config.EnableTLS = false
 		})
-		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.eventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, nil)
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
 		}
 	})
+
 	t.Run("error - unable to load key pair from file", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl, func(config *Config) {
+
+		ctx := createNetwork(ctrl, func(config *Config) {
 			config.CertFile = "test/non-existent.pem"
 			config.CertKeyFile = "test/non-existent.pem"
 		})
-		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		ctx.eventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, nil)
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
+
 	t.Run("unable to create datadir", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl)
-		err := cxt.network.Configure(core.ServerConfig{Datadir: "network_test.go"})
+
+		ctx := createNetwork(ctrl)
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: "network_test.go"})
 		assert.Error(t, err)
 	})
 }
@@ -470,16 +499,20 @@ func TestNetwork_Shutdown(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl)
-		cxt.connectionManager.EXPECT().Stop()
-		err := cxt.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
+		ctx := createNetwork(ctrl)
+		ctx.connectionManager.EXPECT().Stop()
+		ctx.eventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, nil)
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		if !assert.NoError(t, err) {
 			return
 		}
-		err = cxt.network.Shutdown()
+		err = ctx.network.Shutdown()
 		assert.NoError(t, err)
-		assert.Nil(t, cxt.network.db)
+		assert.Nil(t, ctx.network.db)
 	})
+
 	t.Run("multiple calls", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -566,7 +599,8 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	decrypter := crypto.NewMockDecrypter(ctrl)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	docResolver := vdrTypes.NewMockDocResolver(ctrl)
-	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver)
+	pool := events.NewMockConnectionPool(ctrl)
+	network := NewNetworkInstance(networkConfig, pool, keyResolver, keyStore, decrypter, docResolver)
 	network.graph = graph
 	network.connectionManager = connectionManager
 	network.payloadStore = payload
@@ -575,15 +609,16 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	network.didDocumentResolver = docResolver
 	network.startTime.Store(time.Now())
 	return &networkTestContext{
-		network:           network,
-		connectionManager: connectionManager,
-		protocol:          prot,
-		graph:             graph,
-		payload:           payload,
-		publisher:         publisher,
-		keyStore:          keyStore,
-		keyResolver:       keyResolver,
-		docResolver:       docResolver,
+		network:              network,
+		eventsConnectionPool: pool,
+		connectionManager:    connectionManager,
+		protocol:             prot,
+		graph:                graph,
+		payload:              payload,
+		publisher:            publisher,
+		keyStore:             keyStore,
+		keyResolver:          keyResolver,
+		docResolver:          docResolver,
 	}
 }
 

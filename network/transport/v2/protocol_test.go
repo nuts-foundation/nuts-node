@@ -2,7 +2,6 @@ package v2
 
 import (
 	"errors"
-	"go.uber.org/atomic"
 	"testing"
 	"time"
 
@@ -21,11 +20,12 @@ import (
 )
 
 type protocolMocks struct {
-	Controller   *gomock.Controller
-	Graph        *dag.MockDAG
-	PayloadStore *dag.MockPayloadStore
-	DocResolver  *vdr.MockDocResolver
-	Decrypter    *crypto.MockDecrypter
+	Controller           *gomock.Controller
+	EventsConnectionPool *events.MockConnectionPool
+	Graph                *dag.MockDAG
+	PayloadStore         *dag.MockPayloadStore
+	DocResolver          *vdr.MockDocResolver
+	Decrypter            *crypto.MockDecrypter
 }
 
 func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) {
@@ -36,21 +36,16 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	graph := dag.NewMockDAG(ctrl)
 	payloadStore := dag.NewMockPayloadStore(ctrl)
 	nodeDIDResolver := transport.FixedNodeDIDResolver{}
+	eventsConnectionPool := events.NewMockConnectionPool(ctrl)
 
 	if nodeDID != nil {
 		nodeDIDResolver.NodeDID = *nodeDID
 	}
 
-	proto := New(Config{
-		Nats: NatsConfig{
-			Port:     8080,
-			Hostname: "localhost",
-			Timeout:  30,
-		},
-	}, nodeDIDResolver, graph, payloadStore, docResolver, decrypter)
+	proto := New(Config{}, eventsConnectionPool, nodeDIDResolver, graph, payloadStore, docResolver, decrypter)
 
 	return proto.(*protocol), protocolMocks{
-		ctrl, graph, payloadStore, docResolver, decrypter,
+		ctrl, eventsConnectionPool, graph, payloadStore, docResolver, decrypter,
 	}
 }
 
@@ -122,6 +117,7 @@ func TestProtocol_lifecycle(t *testing.T) {
 
 	s := grpcLib.NewServer()
 	p, _ := newTestProtocol(t, nil)
+	p.eventsConnectionPool = events.NewStubConnectionPool()
 	p.Start()
 
 	p.Register(s, func(stream grpcLib.ServerStream) error {
@@ -139,30 +135,16 @@ func TestProtocol_Start(t *testing.T) {
 
 	conn := events.NewMockConn(ctrl)
 	js := events.NewMockJetStreamContext(ctrl)
-
-	conn.EXPECT().JetStream().Return(js, nil)
 	js.EXPECT().Subscribe(events.PrivateTransactionsSubject, gomock.Any(), gomock.Any()).Return(nil, nil)
-	conn.EXPECT().Close()
 
-	called := atomic.NewBool(false)
+	proto, mocks := newTestProtocol(t, nil)
 
-	proto, _ := newTestProtocol(t, nil)
-	proto.natsConnectHandler = func(hostname string, port int, timeout time.Duration) (events.Conn, error) {
-		called.Toggle()
-
-		assert.Equal(t, 8080, port)
-		assert.Equal(t, time.Second*30, timeout)
-		assert.Equal(t, "localhost", hostname)
-
-		return conn, nil
-	}
+	mocks.EventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(conn, js, nil)
 
 	proto.Start()
 	proto.Stop()
 
-	time.Sleep(time.Second)
-
-	assert.True(t, called.Load())
+	time.Sleep(7 * time.Second)
 }
 
 //nolint:funlen
@@ -197,7 +179,7 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 		}, nil, nil)
 
 		err := proto.handlePrivateTx(&nats.Msg{Data: tx.Data()})
-		assert.EqualError(t, err, "PAL header is empty")
+		assert.Error(t, err)
 	})
 
 	t.Run("errors when decryption fails because the key-agreement key could not be found", func(t *testing.T) {
@@ -234,7 +216,7 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 		proto.connectionList = connectionList
 
 		err := proto.handlePrivateTx(&nats.Msg{Data: tx.Data()})
-		assert.EqualError(t, err, "no connection found (DID=did:nuts:123)")
+		assert.Error(t, err)
 	})
 
 	t.Run("valid transaction fails when sending the payload query errors", func(t *testing.T) {
