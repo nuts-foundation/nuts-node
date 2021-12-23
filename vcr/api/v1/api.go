@@ -20,6 +20,7 @@
 package v1
 
 import (
+	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/presentation"
 	"github.com/nuts-foundation/nuts-node/vcr/proof"
@@ -65,13 +66,38 @@ func (w *Wrapper) CreateVerifiablePresentation(ctx echo.Context) error {
 
 	for _, c := range request.VerifiableCredentials {
 		if err := w.R.Validate(c, false, true, nil); err != nil {
-			return err
+			return core.InvalidInputError("invalid credential: %w", err)
 		}
 	}
+
+	// Set created to now
+	created := time.Now()
+
+	var (
+		expires *time.Time
+		nonce   *string
+	)
+
+	if request.Expires != nil {
+		if request.Expires.Before(created) {
+			return core.InvalidInputError("expires can not lay in the past")
+		}
+		expires = request.Expires
+
+		// nonce Needs to be unique so the verifier can store it during the duration the presentation is valid.
+		// Only set nonce when request.expires is set, otherwise the verifier must store the nonce indefinitely.
+		uuidNonce := uuid.New().String()
+		nonce = &uuidNonce
+	}
+
 	proofOptions := proof.ProofOptions{
-		KID:     request.VerificationMethod,
-		Created: time.Now(),
-		Domain:  request.Domain,
+		KID:       request.VerificationMethod,
+		Created:   created,
+		Domain:    request.Domain,
+		Nonce:     nonce,
+		Challenge: request.Challenge,
+		Type:      proof.JsonWebSignature2020,
+		Expires:   expires,
 	}
 
 	vp := presentation.VerifiablePresentation{

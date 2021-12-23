@@ -460,6 +460,11 @@ components:
             name like example.com, an ad-hoc value such as mycorp-level3-access, or a very specific transaction value 
             like 8zF6T$mqP. A signer could include a domain in its digital proof to restrict its use to particular 
             target, identified by the specified domain.
+        expires:
+          type: string
+          description: Date and time at which proof will expire. If omitted, the proof does not have an end date.
+          format: date-time
+          example: '2021-12-20T09:00:00Z'
 
     VerifiablePresentation:
       type: object
@@ -523,8 +528,8 @@ components:
       properties:
         type:
           type: string
-          description: Type of the object or the datatype of the typed value.
-          example: EcdsaSecp256k1Signature2019
+          description: Type of the object or the datatype of the typed value. Currently only supported value is "JsonWebSignature2020".
+          example: JsonWebSignature2020.
         created:
           type: string
           description: Date and time at which proof has been created.

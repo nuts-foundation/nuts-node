@@ -39,6 +39,9 @@ type CreateVerifiablePresentationRequest struct {
 	// target, identified by the specified domain.
 	Domain *string `json:"domain,omitempty"`
 
+	// Date and time at which proof will expire. If omitted, the proof does not have an end date.
+	Expires *time.Time `json:"expires,omitempty"`
+
 	// The specific intent for the proof, the reason why an entity created it. Acts as a safeguard to prevent the
 	// proof from being misused for a purpose other than the one it was intended for.
 	ProofPurpose          *string                `json:"proofPurpose,omitempty"`
@@ -88,7 +91,7 @@ type EmbeddedProof struct {
 	// signature.
 	ProofPurpose string `json:"proofPurpose"`
 
-	// Type of the object or the datatype of the typed value.
+	// Type of the object or the datatype of the typed value. Currently only supported value is "JsonWebSignature2020".
 	Type string `json:"type"`
 
 	// Specifies the public key that can be used to verify the digital signature.
