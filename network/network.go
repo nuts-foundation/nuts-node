@@ -273,6 +273,10 @@ func (n *Network) connectToKnownNodes() error {
 		n.connectionManager.Connect(bootstrapNode, transport.WithUnauthenticated())
 	}
 
+	if !n.config.EnableDiscovery {
+		return nil
+	}
+
 	// start connecting to known NutsComm addresses
 	otherNodes, err := n.didDocumentFinder.Find(doc.IsActive(), doc.ValidAt(time.Now()), doc.ByServiceType(transport.NutsCommServiceType))
 	if err != nil {

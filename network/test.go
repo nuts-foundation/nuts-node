@@ -51,5 +51,6 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 func TestNetworkConfig() Config {
 	config := DefaultConfig()
 	config.EnableTLS = false
+	config.EnableDiscovery = false
 	return config
 }

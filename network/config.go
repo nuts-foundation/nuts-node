@@ -33,7 +33,9 @@ type Config struct {
 	BootstrapNodes []string `koanf:"network.bootstrapnodes"`
 	CertFile       string   `koanf:"network.certfile"`
 	CertKeyFile    string   `koanf:"network.certkeyfile"`
-	TrustStoreFile string   `koanf:"network.truststorefile"`
+	// EnableDiscovery tells the node to automatically connect to other nodes
+	EnableDiscovery bool   `koanf:"network.enablediscovery"`
+	TrustStoreFile  string `koanf:"network.truststorefile"`
 
 	// MaxCRLValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
 	MaxCRLValidityDays int `koanf:"network.maxcrlvaliditydays"`
@@ -61,5 +63,6 @@ func DefaultConfig() Config {
 		EnableTLS:  true,
 		ProtocolV1: v1.DefaultConfig(),
 		ProtocolV2: v2.DefaultConfig(),
+		EnableDiscovery: true,
 	}
 }
