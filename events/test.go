@@ -36,3 +36,7 @@ func NewStubConnectionPool() ConnectionPool {
 func (pool *stubConnectionPool) Acquire(_ context.Context) (Conn, JetStreamContext, error) {
 	return pool.conn, pool.conn, nil
 }
+
+// Shutdown closes the pool
+func (pool *stubConnectionPool) Shutdown() {
+}

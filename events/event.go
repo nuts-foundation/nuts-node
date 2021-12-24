@@ -98,6 +98,7 @@ func (m *manager) Shutdown() error {
 
 	m.server.Shutdown()
 	m.server.WaitForShutdown()
+	m.pool.Shutdown()
 
 	log.Logger().Infof("%s shutdown complete", moduleName)
 

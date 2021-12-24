@@ -48,6 +48,8 @@ type JetStreamContext interface {
 type ConnectionPool interface {
 	// Acquire returns a NATS connection and JetStream context
 	Acquire(ctx context.Context) (Conn, JetStreamContext, error)
+	// Shutdown closes all the connections
+	Shutdown()
 }
 
 type connectionAndContext struct {
@@ -101,10 +103,14 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 	// We're the leader, let's connect!
 	addr := fmt.Sprintf("%s:%d", pool.config.Hostname, pool.config.Port)
 
-	log.Logger().Tracef("connecting to %s", addr)
+	log.Logger().Tracef("connectionState to %s", addr)
 
 	for {
-		conn, err := pool.connectFunc(addr, nats.RetryOnFailedConnect(true), nats.Timeout(time.Second*time.Duration(pool.config.Timeout)))
+		conn, err := pool.connectFunc(
+			addr,
+			nats.RetryOnFailedConnect(true),
+			nats.Timeout(time.Second*time.Duration(pool.config.Timeout)),
+		)
 		if err == nil {
 			js, err := conn.JetStream()
 			if err == nil {
@@ -121,6 +127,23 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 			return nil, nil, context.Canceled
 		case <-time.After(time.Second):
 			continue
+		}
+	}
+}
+
+func (pool *NATSConnectionPool) Shutdown() {
+	log.Logger().Trace("shutting down NATS connection pool")
+
+	// Just make sure no other connections are trying to connect while we're not connected
+	if pool.connecting.Swap(true) == nil {
+		return
+	}
+
+	// Only close the connection if it was opened in the first place
+	data := pool.conn.Load()
+	if data != nil {
+		if conn, ok := data.(connectionAndContext); ok {
+			conn.conn.Close()
 		}
 	}
 }

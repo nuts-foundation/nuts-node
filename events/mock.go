@@ -752,3 +752,15 @@ func (mr *MockConnectionPoolMockRecorder) Acquire(ctx interface{}) *gomock.Call 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Acquire", reflect.TypeOf((*MockConnectionPool)(nil).Acquire), ctx)
 }
+
+// Shutdown mocks base method.
+func (m *MockConnectionPool) Shutdown() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Shutdown")
+}
+
+// Shutdown indicates an expected call of Shutdown.
+func (mr *MockConnectionPoolMockRecorder) Shutdown() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockConnectionPool)(nil).Shutdown))
+}
