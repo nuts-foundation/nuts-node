@@ -242,7 +242,7 @@ func (n *Network) Start() error {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
 			continue
 		}
-		n.connectionManager.Connect(bootstrapNode, true)
+		n.connectionManager.Connect(bootstrapNode, transport.WithUnauthenticated())
 	}
 
 	return nil

@@ -36,15 +36,20 @@ func (m *MockConnectionManager) EXPECT() *MockConnectionManagerMockRecorder {
 }
 
 // Connect mocks base method.
-func (m *MockConnectionManager) Connect(peerAddress string, acceptNonAuthenticated bool) {
+func (m *MockConnectionManager) Connect(peerAddress string, option ...ConnectionOption) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Connect", peerAddress, acceptNonAuthenticated)
+	varargs := []interface{}{peerAddress}
+	for _, a := range option {
+		varargs = append(varargs, a)
+	}
+	m.ctrl.Call(m, "Connect", varargs...)
 }
 
 // Connect indicates an expected call of Connect.
-func (mr *MockConnectionManagerMockRecorder) Connect(peerAddress, acceptNonAuthenticated interface{}) *gomock.Call {
+func (mr *MockConnectionManagerMockRecorder) Connect(peerAddress interface{}, option ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockConnectionManager)(nil).Connect), peerAddress, acceptNonAuthenticated)
+	varargs := append([]interface{}{peerAddress}, option...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockConnectionManager)(nil).Connect), varargs...)
 }
 
 // Diagnostics mocks base method.

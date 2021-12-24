@@ -23,6 +23,18 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
+// ConnectionOption is the option function for adding options when establishing a connection through the connection manager.
+// The options are set on the Peer
+type ConnectionOption func(peer *Peer)
+
+// WithUnauthenticated is the option for allowing the connection to be unauthenticated.
+// The node.DID authentication on a connection will always succeed. Actions that require the node.DID will fail.
+func WithUnauthenticated() ConnectionOption {
+	return func(peer *Peer) {
+		peer.AcceptUnauthenticated = true
+	}
+}
+
 // ConnectionManager manages the connections to peers, making outbound connections if required. It also determines the network layout.
 type ConnectionManager interface {
 	core.Diagnosable
@@ -30,7 +42,7 @@ type ConnectionManager interface {
 	// Connect attempts to make an outbound connection to the given peer if it's not already connected.
 	// acceptNonAuthenticated indicates if the connection must be kept even if the other end can't be authenticated.
 	// The connection can then still be used for non-authenticated purposes.
-	Connect(peerAddress string, acceptNonAuthenticated bool)
+	Connect(peerAddress string, option ...ConnectionOption)
 
 	// Peers returns a slice containing the peers that are currently connected.
 	Peers() []Peer

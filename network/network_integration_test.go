@@ -68,9 +68,9 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	// each other that way.
 	bootstrap := startNode(t, "integration_bootstrap", testDirectory)
 	node1 := startNode(t, "integration_node1", testDirectory)
-	node1.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), false)
+	node1.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
 	node2 := startNode(t, "integration_node2", testDirectory)
-	node2.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), false)
+	node2.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
 
 	// Wait until nodes are connected
 	if !test.WaitFor(t, func() (bool, error) {
@@ -120,7 +120,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	node2 := startNode(t, "node2", testDirectory)
 
 	// Now connect node1 to node2 and wait for them to set up
-	node1.connectionManager.Connect(nameToAddress(t, "node2"), false)
+	node1.connectionManager.Connect(nameToAddress(t, "node2"))
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
@@ -128,7 +128,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	}
 
 	// Now instruct node2 to connect to node1
-	node2.connectionManager.Connect(nameToAddress(t, "node1"), false)
+	node2.connectionManager.Connect(nameToAddress(t, "node1"))
 	time.Sleep(time.Second)
 	assert.Len(t, node1.connectionManager.Peers(), 1)
 	assert.Len(t, node2.connectionManager.Peers(), 1)
@@ -147,7 +147,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
 		// Now connect node1 to node2 and wait for them to set up
-		node1.connectionManager.Connect(nameToAddress(t, "node2"), false)
+		node1.connectionManager.Connect(nameToAddress(t, "node2"))
 
 		test.WaitFor(t, func() (bool, error) {
 			return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
@@ -168,7 +168,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		node1.nodeDIDResolver.(*transport.FixedNodeDIDResolver).NodeDID = *malloryDID
 
 		// Now connect node1 to node2 and wait for them to set up
-		node1.connectionManager.Connect(nameToAddress(t, "node2"), false)
+		node1.connectionManager.Connect(nameToAddress(t, "node2"))
 		if !test.WaitFor(t, func() (bool, error) {
 			diagnostics := node1.connectionManager.Diagnostics()
 			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
@@ -197,7 +197,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		node2.nodeDIDResolver.(*transport.FixedNodeDIDResolver).NodeDID = *malloryDID
 
 		// Now connect node1 to node2 and wait for them to set up
-		node1.connectionManager.Connect(nameToAddress(t, "node2"), false)
+		node1.connectionManager.Connect(nameToAddress(t, "node2"))
 		if !test.WaitFor(t, func() (bool, error) {
 			diagnostics := node1.connectionManager.Diagnostics()
 			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
@@ -227,7 +227,7 @@ func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
 	node2 := startNode(t, "node2", testDirectory)
 
 	// Now connect node1 to node2 and wait for them to set up
-	node1.connectionManager.Connect(nameToAddress(t, "node2"), false)
+	node1.connectionManager.Connect(nameToAddress(t, "node2"))
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {

@@ -184,8 +184,12 @@ func (s *grpcConnectionManager) Stop() {
 	}
 }
 
-func (s grpcConnectionManager) Connect(peerAddress string, acceptUnauthenticated bool) {
-	connection, isNew := s.connections.getOrRegister(transport.Peer{Address: peerAddress, AcceptUnauthenticated: acceptUnauthenticated}, s.dialer)
+func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.ConnectionOption) {
+	peer := transport.Peer{Address: peerAddress}
+	for _, o := range options {
+		o(&peer)
+	}
+	connection, isNew := s.connections.getOrRegister(peer, s.dialer)
 	if !isNew {
 		log.Logger().Infof("A connection for %s already exists.", peerAddress)
 		return
