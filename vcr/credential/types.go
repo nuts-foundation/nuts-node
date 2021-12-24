@@ -30,6 +30,8 @@ const (
 	NutsAuthorizationCredentialType = "NutsAuthorizationCredential"
 	// NutsContext is the nuts specific json-ld context
 	NutsContext = "https://nuts.nl/credentials/v1"
+	// Jws2020Context contains the json-ld context for the JsonWebSignature2020 signature type
+	Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
 )
 
 var (
@@ -39,6 +41,8 @@ var (
 	NutsAuthorizationCredentialTypeURI, _ = ssi.ParseURI(NutsAuthorizationCredentialType)
 	// NutsContextURI is the nuts specific json-ld context as URI
 	NutsContextURI, _ = ssi.ParseURI(NutsContext)
+	// Jws2020ContextURI is the nuts specific json-ld context as URI
+	Jws2020ContextURI, _ = ssi.ParseURI(Jws2020Context)
 )
 
 // NutsOrganizationCredentialSubject defines the CredentialSubject struct for the NutsOrganizationCredential

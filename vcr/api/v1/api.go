@@ -91,7 +91,6 @@ func (w *Wrapper) CreateVerifiablePresentation(ctx echo.Context) error {
 	}
 
 	proofOptions := proof.ProofOptions{
-		KID:       request.VerificationMethod,
 		Created:   created,
 		Domain:    request.Domain,
 		Nonce:     nonce,
@@ -105,7 +104,7 @@ func (w *Wrapper) CreateVerifiablePresentation(ctx echo.Context) error {
 		Type:                 []string{"VerifiablePresentation"},
 		VerifiableCredential: &request.VerifiableCredentials,
 	}
-	err = w.R.GeneratePresentationEmbeddedProof(&vp, proofOptions)
+	err = w.R.GeneratePresentationEmbeddedProof(&vp, proofOptions, request.VerificationMethod)
 	if err != nil {
 		return err
 	}

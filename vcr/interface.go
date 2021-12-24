@@ -117,7 +117,7 @@ type Resolver interface {
 }
 
 type PresentationManager interface {
-	GeneratePresentationEmbeddedProof(presentation *presentation.VerifiablePresentation, proofOptions proof.ProofOptions) error
+	GeneratePresentationEmbeddedProof(presentation *presentation.VerifiablePresentation, proofOptions proof.ProofOptions, kid string) error
 }
 
 // VCR is the interface that covers all functionality of the vcr store.

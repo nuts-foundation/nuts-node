@@ -322,6 +322,8 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 
 	// set defaults
 	builder.Fill(&verifiableCredential)
+	// set the json-ld context for the signature.
+	verifiableCredential.Context = append(verifiableCredential.Context, *credential.Jws2020ContextURI)
 
 	// sign
 	if err := c.generateProof(&verifiableCredential, kid, key); err != nil {
@@ -827,13 +829,13 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	return qs
 }
 
-func (c *vcr) GeneratePresentationEmbeddedProof(presentation *presentation.VerifiablePresentation, proofOptions proof.ProofOptions) error {
-	key, err := c.keyStore.Resolve(proofOptions.KID)
+func (c *vcr) GeneratePresentationEmbeddedProof(presentation *presentation.VerifiablePresentation, proofOptions proof.ProofOptions, kid string) error {
+	key, err := c.keyStore.Resolve(kid)
 	if err != nil {
 		return fmt.Errorf("could not resolve kid: %w", err)
 	}
 
-	ldProofSigner := proof.NewLDProof(presentation, proofOptions)
+	ldProofSigner := proof.NewLDProofBuilder(presentation, proofOptions)
 	proof, err := ldProofSigner.Sign(key)
 	if err != nil {
 		return fmt.Errorf("unable to sign ldProof: %w", err)
