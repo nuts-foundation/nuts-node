@@ -2,39 +2,92 @@ package events
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
+	"errors"
+	"github.com/golang/mock/gomock"
+	"github.com/nats-io/nats.go"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNATSConnectionPool_Acquire(t *testing.T) {
-	manager := NewManager().(*manager)
+	t.Run("fails when context was cancelled", func(t *testing.T) {
+		pool := NewNATSConnectionPool(&Config{})
+		pool.connectFunc = func(url string, options ...nats.Option) (Conn, error) {
+			return nil, errors.New("random error")
+		}
 
-	pool := manager.Pool()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
 
-	err := manager.Start()
-	assert.NoError(t, err)
+		conn, js, err := pool.Acquire(ctx)
 
-	defer manager.Shutdown()
+		assert.Equal(t, context.Canceled, err)
+		assert.Nil(t, conn)
+		assert.Nil(t, js)
+	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	t.Run("connection should be retried", func(t *testing.T) {
+		called := false
 
-	wc := sync.WaitGroup{}
-	wc.Add(500)
+		ctrl := gomock.NewController(t)
 
-	for i := 0; i < 500; i++ {
-		go func() {
-			conn, js, err := pool.Acquire(ctx)
+		mockJs := NewMockJetStreamContext(ctrl)
+		mockConn := NewMockConn(ctrl)
+		mockConn.EXPECT().JetStream().Return(mockJs, nil)
 
-			assert.NoError(t, err)
-			assert.NotNil(t, js)
-			assert.NotNil(t, conn)
+		pool := NewNATSConnectionPool(&Config{})
+		pool.connectFunc = func(url string, options ...nats.Option) (Conn, error) {
+			if called {
+				return mockConn, nil
+			}
 
-			wc.Done()
-		}()
-	}
+			called = true
 
-	wc.Wait()
+			return nil, errors.New("random error")
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		conn, js, err := pool.Acquire(ctx)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, conn)
+		assert.NotNil(t, js)
+	})
+
+	t.Run("ok - NATS integration test", func(t *testing.T) {
+		manager := NewManager().(*manager)
+		manager.config.Port = 402249
+
+		pool := manager.Pool()
+
+		err := manager.Start()
+		assert.NoError(t, err)
+
+		defer manager.Shutdown()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		wc := sync.WaitGroup{}
+		wc.Add(50)
+
+		for i := 0; i < 50; i++ {
+			go func() {
+				conn, js, err := pool.Acquire(ctx)
+
+				assert.NoError(t, err)
+				assert.NotNil(t, js)
+				assert.NotNil(t, conn)
+
+				wc.Done()
+			}()
+		}
+
+		wc.Wait()
+	})
 }

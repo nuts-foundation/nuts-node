@@ -25,28 +25,28 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/vcr/log"
-
 	"github.com/nats-io/nats.go"
+
+	"github.com/nuts-foundation/nuts-node/events/log"
 )
 
 // Conn defines the methods required in the NATS connection structure
 type Conn interface {
+	// Close closes the connection
 	Close()
+
+	// JetStream returns the JetStream connection
 	JetStream(opts ...nats.JSOpt) (nats.JetStreamContext, error)
 }
 
 // JetStreamContext defines the interface for the JetStreamContext of the NATS connection
 type JetStreamContext interface {
 	nats.JetStreamContext
-	StreamInfo(stream string, opts ...nats.JSOpt) (*nats.StreamInfo, error)
-	AddStream(cfg *nats.StreamConfig, opts ...nats.JSOpt) (*nats.StreamInfo, error)
-	ChanSubscribe(subj string, ch chan *nats.Msg, opts ...nats.SubOpt) (*nats.Subscription, error)
-	PublishMsg(m *nats.Msg, opts ...nats.PubOpt) (*nats.PubAck, error)
 }
 
 // ConnectionPool defines the interface for a NATS connection-pool
 type ConnectionPool interface {
+	// Acquire returns a NATS connection and JetStream context
 	Acquire(ctx context.Context) (Conn, JetStreamContext, error)
 }
 
@@ -55,11 +55,25 @@ type connectionAndContext struct {
 	js   JetStreamContext
 }
 
+// NATSConnectFunc defines the function signature for the NATS connection factory
+type NATSConnectFunc func(url string, options ...nats.Option) (Conn, error)
+
 // NATSConnectionPool implements a thread-safe pool of NATS connections (currently using a single NATS connection)
 type NATSConnectionPool struct {
-	config     *Config
-	conn       atomic.Value
-	connecting atomic.Value
+	config      *Config
+	conn        atomic.Value
+	connecting  atomic.Value
+	connectFunc NATSConnectFunc
+}
+
+// NewNATSConnectionPool creates a new NATSConnectionPool
+func NewNATSConnectionPool(config *Config) *NATSConnectionPool {
+	return &NATSConnectionPool{
+		config: config,
+		connectFunc: func(url string, options ...nats.Option) (Conn, error) {
+			return nats.Connect(url, options...)
+		},
+	}
 }
 
 // Acquire returns a NATS connection and JetStream context, it will connect if not already connected
@@ -76,7 +90,7 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 	if !pool.connecting.CompareAndSwap(nil, true) {
 		select {
 		case <-ctx.Done():
-			return nil, nil, ctx.Err()
+			return nil, nil, context.Canceled
 		case <-time.After(time.Second):
 			return pool.Acquire(ctx)
 		}
@@ -88,7 +102,7 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 	log.Logger().Tracef("connecting to %s", addr)
 
 	for {
-		conn, err := nats.Connect(addr, nats.RetryOnFailedConnect(true), nats.Timeout(time.Second*time.Duration(pool.config.Timeout)))
+		conn, err := pool.connectFunc(addr, nats.RetryOnFailedConnect(true), nats.Timeout(time.Second*time.Duration(pool.config.Timeout)))
 		if err == nil {
 			js, err := conn.JetStream()
 			if err == nil {
@@ -102,7 +116,7 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 
 		select {
 		case <-ctx.Done():
-			return nil, nil, ctx.Err()
+			return nil, nil, context.Canceled
 		case <-time.After(time.Second):
 			continue
 		}

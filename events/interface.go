@@ -21,5 +21,6 @@ package events
 
 // Event is the event manager interface that gives access to all event related functions
 type Event interface {
+	// Pool returns the NATS connection-pool
 	Pool() ConnectionPool
 }

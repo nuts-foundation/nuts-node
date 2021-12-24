@@ -39,12 +39,11 @@ type manager struct {
 // NewManager returns a new event manager
 func NewManager() Event {
 	config := DefaultConfig()
+	configPtr := &config
 
 	return &manager{
-		config: &config,
-		pool: &NATSConnectionPool{
-			config: &config,
-		},
+		config: configPtr,
+		pool:   NewNATSConnectionPool(configPtr),
 	}
 }
 
