@@ -24,6 +24,14 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"hash/crc32"
+	"io"
+	"net"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -35,13 +43,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/test/bufconn"
-	"hash/crc32"
-	"io"
-	"net"
-	"sync"
-	"sync/atomic"
-	"testing"
-	"time"
 )
 
 // newBufconnConfig creates a new Config like NewConfig, but configures an in-memory bufconn listener instead of a TCP listener.

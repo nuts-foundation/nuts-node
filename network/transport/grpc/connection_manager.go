@@ -22,6 +22,9 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
+	"sync"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -31,8 +34,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	grpcPeer "google.golang.org/grpc/peer"
-	"net"
-	"sync"
 )
 
 const defaultMaxMessageSizeInBytes = 1024 * 512
@@ -183,8 +184,12 @@ func (s *grpcConnectionManager) Stop() {
 	}
 }
 
-func (s grpcConnectionManager) Connect(peerAddress string) {
-	connection, isNew := s.connections.getOrRegister(transport.Peer{Address: peerAddress}, s.dialer)
+func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.ConnectionOption) {
+	peer := transport.Peer{Address: peerAddress}
+	for _, o := range options {
+		o(&peer)
+	}
+	connection, isNew := s.connections.getOrRegister(peer, s.dialer)
 	if !isNew {
 		log.Logger().Infof("A connection for %s already exists.", peerAddress)
 		return
@@ -303,10 +308,8 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 		return nil, fatalError{error: fmt.Errorf("peer sent invalid ID (id=%s)", peerID)}
 	}
 
-	peer := transport.Peer{
-		ID:      peerID,
-		Address: grpcConn.Target(),
-	}
+	//when bootstrap node, this instance has the AcceptUnauthenticated param
+	peer := connection.Peer()
 	peerFromCtx, _ := grpcPeer.FromContext(clientStream.Context())
 	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
 	if err != nil {

@@ -20,8 +20,9 @@ package transport
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
 	"time"
+
+	"github.com/nuts-foundation/go-did/did"
 )
 
 // PeerID defines a peer's unique identifier.
@@ -41,6 +42,8 @@ type Peer struct {
 	// NodeDID holds the DID that the peer uses to identify its node on the network.
 	// It is only set when properly authenticated.
 	NodeDID did.DID
+	// AcceptUnauthenticated indicates if a connection may be made with this Peer even if the NodeDID is not set.
+	AcceptUnauthenticated bool
 }
 
 // String returns the peer as string.

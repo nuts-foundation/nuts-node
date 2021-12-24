@@ -23,10 +23,11 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -356,8 +357,17 @@ func TestNetwork_Start(t *testing.T) {
 		cxt := createNetwork(ctrl, func(config *Config) {
 			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
 		})
-		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1")
-		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2")
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1", gomock.Any()).Do(func(arg1 interface{}, arg2 interface{}) {
+			// assert that transport.WithUnauthenticated() is passed as option
+			f, ok := arg2.(transport.ConnectionOption)
+			if !assert.True(t, ok) {
+				return
+			}
+			peer := transport.Peer{}
+			f(&peer)
+			assert.True(t, peer.AcceptUnauthenticated)
+		})
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2", gomock.Any())
 		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
