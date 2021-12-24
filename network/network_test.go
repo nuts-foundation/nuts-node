@@ -29,9 +29,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -54,6 +51,7 @@ type networkTestContext struct {
 	keyResolver       *vdrTypes.MockKeyResolver
 	protocol          *transport.MockProtocol
 	docResolver       *vdrTypes.MockDocResolver
+	docFinder         *vdrTypes.MockDocFinder
 }
 
 func (cxt *networkTestContext) start() error {
@@ -641,6 +639,8 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	docResolver := vdrTypes.NewMockDocResolver(ctrl)
 	docFinder := vdrTypes.NewMockDocFinder(ctrl)
+	// required when starting the network, it searches for nodes to connect to
+	docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder)
 	network.graph = graph
 	network.connectionManager = connectionManager
@@ -663,6 +663,7 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 		keyStore:          keyStore,
 		keyResolver:       keyResolver,
 		docResolver:       docResolver,
+		docFinder:         docFinder,
 	}
 }
 
