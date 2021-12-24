@@ -78,6 +78,8 @@ func NewNATSConnectionPool(config *Config) *NATSConnectionPool {
 
 // Acquire returns a NATS connection and JetStream context, it will connect if not already connected
 func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamContext, error) {
+	log.Logger().Trace("trying to acquire a NATS connection")
+
 	// If the connection is already set, return it
 	data := pool.conn.Load()
 	if data != nil {
