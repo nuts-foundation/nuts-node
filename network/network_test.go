@@ -279,6 +279,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		defer ctrl.Finish()
 		payload := []byte("Hello, World!")
 		cxt := createNetwork(ctrl)
+		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
@@ -295,6 +296,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
@@ -310,6 +312,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 
 		// Register root TX on head tracker
 		rootTX, _, _ := dag.CreateTestTransaction(0)
@@ -342,6 +345,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
@@ -369,6 +373,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			defer ctrl.Finish()
 			payload := []byte("Hello, World!")
 			cxt := createNetwork(ctrl)
+			cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 			err := cxt.start()
 			if !assert.NoError(t, err) {
 				return
@@ -390,6 +395,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			defer ctrl.Finish()
 			payload := []byte("Hello, World!")
 			cxt := createNetwork(ctrl)
+			cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 			err := cxt.start()
 			if !assert.NoError(t, err) {
 				return
@@ -406,6 +412,7 @@ func TestNetwork_Start(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
@@ -418,6 +425,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt := createNetwork(ctrl, func(config *Config) {
 			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
 		})
+		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1", gomock.Any()).Do(func(arg1 interface{}, arg2 interface{}) {
 			// assert that transport.WithUnauthenticated() is passed as option
 			f, ok := arg2.(transport.ConnectionOption)
@@ -468,6 +476,7 @@ func TestNetwork_Start(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cxt := createNetwork(ctrl)
+			cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
@@ -618,6 +627,49 @@ func Test_lastTransactionTracker(t *testing.T) {
 	_ = tracker.process(tx1, nil)
 	assert.Len(t, tracker.heads(), 1)
 	assert.Contains(t, tracker.heads(), tx3.Ref())
+}
+
+func Test_connectToKnownNodes(t *testing.T) {
+	doc := did.Document{ID: *nodeDID}
+
+	serviceEndpoints := []struct {
+		name     string
+		endpoint interface{}
+	}{
+		{
+			name:     "incorrect serviceEndpoint data type",
+			endpoint: []interface{}{},
+		},
+		{
+			name:     "incorrect serviceEndpoint URL",
+			endpoint: "::",
+		},
+		{
+			name:     "incorrect serviceEndpoint URL scheme",
+			endpoint: "https://endpoint",
+		},
+	}
+
+	for _, sp := range serviceEndpoints {
+		t.Run(sp.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			cxt := createNetwork(ctrl)
+			doc2 := doc
+			doc2.Service = []did.Service{
+				{
+					Type:            transport.NutsCommServiceType,
+					ServiceEndpoint: sp.endpoint,
+				},
+			}
+			cxt.docFinder.EXPECT().Find(gomock.Any()).Return([]did.Document{doc2}, nil)
+
+			_ = cxt.network.connectToKnownNodes()
+
+			// assert
+			// cxt.connectionManager.Connect is not called
+		})
+	}
 }
 
 func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *networkTestContext {

@@ -283,7 +283,7 @@ func (n *Network) connectToKnownNodes() error {
 		for _, service := range node.Service {
 			if service.Type == transport.NutsCommServiceType {
 				var nutsCommStr string
-				if err = service.UnmarshalServiceEndpoint(&nutsCommStr); err == nil {
+				if err = service.UnmarshalServiceEndpoint(&nutsCommStr); err != nil {
 					log.Logger().Warnf("failed to extract NutsComm address from service (did=%s): %v", node.ID.String(), err)
 					continue inner
 				}
