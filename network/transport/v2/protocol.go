@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
@@ -116,17 +117,17 @@ func (p *protocol) setupNatsHandler() error {
 
 	if _, err = js.Subscribe(events.PrivateTransactionsSubject, func(msg *nats.Msg) {
 		if err := p.handlePrivateTx(msg); err != nil {
-			logrus.Errorf("failed to handle private transaction: %v", err)
+			log.Logger().Errorf("failed to handle private transaction: %v", err)
 
 			if err := msg.Nak(); err != nil {
-				logrus.Errorf("failed to NACK private transaction event: %v", err)
+				log.Logger().Errorf("failed to NACK private transaction event: %v", err)
 			}
 
 			return
 		}
 
 		if err := msg.Ack(); err != nil {
-			logrus.Errorf("failed to ACK private transaction event: %v", err)
+			log.Logger().Errorf("failed to ACK private transaction event: %v", err)
 		}
 	}, nats.AckExplicit()); err != nil {
 		return err
