@@ -40,11 +40,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
-	doc2 "github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -62,12 +63,13 @@ var noSync bool
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
 	r := &vcr{
-		config:      DefaultConfig(),
-		docResolver: docResolver,
-		keyStore:    keyStore,
-		keyResolver: keyResolver,
-		network:     network,
-		registry:    concept.NewRegistry(),
+		config:          DefaultConfig(),
+		docResolver:     docResolver,
+		keyStore:        keyStore,
+		keyResolver:     keyResolver,
+		serviceResolver: doc.NewServiceResolver(docResolver),
+		network:         network,
+		registry:        concept.NewRegistry(),
 	}
 
 	r.ambassador = NewAmbassador(network, r)
@@ -76,15 +78,16 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 }
 
 type vcr struct {
-	registry    concept.Registry
-	config      Config
-	store       leia.Store
-	keyStore    crypto.KeyStore
-	docResolver vdr.DocResolver
-	keyResolver vdr.KeyResolver
-	ambassador  Ambassador
-	network     network.Transactions
-	trustConfig *trust.Config
+	registry        concept.Registry
+	config          Config
+	store           leia.Store
+	keyStore        crypto.KeyStore
+	docResolver     vdr.DocResolver
+	keyResolver     vdr.KeyResolver
+	serviceResolver doc.ServiceResolver
+	ambassador      Ambassador
+	network         network.Transactions
+	trustConfig     *trust.Config
 }
 
 func (c *vcr) Registry() concept.Reader {
@@ -302,13 +305,13 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
 	// find did document/metadata for originating TXs
-	doc, meta, err := c.docResolver.Resolve(*issuer, nil)
+	document, meta, err := c.docResolver.Resolve(*issuer, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	// resolve an assertionMethod key for issuer
-	kid, err := doc2.ExtractAssertionKeyID(*doc)
+	kid, err := doc.ExtractAssertionKeyID(*document)
 	if err != nil {
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
@@ -332,23 +335,9 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	}
 
 	// create participants list
-	participants := make([]did.DID, 0)
-	if !conceptConfig.Public {
-		var (
-			base                []credential.BaseCredentialSubject
-			credentialSubjectID *did.DID
-		)
-		err = verifiableCredential.UnmarshalCredentialSubject(&base)
-		if err == nil {
-			credentialSubjectID, err = did.ParseDID(base[0].ID) // earlier validation made sure length == 1 and ID is present
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to determine credentialSubject.ID: %w", err)
-		}
-
-		// participants are the issuer and the credentialSubject.id
-		participants = append(participants, *issuer)
-		participants = append(participants, *credentialSubjectID)
+	participants, err := c.generateParticipants(*conceptConfig, verifiableCredential)
+	if err != nil {
+		return nil, err
 	}
 
 	payload, _ := json.Marshal(verifiableCredential)
@@ -372,6 +361,50 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	}
 
 	return &verifiableCredential, nil
+}
+
+func (c *vcr) generateParticipants(conceptConfig concept.Config, verifiableCredential vc.VerifiableCredential) ([]did.DID, error) {
+	issuer, _ := did.ParseDID(verifiableCredential.Issuer.String())
+	participants := make([]did.DID, 0)
+	if !conceptConfig.Public {
+		var (
+			base                []credential.BaseCredentialSubject
+			credentialSubjectID *did.DID
+		)
+		err := verifiableCredential.UnmarshalCredentialSubject(&base)
+		if err == nil {
+			credentialSubjectID, err = did.ParseDID(base[0].ID) // earlier validation made sure length == 1 and ID is present
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine credentialSubject.ID: %w", err)
+		}
+
+		// participants are not the issuer and the credentialSubject.id but the DID that holds the concrete endpoint for the NutsComm service
+		for _, vcp := range []did.DID{*issuer, *credentialSubjectID} {
+			serviceOwner, err := c.resolveNutsCommServiceOwner(vcp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve participating node (did=%s): %w", vcp.String(), err)
+			}
+
+			participants = append(participants, *serviceOwner)
+		}
+	}
+	return participants, nil
+}
+
+func (c *vcr) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, error) {
+	serviceUser, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=%s", DID.String(), transport.NutsCommServiceType))
+
+	service, err := c.serviceResolver.Resolve(*serviceUser, 5)
+	if err != nil {
+		return nil, fmt.Errorf("could not resolve NutsComm service owner: %w", err)
+	}
+	serviceID := service.ID
+	serviceID.Fragment = ""
+	serviceID.Path = ""
+
+	// impossible that this will return an error, so we won't wrap it within a different message
+	return did.ParseDID(serviceID.String())
 }
 
 func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
@@ -559,13 +592,13 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("failed to extract issuer: %w", err)
 	}
 	// find did document/metadata for originating TXs
-	doc, meta, err := c.docResolver.Resolve(*issuer, nil)
+	document, meta, err := c.docResolver.Resolve(*issuer, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	// resolve an assertionMethod key for issuer
-	kid, err := doc2.ExtractAssertionKeyID(*doc)
+	kid, err := doc.ExtractAssertionKeyID(*document)
 	if err != nil {
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}

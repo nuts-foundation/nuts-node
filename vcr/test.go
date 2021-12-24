@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -60,12 +61,13 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 }
 
 type mockContext struct {
-	ctrl        *gomock.Controller
-	crypto      *crypto.MockKeyStore
-	tx          *network.MockTransactions
-	vcr         *vcr
-	keyResolver *types.MockKeyResolver
-	docResolver *types.MockDocResolver
+	ctrl            *gomock.Controller
+	crypto          *crypto.MockKeyStore
+	tx              *network.MockTransactions
+	vcr             *vcr
+	keyResolver     *types.MockKeyResolver
+	docResolver     *types.MockDocResolver
+	serviceResolver *doc.MockServiceResolver
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -79,7 +81,9 @@ func newMockContext(t *testing.T) mockContext {
 	tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).AnyTimes()
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
+	serviceResolver := doc.NewMockServiceResolver(ctrl)
 	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx).(*vcr)
+	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 
 	if err := vcr.Configure(core.ServerConfig{Datadir: testDir}); err != nil {
@@ -92,11 +96,12 @@ func newMockContext(t *testing.T) mockContext {
 		vcr.Shutdown()
 	})
 	return mockContext{
-		ctrl:        ctrl,
-		crypto:      crypto,
-		tx:          tx,
-		vcr:         vcr,
-		keyResolver: keyResolver,
-		docResolver: docResolver,
+		ctrl:            ctrl,
+		crypto:          crypto,
+		tx:              tx,
+		vcr:             vcr,
+		keyResolver:     keyResolver,
+		docResolver:     docResolver,
+		serviceResolver: serviceResolver,
 	}
 }
