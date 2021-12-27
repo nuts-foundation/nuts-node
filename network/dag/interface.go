@@ -81,7 +81,7 @@ type Publisher interface {
 	// to all payload types.
 	Subscribe(payloadType string, receiver Receiver)
 	// Start starts the publisher.
-	Start()
+	Start() error
 }
 
 // Receiver defines a function for processing transactions when walking the DAG.

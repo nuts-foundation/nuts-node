@@ -131,16 +131,8 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		return fmt.Errorf("unable to migrate DAG: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
-
-	_, privateTxCtx, err := n.eventManager.Pool().Acquire(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to acquire a connection for events: %w", err)
-	}
-
 	n.payloadStore = dag.NewBBoltPayloadStore(n.db)
-	n.publisher = dag.NewReplayingDAGPublisher(privateTxCtx, n.payloadStore, n.graph)
+	n.publisher = dag.NewReplayingDAGPublisher(n.eventManager, n.payloadStore, n.graph)
 	n.peerID = transport.PeerID(uuid.New().String())
 
 	// TLS

@@ -28,7 +28,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -171,11 +170,10 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		mux: &sync.Mutex{},
 	}
 
-	privateTxCtx := events.NewMockJetStreamContext(gomock.NewController(t))
-
+	eventManager := events.NewStubEventManager()
 	ctx.graph = dag.NewBBoltDAG(db)
 	ctx.payloadStore = dag.NewBBoltPayloadStore(db)
-	publisher := dag.NewReplayingDAGPublisher(privateTxCtx, ctx.payloadStore, ctx.graph)
+	publisher := dag.NewReplayingDAGPublisher(eventManager, ctx.payloadStore, ctx.graph)
 	publisher.Subscribe(integrationTestPayloadType, func(tx dag.Transaction, payload []byte) error {
 		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
 		ctx.mux.Lock()
