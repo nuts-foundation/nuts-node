@@ -49,9 +49,6 @@ func FlagSet() *pflag.FlagSet {
 		"Required when `network.enabletls` is `true`.")
 	flagSet.String("network.truststorefile", defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.String("network.nodedid", defs.NodeDID, "Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.")
-	flagSet.String("network.nats.hostname", defs.Nats.Hostname, "Hostname for the NATS server")
-	flagSet.Int("network.nats.port", defs.Nats.Port, "Port where the NATS server listens on")
-	flagSet.Int("network.nats.timeout", defs.Nats.Timeout, "Timeout (in seconds) for the NATS connection")
 	flagSet.Int("network.v1.adverthashesinterval", defs.ProtocolV1.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
 	flagSet.Int("network.v1.advertdiagnosticsinterval", defs.ProtocolV1.AdvertDiagnosticsInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")
 	flagSet.Int("network.v1.collectmissingpayloadsinterval", defs.ProtocolV1.CollectMissingPayloadsInterval, "Interval (in milliseconds) that specifies how often the node should check for missing payloads and broadcast its peers for it (specify 0 to disable). "+

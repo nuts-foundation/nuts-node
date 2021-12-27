@@ -31,13 +31,20 @@ import (
 const moduleName = "Event manager"
 
 type manager struct {
-	config Config
+	config *Config
+	pool   ConnectionPool
 	server *natsServer.Server
 }
 
 // NewManager returns a new event manager
 func NewManager() Event {
-	return &manager{config: Config{}}
+	config := DefaultConfig()
+	configPtr := &config
+
+	return &manager{
+		config: configPtr,
+		pool:   NewNATSConnectionPool(configPtr),
+	}
 }
 
 func (m *manager) Name() string {
@@ -46,6 +53,10 @@ func (m *manager) Name() string {
 
 func (m *manager) Config() interface{} {
 	return &m.config
+}
+
+func (m *manager) Pool() ConnectionPool {
+	return m.pool
 }
 
 func (m *manager) Configure(config core.ServerConfig) error {
@@ -86,6 +97,7 @@ func (m *manager) Shutdown() error {
 	log.Logger().Debugf("shutting down %s", moduleName)
 
 	m.server.Shutdown()
+	m.pool.Shutdown()
 	m.server.WaitForShutdown()
 
 	log.Logger().Infof("%s shutdown complete", moduleName)

@@ -119,7 +119,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		transaction := CreateSignedTestTransaction(1, time.Now(), [][]byte{{9, 8, 7}}, "foo/bar", true)
 
 		received := false
-		privateTxCtx.EXPECT().PublishAsync(privateTransactionsSubject, gomock.Any()).Return(nil, nil)
+		privateTxCtx.EXPECT().PublishAsync(events.PrivateTransactionsSubject, gomock.Any()).Return(nil, nil)
 		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
 			received = true

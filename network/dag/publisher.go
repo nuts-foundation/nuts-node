@@ -28,8 +28,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
-const privateTransactionsSubject = "nuts.v2.private-transactions"
-
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
 func NewReplayingDAGPublisher(privateTxCtx events.JetStreamContext, payloadStore PayloadStore, dag DAG) Publisher {
 	publisher := &replayingDAGPublisher{
@@ -54,8 +52,8 @@ type replayingDAGPublisher struct {
 	visitedTransactions map[hash.SHA256Hash]bool
 	dag                 DAG
 	payloadStore        PayloadStore
-	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 	privateTxCtx        events.JetStreamContext
+	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
 
 func (s *replayingDAGPublisher) PayloadWritten(ctx context.Context, _ interface{}) {
@@ -91,6 +89,7 @@ func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver)
 
 func (s replayingDAGPublisher) Start() {
 	ctx := context.Background()
+
 	s.publishMux.Lock()
 	defer s.publishMux.Unlock()
 
@@ -130,20 +129,21 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 	}
 }
 
-func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) error {
-	_, err := s.privateTxCtx.PublishAsync(privateTransactionsSubject, tx.Data())
-	return err
+func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) bool {
+	_, err := s.privateTxCtx.PublishAsync(events.PrivateTransactionsSubject, tx.Data())
+	if err != nil {
+		log.Logger().Errorf("unable to handle private transaction: (ref=%s) %v", tx.Ref(), err)
+
+		return false
+	}
+
+	return true
 }
 
 func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transaction Transaction) bool {
 	// We need to skip transactions with PAL header as it should be handled by the v2 protocol
 	if len(transaction.PAL()) > 0 {
-		if err := s.handlePrivateTransaction(transaction); err != nil {
-			log.Logger().Errorf("unable to handle private transaction: (ref=%s) %v", transaction.Ref(), err)
-			return false
-		}
-
-		return true
+		return s.handlePrivateTransaction(transaction)
 	}
 
 	payload, err := s.payloadStore.ReadPayload(ctx, transaction.PayloadHash())

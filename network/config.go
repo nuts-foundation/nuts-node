@@ -20,6 +20,7 @@ package network
 
 import (
 	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 )
 
 // Config holds the config for Transactions
@@ -41,30 +42,19 @@ type Config struct {
 	// It is used to identify it on the network.
 	NodeDID string `koanf:"network.nodedid"`
 
-	// NATS configuration for the replay DAG publisher
-	Nats NatsConfig `koanf:"network.nats"`
-
 	// ProtocolV1 specifies config for protocol v1
 	ProtocolV1 v1.Config `koanf:"network.v1"`
-}
 
-// NatsConfig holds all NATS related configuration
-type NatsConfig struct {
-	Port     int    `koanf:"port"`
-	Hostname string `koanf:"hostname"`
-	Timeout  int    `koanf:"timeout"`
+	// ProtocolV2 specifies config for protocol v2
+	ProtocolV2 v2.Config `koanf:"network.v2"`
 }
 
 // DefaultConfig returns the default NetworkEngine configuration.
 func DefaultConfig() Config {
 	return Config{
 		GrpcAddr:   ":5555",
-		ProtocolV1: v1.DefaultConfig(),
 		EnableTLS:  true,
-		Nats: NatsConfig{
-			Timeout:  30,
-			Port:     4022,
-			Hostname: "localhost",
-		},
+		ProtocolV1: v1.DefaultConfig(),
+		ProtocolV2: v2.DefaultConfig(),
 	}
 }

@@ -24,7 +24,30 @@ import (
 	"testing"
 )
 
-func Test_connectionList_All(t *testing.T) {
+type stubPredicate struct {
+	count int
+}
+
+func (p *stubPredicate) Match(_ Connection) bool {
+	match := p.count == 0
+	p.count--
+
+	return match
+}
+
+func TestConnectionList_Get(t *testing.T) {
+	conn1 := &StubConnection{IsConnected: true}
+	conn2 := &StubConnection{IsConnected: false}
+	cn := connectionList{
+		list: []Connection{conn1, conn2},
+	}
+
+	assert.Equal(t, nil, cn.Get(&stubPredicate{count: 2}))
+	assert.Equal(t, conn1, cn.Get(&stubPredicate{count: 0}))
+	assert.Equal(t, conn2, cn.Get(&stubPredicate{count: 1}))
+}
+
+func TestConnectionList_All(t *testing.T) {
 	cn := connectionList{}
 
 	cn.getOrRegister(transport.Peer{ID: "a"}, nil)
@@ -33,7 +56,7 @@ func Test_connectionList_All(t *testing.T) {
 	assert.Len(t, cn.All(), 2)
 }
 
-func Test_connectionList_getOrRegister(t *testing.T) {
+func TestConnectionList_getOrRegister(t *testing.T) {
 	t.Run("second call with same peer ID should return same connection", func(t *testing.T) {
 		cn := connectionList{}
 		connA, created1 := cn.getOrRegister(transport.Peer{ID: "a"}, nil)
@@ -42,6 +65,7 @@ func Test_connectionList_getOrRegister(t *testing.T) {
 		assert.False(t, created2)
 		assert.Equal(t, connA, connASecondCall)
 	})
+
 	t.Run("call with other peer ID should return same connection", func(t *testing.T) {
 		cn := connectionList{}
 		connA, created1 := cn.getOrRegister(transport.Peer{ID: "a"}, nil)
@@ -52,7 +76,7 @@ func Test_connectionList_getOrRegister(t *testing.T) {
 	})
 }
 
-func Test_connectionList_remove(t *testing.T) {
+func TestConnectionList_remove(t *testing.T) {
 	cn := connectionList{}
 	connA, _ := cn.getOrRegister(transport.Peer{ID: "a"}, nil)
 	connB, _ := cn.getOrRegister(transport.Peer{ID: "b"}, nil)

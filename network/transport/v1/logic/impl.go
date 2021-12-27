@@ -69,7 +69,7 @@ func (p *protocol) Diagnostics() []core.DiagnosticResult {
 	p.peerOmnihashMutex.Lock()
 	// Clean up diagnostics of disconnected peers
 	for peerID := range p.peerOmnihashes {
-		connection := p.connections.Get(peerID)
+		connection := p.connections.Get(grpc.ByPeerID(peerID))
 		if connection == nil || !connection.Connected() {
 			delete(p.peerOmnihashes, peerID)
 		}
@@ -96,7 +96,7 @@ func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics 
 	result := make(map[transport.PeerID]transport.Diagnostics, len(p.peerDiagnostics))
 	for peerID, value := range p.peerDiagnostics {
 		// Clean up diagnostics of disconnected peers on the go
-		connection := p.connections.Get(peerID)
+		connection := p.connections.Get(grpc.ByPeerID(peerID))
 		if connection == nil || !connection.Connected() {
 			delete(p.peerDiagnostics, peerID)
 		}

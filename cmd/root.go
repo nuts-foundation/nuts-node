@@ -157,14 +157,15 @@ func CreateCommand(system *core.System) *cobra.Command {
 // CreateSystem creates the system and registers all default engines.
 func CreateSystem() *core.System {
 	system := core.NewSystem()
+
 	// Create instances
 	cryptoInstance := crypto.NewCryptoInstance()
 	memoryStore := store.NewMemoryStore()
 	keyResolver := doc.KeyResolver{Store: memoryStore}
 	docResolver := doc.Resolver{Store: memoryStore}
-
 	eventManager := events.NewManager()
-	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, docResolver)
+
+	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), eventManager.Pool(), keyResolver, cryptoInstance, cryptoInstance, docResolver)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, memoryStore)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance)
 	didmanInstance := didman.NewDidmanInstance(docResolver, memoryStore, vdrInstance, credentialInstance)
@@ -177,7 +178,6 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&core.LandingPage{})
 	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
-
 	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: &doc.Manipulator{
 		KeyCreator: cryptoInstance,
 		Updater:    vdrInstance,

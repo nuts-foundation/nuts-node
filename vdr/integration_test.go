@@ -20,6 +20,7 @@ package vdr
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/events"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -61,8 +62,8 @@ func TestVDRIntegration_Test(t *testing.T) {
 	log.SetFormatter(&log.TextFormatter{ForceColors: true})
 
 	// Startup crypto
-	keyStore := crypto.NewCryptoInstance()
-	keyStore.Configure(nutsConfig)
+	cryptoInstance := crypto.NewCryptoInstance()
+	cryptoInstance.Configure(nutsConfig)
 
 	// DID Store
 	didStore := store.NewMemoryStore()
@@ -71,12 +72,19 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	networkCfg.EnableTLS = false
-	nutsNetwork := network.NewNetworkInstance(networkCfg, doc.KeyResolver{Store: didStore}, keyStore, docResolver)
+	nutsNetwork := network.NewNetworkInstance(
+		networkCfg,
+		events.NewStubConnectionPool(),
+		doc.KeyResolver{Store: didStore},
+		cryptoInstance,
+		cryptoInstance,
+		docResolver,
+	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
 
 	// Init the VDR
-	vdr := NewVDR(DefaultConfig(), keyStore, nutsNetwork, didStore)
+	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore)
 	vdr.Configure(nutsConfig)
 
 	// === End of setup ===
@@ -191,7 +199,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"news service of document a does not contain expected values")
 
 	// deactivate document B
-	docUpdater := &doc.Manipulator{KeyCreator: keyStore, Updater: *vdr, Resolver: docResolver}
+	docUpdater := &doc.Manipulator{KeyCreator: cryptoInstance, Updater: *vdr, Resolver: docResolver}
 	err = docUpdater.Deactivate(docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
@@ -234,8 +242,8 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	log.SetFormatter(&log.TextFormatter{ForceColors: true})
 
 	// Startup crypto
-	keyStore := crypto.NewCryptoInstance()
-	keyStore.Configure(nutsConfig)
+	cryptoInstance := crypto.NewCryptoInstance()
+	cryptoInstance.Configure(nutsConfig)
 
 	// DID Store
 	didStore := store.NewMemoryStore()
@@ -244,13 +252,20 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	networkCfg.EnableTLS = false
-	nutsNetwork := network.NewNetworkInstance(networkCfg, doc.KeyResolver{Store: didStore}, keyStore, docResolver)
+	nutsNetwork := network.NewNetworkInstance(
+		networkCfg,
+		events.NewStubConnectionPool(),
+		doc.KeyResolver{Store: didStore},
+		cryptoInstance,
+		cryptoInstance,
+		docResolver,
+	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
 	defer nutsNetwork.Shutdown()
 
 	// Init the VDR
-	vdr := NewVDR(DefaultConfig(), keyStore, nutsNetwork, didStore)
+	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore)
 	vdr.Configure(nutsConfig)
 
 	// === End of setup ===
