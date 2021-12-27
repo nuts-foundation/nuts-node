@@ -180,6 +180,21 @@ func TestNetwork_Configure(t *testing.T) {
 		}
 	})
 
+	t.Run("ok - node DID check disabled", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		ctx := createNetwork(ctrl, func(config *Config) {
+			config.DisableNodeAuthentication = true
+		})
+		ctx.network.connectionManager = nil
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		if !assert.NoError(t, err) {
+			return
+		}
+	})
+
 	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()

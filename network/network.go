@@ -174,10 +174,14 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			n.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
 		}
 		// Instantiate
+		authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
+		if n.config.DisableNodeAuthentication {
+			authenticator = grpc.NewDummyAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
+		}
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
 			n.nodeDIDResolver,
-			grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver)),
+			authenticator,
 			n.protocols...,
 		)
 	}
