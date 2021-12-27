@@ -97,8 +97,8 @@ func (m *manager) Shutdown() error {
 	log.Logger().Debugf("shutting down %s", moduleName)
 
 	m.server.Shutdown()
-	m.server.WaitForShutdown()
 	m.pool.Shutdown()
+	m.server.WaitForShutdown()
 
 	log.Logger().Infof("%s shutdown complete", moduleName)
 
