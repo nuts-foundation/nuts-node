@@ -62,14 +62,14 @@ type NATSConnectFunc func(url string, options ...nats.Option) (Conn, error)
 
 // NATSConnectionPool implements a thread-safe pool of NATS connections (currently using a single NATS connection)
 type NATSConnectionPool struct {
-	config      *Config
+	config      Config
 	conn        atomic.Value
 	connecting  atomic.Value
 	connectFunc NATSConnectFunc
 }
 
 // NewNATSConnectionPool creates a new NATSConnectionPool
-func NewNATSConnectionPool(config *Config) *NATSConnectionPool {
+func NewNATSConnectionPool(config Config) *NATSConnectionPool {
 	return &NATSConnectionPool{
 		config: config,
 		connectFunc: func(url string, options ...nats.Option) (Conn, error) {

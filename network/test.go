@@ -36,7 +36,7 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 	cryptoInstance := crypto.NewTestCryptoInstance()
 	newInstance := NewNetworkInstance(
 		config,
-		events.NewStubConnectionPool(),
+		events.NewStubEventManager(),
 		doc.KeyResolver{Store: vdrStore},
 		cryptoInstance,
 		cryptoInstance,

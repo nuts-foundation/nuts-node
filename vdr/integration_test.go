@@ -20,12 +20,13 @@ package vdr
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/events"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"sync"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/events"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -74,7 +75,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	networkCfg.EnableTLS = false
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
-		events.NewStubConnectionPool(),
+		events.NewStubEventManager(),
 		doc.KeyResolver{Store: didStore},
 		cryptoInstance,
 		cryptoInstance,
@@ -254,7 +255,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	networkCfg.EnableTLS = false
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
-		events.NewStubConnectionPool(),
+		events.NewStubEventManager(),
 		doc.KeyResolver{Store: didStore},
 		cryptoInstance,
 		cryptoInstance,

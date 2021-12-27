@@ -70,6 +70,85 @@ func (mr *MockDocResolverMockRecorder) ResolveControllers(input, metadata interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveControllers", reflect.TypeOf((*MockDocResolver)(nil).ResolveControllers), input, metadata)
 }
 
+// MockPredicate is a mock of Predicate interface.
+type MockPredicate struct {
+	ctrl     *gomock.Controller
+	recorder *MockPredicateMockRecorder
+}
+
+// MockPredicateMockRecorder is the mock recorder for MockPredicate.
+type MockPredicateMockRecorder struct {
+	mock *MockPredicate
+}
+
+// NewMockPredicate creates a new mock instance.
+func NewMockPredicate(ctrl *gomock.Controller) *MockPredicate {
+	mock := &MockPredicate{ctrl: ctrl}
+	mock.recorder = &MockPredicateMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPredicate) EXPECT() *MockPredicateMockRecorder {
+	return m.recorder
+}
+
+// Match mocks base method.
+func (m *MockPredicate) Match(arg0 did.Document, arg1 DocumentMetadata) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Match", arg0, arg1)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Match indicates an expected call of Match.
+func (mr *MockPredicateMockRecorder) Match(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Match", reflect.TypeOf((*MockPredicate)(nil).Match), arg0, arg1)
+}
+
+// MockDocFinder is a mock of DocFinder interface.
+type MockDocFinder struct {
+	ctrl     *gomock.Controller
+	recorder *MockDocFinderMockRecorder
+}
+
+// MockDocFinderMockRecorder is the mock recorder for MockDocFinder.
+type MockDocFinderMockRecorder struct {
+	mock *MockDocFinder
+}
+
+// NewMockDocFinder creates a new mock instance.
+func NewMockDocFinder(ctrl *gomock.Controller) *MockDocFinder {
+	mock := &MockDocFinder{ctrl: ctrl}
+	mock.recorder = &MockDocFinderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockDocFinder) EXPECT() *MockDocFinderMockRecorder {
+	return m.recorder
+}
+
+// Find mocks base method.
+func (m *MockDocFinder) Find(arg0 ...Predicate) ([]did.Document, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range arg0 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Find", varargs...)
+	ret0, _ := ret[0].([]did.Document)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Find indicates an expected call of Find.
+func (mr *MockDocFinderMockRecorder) Find(arg0 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockDocFinder)(nil).Find), arg0...)
+}
+
 // MockDocCreator is a mock of DocCreator interface.
 type MockDocCreator struct {
 	ctrl     *gomock.Controller

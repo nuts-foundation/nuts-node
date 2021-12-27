@@ -38,6 +38,7 @@ gen-mocks:
 	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
 	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
 	mockgen -destination=crl/mock.go -package crl -source=crl/validator.go Validator
+	mockgen -destination=events/events_mock.go -package events -source=events/interface.go Event
 	mockgen -destination=events/mock.go -package events -source=events/conn.go Conn ConnectionPool
 
 gen-api:

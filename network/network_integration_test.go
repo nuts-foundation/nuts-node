@@ -332,7 +332,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		didDocumentResolver:    doc.Resolver{Store: vdrStore},
 		privateKeyResolver:     keyStore,
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
-		eventsConnectionPool:   events.NewStubConnectionPool(),
+		eventManager:           events.NewStubEventManager(),
 	}
 	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {
 		t.Fatal(err)

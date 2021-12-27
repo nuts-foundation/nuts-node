@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"sync"
 
 	"github.com/nats-io/nats.go"
 )
@@ -19,6 +20,22 @@ func (conn *stubConn) PublishAsync(_subj string, _data []byte, _opts ...nats.Pub
 // Subscribe creates a subscription on the given subject
 func (conn *stubConn) Subscribe(_subj string, _cb nats.MsgHandler, _opts ...nats.SubOpt) (*nats.Subscription, error) {
 	return &nats.Subscription{}, nil
+}
+
+type stubEventManager struct {
+	pool ConnectionPool
+	once sync.Once
+}
+
+func NewStubEventManager() Event {
+	return &stubEventManager{}
+}
+
+func (s *stubEventManager) Pool() ConnectionPool {
+	s.once.Do(func() {
+		s.pool = NewStubConnectionPool()
+	})
+	return s.pool
 }
 
 type stubConnectionPool struct {

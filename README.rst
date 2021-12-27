@@ -162,11 +162,15 @@ auth.irma.autoupdateschemas                true              set if you want aut
 auth.irma.schememanager                    pbdf              IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'.
 auth.publicurl                                               public URL which can be reached by a users IRMA client, this should include the scheme and domain: https://example.com. Additional paths should only be added if some sort of url-rewriting is done in a reverse-proxy.
 **Crypto**
-crypto.storage                             fs                Storage to use, 'fs' for file system, default: fs
+crypto.storage                             fs                Storage to use, 'fs' for file system, vaultkv for Vault KV store, default: fs.
+crypto.vault.address                                         The Vault address. If set it overwrites the VAULT_ADDR env var.
+crypto.vault.pathprefix                    kv                The Vault path prefix. default: kv.
+crypto.vault.token                                           The Vault token. If set it overwrites the VAULT_TOKEN env var.
 **Event manager**
 events.nats.hostname                       localhost         Hostname for the NATS server
-events.nats.port                           4022              Port where the NATS server listens on
+events.nats.port                           4222              Port where the NATS server listens on
 events.nats.storagedir                                       Directory where file-backed streams are stored in the NATS server
+events.nats.timeout                        30                Timeout for NATS server operations
 **Network**
 network.bootstrapnodes                     []                List of bootstrap nodes (`<host>:<port>`) which the node initially connect to.
 network.certfile                                             PEM file containing the server certificate for the gRPC server. Required when `enableTLS` is `true`.

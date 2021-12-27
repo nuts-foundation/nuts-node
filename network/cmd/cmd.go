@@ -19,10 +19,11 @@
 package cmd
 
 import (
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"sort"
 	"strings"
+
+	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"

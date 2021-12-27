@@ -3,18 +3,20 @@ package events
 import (
 	"context"
 	"errors"
-	"github.com/golang/mock/gomock"
-	"github.com/nats-io/nats.go"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/golang/mock/gomock"
+	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNATSConnectionPool_Acquire(t *testing.T) {
 	t.Run("fails when context was cancelled", func(t *testing.T) {
-		pool := NewNATSConnectionPool(&Config{})
+		pool := NewNATSConnectionPool(Config{})
 		pool.connectFunc = func(url string, options ...nats.Option) (Conn, error) {
 			return nil, errors.New("random error")
 		}
@@ -38,7 +40,7 @@ func TestNATSConnectionPool_Acquire(t *testing.T) {
 		mockConn := NewMockConn(ctrl)
 		mockConn.EXPECT().JetStream().Return(mockJs, nil)
 
-		pool := NewNATSConnectionPool(&Config{})
+		pool := NewNATSConnectionPool(Config{})
 		pool.connectFunc = func(url string, options ...nats.Option) (Conn, error) {
 			if called {
 				return mockConn, nil
@@ -62,6 +64,7 @@ func TestNATSConnectionPool_Acquire(t *testing.T) {
 	t.Run("ok - NATS integration test", func(t *testing.T) {
 		manager := NewManager().(*manager)
 		manager.config.Port = 402249
+		manager.Configure(core.ServerConfig{})
 
 		pool := manager.Pool()
 

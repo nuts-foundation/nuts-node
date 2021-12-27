@@ -46,6 +46,7 @@ type networkTestContext struct {
 	network              *Network
 	connectionManager    *transport.MockConnectionManager
 	eventsConnectionPool *events.MockConnectionPool
+	eventManager         *events.MockEvent
 	graph                *dag.MockDAG
 	payload              *dag.MockPayloadStore
 	keyStore             *crypto.MockKeyStore
@@ -142,7 +143,6 @@ func TestNetwork_Diagnostics(t *testing.T) {
 func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - configured node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		ctx := createNetwork(ctrl, func(config *Config) {
 			config.NodeDID = "did:nuts:test"
@@ -600,7 +600,9 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	docResolver := vdrTypes.NewMockDocResolver(ctrl)
 	pool := events.NewMockConnectionPool(ctrl)
-	network := NewNetworkInstance(networkConfig, pool, keyResolver, keyStore, decrypter, docResolver)
+	eventManager := events.NewMockEvent(ctrl)
+	eventManager.EXPECT().Pool().Return(pool).AnyTimes()
+	network := NewNetworkInstance(networkConfig, eventManager, keyResolver, keyStore, decrypter, docResolver)
 	network.graph = graph
 	network.connectionManager = connectionManager
 	network.payloadStore = payload
@@ -611,6 +613,7 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	return &networkTestContext{
 		network:              network,
 		eventsConnectionPool: pool,
+		eventManager:         eventManager,
 		connectionManager:    connectionManager,
 		protocol:             prot,
 		graph:                graph,

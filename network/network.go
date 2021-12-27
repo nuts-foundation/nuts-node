@@ -69,7 +69,7 @@ type Network struct {
 	config                 Config
 	lastTransactionTracker lastTransactionTracker
 	protocols              []transport.Protocol
-	eventsConnectionPool   events.ConnectionPool
+	eventManager           events.Event
 	connectionManager      transport.ConnectionManager
 	graph                  dag.DAG
 	publisher              dag.Publisher
@@ -93,7 +93,7 @@ func (n *Network) Walk(visitor dag.Visitor) error {
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(
 	config Config,
-	eventsConnectionPool events.ConnectionPool,
+	eventManager events.Event,
 	keyResolver types.KeyResolver,
 	privateKeyResolver crypto.KeyResolver,
 	decrypter crypto.Decrypter,
@@ -106,7 +106,7 @@ func NewNetworkInstance(
 		privateKeyResolver:     privateKeyResolver,
 		didDocumentResolver:    didDocumentResolver,
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
-		eventsConnectionPool:   eventsConnectionPool,
+		eventManager:           eventManager,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool)},
 	}
 }
@@ -134,7 +134,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	_, privateTxCtx, err := n.eventsConnectionPool.Acquire(ctx)
+	_, privateTxCtx, err := n.eventManager.Pool().Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to acquire a connection for events: %w", err)
 	}
@@ -159,7 +159,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Configure protocols
 	n.protocols = []transport.Protocol{
 		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
-		v2.New(n.config.ProtocolV2, n.eventsConnectionPool, n.nodeDIDResolver, n.graph, n.payloadStore, n.didDocumentResolver, n.decrypter),
+		v2.New(n.config.ProtocolV2, n.eventManager.Pool(), n.nodeDIDResolver, n.graph, n.payloadStore, n.didDocumentResolver, n.decrypter),
 	}
 
 	for _, prot := range n.protocols {

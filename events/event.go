@@ -31,7 +31,7 @@ import (
 const moduleName = "Event manager"
 
 type manager struct {
-	config *Config
+	config Config
 	pool   ConnectionPool
 	server *natsServer.Server
 }
@@ -39,11 +39,9 @@ type manager struct {
 // NewManager returns a new event manager
 func NewManager() Event {
 	config := DefaultConfig()
-	configPtr := &config
 
 	return &manager{
-		config: configPtr,
-		pool:   NewNATSConnectionPool(configPtr),
+		config: config,
 	}
 }
 
@@ -63,6 +61,8 @@ func (m *manager) Configure(config core.ServerConfig) error {
 	if m.config.StorageDir == "" {
 		m.config.StorageDir = path.Join(config.Datadir, "events")
 	}
+
+	m.pool = NewNATSConnectionPool(m.config)
 
 	return nil
 }
