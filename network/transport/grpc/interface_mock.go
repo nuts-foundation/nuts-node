@@ -38,9 +38,11 @@ func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 }
 
 // Configure mocks base method.
-func (m *MockProtocol) Configure(peerID transport.PeerID) {
+func (m *MockProtocol) Configure(peerID transport.PeerID) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Configure", peerID)
+	ret := m.ctrl.Call(m, "Configure", peerID)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Configure indicates an expected call of Configure.
@@ -147,9 +149,11 @@ func (mr *MockProtocolMockRecorder) Register(registrar, acceptor, connectionList
 }
 
 // Start mocks base method.
-func (m *MockProtocol) Start() {
+func (m *MockProtocol) Start() error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Start")
+	ret := m.ctrl.Call(m, "Start")
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Start indicates an expected call of Start.

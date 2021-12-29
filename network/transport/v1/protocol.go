@@ -20,6 +20,8 @@ package v1
 
 import (
 	"context"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -28,7 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/logic"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	grpcLib "google.golang.org/grpc"
-	"time"
 )
 
 var _ grpc.Protocol = (*protocolV1)(nil)
@@ -90,16 +91,19 @@ func (p protocolV1) UnwrapMessage(raw interface{}) interface{} {
 	return raw.(*protobuf.NetworkMessage).Message
 }
 
-func (p protocolV1) Configure(peerID transport.PeerID) {
+func (p protocolV1) Configure(peerID transport.PeerID) error {
 	p.protocol.Configure(
 		time.Duration(p.config.AdvertHashesInterval)*time.Millisecond,
 		time.Duration(p.config.AdvertDiagnosticsInterval)*time.Millisecond,
 		time.Duration(p.config.CollectMissingPayloadsInterval)*time.Millisecond,
 		peerID)
+
+	return nil
 }
 
-func (p protocolV1) Start() {
+func (p protocolV1) Start() error {
 	p.protocol.Start()
+	return nil
 }
 
 func (p protocolV1) Stop() {

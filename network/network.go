@@ -149,9 +149,13 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	// Configure protocols
+	// todo: correct config passing?
+	v2Cfg := n.config.ProtocolV2
+	v2Cfg.Datadir = config.Datadir
+
 	n.protocols = []transport.Protocol{
 		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
-		v2.New(n.config.ProtocolV2, n.eventManager.Pool(), n.nodeDIDResolver, n.graph, n.payloadStore, n.didDocumentResolver, n.decrypter),
+		v2.New(v2Cfg, n.eventManager.Pool(), n.nodeDIDResolver, n.graph, n.payloadStore, n.didDocumentResolver, n.decrypter),
 	}
 
 	for _, prot := range n.protocols {
@@ -246,7 +250,9 @@ func (n *Network) Start() error {
 		return err
 	}
 	for _, prot := range n.protocols {
-		prot.Start()
+		if err = prot.Start(); err != nil {
+			return err
+		}
 	}
 
 	// Start connecting to bootstrap nodes

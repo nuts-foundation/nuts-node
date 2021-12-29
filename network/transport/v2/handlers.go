@@ -110,5 +110,9 @@ func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
 		// Possible attack: received payload does not match transaction payload hash.
 		return fmt.Errorf("peer sent payload that doesn't match payload hash (tx=%s)", ref)
 	}
-	return p.payloadStore.WritePayload(ctx, payloadHash, msg.Data)
+	if err = p.payloadStore.WritePayload(ctx, payloadHash, msg.Data); err != nil {
+		return err
+	}
+	// it's save, remove the retry
+	return p.payloadRetrier.Remove(ref)
 }
