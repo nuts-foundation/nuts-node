@@ -71,7 +71,8 @@ type Connection interface {
 
 	// Peer returns the associated peer information of this connection. If the connection is not active, it will return an empty peer.
 	Peer() transport.Peer
-	// Connected returns whether the connection is active or not.
+
+	// IsConnected returns whether the connection is active or not.
 	IsConnected() bool
 }
 
@@ -100,7 +101,7 @@ type conn struct {
 }
 
 func (mc *conn) Peer() transport.Peer {
-	// Populated through createConnection and verifyOrSetPeerID
+	// Populated through createConnection and setPeerID
 	peer, _ := mc.peer.Load().(transport.Peer)
 	return peer
 }

@@ -315,7 +315,7 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 		return nil, fatalError{error: fmt.Errorf("failed to read peer ID header: %w", err)}
 	}
 
-	if !connection.verifyOrSetPeerID(peerID) {
+	if !connection.setPeerID(peerID) {
 		return nil, fatalError{error: fmt.Errorf("peer sent invalid ID (id=%s)", peerID)}
 	}
 
