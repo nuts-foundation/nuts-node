@@ -74,17 +74,26 @@ func TestPayloadRetrier_Configure(t *testing.T) {
 type callbackCounter struct {
 	count int
 	wg    sync.WaitGroup
+	// mutex to prevent data race during test
+	mutex sync.Mutex
 }
 
 func (cc *callbackCounter) wait(count int) {
+	cc.mutex.Lock()
+	
 	if cc.count >= count {
 		return
 	}
+
+	cc.mutex.Unlock()
 	cc.wg.Add(count)
 	cc.wg.Wait()
 }
 
 func (cc *callbackCounter) callback(_ hash.SHA256Hash) {
+	cc.mutex.Lock()
+	defer cc.mutex.Unlock()
+
 	cc.count++
 	cc.wg.Done()
 }

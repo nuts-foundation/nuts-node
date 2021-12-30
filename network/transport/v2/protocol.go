@@ -161,7 +161,7 @@ func (p *protocol) Start() (err error) {
 	// setup Nats
 	go func() {
 		for {
-			err = p.setupNatsHandler()
+			err := p.setupNatsHandler()
 
 			if err == nil {
 				break
