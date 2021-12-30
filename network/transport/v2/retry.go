@@ -35,6 +35,7 @@ import (
 	"go.etcd.io/bbolt"
 )
 
+// Retriable defines methods for a persistent retry mechanism
 type Retriable interface {
 	// Add a job that needs to be retried. It'll be passed to the channel immediately and at set intervals.
 	// Returns nil if job already exists.

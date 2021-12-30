@@ -95,11 +95,14 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	// Now assert that all nodes have received all transactions
 	waitForTransactions := func(node string, graph dag.DAG) bool {
 		return test.WaitFor(t, func() (bool, error) {
-			if docs, err := graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime()); err != nil {
+			var (
+				docs []dag.Transaction
+				err  error
+			)
+			if docs, err = graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime()); err != nil {
 				return false, err
-			} else {
-				return len(docs) == expectedDocLogSize, nil
 			}
+			return len(docs) == expectedDocLogSize, nil
 		}, defaultTimeout, "%s: time-out while waiting for %d transactions", node, expectedDocLogSize)
 	}
 	waitForTransactions("bootstrap", bootstrap.graph)
