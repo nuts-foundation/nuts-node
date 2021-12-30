@@ -10,13 +10,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	grpcLib "google.golang.org/grpc"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
@@ -24,13 +22,13 @@ import (
 )
 
 type protocolMocks struct {
-	Controller           *gomock.Controller
-	EventsConnectionPool *events.MockConnectionPool
-	Graph                *dag.MockDAG
-	PayloadScheduler     *MockScheduler
-	PayloadStore         *dag.MockPayloadStore
-	DocResolver          *vdr.MockDocResolver
-	Decrypter            *crypto.MockDecrypter
+	Controller       *gomock.Controller
+	Graph            *dag.MockDAG
+	Publisher        *dag.MockPublisher
+	PayloadScheduler *MockScheduler
+	PayloadStore     *dag.MockPayloadStore
+	DocResolver      *vdr.MockDocResolver
+	Decrypter        *crypto.MockDecrypter
 }
 
 func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) {
@@ -41,18 +39,18 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	graph := dag.NewMockDAG(ctrl)
 	payloadScheduler := NewMockScheduler(ctrl)
 	payloadStore := dag.NewMockPayloadStore(ctrl)
+	publisher := dag.NewMockPublisher(ctrl)
 	nodeDIDResolver := transport.FixedNodeDIDResolver{}
-	eventsConnectionPool := events.NewMockConnectionPool(ctrl)
 
 	if nodeDID != nil {
 		nodeDIDResolver.NodeDID = *nodeDID
 	}
 
-	proto := New(Config{}, eventsConnectionPool, nodeDIDResolver, graph, payloadStore, docResolver, decrypter)
+	proto := New(Config{}, nodeDIDResolver, graph, publisher, payloadStore, docResolver, decrypter)
 	proto.(*protocol).payloadScheduler = payloadScheduler
 
 	return proto.(*protocol), protocolMocks{
-		ctrl, eventsConnectionPool, graph, payloadScheduler, payloadStore, docResolver, decrypter,
+		ctrl, graph, publisher, payloadScheduler, payloadStore, docResolver, decrypter,
 	}
 }
 
@@ -72,7 +70,12 @@ func TestProtocol_Configure(t *testing.T) {
 		},
 	}
 
-	assert.NoError(t, p.Configure(""))
+	testDID, _ := did.ParseDID("did:nuts:123")
+	p, mocks := newTestProtocol(t, testDID)
+
+	mocks.Publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any())
+
+	p.Configure("")
 }
 
 func TestProtocol_Diagnostics(t *testing.T) {
@@ -140,7 +143,6 @@ func TestProtocol_lifecycle(t *testing.T) {
 	p, mocks := newTestProtocol(t, nil)
 	mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 	mocks.PayloadScheduler.EXPECT().Close()
-	p.eventsConnectionPool = events.NewStubConnectionPool()
 	p.Start()
 
 	p.Register(s, func(stream grpcLib.ServerStream) error {
@@ -154,21 +156,10 @@ func TestProtocol_lifecycle(t *testing.T) {
 }
 
 func TestProtocol_Start(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	js := events.NewMockJetStreamContext(ctrl)
-	js.EXPECT().StreamInfo(events.PrivateTransactionsStream).Return(&nats.StreamInfo{}, nil)
-	js.EXPECT().Subscribe(events.PrivateTransactionsSubject, gomock.Any(), gomock.Any()).Return(nil, nil)
-
-	conn := events.NewMockConn(ctrl)
-	conn.EXPECT().JetStream().Return(js, nil)
-
 	proto, mocks := newTestProtocol(t, nil)
 
 	mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 	mocks.PayloadScheduler.EXPECT().Close()
-	mocks.EventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(conn, nil, nil)
-
 	proto.Start()
 	proto.Stop()
 
@@ -176,33 +167,40 @@ func TestProtocol_Start(t *testing.T) {
 }
 
 func TestProtocol_HandlePrivateTx(t *testing.T) {
-	tx, _, _ := dag.CreateTestTransaction(0)
+	txOk := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
 
 	t.Run("ok - event passed as job to payloadScheduler", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
-		mocks.PayloadScheduler.EXPECT().Schedule(tx.Ref())
+		mocks.PayloadScheduler.EXPECT().Schedule(txOk.Ref())
 
-		err := proto.handlePrivateTx(&nats.Msg{Data: tx.Data()})
+		err := proto.handlePrivateTx(txOk, nil)
 
 		assert.NoError(t, err)
 	})
 
-	t.Run("error - can't parse transaction", func(t *testing.T) {
+	t.Run("ok - event ignored", func(t *testing.T) {
+		tx, _, _ := dag.CreateTestTransaction(0)
 		proto, _ := newTestProtocol(t, nil)
 
-		err := proto.handlePrivateTx(&nats.Msg{})
+		err := proto.handlePrivateTx(tx, nil)
 
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.EqualError(t, err, "unable to parse transaction: invalid byte sequence")
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - event ignored because of non-empty payload", func(t *testing.T) {
+		tx, _, _ := dag.CreateTestTransaction(0)
+		proto, _ := newTestProtocol(t, nil)
+
+		err := proto.handlePrivateTx(tx, []byte{0})
+
+		assert.NoError(t, err)
 	})
 
 	t.Run("error - can't add to scheduler", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
-		mocks.PayloadScheduler.EXPECT().Schedule(tx.Ref()).Return(errors.New("b00m!"))
+		mocks.PayloadScheduler.EXPECT().Schedule(txOk.Ref()).Return(errors.New("b00m!"))
 
-		err := proto.handlePrivateTx(&nats.Msg{Data: tx.Data()})
+		err := proto.handlePrivateTx(txOk, nil)
 
 		if !assert.Error(t, err) {
 			return
@@ -215,7 +213,6 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 	keyDID, _ := did.ParseDIDURL("did:nuts:123#key1")
 	testDID, _ := did.ParseDID("did:nuts:123")
-	tx, _, _ := dag.CreateTestTransaction(0)
 	txOk := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
 
 	t.Run("errors when retrieving transaction errors", func(t *testing.T) {
@@ -274,18 +271,8 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
-		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): random error", txOk.Ref()))
-	})
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (ref=%s): random error", txOk.Ref()))
 
-	t.Run("removes job when the transaction doesn't contain a valid PAL header", func(t *testing.T) {
-		proto, mocks := newTestProtocol(t, testDID)
-
-		mocks.PayloadStore.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, nil)
-		mocks.Graph.EXPECT().Get(context.Background(), tx.Ref()).Return(tx, nil)
-		mocks.PayloadScheduler.EXPECT().Finished(tx.Ref())
-
-		err := proto.handlePrivateTxRetryErr(tx.Ref())
-		assert.NoError(t, err)
 	})
 
 	t.Run("errors when decryption fails because the key-agreement key could not be found", func(t *testing.T) {
@@ -373,7 +360,6 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		proto.connectionList = connectionList
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
-
 		assert.NoError(t, err)
 	})
 }

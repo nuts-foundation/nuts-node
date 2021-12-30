@@ -33,7 +33,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.etcd.io/bbolt"
 
-	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -170,10 +169,9 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		mux: &sync.Mutex{},
 	}
 
-	eventManager := events.NewStubEventManager()
 	ctx.graph = dag.NewBBoltDAG(db)
 	ctx.payloadStore = dag.NewBBoltPayloadStore(db)
-	publisher := dag.NewReplayingDAGPublisher(eventManager, ctx.payloadStore, ctx.graph)
+	publisher := dag.NewReplayingDAGPublisher(ctx.payloadStore, ctx.graph)
 	publisher.Subscribe(integrationTestPayloadType, func(tx dag.Transaction, payload []byte) error {
 		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
 		ctx.mux.Lock()

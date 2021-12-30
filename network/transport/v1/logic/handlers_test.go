@@ -22,10 +22,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -403,7 +404,7 @@ func Test_checkTransactionOnLocalNode(t *testing.T) {
 func toBlocks(txs []testTX) []dagBlock {
 	blx := newDAGBlocks()
 	for _, tx := range txs {
-		if err := blx.addTransaction(&tx, nil); err != nil {
+		if err := blx.addTransaction(&tx, []byte{1, 2, 3}); err != nil {
 			panic(err)
 		}
 	}
@@ -471,7 +472,7 @@ func (ctx testContext) assertNewOmnihash() {
 
 func (ctx testContext) handle(msg interface{}) error {
 	for _, tx := range ctx.transactions {
-		if err := ctx.instance.blocks.addTransaction(&tx, nil); err != nil {
+		if err := ctx.instance.blocks.addTransaction(&tx, []byte{1, 2, 3}); err != nil {
 			panic(err)
 		}
 	}

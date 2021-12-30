@@ -26,8 +26,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/events"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
@@ -75,7 +73,6 @@ func TestVDRIntegration_Test(t *testing.T) {
 	networkCfg.EnableTLS = false
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
-		events.NewStubEventManager(),
 		doc.KeyResolver{Store: didStore},
 		cryptoInstance,
 		cryptoInstance,
@@ -255,7 +252,6 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	networkCfg.EnableTLS = false
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
-		events.NewStubEventManager(),
 		doc.KeyResolver{Store: didStore},
 		cryptoInstance,
 		cryptoInstance,

@@ -165,7 +165,7 @@ func CreateSystem() *core.System {
 	docResolver := doc.Resolver{Store: memoryStore}
 	eventManager := events.NewManager()
 
-	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), eventManager, keyResolver, cryptoInstance, cryptoInstance, docResolver)
+	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, cryptoInstance, docResolver)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, memoryStore)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance)
 	didmanInstance := didman.NewDidmanInstance(docResolver, memoryStore, vdrInstance, credentialInstance)

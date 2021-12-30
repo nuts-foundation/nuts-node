@@ -83,6 +83,11 @@ var thumbprintAlg = crypto.SHA256
 // The rules are based on the Nuts RFC006
 // payload should be a json encoded did.document
 func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
+	if payload == nil {
+		// ignore first call, only act on second call (with payload)
+		return nil
+	}
+
 	log.Logger().Debugf("Processing DID document received from Nuts Network (ref=%s)", tx.Ref())
 	if err := checkTransactionIntegrity(tx); err != nil {
 		return fmt.Errorf("callback could not process new DID Document: %w", err)

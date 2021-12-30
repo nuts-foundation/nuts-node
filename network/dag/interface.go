@@ -79,6 +79,7 @@ type Publisher interface {
 	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
 	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
 	// to all payload types.
+	// The receiver is called for both the TX as the payload, a nil payload may be passed
 	Subscribe(payloadType string, receiver Receiver)
 	// Start starts the publisher.
 	Start() error

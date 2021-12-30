@@ -21,19 +21,15 @@ package dag
 import (
 	"container/list"
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
-	"github.com/nats-io/nats.go"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
-func NewReplayingDAGPublisher(eventManager events.Event, payloadStore PayloadStore, dag DAG) Publisher {
+func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
 	publisher := &replayingDAGPublisher{
 		subscribers:         map[string]Receiver{},
 		resumeAt:            list.New(),
@@ -41,7 +37,6 @@ func NewReplayingDAGPublisher(eventManager events.Event, payloadStore PayloadSto
 		dag:                 dag,
 		payloadStore:        payloadStore,
 		publishMux:          &sync.Mutex{},
-		eventManager:        eventManager,
 	}
 
 	return publisher
@@ -53,8 +48,6 @@ type replayingDAGPublisher struct {
 	visitedTransactions map[hash.SHA256Hash]bool
 	dag                 DAG
 	payloadStore        PayloadStore
-	eventManager        events.Event
-	privateTxCtx        events.JetStreamContext
 	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
 
@@ -92,20 +85,6 @@ func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver)
 func (s *replayingDAGPublisher) Start() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
-
-	var err error
-	_, s.privateTxCtx, err = s.eventManager.Pool().Acquire(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to acquire a connection for events: %w", err)
-	}
-
-	_, err = s.privateTxCtx.AddStream(&nats.StreamConfig{
-		Name:     events.PrivateTransactionsStream,
-		Subjects: []string{events.PrivateTransactionsSubject},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to setup NATS stream: %w", err)
-	}
 
 	s.dag.RegisterObserver(s.TransactionAdded)
 	s.payloadStore.RegisterObserver(s.PayloadWritten)
@@ -151,14 +130,6 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 	}
 }
 
-func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) {
-	_, err := s.privateTxCtx.PublishAsync(events.PrivateTransactionsSubject, tx.Data())
-
-	if err != nil {
-		log.Logger().Errorf("unable to handle private transaction: (ref=%s) %v", tx.Ref(), err)
-	}
-}
-
 func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transaction Transaction) bool {
 	payload, err := s.payloadStore.ReadPayload(ctx, transaction.PayloadHash())
 	if err != nil {
@@ -166,14 +137,12 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 		return false
 	}
 
+	txCompleted := true
 	if payload == nil {
-		// Handle private transactions via V2 protocol
-		if len(transaction.PAL()) > 0 {
-			s.handlePrivateTransaction(transaction)
+		// We haven't got the payload, so we don't move the pointer in this publisher unless it's a private TX
+		if len(transaction.PAL()) == 0 {
+			txCompleted = false
 		}
-
-		// We haven't got the payload, break of processing for this branch
-		return false
 	}
 
 	for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
@@ -186,5 +155,5 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 		}
 	}
 
-	return true
+	return txCompleted
 }

@@ -20,12 +20,13 @@ package logic
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"math"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 )
 
 const numberOfBlocks = 3
@@ -121,7 +122,16 @@ func (blx *trackingDAGBlocks) get() []dagBlock {
 // AddTransaction adds a transaction to the DAG blocks structure. It MUST be called for transactions in order,
 // so it's typically called using a sequential DAG subscriber.
 // So given TXs `A <- B <- [C, D]` call order is A, B, C, D (or A, B, D, C).
-func (blx *trackingDAGBlocks) addTransaction(tx dag.Transaction, _ []byte) error {
+func (blx *trackingDAGBlocks) addTransaction(tx dag.Transaction, payload []byte) error {
+	if payload == nil && len(tx.PAL()) == 0 {
+		// for non-private TXs, act on payload only
+		return nil
+	}
+	if payload != nil && len(tx.PAL()) > 0 {
+		// for private TX, act on DAG entry only
+		return nil
+	}
+
 	blx.mux.Lock()
 	defer blx.mux.Unlock()
 	blx.internalUpdate(time.Now())

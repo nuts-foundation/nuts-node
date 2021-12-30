@@ -59,6 +59,11 @@ func (n ambassador) Configure() {
 // The VCR is used to verify the contents of the credential.
 // payload should be a json encoded vc.VerifiableCredential
 func (n ambassador) vcCallback(tx dag.Transaction, payload []byte) error {
+	if payload == nil {
+		// ignore first call, only act on second call (with payload)
+		return nil
+	}
+
 	log.Logger().Debugf("Processing VC received from Nuts Network (ref=%s)", tx.Ref())
 
 	target := vc.VerifiableCredential{}
