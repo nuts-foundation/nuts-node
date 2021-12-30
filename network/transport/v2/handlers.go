@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
@@ -51,9 +52,33 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *Trans
 			log.Logger().Warnf("Peer requested private transaction over unauthenticated connection (peer=%s,tx=%s)", peer, tx.Ref())
 			return p.send(peer, emptyResponse)
 		}
-		// TODO: Authorize node DID using PAL header
-		log.Logger().Error("TODO: Querying private transaction in v2 is not supported yet.")
-		return p.send(peer, emptyResponse)
+		epal := dag.EncryptedPAL(tx.PAL())
+
+		pal, err := p.decryptPAL(epal)
+		if err != nil {
+			log.Logger().Errorf("Peer requested private transaction but decoding failed (peer=%s,tx=%s): %v", peer, tx.Ref(), err)
+			return p.send(peer, emptyResponse)
+		}
+
+		// We weren't able to decrypt the PAL, so it wasn't meant for us
+		if pal == nil {
+			log.Logger().Warnf("Peer requested private transaction we can't decode (peer=%s,tx=%s)", peer, tx.Ref())
+			return p.send(peer, emptyResponse)
+		}
+
+		var success bool
+		for _, participant := range pal {
+			if participant.Equals(peer.NodeDID) {
+				success = true
+				break
+			}
+		}
+
+		if !success {
+			log.Logger().Warnf("Peer requested private transaction illegally (peer=%s,tx=%s)", peer, tx.Ref())
+			return p.send(peer, emptyResponse)
+		}
+		// successful assertions fall through
 	}
 
 	data, err := p.payloadStore.ReadPayload(ctx, tx.PayloadHash())
