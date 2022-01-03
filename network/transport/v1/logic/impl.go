@@ -19,9 +19,9 @@
 package logic
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
 
@@ -61,6 +61,9 @@ type protocol struct {
 	// peerID contains our own peer ID which can be logged for debugging purposes
 	peerID    transport.PeerID
 	publisher dag.Publisher
+
+	ctx       context.Context
+	ctxCancel func()
 }
 
 func (p *protocol) Diagnostics() []core.DiagnosticResult {
@@ -143,70 +146,87 @@ func (p *protocol) Configure(advertHashesInterval time.Duration, advertDiagnosti
 }
 
 func (p *protocol) Start() {
-	go p.startUpdatingDiagnostics()
-	go p.startAdvertingHashes()
-	go p.startAdvertingDiagnostics()
-	go p.startCollectingMissingPayloads()
+	p.ctx, p.ctxCancel = context.WithCancel(context.Background())
+	go p.startUpdatingDiagnostics(p.ctx)
+	go p.startAdvertingHashes(p.ctx)
+	go p.startAdvertingDiagnostics(p.ctx)
+	go p.startCollectingMissingPayloads(p.ctx)
 }
 
 func (p protocol) Stop() {
-
+	if p.ctxCancel != nil {
+		p.ctxCancel()
+	}
 }
 
-func (p protocol) startAdvertingHashes() {
+func (p protocol) startAdvertingHashes(ctx context.Context) {
 	ticker := time.NewTicker(p.advertHashesInterval)
+	done := ctx.Done()
 	for {
 		select {
 		case <-ticker.C:
 			p.sender.broadcastAdvertHashes(p.blocks.get())
+		case <-done:
+			return
 		}
 	}
 }
 
-func (p protocol) startAdvertingDiagnostics() {
+func (p protocol) startAdvertingDiagnostics(ctx context.Context) {
 	if p.advertDiagnosticsInterval.Nanoseconds() == 0 {
 		log.Logger().Info("Diagnostics broadcasting is disabled.")
 		return
 	}
 	ticker := time.NewTicker(p.advertDiagnosticsInterval)
+	done := ctx.Done()
 	for {
 		select {
 		case <-ticker.C:
 			p.sender.broadcastDiagnostics(p.diagnosticsProvider())
+		case <-done:
+			return
 		}
 	}
 }
 
-func (p protocol) startCollectingMissingPayloads() {
+func (p protocol) startCollectingMissingPayloads(ctx context.Context) {
 	if p.collectMissingPayloadsInterval.Nanoseconds() == 0 {
 		log.Logger().Info("Collecting missing payloads is disabled.")
 		return
 	}
 	ticker := time.NewTicker(p.collectMissingPayloadsInterval)
+	done := ctx.Done()
 	for {
 		select {
 		case <-ticker.C:
 			err := p.missingPayloadCollector.findAndQueryMissingPayloads()
 			if err != nil {
-				logrus.Infof("Error occured while querying missing payloads: %s", err)
+				log.Logger().Infof("Error occured while querying missing payloads: %s", err)
 			}
+		case <-done:
+			return
 		}
 	}
 }
 
-func (p *protocol) startUpdatingDiagnostics() {
+func (p *protocol) startUpdatingDiagnostics(ctx context.Context) {
+	done := ctx.Done()
 	for {
-		p.updateDiagnostics()
+		if !p.updateDiagnostics(done) {
+			return
+		}
 	}
 }
 
-func (p *protocol) updateDiagnostics() {
+func (p *protocol) updateDiagnostics(done <-chan struct{}) bool {
 	select {
 	case peerOmnihash := <-p.peerOmnihashChannel:
 		withLock(p.peerOmnihashMutex, func() {
 			p.peerOmnihashes[peerOmnihash.Peer] = peerOmnihash.Hash
 		})
-		break
+		return true
+	case <-done:
+		return false
 	}
 }
 
