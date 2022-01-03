@@ -52,6 +52,7 @@ func Test_Protocol_PeerDiagnostics(t *testing.T) {
 	connection.EXPECT().Connected().Return(true)
 	connectionList := grpc.NewMockConnectionList(ctrl)
 	connectionList.EXPECT().Get(grpc.ByPeerID(peerID)).Return(connection)
+	connectionList.EXPECT().Get(grpc.ByPeerID("disconnected-peer")).Return(nil)
 
 	instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
 	instance.connections = connectionList
@@ -60,6 +61,10 @@ func Test_Protocol_PeerDiagnostics(t *testing.T) {
 		Peers:           []transport.PeerID{peerID},
 		SoftwareVersion: "1.0",
 	}
+
+	// Add a "disconnected" peer to test clean up
+	instance.peerDiagnostics["disconnected-peer"] = transport.Diagnostics{}
+
 	diagnostics := instance.PeerDiagnostics()
 	instance.peerDiagnostics[peerID].Peers[0] = "other-peer" // mutate entry to make sure function returns a copy
 	assert.Len(t, diagnostics, 1)
@@ -87,7 +92,7 @@ func Test_Protocol_StartUpdatingDiagnostics(t *testing.T) {
 }
 
 func Test_Protocol_Diagnostics(t *testing.T) {
-	t.Run("peer diagnostics", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -95,6 +100,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		connection.EXPECT().Connected().Return(true)
 		connectionList := grpc.NewMockConnectionList(ctrl)
 		connectionList.EXPECT().Get(grpc.ByPeerID(peerID)).Return(connection)
+		connectionList.EXPECT().Get(grpc.ByPeerID("disconnected-peer")).Return(nil)
 
 		payloadCollector := NewMockmissingPayloadCollector(ctrl)
 		payloadCollector.EXPECT().findMissingPayloads().AnyTimes().Return(nil, nil)
@@ -103,6 +109,9 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		instance.connections = connectionList
 		instance.missingPayloadCollector = payloadCollector
 		instance.peerOmnihashChannel = make(chan PeerOmnihash, 1)
+
+		// Add something to clean up
+		instance.peerOmnihashes["disconnected-peer"] = hash.SHA256Hash{1}
 
 		stats := instance.Diagnostics()[0].(peerOmnihashStatistic)
 		assert.Empty(t, stats.peerHashes)

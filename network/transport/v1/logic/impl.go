@@ -96,12 +96,13 @@ func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics 
 	p.peerDiagnosticsMutex.Lock()
 	defer p.peerDiagnosticsMutex.Unlock()
 	// Clone map to avoid racy behaviour
-	result := make(map[transport.PeerID]transport.Diagnostics, len(p.peerDiagnostics))
+	result := make(map[transport.PeerID]transport.Diagnostics)
 	for peerID, value := range p.peerDiagnostics {
 		// Clean up diagnostics of disconnected peers on the go
 		connection := p.connections.Get(grpc.ByPeerID(peerID))
 		if connection == nil || !connection.Connected() {
 			delete(p.peerDiagnostics, peerID)
+			continue
 		}
 		clone := value
 		clone.Peers = append([]transport.PeerID(nil), value.Peers...)
