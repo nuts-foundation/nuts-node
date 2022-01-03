@@ -295,7 +295,32 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		assert.EqualError(t, err, "failed to read peer ID header: peer sent empty peerID header")
 	})
 	t.Run("second stream over same connection sends different peer ID", func(t *testing.T) {
-		t.Skip("TODO")
+		serverCfg, serverListener := newBufconnConfig("server")
+		server := NewGRPCConnectionManager(serverCfg, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
+		if err := server.Start(); err != nil {
+			t.Fatal(err)
+		}
+		defer server.Stop()
+
+		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
+		client := NewGRPCConnectionManager(clientCfg, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
+		c := createConnection(clientCfg.dialer, transport.Peer{})
+		grpcConn, err := clientCfg.dialer(context.Background(), "server")
+		if !assert.NoError(t, err) {
+			return
+		}
+		md, _ := client.constructMetadata()
+
+		// First stream
+		outboundStream, err := client.openOutboundStream(c, &TestProtocol{}, grpcConn, md)
+		assert.NotNil(t, outboundStream)
+		assert.NoError(t, err)
+
+		// Second stream with different peer ID
+		server.config.peerID = "other-peer-id"
+		outboundStream, err = client.openOutboundStream(c, &TestProtocol{}, grpcConn, md)
+		assert.Nil(t, outboundStream)
+		assert.EqualError(t, err, "peer sent invalid ID (id=other-peer-id)")
 	})
 	t.Run("client does not support gRPC protocol implementation", func(t *testing.T) {
 		serverCfg, serverListener := newBufconnConfig("server")
