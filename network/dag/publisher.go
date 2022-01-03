@@ -21,7 +21,9 @@ package dag
 import (
 	"container/list"
 	"context"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
@@ -29,7 +31,7 @@ import (
 )
 
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
-func NewReplayingDAGPublisher(privateTxCtx events.JetStreamContext, payloadStore PayloadStore, dag DAG) Publisher {
+func NewReplayingDAGPublisher(eventManager events.Event, payloadStore PayloadStore, dag DAG) Publisher {
 	publisher := &replayingDAGPublisher{
 		subscribers:         map[string]Receiver{},
 		resumeAt:            list.New(),
@@ -37,7 +39,7 @@ func NewReplayingDAGPublisher(privateTxCtx events.JetStreamContext, payloadStore
 		dag:                 dag,
 		payloadStore:        payloadStore,
 		publishMux:          &sync.Mutex{},
-		privateTxCtx:        privateTxCtx,
+		eventManager:        eventManager,
 	}
 
 	dag.RegisterObserver(publisher.TransactionAdded)
@@ -52,6 +54,7 @@ type replayingDAGPublisher struct {
 	visitedTransactions map[hash.SHA256Hash]bool
 	dag                 DAG
 	payloadStore        PayloadStore
+	eventManager        events.Event
 	privateTxCtx        events.JetStreamContext
 	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
@@ -87,9 +90,17 @@ func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver)
 	}
 }
 
-func (s replayingDAGPublisher) Start() {
-	ctx := context.Background()
+func (s replayingDAGPublisher) Start() error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
 
+	var err error
+	_, s.privateTxCtx, err = s.eventManager.Pool().Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to acquire a connection for events: %w", err)
+	}
+
+	ctx = context.Background()
 	s.publishMux.Lock()
 	defer s.publishMux.Unlock()
 
@@ -98,6 +109,7 @@ func (s replayingDAGPublisher) Start() {
 	s.publish(ctx)
 
 	log.Logger().Debug("Finished replaying DAG")
+	return nil
 }
 
 // publish is called both from PayloadWritten and PublishTransaction

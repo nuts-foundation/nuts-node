@@ -21,14 +21,31 @@ package dag
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/events"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/events"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestReplayingDAGPublisher_Start(t *testing.T) {
+	t.Run("err - failed to get Nats connection", func(t *testing.T) {
+		ctrl := createPublisher(t)
+		connectionPool := events.NewMockConnectionPool(ctrl.ctrl)
+		ctrl.eventManager.EXPECT().Pool().Return(connectionPool)
+		connectionPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, errors.New("b00m!"))
+
+		err := ctrl.publisher.Start()
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "failed to acquire a connection for events: b00m!")
+	})
+}
 
 func TestReplayingPublisher(t *testing.T) {
 	t.Run("empty graph at start", func(t *testing.T) {
@@ -37,8 +54,8 @@ func TestReplayingPublisher(t *testing.T) {
 		db := createBBoltDB(testDirectory)
 		dag := NewBBoltDAG(db)
 		payloadStore := NewBBoltPayloadStore(db)
-		privateTxCtx := events.NewMockJetStreamContext(gomock.NewController(t))
-		publisher := NewReplayingDAGPublisher(privateTxCtx, payloadStore, dag).(*replayingDAGPublisher)
+		eventManager := events.NewStubEventManager()
+		publisher := NewReplayingDAGPublisher(eventManager, payloadStore, dag).(*replayingDAGPublisher)
 		received := false
 		transaction := CreateTestTransactionWithJWK(1)
 		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
@@ -70,8 +87,8 @@ func TestReplayingPublisher(t *testing.T) {
 			return
 		}
 
-		privateTxCtx := events.NewMockJetStreamContext(gomock.NewController(t))
-		publisher := NewReplayingDAGPublisher(privateTxCtx, payloadStore, dag).(*replayingDAGPublisher)
+		eventManager := events.NewStubEventManager()
+		publisher := NewReplayingDAGPublisher(eventManager, payloadStore, dag).(*replayingDAGPublisher)
 		received := false
 		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
@@ -85,133 +102,137 @@ func TestReplayingPublisher(t *testing.T) {
 }
 
 func TestReplayingPublisher_publishTransaction(t *testing.T) {
+	ctx := context.Background()
 	t.Run("no subscribers", func(t *testing.T) {
-		publisher, ctrl, _, store := createPublisher(t)
-		defer ctrl.Finish()
-		ctx := context.Background()
+		ctrl := createPublisher(t)
 
-		store.EXPECT().ReadPayload(ctx, gomock.Any()).Return([]byte{1, 2, 3}, nil)
+		ctrl.payloadStore.EXPECT().ReadPayload(ctx, gomock.Any()).Return([]byte{1, 2, 3}, nil)
 
-		publisher.publishTransaction(ctx, CreateTestTransactionWithJWK(1))
+		ctrl.publisher.publishTransaction(ctx, CreateTestTransactionWithJWK(1))
 	})
 	t.Run("single subscriber", func(t *testing.T) {
-		publisher, ctrl, _, store := createPublisher(t)
-		defer ctrl.Finish()
-		ctx := context.Background()
+		ctrl := createPublisher(t)
 
 		transaction := CreateTestTransactionWithJWK(1)
-		store.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
+		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 
 		received := false
-		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+		ctrl.publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
 			received = true
 			return nil
 		})
-		publisher.publishTransaction(ctx, transaction)
+		ctrl.publisher.publishTransaction(ctx, transaction)
 		assert.True(t, received)
 	})
 	t.Run("not received when transaction with pal header is skipped", func(t *testing.T) {
-		publisher, ctrl, privateTxCtx, _ := createPublisher(t)
-		defer ctrl.Finish()
-		ctx := context.Background()
+		ctrl := createPublisher(t)
 
 		transaction := CreateSignedTestTransaction(1, time.Now(), [][]byte{{9, 8, 7}}, "foo/bar", true)
 
 		received := false
-		privateTxCtx.EXPECT().PublishAsync(events.PrivateTransactionsSubject, gomock.Any()).Return(nil, nil)
-		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+		ctrl.privateTxCtx.EXPECT().PublishAsync(events.PrivateTransactionsSubject, gomock.Any()).Return(nil, nil)
+		ctrl.publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
 			received = true
 			return nil
 		})
-		publisher.publishTransaction(ctx, transaction)
+		ctrl.publisher.publishTransaction(ctx, transaction)
 		assert.False(t, received)
 	})
 	t.Run("payload not present (but present later)", func(t *testing.T) {
-		publisher, ctrl, _, store := createPublisher(t)
-		defer ctrl.Finish()
-		ctx := context.Background()
+		ctrl := createPublisher(t)
 
 		transaction := CreateTestTransactionWithJWK(1)
-		store.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return(nil, nil)
+		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return(nil, nil)
 
 		received := false
-		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+		ctrl.publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
 			received = true
 			return nil
 		})
-		publisher.publishTransaction(ctx, transaction)
+		ctrl.publisher.publishTransaction(ctx, transaction)
 		assert.False(t, received)
 
 		// Now add the payload and trigger observer func
-		store.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
-		publisher.publishTransaction(ctx, transaction)
+		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
+		ctrl.publisher.publishTransaction(ctx, transaction)
 
 		assert.True(t, received)
 	})
 	t.Run("error reading payload", func(t *testing.T) {
-		publisher, ctrl, _, store := createPublisher(t)
-		defer ctrl.Finish()
-		ctx := context.Background()
+		ctrl := createPublisher(t)
 
 		transaction := CreateTestTransactionWithJWK(1)
-		store.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return(nil, errors.New("failed"))
+		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return(nil, errors.New("failed"))
 
 		received := false
-		publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+		ctrl.publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			received = true
 			return nil
 		})
-		publisher.publishTransaction(ctx, transaction)
+		ctrl.publisher.publishTransaction(ctx, transaction)
 		assert.False(t, received)
 	})
 	t.Run("multiple subscribers", func(t *testing.T) {
-		publisher, ctrl, _, store := createPublisher(t)
-		defer ctrl.Finish()
-		ctx := context.Background()
+		ctrl := createPublisher(t)
 
 		transaction := CreateTestTransactionWithJWK(1)
-		store.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
+		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 
 		calls := 0
 		receiver := func(actualTransaction Transaction, actualPayload []byte) error {
 			calls++
 			return nil
 		}
-		publisher.Subscribe(transaction.PayloadType(), receiver)
-		publisher.Subscribe(transaction.PayloadType(), receiver)
+		ctrl.publisher.Subscribe(transaction.PayloadType(), receiver)
+		ctrl.publisher.Subscribe(transaction.PayloadType(), receiver)
 
-		publisher.publishTransaction(ctx, transaction)
+		ctrl.publisher.publishTransaction(ctx, transaction)
+
 		assert.Equal(t, 2, calls)
 	})
 	t.Run("multiple subscribers, first fails", func(t *testing.T) {
-		publisher, ctrl, _, store := createPublisher(t)
-		defer ctrl.Finish()
-		ctx := context.Background()
+		ctrl := createPublisher(t)
 
 		transaction := CreateTestTransactionWithJWK(1)
-		store.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
+		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 		calls := 0
 		receiver := func(actualTransaction Transaction, actualPayload []byte) error {
 			calls++
 			return errors.New("failed")
 		}
-		publisher.Subscribe(transaction.PayloadType(), receiver)
-		publisher.Subscribe(transaction.PayloadType(), receiver)
-		publisher.publishTransaction(ctx, transaction)
+		ctrl.publisher.Subscribe(transaction.PayloadType(), receiver)
+		ctrl.publisher.Subscribe(transaction.PayloadType(), receiver)
+		ctrl.publisher.publishTransaction(ctx, transaction)
 		assert.Equal(t, 1, calls)
 	})
 }
 
-func createPublisher(t *testing.T) (*replayingDAGPublisher, *gomock.Controller, *events.MockJetStreamContext, *MockPayloadStore) {
+func createPublisher(t *testing.T) testPublisher {
 	ctrl := gomock.NewController(t)
 	payloadStore := NewMockPayloadStore(ctrl)
 	payloadStore.EXPECT().RegisterObserver(gomock.Any())
 	dag := NewMockDAG(ctrl)
 	dag.EXPECT().RegisterObserver(gomock.Any())
 	privateTxCtx := events.NewMockJetStreamContext(ctrl)
-	publisher := NewReplayingDAGPublisher(privateTxCtx, payloadStore, dag).(*replayingDAGPublisher)
-	return publisher, ctrl, privateTxCtx, payloadStore
+	eventManager := events.NewMockEvent(ctrl)
+	publisher := NewReplayingDAGPublisher(eventManager, payloadStore, dag).(*replayingDAGPublisher)
+	publisher.privateTxCtx = privateTxCtx
+	return testPublisher{
+		ctrl:         ctrl,
+		payloadStore: payloadStore,
+		eventManager: eventManager,
+		privateTxCtx: privateTxCtx,
+		publisher:    publisher,
+	}
+}
+
+type testPublisher struct {
+	ctrl         *gomock.Controller
+	payloadStore *MockPayloadStore
+	eventManager *events.MockEvent
+	privateTxCtx *events.MockJetStreamContext
+	publisher    *replayingDAGPublisher
 }
