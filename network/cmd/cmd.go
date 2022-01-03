@@ -49,7 +49,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("network.certkeyfile", defs.CertKeyFile, "PEM file containing the private key of the server certificate. "+
 		"Required when `network.enabletls` is `true`.")
 	flagSet.String("network.truststorefile", defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
-	flagSet.Bool("network.disablenodeauthentication", defs.DisableNodeAuthentication, "Disable node DID authentication using client certificate. Not allows in strict-mode.")
+	flagSet.Bool("network.disablenodeauthentication", defs.DisableNodeAuthentication, "Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.")
 	flagSet.String("network.nodedid", defs.NodeDID, "Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.")
 	flagSet.Int("network.v1.adverthashesinterval", defs.ProtocolV1.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
 	flagSet.Int("network.v1.advertdiagnosticsinterval", defs.ProtocolV1.AdvertDiagnosticsInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")
