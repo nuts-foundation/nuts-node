@@ -2,6 +2,7 @@ package v2
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -152,54 +153,17 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 	keyDID, _ := did.ParseDIDURL("did:nuts:123#key1")
 	testDID, _ := did.ParseDID("did:nuts:123")
 
-	t.Run("errors when node DID is not set", func(t *testing.T) {
-		proto, _ := newTestProtocol(t, nil)
-
-		err := proto.handlePrivateTx(&nats.Msg{})
-		assert.EqualError(t, err, "node DID is not set")
-	})
-
-	t.Run("errors when resolving the node DID document fails", func(t *testing.T) {
-		proto, mocks := newTestProtocol(t, testDID)
-
-		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
-
-		err := proto.handlePrivateTx(&nats.Msg{})
-		assert.EqualError(t, err, "random error")
-	})
-
-	t.Run("errors when the transaction doesn't contain a valid PAL header", func(t *testing.T) {
-		tx, _, _ := dag.CreateTestTransaction(1)
-		proto, mocks := newTestProtocol(t, testDID)
-
-		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(&did.Document{
-			KeyAgreement: []did.VerificationRelationship{
-				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
-			},
-		}, nil, nil)
-
-		err := proto.handlePrivateTx(&nats.Msg{Data: tx.Data()})
-		assert.Error(t, err)
-	})
-
-	t.Run("errors when decryption fails because the key-agreement key could not be found", func(t *testing.T) {
+	t.Run("errors when decrypting the PAL header errors", func(t *testing.T) {
 		tx := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
 		proto, mocks := newTestProtocol(t, testDID)
-
-		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(&did.Document{
-			KeyAgreement: []did.VerificationRelationship{
-				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
-			},
-		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(nil, crypto.ErrKeyNotFound)
+		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
 
 		err := proto.handlePrivateTx(&nats.Msg{Data: tx.Data()})
-		assert.Error(t, err)
+
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (ref=%s): random error", tx.Ref().String()))
 	})
 
 	t.Run("valid transaction fails when there is no connection available to the node", func(t *testing.T) {
-		testDID, _ := did.ParseDID("did:nuts:123")
-
 		tx := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
 		proto, mocks := newTestProtocol(t, testDID)
 
@@ -220,8 +184,6 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 	})
 
 	t.Run("valid transaction fails when sending the payload query errors", func(t *testing.T) {
-		testDID, _ := did.ParseDID("did:nuts:123")
-
 		tx := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
 		proto, mocks := newTestProtocol(t, testDID)
 
@@ -249,8 +211,6 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 	})
 
 	t.Run("valid transaction is handled successfully", func(t *testing.T) {
-		testDID, _ := did.ParseDID("did:nuts:123")
-
 		tx := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
 		proto, mocks := newTestProtocol(t, testDID)
 
@@ -275,5 +235,79 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 
 		err := proto.handlePrivateTx(&nats.Msg{Data: tx.Data()})
 		assert.NoError(t, err)
+	})
+}
+
+func TestProtocol_decryptPAL(t *testing.T) {
+	keyDID, _ := did.ParseDIDURL("did:nuts:123#key1")
+	testDID, _ := did.ParseDID("did:nuts:123")
+	var emptyPAL [][]byte
+
+	t.Run("errors when node DID is not set", func(t *testing.T) {
+		proto, _ := newTestProtocol(t, nil)
+
+		pal, err := proto.decryptPAL(emptyPAL)
+		assert.EqualError(t, err, "node DID is not set")
+		assert.Nil(t, pal)
+	})
+
+	t.Run("errors when resolving the node DID document fails", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, testDID)
+
+		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
+
+		_, err := proto.decryptPAL(emptyPAL)
+		assert.EqualError(t, err, "random error")
+	})
+
+	t.Run("returns nil for empty PAL", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, testDID)
+		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(&did.Document{
+			KeyAgreement: []did.VerificationRelationship{
+				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
+			},
+		}, nil, nil)
+
+		pal, err := proto.decryptPAL(emptyPAL)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Nil(t, pal)
+	})
+
+	t.Run("errors when decryption fails because the key-agreement key could not be found", func(t *testing.T) {
+		tx := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
+		proto, mocks := newTestProtocol(t, testDID)
+
+		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(&did.Document{
+			KeyAgreement: []did.VerificationRelationship{
+				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
+			},
+		}, nil, nil)
+		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(nil, crypto.ErrKeyNotFound)
+
+		_, err := proto.decryptPAL(tx.PAL())
+		assert.EqualError(t, err, fmt.Sprintf("private key of DID keyAgreement not found (kid=%s)", keyDID.String()))
+	})
+
+	t.Run("valid transaction is decrypted successfully", func(t *testing.T) {
+		tx := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
+		proto, mocks := newTestProtocol(t, testDID)
+
+		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(&did.Document{
+			KeyAgreement: []did.VerificationRelationship{
+				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
+			},
+		}, nil, nil)
+		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return([]byte(testDID.String()), nil)
+
+		pal, err := proto.decryptPAL(tx.PAL())
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, dag.PAL([]did.DID{*testDID}), pal)
 	})
 }

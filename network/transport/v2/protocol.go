@@ -160,26 +160,6 @@ func (p *protocol) Start() {
 }
 
 func (p *protocol) handlePrivateTx(msg *nats.Msg) error {
-	nodeDID, err := p.nodeDIDResolver.Resolve()
-	if err != nil {
-		return err
-	}
-
-	if nodeDID.Empty() {
-		return errors.New("node DID is not set")
-	}
-
-	doc, _, err := p.docResolver.Resolve(nodeDID, nil)
-	if err != nil {
-		return err
-	}
-
-	keyAgreementIDs := make([]string, len(doc.KeyAgreement))
-
-	for i, keyAgreement := range doc.KeyAgreement {
-		keyAgreementIDs[i] = keyAgreement.ID.String()
-	}
-
 	tx, err := dag.ParseTransaction(msg.Data)
 	if err != nil {
 		return err
@@ -191,9 +171,9 @@ func (p *protocol) handlePrivateTx(msg *nats.Msg) error {
 
 	epal := dag.EncryptedPAL(tx.PAL())
 
-	pal, err := epal.Decrypt(keyAgreementIDs, p.decrypter)
+	pal, err := p.decryptPAL(epal)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decrypt PAL header (ref=%s): %w", tx.Ref(), err)
 	}
 
 	// We weren't able to decrypt the PAL, so it wasn't meant for us
@@ -234,6 +214,38 @@ func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
 		return fmt.Errorf("unable to send message, connection not found (peer=%s)", peer)
 	}
 	return connection.Send(p, &Envelope{Message: message})
+}
+
+// decryptPAL returns nil, nil if the PAL couldn't be decoded
+func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
+	nodeDID, err := p.nodeDIDResolver.Resolve()
+	if err != nil {
+		return nil, err
+	}
+
+	if nodeDID.Empty() {
+		return nil, errors.New("node DID is not set")
+	}
+
+	doc, _, err := p.docResolver.Resolve(nodeDID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	keyAgreementIDs := make([]string, len(doc.KeyAgreement))
+
+	for i, keyAgreement := range doc.KeyAgreement {
+		keyAgreementIDs[i] = keyAgreement.ID.String()
+	}
+
+	epal := dag.EncryptedPAL(encrypted)
+
+	pal, err := epal.Decrypt(keyAgreementIDs, p.decrypter)
+	if err != nil {
+		return nil, err
+	}
+
+	return pal, nil
 }
 
 type protocolServer struct {
