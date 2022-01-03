@@ -80,7 +80,7 @@ You can use the DIDMan ``getCompoundServiceEndpoint`` API operation for this.
 Receiving Authorization Credentials
 ***********************************
 
-Some Bolts require authorization credentials to authenticate data exchanges. These credentials are distributed privately over an authentication connection.
+Some Bolts require authorization credentials to authenticate data exchanges. These credentials are distributed privately over an authenticated connection.
 To receive privately distributed credentials issued to your care organizations,
 the DID documents of the care organizations need to contain a ``NutsComm`` service that references the vendor's.
 See :ref:`setting up your node for a network <configure-node>` for how to achieve this.
