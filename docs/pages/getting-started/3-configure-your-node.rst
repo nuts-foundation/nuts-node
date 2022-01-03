@@ -106,7 +106,7 @@ You can register the ``NutsComm`` endpoint by calling ``addEndpoint`` on the DID
 Care Organizations
 ******************
 
-The DID documents of your care organizations you (as a vendor) want expose on the Nuts network need to be associated
+The DID documents of your care organizations you (as a vendor) want to expose on the Nuts network need to be associated
 with your vendor's DID document through the ``NutsComm`` endpoint.
 Its recommended to register the actual ``NutsComm`` endpoint on your vendor DID document (as explained in the previous section),
 and register a reference to this endpoint on the DID documents of your vendor's care organizations:
