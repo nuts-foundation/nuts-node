@@ -202,26 +202,6 @@ func (p *protocol) handlePrivateTxRetry(hash hash.SHA256Hash) {
 }
 
 func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
-	nodeDID, err := p.nodeDIDResolver.Resolve()
-	if err != nil {
-		return fmt.Errorf("failed to resolve node DID: %w", err)
-	}
-
-	if nodeDID.Empty() {
-		return errors.New("node DID is not set")
-	}
-
-	doc, _, err := p.docResolver.Resolve(nodeDID, nil)
-	if err != nil {
-		return fmt.Errorf("failed to resolve node DID document: %w", err)
-	}
-
-	keyAgreementIDs := make([]string, len(doc.KeyAgreement))
-
-	for i, keyAgreement := range doc.KeyAgreement {
-		keyAgreementIDs[i] = keyAgreement.ID.String()
-	}
-
 	tx, err := p.graph.Get(context.Background(), hash)
 	if err != nil {
 		return fmt.Errorf("failed to find transaction with ref:%s in DAG: %w", hash.String(), err)
@@ -241,17 +221,21 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	// We weren't able to decrypt the PAL, so it wasn't meant for us
 	if pal == nil {
 		// stop retrying
-		p.payloadRetrier.Remove(hash)
+		if err := p.payloadRetrier.Remove(hash); err != nil {
+			return err
+		}
+
+		return nil
 	}
 
-	j := 0
-	for _, participant := range pal {
-		if !participant.Equals(nodeDID) {
-			pal[j] = participant
-			j++
-		}
-	}
-	pal = pal[:j]
+	//j := 0
+	//for _, participant := range pal {
+	//	if !participant.Equals(nodeDID) {
+	//		pal[j] = participant
+	//		j++
+	//	}
+	//}
+	//pal = pal[:j]
 
 	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(pal[0]))
 
@@ -267,6 +251,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	if err != nil {
 		return fmt.Errorf("failed to send TransactionPayloadQuery message(ref=%s, DID=%s): %w", hash.String(), pal[0], err)
 	}
+
 	return nil
 }
 

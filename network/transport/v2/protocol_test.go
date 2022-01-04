@@ -201,39 +201,26 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 	txOk := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
 
 	t.Run("errors when node DID is not set", func(t *testing.T) {
-		proto, _ := newTestProtocol(t, nil)
+		proto, mocks := newTestProtocol(t, nil)
+		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(txOk, nil)
 
-		err := proto.handlePrivateTxRetryErr(tx.Ref())
-		assert.EqualError(t, err, "node DID is not set")
-	})
-
-	t.Run("errors when decrypting the PAL header errors", func(t *testing.T) {
-		tx := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
-		proto, mocks := newTestProtocol(t, testDID)
-		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
-
-		err := proto.handlePrivateTx(&nats.Msg{Data: tx.Data()})
-
-		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (ref=%s): random error", tx.Ref().String()))
+		err := proto.handlePrivateTxRetryErr(txOk.Ref())
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (ref=%s): node DID is not set", txOk.Ref()))
 	})
 
 	t.Run("errors when resolving the node DID document fails", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, testDID)
+		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(txOk, nil)
 		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
 
-		err := proto.handlePrivateTxRetryErr(tx.Ref())
-		assert.EqualError(t, err, "failed to resolve node DID document: random error")
+		err := proto.handlePrivateTxRetryErr(txOk.Ref())
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (ref=%s): random error", txOk.Ref()))
 	})
 
 	t.Run("errors when the transaction doesn't contain a valid PAL header", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, testDID)
 
 		mocks.Graph.EXPECT().Get(context.Background(), tx.Ref()).Return(tx, nil)
-		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(&did.Document{
-			KeyAgreement: []did.VerificationRelationship{
-				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
-			},
-		}, nil, nil)
 
 		err := proto.handlePrivateTxRetryErr(tx.Ref())
 		assert.EqualError(t, err, fmt.Sprintf("PAL header is empty (ref=%s)", tx.Ref().String()))
@@ -255,7 +242,6 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 	})
 
 	t.Run("valid transaction fails when there is no connection available to the node", func(t *testing.T) {
-		tx := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
 		proto, mocks := newTestProtocol(t, testDID)
 		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(txOk, nil)
 		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(&did.Document{
@@ -274,7 +260,6 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 	})
 
 	t.Run("valid transaction fails when sending the payload query errors", func(t *testing.T) {
-		tx := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
 		proto, mocks := newTestProtocol(t, testDID)
 		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(txOk, nil)
 		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(&did.Document{
