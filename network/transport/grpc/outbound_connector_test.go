@@ -21,6 +21,7 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -37,7 +38,7 @@ func Test_connector_tryConnect(t *testing.T) {
 	}
 	defer cm.Stop()
 
-	connector := createOutboundConnector(serverConfig.listenAddress, grpc.DialContext, nil, func() bool {
+	connector := createOutboundConnector(transport.Address(serverConfig.listenAddress), grpc.DialContext, nil, func() bool {
 		return false
 	}, nil)
 	grpcConn, err := connector.tryConnect()
@@ -49,7 +50,7 @@ func Test_connector_tryConnect(t *testing.T) {
 func Test_connector_start(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		connected := make(chan struct{}, 1)
-		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+		connector := createOutboundConnector(transport.Address("foo"), func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 			return &grpc.ClientConn{}, nil
 		}, nil, func() bool {
 			return true
@@ -73,7 +74,7 @@ func Test_connector_start(t *testing.T) {
 	})
 	t.Run("not connecting when already connected", func(t *testing.T) {
 		calls := make(chan struct{}, 10)
-		connector := createOutboundConnector("foo", nil, nil, func() bool {
+		connector := createOutboundConnector(transport.Address("foo"), nil, nil, func() bool {
 			calls <- struct{}{}
 			return false
 		}, nil)
@@ -89,7 +90,7 @@ func Test_connector_start(t *testing.T) {
 		}
 	})
 	t.Run("backoff when callback fails", func(t *testing.T) {
-		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+		connector := createOutboundConnector(transport.Address("foo"), func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 			return &grpc.ClientConn{}, nil
 		}, nil, func() bool {
 			return true

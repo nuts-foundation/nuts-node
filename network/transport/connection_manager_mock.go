@@ -36,7 +36,7 @@ func (m *MockConnectionManager) EXPECT() *MockConnectionManagerMockRecorder {
 }
 
 // Connect mocks base method.
-func (m *MockConnectionManager) Connect(peerAddress string, option ...ConnectionOption) {
+func (m *MockConnectionManager) Connect(peerAddress Addr, option ...ConnectionOption) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{peerAddress}
 	for _, a := range option {

@@ -195,14 +195,14 @@ func (s *grpcConnectionManager) Stop() {
 	}
 }
 
-func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.ConnectionOption) {
+func (s grpcConnectionManager) Connect(peerAddress transport.Addr, options ...transport.ConnectionOption) {
 	peer := transport.Peer{Address: peerAddress}
 	for _, o := range options {
 		o(&peer)
 	}
 	connection, isNew := s.connections.getOrRegister(s.ctx, peer, s.dialer)
 	if !isNew {
-		log.Logger().Infof("A connection for %s already exists.", peerAddress)
+		log.Logger().Infof("A connection for %s already exists.", peer.Address)
 		return
 	}
 
@@ -378,7 +378,7 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 	}
 	peer := transport.Peer{
 		ID:      peerID,
-		Address: peerFromCtx.Addr.String(),
+		Address: transport.Address(peerFromCtx.Addr.String()),
 	}
 	log.Logger().Debugf("New inbound stream from peer (peer=%s,protocol=%T)", peer, inboundStream)
 	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)

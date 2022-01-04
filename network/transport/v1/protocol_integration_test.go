@@ -211,6 +211,6 @@ func nameToPort(name string) int {
 	return int(crc32.ChecksumIEEE([]byte(name))%9000 + 1000)
 }
 
-func nameToAddress(name string) string {
-	return fmt.Sprintf("localhost:%d", nameToPort(name))
+func nameToAddress(name string) transport.Addr {
+	return transport.Address(fmt.Sprintf("localhost:%d", nameToPort(name)))
 }

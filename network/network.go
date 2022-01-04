@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -270,7 +269,7 @@ func (n *Network) connectToKnownNodes() error {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
 			continue
 		}
-		n.connectionManager.Connect(bootstrapNode, transport.WithUnauthenticated())
+		n.connectionManager.Connect(transport.Address(bootstrapNode), transport.WithUnauthenticated())
 	}
 
 	if !n.config.EnableDiscovery {
@@ -291,16 +290,12 @@ func (n *Network) connectToKnownNodes() error {
 					log.Logger().Warnf("failed to extract NutsComm address from service (did=%s): %v", node.ID.String(), err)
 					continue inner
 				}
-				nutsCommURL, err := url.Parse(nutsCommStr)
+				address, err := transport.ParseAddress(nutsCommStr)
 				if err != nil {
-					log.Logger().Warnf("failed to parse NutsComm address from service (did=%s, str=%s): %v", node.ID.String(), nutsCommStr, err)
+					log.Logger().Warnf("invalid NutsComm address from service (did=%s, str=%s): %v", node.ID.String(), nutsCommStr, err)
 					continue inner
 				}
-				if nutsCommURL.Scheme != "grpc" {
-					log.Logger().Warnf("found NutsComm address with invalid scheme (did=%s, str=%s): %v", node.ID.String(), nutsCommStr, err)
-					continue inner
-				}
-				n.connectionManager.Connect(nutsCommURL.Host + ":" + nutsCommURL.Port())
+				n.connectionManager.Connect(address)
 			}
 		}
 	}

@@ -19,7 +19,10 @@
 package transport
 
 import (
+	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -33,12 +36,54 @@ func (p PeerID) String() string {
 	return string(p)
 }
 
+type Addr struct {
+	scheme string
+	target string
+}
+
+func (addr Addr) Empty() bool {
+	return len(addr.scheme) == 0
+}
+
+func (addr Addr) Scheme() string {
+	return addr.scheme
+}
+
+func (addr Addr) Target() string {
+	return addr.target
+}
+
+func (addr Addr) String() string {
+	if addr.Empty() {
+		return ""
+	}
+	return addr.scheme + "://" + addr.target
+}
+
+func Address(target string) Addr {
+	return Addr{
+		scheme: "grpc", // we only support gRPC right now
+		target: target,
+	}
+}
+
+func ParseAddress(input string) (Addr, error) {
+	parsed, err := url.Parse(input)
+	if err != nil {
+		return Addr{}, err
+	}
+	if parsed.Scheme != "grpc" {
+		return Addr{}, errors.New("invalid URL scheme")
+	}
+	return Addr{scheme: parsed.Scheme, target: net.JoinHostPort(parsed.Host, parsed.Port())}, nil
+}
+
 // Peer holds the properties of a remote node we're connected to
 type Peer struct {
 	// ID holds the unique identificator of the peer
 	ID PeerID
 	// Address holds the remote address of the node we're actually connected to
-	Address string
+	Address Addr
 	// NodeDID holds the DID that the peer uses to identify its node on the network.
 	// It is only set when properly authenticated.
 	NodeDID did.DID

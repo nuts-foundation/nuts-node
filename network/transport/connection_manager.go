@@ -42,7 +42,7 @@ type ConnectionManager interface {
 	// Connect attempts to make an outbound connection to the given peer if it's not already connected.
 	// acceptNonAuthenticated indicates if the connection must be kept even if the other end can't be authenticated.
 	// The connection can then still be used for non-authenticated purposes.
-	Connect(peerAddress string, option ...ConnectionOption)
+	Connect(peerAddress Addr, option ...ConnectionOption)
 
 	// Peers returns a slice containing the peers that are currently connected.
 	Peers() []Peer
