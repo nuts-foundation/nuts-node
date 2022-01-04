@@ -36,23 +36,28 @@ func (p PeerID) String() string {
 	return string(p)
 }
 
+// Addr describes an address of a node on the Nuts Network.
 type Addr struct {
 	scheme string
 	target string
 }
 
+// Empty returns whether the Addr is considered empty.
 func (addr Addr) Empty() bool {
 	return len(addr.scheme) == 0
 }
 
+// Scheme returns the protocol scheme of the address (e.g. "grpc").
 func (addr Addr) Scheme() string {
 	return addr.scheme
 }
 
+// Target returns the target of the address (e.g. "10.0.0.1:5555").
 func (addr Addr) Target() string {
 	return addr.target
 }
 
+// String returns the fully qualifies address, which includes the protocol scheme (e.g. "grpc").
 func (addr Addr) String() string {
 	if addr.Empty() {
 		return ""
@@ -60,6 +65,7 @@ func (addr Addr) String() string {
 	return addr.scheme + "://" + addr.target
 }
 
+// Address makes a new gRPC Addr given the target address.
 func Address(target string) Addr {
 	return Addr{
 		scheme: "grpc", // we only support gRPC right now
@@ -67,6 +73,7 @@ func Address(target string) Addr {
 	}
 }
 
+// ParseAddress parses the given input string to an Addr.
 func ParseAddress(input string) (Addr, error) {
 	parsed, err := url.Parse(input)
 	if err != nil {
