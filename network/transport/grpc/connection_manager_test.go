@@ -283,7 +283,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		client := NewGRPCConnectionManager(clientCfg, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
-		c := createConnection(clientCfg.dialer, transport.Peer{})
+		c := createConnection(context.Background(), clientCfg.dialer, transport.Peer{})
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		if !assert.NoError(t, err) {
 			return
@@ -304,7 +304,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		client := NewGRPCConnectionManager(clientCfg, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
-		c := createConnection(clientCfg.dialer, transport.Peer{})
+		c := createConnection(context.Background(), clientCfg.dialer, transport.Peer{})
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		if !assert.NoError(t, err) {
 			return
