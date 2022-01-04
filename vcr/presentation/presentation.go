@@ -2,7 +2,7 @@ package presentation
 
 import "github.com/nuts-foundation/go-did/vc"
 
-// Verifiable Presentation
+// VerifiablePresentation represents a verifiable presentation with the embedded LD Proof.
 type VerifiablePresentation struct {
 	// An ordered set where the first item is a URI https://www.w3.org/2018/credentials/v1. It is used to define
 	// terms and help to express specific identifiers in a compact manner.

@@ -24,8 +24,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/presentation"
-	proof "github.com/nuts-foundation/nuts-node/vcr/proof"
+	proofs "github.com/nuts-foundation/nuts-node/vcr/proof"
 	"io/fs"
 	"os"
 	"path"
@@ -56,10 +57,12 @@ const (
 	maxSkew = 5 * time.Second
 )
 
-var timeFunc = time.Now
+var (
+	timeFunc = time.Now
 
-// noSync is used to disable bbolt syncing on go-leia during tests
-var noSync bool
+	// noSync is used to disable bbolt syncing on go-leia during tests
+	noSync bool
+)
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
@@ -152,13 +155,13 @@ func (c *vcr) Shutdown() error {
 }
 
 func (c *vcr) loadTemplates() error {
-	list, err := fs.Glob(defaultTemplates, "**/*.config.yaml")
+	list, err := fs.Glob(assets.Assets, "**/*.config.yaml")
 	if err != nil {
 		return err
 	}
 
 	for _, f := range list {
-		bytes, err := defaultTemplates.ReadFile(f)
+		bytes, err := assets.Assets.ReadFile(f)
 		if err != nil {
 			return err
 		}
@@ -829,19 +832,54 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	return qs
 }
 
-func (c *vcr) GeneratePresentationEmbeddedProof(presentation *presentation.VerifiablePresentation, proofOptions proof.ProofOptions, kid string) error {
-	key, err := c.keyStore.Resolve(kid)
+func (c *vcr) VerifyPresentation(verifiablePresentation presentation.VerifiablePresentation) error {
+	rawProof := verifiablePresentation.Proof
+
+	ldProof := proofs.LDProof{}
+	proofBytes, err := json.Marshal(rawProof)
 	if err != nil {
-		return fmt.Errorf("could not resolve kid: %w", err)
+		return fmt.Errorf("unable to marshal rawProof into bytes")
+	}
+	if err := json.Unmarshal(proofBytes, &ldProof); err != nil {
+		return fmt.Errorf("unable to marshal raw proof into LDProof struct")
 	}
 
-	ldProofSigner := proof.NewLDProofBuilder(presentation, proofOptions)
+	if ldProof.Type != ssi.JsonWebSignature2020 {
+		return fmt.Errorf("unknown proof type: %s", ldProof.Type)
+	}
+
+	return nil
+}
+
+func (c *vcr) BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proofs.ProofOptions, kid string) (*presentation.VerifiablePresentation, error) {
+	key, err := c.keyStore.Resolve(kid)
+	if err != nil {
+		return nil, fmt.Errorf("could not resolve kid: %w", err)
+	}
+
+	for _, vc := range credentials {
+		if err := c.Validate(vc, false, true, nil); err != nil {
+			return nil, core.InvalidInputError("invalid credential: %w", err)
+		}
+	}
+
+	vp := &presentation.VerifiablePresentation{
+		Context:              []string{"https://www.w3.org/2018/credentials/v1"},
+		Type:                 []string{"VerifiablePresentation"},
+		VerifiableCredential: &credentials,
+	}
+
+	// TODO: choose between different proof types (JWT or LD-Proof)
+	ldProofSigner, err := proofs.NewLDProofBuilder(vp, proofOptions)
+	if err != nil {
+		return nil, fmt.Errorf("unable create json-ld proof builder: %w", err)
+	}
 	proof, err := ldProofSigner.Sign(key)
 	if err != nil {
-		return fmt.Errorf("unable to sign ldProof: %w", err)
+		return nil, fmt.Errorf("unable to sign ldProof: %w", err)
 	}
-	presentation.Proof = proof
-	return nil
+	vp.Proof = proof
+	return vp, nil
 }
 
 func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, key crypto.Key) error {

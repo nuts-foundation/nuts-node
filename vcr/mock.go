@@ -14,6 +14,8 @@ import (
 	vc "github.com/nuts-foundation/go-did/vc"
 	concept "github.com/nuts-foundation/nuts-node/vcr/concept"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
+	presentation "github.com/nuts-foundation/nuts-node/vcr/presentation"
+	proof "github.com/nuts-foundation/nuts-node/vcr/proof"
 )
 
 // MockConceptFinder is a mock of ConceptFinder interface.
@@ -290,6 +292,58 @@ func (mr *MockResolverMockRecorder) Resolve(ID, resolveTime interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockResolver)(nil).Resolve), ID, resolveTime)
 }
 
+// MockPresentationManager is a mock of PresentationManager interface.
+type MockPresentationManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockPresentationManagerMockRecorder
+}
+
+// MockPresentationManagerMockRecorder is the mock recorder for MockPresentationManager.
+type MockPresentationManagerMockRecorder struct {
+	mock *MockPresentationManager
+}
+
+// NewMockPresentationManager creates a new mock instance.
+func NewMockPresentationManager(ctrl *gomock.Controller) *MockPresentationManager {
+	mock := &MockPresentationManager{ctrl: ctrl}
+	mock.recorder = &MockPresentationManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPresentationManager) EXPECT() *MockPresentationManagerMockRecorder {
+	return m.recorder
+}
+
+// BuildVerifiablePresentation mocks base method.
+func (m *MockPresentationManager) BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, kid string) (*presentation.VerifiablePresentation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BuildVerifiablePresentation", credentials, proofOptions, kid)
+	ret0, _ := ret[0].(*presentation.VerifiablePresentation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BuildVerifiablePresentation indicates an expected call of BuildVerifiablePresentation.
+func (mr *MockPresentationManagerMockRecorder) BuildVerifiablePresentation(credentials, proofOptions, kid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildVerifiablePresentation", reflect.TypeOf((*MockPresentationManager)(nil).BuildVerifiablePresentation), credentials, proofOptions, kid)
+}
+
+// VerifyPresentation mocks base method.
+func (m *MockPresentationManager) VerifyPresentation(verifiablePresentation presentation.VerifiablePresentation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VerifyPresentation", verifiablePresentation)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// VerifyPresentation indicates an expected call of VerifyPresentation.
+func (mr *MockPresentationManagerMockRecorder) VerifyPresentation(verifiablePresentation interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyPresentation", reflect.TypeOf((*MockPresentationManager)(nil).VerifyPresentation), verifiablePresentation)
+}
+
 // MockVCR is a mock of VCR interface.
 type MockVCR struct {
 	ctrl     *gomock.Controller
@@ -311,6 +365,21 @@ func NewMockVCR(ctrl *gomock.Controller) *MockVCR {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
+}
+
+// BuildVerifiablePresentation mocks base method.
+func (m *MockVCR) BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, kid string) (*presentation.VerifiablePresentation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BuildVerifiablePresentation", credentials, proofOptions, kid)
+	ret0, _ := ret[0].(*presentation.VerifiablePresentation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BuildVerifiablePresentation indicates an expected call of BuildVerifiablePresentation.
+func (mr *MockVCRMockRecorder) BuildVerifiablePresentation(credentials, proofOptions, kid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildVerifiablePresentation", reflect.TypeOf((*MockVCR)(nil).BuildVerifiablePresentation), credentials, proofOptions, kid)
 }
 
 // Get mocks base method.
@@ -500,4 +569,18 @@ func (m *MockVCR) Validate(credential vc.VerifiableCredential, allowUntrusted, c
 func (mr *MockVCRMockRecorder) Validate(credential, allowUntrusted, checkSignature, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockVCR)(nil).Validate), credential, allowUntrusted, checkSignature, validAt)
+}
+
+// VerifyPresentation mocks base method.
+func (m *MockVCR) VerifyPresentation(verifiablePresentation presentation.VerifiablePresentation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VerifyPresentation", verifiablePresentation)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// VerifyPresentation indicates an expected call of VerifyPresentation.
+func (mr *MockVCRMockRecorder) VerifyPresentation(verifiablePresentation interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyPresentation", reflect.TypeOf((*MockVCR)(nil).VerifyPresentation), verifiablePresentation)
 }

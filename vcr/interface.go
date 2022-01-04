@@ -21,7 +21,6 @@ package vcr
 
 import (
 	"context"
-	"embed"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/vcr/presentation"
 	"github.com/nuts-foundation/nuts-node/vcr/proof"
@@ -29,12 +28,10 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	_ "github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
-
-//go:embed assets/*
-var defaultTemplates embed.FS
 
 // ErrInvalidIssuer is returned when a credential is issued by a DID that is unknown or when the private key is missing.
 var ErrInvalidIssuer = errors.New("invalid credential issuer")
@@ -117,7 +114,8 @@ type Resolver interface {
 }
 
 type PresentationManager interface {
-	GeneratePresentationEmbeddedProof(presentation *presentation.VerifiablePresentation, proofOptions proof.ProofOptions, kid string) error
+	BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, kid string) (*presentation.VerifiablePresentation, error)
+	VerifyPresentation(verifiablePresentation presentation.VerifiablePresentation) error
 }
 
 // VCR is the interface that covers all functionality of the vcr store.

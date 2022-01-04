@@ -67,7 +67,13 @@ func TestWrapper_CreateDID(t *testing.T) {
 		defer ctx.ctrl.Finish()
 
 		var vcReturn *vc.VerifiableCredential
-		ctx.echo.EXPECT().Bind(gomock.Any())
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			credentialType, _ := ssi.ParseURI("TestCredential")
+			request := f.(*IssueVCRequest)
+			request.Type = []ssi.URI{*credentialType}
+			request.Issuer = issuer
+			return nil
+		})
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			vcReturn = f2.(*vc.VerifiableCredential)
 			return nil
@@ -89,26 +95,40 @@ func TestWrapper_CreateDID(t *testing.T) {
 
 		err := ctx.client.Create(ctx.echo)
 
-		assert.EqualError(t, err, "b00m!")
+		assert.EqualError(t, err, "invalid input: b00m!")
 	})
 
-	t.Run("error - issue error", func(t *testing.T) {
+	t.Run("error - issue generic error", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.echo.EXPECT().Bind(gomock.Any())
-		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, errors.New("b00m!"))
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			credentialType, _ := ssi.ParseURI("TestCredential")
+			request := f.(*IssueVCRequest)
+			request.Type = []ssi.URI{*credentialType}
+			request.Issuer = issuer
+			return nil
+		})
+		boomErr := errors.New("b00m!")
+		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, boomErr)
 
 		err := ctx.client.Create(ctx.echo)
 
 		assert.Error(t, err)
+		assert.ErrorIs(t, err, boomErr)
 	})
 
-	t.Run("error - issue error", func(t *testing.T) {
+	t.Run("error - issue validation error", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.echo.EXPECT().Bind(gomock.Any())
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			credentialType, _ := ssi.ParseURI("TestCredential")
+			request := f.(*IssueVCRequest)
+			request.Type = []ssi.URI{*credentialType}
+			request.Issuer = issuer
+			return nil
+		})
 		ctx.vcr.EXPECT().Issue(gomock.Any()).Return(nil, credential.ErrValidation)
 
 		err := ctx.client.Create(ctx.echo)

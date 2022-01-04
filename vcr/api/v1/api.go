@@ -20,9 +20,7 @@
 package v1
 
 import (
-	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vcr/presentation"
 	"github.com/nuts-foundation/nuts-node/vcr/proof"
 	"net/http"
 	"time"
@@ -64,18 +62,11 @@ func (w *Wrapper) CreateVerifiablePresentation(ctx echo.Context) error {
 		return core.InvalidInputError("missing key identifier in verificationMethod")
 	}
 
-	for _, c := range request.VerifiableCredentials {
-		if err := w.R.Validate(c, false, true, nil); err != nil {
-			return core.InvalidInputError("invalid credential: %w", err)
-		}
-	}
-
 	// Set created to now
 	created := time.Now()
 
 	var (
 		expires *time.Time
-		nonce   *string
 	)
 
 	if request.Expires != nil {
@@ -83,28 +74,16 @@ func (w *Wrapper) CreateVerifiablePresentation(ctx echo.Context) error {
 			return core.InvalidInputError("expires can not lay in the past")
 		}
 		expires = request.Expires
-
-		// nonce Needs to be unique so the verifier can store it during the duration the presentation is valid.
-		// Only set nonce when request.expires is set, otherwise the verifier must store the nonce indefinitely.
-		uuidNonce := uuid.New().String()
-		nonce = &uuidNonce
 	}
 
 	proofOptions := proof.ProofOptions{
 		Created:   created,
 		Domain:    request.Domain,
-		Nonce:     nonce,
 		Challenge: request.Challenge,
-		Type:      proof.JsonWebSignature2020,
 		Expires:   expires,
 	}
 
-	vp := presentation.VerifiablePresentation{
-		Context:              []string{"https://www.w3.org/2018/credentials/v1"},
-		Type:                 []string{"VerifiablePresentation"},
-		VerifiableCredential: &request.VerifiableCredentials,
-	}
-	err = w.R.GeneratePresentationEmbeddedProof(&vp, proofOptions, request.VerificationMethod)
+	vp, err := w.R.BuildVerifiablePresentation(request.VerifiableCredentials, proofOptions, request.VerificationMethod)
 	if err != nil {
 		return err
 	}

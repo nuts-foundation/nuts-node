@@ -23,6 +23,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 
@@ -73,6 +74,17 @@ func (m memoryStorage) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 
 func NewTestKey(kid string) Key {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	return keySelector{
+		privateKey: key,
+		kid:        kid,
+	}
+}
+
+func NewRSATestKey(kid string, key *rsa.PrivateKey) Key {
+	if key == nil {
+		key, _ = rsa.GenerateKey(rand.Reader, 2048)
+	}
+
 	return keySelector{
 		privateKey: key,
 		kid:        kid,
