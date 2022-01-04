@@ -197,7 +197,7 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 	for _, o := range options {
 		o(&peer)
 	}
-	connection, isNew := s.connections.getOrRegister(peer, s.dialer, s.ctx)
+	connection, isNew := s.connections.getOrRegister(s.ctx, peer, s.dialer)
 	if !isNew {
 		log.Logger().Infof("A connection for %s already exists.", peerAddress)
 		return
@@ -381,7 +381,7 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?
-	connection, _ := s.connections.getOrRegister(peer, s.dialer, s.ctx)
+	connection, _ := s.connections.getOrRegister(s.ctx, peer, s.dialer)
 	if !connection.registerStream(protocol, inboundStream) {
 		return ErrAlreadyConnected
 	}

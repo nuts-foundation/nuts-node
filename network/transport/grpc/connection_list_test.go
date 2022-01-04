@@ -51,8 +51,8 @@ func TestConnectionList_Get(t *testing.T) {
 func TestConnectionList_All(t *testing.T) {
 	cn := connectionList{}
 
-	cn.getOrRegister(transport.Peer{ID: "a"}, nil, context.Background())
-	cn.getOrRegister(transport.Peer{ID: "b"}, nil, context.Background())
+	cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil)
+	cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, nil)
 
 	assert.Len(t, cn.All(), 2)
 }
@@ -60,18 +60,18 @@ func TestConnectionList_All(t *testing.T) {
 func TestConnectionList_getOrRegister(t *testing.T) {
 	t.Run("second call with same peer ID should return same connection", func(t *testing.T) {
 		cn := connectionList{}
-		connA, created1 := cn.getOrRegister(transport.Peer{ID: "a"}, nil, context.Background())
+		connA, created1 := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil)
 		assert.True(t, created1)
-		connASecondCall, created2 := cn.getOrRegister(transport.Peer{ID: "a"}, nil, context.Background())
+		connASecondCall, created2 := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil)
 		assert.False(t, created2)
 		assert.Equal(t, connA, connASecondCall)
 	})
 
 	t.Run("call with other peer ID should return same connection", func(t *testing.T) {
 		cn := connectionList{}
-		connA, created1 := cn.getOrRegister(transport.Peer{ID: "a"}, nil, context.Background())
+		connA, created1 := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil)
 		assert.True(t, created1)
-		connB, created2 := cn.getOrRegister(transport.Peer{ID: "b"}, nil, context.Background())
+		connB, created2 := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, nil)
 		assert.True(t, created2)
 		assert.NotEqual(t, connA, connB)
 	})
@@ -79,9 +79,9 @@ func TestConnectionList_getOrRegister(t *testing.T) {
 
 func TestConnectionList_remove(t *testing.T) {
 	cn := connectionList{}
-	connA, _ := cn.getOrRegister(transport.Peer{ID: "a"}, nil, context.Background())
-	connB, _ := cn.getOrRegister(transport.Peer{ID: "b"}, nil, context.Background())
-	connC, _ := cn.getOrRegister(transport.Peer{ID: "c"}, nil, context.Background())
+	connA, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil)
+	connB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, nil)
+	connC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c"}, nil)
 
 	assert.Len(t, cn.list, 3)
 	cn.remove(connB)

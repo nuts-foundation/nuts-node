@@ -75,7 +75,7 @@ func Test_conn_waitUntilDisconnected(t *testing.T) {
 
 func Test_conn_registerStream(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		connection := createConnection(nil, transport.Peer{}, context.Background()).(*conn)
+		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
 		stream := newServerStream("foo", "")
 		defer stream.cancelFunc()
 
@@ -85,7 +85,7 @@ func Test_conn_registerStream(t *testing.T) {
 		assert.True(t, connection.Connected())
 	})
 	t.Run("already connected (same protocol)", func(t *testing.T) {
-		connection := createConnection(nil, transport.Peer{}, context.Background()).(*conn)
+		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
 		stream := newServerStream("foo", "")
 		defer stream.cancelFunc()
 

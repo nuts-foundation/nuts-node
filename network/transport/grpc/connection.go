@@ -70,7 +70,7 @@ type Connection interface {
 	Connected() bool
 }
 
-func createConnection(dialer dialer, peer transport.Peer, parentCtx context.Context) Connection {
+func createConnection(parentCtx context.Context, dialer dialer, peer transport.Peer) Connection {
 	result := &conn{
 		dialer:    dialer,
 		streams:   make(map[string]Stream),

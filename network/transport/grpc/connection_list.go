@@ -76,7 +76,7 @@ func (c *connectionList) forEach(consumer func(connection Connection)) {
 // It returns false if the peer matched an existing connection.
 // It returns true if a new connection was created.
 // The given context is used as parent context for new connections: if it's cancelled, callers blocked by waitUntilDisconnected will be unblocked.
-func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer, ctx context.Context) (Connection, bool) {
+func (c *connectionList) getOrRegister(ctx context.Context, peer transport.Peer, dialer dialer) (Connection, bool) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -93,7 +93,7 @@ func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer, ctx c
 		}
 	}
 
-	result := createConnection(dialer, peer, ctx)
+	result := createConnection(ctx, dialer, peer)
 	c.list = append(c.list, result)
 	return result, true
 }
