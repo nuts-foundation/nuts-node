@@ -74,7 +74,7 @@ func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDRe
 		protocol := curr.(Protocol)
 		grpcProtocols = append(grpcProtocols, protocol)
 	}
-	return &grpcConnectionManager{
+	cm := &grpcConnectionManager{
 		protocols:       grpcProtocols,
 		nodeDIDResolver: nodeDIDResolver,
 		authenticator:   authenticator,
@@ -84,6 +84,8 @@ func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDRe
 		listenerCreator: config.listener,
 		dialer:          config.dialer,
 	}
+	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
+	return cm
 }
 
 // grpcConnectionManager is a ConnectionManager that does not discover peers on its own, but just connects to the peers for which Connect() is called.
@@ -93,6 +95,8 @@ type grpcConnectionManager struct {
 	connections      *connectionList
 	grpcServer       *grpc.Server
 	grpcServerMutex  *sync.Mutex
+	ctx              context.Context
+	ctxCancel        func()
 	listener         net.Listener
 	listenerCreator  func(string) (net.Listener, error)
 	dialer           dialer
@@ -169,6 +173,10 @@ func (s *grpcConnectionManager) Stop() {
 		connection.disconnect()
 	})
 
+	if s.ctxCancel != nil {
+		s.ctxCancel()
+	}
+
 	s.grpcServerMutex.Lock()
 	defer s.grpcServerMutex.Unlock()
 
@@ -189,7 +197,7 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 	for _, o := range options {
 		o(&peer)
 	}
-	connection, isNew := s.connections.getOrRegister(peer, s.dialer)
+	connection, isNew := s.connections.getOrRegister(s.ctx, peer, s.dialer)
 	if !isNew {
 		log.Logger().Infof("A connection for %s already exists.", peerAddress)
 		return
@@ -373,7 +381,7 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?
-	connection, _ := s.connections.getOrRegister(peer, s.dialer)
+	connection, _ := s.connections.getOrRegister(s.ctx, peer, s.dialer)
 	if !connection.registerStream(protocol, inboundStream) {
 		return ErrAlreadyConnected
 	}
