@@ -77,10 +77,10 @@ func (w *Wrapper) CreateVerifiablePresentation(ctx echo.Context) error {
 	}
 
 	proofOptions := proof.ProofOptions{
-		Created:   created,
-		Domain:    request.Domain,
-		Challenge: request.Challenge,
-		Expires:   expires,
+		Created:        created,
+		Domain:         request.Domain,
+		Challenge:      request.Challenge,
+		ExpirationDate: expires,
 	}
 
 	vp, err := w.R.BuildVerifiablePresentation(request.VerifiableCredentials, proofOptions, request.VerificationMethod)

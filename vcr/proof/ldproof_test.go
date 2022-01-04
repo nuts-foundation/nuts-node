@@ -72,7 +72,7 @@ func TestLdProofBuilder_Sign(t *testing.T) {
 //		}
 //		testValue := "value"
 //		testInput := &testStruct{Key: &testValue}
-//		ldproof := ldProofBuilder{input: testInput}
+//		ldproof := ldProofManager{input: testInput}
 //		proofCopy := LDProof{}
 //		_ = ldproof.copy(proofCopy)
 //

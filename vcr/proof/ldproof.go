@@ -1,6 +1,7 @@
 package proof
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
@@ -10,29 +11,41 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	_ "github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/piprate/json-gold/ld"
+	"io/fs"
 	"net/url"
 	"strings"
 	"time"
 )
 
+// ProofOptions contains the options for a specific proof. When set they wil
 type ProofOptions struct {
-	// Created contains the current date and time of signing
-	Created   time.Time  `json:"created"`
-	Domain    *string    `json:"domain,omitempty"`
-	Challenge *string    `json:"challenge,omitempty"`
-	Expires   *time.Time `json:"expires,omitempty"`
+	// Created contains the date and time of signing. When not set, the current date time will be used.
+	Created time.Time `json:"created"`
+	// Domain property is used to associate a domain with a proof
+	// https://w3c-ccg.github.io/security-vocab/#domain
+	Domain *string `json:"domain,omitempty"`
+	//The challenge property is used to associate a challenge with a proof
+	// https://w3c-ccg.github.io/security-vocab/#challenge
+	Challenge *string `json:"challenge,omitempty"`
+	// The expirationDate property is used to associate an expirationDate with a proof
+	ExpirationDate *time.Time `json:"expirationDate,omitempty"`
 }
 
 // ProofBuilder defines a generic interface for proof builders.
 type ProofBuilder interface {
-	// Sign accepts a
-	Sign(key crypto.Key) (interface{}, error)
+	// Sign accepts a key and returns the signed document.
+	Sign(key nutsCrypto.Key) (interface{}, error)
+}
+
+type ProofVerifier interface {
+	// Verify verifies the signedDocument with the provided public key. If the document is valid, it returns no error.
+	Verify(signedDocument interface{}, key crypto.PublicKey) error
 }
 
 // LDProof with a detached JWS signature.
@@ -48,17 +61,19 @@ type LDProof struct {
 	JWS *string `json:"jws,omitempty"`
 }
 
-type ldProofBuilder struct {
+type ldProofManager struct {
 	input            interface{}
 	options          ProofOptions
 	ldDocumentLoader ld.DocumentLoader
 }
 
+// embeddedFSDocumentLoader tries to load documents from an embedded filesystem.
 type embeddedFSDocumentLoader struct {
 	fs         embed.FS
 	nextLoader ld.DocumentLoader
 }
 
+// NewEmbeddedFSDocumentLoader creates a new embeddedFSDocumentLoader for an embedded filesystem.
 func NewEmbeddedFSDocumentLoader(fs embed.FS, nextLoader ld.DocumentLoader) *embeddedFSDocumentLoader {
 	return &embeddedFSDocumentLoader{
 		fs:         fs,
@@ -66,6 +81,8 @@ func NewEmbeddedFSDocumentLoader(fs embed.FS, nextLoader ld.DocumentLoader) *emb
 	}
 }
 
+// LoadDocument tries to load the document from the embedded filesystem.
+// If the document is not a file or could not be found it tries the nextLoader.
 func (e embeddedFSDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
 	parsedURL, err := url.Parse(u)
 	if err != nil {
@@ -77,6 +94,9 @@ func (e embeddedFSDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, er
 		remoteDoc := &ld.RemoteDocument{}
 		file, err := e.fs.Open(u)
 		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return e.nextLoader.LoadDocument(u)
+			}
 			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
 		}
 		defer file.Close()
@@ -89,7 +109,8 @@ func (e embeddedFSDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, er
 	return e.nextLoader.LoadDocument(u)
 }
 
-func NewLDProofBuilder(document interface{}, options ProofOptions) (*ldProofBuilder, error) {
+// NewLDProofBuilder creates a new ProofBuilder capable of generating LD-Proofs
+func NewLDProofBuilder(document interface{}, options ProofOptions) (ProofBuilder, error) {
 	loader := ld.NewCachingDocumentLoader(NewEmbeddedFSDocumentLoader(assets.Assets, ld.NewDefaultDocumentLoader(nil)))
 	if err := loader.PreloadWithMapping(map[string]string{
 		"https://nuts.nl/credentials/v1":                                     "assets/contexts/nuts.ldjson",
@@ -98,7 +119,7 @@ func NewLDProofBuilder(document interface{}, options ProofOptions) (*ldProofBuil
 	}); err != nil {
 		return nil, fmt.Errorf("unable to preload nuts ld-context: %w", err)
 	}
-	return &ldProofBuilder{
+	return &ldProofManager{
 		input:            document,
 		options:          options,
 		ldDocumentLoader: loader,
@@ -106,7 +127,7 @@ func NewLDProofBuilder(document interface{}, options ProofOptions) (*ldProofBuil
 }
 
 // Sign returns a *LDProof containing the LD-Proof for the input document.
-func (p ldProofBuilder) Sign(key crypto.Key) (interface{}, error) {
+func (p ldProofManager) Sign(key nutsCrypto.Key) (interface{}, error) {
 	var (
 		normalizedDoc   interface{}
 		normalizedProof interface{}
@@ -158,7 +179,7 @@ func (p ldProofBuilder) Sign(key crypto.Key) (interface{}, error) {
 		return nil, fmt.Errorf("unable to create bytes to be signed")
 	}
 
-	sig, err := crypto.SignJWS(tbs, detachedJWSHeaders(), key.Signer())
+	sig, err := nutsCrypto.SignJWS(tbs, detachedJWSHeaders(), key.Signer())
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign ldProof: %w", err)
 	}
@@ -173,7 +194,7 @@ func (p ldProofBuilder) Sign(key crypto.Key) (interface{}, error) {
 	return documentMap, nil
 }
 
-func (p ldProofBuilder) toProofMap(proof LDProof) map[string]interface{} {
+func (p ldProofManager) toProofMap(proof LDProof) map[string]interface{} {
 	proofMap := map[string]interface{}{}
 	p.copy(proof, &proofMap)
 	// Add the correct context to the proofMap for canonicalization
@@ -185,7 +206,7 @@ func (p ldProofBuilder) toProofMap(proof LDProof) map[string]interface{} {
 const RsaSignature2018 = ssi.ProofType("RsaSignature2018")
 const EcdsaSecp256k1Signature2019 = ssi.ProofType("EcdsaSecp256k1Signature2019")
 
-func determineProofType(key crypto.Key) (ssi.ProofType, error) {
+func determineProofType(key nutsCrypto.Key) (ssi.ProofType, error) {
 	switch key.Public().(type) {
 	case *rsa.PublicKey:
 		return RsaSignature2018, nil
@@ -227,13 +248,13 @@ func toDetachedSignature(sig string) string {
 	return strings.Join([]string{splitted[0], splitted[2]}, "..")
 }
 
-func (ldProofBuilder) copy(a, b interface{}) error {
+func (ldProofManager) copy(a, b interface{}) error {
 	byt, _ := json.Marshal(a)
 	return json.Unmarshal(byt, b)
 }
 
 // canonicalize canonicalizes the json-ld input according to the URDNA2015 [RDF-DATASET-NORMALIZATION] algorithm.
-func (p *ldProofBuilder) canonicalize(input interface{}) (result interface{}, err error) {
+func (p *ldProofManager) canonicalize(input interface{}) (result interface{}, err error) {
 	var optionsMap map[string]interface{}
 	inputAsJson, _ := json.Marshal(input)
 	json.Unmarshal(inputAsJson, &optionsMap)
@@ -256,7 +277,7 @@ func (p *ldProofBuilder) canonicalize(input interface{}) (result interface{}, er
 // CreateToBeSigned implements step 3 in the proof algorithm: https://w3c-ccg.github.io/ld-proofs/#proof-algorithm
 // Create a value tbs that represents the data to be signed, and set it to the result of running the Create Verify
 // Hash Algorithm, passing the information in options.
-func (p *ldProofBuilder) CreateToBeSigned(canonicalizedDocument interface{}, canonicalizedProof interface{}) ([]byte, error) {
+func (p *ldProofManager) CreateToBeSigned(canonicalizedDocument interface{}, canonicalizedProof interface{}) ([]byte, error) {
 
 	// Step 4.2:
 	// Hash canonicalized options document using the message digest algorithm (e.g. SHA-256) set output to the result.
