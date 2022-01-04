@@ -5,20 +5,18 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
-	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	_ "github.com/nuts-foundation/nuts-node/vcr/assets"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/piprate/json-gold/ld"
-	"io/fs"
-	"net/url"
 	"strings"
 	"time"
 )
@@ -67,50 +65,7 @@ type ldProofManager struct {
 	ldDocumentLoader ld.DocumentLoader
 }
 
-// embeddedFSDocumentLoader tries to load documents from an embedded filesystem.
-type embeddedFSDocumentLoader struct {
-	fs         embed.FS
-	nextLoader ld.DocumentLoader
-}
-
-// NewEmbeddedFSDocumentLoader creates a new embeddedFSDocumentLoader for an embedded filesystem.
-func NewEmbeddedFSDocumentLoader(fs embed.FS, nextLoader ld.DocumentLoader) *embeddedFSDocumentLoader {
-	return &embeddedFSDocumentLoader{
-		fs:         fs,
-		nextLoader: nextLoader,
-	}
-}
-
-// LoadDocument tries to load the document from the embedded filesystem.
-// If the document is not a file or could not be found it tries the nextLoader.
-func (e embeddedFSDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
-	parsedURL, err := url.Parse(u)
-	if err != nil {
-		return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, fmt.Sprintf("error parsing URL: %s", u))
-	}
-
-	protocol := parsedURL.Scheme
-	if protocol != "http" && protocol != "https" {
-		remoteDoc := &ld.RemoteDocument{}
-		file, err := e.fs.Open(u)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return e.nextLoader.LoadDocument(u)
-			}
-			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
-		}
-		defer file.Close()
-		remoteDoc.Document, err = ld.DocumentFromReader(file)
-		if err != nil {
-			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
-		}
-		return remoteDoc, nil
-	}
-	return e.nextLoader.LoadDocument(u)
-}
-
-// NewLDProofBuilder creates a new ProofBuilder capable of generating LD-Proofs
-func NewLDProofBuilder(document interface{}, options ProofOptions) (ProofBuilder, error) {
+func newLDProofManager() (*ldProofManager, error) {
 	loader := ld.NewCachingDocumentLoader(NewEmbeddedFSDocumentLoader(assets.Assets, ld.NewDefaultDocumentLoader(nil)))
 	if err := loader.PreloadWithMapping(map[string]string{
 		"https://nuts.nl/credentials/v1":                                     "assets/contexts/nuts.ldjson",
@@ -119,11 +74,96 @@ func NewLDProofBuilder(document interface{}, options ProofOptions) (ProofBuilder
 	}); err != nil {
 		return nil, fmt.Errorf("unable to preload nuts ld-context: %w", err)
 	}
-	return &ldProofManager{
-		input:            document,
-		options:          options,
-		ldDocumentLoader: loader,
-	}, nil
+	return &ldProofManager{ldDocumentLoader: loader}, nil
+}
+
+// NewLDProofBuilder creates a new ProofBuilder capable of generating LD-Proofs
+func NewLDProofBuilder(document interface{}, options ProofOptions) (ProofBuilder, error) {
+	proofManager, err := newLDProofManager()
+	if err != nil {
+		return nil, err
+	}
+	proofManager.input = document
+	proofManager.options = options
+
+	return proofManager, nil
+}
+
+func NewLDProofVerifier() (ProofVerifier, error) {
+	return newLDProofManager()
+}
+
+// Verify implements the Proof Verification Algorithm: https://w3c-ccg.github.io/data-integrity-spec/#proof-verification-algorithm
+func (p ldProofManager) Verify(signedDocument interface{}, key crypto.PublicKey) error {
+	// 1)
+	// * Get the public key by dereferencing its URL identifier in the proof node of the default graph of signed document.
+	// TODO: acccept a keyResolver instead of thee key param?
+	// * Confirm that the unsigned data document that describes the public key specifies its controller and that its
+	//   controllers's URL identifier can be dereferenced to reveal a bi-directional link back to the key.
+	// TODO: is this needed?
+	// * Ensure that the key's controller is a trusted entity before proceeding to the next step.
+	// TODO: should this be done here, or be the responsibility of the caller?
+
+	// 2) Let document be a copy of signed document
+	document := map[string]interface{}{}
+	p.copy(signedDocument, &document)
+
+	// 3) Remove any proof nodes from the default graph in document and save it as proof
+	proof, ok := document["proof"]
+	if !ok {
+		return errors.New("no proof in document")
+	}
+	delete(document, "proof")
+
+	// 4) Generate a canonicalized document by canonicalizing document according to the canonicalization algorithm
+	// (e.g. the URDNA2015 [RDF-DATASET-C14N] algorithm).
+	canonicalizedDocument, err := p.canonicalize(document)
+	if err != nil {
+		return fmt.Errorf("unable to canonicalize document: %w", err)
+	}
+
+	// 5) Create a value tbv that represents the data to be verified, and set it to the result of running the
+	// Create-Verify-Hash Algorithm, passing the information in proof.
+	var tbv []byte
+	// Let proofMap be a copy of proof
+	proofMap := map[string]interface{}{}
+	p.copy(proof, &proofMap)
+	// If the proofValue parameter, such as jws, exists in proofMap, remove the entry
+	delete(proofMap, "jws")
+	// Add the correct context to the proofMap for canonicalization
+	rawProofType, ok := proofMap["type"]
+	if !ok {
+		return errors.New("missing type on proof")
+	}
+	proofType, ok := rawProofType.(string)
+	if !ok {
+		return errors.New("proof.type is not a string")
+	}
+	proofMap["@context"] = determineProofContext(ssi.ProofType(proofType))
+	proofMap["@type"] = proofMap["type"]
+	canonicalizedProof, err := p.canonicalize(proofMap)
+	if err != nil {
+		return fmt.Errorf("unable to canonicalize proof: %w", err)
+	}
+	if tbv, err = p.CreateToBeSigned(canonicalizedDocument, canonicalizedProof); err != nil {
+		return fmt.Errorf("unable to create bytes to verified")
+	}
+	// the proof must be correct
+	alg, err := nutsCrypto.SignatureAlgorithm(key)
+	if err != nil {
+		return err
+	}
+
+	verifier, _ := jws.NewVerifier(alg)
+	// the jws lib can't do this for us, so we concat hdr with payload for verification
+	splittedJws := strings.Split(proof.(map[string]interface{})["jws"].(string), "..")
+	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
+	challenge := fmt.Sprintf("%s.%s", splittedJws[0], tbv)
+	if err = verifier.Verify([]byte(challenge), sig, key); err != nil {
+		return fmt.Errorf("invalid proof signature: %w", err)
+	}
+
+	return nil
 }
 
 // Sign returns a *LDProof containing the LD-Proof for the input document.
@@ -270,7 +310,9 @@ func (p *ldProofManager) canonicalize(input interface{}) (result interface{}, er
 		return nil, fmt.Errorf("unable to normalize document: %w", err)
 	}
 
-	log.Logger().Infof("canonicalize document %s", result)
+	fmt.Println("BEGIN: canonicalized doc:")
+	fmt.Print(result)
+	fmt.Println("END")
 	return
 }
 
