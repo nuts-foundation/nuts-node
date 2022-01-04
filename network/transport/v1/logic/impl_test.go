@@ -19,6 +19,7 @@
 package logic
 
 import (
+	"context"
 	"errors"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -71,8 +72,17 @@ func Test_Protocol_StartAdvertingDiagnostics(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
 		instance.advertDiagnosticsInterval = 0 * time.Second // this is what would be configured
-		instance.startAdvertingDiagnostics()
+		instance.startAdvertingDiagnostics(nil)
 		// This is a blocking function when the feature is enabled, so if we reach the end of the test everything works as intended.
+	})
+}
+
+func Test_Protocol_StartUpdatingDiagnostics(t *testing.T) {
+	t.Run("context cancel", func(t *testing.T) {
+		instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		instance.startUpdatingDiagnostics(ctx) // should exit immediately
 	})
 }
 
@@ -100,7 +110,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		// Peer broadcasts hash
 		peerHash := hash.SHA256Sum([]byte("Hello, World!"))
 		instance.peerOmnihashChannel <- PeerOmnihash{Peer: peerID, Hash: peerHash}
-		instance.updateDiagnostics()
+		instance.updateDiagnostics(nil)
 		stats = instance.Diagnostics()[0].(peerOmnihashStatistic)
 		assert.Len(t, stats.peerHashes, 1)
 		assert.Equal(t, peerHash, stats.peerHashes[peerID])
