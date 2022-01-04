@@ -71,7 +71,7 @@ func TestLdProofManager_Sign(t *testing.T) {
 		return
 	}
 
-	t.Run("ok", func(t *testing.T) {
+	t.Run("ok - sign and verify own document", func(t *testing.T) {
 		options := ProofOptions{
 			Created: time.Date(2021, 12, 22, 15, 21, 12, 0, time.FixedZone("Amsterdam", int(2*time.Hour.Seconds()))),
 		}
@@ -97,27 +97,7 @@ func TestLdProofManager_Verify(t *testing.T) {
 		return
 	}
 
-	rawDocument := `{
-  "@context": [
-    {
-      "@version": 1.1
-    },
-    "https://schema.org",
-    "https://w3id.org/security/v2"
-  ],
-  "@type": "Message",
-  "text": "This is the message body",
-  "proof": {
-    "type": "RsaSignature2018",
-    "created": "2022-01-04T13:34:23Z",
-    "creator": "https://example.com/jdoe/keys/1",
-    "domain": "json-ld.org",
-    "jws": "eyJhbGciOiJQUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..DA_vtXm7pVUqt_X4xioFN2ajxp2rDNFjXrOQaA7_dRz-WI-w8j2Ew1VJqKe9rpCQu3fo5cmjho2pCOsvR5aiPwn5wEZQHiiRvIPvrzTXUPn0eGpbjONW1dj-kIrAw_zVWlIWDv6n51IJTdHK1mVEilhNVhAj3UUhHEzsBWeLoOM",
-    "nonce": "c11cfad6"
-  }
-}`
-
-	t.Run("test vectors", func(t *testing.T) {
+	t.Run("ok - JsonWebSignature2020 test vector", func(t *testing.T) {
 		vc_0 := `{
     "@context": [
       "https://www.w3.org/2018/credentials/v1",
@@ -175,8 +155,29 @@ func TestLdProofManager_Verify(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("rsa test", func(t *testing.T) {
-		t.Skip("rsa currently not supported")
+	t.Run("ok - rsa test from the json-ld playground", func(t *testing.T) {
+		
+		rawDocument := `{
+  "@context": [
+    {
+      "@version": 1.1
+    },
+    "https://schema.org",
+    "https://w3id.org/security/v2"
+  ],
+  "@type": "Message",
+  "text": "This is the message body",
+  "proof": {
+    "type": "RsaSignature2018",
+    "created": "2022-01-04T13:34:23Z",
+    "creator": "https://example.com/jdoe/keys/1",
+    "domain": "json-ld.org",
+    "jws": "eyJhbGciOiJQUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..DA_vtXm7pVUqt_X4xioFN2ajxp2rDNFjXrOQaA7_dRz-WI-w8j2Ew1VJqKe9rpCQu3fo5cmjho2pCOsvR5aiPwn5wEZQHiiRvIPvrzTXUPn0eGpbjONW1dj-kIrAw_zVWlIWDv6n51IJTdHK1mVEilhNVhAj3UUhHEzsBWeLoOM",
+    "nonce": "c11cfad6"
+  }
+}`
+
+		//t.Skip("rsa currently not supported")
 		signedDocument := map[string]interface{}{}
 		err := json.Unmarshal([]byte(rawDocument), &signedDocument)
 		if !assert.NoError(t, err) {
@@ -188,24 +189,3 @@ func TestLdProofManager_Verify(t *testing.T) {
 	})
 
 }
-
-//func TestLDProof_Copy(t *testing.T) {
-//	t.Run("ok - copies the object", func(t *testing.T) {
-//		type testStruct struct {
-//			Key *string
-//		}
-//		testValue := "value"
-//		testInput := &testStruct{Key: &testValue}
-//		ldproof := ldProofManager{input: testInput}
-//		proofCopy := LDProof{}
-//		_ = ldproof.copy(proofCopy)
-//
-//		assert.IsType(t, &testStruct{}, copyResult)
-//		testCopy := copyResult.(*testStruct)
-//
-//		assert.NoError(t, err)
-//		assert.Equal(t, "value", *testCopy.Key, "the copy should contain the Keys value")
-//		*testInput.Key = "newValue"
-//		assert.Equal(t, "value", *testCopy.Key, "the copy should not change with the original")
-//	})
-//}

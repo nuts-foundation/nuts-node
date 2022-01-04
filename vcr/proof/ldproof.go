@@ -262,7 +262,7 @@ func determineProofType(key nutsCrypto.Key) (ssi.ProofType, error) {
 func determineProofContext(proofType ssi.ProofType) string {
 	switch proofType {
 	case RsaSignature2018:
-		return "https://w3id.org/security/v1"
+		return "https://w3id.org/security/v2"
 	case ssi.JsonWebSignature2020:
 		return "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
 	case EcdsaSecp256k1Signature2019:
