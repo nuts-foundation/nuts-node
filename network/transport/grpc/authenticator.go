@@ -86,3 +86,15 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	}
 	return withOverride(peer, fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID))
 }
+
+// NewDummyAuthenticator creates an Authenticator that does not verify node identities
+func NewDummyAuthenticator(serviceResolver doc.ServiceResolver) Authenticator {
+	return &dummyAuthenticator{}
+}
+
+type dummyAuthenticator struct{}
+
+func (d dummyAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
+	peer.NodeDID = nodeDID
+	return peer, nil
+}

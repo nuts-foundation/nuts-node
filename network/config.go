@@ -38,6 +38,11 @@ type Config struct {
 	// MaxCRLValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
 	MaxCRLValidityDays int `koanf:"network.maxcrlvaliditydays"`
 
+	// DisableNodeAuthentication allows for bypassing node DID authentication on connections.
+	// The SAN from a client certificate is used for this, in development/test certificates might not be availabe.
+	// Can't be set to true in strictmode.
+	DisableNodeAuthentication bool `koanf:"network.disablenodeauthentication"`
+
 	// NodeDID defines the DID of the organization that operates this node, typically a vendor for EPD software.
 	// It is used to identify it on the network.
 	NodeDID string `koanf:"network.nodedid"`
