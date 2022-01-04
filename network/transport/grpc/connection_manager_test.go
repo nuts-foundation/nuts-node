@@ -222,7 +222,31 @@ func Test_grpcConnectionManager_Stop(t *testing.T) {
 		cm.Stop()
 		assert.Empty(t, cm.Peers())
 	})
+	t.Run("calling stop while accepting new connection", func(t *testing.T) {
+		// This test simulates a slow or unfortunately timed shutdown, where there's an new inbound stream while shutting down.
+		// This previously caused the Connection Manager to deadlock, being blocked by conn.waitUntilDisconnected() which blocks GRPCServer.GracefulStop().
+		// Solved by having the context conn.waitUntilDisconnected() waits for, derive from a parent context supplied by ConnectionManager, which is cancelled when Stop() is called.
+		cm := NewGRPCConnectionManager(Config{peerID: "12345"}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+
+		go func() {
+			time.Sleep(10 * time.Millisecond) // make sure handleInboundStream is called after ConnectionManager.Stop()
+			err := cm.handleInboundStream(&TestProtocol{}, newServerStream("1234", ""))
+			if err != nil {
+				panic(err) // can't use t.Fatal in goroutines
+			}
+			wg.Done()
+		}()
+		go func() {
+			cm.Stop()
+			wg.Done()
+		}()
+
+		// If all is OK, the test should just proceed
+		wg.Wait()
+	})
 }
 
 func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
@@ -264,7 +288,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		var waiter sync.WaitGroup
 		waiter.Add(1)
 
-		connection, _ := client.connections.getOrRegister(transport.Peer{Address: "server"}, client.dialer)
+		connection, _ := client.connections.getOrRegister(transport.Peer{Address: "server"}, client.dialer, context.Background())
 		connection.startConnecting(nil, func(grpcConn *grpc.ClientConn) bool {
 			err := client.openOutboundStreams(connection, grpcConn)
 			capturedError.Store(err)

@@ -70,11 +70,12 @@ type Connection interface {
 	Connected() bool
 }
 
-func createConnection(dialer dialer, peer transport.Peer) Connection {
+func createConnection(dialer dialer, peer transport.Peer, parentCtx context.Context) Connection {
 	result := &conn{
-		dialer:   dialer,
-		streams:  make(map[string]Stream),
-		outboxes: make(map[string]chan interface{}),
+		dialer:    dialer,
+		streams:   make(map[string]Stream),
+		outboxes:  make(map[string]chan interface{}),
+		parentCtx: parentCtx,
 	}
 	result.peer.Store(peer)
 	return result
@@ -89,7 +90,8 @@ type conn struct {
 	streams   map[string]Stream
 	outboxes  map[string]chan interface{}
 
-	dialer dialer
+	dialer    dialer
+	parentCtx context.Context
 }
 
 func (mc *conn) Peer() transport.Peer {
@@ -174,7 +176,7 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 	}
 
 	if mc.ctx == nil {
-		mc.ctx, mc.cancelCtx = context.WithCancel(context.Background())
+		mc.ctx, mc.cancelCtx = context.WithCancel(mc.parentCtx)
 	}
 
 	mc.streams[methodName] = stream

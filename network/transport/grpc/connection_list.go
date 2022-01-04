@@ -19,6 +19,7 @@
 package grpc
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"sync"
@@ -74,7 +75,8 @@ func (c *connectionList) forEach(consumer func(connection Connection)) {
 // If no connections match the given peer it creates a new one.
 // It returns false if the peer matched an existing connection.
 // It returns true if a new connection was created.
-func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (Connection, bool) {
+// The given context is used as parent context for new connections: if it's cancelled, callers blocked by waitUntilDisconnected will be unblocked.
+func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer, ctx context.Context) (Connection, bool) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -91,7 +93,7 @@ func (c *connectionList) getOrRegister(peer transport.Peer, dialer dialer) (Conn
 		}
 	}
 
-	result := createConnection(dialer, peer)
+	result := createConnection(dialer, peer, ctx)
 	c.list = append(c.list, result)
 	return result, true
 }
