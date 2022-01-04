@@ -174,9 +174,15 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			n.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
 		}
 		// Instantiate
-		authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
+		var authenticator grpc.Authenticator
 		if n.config.DisableNodeAuthentication {
+			// Not allowed in strict mode for security reasons: only intended for demo/workshop purposes.
+			if config.Strictmode {
+				return errors.New("disabling node DID in strict mode is not allowed")
+			}
 			authenticator = grpc.NewDummyAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
+		} else {
+			authenticator = grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
 		}
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
