@@ -42,9 +42,6 @@ func NewReplayingDAGPublisher(eventManager events.Event, payloadStore PayloadSto
 		eventManager:        eventManager,
 	}
 
-	dag.RegisterObserver(publisher.TransactionAdded)
-	payloadStore.RegisterObserver(publisher.PayloadWritten)
-
 	return publisher
 }
 
@@ -99,6 +96,9 @@ func (s replayingDAGPublisher) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to acquire a connection for events: %w", err)
 	}
+
+	s.dag.RegisterObserver(s.TransactionAdded)
+	s.payloadStore.RegisterObserver(s.PayloadWritten)
 
 	ctx = context.Background()
 	s.publishMux.Lock()

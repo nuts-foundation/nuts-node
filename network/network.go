@@ -223,7 +223,11 @@ func (n *Network) Start() error {
 
 	// Load DAG and start publishing
 	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
-	n.publisher.Start()
+
+	if err := n.publisher.Start(); err != nil {
+		return err
+	}
+
 	if err := n.graph.Verify(context.Background()); err != nil {
 		return err
 	}
