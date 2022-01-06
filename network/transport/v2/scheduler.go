@@ -124,7 +124,8 @@ func (p *payloadScheduler) Schedule(hash hash.SHA256Hash) error {
 	return nil
 }
 
-var errContinue = errors.New("continue")
+// jobInProgress defines a dummy error that is returned when a job is currently in progress
+var jobInProgress = errors.New("job is in progress")
 
 func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 	delay := p.retryDelay
@@ -147,7 +148,8 @@ func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 
 				p.callback(hash)
 
-				return errContinue
+				// has to return an error since `retry.Do` needs to retry until it's marked as finished
+				return jobInProgress
 			}
 
 			// no longer exists, so done
