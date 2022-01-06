@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"testing"
 	"time"
 
@@ -55,9 +56,16 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 }
 
 func TestProtocol_Configure(t *testing.T) {
+	dirname := io.TestDirectory(t)
+
 	// Doesn't do anything yet
-	p := &protocol{}
-	p.Configure("")
+	p := &protocol{
+		config: Config{
+			Datadir: dirname,
+		},
+	}
+
+	assert.NoError(t, p.Configure(""))
 }
 
 func TestProtocol_Diagnostics(t *testing.T) {
