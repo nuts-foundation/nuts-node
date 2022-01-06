@@ -84,7 +84,7 @@ type protocol struct {
 	graph                dag.DAG
 	ctx                  context.Context
 	docResolver          vdr.DocResolver
-	payloadRetrier       Retriable
+	payloadScheduler     Scheduler
 	payloadStore         dag.PayloadStore
 	decrypter            crypto.Decrypter
 	connectionList       grpc.ConnectionList
@@ -116,8 +116,8 @@ func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
 }
 
 func (p *protocol) Configure(_ transport.PeerID) error {
-	p.payloadRetrier = NewPayloadRetrier(p.config.Datadir, p.config.PayloadRetryDelay, p.handlePrivateTxRetry)
-	if err := p.payloadRetrier.Configure(); err != nil {
+	p.payloadScheduler = NewPayloadScheduler(p.config.Datadir, p.config.PayloadRetryDelay, p.handlePrivateTxRetry)
+	if err := p.payloadScheduler.Configure(); err != nil {
 		return fmt.Errorf("failed to load existing TransactionPayloadQuery jobs: %w", err)
 	}
 
@@ -155,7 +155,7 @@ func (p *protocol) Start() (err error) {
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 
 	// load old payload query jobs
-	if err = p.payloadRetrier.Start(); err != nil {
+	if err = p.payloadScheduler.Start(); err != nil {
 		return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
 	}
 
@@ -188,7 +188,7 @@ func (p *protocol) handlePrivateTx(msg *nats.Msg) error {
 		log.Logger().Errorf("failed to parse transaction from event: %v", err)
 		return err
 	}
-	if err = p.payloadRetrier.Add(tx.Ref()); err != nil {
+	if err = p.payloadScheduler.Schedule(tx.Ref()); err != nil {
 		// this means the underlying DB is broken
 		log.Logger().Errorf("failed to add payload query retry job: %v", err)
 		return err
@@ -222,7 +222,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	// We weren't able to decrypt the PAL, so it wasn't meant for us
 	if pal == nil {
 		// stop retrying
-		if err := p.payloadRetrier.Remove(hash); err != nil {
+		if err := p.payloadScheduler.Finished(hash); err != nil {
 			return err
 		}
 
@@ -248,8 +248,8 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 }
 
 func (p *protocol) Stop() {
-	if p.payloadRetrier != nil {
-		p.payloadRetrier.Close()
+	if p.payloadScheduler != nil {
+		p.payloadScheduler.Close()
 	}
 
 	if p.cancel != nil {

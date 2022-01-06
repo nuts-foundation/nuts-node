@@ -48,7 +48,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	}
 
 	proto := New(Config{}, eventsConnectionPool, nodeDIDResolver, graph, payloadStore, docResolver, decrypter)
-	proto.(*protocol).payloadRetrier = payloadRetrier
+	proto.(*protocol).payloadScheduler = payloadRetrier
 
 	return proto.(*protocol), protocolMocks{
 		ctrl, eventsConnectionPool, graph, payloadRetrier, payloadStore, docResolver, decrypter,
@@ -168,7 +168,7 @@ func TestProtocol_Start(t *testing.T) {
 func TestProtocol_HandlePrivateTx(t *testing.T) {
 	tx, _, _ := dag.CreateTestTransaction(0)
 
-	t.Run("ok - event passed as job to payloadRetrier", func(t *testing.T) {
+	t.Run("ok - event passed as job to payloadScheduler", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mocks.PayloadRetrier.EXPECT().Add(tx.Ref())
 

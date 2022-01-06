@@ -11,7 +11,7 @@ import (
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
-// MockRetriable is a mock of Retriable interface.
+// MockRetriable is a mock of Scheduler interface.
 type MockRetriable struct {
 	ctrl     *gomock.Controller
 	recorder *MockRetriableMockRecorder
@@ -35,7 +35,7 @@ func (m *MockRetriable) EXPECT() *MockRetriableMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockRetriable) Add(hash hash.SHA256Hash) error {
+func (m *MockRetriable) Schedule(hash hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Add", hash)
 	ret0, _ := ret[0].(error)
@@ -45,7 +45,7 @@ func (m *MockRetriable) Add(hash hash.SHA256Hash) error {
 // Add indicates an expected call of Add.
 func (mr *MockRetriableMockRecorder) Add(hash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockRetriable)(nil).Add), hash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockRetriable)(nil).Schedule), hash)
 }
 
 // Close mocks base method.
@@ -77,7 +77,7 @@ func (mr *MockRetriableMockRecorder) Configure() *gomock.Call {
 }
 
 // Remove mocks base method.
-func (m *MockRetriable) Remove(hash hash.SHA256Hash) error {
+func (m *MockRetriable) Finished(hash hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Remove", hash)
 	ret0, _ := ret[0].(error)
@@ -87,7 +87,7 @@ func (m *MockRetriable) Remove(hash hash.SHA256Hash) error {
 // Remove indicates an expected call of Remove.
 func (mr *MockRetriableMockRecorder) Remove(hash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockRetriable)(nil).Remove), hash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockRetriable)(nil).Finished), hash)
 }
 
 // Start mocks base method.

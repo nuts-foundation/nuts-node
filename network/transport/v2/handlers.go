@@ -105,6 +105,7 @@ func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
 	if err = p.payloadStore.WritePayload(ctx, payloadHash, msg.Data); err != nil {
 		return err
 	}
-	// it's save, remove the retry
-	return p.payloadRetrier.Remove(ref)
+
+	// it's saved, remove the job
+	return p.payloadScheduler.Finished(ref)
 }

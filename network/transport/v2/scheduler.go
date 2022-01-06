@@ -30,20 +30,21 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v4"
+	"go.etcd.io/bbolt"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"go.etcd.io/bbolt"
 )
 
-// Retriable defines methods for a persistent retry mechanism
-type Retriable interface {
-	// Add a job that needs to be retried. It'll be passed to the channel immediately and at set intervals.
+// Scheduler defines methods for a persistent retry mechanism
+type Scheduler interface {
+	// Schedule a job that needs to be retried. It'll be passed to the channel immediately and at set intervals.
 	// Returns nil if job already exists.
 	// An error is returned if there's a problem with the underlying storage.
-	Add(hash hash.SHA256Hash) error
-	// Remove a job, it'll no longer be retried.
+	Schedule(hash hash.SHA256Hash) error
+	// Finished marks the job as finished and removes it from the scheduler
 	// An error is returned if there's a problem with the underlying storage.
-	Remove(hash hash.SHA256Hash) error
+	Finished(hash hash.SHA256Hash) error
 	// Configure opens the DB connection for persistent job storage and loads existing jobs from disk
 	Configure() error
 	// Start retrying new and existing jobs
@@ -54,26 +55,26 @@ type Retriable interface {
 
 type jobCallBack func(hash hash.SHA256Hash)
 
-// NewPayloadRetrier returns a Retriable for payload fetches.
+// NewPayloadScheduler returns a Scheduler for payload fetches.
 // The payload hashes as []byte should be added as job.
-func NewPayloadRetrier(dataDir string, payloadRetryDelay time.Duration, callback jobCallBack) Retriable {
-	return &payloadRetrier{
-		dataDir:           dataDir,
-		payloadRetryDelay: payloadRetryDelay,
-		callback:          callback,
+func NewPayloadScheduler(dataDir string, payloadRetryDelay time.Duration, callback jobCallBack) Scheduler {
+	return &payloadScheduler{
+		dataDir:    dataDir,
+		retryDelay: payloadRetryDelay,
+		callback:   callback,
 	}
 }
 
-type payloadRetrier struct {
-	dataDir           string
-	payloadRetryDelay time.Duration
-	db                *bbolt.DB
-	callback          jobCallBack
-	ctx               context.Context
-	cancel            context.CancelFunc
+type payloadScheduler struct {
+	dataDir    string
+	retryDelay time.Duration
+	db         *bbolt.DB
+	callback   jobCallBack
+	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
-func (p *payloadRetrier) Configure() error {
+func (p *payloadScheduler) Configure() error {
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 
 	dbFile := path.Join(p.dataDir, "network", "payload_jobs.db")
@@ -81,8 +82,8 @@ func (p *payloadRetrier) Configure() error {
 		return fmt.Errorf("unable to setup database: %w", err)
 	}
 
-	if p.payloadRetryDelay == 0 {
-		p.payloadRetryDelay = 5 * time.Second
+	if p.retryDelay == 0 {
+		p.retryDelay = 5 * time.Second
 	}
 
 	var err error
@@ -102,7 +103,7 @@ func (p *payloadRetrier) Configure() error {
 	return nil
 }
 
-func (p *payloadRetrier) Start() error {
+func (p *payloadScheduler) Start() error {
 	return p.db.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("payload_jobs"))
 		return bucket.ForEach(func(k, v []byte) error {
@@ -114,7 +115,7 @@ func (p *payloadRetrier) Start() error {
 	})
 }
 
-func (p *payloadRetrier) Add(hash hash.SHA256Hash) error {
+func (p *payloadScheduler) Schedule(hash hash.SHA256Hash) error {
 	if err := p.writeCount(hash, 0); err != nil {
 		return err
 	}
@@ -125,8 +126,8 @@ func (p *payloadRetrier) Add(hash hash.SHA256Hash) error {
 
 var errContinue = errors.New("continue")
 
-func (p *payloadRetrier) retry(hash hash.SHA256Hash, initialCount uint16) {
-	delay := p.payloadRetryDelay
+func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
+	delay := p.retryDelay
 
 	for i := uint16(0); i < initialCount; i++ {
 		delay *= 2
@@ -138,11 +139,14 @@ func (p *payloadRetrier) retry(hash hash.SHA256Hash, initialCount uint16) {
 			if err != nil {
 				return retry.Unrecoverable(err)
 			}
+
 			if existing {
 				if err := p.writeCount(hash, count+1); err != nil {
 					return retry.Unrecoverable(err)
 				}
+
 				p.callback(hash)
+
 				return errContinue
 			}
 
@@ -165,7 +169,7 @@ func (p *payloadRetrier) retry(hash hash.SHA256Hash, initialCount uint16) {
 	}()
 }
 
-func (p *payloadRetrier) writeCount(hash hash.SHA256Hash, count uint16) error {
+func (p *payloadScheduler) writeCount(hash hash.SHA256Hash, count uint16) error {
 	return p.db.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("payload_jobs"))
 		data := make([]byte, 2)
@@ -174,7 +178,7 @@ func (p *payloadRetrier) writeCount(hash hash.SHA256Hash, count uint16) error {
 	})
 }
 
-func (p *payloadRetrier) readCount(hash hash.SHA256Hash) (count uint16, exists bool, err error) {
+func (p *payloadScheduler) readCount(hash hash.SHA256Hash) (count uint16, exists bool, err error) {
 	err = p.db.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("payload_jobs"))
 		data := bucket.Get(hash.Slice())
@@ -187,14 +191,14 @@ func (p *payloadRetrier) readCount(hash hash.SHA256Hash) (count uint16, exists b
 	return
 }
 
-func (p *payloadRetrier) Remove(hash hash.SHA256Hash) error {
+func (p *payloadScheduler) Finished(hash hash.SHA256Hash) error {
 	return p.db.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("payload_jobs"))
 		return bucket.Delete(hash.Slice())
 	})
 }
 
-func (p *payloadRetrier) Close() error {
+func (p *payloadScheduler) Close() error {
 	// cancel all retries through the context
 	p.cancel()
 	// close the DB

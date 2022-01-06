@@ -36,39 +36,39 @@ import (
 
 var dummyCallback = func(_ hash.SHA256Hash) {}
 
-func TestNewPayloadRetrier(t *testing.T) {
+func TestNewPayloadScheduler(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		retrier := NewPayloadRetrier("", 0, dummyCallback)
+		scheduler := NewPayloadScheduler("", 0, dummyCallback)
 
-		assert.NotNil(t, retrier)
-		assert.NotNil(t, retrier.(*payloadRetrier).dataDir)
-		assert.NotNil(t, retrier.(*payloadRetrier).payloadRetryDelay)
-		assert.NotNil(t, retrier.(*payloadRetrier).callback)
+		assert.NotNil(t, scheduler)
+		assert.NotNil(t, scheduler.(*payloadScheduler).dataDir)
+		assert.NotNil(t, scheduler.(*payloadScheduler).retryDelay)
+		assert.NotNil(t, scheduler.(*payloadScheduler).callback)
 	})
 }
 
-func TestPayloadRetrier_Configure(t *testing.T) {
+func TestPayloadScheduler_Configure(t *testing.T) {
 	t.Run("ok - default delay", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		config := Config{Datadir: testDir}
-		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, dummyCallback)
+		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, dummyCallback)
 
-		err := retrier.Configure()
+		err := scheduler.Configure()
 
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.NotNil(t, retrier)
-		assert.Equal(t, 5*time.Second, retrier.(*payloadRetrier).payloadRetryDelay)
+		assert.NotNil(t, scheduler)
+		assert.Equal(t, 5*time.Second, scheduler.(*payloadScheduler).retryDelay)
 	})
 
 	t.Run("error - invalid DB location", func(t *testing.T) {
-		config := Config{Datadir: "retry_test.go"}
-		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, dummyCallback)
+		config := Config{Datadir: "scheduler_test.go"}
+		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, dummyCallback)
 
-		err := retrier.Configure()
+		err := scheduler.Configure()
 
-		assert.EqualError(t, err, "unable to setup database: mkdir retry_test.go: not a directory")
+		assert.EqualError(t, err, "unable to setup database: mkdir scheduler_test.go: not a directory")
 	})
 }
 
@@ -99,18 +99,18 @@ func (cc *callbackCounter) callback(_ hash.SHA256Hash) {
 	cc.wg.Done()
 }
 
-func TestPayloadRetrier_Add(t *testing.T) {
+func TestPayloadScheduler_Add(t *testing.T) {
 	payloadRef := hash.SHA256Sum([]byte("test"))
 
 	t.Run("ok", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		config := Config{Datadir: testDir}
 		counter := callbackCounter{}
-		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, counter.callback)
-		_ = retrier.Configure()
+		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, counter.callback)
+		_ = scheduler.Configure()
 
 		// also starts the go process
-		err := retrier.Add(payloadRef)
+		err := scheduler.Schedule(payloadRef)
 
 		if !assert.NoError(t, err) {
 			return
@@ -119,7 +119,7 @@ func TestPayloadRetrier_Add(t *testing.T) {
 		counter.wait(1)
 
 		// to enable access to DB
-		retrier.Close()
+		scheduler.Close()
 
 		assert.Equal(t, 1, counter.count)
 		count := fromDB(t, testDir, payloadRef)
@@ -130,12 +130,12 @@ func TestPayloadRetrier_Add(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		config := Config{Datadir: testDir, PayloadRetryDelay: 50 * time.Millisecond}
 		counter := callbackCounter{}
-		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, counter.callback)
-		_ = retrier.Configure()
-		defer retrier.Close()
+		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, counter.callback)
+		_ = scheduler.Configure()
+		defer scheduler.Close()
 
 		start := time.Now()
-		err := retrier.Add(payloadRef)
+		err := scheduler.Schedule(payloadRef)
 
 		if !assert.NoError(t, err) {
 			return
@@ -148,7 +148,7 @@ func TestPayloadRetrier_Add(t *testing.T) {
 	})
 }
 
-func TestPayloadRetrier_Start(t *testing.T) {
+func TestPayloadScheduler_Start(t *testing.T) {
 	payloadRef := hash.SHA256Sum([]byte("test"))
 
 	t.Run("ok", func(t *testing.T) {
@@ -158,10 +158,10 @@ func TestPayloadRetrier_Start(t *testing.T) {
 		tenAsBytes := make([]byte, 2)
 		binary.LittleEndian.PutUint16(tenAsBytes, 10)
 		addToDB(t, testDir, payloadRef, tenAsBytes)
-		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, counter.callback)
-		_ = retrier.Configure()
+		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, counter.callback)
+		_ = scheduler.Configure()
 
-		err := retrier.Start()
+		err := scheduler.Start()
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -169,7 +169,7 @@ func TestPayloadRetrier_Start(t *testing.T) {
 		counter.wait(1)
 
 		// to enable access to DB
-		retrier.Close()
+		scheduler.Close()
 
 		assert.Equal(t, 1, counter.count)
 		count := fromDB(t, testDir, payloadRef)
@@ -177,22 +177,22 @@ func TestPayloadRetrier_Start(t *testing.T) {
 	})
 }
 
-func TestPayloadRetrier_Remove(t *testing.T) {
+func TestPayloadScheduler_Remove(t *testing.T) {
 	payloadRef := hash.SHA256Sum([]byte("test"))
 
 	t.Run("ok - callback not called again", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		config := Config{Datadir: testDir, PayloadRetryDelay: 5 * time.Millisecond}
 		counter := callbackCounter{}
-		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, dummyCallback)
-		retrier.(*payloadRetrier).callback = func(_ hash.SHA256Hash) {
-			_ = retrier.Remove(payloadRef)
+		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, dummyCallback)
+		scheduler.(*payloadScheduler).callback = func(_ hash.SHA256Hash) {
+			_ = scheduler.Finished(payloadRef)
 			counter.callback(hash.SHA256Hash{})
 		}
-		_ = retrier.Configure()
-		defer retrier.Close()
+		_ = scheduler.Configure()
+		defer scheduler.Close()
 
-		_ = retrier.Add(payloadRef)
+		_ = scheduler.Schedule(payloadRef)
 		counter.wait(1)
 
 		// allow enough time for callback to not be called
