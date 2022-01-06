@@ -37,8 +37,8 @@ func (p *stubPredicate) Match(_ Connection) bool {
 }
 
 func TestConnectionList_Get(t *testing.T) {
-	conn1 := &StubConnection{IsConnected: true}
-	conn2 := &StubConnection{IsConnected: false}
+	conn1 := &StubConnection{Open: true}
+	conn2 := &StubConnection{Open: false}
 	cn := connectionList{
 		list: []Connection{conn1, conn2},
 	}
