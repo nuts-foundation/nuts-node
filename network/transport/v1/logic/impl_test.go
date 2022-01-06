@@ -49,7 +49,7 @@ func Test_Protocol_PeerDiagnostics(t *testing.T) {
 	defer ctrl.Finish()
 
 	connection := grpc.NewMockConnection(ctrl)
-	connection.EXPECT().Connected().Return(true)
+	connection.EXPECT().IsOpen().Return(true)
 	connectionList := grpc.NewMockConnectionList(ctrl)
 	connectionList.EXPECT().Get(grpc.ByPeerID(peerID)).Return(connection)
 	connectionList.EXPECT().Get(grpc.ByPeerID("disconnected-peer")).Return(nil)
@@ -97,7 +97,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		defer ctrl.Finish()
 
 		connection := grpc.NewMockConnection(ctrl)
-		connection.EXPECT().Connected().Return(true)
+		connection.EXPECT().IsOpen().Return(true)
 		connectionList := grpc.NewMockConnectionList(ctrl)
 		connectionList.EXPECT().Get(grpc.ByPeerID(peerID)).Return(connection)
 		connectionList.EXPECT().Get(grpc.ByPeerID("disconnected-peer")).Return(nil)

@@ -36,18 +36,18 @@ func (m *MockConnection) EXPECT() *MockConnectionMockRecorder {
 	return m.recorder
 }
 
-// Connected mocks base method.
-func (m *MockConnection) Connected() bool {
+// IsOpen mocks base method.
+func (m *MockConnection) IsOpen() bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Connected")
+	ret := m.ctrl.Call(m, "IsOpen")
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-// Connected indicates an expected call of Connected.
-func (mr *MockConnectionMockRecorder) Connected() *gomock.Call {
+// IsOpen indicates an expected call of IsOpen.
+func (mr *MockConnectionMockRecorder) IsOpen() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connected", reflect.TypeOf((*MockConnection)(nil).Connected))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOpen", reflect.TypeOf((*MockConnection)(nil).IsOpen))
 }
 
 // Peer mocks base method.

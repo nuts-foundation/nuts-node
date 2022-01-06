@@ -229,7 +229,7 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 func (s grpcConnectionManager) Peers() []transport.Peer {
 	var peers []transport.Peer
 	for _, curr := range s.connections.All() {
-		if curr.Connected() {
+		if curr.IsOpen() {
 			peers = append(peers, curr.Peer())
 		}
 	}

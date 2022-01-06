@@ -134,7 +134,7 @@ func (s StubConnection) Peer() transport.Peer {
 }
 
 // Connected returns true if the connection is connected
-func (s StubConnection) Connected() bool {
+func (s StubConnection) IsOpen() bool {
 	return s.IsConnected
 }
 
