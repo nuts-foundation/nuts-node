@@ -22,6 +22,7 @@ package vcr
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/presentation"
 	"github.com/nuts-foundation/nuts-node/vcr/proof"
 	"time"
@@ -113,9 +114,15 @@ type Resolver interface {
 	Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error)
 }
 
-type PresentationManager interface {
-	BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, kid string) (*presentation.VerifiablePresentation, error)
+type Presenter interface {
+	BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, did did.DID, validateVC bool) (*presentation.VerifiablePresentation, error)
+}
+
+type Verifier interface {
 	VerifyPresentation(verifiablePresentation presentation.VerifiablePresentation) error
+}
+
+type PresentationManager interface {
 }
 
 // VCR is the interface that covers all functionality of the vcr store.
@@ -135,4 +142,6 @@ type VCR interface {
 	Validator
 	Writer
 	PresentationManager
+	Verifier
+	Presenter
 }

@@ -2,9 +2,6 @@ package proof
 
 import (
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/ed25519"
-	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -57,6 +54,7 @@ type LDProof struct {
 	VerificationMethod string `json:"verificationMethod"`
 	// JWS contains the proofValue for a detached signature
 	JWS *string `json:"jws,omitempty"`
+	// TODO: Add missing fields from https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json
 }
 
 type ldProofManager struct {
@@ -247,16 +245,16 @@ const RsaSignature2018 = ssi.ProofType("RsaSignature2018")
 const EcdsaSecp256k1Signature2019 = ssi.ProofType("EcdsaSecp256k1Signature2019")
 
 func determineProofType(key nutsCrypto.Key) (ssi.ProofType, error) {
-	switch key.Public().(type) {
-	case *rsa.PublicKey:
-		return RsaSignature2018, nil
-	case *ecdsa.PublicKey:
-		return EcdsaSecp256k1Signature2019, nil
-	case *ed25519.PublicKey:
-		return ssi.JsonWebSignature2020, nil
-	default:
-		return "", errors.New("unknown key type")
-	}
+	//switch key.Public().(type) {
+	//case *rsa.PublicKey:
+	//	return RsaSignature2018, nil
+	//case *ecdsa.PublicKey:
+	//	return EcdsaSecp256k1Signature2019, nil
+	//case *ed25519.PublicKey:
+	return ssi.JsonWebSignature2020, nil
+	////default:
+	////	return "", errors.New("unknown key type")
+	//}
 }
 
 func determineProofContext(proofType ssi.ProofType) string {
@@ -266,7 +264,7 @@ func determineProofContext(proofType ssi.ProofType) string {
 	case ssi.JsonWebSignature2020:
 		return "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
 	case EcdsaSecp256k1Signature2019:
-		return "https://w3id.org/security/v2"
+		return "https://w3id.org/security/v1"
 	default:
 		return ""
 	}
@@ -321,6 +319,7 @@ func (p *ldProofManager) canonicalize(input interface{}) (result interface{}, er
 // Hash Algorithm, passing the information in options.
 func (p *ldProofManager) CreateToBeSigned(canonicalizedDocument interface{}, canonicalizedProof interface{}) ([]byte, error) {
 
+	//https://w3c-ccg.github.io/data-integrity-spec/#create-verify-hash-algorithm
 	// Step 4.2:
 	// Hash canonicalized options document using the message digest algorithm (e.g. SHA-256) set output to the result.
 	output := hash.SHA256Sum([]byte(canonicalizedProof.(string))).Slice()

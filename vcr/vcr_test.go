@@ -24,6 +24,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	proofs "github.com/nuts-foundation/nuts-node/vcr/proof"
 	"os"
 	"reflect"
 	"runtime"
@@ -87,6 +88,59 @@ func TestVCR_Start(t *testing.T) {
 
 		_, err := os.Stat(instance.credentialsDBPath())
 		assert.NoError(t, err)
+	})
+}
+
+func TestVcr_BuildVerifiablePresentation(t *testing.T) {
+
+	t.Run("ok - create new VP", func(t *testing.T) {
+		const kid = "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#OeSIhvBqxaBXH9wM2-jboiZvrrF2vLq22Ho1FWk9bIQ"
+		rawTestCredential := `
+{
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://nuts.nl/credentials/v1",
+        "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+    ],
+    "credentialSubject": {
+        "company": {
+            "city": "Hengelo",
+            "name": "De beste zorg"
+        },
+        "id": "did:nuts:BfQRsmgryywR3goAsECwjGHbCNGGqKdMvmrLHV6UgZsx"
+    },
+    "id": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0",
+    "issuanceDate": "2021-12-24T13:21:29.087205+01:00",
+    "issuer": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H",
+    "proof": {
+        "created": "2021-12-24T13:21:29.087205+01:00",
+        "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..hPM2GLc1K9d2D8Sbve004x9SumjLqaXTjWhUhvqWRwxfRWlwfp5gHDUYuRoEjhCXfLt-_u-knChVmK980N3LBw",
+        "proofPurpose": "assertionMethod",
+        "type": "JsonWebSignature2020",
+        "verificationMethod": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#OeSIhvBqxaBXH9wM2-jboiZvrrF2vLq22Ho1FWk9bIQ"
+    },
+    "type": [
+        "CompanyCredential",
+        "VerifiableCredential"
+    ]
+}`
+		testCredential := vc.VerifiableCredential{}
+		json.Unmarshal([]byte(rawTestCredential), &testCredential)
+
+		ctx := newMockContext(t)
+		for _, ct := range testCredential.Type {
+			if !assert.NoError(t, ctx.vcr.Trust(ct, testCredential.Issuer)) {
+				return
+			}
+		}
+		key := crypto.NewTestKey(kid)
+		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestMethodDIDA.URI(), nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
+		instance := ctx.vcr
+		options := proofs.ProofOptions{}
+		resultingPresentation, err := instance.BuildVerifiablePresentation([]vc.VerifiableCredential{testCredential}, options, *vdr.TestDIDA, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, resultingPresentation)
 	})
 }
 

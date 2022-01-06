@@ -434,16 +434,17 @@ components:
       description: A request for creating a new Verifiable Presentation for a set of Verifiable Credentials.
       required:
         - verifiableCredentials
-        - verificationMethod
+        - signerDID
       properties:
         verifiableCredentials:
           type: array
           items:
             $ref: "#/components/schemas/VerifiableCredential"
-        verificationMethod:
+        signerDID:
           description: |
-            Specifies the key identifier that must be used to sign the digital signature.
+            Specifies the DID of the signing party that must be used to create the digital signature.
           type: string
+          format: uri
         proofPurpose:
           type: string
           description: |

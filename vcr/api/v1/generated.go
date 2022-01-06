@@ -44,11 +44,11 @@ type CreateVerifiablePresentationRequest struct {
 
 	// The specific intent for the proof, the reason why an entity created it. Acts as a safeguard to prevent the
 	// proof from being misused for a purpose other than the one it was intended for.
-	ProofPurpose          *string                `json:"proofPurpose,omitempty"`
-	VerifiableCredentials []VerifiableCredential `json:"verifiableCredentials"`
+	ProofPurpose *string `json:"proofPurpose,omitempty"`
 
-	// Specifies the key identifier that must be used to sign the digital signature.
-	VerificationMethod string `json:"verificationMethod"`
+	// Specifies the DID of the signing party that must be used to create the digital signature.
+	SignerDID             string                 `json:"signerDID"`
+	VerifiableCredentials []VerifiableCredential `json:"verifiableCredentials"`
 }
 
 // CredentialIssuer defines model for CredentialIssuer.

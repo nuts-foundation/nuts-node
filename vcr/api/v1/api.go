@@ -54,12 +54,9 @@ func (w *Wrapper) CreateVerifiablePresentation(ctx echo.Context) error {
 		return core.InvalidInputError("verifiableCredentials needs at least 1 item")
 	}
 
-	method, err := ssi.ParseURI(request.VerificationMethod)
+	signerDID, err := did.ParseDID(request.SignerDID)
 	if err != nil {
-		return core.InvalidInputError("could not parse the verificationMethod: %w", err)
-	}
-	if method.Fragment == "" {
-		return core.InvalidInputError("missing key identifier in verificationMethod")
+		return core.InvalidInputError("invalid signer DID: %w", err)
 	}
 
 	// Set created to now
@@ -83,7 +80,7 @@ func (w *Wrapper) CreateVerifiablePresentation(ctx echo.Context) error {
 		ExpirationDate: expires,
 	}
 
-	vp, err := w.R.BuildVerifiablePresentation(request.VerifiableCredentials, proofOptions, request.VerificationMethod)
+	vp, err := w.R.BuildVerifiablePresentation(request.VerifiableCredentials, proofOptions, *signerDID, true)
 	if err != nil {
 		return err
 	}

@@ -155,9 +155,11 @@ func TestLdProofManager_Verify(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("ok - rsa test from the json-ld playground", func(t *testing.T) {
-		
-		rawDocument := `{
+	t.Run("RsaSignature2018", func(t *testing.T) {
+
+		t.Run("ok - example generated from json-ld playground", func(t *testing.T) {
+
+			rawDocument := `{
   "@context": [
     {
       "@version": 1.1
@@ -176,16 +178,15 @@ func TestLdProofManager_Verify(t *testing.T) {
     "nonce": "c11cfad6"
   }
 }`
-
-		//t.Skip("rsa currently not supported")
-		signedDocument := map[string]interface{}{}
-		err := json.Unmarshal([]byte(rawDocument), &signedDocument)
-		if !assert.NoError(t, err) {
-			return
-		}
-		verifier, _ := NewLDProofVerifier()
-		err = verifier.Verify(signedDocument, privateKey.PublicKey)
-		assert.NoError(t, err)
+			signedDocument := map[string]interface{}{}
+			err := json.Unmarshal([]byte(rawDocument), &signedDocument)
+			if !assert.NoError(t, err) {
+				return
+			}
+			verifier, _ := NewLDProofVerifier()
+			err = verifier.Verify(signedDocument, privateKey.PublicKey)
+			assert.NoError(t, err)
+		})
 	})
 
 }

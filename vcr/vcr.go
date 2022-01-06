@@ -832,7 +832,9 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	return qs
 }
 
+// VerifyPresentation checks the signature and validity of the presentation.
 func (c *vcr) VerifyPresentation(verifiablePresentation presentation.VerifiablePresentation) error {
+	// TODO: Add test to check for context contains credential and type is "VerifiablePresentation"
 	rawProof := verifiablePresentation.Proof
 
 	ldProof := proofs.LDProof{}
@@ -851,35 +853,42 @@ func (c *vcr) VerifyPresentation(verifiablePresentation presentation.VerifiableP
 	return nil
 }
 
-func (c *vcr) BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proofs.ProofOptions, kid string) (*presentation.VerifiablePresentation, error) {
-	key, err := c.keyStore.Resolve(kid)
+func (c *vcr) BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proofs.ProofOptions, holderID did.DID, validateVC bool) (*presentation.VerifiablePresentation, error) {
+	kid, err := c.keyResolver.ResolveAssertionKeyID(holderID)
+	key, err := c.keyStore.Resolve(kid.String())
 	if err != nil {
 		return nil, fmt.Errorf("could not resolve kid: %w", err)
 	}
 
-	for _, vc := range credentials {
-		if err := c.Validate(vc, false, true, nil); err != nil {
-			return nil, core.InvalidInputError("invalid credential: %w", err)
+	if validateVC {
+		for _, cred := range credentials {
+			if err := c.Validate(cred, false, true, nil); err != nil {
+				return nil, core.InvalidInputError("invalid credential with id: %s, error: %w", cred.ID, err)
+			}
 		}
 	}
 
-	vp := &presentation.VerifiablePresentation{
+	signerInput := &presentation.VerifiablePresentation{
 		Context:              []string{"https://www.w3.org/2018/credentials/v1"},
 		Type:                 []string{"VerifiablePresentation"},
 		VerifiableCredential: &credentials,
 	}
 
 	// TODO: choose between different proof types (JWT or LD-Proof)
-	ldProofSigner, err := proofs.NewLDProofBuilder(vp, proofOptions)
+	ldProofSigner, err := proofs.NewLDProofBuilder(signerInput, proofOptions)
 	if err != nil {
 		return nil, fmt.Errorf("unable create json-ld proof builder: %w", err)
 	}
-	proof, err := ldProofSigner.Sign(key)
+	signerOutput, err := ldProofSigner.Sign(key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign ldProof: %w", err)
 	}
-	vp.Proof = proof
-	return vp, nil
+
+	signedVP := &presentation.VerifiablePresentation{}
+	b, _ := json.Marshal(signerOutput)
+	_ = json.Unmarshal(b, signedVP)
+
+	return signedVP, nil
 }
 
 func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, key crypto.Key) error {
