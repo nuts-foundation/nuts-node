@@ -292,7 +292,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
-		vc, err := ctx.vcr.Resolve(*testVC.ID, &now)
+		vc, err := ctx.vcr.ResolveCredential(*testVC.ID, &now)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -304,7 +304,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx := testInstance(t)
 		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
 
-		_, err := ctx.vcr.Resolve(*testVC.ID, &time.Time{})
+		_, err := ctx.vcr.ResolveCredential(*testVC.ID, &time.Time{})
 		assert.Equal(t, ErrInvalidPeriod, err)
 	})
 
@@ -315,7 +315,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx := testInstance(t)
 		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
 
-		_, err := ctx.vcr.Resolve(*testVC.ID, &nextYear)
+		_, err := ctx.vcr.ResolveCredential(*testVC.ID, &nextYear)
 		assert.Equal(t, ErrInvalidPeriod, err)
 	})
 
@@ -325,7 +325,7 @@ func TestVCR_Resolve(t *testing.T) {
 		rev := leia.DocumentFromString(concept.TestRevocation)
 		ctx.vcr.store.Collection(revocationCollection).Add([]leia.Document{rev})
 
-		vc, err := ctx.vcr.Resolve(*testVC.ID, nil)
+		vc, err := ctx.vcr.ResolveCredential(*testVC.ID, nil)
 
 		assert.Equal(t, err, ErrRevoked)
 		assert.Equal(t, testVC, *vc)
@@ -335,7 +335,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx := testInstance(t)
 		ctx.vcr.trustConfig.RemoveTrust(testVC.Type[0], testVC.Issuer)
 
-		vc, err := ctx.vcr.Resolve(*testVC.ID, nil)
+		vc, err := ctx.vcr.ResolveCredential(*testVC.ID, nil)
 
 		assert.Equal(t, err, ErrUntrusted)
 		assert.Equal(t, testVC, *vc)
@@ -343,7 +343,7 @@ func TestVCR_Resolve(t *testing.T) {
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := testInstance(t)
-		_, err := ctx.vcr.Resolve(ssi.URI{}, nil)
+		_, err := ctx.vcr.ResolveCredential(ssi.URI{}, nil)
 
 		assert.Equal(t, ErrNotFound, err)
 	})
@@ -353,7 +353,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, types.ErrNotFound)
 
-		_, err := ctx.vcr.Resolve(*testVC.ID, &now)
+		_, err := ctx.vcr.ResolveCredential(*testVC.ID, &now)
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 }

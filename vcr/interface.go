@@ -77,6 +77,7 @@ type CredentialStore interface {
 	StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error
+	CredentialResolver
 }
 
 // TrustStore bundles all trust related methods in one interface
@@ -91,23 +92,28 @@ type TrustStore interface {
 	Untrusted(credentialType ssi.URI) ([]ssi.URI, error)
 }
 
-// Resolver binds all read type of operations into an interface
-type Resolver interface {
-	// Registry returns the concept registry as read-only
-	Registry() concept.Reader
-	// Resolve returns a credential based on its ID.
+// CredentialResolver binds all read type of operations into an interface
+type CredentialResolver interface {
+	// ResolveCredential returns a credential based on its ID.
 	// The optional resolveTime will resolve the credential at that point in time.
 	// The credential will still be returned in the case of ErrRevoked and ErrUntrusted.
 	// For other errors, nil is returned
-	Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error)
+	ResolveCredential(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error)
 }
 
 // Holder holds logic for Presenting credentials
+// A Holder is a role an entity might perform by:
+// * Possessing one or more verifiable credentials
+// * Generating verifiable presentations from them
+// Example holders include students, employees, and customers.
 type Holder interface {
 	BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, did did.DID, validateVC bool) (*presentation.VerifiablePresentation, error)
 }
 
 // Verifier holds logic for verifying Presentations and Credentials
+// A Verifier is a role an entity performs by:
+// * Receiving one or more verifiable credentials (optionally inside a verifiable presentation, for processing)
+// Example verifiers include employers, security personnel, and websites.
 type Verifier interface {
 	VerifyPresentation(verifiablePresentation presentation.VerifiablePresentation) error
 
@@ -121,8 +127,13 @@ type Verifier interface {
 	ValidateCredential(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error
 }
 
-// Issuer holds the functions for the issuer role.
+// Issuer holds the logic for the issuer role.
 // It allows for issuing and revoking Verifiable Credentials
+// An Issuer is a role an entity performs by:
+// * Asserting claims about one or more subjects,
+// * Creating a verifiable credential from these claims
+// * Transmitting the verifiable credential to a holder.
+// Example issuers include corporations, non-profit organizations, trade associations, governments, and individuals.
 type Issuer interface {
 	// Issue creates and publishes a new VC.
 	// An optional expirationDate can be given.
@@ -137,11 +148,10 @@ type Issuer interface {
 // VCR is the interface that covers all functionality of the vcr store.
 type VCR interface {
 	Issuer
-
-	ConceptFinder
-	Resolver
-	TrustStore
-	CredentialStore
 	Verifier
 	Holder
+
+	CredentialStore
+	ConceptFinder
+	TrustStore
 }

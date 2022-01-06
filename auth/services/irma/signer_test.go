@@ -178,7 +178,6 @@ func serviceWithMocks(t *testing.T) *mockContext {
 	vcr := vcr.NewMockResolver(ctrl)
 	conceptRegistry := concept.NewMockRegistry(ctrl)
 	mockSigner := crypto.NewMockJWTSigner(ctrl)
-	vcr.EXPECT().Registry().Return(conceptRegistry).AnyTimes()
 
 	irmaConfig, _ := GetIrmaConfig(serviceConfig)
 	service := &Service{

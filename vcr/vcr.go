@@ -384,7 +384,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	return &verifiableCredential, nil
 }
 
-func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
+func (c *vcr) ResolveCredential(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	credential, err := c.find(ID)
 	if err != nil {
 		return nil, err

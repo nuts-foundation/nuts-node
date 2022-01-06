@@ -183,7 +183,7 @@ func CreateSystem() *core.System {
 		Updater:    vdrInstance,
 		Resolver:   docResolver,
 	}})
-	system.RegisterRoutes(&credAPI.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
+	system.RegisterRoutes(&credAPI.Wrapper{R: credentialInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance})

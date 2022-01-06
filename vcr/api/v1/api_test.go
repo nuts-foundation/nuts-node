@@ -149,7 +149,7 @@ func TestWrapper_Resolve(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, nil)
+		ctx.vcr.EXPECT().ResolveCredential(*id, nil).Return(&v, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
@@ -168,7 +168,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 		timeString := "2020-01-01T12:00:00Z"
 		resolveTime, _ := time.Parse(time.RFC3339, timeString)
-		ctx.vcr.EXPECT().Resolve(*id, &resolveTime).Return(&v, nil)
+		ctx.vcr.EXPECT().ResolveCredential(*id, &resolveTime).Return(&v, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
 
 		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{ResolveTime: &timeString})
@@ -181,7 +181,7 @@ func TestWrapper_Resolve(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(nil, vcr.ErrNotFound)
+		ctx.vcr.EXPECT().ResolveCredential(*id, nil).Return(nil, vcr.ErrNotFound)
 
 		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{})
 
@@ -192,7 +192,7 @@ func TestWrapper_Resolve(t *testing.T) {
 	t.Run("error - other", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(nil, errors.New("b00m!"))
+		ctx.vcr.EXPECT().ResolveCredential(*id, nil).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{})
 
@@ -203,7 +203,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, vcr.ErrRevoked)
+		ctx.vcr.EXPECT().ResolveCredential(*id, nil).Return(&v, vcr.ErrRevoked)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
@@ -222,7 +222,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, vcr.ErrUntrusted)
+		ctx.vcr.EXPECT().ResolveCredential(*id, nil).Return(&v, vcr.ErrUntrusted)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
@@ -262,7 +262,6 @@ func TestWrapper_Search(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.client.CR = registry
 		defer ctx.ctrl.Finish()
 
 		var capturedConcept []concept.Concept
@@ -302,7 +301,6 @@ func TestWrapper_Search(t *testing.T) {
 
 	t.Run("error - search returns error", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.client.CR = registry
 		defer ctx.ctrl.Finish()
 		trueVal := true
 
@@ -550,7 +548,7 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	registry := concept.NewMockRegistry(ctrl)
 	vcr := vcr.NewMockVCR(ctrl)
-	client := &Wrapper{CR: registry, R: vcr}
+	client := &Wrapper{R: vcr}
 
 	return mockContext{
 		ctrl:     ctrl,

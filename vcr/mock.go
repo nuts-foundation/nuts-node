@@ -95,6 +95,21 @@ func (m *MockCredentialStore) EXPECT() *MockCredentialStoreMockRecorder {
 	return m.recorder
 }
 
+// ResolveCredential mocks base method.
+func (m *MockCredentialStore) ResolveCredential(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveCredential", ID, resolveTime)
+	ret0, _ := ret[0].(*vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveCredential indicates an expected call of ResolveCredential.
+func (mr *MockCredentialStoreMockRecorder) ResolveCredential(ID, resolveTime interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveCredential", reflect.TypeOf((*MockCredentialStore)(nil).ResolveCredential), ID, resolveTime)
+}
+
 // StoreCredential mocks base method.
 func (m *MockCredentialStore) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error {
 	m.ctrl.T.Helper()
@@ -204,7 +219,7 @@ func (mr *MockTrustStoreMockRecorder) Untrusted(credentialType interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrusted", reflect.TypeOf((*MockTrustStore)(nil).Untrusted), credentialType)
 }
 
-// MockResolver is a mock of Resolver interface.
+// MockResolver is a mock of CredentialResolver interface.
 type MockResolver struct {
 	ctrl     *gomock.Controller
 	recorder *MockResolverMockRecorder
@@ -227,33 +242,19 @@ func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 	return m.recorder
 }
 
-// Registry mocks base method.
-func (m *MockResolver) Registry() concept.Reader {
+// ResolveCredential mocks base method.
+func (m *MockResolver) ResolveCredential(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Registry")
-	ret0, _ := ret[0].(concept.Reader)
-	return ret0
-}
-
-// Registry indicates an expected call of Registry.
-func (mr *MockResolverMockRecorder) Registry() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockResolver)(nil).Registry))
-}
-
-// Resolve mocks base method.
-func (m *MockResolver) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Resolve", ID, resolveTime)
+	ret := m.ctrl.Call(m, "ResolveCredential", ID, resolveTime)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Resolve indicates an expected call of Resolve.
-func (mr *MockResolverMockRecorder) Resolve(ID, resolveTime interface{}) *gomock.Call {
+// ResolveCredential indicates an expected call of ResolveCredential.
+func (mr *MockResolverMockRecorder) ResolveCredential(ID, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockResolver)(nil).Resolve), ID, resolveTime)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveCredential", reflect.TypeOf((*MockResolver)(nil).ResolveCredential), ID, resolveTime)
 }
 
 // MockHolder is a mock of Holder interface.
@@ -466,33 +467,19 @@ func (mr *MockVCRMockRecorder) Issue(vcToIssue interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockVCR)(nil).Issue), vcToIssue)
 }
 
-// Registry mocks base method.
-func (m *MockVCR) Registry() concept.Reader {
+// ResolveCredential mocks base method.
+func (m *MockVCR) ResolveCredential(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Registry")
-	ret0, _ := ret[0].(concept.Reader)
-	return ret0
-}
-
-// Registry indicates an expected call of Registry.
-func (mr *MockVCRMockRecorder) Registry() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockVCR)(nil).Registry))
-}
-
-// Resolve mocks base method.
-func (m *MockVCR) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Resolve", ID, resolveTime)
+	ret := m.ctrl.Call(m, "ResolveCredential", ID, resolveTime)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Resolve indicates an expected call of Resolve.
-func (mr *MockVCRMockRecorder) Resolve(ID, resolveTime interface{}) *gomock.Call {
+// ResolveCredential indicates an expected call of ResolveCredential.
+func (mr *MockVCRMockRecorder) ResolveCredential(ID, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVCR)(nil).Resolve), ID, resolveTime)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveCredential", reflect.TypeOf((*MockVCR)(nil).ResolveCredential), ID, resolveTime)
 }
 
 // Revoke mocks base method.

@@ -40,8 +40,8 @@ var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
-	R  vcr.VCR
-	CR concept.Reader
+	R vcr.VCR
+	//CR concept.Reader
 }
 
 func (w *Wrapper) CreateVerifiablePresentation(ctx echo.Context) error {
@@ -194,7 +194,7 @@ func (w *Wrapper) Resolve(ctx echo.Context, id string, params ResolveParams) err
 	}
 
 	// id is given with fragment
-	vc, err := w.R.Resolve(*idURI, at)
+	vc, err := w.R.ResolveCredential(*idURI, at)
 	if vc == nil && err != nil {
 		return err
 	}
