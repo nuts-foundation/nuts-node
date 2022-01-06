@@ -38,10 +38,11 @@ var dummyCallback = func(_ hash.SHA256Hash) {}
 
 func TestNewPayloadRetrier(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		retrier := NewPayloadRetrier(Config{}, dummyCallback)
+		retrier := NewPayloadRetrier("", 0, dummyCallback)
 
 		assert.NotNil(t, retrier)
-		assert.NotNil(t, retrier.(*payloadRetrier).config)
+		assert.NotNil(t, retrier.(*payloadRetrier).dataDir)
+		assert.NotNil(t, retrier.(*payloadRetrier).payloadRetryDelay)
 		assert.NotNil(t, retrier.(*payloadRetrier).callback)
 	})
 }
@@ -50,7 +51,7 @@ func TestPayloadRetrier_Configure(t *testing.T) {
 	t.Run("ok - default delay", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		config := Config{Datadir: testDir}
-		retrier := NewPayloadRetrier(config, dummyCallback)
+		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, dummyCallback)
 
 		err := retrier.Configure()
 
@@ -58,12 +59,12 @@ func TestPayloadRetrier_Configure(t *testing.T) {
 			return
 		}
 		assert.NotNil(t, retrier)
-		assert.Equal(t, 5*time.Second, retrier.(*payloadRetrier).config.PayloadRetryDelay)
+		assert.Equal(t, 5*time.Second, retrier.(*payloadRetrier).payloadRetryDelay)
 	})
 
 	t.Run("error - invalid DB location", func(t *testing.T) {
 		config := Config{Datadir: "retry_test.go"}
-		retrier := NewPayloadRetrier(config, dummyCallback)
+		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, dummyCallback)
 
 		err := retrier.Configure()
 
@@ -80,7 +81,7 @@ type callbackCounter struct {
 
 func (cc *callbackCounter) wait(count int) {
 	cc.mutex.Lock()
-	
+
 	if cc.count >= count {
 		return
 	}
@@ -105,7 +106,7 @@ func TestPayloadRetrier_Add(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		config := Config{Datadir: testDir}
 		counter := callbackCounter{}
-		retrier := NewPayloadRetrier(config, counter.callback)
+		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, counter.callback)
 		_ = retrier.Configure()
 
 		// also starts the go process
@@ -129,7 +130,7 @@ func TestPayloadRetrier_Add(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		config := Config{Datadir: testDir, PayloadRetryDelay: 50 * time.Millisecond}
 		counter := callbackCounter{}
-		retrier := NewPayloadRetrier(config, counter.callback)
+		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, counter.callback)
 		_ = retrier.Configure()
 		defer retrier.Close()
 
@@ -157,7 +158,7 @@ func TestPayloadRetrier_Start(t *testing.T) {
 		tenAsBytes := make([]byte, 2)
 		binary.LittleEndian.PutUint16(tenAsBytes, 10)
 		addToDB(t, testDir, payloadRef, tenAsBytes)
-		retrier := NewPayloadRetrier(config, counter.callback)
+		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, counter.callback)
 		_ = retrier.Configure()
 
 		err := retrier.Start()
@@ -183,7 +184,7 @@ func TestPayloadRetrier_Remove(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		config := Config{Datadir: testDir, PayloadRetryDelay: 5 * time.Millisecond}
 		counter := callbackCounter{}
-		retrier := NewPayloadRetrier(config, dummyCallback)
+		retrier := NewPayloadRetrier(config.Datadir, config.PayloadRetryDelay, dummyCallback)
 		retrier.(*payloadRetrier).callback = func(_ hash.SHA256Hash) {
 			_ = retrier.Remove(payloadRef)
 			counter.callback(hash.SHA256Hash{})

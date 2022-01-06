@@ -56,34 +56,39 @@ type jobCallBack func(hash hash.SHA256Hash)
 
 // NewPayloadRetrier returns a Retriable for payload fetches.
 // The payload hashes as []byte should be added as job.
-func NewPayloadRetrier(config Config, callback jobCallBack) Retriable {
+func NewPayloadRetrier(dataDir string, payloadRetryDelay time.Duration, callback jobCallBack) Retriable {
 	return &payloadRetrier{
-		config:   config,
-		callback: callback,
+		dataDir:           dataDir,
+		payloadRetryDelay: payloadRetryDelay,
+		callback:          callback,
 	}
 }
 
 type payloadRetrier struct {
-	config   Config
-	db       *bbolt.DB
-	callback jobCallBack
-	ctx      context.Context
-	cancel   context.CancelFunc
+	dataDir           string
+	payloadRetryDelay time.Duration
+	db                *bbolt.DB
+	callback          jobCallBack
+	ctx               context.Context
+	cancel            context.CancelFunc
 }
 
 func (p *payloadRetrier) Configure() error {
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 
-	dbFile := path.Join(p.config.Datadir, "network", "payload_jobs.db")
+	dbFile := path.Join(p.dataDir, "network", "payload_jobs.db")
 	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
 		return fmt.Errorf("unable to setup database: %w", err)
 	}
 
-	if p.config.PayloadRetryDelay == 0 {
-		p.config.PayloadRetryDelay = 5 * time.Second
+	if p.payloadRetryDelay == 0 {
+		p.payloadRetryDelay = 5 * time.Second
 	}
+
 	var err error
+
 	p.db, err = bbolt.Open(dbFile, 0600, bbolt.DefaultOptions)
+
 	if err != nil {
 		return fmt.Errorf("unable to create BBolt database: %w", err)
 	}
@@ -93,6 +98,7 @@ func (p *payloadRetrier) Configure() error {
 	}); err != nil {
 		return fmt.Errorf("unable to create buckets in database: %w", err)
 	}
+
 	return nil
 }
 
@@ -120,9 +126,10 @@ func (p *payloadRetrier) Add(hash hash.SHA256Hash) error {
 var errContinue = errors.New("continue")
 
 func (p *payloadRetrier) retry(hash hash.SHA256Hash, initialCount uint16) {
-	startDelay := p.config.PayloadRetryDelay
+	delay := p.payloadRetryDelay
+
 	for i := uint16(0); i < initialCount; i++ {
-		startDelay *= 2
+		delay *= 2
 	}
 
 	go func() {
@@ -144,7 +151,7 @@ func (p *payloadRetrier) retry(hash hash.SHA256Hash, initialCount uint16) {
 		},
 			retry.Attempts(100),          // should be enough
 			retry.MaxDelay(24*time.Hour), // maximum delay of an hour
-			retry.Delay(startDelay),      // first retry after 5 seconds, second after 10, 20, 40, etc
+			retry.Delay(delay),           // first retry after 5 seconds, second after 10, 20, 40, etc
 			retry.DelayType(retry.BackOffDelay),
 			retry.Context(p.ctx),
 			retry.LastErrorOnly(true), // only log last error

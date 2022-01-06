@@ -116,7 +116,7 @@ func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
 }
 
 func (p *protocol) Configure(_ transport.PeerID) error {
-	p.payloadRetrier = NewPayloadRetrier(p.config, p.handlePrivateTxRetry)
+	p.payloadRetrier = NewPayloadRetrier(p.config.Datadir, p.config.PayloadRetryDelay, p.handlePrivateTxRetry)
 	if err := p.payloadRetrier.Configure(); err != nil {
 		return fmt.Errorf("failed to load existing TransactionPayloadQuery jobs: %w", err)
 	}
