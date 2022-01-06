@@ -189,7 +189,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAccessToken", nil)
-		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(nil)
+		ctx.vcValidator.EXPECT().ValidateCredential(gomock.Any(), true, true, gomock.Any()).Return(nil)
 
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Remove(userIdentityClaim)
@@ -218,7 +218,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 			DAttributes: map[string]string{"name": "Henk de Vries"},
 			CAttributes: map[string]string{"legal_entity": "Carebears", "legal_entity_city": "Caretown"},
 		}, nil)
-		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(nil)
+		ctx.vcValidator.EXPECT().ValidateCredential(gomock.Any(), true, true, gomock.Any()).Return(nil)
 
 		tokenCtx := validContext()
 		signToken(tokenCtx)
@@ -416,7 +416,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		tokenCtx := validContext()
 		signToken(tokenCtx)
 
-		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(nil)
+		ctx.vcValidator.EXPECT().ValidateCredential(gomock.Any(), true, true, gomock.Any()).Return(nil)
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
 		if !assert.NoError(t, err) {
@@ -477,7 +477,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.IssuerKey, "unknown")
 		signToken(tokenCtx)
-		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(nil)
+		ctx.vcValidator.EXPECT().ValidateCredential(gomock.Any(), true, true, gomock.Any()).Return(nil)
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
@@ -491,7 +491,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, "unknown")
 		signToken(tokenCtx)
-		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(nil)
+		ctx.vcValidator.EXPECT().ValidateCredential(gomock.Any(), true, true, gomock.Any()).Return(nil)
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
@@ -505,7 +505,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, "unknown")
 		signToken(tokenCtx)
-		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(vcr.ErrRevoked)
+		ctx.vcValidator.EXPECT().ValidateCredential(gomock.Any(), true, true, gomock.Any()).Return(vcr.ErrRevoked)
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
@@ -1012,7 +1012,7 @@ type testContext struct {
 	contractNotary  *services.MockContractNotary
 	privateKeyStore *crypto.MockKeyStore
 	nameResolver    *vcr.MockConceptFinder
-	vcValidator     *vcr.MockValidator
+	vcValidator     *vcr.MockVerifier
 	didResolver     *types.MockStore
 	keyResolver     *types.MockKeyResolver
 	serviceResolver *didman.MockCompoundServiceResolver
@@ -1025,7 +1025,7 @@ var createContext = func(t *testing.T) *testContext {
 	contractNotaryMock := services.NewMockContractNotary(ctrl)
 	privateKeyStore := crypto.NewMockKeyStore(ctrl)
 	nameResolver := vcr.NewMockConceptFinder(ctrl)
-	vcValidator := vcr.NewMockValidator(ctrl)
+	vcValidator := vcr.NewMockVerifier(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	serviceResolver := didman.NewMockCompoundServiceResolver(ctrl)
 	didResolver := types.NewMockStore(ctrl)

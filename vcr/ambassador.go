@@ -38,11 +38,11 @@ type Ambassador interface {
 
 type ambassador struct {
 	networkClient network.Transactions
-	writer        Writer
+	writer        CredentialStore
 }
 
 // NewAmbassador creates a new listener for the network that listens to Verifiable Credential transactions.
-func NewAmbassador(networkClient network.Transactions, writer Writer) Ambassador {
+func NewAmbassador(networkClient network.Transactions, writer CredentialStore) Ambassador {
 	return ambassador{
 		networkClient: networkClient,
 		writer:        writer,

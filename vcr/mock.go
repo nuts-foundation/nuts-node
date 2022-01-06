@@ -72,68 +72,31 @@ func (mr *MockConceptFinderMockRecorder) Search(ctx, conceptName, allowUntrusted
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockConceptFinder)(nil).Search), ctx, conceptName, allowUntrusted, query)
 }
 
-// MockValidator is a mock of Validator interface.
-type MockValidator struct {
+// MockCredentialStore is a mock of CredentialStore interface.
+type MockCredentialStore struct {
 	ctrl     *gomock.Controller
-	recorder *MockValidatorMockRecorder
+	recorder *MockCredentialStoreMockRecorder
 }
 
-// MockValidatorMockRecorder is the mock recorder for MockValidator.
-type MockValidatorMockRecorder struct {
-	mock *MockValidator
+// MockCredentialStoreMockRecorder is the mock recorder for MockCredentialStore.
+type MockCredentialStoreMockRecorder struct {
+	mock *MockCredentialStore
 }
 
-// NewMockValidator creates a new mock instance.
-func NewMockValidator(ctrl *gomock.Controller) *MockValidator {
-	mock := &MockValidator{ctrl: ctrl}
-	mock.recorder = &MockValidatorMockRecorder{mock}
+// NewMockCredentialStore creates a new mock instance.
+func NewMockCredentialStore(ctrl *gomock.Controller) *MockCredentialStore {
+	mock := &MockCredentialStore{ctrl: ctrl}
+	mock.recorder = &MockCredentialStoreMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockValidator) EXPECT() *MockValidatorMockRecorder {
-	return m.recorder
-}
-
-// Validate mocks base method.
-func (m *MockValidator) Validate(credential vc.VerifiableCredential, allowUntrusted, checkSignature bool, validAt *time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", credential, allowUntrusted, checkSignature, validAt)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Validate indicates an expected call of Validate.
-func (mr *MockValidatorMockRecorder) Validate(credential, allowUntrusted, checkSignature, validAt interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockValidator)(nil).Validate), credential, allowUntrusted, checkSignature, validAt)
-}
-
-// MockWriter is a mock of Writer interface.
-type MockWriter struct {
-	ctrl     *gomock.Controller
-	recorder *MockWriterMockRecorder
-}
-
-// MockWriterMockRecorder is the mock recorder for MockWriter.
-type MockWriterMockRecorder struct {
-	mock *MockWriter
-}
-
-// NewMockWriter creates a new mock instance.
-func NewMockWriter(ctrl *gomock.Controller) *MockWriter {
-	mock := &MockWriter{ctrl: ctrl}
-	mock.recorder = &MockWriterMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockWriter) EXPECT() *MockWriterMockRecorder {
+func (m *MockCredentialStore) EXPECT() *MockCredentialStoreMockRecorder {
 	return m.recorder
 }
 
 // StoreCredential mocks base method.
-func (m *MockWriter) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error {
+func (m *MockCredentialStore) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreCredential", vc, validAt)
 	ret0, _ := ret[0].(error)
@@ -141,13 +104,13 @@ func (m *MockWriter) StoreCredential(vc vc.VerifiableCredential, validAt *time.T
 }
 
 // StoreCredential indicates an expected call of StoreCredential.
-func (mr *MockWriterMockRecorder) StoreCredential(vc, validAt interface{}) *gomock.Call {
+func (mr *MockCredentialStoreMockRecorder) StoreCredential(vc, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockWriter)(nil).StoreCredential), vc, validAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockCredentialStore)(nil).StoreCredential), vc, validAt)
 }
 
 // StoreRevocation mocks base method.
-func (m *MockWriter) StoreRevocation(r credential.Revocation) error {
+func (m *MockCredentialStore) StoreRevocation(r credential.Revocation) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreRevocation", r)
 	ret0, _ := ret[0].(error)
@@ -155,36 +118,36 @@ func (m *MockWriter) StoreRevocation(r credential.Revocation) error {
 }
 
 // StoreRevocation indicates an expected call of StoreRevocation.
-func (mr *MockWriterMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
+func (mr *MockCredentialStoreMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockWriter)(nil).StoreRevocation), r)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockCredentialStore)(nil).StoreRevocation), r)
 }
 
-// MockTrustManager is a mock of TrustManager interface.
-type MockTrustManager struct {
+// MockTrustStore is a mock of TrustStore interface.
+type MockTrustStore struct {
 	ctrl     *gomock.Controller
-	recorder *MockTrustManagerMockRecorder
+	recorder *MockTrustStoreMockRecorder
 }
 
-// MockTrustManagerMockRecorder is the mock recorder for MockTrustManager.
-type MockTrustManagerMockRecorder struct {
-	mock *MockTrustManager
+// MockTrustStoreMockRecorder is the mock recorder for MockTrustStore.
+type MockTrustStoreMockRecorder struct {
+	mock *MockTrustStore
 }
 
-// NewMockTrustManager creates a new mock instance.
-func NewMockTrustManager(ctrl *gomock.Controller) *MockTrustManager {
-	mock := &MockTrustManager{ctrl: ctrl}
-	mock.recorder = &MockTrustManagerMockRecorder{mock}
+// NewMockTrustStore creates a new mock instance.
+func NewMockTrustStore(ctrl *gomock.Controller) *MockTrustStore {
+	mock := &MockTrustStore{ctrl: ctrl}
+	mock.recorder = &MockTrustStoreMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockTrustManager) EXPECT() *MockTrustManagerMockRecorder {
+func (m *MockTrustStore) EXPECT() *MockTrustStoreMockRecorder {
 	return m.recorder
 }
 
 // Trust mocks base method.
-func (m *MockTrustManager) Trust(credentialType, issuer ssi.URI) error {
+func (m *MockTrustStore) Trust(credentialType, issuer ssi.URI) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Trust", credentialType, issuer)
 	ret0, _ := ret[0].(error)
@@ -192,13 +155,13 @@ func (m *MockTrustManager) Trust(credentialType, issuer ssi.URI) error {
 }
 
 // Trust indicates an expected call of Trust.
-func (mr *MockTrustManagerMockRecorder) Trust(credentialType, issuer interface{}) *gomock.Call {
+func (mr *MockTrustStoreMockRecorder) Trust(credentialType, issuer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trust", reflect.TypeOf((*MockTrustManager)(nil).Trust), credentialType, issuer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trust", reflect.TypeOf((*MockTrustStore)(nil).Trust), credentialType, issuer)
 }
 
 // Trusted mocks base method.
-func (m *MockTrustManager) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
+func (m *MockTrustStore) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Trusted", credentialType)
 	ret0, _ := ret[0].([]ssi.URI)
@@ -207,13 +170,13 @@ func (m *MockTrustManager) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
 }
 
 // Trusted indicates an expected call of Trusted.
-func (mr *MockTrustManagerMockRecorder) Trusted(credentialType interface{}) *gomock.Call {
+func (mr *MockTrustStoreMockRecorder) Trusted(credentialType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trusted", reflect.TypeOf((*MockTrustManager)(nil).Trusted), credentialType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trusted", reflect.TypeOf((*MockTrustStore)(nil).Trusted), credentialType)
 }
 
 // Untrust mocks base method.
-func (m *MockTrustManager) Untrust(credentialType, issuer ssi.URI) error {
+func (m *MockTrustStore) Untrust(credentialType, issuer ssi.URI) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Untrust", credentialType, issuer)
 	ret0, _ := ret[0].(error)
@@ -221,13 +184,13 @@ func (m *MockTrustManager) Untrust(credentialType, issuer ssi.URI) error {
 }
 
 // Untrust indicates an expected call of Untrust.
-func (mr *MockTrustManagerMockRecorder) Untrust(credentialType, issuer interface{}) *gomock.Call {
+func (mr *MockTrustStoreMockRecorder) Untrust(credentialType, issuer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrust", reflect.TypeOf((*MockTrustManager)(nil).Untrust), credentialType, issuer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrust", reflect.TypeOf((*MockTrustStore)(nil).Untrust), credentialType, issuer)
 }
 
 // Untrusted mocks base method.
-func (m *MockTrustManager) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
+func (m *MockTrustStore) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Untrusted", credentialType)
 	ret0, _ := ret[0].([]ssi.URI)
@@ -236,9 +199,9 @@ func (m *MockTrustManager) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) 
 }
 
 // Untrusted indicates an expected call of Untrusted.
-func (mr *MockTrustManagerMockRecorder) Untrusted(credentialType interface{}) *gomock.Call {
+func (mr *MockTrustStoreMockRecorder) Untrusted(credentialType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrusted", reflect.TypeOf((*MockTrustManager)(nil).Untrusted), credentialType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrusted", reflect.TypeOf((*MockTrustStore)(nil).Untrusted), credentialType)
 }
 
 // MockResolver is a mock of Resolver interface.
@@ -293,31 +256,31 @@ func (mr *MockResolverMockRecorder) Resolve(ID, resolveTime interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockResolver)(nil).Resolve), ID, resolveTime)
 }
 
-// MockPresenter is a mock of Presenter interface.
-type MockPresenter struct {
+// MockHolder is a mock of Holder interface.
+type MockHolder struct {
 	ctrl     *gomock.Controller
-	recorder *MockPresenterMockRecorder
+	recorder *MockHolderMockRecorder
 }
 
-// MockPresenterMockRecorder is the mock recorder for MockPresenter.
-type MockPresenterMockRecorder struct {
-	mock *MockPresenter
+// MockHolderMockRecorder is the mock recorder for MockHolder.
+type MockHolderMockRecorder struct {
+	mock *MockHolder
 }
 
-// NewMockPresenter creates a new mock instance.
-func NewMockPresenter(ctrl *gomock.Controller) *MockPresenter {
-	mock := &MockPresenter{ctrl: ctrl}
-	mock.recorder = &MockPresenterMockRecorder{mock}
+// NewMockHolder creates a new mock instance.
+func NewMockHolder(ctrl *gomock.Controller) *MockHolder {
+	mock := &MockHolder{ctrl: ctrl}
+	mock.recorder = &MockHolderMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockPresenter) EXPECT() *MockPresenterMockRecorder {
+func (m *MockHolder) EXPECT() *MockHolderMockRecorder {
 	return m.recorder
 }
 
 // BuildVerifiablePresentation mocks base method.
-func (m *MockPresenter) BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, did did.DID, validateVC bool) (*presentation.VerifiablePresentation, error) {
+func (m *MockHolder) BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, did did.DID, validateVC bool) (*presentation.VerifiablePresentation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BuildVerifiablePresentation", credentials, proofOptions, did, validateVC)
 	ret0, _ := ret[0].(*presentation.VerifiablePresentation)
@@ -326,9 +289,9 @@ func (m *MockPresenter) BuildVerifiablePresentation(credentials []vc.VerifiableC
 }
 
 // BuildVerifiablePresentation indicates an expected call of BuildVerifiablePresentation.
-func (mr *MockPresenterMockRecorder) BuildVerifiablePresentation(credentials, proofOptions, did, validateVC interface{}) *gomock.Call {
+func (mr *MockHolderMockRecorder) BuildVerifiablePresentation(credentials, proofOptions, did, validateVC interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildVerifiablePresentation", reflect.TypeOf((*MockPresenter)(nil).BuildVerifiablePresentation), credentials, proofOptions, did, validateVC)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildVerifiablePresentation", reflect.TypeOf((*MockHolder)(nil).BuildVerifiablePresentation), credentials, proofOptions, did, validateVC)
 }
 
 // MockVerifier is a mock of Verifier interface.
@@ -354,6 +317,20 @@ func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
 	return m.recorder
 }
 
+// ValidateCredential mocks base method.
+func (m *MockVerifier) ValidateCredential(credential vc.VerifiableCredential, allowUntrusted, checkSignature bool, validAt *time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ValidateCredential", credential, allowUntrusted, checkSignature, validAt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ValidateCredential indicates an expected call of ValidateCredential.
+func (mr *MockVerifierMockRecorder) ValidateCredential(credential, allowUntrusted, checkSignature, validAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateCredential", reflect.TypeOf((*MockVerifier)(nil).ValidateCredential), credential, allowUntrusted, checkSignature, validAt)
+}
+
 // VerifyPresentation mocks base method.
 func (m *MockVerifier) VerifyPresentation(verifiablePresentation presentation.VerifiablePresentation) error {
 	m.ctrl.T.Helper()
@@ -368,27 +345,57 @@ func (mr *MockVerifierMockRecorder) VerifyPresentation(verifiablePresentation in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyPresentation", reflect.TypeOf((*MockVerifier)(nil).VerifyPresentation), verifiablePresentation)
 }
 
-// MockPresentationManager is a mock of PresentationManager interface.
-type MockPresentationManager struct {
+// MockIssuer is a mock of Issuer interface.
+type MockIssuer struct {
 	ctrl     *gomock.Controller
-	recorder *MockPresentationManagerMockRecorder
+	recorder *MockIssuerMockRecorder
 }
 
-// MockPresentationManagerMockRecorder is the mock recorder for MockPresentationManager.
-type MockPresentationManagerMockRecorder struct {
-	mock *MockPresentationManager
+// MockIssuerMockRecorder is the mock recorder for MockIssuer.
+type MockIssuerMockRecorder struct {
+	mock *MockIssuer
 }
 
-// NewMockPresentationManager creates a new mock instance.
-func NewMockPresentationManager(ctrl *gomock.Controller) *MockPresentationManager {
-	mock := &MockPresentationManager{ctrl: ctrl}
-	mock.recorder = &MockPresentationManagerMockRecorder{mock}
+// NewMockIssuer creates a new mock instance.
+func NewMockIssuer(ctrl *gomock.Controller) *MockIssuer {
+	mock := &MockIssuer{ctrl: ctrl}
+	mock.recorder = &MockIssuerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockPresentationManager) EXPECT() *MockPresentationManagerMockRecorder {
+func (m *MockIssuer) EXPECT() *MockIssuerMockRecorder {
 	return m.recorder
+}
+
+// Issue mocks base method.
+func (m *MockIssuer) Issue(vcToIssue vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Issue", vcToIssue)
+	ret0, _ := ret[0].(*vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Issue indicates an expected call of Issue.
+func (mr *MockIssuerMockRecorder) Issue(vcToIssue interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockIssuer)(nil).Issue), vcToIssue)
+}
+
+// Revoke mocks base method.
+func (m *MockIssuer) Revoke(ID ssi.URI) (*credential.Revocation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Revoke", ID)
+	ret0, _ := ret[0].(*credential.Revocation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Revoke indicates an expected call of Revoke.
+func (mr *MockIssuerMockRecorder) Revoke(ID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockIssuer)(nil).Revoke), ID)
 }
 
 // MockVCR is a mock of VCR interface.
@@ -604,18 +611,18 @@ func (mr *MockVCRMockRecorder) Untrusted(credentialType interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrusted", reflect.TypeOf((*MockVCR)(nil).Untrusted), credentialType)
 }
 
-// Validate mocks base method.
-func (m *MockVCR) Validate(credential vc.VerifiableCredential, allowUntrusted, checkSignature bool, validAt *time.Time) error {
+// ValidateCredential mocks base method.
+func (m *MockVCR) ValidateCredential(credential vc.VerifiableCredential, allowUntrusted, checkSignature bool, validAt *time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", credential, allowUntrusted, checkSignature, validAt)
+	ret := m.ctrl.Call(m, "ValidateCredential", credential, allowUntrusted, checkSignature, validAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Validate indicates an expected call of Validate.
-func (mr *MockVCRMockRecorder) Validate(credential, allowUntrusted, checkSignature, validAt interface{}) *gomock.Call {
+// ValidateCredential indicates an expected call of ValidateCredential.
+func (mr *MockVCRMockRecorder) ValidateCredential(credential, allowUntrusted, checkSignature, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockVCR)(nil).Validate), credential, allowUntrusted, checkSignature, validAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateCredential", reflect.TypeOf((*MockVCR)(nil).ValidateCredential), credential, allowUntrusted, checkSignature, validAt)
 }
 
 // VerifyPresentation mocks base method.

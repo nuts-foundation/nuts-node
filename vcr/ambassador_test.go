@@ -61,7 +61,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
+		wMock := NewMockCredentialStore(ctrl)
 		defer ctrl.Finish()
 
 		target := vc.VerifiableCredential{}
@@ -82,7 +82,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
+		wMock := NewMockCredentialStore(ctrl)
 		defer ctrl.Finish()
 
 		a := NewAmbassador(nil, wMock).(ambassador)
@@ -95,7 +95,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 
 	t.Run("error - invalid payload", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
+		wMock := NewMockCredentialStore(ctrl)
 		defer ctrl.Finish()
 
 		a := NewAmbassador(nil, wMock).(ambassador)
@@ -113,7 +113,7 @@ func TestAmbassador_rCallback(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
+		wMock := NewMockCredentialStore(ctrl)
 		defer ctrl.Finish()
 
 		r := credential.Revocation{}
@@ -134,7 +134,7 @@ func TestAmbassador_rCallback(t *testing.T) {
 
 	t.Run("error - storing fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
+		wMock := NewMockCredentialStore(ctrl)
 		defer ctrl.Finish()
 
 		a := NewAmbassador(nil, wMock).(ambassador)
@@ -147,7 +147,7 @@ func TestAmbassador_rCallback(t *testing.T) {
 
 	t.Run("error - invalid payload", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
+		wMock := NewMockCredentialStore(ctrl)
 		defer ctrl.Finish()
 
 		a := NewAmbassador(nil, wMock).(ambassador)

@@ -57,7 +57,7 @@ const userIdentityClaim = "usi"
 type service struct {
 	docResolver     types.DocResolver
 	conceptFinder   vcr.ConceptFinder
-	vcValidator     vcr.Validator
+	vcValidator     vcr.Verifier
 	keyResolver     types.KeyResolver
 	privateKeyStore nutsCrypto.KeyStore
 	contractNotary  services.ContractNotary
@@ -129,7 +129,7 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValidator vcr.Validator, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary) services.OAuthClient {
+func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValidator vcr.Verifier, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary) services.OAuthClient {
 	return &service{
 		docResolver:     doc.Resolver{Store: store},
 		keyResolver:     doc.KeyResolver{Store: store},
@@ -348,7 +348,7 @@ func (s *service) validateAuthorizationCredentials(context *validationContext) e
 
 	for _, authCred := range vcs {
 		// first check if the VC is valid and if the signature is correct
-		if err := s.vcValidator.Validate(authCred, true, true, &iat); err != nil {
+		if err := s.vcValidator.ValidateCredential(authCred, true, true, &iat); err != nil {
 			return fmt.Errorf(errInvalidVCClaim, err)
 		}
 

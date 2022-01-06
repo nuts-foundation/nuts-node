@@ -606,7 +606,7 @@ func TestVcr_Validate(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now})
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, &now).Return(pk, nil)
 
-		err := instance.Validate(subject, true, true, &now)
+		err := instance.ValidateCredential(subject, true, true, &now)
 
 		assert.NoError(t, err)
 	})
@@ -632,7 +632,7 @@ func TestVcr_Validate(t *testing.T) {
 
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &almostNow})
 
-		err := instance.Validate(subject, true, false, nil)
+		err := instance.ValidateCredential(subject, true, false, nil)
 
 		assert.NoError(t, err)
 	})
@@ -656,7 +656,7 @@ func TestVcr_Validate(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 
-		err := instance.Validate(subject, true, false, nil)
+		err := instance.ValidateCredential(subject, true, false, nil)
 
 		assert.Error(t, err)
 	})

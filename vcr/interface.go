@@ -71,28 +71,16 @@ type ConceptFinder interface {
 	Search(ctx context.Context, conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error)
 }
 
-// Validator is the VCR interface for validation options
-type Validator interface {
-	// Validate checks if the given credential:
-	// - is not revoked
-	// - is valid at the given time (or now if not give)
-	// - has a valid issuer
-	// - has a valid signature if checkSignature is true
-	// if allowUntrusted == false, the issuer must also be a trusted DID
-	// May return ErrRevoked, ErrUntrusted or ErrInvalidPeriod
-	Validate(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error
-}
-
-// Writer is the interface that groups al the VC write methods
-type Writer interface {
+// CredentialStore is the interface that groups al the VC write methods
+type CredentialStore interface {
 	// StoreCredential writes a VC to storage. Before writing, it calls Verify!
 	StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error
 }
 
-// TrustManager bundles all trust related methods in one interface
-type TrustManager interface {
+// TrustStore bundles all trust related methods in one interface
+type TrustStore interface {
 	// Trust adds trust for a Issuer/CredentialType combination.
 	Trust(credentialType ssi.URI, issuer ssi.URI) error
 	// Untrust removes trust for a Issuer/CredentialType combination.
@@ -114,19 +102,28 @@ type Resolver interface {
 	Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error)
 }
 
-type Presenter interface {
+// Holder holds logic for Presenting credentials
+type Holder interface {
 	BuildVerifiablePresentation(credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, did did.DID, validateVC bool) (*presentation.VerifiablePresentation, error)
 }
 
+// Verifier holds logic for verifying Presentations and Credentials
 type Verifier interface {
 	VerifyPresentation(verifiablePresentation presentation.VerifiablePresentation) error
+
+	// ValidateCredential checks if the given credential:
+	// - is not revoked
+	// - is valid at the given time (or now if not give)
+	// - has a valid issuer
+	// - has a valid signature if checkSignature is true
+	// if allowUntrusted == false, the issuer must also be a trusted DID
+	// May return ErrRevoked, ErrUntrusted or ErrInvalidPeriod
+	ValidateCredential(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error
 }
 
-type PresentationManager interface {
-}
-
-// VCR is the interface that covers all functionality of the vcr store.
-type VCR interface {
+// Issuer holds the functions for the issuer role.
+// It allows for issuing and revoking Verifiable Credentials
+type Issuer interface {
 	// Issue creates and publishes a new VC.
 	// An optional expirationDate can be given.
 	// VCs are stored when the network has successfully published them.
@@ -135,13 +132,16 @@ type VCR interface {
 	// The statusDate will be set to the current time.
 	// It returns an error if the credential, issuer or private key can not be found.
 	Revoke(ID ssi.URI) (*credential.Revocation, error)
+}
+
+// VCR is the interface that covers all functionality of the vcr store.
+type VCR interface {
+	Issuer
 
 	ConceptFinder
 	Resolver
-	TrustManager
-	Validator
-	Writer
-	PresentationManager
+	TrustStore
+	CredentialStore
 	Verifier
-	Presenter
+	Holder
 }
