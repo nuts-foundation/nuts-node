@@ -260,10 +260,10 @@ func (n *Network) Start() error {
 		}
 	}
 
-	return n.connectToKnownNodes()
+	return n.connectToKnownNodes(nodeDID)
 }
 
-func (n *Network) connectToKnownNodes() error {
+func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	// Start connecting to bootstrap nodes
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
@@ -276,12 +276,16 @@ func (n *Network) connectToKnownNodes() error {
 		return nil
 	}
 
-	// start connecting to known NutsComm addresses
+	// start connecting to published NutsComm addresses
 	otherNodes, err := n.didDocumentFinder.Find(doc.IsActive(), doc.ValidAt(time.Now()), doc.ByServiceType(transport.NutsCommServiceType))
 	if err != nil {
 		return err
 	}
 	for _, node := range otherNodes {
+		if !nodeDID.Empty() && node.ID.Equals(nodeDID) {
+			// Found local node, do not discover.
+			continue
+		}
 	inner:
 		for _, service := range node.Service {
 			if service.Type == transport.NutsCommServiceType {
@@ -295,6 +299,7 @@ func (n *Network) connectToKnownNodes() error {
 					log.Logger().Warnf("invalid NutsComm address from service (did=%s, str=%s): %v", node.ID.String(), nutsCommStr, err)
 					continue inner
 				}
+				log.Logger().Infof("Discovered Nuts node (address=%s), published by %s", address, node.ID)
 				n.connectionManager.Connect(address)
 			}
 		}

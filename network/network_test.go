@@ -622,48 +622,83 @@ func Test_lastTransactionTracker(t *testing.T) {
 }
 
 func Test_connectToKnownNodes(t *testing.T) {
-	doc := did.Document{ID: *nodeDID}
+	t.Run("endpoint unmarshalling", func(t *testing.T) {
+		doc := did.Document{ID: *nodeDID}
 
-	serviceEndpoints := []struct {
-		name     string
-		endpoint interface{}
-	}{
-		{
-			name:     "incorrect serviceEndpoint data type",
-			endpoint: []interface{}{},
-		},
-		{
-			name:     "incorrect serviceEndpoint URL",
-			endpoint: "::",
-		},
-		{
-			name:     "incorrect serviceEndpoint URL scheme",
-			endpoint: "https://endpoint",
-		},
-	}
+		serviceEndpoints := []struct {
+			name     string
+			endpoint interface{}
+		}{
+			{
+				name:     "incorrect serviceEndpoint data type",
+				endpoint: []interface{}{},
+			},
+			{
+				name:     "incorrect serviceEndpoint URL",
+				endpoint: "::",
+			},
+			{
+				name:     "incorrect serviceEndpoint URL scheme",
+				endpoint: "https://endpoint",
+			},
+		}
 
-	for _, sp := range serviceEndpoints {
-		t.Run(sp.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			cxt := createNetwork(ctrl, func(config *Config) {
-				config.EnableDiscovery = true
+		for _, sp := range serviceEndpoints {
+			t.Run(sp.name, func(t *testing.T) {
+				ctrl := gomock.NewController(t)
+				defer ctrl.Finish()
+				cxt := createNetwork(ctrl, func(config *Config) {
+					config.EnableDiscovery = true
+				})
+				doc2 := doc
+				doc2.Service = []did.Service{
+					{
+						Type:            transport.NutsCommServiceType,
+						ServiceEndpoint: sp.endpoint,
+					},
+				}
+				cxt.docFinder.EXPECT().Find(gomock.Any()).Return([]did.Document{doc2}, nil)
+
+				_ = cxt.network.connectToKnownNodes(did.DID{}) // no local node DID
+
+				// assert
+				// cxt.connectionManager.Connect is not called
 			})
-			doc2 := doc
-			doc2.Service = []did.Service{
+		}
+	})
+	t.Run("local node should not be discovered", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cxt := createNetwork(ctrl, func(config *Config) {
+			config.EnableDiscovery = true
+		})
+		localDocument := did.Document{
+			ID: *nodeDID,
+			Service: []did.Service{
 				{
 					Type:            transport.NutsCommServiceType,
-					ServiceEndpoint: sp.endpoint,
+					ServiceEndpoint: "grpc://local:5555",
 				},
-			}
-			cxt.docFinder.EXPECT().Find(gomock.Any()).Return([]did.Document{doc2}, nil)
+			},
+		}
+		peerDID, _ := did.ParseDID("did:nuts:peer")
+		peerAddress := transport.Address("peer:5555")
+		peerDocument := did.Document{
+			ID: *peerDID,
+			Service: []did.Service{
+				{
+					Type:            transport.NutsCommServiceType,
+					ServiceEndpoint: peerAddress.String(),
+				},
+			},
+		}
+		cxt.docFinder.EXPECT().Find(gomock.Any()).Return([]did.Document{peerDocument, localDocument}, nil)
+		// Only expect Connect() call for peer
+		cxt.connectionManager.EXPECT().Connect(peerAddress)
 
-			_ = cxt.network.connectToKnownNodes()
+		_ = cxt.network.connectToKnownNodes(*nodeDID)
+	})
 
-			// assert
-			// cxt.connectionManager.Connect is not called
-		})
-	}
 }
 
 func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *networkTestContext {
