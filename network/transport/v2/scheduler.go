@@ -134,7 +134,7 @@ func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 		delay *= 2
 	}
 
-	go func() {
+	go func(ctx context.Context) {
 		err := retry.Do(func() error {
 			count, existing, err := p.readCount(hash)
 			if err != nil {
@@ -159,7 +159,7 @@ func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 			retry.MaxDelay(24*time.Hour), // maximum delay of an hour
 			retry.Delay(delay),           // first retry after 5 seconds, second after 10, 20, 40, etc
 			retry.DelayType(retry.BackOffDelay),
-			retry.Context(p.ctx),
+			retry.Context(ctx),
 			retry.LastErrorOnly(true), // only log last error
 			retry.OnRetry(func(n uint, err error) {
 				log.Logger().Debugf("retrying payload (count=%d) with ref: %s", n, hash.String())
@@ -168,7 +168,7 @@ func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 		if err != nil {
 			log.Logger().Errorf("Failed to pass payload query to network: %v", err)
 		}
-	}()
+	}(p.ctx)
 }
 
 func (p *payloadScheduler) writeCount(hash hash.SHA256Hash, count uint16) error {
