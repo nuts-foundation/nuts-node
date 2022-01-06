@@ -21,7 +21,6 @@ package transport
 import (
 	"errors"
 	"fmt"
-	"net"
 	"net/url"
 	"time"
 
@@ -44,7 +43,7 @@ type Addr struct {
 
 // Empty returns whether the Addr is considered empty.
 func (addr Addr) Empty() bool {
-	return len(addr.scheme) == 0
+	return len(addr.scheme) == 0 || len(addr.target) == 0
 }
 
 // Scheme returns the protocol scheme of the address (e.g. "grpc").
@@ -73,7 +72,7 @@ func Address(target string) Addr {
 	}
 }
 
-// ParseAddress parses the given input string to an Addr.
+// ParseAddress parses the given input string to an Addr. The input must include the protocol scheme (e.g. grpc://).
 func ParseAddress(input string) (Addr, error) {
 	parsed, err := url.Parse(input)
 	if err != nil {
@@ -82,7 +81,7 @@ func ParseAddress(input string) (Addr, error) {
 	if parsed.Scheme != "grpc" {
 		return Addr{}, errors.New("invalid URL scheme")
 	}
-	return Addr{scheme: parsed.Scheme, target: net.JoinHostPort(parsed.Host, parsed.Port())}, nil
+	return Addr{scheme: parsed.Scheme, target: parsed.Host}, nil
 }
 
 // Peer holds the properties of a remote node we're connected to
