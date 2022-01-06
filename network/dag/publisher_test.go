@@ -213,9 +213,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 func createPublisher(t *testing.T) testPublisher {
 	ctrl := gomock.NewController(t)
 	payloadStore := NewMockPayloadStore(ctrl)
-	payloadStore.EXPECT().RegisterObserver(gomock.Any())
 	dag := NewMockDAG(ctrl)
-	dag.EXPECT().RegisterObserver(gomock.Any())
 	privateTxCtx := events.NewMockJetStreamContext(ctrl)
 	eventManager := events.NewMockEvent(ctrl)
 	publisher := NewReplayingDAGPublisher(eventManager, payloadStore, dag).(*replayingDAGPublisher)

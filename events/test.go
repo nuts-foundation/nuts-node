@@ -22,6 +22,11 @@ func (conn *stubConn) Subscribe(_subj string, _cb nats.MsgHandler, _opts ...nats
 	return &nats.Subscription{}, nil
 }
 
+// AddStream adds a stream to the server
+func (conn *stubConn) AddStream(cfg *nats.StreamConfig, opts ...nats.JSOpt) (*nats.StreamInfo, error) {
+	return &nats.StreamInfo{}, nil
+}
+
 type stubEventManager struct {
 	pool ConnectionPool
 	once sync.Once
