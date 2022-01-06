@@ -311,12 +311,13 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 func TestProtocol_decryptPAL(t *testing.T) {
 	keyDID, _ := did.ParseDIDURL("did:nuts:123#key1")
 	testDID, _ := did.ParseDID("did:nuts:123")
-	var emptyPAL [][]byte
+	testDID2, _ := did.ParseDID("did:nuts:456")
+	dummyPAL := [][]byte{{0}}
 
 	t.Run("errors when node DID is not set", func(t *testing.T) {
 		proto, _ := newTestProtocol(t, nil)
 
-		pal, err := proto.decryptPAL(emptyPAL)
+		pal, _, err := proto.decryptPAL(dummyPAL)
 		assert.EqualError(t, err, "node DID is not set")
 		assert.Nil(t, pal)
 	})
@@ -326,7 +327,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 
 		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
 
-		_, err := proto.decryptPAL(emptyPAL)
+		_, _, err := proto.decryptPAL(dummyPAL)
 		assert.EqualError(t, err, "random error")
 	})
 
@@ -338,11 +339,12 @@ func TestProtocol_decryptPAL(t *testing.T) {
 			},
 		}, nil, nil)
 
-		pal, err := proto.decryptPAL(emptyPAL)
+		pal, _, err := proto.decryptPAL([][]byte{})
 
 		if !assert.NoError(t, err) {
 			return
 		}
+
 		assert.Nil(t, pal)
 	})
 
@@ -357,7 +359,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 		}, nil, nil)
 		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(nil, crypto.ErrKeyNotFound)
 
-		_, err := proto.decryptPAL(tx.PAL())
+		_, _, err := proto.decryptPAL(tx.PAL())
 		assert.EqualError(t, err, fmt.Sprintf("private key of DID keyAgreement not found (kid=%s)", keyDID.String()))
 	})
 
@@ -370,14 +372,14 @@ func TestProtocol_decryptPAL(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return([]byte(testDID.String()), nil)
+		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(append(append([]byte(testDID.String()), '\n'), []byte(testDID2.String())...), nil)
 
-		pal, err := proto.decryptPAL(tx.PAL())
+		pal, _, err := proto.decryptPAL(tx.PAL())
 
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		assert.Equal(t, dag.PAL([]did.DID{*testDID}), pal)
+		assert.Equal(t, dag.PAL([]did.DID{*testDID, *testDID2}), pal)
 	})
 }
