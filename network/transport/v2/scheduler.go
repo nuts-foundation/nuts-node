@@ -36,6 +36,18 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
+func encodeUint16(value uint16) []byte {
+	// uint16 is 2 bytes long
+	output := make([]byte, 2)
+	binary.LittleEndian.PutUint16(output, value)
+
+	return output
+}
+
+func decodeUint16(value []byte) uint16 {
+	return binary.LittleEndian.Uint16(value)
+}
+
 // Scheduler defines methods for a persistent retry mechanism
 type Scheduler interface {
 	// Schedule a job that needs to be retried. It'll be passed to the channel immediately and at set intervals.
@@ -108,8 +120,10 @@ func (p *payloadScheduler) Start() error {
 		bucket := tx.Bucket([]byte("payload_jobs"))
 		return bucket.ForEach(func(k, v []byte) error {
 			h := hash.FromSlice(k)
-			c := binary.LittleEndian.Uint16(v)
+			c := decodeUint16(v)
+
 			p.retry(h, c)
+
 			return nil
 		})
 	})
@@ -174,9 +188,8 @@ func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 func (p *payloadScheduler) writeCount(hash hash.SHA256Hash, count uint16) error {
 	return p.db.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("payload_jobs"))
-		data := make([]byte, 2)
-		binary.LittleEndian.PutUint16(data, count)
-		return bucket.Put(hash.Slice(), data)
+
+		return bucket.Put(hash.Slice(), encodeUint16(count))
 	})
 }
 
@@ -184,10 +197,12 @@ func (p *payloadScheduler) readCount(hash hash.SHA256Hash) (count uint16, exists
 	err = p.db.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("payload_jobs"))
 		data := bucket.Get(hash.Slice())
+
 		if data != nil {
 			exists = true
-			count = binary.LittleEndian.Uint16(data)
+			count = decodeUint16(data)
 		}
+
 		return nil
 	})
 	return
