@@ -59,8 +59,8 @@ type Scheduler interface {
 	Finished(hash hash.SHA256Hash) error
 	// Configure opens the DB connection for persistent job storage and loads existing jobs from disk
 	Configure() error
-	// Start retrying new and existing jobs
-	Start() error
+	// Run retrying existing jobs
+	Run() error
 	// Close cancels all jobs and closes the DB
 	Close() error
 }
@@ -115,9 +115,10 @@ func (p *payloadScheduler) Configure() error {
 	return nil
 }
 
-func (p *payloadScheduler) Start() error {
+func (p *payloadScheduler) Run() error {
 	return p.db.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("payload_jobs"))
+
 		return bucket.ForEach(func(k, v []byte) error {
 			h := hash.FromSlice(k)
 			c := decodeUint16(v)
@@ -130,7 +131,7 @@ func (p *payloadScheduler) Start() error {
 }
 
 func (p *payloadScheduler) Schedule(hash hash.SHA256Hash) error {
-	if err := p.writeCount(hash, 0); err != nil {
+	if err := p.writeRetryCount(hash, 0); err != nil {
 		return err
 	}
 	p.retry(hash, 0)
@@ -138,8 +139,8 @@ func (p *payloadScheduler) Schedule(hash hash.SHA256Hash) error {
 	return nil
 }
 
-// jobInProgress defines a dummy error that is returned when a job is currently in progress
-var jobInProgress = errors.New("job is in progress")
+// errJobInProgress defines a dummy error that is returned when a job is currently in progress
+var errJobInProgress = errors.New("job is in progress")
 
 func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 	delay := p.retryDelay
@@ -150,20 +151,20 @@ func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 
 	go func(ctx context.Context) {
 		err := retry.Do(func() error {
-			count, existing, err := p.readCount(hash)
+			count, existing, err := p.readRetryCount(hash)
 			if err != nil {
 				return retry.Unrecoverable(err)
 			}
 
 			if existing {
-				if err := p.writeCount(hash, count+1); err != nil {
+				if err := p.writeRetryCount(hash, count+1); err != nil {
 					return retry.Unrecoverable(err)
 				}
 
 				p.callback(hash)
 
 				// has to return an error since `retry.Do` needs to retry until it's marked as finished
-				return jobInProgress
+				return errJobInProgress
 			}
 
 			// no longer exists, so done
@@ -185,7 +186,7 @@ func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 	}(p.ctx)
 }
 
-func (p *payloadScheduler) writeCount(hash hash.SHA256Hash, count uint16) error {
+func (p *payloadScheduler) writeRetryCount(hash hash.SHA256Hash, count uint16) error {
 	return p.db.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("payload_jobs"))
 
@@ -193,7 +194,7 @@ func (p *payloadScheduler) writeCount(hash hash.SHA256Hash, count uint16) error 
 	})
 }
 
-func (p *payloadScheduler) readCount(hash hash.SHA256Hash) (count uint16, exists bool, err error) {
+func (p *payloadScheduler) readRetryCount(hash hash.SHA256Hash) (count uint16, exists bool, err error) {
 	err = p.db.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("payload_jobs"))
 		data := bucket.Get(hash.Slice())
@@ -205,6 +206,7 @@ func (p *payloadScheduler) readCount(hash hash.SHA256Hash) (count uint16, exists
 
 		return nil
 	})
+
 	return
 }
 

@@ -161,7 +161,7 @@ func TestPayloadScheduler_Start(t *testing.T) {
 		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, counter.callback)
 		_ = scheduler.Configure()
 
-		err := scheduler.Start()
+		err := scheduler.Run()
 		if !assert.NoError(t, err) {
 			return
 		}

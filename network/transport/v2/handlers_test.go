@@ -53,7 +53,7 @@ func TestProtocol_handleTransactionPayload(t *testing.T) {
 
 		mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
 		mocks.PayloadStore.EXPECT().WritePayload(gomock.Any(), tx.PayloadHash(), payload)
-		mocks.PayloadRetrier.EXPECT().Remove(tx.Ref()).Return(nil)
+		mocks.PayloadScheduler.EXPECT().Finished(tx.Ref()).Return(nil)
 
 		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: payload}}})
 

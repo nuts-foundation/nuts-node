@@ -26,7 +26,7 @@ type protocolMocks struct {
 	Controller           *gomock.Controller
 	EventsConnectionPool *events.MockConnectionPool
 	Graph                *dag.MockDAG
-	PayloadRetrier       *MockRetriable
+	PayloadScheduler     *MockScheduler
 	PayloadStore         *dag.MockPayloadStore
 	DocResolver          *vdr.MockDocResolver
 	Decrypter            *crypto.MockDecrypter
@@ -38,7 +38,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	docResolver := vdr.NewMockDocResolver(ctrl)
 	decrypter := crypto.NewMockDecrypter(ctrl)
 	graph := dag.NewMockDAG(ctrl)
-	payloadRetrier := NewMockRetriable(ctrl)
+	payloadRetrier := NewMockScheduler(ctrl)
 	payloadStore := dag.NewMockPayloadStore(ctrl)
 	nodeDIDResolver := transport.FixedNodeDIDResolver{}
 	eventsConnectionPool := events.NewMockConnectionPool(ctrl)
@@ -131,8 +131,8 @@ func TestProtocol_lifecycle(t *testing.T) {
 
 	s := grpcLib.NewServer()
 	p, mocks := newTestProtocol(t, nil)
-	mocks.PayloadRetrier.EXPECT().Start().Return(nil)
-	mocks.PayloadRetrier.EXPECT().Close()
+	mocks.PayloadScheduler.EXPECT().Run().Return(nil)
+	mocks.PayloadScheduler.EXPECT().Close()
 	p.eventsConnectionPool = events.NewStubConnectionPool()
 	p.Start()
 
@@ -155,8 +155,8 @@ func TestProtocol_Start(t *testing.T) {
 
 	proto, mocks := newTestProtocol(t, nil)
 
-	mocks.PayloadRetrier.EXPECT().Start().Return(nil)
-	mocks.PayloadRetrier.EXPECT().Close()
+	mocks.PayloadScheduler.EXPECT().Run().Return(nil)
+	mocks.PayloadScheduler.EXPECT().Close()
 	mocks.EventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(conn, js, nil)
 
 	proto.Start()
@@ -170,7 +170,7 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 
 	t.Run("ok - event passed as job to payloadScheduler", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
-		mocks.PayloadRetrier.EXPECT().Add(tx.Ref())
+		mocks.PayloadScheduler.EXPECT().Schedule(tx.Ref())
 
 		err := proto.handlePrivateTx(&nats.Msg{Data: tx.Data()})
 
@@ -188,9 +188,9 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 		assert.EqualError(t, err, "unable to parse transaction: invalid byte sequence")
 	})
 
-	t.Run("error - can't add to retrier", func(t *testing.T) {
+	t.Run("error - can't add to scheduler", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
-		mocks.PayloadRetrier.EXPECT().Add(tx.Ref()).Return(errors.New("b00m!"))
+		mocks.PayloadScheduler.EXPECT().Schedule(tx.Ref()).Return(errors.New("b00m!"))
 
 		err := proto.handlePrivateTx(&nats.Msg{Data: tx.Data()})
 

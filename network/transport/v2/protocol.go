@@ -155,7 +155,7 @@ func (p *protocol) Start() (err error) {
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 
 	// load old payload query jobs
-	if err = p.payloadScheduler.Start(); err != nil {
+	if err = p.payloadScheduler.Run(); err != nil {
 		return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
 	}
 
