@@ -368,6 +368,10 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 	}
 
 	eventManager := events.NewManager()
+
+	cfg := eventManager.(core.Injectable).Config().(*events.Config)
+	cfg.Port = test.FreeTCPPort()
+
 	err := (eventManager.(core.Configurable)).Configure(*core.NewServerConfig())
 	if err != nil {
 		panic(err)
@@ -382,7 +386,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 
 	instance := &Network{
 		config:                 config,
-		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
+		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool)},
 		didDocumentResolver:    doc.Resolver{Store: vdrStore},
 		privateKeyResolver:     keyStore,
 		decrypter:              keyStore,

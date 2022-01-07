@@ -90,7 +90,7 @@ func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver)
 	}
 }
 
-func (s replayingDAGPublisher) Start() error {
+func (s *replayingDAGPublisher) Start() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
@@ -143,6 +143,7 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 
 func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) bool {
 	_, err := s.privateTxCtx.PublishAsync(events.PrivateTransactionsSubject, tx.Data())
+
 	if err != nil {
 		log.Logger().Errorf("unable to handle private transaction: (ref=%s) %v", tx.Ref(), err)
 
