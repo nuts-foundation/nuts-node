@@ -234,6 +234,17 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 		return fmt.Errorf("failed to find transaction with ref:%s in DAG", hash.String())
 	}
 
+	// Sanity check: if we have the payload, mark this job as finished
+	payload, err := p.payloadStore.ReadPayload(context.Background(), tx.PayloadHash())
+	if err != nil {
+		return fmt.Errorf("unable to read payload (tx=%s): %w", hash, err)
+	}
+	if payload != nil {
+		// stop retrying
+		log.Logger().Infof("Transaction payload already present, not querying (tx=%s)", hash)
+		return p.payloadScheduler.Finished(hash)
+	}
+
 	if len(tx.PAL()) == 0 {
 		return fmt.Errorf("PAL header is empty (ref=%s)", hash.String())
 	}

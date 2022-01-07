@@ -154,11 +154,6 @@ func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) bool {
 }
 
 func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transaction Transaction) bool {
-	// We need to skip transactions with PAL header as it should be handled by the v2 protocol
-	if len(transaction.PAL()) > 0 {
-		return s.handlePrivateTransaction(transaction)
-	}
-
 	payload, err := s.payloadStore.ReadPayload(ctx, transaction.PayloadHash())
 	if err != nil {
 		log.Logger().Errorf("Unable to read payload to publish DAG: (ref=%s) %v", transaction.Ref(), err)
@@ -166,6 +161,10 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 	}
 
 	if payload == nil {
+		// We need to skip transactions with PAL header as it should be handled by the v2 protocol
+		if len(transaction.PAL()) > 0 {
+			return s.handlePrivateTransaction(transaction)
+		}
 		// We haven't got the payload, break of processing for this branch
 		return false
 	}
