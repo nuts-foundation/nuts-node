@@ -38,20 +38,20 @@ func TestStream_Subscribe(t *testing.T) {
 		jsFirst := NewMockJetStreamContext(ctrl)
 		jsFirst.EXPECT().StreamInfo("example").Return(nil, nats.ErrStreamNotFound)
 		jsFirst.EXPECT().AddStream(disposableStream.Config()).Return(mockStreamInfo, nil)
-		jsFirst.EXPECT().ChanSubscribe("subject", gomock.Any()).Return(&nats.Subscription{}, nil)
+		jsFirst.EXPECT().Subscribe("subject", gomock.Any()).Return(&nats.Subscription{}, nil)
 
 		jsLast := NewMockJetStreamContext(ctrl)
-		jsLast.EXPECT().ChanSubscribe("subject", gomock.Any()).Return(&nats.Subscription{}, nil)
+		jsLast.EXPECT().Subscribe("subject", gomock.Any()).Return(&nats.Subscription{}, nil)
 
 		conn := NewMockConn(ctrl)
 		conn.EXPECT().JetStream().Return(jsFirst, nil)
 		conn.EXPECT().JetStream().Return(jsLast, nil)
 
-		_, err := disposableStream.Subscribe(conn, "subject")
+		err := disposableStream.Subscribe(conn, "subject", nil)
 		assert.NoError(t, err)
 
 		// The second time it should only subscribe, not re-create the stream
-		_, err = disposableStream.Subscribe(conn, "subject")
+		err = disposableStream.Subscribe(conn, "subject", nil)
 		assert.NoError(t, err)
 	})
 
@@ -63,12 +63,12 @@ func TestStream_Subscribe(t *testing.T) {
 
 		js := NewMockJetStreamContext(ctrl)
 		js.EXPECT().StreamInfo("example").Return(mockStreamInfo, nil)
-		js.EXPECT().ChanSubscribe("subject", gomock.Any()).Return(&nats.Subscription{}, nil)
+		js.EXPECT().Subscribe("subject", gomock.Any()).Return(&nats.Subscription{}, nil)
 
 		conn := NewMockConn(ctrl)
 		conn.EXPECT().JetStream().Return(js, nil)
 
-		_, err := disposableStream.Subscribe(conn, "subject")
+		err := disposableStream.Subscribe(conn, "subject", nil)
 		assert.NoError(t, err)
 	})
 
@@ -84,7 +84,7 @@ func TestStream_Subscribe(t *testing.T) {
 		conn := NewMockConn(ctrl)
 		conn.EXPECT().JetStream().Return(js, nil)
 
-		_, err := disposableStream.Subscribe(conn, "subject")
+		err := disposableStream.Subscribe(conn, "subject", nil)
 		assert.Error(t, err)
 	})
 
@@ -96,12 +96,12 @@ func TestStream_Subscribe(t *testing.T) {
 
 		js := NewMockJetStreamContext(ctrl)
 		js.EXPECT().StreamInfo("example").Return(mockStreamInfo, nil)
-		js.EXPECT().ChanSubscribe("subject", gomock.Any()).Return(nil, errors.New("random error"))
+		js.EXPECT().Subscribe("subject", gomock.Any()).Return(nil, errors.New("random error"))
 
 		conn := NewMockConn(ctrl)
 		conn.EXPECT().JetStream().Return(js, nil)
 
-		_, err := disposableStream.Subscribe(conn, "subject")
+		err := disposableStream.Subscribe(conn, "subject", nil)
 		assert.Error(t, err)
 	})
 
@@ -116,7 +116,7 @@ func TestStream_Subscribe(t *testing.T) {
 		conn := NewMockConn(ctrl)
 		conn.EXPECT().JetStream().Return(js, nil)
 
-		_, err := disposableStream.Subscribe(conn, "subject")
+		err := disposableStream.Subscribe(conn, "subject", nil)
 		assert.Error(t, err)
 	})
 
@@ -128,7 +128,7 @@ func TestStream_Subscribe(t *testing.T) {
 		conn := NewMockConn(ctrl)
 		conn.EXPECT().JetStream().Return(nil, errors.New("random error"))
 
-		_, err := disposableStream.Subscribe(conn, "subject")
+		err := disposableStream.Subscribe(conn, "subject", nil)
 		assert.Error(t, err)
 	})
 }

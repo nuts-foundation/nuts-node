@@ -139,12 +139,19 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 }
 
 func (p *protocol) setupNatsHandler() error {
-	_, js, err := p.eventsConnectionPool.Acquire(p.ctx)
+	conn, _, err := p.eventsConnectionPool.Acquire(p.ctx)
 	if err != nil {
 		return err
 	}
 
-	if _, err = js.Subscribe(events.PrivateTransactionsSubject, func(msg *nats.Msg) {
+	stream := events.NewStream(&nats.StreamConfig{
+		Name:     events.PrivateTransactionsStream,
+		Subjects: []string{events.PrivateTransactionsSubject},
+	}, []nats.SubOpt{
+		nats.AckExplicit(),
+	})
+
+	if err = stream.Subscribe(conn, events.PrivateTransactionsSubject, func(msg *nats.Msg) {
 		if err := p.handlePrivateTx(msg); err != nil {
 			log.Logger().Errorf("failed to handle private transaction: %v", err)
 
@@ -158,7 +165,7 @@ func (p *protocol) setupNatsHandler() error {
 		if err := msg.Ack(); err != nil {
 			log.Logger().Errorf("failed to ACK private transaction event: %v", err)
 		}
-	}, nats.AckExplicit()); err != nil {
+	}); err != nil {
 		return err
 	}
 
