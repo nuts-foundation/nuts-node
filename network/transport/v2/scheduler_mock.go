@@ -48,20 +48,6 @@ func (mr *MockSchedulerMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockScheduler)(nil).Close))
 }
 
-// Configure mocks base method.
-func (m *MockScheduler) Configure() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Configure")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Configure indicates an expected call of Configure.
-func (mr *MockSchedulerMockRecorder) Configure() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockScheduler)(nil).Configure))
-}
-
 // Finished mocks base method.
 func (m *MockScheduler) Finished(hash hash.SHA256Hash) error {
 	m.ctrl.T.Helper()

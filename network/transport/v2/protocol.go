@@ -23,6 +23,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"go.etcd.io/bbolt"
+	"os"
+	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -116,9 +120,19 @@ func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
 }
 
 func (p *protocol) Configure(_ transport.PeerID) error {
-	p.payloadScheduler = NewPayloadScheduler(p.config.Datadir, p.config.PayloadRetryDelay, p.handlePrivateTxRetry)
-	if err := p.payloadScheduler.Configure(); err != nil {
-		return fmt.Errorf("failed to load existing TransactionPayloadQuery jobs: %w", err)
+	dbFile := path.Join(p.config.Datadir, "network", "payload_jobs.db")
+	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
+		return fmt.Errorf("unable to setup database: %w", err)
+	}
+
+	db, err := bbolt.Open(dbFile, 0600, bbolt.DefaultOptions)
+	if err != nil {
+		return fmt.Errorf("unable to create BBolt database: %w", err)
+	}
+
+	p.payloadScheduler, err = NewPayloadScheduler(db, p.config.PayloadRetryDelay, p.handlePrivateTxRetry)
+	if err != nil {
+		return fmt.Errorf("failed to setup payload scheduler: %w", err)
 	}
 
 	return nil

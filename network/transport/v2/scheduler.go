@@ -24,9 +24,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"os"
-	"path"
-	"path/filepath"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -35,6 +32,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
+
+var payloadJobsBucketName = []byte("payload_jobs")
 
 func encodeUint16(value uint16) []byte {
 	// uint16 is 2 bytes long
@@ -57,8 +56,6 @@ type Scheduler interface {
 	// Finished marks the job as finished and removes it from the scheduler
 	// An error is returned if there's a problem with the underlying storage.
 	Finished(hash hash.SHA256Hash) error
-	// Configure opens the DB connection for persistent job storage and loads existing jobs from disk
-	Configure() error
 	// Run retrying existing jobs
 	Run() error
 	// Close cancels all jobs and closes the DB
@@ -69,50 +66,31 @@ type jobCallBack func(hash hash.SHA256Hash)
 
 // NewPayloadScheduler returns a Scheduler for payload fetches.
 // The payload hashes as []byte should be added as job.
-func NewPayloadScheduler(dataDir string, payloadRetryDelay time.Duration, callback jobCallBack) Scheduler {
+func NewPayloadScheduler(db *bbolt.DB, payloadRetryDelay time.Duration, callback jobCallBack) (Scheduler, error) {
+	if err := db.Update(func(tx *bbolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists(payloadJobsBucketName)
+		return err
+	}); err != nil {
+		return nil, fmt.Errorf("unable to create buckets in database: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &payloadScheduler{
-		dataDir:    dataDir,
+		db:         db,
+		ctx:        ctx,
+		cancel:     cancel,
 		retryDelay: payloadRetryDelay,
 		callback:   callback,
-	}
+	}, nil
 }
 
 type payloadScheduler struct {
-	dataDir    string
-	retryDelay time.Duration
 	db         *bbolt.DB
+	retryDelay time.Duration
 	callback   jobCallBack
 	ctx        context.Context
 	cancel     context.CancelFunc
-}
-
-func (p *payloadScheduler) Configure() error {
-	p.ctx, p.cancel = context.WithCancel(context.Background())
-
-	dbFile := path.Join(p.dataDir, "network", "payload_jobs.db")
-	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
-		return fmt.Errorf("unable to setup database: %w", err)
-	}
-
-	if p.retryDelay == 0 {
-		p.retryDelay = 5 * time.Second
-	}
-
-	var err error
-
-	p.db, err = bbolt.Open(dbFile, 0600, bbolt.DefaultOptions)
-
-	if err != nil {
-		return fmt.Errorf("unable to create BBolt database: %w", err)
-	}
-	if err = p.db.Update(func(tx *bbolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("payload_jobs"))
-		return err
-	}); err != nil {
-		return fmt.Errorf("unable to create buckets in database: %w", err)
-	}
-
-	return nil
 }
 
 func (p *payloadScheduler) Run() error {

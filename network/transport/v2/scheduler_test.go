@@ -21,9 +21,7 @@ package v2
 
 import (
 	"encoding/binary"
-	"os"
 	"path"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -38,37 +36,24 @@ var dummyCallback = func(_ hash.SHA256Hash) {}
 
 func TestNewPayloadScheduler(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		scheduler := NewPayloadScheduler("", 0, dummyCallback)
+		testDir := io.TestDirectory(t)
 
+		opts := *bbolt.DefaultOptions
+		opts.NoSync = true
+
+		db, err := bbolt.Open(path.Join(testDir, "payload_test.db"), 0600, &opts)
+		assert.NoError(t, err)
+
+		t.Cleanup(func() {
+			_ = db.Close()
+		})
+
+		scheduler, err := NewPayloadScheduler(db, 0, dummyCallback)
+
+		assert.NoError(t, err)
 		assert.NotNil(t, scheduler)
-		assert.NotNil(t, scheduler.(*payloadScheduler).dataDir)
 		assert.NotNil(t, scheduler.(*payloadScheduler).retryDelay)
 		assert.NotNil(t, scheduler.(*payloadScheduler).callback)
-	})
-}
-
-func TestPayloadScheduler_Configure(t *testing.T) {
-	t.Run("ok - default delay", func(t *testing.T) {
-		testDir := io.TestDirectory(t)
-		config := Config{Datadir: testDir}
-		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, dummyCallback)
-
-		err := scheduler.Configure()
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.NotNil(t, scheduler)
-		assert.Equal(t, 5*time.Second, scheduler.(*payloadScheduler).retryDelay)
-	})
-
-	t.Run("error - invalid DB location", func(t *testing.T) {
-		config := Config{Datadir: "scheduler_test.go"}
-		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, dummyCallback)
-
-		err := scheduler.Configure()
-
-		assert.EqualError(t, err, "unable to setup database: mkdir scheduler_test.go: not a directory")
 	})
 }
 
@@ -99,15 +84,32 @@ func (cc *callbackCounter) callback(_ hash.SHA256Hash) {
 	cc.wg.Done()
 }
 
+func newTestPayloadScheduler(t *testing.T, callback jobCallBack) *payloadScheduler {
+	testDir := io.TestDirectory(t)
+	config := Config{Datadir: testDir}
+
+	opts := *bbolt.DefaultOptions
+	opts.NoSync = true
+
+	db, err := bbolt.Open(path.Join(testDir, "payload_test.db"), 0600, &opts)
+	assert.NoError(t, err)
+
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	scheduler, err := NewPayloadScheduler(db, config.PayloadRetryDelay, callback)
+	assert.NoError(t, err)
+
+	return scheduler.(*payloadScheduler)
+}
+
 func TestPayloadScheduler_Add(t *testing.T) {
 	payloadRef := hash.SHA256Sum([]byte("test"))
 
 	t.Run("ok", func(t *testing.T) {
-		testDir := io.TestDirectory(t)
-		config := Config{Datadir: testDir}
 		counter := callbackCounter{}
-		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, counter.callback)
-		_ = scheduler.Configure()
+		scheduler := newTestPayloadScheduler(t, counter.callback)
 
 		// also starts the go process
 		err := scheduler.Schedule(payloadRef)
@@ -118,20 +120,22 @@ func TestPayloadScheduler_Add(t *testing.T) {
 
 		counter.wait(1)
 
-		// to enable access to DB
-		scheduler.Close()
+		dbPath := scheduler.db.Path()
+
+		err = scheduler.Close()
+		assert.NoError(t, err)
 
 		assert.Equal(t, 1, counter.count)
-		count := fromDB(t, testDir, payloadRef)
+		count := fromDB(t, dbPath, payloadRef)
 		assert.Equal(t, uint16(1), count)
 	})
 
 	t.Run("ok - backoff ok", func(t *testing.T) {
-		testDir := io.TestDirectory(t)
-		config := Config{Datadir: testDir, PayloadRetryDelay: 50 * time.Millisecond}
 		counter := callbackCounter{}
-		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, counter.callback)
-		_ = scheduler.Configure()
+
+		scheduler := newTestPayloadScheduler(t, counter.callback)
+		scheduler.retryDelay = 50 * time.Millisecond
+
 		defer scheduler.Close()
 
 		start := time.Now()
@@ -152,14 +156,13 @@ func TestPayloadScheduler_Start(t *testing.T) {
 	payloadRef := hash.SHA256Sum([]byte("test"))
 
 	t.Run("ok", func(t *testing.T) {
-		testDir := io.TestDirectory(t)
-		config := Config{Datadir: testDir}
 		counter := callbackCounter{}
 		tenAsBytes := make([]byte, 2)
 		binary.LittleEndian.PutUint16(tenAsBytes, 10)
-		addToDB(t, testDir, payloadRef, tenAsBytes)
-		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, counter.callback)
-		_ = scheduler.Configure()
+
+		scheduler := newTestPayloadScheduler(t, counter.callback)
+
+		addToDB(t, scheduler.db, payloadRef, tenAsBytes)
 
 		err := scheduler.Run()
 		if !assert.NoError(t, err) {
@@ -168,11 +171,13 @@ func TestPayloadScheduler_Start(t *testing.T) {
 
 		counter.wait(1)
 
+		dbPath := scheduler.db.Path()
+
 		// to enable access to DB
 		scheduler.Close()
 
 		assert.Equal(t, 1, counter.count)
-		count := fromDB(t, testDir, payloadRef)
+		count := fromDB(t, dbPath, payloadRef)
 		assert.Equal(t, uint16(11), count)
 	})
 }
@@ -181,15 +186,15 @@ func TestPayloadScheduler_Remove(t *testing.T) {
 	payloadRef := hash.SHA256Sum([]byte("test"))
 
 	t.Run("ok - callback not called again", func(t *testing.T) {
-		testDir := io.TestDirectory(t)
-		config := Config{Datadir: testDir, PayloadRetryDelay: 5 * time.Millisecond}
 		counter := callbackCounter{}
-		scheduler := NewPayloadScheduler(config.Datadir, config.PayloadRetryDelay, dummyCallback)
-		scheduler.(*payloadScheduler).callback = func(_ hash.SHA256Hash) {
+
+		scheduler := newTestPayloadScheduler(t, counter.callback)
+		scheduler.retryDelay = 5 * time.Millisecond
+		scheduler.callback = func(_ hash.SHA256Hash) {
 			_ = scheduler.Finished(payloadRef)
 			counter.callback(hash.SHA256Hash{})
 		}
-		_ = scheduler.Configure()
+
 		defer scheduler.Close()
 
 		_ = scheduler.Schedule(payloadRef)
@@ -202,18 +207,9 @@ func TestPayloadScheduler_Remove(t *testing.T) {
 	})
 }
 
-func addToDB(t *testing.T, datadir string, hash hash.SHA256Hash, count []byte) {
-	dbFile := path.Join(datadir, "network", "payload_jobs.db")
-	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
-		t.Fatal(err)
-	}
-
-	db, err := bbolt.Open(dbFile, 0600, bbolt.DefaultOptions)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = db.Update(func(tx *bbolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte("payload_jobs"))
+func addToDB(t *testing.T, db *bbolt.DB, hash hash.SHA256Hash, count []byte) {
+	err := db.Update(func(tx *bbolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists(payloadJobsBucketName)
 		if err != nil {
 			return err
 		}
@@ -222,21 +218,15 @@ func addToDB(t *testing.T, datadir string, hash hash.SHA256Hash, count []byte) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db.Close()
 }
 
-func fromDB(t *testing.T, datadir string, hash hash.SHA256Hash) (count uint16) {
-	dbFile := path.Join(datadir, "network", "payload_jobs.db")
-	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
-		t.Fatal(err)
-	}
-
-	db, err := bbolt.Open(dbFile, 0600, bbolt.DefaultOptions)
+func fromDB(t *testing.T, filename string, hash hash.SHA256Hash) (count uint16) {
+	db, err := bbolt.Open(filename, 0600, bbolt.DefaultOptions)
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = db.Update(func(tx *bbolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte("payload_jobs"))
+		bucket, err := tx.CreateBucketIfNotExists(payloadJobsBucketName)
 		if err != nil {
 			return err
 		}
