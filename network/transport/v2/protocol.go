@@ -226,7 +226,11 @@ func (p *protocol) handlePrivateTxRetry(hash hash.SHA256Hash) {
 func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	tx, err := p.graph.Get(context.Background(), hash)
 	if err != nil {
-		return fmt.Errorf("failed to find transaction with ref:%s in DAG: %w", hash.String(), err)
+		return fmt.Errorf("failed to retrieve transaction with ref:%s from the DAG: %w", hash.String(), err)
+	}
+
+	if tx == nil {
+		return fmt.Errorf("failed to find transaction with ref:%s in DAG", hash.String())
 	}
 
 	if len(tx.PAL()) == 0 {
