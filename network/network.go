@@ -386,11 +386,11 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 		return nil, fmt.Errorf("unable to sign newly created transaction: %w", err)
 	}
 	// Store on local DAG and publish it
-	if err = n.graph.Add(ctx, transaction); err != nil {
-		return nil, fmt.Errorf("unable to add newly created transaction to DAG: %w", err)
-	}
 	if err = n.payloadStore.WritePayload(ctx, payloadHash, template.Payload); err != nil {
 		return nil, fmt.Errorf("unable to store payload of newly created transaction: %w", err)
+	}
+	if err = n.graph.Add(ctx, transaction); err != nil {
+		return nil, fmt.Errorf("unable to add newly created transaction to DAG: %w", err)
 	}
 	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), template.Type, len(template.Payload))
 	return transaction, nil

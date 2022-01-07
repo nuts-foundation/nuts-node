@@ -239,6 +239,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	if err != nil {
 		return fmt.Errorf("unable to read payload (tx=%s): %w", hash, err)
 	}
+
 	if payload != nil {
 		// stop retrying
 		log.Logger().Infof("Transaction payload already present, not querying (tx=%s)", hash)
