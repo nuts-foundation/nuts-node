@@ -155,3 +155,18 @@ type VCR interface {
 	ConceptFinder
 	TrustStore
 }
+
+// CredentialStoreBackend defines methods for interacting with a credential store.
+// FIXME: unclear how this compares with the CredentialStore interface.
+type CredentialStoreBackend interface {
+	WriteCredential(subject vc.VerifiableCredential) error
+	GetCredential(ID ssi.URI) (vc.VerifiableCredential, error)
+	SearchCredential(ctx context.Context, query concept.Query) ([]vc.VerifiableCredential, error)
+	WriteRevocation(r credential.Revocation) error
+
+	CredentialIssuers(credentialType ssi.URI) ([]ssi.URI, error)
+	IsCredentialRevoked(ID ssi.URI) (bool, error)
+
+	// Close can handle closing of the backend
+	Close() error
+}

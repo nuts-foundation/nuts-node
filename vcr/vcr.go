@@ -38,7 +38,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -81,25 +80,21 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 }
 
 type vcr struct {
-	registry    concept.Registry
-	config      Config
-	store       leia.Store
-	keyStore    crypto.KeyStore
-	docResolver vdr.DocResolver
-	keyResolver vdr.KeyResolver
-	ambassador  Ambassador
-	network     network.Transactions
-	trustConfig *trust.Config
-}
-
-func (c *vcr) Registry() concept.Reader {
-	return c.registry
+	registry        concept.Registry
+	config          Config
+	keyStore        crypto.KeyStore
+	docResolver     vdr.DocResolver
+	keyResolver     vdr.KeyResolver
+	ambassador      Ambassador
+	network         network.Transactions
+	trustConfig     *trust.Config
+	credentialStore CredentialStoreBackend
 }
 
 func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
 
-	// store config parameters for use in Start()
+	//  store config parameters for use in Start()
 	c.config = Config{strictMode: config.Strictmode, datadir: config.Datadir}
 
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
@@ -134,13 +129,7 @@ func (c *vcr) Migrate() error {
 func (c *vcr) Start() error {
 	var err error
 
-	// setup DB connection
-	if c.store, err = leia.NewStore(c.credentialsDBPath(), noSync); err != nil {
-		return err
-	}
-
-	// init indices
-	if err = c.initIndices(); err != nil {
+	if c.credentialStore, err = NewLeiaStore(c.registry.Concepts(), c.credentialsDBPath(), noSync); err != nil {
 		return err
 	}
 
@@ -151,7 +140,7 @@ func (c *vcr) Start() error {
 }
 
 func (c *vcr) Shutdown() error {
-	return c.store.Close()
+	return c.credentialStore.Close()
 }
 
 func (c *vcr) loadTemplates() error {
@@ -179,98 +168,12 @@ func (c *vcr) loadTemplates() error {
 	return nil
 }
 
-func whitespaceOrExactTokenizer(text string) (tokens []string) {
-	tokens = leia.WhiteSpaceTokenizer(text)
-	tokens = append(tokens, text)
-
-	return
-}
-
-func (c *vcr) initIndices() error {
-	for _, config := range c.registry.Concepts() {
-		collection := c.store.Collection(config.CredentialType)
-		for _, index := range config.Indices {
-			var leiaParts []leia.FieldIndexer
-
-			for _, iParts := range index.Parts {
-				options := make([]leia.IndexOption, 0)
-				if iParts.Alias != nil {
-					options = append(options, leia.AliasOption(*iParts.Alias))
-				}
-				if iParts.Tokenizer != nil {
-					tokenizer := strings.ToLower(*iParts.Tokenizer)
-					switch tokenizer {
-					case "whitespaceorexact":
-						options = append(options, leia.TokenizerOption(whitespaceOrExactTokenizer))
-					case "whitespace":
-						options = append(options, leia.TokenizerOption(leia.WhiteSpaceTokenizer))
-					default:
-						return fmt.Errorf("unknown tokenizer %s for %s", *iParts.Tokenizer, config.CredentialType)
-					}
-				}
-				if iParts.Transformer != nil {
-					transformer := strings.ToLower(*iParts.Transformer)
-					switch transformer {
-					case "cologne":
-						options = append(options, leia.TransformerOption(concept.CologneTransformer))
-					case "lowercase":
-						options = append(options, leia.TransformerOption(leia.ToLower))
-					default:
-						return fmt.Errorf("unknown transformer %s for %s", *iParts.Transformer, config.CredentialType)
-					}
-				}
-
-				leiaParts = append(leiaParts, leia.NewFieldIndexer(iParts.JSONPath, options...))
-			}
-
-			leiaIndex := leia.NewIndex(index.Name, leiaParts...)
-			log.Logger().Debugf("Adding index %s to %s using: %v", index.Name, config.CredentialType, leiaIndex)
-
-			if err := collection.AddIndex(leiaIndex); err != nil {
-				return err
-			}
-		}
-	}
-
-	// revocation indices
-	rIndex := c.revocationIndex()
-	return rIndex.AddIndex(leia.NewIndex("index_subject", leia.NewFieldIndexer(concept.SubjectField)))
-}
-
 func (c *vcr) Name() string {
 	return moduleName
 }
 
 func (c *vcr) Config() interface{} {
 	return &c.config
-}
-
-// search for matching credentials based upon a query. It returns an empty list if no matches have been found.
-// The optional resolveTime will search for credentials at that point in time.
-func (c *vcr) search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
-	//transform query to leia query, for each template a query is returned
-	queries := c.convert(query)
-
-	var VCs = make([]vc.VerifiableCredential, 0)
-	for vcType, q := range queries {
-		docs, err := c.store.Collection(vcType).Find(ctx, q)
-		if err != nil {
-			return nil, err
-		}
-		for _, doc := range docs {
-			foundCredential := vc.VerifiableCredential{}
-			err = json.Unmarshal(doc.Bytes(), &foundCredential)
-			if err != nil {
-				return nil, errors.Wrap(err, "unable to parse credential from db")
-			}
-
-			if err = c.ValidateCredential(foundCredential, allowUntrusted, false, resolveTime); err == nil {
-				VCs = append(VCs, foundCredential)
-			}
-		}
-	}
-
-	return VCs, nil
 }
 
 func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
@@ -385,7 +288,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 }
 
 func (c *vcr) ResolveCredential(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
-	credential, err := c.find(ID)
+	credential, err := c.credentialStore.GetCredential(ID)
 	if err != nil {
 		return nil, err
 	}
@@ -404,8 +307,26 @@ func (c *vcr) ResolveCredential(ID ssi.URI, resolveTime *time.Time) (*vc.Verifia
 	return &credential, nil
 }
 
+func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.Time) error {
+	// verify first
+	if err := c.Verify(credential, validAt); err != nil {
+		return err
+	}
+
+	return c.credentialStore.WriteCredential(credential)
+}
+
+func (c *vcr) StoreRevocation(r credential.Revocation) error {
+	// verify first
+	if err := c.verifyRevocation(r); err != nil {
+		return err
+	}
+
+	return c.credentialStore.WriteRevocation(r)
+}
+
 func (c *vcr) ValidateCredential(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
-	revoked, err := c.isRevoked(*credential.ID)
+	revoked, err := c.credentialStore.IsCredentialRevoked(*credential.ID)
 	if revoked {
 		return ErrRevoked
 	}
@@ -457,33 +378,6 @@ func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
 	}
 
 	return false
-}
-
-// find only returns a VC from storage, it does not tell anything about validity
-func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
-	credential := vc.VerifiableCredential{}
-	qp := leia.Eq(concept.IDField, ID.String())
-	q := leia.New(qp)
-
-	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
-	defer cancel()
-	for _, t := range c.registry.Concepts() {
-		docs, err := c.store.Collection(t.CredentialType).Find(ctx, q)
-		if err != nil {
-			return credential, err
-		}
-		if len(docs) > 0 {
-			// there can be only one
-			err = json.Unmarshal(docs[0].Bytes(), &credential)
-			if err != nil {
-				return credential, errors.Wrap(err, "unable to parse credential from db")
-			}
-
-			return credential, nil
-		}
-	}
-
-	return credential, ErrNotFound
 }
 
 func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
@@ -548,14 +442,14 @@ func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
 
 func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 	// first find it using a query on id.
-	target, err := c.find(ID)
+	target, err := c.credentialStore.GetCredential(ID)
 	if err != nil {
 		// not found and other errors
 		return nil, err
 	}
 
 	// already revoked, return error
-	conflict, err := c.isRevoked(ID)
+	conflict, err := c.credentialStore.IsCredentialRevoked(ID)
 	if err != nil {
 		return nil, err
 	}
@@ -650,40 +544,22 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 		trustMap[trusted.String()] = true
 	}
 
-	// match all keys
-	query := leia.New(leia.Prefix(concept.IssuerField, ""))
-
-	// use type specific collection
-	collection := c.store.Collection(credentialType.String())
-
-	// for each key: add to untrusted if not present in trusted
-	err := collection.IndexIterate(query, func(key []byte, value []byte) error {
-		// we iterate over all issuers->reference pairs
-		issuer := string(key)
-		if _, ok := trustMap[issuer]; !ok {
-			u, err := ssi.ParseURI(issuer)
-			if err != nil {
-				return err
-			}
-			trustMap[issuer] = true
-			untrusted = append(untrusted, *u)
-		}
-		return nil
-	})
+	issuers, err := c.credentialStore.CredentialIssuers(credentialType)
 	if err != nil {
-		if errors.Is(err, leia.ErrNoIndex) {
-			log.Logger().Warnf("No index with field 'issuer' found for %s", credentialType.String())
-
-			return nil, ErrInvalidCredential
-		}
 		return nil, err
+	}
+
+	for _, issuer := range issuers {
+		if _, ok := trustMap[issuer.String()]; !ok {
+			untrusted = append(untrusted, issuer)
+		}
 	}
 
 	return untrusted, nil
 }
 
 func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error) {
-	q, err := c.Registry().QueryFor(conceptName)
+	q, err := c.registry.QueryFor(conceptName)
 	if err != nil {
 		return nil, err
 	}
@@ -693,9 +569,16 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
 	defer cancel()
 	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
-	vcs, err := c.search(ctx, q, allowUntrusted, nil)
+	unvalidatedVCs, err := c.credentialStore.SearchCredential(ctx, q)
 	if err != nil {
 		return nil, err
+	}
+
+	vcs := []vc.VerifiableCredential{}
+	for _, foundCredential := range unvalidatedVCs {
+		if err = c.ValidateCredential(foundCredential, allowUntrusted, false, nil); err == nil {
+			vcs = append(vcs, foundCredential)
+		}
 	}
 
 	if len(vcs) == 0 {
@@ -703,7 +586,7 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 	}
 
 	// multiple valids, use first one
-	return c.Registry().Transform(conceptName, vcs[0])
+	return c.registry.Transform(conceptName, vcs[0])
 }
 
 func (c *vcr) Search(ctx context.Context, conceptName string, allowUntrusted bool, queryParams map[string]string) ([]concept.Concept, error) {
@@ -716,9 +599,15 @@ func (c *vcr) Search(ctx context.Context, conceptName string, allowUntrusted boo
 		query.AddClause(concept.Prefix(key, value))
 	}
 
-	results, err := c.search(ctx, query, allowUntrusted, nil)
+	unvalidatedVCs, err := c.credentialStore.SearchCredential(ctx, query)
 	if err != nil {
 		return nil, err
+	}
+	results := []vc.VerifiableCredential{}
+	for _, foundCredential := range unvalidatedVCs {
+		if err = c.ValidateCredential(foundCredential, allowUntrusted, allowUntrusted, nil); err == nil {
+			results = append(results, foundCredential)
+		}
 	}
 
 	var transformedResults = make([]concept.Concept, len(results))
@@ -780,56 +669,6 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	}
 
 	return nil
-}
-
-func (c *vcr) isRevoked(ID ssi.URI) (bool, error) {
-	qp := leia.Eq(concept.SubjectField, ID.String())
-	q := leia.New(qp)
-
-	gIndex := c.revocationIndex()
-	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
-	defer cancel()
-	docs, err := gIndex.Find(ctx, q)
-	if err != nil {
-		return false, err
-	}
-
-	if len(docs) >= 1 {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-// convert returns a map of credential type to query
-// credential type is then used as collection input
-func (c *vcr) convert(query concept.Query) map[string]leia.Query {
-	var qs = make(map[string]leia.Query, 0)
-
-	for _, tq := range query.Parts() {
-		var q leia.Query
-		for _, clause := range tq.Clauses {
-			var qp leia.QueryPart
-
-			switch clause.Type() {
-			case concept.EqType:
-				qp = leia.Eq(clause.Key(), clause.Seek())
-			case concept.PrefixType:
-				qp = leia.Prefix(clause.Key(), clause.Seek())
-			default:
-				qp = leia.Range(clause.Key(), clause.Seek(), clause.Match())
-			}
-
-			if q == nil {
-				q = leia.New(qp)
-			} else {
-				q = q.And(qp)
-			}
-		}
-		qs[tq.CredentialType()] = q
-	}
-
-	return qs
 }
 
 // VerifyPresentation checks the signature and validity of the presentation.

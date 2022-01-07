@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr"
 
@@ -161,7 +160,6 @@ func TestService_SigningSessionStatus(t *testing.T) {
 type mockContext struct {
 	ctrl            *gomock.Controller
 	signer          *crypto.MockJWTSigner
-	vcResolver      *vcr.MockResolver
 	conceptRegistry *concept.MockRegistry
 	service         *Service
 }
@@ -175,7 +173,7 @@ func serviceWithMocks(t *testing.T) *mockContext {
 
 	ctrl := gomock.NewController(t)
 
-	vcr := vcr.NewMockResolver(ctrl)
+	//vcr := vcr.NewMockResolver(ctrl)
 	conceptRegistry := concept.NewMockRegistry(ctrl)
 	mockSigner := crypto.NewMockJWTSigner(ctrl)
 
@@ -190,7 +188,6 @@ func serviceWithMocks(t *testing.T) *mockContext {
 	return &mockContext{
 		ctrl:            ctrl,
 		signer:          mockSigner,
-		vcResolver:      vcr,
 		conceptRegistry: conceptRegistry,
 		service:         service,
 	}

@@ -54,7 +54,7 @@ func TestAmbassador_Configure(t *testing.T) {
 }
 
 func TestAmbassador_vcCallback(t *testing.T) {
-	payload := []byte(concept.TestCredential)
+	payload := []byte(concept.TestHumanCredential1)
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), vcDocumentType, nil, nil)
 	stx := tx.(dag.Transaction)
 	validAt := stx.SigningTime()

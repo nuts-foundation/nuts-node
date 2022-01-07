@@ -219,31 +219,31 @@ func (mr *MockTrustStoreMockRecorder) Untrusted(credentialType interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrusted", reflect.TypeOf((*MockTrustStore)(nil).Untrusted), credentialType)
 }
 
-// MockResolver is a mock of CredentialResolver interface.
-type MockResolver struct {
+// MockCredentialResolver is a mock of CredentialResolver interface.
+type MockCredentialResolver struct {
 	ctrl     *gomock.Controller
-	recorder *MockResolverMockRecorder
+	recorder *MockCredentialResolverMockRecorder
 }
 
-// MockResolverMockRecorder is the mock recorder for MockResolver.
-type MockResolverMockRecorder struct {
-	mock *MockResolver
+// MockCredentialResolverMockRecorder is the mock recorder for MockCredentialResolver.
+type MockCredentialResolverMockRecorder struct {
+	mock *MockCredentialResolver
 }
 
-// NewMockResolver creates a new mock instance.
-func NewMockResolver(ctrl *gomock.Controller) *MockResolver {
-	mock := &MockResolver{ctrl: ctrl}
-	mock.recorder = &MockResolverMockRecorder{mock}
+// NewMockCredentialResolver creates a new mock instance.
+func NewMockCredentialResolver(ctrl *gomock.Controller) *MockCredentialResolver {
+	mock := &MockCredentialResolver{ctrl: ctrl}
+	mock.recorder = &MockCredentialResolverMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
+func (m *MockCredentialResolver) EXPECT() *MockCredentialResolverMockRecorder {
 	return m.recorder
 }
 
 // ResolveCredential mocks base method.
-func (m *MockResolver) ResolveCredential(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
+func (m *MockCredentialResolver) ResolveCredential(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveCredential", ID, resolveTime)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
@@ -252,9 +252,9 @@ func (m *MockResolver) ResolveCredential(ID ssi.URI, resolveTime *time.Time) (*v
 }
 
 // ResolveCredential indicates an expected call of ResolveCredential.
-func (mr *MockResolverMockRecorder) ResolveCredential(ID, resolveTime interface{}) *gomock.Call {
+func (mr *MockCredentialResolverMockRecorder) ResolveCredential(ID, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveCredential", reflect.TypeOf((*MockResolver)(nil).ResolveCredential), ID, resolveTime)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveCredential", reflect.TypeOf((*MockCredentialResolver)(nil).ResolveCredential), ID, resolveTime)
 }
 
 // MockHolder is a mock of Holder interface.
@@ -624,4 +624,129 @@ func (m *MockVCR) VerifyPresentation(verifiablePresentation presentation.Verifia
 func (mr *MockVCRMockRecorder) VerifyPresentation(verifiablePresentation interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyPresentation", reflect.TypeOf((*MockVCR)(nil).VerifyPresentation), verifiablePresentation)
+}
+
+// MockCredentialStoreBackend is a mock of CredentialStoreBackend interface.
+type MockCredentialStoreBackend struct {
+	ctrl     *gomock.Controller
+	recorder *MockCredentialStoreBackendMockRecorder
+}
+
+// MockCredentialStoreBackendMockRecorder is the mock recorder for MockCredentialStoreBackend.
+type MockCredentialStoreBackendMockRecorder struct {
+	mock *MockCredentialStoreBackend
+}
+
+// NewMockCredentialStoreBackend creates a new mock instance.
+func NewMockCredentialStoreBackend(ctrl *gomock.Controller) *MockCredentialStoreBackend {
+	mock := &MockCredentialStoreBackend{ctrl: ctrl}
+	mock.recorder = &MockCredentialStoreBackendMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCredentialStoreBackend) EXPECT() *MockCredentialStoreBackendMockRecorder {
+	return m.recorder
+}
+
+// Close mocks base method.
+func (m *MockCredentialStoreBackend) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockCredentialStoreBackendMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockCredentialStoreBackend)(nil).Close))
+}
+
+// CredentialIssuers mocks base method.
+func (m *MockCredentialStoreBackend) CredentialIssuers(credentialType ssi.URI) ([]ssi.URI, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CredentialIssuers", credentialType)
+	ret0, _ := ret[0].([]ssi.URI)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CredentialIssuers indicates an expected call of CredentialIssuers.
+func (mr *MockCredentialStoreBackendMockRecorder) CredentialIssuers(credentialType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CredentialIssuers", reflect.TypeOf((*MockCredentialStoreBackend)(nil).CredentialIssuers), credentialType)
+}
+
+// GetCredential mocks base method.
+func (m *MockCredentialStoreBackend) GetCredential(ID ssi.URI) (vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCredential", ID)
+	ret0, _ := ret[0].(vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCredential indicates an expected call of GetCredential.
+func (mr *MockCredentialStoreBackendMockRecorder) GetCredential(ID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCredential", reflect.TypeOf((*MockCredentialStoreBackend)(nil).GetCredential), ID)
+}
+
+// IsCredentialRevoked mocks base method.
+func (m *MockCredentialStoreBackend) IsCredentialRevoked(ID ssi.URI) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsCredentialRevoked", ID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsCredentialRevoked indicates an expected call of IsCredentialRevoked.
+func (mr *MockCredentialStoreBackendMockRecorder) IsCredentialRevoked(ID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCredentialRevoked", reflect.TypeOf((*MockCredentialStoreBackend)(nil).IsCredentialRevoked), ID)
+}
+
+// SearchCredential mocks base method.
+func (m *MockCredentialStoreBackend) SearchCredential(ctx context.Context, query concept.Query) ([]vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchCredential", ctx, query)
+	ret0, _ := ret[0].([]vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchCredential indicates an expected call of SearchCredential.
+func (mr *MockCredentialStoreBackendMockRecorder) SearchCredential(ctx, query interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchCredential", reflect.TypeOf((*MockCredentialStoreBackend)(nil).SearchCredential), ctx, query)
+}
+
+// WriteCredential mocks base method.
+func (m *MockCredentialStoreBackend) WriteCredential(subject vc.VerifiableCredential) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WriteCredential", subject)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WriteCredential indicates an expected call of WriteCredential.
+func (mr *MockCredentialStoreBackendMockRecorder) WriteCredential(subject interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteCredential", reflect.TypeOf((*MockCredentialStoreBackend)(nil).WriteCredential), subject)
+}
+
+// WriteRevocation mocks base method.
+func (m *MockCredentialStoreBackend) WriteRevocation(r credential.Revocation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WriteRevocation", r)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WriteRevocation indicates an expected call of WriteRevocation.
+func (mr *MockCredentialStoreBackendMockRecorder) WriteRevocation(r interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteRevocation", reflect.TypeOf((*MockCredentialStoreBackend)(nil).WriteRevocation), r)
 }

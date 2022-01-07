@@ -37,15 +37,15 @@ type Ambassador interface {
 }
 
 type ambassador struct {
-	networkClient network.Transactions
-	writer        CredentialStore
+	networkClient   network.Transactions
+	credentialStore CredentialStore
 }
 
 // NewAmbassador creates a new listener for the network that listens to Verifiable Credential transactions.
 func NewAmbassador(networkClient network.Transactions, writer CredentialStore) Ambassador {
 	return ambassador{
-		networkClient: networkClient,
-		writer:        writer,
+		networkClient:   networkClient,
+		credentialStore: writer,
 	}
 }
 
@@ -68,7 +68,7 @@ func (n ambassador) vcCallback(tx dag.Transaction, payload []byte) error {
 
 	// Verify and store
 	validAt := tx.SigningTime()
-	return n.writer.StoreCredential(target, &validAt)
+	return n.credentialStore.StoreCredential(target, &validAt)
 }
 
 // rCallback gets called when new credential revocations are received by the network. All checks on the signature are already performed.
@@ -83,5 +83,5 @@ func (n ambassador) rCallback(tx dag.Transaction, payload []byte) error {
 	}
 
 	// Verify and store
-	return n.writer.StoreRevocation(r)
+	return n.credentialStore.StoreRevocation(r)
 }

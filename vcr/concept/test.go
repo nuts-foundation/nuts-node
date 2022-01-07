@@ -70,7 +70,7 @@ var ExampleConfig = Config{
 	Template: &humanTemplate,
 }
 
-const TestCredential = `
+const TestHumanCredential1 = `
 {
 	"@context": [
 		"https://www.w3.org/2018/credentials/v1",
@@ -92,6 +92,28 @@ const TestCredential = `
 }
 `
 
+const TestHumanCredential2 = `
+{
+	"@context": [
+		"https://www.w3.org/2018/credentials/v1",
+		"https://nuts.nl/credentials/v1"
+	  ],
+	"id": "did:nuts:BfQRsmgryywR3goAsECwjGHbCNGGqKdMvmrLHV6UgZsx#456",
+	"issuer": "did:nuts:BfQRsmgryywR3goAsECwjGHbCNGGqKdMvmrLHV6UgZsx",
+	"issuanceDate": "2022-01-04T15:04:00Z",
+	"expirationDate": "2030-01-01T12:00:00Z",
+	"type": ["VerifiableCredential", "HumanCredential"],
+	"credentialSubject": {
+		"id": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW",
+		"human": {
+			"eyeColour": "yellow",
+			"hairColour": "fair"
+		}
+	},
+	"proof": {}
+}
+`
+
 const TestRevocation = `
 {
   "issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
@@ -104,7 +126,7 @@ const TestRevocation = `
 func TestVC() vc.VerifiableCredential {
 	credential := vc.VerifiableCredential{}
 
-	json.Unmarshal([]byte(TestCredential), &credential)
+	json.Unmarshal([]byte(TestHumanCredential1), &credential)
 
 	return credential
 }
