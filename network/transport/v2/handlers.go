@@ -106,6 +106,9 @@ func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
 		return err
 	}
 
+	// Publish to NATS PrivateTransactionPayload subject
+	p.
+
 	// it's saved, remove the job
 	return p.payloadScheduler.Finished(ref)
 }

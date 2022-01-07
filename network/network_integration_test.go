@@ -218,7 +218,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 }
 
 func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
-	t.Run("happy flow", func(t *testing.T) {
+	  t.Run("happy flow", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest()
 		key := nutsCrypto.NewTestKey("key")
@@ -340,7 +340,7 @@ func waitForTransaction(t *testing.T, tx dag.Transaction, receivers ...string) b
 				}
 			}
 			return false, nil
-		}, 2*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
+		}, 50*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
 			return false
 		}
 	}

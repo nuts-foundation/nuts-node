@@ -267,7 +267,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 		return nil
 	}
 
-	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(*senderDID))
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(senderDID))
 
 	if conn == nil {
 		return fmt.Errorf("unable to retrieve payload, no connection found (ref=%s, DID=%s)", hash.String(), pal[0])
@@ -312,19 +312,19 @@ func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
 }
 
 // decryptPAL returns nil, nil if the PAL couldn't be decoded
-func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, *did.DID, error) {
+func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, did.DID, error) {
 	nodeDID, err := p.nodeDIDResolver.Resolve()
 	if err != nil {
-		return nil, nil, err
+		return nil, did.DID{}, err
 	}
 
 	if nodeDID.Empty() {
-		return nil, nil, errors.New("node DID is not set")
+		return nil, did.DID{}, errors.New("node DID is not set")
 	}
 
 	doc, _, err := p.docResolver.Resolve(nodeDID, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, did.DID{}, err
 	}
 
 	keyAgreementIDs := make([]string, len(doc.KeyAgreement))
@@ -337,23 +337,23 @@ func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, *did.DID, error) {
 
 	pal, err := epal.Decrypt(keyAgreementIDs, p.decrypter)
 	if err != nil {
-		return nil, nil, err
+		return nil, did.DID{}, err
 	}
 
 	if len(pal) == 0 {
-		return nil, nil, nil
+		return nil, did.DID{}, nil
 	}
 
-	var senderDID *did.DID
+	var senderDID did.DID
 
 	for _, id := range pal {
 		if !id.Equals(nodeDID) {
-			senderDID = &id
+			senderDID = id
 		}
 	}
 
-	if senderDID == nil {
-		return nil, nil, errors.New("unable to find a sender in the PAL")
+	if senderDID.Empty() {
+		return nil, did.DID{}, errors.New("unable to find a sender in the PAL")
 	}
 
 	return pal, senderDID, nil

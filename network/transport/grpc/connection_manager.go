@@ -312,7 +312,7 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 		return nil, fatalError{error: fmt.Errorf("failed to read peer ID header: %w", err)}
 	}
 
-	if !connection.verifyOrSetPeerID(peerID) {
+	if !connection.setPeerID(peerID) {
 		return nil, fatalError{error: fmt.Errorf("peer sent invalid ID (id=%s)", peerID)}
 	}
 
@@ -323,6 +323,7 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 	if err != nil {
 		return nil, fatalError{error: err}
 	}
+	connection.setNodeDID(peer.NodeDID)
 
 	if !connection.registerStream(protocol, clientStream) {
 		// This can happen when the peer connected to us previously, and now we connect back to them.
