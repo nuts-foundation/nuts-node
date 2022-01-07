@@ -147,6 +147,7 @@ func (p *protocol) setupNatsHandler() error {
 	stream := events.NewStream(&nats.StreamConfig{
 		Name:     events.PrivateTransactionsStream,
 		Subjects: []string{events.PrivateTransactionsSubject},
+		Storage:  nats.MemoryStorage,
 	}, []nats.SubOpt{
 		nats.AckExplicit(),
 	})
