@@ -27,9 +27,12 @@ type Config struct {
 	strictMode bool
 	// datadir holds the location the VCR files are stored
 	datadir string
+	// OverrideAllPublic overrides the "Public" property of a credential when issuing credentials:
+	// if set to true, all issued credentials are published as public credentials, regardless of whether they're actually marked as public.
+	OverrideIssueAllPublic bool
 }
 
 // DefaultConfig returns a fresh Config filled with default values
 func DefaultConfig() Config {
-	return Config{}
+	return Config{OverrideIssueAllPublic: true}
 }
