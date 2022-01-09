@@ -174,6 +174,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		if n.config.EnableTLS {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
 		}
+
 		// Instantiate
 		var authenticator grpc.Authenticator
 		if n.config.DisableNodeAuthentication {
