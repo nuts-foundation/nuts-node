@@ -31,22 +31,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReplayingDAGPublisher_Start(t *testing.T) {
-	t.Run("err - failed to get Nats connection", func(t *testing.T) {
-		ctrl := createPublisher(t)
-		connectionPool := events.NewMockConnectionPool(ctrl.ctrl)
-		ctrl.eventManager.EXPECT().Pool().Return(connectionPool)
-		connectionPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, errors.New("b00m!"))
-
-		err := ctrl.publisher.Start()
-
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.EqualError(t, err, "failed to acquire a connection for events: b00m!")
-	})
-}
-
 func TestReplayingPublisher(t *testing.T) {
 	t.Run("empty graph at start", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
@@ -122,7 +106,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		ctrl.publisher.publishTransaction(ctx, transaction)
 		assert.True(t, received)
 	})
-	t.Run("not received when transaction with pal header is skipped", func(t *testing.T) {
+	t.Run("first received without payload then with payload for transaction with pal header", func(t *testing.T) {
 		ctrl := createPublisher(t)
 		transaction := CreateSignedTestTransaction(1, time.Now(), [][]byte{{9, 8, 7}}, "foo/bar", true)
 		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return(nil, nil)
@@ -130,31 +114,19 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		received := false
 		ctrl.publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
+			if received {
+				assert.NotNil(t, actualPayload)
+			} else {
+				assert.Nil(t, actualPayload)
+			}
 			received = true
 			return nil
 		})
 		ctrl.publisher.publishTransaction(ctx, transaction)
-		assert.False(t, received)
-	})
-	t.Run("payload not present (but present later)", func(t *testing.T) {
-		ctrl := createPublisher(t)
-
-		transaction := CreateTestTransactionWithJWK(1)
-		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return(nil, nil)
-
-		received := false
-		ctrl.publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
-			assert.Equal(t, transaction, actualTransaction)
-			return nil
-		})
-		ctrl.publisher.publishTransaction(ctx, transaction)
-		assert.False(t, received)
-
-		// Now add the payload and trigger observer func
-		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
-		ctrl.publisher.publishTransaction(ctx, transaction)
-
 		assert.True(t, received)
+
+		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1}, nil)
+		ctrl.publisher.publishTransaction(ctx, transaction)
 	})
 	t.Run("error reading payload", func(t *testing.T) {
 		ctrl := createPublisher(t)
