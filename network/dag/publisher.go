@@ -165,6 +165,7 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 		if len(transaction.PAL()) > 0 {
 			return s.handlePrivateTransaction(transaction)
 		}
+
 		// We haven't got the payload, break of processing for this branch
 		return false
 	}
