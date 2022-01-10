@@ -24,6 +24,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -91,6 +92,7 @@ type payloadScheduler struct {
 	callback   jobCallBack
 	ctx        context.Context
 	cancel     context.CancelFunc
+	mutex      sync.Mutex
 }
 
 func (p *payloadScheduler) Run() error {
@@ -109,6 +111,18 @@ func (p *payloadScheduler) Run() error {
 }
 
 func (p *payloadScheduler) Schedule(hash hash.SHA256Hash) error {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	_, exists, err := p.readRetryCount(hash)
+	if err != nil {
+		return err
+	}
+	if exists {
+		// do not schedule existing jobs
+		return nil
+	}
+
 	if err := p.writeRetryCount(hash, 0); err != nil {
 		return err
 	}
