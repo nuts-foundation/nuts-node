@@ -22,6 +22,16 @@ func (conn *stubConn) Subscribe(_subj string, _cb nats.MsgHandler, _opts ...nats
 	return &nats.Subscription{}, nil
 }
 
+// JetStream returns the JetStream context
+func (conn *stubConn) JetStream(_ ...nats.JSOpt) (nats.JetStreamContext, error) {
+	return conn, nil
+}
+
+// StreamInfo returns the stream information
+func (conn *stubConn) StreamInfo(_ string, _ ...nats.JSOpt) (*nats.StreamInfo, error) {
+	return &nats.StreamInfo{}, nil
+}
+
 type stubEventManager struct {
 	pool ConnectionPool
 	once sync.Once

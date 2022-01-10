@@ -101,6 +101,8 @@ func newTestPayloadScheduler(t *testing.T, callback jobCallBack) *payloadSchedul
 	scheduler, err := NewPayloadScheduler(db, config.PayloadRetryDelay, callback)
 	assert.NoError(t, err)
 
+	scheduler.(*payloadScheduler).retryDelay = 10 * time.Second
+
 	return scheduler.(*payloadScheduler)
 }
 
