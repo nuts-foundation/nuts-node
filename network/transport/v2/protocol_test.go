@@ -62,11 +62,9 @@ func TestDefaultConfig(t *testing.T) {
 
 func TestProtocol_Configure(t *testing.T) {
 	testDID, _ := did.ParseDID("did:nuts:123")
-	p, mocks := newTestProtocol(t, testDID)
+	p, _ := newTestProtocol(t, testDID)
 
-	mocks.Publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any())
-
-	p.Configure("")
+	assert.NoError(t, p.Configure(""))
 }
 
 func TestProtocol_Diagnostics(t *testing.T) {
@@ -132,6 +130,7 @@ func TestProtocol_lifecycle(t *testing.T) {
 
 	s := grpcLib.NewServer()
 	p, mocks := newTestProtocol(t, nil)
+	mocks.Publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any())
 	mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 	mocks.PayloadScheduler.EXPECT().Close()
 	p.Start()
@@ -151,6 +150,7 @@ func TestProtocol_Start(t *testing.T) {
 
 	mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 	mocks.PayloadScheduler.EXPECT().Close()
+	mocks.Publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any())
 	proto.Start()
 	proto.Stop()
 

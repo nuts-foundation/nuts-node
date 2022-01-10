@@ -136,8 +136,6 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 		return fmt.Errorf("failed to setup payload scheduler: %w", err)
 	}
 
-	p.publisher.Subscribe(dag.AnyPayloadType, p.handlePrivateTx)
-
 	return nil
 }
 
@@ -148,6 +146,8 @@ func (p *protocol) Start() (err error) {
 	if err = p.payloadScheduler.Run(); err != nil {
 		return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
 	}
+
+	p.publisher.Subscribe(dag.AnyPayloadType, p.handlePrivateTx)
 	return
 }
 

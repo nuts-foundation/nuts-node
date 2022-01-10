@@ -63,6 +63,7 @@ func (s *replayingDAGPublisher) PayloadWritten(ctx context.Context, payloadHash 
 		return
 	}
 	if txs[0].PayloadType() != "application/did+json" {
+		s.publishTransaction(ctx, txs[0])
 		return
 	}
 
