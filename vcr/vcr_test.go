@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"os"
 	"reflect"
 	"runtime"
@@ -325,8 +326,6 @@ func TestVcr_Issue(t *testing.T) {
 	}
 	document := did.Document{}
 	document.AddAssertionMethod(&did.VerificationMethod{ID: *vdr.TestMethodDIDA})
-	serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
-	service := did.Service{ID: *serviceID}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -367,19 +366,27 @@ func TestVcr_Issue(t *testing.T) {
 		assert.Contains(t, proof[0].Jws, "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..")
 	})
 
-	t.Run("ok - unknown type (also private)", func(t *testing.T) {
+	t.Run("ok - unknown type (also private, but with public override)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
+		instance.config.OverrideIssueAllPublic = true
 		cred := validNutsOrganizationCredential()
 		uri, _ := ssi.ParseURI("unknownType")
 		cred.Type = []ssi.URI{*uri}
-		expectedURIA, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
-		expectedURIB, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDB.String()))
+		//expectedURIA, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
+		//expectedURIB, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDB.String()))
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
-		ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(service, nil)
-		ctx.serviceResolver.EXPECT().Resolve(*expectedURIB, 5).Return(service, nil)
+		//serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
+		//service := did.Service{ID: *serviceID}
+		//ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(service, nil)
+		//ctx.serviceResolver.EXPECT().Resolve(*expectedURIB, 5).Return(service, nil)
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
-		ctx.tx.EXPECT().CreateTransaction(gomock.Any()).Return(nil, nil)
+
+		var tpl network.Template
+		ctx.tx.EXPECT().CreateTransaction(gomock.Any()).DoAndReturn(func(arg network.Template) (dag.Transaction, error) {
+			tpl = arg
+			return nil, nil
+		})
 
 		issued, err := instance.Issue(*cred)
 
@@ -388,6 +395,7 @@ func TestVcr_Issue(t *testing.T) {
 		}
 		assert.NotNil(t, issued)
 		assert.NotNil(t, ctx.vcr.registry.FindByType("unknownType"))
+		assert.Empty(t, tpl.Participants)
 	})
 
 	t.Run("error - NutsComm service resolve error", func(t *testing.T) {

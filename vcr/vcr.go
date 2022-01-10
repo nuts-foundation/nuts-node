@@ -366,7 +366,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 func (c *vcr) generateParticipants(conceptConfig concept.Config, verifiableCredential vc.VerifiableCredential) ([]did.DID, error) {
 	issuer, _ := did.ParseDID(verifiableCredential.Issuer.String())
 	participants := make([]did.DID, 0)
-	if !conceptConfig.Public {
+	if !c.config.OverrideIssueAllPublic && !conceptConfig.Public {
 		var (
 			base                []credential.BaseCredentialSubject
 			credentialSubjectID *did.DID
