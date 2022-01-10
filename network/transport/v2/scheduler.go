@@ -162,9 +162,9 @@ func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 			// no longer exists, so done
 			return nil
 		},
-			retry.Attempts(100),          // should be enough
-			retry.MaxDelay(24*time.Hour), // maximum delay of an hour
-			retry.Delay(delay),           // first retry after 5 seconds, second after 10, 20, 40, etc
+			retry.Attempts(100-uint(initialCount)), // should be enough
+			retry.MaxDelay(24*time.Hour),           // maximum delay of an hour
+			retry.Delay(delay),                     // first retry after 5 seconds, second after 10, 20, 40, etc
 			retry.DelayType(retry.BackOffDelay),
 			retry.Context(ctx),
 			retry.LastErrorOnly(true), // only log last error

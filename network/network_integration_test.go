@@ -340,7 +340,7 @@ func waitForTransaction(t *testing.T, tx dag.Transaction, receivers ...string) b
 				}
 			}
 			return false, nil
-		}, 50*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
+		}, 5*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
 			return false
 		}
 	}
