@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
@@ -55,15 +54,12 @@ type Connection interface {
 	// If there's no active stream for the protocol, or something else goes wrong, an error is returned.
 	Send(protocol Protocol, envelope interface{}) error
 
+	// setPeer sets the peer of this connection.
+	setPeer(peer transport.Peer)
+
 	// setPeerID checks whether the given transport.PeerID matches the one currently set for this connection.
-	// If no transport.PeerID is set on this connection it just sets it. Subsequent calls must then match it.
-	// This method is used to:
-	// - Initial discovery of the peer's transport.PeerID, setting it when it isn't known before connecting.
-	// - Verify multiple active protocols to the same peer all send the same transport.PeerID.
-	// It returns false if the given transport.PeerID doesn't match the previously set transport.PeerID.
 	setPeerID(id transport.PeerID) bool
-	// setNodeDID does the same as setPeerID, but then for node DID.
-	setNodeDID(nodeDID did.DID) bool
+
 	// stats returns statistics for this connection
 	stats() transport.ConnectionStats
 
@@ -152,17 +148,8 @@ func (mc *conn) setPeerID(id transport.PeerID) bool {
 	return currentPeer.ID == id
 }
 
-
-func (mc *conn) setNodeDID(nodeDID did.DID) bool {
-	mc.mux.Lock()
-	defer mc.mux.Unlock()
-	currentPeer := mc.Peer()
-	if currentPeer.NodeDID.Empty() {
-		currentPeer.NodeDID = nodeDID
-		mc.peer.Store(currentPeer)
-		return true
-	}
-	return currentPeer.NodeDID.Equals(nodeDID)
+func (mc *conn) setPeer(peer transport.Peer) {
+	mc.peer.Store(peer)
 }
 
 func (mc *conn) Send(protocol Protocol, envelope interface{}) error {

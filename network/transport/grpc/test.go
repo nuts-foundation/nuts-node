@@ -166,6 +166,10 @@ func (s StubConnection) setNodeDID(_ did.DID) bool {
 	panic("implement me")
 }
 
+func (s StubConnection) setPeer(_ transport.Peer) {
+	panic("implement me")
+}
+
 func (s StubConnection) stats() transport.ConnectionStats {
 	panic("implement me")
 }
