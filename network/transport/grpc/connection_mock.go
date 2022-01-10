@@ -104,6 +104,18 @@ func (mr *MockConnectionMockRecorder) registerStream(protocol, stream interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "registerStream", reflect.TypeOf((*MockConnection)(nil).registerStream), protocol, stream)
 }
 
+// setPeer mocks base method.
+func (m *MockConnection) setPeer(peer transport.Peer) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "setPeer", peer)
+}
+
+// setPeer indicates an expected call of setPeer.
+func (mr *MockConnectionMockRecorder) setPeer(peer interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "setPeer", reflect.TypeOf((*MockConnection)(nil).setPeer), peer)
+}
+
 // startConnecting mocks base method.
 func (m *MockConnection) startConnecting(config *tls.Config, callback func(*grpc.ClientConn) bool) {
 	m.ctrl.T.Helper()

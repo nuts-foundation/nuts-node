@@ -162,6 +162,10 @@ func (s StubConnection) verifyOrSetPeerID(_ transport.PeerID) bool {
 	panic("implement me")
 }
 
+func (s StubConnection) setPeer(_ transport.Peer) {
+	panic("implement me")
+}
+
 func (s StubConnection) stats() transport.ConnectionStats {
 	panic("implement me")
 }
