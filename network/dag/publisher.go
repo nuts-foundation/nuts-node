@@ -51,10 +51,22 @@ type replayingDAGPublisher struct {
 	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
 
-func (s *replayingDAGPublisher) PayloadWritten(ctx context.Context, _ interface{}) {
+func (s *replayingDAGPublisher) PayloadWritten(ctx context.Context, payloadHash interface{}) {
 	s.publishMux.Lock()
 	defer s.publishMux.Unlock()
 
+	h := payloadHash.(hash.SHA256Hash)
+	txs, err := s.dag.GetByPayloadHash(ctx, h)
+
+	if err != nil || len(txs) == 0 {
+		log.Logger().Errorf("failed to retrieve transaction by payloadHash (%s)", h.String())
+		return
+	}
+	if txs[0].PayloadType() != "application/did+json" {
+		return
+	}
+
+	// All did doc txs require payload.
 	s.publish(ctx)
 }
 
@@ -137,11 +149,10 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 		return false
 	}
 
-	txCompleted := true
-	if payload == nil {
-		// We haven't got the payload, so we don't move the pointer in this publisher unless it's a private TX
-		if len(transaction.PAL()) == 0 {
-			txCompleted = false
+	if transaction.PayloadType() == "application/did+json" {
+		if payload == nil {
+			// public TX but without payload, TX processing only. Wait for payload
+			return false
 		}
 	}
 
@@ -155,5 +166,5 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 		}
 	}
 
-	return txCompleted
+	return true
 }

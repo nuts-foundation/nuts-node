@@ -120,7 +120,7 @@ func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
 	return envelope.(*Envelope).Message
 }
 
-func (p protocol) Configure(_ transport.PeerID) error {
+func (p *protocol) Configure(_ transport.PeerID) error {
 	dbFile := path.Join(p.config.Datadir, "network", "payload_jobs.db")
 	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
 		return fmt.Errorf("unable to setup database: %w", err)

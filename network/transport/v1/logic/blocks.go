@@ -123,15 +123,6 @@ func (blx *trackingDAGBlocks) get() []dagBlock {
 // so it's typically called using a sequential DAG subscriber.
 // So given TXs `A <- B <- [C, D]` call order is A, B, C, D (or A, B, D, C).
 func (blx *trackingDAGBlocks) addTransaction(tx dag.Transaction, payload []byte) error {
-	if payload == nil && len(tx.PAL()) == 0 {
-		// for non-private TXs, act on payload only
-		return nil
-	}
-	if payload != nil && len(tx.PAL()) > 0 {
-		// for private TX, act on DAG entry only
-		return nil
-	}
-
 	blx.mux.Lock()
 	defer blx.mux.Unlock()
 	blx.internalUpdate(time.Now())

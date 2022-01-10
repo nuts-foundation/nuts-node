@@ -30,7 +30,6 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1"
@@ -367,23 +366,6 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		f(&config)
 	}
 
-	eventManager := events.NewManager()
-
-	cfg := eventManager.(core.Injectable).Config().(*events.Config)
-	cfg.Port = test.FreeTCPPort()
-
-	err := (eventManager.(core.Configurable)).Configure(*core.NewServerConfig())
-	if err != nil {
-		panic(err)
-	}
-	err = (eventManager.(core.Runnable)).Start()
-	if err != nil {
-		panic(err)
-	}
-	t.Cleanup(func() {
-		_ = (eventManager.(core.Runnable)).Shutdown()
-	})
-
 	instance := &Network{
 		config:                 config,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool)},
@@ -392,7 +374,6 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		decrypter:              keyStore,
 		keyResolver:            doc.KeyResolver{Store: vdrStore},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
-		eventManager:           eventManager,
 	}
 	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {
 		t.Fatal(err)

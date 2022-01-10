@@ -22,7 +22,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/events"
 
@@ -105,28 +104,6 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		})
 		ctrl.publisher.publishTransaction(ctx, transaction)
 		assert.True(t, received)
-	})
-	t.Run("first received without payload then with payload for transaction with pal header", func(t *testing.T) {
-		ctrl := createPublisher(t)
-		transaction := CreateSignedTestTransaction(1, time.Now(), [][]byte{{9, 8, 7}}, "foo/bar", true)
-		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return(nil, nil)
-
-		received := false
-		ctrl.publisher.Subscribe(transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
-			assert.Equal(t, transaction, actualTransaction)
-			if received {
-				assert.NotNil(t, actualPayload)
-			} else {
-				assert.Nil(t, actualPayload)
-			}
-			received = true
-			return nil
-		})
-		ctrl.publisher.publishTransaction(ctx, transaction)
-		assert.True(t, received)
-
-		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1}, nil)
-		ctrl.publisher.publishTransaction(ctx, transaction)
 	})
 	t.Run("error reading payload", func(t *testing.T) {
 		ctrl := createPublisher(t)

@@ -474,10 +474,6 @@ type lastTransactionTracker struct {
 }
 
 func (l *lastTransactionTracker) process(transaction dag.Transaction, payload []byte) error {
-	if payload != nil {
-		// ignore, this callback is called for both the transaction and the payload
-		return nil
-	}
 	l.mux.Lock()
 	defer l.mux.Unlock()
 
