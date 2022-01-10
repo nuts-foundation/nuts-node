@@ -327,6 +327,7 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 	if err != nil {
 		return nil, fatalError{error: err}
 	}
+	// todo peer NodeDID not set?
 
 	connection.setPeer(authenticatedPeer)
 

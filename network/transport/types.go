@@ -48,7 +48,7 @@ type Peer struct {
 
 // String returns the peer as string.
 func (p Peer) String() string {
-	return fmt.Sprintf("%s@%s", p.ID, p.Address)
+	return fmt.Sprintf("%s(%s)@%s", p.ID, p.NodeDID.String(), p.Address)
 }
 
 // Diagnostics contains information that is shared to this node's peers on request.
