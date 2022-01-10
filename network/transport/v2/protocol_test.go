@@ -149,20 +149,23 @@ func TestProtocol_lifecycle(t *testing.T) {
 func TestProtocol_Start(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	conn := events.NewMockConn(ctrl)
 	js := events.NewMockJetStreamContext(ctrl)
+	js.EXPECT().StreamInfo(events.PrivateTransactionsStream).Return(&nats.StreamInfo{}, nil)
 	js.EXPECT().Subscribe(events.PrivateTransactionsSubject, gomock.Any(), gomock.Any()).Return(nil, nil)
+
+	conn := events.NewMockConn(ctrl)
+	conn.EXPECT().JetStream().Return(js, nil)
 
 	proto, mocks := newTestProtocol(t, nil)
 
 	mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 	mocks.PayloadScheduler.EXPECT().Close()
-	mocks.EventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(conn, js, nil)
+	mocks.EventsConnectionPool.EXPECT().Acquire(gomock.Any()).Return(conn, nil, nil)
 
 	proto.Start()
 	proto.Stop()
 
-	time.Sleep(7 * time.Second)
+	time.Sleep(2 * time.Second)
 }
 
 func TestProtocol_HandlePrivateTx(t *testing.T) {
