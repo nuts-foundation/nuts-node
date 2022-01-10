@@ -141,16 +141,12 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 	}
 }
 
-func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) bool {
+func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) {
 	_, err := s.privateTxCtx.PublishAsync(events.PrivateTransactionsSubject, tx.Data())
 
 	if err != nil {
 		log.Logger().Errorf("unable to handle private transaction: (ref=%s) %v", tx.Ref(), err)
-
-		return false
 	}
-
-	return true
 }
 
 func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transaction Transaction) bool {
@@ -163,7 +159,7 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 	if payload == nil {
 		// We need to skip transactions with PAL header as it should be handled by the v2 protocol
 		if len(transaction.PAL()) > 0 {
-			return s.handlePrivateTransaction(transaction)
+			s.handlePrivateTransaction(transaction)
 		}
 
 		// We haven't got the payload, break of processing for this branch
