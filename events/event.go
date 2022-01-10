@@ -84,8 +84,6 @@ func (m *manager) Start() error {
 
 	server.Start()
 
-	log.Logger().Infof("started %s", moduleName)
-
 	return nil
 }
 
