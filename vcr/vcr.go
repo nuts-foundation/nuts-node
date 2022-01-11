@@ -98,7 +98,8 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
 
 	// store config parameters for use in Start()
-	c.config = Config{strictMode: config.Strictmode, datadir: config.Datadir}
+	c.config.strictMode = config.Strictmode
+	c.config.datadir = config.Datadir
 
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 

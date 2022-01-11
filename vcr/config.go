@@ -25,11 +25,11 @@ const moduleName = "VCR"
 type Config struct {
 	// strictMode is a copy from the core server config
 	strictMode bool
-	// datadir holds the location the VCR files are stored
-	datadir string
 	// OverrideAllPublic overrides the "Public" property of a credential when issuing credentials:
 	// if set to true, all issued credentials are published as public credentials, regardless of whether they're actually marked as public.
-	OverrideIssueAllPublic bool
+	OverrideIssueAllPublic bool `koanf:"vcr.overrideissueallpublic"`
+	// datadir holds the location the VCR files are stored
+	datadir string
 }
 
 // DefaultConfig returns a fresh Config filled with default values
