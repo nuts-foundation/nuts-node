@@ -152,6 +152,16 @@ func TestNetwork_Configure(t *testing.T) {
 		}
 	})
 
+	t.Run("error - configured node DID invalid", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		ctx := createNetwork(ctrl)
+		ctx.network.config.NodeDID = "invalid"
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		assert.EqualError(t, err, "configured NodeDID is invalid: invalid DID: input does not begin with 'did:' prefix")
+	})
+
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -626,6 +636,10 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	network.protocols = []transport.Protocol{prot}
 	network.publisher = publisher
 	network.didDocumentResolver = docResolver
+	if len(networkConfig.NodeDID) > 0 {
+		nodeDID, _ := did.ParseDID(networkConfig.NodeDID)
+		network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+	}
 	network.startTime.Store(time.Now())
 	return &networkTestContext{
 		network:           network,

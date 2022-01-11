@@ -105,9 +105,9 @@ func NewNetworkInstance(
 		keyResolver:            keyResolver,
 		privateKeyResolver:     privateKeyResolver,
 		didDocumentResolver:    didDocumentResolver,
-		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 		eventManager:           eventManager,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool)},
+		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 	}
 }
 
@@ -148,6 +148,15 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		log.Logger().Warn("TLS is disabled but CertFile and/or CertKeyFile is set. Did you really mean to disable TLS?")
 	}
 
+	// Resolve node DID
+	if n.config.NodeDID != "" {
+		configuredNodeDID, err := did.ParseDID(n.config.NodeDID)
+		if err != nil {
+			return fmt.Errorf("configured NodeDID is invalid: %w", err)
+		}
+		n.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
+	}
+
 	// Configure protocols
 	n.protocols = []transport.Protocol{
 		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
@@ -164,14 +173,6 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		// Configure TLS
 		if n.config.EnableTLS {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
-		}
-		// Resolve node DID
-		if n.config.NodeDID != "" {
-			configuredNodeDID, err := did.ParseDID(n.config.NodeDID)
-			if err != nil {
-				return fmt.Errorf("configured NodeDID is invalid: %w", err)
-			}
-			n.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
 		}
 		// Instantiate
 		var authenticator grpc.Authenticator
