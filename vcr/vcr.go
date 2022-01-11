@@ -98,7 +98,8 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
 
 	// store config parameters for use in Start()
-	c.config = Config{strictMode: config.Strictmode, datadir: config.Datadir}
+	c.config.strictMode = config.Strictmode
+	c.config.datadir = config.Datadir
 
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 
@@ -131,6 +132,8 @@ func (c *vcr) Migrate() error {
 
 func (c *vcr) Start() error {
 	var err error
+
+	log.Logger().Infof("Config value: %t", c.config.OverrideIssueAllPublic)
 
 	// setup DB connection
 	if c.store, err = leia.NewStore(c.credentialsDBPath(), noSync); err != nil {

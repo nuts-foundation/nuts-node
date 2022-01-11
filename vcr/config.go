@@ -29,7 +29,7 @@ type Config struct {
 	datadir string
 	// OverrideAllPublic overrides the "Public" property of a credential when issuing credentials:
 	// if set to true, all issued credentials are published as public credentials, regardless of whether they're actually marked as public.
-	OverrideIssueAllPublic bool
+	OverrideIssueAllPublic bool `koanf:"vcr.overrideissueallpublic"`
 }
 
 // DefaultConfig returns a fresh Config filled with default values
