@@ -31,7 +31,7 @@ type Protocol interface {
 	// MethodName returns the fully qualified name of the gRPC stream.
 	MethodName() string
 	// CreateClientStream creates a new client for the gRPC stream.
-	CreateClientStream(outgoingContext context.Context, grpcConn *grpc.ClientConn) (grpc.ClientStream, error)
+	CreateClientStream(outgoingContext context.Context, grpcConn grpc.ClientConnInterface) (grpc.ClientStream, error)
 	// Register registers the protocol implementation.
 	Register(registrar grpc.ServiceRegistrar, acceptor func(stream grpc.ServerStream) error, connectionList ConnectionList, connectionManager transport.ConnectionManager)
 
@@ -48,4 +48,14 @@ type Stream interface {
 	Context() context.Context
 	SendMsg(m interface{}) error
 	RecvMsg(m interface{}) error
+}
+
+// Conn is a wrapper around grpc.ClientConnInterface
+type Conn interface {
+	grpc.ClientConnInterface
+}
+
+// ClientStream is a wrapper around grpc.ClientStream
+type ClientStream interface {
+	grpc.ClientStream
 }
