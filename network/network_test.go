@@ -626,6 +626,10 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	network.protocols = []transport.Protocol{prot}
 	network.publisher = publisher
 	network.didDocumentResolver = docResolver
+	if len(networkConfig.NodeDID) > 0 {
+		nodeDID, _ := did.ParseDID(networkConfig.NodeDID)
+		network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+	}
 	network.startTime.Store(time.Now())
 	return &networkTestContext{
 		network:           network,
