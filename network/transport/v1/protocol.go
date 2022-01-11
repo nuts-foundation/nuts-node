@@ -72,7 +72,7 @@ func (p protocolV1) MethodName() string {
 	return grpc.GetStreamMethod(protobuf.Network_ServiceDesc.ServiceName, protobuf.Network_ServiceDesc.Streams[0])
 }
 
-func (p protocolV1) CreateClientStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn) (grpcLib.ClientStream, error) {
+func (p protocolV1) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
 	client := protobuf.NewNetworkClient(grpcConn)
 	return client.Connect(outgoingContext)
 }

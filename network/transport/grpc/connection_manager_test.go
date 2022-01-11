@@ -303,6 +303,50 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 	})
 }
 
+func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
+	protocol := &TestProtocol{}
+
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		grpcPeer := &peer.Peer{}
+		ctx := peer.NewContext(context.TODO(), grpcPeer)
+		nodeDID, _ := did.ParseDID("did:nuts:test")
+
+		peerInfo := transport.Peer{
+			NodeDID: *nodeDID,
+		}
+
+		authenticator := NewMockAuthenticator(ctrl)
+		authenticator.EXPECT().Authenticate(*nodeDID, *grpcPeer, transport.Peer{}).Return(peerInfo, nil)
+
+		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		cm.authenticator = authenticator
+
+		defer cm.Stop()
+
+		meta, _ := cm.constructMetadata()
+
+		grpcStream := NewMockClientStream(ctrl)
+		grpcStream.EXPECT().Header().Return(meta, nil)
+		grpcStream.EXPECT().Context().Return(ctx)
+
+		grpcConn := NewMockConn(ctrl)
+		grpcConn.EXPECT().NewStream(gomock.Any(), gomock.Any(), "/grpc.Test/DoStuff", gomock.Any()).Return(grpcStream, nil)
+
+		conn := NewMockConnection(ctrl)
+		conn.EXPECT().verifyOrSetPeerID(transport.PeerID("server-peer-id")).Return(true)
+		conn.EXPECT().Peer().Return(transport.Peer{})
+		conn.EXPECT().setPeer(peerInfo)
+		conn.EXPECT().registerStream(gomock.Any(), gomock.Any()).Return(true)
+
+		stream, err := cm.openOutboundStream(conn, protocol, grpcConn, metadata.MD{})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, stream)
+	})
+}
+
 func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 	protocol := &TestProtocol{}
 	t.Run("new client", func(t *testing.T) {
@@ -329,6 +373,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		assert.Equal(t, transport.PeerID("client-peer-id"), peerInfo.ID)
 		assert.Equal(t, "127.0.0.1:9522", peerInfo.Address)
 		assert.Equal(t, "did:nuts:client", peerInfo.NodeDID.String())
+
 		// Assert headers sent to client
 		assert.Equal(t, "server-peer-id", serverStream.sentHeaders.Get("peerID")[0])
 		assert.Equal(t, "v1", serverStream.sentHeaders.Get("version")[0])

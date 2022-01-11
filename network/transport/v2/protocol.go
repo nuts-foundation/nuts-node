@@ -84,7 +84,7 @@ type protocol struct {
 	connectionManager    transport.ConnectionManager
 }
 
-func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn) (grpcLib.ClientStream, error) {
+func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
 	return NewProtocolClient(grpcConn).Stream(outgoingContext)
 }
 

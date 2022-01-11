@@ -292,7 +292,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	return nil
 }
 
-func (s *grpcConnectionManager) openOutboundStream(connection Connection, protocol Protocol, grpcConn *grpc.ClientConn, md metadata.MD) (grpc.ClientStream, error) {
+func (s *grpcConnectionManager) openOutboundStream(connection Connection, protocol Protocol, grpcConn grpc.ClientConnInterface, md metadata.MD) (grpc.ClientStream, error) {
 	outgoingContext := metadata.NewOutgoingContext(context.Background(), md)
 	clientStream, err := protocol.CreateClientStream(outgoingContext, grpcConn)
 	if err != nil {
@@ -316,13 +316,16 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 		return nil, fatalError{error: fmt.Errorf("peer sent invalid ID (id=%s)", peerID)}
 	}
 
-	//when bootstrap node, this instance has the AcceptUnauthenticated param
+	// When bootstrap node, this instance has the AcceptUnauthenticated param
 	peer := connection.Peer()
 	peerFromCtx, _ := grpcPeer.FromContext(clientStream.Context())
-	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
+
+	authenticatedPeer, err := s.authenticate(nodeDID, peer, peerFromCtx)
 	if err != nil {
 		return nil, fatalError{error: err}
 	}
+
+	connection.setPeer(authenticatedPeer)
 
 	if !connection.registerStream(protocol, clientStream) {
 		// This can happen when the peer connected to us previously, and now we connect back to them.
