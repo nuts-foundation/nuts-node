@@ -42,7 +42,7 @@ type mockIrmaClient struct {
 
 func (m *mockIrmaClient) GetSessionResult(token string) (*irmaservercore.SessionResult, error) {
 	if m.err != nil {
-		return nil, nil
+		return nil, m.err
 	}
 	return m.sessionResult, nil
 }

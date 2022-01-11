@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/privacybydesign/irmago/server/irmaserver"
 	"os"
 	"strings"
 
@@ -112,6 +113,10 @@ func (v Service) StartSigningSession(rawContractText string) (contract.SessionPo
 func (v Service) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
 	result, err := v.IrmaSessionHandler.GetSessionResult(sessionID)
 	if err != nil {
+		if _, ok := err.(*irmaserver.UnknownSessionError); ok {
+			return nil, services.ErrSessionNotFound
+		}
+
 		return nil, err
 	}
 	if result == nil {
