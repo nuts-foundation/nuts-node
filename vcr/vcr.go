@@ -98,7 +98,8 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
 
 	// store config parameters for use in Start()
-	c.config = Config{strictMode: config.Strictmode, datadir: config.Datadir}
+	c.config.strictMode = config.Strictmode
+	c.config.datadir = config.Datadir
 
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 
@@ -366,7 +367,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 func (c *vcr) generateParticipants(conceptConfig concept.Config, verifiableCredential vc.VerifiableCredential) ([]did.DID, error) {
 	issuer, _ := did.ParseDID(verifiableCredential.Issuer.String())
 	participants := make([]did.DID, 0)
-	if !conceptConfig.Public {
+	if !c.config.OverrideIssueAllPublic && !conceptConfig.Public {
 		var (
 			base                []credential.BaseCredentialSubject
 			credentialSubjectID *did.DID

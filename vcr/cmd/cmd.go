@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -28,6 +29,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	api "github.com/nuts-foundation/nuts-node/vcr/api/v1"
 )
+
+// FlagSet contains flags relevant for VCR
+func FlagSet() *pflag.FlagSet {
+	defs := vcr.DefaultConfig()
+	flagSet := pflag.NewFlagSet("vcr", pflag.ContinueOnError)
+	flagSet.Bool("vcr.overrideissueallpublic", defs.OverrideIssueAllPublic, "Overrides the \"Public\" property of a credential when issuing credentials: "+
+		"if set to true, all issued credentials are published as public credentials, regardless of whether they're actually marked as public.")
+	return flagSet
+}
 
 // Cmd contains sub-commands for the remote client
 func Cmd() *cobra.Command {

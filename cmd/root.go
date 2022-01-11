@@ -237,6 +237,7 @@ func addFlagSets(cmd *cobra.Command) {
 	cmd.PersistentFlags().AddFlagSet(cryptoCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(networkCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(vdrCmd.FlagSet())
+	cmd.PersistentFlags().AddFlagSet(vcrCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(authCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(eventsCmd.FlagSet())
 }

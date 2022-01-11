@@ -85,6 +85,7 @@ func newMockContext(t *testing.T) mockContext {
 	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
+	vcr.config.OverrideIssueAllPublic = false
 
 	if err := vcr.Configure(core.ServerConfig{Datadir: testDir}); err != nil {
 		t.Fatal(err)

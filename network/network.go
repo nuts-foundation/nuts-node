@@ -107,6 +107,7 @@ func NewNetworkInstance(
 		didDocumentResolver:    didDocumentResolver,
 		eventManager:           eventManager,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool)},
+		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 	}
 }
 
@@ -154,8 +155,6 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			return fmt.Errorf("configured NodeDID is invalid: %w", err)
 		}
 		n.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
-	} else {
-		n.nodeDIDResolver = &transport.FixedNodeDIDResolver{}
 	}
 
 	// Configure protocols
@@ -229,7 +228,11 @@ func (n *Network) Start() error {
 
 	// Load DAG and start publishing
 	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
-	n.publisher.Start()
+
+	if err := n.publisher.Start(); err != nil {
+		return err
+	}
+
 	if err := n.graph.Verify(context.Background()); err != nil {
 		return err
 	}

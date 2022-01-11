@@ -22,6 +22,7 @@ import (
 	"container/list"
 	"context"
 	"fmt"
+	"github.com/nats-io/nats.go"
 	"sync"
 	"time"
 
@@ -41,9 +42,6 @@ func NewReplayingDAGPublisher(eventManager events.Event, payloadStore PayloadSto
 		publishMux:          &sync.Mutex{},
 		eventManager:        eventManager,
 	}
-
-	dag.RegisterObserver(publisher.TransactionAdded)
-	payloadStore.RegisterObserver(publisher.PayloadWritten)
 
 	return publisher
 }
@@ -99,6 +97,17 @@ func (s *replayingDAGPublisher) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to acquire a connection for events: %w", err)
 	}
+
+	_, err = s.privateTxCtx.AddStream(&nats.StreamConfig{
+		Name:     events.PrivateTransactionsStream,
+		Subjects: []string{events.PrivateTransactionsSubject},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to setup NATS stream: %w", err)
+	}
+
+	s.dag.RegisterObserver(s.TransactionAdded)
+	s.payloadStore.RegisterObserver(s.PayloadWritten)
 
 	ctx = context.Background()
 	s.publishMux.Lock()
