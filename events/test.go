@@ -32,6 +32,11 @@ func (conn *stubConn) StreamInfo(_ string, _ ...nats.JSOpt) (*nats.StreamInfo, e
 	return &nats.StreamInfo{}, nil
 }
 
+// AddStream adds a stream to the server
+func (conn *stubConn) AddStream(cfg *nats.StreamConfig, opts ...nats.JSOpt) (*nats.StreamInfo, error) {
+	return &nats.StreamInfo{}, nil
+}
+
 type stubEventManager struct {
 	pool ConnectionPool
 	once sync.Once
