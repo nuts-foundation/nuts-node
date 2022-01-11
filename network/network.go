@@ -482,6 +482,7 @@ func (l *lastTransactionTracker) process(transaction dag.Transaction, payload []
 		delete(l.headRefs, prev)
 	}
 	l.headRefs[transaction.Ref()] = true
+
 	return nil
 }
 

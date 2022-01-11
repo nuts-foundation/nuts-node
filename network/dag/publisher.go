@@ -62,8 +62,15 @@ func (s *replayingDAGPublisher) PayloadWritten(ctx context.Context, payloadHash 
 		log.Logger().Errorf("failed to retrieve transaction by payloadHash (%s)", h.String())
 		return
 	}
+
 	if txs[0].PayloadType() != "application/did+json" {
-		s.publishTransaction(ctx, txs[0])
+		// required to signal VCR/VDR for VCs
+		if !s.visitedTransactions[txs[0].Ref()] {
+			if outcome := s.publishTransaction(ctx, txs[0]); outcome {
+				// Mark this node as visited
+				s.visitedTransactions[txs[0].Ref()] = true
+			}
+		}
 		return
 	}
 
