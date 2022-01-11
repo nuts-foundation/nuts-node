@@ -310,12 +310,15 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		grpcPeer := &peer.Peer{}
-		peerInfo := transport.Peer{}
 		ctx := peer.NewContext(context.TODO(), grpcPeer)
 		nodeDID, _ := did.ParseDID("did:nuts:test")
 
+		peerInfo := transport.Peer{
+			NodeDID: *nodeDID,
+		}
+
 		authenticator := NewMockAuthenticator(ctrl)
-		authenticator.EXPECT().Authenticate(*nodeDID, *grpcPeer, peerInfo).Return(peerInfo, nil)
+		authenticator.EXPECT().Authenticate(*nodeDID, *grpcPeer, transport.Peer{}).Return(peerInfo, nil)
 
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		cm.authenticator = authenticator
@@ -333,7 +336,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 
 		conn := NewMockConnection(ctrl)
 		conn.EXPECT().verifyOrSetPeerID(transport.PeerID("server-peer-id")).Return(true)
-		conn.EXPECT().Peer().Return(peerInfo)
+		conn.EXPECT().Peer().Return(transport.Peer{})
 		conn.EXPECT().setPeer(peerInfo)
 		conn.EXPECT().registerStream(gomock.Any(), gomock.Any()).Return(true)
 
