@@ -30,14 +30,14 @@ func Test_conn_disconnect(t *testing.T) {
 	t.Run("not connected", func(t *testing.T) {
 		conn := conn{}
 		conn.disconnect()
-		assert.False(t, conn.Connected())
+		assert.False(t, conn.IsConnected())
 	})
 	t.Run("connected", func(t *testing.T) {
 		conn := conn{}
 		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
-		assert.True(t, conn.Connected())
+		assert.True(t, conn.IsConnected())
 		conn.disconnect()
-		assert.False(t, conn.Connected())
+		assert.False(t, conn.IsConnected())
 	})
 	t.Run("resets peer ID", func(t *testing.T) {
 		conn := conn{}
@@ -79,10 +79,10 @@ func Test_conn_registerStream(t *testing.T) {
 		stream := newServerStream("foo", "")
 		defer stream.cancelFunc()
 
-		assert.False(t, connection.Connected())
+		assert.False(t, connection.IsConnected())
 		accepted := connection.registerStream(&TestProtocol{}, stream)
 		assert.True(t, accepted)
-		assert.True(t, connection.Connected())
+		assert.True(t, connection.IsConnected())
 	})
 	t.Run("already connected (same protocol)", func(t *testing.T) {
 		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)

@@ -73,7 +73,7 @@ func (p protocolV1) MethodName() string {
 	return grpc.GetStreamMethod(protobuf.Network_ServiceDesc.ServiceName, protobuf.Network_ServiceDesc.Streams[0])
 }
 
-func (p protocolV1) CreateClientStream(outgoingContext context.Context, grpcConn *grpcLib.ClientConn) (grpcLib.ClientStream, error) {
+func (p protocolV1) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
 	client := protobuf.NewNetworkClient(grpcConn)
 	return client.Connect(outgoingContext)
 }
@@ -134,7 +134,7 @@ func (p *protocolV1) Send(peer transport.PeerID, envelope *protobuf.NetworkMessa
 
 func (p *protocolV1) Broadcast(envelope *protobuf.NetworkMessage) {
 	for _, connection := range p.connectionList.All() {
-		if connection.Connected() {
+		if connection.IsConnected() {
 			err := connection.Send(p, envelope)
 			if err != nil {
 				log.Logger().Warnf("Error while broadcasting (peer=%s): %v", connection.Peer(), err)

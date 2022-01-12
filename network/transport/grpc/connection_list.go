@@ -130,7 +130,7 @@ func (c *connectionList) Diagnostics() []core.DiagnosticResult {
 	var peers []transport.Peer
 	for _, curr := range c.list {
 		connectors = append(connectors, curr.stats())
-		if curr.Connected() {
+		if curr.IsConnected() {
 			peers = append(peers, curr.Peer())
 		}
 	}

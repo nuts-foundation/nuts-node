@@ -66,7 +66,7 @@ type Connection interface {
 	// Peer returns the associated peer information of this connection. If the connection is not active, it will return an empty peer.
 	Peer() transport.Peer
 	// Connected returns whether the connection is active or not.
-	Connected() bool
+	IsConnected() bool
 }
 
 func createConnection(parentCtx context.Context, dialer dialer, peer transport.Peer) Connection {
@@ -228,10 +228,11 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 	done := mc.ctx.Done()
 
 	go func() {
+	loop:
 		for {
 			select {
 			case _ = <-done:
-				goto closeClientStream
+				break loop
 			case envelope := <-outbox:
 				err := stream.SendMsg(envelope)
 				if err != nil {
@@ -239,7 +240,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 				}
 			}
 		}
-	closeClientStream:
+		// Connection closed, see if we need to close the gRPC stream
 		clientStream, ok := stream.(grpc.ClientStream)
 		if ok {
 			err := clientStream.CloseSend()
@@ -260,7 +261,7 @@ func (mc *conn) startConnecting(tlsConfig *tls.Config, connectedCallback func(gr
 	}
 
 	mc.connector = createOutboundConnector(mc.Peer().Address, mc.dialer, tlsConfig, func() bool {
-		return !mc.Connected()
+		return !mc.IsConnected()
 	}, connectedCallback)
 	mc.connector.start()
 }
@@ -278,7 +279,7 @@ func (mc *conn) stopConnecting() {
 	mc.connector = nil
 }
 
-func (mc *conn) Connected() bool {
+func (mc *conn) IsConnected() bool {
 	mc.mux.RLock()
 	defer mc.mux.RUnlock()
 

@@ -20,6 +20,7 @@ package irma
 
 import (
 	"errors"
+	"github.com/privacybydesign/irmago/server/irmaserver"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -126,6 +127,7 @@ func TestService_SigningSessionStatus(t *testing.T) {
 
 		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
 		irmaMock.sessionResult = nil
+		irmaMock.err = &irmaserver.UnknownSessionError{}
 
 		_, err := ctx.service.SigningSessionStatus("session")
 

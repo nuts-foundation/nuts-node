@@ -112,10 +112,10 @@ func (s StubConnectionList) All() []Connection {
 
 // StubConnection is a stub implementation of the Connection interface
 type StubConnection struct {
-	IsConnected bool
-	NodeDID     did.DID
-	SentMsgs    []interface{}
-	PeerID      transport.PeerID
+	Open     bool
+	NodeDID  did.DID
+	SentMsgs []interface{}
+	PeerID   transport.PeerID
 }
 
 // Send sends a message to the connection
@@ -133,9 +133,9 @@ func (s StubConnection) Peer() transport.Peer {
 	}
 }
 
-// Connected returns true if the connection is connected
-func (s StubConnection) Connected() bool {
-	return s.IsConnected
+// IsConnected returns true if the connection is connected
+func (s StubConnection) IsConnected() bool {
+	return s.Open
 }
 
 func (s StubConnection) disconnect() {
@@ -163,6 +163,10 @@ func (s StubConnection) setPeerID(_ transport.PeerID) bool {
 }
 
 func (s StubConnection) setNodeDID(_ did.DID) bool {
+	panic("implement me")
+}
+
+func (s StubConnection) setPeer(_ transport.Peer) {
 	panic("implement me")
 }
 

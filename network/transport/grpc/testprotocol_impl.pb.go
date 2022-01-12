@@ -40,7 +40,7 @@ func (s *TestProtocol) MethodName() string {
 }
 
 // CreateClientStream creates a gRPC ClientStream.
-func (s *TestProtocol) CreateClientStream(outgoingContext context.Context, grpcConn *grpc.ClientConn) (grpc.ClientStream, error) {
+func (s *TestProtocol) CreateClientStream(outgoingContext context.Context, grpcConn grpc.ClientConnInterface) (grpc.ClientStream, error) {
 	client := NewTestClient(grpcConn)
 	return client.DoStuff(outgoingContext, grpc.FailFastCallOption{FailFast: true})
 }
