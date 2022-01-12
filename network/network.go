@@ -101,7 +101,6 @@ func NewNetworkInstance(
 		keyResolver:            keyResolver,
 		privateKeyResolver:     privateKeyResolver,
 		didDocumentResolver:    didDocumentResolver,
-		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool)},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 	}
