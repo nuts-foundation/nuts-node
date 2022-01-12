@@ -21,11 +21,11 @@ func TestByNodeDID(t *testing.T) {
 }
 
 func TestByConnected(t *testing.T) {
-	assert.True(t, ByConnected().Match(&StubConnection{IsConnected: true}))
+	assert.True(t, ByConnected().Match(&StubConnection{Open: true}))
 	assert.False(t, ByConnected().Match(&StubConnection{}))
 }
 
 func TestByNotConnected(t *testing.T) {
 	assert.True(t, ByNotConnected().Match(&StubConnection{}))
-	assert.False(t, ByNotConnected().Match(&StubConnection{IsConnected: true}))
+	assert.False(t, ByNotConnected().Match(&StubConnection{Open: true}))
 }

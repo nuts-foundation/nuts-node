@@ -20,6 +20,8 @@
 package events
 
 import (
+	"fmt"
+	"github.com/nuts-foundation/nuts-node/test"
 	"testing"
 
 	"github.com/nats-io/nats.go"
@@ -36,16 +38,17 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestManager_Start(t *testing.T) {
-	eventManager := NewManager().(core.Runnable)
+	eventManager := NewManager().(*manager)
+	eventManager.config.Port = test.FreeTCPPort()
 	err := eventManager.Start()
 	assert.NoError(t, err)
-	err = eventManager.(core.Configurable).Configure(core.ServerConfig{})
+	err = eventManager.Configure(core.ServerConfig{})
 	assert.NoError(t, err)
 
 	defer eventManager.Shutdown()
 
 	t.Run("Starts a Nats server", func(t *testing.T) {
-		conn, err := nats.Connect(nats.DefaultURL)
+		conn, err := nats.Connect(fmt.Sprintf("nats://127.0.0.1:%d", eventManager.config.Port))
 
 		if !assert.NoError(t, err) {
 			return

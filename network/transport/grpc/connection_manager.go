@@ -63,6 +63,9 @@ func (s fatalError) Error() string {
 
 func (s fatalError) Is(other error) bool {
 	_, is := other.(fatalError)
+	if !is {
+		return errors.Is(s.error, other)
+	}
 	return is
 }
 
@@ -229,7 +232,7 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 func (s grpcConnectionManager) Peers() []transport.Peer {
 	var peers []transport.Peer
 	for _, curr := range s.connections.All() {
-		if curr.Connected() {
+		if curr.IsConnected() {
 			peers = append(peers, curr.Peer())
 		}
 	}
@@ -370,6 +373,7 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 	}
 	peerID, nodeDID, err := readMetadata(md)
 	if err != nil {
+		log.Logger().Debugf("Peer sent invalid peer ID, headers: %v", md)
 		return errors.New("unable to read peer ID")
 	}
 	peer := transport.Peer{
