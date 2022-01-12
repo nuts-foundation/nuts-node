@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"go.etcd.io/bbolt"
@@ -59,21 +60,8 @@ func TestNewPayloadScheduler(t *testing.T) {
 
 type callbackCounter struct {
 	count int
-	wg    sync.WaitGroup
 	// mutex to prevent data race during test
 	mutex sync.Mutex
-}
-
-func (cc *callbackCounter) wait(count int) {
-	cc.mutex.Lock()
-
-	if cc.count >= count {
-		return
-	}
-
-	cc.mutex.Unlock()
-	cc.wg.Add(count)
-	cc.wg.Wait()
 }
 
 func (cc *callbackCounter) callback(_ hash.SHA256Hash) {
@@ -81,7 +69,6 @@ func (cc *callbackCounter) callback(_ hash.SHA256Hash) {
 	defer cc.mutex.Unlock()
 
 	cc.count++
-	cc.wg.Done()
 }
 
 func newTestPayloadScheduler(t *testing.T, callback jobCallBack) *payloadScheduler {
@@ -120,7 +107,9 @@ func TestPayloadScheduler_Add(t *testing.T) {
 			return
 		}
 
-		counter.wait(1)
+		test.WaitFor(t, func() (bool, error) {
+			return counter.count == 1, nil
+		}, time.Second, "timeout while waiting for callback")
 
 		dbPath := scheduler.db.Path()
 
@@ -147,7 +136,9 @@ func TestPayloadScheduler_Add(t *testing.T) {
 			return
 		}
 
-		counter.wait(2)
+		test.WaitFor(t, func() (bool, error) {
+			return counter.count == 2, nil
+		}, time.Second, "timeout while waiting for callback")
 
 		// first try is immediate, second after 50 milliseconds
 		assert.True(t, start.Add(50*time.Millisecond).Before(time.Now()))
@@ -171,7 +162,9 @@ func TestPayloadScheduler_Start(t *testing.T) {
 			return
 		}
 
-		counter.wait(1)
+		test.WaitFor(t, func() (bool, error) {
+			return counter.count == 1, nil
+		}, time.Second, "timeout while waiting for callback")
 
 		dbPath := scheduler.db.Path()
 
@@ -200,7 +193,9 @@ func TestPayloadScheduler_Remove(t *testing.T) {
 		defer scheduler.Close()
 
 		_ = scheduler.Schedule(payloadRef)
-		counter.wait(1)
+		test.WaitFor(t, func() (bool, error) {
+			return counter.count == 1, nil
+		}, time.Second, "timeout while waiting for callback")
 
 		// allow enough time for callback to not be called
 		time.Sleep(10 * time.Millisecond)
