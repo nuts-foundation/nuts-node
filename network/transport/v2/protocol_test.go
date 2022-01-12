@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nats-io/nats.go"
@@ -53,6 +54,12 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	return proto.(*protocol), protocolMocks{
 		ctrl, eventsConnectionPool, graph, payloadScheduler, payloadStore, docResolver, decrypter,
 	}
+}
+
+func TestDefaultConfig(t *testing.T) {
+	cfg := DefaultConfig()
+
+	assert.Equal(t, defaultPayloadRetryDelay, cfg.PayloadRetryDelay)
 }
 
 func TestProtocol_Configure(t *testing.T) {
@@ -210,6 +217,45 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 	testDID, _ := did.ParseDID("did:nuts:123")
 	tx, _, _ := dag.CreateTestTransaction(0)
 	txOk := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
+
+	t.Run("errors when retrieving transaction errors", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+
+		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(nil, errors.New("random error"))
+
+		err := proto.handlePrivateTxRetryErr(txOk.Ref())
+		assert.EqualError(t, err, fmt.Sprintf("failed to retrieve transaction with ref:%s from the DAG: %s", txOk.Ref().String(), "random error"))
+	})
+
+	t.Run("errors when transaction could not be found", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+
+		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(nil, nil)
+
+		err := proto.handlePrivateTxRetryErr(txOk.Ref())
+		assert.EqualError(t, err, fmt.Sprintf("failed to find transaction with ref:%s in DAG", txOk.Ref().String()))
+	})
+
+	t.Run("errors when reading payload errors", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+
+		mocks.PayloadStore.EXPECT().ReadPayload(gomock.Any(), txOk.PayloadHash()).Return(nil, errors.New("random error"))
+		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(txOk, nil)
+
+		err := proto.handlePrivateTxRetryErr(txOk.Ref())
+		assert.EqualError(t, err, fmt.Sprintf("unable to read payload (tx=%s): random error", txOk.Ref().String()))
+	})
+
+	t.Run("Finishes job when payload is already there", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+
+		mocks.PayloadStore.EXPECT().ReadPayload(gomock.Any(), txOk.PayloadHash()).Return([]byte{0}, nil)
+		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(txOk, nil)
+		mocks.PayloadScheduler.EXPECT().Finished(txOk.Ref())
+
+		err := proto.handlePrivateTxRetryErr(txOk.Ref())
+		assert.NoError(t, err)
+	})
 
 	t.Run("errors when node DID is not set", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)

@@ -22,12 +22,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
-	"go.etcd.io/bbolt"
 	"os"
 	"path"
 	"path/filepath"
 	"time"
+
+	"github.com/nuts-foundation/go-did/did"
+	"go.etcd.io/bbolt"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -54,10 +55,12 @@ type Config struct {
 	PayloadRetryDelay time.Duration
 }
 
+const defaultPayloadRetryDelay = 5 * time.Second
+
 // DefaultConfig returns the default config for protocol v2
 func DefaultConfig() Config {
 	return Config{
-		PayloadRetryDelay: 5 * time.Second,
+		PayloadRetryDelay: defaultPayloadRetryDelay,
 	}
 }
 
