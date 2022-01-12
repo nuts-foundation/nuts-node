@@ -22,9 +22,10 @@ import (
 	"container/list"
 	"context"
 	"fmt"
-	"github.com/nats-io/nats.go"
 	"sync"
 	"time"
+
+	"github.com/nats-io/nats.go"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
@@ -166,7 +167,7 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 	}
 
 	if payload == nil {
-		// We need to skip transactions with PAL header as it should be handled by the v2 protocol
+		// Handle private transactions via V2 protocol
 		if len(transaction.PAL()) > 0 {
 			s.handlePrivateTransaction(transaction)
 		}
