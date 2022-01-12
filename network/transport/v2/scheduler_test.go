@@ -71,6 +71,13 @@ func (cc *callbackCounter) callback(_ hash.SHA256Hash) {
 	cc.count++
 }
 
+func (cc *callbackCounter) read() int {
+	cc.mutex.Lock()
+	defer cc.mutex.Unlock()
+
+	return cc.count
+}
+
 func newTestPayloadScheduler(t *testing.T, callback jobCallBack) *payloadScheduler {
 	testDir := io.TestDirectory(t)
 	config := Config{Datadir: testDir}
@@ -108,7 +115,7 @@ func TestPayloadScheduler_Add(t *testing.T) {
 		}
 
 		test.WaitFor(t, func() (bool, error) {
-			return counter.count == 1, nil
+			return counter.read() == 1, nil
 		}, time.Second, "timeout while waiting for callback")
 
 		dbPath := scheduler.db.Path()
@@ -116,7 +123,7 @@ func TestPayloadScheduler_Add(t *testing.T) {
 		err = scheduler.Close()
 		assert.NoError(t, err)
 
-		assert.Equal(t, 1, counter.count)
+		assert.Equal(t, 1, counter.read())
 		count := fromDB(t, dbPath, payloadRef)
 		assert.Equal(t, uint16(1), count)
 	})
@@ -137,7 +144,7 @@ func TestPayloadScheduler_Add(t *testing.T) {
 		}
 
 		test.WaitFor(t, func() (bool, error) {
-			return counter.count == 2, nil
+			return counter.read() == 2, nil
 		}, time.Second, "timeout while waiting for callback")
 
 		// first try is immediate, second after 50 milliseconds
@@ -163,7 +170,7 @@ func TestPayloadScheduler_Start(t *testing.T) {
 		}
 
 		test.WaitFor(t, func() (bool, error) {
-			return counter.count == 1, nil
+			return counter.read() == 1, nil
 		}, time.Second, "timeout while waiting for callback")
 
 		dbPath := scheduler.db.Path()
@@ -171,7 +178,7 @@ func TestPayloadScheduler_Start(t *testing.T) {
 		// to enable access to DB
 		scheduler.Close()
 
-		assert.Equal(t, 1, counter.count)
+		assert.Equal(t, 1, counter.read())
 		count := fromDB(t, dbPath, payloadRef)
 		assert.Equal(t, uint16(11), count)
 	})
@@ -194,13 +201,13 @@ func TestPayloadScheduler_Remove(t *testing.T) {
 
 		_ = scheduler.Schedule(payloadRef)
 		test.WaitFor(t, func() (bool, error) {
-			return counter.count == 1, nil
+			return counter.read() == 1, nil
 		}, time.Second, "timeout while waiting for callback")
 
 		// allow enough time for callback to not be called
 		time.Sleep(10 * time.Millisecond)
 
-		assert.Equal(t, 1, counter.count)
+		assert.Equal(t, 1, counter.read())
 	})
 }
 
