@@ -230,11 +230,11 @@ func (p *protocol) handlePrivateTxRetry(hash hash.SHA256Hash) {
 func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	tx, err := p.graph.Get(context.Background(), hash)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve transaction with ref:%s from the DAG: %w", hash.String(), err)
+		return fmt.Errorf("failed to retrieve transaction (tx=:%s) from the DAG: %w", hash.String(), err)
 	}
 
 	if tx == nil {
-		return fmt.Errorf("failed to find transaction with ref:%s in DAG", hash.String())
+		return fmt.Errorf("failed to find transaction (tx=:%s) in DAG", hash.String())
 	}
 
 	// Sanity check: if we have the payload, mark this job as finished
@@ -250,14 +250,15 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	}
 
 	if len(tx.PAL()) == 0 {
-		return fmt.Errorf("PAL header is empty (ref=%s)", hash.String())
+		log.Logger().Infof("Transaction does not have a PAL, not querying (tx=%s)", hash)
+		return p.payloadScheduler.Finished(hash)
 	}
 
 	epal := dag.EncryptedPAL(tx.PAL())
 
 	pal, senderDID, err := p.decryptPAL(epal)
 	if err != nil {
-		return fmt.Errorf("failed to decrypt PAL header (ref=%s): %w", tx.Ref(), err)
+		return fmt.Errorf("failed to decrypt PAL header (tx=%s): %w", tx.Ref(), err)
 	}
 
 	// We weren't able to decrypt the PAL, so it wasn't meant for us
@@ -273,7 +274,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(senderDID))
 
 	if conn == nil {
-		return fmt.Errorf("unable to retrieve payload, no connection found (ref=%s, DID=%s)", hash.String(), pal[0])
+		return fmt.Errorf("unable to retrieve payload, no connection found (tx=%s, DID=%s)", hash.String(), senderDID)
 	}
 
 	err = conn.Send(p, &Envelope{Message: &Envelope_TransactionPayloadQuery{
@@ -282,7 +283,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 		},
 	}})
 	if err != nil {
-		return fmt.Errorf("failed to send TransactionPayloadQuery message(ref=%s, DID=%s): %w", hash.String(), pal[0], err)
+		return fmt.Errorf("failed to send TransactionPayloadQuery message(tx=%s, DID=%s): %w", hash.String(), senderDID, err)
 	}
 
 	return nil

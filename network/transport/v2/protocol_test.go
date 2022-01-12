@@ -224,7 +224,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(nil, errors.New("random error"))
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
-		assert.EqualError(t, err, fmt.Sprintf("failed to retrieve transaction with ref:%s from the DAG: %s", txOk.Ref().String(), "random error"))
+		assert.EqualError(t, err, fmt.Sprintf("failed to retrieve transaction (tx=:%s) from the DAG: %s", txOk.Ref().String(), "random error"))
 	})
 
 	t.Run("errors when transaction could not be found", func(t *testing.T) {
@@ -233,7 +233,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(nil, nil)
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
-		assert.EqualError(t, err, fmt.Sprintf("failed to find transaction with ref:%s in DAG", txOk.Ref().String()))
+		assert.EqualError(t, err, fmt.Sprintf("failed to find transaction (tx=:%s) in DAG", txOk.Ref().String()))
 	})
 
 	t.Run("errors when reading payload errors", func(t *testing.T) {
@@ -264,7 +264,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(txOk, nil)
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
-		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (ref=%s): node DID is not set", txOk.Ref()))
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): node DID is not set", txOk.Ref()))
 	})
 
 	t.Run("errors when resolving the node DID document fails", func(t *testing.T) {
@@ -274,17 +274,18 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
-		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (ref=%s): random error", txOk.Ref()))
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): random error", txOk.Ref()))
 	})
 
-	t.Run("errors when the transaction doesn't contain a valid PAL header", func(t *testing.T) {
+	t.Run("removes job when the transaction doesn't contain a valid PAL header", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, testDID)
 
 		mocks.PayloadStore.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, nil)
 		mocks.Graph.EXPECT().Get(context.Background(), tx.Ref()).Return(tx, nil)
+		mocks.PayloadScheduler.EXPECT().Finished(tx.Ref())
 
 		err := proto.handlePrivateTxRetryErr(tx.Ref())
-		assert.EqualError(t, err, fmt.Sprintf("PAL header is empty (ref=%s)", tx.Ref().String()))
+		assert.NoError(t, err)
 	})
 
 	t.Run("errors when decryption fails because the key-agreement key could not be found", func(t *testing.T) {
@@ -301,7 +302,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
 
-		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (ref=%s): private key of DID keyAgreement not found (kid=%s)", txOk.Ref().String(), keyDID.String()))
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): private key of DID keyAgreement not found (kid=%s)", txOk.Ref().String(), keyDID.String()))
 	})
 
 	t.Run("valid transaction fails when there is no connection available to the node", func(t *testing.T) {
@@ -321,7 +322,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
 
-		assert.EqualError(t, err, fmt.Sprintf("unable to retrieve payload, no connection found (ref=%s, DID=%s)", txOk.Ref().String(), peerDID.String()))
+		assert.EqualError(t, err, fmt.Sprintf("unable to retrieve payload, no connection found (tx=%s, DID=%s)", txOk.Ref().String(), peerDID.String()))
 	})
 
 	t.Run("valid transaction fails when sending the payload query errors", func(t *testing.T) {
@@ -347,7 +348,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
 
-		assert.EqualError(t, err, fmt.Sprintf("failed to send TransactionPayloadQuery message(ref=%s, DID=%s): random error", txOk.Ref().String(), peerDID.String()))
+		assert.EqualError(t, err, fmt.Sprintf("failed to send TransactionPayloadQuery message(tx=%s, DID=%s): random error", txOk.Ref().String(), peerDID.String()))
 	})
 
 	t.Run("valid transaction is handled successfully", func(t *testing.T) {
