@@ -67,7 +67,7 @@ type Connection interface {
 	// Peer returns the associated peer information of this connection. If the connection is not active, it will return an empty peer.
 	Peer() transport.Peer
 	// Connected returns whether the connection is active or not.
-	IsOpen() bool
+	IsConnected() bool
 }
 
 func createConnection(parentCtx context.Context, dialer dialer, peer transport.Peer) Connection {
@@ -258,7 +258,7 @@ func (mc *conn) startConnecting(tlsConfig *tls.Config, connectedCallback func(gr
 	}
 
 	mc.connector = createOutboundConnector(mc.Peer().Address, mc.dialer, tlsConfig, func() bool {
-		return !mc.IsOpen()
+		return !mc.IsConnected()
 	}, connectedCallback)
 	mc.connector.start()
 }
@@ -276,7 +276,7 @@ func (mc *conn) stopConnecting() {
 	mc.connector = nil
 }
 
-func (mc *conn) IsOpen() bool {
+func (mc *conn) IsConnected() bool {
 	mc.mux.RLock()
 	defer mc.mux.RUnlock()
 

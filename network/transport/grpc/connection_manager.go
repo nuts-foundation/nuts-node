@@ -232,7 +232,7 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 func (s grpcConnectionManager) Peers() []transport.Peer {
 	var peers []transport.Peer
 	for _, curr := range s.connections.All() {
-		if curr.IsOpen() {
+		if curr.IsConnected() {
 			peers = append(peers, curr.Peer())
 		}
 	}

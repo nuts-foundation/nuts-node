@@ -130,7 +130,7 @@ func (p *protocolV1) Send(peer transport.PeerID, envelope *protobuf.NetworkMessa
 
 func (p *protocolV1) Broadcast(envelope *protobuf.NetworkMessage) {
 	for _, connection := range p.connectionList.All() {
-		if connection.IsOpen() {
+		if connection.IsConnected() {
 			err := connection.Send(p, envelope)
 			if err != nil {
 				log.Logger().Warnf("Error while broadcasting (peer=%s): %v", connection.Peer(), err)

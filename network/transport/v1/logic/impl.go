@@ -73,7 +73,7 @@ func (p *protocol) Diagnostics() []core.DiagnosticResult {
 	// Clean up diagnostics of disconnected peers
 	for peerID := range p.peerOmnihashes {
 		connection := p.connections.Get(grpc.ByPeerID(peerID))
-		if connection == nil || !connection.IsOpen() {
+		if connection == nil || !connection.IsConnected() {
 			delete(p.peerOmnihashes, peerID)
 		}
 	}
@@ -100,7 +100,7 @@ func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics 
 	for peerID, value := range p.peerDiagnostics {
 		// Clean up diagnostics of disconnected peers on the go
 		connection := p.connections.Get(grpc.ByPeerID(peerID))
-		if connection == nil || !connection.IsOpen() {
+		if connection == nil || !connection.IsConnected() {
 			delete(p.peerDiagnostics, peerID)
 			continue
 		}

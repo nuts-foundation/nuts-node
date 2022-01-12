@@ -56,7 +56,7 @@ func ByNotConnected() Predicate {
 }
 
 func (predicate connectedPredicate) Match(conn Connection) bool {
-	return conn.IsOpen() == predicate.connected
+	return conn.IsConnected() == predicate.connected
 }
 
 type nodeDIDPredicate struct {
