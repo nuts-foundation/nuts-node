@@ -22,13 +22,14 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"sync"
+	"sync/atomic"
+
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"sync"
-	"sync/atomic"
 )
 
 // Connection is created by grpcConnectionManager to register a connection to a peer.
@@ -57,8 +58,13 @@ type Connection interface {
 	// setPeer sets the peer of this connection.
 	setPeer(peer transport.Peer)
 
-	// setPeerID checks whether the given transport.PeerID matches the one currently set for this connection.
-	setPeerID(id transport.PeerID) bool
+	// verifyOrSetPeerID checks whether the given transport.PeerID matches the one currently set for this connection.
+	// If no transport.PeerID is set on this connection it just sets it. Subsequent calls must then match it.
+	// This method is used to:
+	// - Initial discovery of the peer's transport.PeerID, setting it when it isn't known before connecting.
+	// - Verify multiple active protocols to the same peer all send the same transport.PeerID.
+	// It returns false if the given transport.PeerID doesn't match the previously set transport.PeerID.
+	verifyOrSetPeerID(id transport.PeerID) bool
 
 	// stats returns statistics for this connection
 	stats() transport.ConnectionStats
@@ -136,7 +142,7 @@ func (mc *conn) waitUntilDisconnected() {
 	}
 }
 
-func (mc *conn) setPeerID(id transport.PeerID) bool {
+func (mc *conn) verifyOrSetPeerID(id transport.PeerID) bool {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 	currentPeer := mc.Peer()

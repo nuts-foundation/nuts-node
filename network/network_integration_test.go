@@ -218,6 +218,8 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 }
 
 func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
+	// fixed in PR: #712
+	t.Skip()
 	t.Run("happy flow", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest()

@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
+	"net"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
@@ -10,7 +12,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/proto"
-	"net"
 )
 
 // StubStreamReceiver is a stub implementation of the transport.StreamReceiver interface
@@ -158,15 +159,11 @@ func (s StubConnection) registerStream(_ Protocol, _ Stream) bool {
 	panic("implement me")
 }
 
-func (s StubConnection) setPeerID(_ transport.PeerID) bool {
+func (s StubConnection) verifyOrSetPeerID(_ transport.PeerID) bool {
 	panic("implement me")
 }
 
 func (s StubConnection) setNodeDID(_ did.DID) bool {
-	panic("implement me")
-}
-
-func (s StubConnection) setPeer(_ transport.Peer) {
 	panic("implement me")
 }
 

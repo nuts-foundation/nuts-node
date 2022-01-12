@@ -20,10 +20,11 @@ package grpc
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_conn_disconnect(t *testing.T) {
@@ -42,7 +43,7 @@ func Test_conn_disconnect(t *testing.T) {
 	t.Run("resets peer ID", func(t *testing.T) {
 		conn := conn{}
 		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
-		conn.setPeerID("foo")
+		conn.verifyOrSetPeerID("foo")
 		conn.disconnect()
 		assert.Empty(t, conn.Peer())
 	})
