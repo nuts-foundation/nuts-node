@@ -22,9 +22,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
 	"time"
 
+	"github.com/nuts-foundation/go-did/did"
+	"go.etcd.io/bbolt"
+
 	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/sirupsen/logrus"
 	grpcLib "google.golang.org/grpc"
 
@@ -42,11 +49,19 @@ var _ grpc.Protocol = (*protocol)(nil)
 
 // Config specifies config for protocol v2
 type Config struct {
+	// Datadir from core.Config
+	Datadir string
+	// PayloadRetryDelay initial delay before retrying payload retrieval. Will grow exponentially
+	PayloadRetryDelay time.Duration
 }
+
+const defaultPayloadRetryDelay = 5 * time.Second
 
 // DefaultConfig returns the default config for protocol v2
 func DefaultConfig() Config {
-	return Config{}
+	return Config{
+		PayloadRetryDelay: defaultPayloadRetryDelay,
+	}
 }
 
 // New creates an instance of the v2 protocol.
@@ -76,6 +91,7 @@ type protocol struct {
 	graph                dag.DAG
 	ctx                  context.Context
 	docResolver          vdr.DocResolver
+	payloadScheduler     Scheduler
 	payloadStore         dag.PayloadStore
 	decrypter            crypto.Decrypter
 	connectionList       grpc.ConnectionList
@@ -106,16 +122,40 @@ func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
 	return envelope.(*Envelope).Message
 }
 
-func (p protocol) Configure(_ transport.PeerID) {
+func (p *protocol) Configure(_ transport.PeerID) error {
+	dbFile := path.Join(p.config.Datadir, "network", "payload_jobs.db")
+	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
+		return fmt.Errorf("unable to setup database: %w", err)
+	}
+
+	db, err := bbolt.Open(dbFile, 0600, bbolt.DefaultOptions)
+	if err != nil {
+		return fmt.Errorf("unable to create BBolt database: %w", err)
+	}
+
+	p.payloadScheduler, err = NewPayloadScheduler(db, p.config.PayloadRetryDelay, p.handlePrivateTxRetry)
+	if err != nil {
+		return fmt.Errorf("failed to setup payload scheduler: %w", err)
+	}
+
+	return nil
 }
 
 func (p *protocol) setupNatsHandler() error {
-	_, js, err := p.eventsConnectionPool.Acquire(p.ctx)
+	conn, _, err := p.eventsConnectionPool.Acquire(p.ctx)
 	if err != nil {
 		return err
 	}
 
-	if _, err = js.Subscribe(events.PrivateTransactionsSubject, func(msg *nats.Msg) {
+	stream := events.NewStream(&nats.StreamConfig{
+		Name:     events.PrivateTransactionsStream,
+		Subjects: []string{events.PrivateTransactionsSubject},
+		Storage:  nats.MemoryStorage,
+	}, []nats.SubOpt{
+		nats.AckExplicit(),
+	})
+
+	if err = stream.Subscribe(conn, events.PrivateTransactionsSubject, func(msg *nats.Msg) {
 		if err := p.handlePrivateTx(msg); err != nil {
 			log.Logger().Errorf("failed to handle private transaction: %v", err)
 
@@ -129,16 +169,22 @@ func (p *protocol) setupNatsHandler() error {
 		if err := msg.Ack(); err != nil {
 			log.Logger().Errorf("failed to ACK private transaction event: %v", err)
 		}
-	}, nats.AckExplicit()); err != nil {
+	}); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (p *protocol) Start() {
+func (p *protocol) Start() (err error) {
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 
+	// load old payload query jobs
+	if err = p.payloadScheduler.Run(); err != nil {
+		return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
+	}
+
+	// setup Nats
 	go func() {
 		for {
 			err := p.setupNatsHandler()
@@ -157,44 +203,97 @@ func (p *protocol) Start() {
 			}
 		}
 	}()
+
+	return
 }
 
 func (p *protocol) handlePrivateTx(msg *nats.Msg) error {
 	tx, err := dag.ParseTransaction(msg.Data)
 	if err != nil {
+		log.Logger().Errorf("failed to parse transaction from event: %v", err)
 		return err
+	}
+	if err = p.payloadScheduler.Schedule(tx.Ref()); err != nil {
+		// this means the underlying DB is broken
+		log.Logger().Errorf("failed to add payload query retry job: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (p *protocol) handlePrivateTxRetry(hash hash.SHA256Hash) {
+	if err := p.handlePrivateTxRetryErr(hash); err != nil {
+		log.Logger().Errorf("retry of TransactionPayloadQuery failed: %v", err)
+	}
+}
+
+func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
+	tx, err := p.graph.Get(context.Background(), hash)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve transaction (tx=:%s) from the DAG: %w", hash.String(), err)
+	}
+
+	if tx == nil {
+		return fmt.Errorf("failed to find transaction (tx=:%s) in DAG", hash.String())
+	}
+
+	// Sanity check: if we have the payload, mark this job as finished
+	payload, err := p.payloadStore.ReadPayload(context.Background(), tx.PayloadHash())
+	if err != nil {
+		return fmt.Errorf("unable to read payload (tx=%s): %w", hash, err)
+	}
+
+	if payload != nil {
+		// stop retrying
+		log.Logger().Infof("Transaction payload already present, not querying (tx=%s)", hash)
+		return p.payloadScheduler.Finished(hash)
 	}
 
 	if len(tx.PAL()) == 0 {
-		return fmt.Errorf("PAL header is empty (ref=%s)", tx.Ref().String())
+		log.Logger().Infof("Transaction does not have a PAL, not querying (tx=%s)", hash)
+		return p.payloadScheduler.Finished(hash)
 	}
 
 	epal := dag.EncryptedPAL(tx.PAL())
 
-	pal, err := p.decryptPAL(epal)
+	pal, senderDID, err := p.decryptPAL(epal)
 	if err != nil {
-		return fmt.Errorf("failed to decrypt PAL header (ref=%s): %w", tx.Ref(), err)
+		return fmt.Errorf("failed to decrypt PAL header (tx=%s): %w", tx.Ref(), err)
 	}
 
 	// We weren't able to decrypt the PAL, so it wasn't meant for us
 	if pal == nil {
+		// stop retrying
+		if err := p.payloadScheduler.Finished(hash); err != nil {
+			return err
+		}
+
 		return nil
 	}
 
-	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(pal[0]))
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(senderDID))
 
 	if conn == nil {
-		return fmt.Errorf("unable to retrieve payload, no connection found (ref=%s, DID=%s)", tx.Ref().String(), pal[0])
+		return fmt.Errorf("unable to retrieve payload, no connection found (tx=%s, DID=%s)", hash.String(), senderDID)
 	}
 
-	return conn.Send(p, &Envelope{Message: &Envelope_TransactionPayloadQuery{
+	err = conn.Send(p, &Envelope{Message: &Envelope_TransactionPayloadQuery{
 		TransactionPayloadQuery: &TransactionPayloadQuery{
 			TransactionRef: tx.Ref().Slice(),
 		},
 	}})
+	if err != nil {
+		return fmt.Errorf("failed to send TransactionPayloadQuery message(tx=%s, DID=%s): %w", hash.String(), senderDID, err)
+	}
+
+	return nil
 }
 
 func (p *protocol) Stop() {
+	if p.payloadScheduler != nil {
+		p.payloadScheduler.Close()
+	}
+
 	if p.cancel != nil {
 		p.cancel()
 	}
@@ -217,19 +316,19 @@ func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
 }
 
 // decryptPAL returns nil, nil if the PAL couldn't be decoded
-func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
+func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, did.DID, error) {
 	nodeDID, err := p.nodeDIDResolver.Resolve()
 	if err != nil {
-		return nil, err
+		return nil, did.DID{}, err
 	}
 
 	if nodeDID.Empty() {
-		return nil, errors.New("node DID is not set")
+		return nil, did.DID{}, errors.New("node DID is not set")
 	}
 
 	doc, _, err := p.docResolver.Resolve(nodeDID, nil)
 	if err != nil {
-		return nil, err
+		return nil, did.DID{}, err
 	}
 
 	keyAgreementIDs := make([]string, len(doc.KeyAgreement))
@@ -242,10 +341,26 @@ func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
 
 	pal, err := epal.Decrypt(keyAgreementIDs, p.decrypter)
 	if err != nil {
-		return nil, err
+		return nil, did.DID{}, err
 	}
 
-	return pal, nil
+	if len(pal) == 0 {
+		return nil, did.DID{}, nil
+	}
+
+	var senderDID did.DID
+
+	for _, id := range pal {
+		if !id.Equals(nodeDID) {
+			senderDID = id
+		}
+	}
+
+	if senderDID.Empty() {
+		return nil, did.DID{}, errors.New("unable to find a sender in the PAL")
+	}
+
+	return pal, senderDID, nil
 }
 
 type protocolServer struct {

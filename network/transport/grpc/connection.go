@@ -22,13 +22,14 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"sync"
+	"sync/atomic"
+
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"sync"
-	"sync/atomic"
 )
 
 // Connection is created by grpcConnectionManager to register a connection to a peer.

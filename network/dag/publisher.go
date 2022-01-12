@@ -22,9 +22,10 @@ import (
 	"container/list"
 	"context"
 	"fmt"
-	"github.com/nats-io/nats.go"
 	"sync"
 	"time"
+
+	"github.com/nats-io/nats.go"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
@@ -88,7 +89,7 @@ func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver)
 	}
 }
 
-func (s replayingDAGPublisher) Start() error {
+func (s *replayingDAGPublisher) Start() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
@@ -150,23 +151,15 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 	}
 }
 
-func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) bool {
+func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) {
 	_, err := s.privateTxCtx.PublishAsync(events.PrivateTransactionsSubject, tx.Data())
+
 	if err != nil {
 		log.Logger().Errorf("unable to handle private transaction: (ref=%s) %v", tx.Ref(), err)
-
-		return false
 	}
-
-	return true
 }
 
 func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transaction Transaction) bool {
-	// We need to skip transactions with PAL header as it should be handled by the v2 protocol
-	if len(transaction.PAL()) > 0 {
-		return s.handlePrivateTransaction(transaction)
-	}
-
 	payload, err := s.payloadStore.ReadPayload(ctx, transaction.PayloadHash())
 	if err != nil {
 		log.Logger().Errorf("Unable to read payload to publish DAG: (ref=%s) %v", transaction.Ref(), err)
@@ -174,6 +167,11 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 	}
 
 	if payload == nil {
+		// Handle private transactions via V2 protocol
+		if len(transaction.PAL()) > 0 {
+			s.handlePrivateTransaction(transaction)
+		}
+
 		// We haven't got the payload, break of processing for this branch
 		return false
 	}

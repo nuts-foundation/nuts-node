@@ -37,6 +37,17 @@ const palHeaderDIDSeparator = "\n"
 // PAL holds the list of participants of a transaction.
 type PAL []did.DID
 
+// Contains returns `true` when the given DID is in the PAL
+func (pal PAL) Contains(id did.DID) bool {
+	for _, participant := range pal {
+		if id.Equals(participant) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Encrypt encodes and encrypts the given participant DIDs.
 // It uses the given types.KeyResolver to look up the public encryption key for each participant,
 // and then encrypts the PAL header using each.

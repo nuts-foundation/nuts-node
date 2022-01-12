@@ -158,9 +158,13 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	// Configure protocols
+	// todo: correct config passing?
+	v2Cfg := n.config.ProtocolV2
+	v2Cfg.Datadir = config.Datadir
+
 	n.protocols = []transport.Protocol{
 		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
-		v2.New(n.config.ProtocolV2, n.eventManager.Pool(), n.nodeDIDResolver, n.graph, n.payloadStore, n.didDocumentResolver, n.decrypter),
+		v2.New(v2Cfg, n.eventManager.Pool(), n.nodeDIDResolver, n.graph, n.payloadStore, n.didDocumentResolver, n.decrypter),
 	}
 
 	for _, prot := range n.protocols {
@@ -251,7 +255,9 @@ func (n *Network) Start() error {
 		return err
 	}
 	for _, prot := range n.protocols {
-		prot.Start()
+		if err = prot.Start(); err != nil {
+			return err
+		}
 	}
 
 	// Start connecting to bootstrap nodes
@@ -383,11 +389,11 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 		return nil, fmt.Errorf("unable to sign newly created transaction: %w", err)
 	}
 	// Store on local DAG and publish it
-	if err = n.graph.Add(ctx, transaction); err != nil {
-		return nil, fmt.Errorf("unable to add newly created transaction to DAG: %w", err)
-	}
 	if err = n.payloadStore.WritePayload(ctx, payloadHash, template.Payload); err != nil {
 		return nil, fmt.Errorf("unable to store payload of newly created transaction: %w", err)
+	}
+	if err = n.graph.Add(ctx, transaction); err != nil {
+		return nil, fmt.Errorf("unable to add newly created transaction to DAG: %w", err)
 	}
 	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), template.Type, len(template.Payload))
 	return transaction, nil

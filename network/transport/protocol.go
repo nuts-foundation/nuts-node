@@ -25,9 +25,9 @@ import (
 // Protocol is a self-contained process that can exchange network data (e.g. DAG transactions or private credentials) with other parties on the network.
 type Protocol interface {
 	// Configure configures the Protocol implementation, must be called before Start().
-	Configure(peerID PeerID)
+	Configure(peerID PeerID) error
 	// Start starts the Protocol implementation.
-	Start()
+	Start() error
 	// Stop stops the Protocol implementation.
 	Stop()
 	// Diagnostics collects and returns diagnostical information on the protocol.

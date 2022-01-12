@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
+	"net"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
@@ -10,7 +12,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/proto"
-	"net"
 )
 
 // StubStreamReceiver is a stub implementation of the transport.StreamReceiver interface

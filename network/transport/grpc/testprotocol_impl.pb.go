@@ -20,6 +20,7 @@ package grpc
 
 import (
 	"context"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
@@ -70,10 +71,12 @@ func (s *TestProtocol) DoStuff(serverStream Test_DoStuffServer) error {
 	return s.acceptor(serverStream)
 }
 
-func (s TestProtocol) Configure(_ transport.PeerID) {
+func (s TestProtocol) Configure(_ transport.PeerID) error {
+	return nil
 }
 
-func (s TestProtocol) Start() {
+func (s TestProtocol) Start() error {
+	return nil
 }
 
 func (s TestProtocol) Stop() {

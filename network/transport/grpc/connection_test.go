@@ -20,10 +20,11 @@ package grpc
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_conn_disconnect(t *testing.T) {

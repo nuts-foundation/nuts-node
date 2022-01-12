@@ -32,8 +32,8 @@ type Stream interface {
 	Config() *nats.StreamConfig
 	// ClientOpts returns the NATS client subscribe options
 	ClientOpts() []nats.SubOpt
-	// Subscribe subscribes to a channel on the NATS server and returns a channel on which messages will be send
-	Subscribe(conn Conn, subject string) (chan *nats.Msg, error)
+	// Subscribe subscribes to a channel on the NATS server
+	Subscribe(conn Conn, subject string, handler nats.MsgHandler) error
 }
 
 type stream struct {
@@ -70,24 +70,22 @@ func (stream *stream) create(ctx JetStreamContext) error {
 	return nil
 }
 
-func (stream *stream) Subscribe(conn Conn, subject string) (chan *nats.Msg, error) {
+func (stream *stream) Subscribe(conn Conn, subject string, handler nats.MsgHandler) error {
 	ctx, err := conn.JetStream()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := stream.create(ctx); err != nil {
-		return nil, err
+		return err
 	}
 
-	msgChan := make(chan *nats.Msg)
-
-	_, err = ctx.ChanSubscribe(subject, msgChan)
+	_, err = ctx.Subscribe(subject, handler)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return msgChan, nil
+	return nil
 }
 
 // NewDisposableStream configures a stream with memory storage, discard old policy and a message limit retention policy

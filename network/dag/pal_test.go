@@ -23,12 +23,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestEncryptPal(t *testing.T) {
@@ -106,5 +107,19 @@ func TestDecryptPal(t *testing.T) {
 		actual, err := EncryptedPAL{cipherText}.Decrypt([]string{"kid-1"}, keyStore)
 		assert.Nil(t, actual)
 		assert.EqualError(t, err, "invalid participant (did=\x01\x02\x03): invalid DID: input length is less than 7")
+	})
+}
+
+func TestPAL_Contains(t *testing.T) {
+	testDID, _ := did.ParseDID("did:nuts:test")
+	pal := PAL([]did.DID{*testDID})
+
+	t.Run("true", func(t *testing.T) {
+		assert.True(t, pal.Contains(*testDID))
+	})
+
+	t.Run("false", func(t *testing.T) {
+		testDID2, _ := did.ParseDID("did:nuts:test2")
+		assert.False(t, pal.Contains(*testDID2))
 	})
 }

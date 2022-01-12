@@ -95,11 +95,14 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	// Now assert that all nodes have received all transactions
 	waitForTransactions := func(node string, graph dag.DAG) bool {
 		return test.WaitFor(t, func() (bool, error) {
-			if docs, err := graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime()); err != nil {
+			var (
+				docs []dag.Transaction
+				err  error
+			)
+			if docs, err = graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime()); err != nil {
 				return false, err
-			} else {
-				return len(docs) == expectedDocLogSize, nil
 			}
+			return len(docs) == expectedDocLogSize, nil
 		}, defaultTimeout, "%s: time-out while waiting for %d transactions", node, expectedDocLogSize)
 	}
 	waitForTransactions("bootstrap", bootstrap.graph)
@@ -214,6 +217,41 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 	})
 }
 
+func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
+	// fixed in PR: #712
+	t.Skip()
+	t.Run("happy flow", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest()
+		key := nutsCrypto.NewTestKey("key")
+
+		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
+		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+		// Now connect node1 to node2 and wait for them to set up
+		node1.connectionManager.Connect(nameToAddress(t, "node2"))
+
+		test.WaitFor(t, func() (bool, error) {
+			return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
+
+		node1DID, _ := node1.nodeDIDResolver.Resolve()
+		node2DID, _ := node2.nodeDIDResolver.Resolve()
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
+			WithAttachKey().
+			WithPrivate([]did.DID{node1DID, node2DID})
+		tx, err := node1.CreateTransaction(tpl)
+		if !assert.NoError(t, err) {
+			return
+		}
+		waitForTransaction(t, tx, "node2")
+	})
+}
+
 func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest()
@@ -288,19 +326,23 @@ func resetIntegrationTest() {
 func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCrypto.Key, sender *Network, receivers ...string) bool {
 	expectedTransaction, err := sender.CreateTransaction(TransactionTemplate(payloadType, []byte(payload), key).WithAttachKey())
 	if !assert.NoError(t, err) {
-		return true
+		return false
 	}
+	return waitForTransaction(t, expectedTransaction, receivers...)
+}
+
+func waitForTransaction(t *testing.T, tx dag.Transaction, receivers ...string) bool {
 	for _, receiver := range receivers {
 		if !test.WaitFor(t, func() (bool, error) {
 			mutex.Lock()
 			defer mutex.Unlock()
 			for _, receivedDoc := range receivedTransactions[receiver] {
-				if expectedTransaction.Ref().Equals(receivedDoc.Ref()) {
+				if tx.Ref().Equals(receivedDoc.Ref()) {
 					return true, nil
 				}
 			}
 			return false, nil
-		}, 2*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
+		}, 5*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
 			return false
 		}
 	}
@@ -326,13 +368,33 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 	for _, f := range opts {
 		f(&config)
 	}
+
+	eventManager := events.NewManager()
+
+	cfg := eventManager.(core.Injectable).Config().(*events.Config)
+	cfg.Port = test.FreeTCPPort()
+
+	err := (eventManager.(core.Configurable)).Configure(*core.NewServerConfig())
+	if err != nil {
+		panic(err)
+	}
+	err = (eventManager.(core.Runnable)).Start()
+	if err != nil {
+		panic(err)
+	}
+	t.Cleanup(func() {
+		_ = (eventManager.(core.Runnable)).Shutdown()
+	})
+
 	instance := &Network{
 		config:                 config,
-		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool, 0)},
+		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool)},
 		didDocumentResolver:    doc.Resolver{Store: vdrStore},
 		privateKeyResolver:     keyStore,
+		decrypter:              keyStore,
+		keyResolver:            doc.KeyResolver{Store: vdrStore},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
-		eventManager:           events.NewStubEventManager(),
+		eventManager:           eventManager,
 	}
 	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {
 		t.Fatal(err)

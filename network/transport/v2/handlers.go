@@ -54,7 +54,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *Trans
 		}
 		epal := dag.EncryptedPAL(tx.PAL())
 
-		pal, err := p.decryptPAL(epal)
+		pal, _, err := p.decryptPAL(epal)
 		if err != nil {
 			log.Logger().Errorf("Peer requested private transaction but decoding failed (peer=%s,tx=%s): %v", peer, tx.Ref(), err)
 			return p.send(peer, emptyResponse)
@@ -66,15 +66,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *Trans
 			return p.send(peer, emptyResponse)
 		}
 
-		var success bool
-		for _, participant := range pal {
-			if participant.Equals(peer.NodeDID) {
-				success = true
-				break
-			}
-		}
-
-		if !success {
+		if !pal.Contains(peer.NodeDID) {
 			log.Logger().Warnf("Peer requested private transaction illegally (peer=%s,tx=%s)", peer, tx.Ref())
 			return p.send(peer, emptyResponse)
 		}
@@ -110,5 +102,10 @@ func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
 		// Possible attack: received payload does not match transaction payload hash.
 		return fmt.Errorf("peer sent payload that doesn't match payload hash (tx=%s)", ref)
 	}
-	return p.payloadStore.WritePayload(ctx, payloadHash, msg.Data)
+	if err = p.payloadStore.WritePayload(ctx, payloadHash, msg.Data); err != nil {
+		return err
+	}
+
+	// it's saved, remove the job
+	return p.payloadScheduler.Finished(ref)
 }
