@@ -154,6 +154,20 @@ func (mr *MockConnectionMockRecorder) stopConnecting() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "stopConnecting", reflect.TypeOf((*MockConnection)(nil).stopConnecting))
 }
 
+// verifyOrSetPeerID mocks base method.
+func (m *MockConnection) verifyOrSetPeerID(id transport.PeerID) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "verifyOrSetPeerID", id)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// verifyOrSetPeerID indicates an expected call of verifyOrSetPeerID.
+func (mr *MockConnectionMockRecorder) verifyOrSetPeerID(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "verifyOrSetPeerID", reflect.TypeOf((*MockConnection)(nil).verifyOrSetPeerID), id)
+}
+
 // waitUntilDisconnected mocks base method.
 func (m *MockConnection) waitUntilDisconnected() {
 	m.ctrl.T.Helper()

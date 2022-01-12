@@ -48,7 +48,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 
 	proto := New(Config{Datadir: dirname}, nodeDIDResolver, graph, publisher, payloadStore, docResolver, decrypter)
 	proto.(*protocol).payloadScheduler = payloadScheduler
-	
+
 	return proto.(*protocol), protocolMocks{
 		ctrl, graph, publisher, payloadScheduler, payloadStore, docResolver, decrypter,
 	}
@@ -263,7 +263,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(txOk, nil)
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
-		assert.Contains(t, err.Error(), fmt.Sprintf("failed to decrypt PAL header (ref=%s): node DID is not set", txOk.Ref()))
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): node DID is not set", txOk.Ref()))
 	})
 
 	t.Run("errors when resolving the node DID document fails", func(t *testing.T) {
@@ -274,13 +274,12 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
 
-		assert.Contains(t, err.Error(), fmt.Sprintf("failed to decrypt PAL header (ref=%s): random error", txOk.Ref()))
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): random error", txOk.Ref()))
 	})
 
 	t.Run("errors when decryption fails because the key-agreement key could not be found", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, testDID)
 
-		mocks.PayloadStore.EXPECT().ReadPayload(gomock.Any(), txOk.PayloadHash()).Return(nil, nil)
 		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(txOk, nil)
 		mocks.PayloadStore.EXPECT().ReadPayload(context.Background(), txOk.PayloadHash()).Return(nil, nil)
 		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(&did.Document{
@@ -311,7 +310,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
 
-		assert.EqualError(t, err, fmt.Sprintf("unable to retrieve payload, no connection found (ref=%s, DID=%s)", txOk.Ref().String(), peerDID.String()))
+		assert.EqualError(t, err, fmt.Sprintf("unable to retrieve payload, no connection found (tx=%s, DID=%s)", txOk.Ref().String(), peerDID.String()))
 	})
 
 	t.Run("valid transaction fails when sending the payload query errors", func(t *testing.T) {
