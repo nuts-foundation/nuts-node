@@ -249,15 +249,15 @@ func (mr *MockPublisherMockRecorder) Start() *gomock.Call {
 }
 
 // Subscribe mocks base method.
-func (m *MockPublisher) Subscribe(payloadType string, receiver Receiver) {
+func (m *MockPublisher) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Subscribe", payloadType, receiver)
+	m.ctrl.Call(m, "Subscribe", eventType, payloadType, receiver)
 }
 
 // Subscribe indicates an expected call of Subscribe.
-func (mr *MockPublisherMockRecorder) Subscribe(payloadType, receiver interface{}) *gomock.Call {
+func (mr *MockPublisherMockRecorder) Subscribe(eventType, payloadType, receiver interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockPublisher)(nil).Subscribe), payloadType, receiver)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockPublisher)(nil).Subscribe), eventType, payloadType, receiver)
 }
 
 // MockWalkerAlgorithm is a mock of WalkerAlgorithm interface.

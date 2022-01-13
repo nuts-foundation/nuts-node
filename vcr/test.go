@@ -20,6 +20,7 @@
 package vcr
 
 import (
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"path"
 	"testing"
 
@@ -78,7 +79,7 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
-	tx.EXPECT().Subscribe(gomock.Any(), gomock.Any()).AnyTimes()
+	tx.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any()).AnyTimes()
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
 	serviceResolver := doc.NewMockServiceResolver(ctrl)

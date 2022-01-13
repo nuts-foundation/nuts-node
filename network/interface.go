@@ -27,8 +27,8 @@ import (
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
 type Transactions interface {
 	// Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
-	// is received for the specified type.
-	Subscribe(payloadType string, receiver dag.Receiver)
+	// is received for the specified event and payload type.
+	Subscribe(eventType dag.EventType, payloadType string, receiver dag.Receiver)
 	// GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
 	// nil is returned.
 	GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error)

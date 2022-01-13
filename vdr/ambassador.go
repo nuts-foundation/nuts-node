@@ -72,7 +72,7 @@ func NewAmbassador(networkClient network.Transactions, didStore types.Store) Amb
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n *ambassador) Configure() {
-	n.networkClient.Subscribe(didDocumentType, n.callback)
+	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, didDocumentType, n.callback)
 }
 
 // thumbprintAlg is used for creating public key thumbprints

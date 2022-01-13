@@ -227,7 +227,7 @@ func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
 
 	// Load DAG and start publishing
-	n.publisher.Subscribe(dag.AnyPayloadType, n.lastTransactionTracker.process)
+	n.publisher.Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, n.lastTransactionTracker.process)
 
 	if err := n.publisher.Start(); err != nil {
 		return err
@@ -299,9 +299,9 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 }
 
 // Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
-// is received for the specified type.
-func (n *Network) Subscribe(transactionType string, receiver dag.Receiver) {
-	n.publisher.Subscribe(transactionType, receiver)
+// is received for the specified event and payload type.
+func (n *Network) Subscribe(eventType dag.EventType, transactionType string, receiver dag.Receiver) {
+	n.publisher.Subscribe(eventType, transactionType, receiver)
 }
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
