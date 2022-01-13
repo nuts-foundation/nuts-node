@@ -186,7 +186,7 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 	//       Since not all subscribers are guaranteed to be idempotent at this time, they might break if we introduce it at this moment in time.
 	//       So after all subscribers are made idempotent, TransactionAddedEvent must be published regardless of the payload is present or not.
 	//       This is to accommodate syncing DAGs even when receiving a TX with a detached payload, or a private TX not meant for the local node.
-	for eventType, _ := range s.subscribers {
+	for eventType := range s.subscribers {
 		for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
 			receiver := s.subscribers[eventType][payloadType]
 			if receiver == nil {
