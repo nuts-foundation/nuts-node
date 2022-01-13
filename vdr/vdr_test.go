@@ -21,6 +21,7 @@ package vdr
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -225,7 +226,7 @@ func TestVDR_Configure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tx := network.NewMockTransactions(ctrl)
 	// Make sure configuring VDR subscribes to network
-	tx.EXPECT().Subscribe(gomock.Any(), gomock.Any())
+	tx.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any())
 	cfg := Config{}
 	vdr := NewVDR(cfg, nil, tx, nil)
 	err := vdr.Configure(core.ServerConfig{})

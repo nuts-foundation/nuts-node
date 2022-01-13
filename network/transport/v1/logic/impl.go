@@ -143,7 +143,7 @@ func (p *protocol) Configure(advertHashesInterval time.Duration, advertDiagnosti
 		payloadStore: p.payloadStore,
 		sender:       p.sender,
 	}
-	p.publisher.Subscribe(dag.AnyPayloadType, p.blocks.addTransaction)
+	p.publisher.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.blocks.addTransaction)
 }
 
 func (p *protocol) Start() {

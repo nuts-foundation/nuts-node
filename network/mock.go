@@ -111,15 +111,15 @@ func (mr *MockTransactionsMockRecorder) PeerDiagnostics() *gomock.Call {
 }
 
 // Subscribe mocks base method.
-func (m *MockTransactions) Subscribe(payloadType string, receiver dag.Receiver) {
+func (m *MockTransactions) Subscribe(eventType dag.EventType, payloadType string, receiver dag.Receiver) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Subscribe", payloadType, receiver)
+	m.ctrl.Call(m, "Subscribe", eventType, payloadType, receiver)
 }
 
 // Subscribe indicates an expected call of Subscribe.
-func (mr *MockTransactionsMockRecorder) Subscribe(payloadType, receiver interface{}) *gomock.Call {
+func (mr *MockTransactionsMockRecorder) Subscribe(eventType, payloadType, receiver interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), payloadType, receiver)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), eventType, payloadType, receiver)
 }
 
 // Walk mocks base method.
