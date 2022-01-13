@@ -20,12 +20,13 @@ package logic
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"math"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 )
 
 const numberOfBlocks = 3
@@ -36,7 +37,10 @@ const numberOfBlocks = 3
 // When midnight passes (and thus blocks change) it shifts all TXs one block to the left, ultimately into the leftmost historic block.
 type trackingDAGBlocks struct {
 	blocks []*blockTracker
-	mux    *sync.Mutex
+	// processedTransactions keeps track of added transaction to prevent duplicates doing harm.
+	// This is an ever growing list and thus requires some refactoring in the future.
+	processedTransactions map[hash.SHA256Hash]bool
+	mux                   *sync.Mutex
 }
 
 // dagBlocks defines the API for algorithms that determine the head transactions for DAG blocks.
@@ -54,8 +58,9 @@ type dagBlocks interface {
 // newDAGBlocks creates a new tracking dagBlocks structure.
 func newDAGBlocks() dagBlocks {
 	result := &trackingDAGBlocks{
-		blocks: make([]*blockTracker, numberOfBlocks),
-		mux:    &sync.Mutex{},
+		blocks:                make([]*blockTracker, numberOfBlocks),
+		processedTransactions: map[hash.SHA256Hash]bool{},
+		mux:                   &sync.Mutex{},
 	}
 	for i := 0; i < len(result.blocks); i++ {
 		result.blocks[i] = &blockTracker{heads: map[hash.SHA256Hash]*head{}}
@@ -124,8 +129,16 @@ func (blx *trackingDAGBlocks) get() []dagBlock {
 func (blx *trackingDAGBlocks) addTransaction(tx dag.Transaction, _ []byte) error {
 	blx.mux.Lock()
 	defer blx.mux.Unlock()
+
+	if processed := blx.processedTransactions[tx.Ref()]; processed {
+		return nil
+	}
+
 	blx.internalUpdate(time.Now())
 	blx.internalAddTransaction(tx)
+
+	blx.processedTransactions[tx.Ref()] = true
+
 	return nil
 }
 

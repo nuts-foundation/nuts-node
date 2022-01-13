@@ -388,7 +388,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 
 	instance := &Network{
 		config:                 config,
-		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool)},
+		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
 		didDocumentResolver:    doc.Resolver{Store: vdrStore},
 		privateKeyResolver:     keyStore,
 		decrypter:              keyStore,
