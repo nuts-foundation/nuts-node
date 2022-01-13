@@ -172,7 +172,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	ctx.graph = dag.NewBBoltDAG(db)
 	ctx.payloadStore = dag.NewBBoltPayloadStore(db)
 	publisher := dag.NewReplayingDAGPublisher(ctx.payloadStore, ctx.graph)
-	publisher.Subscribe(integrationTestPayloadType, func(tx dag.Transaction, payload []byte) error {
+	publisher.Subscribe(dag.TransactionPayloadAddedEvent, integrationTestPayloadType, func(tx dag.Transaction, payload []byte) error {
 		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
 		ctx.mux.Lock()
 		defer ctx.mux.Unlock()

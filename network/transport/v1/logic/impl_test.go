@@ -36,7 +36,7 @@ func Test_ProtocolLifecycle(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	publisher := dag.NewMockPublisher(mockCtrl)
-	publisher.EXPECT().Subscribe("*", gomock.Any())
+	publisher.EXPECT().Subscribe(dag.TransactionAddedEvent,"*", gomock.Any())
 
 	instance := NewProtocol(NewMockMessageGateway(mockCtrl), nil, dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), nil)
 	instance.Configure(time.Second*2, time.Second*5, 10*time.Second, "local")

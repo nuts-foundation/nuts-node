@@ -51,8 +51,8 @@ func NewAmbassador(networkClient network.Transactions, writer Writer) Ambassador
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n ambassador) Configure() {
-	n.networkClient.Subscribe(vcDocumentType, n.vcCallback)
-	n.networkClient.Subscribe(revocationDocumentType, n.rCallback)
+	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, vcDocumentType, n.vcCallback)
+	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, revocationDocumentType, n.rCallback)
 }
 
 // vcCallback gets called when new Verifiable Credentials are received by the network. All checks on the signature are already performed.

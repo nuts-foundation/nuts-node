@@ -31,7 +31,7 @@ import (
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
 func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
 	publisher := &replayingDAGPublisher{
-		subscribers:         map[string]Receiver{},
+		subscribers:         map[EventType]map[string]Receiver{},
 		resumeAt:            list.New(),
 		visitedTransactions: map[hash.SHA256Hash]bool{},
 		dag:                 dag,
@@ -43,7 +43,7 @@ func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
 }
 
 type replayingDAGPublisher struct {
-	subscribers         map[string]Receiver
+	subscribers         map[EventType]map[string]Receiver
 	resumeAt            *list.List
 	visitedTransactions map[hash.SHA256Hash]bool
 	dag                 DAG
@@ -51,7 +51,7 @@ type replayingDAGPublisher struct {
 	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
 
-func (s *replayingDAGPublisher) PayloadWritten(ctx context.Context, payloadHash interface{}) {
+func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, payloadHash interface{}) {
 	s.publishMux.Lock()
 	defer s.publishMux.Unlock()
 
@@ -78,7 +78,7 @@ func (s *replayingDAGPublisher) PayloadWritten(ctx context.Context, payloadHash 
 	s.publish(ctx)
 }
 
-func (s *replayingDAGPublisher) TransactionAdded(ctx context.Context, transaction interface{}) {
+func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transaction interface{}) {
 	s.publishMux.Lock()
 	defer s.publishMux.Unlock()
 
@@ -89,9 +89,12 @@ func (s *replayingDAGPublisher) TransactionAdded(ctx context.Context, transactio
 	s.publish(ctx)
 }
 
-func (s *replayingDAGPublisher) Subscribe(payloadType string, receiver Receiver) {
-	oldSubscriber := s.subscribers[payloadType]
-	s.subscribers[payloadType] = func(transaction Transaction, payload []byte) error {
+func (s *replayingDAGPublisher) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
+	if _, ok := s.subscribers[eventType]; !ok {
+		s.subscribers[eventType] = make(map[string]Receiver, 0)
+	}
+	oldSubscriber := s.subscribers[eventType][payloadType]
+	s.subscribers[eventType][payloadType] = func(transaction Transaction, payload []byte) error {
 		// Chain subscribers in case there's more than 1
 		if oldSubscriber != nil {
 			if err := oldSubscriber(transaction, payload); err != nil {
@@ -106,8 +109,8 @@ func (s *replayingDAGPublisher) Start() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	s.dag.RegisterObserver(s.TransactionAdded)
-	s.payloadStore.RegisterObserver(s.PayloadWritten)
+	s.dag.RegisterObserver(s.transactionAdded)
+	s.payloadStore.RegisterObserver(s.payloadWritten)
 
 	ctx = context.Background()
 	s.publishMux.Lock()
@@ -121,8 +124,8 @@ func (s *replayingDAGPublisher) Start() error {
 	return nil
 }
 
-// publish is called both from PayloadWritten and PublishTransaction
-// PayloadWritten will be the correct event during operation, PublishTransaction will be the event at startup
+// publish is called both from payloadWritten and transactionAdded. Only when both are satified (transaction is present and payload as well), the transaction is published.
+// payloadWritten will be the correct event during operation, transactionAdded will be the event at startup
 func (s *replayingDAGPublisher) publish(ctx context.Context) {
 	front := s.resumeAt.Front()
 	if front == nil {
@@ -164,13 +167,22 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 		}
 	}
 
-	for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
-		receiver := s.subscribers[payloadType]
-		if receiver == nil {
-			continue
-		}
-		if err := receiver(transaction, payload); err != nil {
-			log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
+	// TODO: Now calls TransactionAddedEvent and TransactionPayloadAddedEvent after checken whether the payload is present.
+	//       This will need to be changed: TransactionAddedEvent must be called regardless whether the payload is present or not (e.g. top of this function).
+	//       However, when doing that at this moment, TransactionAddedEvent might be published multiple times for transactions which payload is not present the first time.
+	//       This is generally the case during operation when new transactions are received over the network.
+	//       Since not all subscribers are guaranteed to be idempotent at this time, they might break if we introduce it at this moment in time.
+	//       So after all subscribers are made idempotent, TransactionAddedEvent must be published regardless of the payload is present or not.
+	//       This is to accommodate syncing DAGs even when receiving a TX with a detached payload, or a private TX not meant for the local node.
+	for eventType := range s.subscribers {
+		for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
+			receiver := s.subscribers[eventType][payloadType]
+			if receiver == nil {
+				continue
+			}
+			if err := receiver(transaction, payload); err != nil {
+				log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
+			}
 		}
 	}
 

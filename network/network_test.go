@@ -57,7 +57,7 @@ func (cxt *networkTestContext) start() error {
 	cxt.connectionManager.EXPECT().Start()
 	cxt.protocol.EXPECT().Start()
 	cxt.graph.EXPECT().Verify(gomock.Any())
-	cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
+	cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 	cxt.publisher.EXPECT().Start()
 
 	return cxt.network.Start()
@@ -119,8 +119,8 @@ func TestNetwork_Subscribe(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.publisher.EXPECT().Subscribe("some-type", nil)
-		cxt.network.Subscribe("some-type", nil)
+		cxt.publisher.EXPECT().Subscribe(dag.TransactionAddedEvent, "some-type", nil)
+		cxt.network.Subscribe(dag.TransactionAddedEvent, "some-type", nil)
 	})
 }
 
@@ -438,7 +438,7 @@ func TestNetwork_Start(t *testing.T) {
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
 		cxt.graph.EXPECT().Verify(gomock.Any()).Return(errors.New("failed"))
-		cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
+		cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 		cxt.publisher.EXPECT().Start()
 		err := cxt.network.Start()
 		assert.EqualError(t, err, "failed")
@@ -480,7 +480,7 @@ func TestNetwork_Start(t *testing.T) {
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 			cxt.graph.EXPECT().Verify(gomock.Any())
-			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
+			cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 			cxt.publisher.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.ErrorIs(t, err, did.DeactivatedErr)
@@ -492,7 +492,7 @@ func TestNetwork_Start(t *testing.T) {
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.graph.EXPECT().Verify(gomock.Any())
-			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
+			cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 			cxt.publisher.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.EqualError(t, err, "invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=did:nuts:test)")
@@ -505,7 +505,7 @@ func TestNetwork_Start(t *testing.T) {
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.graph.EXPECT().Verify(gomock.Any())
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(false)
-			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
+			cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 			cxt.publisher.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.EqualError(t, err, "invalid NodeDID configuration: keyAgreement private key is not present in key store (did=did:nuts:test,kid=did:nuts:test#some-key)")
@@ -518,7 +518,7 @@ func TestNetwork_Start(t *testing.T) {
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(documentWithoutNutsCommService, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
 			cxt.graph.EXPECT().Verify(gomock.Any())
-			cxt.publisher.EXPECT().Subscribe(dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
+			cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
 			cxt.publisher.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.EqualError(t, err, "invalid NodeDID configuration: unable to resolve NutsComm service endpoint (did=did:nuts:test): service not found in DID Document")

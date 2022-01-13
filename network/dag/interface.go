@@ -79,11 +79,20 @@ type Publisher interface {
 	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
 	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
 	// to all payload types.
-	// The receiver is called for both the TX as the payload, a nil payload may be passed
-	Subscribe(payloadType string, receiver Receiver)
+	Subscribe(eventType EventType, payloadType string, receiver Receiver)
 	// Start starts the publisher.
 	Start() error
 }
+
+// EventType defines a type for specifying the kind of events that can be published/subscribed on the Publisher.
+type EventType string
+
+const (
+	// TransactionAddedEvent is called when a transaction is added to the DAG. Its payload may not be present.
+	TransactionAddedEvent EventType = "TRANSACTION_ADDED"
+	// TransactionPayloadAddedEvent is called when a transaction is added to the DAG including its payload.
+	TransactionPayloadAddedEvent EventType = "TRANSACTION_PAYLOAD_ADDED"
+)
 
 // Receiver defines a function for processing transactions when walking the DAG.
 type Receiver func(transaction Transaction, payload []byte) error
