@@ -117,13 +117,13 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return([]byte{1, 2, 3}, nil)
 
 		calls := 0
-		ctrl.publisher.Subscribe(TransactionAddedEvent, transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+		ctrl.publisher.Subscribe(TransactionPayloadAddedEvent, transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, transaction, actualTransaction)
 			calls++
 			return nil
 		})
 		ctrl.publisher.publishTransaction(ctx, transaction)
-		assert.Equal(t, calls, 1)
+		assert.Equal(t, 1, calls)
 	})
 	t.Run("subscribers on multiple event types", func(t *testing.T) {
 		ctrl := createPublisher(t)
@@ -145,7 +145,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		})
 		ctrl.publisher.publishTransaction(ctx, transaction)
 
-		assert.Equal(t, 1, txAddedCalls)
+		assert.Equal(t, 0, txAddedCalls)
 		assert.Equal(t, 1, txPayloadAddedCalls)
 	})
 	t.Run("not received when transaction with pal header is skipped", func(t *testing.T) {
@@ -251,7 +251,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		}
 		ctrl.publisher.Subscribe(TransactionAddedEvent, transaction.PayloadType(), receiver)
 		ctrl.publisher.Subscribe(TransactionAddedEvent, transaction.PayloadType(), receiver)
-		ctrl.publisher.publishTransaction(ctx, transaction)
+		ctrl.publisher.transactionAdded(ctx, transaction)
 		assert.Equal(t, 1, calls)
 	})
 }
