@@ -437,7 +437,7 @@ func newContext(t *testing.T) *testContext {
 		prev: []hash.SHA256Hash{txA.Ref()},
 	}
 	txC := testTX{
-		data: []byte("TX B"),
+		data: []byte("TX C"),
 		sigt: time.Now(),
 		prev: []hash.SHA256Hash{txB.Ref()},
 	}

@@ -80,6 +80,20 @@ func testCases() []testCase {
 				"C",
 			},
 		},
+		{
+			name: "simple with duplicate",
+			txs: []tx{
+				tx{"A", 0, noPrevs()},
+				tx{"B", 1, prev("A")},
+				tx{"C", 2, prev("B")},
+				tx{"B", 1, prev("A")},
+			},
+			heads: []string{
+				"A, B, C",
+				"B, C",
+				"C",
+			},
+		},
 		/*
 			              │        │
 			┌───┐   ┌───┐ │  ┌───┐ │ ┌───┐
@@ -204,7 +218,7 @@ func TestBlocks(t *testing.T) {
 					return
 				}
 			}
-			println(blocks.String())
+			// println(blocks.String())
 			for dayNum := 0; dayNum < oldestTXAge+1; dayNum++ {
 				// Assert blocks
 				expectedBlocks := strings.Split(tc.heads[dayNum], ", ")
@@ -229,9 +243,9 @@ func TestBlocks(t *testing.T) {
 					}
 				}
 
-				println(fmt.Sprintf("Blocks after %d day(s) pass:", dayNum+1))
+				// println(fmt.Sprintf("Blocks after %d day(s) pass:", dayNum+1))
 				blocks.internalUpdate(time.Now().AddDate(0, 0, dayNum+1))
-				println(blocks.String())
+				// println(blocks.String())
 			}
 		})
 	}
