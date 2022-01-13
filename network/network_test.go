@@ -580,7 +580,10 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 }
 
 func Test_lastTransactionTracker(t *testing.T) {
-	tracker := lastTransactionTracker{headRefs: map[hash.SHA256Hash]bool{}}
+	tracker := lastTransactionTracker{
+		headRefs:              map[hash.SHA256Hash]bool{},
+		processedTransactions: map[hash.SHA256Hash]bool{},
+	}
 
 	assert.Empty(t, tracker.heads()) // initially empty
 
@@ -606,6 +609,11 @@ func Test_lastTransactionTracker(t *testing.T) {
 	// TX 3 (merges 1 and 2)
 	tx3, _, _ := dag.CreateTestTransaction(2, tx1.Ref(), tx2.Ref())
 	_ = tracker.process(tx3, nil)
+	assert.Len(t, tracker.heads(), 1)
+	assert.Contains(t, tracker.heads(), tx3.Ref())
+
+	// duplicate TX 1, no effect.
+	_ = tracker.process(tx1, nil)
 	assert.Len(t, tracker.heads(), 1)
 	assert.Contains(t, tracker.heads(), tx3.Ref())
 }

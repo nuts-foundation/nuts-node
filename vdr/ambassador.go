@@ -79,9 +79,10 @@ func (n *ambassador) Configure() {
 var thumbprintAlg = crypto.SHA256
 
 // callback gets called when new DIDDocuments are received by the network. All checks on the signature are already performed.
-// This method will check the integrity of the DID document related to the public key used to sign the network tr.
+// This method will check the integrity of the DID document related to the public key used to sign the network TX.
 // The rules are based on the Nuts RFC006
 // payload should be a json encoded did.document
+// Duplicates are handled as updates and will be merged. Merging two exactly the same DID Documents results in the original document.
 func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 	log.Logger().Debugf("Processing DID document received from Nuts Network (ref=%s)", tx.Ref())
 	if err := checkTransactionIntegrity(tx); err != nil {

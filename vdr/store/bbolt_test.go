@@ -236,6 +236,25 @@ func TestBBoltStore_Update(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("returns no error on duplicate update", func(t *testing.T) {
+		err := store.Update(*did1, h, doc, &meta)
+		if !assert.NoError(t, err) {
+			return
+		}
+		err = store.Update(*did1, h, doc, &meta)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// check version
+		_, m, err := store.Resolve(*did1, nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Nil(t, m.PreviousHash)
+		assert.Equal(t, h, m.Hash)
+	})
+
 	t.Run("updates the previous record", func(t *testing.T) {
 		later := time.Now().Add(time.Hour * 24)
 		meta = types.DocumentMetadata{

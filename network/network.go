@@ -106,7 +106,7 @@ func NewNetworkInstance(
 		privateKeyResolver:     privateKeyResolver,
 		didDocumentResolver:    didDocumentResolver,
 		eventManager:           eventManager,
-		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool)},
+		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 	}
 }
@@ -469,22 +469,30 @@ func (n *Network) isPayloadPresent(ctx context.Context, txRef hash.SHA256Hash) (
 	return n.payloadStore.IsPresent(ctx, tx.PayloadHash())
 }
 
-// lastTransactionTracker that is used for tracking the heads but with payloads, since the DAG heads might have the associated payloads.
-// This works because the publisher only publishes transactions which' payloads are present.
+// lastTransactionTracker that is used for tracking correct transactions.
+// If transactions are correct differs per type of transaction. The DAG will call process only for correct transactions.
 type lastTransactionTracker struct {
 	headRefs map[hash.SHA256Hash]bool
-	mux      sync.Mutex
+	// processedTransactions keeps track of previous processed transactions.
+	// this is an ever growing map and will require some refactoring in the future.
+	processedTransactions map[hash.SHA256Hash]bool
+	mux                   sync.Mutex
 }
 
 func (l *lastTransactionTracker) process(transaction dag.Transaction, _ []byte) error {
 	l.mux.Lock()
 	defer l.mux.Unlock()
 
+	if processed := l.processedTransactions[transaction.Ref()]; processed {
+		return nil
+	}
+
 	// Update heads: previous' transactions aren't heads anymore, this transaction becomes a head.
 	for _, prev := range transaction.Previous() {
 		delete(l.headRefs, prev)
 	}
 	l.headRefs[transaction.Ref()] = true
+	l.processedTransactions[transaction.Ref()] = true
 	return nil
 }
 

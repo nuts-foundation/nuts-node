@@ -86,6 +86,7 @@ type Validator interface {
 // Writer is the interface that groups al the VC write methods
 type Writer interface {
 	// StoreCredential writes a VC to storage. Before writing, it calls Verify!
+	// It can handle duplicates.
 	StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error

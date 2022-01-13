@@ -22,10 +22,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -436,7 +437,7 @@ func newContext(t *testing.T) *testContext {
 		prev: []hash.SHA256Hash{txA.Ref()},
 	}
 	txC := testTX{
-		data: []byte("TX B"),
+		data: []byte("TX C"),
 		sigt: time.Now(),
 		prev: []hash.SHA256Hash{txB.Ref()},
 	}
