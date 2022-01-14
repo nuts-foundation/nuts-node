@@ -98,6 +98,72 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 
 		ctrl.publisher.transactionAdded(ctx, rootTX)
 	})
+	t.Run("parallel branched, which are blocked", func(t *testing.T) {
+		// Given graph "A <- [B, C] <- D"
+		// When payload for A is written
+		//  And payload for C is written
+		// Then TransactionPayloadAddedEvent for A and C should be emitted
+		// When payload for B is written
+		// Then TransactionPayloadAddedEvent for B and D should be emitted
+		db, _ := bbolt.Open(path.Join(io.TestDirectory(t), "dag.bbolt"), os.ModePerm, nil)
+		t.Cleanup(func() {
+			_ = db.Close()
+		})
+		payloadStore :=  NewBBoltPayloadStore(db)
+		graph := NewBBoltDAG(db)
+		publisher := NewReplayingDAGPublisher(payloadStore, graph).(*replayingDAGPublisher)
+
+		txA := rootTX
+		txB := CreateTestTransactionWithJWK(2, txA.Ref())
+		txC := CreateTestTransactionWithJWK(3, txA.Ref())
+		txD := CreateTestTransactionWithJWK(4, txB.Ref(), txC.Ref())
+
+		var capture []Transaction
+		publisher.Subscribe(TransactionPayloadAddedEvent, txA.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+			println("capture")
+			capture = append(capture, actualTransaction)
+			return nil
+		})
+		graph.RegisterObserver(publisher.transactionAdded)
+		payloadStore.RegisterObserver(publisher.payloadWritten)
+		graph.Add(ctx, txA, txB, txC, txD)
+
+		println("A = ", txA.Ref().String())
+		println("B = ", txB.Ref().String())
+		println("C = ", txC.Ref().String())
+		println("D = ", txD.Ref().String())
+
+		// Write payload for A and C, check events
+		err := payloadStore.WritePayload(ctx, txA.PayloadHash(), rootTXPayload)
+		if !assert.NoError(t, err) {
+			return
+		}
+		err = payloadStore.WritePayload(ctx, txC.PayloadHash(), rootTXPayload)
+		if !assert.NoError(t, err) {
+			return
+		}
+		println(len(capture))
+		for _, tx := range capture {
+			println(tx.Ref().String())
+		}
+		if !assert.Len(t, capture, 2) {
+			return
+		}
+		assert.Equal(t, txA.Ref(), capture[0].Ref())
+		assert.Equal(t, txC.Ref(), capture[1].Ref())
+		capture = nil
+
+		// Write payload for D, nothing should be published
+		payloadStore.WritePayload(ctx, txD.PayloadHash(), rootTXPayload)
+		println(capture[0].Ref().String())
+		assert.Empty(t, capture)
+
+		// Write payload for B, B and D should be published
+		payloadStore.WritePayload(ctx, txB.PayloadHash(), rootTXPayload)
+		assert.Len(t, capture, 2)
+		assert.Equal(t, txB.Ref(), capture[0])
+		assert.Equal(t, txD.Ref(), capture[1])
+	})
 	t.Run("single subscriber", func(t *testing.T) {
 		ctrl := createPublisher(t)
 
