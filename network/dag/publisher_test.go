@@ -140,31 +140,6 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 		assert.Equal(t, 1, txAddedCalls)
 		assert.Equal(t, 1, txPayloadAddedCalls)
 	})
-	t.Run("subscribers on multiple event types", func(t *testing.T) {
-		ctrl := createPublisher(t)
-
-		ctrl.payloadStore.EXPECT().ReadPayload(gomock.Any(), rootTX.PayloadHash()).Return(rootTXPayload, nil)
-		ctrl.graph.Add(ctx, rootTX)
-
-		txAddedCalls := 0
-		txPayloadAddedCalls := 0
-		ctrl.publisher.Subscribe(TransactionAddedEvent, rootTX.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
-			assert.Equal(t, rootTX, actualTransaction)
-			txAddedCalls++
-			return nil
-		})
-		ctrl.publisher.Subscribe(TransactionPayloadAddedEvent, rootTX.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
-			assert.Equal(t, rootTX, actualTransaction)
-			txPayloadAddedCalls++
-			return nil
-		})
-
-		ctrl.publisher.transactionAdded(ctx, rootTX)
-		ctrl.publisher.payloadWritten(ctx, nil)
-
-		assert.Equal(t, 1, txAddedCalls)
-		assert.Equal(t, 1, txPayloadAddedCalls)
-	})
 
 	t.Run("payload not present (but present later)", func(t *testing.T) {
 		ctrl := createPublisher(t)

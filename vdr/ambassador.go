@@ -85,11 +85,6 @@ var thumbprintAlg = crypto.SHA256
 // payload should be a json encoded did.document
 // Duplicates are handled as updates and will be merged. Merging two exactly the same DID Documents results in the original document.
 func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
-	if payload == nil {
-		// ignore first call, only act on second call (with payload)
-		return nil
-	}
-
 	log.Logger().Debugf("Processing DID document received from Nuts Network (ref=%s)", tx.Ref())
 	if err := checkTransactionIntegrity(tx); err != nil {
 		return fmt.Errorf("could not process new DID Document: %w", err)
