@@ -247,6 +247,53 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		}
 		waitForTransaction(t, tx, "node2")
 	})
+
+	t.Run("third node knows nothing", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest()
+		key := nutsCrypto.NewTestKey("key")
+
+		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
+		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+		node3 := startNode(t, "node3", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node3"
+		})
+		// Now connect node1 to node2 and wait for them to set up
+		node2.connectionManager.Connect(nameToAddress(t, "node1"))
+		node3.connectionManager.Connect(nameToAddress(t, "node1"))
+
+		test.WaitFor(t, func() (bool, error) {
+			return len(node1.connectionManager.Peers()) == 2, nil
+		}, defaultTimeout, "time-out while waiting for nodes to connect")
+
+		node1DID, _ := node1.nodeDIDResolver.Resolve()
+		node2DID, _ := node2.nodeDIDResolver.Resolve()
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
+			WithAttachKey().
+			WithPrivate([]did.DID{node1DID, node2DID})
+		tx, err := node1.CreateTransaction(tpl)
+		if !assert.NoError(t, err) {
+			return
+		}
+		arrived := test.WaitForNoFail(t, func() (bool, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
+			for _, receivedDoc := range receivedTransactions["node3"] {
+				if tx.Ref().Equals(receivedDoc.Ref()) {
+					return true, nil
+				}
+			}
+			return false, nil
+		}, 200*time.Millisecond)
+
+		// check node 3 does not have the payload
+		assert.False(t, arrived)
+	})
 }
 
 func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
@@ -318,6 +365,7 @@ func resetIntegrationTest() {
 	}
 	writeDIDDocument("did:nuts:node1")
 	writeDIDDocument("did:nuts:node2")
+	writeDIDDocument("did:nuts:node3")
 }
 
 func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCrypto.Key, sender *Network, receivers ...string) bool {
