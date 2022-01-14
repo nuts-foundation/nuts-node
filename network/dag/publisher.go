@@ -58,18 +58,17 @@ type replayingDAGPublisher struct {
 	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
 
+// payloadWritten is called by the PayloadStore when a transaction payload is written.
 func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ interface{}) {
-	s.publishMux.Lock()
-	defer s.publishMux.Unlock()
-
 	s.publish(ctx)
 }
 
+// transactionAdded is called by the DAG when a new transaction is added.
 func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transaction interface{}) {
-	s.publishMux.Lock()
-	defer s.publishMux.Unlock()
-
 	tx := transaction.(Transaction)
+
+	s.emitEvent(TransactionAddedEvent, tx, nil)
+
 	// Received new transaction, add it to the subscription walker resume list, so it resumes from this transaction
 	// when the payload is received.
 	s.resumeAt.PushBack(tx.Ref())
@@ -110,19 +109,18 @@ func (s *replayingDAGPublisher) Start() error {
 		return fmt.Errorf("failed to setup NATS stream: %w", err)
 	}
 
-	s.dag.RegisterObserver(s.transactionAdded)
-	s.payloadStore.RegisterObserver(s.payloadWritten)
+	s.dag.RegisterObserver(func(ctx context.Context, subject interface{}) {
+		s.publishMux.Lock()
+		defer s.publishMux.Unlock()
+		s.transactionAdded(ctx, subject)
+	})
+	s.payloadStore.RegisterObserver(func(ctx context.Context, subject interface{}) {
+		s.publishMux.Lock()
+		defer s.publishMux.Unlock()
+		s.payloadWritten(ctx, subject)
+	})
 
-	ctx = context.Background()
-	s.publishMux.Lock()
-	defer s.publishMux.Unlock()
-
-	// since the walker starts at root for an empty hash, no need to find the root first
-	s.resumeAt.PushBack(hash.EmptyHash())
-	s.publish(ctx)
-
-	log.Logger().Debug("Finished replaying DAG")
-	return nil
+	return s.replay()
 }
 
 // publish is called both from payloadWritten and transactionAdded. Only when both are satified (transaction is present and payload as well), the transaction is published.
@@ -137,6 +135,7 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 	err := s.dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
 		outcome := true
 		txRef := transaction.Ref()
+
 		// visit once
 		if !s.visitedTransactions[txRef] {
 			if outcome = s.publishTransaction(ctx, transaction); outcome {
@@ -179,24 +178,47 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 		return false
 	}
 
-	// TODO: Now calls TransactionAddedEvent and TransactionPayloadAddedEvent after checken whether the payload is present.
-	//       This will need to be changed: TransactionAddedEvent must be called regardless whether the payload is present or not (e.g. top of this function).
-	//       However, when doing that at this moment, TransactionAddedEvent might be published multiple times for transactions which payload is not present the first time.
-	//       This is generally the case during operation when new transactions are received over the network.
-	//       Since not all subscribers are guaranteed to be idempotent at this time, they might break if we introduce it at this moment in time.
-	//       So after all subscribers are made idempotent, TransactionAddedEvent must be published regardless of the payload is present or not.
-	//       This is to accommodate syncing DAGs even when receiving a TX with a detached payload, or a private TX not meant for the local node.
-	for eventType := range s.subscribers {
-		for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
-			receiver := s.subscribers[eventType][payloadType]
-			if receiver == nil {
-				continue
-			}
-			if err := receiver(transaction, payload); err != nil {
-				log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
-			}
-		}
-	}
+	s.emitEvent(TransactionPayloadAddedEvent, transaction, payload)
 
 	return true
+}
+
+func (s *replayingDAGPublisher) emitEvent(eventType EventType, transaction Transaction, payload []byte) {
+	for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
+		subs := s.subscribers[eventType]
+		if subs == nil {
+			continue
+		}
+		receiver := subs[payloadType]
+		if receiver == nil {
+			continue
+		}
+		if err := receiver(transaction, payload); err != nil {
+			log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
+		}
+	}
+}
+
+func (s *replayingDAGPublisher) replay() error {
+	log.Logger().Debug("Replaying DAG...")
+	s.publishMux.Lock()
+	defer s.publishMux.Unlock()
+
+	err := s.dag.Walk(context.Background(), func(ctx context.Context, tx Transaction) bool {
+		s.transactionAdded(ctx, tx)
+		payload, err := s.payloadStore.ReadPayload(ctx, tx.PayloadHash())
+		if err != nil {
+			log.Logger().Errorf("Error reading payload (tx=%s): %v", tx.Ref(), err)
+		}
+		if payload == nil {
+			return false
+		}
+		s.payloadWritten(ctx, tx)
+		return true
+	}, hash.EmptyHash())
+	if err != nil {
+		return err
+	}
+	log.Logger().Debug("Finished replaying DAG")
+	return nil
 }
