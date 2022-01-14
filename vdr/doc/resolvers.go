@@ -113,7 +113,7 @@ func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMe
 			return nil, err
 		}
 		if err != nil {
-			return nil, fmt.Errorf("unable to resolve controllers: %w", err)
+			return nil, fmt.Errorf("unable to resolve controller ref: %w", err)
 		}
 		leaves = append(leaves, *node)
 	}

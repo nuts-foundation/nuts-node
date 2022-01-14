@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -91,7 +92,7 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 
 	log.Logger().Debugf("Processing DID document received from Nuts Network (ref=%s)", tx.Ref())
 	if err := checkTransactionIntegrity(tx); err != nil {
-		return fmt.Errorf("callback could not process new DID Document: %w", err)
+		return fmt.Errorf("could not process new DID Document: %w", err)
 	}
 
 	// Unmarshal the next/new proposed version of the DID Document
@@ -104,12 +105,21 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 		return fmt.Errorf("callback could not process new DID Document, DID Document integrity check failed: %w", err)
 	}
 
-	isUpdate, err := n.isUpdate(nextDIDDocument)
-	if err != nil {
-		return fmt.Errorf("callback could not process new DID Document, failed to resolve current DID Document: %w", err)
+	// we check the VDR if the document is already processed by using the transaction hash
+	sourceTX := tx.Ref()
+	doc, _, err := n.didStore.Resolve(nextDIDDocument.ID, &types.ResolveMetadata{
+		SourceTransaction: &sourceTX,
+		AllowDeactivated:  true,
+	})
+	if err != nil && !errors.Is(err, types.ErrNotFound) {
+		return fmt.Errorf("could not process new DID Document: %w", err)
+	}
+	if doc != nil {
+		log.Logger().Infof("Skipping DID document, already exists (tx=%s)", tx.Ref().String())
+		return nil
 	}
 
-	if isUpdate {
+	if n.isUpdate(tx) {
 		return n.handleUpdateDIDDocument(tx, nextDIDDocument)
 	}
 	return n.handleCreateDIDDocument(tx, nextDIDDocument)
@@ -139,16 +149,45 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 		return err
 	}
 
+	// check for an existing document, it could have been a parallel create. If existing merge and update.
+	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
+	if err != nil && !errors.Is(err, types.ErrNotFound) {
+		return fmt.Errorf("unable to register DID document: %w", err)
+	}
+	sourceTransactions := []hash.SHA256Hash{transaction.Ref()}
+	// pointer to updated time required for metadata, nil by default
+	var updatedAtP *time.Time
+	if currentDIDDocument != nil {
+		mergedDoc, err := doc.MergeDocuments(*currentDIDDocument, proposedDIDDocument)
+		if err != nil {
+			return fmt.Errorf("unable to merge conflicted DID Document: %w", err)
+		}
+		proposedDIDDocument = *mergedDoc
+		sourceTransactions = uniqueTransactions(currentDIDMeta.SourceTransactions, transaction.Ref())
+		updatedAt := transaction.SigningTime()
+		updatedAtP = &updatedAt
+	}
+
 	documentMetadata := types.DocumentMetadata{
 		Created:            transaction.SigningTime(),
+		Updated:            updatedAtP,
 		Hash:               transaction.PayloadHash(),
-		SourceTransactions: []hash.SHA256Hash{transaction.Ref()},
+		SourceTransactions: sourceTransactions,
 	}
-	err = n.didStore.Write(proposedDIDDocument, documentMetadata)
-	if err == nil {
-		log.Logger().Infof("DID document registered (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+
+	if currentDIDDocument != nil {
+		err = n.didStore.Update(currentDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
+	} else {
+		err = n.didStore.Write(proposedDIDDocument, documentMetadata)
 	}
-	return err
+
+	if err != nil {
+		return fmt.Errorf("unable to register DID document: %w", err)
+	}
+
+	log.Logger().Infof("DID document registered (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+
+	return nil
 }
 
 func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
@@ -297,19 +336,8 @@ func checkTransactionIntegrity(transaction dag.Transaction) error {
 	return nil
 }
 
-func (n ambassador) isUpdate(doc did.Document) (bool, error) {
-	_, _, err := n.didStore.Resolve(doc.ID, nil)
-	result := true
-
-	if errors.Is(err, types.ErrNotFound) {
-		return false, nil
-	}
-
-	if err != nil {
-		result = false
-	}
-
-	return result, err
+func (n ambassador) isUpdate(transaction dag.Transaction) bool {
+	return transaction.SigningKey() == nil
 }
 
 // findKeyByThumbprint accepts a SHA256 generated thumbprint and tries to find it in a provided list of did.VerificationRelationship s.

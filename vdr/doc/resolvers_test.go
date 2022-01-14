@@ -411,7 +411,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
 		docs, err := resolver.ResolveControllers(docB, nil)
-		assert.EqualError(t, err, "unable to resolve controllers: unable to find the DID document")
+		assert.EqualError(t, err, "unable to resolve controller ref: unable to find the DID document")
 		assert.Len(t, docs, 0)
 	})
 }
