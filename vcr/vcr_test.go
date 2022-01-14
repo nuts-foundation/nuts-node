@@ -25,13 +25,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"os"
 	"reflect"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/dag"
 
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/stretchr/testify/mock"
@@ -302,7 +303,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, types.ErrNotFound)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &now)
-		assert.Equal(t, types.ErrNotFound, err)
+		assert.EqualError(t, err, fmt.Sprintf("unable to resolve DID Document (ID=%s): unable to find the DID document", testVC.Issuer.String()))
 	})
 }
 

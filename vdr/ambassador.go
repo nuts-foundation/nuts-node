@@ -100,6 +100,20 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 		return fmt.Errorf("callback could not process new DID Document, DID Document integrity check failed: %w", err)
 	}
 
+	// we check the VDR if the document is already processed by using the transaction hash
+	sourceTX := tx.Ref()
+	doc, _, err := n.didStore.Resolve(nextDIDDocument.ID, &types.ResolveMetadata{
+		SourceTransaction: &sourceTX,
+		AllowDeactivated:  true,
+	})
+	if err != nil && !errors.Is(err, types.ErrNotFound) {
+		return fmt.Errorf("could not process new DID Document: %w", err)
+	}
+	if doc != nil {
+		log.Logger().Infof("Skipping did document, already exists (tx=%s)", tx.Ref().String())
+		return nil
+	}
+
 	if n.isUpdate(tx) {
 		return n.handleUpdateDIDDocument(tx, nextDIDDocument)
 	}
