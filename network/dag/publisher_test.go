@@ -25,10 +25,10 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/events"
 	"go.etcd.io/bbolt"
 
 	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 )
@@ -154,7 +154,6 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 			return nil
 		})
 		txPayloadAddedCalled := 0
-
 		ctrl.publisher.Subscribe(TransactionPayloadAddedEvent, rootTX.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
 			assert.Equal(t, rootTX, actualTransaction)
 			txPayloadAddedCalled++

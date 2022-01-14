@@ -70,6 +70,7 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, payloadHash 
 	s.publish(ctx)
 }
 
+// transactionAdded is called by the DAG when a new transaction is added.
 func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transaction interface{}) {
 	tx := transaction.(Transaction)
 
@@ -183,12 +184,9 @@ func (s *replayingDAGPublisher) replay() error {
 			log.Logger().Errorf("Error reading payload (tx=%s): %v", tx.Ref(), err)
 		}
 		if payload == nil {
-			if tx.PayloadType() == "application/did+json" {
-				return false
-			}
-		} else {
-			s.payloadWritten(ctx, tx.PayloadHash())
+			return false
 		}
+		s.payloadWritten(ctx, tx)
 		return true
 	}, hash.EmptyHash())
 	if err != nil {

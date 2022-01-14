@@ -155,13 +155,21 @@ func TestBBoltDAG_Add(t *testing.T) {
 	t.Run("duplicate", func(t *testing.T) {
 		ctx := context.Background()
 		graph := CreateDAG(t)
+		observerCalls := 0
+		graph.RegisterObserver(func(_ context.Context, _ interface{}) {
+			observerCalls++
+		})
 		tx := CreateTestTransactionWithJWK(0)
 
 		_ = graph.Add(ctx, tx)
 		err := graph.Add(ctx, tx)
+
 		assert.NoError(t, err)
+		// Assert we can find the TX, but make sure it's only there once
 		actual, _ := graph.FindBetween(ctx, MinTime(), MaxTime())
 		assert.Len(t, actual, 1)
+		// Assert observers are only called once
+		assert.Equal(t, 1, observerCalls)
 	})
 	t.Run("second root", func(t *testing.T) {
 		ctx := context.Background()
