@@ -34,22 +34,6 @@ func (l LegacyNutsSuite) GetType() ssi.ProofType {
 	return ssi.JsonWebSignature2020
 }
 
-//type JsonWebSignature2020 struct {
-//}
-//
-//func (s JsonWebSignature2020) Sign(doc []byte, key crypto.Key) ([]byte, error) {
-//	sig, err := crypto.SignJWS(doc, detachedJWSHeaders(), key.Signer())
-//	return []byte(sig), err
-//}
-//
-//func (s JsonWebSignature2020) GetCanonicalDocument(doc map[string]interface{}) ([]byte, error) {
-//}
-//
-//func (s JsonWebSignature2020) GetDigest(doc []byte) []byte {
-//	//TODO implement me
-//	panic("implement me")
-//}
-
 // detachedJWSHeaders creates headers for JsonWebSignature2020
 // the alg will be based upon the key
 // {"b64":false,"crit":["b64"]}
