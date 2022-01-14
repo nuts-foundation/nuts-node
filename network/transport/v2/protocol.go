@@ -147,7 +147,7 @@ func (p *protocol) Start() (err error) {
 		return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
 	}
 
-	p.publisher.Subscribe(dag.AnyPayloadType, p.handlePrivateTx)
+	p.publisher.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
 	return
 }
 

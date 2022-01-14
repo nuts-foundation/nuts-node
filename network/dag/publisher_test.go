@@ -22,7 +22,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/events"
 
@@ -129,30 +128,7 @@ func TestReplayingPublisher_publishTransaction(t *testing.T) {
 		assert.Equal(t, 1, txAddedCalls)
 		assert.Equal(t, 1, txPayloadAddedCalls)
 	})
-
-	t.Run("not received when transaction with pal header is skipped", func(t *testing.T) {
-		ctrl := createPublisher(t)
-
-		transaction := CreateSignedTestTransaction(1, time.Now(), [][]byte{{9, 8, 7}}, "foo/bar", true)
-
-		ctrl.payloadStore.EXPECT().ReadPayload(ctx, transaction.PayloadHash()).Return(nil, nil)
-		ctrl.privateTxCtx.EXPECT().PublishAsync(events.PrivateTransactionsSubject, gomock.Any()).Return(nil, nil)
-
-		txAddedCalled := 0
-		ctrl.publisher.Subscribe(TransactionAddedEvent, transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
-			txAddedCalled++
-			return nil
-		})
-		txPayloadAddedCalled := 0
-		ctrl.publisher.Subscribe(TransactionPayloadAddedEvent, transaction.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
-			txPayloadAddedCalled++
-			return nil
-		})
-
-		ctrl.publisher.publishTransaction(ctx, transaction)
-		assert.Equal(t, 0, txAddedCalled)
-		assert.Equal(t, 0, txPayloadAddedCalled)
-	})
+	
 	t.Run("payload not present (but present later)", func(t *testing.T) {
 		ctrl := createPublisher(t)
 
