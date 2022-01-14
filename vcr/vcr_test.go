@@ -24,7 +24,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"os"
 	"reflect"
@@ -335,9 +334,9 @@ func TestVcr_Issue(t *testing.T) {
 		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
 		testKey := crypto.NewTestKey("kid")
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(testKey, nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(testKey, nil).AnyTimes()
 		ctx.tx.EXPECT().CreateTransaction(
 			mock.MatchedBy(func(tpl network.Template) bool {
 				return tpl.Type == vcDocumentType && !tpl.AttachKey && tpl.Key == testKey
@@ -375,12 +374,12 @@ func TestVcr_Issue(t *testing.T) {
 		cred.Type = []ssi.URI{*uri}
 		//expectedURIA, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
 		//expectedURIB, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDB.String()))
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
 		//serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
 		//service := did.Service{ID: *serviceID}
 		//ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(service, nil)
 		//ctx.serviceResolver.EXPECT().Resolve(*expectedURIB, 5).Return(service, nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil).AnyTimes()
 
 		var tpl network.Template
 		ctx.tx.EXPECT().CreateTransaction(gomock.Any()).DoAndReturn(func(arg network.Template) (dag.Transaction, error) {
@@ -404,8 +403,8 @@ func TestVcr_Issue(t *testing.T) {
 		cred := validNutsOrganizationCredential()
 		uri, _ := ssi.ParseURI("unknownType")
 		cred.Type = []ssi.URI{*uri}
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
-		ctx.serviceResolver.EXPECT().Resolve(gomock.Any(), 5).Return(did.Service{}, errors.New("b00m!"))
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
+		//ctx.serviceResolver.EXPECT().Resolve(gomock.Any(), 5).Return(did.Service{}, errors.New("b00m!"))
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 
 		_, err := instance.Issue(*cred)
@@ -413,7 +412,7 @@ func TestVcr_Issue(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.EqualError(t, err, "failed to resolve participating node (did=did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW): could not resolve NutsComm service owner: b00m!")
+		assert.EqualError(t, err, "could not publish private credential: failed to resolve participating node (did=did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW): could not resolve NutsComm service owner: service not found in DID Document")
 	})
 
 	t.Run("error - unknown type in strict mode", func(t *testing.T) {
@@ -487,8 +486,8 @@ func TestVcr_Issue(t *testing.T) {
 
 		cred := validNutsOrganizationCredential()
 		cred.CredentialSubject = make([]interface{}, 0)
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil).AnyTimes()
 
 		_, err := instance.Issue(*cred)
 
@@ -515,8 +514,8 @@ func TestVcr_Issue(t *testing.T) {
 		key := crypto.NewTestKey("kid")
 
 		cred := validNutsOrganizationCredential()
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil).AnyTimes()
 		ctx.tx.EXPECT().CreateTransaction(gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
@@ -533,8 +532,8 @@ func TestVcr_Issue(t *testing.T) {
 		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil).AnyTimes()
 		ctx.tx.EXPECT().CreateTransaction(gomock.Any()).Return(nil, nil)
 
 		issued, err := instance.Issue(*cred)
@@ -1236,33 +1235,6 @@ func TestWhitespaceOrExactTokenizer(t *testing.T) {
 }
 
 func TestResolveNutsCommServiceOwner(t *testing.T) {
-	serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
-	expectedURIA, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
-	service := did.Service{ID: *serviceID}
-
-	t.Run("ok - correct did from service ID", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(service, nil)
-
-		serviceOwner, err := ctx.vcr.resolveNutsCommServiceOwner(*vdr.TestDIDA)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, vdr.TestDIDA, serviceOwner)
-	})
-
-	t.Run("error from resolver", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(did.Service{}, errors.New("b00m!"))
-
-		_, err := ctx.vcr.resolveNutsCommServiceOwner(*vdr.TestDIDA)
-
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.EqualError(t, err, "could not resolve NutsComm service owner: b00m!")
-	})
 }
 
 func validNutsOrganizationCredential() *vc.VerifiableCredential {

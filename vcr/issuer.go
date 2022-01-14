@@ -31,27 +31,33 @@ type issuer struct {
 	keyResolver keyResolver
 }
 
-func (i issuer) Issue(credentialOptions vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
+// Issue creates a new credential, signs, stores and publishes it to the network.
+func (i issuer) Issue(credentialOptions vc.VerifiableCredential, public bool) (*vc.VerifiableCredential, error) {
+	createdVC, err := i.buildVC(credentialOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	validator, _ := credential.FindValidatorAndBuilder(*createdVC)
+	if err := validator.Validate(*createdVC); err != nil {
+		return nil, err
+	}
+
+	// FIXME: Store the issued VC in the issuer store.
+	//if err = i.store.Store(*createdVC); err != nil {
+	//	return nil, err
+	//}
+
+	if err := i.Publisher.PublishCredential(*createdVC, public); err != nil {
+		return nil, err
+	}
+	return createdVC, nil
+}
+
+func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
 	if len(credentialOptions.Type) != 1 {
 		return nil, errors.New("can only issue credential with 1 type")
 	}
-
-	//validator, builder := credential.FindValidatorAndBuilder(credentialOptions)
-
-	//templateType := credentialOptions.Type[0]
-	//templateTypeString := templateType.String()
-	//conceptConfig := c.registry.FindByType(templateTypeString)
-	//if conceptConfig == nil {
-	//	if c.config.strictMode {
-	//		return nil, errors.New("cannot issue non-predefined credential types in strict mode")
-	//	}
-	//	// non-strictmode, add the credential type to the registry
-	//	conceptConfig = &concept.Config{
-	//		Concept:        templateTypeString,
-	//		CredentialType: templateTypeString,
-	//	}
-	//	c.registry.Add(*conceptConfig)
-	//}
 
 	// find issuer
 	issuer, err := did.ParseDID(credentialOptions.Issuer.String())

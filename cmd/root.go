@@ -185,7 +185,14 @@ func CreateSystem() *core.System {
 		Resolver:   docResolver,
 	}})
 	system.RegisterRoutes(&credAPIv1.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
-	system.RegisterRoutes(&credAPIv2.Wrapper{VCR: credentialInstance, Issuer: vcr.NewIssuer(nil, nil, docResolver, cryptoInstance)})
+	system.RegisterRoutes(&credAPIv2.Wrapper{
+		VCR: credentialInstance,
+		Issuer: vcr.NewIssuer(
+			nil,
+			vcr.NewNetworkPublisher(networkInstance, docResolver, cryptoInstance),
+			docResolver,
+			cryptoInstance),
+	})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance})

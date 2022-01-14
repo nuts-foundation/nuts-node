@@ -40,7 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
@@ -273,14 +272,12 @@ func (c *vcr) search(ctx context.Context, query concept.Query, allowUntrusted bo
 }
 
 func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-	//issuer := NewIssuer(nil, nil, c.docResolver, c.keyStore)
-	//return issuer.Issue(template)
+	publisher := NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
+	issuer := NewIssuer(nil, publisher, c.docResolver, c.keyStore)
 
 	if len(template.Type) != 1 {
 		return nil, errors.New("can only issue credential with 1 type")
 	}
-	validator, builder := credential.FindValidatorAndBuilder(template)
-
 	templateType := template.Type[0]
 	templateTypeString := templateType.String()
 	conceptConfig := c.registry.FindByType(templateTypeString)
@@ -295,121 +292,27 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		}
 		c.registry.Add(*conceptConfig)
 	}
-
-	verifiableCredential := vc.VerifiableCredential{
-		Type:              template.Type,
-		CredentialSubject: template.CredentialSubject,
-		Issuer:            template.Issuer,
-		ExpirationDate:    template.ExpirationDate,
+	verifiableCredential, err := issuer.Issue(template, c.config.OverrideIssueAllPublic || conceptConfig.Public)
+	if err != nil {
+		return nil, err
 	}
 
 	// find issuer
-	issuer, err := did.ParseDID(verifiableCredential.Issuer.String())
+	issuerDID, err := did.ParseDID(verifiableCredential.Issuer.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
-	// find did document/metadata for originating TXs
-	//document, meta, err := c.docResolver.Resolve(*issuer, nil)
-	document, _, err := c.docResolver.Resolve(*issuer, nil)
-	if err != nil {
-		return nil, err
-	}
 
-	// resolve an assertionMethod key for issuer
-	kid, err := doc.ExtractAssertionKeyID(*document)
-	if err != nil {
-		return nil, fmt.Errorf("invalid issuer: %w", err)
-	}
-
-	key, err := c.keyStore.Resolve(kid.String())
-	if err != nil {
-		return nil, fmt.Errorf("could not resolve kid: %w", err)
-	}
-
-	// set defaults
-	builder.Fill(&verifiableCredential)
-
-	// sign
-	if err := c.generateProof(&verifiableCredential, kid, key); err != nil {
-		return nil, fmt.Errorf("failed to generate credential proof: %w", err)
-	}
-
-	// do same validation as network nodes
-	if err := validator.Validate(verifiableCredential); err != nil {
-		return nil, err
-	}
-
-	//// create participants list
-	//participants, err := c.generateParticipants(*conceptConfig, verifiableCredential)
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	//payload, _ := json.Marshal(verifiableCredential)
-	//tx := network.TransactionTemplate(vcDocumentType, payload, key).
-	//	WithTimestamp(verifiableCredential.IssuanceDate).
-	//	WithAdditionalPrevs(meta.SourceTransactions).
-	//	WithPrivate(participants)
-	//_, err = c.network.CreateTransaction(tx)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to publish credential: %w", err)
-	//}
-	//log.Logger().Infof("Verifiable Credential published (id=%s,type=%s)", verifiableCredential.ID, templateType)
-	//
-	//if !c.trustConfig.IsTrusted(templateType, issuer.URI()) {
-	//	log.Logger().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuer, templateType)
-	//	if err := c.Trust(templateType, issuer.URI()); err != nil {
-	//		return &verifiableCredential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuer, templateType, err)
-	//	}
-	//} else {
-	//	log.Logger().Debugf("Issuer already trusted (did=%s,type=%s)", *issuer, templateType)
-	//}
-
-	return &verifiableCredential, nil
-}
-
-func (c *vcr) generateParticipants(conceptConfig concept.Config, verifiableCredential vc.VerifiableCredential) ([]did.DID, error) {
-	issuer, _ := did.ParseDID(verifiableCredential.Issuer.String())
-	participants := make([]did.DID, 0)
-	if !c.config.OverrideIssueAllPublic && !conceptConfig.Public {
-		var (
-			base                []credential.BaseCredentialSubject
-			credentialSubjectID *did.DID
-		)
-		err := verifiableCredential.UnmarshalCredentialSubject(&base)
-		if err == nil {
-			credentialSubjectID, err = did.ParseDID(base[0].ID) // earlier validation made sure length == 1 and ID is present
+	if !c.trustConfig.IsTrusted(templateType, issuerDID.URI()) {
+		log.Logger().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuerDID, templateType)
+		if err := c.Trust(templateType, issuerDID.URI()); err != nil {
+			return verifiableCredential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuerDID, templateType, err)
 		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to determine credentialSubject.ID: %w", err)
-		}
-
-		// participants are not the issuer and the credentialSubject.id but the DID that holds the concrete endpoint for the NutsComm service
-		for _, vcp := range []did.DID{*issuer, *credentialSubjectID} {
-			serviceOwner, err := c.resolveNutsCommServiceOwner(vcp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to resolve participating node (did=%s): %w", vcp.String(), err)
-			}
-
-			participants = append(participants, *serviceOwner)
-		}
+	} else {
+		log.Logger().Debugf("Issuer already trusted (did=%s,type=%s)", issuerDID, templateType)
 	}
-	return participants, nil
-}
 
-func (c *vcr) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, error) {
-	serviceUser, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=%s", DID.String(), transport.NutsCommServiceType))
-
-	service, err := c.serviceResolver.Resolve(*serviceUser, 5)
-	if err != nil {
-		return nil, fmt.Errorf("could not resolve NutsComm service owner: %w", err)
-	}
-	serviceID := service.ID
-	serviceID.Fragment = ""
-	serviceID.Path = ""
-
-	// impossible that this will return an error, so we won't wrap it within a different message
-	return did.ParseDID(serviceID.String())
+	return verifiableCredential, nil
 }
 
 func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {

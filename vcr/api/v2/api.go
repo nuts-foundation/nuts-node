@@ -31,7 +31,8 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 		return err
 	}
 
-	vcCreated, err := w.Issuer.Issue(requestedVC)
+	// FIXME: Get public flag from request options
+	vcCreated, err := w.Issuer.Issue(requestedVC, true)
 	if err != nil {
 		return err
 	}
