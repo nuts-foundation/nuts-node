@@ -61,10 +61,8 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, payloadHash 
 			return
 		}
 
-		if txs[0].PayloadType() != "application/did+json" {
-			// make sure publisher resumes at this point
-			s.resumeAt.PushBack(txs[0].Ref())
-		}
+		// make sure publisher resumes at this point
+		s.resumeAt.PushBack(txs[0].Ref())
 	}
 
 	s.publish(ctx)
@@ -77,7 +75,7 @@ func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transactio
 	s.emitEvent(TransactionAddedEvent, tx, nil)
 
 	// Received new transaction, add it to the subscription walker resume list, so it resumes from this transaction
-	// when the payload is received.
+	// when the payload is received. This block so it may only be added for TX where we know the payload will come.
 	s.resumeAt.PushBack(tx.Ref())
 	s.publish(ctx)
 }
@@ -113,7 +111,7 @@ func (s *replayingDAGPublisher) Start() error {
 	return s.replay()
 }
 
-// publish is called both from payloadWritten and transactionAdded. Only when both are satified (transaction is present and payload as well), the transaction is published.
+// publish is called both from payloadWritten and transactionAdded. Only when both are satisfied (transaction is present and payload as well), the transaction is published.
 // payloadWritten will be the correct event during operation, transactionAdded will be the event at startup
 func (s *replayingDAGPublisher) publish(ctx context.Context) {
 	front := s.resumeAt.Front()
@@ -123,10 +121,9 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 
 	currentRef := front.Value.(hash.SHA256Hash)
 	err := s.dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
-		outcome := true
 		txRef := transaction.Ref()
 
-		outcome = s.publishTransaction(ctx, transaction)
+		outcome := s.publishTransaction(ctx, transaction)
 		if outcome && currentRef.Equals(txRef) {
 			s.resumeAt.Remove(front)
 		}
@@ -184,9 +181,13 @@ func (s *replayingDAGPublisher) replay() error {
 			log.Logger().Errorf("Error reading payload (tx=%s): %v", tx.Ref(), err)
 		}
 		if payload == nil {
-			return false
+			if tx.PayloadType() == "application/did+json" {
+				// public TX but without payload, TX processing only. Wait for payload
+				return false
+			}
+		} else {
+			s.payloadWritten(ctx, tx.PayloadHash())
 		}
-		s.payloadWritten(ctx, tx.PayloadHash())
 		return true
 	}, hash.EmptyHash())
 	if err != nil {
