@@ -110,7 +110,7 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 		return fmt.Errorf("could not process new DID Document: %w", err)
 	}
 	if doc != nil {
-		log.Logger().Infof("Skipping did document, already exists (tx=%s)", tx.Ref().String())
+		log.Logger().Infof("Skipping DID document, already exists (tx=%s)", tx.Ref().String())
 		return nil
 	}
 
@@ -147,9 +147,10 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 	// check for an existing document, it could have been a parallel create. If existing merge and update.
 	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
 	if err != nil && !errors.Is(err, types.ErrNotFound) {
-		return fmt.Errorf("unable to create DID document: %w", err)
+		return fmt.Errorf("unable to register DID document: %w", err)
 	}
 	sourceTransactions := []hash.SHA256Hash{transaction.Ref()}
+	// pointer to updated time required for metadata, nil by default
 	var updatedAtP *time.Time
 	if currentDIDDocument != nil {
 		mergedDoc, err := doc.MergeDocuments(*currentDIDDocument, proposedDIDDocument)
@@ -176,8 +177,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 	}
 
 	if err != nil {
-		return fmt.Errorf("unable to create DID document: %w", err)
-
+		return fmt.Errorf("unable to register DID document: %w", err)
 	}
 
 	log.Logger().Infof("DID document registered (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)

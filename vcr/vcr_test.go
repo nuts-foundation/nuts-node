@@ -303,7 +303,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, types.ErrNotFound)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &now)
-		assert.EqualError(t, err, fmt.Sprintf("unable to resolve DID Document (ID=%s): unable to find the DID document", testVC.Issuer.String()))
+		assert.ErrorIsf(t, err, types.ErrNotFound, fmt.Sprintf("unable to resolve DID Document (ID=%s): unable to find the DID document", testVC.Issuer.String()))
 	})
 }
 

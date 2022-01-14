@@ -288,7 +288,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 
 		err = ctx.ambassador.handleCreateDIDDocument(tx, expectedDocument)
 
-		assert.EqualError(t, err, "unable to create DID document: b00m!")
+		assert.EqualError(t, err, "unable to register DID document: b00m!")
 	})
 
 	// This test recreates the situation where the node gets restarted and the ambassador handles all the
