@@ -186,7 +186,7 @@ func (s *replayingDAGPublisher) replay() error {
 		if payload == nil {
 			return false
 		}
-		s.payloadWritten(ctx, tx)
+		s.payloadWritten(ctx, tx.PayloadHash())
 		return true
 	}, hash.EmptyHash())
 	if err != nil {
