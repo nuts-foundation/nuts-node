@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"go.etcd.io/bbolt"
 
@@ -140,7 +141,30 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 		assert.Equal(t, 1, txAddedCalls)
 		assert.Equal(t, 1, txPayloadAddedCalls)
 	})
+	t.Run("not received when transaction with pal header is skipped", func(t *testing.T) {
+		ctrl := createPublisher(t)
 
+		tx := CreateSignedTestTransaction(1, time.Now(), [][]byte{{9, 8, 7}}, "foo/bar", true)
+
+		ctrl.payloadStore.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).AnyTimes().Return(nil, nil)
+		ctrl.graph.Add(ctx, tx)
+
+		txAddedCalled := 0
+		ctrl.publisher.Subscribe(TransactionAddedEvent, tx.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+			txAddedCalled++
+			return nil
+		})
+		txPayloadAddedCalled := 0
+		ctrl.publisher.Subscribe(TransactionPayloadAddedEvent, tx.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+			txPayloadAddedCalled++
+			return nil
+		})
+
+		ctrl.publisher.transactionAdded(ctx, tx)
+
+		assert.Equal(t, 1, txAddedCalled)
+		assert.Equal(t, 0, txPayloadAddedCalled)
+	})
 	t.Run("payload not present (but present later)", func(t *testing.T) {
 		ctrl := createPublisher(t)
 

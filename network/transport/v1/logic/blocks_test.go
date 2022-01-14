@@ -213,7 +213,7 @@ func TestBlocks(t *testing.T) {
 					oldestTXAge = currTX.time
 				}
 				txs[currTX.name] = tx
-				err := blocks.addTransaction(&tx, []byte{1, 2, 3})
+				err := blocks.addTransaction(&tx, nil)
 				if !assert.NoError(t, err) {
 					return
 				}

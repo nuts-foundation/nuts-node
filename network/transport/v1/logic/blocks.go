@@ -126,7 +126,7 @@ func (blx *trackingDAGBlocks) get() []dagBlock {
 // AddTransaction adds a transaction to the DAG blocks structure. It MUST be called for transactions in order,
 // so it's typically called using a sequential DAG subscriber.
 // So given TXs `A <- B <- [C, D]` call order is A, B, C, D (or A, B, D, C).
-func (blx *trackingDAGBlocks) addTransaction(tx dag.Transaction, payload []byte) error {
+func (blx *trackingDAGBlocks) addTransaction(tx dag.Transaction, _ []byte) error {
 	blx.mux.Lock()
 	defer blx.mux.Unlock()
 

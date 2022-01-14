@@ -277,6 +277,18 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): random error", txOk.Ref()))
 	})
 
+	t.Run("removes job when the transaction doesn't contain a valid PAL header", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, testDID)
+		txOk := dag.CreateSignedTestTransaction(1, time.Now(), nil, "text/plain", true)
+
+		mocks.PayloadStore.EXPECT().ReadPayload(gomock.Any(), txOk.PayloadHash()).Return(nil, nil)
+		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(txOk, nil)
+		mocks.PayloadScheduler.EXPECT().Finished(txOk.Ref())
+
+		err := proto.handlePrivateTxRetryErr(txOk.Ref())
+		assert.NoError(t, err)
+	})
+
 	t.Run("errors when decryption fails because the key-agreement key could not be found", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, testDID)
 

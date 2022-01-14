@@ -151,15 +151,9 @@ func (p *protocol) Start() (err error) {
 	return
 }
 
-func (p *protocol) handlePrivateTx(tx dag.Transaction, payload []byte) error {
+func (p *protocol) handlePrivateTx(tx dag.Transaction, _ []byte) error {
 	if len(tx.PAL()) == 0 {
 		// not for us, but for V1 protocol
-		return nil
-	}
-
-	if payload != nil {
-		// payloadWritten event from dagPublisher. Called when payload has been written.
-		// no need to fetch again.
 		return nil
 	}
 
@@ -214,7 +208,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	// We weren't able to decrypt the PAL, so it wasn't meant for us
 	if pal == nil {
 		// stop retrying
-		if err = p.payloadScheduler.Finished(tx.Ref()); err != nil {
+		if err = p.payloadScheduler.Finished(hash); err != nil {
 			return err
 		}
 		return nil
