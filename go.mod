@@ -30,7 +30,7 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/tidwall/gjson v1.12.1
+	github.com/tidwall/gjson v1.13.0
 	go.etcd.io/bbolt v1.3.6
 	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
