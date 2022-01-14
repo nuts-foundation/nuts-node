@@ -11,7 +11,7 @@ require (
 	github.com/goodsign/monday v1.0.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/vault/api v1.3.1
-	github.com/knadh/koanf v1.3.3
+	github.com/knadh/koanf v1.4.0
 	github.com/labstack/echo/v4 v4.6.1
 	github.com/lestrrat-go/jwx v1.2.17
 	github.com/magiconair/properties v1.8.5
