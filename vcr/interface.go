@@ -23,6 +23,8 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -131,4 +133,28 @@ type VCR interface {
 	TrustManager
 	Validator
 	Writer
+}
+
+// Issuer is a role in the network for a party who issues credentials about a subject to a holder.
+type Issuer interface {
+	Issue(unsignedCredential vc.VerifiableCredential) (*vc.VerifiableCredential, error)
+	Revoke(credentialID ssi.URI) error
+	SearchForIssuedCredential(credentialType string, issuer did.DID) ([]vc.VerifiableCredential, error)
+}
+
+// IssuedCredentialsStore allows an Issuer to store and retrieve issued credentials.
+// This is useful for when the issuer wants to revoke a credential.
+type IssuedCredentialsStore interface {
+	Store(verifiableCredential vc.VerifiableCredential) error
+	Search(credentialType string, credentialSubject string, issuer did.DID, subject ssi.URI) ([]vc.VerifiableCredential, error)
+}
+
+// Publisher publishes new credentials and revocations to a channel. Used by a credential issuer.
+type Publisher interface {
+	PublishCredential(verifiableCredential vc.VerifiableCredential) error
+	PublishRevocation(revocation credential.Revocation) error
+}
+
+type keyResolver interface {
+	ResolveAssertionKey(issuerDID did.DID) (crypto.Key, error)
 }

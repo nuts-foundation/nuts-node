@@ -273,6 +273,9 @@ func (c *vcr) search(ctx context.Context, query concept.Query, allowUntrusted bo
 }
 
 func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
+	//issuer := NewIssuer(nil, nil, c.docResolver, c.keyStore)
+	//return issuer.Issue(template)
+
 	if len(template.Type) != 1 {
 		return nil, errors.New("can only issue credential with 1 type")
 	}
@@ -306,7 +309,8 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
 	// find did document/metadata for originating TXs
-	document, meta, err := c.docResolver.Resolve(*issuer, nil)
+	//document, meta, err := c.docResolver.Resolve(*issuer, nil)
+	document, _, err := c.docResolver.Resolve(*issuer, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -335,31 +339,31 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		return nil, err
 	}
 
-	// create participants list
-	participants, err := c.generateParticipants(*conceptConfig, verifiableCredential)
-	if err != nil {
-		return nil, err
-	}
+	//// create participants list
+	//participants, err := c.generateParticipants(*conceptConfig, verifiableCredential)
+	//if err != nil {
+	//	return nil, err
+	//}
 
-	payload, _ := json.Marshal(verifiableCredential)
-	tx := network.TransactionTemplate(vcDocumentType, payload, key).
-		WithTimestamp(verifiableCredential.IssuanceDate).
-		WithAdditionalPrevs(meta.SourceTransactions).
-		WithPrivate(participants)
-	_, err = c.network.CreateTransaction(tx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to publish credential: %w", err)
-	}
-	log.Logger().Infof("Verifiable Credential published (id=%s,type=%s)", verifiableCredential.ID, templateType)
-
-	if !c.trustConfig.IsTrusted(templateType, issuer.URI()) {
-		log.Logger().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuer, templateType)
-		if err := c.Trust(templateType, issuer.URI()); err != nil {
-			return &verifiableCredential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuer, templateType, err)
-		}
-	} else {
-		log.Logger().Debugf("Issuer already trusted (did=%s,type=%s)", *issuer, templateType)
-	}
+	//payload, _ := json.Marshal(verifiableCredential)
+	//tx := network.TransactionTemplate(vcDocumentType, payload, key).
+	//	WithTimestamp(verifiableCredential.IssuanceDate).
+	//	WithAdditionalPrevs(meta.SourceTransactions).
+	//	WithPrivate(participants)
+	//_, err = c.network.CreateTransaction(tx)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to publish credential: %w", err)
+	//}
+	//log.Logger().Infof("Verifiable Credential published (id=%s,type=%s)", verifiableCredential.ID, templateType)
+	//
+	//if !c.trustConfig.IsTrusted(templateType, issuer.URI()) {
+	//	log.Logger().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuer, templateType)
+	//	if err := c.Trust(templateType, issuer.URI()); err != nil {
+	//		return &verifiableCredential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuer, templateType, err)
+	//	}
+	//} else {
+	//	log.Logger().Debugf("Issuer already trusted (did=%s,type=%s)", *issuer, templateType)
+	//}
 
 	return &verifiableCredential, nil
 }
