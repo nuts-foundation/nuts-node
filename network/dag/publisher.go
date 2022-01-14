@@ -58,10 +58,12 @@ type replayingDAGPublisher struct {
 	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
 
+// payloadWritten is called by the PayloadStore when a transaction payload is written.
 func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ interface{}) {
 	s.publish(ctx)
 }
 
+// transactionAdded is called by the DAG when a new transaction is added.
 func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transaction interface{}) {
 	tx := transaction.(Transaction)
 
@@ -176,13 +178,6 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 		return false
 	}
 
-	// TODO: Now calls TransactionAddedEvent and TransactionPayloadAddedEvent after checking whether the payload is present.
-	//       This will need to be changed: TransactionAddedEvent must be called regardless whether the payload is present or not (e.g. top of this function).
-	//       However, when doing that at this moment, TransactionAddedEvent might be published multiple times for transactions which payload is not present the first time.
-	//       This is generally the case during operation when new transactions are received over the network.
-	//       Since not all subscribers are guaranteed to be idempotent at this time, they might break if we introduce it at this moment in time.
-	//       So after all subscribers are made idempotent, TransactionAddedEvent must be published regardless of the payload is present or not.
-	//       This is to accommodate syncing DAGs even when receiving a TX with a detached payload, or a private TX not meant for the local node.
 	s.emitEvent(TransactionPayloadAddedEvent, transaction, payload)
 
 	return true
