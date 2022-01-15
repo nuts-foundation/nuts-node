@@ -61,8 +61,11 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, payloadHash 
 			return
 		}
 
-		// make sure publisher resumes at this point
-		s.resumeAt.PushBack(txs[0].Ref())
+		// make sure publisher resumes at these points
+		for _, tx := range txs {
+			s.resumeAt.PushBack(tx.Ref())
+		}
+
 	}
 
 	s.publish(ctx)
@@ -121,16 +124,29 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 
 	currentRef := front.Value.(hash.SHA256Hash)
 	err := s.dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
-		txRef := transaction.Ref()
-
 		outcome := s.publishTransaction(ctx, transaction)
-		if outcome && currentRef.Equals(txRef) {
-			s.resumeAt.Remove(front)
+		if outcome {
+			remove(s.resumeAt, transaction.Ref())
 		}
 		return outcome
 	}, currentRef)
 	if err != nil {
 		log.Logger().Errorf("Unable to publish DAG: %v", err)
+	}
+}
+
+func remove(l *list.List, ref hash.SHA256Hash) {
+	current := l.Front()
+
+	for {
+		if current == nil {
+			return
+		}
+		if current.Value.(hash.SHA256Hash).Equals(ref) {
+			l.Remove(current)
+			return
+		}
+		current = current.Next()
 	}
 }
 
@@ -142,7 +158,7 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 	}
 
 	if payload == nil {
-		if transaction.PayloadType() == "application/did+json" {
+		if isBlockingTransaction(transaction) {
 			// public TX but without payload, TX processing only. Wait for payload
 			return false
 		}
@@ -169,24 +185,26 @@ func (s *replayingDAGPublisher) emitEvent(eventType EventType, transaction Trans
 	}
 }
 
+// replay uses transactionAdded and payloadWritten to emit events. Both of these call publishTransaction which may cause events to be emitted more than once.
 func (s *replayingDAGPublisher) replay() error {
 	log.Logger().Debug("Replaying DAG...")
 	s.publishMux.Lock()
 	defer s.publishMux.Unlock()
 
 	err := s.dag.Walk(context.Background(), func(ctx context.Context, tx Transaction) bool {
-		s.transactionAdded(ctx, tx)
+		s.emitEvent(TransactionAddedEvent, tx, nil)
 		payload, err := s.payloadStore.ReadPayload(ctx, tx.PayloadHash())
 		if err != nil {
 			log.Logger().Errorf("Error reading payload (tx=%s): %v", tx.Ref(), err)
 		}
 		if payload == nil {
-			if tx.PayloadType() == "application/did+json" {
+			if isBlockingTransaction(tx) {
 				// public TX but without payload, TX processing only. Wait for payload
+				s.resumeAt.PushBack(tx.Ref())
 				return false
 			}
 		} else {
-			s.payloadWritten(ctx, tx.PayloadHash())
+			s.emitEvent(TransactionPayloadAddedEvent, tx, payload)
 		}
 		return true
 	}, hash.EmptyHash())
@@ -195,4 +213,9 @@ func (s *replayingDAGPublisher) replay() error {
 	}
 	log.Logger().Debug("Finished replaying DAG")
 	return nil
+}
+
+// isBlockingTransaction returns true if for the given transaction the payload must have been processed before continuing to the next tx.
+func isBlockingTransaction(tx Transaction) bool {
+	return tx.PayloadType() == "application/did+json"
 }
