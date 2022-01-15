@@ -78,7 +78,7 @@ func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transactio
 	s.emitEvent(TransactionAddedEvent, tx, nil)
 
 	// Received new transaction, add it to the subscription walker resume list, so it resumes from this transaction
-	// when the payload is received. This block so it may only be added for TX where we know the payload will come.
+	// when the payload is received. This blocks so it may only be added for TX where we know the payload will come.
 	s.resumeAt.PushBack(tx.Ref())
 	s.publish(ctx)
 }
