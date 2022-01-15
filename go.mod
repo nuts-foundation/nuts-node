@@ -16,7 +16,7 @@ require (
 	github.com/lestrrat-go/jwx v1.2.17
 	github.com/magiconair/properties v1.8.5
 	github.com/mdp/qrterminal/v3 v3.0.0
-	github.com/nats-io/nats-server/v2 v2.6.6
+	github.com/nats-io/nats-server/v2 v2.7.0
 	github.com/nats-io/nats.go v1.13.1-0.20211122170419-d7c1d78a50fc
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.1.1
@@ -115,7 +115,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/mr-tron/base58 v1.1.3 // indirect
 	github.com/multiformats/go-multihash v0.0.11 // indirect
-	github.com/nats-io/jwt/v2 v2.2.0 // indirect
+	github.com/nats-io/jwt/v2 v2.2.1-0.20220113022732-58e87895b296 // indirect
 	github.com/nats-io/nkeys v0.3.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443 // indirect
@@ -143,12 +143,12 @@ require (
 	go.opentelemetry.io/otel/metric v0.19.0 // indirect
 	go.opentelemetry.io/otel/trace v0.19.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
-	golang.org/x/net v0.0.0-20210913180222-943fd674d43e // indirect
-	golang.org/x/sys v0.0.0-20211205182925-97ca703d548d // indirect
+	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce // indirect
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
+	golang.org/x/sys v0.0.0-20220111092808-5a964db01320 // indirect
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
+	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11 // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
