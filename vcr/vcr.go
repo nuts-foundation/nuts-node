@@ -299,7 +299,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		}
 		c.registry.Add(*conceptConfig)
 	}
-	verifiableCredential, err := issuer.Issue(template, c.config.OverrideIssueAllPublic || conceptConfig.Public)
+	verifiableCredential, err := issuer.Issue(template, true, c.config.OverrideIssueAllPublic || conceptConfig.Public)
 	if err != nil {
 		return nil, err
 	}

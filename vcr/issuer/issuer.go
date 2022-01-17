@@ -33,7 +33,7 @@ type issuer struct {
 }
 
 // Issue creates a new credential, signs, stores and publishes it to the network.
-func (i issuer) Issue(credentialOptions vc.VerifiableCredential, public bool) (*vc.VerifiableCredential, error) {
+func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error) {
 	createdVC, err := i.buildVC(credentialOptions)
 	if err != nil {
 		return nil, err
@@ -44,13 +44,15 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, public bool) (*
 		return nil, err
 	}
 
-	// FIXME: Store the issued VC in the issuer store.
+	// TODO: Store credential in the store
 	//if err = i.store.Store(*createdVC); err != nil {
 	//	return nil, err
 	//}
 
-	if err := i.Publisher.PublishCredential(*createdVC, public); err != nil {
-		return nil, err
+	if publish {
+		if err := i.Publisher.PublishCredential(*createdVC, public); err != nil {
+			return nil, err
+		}
 	}
 	return createdVC, nil
 }

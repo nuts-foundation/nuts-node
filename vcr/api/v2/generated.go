@@ -13,9 +13,17 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/labstack/echo/v4"
+)
+
+// Defines values for IssueVCRequestVisibility.
+const (
+	IssueVCRequestVisibilityPrivate IssueVCRequestVisibility = "private"
+
+	IssueVCRequestVisibilityPublic IssueVCRequestVisibility = "public"
 )
 
 // Defines values for ResolutionResultCurrentStatus.
@@ -29,6 +37,36 @@ const (
 
 // DID according to Nuts specification
 type DID string
+
+// A request for issuing a new Verifiable Credential.
+type IssueVCRequest struct {
+	// The resolvable context of the credentialSubject as URI. If omitted, the "https://nuts.nl/credentials/v1" context is used.
+	// Note: it is not needed to provide the "https://www.w3.org/2018/credentials/v1" context here.
+	Context *string `json:"@context,omitempty"`
+
+	// Subject of a Verifiable Credential identifying the holder and expressing claims.
+	CredentialSubject CredentialSubject `json:"credentialSubject"`
+
+	// rfc3339 time string until when the credential is valid.
+	ExpirationDate *time.Time `json:"expirationDate,omitempty"`
+
+	// DID according to Nuts specification.
+	Issuer string `json:"issuer"`
+
+	// If set, the node publishes this credential to the network. This is the default behaviour.
+	// When set to false, the caller is responsible for distributing the VC to a holder. When the issuer is
+	// also the holder, it then can be used to directly create a presentation (self issued).
+	PublishToNetwork *bool `json:"publishToNetwork,omitempty"`
+
+	// Type definition for the credential.
+	Type string `json:"type"`
+
+	// When publishToNetwork is true, the credential can be published publicly of privately to the holder.
+	Visibility *IssueVCRequestVisibility `json:"visibility,omitempty"`
+}
+
+// When publishToNetwork is true, the credential can be published publicly of privately to the holder.
+type IssueVCRequestVisibility string
 
 // result of a Resolve operation.
 type ResolutionResult struct {
@@ -57,7 +95,7 @@ type IssueVCJSONBody IssueVCRequest
 // ResolveIssuedVCParams defines parameters for ResolveIssuedVC.
 type ResolveIssuedVCParams struct {
 	// a rfc3339 time string for resolving a VC at a specific moment in time
-	ResolveTime *string `json:"resolveTime,omitempty"`
+	ResolveTime *time.Time `json:"resolveTime,omitempty"`
 }
 
 // VerifyVCJSONBody defines parameters for VerifyVC.
@@ -661,13 +699,13 @@ func ParseVerifyVCResponse(rsp *http.Response) (*VerifyVCResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Creates a new Verifiable Credential
+	// Issues a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx echo.Context) error
 	// Revoke an issued credential
 	// (DELETE /internal/vcr/v2/issuer/vc/{id})
 	RevokeVC(ctx echo.Context, id string) error
-	// Resolves an issued verifiable credential
+	// Resolves a verifiable credential issued by this node
 	// (GET /internal/vcr/v2/issuer/vc/{id})
 	ResolveIssuedVC(ctx echo.Context, id string, params ResolveIssuedVCParams) error
 	// Verifies a Verifiable Credential

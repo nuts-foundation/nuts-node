@@ -132,7 +132,7 @@ type VCR interface {
 
 // Issuer is a role in the network for a party who issues credentials about a subject to a holder.
 type Issuer interface {
-	Issue(unsignedCredential vc.VerifiableCredential, public bool) (*vc.VerifiableCredential, error)
+	Issue(unsignedCredential vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error)
 	Revoke(credentialID ssi.URI) error
 	SearchForIssuedCredential(credentialType string, issuer did.DID) ([]vc.VerifiableCredential, error)
 }

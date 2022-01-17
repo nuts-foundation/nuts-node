@@ -10,9 +10,9 @@ servers:
 paths:
   /internal/vcr/v2/issuer/vc:
     post:
-      summary: Creates a new Verifiable Credential
+      summary: Issues a new Verifiable Credential
       description: |
-        Creates a new Verifiable Credential.
+        Issues a new Verifiable Credential for provided type in the context.
         
         error returns:
         * 400 - One or more of the given parameters are invalid
@@ -47,7 +47,7 @@ paths:
         schema:
           type: string
     get:
-      summary: "Resolves an issued verifiable credential"
+      summary: "Resolves a verifiable credential issued by this node"
       description: >
         The resolutionResult contains the credential regardless of the validity.
         The resolutionResult.currentStatus must be checked to see if the credential is valid.
@@ -63,6 +63,7 @@ paths:
           example: "2012-01-02T12:00:00Z"
           schema:
             type: string
+            format: date-time
       tags:
         - credential
       responses:
@@ -135,6 +136,13 @@ components:
         - issuer
         - credentialSubject
       properties:
+        "@context":
+          description: |
+            The resolvable context of the credentialSubject as URI. If omitted, the "https://nuts.nl/credentials/v1" context is used.
+            Note: it is not needed to provide the "https://www.w3.org/2018/credentials/v1" context here.
+          type: string
+          example: "http://schema.org"
+          default: "https://nuts.nl/credentials/v1"
         type:
           description: Type definition for the credential.
           type: string
@@ -146,7 +154,21 @@ components:
         expirationDate:
           description: rfc3339 time string until when the credential is valid.
           type: string
+          format: date-time
           example: "2012-01-02T12:00:00Z"
+        publishToNetwork:
+          description: |
+            If set, the node publishes this credential to the network. This is the default behaviour.
+            When set to false, the caller is responsible for distributing the VC to a holder. When the issuer is
+            also the holder, it then can be used to directly create a presentation (self issued).
+          type: boolean
+          default: true
+        visibility:
+            description: |
+              When publishToNetwork is true, the credential can be published publicly of privately to the holder.
+            type: string
+            enum: [ public, private ]
+            default: private
         credentialSubject:
           $ref: '#/components/schemas/CredentialSubject'
     VerifiableCredential:
@@ -161,7 +183,7 @@ components:
         - proof
       properties:
         "@context":
-          description: List of URIs
+          description: "List of URIs of JSON-LD contexts of the VC."
           type: array
           items:
             type: string
@@ -179,11 +201,13 @@ components:
         issuanceDate:
           description: rfc3339 time string when the credential was issued.
           type: string
+          format: date-time
           example: "2012-01-02T12:00:00Z"
         expirationDate:
           description: rfc3339 time string untill when the credential is valid.
           type: string
           example: "2012-01-02T12:00:00Z"
+          format: date-time
         credentialSubject:
           $ref: '#/components/schemas/CredentialSubject'
         proof:

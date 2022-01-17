@@ -1,7 +1,9 @@
 package v2
 
 import (
+	"encoding/json"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"net/http"
@@ -25,14 +27,38 @@ func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
 }
 
 func (w Wrapper) IssueVC(ctx echo.Context) error {
-	requestedVC := IssueVCRequest{}
-
-	if err := ctx.Bind(&requestedVC); err != nil {
+	issueRequest := IssueVCRequest{}
+	if err := ctx.Bind(&issueRequest); err != nil {
 		return err
 	}
 
-	// FIXME: Get public flag from request options
-	vcCreated, err := w.Issuer.Issue(requestedVC, true)
+	var (
+		publish bool
+		public  bool
+	)
+
+	// publish is true by default
+	if issueRequest.PublishToNetwork != nil {
+		publish = *issueRequest.PublishToNetwork
+	} else {
+		publish = true
+	}
+
+	// public is false by default
+	if issueRequest.Visibility != nil {
+		if !publish {
+			return core.InvalidInputError("visibility setting is only valid when publishing to the network")
+		}
+		public = *issueRequest.Visibility == IssueVCRequestVisibilityPublic
+	}
+
+	requestedVC := vc.VerifiableCredential{}
+	rawRequest, _ := json.Marshal(issueRequest)
+	if err := json.Unmarshal(rawRequest, &requestedVC); err != nil {
+		return err
+	}
+
+	vcCreated, err := w.Issuer.Issue(requestedVC, publish, public)
 	if err != nil {
 		return err
 	}
