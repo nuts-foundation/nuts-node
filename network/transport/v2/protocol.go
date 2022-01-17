@@ -198,9 +198,17 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 		return p.payloadScheduler.Finished(hash)
 	}
 
+	nodeDID, err := p.nodeDIDResolver.Resolve()
+	if err != nil {
+		return err
+	}
+	if nodeDID.Empty() {
+		return errors.New("node DID is not set")
+	}
+
 	epal := dag.EncryptedPAL(tx.PAL())
 
-	pal, senderDID, err := p.decryptPAL(epal)
+	pal, err := p.decryptPAL(epal, nodeDID)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt PAL header (tx=%s): %w", tx.Ref(), err)
 	}
@@ -214,19 +222,27 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 		return nil
 	}
 
-	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(senderDID))
+	// Broadcast query to all TX participants we've got a connection to
+	sent := false
+	for _, curr := range pal {
+		conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(curr))
+		if conn != nil {
+			err = conn.Send(p, &Envelope{Message: &Envelope_TransactionPayloadQuery{
+				TransactionPayloadQuery: &TransactionPayloadQuery{
+					TransactionRef: tx.Ref().Slice(),
+				},
+			}})
 
-	if conn == nil {
-		return fmt.Errorf("unable to retrieve payload, no connection found (tx=%s, DID=%s)", hash.String(), senderDID)
+			if err != nil {
+				log.Logger().Warnf("Failed to send TransactionPayloadQuery message to private TX participant (tx=%s, PAL=%v): %v", hash.String(), pal, err)
+			} else {
+				sent = true
+			}
+		}
 	}
 
-	err = conn.Send(p, &Envelope{Message: &Envelope_TransactionPayloadQuery{
-		TransactionPayloadQuery: &TransactionPayloadQuery{
-			TransactionRef: tx.Ref().Slice(),
-		},
-	}})
-	if err != nil {
-		return fmt.Errorf("failed to send TransactionPayloadQuery message(tx=%s, DID=%s): %w", hash.String(), senderDID, err)
+	if !sent {
+		return fmt.Errorf("unable to retrieve private TX payload, no connections to any of the participants (tx=%s, PAL=%v)", hash.String(), pal)
 	}
 
 	return nil
@@ -259,19 +275,10 @@ func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
 }
 
 // decryptPAL returns nil, nil if the PAL couldn't be decoded
-func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, did.DID, error) {
-	nodeDID, err := p.nodeDIDResolver.Resolve()
-	if err != nil {
-		return nil, did.DID{}, err
-	}
-
-	if nodeDID.Empty() {
-		return nil, did.DID{}, errors.New("node DID is not set")
-	}
-
+func (p *protocol) decryptPAL(encrypted [][]byte, nodeDID did.DID) (dag.PAL, error) {
 	doc, _, err := p.docResolver.Resolve(nodeDID, nil)
 	if err != nil {
-		return nil, did.DID{}, err
+		return nil, err
 	}
 
 	keyAgreementIDs := make([]string, len(doc.KeyAgreement))
@@ -282,28 +289,7 @@ func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, did.DID, error) {
 
 	epal := dag.EncryptedPAL(encrypted)
 
-	pal, err := epal.Decrypt(keyAgreementIDs, p.decrypter)
-	if err != nil {
-		return nil, did.DID{}, err
-	}
-
-	if len(pal) == 0 {
-		return nil, did.DID{}, nil
-	}
-
-	var senderDID did.DID
-
-	for _, id := range pal {
-		if !id.Equals(nodeDID) {
-			senderDID = id
-		}
-	}
-
-	if senderDID.Empty() {
-		return nil, did.DID{}, errors.New("unable to find a sender in the PAL")
-	}
-
-	return pal, senderDID, nil
+	return epal.Decrypt(keyAgreementIDs, p.decrypter)
 }
 
 type protocolServer struct {

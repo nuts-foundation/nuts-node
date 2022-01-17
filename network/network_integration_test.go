@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"fmt"
 	"hash/crc32"
+	"math/rand"
 	"path"
 	"sync"
 	"testing"
@@ -293,6 +294,55 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		// check node 3 does not have the payload
 		assert.False(t, arrived)
+	})
+
+	t.Run("three participants", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest()
+		key := nutsCrypto.NewTestKey("key")
+
+		// Start 3 nodes: node1, node2 and node3. Node 1 sends a private TX to node 2 and node 3, which both should receive.
+		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+		node3 := startNode(t, "node3", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node3"
+		})
+		// Make a full mesh
+		node2.connectionManager.Connect(nameToAddress(t, "node1"))
+		node2.connectionManager.Connect(nameToAddress(t, "node3"))
+		node3.connectionManager.Connect(nameToAddress(t, "node1"))
+		node3.connectionManager.Connect(nameToAddress(t, "node2"))
+
+		test.WaitFor(t, func() (bool, error) {
+			return len(node1.connectionManager.Peers()) == 2, nil
+		}, defaultTimeout, "time-out while waiting for nodes to connect")
+		test.WaitFor(t, func() (bool, error) {
+			return len(node2.connectionManager.Peers()) == 2, nil
+		}, defaultTimeout, "time-out while waiting for nodes to connect")
+		test.WaitFor(t, func() (bool, error) {
+			return len(node3.connectionManager.Peers()) == 2, nil
+		}, defaultTimeout, "time-out while waiting for nodes to connect")
+
+		node1DID, _ := node1.nodeDIDResolver.Resolve()
+		node2DID, _ := node2.nodeDIDResolver.Resolve()
+		node3DID, _ := node3.nodeDIDResolver.Resolve()
+		// Random order for PAL header
+		pal := []did.DID{node1DID, node2DID, node3DID}
+		rand.Shuffle(len(pal), func(i, j int) {
+			pal[i], pal[j] = pal[j], pal[i]
+		})
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
+			WithAttachKey().
+			WithPrivate(pal)
+		tx, err := node1.CreateTransaction(tpl)
+		if !assert.NoError(t, err) {
+			return
+		}
+		waitForTransaction(t, tx, "node1", "node2", "node3")
 	})
 }
 

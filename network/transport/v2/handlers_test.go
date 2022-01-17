@@ -21,6 +21,7 @@ var (
 		Address: "abc:5555",
 	}
 	peerDID, _        = did.ParseDID("did:nuts:peer")
+	otherPeerDID, _   = did.ParseDID("did:nuts:other-peer")
 	nodeDID, _        = did.ParseDID("did:nuts:node")
 	authenticatedPeer = transport.Peer{
 		ID:      "abc",
@@ -182,8 +183,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 
 			err := p.Handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
-			assert.NoError(t, err)
-			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
+			assert.EqualError(t, err, "node DID is not set")
 		})
 		t.Run("peer is not in PAL", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nodeDID)
