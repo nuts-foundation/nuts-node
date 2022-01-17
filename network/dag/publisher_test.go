@@ -143,6 +143,71 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 		assert.Equal(t, 2, txAddedCalls)
 		assert.Equal(t, 2, txPayloadAddedCalls)
 	})
+	t.Run("parallel branched, which are blocked", func(t *testing.T) {
+		// Given graph "A <- [B, C] <- D"
+		// When payload for A is written
+		//  And payload for C is written
+		// Then TransactionPayloadAddedEvent for A and C should be emitted
+		// When payload for B is written
+		// Then TransactionPayloadAddedEvent for B and D should be emitted
+		db, _ := bbolt.Open(path.Join(io.TestDirectory(t), "dag.bbolt"), os.ModePerm, nil)
+		t.Cleanup(func() {
+			_ = db.Close()
+		})
+		payloadStore := NewBBoltPayloadStore(db)
+		graph := NewBBoltDAG(db)
+		publisher := NewReplayingDAGPublisher(payloadStore, graph).(*replayingDAGPublisher)
+		ctx := context.Background()
+
+		txA := CreateTestTransactionWithJWK(1)
+		one := CreateTestTransactionWithJWK(2, txA.Ref())
+		two := CreateTestTransactionWithJWK(3, txA.Ref())
+		var txB, txC Transaction
+		if one.Ref().Compare(two.Ref()) <= 0 {
+			txB = one
+			txC = two
+		} else {
+			txB = two
+			txC = one
+		}
+		txD := CreateTestTransactionWithJWK(4, txB.Ref(), txC.Ref())
+
+		txB.(*transaction).payloadType = "foo/bar"
+		txD.(*transaction).payloadType = "foo/bar"
+
+		var transactions int
+		var payloads int
+		publisher.Subscribe(TransactionAddedEvent, AnyPayloadType, func(actualTransaction Transaction, actualPayload []byte) error {
+			transactions++
+			return nil
+		})
+		publisher.Subscribe(TransactionPayloadAddedEvent, AnyPayloadType, func(actualTransaction Transaction, actualPayload []byte) error {
+			payloads++
+			return nil
+		})
+		graph.RegisterObserver(publisher.transactionAdded)
+		payloadStore.RegisterObserver(publisher.payloadWritten)
+		graph.Add(ctx, txA, txB, txC, txD)
+
+		// Write payload for A and C, check events
+		_ = payloadStore.WritePayload(ctx, txA.PayloadHash(), []byte{0})
+		_ = payloadStore.WritePayload(ctx, txC.PayloadHash(), []byte{0})
+
+		assert.Equal(t, 1, payloads)
+		assert.Equal(t, 4, transactions)
+
+		// Write payload for D, nothing should be published
+		_ = payloadStore.WritePayload(ctx, txD.PayloadHash(), []byte{0})
+		assert.Equal(t, 1, payloads)
+		// Another call for B
+		assert.Equal(t, 4, transactions)
+
+		// Write payload for B, B, C and D should be published
+		_ = payloadStore.WritePayload(ctx, txB.PayloadHash(), []byte{0})
+		assert.Equal(t, 4, payloads)
+		// + B, C, D
+		assert.Equal(t, 4, transactions)
+	})
 }
 
 func TestReplayingPublisher_Publish(t *testing.T) {

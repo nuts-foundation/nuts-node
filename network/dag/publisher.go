@@ -75,10 +75,11 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, payloadHash 
 func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transaction interface{}) {
 	tx := transaction.(Transaction)
 
+	// The transaction itself has already been validated by the network layer. So the dependencies of this TX are already processed in the VDR.
 	s.emitEvent(TransactionAddedEvent, tx, nil)
 
 	// Received new transaction, add it to the subscription walker resume list, so it resumes from this transaction
-	// when the payload is received. This blocks so it may only be added for TX where we know the payload will come.
+	// when the payload is received.
 	s.resumeAt.PushBack(tx.Ref())
 	s.publish(ctx)
 }
@@ -199,7 +200,8 @@ func (s *replayingDAGPublisher) replay() error {
 		}
 		if payload == nil {
 			if isBlockingTransaction(tx) {
-				// public TX but without payload, TX processing only. Wait for payload
+				// public TX but without payload, TX processing only. Wait for payload.
+				// This is probably a DID Document Create/Update. We need the payload before we process any depending payloads
 				s.resumeAt.PushBack(tx.Ref())
 				return false
 			}
