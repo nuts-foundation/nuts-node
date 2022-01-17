@@ -145,7 +145,6 @@ func remove(l *list.List, ref hash.SHA256Hash) {
 		}
 		if current.Value.(hash.SHA256Hash).Equals(ref) {
 			l.Remove(current)
-			return
 		}
 		current = current.Next()
 	}
