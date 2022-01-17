@@ -62,6 +62,36 @@ paths:
                 type: string
         default:
           $ref: '../common/error_response.yaml'
+  /internal/network/v1/transaction/{ref}/pal:
+    parameters:
+      - name: ref
+        in: path
+        description: "Reference of the transaction"
+        required: true
+        example: "4960afbdf21280ef248081e6e52317735bbb929a204351291b773c252afeebf4"
+        schema:
+          type: string
+    get:
+      summary: "Retrieves a transaction"
+      description: |
+        Retrieves the plain-text PAL header of the transaction.
+
+        error returns:
+        * 400 - invalid transaction reference
+        * 404 - transaction not found
+        * 500 - internal server error
+      operationId: "getTransactionPAL"
+      tags:
+        - transactions
+      responses:
+        "200":
+          description: "Transaction is known in the transaction log"
+          content:
+            application/jose:
+              schema:
+                $ref: '#/components/schemas/PAL'
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/network/v1/transaction/{ref}/payload:
     parameters:
       - name: ref
@@ -132,6 +162,13 @@ paths:
 
 components:
   schemas:
+    PAL:
+      type: array
+      description: List of DID addresses
+      items:
+        description: DID according to Nuts specification
+        example: "did:nuts:1"
+        type: string
     PeerDiagnostics:
       type: object
       description: Diagnostic information of a peer.

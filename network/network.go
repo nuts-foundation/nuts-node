@@ -211,6 +211,10 @@ func (n *Network) Config() interface{} {
 	return &n.config
 }
 
+func (n *Network) NodeDIDResolver() transport.NodeDIDResolver {
+	return n.nodeDIDResolver
+}
+
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())

@@ -107,19 +107,54 @@ func getCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			transaction, err := httpClient(core.NewClientConfig(cmd.Flags())).GetTransaction(hash)
+
+			client := httpClient(core.NewClientConfig(cmd.Flags()))
+
+			transaction, err := client.GetTransaction(hash)
 			if err != nil {
 				return err
 			}
+
 			if transaction == nil {
 				cmd.PrintErrf("Transaction not found: %s", hash)
 				return nil
 			}
+
 			var prevs []string
+
 			for _, prev := range transaction.Previous() {
 				prevs = append(prevs, prev.String())
 			}
-			cmd.Printf("Transaction %s:\n  Type: %s\n  Timestamp: %s\n  Prevs: %s\n", transaction.Ref(), transaction.PayloadType(), transaction.SigningTime(), strings.Join(prevs, " "))
+
+			palDesc := "N/A"
+
+			pal, err := client.GetTransactionPAL(hash)
+			if err == nil {
+				palDesc = ""
+
+				for i, id := range pal {
+					palDesc += id.String()
+
+					if i < len(pal) {
+						palDesc += ", "
+					}
+				}
+			}
+
+			cmd.Printf(
+				strings.Join([]string{
+					"Transaction: %s",
+					"  Type: %s",
+					"  Timestamp: %s",
+					"  PAL: %s",
+					"  Prevs: %s\n",
+				}, "\n"),
+				transaction.Ref(),
+				transaction.PayloadType(),
+				transaction.SigningTime(),
+				palDesc,
+				strings.Join(prevs, " "),
+			)
 			return nil
 		},
 	}

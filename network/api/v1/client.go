@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"io"
 	"net/http"
@@ -66,6 +67,36 @@ func (hb HTTPClient) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transac
 		return nil, err
 	}
 	return testAndParseTransactionResponse(res)
+}
+
+// GetTransactionPAL retrieves the plain-text PAL header for the transaction with the given reference. If the transaction is not known, an error is returned.
+func (hb HTTPClient) GetTransactionPAL(transactionRef hash.SHA256Hash) ([]did.DID, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
+	defer cancel()
+
+	res, err := hb.client().GetTransactionPAL(ctx, transactionRef.String())
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+
+	if err := core.TestResponseCode(http.StatusOK, res); err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	pal := []did.DID{}
+
+	if err := json.Unmarshal(body, &pal); err != nil {
+		return nil, err
+	}
+
+	return pal, nil
 }
 
 // ListTransactions returns all transactions known to this network instance.

@@ -16,6 +16,9 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// List of DID addresses
+type PAL []string
+
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
 
@@ -101,6 +104,9 @@ type ClientInterface interface {
 	// GetTransaction request
 	GetTransaction(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetTransactionPAL request
+	GetTransactionPAL(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetTransactionPayload request
 	GetTransactionPayload(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
@@ -143,6 +149,18 @@ func (c *Client) ListTransactions(ctx context.Context, reqEditors ...RequestEdit
 
 func (c *Client) GetTransaction(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetTransactionRequest(c.Server, ref)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetTransactionPAL(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTransactionPALRequest(c.Server, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -280,6 +298,40 @@ func NewGetTransactionRequest(server string, ref string) (*http.Request, error) 
 	return req, nil
 }
 
+// NewGetTransactionPALRequest generates requests for GetTransactionPAL
+func NewGetTransactionPALRequest(server string, ref string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ref", runtime.ParamLocationPath, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/network/v1/transaction/%s/pal", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetTransactionPayloadRequest generates requests for GetTransactionPayload
 func NewGetTransactionPayloadRequest(server string, ref string) (*http.Request, error) {
 	var err error
@@ -368,6 +420,9 @@ type ClientWithResponsesInterface interface {
 
 	// GetTransaction request
 	GetTransactionWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*GetTransactionResponse, error)
+
+	// GetTransactionPAL request
+	GetTransactionPALWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*GetTransactionPALResponse, error)
 
 	// GetTransactionPayload request
 	GetTransactionPayloadWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*GetTransactionPayloadResponse, error)
@@ -461,6 +516,27 @@ func (r GetTransactionResponse) StatusCode() int {
 	return 0
 }
 
+type GetTransactionPALResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTransactionPALResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTransactionPALResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetTransactionPayloadResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -516,6 +592,15 @@ func (c *ClientWithResponses) GetTransactionWithResponse(ctx context.Context, re
 		return nil, err
 	}
 	return ParseGetTransactionResponse(rsp)
+}
+
+// GetTransactionPALWithResponse request returning *GetTransactionPALResponse
+func (c *ClientWithResponses) GetTransactionPALWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*GetTransactionPALResponse, error) {
+	rsp, err := c.GetTransactionPAL(ctx, ref, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTransactionPALResponse(rsp)
 }
 
 // GetTransactionPayloadWithResponse request returning *GetTransactionPayloadResponse
@@ -613,6 +698,22 @@ func ParseGetTransactionResponse(rsp *http.Response) (*GetTransactionResponse, e
 	return response, nil
 }
 
+// ParseGetTransactionPALResponse parses an HTTP response from a GetTransactionPALWithResponse call
+func ParseGetTransactionPALResponse(rsp *http.Response) (*GetTransactionPALResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTransactionPALResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseGetTransactionPayloadResponse parses an HTTP response from a GetTransactionPayloadWithResponse call
 func ParseGetTransactionPayloadResponse(rsp *http.Response) (*GetTransactionPayloadResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
@@ -643,6 +744,9 @@ type ServerInterface interface {
 	// Retrieves a transaction
 	// (GET /internal/network/v1/transaction/{ref})
 	GetTransaction(ctx echo.Context, ref string) error
+	// Retrieves a transaction
+	// (GET /internal/network/v1/transaction/{ref}/pal)
+	GetTransactionPAL(ctx echo.Context, ref string) error
 	// Gets the transaction payload
 	// (GET /internal/network/v1/transaction/{ref}/payload)
 	GetTransactionPayload(ctx echo.Context, ref string) error
@@ -693,6 +797,22 @@ func (w *ServerInterfaceWrapper) GetTransaction(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetTransaction(ctx, ref)
+	return err
+}
+
+// GetTransactionPAL converts echo context to params.
+func (w *ServerInterfaceWrapper) GetTransactionPAL(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "ref" -------------
+	var ref string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "ref", runtime.ParamLocationPath, ctx.Param("ref"), &ref)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter ref: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.GetTransactionPAL(ctx, ref)
 	return err
 }
 
@@ -759,6 +879,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("GetTransaction", context)
 		return wrapper.GetTransaction(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref/pal", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("GetTransactionPAL", context)
+		return wrapper.GetTransactionPAL(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/network/v1/transaction/:ref/payload", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("GetTransactionPayload", context)

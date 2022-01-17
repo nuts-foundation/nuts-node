@@ -199,7 +199,12 @@ func CreateSystem() *core.System {
 	// Register HTTP routes
 	system.RegisterRoutes(&core.LandingPage{})
 	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance})
-	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
+	system.RegisterRoutes(&networkAPI.Wrapper{
+		Service:         networkInstance,
+		Decrypter:       cryptoInstance,
+		DocResolver:     docResolver,
+		NodeDIDResolver: networkInstance.NodeDIDResolver(),
+	})
 	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: &doc.Manipulator{
 		KeyCreator: cryptoInstance,
 		Updater:    vdrInstance,
