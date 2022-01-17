@@ -21,7 +21,7 @@ package cmd
 
 import (
 	"fmt"
-	credAPIv2 "github.com/nuts-foundation/nuts-node/vcr/api/v2"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"io"
 	"os"
 
@@ -46,6 +46,7 @@ import (
 	networkCmd "github.com/nuts-foundation/nuts-node/network/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	credAPIv1 "github.com/nuts-foundation/nuts-node/vcr/api/v1"
+	credAPIv2 "github.com/nuts-foundation/nuts-node/vcr/api/v2"
 	vcrCmd "github.com/nuts-foundation/nuts-node/vcr/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
@@ -187,9 +188,9 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&credAPIv1.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
 	system.RegisterRoutes(&credAPIv2.Wrapper{
 		VCR: credentialInstance,
-		Issuer: vcr.NewIssuer(
+		Issuer: issuer.NewIssuer(
 			nil,
-			vcr.NewNetworkPublisher(networkInstance, docResolver, cryptoInstance),
+			issuer.NewNetworkPublisher(networkInstance, docResolver, cryptoInstance),
 			docResolver,
 			cryptoInstance),
 	})

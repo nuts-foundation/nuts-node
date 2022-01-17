@@ -21,6 +21,7 @@ package vcr
 
 import (
 	"context"
+	"embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -36,23 +37,29 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v2"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 )
 
 const (
 	maxSkew = 5 * time.Second
 )
+
+//go:embed assets/*
+var defaultTemplates embed.FS
 
 var timeFunc = time.Now
 
@@ -60,7 +67,7 @@ var timeFunc = time.Now
 var noSync bool
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) types.VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -272,8 +279,8 @@ func (c *vcr) search(ctx context.Context, query concept.Query, allowUntrusted bo
 }
 
 func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-	publisher := NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	issuer := NewIssuer(nil, publisher, c.docResolver, c.keyStore)
+	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
+	issuer := issuer.NewIssuer(nil, publisher, c.docResolver, c.keyStore)
 
 	if len(template.Type) != 1 {
 		return nil, errors.New("can only issue credential with 1 type")
@@ -324,10 +331,10 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 	// we don't have to check the signature, it's coming from our own store.
 	if err = c.Validate(credential, false, false, resolveTime); err != nil {
 		switch err {
-		case ErrRevoked:
-			return &credential, ErrRevoked
-		case ErrUntrusted:
-			return &credential, ErrUntrusted
+		case types.ErrRevoked:
+			return &credential, types.ErrRevoked
+		case types.ErrUntrusted:
+			return &credential, types.ErrUntrusted
 		default:
 			return nil, err
 		}
@@ -338,7 +345,7 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
 	revoked, err := c.isRevoked(*credential.ID)
 	if revoked {
-		return ErrRevoked
+		return types.ErrRevoked
 	}
 	if err != nil {
 		return err
@@ -347,7 +354,7 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 	if !allowUntrusted {
 		trusted := c.isTrusted(credential)
 		if !trusted {
-			return ErrUntrusted
+			return types.ErrUntrusted
 		}
 	}
 
@@ -369,11 +376,11 @@ func (c *vcr) validate(credential vc.VerifiableCredential, validAt *time.Time) e
 	}
 
 	if credential.IssuanceDate.After(at.Add(maxSkew)) {
-		return ErrInvalidPeriod
+		return types.ErrInvalidPeriod
 	}
 
 	if credential.ExpirationDate != nil && credential.ExpirationDate.Add(maxSkew).Before(at) {
-		return ErrInvalidPeriod
+		return types.ErrInvalidPeriod
 	}
 
 	_, _, err = c.docResolver.Resolve(*issuer, &vdr.ResolveMetadata{ResolveTime: &at})
@@ -414,7 +421,7 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 		}
 	}
 
-	return credential, ErrNotFound
+	return credential, types.ErrNotFound
 }
 
 func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
@@ -491,7 +498,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 		return nil, err
 	}
 	if conflict {
-		return nil, ErrRevoked
+		return nil, types.ErrRevoked
 	}
 
 	// find issuer
@@ -531,7 +538,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 
 	payload, _ := json.Marshal(r)
 
-	tx := network.TransactionTemplate(revocationDocumentType, payload, key).
+	tx := network.TransactionTemplate(types.RevocationDocumentType, payload, key).
 		WithTimestamp(r.Date).
 		WithAdditionalPrevs(meta.SourceTransactions)
 	_, err = c.network.CreateTransaction(tx)
@@ -571,7 +578,7 @@ func (c *vcr) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
 
 	log.Logger().Warnf("No credential with type %s configured", credentialType.String())
 
-	return nil, ErrInvalidCredential
+	return nil, types.ErrInvalidCredential
 }
 
 func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
@@ -605,7 +612,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 		if errors.Is(err, leia.ErrNoIndex) {
 			log.Logger().Warnf("No index with field 'issuer' found for %s", credentialType.String())
 
-			return nil, ErrInvalidCredential
+			return nil, types.ErrInvalidCredential
 		}
 		return nil, err
 	}
@@ -630,7 +637,7 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 	}
 
 	if len(vcs) == 0 {
-		return nil, ErrNotFound
+		return nil, types.ErrNotFound
 	}
 
 	// multiple valids, use first one

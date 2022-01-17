@@ -1,4 +1,4 @@
-package vcr
+package issuer
 
 import (
 	"encoding/json"
@@ -12,11 +12,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"time"
 )
 
-func NewIssuer(store IssuedCredentialsStore, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore) Issuer {
+func NewIssuer(store IssuedCredentialsStore, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore) vcrTypes.Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return issuer{
 		store:       store,
@@ -28,7 +29,7 @@ func NewIssuer(store IssuedCredentialsStore, publisher Publisher, docResolver vd
 type issuer struct {
 	store       IssuedCredentialsStore
 	Publisher   Publisher
-	keyResolver keyResolver
+	keyResolver vdrKeyResolver
 }
 
 // Issue creates a new credential, signs, stores and publishes it to the network.

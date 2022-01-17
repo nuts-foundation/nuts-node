@@ -1,4 +1,4 @@
-package vcr
+package issuer
 
 import (
 	"encoding/json"
@@ -18,16 +18,21 @@ import (
 type networkPublisher struct {
 	networkTx       network.Transactions
 	didDocResolver  vdr.DocResolver
-	keyStore        crypto.KeyResolver
 	serviceResolver doc.ServiceResolver
+	keyResolver     vdrKeyResolver
 }
+
+const VcDocumentType = "application/vc+json"
 
 func NewNetworkPublisher(networkTx network.Transactions, docResolver vdr.DocResolver, keyResolver crypto.KeyResolver) Publisher {
 	return &networkPublisher{
 		networkTx:       networkTx,
 		didDocResolver:  docResolver,
-		keyStore:        keyResolver,
 		serviceResolver: doc.NewServiceResolver(docResolver),
+		keyResolver: vdrKeyResolver{
+			docResolver: docResolver,
+			keyResolver: keyResolver,
+		},
 	}
 
 }
@@ -40,25 +45,20 @@ func (p networkPublisher) PublishCredential(verifiableCredential vc.VerifiableCr
 	}
 	issuerDID, _ := did.ParseDIDURL(verifiableCredential.Issuer.String())
 
+	key, err := p.keyResolver.ResolveAssertionKey(*issuerDID)
+
 	// find did document/metadata for originating TXs
-	document, meta, err := p.didDocResolver.Resolve(*issuerDID, nil)
+	_, meta, err := p.didDocResolver.Resolve(*issuerDID, nil)
 	if err != nil {
 		return err
 	}
 
-	// resolve an assertionMethod key for issuer
-	kid, err := doc.ExtractAssertionKeyID(*document)
-	if err != nil {
-		return fmt.Errorf("unable to extract assertionKey from did document: %w", err)
-	}
-
-	key, err := p.keyStore.Resolve(kid.String())
 	if err != nil {
 		return fmt.Errorf("could not resolve kid: %w", err)
 	}
 
 	payload, _ := json.Marshal(verifiableCredential)
-	tx := network.TransactionTemplate(vcDocumentType, payload, key).
+	tx := network.TransactionTemplate(VcDocumentType, payload, key).
 		WithTimestamp(verifiableCredential.IssuanceDate).
 		WithAdditionalPrevs(meta.SourceTransactions).
 		WithPrivate(participants)

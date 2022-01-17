@@ -17,14 +17,12 @@
  *
  */
 
-package vcr
+package types
 
 import (
 	"context"
-	"embed"
 	"errors"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -32,9 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
-
-//go:embed assets/*
-var defaultTemplates embed.FS
 
 // ErrInvalidIssuer is returned when a credential is issued by a DID that is unknown or when the private key is missing.
 var ErrInvalidIssuer = errors.New("invalid credential issuer")
@@ -57,9 +52,9 @@ var ErrInvalidCredential = errors.New("invalid credential")
 // ErrInvalidPeriod is returned when the credential is not valid at the given time.
 var ErrInvalidPeriod = errors.New("credential not valid at given time")
 
-var vcDocumentType = "application/vc+json"
+var VcDocumentType = "application/vc+json"
 
-var revocationDocumentType = "application/vc+json;type=revocation"
+var RevocationDocumentType = "application/vc+json;type=revocation"
 
 // ConceptFinder can resolve VC backed concepts for a DID.
 type ConceptFinder interface {
@@ -140,21 +135,4 @@ type Issuer interface {
 	Issue(unsignedCredential vc.VerifiableCredential, public bool) (*vc.VerifiableCredential, error)
 	Revoke(credentialID ssi.URI) error
 	SearchForIssuedCredential(credentialType string, issuer did.DID) ([]vc.VerifiableCredential, error)
-}
-
-// IssuedCredentialsStore allows an Issuer to store and retrieve issued credentials.
-// This is useful for when the issuer wants to revoke a credential.
-type IssuedCredentialsStore interface {
-	Store(verifiableCredential vc.VerifiableCredential) error
-	Search(credentialType string, credentialSubject string, issuer did.DID, subject ssi.URI) ([]vc.VerifiableCredential, error)
-}
-
-// Publisher publishes new credentials and revocations to a channel. Used by a credential issuer.
-type Publisher interface {
-	PublishCredential(verifiableCredential vc.VerifiableCredential, public bool) error
-	PublishRevocation(revocation credential.Revocation) error
-}
-
-type keyResolver interface {
-	ResolveAssertionKey(issuerDID did.DID) (crypto.Key, error)
 }

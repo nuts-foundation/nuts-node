@@ -1,4 +1,4 @@
-package vcr
+package issuer
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 // vdrKeyResolver resolves private keys based upon the VDR document resolver
 type vdrKeyResolver struct {
 	docResolver vdr.DocResolver
-	keyResolver crypto.KeyStore
+	keyResolver crypto.KeyResolver
 }
 
 func (r vdrKeyResolver) ResolveAssertionKey(issuerDID did.DID) (crypto.Key, error) {

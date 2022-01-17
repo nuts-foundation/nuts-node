@@ -37,8 +37,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
 	"github.com/nuts-foundation/nuts-node/auth/services/x509"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 

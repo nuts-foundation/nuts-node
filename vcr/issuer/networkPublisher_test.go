@@ -1,4 +1,4 @@
-package vcr
+package issuer
 
 import (
 	"errors"

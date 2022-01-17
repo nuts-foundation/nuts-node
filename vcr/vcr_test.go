@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"os"
 	"reflect"
 	"runtime"
@@ -252,7 +253,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &time.Time{})
-		assert.Equal(t, ErrInvalidPeriod, err)
+		assert.Equal(t, vcrTypes.ErrInvalidPeriod, err)
 	})
 
 	t.Run("error - no longer valid", func(t *testing.T) {
@@ -263,7 +264,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &nextYear)
-		assert.Equal(t, ErrInvalidPeriod, err)
+		assert.Equal(t, vcrTypes.ErrInvalidPeriod, err)
 	})
 
 	t.Run("ok - revoked", func(t *testing.T) {
@@ -274,7 +275,7 @@ func TestVCR_Resolve(t *testing.T) {
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, nil)
 
-		assert.Equal(t, err, ErrRevoked)
+		assert.Equal(t, err, vcrTypes.ErrRevoked)
 		assert.Equal(t, testVC, *vc)
 	})
 
@@ -284,7 +285,7 @@ func TestVCR_Resolve(t *testing.T) {
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, nil)
 
-		assert.Equal(t, err, ErrUntrusted)
+		assert.Equal(t, err, vcrTypes.ErrUntrusted)
 		assert.Equal(t, testVC, *vc)
 	})
 
@@ -292,7 +293,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx := testInstance(t)
 		_, err := ctx.vcr.Resolve(ssi.URI{}, nil)
 
-		assert.Equal(t, ErrNotFound, err)
+		assert.Equal(t, vcrTypes.ErrNotFound, err)
 	})
 
 	t.Run("error - DID not found", func(t *testing.T) {
@@ -339,7 +340,7 @@ func TestVcr_Issue(t *testing.T) {
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(testKey, nil).AnyTimes()
 		ctx.tx.EXPECT().CreateTransaction(
 			mock.MatchedBy(func(tpl network.Template) bool {
-				return tpl.Type == vcDocumentType && !tpl.AttachKey && tpl.Key == testKey
+				return tpl.Type == vcrTypes.VcDocumentType && !tpl.AttachKey && tpl.Key == testKey
 			}),
 		)
 
@@ -858,7 +859,7 @@ func TestVcr_Revoke(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(&document, &documentMetadata, nil)
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(mock.MatchedBy(func(spec network.Template) bool {
-			return spec.Type == revocationDocumentType && !spec.AttachKey
+			return spec.Type == vcrTypes.RevocationDocumentType && !spec.AttachKey
 		}))
 		r, err := ctx.vcr.Revoke(*vc.ID)
 
@@ -879,7 +880,7 @@ func TestVcr_Revoke(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, ErrNotFound, err)
+		assert.Equal(t, vcrTypes.ErrNotFound, err)
 	})
 
 	t.Run("error - already revoked", func(t *testing.T) {
@@ -898,7 +899,7 @@ func TestVcr_Revoke(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, ErrRevoked, err)
+		assert.Equal(t, vcrTypes.ErrRevoked, err)
 	})
 
 	t.Run("error - key resolve returns error", func(t *testing.T) {
@@ -978,7 +979,7 @@ func TestVcr_Find(t *testing.T) {
 		_, err := ctx.vcr.Get(concept.ExampleConcept, false, "unknown")
 
 		assert.Error(t, err)
-		assert.Equal(t, err, ErrNotFound)
+		assert.Equal(t, err, vcrTypes.ErrNotFound)
 	})
 }
 
@@ -1077,7 +1078,7 @@ func TestVcr_Untrusted(t *testing.T) {
 					return
 				}
 
-				assert.Equal(t, ErrInvalidCredential, err)
+				assert.Equal(t, vcrTypes.ErrInvalidCredential, err)
 			})
 		})
 	}

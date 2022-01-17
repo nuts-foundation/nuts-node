@@ -3,13 +3,13 @@ package v2
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"net/http"
 )
 
 type Wrapper struct {
-	Issuer vcr.Issuer
-	VCR    vcr.VCR
+	Issuer types.Issuer
+	VCR    types.VCR
 }
 
 // Routes registers the handler to the echo router
