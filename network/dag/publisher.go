@@ -51,13 +51,18 @@ type replayingDAGPublisher struct {
 }
 
 func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, payloadHash interface{}) {
-
 	if payloadHash != nil { // should not happen....
 		h := payloadHash.(hash.SHA256Hash)
 		txs, err := s.dag.GetByPayloadHash(ctx, h)
-
-		if err != nil || len(txs) == 0 {
-			log.Logger().Errorf("failed to retrieve transaction by payloadHash (%s)", h.String())
+		if err != nil {
+			log.Logger().Errorf("Error while reading TXs by PayloadHash (payloadHash=%s): %v", h.String(), err)
+			return
+		}
+		if len(txs) == 0 {
+			// No transaction found for this payload hash.
+			// This happens when a transaction was created by the local node, which first writes payload, then adds TX to the DAG.
+			// But when the actual TX is added and transactionAdded() is called, it will still resume publishing from that TX,
+			// so all required events will still be emitted.
 			return
 		}
 
@@ -65,7 +70,6 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, payloadHash 
 		for _, tx := range txs {
 			s.resumeAt.PushBack(tx.Ref())
 		}
-
 	}
 
 	s.publish(ctx)

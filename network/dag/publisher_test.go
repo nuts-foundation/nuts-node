@@ -244,6 +244,53 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 
 		assert.Equal(t, 1, calls)
 	})
+	t.Run("local node call order (payloadWritten first, then transactionAdded)", func(t *testing.T) {
+		ctrl := createPublisher(t)
+
+		ctrl.payloadStore.EXPECT().ReadPayload(gomock.Any(), rootTX.PayloadHash()).Return(rootTXPayload, nil)
+
+		txAddedCalls := 0
+		ctrl.publisher.Subscribe(TransactionAddedEvent, rootTX.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+			txAddedCalls++
+			return nil
+		})
+		payloadAddedCalls := 0
+		ctrl.publisher.Subscribe(TransactionPayloadAddedEvent, rootTX.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+			payloadAddedCalls++
+			return nil
+		})
+
+		// First write payload
+		ctrl.publisher.payloadWritten(ctx, rootTX.PayloadHash())
+		assert.Equal(t, 0, payloadAddedCalls)
+		assert.Equal(t, 0, txAddedCalls)
+
+		// Then add TX
+		_ = ctrl.graph.Add(ctx, rootTX)
+		ctrl.publisher.transactionAdded(ctx, rootTX)
+		assert.Equal(t, 1, payloadAddedCalls)
+		assert.Equal(t, 1, txAddedCalls)
+	})
+	t.Run("error reading TX from DAG", func(t *testing.T) {
+		ctrl := createPublisher(t)
+
+		_ = ctrl.db.Close()
+
+		txAddedCalls := 0
+		ctrl.publisher.Subscribe(TransactionAddedEvent, rootTX.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+			txAddedCalls++
+			return nil
+		})
+		payloadAddedCalls := 0
+		ctrl.publisher.Subscribe(TransactionPayloadAddedEvent, rootTX.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
+			payloadAddedCalls++
+			return nil
+		})
+
+		ctrl.publisher.payloadWritten(ctx, rootTX.PayloadHash())
+		assert.Equal(t, 0, payloadAddedCalls)
+		assert.Equal(t, 0, txAddedCalls)
+	})
 	t.Run("subscribers on multiple event types", func(t *testing.T) {
 		ctrl := createPublisher(t)
 
@@ -405,6 +452,7 @@ func createPublisher(t *testing.T) testPublisher {
 		payloadStore: payloadStore,
 		publisher:    publisher,
 		graph:        graph,
+		db:           db,
 	}
 }
 
@@ -413,6 +461,7 @@ type testPublisher struct {
 	payloadStore *MockPayloadStore
 	publisher    *replayingDAGPublisher
 	graph        DAG
+	db           *bbolt.DB
 }
 
 func newPublisher(t *testing.T) (*replayingDAGPublisher, DAG, PayloadStore) {
