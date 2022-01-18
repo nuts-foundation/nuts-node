@@ -315,7 +315,6 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		node2.connectionManager.Connect(nameToAddress(t, "node1"))
 		node2.connectionManager.Connect(nameToAddress(t, "node3"))
 		node3.connectionManager.Connect(nameToAddress(t, "node1"))
-		node3.connectionManager.Connect(nameToAddress(t, "node2"))
 
 		test.WaitFor(t, func() (bool, error) {
 			return len(node1.connectionManager.Peers()) == 2, nil
