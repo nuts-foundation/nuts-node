@@ -305,8 +305,9 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
-	// find did document/metadata for originating TXs
-	document, meta, err := c.docResolver.Resolve(*issuer, nil)
+	// find did document/metadata for originating TXs. ResolveMetadata is required to also check the validity of the issuer's controller.
+	now := timeFunc()
+	document, meta, err := c.docResolver.Resolve(*issuer, &vdr.ResolveMetadata{ResolveTime: &now})
 	if err != nil {
 		return nil, err
 	}
