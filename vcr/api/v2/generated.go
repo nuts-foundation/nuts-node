@@ -94,8 +94,14 @@ type IssueVCJSONBody IssueVCRequest
 
 // ResolveIssuedVCParams defines parameters for ResolveIssuedVC.
 type ResolveIssuedVCParams struct {
-	// a rfc3339 time string for resolving a VC at a specific moment in time
-	ResolveTime *time.Time `json:"resolveTime,omitempty"`
+	// The type of the credential
+	CredentialType string `json:"credentialType"`
+
+	// the did of the issuer
+	Issuer string `json:"issuer"`
+
+	// the did of the issuer
+	Subject *string `json:"subject,omitempty"`
 }
 
 // VerifyVCJSONBody defines parameters for VerifyVC.
@@ -185,11 +191,11 @@ type ClientInterface interface {
 
 	IssueVC(ctx context.Context, body IssueVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ResolveIssuedVC request
+	ResolveIssuedVC(ctx context.Context, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RevokeVC request
 	RevokeVC(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ResolveIssuedVC request
-	ResolveIssuedVC(ctx context.Context, id string, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// VerifyVC request with any body
 	VerifyVCWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -221,8 +227,8 @@ func (c *Client) IssueVC(ctx context.Context, body IssueVCJSONRequestBody, reqEd
 	return c.Client.Do(req)
 }
 
-func (c *Client) RevokeVC(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRevokeVCRequest(c.Server, id)
+func (c *Client) ResolveIssuedVC(ctx context.Context, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveIssuedVCRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -233,8 +239,8 @@ func (c *Client) RevokeVC(ctx context.Context, id string, reqEditors ...RequestE
 	return c.Client.Do(req)
 }
 
-func (c *Client) ResolveIssuedVC(ctx context.Context, id string, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewResolveIssuedVCRequest(c.Server, id, params)
+func (c *Client) RevokeVC(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokeVCRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -309,6 +315,77 @@ func NewIssueVCRequestWithBody(server string, contentType string, body io.Reader
 	return req, nil
 }
 
+// NewResolveIssuedVCRequest generates requests for ResolveIssuedVC
+func NewResolveIssuedVCRequest(server string, params *ResolveIssuedVCParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/issuer/vc/search")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	queryValues := queryURL.Query()
+
+	if queryFrag, err := runtime.StyleParamWithLocation("form", true, "credentialType", runtime.ParamLocationQuery, params.CredentialType); err != nil {
+		return nil, err
+	} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+		return nil, err
+	} else {
+		for k, v := range parsed {
+			for _, v2 := range v {
+				queryValues.Add(k, v2)
+			}
+		}
+	}
+
+	if queryFrag, err := runtime.StyleParamWithLocation("form", true, "issuer", runtime.ParamLocationQuery, params.Issuer); err != nil {
+		return nil, err
+	} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+		return nil, err
+	} else {
+		for k, v := range parsed {
+			for _, v2 := range v {
+				queryValues.Add(k, v2)
+			}
+		}
+	}
+
+	if params.Subject != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "subject", runtime.ParamLocationQuery, *params.Subject); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewRevokeVCRequest generates requests for RevokeVC
 func NewRevokeVCRequest(server string, id string) (*http.Request, error) {
 	var err error
@@ -336,60 +413,6 @@ func NewRevokeVCRequest(server string, id string) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewResolveIssuedVCRequest generates requests for ResolveIssuedVC
-func NewResolveIssuedVCRequest(server string, id string, params *ResolveIssuedVCParams) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/internal/vcr/v2/issuer/vc/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	queryValues := queryURL.Query()
-
-	if params.ResolveTime != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "resolveTime", runtime.ParamLocationQuery, *params.ResolveTime); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
-				}
-			}
-		}
-
-	}
-
-	queryURL.RawQuery = queryValues.Encode()
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -485,11 +508,11 @@ type ClientWithResponsesInterface interface {
 
 	IssueVCWithResponse(ctx context.Context, body IssueVCJSONRequestBody, reqEditors ...RequestEditorFn) (*IssueVCResponse, error)
 
+	// ResolveIssuedVC request
+	ResolveIssuedVCWithResponse(ctx context.Context, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*ResolveIssuedVCResponse, error)
+
 	// RevokeVC request
 	RevokeVCWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*RevokeVCResponse, error)
-
-	// ResolveIssuedVC request
-	ResolveIssuedVCWithResponse(ctx context.Context, id string, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*ResolveIssuedVCResponse, error)
 
 	// VerifyVC request with any body
 	VerifyVCWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyVCResponse, error)
@@ -518,27 +541,6 @@ func (r IssueVCResponse) StatusCode() int {
 	return 0
 }
 
-type RevokeVCResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-}
-
-// Status returns HTTPResponse.Status
-func (r RevokeVCResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r RevokeVCResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 type ResolveIssuedVCResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -554,6 +556,27 @@ func (r ResolveIssuedVCResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ResolveIssuedVCResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RevokeVCResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeVCResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeVCResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -598,6 +621,15 @@ func (c *ClientWithResponses) IssueVCWithResponse(ctx context.Context, body Issu
 	return ParseIssueVCResponse(rsp)
 }
 
+// ResolveIssuedVCWithResponse request returning *ResolveIssuedVCResponse
+func (c *ClientWithResponses) ResolveIssuedVCWithResponse(ctx context.Context, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*ResolveIssuedVCResponse, error) {
+	rsp, err := c.ResolveIssuedVC(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResolveIssuedVCResponse(rsp)
+}
+
 // RevokeVCWithResponse request returning *RevokeVCResponse
 func (c *ClientWithResponses) RevokeVCWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*RevokeVCResponse, error) {
 	rsp, err := c.RevokeVC(ctx, id, reqEditors...)
@@ -605,15 +637,6 @@ func (c *ClientWithResponses) RevokeVCWithResponse(ctx context.Context, id strin
 		return nil, err
 	}
 	return ParseRevokeVCResponse(rsp)
-}
-
-// ResolveIssuedVCWithResponse request returning *ResolveIssuedVCResponse
-func (c *ClientWithResponses) ResolveIssuedVCWithResponse(ctx context.Context, id string, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*ResolveIssuedVCResponse, error) {
-	rsp, err := c.ResolveIssuedVC(ctx, id, params, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseResolveIssuedVCResponse(rsp)
 }
 
 // VerifyVCWithBodyWithResponse request with arbitrary body returning *VerifyVCResponse
@@ -649,22 +672,6 @@ func ParseIssueVCResponse(rsp *http.Response) (*IssueVCResponse, error) {
 	return response, nil
 }
 
-// ParseRevokeVCResponse parses an HTTP response from a RevokeVCWithResponse call
-func ParseRevokeVCResponse(rsp *http.Response) (*RevokeVCResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &RevokeVCResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	return response, nil
-}
-
 // ParseResolveIssuedVCResponse parses an HTTP response from a ResolveIssuedVCWithResponse call
 func ParseResolveIssuedVCResponse(rsp *http.Response) (*ResolveIssuedVCResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
@@ -674,6 +681,22 @@ func ParseResolveIssuedVCResponse(rsp *http.Response) (*ResolveIssuedVCResponse,
 	}
 
 	response := &ResolveIssuedVCResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseRevokeVCResponse parses an HTTP response from a RevokeVCWithResponse call
+func ParseRevokeVCResponse(rsp *http.Response) (*RevokeVCResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeVCResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -702,12 +725,12 @@ type ServerInterface interface {
 	// Issues a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx echo.Context) error
+	// Resolves a verifiable credential issued by this node
+	// (GET /internal/vcr/v2/issuer/vc/search)
+	ResolveIssuedVC(ctx echo.Context, params ResolveIssuedVCParams) error
 	// Revoke an issued credential
 	// (DELETE /internal/vcr/v2/issuer/vc/{id})
 	RevokeVC(ctx echo.Context, id string) error
-	// Resolves a verifiable credential issued by this node
-	// (GET /internal/vcr/v2/issuer/vc/{id})
-	ResolveIssuedVC(ctx echo.Context, id string, params ResolveIssuedVCParams) error
 	// Verifies a Verifiable Credential
 	// (POST /internal/vcr/v2/verifier/vc)
 	VerifyVC(ctx echo.Context) error
@@ -727,6 +750,38 @@ func (w *ServerInterfaceWrapper) IssueVC(ctx echo.Context) error {
 	return err
 }
 
+// ResolveIssuedVC converts echo context to params.
+func (w *ServerInterfaceWrapper) ResolveIssuedVC(ctx echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ResolveIssuedVCParams
+	// ------------- Required query parameter "credentialType" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "credentialType", ctx.QueryParams(), &params.CredentialType)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter credentialType: %s", err))
+	}
+
+	// ------------- Required query parameter "issuer" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "issuer", ctx.QueryParams(), &params.Issuer)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter issuer: %s", err))
+	}
+
+	// ------------- Optional query parameter "subject" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "subject", ctx.QueryParams(), &params.Subject)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subject: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.ResolveIssuedVC(ctx, params)
+	return err
+}
+
 // RevokeVC converts echo context to params.
 func (w *ServerInterfaceWrapper) RevokeVC(ctx echo.Context) error {
 	var err error
@@ -740,31 +795,6 @@ func (w *ServerInterfaceWrapper) RevokeVC(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.RevokeVC(ctx, id)
-	return err
-}
-
-// ResolveIssuedVC converts echo context to params.
-func (w *ServerInterfaceWrapper) ResolveIssuedVC(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "id" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
-	}
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params ResolveIssuedVCParams
-	// ------------- Optional query parameter "resolveTime" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "resolveTime", ctx.QueryParams(), &params.ResolveTime)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter resolveTime: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.ResolveIssuedVC(ctx, id, params)
 	return err
 }
 
@@ -813,13 +843,13 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		si.(Preprocessor).Preprocess("IssueVC", context)
 		return wrapper.IssueVC(context)
 	})
+	router.Add(http.MethodGet, baseURL+"/internal/vcr/v2/issuer/vc/search", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("ResolveIssuedVC", context)
+		return wrapper.ResolveIssuedVC(context)
+	})
 	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v2/issuer/vc/:id", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("RevokeVC", context)
 		return wrapper.RevokeVC(context)
-	})
-	router.Add(http.MethodGet, baseURL+"/internal/vcr/v2/issuer/vc/:id", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("ResolveIssuedVC", context)
-		return wrapper.ResolveIssuedVC(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v2/verifier/vc", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("VerifyVC", context)

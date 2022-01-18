@@ -22,7 +22,7 @@ package types
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -114,6 +114,8 @@ type Resolver interface {
 
 // VCR is the interface that covers all functionality of the vcr store.
 type VCR interface {
+	Issuer() issuer.Issuer
+
 	// Issue creates and publishes a new VC.
 	// An optional expirationDate can be given.
 	// VCs are stored when the network has successfully published them.
@@ -128,11 +130,4 @@ type VCR interface {
 	TrustManager
 	Validator
 	Writer
-}
-
-// Issuer is a role in the network for a party who issues credentials about a subject to a holder.
-type Issuer interface {
-	Issue(unsignedCredential vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error)
-	Revoke(credentialID ssi.URI) error
-	SearchForIssuedCredential(credentialType string, issuer did.DID) ([]vc.VerifiableCredential, error)
 }

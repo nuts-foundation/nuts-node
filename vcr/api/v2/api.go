@@ -3,15 +3,18 @@ package v2
 import (
 	"encoding/json"
 	"github.com/labstack/echo/v4"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"net/http"
 )
 
 type Wrapper struct {
-	Issuer types.Issuer
-	VCR    types.VCR
+	CredentialResolver issuer.StoreResolver
+	VCR                types.VCR
 }
 
 // Routes registers the handler to the echo router
@@ -58,7 +61,7 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 		return err
 	}
 
-	vcCreated, err := w.Issuer.Issue(requestedVC, publish, public)
+	vcCreated, err := w.VCR.Issuer().Issue(requestedVC, publish, public)
 	if err != nil {
 		return err
 	}
@@ -71,9 +74,21 @@ func (w Wrapper) RevokeVC(ctx echo.Context, id string) error {
 	panic("implement me")
 }
 
-func (w Wrapper) ResolveIssuedVC(ctx echo.Context, id string, params ResolveIssuedVCParams) error {
-	//TODO implement me
-	panic("implement me")
+func (w *Wrapper) ResolveIssuedVC(ctx echo.Context, params ResolveIssuedVCParams) error {
+	issuerDID, err := did.ParseDID(params.Issuer)
+	if err != nil {
+		return core.InvalidInputError("invalid issuer did: %w", err)
+	}
+	subjectID := &ssi.URI{}
+	if params.Subject != nil {
+		subjectID, err = ssi.ParseURI(*params.Subject)
+	}
+
+	foundVCs, err := w.VCR.Issuer().CredentialResolver().SearchCredential(ssi.URI{}, params.CredentialType, *issuerDID, *subjectID)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, foundVCs)
 }
 
 func (w *Wrapper) VerifyVC(ctx echo.Context) error {

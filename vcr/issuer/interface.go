@@ -9,13 +9,6 @@ import (
 	"time"
 )
 
-// IssuedCredentialsStore allows an Issuer to store and retrieve issued credentials.
-// This is useful for when the issuer wants to revoke a credential.
-type IssuedCredentialsStore interface {
-	Store(verifiableCredential vc.VerifiableCredential) error
-	Search(credentialType string, credentialSubject string, issuer did.DID, subject ssi.URI) ([]vc.VerifiableCredential, error)
-}
-
 // Publisher publishes new credentials and revocations to a channel. Used by a credential issuer.
 type Publisher interface {
 	PublishCredential(verifiableCredential vc.VerifiableCredential, public bool) error
@@ -26,11 +19,24 @@ type keyResolver interface {
 	ResolveAssertionKey(issuerDID did.DID) (crypto.Key, error)
 }
 
-// Store defines the interface for a issuer store. An implementation stores all the issued credentials and the revocations.
+// Issuer is a role in the network for a party who issues credentials about a subject to a holder.
+type Issuer interface {
+	Issue(unsignedCredential vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error)
+	Revoke(credentialID ssi.URI) error
+	CredentialResolver() StoreResolver
+}
+
+// Store defines the interface for an issuer store.
+// An implementation stores all the issued credentials and the revocations.
 type Store interface {
-	// StoreCredential writes a VC to storage. Before writing, it calls Verify!
-	// It can handle duplicates.
+	// StoreCredential writes a VC to storage.
 	StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error
+	StoreResolver
+}
+
+type StoreResolver interface {
+	// SearchCredential searches for issued credentials
+	SearchCredential(context ssi.URI, credentialType string, issuer did.DID, subject ssi.URI) ([]vc.VerifiableCredential, error)
 }

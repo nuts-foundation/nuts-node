@@ -36,16 +36,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
 
-  /internal/vcr/v2/issuer/vc/{id}:
-    parameters:
-      - name: id
-        in: path
-        description: URL encoded ID.
-        required: true
-        example:
-          - "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#90382475609238467"
-        schema:
-          type: string
+  /internal/vcr/v2/issuer/vc/search:
     get:
       summary: "Resolves a verifiable credential issued by this node"
       description: >
@@ -57,13 +48,27 @@ paths:
         * 500 - An error occurred while processing the request
       operationId: "resolveIssuedVC"
       parameters:
-        - name: resolveTime
+        - name: credentialType
           in: query
-          description: a rfc3339 time string for resolving a VC at a specific moment in time
-          example: "2012-01-02T12:00:00Z"
+          description: The type of the credential
+          example: NutsOrganizationCredential
+          required: true
           schema:
             type: string
-            format: date-time
+        - name: issuer
+          in: query
+          description: the did of the issuer
+          example: did:nuts:123
+          required: true
+          schema:
+            type: string
+        - name: subject
+          in: query
+          description: the did of the issuer
+          example: did:nuts:456
+          required: false
+          schema:
+            type: string
       tags:
         - credential
       responses:
@@ -75,6 +80,16 @@ paths:
                 $ref: '#/components/schemas/ResolutionResult'
         default:
           $ref: '../common/error_response.yaml'
+  /internal/vcr/v2/issuer/vc/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: URL encoded ID.
+        required: true
+        example:
+          - "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#90382475609238467"
+        schema:
+          type: string
     delete:
       summary: "Revoke an issued credential"
       description: |

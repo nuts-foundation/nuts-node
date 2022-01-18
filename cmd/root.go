@@ -21,7 +21,6 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"io"
 	"os"
 
@@ -188,11 +187,6 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&credAPIv1.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
 	system.RegisterRoutes(&credAPIv2.Wrapper{
 		VCR: credentialInstance,
-		Issuer: issuer.NewIssuer(
-			nil,
-			issuer.NewNetworkPublisher(networkInstance, docResolver, cryptoInstance),
-			docResolver,
-			cryptoInstance),
 	})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))

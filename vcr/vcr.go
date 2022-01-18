@@ -94,10 +94,16 @@ type vcr struct {
 	ambassador      Ambassador
 	network         network.Transactions
 	trustConfig     *trust.Config
+	issuerStore     issuer.Store
+	issuer          issuer.Issuer
 }
 
 func (c *vcr) Registry() concept.Reader {
 	return c.registry
+}
+
+func (c vcr) Issuer() issuer.Issuer {
+	return c.issuer
 }
 
 func (c *vcr) Configure(config core.ServerConfig) error {
@@ -108,6 +114,15 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.config.datadir = config.Datadir
 
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
+
+	issuerStore, err := issuer.NewLeiaStore(c.config.datadir)
+	if err != nil {
+		return err
+	}
+
+	c.issuerStore = issuerStore
+	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
+	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {
@@ -279,9 +294,6 @@ func (c *vcr) search(ctx context.Context, query concept.Query, allowUntrusted bo
 }
 
 func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	issuer := issuer.NewIssuer(nil, publisher, c.docResolver, c.keyStore)
-
 	if len(template.Type) != 1 {
 		return nil, errors.New("can only issue credential with 1 type")
 	}
@@ -299,7 +311,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		}
 		c.registry.Add(*conceptConfig)
 	}
-	verifiableCredential, err := issuer.Issue(template, true, c.config.OverrideIssueAllPublic || conceptConfig.Public)
+	verifiableCredential, err := c.issuer.Issue(template, true, c.config.OverrideIssueAllPublic || conceptConfig.Public)
 	if err != nil {
 		return nil, err
 	}

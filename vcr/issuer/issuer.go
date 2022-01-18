@@ -12,12 +12,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
-	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"time"
 )
 
-func NewIssuer(store IssuedCredentialsStore, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore) vcrTypes.Issuer {
+func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return issuer{
 		store:       store,
@@ -27,7 +26,7 @@ func NewIssuer(store IssuedCredentialsStore, publisher Publisher, docResolver vd
 }
 
 type issuer struct {
-	store       IssuedCredentialsStore
+	store       Store
 	Publisher   Publisher
 	keyResolver vdrKeyResolver
 }
@@ -45,9 +44,9 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public
 	}
 
 	// TODO: Store credential in the store
-	//if err = i.store.Store(*createdVC); err != nil {
-	//	return nil, err
-	//}
+	if err = i.store.StoreCredential(*createdVC, nil); err != nil {
+		return nil, err
+	}
 
 	if publish {
 		if err := i.Publisher.PublishCredential(*createdVC, public); err != nil {
@@ -114,7 +113,6 @@ func (i issuer) Revoke(credentialID ssi.URI) error {
 	panic("implement me")
 }
 
-func (i issuer) SearchForIssuedCredential(credentialType string, issuer did.DID) ([]vc.VerifiableCredential, error) {
-	//TODO implement me
-	panic("implement me")
+func (i issuer) CredentialResolver() StoreResolver {
+	return i.store
 }
