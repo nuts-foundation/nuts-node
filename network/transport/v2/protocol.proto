@@ -27,14 +27,12 @@ service Protocol {
 }
 
 message Envelope {
-  bytes conversationID = 1;
-
   oneof Message {
-    // broadcast, no conversationID
+    // broadcast
     Gossip gossip = 101;
     Diagnostics diagnosticsBroadcast = 102;
 
-    // request, contains a new conversationID
+    // request, starts a conversation with a new ID
     State state = 201;
     TransactionListQuery transactionListQuery = 202;
     TransactionRangeQuery transactionRangeQuery = 203;
@@ -62,64 +60,79 @@ message Transaction {
   optional bytes payload = 3;
 }
 
-// Gossip is a message broadcast to inform peers of the node's DAG state and recent additions to it.
+// Gossip is a message broadcast to inform peers of the node's DAG state and recent additions to it (if any).
+// The message has no response, but the peer may decide to follow up with State or TransactionListQuery.
 message Gossip {
-  // XOR contains the XOR'ed value of all transaction references.
+  // XOR contains the XOR'ed value of all transaction references on the sender's DAG.
   bytes XOR = 1;
-  // LC contains the highest transaction Lamport Clock value.
+  // LC contains the highest transaction Lamport Clock value of the sender.
   uint32 LC = 2;
   // transactions is a list of transactions recently added to the DAG
   repeated bytes transactions = 3;
 }
 
-// State is a request for the peer's DAG state up to the given LC value.
+// State is a request for the peer's DAG state up to the given LC value
 message State {
-  // XOR contains the XOR'ed value of all transaction references.
-  bytes XOR = 1;
-  // LC contains the highest transaction Lamport Clock value.
-  uint32 LC = 2;
+  // conversationID contains the token used to identify the response
+  bytes conversationID = 1;
+        // XOR contains the XOR'ed value of ALL transaction references on the sender's DAG.
+        bytes XOR = 2;
+  // LC contains the Lamport Clock value (inclusive) for which the node requests an IBLT
+  uint32 LC = 3;
 }
 
-// TransactionSet contains an IBLT as a response to an State message
+// TransactionSet sends an IBLT in response to a State message
 message TransactionSet {
-  // LC contains the highest transaction Lamport Clock value from the sender of this message.
-  uint32 LC = 1;
+  // conversationID contains the token used to identify the response
+  bytes conversationID = 1;
   // LCReq contains the LC value that was sent in the State message
   uint32 LCReq = 2;
+  // LC contains the highest transaction Lamport Clock value from the sender of this message.
+  uint32 LC = 3;
   // IBLT contains the serialized IBLT. The first byte indicates the serialization format of the IBLT.
-  bytes IBLT = 3;
+  bytes IBLT = 4;
 }
 
 // TransactionListQuery is a request for transactions by references
 message TransactionListQuery {
+  // conversationID contains the token used to identify the response
+  bytes conversationID = 1;
   // refs is the list of requested transactions by reference
-  repeated bytes refs = 1;
+  repeated bytes refs = 2;
 }
 
 // TransactionRangeQuery is a request for transactions by LC range
 message TransactionRangeQuery {
-  // start indicates the start of the requested range (inclusive)
-  uint32 start = 1;
-  // end indicates the end of the requested range (exclusive)
-  uint32 end = 2;
+  // conversationID contains the token used to identify the response
+  bytes conversationID = 1;
+  // start indicates the start of the requested Lamport Clock range (inclusive)
+  uint32 start = 2;
+  // end indicates the end of the requested Lamport Clock range (exclusive)
+  uint32 end = 3;
 }
 
 // TransactionList contains a list of transactions requested in TransactionListQuery or TransactionRangeQuery
 message TransactionList {
-  // transactions contains a list of transactions sorted by LC value
-  repeated Transaction transactions = 1;
+  // conversationID contains the token used to identify the response
+  bytes conversationID = 1;
+  // transactions contains the list of requested transactions. Transactions MUST be sorted by LC value
+  repeated Transaction transactions = 2;
 }
 
 // TransactionPayloadQuery is a message used to query the payload of a transaction.
 message TransactionPayloadQuery {
+  // conversationID contains the token used to identify the response
+  bytes conversationID = 1;
   // transactionRef contains the reference (hash) of the transaction, which payload the node would like to receive, as specified by RFC004.
-  bytes transactionRef = 1;
+  bytes transactionRef = 2;
 }
 
-// TransactionPayload is the response message for TransactionPayloadQuery.
+// TransactionPayload is the response message for TransactionPayloadQuery
 message TransactionPayload {
+  // conversationID contains the token used to identify the response
+  bytes conversationID = 1;
   // transactionRef contains the reference to the transaction which' payload was requested.
-  bytes transactionRef = 1;
+  bytes transactionRef = 2;
   // data contains the actual payload.
   bytes data = 10;
 }
