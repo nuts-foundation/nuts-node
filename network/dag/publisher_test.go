@@ -225,7 +225,6 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 	t.Run("single subscriber", func(t *testing.T) {
 		ctrl := createPublisher(t)
 
-		ctrl.payloadStore.EXPECT().ReadPayload(gomock.Any(), rootTX.PayloadHash()).Return(rootTXPayload, nil)
 		ctrl.graph.Add(ctx, rootTX)
 
 		calls := 0
@@ -235,15 +234,19 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 			return nil
 		})
 
+		// Add TX, payload not yet present
+		ctrl.payloadStore.EXPECT().ReadPayload(gomock.Any(), rootTX.PayloadHash()).Return(nil, nil)
 		ctrl.publisher.transactionAdded(ctx, rootTX)
-		ctrl.publisher.payloadWritten(ctx, nil)
+
+		// Add payload as well, now payload IS present
+		ctrl.payloadStore.EXPECT().ReadPayload(gomock.Any(), rootTX.PayloadHash()).Return(rootTXPayload, nil)
+		ctrl.publisher.payloadWritten(ctx, rootTX.PayloadHash())
 
 		assert.Equal(t, 1, calls)
 	})
 	t.Run("subscribers on multiple event types", func(t *testing.T) {
 		ctrl := createPublisher(t)
 
-		ctrl.payloadStore.EXPECT().ReadPayload(gomock.Any(), rootTX.PayloadHash()).Return(rootTXPayload, nil)
 		ctrl.graph.Add(ctx, rootTX)
 
 		txAddedCalls := 0
@@ -259,8 +262,13 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 			return nil
 		})
 
+		// Add TX, payload not yet present
+		ctrl.payloadStore.EXPECT().ReadPayload(gomock.Any(), rootTX.PayloadHash()).Return(nil, nil)
 		ctrl.publisher.transactionAdded(ctx, rootTX)
-		ctrl.publisher.payloadWritten(ctx, nil)
+
+		// Add payload as well, now payload IS present
+		ctrl.payloadStore.EXPECT().ReadPayload(gomock.Any(), rootTX.PayloadHash()).Return(rootTXPayload, nil)
+		ctrl.publisher.payloadWritten(ctx, rootTX.PayloadHash())
 
 		assert.Equal(t, 1, txAddedCalls)
 		assert.Equal(t, 1, txPayloadAddedCalls)
@@ -316,7 +324,7 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 		// Now add the payload and trigger subscribers
 		ctrl.payloadStore.EXPECT().ReadPayload(gomock.Any(), rootTX.PayloadHash()).Return(rootTXPayload, nil)
 
-		ctrl.publisher.payloadWritten(ctx, nil)
+		ctrl.publisher.payloadWritten(ctx, rootTX.PayloadHash())
 
 		assert.Equal(t, 1, txAddedCalled)
 		assert.Equal(t, 1, txPayloadAddedCalled)
@@ -340,7 +348,7 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 		})
 
 		ctrl.publisher.transactionAdded(ctx, rootTX)
-		ctrl.publisher.payloadWritten(ctx, nil)
+		ctrl.publisher.payloadWritten(ctx, rootTX.PayloadHash())
 
 		assert.True(t, txAddedCalled)
 		assert.False(t, txPayloadAddedCalled)
