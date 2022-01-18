@@ -312,18 +312,17 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			cfg.NodeDID = "did:nuts:node3"
 		})
 		// Make a full mesh
-		node2.connectionManager.Connect(nameToAddress(t, "node1"))
+		node1.connectionManager.Connect(nameToAddress(t, "node2"))
 		node2.connectionManager.Connect(nameToAddress(t, "node3"))
-		node3.connectionManager.Connect(nameToAddress(t, "node1"))
 
 		test.WaitFor(t, func() (bool, error) {
-			return len(node1.connectionManager.Peers()) == 2, nil
+			return len(node1.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 		test.WaitFor(t, func() (bool, error) {
 			return len(node2.connectionManager.Peers()) == 2, nil
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 		test.WaitFor(t, func() (bool, error) {
-			return len(node3.connectionManager.Peers()) == 2, nil
+			return len(node3.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 
 		node1DID, _ := node1.nodeDIDResolver.Resolve()
