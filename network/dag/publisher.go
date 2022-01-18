@@ -21,19 +21,14 @@ package dag
 import (
 	"container/list"
 	"context"
-	"fmt"
 	"sync"
-	"time"
-
-	"github.com/nats-io/nats.go"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
-func NewReplayingDAGPublisher(eventManager events.Event, payloadStore PayloadStore, dag DAG) Publisher {
+func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
 	publisher := &replayingDAGPublisher{
 		subscribers:         map[EventType]map[string]Receiver{},
 		resumeAt:            list.New(),
@@ -41,7 +36,6 @@ func NewReplayingDAGPublisher(eventManager events.Event, payloadStore PayloadSto
 		dag:                 dag,
 		payloadStore:        payloadStore,
 		publishMux:          &sync.Mutex{},
-		eventManager:        eventManager,
 	}
 
 	return publisher
@@ -53,13 +47,27 @@ type replayingDAGPublisher struct {
 	visitedTransactions map[hash.SHA256Hash]bool
 	dag                 DAG
 	payloadStore        PayloadStore
-	eventManager        events.Event
-	privateTxCtx        events.JetStreamContext
 	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
 
-// payloadWritten is called by the PayloadStore when a transaction payload is written.
-func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ interface{}) {
+func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, payloadHash interface{}) {
+
+	if payloadHash != nil { // should not happen....
+		h := payloadHash.(hash.SHA256Hash)
+		txs, err := s.dag.GetByPayloadHash(ctx, h)
+
+		if err != nil || len(txs) == 0 {
+			log.Logger().Errorf("failed to retrieve transaction by payloadHash (%s)", h.String())
+			return
+		}
+
+		// make sure publisher resumes at these points
+		for _, tx := range txs {
+			s.resumeAt.PushBack(tx.Ref())
+		}
+
+	}
+
 	s.publish(ctx)
 }
 
@@ -67,6 +75,7 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ interface{
 func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transaction interface{}) {
 	tx := transaction.(Transaction)
 
+	// The transaction itself has already been validated by the network layer. So the dependencies of this TX are already processed in the VDR.
 	s.emitEvent(TransactionAddedEvent, tx, nil)
 
 	// Received new transaction, add it to the subscription walker resume list, so it resumes from this transaction
@@ -92,23 +101,6 @@ func (s *replayingDAGPublisher) Subscribe(eventType EventType, payloadType strin
 }
 
 func (s *replayingDAGPublisher) Start() error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
-
-	var err error
-	_, s.privateTxCtx, err = s.eventManager.Pool().Acquire(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to acquire a connection for events: %w", err)
-	}
-
-	_, err = s.privateTxCtx.AddStream(&nats.StreamConfig{
-		Name:     events.PrivateTransactionsStream,
-		Subjects: []string{events.PrivateTransactionsSubject},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to setup NATS stream: %w", err)
-	}
-
 	s.dag.RegisterObserver(func(ctx context.Context, subject interface{}) {
 		s.publishMux.Lock()
 		defer s.publishMux.Unlock()
@@ -123,7 +115,7 @@ func (s *replayingDAGPublisher) Start() error {
 	return s.replay()
 }
 
-// publish is called both from payloadWritten and transactionAdded. Only when both are satified (transaction is present and payload as well), the transaction is published.
+// publish is called both from payloadWritten and transactionAdded. Only when both are satisfied (transaction is present and payload as well), the transaction is published.
 // payloadWritten will be the correct event during operation, transactionAdded will be the event at startup
 func (s *replayingDAGPublisher) publish(ctx context.Context) {
 	front := s.resumeAt.Front()
@@ -133,18 +125,9 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 
 	currentRef := front.Value.(hash.SHA256Hash)
 	err := s.dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
-		outcome := true
-		txRef := transaction.Ref()
-
-		// visit once
-		if !s.visitedTransactions[txRef] {
-			if outcome = s.publishTransaction(ctx, transaction); outcome {
-				// Mark this node as visited
-				s.visitedTransactions[txRef] = true
-			}
-		}
-		if outcome && currentRef.Equals(txRef) {
-			s.resumeAt.Remove(front)
+		outcome := s.publishTransaction(ctx, transaction)
+		if outcome {
+			remove(s.resumeAt, transaction.Ref())
 		}
 		return outcome
 	}, currentRef)
@@ -153,11 +136,17 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 	}
 }
 
-func (s *replayingDAGPublisher) handlePrivateTransaction(tx Transaction) {
-	_, err := s.privateTxCtx.PublishAsync(events.PrivateTransactionsSubject, tx.Data())
+func remove(l *list.List, ref hash.SHA256Hash) {
+	current := l.Front()
 
-	if err != nil {
-		log.Logger().Errorf("unable to handle private transaction: (ref=%s) %v", tx.Ref(), err)
+	for {
+		if current == nil {
+			return
+		}
+		if current.Value.(hash.SHA256Hash).Equals(ref) {
+			l.Remove(current)
+		}
+		current = current.Next()
 	}
 }
 
@@ -169,16 +158,13 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 	}
 
 	if payload == nil {
-		// Handle private transactions via V2 protocol
-		if len(transaction.PAL()) > 0 {
-			s.handlePrivateTransaction(transaction)
+		if isBlockingTransaction(transaction) {
+			// public TX but without payload, TX processing only. Wait for payload
+			return false
 		}
-
-		// We haven't got the payload, break of processing for this branch
-		return false
+	} else {
+		s.emitEvent(TransactionPayloadAddedEvent, transaction, payload)
 	}
-
-	s.emitEvent(TransactionPayloadAddedEvent, transaction, payload)
 
 	return true
 }
@@ -199,21 +185,28 @@ func (s *replayingDAGPublisher) emitEvent(eventType EventType, transaction Trans
 	}
 }
 
+// replay uses transactionAdded and payloadWritten to emit events. Both of these call publishTransaction which may cause events to be emitted more than once.
 func (s *replayingDAGPublisher) replay() error {
 	log.Logger().Debug("Replaying DAG...")
 	s.publishMux.Lock()
 	defer s.publishMux.Unlock()
 
 	err := s.dag.Walk(context.Background(), func(ctx context.Context, tx Transaction) bool {
-		s.transactionAdded(ctx, tx)
+		s.emitEvent(TransactionAddedEvent, tx, nil)
 		payload, err := s.payloadStore.ReadPayload(ctx, tx.PayloadHash())
 		if err != nil {
 			log.Logger().Errorf("Error reading payload (tx=%s): %v", tx.Ref(), err)
 		}
 		if payload == nil {
-			return false
+			if isBlockingTransaction(tx) {
+				// public TX but without payload, TX processing only. Wait for payload.
+				// This is probably a DID Document Create/Update. We need the payload before we process any depending payloads
+				s.resumeAt.PushBack(tx.Ref())
+				return false
+			}
+		} else {
+			s.emitEvent(TransactionPayloadAddedEvent, tx, payload)
 		}
-		s.payloadWritten(ctx, tx)
 		return true
 	}, hash.EmptyHash())
 	if err != nil {
@@ -221,4 +214,9 @@ func (s *replayingDAGPublisher) replay() error {
 	}
 	log.Logger().Debug("Finished replaying DAG")
 	return nil
+}
+
+// isBlockingTransaction returns true if for the given transaction the payload must have been processed before continuing to the next tx.
+func isBlockingTransaction(tx Transaction) bool {
+	return tx.PayloadType() == "application/did+json"
 }

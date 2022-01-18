@@ -71,7 +71,8 @@ type Connection interface {
 
 	// Peer returns the associated peer information of this connection. If the connection is not active, it will return an empty peer.
 	Peer() transport.Peer
-	// Connected returns whether the connection is active or not.
+
+	// IsConnected returns whether the connection is active or not.
 	IsConnected() bool
 }
 

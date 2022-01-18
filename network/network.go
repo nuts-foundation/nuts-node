@@ -30,8 +30,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/events"
-
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/pkg/errors"
@@ -69,7 +67,6 @@ type Network struct {
 	config                 Config
 	lastTransactionTracker lastTransactionTracker
 	protocols              []transport.Protocol
-	eventManager           events.Event
 	connectionManager      transport.ConnectionManager
 	graph                  dag.DAG
 	publisher              dag.Publisher
@@ -93,7 +90,6 @@ func (n *Network) Walk(visitor dag.Visitor) error {
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(
 	config Config,
-	eventManager events.Event,
 	keyResolver types.KeyResolver,
 	privateKeyResolver crypto.KeyResolver,
 	decrypter crypto.Decrypter,
@@ -105,7 +101,6 @@ func NewNetworkInstance(
 		keyResolver:            keyResolver,
 		privateKeyResolver:     privateKeyResolver,
 		didDocumentResolver:    didDocumentResolver,
-		eventManager:           eventManager,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 	}
@@ -132,7 +127,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	n.payloadStore = dag.NewBBoltPayloadStore(n.db)
-	n.publisher = dag.NewReplayingDAGPublisher(n.eventManager, n.payloadStore, n.graph)
+	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	n.peerID = transport.PeerID(uuid.New().String())
 
 	// TLS
@@ -164,7 +159,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 
 	n.protocols = []transport.Protocol{
 		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
-		v2.New(v2Cfg, n.eventManager.Pool(), n.nodeDIDResolver, n.graph, n.payloadStore, n.didDocumentResolver, n.decrypter),
+		v2.New(v2Cfg, n.nodeDIDResolver, n.graph, n.publisher, n.payloadStore, n.didDocumentResolver, n.decrypter),
 	}
 
 	for _, prot := range n.protocols {
@@ -178,6 +173,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		if n.config.EnableTLS {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
 		}
+
 		// Instantiate
 		var authenticator grpc.Authenticator
 		if n.config.DisableNodeAuthentication {
@@ -479,7 +475,7 @@ type lastTransactionTracker struct {
 	mux                   sync.Mutex
 }
 
-func (l *lastTransactionTracker) process(transaction dag.Transaction, _ []byte) error {
+func (l *lastTransactionTracker) process(transaction dag.Transaction, payload []byte) error {
 	l.mux.Lock()
 	defer l.mux.Unlock()
 

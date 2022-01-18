@@ -28,18 +28,16 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"go.etcd.io/bbolt"
-
-	"github.com/nats-io/nats.go"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/sirupsen/logrus"
-	grpcLib "google.golang.org/grpc"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"go.etcd.io/bbolt"
+
+	grpcLib "google.golang.org/grpc"
+
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
@@ -67,37 +65,37 @@ func DefaultConfig() Config {
 // New creates an instance of the v2 protocol.
 func New(
 	config Config,
-	eventsConnectionPool events.ConnectionPool,
 	nodeDIDResolver transport.NodeDIDResolver,
 	graph dag.DAG,
+	publisher dag.Publisher,
 	payloadStore dag.PayloadStore,
 	docResolver vdr.DocResolver,
 	decrypter crypto.Decrypter,
 ) transport.Protocol {
 	return &protocol{
-		config:               config,
-		graph:                graph,
-		eventsConnectionPool: eventsConnectionPool,
-		nodeDIDResolver:      nodeDIDResolver,
-		payloadStore:         payloadStore,
-		decrypter:            decrypter,
-		docResolver:          docResolver,
+		config:          config,
+		graph:           graph,
+		publisher:       publisher,
+		nodeDIDResolver: nodeDIDResolver,
+		payloadStore:    payloadStore,
+		decrypter:       decrypter,
+		docResolver:     docResolver,
 	}
 }
 
 type protocol struct {
-	cancel               func()
-	config               Config
-	graph                dag.DAG
-	ctx                  context.Context
-	docResolver          vdr.DocResolver
-	payloadScheduler     Scheduler
-	payloadStore         dag.PayloadStore
-	decrypter            crypto.Decrypter
-	connectionList       grpc.ConnectionList
-	eventsConnectionPool events.ConnectionPool
-	nodeDIDResolver      transport.NodeDIDResolver
-	connectionManager    transport.ConnectionManager
+	cancel            func()
+	config            Config
+	graph             dag.DAG
+	ctx               context.Context
+	docResolver       vdr.DocResolver
+	payloadScheduler  Scheduler
+	payloadStore      dag.PayloadStore
+	decrypter         crypto.Decrypter
+	connectionList    grpc.ConnectionList
+	publisher         dag.Publisher
+	nodeDIDResolver   transport.NodeDIDResolver
+	connectionManager transport.ConnectionManager
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
@@ -141,41 +139,6 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	return nil
 }
 
-func (p *protocol) setupNatsHandler() error {
-	conn, _, err := p.eventsConnectionPool.Acquire(p.ctx)
-	if err != nil {
-		return err
-	}
-
-	stream := events.NewStream(&nats.StreamConfig{
-		Name:     events.PrivateTransactionsStream,
-		Subjects: []string{events.PrivateTransactionsSubject},
-		Storage:  nats.MemoryStorage,
-	}, []nats.SubOpt{
-		nats.AckExplicit(),
-	})
-
-	if err = stream.Subscribe(conn, events.PrivateTransactionsSubject, func(msg *nats.Msg) {
-		if err := p.handlePrivateTx(msg); err != nil {
-			log.Logger().Errorf("failed to handle private transaction: %v", err)
-
-			if err := msg.Nak(); err != nil {
-				log.Logger().Errorf("failed to NACK private transaction event: %v", err)
-			}
-
-			return
-		}
-
-		if err := msg.Ack(); err != nil {
-			log.Logger().Errorf("failed to ACK private transaction event: %v", err)
-		}
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (p *protocol) Start() (err error) {
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 
@@ -184,36 +147,17 @@ func (p *protocol) Start() (err error) {
 		return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
 	}
 
-	// setup Nats
-	go func() {
-		for {
-			err := p.setupNatsHandler()
-
-			if err == nil {
-				break
-			}
-
-			logrus.Errorf("failed to setup NATS handler: %v", err)
-
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-time.After(5 * time.Second):
-				continue
-			}
-		}
-	}()
-
+	p.publisher.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
 	return
 }
 
-func (p *protocol) handlePrivateTx(msg *nats.Msg) error {
-	tx, err := dag.ParseTransaction(msg.Data)
-	if err != nil {
-		log.Logger().Errorf("failed to parse transaction from event: %v", err)
-		return err
+func (p *protocol) handlePrivateTx(tx dag.Transaction, _ []byte) error {
+	if len(tx.PAL()) == 0 {
+		// not for us, but for V1 protocol
+		return nil
 	}
-	if err = p.payloadScheduler.Schedule(tx.Ref()); err != nil {
+
+	if err := p.payloadScheduler.Schedule(tx.Ref()); err != nil {
 		// this means the underlying DB is broken
 		log.Logger().Errorf("failed to add payload query retry job: %v", err)
 		return err
@@ -264,10 +208,9 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	// We weren't able to decrypt the PAL, so it wasn't meant for us
 	if pal == nil {
 		// stop retrying
-		if err := p.payloadScheduler.Finished(hash); err != nil {
+		if err = p.payloadScheduler.Finished(hash); err != nil {
 			return err
 		}
-
 		return nil
 	}
 

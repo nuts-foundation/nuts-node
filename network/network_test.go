@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/golang/mock/gomock"
@@ -147,6 +146,7 @@ func TestNetwork_Configure(t *testing.T) {
 		})
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -165,11 +165,11 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-
 		ctx := createNetwork(ctrl)
-
 		ctx.network.connectionManager = nil
+
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -178,13 +178,13 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - TLS disabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-
 		ctx := createNetwork(ctrl, func(config *Config) {
 			config.EnableTLS = false
 		})
 		ctx.network.connectionManager = nil
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -221,12 +221,12 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-
 		ctx := createNetwork(ctrl, func(config *Config) {
 			config.GrpcAddr = ""
 		})
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -241,6 +241,7 @@ func TestNetwork_Configure(t *testing.T) {
 		})
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -249,13 +250,13 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("error - unable to load key pair from file", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-
 		ctx := createNetwork(ctrl, func(config *Config) {
 			config.CertFile = "test/non-existent.pem"
 			config.CertKeyFile = "test/non-existent.pem"
 		})
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
 
@@ -311,7 +312,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 		// Register root TX on head tracker
 		rootTX, _, _ := dag.CreateTestTransaction(0)
-		cxt.network.lastTransactionTracker.process(rootTX, []byte{1, 2, 3})
+		cxt.network.lastTransactionTracker.process(rootTX, nil)
 
 		// 'Register' prev on DAG
 		additionalPrev, _, _ := dag.CreateTestTransaction(1)
@@ -529,11 +530,11 @@ func TestNetwork_Shutdown(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-
 		ctx := createNetwork(ctrl)
 		ctx.connectionManager.EXPECT().Stop()
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -636,8 +637,7 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	decrypter := crypto.NewMockDecrypter(ctrl)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	docResolver := vdrTypes.NewMockDocResolver(ctrl)
-	eventManager := events.NewStubEventManager()
-	network := NewNetworkInstance(networkConfig, eventManager, keyResolver, keyStore, decrypter, docResolver)
+	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver)
 	network.graph = graph
 	network.connectionManager = connectionManager
 	network.payloadStore = payload

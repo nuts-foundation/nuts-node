@@ -21,7 +21,6 @@ package network
 import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/sirupsen/logrus"
@@ -36,7 +35,6 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 	cryptoInstance := crypto.NewTestCryptoInstance()
 	newInstance := NewNetworkInstance(
 		config,
-		events.NewStubEventManager(),
 		doc.KeyResolver{Store: vdrStore},
 		cryptoInstance,
 		cryptoInstance,

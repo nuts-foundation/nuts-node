@@ -30,7 +30,6 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1"
@@ -218,8 +217,6 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 }
 
 func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
-	// fixed in PR: #712
-	t.Skip()
 	t.Run("happy flow", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest()
@@ -249,6 +246,53 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return
 		}
 		waitForTransaction(t, tx, "node2")
+	})
+
+	t.Run("third node knows nothing", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest()
+		key := nutsCrypto.NewTestKey("key")
+
+		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
+		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+		node3 := startNode(t, "node3", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node3"
+		})
+		// Now connect node1 to node2 and wait for them to set up
+		node2.connectionManager.Connect(nameToAddress(t, "node1"))
+		node3.connectionManager.Connect(nameToAddress(t, "node1"))
+
+		test.WaitFor(t, func() (bool, error) {
+			return len(node1.connectionManager.Peers()) == 2, nil
+		}, defaultTimeout, "time-out while waiting for nodes to connect")
+
+		node1DID, _ := node1.nodeDIDResolver.Resolve()
+		node2DID, _ := node2.nodeDIDResolver.Resolve()
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
+			WithAttachKey().
+			WithPrivate([]did.DID{node1DID, node2DID})
+		tx, err := node1.CreateTransaction(tpl)
+		if !assert.NoError(t, err) {
+			return
+		}
+		arrived := test.WaitForNoFail(t, func() (bool, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
+			for _, receivedDoc := range receivedTransactions["node3"] {
+				if tx.Ref().Equals(receivedDoc.Ref()) {
+					return true, nil
+				}
+			}
+			return false, nil
+		}, 200*time.Millisecond)
+
+		// check node 3 does not have the payload
+		assert.False(t, arrived)
 	})
 }
 
@@ -321,6 +365,7 @@ func resetIntegrationTest() {
 	}
 	writeDIDDocument("did:nuts:node1")
 	writeDIDDocument("did:nuts:node2")
+	writeDIDDocument("did:nuts:node3")
 }
 
 func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCrypto.Key, sender *Network, receivers ...string) bool {
@@ -369,23 +414,6 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		f(&config)
 	}
 
-	eventManager := events.NewManager()
-
-	cfg := eventManager.(core.Injectable).Config().(*events.Config)
-	cfg.Port = test.FreeTCPPort()
-
-	err := (eventManager.(core.Configurable)).Configure(*core.NewServerConfig())
-	if err != nil {
-		panic(err)
-	}
-	err = (eventManager.(core.Runnable)).Start()
-	if err != nil {
-		panic(err)
-	}
-	t.Cleanup(func() {
-		_ = (eventManager.(core.Runnable)).Shutdown()
-	})
-
 	instance := &Network{
 		config:                 config,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
@@ -394,7 +422,6 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		decrypter:              keyStore,
 		keyResolver:            doc.KeyResolver{Store: vdrStore},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
-		eventManager:           eventManager,
 	}
 	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {
 		t.Fatal(err)
