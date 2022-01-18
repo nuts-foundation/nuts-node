@@ -183,7 +183,8 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 
 			err := p.Handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
-			assert.EqualError(t, err, "node DID is not set")
+			assert.NoError(t, err)
+			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
 		})
 		t.Run("peer is not in PAL", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nodeDID)

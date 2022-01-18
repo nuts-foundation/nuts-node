@@ -27,8 +27,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/nuts-foundation/go-did/did"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -198,17 +196,9 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 		return p.payloadScheduler.Finished(hash)
 	}
 
-	nodeDID, err := p.nodeDIDResolver.Resolve()
-	if err != nil {
-		return err
-	}
-	if nodeDID.Empty() {
-		return errors.New("node DID is not set")
-	}
-
 	epal := dag.EncryptedPAL(tx.PAL())
 
-	pal, err := p.decryptPAL(epal, nodeDID)
+	pal, err := p.decryptPAL(epal)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt PAL header (tx=%s): %w", tx.Ref(), err)
 	}
@@ -275,7 +265,16 @@ func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
 }
 
 // decryptPAL returns nil, nil if the PAL couldn't be decoded
-func (p *protocol) decryptPAL(encrypted [][]byte, nodeDID did.DID) (dag.PAL, error) {
+func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
+	nodeDID, err := p.nodeDIDResolver.Resolve()
+	if err != nil {
+		return nil, err
+	}
+
+	if nodeDID.Empty() {
+		return nil, errors.New("node DID is not set")
+	}
+
 	doc, _, err := p.docResolver.Resolve(nodeDID, nil)
 	if err != nil {
 		return nil, err

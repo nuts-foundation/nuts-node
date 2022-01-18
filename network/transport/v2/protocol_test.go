@@ -264,7 +264,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		mocks.Graph.EXPECT().Get(context.Background(), txOk.Ref()).Return(txOk, nil)
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
-		assert.EqualError(t, err, "node DID is not set")
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): node DID is not set", txOk.Ref()))
 	})
 
 	t.Run("errors when resolving the node DID document fails", func(t *testing.T) {
@@ -420,12 +420,20 @@ func TestProtocol_decryptPAL(t *testing.T) {
 	testDID2, _ := did.ParseDID("did:nuts:456")
 	dummyPAL := [][]byte{{0}}
 
+	t.Run("errors when node DID is not set", func(t *testing.T) {
+		proto, _ := newTestProtocol(t, nil)
+
+		pal, err := proto.decryptPAL(dummyPAL)
+		assert.EqualError(t, err, "node DID is not set")
+		assert.Nil(t, pal)
+	})
+
 	t.Run("errors when resolving the node DID document fails", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, testDID)
 
 		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
 
-		_, err := proto.decryptPAL(dummyPAL, *testDID)
+		_, err := proto.decryptPAL(dummyPAL)
 		assert.EqualError(t, err, "random error")
 	})
 
@@ -437,7 +445,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 			},
 		}, nil, nil)
 
-		pal, err := proto.decryptPAL([][]byte{}, *testDID)
+		pal, err := proto.decryptPAL([][]byte{})
 
 		if !assert.NoError(t, err) {
 			return
@@ -457,7 +465,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 		}, nil, nil)
 		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(nil, crypto.ErrKeyNotFound)
 
-		_, err := proto.decryptPAL(tx.PAL(), *testDID)
+		_, err := proto.decryptPAL(tx.PAL())
 		assert.EqualError(t, err, fmt.Sprintf("private key of DID keyAgreement not found (kid=%s)", keyDID.String()))
 	})
 
@@ -472,7 +480,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 		}, nil, nil)
 		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(append(append([]byte(testDID.String()), '\n'), []byte(testDID2.String())...), nil)
 
-		pal, err := proto.decryptPAL(tx.PAL(), *testDID)
+		pal, err := proto.decryptPAL(tx.PAL())
 
 		if !assert.NoError(t, err) {
 			return
