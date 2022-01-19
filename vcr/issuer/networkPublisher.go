@@ -19,7 +19,7 @@ type networkPublisher struct {
 	networkTx       network.Transactions
 	didDocResolver  vdr.DocResolver
 	serviceResolver doc.ServiceResolver
-	keyResolver     vdrKeyResolver
+	keyResolver     keyResolver
 }
 
 // VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
@@ -46,7 +46,10 @@ func (p networkPublisher) PublishCredential(verifiableCredential vc.VerifiableCr
 	if err != nil {
 		return err
 	}
-	issuerDID, _ := did.ParseDIDURL(verifiableCredential.Issuer.String())
+	issuerDID, err := did.ParseDIDURL(verifiableCredential.Issuer.String())
+	if err != nil {
+		return fmt.Errorf("invalid credential issuer: %w", err)
+	}
 
 	key, err := p.keyResolver.ResolveAssertionKey(*issuerDID)
 
