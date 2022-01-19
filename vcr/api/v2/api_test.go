@@ -3,6 +3,8 @@ package v2
 import (
 	"errors"
 	"github.com/golang/mock/gomock"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
@@ -22,6 +24,32 @@ func TestWrapper_IssueVC(t *testing.T) {
 		testContext.echo.EXPECT().Bind(gomock.Any())
 		testContext.mockIssuer.EXPECT().Issue(gomock.Any(), true, false)
 		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
+		err := testContext.client.IssueVC(testContext.echo)
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok with actual credential", func(t *testing.T) {
+		testContext := newMockContext(t)
+		defer testContext.ctrl.Finish()
+		issuerURI, _ := ssi.ParseURI("did:nuts:123")
+		credentialType, _ := ssi.ParseURI("ExampleType")
+
+		expectedRequestedVC := vc.VerifiableCredential{
+			Type:              []ssi.URI{*credentialType},
+			Issuer:            *issuerURI,
+			CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
+		}
+
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			issueRequest := f.(*IssueVCRequest)
+			issueRequest.Type = expectedRequestedVC.Type[0].String()
+			issueRequest.Issuer = expectedRequestedVC.Issuer.String()
+			issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
+			return nil
+		})
+		testContext.mockIssuer.EXPECT().Issue(gomock.Eq(expectedRequestedVC), true, false)
+		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
+
 		err := testContext.client.IssueVC(testContext.echo)
 		assert.NoError(t, err)
 	})
