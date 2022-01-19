@@ -129,9 +129,13 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) {
 
 	currentRef := front.Value.(hash.SHA256Hash)
 	err := s.dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
-		outcome := s.publishTransaction(ctx, transaction)
-		if outcome {
-			remove(s.resumeAt, transaction.Ref())
+		outcome := true
+		ref := transaction.Ref()
+		if !s.visitedTransactions[ref] {
+			outcome = s.publishTransaction(ctx, transaction)
+			if outcome {
+				remove(s.resumeAt, ref)
+			}
 		}
 		return outcome
 	}, currentRef)
@@ -168,6 +172,9 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 		}
 	} else {
 		s.emitEvent(TransactionPayloadAddedEvent, transaction, payload)
+		// prevent DID doc updates to come back and haunt us. DID doc updates may reuse a payload hash already seen earlier.
+		// payloadWritten will then also find the old TX
+		s.visitedTransactions[transaction.Ref()] = true
 	}
 
 	return true
@@ -210,6 +217,9 @@ func (s *replayingDAGPublisher) replay() error {
 			}
 		} else {
 			s.emitEvent(TransactionPayloadAddedEvent, tx, payload)
+			// prevent DID doc updates to come back and haunt us. DID doc updates may reuse a payload hash already seen earlier.
+			// payloadWritten will then also find the old TX
+			s.visitedTransactions[tx.Ref()] = true
 		}
 		return true
 	}, hash.EmptyHash())
