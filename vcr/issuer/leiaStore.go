@@ -16,6 +16,7 @@ type leiaStore struct {
 	collection leia.Collection
 }
 
+// NewLeiaStore creates a new instance of leiaStore which implements the Store interface.
 func NewLeiaStore(dataDir string) (Store, error) {
 	dbPath := path.Join(dataDir, "vcr", "issued-credentials.db")
 	store, err := leia.NewStore(dbPath, false)

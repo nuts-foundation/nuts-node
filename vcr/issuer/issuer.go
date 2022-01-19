@@ -16,6 +16,7 @@ import (
 	"time"
 )
 
+// NewIssuer creates a new issuer which implements the Issuer interface.
 func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return issuer{

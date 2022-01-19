@@ -19,7 +19,9 @@ type LegacyLDProof struct {
 	vc.JSONWebSignature2020Proof
 }
 
-func (p LegacyLDProof) Sign(document map[string]interface{}, suite signature.SignatureSuite, key crypto.Key) (interface{}, error) {
+// Sign signs a provided document with the provided key.
+// Deprecated: this method is the initial and wrong implementation of a JSON-LD proof. There will be a new method added in the near future.
+func (p LegacyLDProof) Sign(document map[string]interface{}, suite signature.Suite, key crypto.Key) (interface{}, error) {
 	kid, err := ssi.ParseURI(key.KID())
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign proof: unable parse KID as ssi.URI")

@@ -52,8 +52,10 @@ var ErrInvalidCredential = errors.New("invalid credential")
 // ErrInvalidPeriod is returned when the credential is not valid at the given time.
 var ErrInvalidPeriod = errors.New("credential not valid at given time")
 
+// VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
 var VcDocumentType = "application/vc+json"
 
+// RevocationDocumentType holds the content type used in network documents which contain Revocation messages of credentials
 var RevocationDocumentType = "application/vc+json;type=revocation"
 
 // ConceptFinder can resolve VC backed concepts for a DID.

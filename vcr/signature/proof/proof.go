@@ -5,6 +5,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 )
 
+// Proof is the interface that defines a set of methods which a proof should implement.
 type Proof interface {
-	Sign(document map[string]interface{}, suite signature.SignatureSuite, key crypto.Key) (interface{}, error)
+	// Sign defines the basic signing operation on the proof.
+	Sign(document map[string]interface{}, suite signature.Suite, key crypto.Key) (interface{}, error)
 }

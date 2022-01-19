@@ -22,8 +22,11 @@ type networkPublisher struct {
 	keyResolver     vdrKeyResolver
 }
 
+// VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
 const VcDocumentType = "application/vc+json"
 
+// NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
+// It is the default implementation to use for issuers to publish credentials and revocations to the Nuts network.
 func NewNetworkPublisher(networkTx network.Transactions, docResolver vdr.DocResolver, keyResolver crypto.KeyResolver) Publisher {
 	return &networkPublisher{
 		networkTx:       networkTx,
