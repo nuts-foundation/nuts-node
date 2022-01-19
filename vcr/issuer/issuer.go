@@ -28,7 +28,7 @@ func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, ke
 type issuer struct {
 	store       Store
 	Publisher   Publisher
-	keyResolver vdrKeyResolver
+	keyResolver keyResolver
 }
 
 // Issue creates a new credential, signs, stores and publishes it to the network.
@@ -69,7 +69,7 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 
 	credentialID, _ := ssi.ParseURI(fmt.Sprintf("%s#%s", issuer.String(), uuid.New().String()))
 	unsignedCredential := vc.VerifiableCredential{
-		Context:           []ssi.URI{vc.VCContextV1URI(), *credential.NutsContextURI},
+		Context:           append(credentialOptions.Context, vc.VCContextV1URI()),
 		ID:                credentialID,
 		Type:              credentialOptions.Type,
 		CredentialSubject: credentialOptions.CredentialSubject,

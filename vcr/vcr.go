@@ -25,7 +25,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"io/fs"
 	"os"
 	"path"
@@ -47,6 +46,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
@@ -311,6 +311,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		}
 		c.registry.Add(*conceptConfig)
 	}
+	template.Context = append(template.Context, *credential.NutsContextURI)
 	verifiableCredential, err := c.issuer.Issue(template, true, c.config.OverrideIssueAllPublic || conceptConfig.Public)
 	if err != nil {
 		return nil, err
