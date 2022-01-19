@@ -195,7 +195,7 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 }
 
 // SearchCredential mocks base method.
-func (m *MockStore) SearchCredential(context go_did.URI, credentialType string, issuer did.DID, subject go_did.URI) ([]vc.VerifiableCredential, error) {
+func (m *MockStore) SearchCredential(context go_did.URI, credentialType string, issuer did.DID, subject *go_did.URI) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchCredential", context, credentialType, issuer, subject)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)
@@ -261,7 +261,7 @@ func (m *MockStoreResolver) EXPECT() *MockStoreResolverMockRecorder {
 }
 
 // SearchCredential mocks base method.
-func (m *MockStoreResolver) SearchCredential(context go_did.URI, credentialType string, issuer did.DID, subject go_did.URI) ([]vc.VerifiableCredential, error) {
+func (m *MockStoreResolver) SearchCredential(context go_did.URI, credentialType string, issuer did.DID, subject *go_did.URI) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchCredential", context, credentialType, issuer, subject)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)

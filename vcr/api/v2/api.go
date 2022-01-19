@@ -84,12 +84,15 @@ func (w *Wrapper) ResolveIssuedVC(ctx echo.Context, params ResolveIssuedVCParams
 	if err != nil {
 		return core.InvalidInputError("invalid issuer did: %w", err)
 	}
-	subjectID := &ssi.URI{}
+	var subjectID *ssi.URI
 	if params.Subject != nil {
 		subjectID, err = ssi.ParseURI(*params.Subject)
+		if err != nil {
+			return core.InvalidInputError("invalid subject id: %w", err)
+		}
 	}
 
-	foundVCs, err := w.VCR.Issuer().CredentialResolver().SearchCredential(ssi.URI{}, params.CredentialType, *issuerDID, *subjectID)
+	foundVCs, err := w.VCR.Issuer().CredentialResolver().SearchCredential(ssi.URI{}, params.CredentialType, *issuerDID, subjectID)
 	if err != nil {
 		return err
 	}

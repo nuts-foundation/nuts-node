@@ -33,7 +33,7 @@ func (s leiaStore) StoreCredential(vc vc.VerifiableCredential, validAt *time.Tim
 	return s.collection.Add([]leia.Document{doc})
 }
 
-func (s leiaStore) SearchCredential(jsonLdContext ssi.URI, credentialType string, issuer did.DID, subject ssi.URI) ([]vc.VerifiableCredential, error) {
+func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType string, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	query := leia.New(leia.Eq("issuer", issuer.String())).
 		And(leia.Eq("type", credentialType))
 	if subjectString := subject.String(); subjectString != "" {

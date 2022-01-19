@@ -40,5 +40,5 @@ type Store interface {
 // It is a separate interface from Store so when an object only needs resolving, it only needs the resolver.
 type StoreResolver interface {
 	// SearchCredential searches for issued credentials
-	SearchCredential(context ssi.URI, credentialType string, issuer did.DID, subject ssi.URI) ([]vc.VerifiableCredential, error)
+	SearchCredential(context ssi.URI, credentialType string, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error)
 }

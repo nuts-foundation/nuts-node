@@ -10,7 +10,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	go_did "github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	concept "github.com/nuts-foundation/nuts-node/vcr/concept"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -182,7 +182,7 @@ func (m *MockTrustManager) EXPECT() *MockTrustManagerMockRecorder {
 }
 
 // Trust mocks base method.
-func (m *MockTrustManager) Trust(credentialType, issuer go_did.URI) error {
+func (m *MockTrustManager) Trust(credentialType, issuer ssi.URI) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Trust", credentialType, issuer)
 	ret0, _ := ret[0].(error)
@@ -196,10 +196,10 @@ func (mr *MockTrustManagerMockRecorder) Trust(credentialType, issuer interface{}
 }
 
 // Trusted mocks base method.
-func (m *MockTrustManager) Trusted(credentialType go_did.URI) ([]go_did.URI, error) {
+func (m *MockTrustManager) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Trusted", credentialType)
-	ret0, _ := ret[0].([]go_did.URI)
+	ret0, _ := ret[0].([]ssi.URI)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -211,7 +211,7 @@ func (mr *MockTrustManagerMockRecorder) Trusted(credentialType interface{}) *gom
 }
 
 // Untrust mocks base method.
-func (m *MockTrustManager) Untrust(credentialType, issuer go_did.URI) error {
+func (m *MockTrustManager) Untrust(credentialType, issuer ssi.URI) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Untrust", credentialType, issuer)
 	ret0, _ := ret[0].(error)
@@ -225,10 +225,10 @@ func (mr *MockTrustManagerMockRecorder) Untrust(credentialType, issuer interface
 }
 
 // Untrusted mocks base method.
-func (m *MockTrustManager) Untrusted(credentialType go_did.URI) ([]go_did.URI, error) {
+func (m *MockTrustManager) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Untrusted", credentialType)
-	ret0, _ := ret[0].([]go_did.URI)
+	ret0, _ := ret[0].([]ssi.URI)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -277,7 +277,7 @@ func (mr *MockResolverMockRecorder) Registry() *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockResolver) Resolve(ID go_did.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
+func (m *MockResolver) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", ID, resolveTime)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
@@ -373,7 +373,7 @@ func (mr *MockVCRMockRecorder) Registry() *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockVCR) Resolve(ID go_did.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
+func (m *MockVCR) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", ID, resolveTime)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
@@ -388,7 +388,7 @@ func (mr *MockVCRMockRecorder) Resolve(ID, resolveTime interface{}) *gomock.Call
 }
 
 // Revoke mocks base method.
-func (m *MockVCR) Revoke(ID go_did.URI) (*credential.Revocation, error) {
+func (m *MockVCR) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Revoke", ID)
 	ret0, _ := ret[0].(*credential.Revocation)
@@ -446,7 +446,7 @@ func (mr *MockVCRMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
 }
 
 // Trust mocks base method.
-func (m *MockVCR) Trust(credentialType, issuer go_did.URI) error {
+func (m *MockVCR) Trust(credentialType, issuer ssi.URI) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Trust", credentialType, issuer)
 	ret0, _ := ret[0].(error)
@@ -460,10 +460,10 @@ func (mr *MockVCRMockRecorder) Trust(credentialType, issuer interface{}) *gomock
 }
 
 // Trusted mocks base method.
-func (m *MockVCR) Trusted(credentialType go_did.URI) ([]go_did.URI, error) {
+func (m *MockVCR) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Trusted", credentialType)
-	ret0, _ := ret[0].([]go_did.URI)
+	ret0, _ := ret[0].([]ssi.URI)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -475,7 +475,7 @@ func (mr *MockVCRMockRecorder) Trusted(credentialType interface{}) *gomock.Call 
 }
 
 // Untrust mocks base method.
-func (m *MockVCR) Untrust(credentialType, issuer go_did.URI) error {
+func (m *MockVCR) Untrust(credentialType, issuer ssi.URI) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Untrust", credentialType, issuer)
 	ret0, _ := ret[0].(error)
@@ -489,10 +489,10 @@ func (mr *MockVCRMockRecorder) Untrust(credentialType, issuer interface{}) *gomo
 }
 
 // Untrusted mocks base method.
-func (m *MockVCR) Untrusted(credentialType go_did.URI) ([]go_did.URI, error) {
+func (m *MockVCR) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Untrusted", credentialType)
-	ret0, _ := ret[0].([]go_did.URI)
+	ret0, _ := ret[0].([]ssi.URI)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
