@@ -143,11 +143,14 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 		assert.Equal(t, 2, txAddedCalls)
 		assert.Equal(t, 2, txPayloadAddedCalls)
 	})
-	t.Run("tx not processed again when payload has been processed", func(t *testing.T) {
+	t.Run("txs not processed again when payload has been processed", func(t *testing.T) {
+		tx1 := CreateTestTransactionWithJWK(2, tx0.Ref())
+		tx2 := CreateTestTransactionWithJWK(3, tx1.Ref())
 		ctx := context.Background()
 		publisher, dag, payloadStore := newPublisher(t)
-		dag.Add(ctx, tx0)
+		dag.Add(ctx, tx0, tx1)
 		payloadStore.WritePayload(ctx, tx0.PayloadHash(), []byte{1})
+		payloadStore.WritePayload(ctx, tx1.PayloadHash(), []byte{2})
 		txAddedCalls := 0
 		txPayloadAddedCalls := 0
 
@@ -160,12 +163,14 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 			return nil
 		})
 		publisher.Start()
-		// trigger another processing
-		publisher.transactionAdded(ctx, tx0)
+		dag.Add(ctx, tx2)
+		// trigger another processing with an old hash
+		payloadStore.WritePayload(ctx, tx0.PayloadHash(), []byte{1})
 
-		// 2 calls, 2nd from our manual call to transactionAdded
-		assert.Equal(t, 2, txAddedCalls)
-		assert.Equal(t, 1, txPayloadAddedCalls)
+		// 3 calls, 3rd from our manual call to transactionAdded
+		assert.Equal(t, 3, txAddedCalls)
+		// payload is not called again
+		assert.Equal(t, 2, txPayloadAddedCalls)
 	})
 	t.Run("parallel branched, which are blocked", func(t *testing.T) {
 		// Given graph "A <- [B, C] <- D"
