@@ -56,7 +56,7 @@ func Test_ErrorStatusCodes(t *testing.T) {
 	assert.NotNil(t, (&Wrapper{}).ResolveStatusCode(nil))
 }
 
-func TestWrapper_CreateDID(t *testing.T) {
+func TestWrapper_Create(t *testing.T) {
 	issuer := vdr.TestDIDA.URI()
 
 	v := vc.VerifiableCredential{
