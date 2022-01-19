@@ -68,7 +68,9 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, payloadHash 
 
 		// make sure publisher resumes at these points
 		for _, tx := range txs {
-			s.resumeAt.PushBack(tx.Ref())
+			if !s.visitedTransactions[tx.Ref()] {
+				s.resumeAt.PushBack(tx.Ref())
+			}
 		}
 	}
 
@@ -167,7 +169,12 @@ func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transact
 			return false
 		}
 	} else {
-		s.emitEvent(TransactionPayloadAddedEvent, transaction, payload)
+		if !s.visitedTransactions[transaction.Ref()] {
+			s.emitEvent(TransactionPayloadAddedEvent, transaction, payload)
+			// prevent DID doc updates to come back and haunt us. DID doc updates may reuse a payload hash already seen earlier.
+			// payloadWritten will then also find the old TX
+			s.visitedTransactions[transaction.Ref()] = true
+		}
 	}
 
 	return true
@@ -210,6 +217,9 @@ func (s *replayingDAGPublisher) replay() error {
 			}
 		} else {
 			s.emitEvent(TransactionPayloadAddedEvent, tx, payload)
+			// prevent DID doc updates to come back and haunt us. DID doc updates may reuse a payload hash already seen earlier.
+			// payloadWritten will then also find the old TX
+			s.visitedTransactions[tx.Ref()] = true
 		}
 		return true
 	}, hash.EmptyHash())
