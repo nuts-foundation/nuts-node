@@ -19,7 +19,9 @@
 package transport
 
 import (
+	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -31,6 +33,18 @@ type PeerID string
 // String returns the PeerID as string.
 func (p PeerID) String() string {
 	return string(p)
+}
+
+// ParseAddress parses the given input string to a gRPC target address. The input must include the protocol scheme (e.g. grpc://).
+func ParseAddress(input string) (string, error) {
+	parsed, err := url.Parse(input)
+	if err != nil {
+		return "", err
+	}
+	if parsed.Scheme != "grpc" {
+		return "", errors.New("invalid URL scheme")
+	}
+	return parsed.Host, nil
 }
 
 // Peer holds the properties of a remote node we're connected to

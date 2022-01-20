@@ -78,6 +78,7 @@ type Network struct {
 	didDocumentResolver    types.DocResolver
 	decrypter              crypto.Decrypter
 	nodeDIDResolver        transport.NodeDIDResolver
+	didDocumentFinder      types.DocFinder
 	db                     *bbolt.DB
 }
 
@@ -94,6 +95,7 @@ func NewNetworkInstance(
 	privateKeyResolver crypto.KeyResolver,
 	decrypter crypto.Decrypter,
 	didDocumentResolver types.DocResolver,
+	didDocumentFinder types.DocFinder,
 ) *Network {
 	return &Network{
 		config:                 config,
@@ -101,6 +103,7 @@ func NewNetworkInstance(
 		keyResolver:            keyResolver,
 		privateKeyResolver:     privateKeyResolver,
 		didDocumentResolver:    didDocumentResolver,
+		didDocumentFinder:      didDocumentFinder,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 	}
@@ -256,6 +259,10 @@ func (n *Network) Start() error {
 		}
 	}
 
+	return n.connectToKnownNodes(nodeDID)
+}
+
+func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	// Start connecting to bootstrap nodes
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
@@ -264,6 +271,38 @@ func (n *Network) Start() error {
 		n.connectionManager.Connect(bootstrapNode, transport.WithUnauthenticated())
 	}
 
+	if !n.config.EnableDiscovery {
+		return nil
+	}
+
+	// start connecting to published NutsComm addresses
+	otherNodes, err := n.didDocumentFinder.Find(doc.IsActive(), doc.ValidAt(time.Now()), doc.ByServiceType(transport.NutsCommServiceType))
+	if err != nil {
+		return err
+	}
+	for _, node := range otherNodes {
+		if !nodeDID.Empty() && node.ID.Equals(nodeDID) {
+			// Found local node, do not discover.
+			continue
+		}
+	inner:
+		for _, service := range node.Service {
+			if service.Type == transport.NutsCommServiceType {
+				var nutsCommStr string
+				if err = service.UnmarshalServiceEndpoint(&nutsCommStr); err != nil {
+					log.Logger().Warnf("failed to extract NutsComm address from service (did=%s): %v", node.ID.String(), err)
+					continue inner
+				}
+				address, err := transport.ParseAddress(nutsCommStr)
+				if err != nil {
+					log.Logger().Warnf("invalid NutsComm address from service (did=%s, str=%s): %v", node.ID.String(), nutsCommStr, err)
+					continue inner
+				}
+				log.Logger().Infof("Discovered Nuts node (address=%s), published by %s", address, node.ID)
+				n.connectionManager.Connect(address)
+			}
+		}
+	}
 	return nil
 }
 

@@ -39,6 +39,7 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 		cryptoInstance,
 		cryptoInstance,
 		doc.Resolver{Store: vdrStore},
+		doc.Finder{Store: vdrStore},
 	)
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)
@@ -50,5 +51,6 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 func TestNetworkConfig() Config {
 	config := DefaultConfig()
 	config.EnableTLS = false
+	config.EnableDiscovery = false
 	return config
 }

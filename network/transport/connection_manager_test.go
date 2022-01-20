@@ -19,10 +19,9 @@
 package transport
 
 import (
-	"testing"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestFixedNodeDIDResolver_Resolve(t *testing.T) {

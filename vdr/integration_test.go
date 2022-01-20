@@ -67,6 +67,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// DID Store
 	didStore := store.NewMemoryStore()
 	docResolver := doc.Resolver{Store: didStore}
+	docFinder := doc.Finder{Store: didStore}
 
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
@@ -77,6 +78,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		cryptoInstance,
 		cryptoInstance,
 		docResolver,
+		docFinder,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
@@ -246,6 +248,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	// DID Store
 	didStore := store.NewMemoryStore()
 	docResolver := doc.Resolver{Store: didStore}
+	docFinder := doc.Finder{Store: didStore}
 
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
@@ -256,6 +259,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 		cryptoInstance,
 		cryptoInstance,
 		docResolver,
+		docFinder,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()

@@ -71,8 +71,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		p := &TestProtocol{}
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
-		peerAddress := fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort())
-		cm.Connect(peerAddress)
+		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()))
 		assert.Len(t, cm.connections.list, 1)
 	})
 
@@ -267,7 +266,7 @@ func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 			return len(cm.Peers()) == 2, nil
 		}, 5*time.Second, "time-out while waiting for peers to connect")
 
-		assert.Equal(t, "2", cm.Diagnostics()[1].String())                                         // assert number_of_peers
+		assert.Equal(t, "2", cm.Diagnostics()[1].String())                                                // assert number_of_peers
 		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", cm.Diagnostics()[2].String()) // assert peers
 	})
 }
@@ -473,7 +472,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 
 		peerInfo := cm.Peers()[0]
 		assert.Equal(t, transport.PeerID("client-peer-id"), peerInfo.ID)
-		assert.Equal(t, "127.0.0.1:9522", peerInfo.Address)
+		assert.Equal(t,  "127.0.0.1:9522", peerInfo.Address)
 		assert.Equal(t, "did:nuts:client", peerInfo.NodeDID.String())
 
 		// Assert headers sent to client

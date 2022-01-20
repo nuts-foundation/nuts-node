@@ -202,7 +202,7 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 	}
 	connection, isNew := s.connections.getOrRegister(s.ctx, peer, s.dialer)
 	if !isNew {
-		log.Logger().Infof("A connection for %s already exists.", peerAddress)
+		log.Logger().Infof("A connection for %s already exists.", peer.Address)
 		return
 	}
 
