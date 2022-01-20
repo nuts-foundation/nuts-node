@@ -249,10 +249,14 @@ func (p *protocol) Stop() {
 }
 
 func (p protocol) Diagnostics() []core.DiagnosticResult {
-	failedJobs := p.payloadScheduler.GetFailedJobs()
+	// Feels weird to ignore the error here but diagnostics shouldn't fail
+	failedJobs, err := p.payloadScheduler.GetFailedJobs()
+	if err != nil {
+		log.Logger().Errorf("failed to get failed jobs: %v", err)
+	}
 
 	return []core.DiagnosticResult{&core.GenericDiagnosticResult{
-		Title:   "failed_private_transactions",
+		Title:   "payload_fetch_dlq",
 		Outcome: failedJobs,
 	}}
 }

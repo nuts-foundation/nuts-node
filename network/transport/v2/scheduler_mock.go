@@ -63,11 +63,12 @@ func (mr *MockSchedulerMockRecorder) Finished(hash interface{}) *gomock.Call {
 }
 
 // GetFailedJobs mocks base method.
-func (m *MockScheduler) GetFailedJobs() []hash.SHA256Hash {
+func (m *MockScheduler) GetFailedJobs() ([]hash.SHA256Hash, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetFailedJobs")
 	ret0, _ := ret[0].([]hash.SHA256Hash)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetFailedJobs indicates an expected call of GetFailedJobs.

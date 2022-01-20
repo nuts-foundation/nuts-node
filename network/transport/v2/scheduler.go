@@ -34,6 +34,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
+const maxRetries = 100
+
 var payloadJobsBucketName = []byte("payload_jobs")
 
 func encodeUint16(value uint16) []byte {
@@ -60,7 +62,7 @@ type Scheduler interface {
 	// Run retrying existing jobs
 	Run() error
 	// GetFailedJobs retrieves the hashes of failed jobs
-	GetFailedJobs() []hash.SHA256Hash
+	GetFailedJobs() ([]hash.SHA256Hash, error)
 	// Close cancels all jobs and closes the DB
 	Close() error
 }
@@ -89,14 +91,12 @@ func NewPayloadScheduler(db *bbolt.DB, payloadRetryDelay time.Duration, callback
 }
 
 type payloadScheduler struct {
-	db             *bbolt.DB
-	retryDelay     time.Duration
-	failedJobs     []hash.SHA256Hash
-	callback       jobCallBack
-	ctx            context.Context
-	cancel         context.CancelFunc
-	failedJobsLock sync.RWMutex
-	scheduleLock   sync.Mutex
+	db           *bbolt.DB
+	retryDelay   time.Duration
+	callback     jobCallBack
+	ctx          context.Context
+	cancel       context.CancelFunc
+	scheduleLock sync.Mutex
 }
 
 func (p *payloadScheduler) Run() error {
@@ -114,18 +114,22 @@ func (p *payloadScheduler) Run() error {
 	})
 }
 
-func (p *payloadScheduler) addFailedJob(hash hash.SHA256Hash) {
-	p.failedJobsLock.Lock()
-	defer p.failedJobsLock.Unlock()
+func (p *payloadScheduler) GetFailedJobs() (hashes []hash.SHA256Hash, err error) {
+	err = p.db.View(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte("payload_jobs"))
 
-	p.failedJobs = append(p.failedJobs, hash)
-}
+		return bucket.ForEach(func(key, data []byte) error {
+			if data != nil {
+				if decodeUint16(data) >= maxRetries {
+					hashes = append(hashes, hash.FromSlice(key))
+				}
+			}
 
-func (p *payloadScheduler) GetFailedJobs() []hash.SHA256Hash {
-	p.failedJobsLock.RLock()
-	defer p.failedJobsLock.RUnlock()
+			return nil
+		})
+	})
 
-	return p.failedJobs
+	return
 }
 
 func (p *payloadScheduler) Schedule(hash hash.SHA256Hash) error {
@@ -180,9 +184,9 @@ func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 			// no longer exists, so done
 			return nil
 		},
-			retry.Attempts(100-uint(initialCount)), // should be enough
-			retry.MaxDelay(24*time.Hour),           // maximum delay of an hour
-			retry.Delay(delay),                     // first retry after 5 seconds, second after 10, 20, 40, etc
+			retry.Attempts(maxRetries-uint(initialCount)), // should be enough
+			retry.MaxDelay(24*time.Hour),                  // maximum delay of an hour
+			retry.Delay(delay),                            // first retry after 5 seconds, second after 10, 20, 40, etc
 			retry.DelayType(retry.BackOffDelay),
 			retry.Context(ctx),
 			retry.LastErrorOnly(true), // only log last error
@@ -192,7 +196,6 @@ func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 		)
 		if err != nil {
 			log.Logger().Errorf("failed to pass payload query to network: %v", err)
-			p.addFailedJob(hash)
 		}
 	}(p.ctx)
 }

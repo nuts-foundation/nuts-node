@@ -74,11 +74,11 @@ func TestProtocol_Diagnostics(t *testing.T) {
 	failedJobs := []hash.SHA256Hash{[hash.SHA256HashSize]byte{100}}
 
 	proto, mocks := newTestProtocol(t, nil)
-	mocks.PayloadScheduler.EXPECT().GetFailedJobs().Return(failedJobs)
+	mocks.PayloadScheduler.EXPECT().GetFailedJobs().Return(failedJobs, nil)
 
 	assert.Equal(t, []core.DiagnosticResult{
 		&core.GenericDiagnosticResult{
-			Title:   "failed_private_transactions",
+			Title:   "payload_fetch_dlq",
 			Outcome: failedJobs,
 		},
 	}, proto.Diagnostics())
