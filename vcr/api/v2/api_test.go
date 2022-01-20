@@ -227,29 +227,80 @@ func TestWrapper_ResolveIssuedVC(t *testing.T) {
 	})
 }
 
+func TestWrapper_VerifyVC(t *testing.T) {
+	t.Run("valid vc", func(t *testing.T) {
+		testContext := newMockContext(t)
+
+		issuerURI, _ := ssi.ParseURI("did:nuts:123")
+		credentialType, _ := ssi.ParseURI("ExampleType")
+
+		expectedRequestedVC := vc.VerifiableCredential{
+			Type:              []ssi.URI{*credentialType},
+			Issuer:            *issuerURI,
+			CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
+		}
+
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*VerifiableCredential)
+			*verifyRequest = expectedRequestedVC
+			return nil
+		})
+
+		testContext.echo.EXPECT().JSON(http.StatusOK, VCVerificationResult{Validity: true})
+
+		testContext.vcr.EXPECT().Validate(expectedRequestedVC, true, true, nil)
+
+		err := testContext.client.VerifyVC(testContext.echo)
+		assert.NoError(t, err)
+	})
+	t.Run("invalid vc", func(t *testing.T) {
+		testContext := newMockContext(t)
+
+		issuerURI, _ := ssi.ParseURI("did:nuts:123")
+		credentialType, _ := ssi.ParseURI("ExampleType")
+
+		expectedRequestedVC := vc.VerifiableCredential{
+			Type:              []ssi.URI{*credentialType},
+			Issuer:            *issuerURI,
+			CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
+		}
+
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*VerifiableCredential)
+			*verifyRequest = expectedRequestedVC
+			return nil
+		})
+
+		message := "invalid vc"
+		testContext.echo.EXPECT().JSON(http.StatusOK, VCVerificationResult{Validity: false, Message: &message})
+
+		testContext.vcr.EXPECT().Validate(expectedRequestedVC, true, true, nil).Return(errors.New("invalid vc"))
+
+		err := testContext.client.VerifyVC(testContext.echo)
+		assert.NoError(t, err)
+	})
+}
+
 type mockContext struct {
-	ctrl *gomock.Controller
-	echo *mock.MockContext
-	//registry *concept.MockRegistry
+	ctrl       *gomock.Controller
+	echo       *mock.MockContext
 	mockIssuer *issuer.MockIssuer
-	//vcr      *vcr.MockVCR
-	client *Wrapper
+	vcr        *vcr.MockVCR
+	client     *Wrapper
 }
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
-	//registry := concept.NewMockRegistry(ctrl)
-	vcr := vcr.NewMockVCR(ctrl)
+	mockVcr := vcr.NewMockVCR(ctrl)
 	mockIssuer := issuer.NewMockIssuer(ctrl)
-	vcr.EXPECT().Issuer().Return(mockIssuer).AnyTimes()
-	client := &Wrapper{VCR: vcr}
+	mockVcr.EXPECT().Issuer().Return(mockIssuer).AnyTimes()
+	client := &Wrapper{VCR: mockVcr}
 
 	return mockContext{
 		ctrl:       ctrl,
 		echo:       mock.NewMockContext(ctrl),
 		mockIssuer: mockIssuer,
-		//registry: registry,
-		//vcr:      vcr,
-		client: client,
+		vcr:        mockVcr,
+		client:     client,
 	}
 }
