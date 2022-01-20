@@ -32,7 +32,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
 
@@ -269,7 +268,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
 			continue
 		}
-		n.connectionManager.Connect(transport.Address(bootstrapNode), transport.WithUnauthenticated())
+		n.connectionManager.Connect(bootstrapNode, transport.WithUnauthenticated())
 	}
 
 	if !n.config.EnableDiscovery {

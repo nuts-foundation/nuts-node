@@ -419,7 +419,7 @@ func TestNetwork_Start(t *testing.T) {
 			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
 		})
 		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
-		cxt.connectionManager.EXPECT().Connect(transport.Address("bootstrap-node-1"), gomock.Any()).Do(func(arg1 interface{}, arg2 interface{}) {
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1", gomock.Any()).Do(func(arg1 interface{}, arg2 interface{}) {
 			// assert that transport.WithUnauthenticated() is passed as option
 			f, ok := arg2.(transport.ConnectionOption)
 			if !assert.True(t, ok) {
@@ -429,7 +429,7 @@ func TestNetwork_Start(t *testing.T) {
 			f(&peer)
 			assert.True(t, peer.AcceptUnauthenticated)
 		})
-		cxt.connectionManager.EXPECT().Connect(transport.Address("bootstrap-node-2"), gomock.Any())
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2", gomock.Any())
 		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
@@ -564,7 +564,7 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 	const txNum = 5
 	const expectedVersion = "0"
 	const expectedID = "https://github.com/nuts-foundation/nuts-node"
-	expectedPeer := transport.Peer{ID: "abc", Address: transport.Address("123")}
+	expectedPeer := transport.Peer{ID: "abc", Address: "123"}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -682,13 +682,13 @@ func Test_connectToKnownNodes(t *testing.T) {
 			},
 		}
 		peerDID, _ := did.ParseDID("did:nuts:peer")
-		peerAddress := transport.Address("peer:5555")
+		peerAddress := "peer:5555"
 		peerDocument := did.Document{
 			ID: *peerDID,
 			Service: []did.Service{
 				{
 					Type:            transport.NutsCommServiceType,
-					ServiceEndpoint: peerAddress.String(),
+					ServiceEndpoint: "grpc://" + peerAddress,
 				},
 			},
 		}

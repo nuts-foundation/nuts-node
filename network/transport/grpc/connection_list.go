@@ -88,7 +88,7 @@ func (c *connectionList) getOrRegister(ctx context.Context, peer transport.Peer,
 			return curr, false
 		}
 		// This works only for outbound
-		if !peer.Address.Empty() && peer.Address == currPeer.Address {
+		if len(peer.Address) > 0 && peer.Address == currPeer.Address {
 			return curr, false
 		}
 	}

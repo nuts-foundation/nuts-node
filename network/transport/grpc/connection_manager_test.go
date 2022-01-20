@@ -71,7 +71,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		p := &TestProtocol{}
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
-		cm.Connect(transport.Address(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort())))
+		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()))
 		assert.Len(t, cm.connections.list, 1)
 	})
 
@@ -79,7 +79,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		p := &TestProtocol{}
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
-		peerAddress := transport.Address(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()))
+		peerAddress := fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort())
 		cm.Connect(peerAddress)
 		cm.Connect(peerAddress)
 		assert.Len(t, cm.connections.list, 1)
@@ -99,7 +99,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer server.Stop()
-		client.Connect(transport.Address("server"))
+		client.Connect("server")
 	})
 }
 
@@ -128,14 +128,14 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
 		cm2, authenticator2, _, _ := create(t, withBufconnDialer(listener))
 		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
-		cm2.Connect(transport.Address("bufnet"))
+		cm2.Connect("bufnet")
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm2.Peers()) > 0, nil
 		}, time.Second*2, "waiting for peer 1 to connect")
 	})
 	t.Run("0 peers (1 connection which failed)", func(t *testing.T) {
 		cm, _, _, _ := create(t)
-		cm.Connect(transport.Address("non-existing"))
+		cm.Connect("non-existing")
 		assert.Empty(t, cm.Peers())
 	})
 }
@@ -267,7 +267,7 @@ func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 		}, 5*time.Second, "time-out while waiting for peers to connect")
 
 		assert.Equal(t, "2", cm.Diagnostics()[1].String())                                                // assert number_of_peers
-		assert.Equal(t, "peer2@grpc://127.0.0.1:1028 peer1@grpc://127.0.0.1:6718", cm.Diagnostics()[2].String()) // assert peers
+		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", cm.Diagnostics()[2].String()) // assert peers
 	})
 }
 
@@ -336,7 +336,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		var waiter sync.WaitGroup
 		waiter.Add(1)
 
-		connection, _ := client.connections.getOrRegister(context.Background(), transport.Peer{Address: transport.Address("server")}, client.dialer)
+		connection, _ := client.connections.getOrRegister(context.Background(), transport.Peer{Address: "server"}, client.dialer)
 		connection.startConnecting(nil, func(grpcConn *grpc.ClientConn) bool {
 			err := client.openOutboundStreams(connection, grpcConn)
 			capturedError.Store(err)
@@ -347,7 +347,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		})
 
 		waiter.Wait()
-		assert.EqualError(t, capturedError.Load().(error), "could not use any of the supported protocols to communicate with peer (id=@grpc://server)")
+		assert.EqualError(t, capturedError.Load().(error), "could not use any of the supported protocols to communicate with peer (id=@server)")
 	})
 	t.Run("already connected (same peer ID)", func(t *testing.T) {
 		serverCfg, serverListener := newBufconnConfig("server")
@@ -453,7 +453,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 	t.Run("new client", func(t *testing.T) {
 		expectedPeer := transport.Peer{
 			ID:      "client-peer-id",
-			Address: transport.Address("127.0.0.1:9522"),
+			Address: "127.0.0.1:9522",
 			NodeDID: did.DID{},
 		}
 		clientDID, _ := did.ParseDID("did:nuts:client")
@@ -472,7 +472,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 
 		peerInfo := cm.Peers()[0]
 		assert.Equal(t, transport.PeerID("client-peer-id"), peerInfo.ID)
-		assert.Equal(t,  transport.Address("127.0.0.1:9522"), peerInfo.Address)
+		assert.Equal(t,  "127.0.0.1:9522", peerInfo.Address)
 		assert.Equal(t, "did:nuts:client", peerInfo.NodeDID.String())
 
 		// Assert headers sent to client
@@ -498,7 +498,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 	t.Run("authentication failed", func(t *testing.T) {
 		expectedPeer := transport.Peer{
 			ID:      "client-peer-id",
-			Address: transport.Address("127.0.0.1:9522"),
+			Address: "127.0.0.1:9522",
 			NodeDID: did.DID{},
 		}
 		clientDID, _ := did.ParseDID("did:nuts:client")

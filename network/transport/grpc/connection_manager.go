@@ -195,7 +195,7 @@ func (s *grpcConnectionManager) Stop() {
 	}
 }
 
-func (s grpcConnectionManager) Connect(peerAddress transport.Addr, options ...transport.ConnectionOption) {
+func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.ConnectionOption) {
 	peer := transport.Peer{Address: peerAddress}
 	for _, o := range options {
 		o(&peer)
@@ -378,7 +378,7 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 	}
 	peer := transport.Peer{
 		ID:      peerID,
-		Address: transport.Address(peerFromCtx.Addr.String()),
+		Address: peerFromCtx.Addr.String(),
 	}
 	log.Logger().Debugf("New inbound stream from peer (peer=%s,protocol=%T)", peer, inboundStream)
 	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)

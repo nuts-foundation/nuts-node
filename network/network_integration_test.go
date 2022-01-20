@@ -447,6 +447,6 @@ func nameToPort(t *testing.T, name string) int {
 	return int(crc32.ChecksumIEEE([]byte(t.Name()+"/"+name))%9000 + 1000)
 }
 
-func nameToAddress(t *testing.T, name string) transport.Addr {
-	return transport.Address(fmt.Sprintf("localhost:%d", nameToPort(t, name)))
+func nameToAddress(t *testing.T, name string) string {
+	return fmt.Sprintf("localhost:%d", nameToPort(t, name))
 }

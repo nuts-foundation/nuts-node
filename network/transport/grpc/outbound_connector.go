@@ -33,7 +33,7 @@ import (
 
 type dialer func(ctx context.Context, target string, opts ...grpcLib.DialOption) (conn *grpcLib.ClientConn, err error)
 
-func createOutboundConnector(address transport.Addr, dialer dialer, tlsConfig *tls.Config, shouldConnect func() bool, connectedCallback func(conn *grpcLib.ClientConn) bool) *outboundConnector {
+func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Config, shouldConnect func() bool, connectedCallback func(conn *grpcLib.ClientConn) bool) *outboundConnector {
 	var attempts uint32
 	return &outboundConnector{
 		backoff:           defaultBackoff(),
@@ -51,8 +51,8 @@ func createOutboundConnector(address transport.Addr, dialer dialer, tlsConfig *t
 }
 
 type outboundConnector struct {
-	address transport.Addr
 	dialer
+	address     string
 	backoff     Backoff
 	tlsConfig   *tls.Config
 	localPeerID transport.PeerID
@@ -132,7 +132,7 @@ func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
 	} else {
 		dialOptions = append(dialOptions, grpcLib.WithInsecure()) // No TLS, requires 'insecure' flag
 	}
-	grpcConn, err := c.dialer(dialContext, c.address.Target(), dialOptions...)
+	grpcConn, err := c.dialer(dialContext, c.address, dialOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect: %w", err)
 	}

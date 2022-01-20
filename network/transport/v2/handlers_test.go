@@ -18,13 +18,13 @@ import (
 var (
 	peer = transport.Peer{
 		ID:      "abc",
-		Address: transport.Address("abc:5555"),
+		Address: "abc:5555",
 	}
 	peerDID, _        = did.ParseDID("did:nuts:peer")
 	nodeDID, _        = did.ParseDID("did:nuts:node")
 	authenticatedPeer = transport.Peer{
 		ID:      "abc",
-		Address: transport.Address("abc:5555"),
+		Address: "abc:5555",
 		NodeDID: *peerDID,
 	}
 )

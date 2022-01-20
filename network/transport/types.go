@@ -35,53 +35,16 @@ func (p PeerID) String() string {
 	return string(p)
 }
 
-// Addr describes an address of a node on the Nuts Network.
-type Addr struct {
-	scheme string
-	target string
-}
-
-// Empty returns whether the Addr is considered empty.
-func (addr Addr) Empty() bool {
-	return len(addr.scheme) == 0 || len(addr.target) == 0
-}
-
-// Scheme returns the protocol scheme of the address (e.g. "grpc").
-func (addr Addr) Scheme() string {
-	return addr.scheme
-}
-
-// Target returns the target of the address (e.g. "10.0.0.1:5555").
-func (addr Addr) Target() string {
-	return addr.target
-}
-
-// String returns the fully qualifies address, which includes the protocol scheme (e.g. "grpc").
-func (addr Addr) String() string {
-	if addr.Empty() {
-		return ""
-	}
-	return addr.scheme + "://" + addr.target
-}
-
-// Address makes a new gRPC Addr given the target address.
-func Address(target string) Addr {
-	return Addr{
-		scheme: "grpc", // we only support gRPC right now
-		target: target,
-	}
-}
-
-// ParseAddress parses the given input string to an Addr. The input must include the protocol scheme (e.g. grpc://).
-func ParseAddress(input string) (Addr, error) {
+// ParseAddress parses the given input string to a gRPC target address. The input must include the protocol scheme (e.g. grpc://).
+func ParseAddress(input string) (string, error) {
 	parsed, err := url.Parse(input)
 	if err != nil {
-		return Addr{}, err
+		return "", err
 	}
 	if parsed.Scheme != "grpc" {
-		return Addr{}, errors.New("invalid URL scheme")
+		return "", errors.New("invalid URL scheme")
 	}
-	return Addr{scheme: parsed.Scheme, target: parsed.Host}, nil
+	return parsed.Host, nil
 }
 
 // Peer holds the properties of a remote node we're connected to
@@ -89,7 +52,7 @@ type Peer struct {
 	// ID holds the unique identificator of the peer
 	ID PeerID
 	// Address holds the remote address of the node we're actually connected to
-	Address Addr
+	Address string
 	// NodeDID holds the DID that the peer uses to identify its node on the network.
 	// It is only set when properly authenticated.
 	NodeDID did.DID

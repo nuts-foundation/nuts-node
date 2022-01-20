@@ -33,11 +33,11 @@ func Test_NumberOfPeersStatistic(t *testing.T) {
 
 func Test_PeersStatistic(t *testing.T) {
 	statistic := peersStatistic{peers: []transport.Peer{
-		{ID: "abc", Address: transport.Address("localhost:8080")},
-		{ID: "def", Address: transport.Address("remote:8081")},
+		{ID: "abc", Address: "localhost:8080"},
+		{ID: "def", Address: "remote:8081"},
 	}}
 	assert.Equal(t, statistic.Result(), statistic.peers)
-	assert.Equal(t, statistic.String(), "def@grpc://remote:8081 abc@grpc://localhost:8080")
+	assert.Equal(t, statistic.String(), "def@remote:8081 abc@localhost:8080")
 	assert.Equal(t, statistic.Name(), "connected_peers")
 }
 
