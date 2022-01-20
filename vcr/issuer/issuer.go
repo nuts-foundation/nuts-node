@@ -19,7 +19,7 @@ import (
 // NewIssuer creates a new issuer which implements the Issuer interface.
 func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
-	return issuer{
+	return &issuer{
 		store:       store,
 		Publisher:   publisher,
 		keyResolver: resolver,
@@ -32,7 +32,9 @@ type issuer struct {
 	keyResolver keyResolver
 }
 
-// Issue creates a new credential, signs, stores and publishes it to the network.
+// Issue creates a new credential, signs, stores it.
+// If publish is true, it publishes the credential to the network using the configured Publisher
+// Use the public flag to pass the visibility settings to the Publisher.
 func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error) {
 	createdVC, err := i.buildVC(credentialOptions)
 	if err != nil {
@@ -46,12 +48,12 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public
 
 	// TODO: Store credential in the store
 	if err = i.store.StoreCredential(*createdVC, nil); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to store the issued credential: %w", err)
 	}
 
 	if publish {
 		if err := i.Publisher.PublishCredential(*createdVC, public); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to publish the issued credential: %w", err)
 		}
 	}
 	return createdVC, nil
@@ -86,7 +88,7 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 
 	key, err := i.keyResolver.ResolveAssertionKey(*issuer)
 	if err != nil {
-		return nil, fmt.Errorf("could not resolve kid: %w", err)
+		return nil, fmt.Errorf("failed to sign credential, could not resolve an assertionKey for issuer: %w", err)
 	}
 
 	credentialAsMap := map[string]interface{}{}
@@ -104,7 +106,7 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	}
 	b, _ = json.Marshal(signingResultAsMap)
 	signedCredential := &vc.VerifiableCredential{}
-	json.Unmarshal(b, signedCredential)
+	_ = json.Unmarshal(b, signedCredential)
 
 	return signedCredential, nil
 }
