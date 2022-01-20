@@ -59,6 +59,8 @@ type Scheduler interface {
 	Finished(hash hash.SHA256Hash) error
 	// Run retrying existing jobs
 	Run() error
+	// GetFailedJobs retrieves the hashes of failed jobs
+	GetFailedJobs() []hash.SHA256Hash
 	// Close cancels all jobs and closes the DB
 	Close() error
 }
@@ -81,18 +83,20 @@ func NewPayloadScheduler(db *bbolt.DB, payloadRetryDelay time.Duration, callback
 		db:         db,
 		ctx:        ctx,
 		cancel:     cancel,
-		retryDelay: payloadRetryDelay,
 		callback:   callback,
+		retryDelay: payloadRetryDelay,
 	}, nil
 }
 
 type payloadScheduler struct {
-	db         *bbolt.DB
-	retryDelay time.Duration
-	callback   jobCallBack
-	ctx        context.Context
-	cancel     context.CancelFunc
-	mutex      sync.Mutex
+	db             *bbolt.DB
+	retryDelay     time.Duration
+	failedJobs     []hash.SHA256Hash
+	callback       jobCallBack
+	ctx            context.Context
+	cancel         context.CancelFunc
+	failedJobsLock sync.RWMutex
+	scheduleLock   sync.Mutex
 }
 
 func (p *payloadScheduler) Run() error {
@@ -110,9 +114,23 @@ func (p *payloadScheduler) Run() error {
 	})
 }
 
+func (p *payloadScheduler) addFailedJob(hash hash.SHA256Hash) {
+	p.failedJobsLock.Lock()
+	defer p.failedJobsLock.Unlock()
+
+	p.failedJobs = append(p.failedJobs, hash)
+}
+
+func (p *payloadScheduler) GetFailedJobs() []hash.SHA256Hash {
+	p.failedJobsLock.RLock()
+	defer p.failedJobsLock.RUnlock()
+
+	return p.failedJobs
+}
+
 func (p *payloadScheduler) Schedule(hash hash.SHA256Hash) error {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+	p.scheduleLock.Lock()
+	defer p.scheduleLock.Unlock()
 
 	_, exists, err := p.readRetryCount(hash)
 	if err != nil {
@@ -173,7 +191,8 @@ func (p *payloadScheduler) retry(hash hash.SHA256Hash, initialCount uint16) {
 			}),
 		)
 		if err != nil {
-			log.Logger().Errorf("Failed to pass payload query to network: %v", err)
+			log.Logger().Errorf("failed to pass payload query to network: %v", err)
+			p.addFailedJob(hash)
 		}
 	}(p.ctx)
 }

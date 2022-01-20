@@ -240,7 +240,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 
 func (p *protocol) Stop() {
 	if p.payloadScheduler != nil {
-		p.payloadScheduler.Close()
+		_ = p.payloadScheduler.Close()
 	}
 
 	if p.cancel != nil {
@@ -249,7 +249,12 @@ func (p *protocol) Stop() {
 }
 
 func (p protocol) Diagnostics() []core.DiagnosticResult {
-	return nil
+	failedJobs := p.payloadScheduler.GetFailedJobs()
+
+	return []core.DiagnosticResult{&core.GenericDiagnosticResult{
+		Title:   "failed_private_transactions",
+		Outcome: failedJobs,
+	}}
 }
 
 func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {

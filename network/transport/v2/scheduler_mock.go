@@ -62,6 +62,20 @@ func (mr *MockSchedulerMockRecorder) Finished(hash interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Finished", reflect.TypeOf((*MockScheduler)(nil).Finished), hash)
 }
 
+// GetFailedJobs mocks base method.
+func (m *MockScheduler) GetFailedJobs() []hash.SHA256Hash {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetFailedJobs")
+	ret0, _ := ret[0].([]hash.SHA256Hash)
+	return ret0
+}
+
+// GetFailedJobs indicates an expected call of GetFailedJobs.
+func (mr *MockSchedulerMockRecorder) GetFailedJobs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFailedJobs", reflect.TypeOf((*MockScheduler)(nil).GetFailedJobs))
+}
+
 // Run mocks base method.
 func (m *MockScheduler) Run() error {
 	m.ctrl.T.Helper()
