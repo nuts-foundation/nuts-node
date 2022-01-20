@@ -21,6 +21,7 @@ var (
 		Address: "abc:5555",
 	}
 	peerDID, _        = did.ParseDID("did:nuts:peer")
+	otherPeerDID, _   = did.ParseDID("did:nuts:other-peer")
 	nodeDID, _        = did.ParseDID("did:nuts:node")
 	authenticatedPeer = transport.Peer{
 		ID:      "abc",

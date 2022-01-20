@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -322,7 +323,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
 
-		assert.EqualError(t, err, fmt.Sprintf("unable to retrieve payload, no connection found (tx=%s, DID=%s)", txOk.Ref().String(), peerDID.String()))
+		assert.EqualError(t, err, fmt.Sprintf("no connection to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
 	})
 
 	t.Run("valid transaction fails when sending the payload query errors", func(t *testing.T) {
@@ -347,7 +348,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
 
-		assert.EqualError(t, err, fmt.Sprintf("failed to send TransactionPayloadQuery message(tx=%s, DID=%s): random error", txOk.Ref().String(), peerDID.String()))
+		assert.EqualError(t, err, fmt.Sprintf("no connection to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
 	})
 
 	t.Run("valid transaction is handled successfully", func(t *testing.T) {
@@ -373,6 +374,44 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
 		assert.NoError(t, err)
 	})
+	t.Run("broadcasts to all participants (except local node)", func(t *testing.T) {
+		tx := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}, {3}}, "text/plain", true)
+
+		proto, mocks := newTestProtocol(t, testDID)
+
+		mocks.PayloadStore.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, nil)
+		mocks.Graph.EXPECT().Get(context.Background(), tx.Ref()).Return(tx, nil)
+		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(&did.Document{
+			KeyAgreement: []did.VerificationRelationship{
+				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
+			},
+		}, nil, nil)
+		encodedPAL := strings.Join([]string{nodeDID.String(), peerDID.String(), otherPeerDID.String()}, "\n")
+		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return([]byte(encodedPAL), nil)
+		// Connection to peer
+		conn1 := grpc.NewMockConnection(mocks.Controller)
+		conn1.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionPayloadQuery{
+			TransactionPayloadQuery: &TransactionPayloadQuery{
+				TransactionRef: tx.Ref().Slice(),
+			},
+		}}).Return(nil)
+		// Connection to other peer
+		conn2 := grpc.NewMockConnection(mocks.Controller)
+		conn2.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionPayloadQuery{
+			TransactionPayloadQuery: &TransactionPayloadQuery{
+				TransactionRef: tx.Ref().Slice(),
+			},
+		}}).Return(nil)
+		connectionList := grpc.NewMockConnectionList(mocks.Controller)
+		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*nodeDID)).Return(nil)
+		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID)).Return(conn1)
+		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*otherPeerDID)).Return(conn2)
+		proto.connectionList = connectionList
+
+		err := proto.handlePrivateTxRetryErr(tx.Ref())
+
+		assert.NoError(t, err)
+	})
 }
 
 func TestProtocol_decryptPAL(t *testing.T) {
@@ -384,7 +423,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 	t.Run("errors when node DID is not set", func(t *testing.T) {
 		proto, _ := newTestProtocol(t, nil)
 
-		pal, _, err := proto.decryptPAL(dummyPAL)
+		pal, err := proto.decryptPAL(dummyPAL)
 		assert.EqualError(t, err, "node DID is not set")
 		assert.Nil(t, pal)
 	})
@@ -394,7 +433,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 
 		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
 
-		_, _, err := proto.decryptPAL(dummyPAL)
+		_, err := proto.decryptPAL(dummyPAL)
 		assert.EqualError(t, err, "random error")
 	})
 
@@ -406,7 +445,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 			},
 		}, nil, nil)
 
-		pal, _, err := proto.decryptPAL([][]byte{})
+		pal, err := proto.decryptPAL([][]byte{})
 
 		if !assert.NoError(t, err) {
 			return
@@ -426,7 +465,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 		}, nil, nil)
 		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(nil, crypto.ErrKeyNotFound)
 
-		_, _, err := proto.decryptPAL(tx.PAL())
+		_, err := proto.decryptPAL(tx.PAL())
 		assert.EqualError(t, err, fmt.Sprintf("private key of DID keyAgreement not found (kid=%s)", keyDID.String()))
 	})
 
@@ -441,7 +480,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 		}, nil, nil)
 		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(append(append([]byte(testDID.String()), '\n'), []byte(testDID2.String())...), nil)
 
-		pal, _, err := proto.decryptPAL(tx.PAL())
+		pal, err := proto.decryptPAL(tx.PAL())
 
 		if !assert.NoError(t, err) {
 			return

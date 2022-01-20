@@ -54,7 +54,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *Trans
 		}
 		epal := dag.EncryptedPAL(tx.PAL())
 
-		pal, _, err := p.decryptPAL(epal)
+		pal, err := p.decryptPAL(epal)
 		if err != nil {
 			log.Logger().Errorf("Peer requested private transaction but decoding failed (peer=%s,tx=%s): %v", peer, tx.Ref(), err)
 			return p.send(peer, emptyResponse)
