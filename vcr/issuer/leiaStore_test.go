@@ -24,7 +24,7 @@ func TestNewLeiaStore(t *testing.T) {
 		// the forward slash is the only invalid dirname and seems the simplest way of causing an error.
 		sut, err := NewLeiaStore("/")
 
-		assert.EqualError(t, err, "failed to create leiaStore: mkdir /vcr: read-only file system")
+		assert.Contains(t, err.Error(), "failed to create leiaStore: mkdir")
 		assert.Nil(t, sut)
 	})
 }
