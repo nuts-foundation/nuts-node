@@ -647,9 +647,13 @@ func Test_connectToKnownNodes(t *testing.T) {
 			t.Run(sp.name, func(t *testing.T) {
 				ctrl := gomock.NewController(t)
 				defer ctrl.Finish()
-				cxt := createNetwork(ctrl, func(config *Config) {
-					config.EnableDiscovery = true
-				})
+
+				// Use actual test instance because the unit test's createNetwork mocks too much for us
+				network := NewTestNetworkInstance(io.TestDirectory(t))
+				docFinder := vdrTypes.NewMockDocFinder(ctrl)
+				network.didDocumentFinder = docFinder
+				network.config.EnableDiscovery = true
+
 				doc2 := doc
 				doc2.Service = []did.Service{
 					{
@@ -657,9 +661,9 @@ func Test_connectToKnownNodes(t *testing.T) {
 						ServiceEndpoint: sp.endpoint,
 					},
 				}
-				cxt.docFinder.EXPECT().Find(gomock.Any()).Return([]did.Document{doc2}, nil)
+				docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).Return([]did.Document{doc2}, nil)
 
-				_ = cxt.network.connectToKnownNodes(did.DID{}) // no local node DID
+				_ = network.connectToKnownNodes(did.DID{}) // no local node DID
 
 				// assert
 				// cxt.connectionManager.Connect is not called
@@ -669,9 +673,15 @@ func Test_connectToKnownNodes(t *testing.T) {
 	t.Run("local node should not be discovered", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl, func(config *Config) {
-			config.EnableDiscovery = true
-		})
+
+		// Use actual test instance because the unit test's createNetwork mocks too much for us
+		network := NewTestNetworkInstance(io.TestDirectory(t))
+		docFinder := vdrTypes.NewMockDocFinder(ctrl)
+		network.didDocumentFinder = docFinder
+		network.config.EnableDiscovery = true
+		connectionManager := transport.NewMockConnectionManager(ctrl)
+		network.connectionManager = connectionManager
+
 		localDocument := did.Document{
 			ID: *nodeDID,
 			Service: []did.Service{
@@ -692,11 +702,11 @@ func Test_connectToKnownNodes(t *testing.T) {
 				},
 			},
 		}
-		cxt.docFinder.EXPECT().Find(gomock.Any()).Return([]did.Document{peerDocument, localDocument}, nil)
+		docFinder.EXPECT().Find(gomock.Any()).Return([]did.Document{peerDocument, localDocument}, nil)
 		// Only expect Connect() call for peer
-		cxt.connectionManager.EXPECT().Connect(peerAddress)
+		connectionManager.EXPECT().Connect(peerAddress)
 
-		_ = cxt.network.connectToKnownNodes(*nodeDID)
+		_ = network.connectToKnownNodes(*nodeDID)
 	})
 
 }
