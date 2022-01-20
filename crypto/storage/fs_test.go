@@ -19,9 +19,12 @@
 package storage
 
 import (
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"os"
+	"path"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -91,4 +94,27 @@ func Test_fs_KeyExistsFor(t *testing.T) {
 		storage.SavePrivateKey(kid, pk)
 		assert.True(t, storage.PrivateKeyExists(kid))
 	})
+}
+
+func Test_fs_ListPrivateKeys(t *testing.T) {
+	storage, _ := NewFileSystemBackend(io.TestDirectory(t))
+	backend := storage.(*fileSystemBackend)
+
+	// Generate a few keys
+	pk := test.GenerateECKey()
+	for i := 0; i < 5; i++ {
+		kid := fmt.Sprintf("key-%d", i)
+		_ = backend.SavePrivateKey(kid, pk)
+	}
+
+	// Store some other cruft that shouldn't return as private key
+	_ = os.WriteFile(path.Join(backend.fspath, "foo.txt"), []byte{1, 2, 3}, os.ModePerm)
+	_ = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
+	_ = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_private.bin"), []byte{1, 2, 3}, os.ModePerm)
+	_ = os.Mkdir(path.Join(backend.fspath, "subdir"), os.ModePerm)
+	_ = os.WriteFile(path.Join(backend.fspath, "subdir", "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
+
+	keys := backend.ListPrivateKeys()
+	sort.Strings(keys)
+	assert.Equal(t, []string{"key-0", "key-1", "key-2", "key-3", "key-4"}, keys)
 }

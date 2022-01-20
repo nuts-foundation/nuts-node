@@ -151,6 +151,35 @@ func TestNetwork_Configure(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
+		actual, err := ctx.network.nodeDIDResolver.Resolve()
+		assert.IsType(t, &transport.FixedNodeDIDResolver{}, ctx.network.nodeDIDResolver)
+		assert.NoError(t, err)
+		assert.Equal(t, "did:nuts:test", actual.String())
+	})
+	t.Run("ok - auto-resolve node DID", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		ctx := createNetwork(ctrl)
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.IsType(t, transport.NewAutoNodeDIDResolver(nil, nil), ctx.network.nodeDIDResolver)
+	})
+	t.Run("ok - no DID set in strict mode, should return empty node DID", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		ctx := createNetwork(ctrl)
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true})
+		if !assert.NoError(t, err) {
+			return
+		}
+		actual, err := ctx.network.nodeDIDResolver.Resolve()
+		assert.IsType(t, &transport.FixedNodeDIDResolver{}, ctx.network.nodeDIDResolver)
+		assert.NoError(t, err)
+		assert.Empty(t, actual)
 	})
 
 	t.Run("error - configured node DID invalid", func(t *testing.T) {

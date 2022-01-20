@@ -148,6 +148,11 @@ func (v vaultKVStorage) PrivateKeyExists(kid string) bool {
 	return ok
 }
 
+func (v vaultKVStorage) ListPrivateKeys() []string {
+	// not supported yet
+	return nil
+}
+
 // privateKeyPath cleans the kid by removing optional slashes and dots and constructs the key path
 // This prevents “dot-dot-slash” aka “directory traversal” attacks.
 func privateKeyPath(prefix, kid string) string {

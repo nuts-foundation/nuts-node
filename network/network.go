@@ -148,11 +148,19 @@ func (n *Network) Configure(config core.ServerConfig) error {
 
 	// Resolve node DID
 	if n.config.NodeDID != "" {
+		// Node DID is set, configure it statically
 		configuredNodeDID, err := did.ParseDID(n.config.NodeDID)
 		if err != nil {
 			return fmt.Errorf("configured NodeDID is invalid: %w", err)
 		}
 		n.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
+	} else if !config.Strictmode {
+		// If node DID is not set we can wire the automatic node DID resolver, which makes testing/workshops/development easier.
+		// Might cause unexpected behavior though, so it can't be used in strict mode.
+		log.Logger().Infof("Node DID not set, will be auto-discovered.")
+		n.nodeDIDResolver = transport.NewAutoNodeDIDResolver(n.privateKeyResolver, n.didDocumentFinder)
+	} else {
+		log.Logger().Warnf("Node DID not set, sending/receiving private transactions is disabled.")
 	}
 
 	// Configure protocols
