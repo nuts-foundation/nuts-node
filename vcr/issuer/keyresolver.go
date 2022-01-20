@@ -14,6 +14,7 @@ type vdrKeyResolver struct {
 	keyResolver crypto.KeyResolver
 }
 
+// ResolveAssertionKey is a convenience method which tries to find a assertionKey on in the VDR for a given issuerDID.
 func (r vdrKeyResolver) ResolveAssertionKey(issuerDID did.DID) (crypto.Key, error) {
 	// find did document/metadata for originating TXs
 	document, _, err := r.docResolver.Resolve(issuerDID, nil)

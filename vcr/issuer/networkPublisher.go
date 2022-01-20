@@ -41,26 +41,30 @@ func NewNetworkPublisher(networkTx network.Transactions, docResolver vdr.DocReso
 }
 
 func (p networkPublisher) PublishCredential(verifiableCredential vc.VerifiableCredential, public bool) error {
-	// create participants list
-	participants, err := p.generateParticipants(verifiableCredential, public)
-	if err != nil {
-		return err
-	}
 	issuerDID, err := did.ParseDIDURL(verifiableCredential.Issuer.String())
 	if err != nil {
 		return fmt.Errorf("invalid credential issuer: %w", err)
 	}
 
+	if len(verifiableCredential.CredentialSubject) == 0 {
+		return fmt.Errorf("missing credentialSubject")
+	}
+
+	// create participants list
+	participants, err := p.generateParticipants(verifiableCredential, public)
+	if err != nil {
+		return err
+	}
+
 	key, err := p.keyResolver.ResolveAssertionKey(*issuerDID)
+	if err != nil {
+		return fmt.Errorf("could not resolve an assertion key for issuer: %w", err)
+	}
 
 	// find did document/metadata for originating TXs
 	_, meta, err := p.didDocResolver.Resolve(*issuerDID, nil)
 	if err != nil {
 		return err
-	}
-
-	if err != nil {
-		return fmt.Errorf("could not resolve kid: %w", err)
 	}
 
 	payload, _ := json.Marshal(verifiableCredential)
@@ -71,7 +75,7 @@ func (p networkPublisher) PublishCredential(verifiableCredential vc.VerifiableCr
 
 	_, err = p.networkTx.CreateTransaction(tx)
 	if err != nil {
-		return fmt.Errorf("failed to publish credential: %w", err)
+		return fmt.Errorf("failed to publish credential, error while creating transaction: %w", err)
 	}
 	log.Logger().Infof("Verifiable Credential published (id=%s,type=%s)", verifiableCredential.ID, verifiableCredential.Type)
 
