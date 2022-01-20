@@ -19,7 +19,7 @@ func (r vdrKeyResolver) ResolveAssertionKey(issuerDID did.DID) (crypto.Key, erro
 	// find did document/metadata for originating TXs
 	document, _, err := r.docResolver.Resolve(issuerDID, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve assertionKey: could not resolve did document is vdr: %w", err)
 	}
 
 	// resolve an assertionMethod key for issuer
@@ -28,5 +28,10 @@ func (r vdrKeyResolver) ResolveAssertionKey(issuerDID did.DID) (crypto.Key, erro
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
 
-	return r.keyResolver.Resolve(kid.String())
+	key, err := r.keyResolver.Resolve(kid.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve assertionKey: could not resolve key from keyStore: %w", err)
+	}
+
+	return key, err
 }
