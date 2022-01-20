@@ -3,6 +3,7 @@ package issuer
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -21,10 +22,10 @@ func NewLeiaStore(dataDir string) (Store, error) {
 	dbPath := path.Join(dataDir, "vcr", "issued-credentials.db")
 	store, err := leia.NewStore(dbPath, false)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create leiaStore: %w", err)
 	}
 	collection := store.Collection("issuedCredentials")
-	return leiaStore{collection: collection}, nil
+	return &leiaStore{collection: collection}, nil
 }
 
 func (s leiaStore) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error {
@@ -36,8 +37,10 @@ func (s leiaStore) StoreCredential(vc vc.VerifiableCredential, validAt *time.Tim
 func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType string, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	query := leia.New(leia.Eq("issuer", issuer.String())).
 		And(leia.Eq("type", credentialType))
-	if subjectString := subject.String(); subjectString != "" {
-		query = query.And(leia.Eq("credentialSubject.id", subjectString))
+	if subject != nil {
+		if subjectString := subject.String(); subjectString != "" {
+			query = query.And(leia.Eq("credentialSubject.id", subjectString))
+		}
 	}
 
 	docs, err := s.collection.Find(context.Background(), query)
