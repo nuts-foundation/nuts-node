@@ -6,6 +6,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
@@ -279,6 +280,19 @@ func TestWrapper_VerifyVC(t *testing.T) {
 		err := testContext.client.VerifyVC(testContext.echo)
 		assert.NoError(t, err)
 	})
+}
+
+func TestWrapper_Preprocess(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	w := &Wrapper{}
+	ctx := mock.NewMockContext(ctrl)
+	ctx.EXPECT().Set(core.StatusCodeResolverContextKey, w)
+	ctx.EXPECT().Set(core.OperationIDContextKey, "foo")
+	ctx.EXPECT().Set(core.ModuleNameContextKey, "VCR")
+
+	w.Preprocess("foo", ctx)
 }
 
 type mockContext struct {
