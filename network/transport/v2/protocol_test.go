@@ -323,7 +323,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
 
-		assert.EqualError(t, err, fmt.Sprintf("unable to retrieve private TX payload, no connections to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
+		assert.EqualError(t, err, fmt.Sprintf("no connection to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
 	})
 
 	t.Run("valid transaction fails when sending the payload query errors", func(t *testing.T) {
@@ -348,7 +348,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
 
-		assert.EqualError(t, err, fmt.Sprintf("unable to retrieve private TX payload, no connections to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
+		assert.EqualError(t, err, fmt.Sprintf("no connection to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
 	})
 
 	t.Run("valid transaction is handled successfully", func(t *testing.T) {

@@ -232,7 +232,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	}
 
 	if !sent {
-		return fmt.Errorf("unable to retrieve private TX payload, no connections to any of the participants (tx=%s, PAL=%v)", hash.String(), pal)
+		return fmt.Errorf("no connection to any of the participants (tx=%s, PAL=%v)", hash.String(), pal)
 	}
 
 	return nil
