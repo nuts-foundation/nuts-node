@@ -92,7 +92,12 @@ func (w *Wrapper) ResolveIssuedVC(ctx echo.Context, params ResolveIssuedVCParams
 		}
 	}
 
-	foundVCs, err := w.VCR.Issuer().CredentialResolver().SearchCredential(ssi.URI{}, params.CredentialType, *issuerDID, subjectID)
+	credentialType, err := ssi.ParseURI(params.CredentialType)
+	if err != nil {
+		return core.InvalidInputError("invalid credentialType: %w", err)
+	}
+
+	foundVCs, err := w.VCR.Issuer().CredentialResolver().SearchCredential(ssi.URI{}, *credentialType, *issuerDID, subjectID)
 	if err != nil {
 		return err
 	}

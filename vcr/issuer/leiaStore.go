@@ -10,7 +10,6 @@ import (
 	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"path"
-	"time"
 )
 
 // leiaStore implements the issuer Store interface. It is a simple and fast json store.
@@ -30,15 +29,15 @@ func NewLeiaStore(dataDir string) (Store, error) {
 	return &leiaStore{collection: collection}, nil
 }
 
-func (s leiaStore) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error {
+func (s leiaStore) StoreCredential(vc vc.VerifiableCredential) error {
 	vcAsBytes, _ := json.Marshal(vc)
 	doc := leia.DocumentFromBytes(vcAsBytes)
 	return s.collection.Add([]leia.Document{doc})
 }
 
-func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType string, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
+func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	query := leia.New(leia.Eq("issuer", issuer.String())).
-		And(leia.Eq("type", credentialType))
+		And(leia.Eq("type", credentialType.String()))
 	if subject != nil {
 		if subjectString := subject.String(); subjectString != "" {
 			query = query.And(leia.Eq("credentialSubject.id", subjectString))

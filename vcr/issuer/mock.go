@@ -6,7 +6,6 @@ package issuer
 
 import (
 	reflect "reflect"
-	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
@@ -195,7 +194,7 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 }
 
 // SearchCredential mocks base method.
-func (m *MockStore) SearchCredential(context go_did.URI, credentialType string, issuer did.DID, subject *go_did.URI) ([]vc.VerifiableCredential, error) {
+func (m *MockStore) SearchCredential(context, credentialType go_did.URI, issuer did.DID, subject *go_did.URI) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchCredential", context, credentialType, issuer, subject)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)
@@ -210,17 +209,17 @@ func (mr *MockStoreMockRecorder) SearchCredential(context, credentialType, issue
 }
 
 // StoreCredential mocks base method.
-func (m *MockStore) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error {
+func (m *MockStore) StoreCredential(vc vc.VerifiableCredential) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreCredential", vc, validAt)
+	ret := m.ctrl.Call(m, "StoreCredential", vc)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // StoreCredential indicates an expected call of StoreCredential.
-func (mr *MockStoreMockRecorder) StoreCredential(vc, validAt interface{}) *gomock.Call {
+func (mr *MockStoreMockRecorder) StoreCredential(vc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockStore)(nil).StoreCredential), vc, validAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockStore)(nil).StoreCredential), vc)
 }
 
 // StoreRevocation mocks base method.
@@ -261,7 +260,7 @@ func (m *MockStoreResolver) EXPECT() *MockStoreResolverMockRecorder {
 }
 
 // SearchCredential mocks base method.
-func (m *MockStoreResolver) SearchCredential(context go_did.URI, credentialType string, issuer did.DID, subject *go_did.URI) ([]vc.VerifiableCredential, error) {
+func (m *MockStoreResolver) SearchCredential(context, credentialType go_did.URI, issuer did.DID, subject *go_did.URI) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchCredential", context, credentialType, issuer, subject)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)

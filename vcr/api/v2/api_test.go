@@ -149,11 +149,12 @@ func TestWrapper_ResolveIssuedVC(t *testing.T) {
 	issuerID, _ := did.ParseDID("did:nuts:123")
 	subjectIDString := subjectID.String()
 	contextURI, _ := ssi.ParseURI("")
+	testCredential, _ := ssi.ParseURI("TestCredential")
 
 	t.Run("ok - with subject", func(t *testing.T) {
 		testContext := newMockContext(t)
 		issuerStoreMock := issuer.NewMockStoreResolver(testContext.ctrl)
-		issuerStoreMock.EXPECT().SearchCredential(*contextURI, "TestCredential", *issuerID, subjectID)
+		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerID, subjectID)
 
 		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
 
@@ -171,7 +172,7 @@ func TestWrapper_ResolveIssuedVC(t *testing.T) {
 	t.Run("ok - without subject", func(t *testing.T) {
 		testContext := newMockContext(t)
 		issuerStoreMock := issuer.NewMockStoreResolver(testContext.ctrl)
-		issuerStoreMock.EXPECT().SearchCredential(*contextURI, "TestCredential", *issuerID, nil)
+		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerID, nil)
 
 		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
 
@@ -210,12 +211,23 @@ func TestWrapper_ResolveIssuedVC(t *testing.T) {
 			err := testContext.client.ResolveIssuedVC(testContext.echo, params)
 			assert.EqualError(t, err, "invalid subject id: parse \"%%\": invalid URL escape \"%%\"")
 		})
+
+		t.Run("invalid credentialType", func(t *testing.T) {
+			testContext := newMockContext(t)
+			params := ResolveIssuedVCParams{
+				CredentialType: "%%",
+				Issuer:         issuerID.String(),
+				Subject:        &subjectIDString,
+			}
+			err := testContext.client.ResolveIssuedVC(testContext.echo, params)
+			assert.EqualError(t, err, "invalid credentialType: parse \"%%\": invalid URL escape \"%%\"")
+		})
 	})
 
 	t.Run("error - CredentialResolver returns error", func(t *testing.T) {
 		testContext := newMockContext(t)
 		issuerStoreMock := issuer.NewMockStoreResolver(testContext.ctrl)
-		issuerStoreMock.EXPECT().SearchCredential(*contextURI, "TestCredential", *issuerID, nil).Return(nil, errors.New("b00m!"))
+		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerID, nil).Return(nil, errors.New("b00m!"))
 
 		testContext.mockIssuer.EXPECT().CredentialResolver().Return(issuerStoreMock)
 

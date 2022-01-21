@@ -40,7 +40,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 			return
 		}
 
-		err = sut.StoreCredential(vcToStore, nil)
+		err = sut.StoreCredential(vcToStore)
 		assert.NoError(t, err)
 
 		t.Run("and search", func(t *testing.T) {
@@ -48,7 +48,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 			subjectID, _ := ssi.ParseURI("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
 
 			t.Run("for all issued credentials for a issuer", func(t *testing.T) {
-				res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0].String(), *issuerDID, nil)
+				res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *issuerDID, nil)
 				assert.NoError(t, err)
 				if !assert.Len(t, res, 1) {
 					return
@@ -59,7 +59,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 			})
 
 			t.Run("for all issued credentials for a issuer and subject", func(t *testing.T) {
-				res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0].String(), *issuerDID, subjectID)
+				res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *issuerDID, subjectID)
 				assert.NoError(t, err)
 				if !assert.Len(t, res, 1) {
 					return
@@ -73,7 +73,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 
 				t.Run("unknown issuer", func(t *testing.T) {
 					unknownIssuerDID, _ := did.ParseDID("did:nuts:123")
-					res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0].String(), *unknownIssuerDID, nil)
+					res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *unknownIssuerDID, nil)
 					assert.NoError(t, err)
 					if !assert.Len(t, res, 0) {
 						return
@@ -81,7 +81,8 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 				})
 
 				t.Run("unknown credentialType", func(t *testing.T) {
-					res, err := sut.SearchCredential(vcToStore.Context[0], "UnknownType", *issuerDID, nil)
+					unknownType, _ := ssi.ParseURI("unknownType")
+					res, err := sut.SearchCredential(vcToStore.Context[0], *unknownType, *issuerDID, nil)
 					assert.NoError(t, err)
 					if !assert.Len(t, res, 0) {
 						return
@@ -90,7 +91,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 
 				t.Run("unknown subject", func(t *testing.T) {
 					unknownSubject, _ := ssi.ParseURI("did:nuts:unknown")
-					res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0].String(), *issuerDID, unknownSubject)
+					res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *issuerDID, unknownSubject)
 					assert.NoError(t, err)
 					if !assert.Len(t, res, 0) {
 						return

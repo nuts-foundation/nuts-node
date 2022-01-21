@@ -6,7 +6,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"time"
 )
 
 // Publisher publishes new credentials and revocations to a channel. Used by a credential issuer.
@@ -30,7 +29,7 @@ type Issuer interface {
 // An implementation stores all the issued credentials and the revocations.
 type Store interface {
 	// StoreCredential writes a VC to storage.
-	StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error
+	StoreCredential(vc vc.VerifiableCredential) error
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error
 	StoreResolver
@@ -40,5 +39,5 @@ type Store interface {
 // It is a separate interface from Store so when an object only needs resolving, it only needs the resolver.
 type StoreResolver interface {
 	// SearchCredential searches for issued credentials
-	SearchCredential(context ssi.URI, credentialType string, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error)
+	SearchCredential(context ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error)
 }

@@ -116,7 +116,7 @@ func Test_issuer_Issue(t *testing.T) {
 		keyResolverMock := NewMockkeyResolver(ctrl)
 		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 		mockStore := NewMockStore(ctrl)
-		mockStore.EXPECT().StoreCredential(gomock.Any(), nil)
+		mockStore.EXPECT().StoreCredential(gomock.Any())
 		sut := issuer{keyResolver: keyResolverMock, store: mockStore}
 
 		result, err := sut.Issue(credentialOptions, false, true)
@@ -138,7 +138,7 @@ func Test_issuer_Issue(t *testing.T) {
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 			mockStore := NewMockStore(ctrl)
-			mockStore.EXPECT().StoreCredential(gomock.Any(), nil).Return(errors.New("b00m!"))
+			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(errors.New("b00m!"))
 			sut := issuer{keyResolver: keyResolverMock, store: mockStore}
 
 			result, err := sut.Issue(credentialOptions, false, true)
@@ -156,7 +156,7 @@ func Test_issuer_Issue(t *testing.T) {
 			mockPublisher := NewMockPublisher(ctrl)
 			mockPublisher.EXPECT().PublishCredential(gomock.Any(), true).Return(errors.New("b00m!"))
 			mockStore := NewMockStore(ctrl)
-			mockStore.EXPECT().StoreCredential(gomock.Any(), nil).Return(nil)
+			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(nil)
 			sut := issuer{keyResolver: keyResolverMock, store: mockStore, Publisher: mockPublisher}
 
 			result, err := sut.Issue(credentialOptions, true, true)
