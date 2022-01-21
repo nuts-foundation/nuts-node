@@ -2,7 +2,7 @@ openapi: "3.0.0"
 info:
   title: Nuts Verifiable Credential API spec
   description: API specification for Verifiable Credentials
-  version: 1.0.0
+  version: 2.0.0
   license:
     name: GPLv3
 servers:
@@ -169,7 +169,6 @@ components:
         expirationDate:
           description: rfc3339 time string until when the credential is valid.
           type: string
-          format: date-time
           example: "2012-01-02T12:00:00Z"
         publishToNetwork:
           description: |
@@ -203,11 +202,11 @@ components:
           items:
             type: string
         id:
-          description: credential ID. A Nuts DID followed by a large number.
-          example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+          description: Credential ID. An URI wich uniquely identifies the credential e.g. the issuers DID concatenated with an uuid.
+          example: "did:nuts:123#B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
           type: string
         type:
-          description: List of type definitions for the credential. Always includes 'VerifiableCredential'
+          description: List of type definitions for the credential.
           type: array
           items:
             type: string
@@ -216,13 +215,11 @@ components:
         issuanceDate:
           description: rfc3339 time string when the credential was issued.
           type: string
-          format: date-time
           example: "2012-01-02T12:00:00Z"
         expirationDate:
           description: rfc3339 time string untill when the credential is valid.
           type: string
           example: "2012-01-02T12:00:00Z"
-          format: date-time
         credentialSubject:
           $ref: '#/components/schemas/CredentialSubject'
         proof:

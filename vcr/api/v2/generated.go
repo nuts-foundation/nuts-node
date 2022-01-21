@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/labstack/echo/v4"
@@ -48,7 +47,7 @@ type IssueVCRequest struct {
 	CredentialSubject CredentialSubject `json:"credentialSubject"`
 
 	// rfc3339 time string until when the credential is valid.
-	ExpirationDate *time.Time `json:"expirationDate,omitempty"`
+	ExpirationDate *string `json:"expirationDate,omitempty"`
 
 	// DID according to Nuts specification.
 	Issuer string `json:"issuer"`

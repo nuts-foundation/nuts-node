@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+// leiaStore implements the issuer Store interface. It is a simple and fast json store.
+// Note: It can not be used in a clustered setup.
 type leiaStore struct {
 	collection leia.Collection
 }
