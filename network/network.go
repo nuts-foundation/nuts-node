@@ -160,13 +160,19 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	v2Cfg := n.config.ProtocolV2
 	v2Cfg.Datadir = config.Datadir
 
-	n.protocols = []transport.Protocol{
-		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
-		v2.New(v2Cfg, n.nodeDIDResolver, n.graph, n.publisher, n.payloadStore, n.didDocumentResolver, n.decrypter),
+	// Only set protocols if not already set: improves testability
+	if n.protocols == nil {
+		n.protocols = []transport.Protocol{
+			v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.graph, n.publisher, n.payloadStore, n.didDocumentResolver, n.decrypter),
+		}
 	}
 
 	for _, prot := range n.protocols {
-		prot.Configure(n.peerID)
+		err := prot.Configure(n.peerID)
+		if err != nil {
+			return fmt.Errorf("error while configuring protocol %T: %w", prot, err)
+		}
 	}
 
 	// Setup connection manager, load with bootstrap nodes
