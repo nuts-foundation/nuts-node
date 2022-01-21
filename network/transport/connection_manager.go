@@ -52,4 +52,3 @@ type ConnectionManager interface {
 	// Stop shuts down the connections made by the ConnectionManager.
 	Stop()
 }
-
