@@ -261,6 +261,20 @@ func TestNetwork_Configure(t *testing.T) {
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
 
+	t.Run("error - unable to configure protocol", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		protocol := transport.NewMockProtocol(ctrl)
+		protocol.EXPECT().Configure(gomock.Any()).Return(errors.New("failed"))
+
+		ctx := createNetwork(ctrl)
+		ctx.network.protocols = []transport.Protocol{protocol}
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		assert.EqualError(t, err, "error while configuring protocol *transport.MockProtocol: failed")
+	})
+
 	t.Run("unable to create datadir", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
