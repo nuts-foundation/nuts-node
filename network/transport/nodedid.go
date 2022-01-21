@@ -27,14 +27,14 @@ func (f FixedNodeDIDResolver) Resolve() (did.DID, error) {
 
 // NewAutoNodeDIDResolver creates a new node DID resolver that tried to look it up by matching DID documents with a NutsComm endpoint set and the private key of the local node.
 func NewAutoNodeDIDResolver(keyResolver crypto.KeyResolver, docFinder types.DocFinder) NodeDIDResolver {
-	return &AutoNodeDIDResolver{
+	return &autoNodeDIDResolver{
 		keyResolver: keyResolver,
 		docFinder:   docFinder,
 		mux:         &sync.Mutex{},
 	}
 }
 
-type AutoNodeDIDResolver struct {
+type autoNodeDIDResolver struct {
 	keyResolver crypto.KeyResolver
 	docFinder   types.DocFinder
 	mux         *sync.Mutex
@@ -42,14 +42,13 @@ type AutoNodeDIDResolver struct {
 }
 
 // Resolve returns the auto-resolved node DID, or an empty DID if none could be found.
-func (a *AutoNodeDIDResolver) Resolve() (did.DID, error) {
+func (a *autoNodeDIDResolver) Resolve() (did.DID, error) {
 	a.mux.Lock()
+	defer a.mux.Unlock()
 	if !a.resolvedDID.Empty() {
 		result := a.resolvedDID
-		a.mux.Unlock()
 		return result, nil
 	}
-	defer a.mux.Unlock()
 
 	documents, err := a.docFinder.Find(doc.IsActive(), doc.ValidAt(time.Now()), doc.ByServiceType(NutsCommServiceType))
 	if err != nil {

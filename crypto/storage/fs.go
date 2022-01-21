@@ -118,7 +118,7 @@ func (fsc *fileSystemBackend) ListPrivateKeys() []string {
 	_ = filepath.Walk(fsc.fspath, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() && strings.HasSuffix(info.Name(), string(privateKeyEntry)) {
 			upper := len(info.Name()) - len(privateKeyEntry) - 1
-			if upper < len(info.Name()) {
+			if upper > 0 {
 				result = append(result, info.Name()[:upper])
 			}
 		}
