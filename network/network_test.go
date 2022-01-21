@@ -145,6 +145,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(ctrl, func(config *Config) {
 			config.NodeDID = "did:nuts:test"
 		})
+		ctx.protocol.EXPECT().Configure(gomock.Any())
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
@@ -167,6 +168,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		ctx := createNetwork(ctrl)
+		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
@@ -182,6 +184,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(ctrl, func(config *Config) {
 			config.EnableTLS = false
 		})
+		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
@@ -198,6 +201,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(ctrl, func(config *Config) {
 			config.DisableNodeAuthentication = true
 		})
+		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
@@ -213,6 +217,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(ctrl, func(config *Config) {
 			config.DisableNodeAuthentication = true
 		})
+		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true})
@@ -225,6 +230,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(ctrl, func(config *Config) {
 			config.GrpcAddr = ""
 		})
+		ctx.protocol.EXPECT().Configure(gomock.Any())
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
@@ -240,6 +246,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(ctrl, func(config *Config) {
 			config.EnableTLS = false
 		})
+		ctx.protocol.EXPECT().Configure(gomock.Any())
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 
@@ -265,11 +272,8 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		protocol := transport.NewMockProtocol(ctrl)
-		protocol.EXPECT().Configure(gomock.Any()).Return(errors.New("failed"))
-
 		ctx := createNetwork(ctrl)
-		ctx.network.protocols = []transport.Protocol{protocol}
+		ctx.protocol.EXPECT().Configure(gomock.Any()).Return(errors.New("failed"))
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 		assert.EqualError(t, err, "error while configuring protocol *transport.MockProtocol: failed")
@@ -547,6 +551,8 @@ func TestNetwork_Shutdown(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		ctx := createNetwork(ctrl)
+		ctx.protocol.EXPECT().Configure(gomock.Any())
+		ctx.protocol.EXPECT().Stop()
 		ctx.connectionManager.EXPECT().Stop()
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})

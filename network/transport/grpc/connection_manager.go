@@ -74,8 +74,10 @@ func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDRe
 	var grpcProtocols []Protocol
 	for _, curr := range protocols {
 		// For now, only gRPC protocols are supported
-		protocol := curr.(Protocol)
-		grpcProtocols = append(grpcProtocols, protocol)
+		protocol, ok := curr.(Protocol)
+		if ok {
+			grpcProtocols = append(grpcProtocols, protocol)
+		}
 	}
 	cm := &grpcConnectionManager{
 		protocols:       grpcProtocols,
