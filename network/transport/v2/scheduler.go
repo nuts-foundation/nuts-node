@@ -34,7 +34,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
-const maxRetries = 100
+const (
+	retriesFailedThreshold = 10
+	maxRetries             = 100
+)
 
 var payloadJobsBucketName = []byte("payload_jobs")
 
@@ -120,7 +123,7 @@ func (p *payloadScheduler) GetFailedJobs() (hashes []hash.SHA256Hash, err error)
 
 		return bucket.ForEach(func(key, data []byte) error {
 			if data != nil {
-				if decodeUint16(data) >= maxRetries {
+				if decodeUint16(data) >= retriesFailedThreshold {
 					hashes = append(hashes, hash.FromSlice(key))
 				}
 			}
