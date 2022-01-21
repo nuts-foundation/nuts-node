@@ -105,7 +105,6 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 	default:
 		return errors.New("invalid config for crypto.storage. Available options are: vaultkv, fs")
 	}
-	return nil
 }
 
 // New generates a new key pair.

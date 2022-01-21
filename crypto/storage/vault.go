@@ -22,6 +22,7 @@ import (
 	"crypto"
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"path/filepath"
 )
@@ -149,14 +150,32 @@ func (v vaultKVStorage) PrivateKeyExists(kid string) bool {
 }
 
 func (v vaultKVStorage) ListPrivateKeys() []string {
-	// not supported yet
-	return nil
+	path := privateKeyListPath(v.config.PathPrefix)
+	response, err := v.client.Read(path)
+	if err != nil {
+		log.Logger().Errorf("Could not list private keys in Vault: %v", err)
+		return nil
+	}
+	keys, _ := response.Data["keys"].([]interface{})
+	var result []string
+	for _, key := range keys {
+		keyStr, ok := key.(string)
+		if ok {
+			result = append(result, keyStr)
+		}
+	}
+	return result
 }
 
 // privateKeyPath cleans the kid by removing optional slashes and dots and constructs the key path
 // This prevents “dot-dot-slash” aka “directory traversal” attacks.
 func privateKeyPath(prefix, kid string) string {
 	path := fmt.Sprintf("%s/%s/%s", prefix, privateKeyPathName, filepath.Base(kid))
+	return filepath.Clean(path)
+}
+
+func privateKeyListPath(prefix string) string {
+	path := fmt.Sprintf("%s/%s?list=true", prefix, privateKeyPathName)
 	return filepath.Clean(path)
 }
 
