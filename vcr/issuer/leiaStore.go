@@ -40,9 +40,9 @@ func (s leiaStore) StoreCredential(vc vc.VerifiableCredential) error {
 }
 
 func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
-	query := leia.New(leia.Eq("@context", jsonLDContext.String())).
+	query := leia.New(leia.Eq("issuer", issuer.String())).
 		And(leia.Eq("type", credentialType.String())).
-		And(leia.Eq("issuer", issuer.String()))
+		And(leia.Eq("@context", jsonLDContext.String()))
 
 	if subject != nil {
 		if subjectString := subject.String(); subjectString != "" {
