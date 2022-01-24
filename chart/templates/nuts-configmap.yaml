@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nuts-config
+data:
+  nuts.yaml: | 
+    {
+      datadir: "/opt/nuts/data",
+      http.default.address: ":1323",
+      http.default.cors.origin: "*",
+      verbosity: "debug",
+      network.enabletls: "false"
+    }
