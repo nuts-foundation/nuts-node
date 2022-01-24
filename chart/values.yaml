@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: nginx
+  repository: nutsfoundation/nuts-node
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -38,6 +38,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
+  internalPort: 1323
   port: 80
 
 ingress:
