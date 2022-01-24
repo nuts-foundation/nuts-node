@@ -20,10 +20,12 @@
 package core
 
 import (
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"net/http"
 )
 
 const metricsEngine = "Metrics"
@@ -47,14 +49,14 @@ func (e *metrics) Routes(router EchoRouter) {
 // Configure configures the MetricsEngine.
 // It configures and registers the prometheus collector
 func (*metrics) Configure(_ ServerConfig) error {
-	collectors := []prometheus.Collector{
-		prometheus.NewGoCollector(),
-		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
+	prometheusCollectors := []prometheus.Collector{
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	}
 
 	are := prometheus.AlreadyRegisteredError{}
 
-	for _, c := range collectors {
+	for _, c := range prometheusCollectors {
 		if err := prometheus.Register(c); err != nil && err.Error() != are.Error() {
 			return err
 		}
