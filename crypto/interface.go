@@ -43,6 +43,8 @@ type KeyResolver interface {
 	Exists(kid string) bool
 	// Resolve returns a Key for the given KID. ErrKeyNotFound is returned for an unknown KID.
 	Resolve(kid string) (Key, error)
+	// List returns the KIDs of the private keys that are present in the KeyStore.
+	List() []string
 }
 
 // KeyStore defines the functions for working with private keys.

@@ -40,6 +40,8 @@ type Storage interface {
 	PrivateKeyExists(kid string) bool
 	// SavePrivateKey stores the key under the kid in the storage backend.
 	SavePrivateKey(kid string, key crypto.PrivateKey) error
+	// ListPrivateKeys returns the KIDs of the private keys that are present.
+	ListPrivateKeys() []string
 }
 
 // PublicKeyEntry is a public key entry also containing the period it's valid for.
