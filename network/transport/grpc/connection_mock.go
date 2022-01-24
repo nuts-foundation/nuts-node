@@ -117,15 +117,15 @@ func (mr *MockConnectionMockRecorder) setPeer(peer interface{}) *gomock.Call {
 }
 
 // startConnecting mocks base method.
-func (m *MockConnection) startConnecting(config *tls.Config, callback func(*grpc.ClientConn) bool) {
+func (m *MockConnection) startConnecting(address string, config *tls.Config, callback func(*grpc.ClientConn) bool) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "startConnecting", config, callback)
+	m.ctrl.Call(m, "startConnecting", address, config, callback)
 }
 
 // startConnecting indicates an expected call of startConnecting.
-func (mr *MockConnectionMockRecorder) startConnecting(config, callback interface{}) *gomock.Call {
+func (mr *MockConnectionMockRecorder) startConnecting(address, config, callback interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "startConnecting", reflect.TypeOf((*MockConnection)(nil).startConnecting), config, callback)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "startConnecting", reflect.TypeOf((*MockConnection)(nil).startConnecting), address, config, callback)
 }
 
 // stats mocks base method.

@@ -136,6 +136,12 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	time.Sleep(time.Second)
 	assert.Len(t, node1.connectionManager.Peers(), 1)
 	assert.Len(t, node2.connectionManager.Peers(), 1)
+
+	// Assert that the connectors of node1 and node2 are deduplicated: outbound connection is "merged" with existing inbound connection
+	node1Diagnostics := node1.connectionManager.Diagnostics()
+	assert.Len(t, node1Diagnostics[3].(grpc.ConnectorsStats), 1)
+	node2Diagnostics := node2.connectionManager.Diagnostics()
+	assert.Len(t, node2Diagnostics[3].(grpc.ConnectorsStats), 1)
 }
 
 func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
