@@ -24,7 +24,7 @@ There needs to be a KV Secrets Engine (v1) enabled under this prefix path.
 
 All private keys are stored under the path `<prefix>/nuts-private-keys/*`.
 Each key is stored under the kid, resulting in a full key path like `kv/nuts-private-keys/did:nuts:123#abc`.
-A Vault token must be provided by either configuring it using the `crypto.vault.token` configuration option.
+A Vault token must be provided by either configuring it using the config `crypto.vault.token` or setting the VAULT_TOKEN environment variable.
 The token must have a vault policy which enables READ and WRITES rights on the path. In addition it needs to READ the token information "auth/token/lookup-self" which should be part of the default policy.
 
 Filesystem
