@@ -1,7 +1,9 @@
 openapi: "3.0.0"
 info:
   title: Nuts Verifiable Credential API spec
-  description: API specification for Verifiable Credentials
+  description: |
+    API specification for common operations on Verifiable credentials.
+    It allows the three roles, issuer, holer and verifier to issue, revoke, search, present and verify credentials.
   version: 2.0.0
   license:
     name: GPLv3
@@ -38,7 +40,7 @@ paths:
 
   /internal/vcr/v2/issuer/vc/search:
     get:
-      summary: "Resolves a verifiable credential issued by this node"
+      summary: "Resolves verifiable credentials issued by this node which matches the search params"
       description: >
         The resolutionResult contains the credential regardless of the validity.
         The resolutionResult.currentStatus must be checked to see if the credential is valid.
@@ -64,7 +66,7 @@ paths:
             type: string
         - name: subject
           in: query
-          description: the did of the issuer
+          description: the uri which indicates the subject (usually a did)
           example: did:nuts:456
           required: false
           schema:
@@ -73,11 +75,13 @@ paths:
         - credential
       responses:
         "200":
-          description: Credential has been found and is returned.
+          description: A list of matching credentials
           content:
             application/vc+json:
               schema:
-                $ref: '#/components/schemas/ResolutionResult'
+                type: array
+                items:
+                    $ref: '#/components/schemas/ResolutionResult'
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc/{id}:
@@ -86,8 +90,7 @@ paths:
         in: path
         description: URL encoded ID.
         required: true
-        example:
-          - "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#90382475609238467"
+        example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#c4199b74-0c0a-4e09-a463-6927553e65f5"
         schema:
           type: string
     delete:
@@ -180,6 +183,7 @@ components:
         visibility:
             description: |
               When publishToNetwork is true, the credential can be published publicly of privately to the holder.
+              This field is mandatory if publishToNetwork is true to prevent accidents.
             type: string
             enum: [ public, private ]
             default: private
@@ -229,13 +233,12 @@ components:
       type: object
       description: result of a Resolve operation.
       required:
-        - currentStatus
         - verifiableCredential
       properties:
-        currentStatus:
+        revocationDate:
           type: string
-          enum: ["trusted", "revoked", "untrusted"]
-          description: Only credentials with with "trusted" state are valid. If a revoked credential is also untrusted, revoked will be returned.
+          example: "2012-01-02T12:00:00Z"
+          description: If the credential is revoked, the field contains the revocation date.
         verifiableCredential:
           $ref: "#/components/schemas/VerifiableCredential"
     Revocation:

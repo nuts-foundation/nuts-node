@@ -20,7 +20,12 @@ func TestWrapper_IssueVC(t *testing.T) {
 		testContext := newMockContext(t)
 		defer testContext.ctrl.Finish()
 
-		testContext.echo.EXPECT().Bind(gomock.Any())
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			issueRequest := f.(*IssueVCRequest)
+			public := IssueVCRequestVisibilityPublic
+			issueRequest.Visibility = &public
+			return nil
+		})
 		testContext.mockIssuer.EXPECT().Issue(gomock.Any(), true, false)
 		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
 		err := testContext.client.IssueVC(testContext.echo)
@@ -40,10 +45,12 @@ func TestWrapper_IssueVC(t *testing.T) {
 		}
 
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			public := IssueVCRequestVisibilityPublic
 			issueRequest := f.(*IssueVCRequest)
 			issueRequest.Type = expectedRequestedVC.Type[0].String()
 			issueRequest.Issuer = expectedRequestedVC.Issuer.String()
 			issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
+			issueRequest.Visibility = &public
 			return nil
 		})
 		testContext.mockIssuer.EXPECT().Issue(gomock.Eq(expectedRequestedVC), true, false)
@@ -54,38 +61,57 @@ func TestWrapper_IssueVC(t *testing.T) {
 	})
 
 	t.Run("test params", func(t *testing.T) {
-		t.Run("publish is true, visibility not set", func(t *testing.T) {
-			testContext := newMockContext(t)
-			defer testContext.ctrl.Finish()
+		t.Run("publish is true", func(t *testing.T) {
 
-			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-				issueRequest := f.(*IssueVCRequest)
-				publishValue := true
-				issueRequest.PublishToNetwork = &publishValue
-				return nil
+			t.Run("err - visibility not set", func(t *testing.T) {
+				testContext := newMockContext(t)
+				defer testContext.ctrl.Finish()
+
+				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+					issueRequest := f.(*IssueVCRequest)
+					publishValue := true
+					issueRequest.PublishToNetwork = &publishValue
+					visibilityValue := IssueVCRequestVisibility("")
+					issueRequest.Visibility = &visibilityValue
+					return nil
+				})
+				err := testContext.client.IssueVC(testContext.echo)
+				assert.EqualError(t, err, "visibility must be set when publishing credential")
 			})
-			testContext.mockIssuer.EXPECT().Issue(gomock.Any(), true, false)
-			testContext.echo.EXPECT().JSON(http.StatusOK, nil)
-			err := testContext.client.IssueVC(testContext.echo)
-			assert.NoError(t, err)
-		})
 
-		t.Run("publish is true, visibility private", func(t *testing.T) {
-			testContext := newMockContext(t)
-			defer testContext.ctrl.Finish()
+			t.Run("err - visibility contains invalid value", func(t *testing.T) {
+				testContext := newMockContext(t)
+				defer testContext.ctrl.Finish()
 
-			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-				issueRequest := f.(*IssueVCRequest)
-				publishValue := true
-				visibilityValue := IssueVCRequestVisibilityPublic
-				issueRequest.Visibility = &visibilityValue
-				issueRequest.PublishToNetwork = &publishValue
-				return nil
+				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+					issueRequest := f.(*IssueVCRequest)
+					publishValue := true
+					issueRequest.PublishToNetwork = &publishValue
+					visibilityValue := IssueVCRequestVisibility("only when it rains")
+					issueRequest.Visibility = &visibilityValue
+					return nil
+				})
+				err := testContext.client.IssueVC(testContext.echo)
+				assert.EqualError(t, err, "invalid value for visibility")
 			})
-			testContext.mockIssuer.EXPECT().Issue(gomock.Any(), true, true)
-			testContext.echo.EXPECT().JSON(http.StatusOK, nil)
-			err := testContext.client.IssueVC(testContext.echo)
-			assert.NoError(t, err)
+
+			t.Run("ok - visibility private", func(t *testing.T) {
+				testContext := newMockContext(t)
+				defer testContext.ctrl.Finish()
+
+				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+					issueRequest := f.(*IssueVCRequest)
+					publishValue := true
+					visibilityValue := IssueVCRequestVisibilityPublic
+					issueRequest.Visibility = &visibilityValue
+					issueRequest.PublishToNetwork = &publishValue
+					return nil
+				})
+				testContext.mockIssuer.EXPECT().Issue(gomock.Any(), true, false)
+				testContext.echo.EXPECT().JSON(http.StatusOK, nil)
+				err := testContext.client.IssueVC(testContext.echo)
+				assert.NoError(t, err)
+			})
 		})
 
 		t.Run("err - publish false and visibility public", func(t *testing.T) {
@@ -101,7 +127,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 				return nil
 			})
 			err := testContext.client.IssueVC(testContext.echo)
-			assert.EqualError(t, err, "visibility setting is only valid when publishing to the network")
+			assert.EqualError(t, err, "visibility setting is only allowed when publishing to the network")
 		})
 
 		t.Run("publish is false", func(t *testing.T) {
@@ -135,7 +161,12 @@ func TestWrapper_IssueVC(t *testing.T) {
 			testContext := newMockContext(t)
 			defer testContext.ctrl.Finish()
 
-			testContext.echo.EXPECT().Bind(gomock.Any())
+			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+				public := IssueVCRequestVisibilityPublic
+				issueRequest := f.(*IssueVCRequest)
+				issueRequest.Visibility = &public
+				return nil
+			})
 			testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("could not issue"))
 			err := testContext.client.IssueVC(testContext.echo)
 			assert.EqualError(t, err, "could not issue")
@@ -292,6 +323,16 @@ func TestWrapper_VerifyVC(t *testing.T) {
 		err := testContext.client.VerifyVC(testContext.echo)
 		assert.NoError(t, err)
 	})
+}
+
+func TestWrapper_RevokeVC(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	w := &Wrapper{}
+	ctx := mock.NewMockContext(ctrl)
+	err := w.RevokeVC(ctx, "")
+	assert.EqualError(t, err, "not yet implemented, use the v1 api")
 }
 
 func TestWrapper_Preprocess(t *testing.T) {

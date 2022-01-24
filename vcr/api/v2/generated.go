@@ -25,15 +25,6 @@ const (
 	IssueVCRequestVisibilityPublic IssueVCRequestVisibility = "public"
 )
 
-// Defines values for ResolutionResultCurrentStatus.
-const (
-	ResolutionResultCurrentStatusRevoked ResolutionResultCurrentStatus = "revoked"
-
-	ResolutionResultCurrentStatusTrusted ResolutionResultCurrentStatus = "trusted"
-
-	ResolutionResultCurrentStatusUntrusted ResolutionResultCurrentStatus = "untrusted"
-)
-
 // DID according to Nuts specification
 type DID string
 
@@ -61,23 +52,22 @@ type IssueVCRequest struct {
 	Type string `json:"type"`
 
 	// When publishToNetwork is true, the credential can be published publicly of privately to the holder.
+	// This field is mandatory if publishToNetwork is true to prevent accidents.
 	Visibility *IssueVCRequestVisibility `json:"visibility,omitempty"`
 }
 
 // When publishToNetwork is true, the credential can be published publicly of privately to the holder.
+// This field is mandatory if publishToNetwork is true to prevent accidents.
 type IssueVCRequestVisibility string
 
 // result of a Resolve operation.
 type ResolutionResult struct {
-	// Only credentials with with "trusted" state are valid. If a revoked credential is also untrusted, revoked will be returned.
-	CurrentStatus ResolutionResultCurrentStatus `json:"currentStatus"`
+	// If the credential is revoked, the field contains the revocation date.
+	RevocationDate *string `json:"revocationDate,omitempty"`
 
 	// A credential according to the W3C and Nuts specs.
 	VerifiableCredential VerifiableCredential `json:"verifiableCredential"`
 }
-
-// Only credentials with with "trusted" state are valid. If a revoked credential is also untrusted, revoked will be returned.
-type ResolutionResultCurrentStatus string
 
 // Contains the verifiable credential verification result.
 type VCVerificationResult struct {
@@ -99,7 +89,7 @@ type ResolveIssuedVCParams struct {
 	// the did of the issuer
 	Issuer string `json:"issuer"`
 
-	// the did of the issuer
+	// the uri which indicates the subject (usually a did)
 	Subject *string `json:"subject,omitempty"`
 }
 
@@ -724,7 +714,7 @@ type ServerInterface interface {
 	// Issues a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx echo.Context) error
-	// Resolves a verifiable credential issued by this node
+	// Resolves verifiable credentials issued by this node which matches the search params
 	// (GET /internal/vcr/v2/issuer/vc/search)
 	ResolveIssuedVC(ctx echo.Context, params ResolveIssuedVCParams) error
 	// Revoke an issued credential

@@ -2,6 +2,7 @@ package v2
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -50,12 +51,17 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 		publish = true
 	}
 
-	// public is false by default
-	if issueRequest.Visibility != nil {
-		if !publish {
-			return core.InvalidInputError("visibility setting is only valid when publishing to the network")
+	if issueRequest.Visibility == nil || *issueRequest.Visibility == "" {
+		if publish {
+			return core.InvalidInputError("visibility must be set when publishing credential")
 		}
-		public = *issueRequest.Visibility == IssueVCRequestVisibilityPublic
+	} else { // visibility is set
+		if !publish {
+			return core.InvalidInputError("visibility setting is only allowed when publishing to the network")
+		}
+		if *issueRequest.Visibility != IssueVCRequestVisibilityPublic && *issueRequest.Visibility != IssueVCRequestVisibilityPrivate {
+			return core.InvalidInputError("invalid value for visibility")
+		}
 	}
 
 	requestedVC := vc.VerifiableCredential{}
@@ -75,7 +81,7 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 // RevokeVC handles the API request for revoking a credential.
 func (w Wrapper) RevokeVC(ctx echo.Context, id string) error {
 	//TODO implement me
-	panic("implement me")
+	return errors.New("not yet implemented, use the v1 api")
 }
 
 // ResolveIssuedVC handles the API for resolving a set of issued Verifiable credentials.
