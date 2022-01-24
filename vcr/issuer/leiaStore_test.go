@@ -48,7 +48,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 			subjectID, _ := ssi.ParseURI("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
 
 			t.Run("for all issued credentials for a issuer", func(t *testing.T) {
-				res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *issuerDID, nil)
+				res, err := sut.SearchCredential(vcToStore.Context[1], vcToStore.Type[0], *issuerDID, nil)
 				assert.NoError(t, err)
 				if !assert.Len(t, res, 1) {
 					return

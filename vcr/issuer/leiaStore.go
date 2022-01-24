@@ -26,7 +26,11 @@ func NewLeiaStore(dataDir string) (Store, error) {
 		return nil, fmt.Errorf("failed to create leiaStore: %w", err)
 	}
 	collection := store.Collection("issuedCredentials")
-	return &leiaStore{collection: collection}, nil
+	newLeiaStore := &leiaStore{collection: collection}
+	if err := newLeiaStore.createIndices(); err != nil {
+		return nil, err
+	}
+	return newLeiaStore, nil
 }
 
 func (s leiaStore) StoreCredential(vc vc.VerifiableCredential) error {
@@ -36,8 +40,10 @@ func (s leiaStore) StoreCredential(vc vc.VerifiableCredential) error {
 }
 
 func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
-	query := leia.New(leia.Eq("issuer", issuer.String())).
-		And(leia.Eq("type", credentialType.String()))
+	query := leia.New(leia.Eq("@context", jsonLDContext.String())).
+		And(leia.Eq("type", credentialType.String())).
+		And(leia.Eq("issuer", issuer.String()))
+
 	if subject != nil {
 		if subjectString := subject.String(); subjectString != "" {
 			query = query.And(leia.Eq("credentialSubject.id", subjectString))
@@ -61,4 +67,16 @@ func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.UR
 func (s leiaStore) StoreRevocation(r credential.Revocation) error {
 	//TODO implement me
 	panic("implement me")
+}
+
+// createIndices creates the needed indices for the issued VC store
+// It allows faster searching on context, type issuer and subject values.
+func (s leiaStore) createIndices() error {
+	index := leia.NewIndex("issuedVCs",
+		leia.NewFieldIndexer("issuer"),
+		leia.NewFieldIndexer("type"),
+		leia.NewFieldIndexer("@context"),
+		leia.NewFieldIndexer("credentialSubject.id"),
+	)
+	return s.collection.AddIndex(index)
 }
