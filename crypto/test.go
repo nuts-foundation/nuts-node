@@ -53,6 +53,14 @@ func NewMemoryStorage() storage.Storage {
 
 type memoryStorage map[string]crypto.PrivateKey
 
+func (m memoryStorage) ListPrivateKeys() []string {
+	var result []string
+	for key := range m {
+		result = append(result, key)
+	}
+	return result
+}
+
 func (m memoryStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
 	pk, ok := m[kid]
 	if !ok {

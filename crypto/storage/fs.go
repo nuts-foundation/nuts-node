@@ -23,8 +23,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type entryType string
@@ -109,6 +111,20 @@ func (fsc *fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) 
 	_, err = outFile.Write([]byte(pem))
 
 	return err
+}
+
+func (fsc *fileSystemBackend) ListPrivateKeys() []string {
+	var result []string
+	_ = filepath.Walk(fsc.fspath, func(path string, info fs.FileInfo, err error) error {
+		if !info.IsDir() && strings.HasSuffix(info.Name(), string(privateKeyEntry)) {
+			upper := len(info.Name()) - len(privateKeyEntry) - 1
+			if upper > 0 {
+				result = append(result, info.Name()[:upper])
+			}
+		}
+		return nil
+	})
+	return result
 }
 
 func (fsc fileSystemBackend) readEntry(kid string, entryType entryType) ([]byte, error) {

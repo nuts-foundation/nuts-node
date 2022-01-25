@@ -240,7 +240,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 
 func (p *protocol) Stop() {
 	if p.payloadScheduler != nil {
-		p.payloadScheduler.Close()
+		_ = p.payloadScheduler.Close()
 	}
 
 	if p.cancel != nil {
@@ -249,7 +249,16 @@ func (p *protocol) Stop() {
 }
 
 func (p protocol) Diagnostics() []core.DiagnosticResult {
-	return nil
+	// Feels weird to ignore the error here but diagnostics shouldn't fail
+	failedJobs, err := p.payloadScheduler.GetFailedJobs()
+	if err != nil {
+		log.Logger().Errorf("failed to get failed jobs: %v", err)
+	}
+
+	return []core.DiagnosticResult{&core.GenericDiagnosticResult{
+		Title:   "payload_fetch_dlq",
+		Outcome: failedJobs,
+	}}
 }
 
 func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {

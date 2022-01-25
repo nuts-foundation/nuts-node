@@ -148,11 +148,19 @@ func (n *Network) Configure(config core.ServerConfig) error {
 
 	// Resolve node DID
 	if n.config.NodeDID != "" {
+		// Node DID is set, configure it statically
 		configuredNodeDID, err := did.ParseDID(n.config.NodeDID)
 		if err != nil {
 			return fmt.Errorf("configured NodeDID is invalid: %w", err)
 		}
 		n.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
+	} else if !config.Strictmode {
+		// If node DID is not set we can wire the automatic node DID resolver, which makes testing/workshops/development easier.
+		// Might cause unexpected behavior though, so it can't be used in strict mode.
+		log.Logger().Infof("Node DID not set, will be auto-discovered.")
+		n.nodeDIDResolver = transport.NewAutoNodeDIDResolver(n.privateKeyResolver, n.didDocumentFinder)
+	} else {
+		log.Logger().Warnf("Node DID not set, sending/receiving private transactions is disabled.")
 	}
 
 	// Configure protocols
@@ -160,13 +168,19 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	v2Cfg := n.config.ProtocolV2
 	v2Cfg.Datadir = config.Datadir
 
-	n.protocols = []transport.Protocol{
-		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
-		v2.New(v2Cfg, n.nodeDIDResolver, n.graph, n.publisher, n.payloadStore, n.didDocumentResolver, n.decrypter),
+	// Only set protocols if not already set: improves testability
+	if n.protocols == nil {
+		n.protocols = []transport.Protocol{
+			v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.graph, n.publisher, n.payloadStore, n.didDocumentResolver, n.decrypter),
+		}
 	}
 
 	for _, prot := range n.protocols {
-		prot.Configure(n.peerID)
+		err := prot.Configure(n.peerID)
+		if err != nil {
+			return fmt.Errorf("error while configuring protocol %T: %w", prot, err)
+		}
 	}
 
 	// Setup connection manager, load with bootstrap nodes

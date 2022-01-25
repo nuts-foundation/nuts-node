@@ -331,12 +331,17 @@ func TestVcr_Issue(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
+		now := time.Now()
+		timeFunc = func() time.Time {
+			return now
+		}
+		defer func() { timeFunc = time.Now }()
 
 		cred := validNutsOrganizationCredential()
 		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, &types.ResolveMetadata{ResolveTime: &now}).Return(&document, &documentMetadata, nil)
 		testKey := crypto.NewTestKey("kid")
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(testKey, nil)
 		ctx.tx.EXPECT().CreateTransaction(
@@ -376,7 +381,7 @@ func TestVcr_Issue(t *testing.T) {
 		cred.Type = []ssi.URI{*uri}
 		//expectedURIA, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
 		//expectedURIB, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDB.String()))
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(&document, &documentMetadata, nil)
 		//serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
 		//service := did.Service{ID: *serviceID}
 		//ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(service, nil)
@@ -405,7 +410,7 @@ func TestVcr_Issue(t *testing.T) {
 		cred := validNutsOrganizationCredential()
 		uri, _ := ssi.ParseURI("unknownType")
 		cred.Type = []ssi.URI{*uri}
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(&document, &documentMetadata, nil)
 		ctx.serviceResolver.EXPECT().Resolve(gomock.Any(), 5).Return(did.Service{}, errors.New("b00m!"))
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 
@@ -451,7 +456,7 @@ func TestVcr_Issue(t *testing.T) {
 		instance := ctx.vcr
 
 		cred := validNutsOrganizationCredential()
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
 		_, err := instance.Issue(*cred)
 
@@ -488,7 +493,7 @@ func TestVcr_Issue(t *testing.T) {
 
 		cred := validNutsOrganizationCredential()
 		cred.CredentialSubject = make([]interface{}, 0)
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(&document, &documentMetadata, nil)
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 
 		_, err := instance.Issue(*cred)
@@ -502,7 +507,7 @@ func TestVcr_Issue(t *testing.T) {
 		instance := ctx.vcr
 
 		cred := validNutsOrganizationCredential()
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(&document, &documentMetadata, nil)
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(nil, errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
@@ -516,7 +521,7 @@ func TestVcr_Issue(t *testing.T) {
 		key := crypto.NewTestKey("kid")
 
 		cred := validNutsOrganizationCredential()
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(&document, &documentMetadata, nil)
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(gomock.Any()).Return(nil, errors.New("b00m!"))
 
@@ -534,7 +539,7 @@ func TestVcr_Issue(t *testing.T) {
 		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(&document, &documentMetadata, nil)
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 		ctx.tx.EXPECT().CreateTransaction(gomock.Any()).Return(nil, nil)
 

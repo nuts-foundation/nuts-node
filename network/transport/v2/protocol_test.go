@@ -14,7 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	grpcLib "google.golang.org/grpc"
 
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
@@ -69,8 +71,17 @@ func TestProtocol_Configure(t *testing.T) {
 }
 
 func TestProtocol_Diagnostics(t *testing.T) {
-	// Doesn't do anything yet
-	assert.Empty(t, protocol{}.Diagnostics())
+	failedJobs := []hash.SHA256Hash{[hash.SHA256HashSize]byte{100}}
+
+	proto, mocks := newTestProtocol(t, nil)
+	mocks.PayloadScheduler.EXPECT().GetFailedJobs().Return(failedJobs, nil)
+
+	assert.Equal(t, []core.DiagnosticResult{
+		&core.GenericDiagnosticResult{
+			Title:   "payload_fetch_dlq",
+			Outcome: failedJobs,
+		},
+	}, proto.Diagnostics())
 }
 
 func TestProtocol_PeerDiagnostics(t *testing.T) {
