@@ -81,3 +81,15 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+nuts:
+  config:
+    datadir: /opt/nuts/data
+    http:
+      default:
+        address: :1323
+        cors:
+          origin: "*"
+    verbosity: debug
+    network:
+      enabletls: false
