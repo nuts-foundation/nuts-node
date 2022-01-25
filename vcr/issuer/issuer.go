@@ -21,14 +21,14 @@ func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, ke
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
 		store:       store,
-		Publisher:   publisher,
+		publisher:   publisher,
 		keyResolver: resolver,
 	}
 }
 
 type issuer struct {
 	store       Store
-	Publisher   Publisher
+	publisher   Publisher
 	keyResolver keyResolver
 }
 
@@ -51,7 +51,7 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public
 	}
 
 	if publish {
-		if err := i.Publisher.PublishCredential(*createdVC, public); err != nil {
+		if err := i.publisher.PublishCredential(*createdVC, public); err != nil {
 			return nil, fmt.Errorf("unable to publish the issued credential: %w", err)
 		}
 	}

@@ -8,23 +8,25 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/stretchr/testify/assert"
+	"path"
 	"testing"
 )
 
 func TestNewLeiaStore(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
-		sut, err := NewLeiaStore(testDir)
+		issuerStorePath := path.Join(testDir, "vcr", "issued-credentials.db")
+		sut, err := NewLeiaStore(issuerStorePath)
 
 		assert.NoError(t, err)
 		assert.IsType(t, &leiaStore{}, sut)
 	})
 
 	t.Run("error", func(t *testing.T) {
-		// the forward slash is the only invalid dirname and seems the simplest way of causing an error.
-		sut, err := NewLeiaStore("/")
+		// use the filename of this test, which should fail
+		sut, err := NewLeiaStore("leia_store_test.go")
 
-		assert.Contains(t, err.Error(), "failed to create leiaStore: mkdir")
+		assert.Contains(t, err.Error(), "failed to create leiaStore: invalid database")
 		assert.Nil(t, sut)
 	})
 }
@@ -35,7 +37,8 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 
 	t.Run("store", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
-		sut, err := NewLeiaStore(testDir)
+		issuerStorePath := path.Join(testDir, "vcr", "issued-credentials.db")
+		sut, err := NewLeiaStore(issuerStorePath)
 		if !assert.NoError(t, err) {
 			return
 		}

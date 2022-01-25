@@ -194,7 +194,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 		issuerStoreMock := issuer.NewMockStoreResolver(testContext.ctrl)
 		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, subjectID)
 
-		testContext.echo.EXPECT().JSON(http.StatusOK, []ResolutionResult{})
+		testContext.echo.EXPECT().JSON(http.StatusOK, []SearchVCResult{})
 
 		testContext.mockIssuer.EXPECT().CredentialResolver().Return(issuerStoreMock)
 
@@ -212,7 +212,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 		issuerStoreMock := issuer.NewMockStoreResolver(testContext.ctrl)
 		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
 
-		testContext.echo.EXPECT().JSON(http.StatusOK, []ResolutionResult{{VerifiableCredential: foundVC}})
+		testContext.echo.EXPECT().JSON(http.StatusOK, []SearchVCResult{{VerifiableCredential: foundVC}})
 
 		testContext.mockIssuer.EXPECT().CredentialResolver().Return(issuerStoreMock)
 
@@ -299,7 +299,7 @@ func TestWrapper_VerifyVC(t *testing.T) {
 
 		testContext.echo.EXPECT().JSON(http.StatusOK, VCVerificationResult{Validity: true})
 
-		testContext.vcr.EXPECT().Validate(expectedRequestedVC, true, true, nil)
+		testContext.vcr.EXPECT().Validate(expectedRequestedVC, false, true, nil)
 
 		err := testContext.client.VerifyVC(testContext.echo)
 		assert.NoError(t, err)
@@ -325,7 +325,7 @@ func TestWrapper_VerifyVC(t *testing.T) {
 		message := "invalid vc"
 		testContext.echo.EXPECT().JSON(http.StatusOK, VCVerificationResult{Validity: false, Message: &message})
 
-		testContext.vcr.EXPECT().Validate(expectedRequestedVC, true, true, nil).Return(errors.New("invalid vc"))
+		testContext.vcr.EXPECT().Validate(expectedRequestedVC, false, true, nil).Return(errors.New("invalid vc"))
 
 		err := testContext.client.VerifyVC(testContext.echo)
 		assert.NoError(t, err)

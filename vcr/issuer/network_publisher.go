@@ -22,7 +22,7 @@ type networkPublisher struct {
 	keyResolver     keyResolver
 }
 
-// VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
+//VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
 const VcDocumentType = "application/vc+json"
 
 // NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
@@ -50,10 +50,12 @@ func (p networkPublisher) PublishCredential(verifiableCredential vc.VerifiableCr
 		return fmt.Errorf("missing credentialSubject")
 	}
 
-	// create participants list
-	participants, err := p.generateParticipants(verifiableCredential, public)
-	if err != nil {
-		return err
+	participants := []did.DID{}
+	if !public {
+		participants, err = p.generateParticipants(verifiableCredential)
+		if err != nil {
+			return err
+		}
 	}
 
 	key, err := p.keyResolver.ResolveAssertionKey(*issuerDID)
@@ -82,31 +84,29 @@ func (p networkPublisher) PublishCredential(verifiableCredential vc.VerifiableCr
 	return nil
 }
 
-func (p networkPublisher) generateParticipants(verifiableCredential vc.VerifiableCredential, public bool) ([]did.DID, error) {
+func (p networkPublisher) generateParticipants(verifiableCredential vc.VerifiableCredential) ([]did.DID, error) {
 	issuer, _ := did.ParseDID(verifiableCredential.Issuer.String())
 	participants := make([]did.DID, 0)
-	if !public {
-		var (
-			base                []credential.BaseCredentialSubject
-			credentialSubjectID *did.DID
-		)
-		err := verifiableCredential.UnmarshalCredentialSubject(&base)
-		if err == nil {
-			credentialSubjectID, err = did.ParseDID(base[0].ID) // earlier validation made sure length == 1 and ID is present
-		}
+	var (
+		base                []credential.BaseCredentialSubject
+		credentialSubjectID *did.DID
+	)
+	err := verifiableCredential.UnmarshalCredentialSubject(&base)
+	if err == nil {
+		credentialSubjectID, err = did.ParseDID(base[0].ID) // earlier validation made sure length == 1 and ID is present
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine credentialSubject.ID: %w", err)
+	}
+
+	// participants are not the issuer and the credentialSubject.id but the DID that holds the concrete endpoint for the NutsComm service
+	for _, vcp := range []did.DID{*issuer, *credentialSubjectID} {
+		serviceOwner, err := p.resolveNutsCommServiceOwner(vcp)
 		if err != nil {
-			return nil, fmt.Errorf("failed to determine credentialSubject.ID: %w", err)
+			return nil, fmt.Errorf("failed to resolve participating node (did=%s): %w", vcp.String(), err)
 		}
 
-		// participants are not the issuer and the credentialSubject.id but the DID that holds the concrete endpoint for the NutsComm service
-		for _, vcp := range []did.DID{*issuer, *credentialSubjectID} {
-			serviceOwner, err := p.resolveNutsCommServiceOwner(vcp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to resolve participating node (did=%s): %w", vcp.String(), err)
-			}
-
-			participants = append(participants, *serviceOwner)
-		}
+		participants = append(participants, *serviceOwner)
 	}
 	return participants, nil
 }

@@ -103,9 +103,9 @@ func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams
 	}
 
 	foundVCs, err := w.VCR.Issuer().CredentialResolver().SearchCredential(ssi.URI{}, *credentialType, *issuerDID, subjectID)
-	result := make([]ResolutionResult, len(foundVCs))
+	result := make([]SearchVCResult, len(foundVCs))
 	for i, resolvedVC := range foundVCs {
-		result[i] = ResolutionResult{VerifiableCredential: resolvedVC}
+		result[i] = SearchVCResult{VerifiableCredential: resolvedVC}
 	}
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ func (w *Wrapper) VerifyVC(ctx echo.Context) error {
 		return err
 	}
 
-	if err := w.VCR.Validate(requestedVC, true, true, nil); err != nil {
+	if err := w.VCR.Validate(requestedVC, false, true, nil); err != nil {
 		errMsg := err.Error()
 		return ctx.JSON(http.StatusOK, VCVerificationResult{Validity: false, Message: &errMsg})
 	}

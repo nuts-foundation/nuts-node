@@ -9,18 +9,16 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"path"
 )
 
-// leiaStore implements the issuer Store interface. It is a simple and fast json store.
+// leiaStore implements the issuer Store interface. It is a simple and fast JSON store.
 // Note: It can not be used in a clustered setup.
 type leiaStore struct {
 	collection leia.Collection
 }
 
 // NewLeiaStore creates a new instance of leiaStore which implements the Store interface.
-func NewLeiaStore(dataDir string) (Store, error) {
-	dbPath := path.Join(dataDir, "vcr", "issued-credentials.db")
+func NewLeiaStore(dbPath string) (Store, error) {
 	store, err := leia.NewStore(dbPath, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create leiaStore: %w", err)

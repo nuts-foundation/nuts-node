@@ -34,13 +34,13 @@ func (p LegacyLDProof) Sign(document map[string]interface{}, suite signature.Sui
 
 	// Don't use the suite's canonicalization method because it messes up the order of the fields:
 	// (this is one of the reasons this proof is deprecated)
-	// canonicalProof, err := suite.GetCanonicalDocument(p.asMap())
+	// canonicalProof, err := suite.CanonicalizeDocument(p.asMap())
 	canonicalProof, err := json.Marshal(p)
 	if err != nil {
 		return nil, err
 	}
 
-	canonicalDocument, err := suite.GetCanonicalDocument(document)
+	canonicalDocument, err := suite.CanonicalizeDocument(document)
 	if err != nil {
 		return nil, err
 	}

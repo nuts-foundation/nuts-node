@@ -10,8 +10,8 @@ import (
 // Suite is an interface which defines the methods a signature suite implementation should implement.
 type Suite interface {
 	Sign(doc []byte, key crypto.Key) ([]byte, error)
-	GetCanonicalDocument(doc map[string]interface{}) ([]byte, error)
-	GetDigest(doc []byte) []byte
+	CanonicalizeDocument(doc map[string]interface{}) ([]byte, error)
+	CalculateDigest(doc []byte) []byte
 	GetType() ssi.ProofType
 }
 
@@ -25,13 +25,13 @@ func (l LegacyNutsSuite) Sign(doc []byte, key crypto.Key) ([]byte, error) {
 	return []byte(sig), err
 }
 
-// GetCanonicalDocument canonicalizes the document by marshalling it to json
-func (l LegacyNutsSuite) GetCanonicalDocument(doc map[string]interface{}) ([]byte, error) {
+// CanonicalizeDocument canonicalizes the document by marshalling it to json
+func (l LegacyNutsSuite) CanonicalizeDocument(doc map[string]interface{}) ([]byte, error) {
 	return json.Marshal(doc)
 }
 
-// GetDigest returns a digest for the doc by calculating the SHA256 hash.
-func (l LegacyNutsSuite) GetDigest(doc []byte) []byte {
+// CalculateDigest returns a digest for the doc by calculating the SHA256 hash.
+func (l LegacyNutsSuite) CalculateDigest(doc []byte) []byte {
 	return hash.SHA256Sum(doc).Slice()
 }
 

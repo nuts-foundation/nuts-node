@@ -46,6 +46,7 @@ type IssueVCRequest struct {
 	// If set, the node publishes this credential to the network. This is the default behaviour.
 	// When set to false, the caller is responsible for distributing the VC to a holder. When the issuer is
 	// also the holder, it then can be used to directly create a presentation (self issued).
+	// Note: a not published credential can still be publicaly revoked.
 	PublishToNetwork *bool `json:"publishToNetwork,omitempty"`
 
 	// Type definition for the credential.
@@ -61,9 +62,9 @@ type IssueVCRequest struct {
 type IssueVCRequestVisibility string
 
 // result of a Resolve operation.
-type ResolutionResult struct {
-	// If the credential is revoked, the field contains the revocation date.
-	RevocationDate *string `json:"revocationDate,omitempty"`
+type SearchVCResult struct {
+	// Credential revocation record
+	Revocation *Revocation `json:"revocation,omitempty"`
 
 	// A credential according to the W3C and Nuts specs.
 	VerifiableCredential VerifiableCredential `json:"verifiableCredential"`
@@ -74,7 +75,7 @@ type VCVerificationResult struct {
 	// Indicates what went wrong
 	Message *string `json:"message,omitempty"`
 
-	// Indicates the validity of the signature, issuer and revokation state.
+	// Indicates the validity of the signature, issuer and revocation state.
 	Validity bool `json:"validity"`
 }
 
@@ -86,10 +87,10 @@ type SearchIssuedVCsParams struct {
 	// The type of the credential
 	CredentialType string `json:"credentialType"`
 
-	// the did of the issuer
+	// the DID of the issuer
 	Issuer string `json:"issuer"`
 
-	// the uri which indicates the subject (usually a did)
+	// the URI which indicates the subject (usually a DID)
 	Subject *string `json:"subject,omitempty"`
 }
 
@@ -512,6 +513,7 @@ type ClientWithResponsesInterface interface {
 type IssueVCResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *VerifiableCredential
 }
 
 // Status returns HTTPResponse.Status
@@ -533,6 +535,7 @@ func (r IssueVCResponse) StatusCode() int {
 type SearchIssuedVCsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *[]SearchVCResult
 }
 
 // Status returns HTTPResponse.Status
@@ -554,6 +557,7 @@ func (r SearchIssuedVCsResponse) StatusCode() int {
 type RevokeVCResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *Revocation
 }
 
 // Status returns HTTPResponse.Status
@@ -575,6 +579,7 @@ func (r RevokeVCResponse) StatusCode() int {
 type VerifyVCResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *VCVerificationResult
 }
 
 // Status returns HTTPResponse.Status
@@ -658,6 +663,16 @@ func ParseIssueVCResponse(rsp *http.Response) (*IssueVCResponse, error) {
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VerifiableCredential
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
 	return response, nil
 }
 
@@ -672,6 +687,16 @@ func ParseSearchIssuedVCsResponse(rsp *http.Response) (*SearchIssuedVCsResponse,
 	response := &SearchIssuedVCsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []SearchVCResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil
@@ -690,6 +715,16 @@ func ParseRevokeVCResponse(rsp *http.Response) (*RevokeVCResponse, error) {
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Revocation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
 	return response, nil
 }
 
@@ -706,6 +741,16 @@ func ParseVerifyVCResponse(rsp *http.Response) (*VerifyVCResponse, error) {
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VCVerificationResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
 	return response, nil
 }
 
@@ -714,7 +759,7 @@ type ServerInterface interface {
 	// Issues a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx echo.Context) error
-	// Resolves verifiable credentials issued by this node which matches the search params
+	// Searches for verifiable credentials issued by this node which matches the search params
 	// (GET /internal/vcr/v2/issuer/vc/search)
 	SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams) error
 	// Revoke an issued credential

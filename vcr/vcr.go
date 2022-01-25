@@ -94,8 +94,8 @@ type vcr struct {
 	ambassador      Ambassador
 	network         network.Transactions
 	trustConfig     *trust.Config
-	issuerStore     issuer.Store
-	issuer          issuer.Issuer
+	//issuerStore     issuer.Store
+	issuer issuer.Issuer
 }
 
 func (c *vcr) Registry() concept.Reader {
@@ -113,16 +113,14 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.config.strictMode = config.Strictmode
 	c.config.datadir = config.Datadir
 
-	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
-
-	issuerStore, err := issuer.NewLeiaStore(c.config.datadir)
+	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
+	issuerStore, err := issuer.NewLeiaStore(issuerStorePath)
 	if err != nil {
 		return err
 	}
 
-	c.issuerStore = issuerStore
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore)
+	c.issuer = issuer.NewIssuer(issuerStore, publisher, c.docResolver, c.keyStore)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {
@@ -130,6 +128,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	}
 
 	// load trusted issuers
+	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 	c.trustConfig = trust.NewConfig(tcPath)
 
 	return c.trustConfig.Load()

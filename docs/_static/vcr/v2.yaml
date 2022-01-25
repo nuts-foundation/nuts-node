@@ -32,7 +32,7 @@ paths:
         "200":
           description: "New VC has been created successfully. Returns the Verifiable Credential."
           content:
-            application/vc+json:
+            application/json:
               schema:
                 $ref: '#/components/schemas/VerifiableCredential'
         default:
@@ -40,7 +40,7 @@ paths:
 
   /internal/vcr/v2/issuer/vc/search:
     get:
-      summary: "Resolves verifiable credentials issued by this node which matches the search params"
+      summary: "Searches for verifiable credentials issued by this node which matches the search params"
       description: >
         The resolutionResult contains the credential regardless of the validity.
         The resolutionResult.currentStatus must be checked to see if the credential is valid.
@@ -59,14 +59,14 @@ paths:
             type: string
         - name: issuer
           in: query
-          description: the did of the issuer
+          description: the DID of the issuer
           example: did:nuts:123
           required: true
           schema:
             type: string
         - name: subject
           in: query
-          description: the uri which indicates the subject (usually a did)
+          description: the URI which indicates the subject (usually a DID)
           example: did:nuts:456
           required: false
           schema:
@@ -77,11 +77,11 @@ paths:
         "200":
           description: A list of matching credentials
           content:
-            application/vc+json:
+            application/json:
               schema:
                 type: array
                 items:
-                    $ref: '#/components/schemas/ResolutionResult'
+                    $ref: '#/components/schemas/SearchVCResult'
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc/{id}:
@@ -110,7 +110,7 @@ paths:
         "200":
           description: Revocation has been processed locally. It has also been published to the network.
           content:
-            application/vc+json;type=revocation:
+            application/json:
               schema:
                 $ref: '#/components/schemas/Revocation'
         default:
@@ -119,7 +119,12 @@ paths:
     post:
       summary: Verifies a Verifiable Credential
       description: |
-        Verifies a Verifiable Credential: It checks the signature, expiration, revocation status and if the issuer is trusted.
+        Verifies a Verifiable Credential. It checks: 
+        * The signature
+        * Expiration
+        * Rrevocation status
+        * If the issuer is trusted
+        * If the issuer was not deactivated at time of issuing
         
         error returns:
         * 400 - One or more of the given parameters are invalid
@@ -137,7 +142,7 @@ paths:
         "200":
           description: "The verification result"
           content:
-            application/vc+json:
+            application/json:
               schema:
                 $ref: '#/components/schemas/VCVerificationResult'
         default:
@@ -178,6 +183,7 @@ components:
             If set, the node publishes this credential to the network. This is the default behaviour.
             When set to false, the caller is responsible for distributing the VC to a holder. When the issuer is
             also the holder, it then can be used to directly create a presentation (self issued).
+            Note: a not published credential can still be publicaly revoked.
           type: boolean
           default: true
         visibility:
@@ -229,16 +235,14 @@ components:
         proof:
           description: one or multiple cryptographic proofs
           type: object
-    ResolutionResult:
+    SearchVCResult:
       type: object
       description: result of a Resolve operation.
       required:
         - verifiableCredential
       properties:
-        revocationDate:
-          type: string
-          example: "2012-01-02T12:00:00Z"
-          description: If the credential is revoked, the field contains the revocation date.
+        revocation:
+          $ref: "#/components/schemas/Revocation"
         verifiableCredential:
           $ref: "#/components/schemas/VerifiableCredential"
     Revocation:
@@ -253,7 +257,7 @@ components:
           $ref: '#/components/schemas/DID'
         subject:
           type: string
-          description: subject refers to the credential identifier that is revoked
+          description: subject refers to the credential identifier that is revoked (not the credential subject)
         reason:
           type: string
           description: reason describes why the VC has been revoked
@@ -278,7 +282,7 @@ components:
       properties:
         validity:
           type: boolean
-          description: Indicates the validity of the signature, issuer and revokation state.
+          description: Indicates the validity of the signature, issuer and revocation state.
         message:
           type: string
           description: Indicates what went wrong

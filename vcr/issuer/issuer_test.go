@@ -157,7 +157,7 @@ func Test_issuer_Issue(t *testing.T) {
 			mockPublisher.EXPECT().PublishCredential(gomock.Any(), true).Return(errors.New("b00m!"))
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(nil)
-			sut := issuer{keyResolver: keyResolverMock, store: mockStore, Publisher: mockPublisher}
+			sut := issuer{keyResolver: keyResolverMock, store: mockStore, publisher: mockPublisher}
 
 			result, err := sut.Issue(credentialOptions, true, true)
 			assert.EqualError(t, err, "unable to publish the issued credential: b00m!")

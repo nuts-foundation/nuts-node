@@ -93,7 +93,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			AttachKey:       false,
 			Timestamp:       time.Time{},
 			AdditionalPrevs: nil,
-			Participants:    make([]did.DID, 0),
+			Participants:    []did.DID{},
 		}
 		mockNetwork.EXPECT().CreateTransaction(expectedTemplate).Return(nil, nil)
 
