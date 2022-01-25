@@ -75,6 +75,22 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		assert.Len(t, cm.connections.list, 1)
 	})
 
+	t.Run("ok - with TLS", func(t *testing.T) {
+		p := &TestProtocol{}
+		config := NewConfig("", "test")
+		ts, _ := core.LoadTrustStore("../../test/truststore.pem")
+		config.trustStore = ts.CertPool
+		cm := NewGRPCConnectionManager(config, &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
+
+		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()))
+
+		assert.Len(t, cm.connections.list, 1)
+		connector := cm.connections.list[0].(*conn).connector
+		assert.Equal(t, core.MinTLSVersion, connector.tlsConfig.MinVersion)
+		assert.NotEmpty(t, connector.tlsConfig.Certificates)
+		assert.NotEmpty(t, connector.tlsConfig.RootCAs.Subjects())
+	})
+
 	t.Run("duplicate connection", func(t *testing.T) {
 		p := &TestProtocol{}
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
