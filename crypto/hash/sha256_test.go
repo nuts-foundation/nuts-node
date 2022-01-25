@@ -19,12 +19,16 @@
 package hash
 
 import (
+	"encoding"
 	"encoding/json"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+var _ fmt.Stringer = SHA256Hash{}
+var _ encoding.TextMarshaler = SHA256Hash{}
 
 func TestHash_Empty(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
