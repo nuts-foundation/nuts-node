@@ -76,7 +76,6 @@ func (s leiaStore) createIndices() error {
 	index := leia.NewIndex("issuedVCs",
 		leia.NewFieldIndexer("issuer"),
 		leia.NewFieldIndexer("type"),
-		leia.NewFieldIndexer("@context"),
 		leia.NewFieldIndexer("credentialSubject.id"),
 	)
 	return s.collection.AddIndex(index)
