@@ -43,8 +43,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example:
-          - "did:nuts:1234"
+        example: "did:nuts:1234"
         schema:
           type: string
     get:
@@ -168,8 +167,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example:
-          - "did:nuts:1234"
+        example: "did:nuts:1234"
         schema:
           type: string
     post:
@@ -199,16 +197,14 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example:
-          - "did:nuts:1234"
+        example: "did:nuts:1234"
         schema:
           type: string
       - name: kid
         in: path
         description: URL encoded DID identifying the verification method.
         required: true
-        example:
-          - "did:nuts:1234#abc"
+        example: "did:nuts:1234#abc"
         schema:
           type: string
     delete:
