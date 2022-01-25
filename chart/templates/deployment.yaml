@@ -60,6 +60,9 @@ spec:
             - name: http
               containerPort: 1323
               protocol: TCP
+            - name: grpc
+              containerPort: 5555
+              protocol: TCP
           livenessProbe:
             httpGet:
               path: /status
