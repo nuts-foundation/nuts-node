@@ -7,10 +7,10 @@ metadata:
 spec:
   storageClassName: ""
   capacity:
-    storage: {{ .Values.nuts.persistedVolume.capacity | default "100Mi" }}
-  accessModes: {{ required "Please define `nuts.persistedVolume.accessModes` in `values.yaml`" .Values.nuts.persistedVolume.accessModes }}
+    storage: {{ .Values.nuts.data.persistedVolume.capacity | default "100Mi" }}
+  accessModes: {{ required "Please define `nuts.data.persistedVolume.accessModes` in `values.yaml`" .Values.nuts.data.persistedVolume.accessModes }}
   hostPath:
-    path: {{ .Values.nuts.persistedVolume.mountPath | default "/opt/nuts/data" }}
+    path: {{ .Values.nuts.data.persistedVolume.mountPath | default "/opt/nuts/data" }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -18,7 +18,7 @@ metadata:
   name: nuts-data-pvc
 spec:
   storageClassName: "" # Empty string must be explicitly set otherwise default StorageClass will be set
-  accessModes: {{ required "Please define `nuts.persistedVolume.accessModes` in `values.yaml`" .Values.nuts.persistedVolume.accessModes }}
+  accessModes: {{ required "Please define `nuts.data.persistedVolume.accessModes` in `values.yaml`" .Values.nuts.data.persistedVolume.accessModes }}
   resources:
     requests:
-      storage: {{ .Values.nuts.persistedVolume.capacity | default "100Mi" }}
+      storage: {{ .Values.nuts.data.persistedVolume.capacity | default "100Mi" }}

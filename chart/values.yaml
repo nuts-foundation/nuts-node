@@ -84,7 +84,7 @@ affinity: {}
 
 nuts:
   config:
-    # Everything below nuts.config will be placed into the `nuts.yaml` config file
+    # Everything below `nuts.config` will be placed into the `nuts.yaml` config file of the Pods
     datadir: /opt/nuts/data
     http:
       default:
@@ -93,10 +93,45 @@ nuts:
           origin: "*"
     verbosity: debug
     network:
-      enabletls: false
+      truststorefile: /opt/nuts/ssl/ca.pem
+      certfile: /opt/nuts/ssl/node.nuts.local.pem
+      certkeyfile: /opt/nuts/ssl/node.nuts.local.key
+      enabletls: true
+
   # Config for the NUTS data mount inside Kubernetes
-  persistedVolume:
-    capacity: 100Mi
-    mountPath: /opt/nuts/data
-    accessModes:
-      - ReadWriteOnce
+  data:
+    persistedVolume:
+      capacity: 100Mi
+      mountPath: /opt/nuts/data
+      accessModes:
+        - ReadWriteOnce
+
+  ssl:
+    # Every key below will be loaded as a Secret and mounted as a file at /opt/nuts/ssl
+    ca.pem: |
+      -----BEGIN CERTIFICATE-----
+      MIIBRTCB7AIJALJF8KRRy61uMAoGCCqGSM49BAMCMCsxKTAnBgNVBAMMIE51dHMg
+      RGV2ZWxvcG1lbnQgTmV0d29yayBSb290IENBMB4XDTIxMDEyOTE1MzE1M1oXDTI0
+      MDEyOTE1MzE1M1owKzEpMCcGA1UEAwwgTnV0cyBEZXZlbG9wbWVudCBOZXR3b3Jr
+      IFJvb3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQIVDDxntwkQm/vtyml
+      zBn9rOJD3yzBNVDlKn0Mh5nDdf4Q9iPWSWE6sUODsandmG18a+JjvykehXjWpSEd
+      um2LMAoGCCqGSM49BAMCA0gAMEUCIFjqDMqyx7If7BJb66LiyLE6AfURnOIZ+bGk
+      kGOdbz5tAiEA9OjlXxWdK+sYgk4YEv6wNNiAkUqDKGTumFVRpjBdr+E=
+      -----END CERTIFICATE-----
+    node.nuts.local.key: |
+      -----BEGIN EC PRIVATE KEY-----
+      MHcCAQEEIJkFaazHl8cQuaKQuvP8yboKcDCAOngEbJBIKTONKsiUoAoGCCqGSM49
+      AwEHoUQDQgAE2W073KrmnGGwChgAySRu/NmB6iEX+8dE4DRyoEhORv1VM9lIkfIm
+      baAX0VKZJzc6/6p7z49+fYzhI6qCWxV03A==
+      -----END EC PRIVATE KEY-----
+    node.nuts.local.pem: |
+      -----BEGIN CERTIFICATE-----
+      MIIBWjCCAQCgAwIBAgIJAOSXSBpJZyQPMAoGCCqGSM49BAMCMCsxKTAnBgNVBAMM
+      IE51dHMgRGV2ZWxvcG1lbnQgTmV0d29yayBSb290IENBMB4XDTIxMTEwMzEzMDQx
+      MVoXDTIyMTEwMzEzMDQxMVowGjEYMBYGA1UEAwwPbm9kZS5udXRzLmxvY2FsMFkw
+      EwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2W073KrmnGGwChgAySRu/NmB6iEX+8dE
+      4DRyoEhORv1VM9lIkfImbaAX0VKZJzc6/6p7z49+fYzhI6qCWxV03KMeMBwwGgYD
+      VR0RBBMwEYIPbm9kZS5udXRzLmxvY2FsMAoGCCqGSM49BAMCA0gAMEUCIACXbFuP
+      tPeduokCmVQAIavaUj2JlTmcIBDHvC6wZihEAiEA0fcogH7MjPrE/6bDaxZtNh0Q
+      K6QDx9YVt/Mo6MFBgQY=
+      -----END CERTIFICATE-----
