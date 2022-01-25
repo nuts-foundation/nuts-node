@@ -341,7 +341,7 @@ func TestVcr_Issue(t *testing.T) {
 		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, &types.ResolveMetadata{ResolveTime: &now}).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
 		testKey := crypto.NewTestKey("kid")
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(testKey, nil)
 		ctx.tx.EXPECT().CreateTransaction(

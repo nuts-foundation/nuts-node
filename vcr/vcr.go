@@ -32,6 +32,9 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -47,8 +50,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -305,9 +306,7 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
-	// find did document/metadata for originating TXs. ResolveMetadata is required to also check the validity of the issuer's controller.
-	now := timeFunc()
-	document, meta, err := c.docResolver.Resolve(*issuer, &vdr.ResolveMetadata{ResolveTime: &now})
+	document, meta, err := c.docResolver.Resolve(*issuer, nil)
 	if err != nil {
 		return nil, err
 	}
