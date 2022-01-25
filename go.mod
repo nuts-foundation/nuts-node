@@ -5,32 +5,32 @@ go 1.17
 require (
 	github.com/Regis24GmbH/go-phonetics v1.0.0
 	github.com/avast/retry-go/v4 v4.0.2
-	github.com/cbroglie/mustache v1.3.0
+	github.com/cbroglie/mustache v1.3.1
 	github.com/deepmap/oapi-codegen v1.9.0
 	github.com/golang/mock v1.6.0
 	github.com/goodsign/monday v1.0.0
 	github.com/google/uuid v1.3.0
-	github.com/hashicorp/vault/api v1.3.0
-	github.com/knadh/koanf v1.3.3
-	github.com/labstack/echo/v4 v4.6.1
-	github.com/lestrrat-go/jwx v1.2.13
+	github.com/hashicorp/vault/api v1.3.1
+	github.com/knadh/koanf v1.4.0
+	github.com/labstack/echo/v4 v4.6.3
+	github.com/lestrrat-go/jwx v1.2.17
 	github.com/magiconair/properties v1.8.5
 	github.com/mdp/qrterminal/v3 v3.0.0
-	github.com/nats-io/nats-server/v2 v2.6.6
+	github.com/nats-io/nats-server/v2 v2.7.0
 	github.com/nats-io/nats.go v1.13.1-0.20211122170419-d7c1d78a50fc
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
-	github.com/nuts-foundation/go-did v0.1.1
+	github.com/nuts-foundation/go-did v0.2.0
 	github.com/nuts-foundation/go-leia/v2 v2.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/privacybydesign/irmago v0.9.0
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.12.0
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/tidwall/gjson v1.12.1
+	github.com/tidwall/gjson v1.13.0
 	go.etcd.io/bbolt v1.3.6
 	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
@@ -66,7 +66,7 @@ require (
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-redis/redis/v8 v8.8.0 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
-	github.com/goccy/go-json v0.8.1 // indirect
+	github.com/goccy/go-json v0.9.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -94,7 +94,7 @@ require (
 	github.com/jinzhu/gorm v1.9.12 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/klauspost/compress v1.13.4 // indirect
-	github.com/labstack/gommon v0.3.0 // indirect
+	github.com/labstack/gommon v0.3.1 // indirect
 	github.com/lestrrat-go/backoff/v2 v2.0.8 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.0 // indirect
 	github.com/lestrrat-go/httpcc v1.0.0 // indirect
@@ -115,7 +115,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/mr-tron/base58 v1.1.3 // indirect
 	github.com/multiformats/go-multihash v0.0.11 // indirect
-	github.com/nats-io/jwt/v2 v2.2.0 // indirect
+	github.com/nats-io/jwt/v2 v2.2.1-0.20220113022732-58e87895b296 // indirect
 	github.com/nats-io/nkeys v0.3.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443 // indirect
@@ -125,8 +125,8 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/privacybydesign/gabi v0.0.0-20210714094051-ba80a6a8c5d8 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.26.0 // indirect
-	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/prometheus/common v0.32.1 // indirect
+	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sietseringers/go-sse v0.0.0-20200801161811-e2cf2c63ca50 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
@@ -143,12 +143,12 @@ require (
 	go.opentelemetry.io/otel/metric v0.19.0 // indirect
 	go.opentelemetry.io/otel/trace v0.19.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
-	golang.org/x/net v0.0.0-20210913180222-943fd674d43e // indirect
-	golang.org/x/sys v0.0.0-20211205182925-97ca703d548d // indirect
+	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce // indirect
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
+	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
+	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11 // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect

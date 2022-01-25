@@ -33,6 +33,9 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -310,8 +313,10 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		}
 		c.registry.Add(*conceptConfig)
 	}
+
 	template.Context = append(template.Context, *credential.NutsContextURI)
 	verifiableCredential, err := c.issuer.Issue(template, true, c.config.OverrideIssueAllPublic || conceptConfig.Public)
+
 	if err != nil {
 		return nil, err
 	}
@@ -395,8 +400,10 @@ func (c *vcr) validate(credential vc.VerifiableCredential, validAt *time.Time) e
 		return types.ErrInvalidPeriod
 	}
 
-	_, _, err = c.docResolver.Resolve(*issuer, &vdr.ResolveMetadata{ResolveTime: &at})
-	return err
+	if _, _, err = c.docResolver.Resolve(*issuer, &vdr.ResolveMetadata{ResolveTime: &at}); err != nil {
+		return fmt.Errorf("unable to resolve DID Document (ID=%s): %w", issuer.String(), err)
+	}
+	return nil
 }
 
 func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
@@ -476,7 +483,7 @@ func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
 	// find key
 	pk, err := c.keyResolver.ResolveSigningKey(proof.VerificationMethod.String(), at)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to resolve signing key: %w", err)
 	}
 
 	// the proof must be correct

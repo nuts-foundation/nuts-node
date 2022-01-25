@@ -49,6 +49,20 @@ func (mr *MockStorageMockRecorder) GetPrivateKey(kid interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivateKey", reflect.TypeOf((*MockStorage)(nil).GetPrivateKey), kid)
 }
 
+// ListPrivateKeys mocks base method.
+func (m *MockStorage) ListPrivateKeys() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListPrivateKeys")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// ListPrivateKeys indicates an expected call of ListPrivateKeys.
+func (mr *MockStorageMockRecorder) ListPrivateKeys() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPrivateKeys", reflect.TypeOf((*MockStorage)(nil).ListPrivateKeys))
+}
+
 // PrivateKeyExists mocks base method.
 func (m *MockStorage) PrivateKeyExists(kid string) bool {
 	m.ctrl.T.Helper()

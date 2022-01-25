@@ -34,8 +34,8 @@ type DocResolver interface {
 	// If metadata is not provided the latest version is returned.
 	// If metadata is provided then the result is filtered or scoped on that metadata.
 	// It returns ErrNotFound if there are no corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata
-	// It returns ErrDeactivated if the DID Document has been deactivated
-	// It returns ErrNoActiveController if all of the DID Documents controllers have been deactivated
+	// It returns ErrDeactivated if the DID Document has been deactivated and metadata is unset or metadata.AllowDeactivated is false.
+	// It returns ErrNoActiveController if all of the DID Documents controllers have been deactivated and metadata is unset or metadata.AllowDeactivated is false.
 	Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error)
 	// ResolveControllers finds the DID Document controllers
 	ResolveControllers(input did.Document, metadata *ResolveMetadata) ([]did.Document, error)

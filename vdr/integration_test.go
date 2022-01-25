@@ -26,8 +26,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/events"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
@@ -69,17 +67,18 @@ func TestVDRIntegration_Test(t *testing.T) {
 	// DID Store
 	didStore := store.NewMemoryStore()
 	docResolver := doc.Resolver{Store: didStore}
+	docFinder := doc.Finder{Store: didStore}
 
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	networkCfg.EnableTLS = false
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
-		events.NewStubEventManager(),
 		doc.KeyResolver{Store: didStore},
 		cryptoInstance,
 		cryptoInstance,
 		docResolver,
+		docFinder,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
@@ -249,17 +248,18 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	// DID Store
 	didStore := store.NewMemoryStore()
 	docResolver := doc.Resolver{Store: didStore}
+	docFinder := doc.Finder{Store: didStore}
 
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	networkCfg.EnableTLS = false
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
-		events.NewStubEventManager(),
 		doc.KeyResolver{Store: didStore},
 		cryptoInstance,
 		cryptoInstance,
 		docResolver,
+		docFinder,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()

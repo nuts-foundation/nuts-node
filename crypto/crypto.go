@@ -84,6 +84,11 @@ func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 	return err
 }
 
+// List returns the KIDs of the private keys that are present in the key store.
+func (client *Crypto) List() []string {
+	return client.Storage.ListPrivateKeys()
+}
+
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
 func (client *Crypto) Configure(config core.ServerConfig) error {
 	switch client.config.Storage {
@@ -100,7 +105,6 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 	default:
 		return errors.New("invalid config for crypto.storage. Available options are: vaultkv, fs")
 	}
-	return nil
 }
 
 // New generates a new key pair.

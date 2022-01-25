@@ -386,6 +386,7 @@ func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
 	}
 	ref := transaction.Ref()
 	refSlice := ref.Slice()
+	txAdded := false
 	err := bboltTXUpdate(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
 		transactions, lc, _, payloadIndex, heads, err := getBuckets(tx)
 		if err != nil {
@@ -423,9 +424,10 @@ func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
 		if err = payloadIndex.Put(transaction.PayloadHash().Slice(), newPayloadIndexValue); err != nil {
 			return fmt.Errorf("unable to update payload index for transaction %s: %w", ref, err)
 		}
+		txAdded = true
 		return nil
 	})
-	if err == nil {
+	if err == nil && txAdded {
 		notifyObservers(ctx, dag.observers, transaction)
 	}
 	return err

@@ -51,8 +51,8 @@ func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Confi
 }
 
 type outboundConnector struct {
-	address string
 	dialer
+	address     string
 	backoff     Backoff
 	tlsConfig   *tls.Config
 	localPeerID transport.PeerID

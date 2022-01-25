@@ -30,8 +30,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/events"
-
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/pkg/errors"
@@ -69,7 +67,6 @@ type Network struct {
 	config                 Config
 	lastTransactionTracker lastTransactionTracker
 	protocols              []transport.Protocol
-	eventManager           events.Event
 	connectionManager      transport.ConnectionManager
 	graph                  dag.DAG
 	publisher              dag.Publisher
@@ -81,6 +78,7 @@ type Network struct {
 	didDocumentResolver    types.DocResolver
 	decrypter              crypto.Decrypter
 	nodeDIDResolver        transport.NodeDIDResolver
+	didDocumentFinder      types.DocFinder
 	db                     *bbolt.DB
 }
 
@@ -93,11 +91,11 @@ func (n *Network) Walk(visitor dag.Visitor) error {
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(
 	config Config,
-	eventManager events.Event,
 	keyResolver types.KeyResolver,
 	privateKeyResolver crypto.KeyResolver,
 	decrypter crypto.Decrypter,
 	didDocumentResolver types.DocResolver,
+	didDocumentFinder types.DocFinder,
 ) *Network {
 	return &Network{
 		config:                 config,
@@ -105,7 +103,7 @@ func NewNetworkInstance(
 		keyResolver:            keyResolver,
 		privateKeyResolver:     privateKeyResolver,
 		didDocumentResolver:    didDocumentResolver,
-		eventManager:           eventManager,
+		didDocumentFinder:      didDocumentFinder,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 	}
@@ -132,7 +130,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	n.payloadStore = dag.NewBBoltPayloadStore(n.db)
-	n.publisher = dag.NewReplayingDAGPublisher(n.eventManager, n.payloadStore, n.graph)
+	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	n.peerID = transport.PeerID(uuid.New().String())
 
 	// TLS
@@ -150,11 +148,19 @@ func (n *Network) Configure(config core.ServerConfig) error {
 
 	// Resolve node DID
 	if n.config.NodeDID != "" {
+		// Node DID is set, configure it statically
 		configuredNodeDID, err := did.ParseDID(n.config.NodeDID)
 		if err != nil {
 			return fmt.Errorf("configured NodeDID is invalid: %w", err)
 		}
 		n.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
+	} else if !config.Strictmode {
+		// If node DID is not set we can wire the automatic node DID resolver, which makes testing/workshops/development easier.
+		// Might cause unexpected behavior though, so it can't be used in strict mode.
+		log.Logger().Infof("Node DID not set, will be auto-discovered.")
+		n.nodeDIDResolver = transport.NewAutoNodeDIDResolver(n.privateKeyResolver, n.didDocumentFinder)
+	} else {
+		log.Logger().Warnf("Node DID not set, sending/receiving private transactions is disabled.")
 	}
 
 	// Configure protocols
@@ -162,13 +168,19 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	v2Cfg := n.config.ProtocolV2
 	v2Cfg.Datadir = config.Datadir
 
-	n.protocols = []transport.Protocol{
-		v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
-		v2.New(v2Cfg, n.eventManager.Pool(), n.nodeDIDResolver, n.graph, n.payloadStore, n.didDocumentResolver, n.decrypter),
+	// Only set protocols if not already set: improves testability
+	if n.protocols == nil {
+		n.protocols = []transport.Protocol{
+			v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.graph, n.publisher, n.payloadStore, n.didDocumentResolver, n.decrypter),
+		}
 	}
 
 	for _, prot := range n.protocols {
-		prot.Configure(n.peerID)
+		err := prot.Configure(n.peerID)
+		if err != nil {
+			return fmt.Errorf("error while configuring protocol %T: %w", prot, err)
+		}
 	}
 
 	// Setup connection manager, load with bootstrap nodes
@@ -178,6 +190,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		if n.config.EnableTLS {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
 		}
+
 		// Instantiate
 		var authenticator grpc.Authenticator
 		if n.config.DisableNodeAuthentication {
@@ -260,6 +273,10 @@ func (n *Network) Start() error {
 		}
 	}
 
+	return n.connectToKnownNodes(nodeDID)
+}
+
+func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	// Start connecting to bootstrap nodes
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
@@ -268,6 +285,38 @@ func (n *Network) Start() error {
 		n.connectionManager.Connect(bootstrapNode, transport.WithUnauthenticated())
 	}
 
+	if !n.config.EnableDiscovery {
+		return nil
+	}
+
+	// start connecting to published NutsComm addresses
+	otherNodes, err := n.didDocumentFinder.Find(doc.IsActive(), doc.ValidAt(time.Now()), doc.ByServiceType(transport.NutsCommServiceType))
+	if err != nil {
+		return err
+	}
+	for _, node := range otherNodes {
+		if !nodeDID.Empty() && node.ID.Equals(nodeDID) {
+			// Found local node, do not discover.
+			continue
+		}
+	inner:
+		for _, service := range node.Service {
+			if service.Type == transport.NutsCommServiceType {
+				var nutsCommStr string
+				if err = service.UnmarshalServiceEndpoint(&nutsCommStr); err != nil {
+					log.Logger().Warnf("failed to extract NutsComm address from service (did=%s): %v", node.ID.String(), err)
+					continue inner
+				}
+				address, err := transport.ParseAddress(nutsCommStr)
+				if err != nil {
+					log.Logger().Warnf("invalid NutsComm address from service (did=%s, str=%s): %v", node.ID.String(), nutsCommStr, err)
+					continue inner
+				}
+				log.Logger().Infof("Discovered Nuts node (address=%s), published by %s", address, node.ID)
+				n.connectionManager.Connect(address)
+			}
+		}
+	}
 	return nil
 }
 
@@ -479,7 +528,7 @@ type lastTransactionTracker struct {
 	mux                   sync.Mutex
 }
 
-func (l *lastTransactionTracker) process(transaction dag.Transaction, _ []byte) error {
+func (l *lastTransactionTracker) process(transaction dag.Transaction, payload []byte) error {
 	l.mux.Lock()
 	defer l.mux.Unlock()
 

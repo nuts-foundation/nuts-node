@@ -61,13 +61,15 @@ func (d Resolver) resolve(id did.DID, metadata *types.ResolveMetadata, depth int
 		return nil, nil, err
 	}
 
-	if metadata != nil && !metadata.AllowDeactivated {
+	// has the doc controllers, should we check for controller deactivation?
+	if len(doc.Controller) > 0 && (metadata == nil || !metadata.AllowDeactivated) {
 		// also check if the controller is not deactivated
 		// since ResolveControllers calls Resolve and propagates the metadata
 		controllers, err := d.resolveControllers(*doc, metadata, depth+1)
 		if err != nil {
 			return nil, nil, err
 		}
+		// doc should have controllers, but no results, so they are not active, return error:
 		if len(controllers) == 0 {
 			return nil, nil, types.ErrNoActiveController
 		}
@@ -113,7 +115,7 @@ func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMe
 			return nil, err
 		}
 		if err != nil {
-			return nil, fmt.Errorf("unable to resolve controllers: %w", err)
+			return nil, fmt.Errorf("unable to resolve controller ref: %w", err)
 		}
 		leaves = append(leaves, *node)
 	}

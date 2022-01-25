@@ -190,30 +190,46 @@ func TestResolver_Resolve(t *testing.T) {
 	})
 
 	t.Run("docA is controller of docB and docA is deactivated", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := types.NewMockStore(ctrl)
-		resolver := Resolver{Store: store}
-		store.EXPECT().Resolve(*id456, resolveMD).Return(&docB, &types.DocumentMetadata{}, nil)
-		store.EXPECT().Resolve(*id123, resolveMD).Return(&docA, &types.DocumentMetadata{}, nil)
+		t.Run("err - with resolver metadata", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			store := types.NewMockStore(ctrl)
+			resolver := Resolver{Store: store}
+			store.EXPECT().Resolve(*id456, resolveMD).Return(&docB, &types.DocumentMetadata{}, nil)
+			store.EXPECT().Resolve(*id123, resolveMD).Return(&docA, &types.DocumentMetadata{}, nil)
 
-		doc, _, err := resolver.Resolve(*id456, resolveMD)
+			doc, _, err := resolver.Resolve(*id456, resolveMD)
 
-		assert.Error(t, err)
-		assert.Equal(t, types.ErrNoActiveController, err)
-		assert.Nil(t, doc)
-	})
+			assert.Error(t, err)
+			assert.Equal(t, types.ErrNoActiveController, err)
+			assert.Nil(t, doc)
+		})
 
-	t.Run("docA is controller of docB and docA is deactivated but is allowed", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := types.NewMockStore(ctrl)
-		resolver := Resolver{Store: store}
-		resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime, AllowDeactivated: true}
+		t.Run("err - without resolve metadata", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			store := types.NewMockStore(ctrl)
+			resolver := Resolver{Store: store}
+			store.EXPECT().Resolve(*id456, nil).Return(&docB, &types.DocumentMetadata{}, nil)
+			store.EXPECT().Resolve(*id123, nil).Return(&docA, &types.DocumentMetadata{}, nil)
 
-		store.EXPECT().Resolve(*id456, resolveMD).Return(&docB, &types.DocumentMetadata{}, nil)
+			doc, _, err := resolver.Resolve(*id456, nil)
 
-		doc, _, err := resolver.Resolve(*id456, resolveMD)
-		assert.NoError(t, err)
-		assert.Equal(t, docB, *doc)
+			assert.Error(t, err)
+			assert.Equal(t, types.ErrNoActiveController, err)
+			assert.Nil(t, doc)
+		})
+
+		t.Run("ok - allowed deactivated", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			store := types.NewMockStore(ctrl)
+			resolver := Resolver{Store: store}
+			resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime, AllowDeactivated: true}
+
+			store.EXPECT().Resolve(*id456, resolveMD).Return(&docB, &types.DocumentMetadata{}, nil)
+
+			doc, _, err := resolver.Resolve(*id456, resolveMD)
+			assert.NoError(t, err)
+			assert.Equal(t, docB, *doc)
+		})
 	})
 
 	t.Run("Controller hierarchy nested too deeply", func(t *testing.T) {
@@ -411,7 +427,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
 		docs, err := resolver.ResolveControllers(docB, nil)
-		assert.EqualError(t, err, "unable to resolve controllers: unable to find the DID document")
+		assert.EqualError(t, err, "unable to resolve controller ref: unable to find the DID document")
 		assert.Len(t, docs, 0)
 	})
 }

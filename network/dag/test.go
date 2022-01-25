@@ -36,7 +36,7 @@ import (
 // CreateTestTransactionWithJWK creates a transaction with the given num as payload hash and signs it with a random EC key.
 // The JWK is attached, rather than referred to using the kid.
 func CreateTestTransactionWithJWK(num uint32, prevs ...hash.SHA256Hash) Transaction {
-	return CreateSignedTestTransaction(num, time.Now(), nil, "foo/bar", true, prevs...)
+	return CreateSignedTestTransaction(num, time.Now(), nil, "application/did+json", true, prevs...)
 }
 
 // CreateSignedTestTransaction creates a signed transaction with more control
@@ -56,7 +56,7 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 
 // CreateTestTransactionEx creates a transaction with the given payload hash and signs it with a random EC key.
 func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participants EncryptedPAL, prevs ...hash.SHA256Hash) (Transaction, string, crypto.PublicKey) {
-	unsignedTransaction, _ := NewTransaction(payloadHash, "foo/bar", prevs, participants)
+	unsignedTransaction, _ := NewTransaction(payloadHash, "application/did+json", prevs, participants)
 	kid := fmt.Sprintf("%d", num)
 	signer := crypto2.NewTestKey(kid)
 	signedTransaction, err := NewTransactionSigner(signer, false).Sign(unsignedTransaction, time.Now())
