@@ -43,9 +43,16 @@ type Envelope struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Message:
-	//	*Envelope_Hello
+	//	*Envelope_Gossip
+	//	*Envelope_DiagnosticsBroadcast
+	//	*Envelope_State
+	//	*Envelope_TransactionListQuery
+	//	*Envelope_TransactionRangeQuery
 	//	*Envelope_TransactionPayloadQuery
+	//	*Envelope_TransactionSet
+	//	*Envelope_TransactionList
 	//	*Envelope_TransactionPayload
+	//	*Envelope_Hello
 	Message isEnvelope_Message `protobuf_oneof:"Message"`
 }
 
@@ -88,9 +95,37 @@ func (m *Envelope) GetMessage() isEnvelope_Message {
 	return nil
 }
 
-func (x *Envelope) GetHello() *Hello {
-	if x, ok := x.GetMessage().(*Envelope_Hello); ok {
-		return x.Hello
+func (x *Envelope) GetGossip() *Gossip {
+	if x, ok := x.GetMessage().(*Envelope_Gossip); ok {
+		return x.Gossip
+	}
+	return nil
+}
+
+func (x *Envelope) GetDiagnosticsBroadcast() *Diagnostics {
+	if x, ok := x.GetMessage().(*Envelope_DiagnosticsBroadcast); ok {
+		return x.DiagnosticsBroadcast
+	}
+	return nil
+}
+
+func (x *Envelope) GetState() *State {
+	if x, ok := x.GetMessage().(*Envelope_State); ok {
+		return x.State
+	}
+	return nil
+}
+
+func (x *Envelope) GetTransactionListQuery() *TransactionListQuery {
+	if x, ok := x.GetMessage().(*Envelope_TransactionListQuery); ok {
+		return x.TransactionListQuery
+	}
+	return nil
+}
+
+func (x *Envelope) GetTransactionRangeQuery() *TransactionRangeQuery {
+	if x, ok := x.GetMessage().(*Envelope_TransactionRangeQuery); ok {
+		return x.TransactionRangeQuery
 	}
 	return nil
 }
@@ -102,9 +137,30 @@ func (x *Envelope) GetTransactionPayloadQuery() *TransactionPayloadQuery {
 	return nil
 }
 
+func (x *Envelope) GetTransactionSet() *TransactionSet {
+	if x, ok := x.GetMessage().(*Envelope_TransactionSet); ok {
+		return x.TransactionSet
+	}
+	return nil
+}
+
+func (x *Envelope) GetTransactionList() *TransactionList {
+	if x, ok := x.GetMessage().(*Envelope_TransactionList); ok {
+		return x.TransactionList
+	}
+	return nil
+}
+
 func (x *Envelope) GetTransactionPayload() *TransactionPayload {
 	if x, ok := x.GetMessage().(*Envelope_TransactionPayload); ok {
 		return x.TransactionPayload
+	}
+	return nil
+}
+
+func (x *Envelope) GetHello() *HelloMessage {
+	if x, ok := x.GetMessage().(*Envelope_Hello); ok {
+		return x.Hello
 	}
 	return nil
 }
@@ -113,23 +169,567 @@ type isEnvelope_Message interface {
 	isEnvelope_Message()
 }
 
-type Envelope_Hello struct {
-	Hello *Hello `protobuf:"bytes,1000,opt,name=hello,proto3,oneof"`
+type Envelope_Gossip struct {
+	// broadcast
+	Gossip *Gossip `protobuf:"bytes,101,opt,name=gossip,proto3,oneof"`
+}
+
+type Envelope_DiagnosticsBroadcast struct {
+	DiagnosticsBroadcast *Diagnostics `protobuf:"bytes,102,opt,name=diagnosticsBroadcast,proto3,oneof"`
+}
+
+type Envelope_State struct {
+	// request, starts a conversation with a new ID
+	State *State `protobuf:"bytes,201,opt,name=state,proto3,oneof"`
+}
+
+type Envelope_TransactionListQuery struct {
+	TransactionListQuery *TransactionListQuery `protobuf:"bytes,202,opt,name=transactionListQuery,proto3,oneof"`
+}
+
+type Envelope_TransactionRangeQuery struct {
+	TransactionRangeQuery *TransactionRangeQuery `protobuf:"bytes,203,opt,name=transactionRangeQuery,proto3,oneof"`
 }
 
 type Envelope_TransactionPayloadQuery struct {
-	TransactionPayloadQuery *TransactionPayloadQuery `protobuf:"bytes,100,opt,name=transactionPayloadQuery,proto3,oneof"`
+	TransactionPayloadQuery *TransactionPayloadQuery `protobuf:"bytes,204,opt,name=transactionPayloadQuery,proto3,oneof"`
+}
+
+type Envelope_TransactionSet struct {
+	// response, contains conversationID from request
+	TransactionSet *TransactionSet `protobuf:"bytes,301,opt,name=transactionSet,proto3,oneof"`
+}
+
+type Envelope_TransactionList struct {
+	TransactionList *TransactionList `protobuf:"bytes,302,opt,name=transactionList,proto3,oneof"`
 }
 
 type Envelope_TransactionPayload struct {
-	TransactionPayload *TransactionPayload `protobuf:"bytes,101,opt,name=transactionPayload,proto3,oneof"`
+	TransactionPayload *TransactionPayload `protobuf:"bytes,304,opt,name=transactionPayload,proto3,oneof"`
 }
 
-func (*Envelope_Hello) isEnvelope_Message() {}
+type Envelope_Hello struct {
+	Hello *HelloMessage `protobuf:"bytes,1000,opt,name=hello,proto3,oneof"`
+}
+
+func (*Envelope_Gossip) isEnvelope_Message() {}
+
+func (*Envelope_DiagnosticsBroadcast) isEnvelope_Message() {}
+
+func (*Envelope_State) isEnvelope_Message() {}
+
+func (*Envelope_TransactionListQuery) isEnvelope_Message() {}
+
+func (*Envelope_TransactionRangeQuery) isEnvelope_Message() {}
 
 func (*Envelope_TransactionPayloadQuery) isEnvelope_Message() {}
 
+func (*Envelope_TransactionSet) isEnvelope_Message() {}
+
+func (*Envelope_TransactionList) isEnvelope_Message() {}
+
 func (*Envelope_TransactionPayload) isEnvelope_Message() {}
+
+func (*Envelope_Hello) isEnvelope_Message() {}
+
+type HelloMessage struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *HelloMessage) Reset() {
+	*x = HelloMessage{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_v2_protocol_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HelloMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HelloMessage) ProtoMessage() {}
+
+func (x *HelloMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_v2_protocol_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HelloMessage.ProtoReflect.Descriptor instead.
+func (*HelloMessage) Descriptor() ([]byte, []int) {
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{1}
+}
+
+// Transaction represents a transaction on the DAG.
+type Transaction struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// hash contains the reference of the transaction, as specified by RFC004.
+	Hash []byte `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
+	// data contains the data of the transaction, which is a JWS as specified by RFC004.
+	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	// payload contains the payload when it may be attached but wasn't so in the transaction already
+	Payload []byte `protobuf:"bytes,3,opt,name=payload,proto3,oneof" json:"payload,omitempty"`
+}
+
+func (x *Transaction) Reset() {
+	*x = Transaction{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_v2_protocol_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Transaction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Transaction) ProtoMessage() {}
+
+func (x *Transaction) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_v2_protocol_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Transaction.ProtoReflect.Descriptor instead.
+func (*Transaction) Descriptor() ([]byte, []int) {
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Transaction) GetHash() []byte {
+	if x != nil {
+		return x.Hash
+	}
+	return nil
+}
+
+func (x *Transaction) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *Transaction) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+// Gossip is a message broadcast to inform peers of the node's DAG state and recent additions to it (if any).
+// The message has no response, but the peer may decide to follow up with State or TransactionListQuery.
+type Gossip struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// XOR contains the XOR'ed value of all transaction references on the sender's DAG.
+	XOR []byte `protobuf:"bytes,1,opt,name=XOR,proto3" json:"XOR,omitempty"`
+	// LC contains the highest transaction Lamport Clock value of the sender.
+	LC uint32 `protobuf:"varint,2,opt,name=LC,proto3" json:"LC,omitempty"`
+	// transactions is a list of transactions recently added to the DAG
+	Transactions [][]byte `protobuf:"bytes,3,rep,name=transactions,proto3" json:"transactions,omitempty"`
+}
+
+func (x *Gossip) Reset() {
+	*x = Gossip{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_v2_protocol_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Gossip) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Gossip) ProtoMessage() {}
+
+func (x *Gossip) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_v2_protocol_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Gossip.ProtoReflect.Descriptor instead.
+func (*Gossip) Descriptor() ([]byte, []int) {
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Gossip) GetXOR() []byte {
+	if x != nil {
+		return x.XOR
+	}
+	return nil
+}
+
+func (x *Gossip) GetLC() uint32 {
+	if x != nil {
+		return x.LC
+	}
+	return 0
+}
+
+func (x *Gossip) GetTransactions() [][]byte {
+	if x != nil {
+		return x.Transactions
+	}
+	return nil
+}
+
+// State is a request for the peer's DAG state up to the given LC value
+type State struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// conversationID contains the token used to identify the response
+	ConversationID []byte `protobuf:"bytes,1,opt,name=conversationID,proto3" json:"conversationID,omitempty"`
+	// XOR contains the XOR'ed value of ALL transaction references on the sender's DAG.
+	XOR []byte `protobuf:"bytes,2,opt,name=XOR,proto3" json:"XOR,omitempty"`
+	// LC contains the Lamport Clock value (inclusive) for which the node requests an IBLT
+	LC uint32 `protobuf:"varint,3,opt,name=LC,proto3" json:"LC,omitempty"`
+}
+
+func (x *State) Reset() {
+	*x = State{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_v2_protocol_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *State) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*State) ProtoMessage() {}
+
+func (x *State) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_v2_protocol_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use State.ProtoReflect.Descriptor instead.
+func (*State) Descriptor() ([]byte, []int) {
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *State) GetConversationID() []byte {
+	if x != nil {
+		return x.ConversationID
+	}
+	return nil
+}
+
+func (x *State) GetXOR() []byte {
+	if x != nil {
+		return x.XOR
+	}
+	return nil
+}
+
+func (x *State) GetLC() uint32 {
+	if x != nil {
+		return x.LC
+	}
+	return 0
+}
+
+// TransactionSet sends an IBLT in response to a State message
+type TransactionSet struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// conversationID contains the token used to identify the response
+	ConversationID []byte `protobuf:"bytes,1,opt,name=conversationID,proto3" json:"conversationID,omitempty"`
+	// LCReq contains the LC value that was sent in the State message
+	LCReq uint32 `protobuf:"varint,2,opt,name=LCReq,proto3" json:"LCReq,omitempty"`
+	// LC contains the highest transaction Lamport Clock value from the sender of this message.
+	LC uint32 `protobuf:"varint,3,opt,name=LC,proto3" json:"LC,omitempty"`
+	// IBLT contains the serialized IBLT. The first byte indicates the serialization format of the IBLT.
+	IBLT []byte `protobuf:"bytes,4,opt,name=IBLT,proto3" json:"IBLT,omitempty"`
+}
+
+func (x *TransactionSet) Reset() {
+	*x = TransactionSet{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_v2_protocol_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TransactionSet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransactionSet) ProtoMessage() {}
+
+func (x *TransactionSet) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_v2_protocol_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransactionSet.ProtoReflect.Descriptor instead.
+func (*TransactionSet) Descriptor() ([]byte, []int) {
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *TransactionSet) GetConversationID() []byte {
+	if x != nil {
+		return x.ConversationID
+	}
+	return nil
+}
+
+func (x *TransactionSet) GetLCReq() uint32 {
+	if x != nil {
+		return x.LCReq
+	}
+	return 0
+}
+
+func (x *TransactionSet) GetLC() uint32 {
+	if x != nil {
+		return x.LC
+	}
+	return 0
+}
+
+func (x *TransactionSet) GetIBLT() []byte {
+	if x != nil {
+		return x.IBLT
+	}
+	return nil
+}
+
+// TransactionListQuery is a request for transactions by references
+type TransactionListQuery struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// conversationID contains the token used to identify the response
+	ConversationID []byte `protobuf:"bytes,1,opt,name=conversationID,proto3" json:"conversationID,omitempty"`
+	// refs is the list of requested transactions by reference
+	Refs [][]byte `protobuf:"bytes,2,rep,name=refs,proto3" json:"refs,omitempty"`
+}
+
+func (x *TransactionListQuery) Reset() {
+	*x = TransactionListQuery{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_v2_protocol_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TransactionListQuery) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransactionListQuery) ProtoMessage() {}
+
+func (x *TransactionListQuery) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_v2_protocol_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransactionListQuery.ProtoReflect.Descriptor instead.
+func (*TransactionListQuery) Descriptor() ([]byte, []int) {
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *TransactionListQuery) GetConversationID() []byte {
+	if x != nil {
+		return x.ConversationID
+	}
+	return nil
+}
+
+func (x *TransactionListQuery) GetRefs() [][]byte {
+	if x != nil {
+		return x.Refs
+	}
+	return nil
+}
+
+// TransactionRangeQuery is a request for transactions by LC range
+type TransactionRangeQuery struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// conversationID contains the token used to identify the response
+	ConversationID []byte `protobuf:"bytes,1,opt,name=conversationID,proto3" json:"conversationID,omitempty"`
+	// start indicates the start of the requested Lamport Clock range (inclusive)
+	Start uint32 `protobuf:"varint,2,opt,name=start,proto3" json:"start,omitempty"`
+	// end indicates the end of the requested Lamport Clock range (exclusive)
+	End uint32 `protobuf:"varint,3,opt,name=end,proto3" json:"end,omitempty"`
+}
+
+func (x *TransactionRangeQuery) Reset() {
+	*x = TransactionRangeQuery{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_v2_protocol_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TransactionRangeQuery) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransactionRangeQuery) ProtoMessage() {}
+
+func (x *TransactionRangeQuery) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_v2_protocol_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransactionRangeQuery.ProtoReflect.Descriptor instead.
+func (*TransactionRangeQuery) Descriptor() ([]byte, []int) {
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *TransactionRangeQuery) GetConversationID() []byte {
+	if x != nil {
+		return x.ConversationID
+	}
+	return nil
+}
+
+func (x *TransactionRangeQuery) GetStart() uint32 {
+	if x != nil {
+		return x.Start
+	}
+	return 0
+}
+
+func (x *TransactionRangeQuery) GetEnd() uint32 {
+	if x != nil {
+		return x.End
+	}
+	return 0
+}
+
+// TransactionList contains a list of transactions requested in TransactionListQuery or TransactionRangeQuery
+type TransactionList struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// conversationID contains the token used to identify the response
+	ConversationID []byte `protobuf:"bytes,1,opt,name=conversationID,proto3" json:"conversationID,omitempty"`
+	// transactions contains the list of requested transactions. Transactions MUST be sorted by LC value
+	Transactions []*Transaction `protobuf:"bytes,2,rep,name=transactions,proto3" json:"transactions,omitempty"`
+}
+
+func (x *TransactionList) Reset() {
+	*x = TransactionList{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_transport_v2_protocol_proto_msgTypes[8]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TransactionList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransactionList) ProtoMessage() {}
+
+func (x *TransactionList) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_v2_protocol_proto_msgTypes[8]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransactionList.ProtoReflect.Descriptor instead.
+func (*TransactionList) Descriptor() ([]byte, []int) {
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *TransactionList) GetConversationID() []byte {
+	if x != nil {
+		return x.ConversationID
+	}
+	return nil
+}
+
+func (x *TransactionList) GetTransactions() []*Transaction {
+	if x != nil {
+		return x.Transactions
+	}
+	return nil
+}
 
 // TransactionPayloadQuery is a message used to query the payload of a transaction.
 type TransactionPayloadQuery struct {
@@ -137,14 +737,16 @@ type TransactionPayloadQuery struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// conversationID contains the token used to identify the response
+	ConversationID []byte `protobuf:"bytes,1,opt,name=conversationID,proto3" json:"conversationID,omitempty"`
 	// transactionRef contains the reference (hash) of the transaction, which payload the node would like to receive, as specified by RFC004.
-	TransactionRef []byte `protobuf:"bytes,1,opt,name=transactionRef,proto3" json:"transactionRef,omitempty"`
+	TransactionRef []byte `protobuf:"bytes,2,opt,name=transactionRef,proto3" json:"transactionRef,omitempty"`
 }
 
 func (x *TransactionPayloadQuery) Reset() {
 	*x = TransactionPayloadQuery{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_transport_v2_protocol_proto_msgTypes[1]
+		mi := &file_transport_v2_protocol_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -157,7 +759,7 @@ func (x *TransactionPayloadQuery) String() string {
 func (*TransactionPayloadQuery) ProtoMessage() {}
 
 func (x *TransactionPayloadQuery) ProtoReflect() protoreflect.Message {
-	mi := &file_transport_v2_protocol_proto_msgTypes[1]
+	mi := &file_transport_v2_protocol_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -170,7 +772,14 @@ func (x *TransactionPayloadQuery) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionPayloadQuery.ProtoReflect.Descriptor instead.
 func (*TransactionPayloadQuery) Descriptor() ([]byte, []int) {
-	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{1}
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TransactionPayloadQuery) GetConversationID() []byte {
+	if x != nil {
+		return x.ConversationID
+	}
+	return nil
 }
 
 func (x *TransactionPayloadQuery) GetTransactionRef() []byte {
@@ -180,14 +789,16 @@ func (x *TransactionPayloadQuery) GetTransactionRef() []byte {
 	return nil
 }
 
-// TransactionPayload is the response message for TransactionPayloadQuery.
+// TransactionPayload is the response message for TransactionPayloadQuery
 type TransactionPayload struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// conversationID contains the token used to identify the response
+	ConversationID []byte `protobuf:"bytes,1,opt,name=conversationID,proto3" json:"conversationID,omitempty"`
 	// transactionRef contains the reference to the transaction which' payload was requested.
-	TransactionRef []byte `protobuf:"bytes,1,opt,name=transactionRef,proto3" json:"transactionRef,omitempty"`
+	TransactionRef []byte `protobuf:"bytes,2,opt,name=transactionRef,proto3" json:"transactionRef,omitempty"`
 	// data contains the actual payload.
 	Data []byte `protobuf:"bytes,10,opt,name=data,proto3" json:"data,omitempty"`
 }
@@ -195,7 +806,7 @@ type TransactionPayload struct {
 func (x *TransactionPayload) Reset() {
 	*x = TransactionPayload{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_transport_v2_protocol_proto_msgTypes[2]
+		mi := &file_transport_v2_protocol_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -208,7 +819,7 @@ func (x *TransactionPayload) String() string {
 func (*TransactionPayload) ProtoMessage() {}
 
 func (x *TransactionPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_transport_v2_protocol_proto_msgTypes[2]
+	mi := &file_transport_v2_protocol_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -221,7 +832,14 @@ func (x *TransactionPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionPayload.ProtoReflect.Descriptor instead.
 func (*TransactionPayload) Descriptor() ([]byte, []int) {
-	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{2}
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *TransactionPayload) GetConversationID() []byte {
+	if x != nil {
+		return x.ConversationID
+	}
+	return nil
 }
 
 func (x *TransactionPayload) GetTransactionRef() []byte {
@@ -238,29 +856,45 @@ func (x *TransactionPayload) GetData() []byte {
 	return nil
 }
 
-type Hello struct {
+// Diagnostics is a message to inform peers of the local node's state. All fields are optional.
+type Diagnostics struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+
+	// uptime contains the uptime (time since the node started) in seconds.
+	Uptime uint32 `protobuf:"varint,1,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	// peerID contains the ID of the node.
+	PeerID string `protobuf:"bytes,2,opt,name=peerID,proto3" json:"peerID,omitempty"`
+	// peers contains the peer IDs of the node's peers.
+	Peers []string `protobuf:"bytes,3,rep,name=peers,proto3" json:"peers,omitempty"`
+	// numberOfTransactions contains the total number of transactions on the node's DAG.
+	NumberOfTransactions uint32 `protobuf:"varint,4,opt,name=numberOfTransactions,proto3" json:"numberOfTransactions,omitempty"`
+	// softwareVersion contains an indication of the software version of the node. It's recommended to use a (Git) commit ID that uniquely resolves to a code revision, alternatively a semantic version could be used (e.g. 1.2.5).
+	SoftwareVersion string `protobuf:"bytes,10,opt,name=softwareVersion,proto3" json:"softwareVersion,omitempty"`
+	// softwareID contains an identification of the particular Nuts implementation of the node.
+	// For open source implementations it's recommended to specify URL to the public, open source repository.
+	// Proprietary implementations could specify the product or vendor's name.
+	SoftwareID string `protobuf:"bytes,11,opt,name=softwareID,proto3" json:"softwareID,omitempty"`
 }
 
-func (x *Hello) Reset() {
-	*x = Hello{}
+func (x *Diagnostics) Reset() {
+	*x = Diagnostics{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_transport_v2_protocol_proto_msgTypes[3]
+		mi := &file_transport_v2_protocol_proto_msgTypes[11]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
 }
 
-func (x *Hello) String() string {
+func (x *Diagnostics) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Hello) ProtoMessage() {}
+func (*Diagnostics) ProtoMessage() {}
 
-func (x *Hello) ProtoReflect() protoreflect.Message {
-	mi := &file_transport_v2_protocol_proto_msgTypes[3]
+func (x *Diagnostics) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_v2_protocol_proto_msgTypes[11]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -271,9 +905,51 @@ func (x *Hello) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Hello.ProtoReflect.Descriptor instead.
-func (*Hello) Descriptor() ([]byte, []int) {
-	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{3}
+// Deprecated: Use Diagnostics.ProtoReflect.Descriptor instead.
+func (*Diagnostics) Descriptor() ([]byte, []int) {
+	return file_transport_v2_protocol_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *Diagnostics) GetUptime() uint32 {
+	if x != nil {
+		return x.Uptime
+	}
+	return 0
+}
+
+func (x *Diagnostics) GetPeerID() string {
+	if x != nil {
+		return x.PeerID
+	}
+	return ""
+}
+
+func (x *Diagnostics) GetPeers() []string {
+	if x != nil {
+		return x.Peers
+	}
+	return nil
+}
+
+func (x *Diagnostics) GetNumberOfTransactions() uint32 {
+	if x != nil {
+		return x.NumberOfTransactions
+	}
+	return 0
+}
+
+func (x *Diagnostics) GetSoftwareVersion() string {
+	if x != nil {
+		return x.SoftwareVersion
+	}
+	return ""
+}
+
+func (x *Diagnostics) GetSoftwareID() string {
+	if x != nil {
+		return x.SoftwareID
+	}
+	return ""
 }
 
 var File_transport_v2_protocol_proto protoreflect.FileDescriptor
@@ -281,38 +957,127 @@ var File_transport_v2_protocol_proto protoreflect.FileDescriptor
 var file_transport_v2_protocol_proto_rawDesc = []byte{
 	0x0a, 0x1b, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x70, 0x6f, 0x72, 0x74, 0x2f, 0x76, 0x32, 0x2f, 0x70,
 	0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x02, 0x76,
-	0x32, 0x22, 0xdc, 0x01, 0x0a, 0x08, 0x45, 0x6e, 0x76, 0x65, 0x6c, 0x6f, 0x70, 0x65, 0x12, 0x22,
-	0x0a, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x18, 0xe8, 0x07, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x09,
-	0x2e, 0x76, 0x32, 0x2e, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x48, 0x00, 0x52, 0x05, 0x68, 0x65, 0x6c,
-	0x6c, 0x6f, 0x12, 0x57, 0x0a, 0x17, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f,
-	0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75, 0x65, 0x72, 0x79, 0x18, 0x64, 0x20,
-	0x01, 0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x76, 0x32, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63,
-	0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75, 0x65, 0x72, 0x79,
-	0x48, 0x00, 0x52, 0x17, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50,
-	0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x48, 0x0a, 0x12, 0x74,
-	0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61,
-	0x64, 0x18, 0x65, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x76, 0x32, 0x2e, 0x54, 0x72, 0x61,
-	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x48,
-	0x00, 0x52, 0x12, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61,
-	0x79, 0x6c, 0x6f, 0x61, 0x64, 0x42, 0x09, 0x0a, 0x07, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65,
-	0x22, 0x41, 0x0a, 0x17, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50,
-	0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x26, 0x0a, 0x0e, 0x74,
-	0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x66, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x0c, 0x52, 0x0e, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
-	0x52, 0x65, 0x66, 0x22, 0x50, 0x0a, 0x12, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69,
-	0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x12, 0x26, 0x0a, 0x0e, 0x74, 0x72, 0x61,
-	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x66, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x32, 0x22, 0x9c, 0x05, 0x0a, 0x08, 0x45, 0x6e, 0x76, 0x65, 0x6c, 0x6f, 0x70, 0x65, 0x12, 0x24,
+	0x0a, 0x06, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x18, 0x65, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0a,
+	0x2e, 0x76, 0x32, 0x2e, 0x47, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x48, 0x00, 0x52, 0x06, 0x67, 0x6f,
+	0x73, 0x73, 0x69, 0x70, 0x12, 0x45, 0x0a, 0x14, 0x64, 0x69, 0x61, 0x67, 0x6e, 0x6f, 0x73, 0x74,
+	0x69, 0x63, 0x73, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x18, 0x66, 0x20, 0x01,
+	0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x76, 0x32, 0x2e, 0x44, 0x69, 0x61, 0x67, 0x6e, 0x6f, 0x73, 0x74,
+	0x69, 0x63, 0x73, 0x48, 0x00, 0x52, 0x14, 0x64, 0x69, 0x61, 0x67, 0x6e, 0x6f, 0x73, 0x74, 0x69,
+	0x63, 0x73, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x12, 0x22, 0x0a, 0x05, 0x73,
+	0x74, 0x61, 0x74, 0x65, 0x18, 0xc9, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x09, 0x2e, 0x76, 0x32,
+	0x2e, 0x53, 0x74, 0x61, 0x74, 0x65, 0x48, 0x00, 0x52, 0x05, 0x73, 0x74, 0x61, 0x74, 0x65, 0x12,
+	0x4f, 0x0a, 0x14, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4c, 0x69,
+	0x73, 0x74, 0x51, 0x75, 0x65, 0x72, 0x79, 0x18, 0xca, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x18,
+	0x2e, 0x76, 0x32, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4c,
+	0x69, 0x73, 0x74, 0x51, 0x75, 0x65, 0x72, 0x79, 0x48, 0x00, 0x52, 0x14, 0x74, 0x72, 0x61, 0x6e,
+	0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4c, 0x69, 0x73, 0x74, 0x51, 0x75, 0x65, 0x72, 0x79,
+	0x12, 0x52, 0x0a, 0x15, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52,
+	0x61, 0x6e, 0x67, 0x65, 0x51, 0x75, 0x65, 0x72, 0x79, 0x18, 0xcb, 0x01, 0x20, 0x01, 0x28, 0x0b,
+	0x32, 0x19, 0x2e, 0x76, 0x32, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f,
+	0x6e, 0x52, 0x61, 0x6e, 0x67, 0x65, 0x51, 0x75, 0x65, 0x72, 0x79, 0x48, 0x00, 0x52, 0x15, 0x74,
+	0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x61, 0x6e, 0x67, 0x65, 0x51,
+	0x75, 0x65, 0x72, 0x79, 0x12, 0x58, 0x0a, 0x17, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74,
+	0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75, 0x65, 0x72, 0x79, 0x18,
+	0xcc, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x76, 0x32, 0x2e, 0x54, 0x72, 0x61, 0x6e,
+	0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75,
+	0x65, 0x72, 0x79, 0x48, 0x00, 0x52, 0x17, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69,
+	0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x3d,
+	0x0a, 0x0e, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x53, 0x65, 0x74,
+	0x18, 0xad, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x76, 0x32, 0x2e, 0x54, 0x72, 0x61,
+	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x53, 0x65, 0x74, 0x48, 0x00, 0x52, 0x0e, 0x74,
+	0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x53, 0x65, 0x74, 0x12, 0x40, 0x0a,
+	0x0f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4c, 0x69, 0x73, 0x74,
+	0x18, 0xae, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x13, 0x2e, 0x76, 0x32, 0x2e, 0x54, 0x72, 0x61,
+	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4c, 0x69, 0x73, 0x74, 0x48, 0x00, 0x52, 0x0f,
+	0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4c, 0x69, 0x73, 0x74, 0x12,
+	0x49, 0x0a, 0x12, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61,
+	0x79, 0x6c, 0x6f, 0x61, 0x64, 0x18, 0xb0, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x76,
+	0x32, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79,
+	0x6c, 0x6f, 0x61, 0x64, 0x48, 0x00, 0x52, 0x12, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74,
+	0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x12, 0x29, 0x0a, 0x05, 0x68, 0x65,
+	0x6c, 0x6c, 0x6f, 0x18, 0xe8, 0x07, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x10, 0x2e, 0x76, 0x32, 0x2e,
+	0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x48, 0x00, 0x52, 0x05,
+	0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x42, 0x09, 0x0a, 0x07, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65,
+	0x22, 0x0e, 0x0a, 0x0c, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65,
+	0x22, 0x60, 0x0a, 0x0b, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12,
+	0x12, 0x0a, 0x04, 0x68, 0x61, 0x73, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x68,
+	0x61, 0x73, 0x68, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x0c, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x12, 0x1d, 0x0a, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f,
+	0x61, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x48, 0x00, 0x52, 0x07, 0x70, 0x61, 0x79, 0x6c,
+	0x6f, 0x61, 0x64, 0x88, 0x01, 0x01, 0x42, 0x0a, 0x0a, 0x08, 0x5f, 0x70, 0x61, 0x79, 0x6c, 0x6f,
+	0x61, 0x64, 0x22, 0x4e, 0x0a, 0x06, 0x47, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x12, 0x10, 0x0a, 0x03,
+	0x58, 0x4f, 0x52, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x58, 0x4f, 0x52, 0x12, 0x0e,
+	0x0a, 0x02, 0x4c, 0x43, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x02, 0x4c, 0x43, 0x12, 0x22,
+	0x0a, 0x0c, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0x03,
+	0x20, 0x03, 0x28, 0x0c, 0x52, 0x0c, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f,
+	0x6e, 0x73, 0x22, 0x51, 0x0a, 0x05, 0x53, 0x74, 0x61, 0x74, 0x65, 0x12, 0x26, 0x0a, 0x0e, 0x63,
+	0x6f, 0x6e, 0x76, 0x65, 0x72, 0x73, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0c, 0x52, 0x0e, 0x63, 0x6f, 0x6e, 0x76, 0x65, 0x72, 0x73, 0x61, 0x74, 0x69, 0x6f,
+	0x6e, 0x49, 0x44, 0x12, 0x10, 0x0a, 0x03, 0x58, 0x4f, 0x52, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c,
+	0x52, 0x03, 0x58, 0x4f, 0x52, 0x12, 0x0e, 0x0a, 0x02, 0x4c, 0x43, 0x18, 0x03, 0x20, 0x01, 0x28,
+	0x0d, 0x52, 0x02, 0x4c, 0x43, 0x22, 0x72, 0x0a, 0x0e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63,
+	0x74, 0x69, 0x6f, 0x6e, 0x53, 0x65, 0x74, 0x12, 0x26, 0x0a, 0x0e, 0x63, 0x6f, 0x6e, 0x76, 0x65,
+	0x72, 0x73, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52,
+	0x0e, 0x63, 0x6f, 0x6e, 0x76, 0x65, 0x72, 0x73, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x12,
+	0x14, 0x0a, 0x05, 0x4c, 0x43, 0x52, 0x65, 0x71, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05,
+	0x4c, 0x43, 0x52, 0x65, 0x71, 0x12, 0x0e, 0x0a, 0x02, 0x4c, 0x43, 0x18, 0x03, 0x20, 0x01, 0x28,
+	0x0d, 0x52, 0x02, 0x4c, 0x43, 0x12, 0x12, 0x0a, 0x04, 0x49, 0x42, 0x4c, 0x54, 0x18, 0x04, 0x20,
+	0x01, 0x28, 0x0c, 0x52, 0x04, 0x49, 0x42, 0x4c, 0x54, 0x22, 0x52, 0x0a, 0x14, 0x54, 0x72, 0x61,
+	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4c, 0x69, 0x73, 0x74, 0x51, 0x75, 0x65, 0x72,
+	0x79, 0x12, 0x26, 0x0a, 0x0e, 0x63, 0x6f, 0x6e, 0x76, 0x65, 0x72, 0x73, 0x61, 0x74, 0x69, 0x6f,
+	0x6e, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0e, 0x63, 0x6f, 0x6e, 0x76, 0x65,
+	0x72, 0x73, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x12, 0x12, 0x0a, 0x04, 0x72, 0x65, 0x66,
+	0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x04, 0x72, 0x65, 0x66, 0x73, 0x22, 0x67, 0x0a,
+	0x15, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x61, 0x6e, 0x67,
+	0x65, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x26, 0x0a, 0x0e, 0x63, 0x6f, 0x6e, 0x76, 0x65, 0x72,
+	0x73, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0e,
+	0x63, 0x6f, 0x6e, 0x76, 0x65, 0x72, 0x73, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x12, 0x14,
+	0x0a, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05, 0x73,
+	0x74, 0x61, 0x72, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x65, 0x6e, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28,
+	0x0d, 0x52, 0x03, 0x65, 0x6e, 0x64, 0x22, 0x6e, 0x0a, 0x0f, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61,
+	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4c, 0x69, 0x73, 0x74, 0x12, 0x26, 0x0a, 0x0e, 0x63, 0x6f, 0x6e,
+	0x76, 0x65, 0x72, 0x73, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x0c, 0x52, 0x0e, 0x63, 0x6f, 0x6e, 0x76, 0x65, 0x72, 0x73, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49,
+	0x44, 0x12, 0x33, 0x0a, 0x0c, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x76, 0x32, 0x2e, 0x54, 0x72, 0x61,
+	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x0c, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61,
+	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x22, 0x69, 0x0a, 0x17, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61,
+	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x51, 0x75, 0x65, 0x72,
+	0x79, 0x12, 0x26, 0x0a, 0x0e, 0x63, 0x6f, 0x6e, 0x76, 0x65, 0x72, 0x73, 0x61, 0x74, 0x69, 0x6f,
+	0x6e, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0e, 0x63, 0x6f, 0x6e, 0x76, 0x65,
+	0x72, 0x73, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x12, 0x26, 0x0a, 0x0e, 0x74, 0x72, 0x61,
+	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x66, 0x18, 0x02, 0x20, 0x01, 0x28,
 	0x0c, 0x52, 0x0e, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65,
-	0x66, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x0c, 0x52,
-	0x04, 0x64, 0x61, 0x74, 0x61, 0x22, 0x07, 0x0a, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x32, 0x36,
-	0x0a, 0x08, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x12, 0x2a, 0x0a, 0x06, 0x53, 0x74,
-	0x72, 0x65, 0x61, 0x6d, 0x12, 0x0c, 0x2e, 0x76, 0x32, 0x2e, 0x45, 0x6e, 0x76, 0x65, 0x6c, 0x6f,
-	0x70, 0x65, 0x1a, 0x0c, 0x2e, 0x76, 0x32, 0x2e, 0x45, 0x6e, 0x76, 0x65, 0x6c, 0x6f, 0x70, 0x65,
-	0x22, 0x00, 0x28, 0x01, 0x30, 0x01, 0x42, 0x3b, 0x5a, 0x39, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
-	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6e, 0x75, 0x74, 0x73, 0x2d, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x61,
-	0x74, 0x69, 0x6f, 0x6e, 0x2f, 0x6e, 0x75, 0x74, 0x73, 0x2d, 0x6e, 0x6f, 0x64, 0x65, 0x2f, 0x6e,
-	0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x2f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x70, 0x6f, 0x72, 0x74,
-	0x2f, 0x76, 0x32, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x66, 0x22, 0x78, 0x0a, 0x12, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x12, 0x26, 0x0a, 0x0e, 0x63, 0x6f, 0x6e, 0x76, 0x65,
+	0x72, 0x73, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52,
+	0x0e, 0x63, 0x6f, 0x6e, 0x76, 0x65, 0x72, 0x73, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x12,
+	0x26, 0x0a, 0x0e, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65,
+	0x66, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0e, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63,
+	0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x66, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18,
+	0x0a, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x22, 0xd1, 0x01, 0x0a, 0x0b,
+	0x44, 0x69, 0x61, 0x67, 0x6e, 0x6f, 0x73, 0x74, 0x69, 0x63, 0x73, 0x12, 0x16, 0x0a, 0x06, 0x75,
+	0x70, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x06, 0x75, 0x70, 0x74,
+	0x69, 0x6d, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x70, 0x65, 0x65, 0x72, 0x49, 0x44, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x06, 0x70, 0x65, 0x65, 0x72, 0x49, 0x44, 0x12, 0x14, 0x0a, 0x05, 0x70,
+	0x65, 0x65, 0x72, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x09, 0x52, 0x05, 0x70, 0x65, 0x65, 0x72,
+	0x73, 0x12, 0x32, 0x0a, 0x14, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x4f, 0x66, 0x54, 0x72, 0x61,
+	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0d, 0x52,
+	0x14, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x4f, 0x66, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63,
+	0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x28, 0x0a, 0x0f, 0x73, 0x6f, 0x66, 0x74, 0x77, 0x61, 0x72,
+	0x65, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0f,
+	0x73, 0x6f, 0x66, 0x74, 0x77, 0x61, 0x72, 0x65, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12,
+	0x1e, 0x0a, 0x0a, 0x73, 0x6f, 0x66, 0x74, 0x77, 0x61, 0x72, 0x65, 0x49, 0x44, 0x18, 0x0b, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x0a, 0x73, 0x6f, 0x66, 0x74, 0x77, 0x61, 0x72, 0x65, 0x49, 0x44, 0x32,
+	0x36, 0x0a, 0x08, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x12, 0x2a, 0x0a, 0x06, 0x53,
+	0x74, 0x72, 0x65, 0x61, 0x6d, 0x12, 0x0c, 0x2e, 0x76, 0x32, 0x2e, 0x45, 0x6e, 0x76, 0x65, 0x6c,
+	0x6f, 0x70, 0x65, 0x1a, 0x0c, 0x2e, 0x76, 0x32, 0x2e, 0x45, 0x6e, 0x76, 0x65, 0x6c, 0x6f, 0x70,
+	0x65, 0x22, 0x00, 0x28, 0x01, 0x30, 0x01, 0x42, 0x3b, 0x5a, 0x39, 0x67, 0x69, 0x74, 0x68, 0x75,
+	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6e, 0x75, 0x74, 0x73, 0x2d, 0x66, 0x6f, 0x75, 0x6e, 0x64,
+	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x2f, 0x6e, 0x75, 0x74, 0x73, 0x2d, 0x6e, 0x6f, 0x64, 0x65, 0x2f,
+	0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x2f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x70, 0x6f, 0x72,
+	0x74, 0x2f, 0x76, 0x32, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -327,24 +1092,40 @@ func file_transport_v2_protocol_proto_rawDescGZIP() []byte {
 	return file_transport_v2_protocol_proto_rawDescData
 }
 
-var file_transport_v2_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_transport_v2_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_transport_v2_protocol_proto_goTypes = []interface{}{
 	(*Envelope)(nil),                // 0: v2.Envelope
-	(*TransactionPayloadQuery)(nil), // 1: v2.TransactionPayloadQuery
-	(*TransactionPayload)(nil),      // 2: v2.TransactionPayload
-	(*Hello)(nil),                   // 3: v2.Hello
+	(*HelloMessage)(nil),            // 1: v2.HelloMessage
+	(*Transaction)(nil),             // 2: v2.Transaction
+	(*Gossip)(nil),                  // 3: v2.Gossip
+	(*State)(nil),                   // 4: v2.State
+	(*TransactionSet)(nil),          // 5: v2.TransactionSet
+	(*TransactionListQuery)(nil),    // 6: v2.TransactionListQuery
+	(*TransactionRangeQuery)(nil),   // 7: v2.TransactionRangeQuery
+	(*TransactionList)(nil),         // 8: v2.TransactionList
+	(*TransactionPayloadQuery)(nil), // 9: v2.TransactionPayloadQuery
+	(*TransactionPayload)(nil),      // 10: v2.TransactionPayload
+	(*Diagnostics)(nil),             // 11: v2.Diagnostics
 }
 var file_transport_v2_protocol_proto_depIdxs = []int32{
-	3, // 0: v2.Envelope.hello:type_name -> v2.Hello
-	1, // 1: v2.Envelope.transactionPayloadQuery:type_name -> v2.TransactionPayloadQuery
-	2, // 2: v2.Envelope.transactionPayload:type_name -> v2.TransactionPayload
-	0, // 3: v2.Protocol.Stream:input_type -> v2.Envelope
-	0, // 4: v2.Protocol.Stream:output_type -> v2.Envelope
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	3,  // 0: v2.Envelope.gossip:type_name -> v2.Gossip
+	11, // 1: v2.Envelope.diagnosticsBroadcast:type_name -> v2.Diagnostics
+	4,  // 2: v2.Envelope.state:type_name -> v2.State
+	6,  // 3: v2.Envelope.transactionListQuery:type_name -> v2.TransactionListQuery
+	7,  // 4: v2.Envelope.transactionRangeQuery:type_name -> v2.TransactionRangeQuery
+	9,  // 5: v2.Envelope.transactionPayloadQuery:type_name -> v2.TransactionPayloadQuery
+	5,  // 6: v2.Envelope.transactionSet:type_name -> v2.TransactionSet
+	8,  // 7: v2.Envelope.transactionList:type_name -> v2.TransactionList
+	10, // 8: v2.Envelope.transactionPayload:type_name -> v2.TransactionPayload
+	1,  // 9: v2.Envelope.hello:type_name -> v2.HelloMessage
+	2,  // 10: v2.TransactionList.transactions:type_name -> v2.Transaction
+	0,  // 11: v2.Protocol.Stream:input_type -> v2.Envelope
+	0,  // 12: v2.Protocol.Stream:output_type -> v2.Envelope
+	12, // [12:13] is the sub-list for method output_type
+	11, // [11:12] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_transport_v2_protocol_proto_init() }
@@ -366,7 +1147,7 @@ func file_transport_v2_protocol_proto_init() {
 			}
 		}
 		file_transport_v2_protocol_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionPayloadQuery); i {
+			switch v := v.(*HelloMessage); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -378,7 +1159,7 @@ func file_transport_v2_protocol_proto_init() {
 			}
 		}
 		file_transport_v2_protocol_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionPayload); i {
+			switch v := v.(*Transaction); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -390,7 +1171,103 @@ func file_transport_v2_protocol_proto_init() {
 			}
 		}
 		file_transport_v2_protocol_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Hello); i {
+			switch v := v.(*Gossip); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_v2_protocol_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*State); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_v2_protocol_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TransactionSet); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_v2_protocol_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TransactionListQuery); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_v2_protocol_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TransactionRangeQuery); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_v2_protocol_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TransactionList); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_v2_protocol_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TransactionPayloadQuery); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_v2_protocol_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TransactionPayload); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_transport_v2_protocol_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Diagnostics); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -403,17 +1280,25 @@ func file_transport_v2_protocol_proto_init() {
 		}
 	}
 	file_transport_v2_protocol_proto_msgTypes[0].OneofWrappers = []interface{}{
-		(*Envelope_Hello)(nil),
+		(*Envelope_Gossip)(nil),
+		(*Envelope_DiagnosticsBroadcast)(nil),
+		(*Envelope_State)(nil),
+		(*Envelope_TransactionListQuery)(nil),
+		(*Envelope_TransactionRangeQuery)(nil),
 		(*Envelope_TransactionPayloadQuery)(nil),
+		(*Envelope_TransactionSet)(nil),
+		(*Envelope_TransactionList)(nil),
 		(*Envelope_TransactionPayload)(nil),
+		(*Envelope_Hello)(nil),
 	}
+	file_transport_v2_protocol_proto_msgTypes[2].OneofWrappers = []interface{}{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_transport_v2_protocol_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
