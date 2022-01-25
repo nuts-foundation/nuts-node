@@ -84,8 +84,7 @@ func (w Wrapper) RevokeVC(ctx echo.Context, id string) error {
 	return errors.New("not yet implemented, use the v1 api")
 }
 
-// ResolveIssuedVC handles the API for resolving a set of issued Verifiable credentials.
-func (w *Wrapper) ResolveIssuedVC(ctx echo.Context, params ResolveIssuedVCParams) error {
+func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams) error {
 	issuerDID, err := did.ParseDID(params.Issuer)
 	if err != nil {
 		return core.InvalidInputError("invalid issuer did: %w", err)
@@ -104,10 +103,14 @@ func (w *Wrapper) ResolveIssuedVC(ctx echo.Context, params ResolveIssuedVCParams
 	}
 
 	foundVCs, err := w.VCR.Issuer().CredentialResolver().SearchCredential(ssi.URI{}, *credentialType, *issuerDID, subjectID)
+	result := make([]ResolutionResult, len(foundVCs))
+	for i, resolvedVC := range foundVCs {
+		result[i] = ResolutionResult{VerifiableCredential: resolvedVC}
+	}
 	if err != nil {
 		return err
 	}
-	return ctx.JSON(http.StatusOK, foundVCs)
+	return ctx.JSON(http.StatusOK, result)
 }
 
 // VerifyVC handles API request to verify a  Verifiable Credential.

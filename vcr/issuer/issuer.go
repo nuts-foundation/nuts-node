@@ -46,7 +46,6 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public
 		return nil, err
 	}
 
-	// TODO: Store credential in the store
 	if err = i.store.StoreCredential(*createdVC); err != nil {
 		return nil, fmt.Errorf("unable to store the issued credential: %w", err)
 	}

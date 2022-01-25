@@ -48,7 +48,7 @@ paths:
         error returns:
         * 404 - Corresponding credential could not be found
         * 500 - An error occurred while processing the request
-      operationId: "resolveIssuedVC"
+      operationId: "searchIssuedVCs"
       parameters:
         - name: credentialType
           in: query

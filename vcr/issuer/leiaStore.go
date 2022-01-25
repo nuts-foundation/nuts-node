@@ -45,6 +45,7 @@ func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.UR
 		And(leia.Eq("@context", jsonLDContext.String()))
 
 	if subject != nil {
+
 		if subjectString := subject.String(); subjectString != "" {
 			query = query.And(leia.Eq("credentialSubject.id", subjectString))
 		}

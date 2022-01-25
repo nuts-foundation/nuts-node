@@ -81,8 +81,8 @@ type VCVerificationResult struct {
 // IssueVCJSONBody defines parameters for IssueVC.
 type IssueVCJSONBody IssueVCRequest
 
-// ResolveIssuedVCParams defines parameters for ResolveIssuedVC.
-type ResolveIssuedVCParams struct {
+// SearchIssuedVCsParams defines parameters for SearchIssuedVCs.
+type SearchIssuedVCsParams struct {
 	// The type of the credential
 	CredentialType string `json:"credentialType"`
 
@@ -180,8 +180,8 @@ type ClientInterface interface {
 
 	IssueVC(ctx context.Context, body IssueVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ResolveIssuedVC request
-	ResolveIssuedVC(ctx context.Context, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// SearchIssuedVCs request
+	SearchIssuedVCs(ctx context.Context, params *SearchIssuedVCsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RevokeVC request
 	RevokeVC(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -216,8 +216,8 @@ func (c *Client) IssueVC(ctx context.Context, body IssueVCJSONRequestBody, reqEd
 	return c.Client.Do(req)
 }
 
-func (c *Client) ResolveIssuedVC(ctx context.Context, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewResolveIssuedVCRequest(c.Server, params)
+func (c *Client) SearchIssuedVCs(ctx context.Context, params *SearchIssuedVCsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchIssuedVCsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -304,8 +304,8 @@ func NewIssueVCRequestWithBody(server string, contentType string, body io.Reader
 	return req, nil
 }
 
-// NewResolveIssuedVCRequest generates requests for ResolveIssuedVC
-func NewResolveIssuedVCRequest(server string, params *ResolveIssuedVCParams) (*http.Request, error) {
+// NewSearchIssuedVCsRequest generates requests for SearchIssuedVCs
+func NewSearchIssuedVCsRequest(server string, params *SearchIssuedVCsParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -497,8 +497,8 @@ type ClientWithResponsesInterface interface {
 
 	IssueVCWithResponse(ctx context.Context, body IssueVCJSONRequestBody, reqEditors ...RequestEditorFn) (*IssueVCResponse, error)
 
-	// ResolveIssuedVC request
-	ResolveIssuedVCWithResponse(ctx context.Context, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*ResolveIssuedVCResponse, error)
+	// SearchIssuedVCs request
+	SearchIssuedVCsWithResponse(ctx context.Context, params *SearchIssuedVCsParams, reqEditors ...RequestEditorFn) (*SearchIssuedVCsResponse, error)
 
 	// RevokeVC request
 	RevokeVCWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*RevokeVCResponse, error)
@@ -530,13 +530,13 @@ func (r IssueVCResponse) StatusCode() int {
 	return 0
 }
 
-type ResolveIssuedVCResponse struct {
+type SearchIssuedVCsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 }
 
 // Status returns HTTPResponse.Status
-func (r ResolveIssuedVCResponse) Status() string {
+func (r SearchIssuedVCsResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -544,7 +544,7 @@ func (r ResolveIssuedVCResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r ResolveIssuedVCResponse) StatusCode() int {
+func (r SearchIssuedVCsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -610,13 +610,13 @@ func (c *ClientWithResponses) IssueVCWithResponse(ctx context.Context, body Issu
 	return ParseIssueVCResponse(rsp)
 }
 
-// ResolveIssuedVCWithResponse request returning *ResolveIssuedVCResponse
-func (c *ClientWithResponses) ResolveIssuedVCWithResponse(ctx context.Context, params *ResolveIssuedVCParams, reqEditors ...RequestEditorFn) (*ResolveIssuedVCResponse, error) {
-	rsp, err := c.ResolveIssuedVC(ctx, params, reqEditors...)
+// SearchIssuedVCsWithResponse request returning *SearchIssuedVCsResponse
+func (c *ClientWithResponses) SearchIssuedVCsWithResponse(ctx context.Context, params *SearchIssuedVCsParams, reqEditors ...RequestEditorFn) (*SearchIssuedVCsResponse, error) {
+	rsp, err := c.SearchIssuedVCs(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseResolveIssuedVCResponse(rsp)
+	return ParseSearchIssuedVCsResponse(rsp)
 }
 
 // RevokeVCWithResponse request returning *RevokeVCResponse
@@ -661,15 +661,15 @@ func ParseIssueVCResponse(rsp *http.Response) (*IssueVCResponse, error) {
 	return response, nil
 }
 
-// ParseResolveIssuedVCResponse parses an HTTP response from a ResolveIssuedVCWithResponse call
-func ParseResolveIssuedVCResponse(rsp *http.Response) (*ResolveIssuedVCResponse, error) {
+// ParseSearchIssuedVCsResponse parses an HTTP response from a SearchIssuedVCsWithResponse call
+func ParseSearchIssuedVCsResponse(rsp *http.Response) (*SearchIssuedVCsResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &ResolveIssuedVCResponse{
+	response := &SearchIssuedVCsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -716,7 +716,7 @@ type ServerInterface interface {
 	IssueVC(ctx echo.Context) error
 	// Resolves verifiable credentials issued by this node which matches the search params
 	// (GET /internal/vcr/v2/issuer/vc/search)
-	ResolveIssuedVC(ctx echo.Context, params ResolveIssuedVCParams) error
+	SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams) error
 	// Revoke an issued credential
 	// (DELETE /internal/vcr/v2/issuer/vc/{id})
 	RevokeVC(ctx echo.Context, id string) error
@@ -739,12 +739,12 @@ func (w *ServerInterfaceWrapper) IssueVC(ctx echo.Context) error {
 	return err
 }
 
-// ResolveIssuedVC converts echo context to params.
-func (w *ServerInterfaceWrapper) ResolveIssuedVC(ctx echo.Context) error {
+// SearchIssuedVCs converts echo context to params.
+func (w *ServerInterfaceWrapper) SearchIssuedVCs(ctx echo.Context) error {
 	var err error
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params ResolveIssuedVCParams
+	var params SearchIssuedVCsParams
 	// ------------- Required query parameter "credentialType" -------------
 
 	err = runtime.BindQueryParameter("form", true, true, "credentialType", ctx.QueryParams(), &params.CredentialType)
@@ -767,7 +767,7 @@ func (w *ServerInterfaceWrapper) ResolveIssuedVC(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.ResolveIssuedVC(ctx, params)
+	err = w.Handler.SearchIssuedVCs(ctx, params)
 	return err
 }
 
@@ -833,8 +833,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		return wrapper.IssueVC(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/vcr/v2/issuer/vc/search", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("ResolveIssuedVC", context)
-		return wrapper.ResolveIssuedVC(context)
+		si.(Preprocessor).Preprocess("SearchIssuedVCs", context)
+		return wrapper.SearchIssuedVCs(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v2/issuer/vc/:id", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("RevokeVC", context)

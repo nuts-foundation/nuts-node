@@ -175,45 +175,52 @@ func TestWrapper_IssueVC(t *testing.T) {
 	})
 }
 
-func TestWrapper_ResolveIssuedVC(t *testing.T) {
+func TestWrapper_SearchIssuedVCs(t *testing.T) {
 	subjectID, _ := ssi.ParseURI("did:nuts:456")
-	issuerID, _ := did.ParseDID("did:nuts:123")
+	issuerDID, _ := did.ParseDID("did:nuts:123")
+	issuerID, _ := ssi.ParseURI(issuerDID.String())
 	subjectIDString := subjectID.String()
 	contextURI, _ := ssi.ParseURI("")
 	testCredential, _ := ssi.ParseURI("TestCredential")
 
-	t.Run("ok - with subject", func(t *testing.T) {
+	foundVC := vc.VerifiableCredential{
+		Type:              []ssi.URI{*testCredential},
+		Issuer:            *issuerID,
+		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
+	}
+
+	t.Run("ok - with subject, no results", func(t *testing.T) {
 		testContext := newMockContext(t)
 		issuerStoreMock := issuer.NewMockStoreResolver(testContext.ctrl)
-		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerID, subjectID)
+		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, subjectID)
 
-		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
+		testContext.echo.EXPECT().JSON(http.StatusOK, []ResolutionResult{})
 
 		testContext.mockIssuer.EXPECT().CredentialResolver().Return(issuerStoreMock)
 
-		params := ResolveIssuedVCParams{
+		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
 			Issuer:         issuerID.String(),
 			Subject:        &subjectIDString,
 		}
-		err := testContext.client.ResolveIssuedVC(testContext.echo, params)
+		err := testContext.client.SearchIssuedVCs(testContext.echo, params)
 		assert.NoError(t, err)
 	})
 
-	t.Run("ok - without subject", func(t *testing.T) {
+	t.Run("ok - without subject, 1 result", func(t *testing.T) {
 		testContext := newMockContext(t)
 		issuerStoreMock := issuer.NewMockStoreResolver(testContext.ctrl)
-		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerID, nil)
+		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
 
-		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
+		testContext.echo.EXPECT().JSON(http.StatusOK, []ResolutionResult{{VerifiableCredential: foundVC}})
 
 		testContext.mockIssuer.EXPECT().CredentialResolver().Return(issuerStoreMock)
 
-		params := ResolveIssuedVCParams{
+		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
 			Issuer:         issuerID.String(),
 		}
-		err := testContext.client.ResolveIssuedVC(testContext.echo, params)
+		err := testContext.client.SearchIssuedVCs(testContext.echo, params)
 		assert.NoError(t, err)
 	})
 
@@ -222,35 +229,35 @@ func TestWrapper_ResolveIssuedVC(t *testing.T) {
 		t.Run("invalid issuer", func(t *testing.T) {
 			testContext := newMockContext(t)
 
-			params := ResolveIssuedVCParams{
+			params := SearchIssuedVCsParams{
 				CredentialType: "TestCredential",
 				Issuer:         "abc",
 				Subject:        &subjectIDString,
 			}
-			err := testContext.client.ResolveIssuedVC(testContext.echo, params)
+			err := testContext.client.SearchIssuedVCs(testContext.echo, params)
 			assert.EqualError(t, err, "invalid issuer did: invalid DID: input length is less than 7")
 		})
 
 		t.Run("invalid subject", func(t *testing.T) {
 			testContext := newMockContext(t)
 			invalidSubjectStr := "%%"
-			params := ResolveIssuedVCParams{
+			params := SearchIssuedVCsParams{
 				CredentialType: "TestCredential",
 				Issuer:         issuerID.String(),
 				Subject:        &invalidSubjectStr,
 			}
-			err := testContext.client.ResolveIssuedVC(testContext.echo, params)
+			err := testContext.client.SearchIssuedVCs(testContext.echo, params)
 			assert.EqualError(t, err, "invalid subject id: parse \"%%\": invalid URL escape \"%%\"")
 		})
 
 		t.Run("invalid credentialType", func(t *testing.T) {
 			testContext := newMockContext(t)
-			params := ResolveIssuedVCParams{
+			params := SearchIssuedVCsParams{
 				CredentialType: "%%",
 				Issuer:         issuerID.String(),
 				Subject:        &subjectIDString,
 			}
-			err := testContext.client.ResolveIssuedVC(testContext.echo, params)
+			err := testContext.client.SearchIssuedVCs(testContext.echo, params)
 			assert.EqualError(t, err, "invalid credentialType: parse \"%%\": invalid URL escape \"%%\"")
 		})
 	})
@@ -258,15 +265,15 @@ func TestWrapper_ResolveIssuedVC(t *testing.T) {
 	t.Run("error - CredentialResolver returns error", func(t *testing.T) {
 		testContext := newMockContext(t)
 		issuerStoreMock := issuer.NewMockStoreResolver(testContext.ctrl)
-		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerID, nil).Return(nil, errors.New("b00m!"))
+		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, nil).Return(nil, errors.New("b00m!"))
 
 		testContext.mockIssuer.EXPECT().CredentialResolver().Return(issuerStoreMock)
 
-		params := ResolveIssuedVCParams{
+		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
 			Issuer:         issuerID.String(),
 		}
-		err := testContext.client.ResolveIssuedVC(testContext.echo, params)
+		err := testContext.client.SearchIssuedVCs(testContext.echo, params)
 		assert.EqualError(t, err, "b00m!")
 	})
 }
