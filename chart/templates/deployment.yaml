@@ -24,6 +24,9 @@ spec:
         - name: nuts-config
           configMap:
             name: nuts-config
+        - name: nuts-data-pv
+          persistentVolumeClaim:
+            claimName: nuts-data-pvc
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -44,6 +47,8 @@ spec:
             - name: nuts-config
               mountPath: /opt/nuts/nuts.yaml
               subPath: nuts.yaml
+            - name: nuts-data-pv
+              mountPath: "/opt/nuts/data"
           ports:
             - name: http
               containerPort: 1323

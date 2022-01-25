@@ -84,6 +84,7 @@ affinity: {}
 
 nuts:
   config:
+    # Everything below nuts.config will be placed into the `nuts.yaml` config file
     datadir: /opt/nuts/data
     http:
       default:
@@ -93,3 +94,9 @@ nuts:
     verbosity: debug
     network:
       enabletls: false
+  # Config for the NUTS data mount inside Kubernetes
+  persistedVolume:
+    capacity: 100Mi
+    mountPath: /opt/nuts/data
+    accessModes:
+      - ReadWriteOnce
