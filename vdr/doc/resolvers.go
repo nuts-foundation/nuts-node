@@ -61,7 +61,7 @@ func (d Resolver) resolve(id did.DID, metadata *types.ResolveMetadata, depth int
 		return nil, nil, err
 	}
 
-	if metadata != nil && !metadata.AllowDeactivated {
+	if len(doc.Controller) > 0 && (metadata == nil || !metadata.AllowDeactivated) {
 		// also check if the controller is not deactivated
 		// since ResolveControllers calls Resolve and propagates the metadata
 		controllers, err := d.resolveControllers(*doc, metadata, depth+1)
