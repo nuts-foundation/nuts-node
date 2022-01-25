@@ -413,7 +413,7 @@ func TestVcr_Issue(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.EqualError(t, err, "unable to publish the issued credential: could not publish private credential: failed to resolve participating node (did=did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW): could not resolve NutsComm service owner: service not found in DID Document")
+		assert.EqualError(t, err, "unable to publish the issued credential: failed to resolve participating node (did=did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW): could not resolve NutsComm service owner: service not found in DID Document")
 	})
 
 	t.Run("error - unknown type in strict mode", func(t *testing.T) {

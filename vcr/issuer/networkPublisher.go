@@ -102,7 +102,7 @@ func (p networkPublisher) generateParticipants(verifiableCredential vc.Verifiabl
 		for _, vcp := range []did.DID{*issuer, *credentialSubjectID} {
 			serviceOwner, err := p.resolveNutsCommServiceOwner(vcp)
 			if err != nil {
-				return nil, fmt.Errorf("could not publish private credential: failed to resolve participating node (did=%s): %w", vcp.String(), err)
+				return nil, fmt.Errorf("failed to resolve participating node (did=%s): %w", vcp.String(), err)
 			}
 
 			participants = append(participants, *serviceOwner)

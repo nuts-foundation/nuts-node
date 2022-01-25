@@ -202,7 +202,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			mockServiceResolver.EXPECT().Resolve(*expectedIssuerServiceURI, 5).Return(did.Service{}, types.ErrServiceNotFound)
 
 			err := sut.PublishCredential(credentialToPublish, false)
-			assert.EqualError(t, err, "could not publish private credential: failed to resolve participating node (did=did:nuts:123): could not resolve NutsComm service owner: service not found in DID Document")
+			assert.EqualError(t, err, "failed to resolve participating node (did=did:nuts:123): could not resolve NutsComm service owner: service not found in DID Document")
 		})
 
 		t.Run("unable to resolve an assertionKey for the issuer", func(t *testing.T) {
