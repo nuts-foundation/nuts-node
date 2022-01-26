@@ -115,7 +115,7 @@ func (i issuer) Revoke(credentialID ssi.URI) error {
 	panic("implement me")
 }
 
-func (i issuer) CredentialResolver() StoreResolver {
+func (i issuer) CredentialResolver() CredentialSearcher {
 	return i.store
 }
 

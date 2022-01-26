@@ -22,7 +22,7 @@ type keyResolver interface {
 type Issuer interface {
 	Issue(unsignedCredential vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error)
 	Revoke(credentialID ssi.URI) error
-	StoreResolver
+	CredentialSearcher
 }
 
 // Store defines the interface for an issuer store.
@@ -32,12 +32,12 @@ type Store interface {
 	StoreCredential(vc vc.VerifiableCredential) error
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error
-	StoreResolver
+	CredentialSearcher
 }
 
-// StoreResolver defines the functions to resolve or search for credentials.
+// CredentialSearcher defines the functions to resolve or search for credentials.
 // It is a separate interface from Store so when an object only needs resolving, it only needs the resolver.
-type StoreResolver interface {
+type CredentialSearcher interface {
 	// SearchCredential searches for issued credentials
 	SearchCredential(context ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error)
 }

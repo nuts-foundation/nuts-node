@@ -237,7 +237,7 @@ func (mr *MockStoreMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockStore)(nil).StoreRevocation), r)
 }
 
-// MockStoreResolver is a mock of StoreResolver interface.
+// MockStoreResolver is a mock of CredentialSearcher interface.
 type MockStoreResolver struct {
 	ctrl     *gomock.Controller
 	recorder *MockStoreResolverMockRecorder

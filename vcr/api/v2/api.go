@@ -16,7 +16,7 @@ import (
 // Wrapper implements the generated interface from oapi-codegen
 // It parses and checks the params. Handles errors and returns the appropriate response.
 type Wrapper struct {
-	CredentialResolver issuer.StoreResolver
+	CredentialResolver issuer.CredentialSearcher
 	VCR                types.VCR
 }
 
