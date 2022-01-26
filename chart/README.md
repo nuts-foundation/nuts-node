@@ -26,7 +26,7 @@ The properties can be manually changed in the [./values.yaml](./values.yaml), or
  
 The default values can be viewed with the following command: 
 ```shell
-helm show values nuts-repo/<DESIRED_VERSION_CHART>`
+helm show values nuts-repo/<DESIRED_VERSION_CHART>
 ```
 
 You can then override any of these settings in a YAML formatted file, and then pass that file during [installation](#from-the-nuts-helm-repo-1).
