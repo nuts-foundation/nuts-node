@@ -325,12 +325,14 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	}
 
 	if !c.trustConfig.IsTrusted(templateType, issuerDID.URI()) {
-		log.Logger().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuerDID, templateType)
+		log.Logger().WithFields(map[string]interface{}{"did": issuerDID.String(), "credential.Type": templateType}).
+			Debugf("Issuer not yet trusted, adding trust for DID.")
 		if err := c.Trust(templateType, issuerDID.URI()); err != nil {
 			return verifiableCredential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuerDID, templateType, err)
 		}
 	} else {
-		log.Logger().Debugf("Issuer already trusted (did=%s,type=%s)", issuerDID, templateType)
+		log.Logger().WithFields(map[string]interface{}{"did": issuerDID.String(), "credential.Type": templateType}).
+			Debugf("Issuer already trusted.")
 	}
 
 	return verifiableCredential, nil
