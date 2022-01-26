@@ -7,6 +7,9 @@ All the NUTS node information is persisted on [Persisted Volumes](https://kubern
 ### Configure your NUTS node
 All the configurable properties can be found at [./values.yaml](./values.yaml).
 
+When configuring the NUTS node with production purposes, please consult [this](https://nuts-node.readthedocs.io/en/latest/pages/production-configuration.html)
+NUTS guide.
+
 The configuration contains default Helm properties. In addition to these values,
 there are `nuts` config properties. This contains 3 sections:
 
