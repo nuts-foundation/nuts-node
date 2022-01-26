@@ -2,9 +2,7 @@
 This chart allows the ease of running NUTS on a Kubernetes cluster. 
 All the NUTS node information is persisted on [Persisted Volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/).
 
-## Installing NUTS
-
-### Configure your NUTS node
+## Configure your NUTS node
 All the configurable properties can be found at [./values.yaml](./values.yaml).
 
 When configuring the NUTS node with production purposes, please consult [this](https://nuts-node.readthedocs.io/en/latest/pages/production-configuration.html)
@@ -19,12 +17,45 @@ there are `nuts` config properties. This contains 3 sections:
 | `nuts.data`   | Contains configurable properties for the `PersistedVolume` that will be created. This will be used to write all NUTS data to.                                                                                |
 | `nuts.ssl`    | Can be used to load the ssl `certfile`, `certkeyfile` and `truststorefile` as a `Secret` and mount them as files at `/opt/nuts/ssl` inside the Pod(s)                                                              |
 
-#### Overriding values
+### Overriding values
+#### From Source
 The properties can be manually changed in the [./values.yaml](./values.yaml), or they can be overwritten whilst running
-`helm install` via the `--set x=y` parameter. For example:
-```
-helm install nuts --set nuts.config.network.enabletls=false ./chart
+`helm install` via the `--set x=y` parameter.
+
+#### From the NUTS Helm Repo
+ 
+The default values can be viewed with the following command: 
+```shell
+helm show values nuts-repo/<DESIRED_VERSION_CHART>`
 ```
 
-### Execute the installation
-#TODO - add repo push / pull information
+You can then override any of these settings in a YAML formatted file, and then pass that file during [installation](#from-the-nuts-helm-repo-1).
+
+## Installing NUTS
+### From Source
+
+Execute the following command from the root of the chart folder. Replace `<NAME>` with the name you 
+wish to give this Helm installation.
+```
+helm install <NAME> .
+```
+### From the NUTS Helm Repo
+
+//TODO: Change <REPO_URL> with the actual repo once configured.
+
+Add the NUTS helm Repo with the following command:
+```shell 
+helm repo add nuts-repo <REPO_URL>
+```
+This should list available releases with the following command:
+```shell
+helm search repo nuts-repo
+```
+
+After this, the desired version can be installed with the following command:
+```shell
+helm repo update              # Make sure we get the latest list of charts
+helm install -f values.yaml <NAME> nuts-repo/<DESIRED_VERSION_CHART>
+```
+
+Note that the `values.yaml` in the above command is the result from the [configuration step](#from-the-nuts-helm-repo).
