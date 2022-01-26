@@ -84,6 +84,7 @@ func (w Wrapper) RevokeVC(ctx echo.Context, id string) error {
 	return errors.New("not yet implemented, use the v1 api")
 }
 
+// SearchIssuedVCs handles the API request for searching for issued VCs
 func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams) error {
 	issuerDID, err := did.ParseDID(params.Issuer)
 	if err != nil {
