@@ -118,3 +118,7 @@ func (i issuer) Revoke(credentialID ssi.URI) error {
 func (i issuer) CredentialResolver() StoreResolver {
 	return i.store
 }
+
+func (i issuer) SearchCredential(context ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
+	return i.store.SearchCredential(context, credentialType, issuer, subject)
+}

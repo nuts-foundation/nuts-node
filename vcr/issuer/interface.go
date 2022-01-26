@@ -22,7 +22,7 @@ type keyResolver interface {
 type Issuer interface {
 	Issue(unsignedCredential vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error)
 	Revoke(credentialID ssi.URI) error
-	CredentialResolver() StoreResolver
+	StoreResolver
 }
 
 // Store defines the interface for an issuer store.

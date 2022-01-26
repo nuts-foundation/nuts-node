@@ -103,7 +103,7 @@ func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams
 		return core.InvalidInputError("invalid credentialType: %w", err)
 	}
 
-	foundVCs, err := w.VCR.Issuer().CredentialResolver().SearchCredential(ssi.URI{}, *credentialType, *issuerDID, subjectID)
+	foundVCs, err := w.VCR.Issuer().SearchCredential(ssi.URI{}, *credentialType, *issuerDID, subjectID)
 	result := make([]SearchVCResult, len(foundVCs))
 	for i, resolvedVC := range foundVCs {
 		result[i] = SearchVCResult{VerifiableCredential: resolvedVC}

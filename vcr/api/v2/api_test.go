@@ -191,12 +191,9 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 
 	t.Run("ok - with subject, no results", func(t *testing.T) {
 		testContext := newMockContext(t)
-		issuerStoreMock := issuer.NewMockStoreResolver(testContext.ctrl)
-		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, subjectID)
+		testContext.mockIssuer.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, subjectID)
 
 		testContext.echo.EXPECT().JSON(http.StatusOK, []SearchVCResult{})
-
-		testContext.mockIssuer.EXPECT().CredentialResolver().Return(issuerStoreMock)
 
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
@@ -209,12 +206,9 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 
 	t.Run("ok - without subject, 1 result", func(t *testing.T) {
 		testContext := newMockContext(t)
-		issuerStoreMock := issuer.NewMockStoreResolver(testContext.ctrl)
-		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
+		testContext.mockIssuer.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
 
 		testContext.echo.EXPECT().JSON(http.StatusOK, []SearchVCResult{{VerifiableCredential: foundVC}})
-
-		testContext.mockIssuer.EXPECT().CredentialResolver().Return(issuerStoreMock)
 
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
@@ -264,10 +258,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 
 	t.Run("error - CredentialResolver returns error", func(t *testing.T) {
 		testContext := newMockContext(t)
-		issuerStoreMock := issuer.NewMockStoreResolver(testContext.ctrl)
-		issuerStoreMock.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, nil).Return(nil, errors.New("b00m!"))
-
-		testContext.mockIssuer.EXPECT().CredentialResolver().Return(issuerStoreMock)
+		testContext.mockIssuer.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, nil).Return(nil, errors.New("b00m!"))
 
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
@@ -364,6 +355,7 @@ type mockContext struct {
 }
 
 func newMockContext(t *testing.T) mockContext {
+	t.Helper()
 	ctrl := gomock.NewController(t)
 	mockVcr := vcr.NewMockVCR(ctrl)
 	mockIssuer := issuer.NewMockIssuer(ctrl)
