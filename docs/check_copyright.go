@@ -68,15 +68,9 @@ func fixCopyright() {
 			}
 
 			// Looking for "Copyright (C) (year) Nuts community"
-			if strings.Contains(dataStr, "Copyright (C)") && strings.Contains(dataStr, "Nuts community") {
-				// See if we have to adjust the year
-				dataWithYear := string(yearRegex.ReplaceAll(data, []byte(yearRegexReplacement)))
-				if dataWithYear == dataStr {
-					// Up-to-date
-					return nil
-				}
-				dataStr = dataWithYear
-			} else {
+			hasCopyright := strings.Contains(dataStr, "Copyright (C)") && strings.Contains(dataStr, "Nuts community")
+
+			if !hasCopyright {
 				dataStr = copyrightText + dataStr
 			}
 			println("Fixing copyright notice on", path)
