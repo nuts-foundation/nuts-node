@@ -90,6 +90,7 @@ func (o ownPeerIDStatistic) String() string {
 	return o.peerID.String()
 }
 
+// ConnectorsStats holds statistics on outbound connectors.
 type ConnectorsStats []transport.ConnectorStats
 
 func (a ConnectorsStats) Name() string {
