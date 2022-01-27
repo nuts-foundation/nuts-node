@@ -177,7 +177,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 			diagnostics := node1.connectionManager.Diagnostics()
 			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
 			// Assert we tried to connect at least once
-			return connectorsStats[0].ConnectAttempts >= 1, nil
+			return connectorsStats[0].Attempts >= 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
 			return
 		}
@@ -206,7 +206,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 			diagnostics := node1.connectionManager.Diagnostics()
 			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
 			// Assert we tried to connect at least once
-			return connectorsStats[0].ConnectAttempts >= 1, nil
+			return connectorsStats[0].Attempts >= 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
 			return
 		}

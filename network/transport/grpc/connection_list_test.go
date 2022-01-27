@@ -22,6 +22,7 @@ import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 	"testing"
 )
 
@@ -88,4 +89,42 @@ func TestConnectionList_remove(t *testing.T) {
 	assert.Len(t, cn.list, 2)
 	assert.Contains(t, cn.list, connA)
 	assert.Contains(t, cn.list, connC)
+}
+
+func TestConnectionList_Diagnostics(t *testing.T) {
+	t.Run("no connections", func(t *testing.T) {
+		cn := connectionList{}
+
+		diagnostics := cn.Diagnostics()
+
+		assert.Len(t, diagnostics, 3)
+		idx := 0
+		assert.Equal(t, 0, diagnostics[idx].(numberOfPeersStatistic).numberOfPeers)
+		idx++
+		assert.Empty(t, diagnostics[idx].(peersStatistic).peers)
+		idx++
+		assert.Empty(t, diagnostics[idx].(ConnectorsStats))
+	})
+	t.Run("connections", func(t *testing.T) {
+		cn := connectionList{}
+		// 2 connections: 1 disconnected, 1 connected, 1 trying to connect outbound
+		cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil)
+		connectionB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, nil)
+		connectionB.(*conn).ctx = context.Background() // simulate connection being active
+		connectionC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c", Address: "localhost:5555"}, grpc.DialContext)
+		connectionC.startConnecting(nil, func(grpcConn *grpc.ClientConn) bool {
+			return false
+		})
+		defer connectionC.stopConnecting()
+
+		diagnostics := cn.Diagnostics()
+
+		assert.Len(t, diagnostics, 3)
+		idx := 0
+		assert.Equal(t, 1, diagnostics[idx].(numberOfPeersStatistic).numberOfPeers)
+		idx++
+		assert.Len(t, diagnostics[idx].(peersStatistic).peers, 1)
+		idx++
+		assert.Len(t, diagnostics[idx].(ConnectorsStats), 1)
+	})
 }

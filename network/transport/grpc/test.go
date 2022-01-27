@@ -185,6 +185,6 @@ func (s StubConnection) setPeer(_ transport.Peer) {
 	panic("implement me")
 }
 
-func (s StubConnection) stats() transport.ConnectionStats {
+func (s StubConnection) outboundConnector() *outboundConnector {
 	panic("implement me")
 }
