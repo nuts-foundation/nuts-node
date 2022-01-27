@@ -87,7 +87,7 @@ func (p *protocol) handleAdvertHashes(peer transport.PeerID, advertHash *protobu
 	peerHistoryHash := hash.FromSlice(advertHash.HistoricHash)
 	if !localHistoryHash.Equals(peerHistoryHash) {
 		// TODO: Disallowed when https://github.com/nuts-foundation/nuts-specification/issues/57 is implemented
-		log.Logger().Infof("Peer's historic block differs which will be sync-ed for now, but will be disallowed in the future (peer=%s,local hash=%s,peer hash=%s)", peer, localHistoryHash, peerHistoryHash)
+		log.Logger().Debugf("Peer's historic block differs which will be sync-ed for now, but will be disallowed in the future (peer=%s,local hash=%s,peer hash=%s)", peer, localHistoryHash, peerHistoryHash)
 		p.sender.sendTransactionListQuery(peer, time.Time{})
 	} else {
 		// Finally, check the rest of the blocks
@@ -277,7 +277,7 @@ func (p *protocol) handleTransactionListQuery(peer transport.PeerID, blockDateIn
 	var endDate time.Time
 	if blockDateInt == 0 {
 		// TODO: Disallowed when https://github.com/nuts-foundation/nuts-specification/issues/57 is implemented
-		logrus.Infof("Peer queries historic block which is supported for now, but will be disallowed in the future (peer=%s)", peer)
+		logrus.Debugf("Peer queries historic block which is supported for now, but will be disallowed in the future (peer=%s)", peer)
 		// Historic block is queried, query from start up to the first block
 		endDate = p.blocks.get()[1].start
 	} else {
