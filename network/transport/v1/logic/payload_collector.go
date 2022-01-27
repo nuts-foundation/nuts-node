@@ -21,29 +21,29 @@ package logic
 import (
 	"context"
 	"fmt"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
 type broadcastingMissingPayloadCollector struct {
-	graph        dag.DAG
-	payloadStore dag.PayloadStore
-	sender       messageSender
+	txState dag.State
+	sender  messageSender
 }
 
 // findMissingPayloads returns the payload hashes that are referenced by transactions, but missing in the payload store.
 func (c broadcastingMissingPayloadCollector) findMissingPayloads() ([]hash.SHA256Hash, error) {
 	var missingPayloadHashes []hash.SHA256Hash
-	return missingPayloadHashes, c.payloadStore.ReadMany(context.Background(), func(ctx context.Context, payloadReader dag.PayloadReader) error {
-		return c.graph.PayloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
-			present, err := payloadReader.IsPresent(ctx, payloadHash)
+	return missingPayloadHashes, c.txState.ReadMany(context.Background(), func(ctx context.Context, payloadReader dag.PayloadReader) error {
+		return c.txState.PayloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
+			present, err := c.txState.IsPayloadPresent(ctx, payloadHash)
 			if err != nil {
 				return fmt.Errorf("error while checking presence of payload hash (hash=%s): %w", payloadHash, err)
 			}
 
 			if !present {
-				transactions, err := c.graph.GetByPayloadHash(ctx, payloadHash)
+				transactions, err := c.txState.GetByPayloadHash(ctx, payloadHash)
 				if err != nil {
 					return fmt.Errorf("error while checking presence of payload hash (hash=%s): %w", payloadHash, err)
 				}

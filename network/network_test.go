@@ -44,10 +44,8 @@ var nodeDID, _ = did.ParseDID("did:nuts:test")
 type networkTestContext struct {
 	network           *Network
 	connectionManager *transport.MockConnectionManager
-	graph             *dag.MockDAG
-	payload           *dag.MockPayloadStore
+	state             *dag.MockState
 	keyStore          *crypto.MockKeyStore
-	publisher         *dag.MockPublisher
 	keyResolver       *vdrTypes.MockKeyResolver
 	protocol          *transport.MockProtocol
 	docResolver       *vdrTypes.MockDocResolver
@@ -57,9 +55,7 @@ type networkTestContext struct {
 func (cxt *networkTestContext) start() error {
 	cxt.connectionManager.EXPECT().Start()
 	cxt.protocol.EXPECT().Start()
-	cxt.graph.EXPECT().Verify(gomock.Any())
-	cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
-	cxt.publisher.EXPECT().Start()
+	cxt.state.EXPECT().Start()
 
 	return cxt.network.Start()
 }
@@ -69,7 +65,7 @@ func TestNetwork_ListTransactions(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.graph.EXPECT().FindBetween(gomock.Any(), gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
+		cxt.state.EXPECT().FindBetween(gomock.Any(), gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
 		docs, err := cxt.network.ListTransactions()
 		assert.Len(t, docs, 1)
 		assert.NoError(t, err)
@@ -90,7 +86,7 @@ func TestNetwork_GetTransaction(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.graph.EXPECT().Get(gomock.Any(), gomock.Any())
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), gomock.Any())
 		cxt.network.GetTransaction(hash.EmptyHash())
 	})
 }
@@ -101,14 +97,14 @@ func TestNetwork_GetTransactionPayload(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		transaction := dag.CreateTestTransactionWithJWK(1)
-		cxt.graph.EXPECT().Get(gomock.Any(), transaction.Ref()).Return(transaction, nil)
-		cxt.payload.EXPECT().ReadPayload(gomock.Any(), transaction.PayloadHash())
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), transaction.Ref()).Return(transaction, nil)
+		cxt.state.EXPECT().ReadPayload(gomock.Any(), transaction.PayloadHash())
 		cxt.network.GetTransactionPayload(transaction.Ref())
 	})
 	t.Run("ok - TX not found", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		transaction := dag.CreateTestTransactionWithJWK(1)
-		cxt.graph.EXPECT().Get(gomock.Any(), transaction.Ref()).Return(nil, nil)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), transaction.Ref()).Return(nil, nil)
 		payload, err := cxt.network.GetTransactionPayload(transaction.Ref())
 		assert.NoError(t, err)
 		assert.Nil(t, payload)
@@ -120,7 +116,7 @@ func TestNetwork_Subscribe(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.publisher.EXPECT().Subscribe(dag.TransactionAddedEvent, "some-type", nil)
+		cxt.state.EXPECT().Subscribe(dag.TransactionAddedEvent, "some-type", nil)
 		cxt.network.Subscribe(dag.TransactionAddedEvent, "some-type", nil)
 	})
 }
@@ -132,8 +128,9 @@ func TestNetwork_Diagnostics(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		cxt.connectionManager.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
 		cxt.protocol.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
+		cxt.state.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
 		diagnostics := cxt.network.Diagnostics()
-		assert.Len(t, diagnostics, 4)
+		assert.Len(t, diagnostics, 6)
 	})
 }
 
@@ -333,8 +330,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			return
 		}
 
-		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
-		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
+		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
 		_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAttachKey())
 		assert.NoError(t, err)
@@ -348,8 +344,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
-		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
+		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key))
 		assert.NoError(t, err)
 		assert.Len(t, tx.Previous(), 0)
@@ -366,11 +361,10 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 		// 'Register' prev on DAG
 		additionalPrev, _, _ := dag.CreateTestTransaction(1)
-		cxt.graph.EXPECT().Get(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil)
-		cxt.payload.EXPECT().IsPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil)
+		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
 
-		cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
-		cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
+		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
 		err := cxt.start()
 		if !assert.NoError(t, err) {
@@ -398,8 +392,8 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 		// 'Register' prev on DAG
 		prev, _, _ := dag.CreateTestTransaction(1)
-		cxt.graph.EXPECT().Get(gomock.Any(), prev.Ref()).Return(prev, nil)
-		cxt.payload.EXPECT().IsPresent(gomock.Any(), prev.PayloadHash()).Return(false, nil)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), prev.Ref()).Return(prev, nil)
+		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), prev.PayloadHash()).Return(false, nil)
 
 		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{prev.Ref()}))
 
@@ -425,8 +419,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 
-			cxt.graph.EXPECT().Add(gomock.Any(), gomock.Any())
-			cxt.payload.EXPECT().WritePayload(gomock.Any(), hash.SHA256Sum(payload), payload)
+			cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
 			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*sender).Return(senderKey.Public(), nil)
 			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*receiver).Return(receiverKey.Public(), nil)
@@ -455,7 +448,9 @@ func TestNetwork_Start(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+
 		err := cxt.start()
+
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -479,19 +474,21 @@ func TestNetwork_Start(t *testing.T) {
 			assert.True(t, peer.AcceptUnauthenticated)
 		})
 		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2", gomock.Any())
+
 		err := cxt.start()
+
 		if !assert.NoError(t, err) {
 			return
 		}
 	})
-	t.Run("error - DAG verification failed", func(t *testing.T) {
+	t.Run("error - state start failed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
-		cxt.graph.EXPECT().Verify(gomock.Any()).Return(errors.New("failed"))
-		cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
-		cxt.publisher.EXPECT().Start()
+		cxt.state.EXPECT().Start().Return(errors.New("failed"))
+
 		err := cxt.network.Start()
+
 		assert.EqualError(t, err, "failed")
 	})
 
@@ -521,7 +518,9 @@ func TestNetwork_Start(t *testing.T) {
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
+
 			err := cxt.start()
+
 			assert.NoError(t, err)
 		})
 		t.Run("error - configured node DID does not resolve to a DID document", func(t *testing.T) {
@@ -530,9 +529,7 @@ func TestNetwork_Start(t *testing.T) {
 			cxt := createNetwork(ctrl)
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
-			cxt.graph.EXPECT().Verify(gomock.Any())
-			cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
-			cxt.publisher.EXPECT().Start()
+			cxt.state.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.ErrorIs(t, err, did.DeactivatedErr)
 		})
@@ -542,9 +539,7 @@ func TestNetwork_Start(t *testing.T) {
 			cxt := createNetwork(ctrl)
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
-			cxt.graph.EXPECT().Verify(gomock.Any())
-			cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
-			cxt.publisher.EXPECT().Start()
+			cxt.state.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.EqualError(t, err, "invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=did:nuts:test)")
 		})
@@ -554,10 +549,8 @@ func TestNetwork_Start(t *testing.T) {
 			cxt := createNetwork(ctrl)
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
-			cxt.graph.EXPECT().Verify(gomock.Any())
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(false)
-			cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
-			cxt.publisher.EXPECT().Start()
+			cxt.state.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.EqualError(t, err, "invalid NodeDID configuration: keyAgreement private key is not present in key store (did=did:nuts:test,kid=did:nuts:test#some-key)")
 		})
@@ -568,9 +561,7 @@ func TestNetwork_Start(t *testing.T) {
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(documentWithoutNutsCommService, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-			cxt.graph.EXPECT().Verify(gomock.Any())
-			cxt.publisher.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()) // head-with-Payload tracking subscriber
-			cxt.publisher.EXPECT().Start()
+			cxt.state.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.EqualError(t, err, "invalid NodeDID configuration: unable to resolve NutsComm service endpoint (did=did:nuts:test): service not found in DID Document")
 		})
@@ -593,13 +584,14 @@ func TestNetwork_Shutdown(t *testing.T) {
 		}
 		err = ctx.network.Shutdown()
 		assert.NoError(t, err)
-		assert.Nil(t, ctx.network.db)
+		assert.Nil(t, ctx.network.txState)
 	})
 
 	t.Run("multiple calls", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cxt := createNetwork(ctrl)
+		cxt.state.EXPECT().Shutdown().MinTimes(1)
 		cxt.protocol.EXPECT().Stop().MinTimes(1)
 		cxt.connectionManager.EXPECT().Stop().MinTimes(1)
 		err := cxt.network.Shutdown()
@@ -620,7 +612,7 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	cxt := createNetwork(ctrl)
-	cxt.graph.EXPECT().Statistics(gomock.Any()).Return(dag.Statistics{NumberOfTransactions: txNum})
+	cxt.state.EXPECT().Statistics(gomock.Any()).Return(dag.Statistics{NumberOfTransactions: txNum})
 
 	cxt.connectionManager.EXPECT().Peers().Return([]transport.Peer{expectedPeer})
 
@@ -763,9 +755,8 @@ func Test_connectToKnownNodes(t *testing.T) {
 }
 
 func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *networkTestContext {
-	graph := dag.NewMockDAG(ctrl)
-	payload := dag.NewMockPayloadStore(ctrl)
-	publisher := dag.NewMockPublisher(ctrl)
+	txState := dag.NewMockState(ctrl)
+	txState.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()).AnyTimes()
 	prot := transport.NewMockProtocol(ctrl)
 	connectionManager := transport.NewMockConnectionManager(ctrl)
 	networkConfig := TestNetworkConfig()
@@ -784,11 +775,9 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	// required when starting the network, it searches for nodes to connect to
 	docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder)
-	network.graph = graph
+	network.txState = txState
 	network.connectionManager = connectionManager
-	network.payloadStore = payload
 	network.protocols = []transport.Protocol{prot}
-	network.publisher = publisher
 	network.didDocumentResolver = docResolver
 	if len(networkConfig.NodeDID) > 0 {
 		nodeDID, _ := did.ParseDID(networkConfig.NodeDID)
@@ -799,9 +788,7 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 		network:           network,
 		connectionManager: connectionManager,
 		protocol:          prot,
-		graph:             graph,
-		payload:           payload,
-		publisher:         publisher,
+		state:             txState,
 		keyStore:          keyStore,
 		keyResolver:       keyResolver,
 		docResolver:       docResolver,

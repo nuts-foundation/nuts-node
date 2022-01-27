@@ -28,7 +28,7 @@ import (
 )
 
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
-func NewReplayingDAGPublisher(payloadStore PayloadStore, dag DAG) Publisher {
+func NewReplayingDAGPublisher(payloadStore PayloadStore, dag *bboltDAG) Publisher {
 	publisher := &replayingDAGPublisher{
 		subscribers:         map[EventType]map[string]Receiver{},
 		resumeAt:            list.New(),
@@ -45,32 +45,35 @@ type replayingDAGPublisher struct {
 	subscribers         map[EventType]map[string]Receiver
 	resumeAt            *list.List
 	visitedTransactions map[hash.SHA256Hash]bool
-	dag                 DAG
+	dag                 *bboltDAG
 	payloadStore        PayloadStore
 	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
 
-func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, payloadHash interface{}) {
-	if payloadHash != nil { // should not happen....
-		h := payloadHash.(hash.SHA256Hash)
-		txs, err := s.dag.GetByPayloadHash(ctx, h)
-		if err != nil {
-			log.Logger().Errorf("Error while reading TXs by PayloadHash (payloadHash=%s): %v", h.String(), err)
-			return
-		}
-		if len(txs) == 0 {
-			// No transaction found for this payload hash.
-			// This happens when a transaction was created by the local node, which first writes payload, then adds TX to the DAG.
-			// But when the actual TX is added and transactionAdded() is called, it will still resume publishing from that TX,
-			// so all required events will still be emitted.
-			return
-		}
+func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ Transaction, payload []byte) {
+	payloadHash := hash.EmptyHash()
+	if payload != nil {
+		// some defensive programming
+		payloadHash = hash.SHA256Sum(payload)
+	}
 
-		// make sure publisher resumes at these points
-		for _, tx := range txs {
-			if !s.visitedTransactions[tx.Ref()] {
-				s.resumeAt.PushBack(tx.Ref())
-			}
+	txs, err := s.dag.GetByPayloadHash(ctx, payloadHash)
+	if err != nil {
+		log.Logger().Errorf("Error while reading TXs by PayloadHash (payloadHash=%s): %v", payloadHash.String(), err)
+		return
+	}
+	if len(txs) == 0 {
+		// No transaction found for this payload hash.
+		// This happens when a transaction was created by the local node, which first writes payload, then adds TX to the DAG.
+		// But when the actual TX is added and transactionAdded() is called, it will still resume publishing from that TX,
+		// so all required events will still be emitted.
+		return
+	}
+
+	// make sure publisher resumes at these points
+	for _, tx := range txs {
+		if !s.visitedTransactions[tx.Ref()] {
+			s.resumeAt.PushBack(tx.Ref())
 		}
 	}
 
@@ -78,7 +81,7 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, payloadHash 
 }
 
 // transactionAdded is called by the DAG when a new transaction is added.
-func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transaction interface{}) {
+func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transaction Transaction, _ []byte) {
 	tx := transaction.(Transaction)
 
 	// The transaction itself has already been validated by the network layer. So the dependencies of this TX are already processed in the VDR.
@@ -107,17 +110,6 @@ func (s *replayingDAGPublisher) Subscribe(eventType EventType, payloadType strin
 }
 
 func (s *replayingDAGPublisher) Start() error {
-	s.dag.RegisterObserver(func(ctx context.Context, subject interface{}) {
-		s.publishMux.Lock()
-		defer s.publishMux.Unlock()
-		s.transactionAdded(ctx, subject)
-	})
-	s.payloadStore.RegisterObserver(func(ctx context.Context, subject interface{}) {
-		s.publishMux.Lock()
-		defer s.publishMux.Unlock()
-		s.payloadWritten(ctx, subject)
-	})
-
 	return s.replay()
 }
 

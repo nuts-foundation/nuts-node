@@ -28,6 +28,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	log "github.com/sirupsen/logrus"
@@ -223,17 +224,14 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	// === Setup ===
-	tmpDir, err := ioutil.TempDir("", "nuts-vdr-integration-concurrencytest")
-	if !assert.NoError(t, err, "unable to create temporary data dir for integration test") {
-		return
-	}
-	defer os.RemoveAll(tmpDir)
+	testDir := io.TestDirectory(t)
 	nutsConfig := core.ServerConfig{
 		Verbosity: "debug",
-		Datadir:   tmpDir,
+		Datadir:   testDir,
 	}
 	// Configure the logger:
 	var lvl log.Level
+	var err error
 	// initialize logger, verbosity flag needs to be available
 	if lvl, err = log.ParseLevel(nutsConfig.Verbosity); err != nil {
 		return

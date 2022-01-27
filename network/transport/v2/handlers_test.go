@@ -70,8 +70,8 @@ func TestProtocol_handleTransactionPayload(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 
-		mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
-		mocks.PayloadStore.EXPECT().WritePayload(gomock.Any(), tx.PayloadHash(), payload)
+		mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
+		mocks.State.EXPECT().WritePayload(gomock.Any(), tx.PayloadHash(), payload)
 		mocks.PayloadScheduler.EXPECT().Finished(tx.Ref()).Return(nil)
 
 		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: payload}}})
@@ -96,7 +96,7 @@ func TestProtocol_handleTransactionPayload(t *testing.T) {
 
 	t.Run("error - payload does not match hash", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
+		mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 
 		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: []byte("Hello, victim!")}}})
 
@@ -106,7 +106,7 @@ func TestProtocol_handleTransactionPayload(t *testing.T) {
 
 	t.Run("error - tx not present", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(nil, nil)
+		mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(nil, nil)
 
 		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: payload}}})
 
@@ -123,8 +123,8 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 
 		t.Run("ok", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
-			mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
-			mocks.PayloadStore.EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(payload, nil)
+			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
+			mocks.State.EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(payload, nil)
 
 			conns := &grpc.StubConnectionList{
 				Conn: &grpc.StubConnection{PeerID: peer.ID},
@@ -139,7 +139,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 
 		t.Run("transaction not found", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
-			mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(nil, nil)
+			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(nil, nil)
 
 			conns := &grpc.StubConnectionList{
 				Conn: &grpc.StubConnection{PeerID: peer.ID},
@@ -164,7 +164,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 
 		t.Run("connection is not authenticated", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
-			mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
+			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 
 			conns := &grpc.StubConnectionList{
 				Conn: &grpc.StubConnection{PeerID: peer.ID},
@@ -178,7 +178,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 		})
 		t.Run("local node is not a participant in the TX", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nodeDID)
-			mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
+			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			mocks.DocResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
 			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return(nil, errors.New("will return nil for PAL decryption")).Times(2)
 			conns := &grpc.StubConnectionList{
@@ -193,7 +193,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 		})
 		t.Run("decoding of the PAL header failed (nodeDID not set)", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
-			mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
+			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			conns := &grpc.StubConnectionList{
 				Conn: &grpc.StubConnection{PeerID: peer.ID},
 			}
@@ -206,7 +206,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 		})
 		t.Run("peer is not in PAL", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nodeDID)
-			mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
+			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			mocks.DocResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
 			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return([]byte(nodeDID.String()), nil)
 			conns := &grpc.StubConnectionList{
@@ -221,10 +221,10 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 		})
 		t.Run("ok", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nodeDID)
-			mocks.Graph.EXPECT().Get(gomock.Any(), tx.Ref()).Return(tx, nil)
+			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			mocks.DocResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
 			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return([]byte(peerDID.String()), nil)
-			mocks.PayloadStore.EXPECT().ReadPayload(context.Background(), tx.PayloadHash()).Return([]byte{}, nil)
+			mocks.State.EXPECT().ReadPayload(context.Background(), tx.PayloadHash()).Return([]byte{}, nil)
 			conns := &grpc.StubConnectionList{
 				Conn: &grpc.StubConnection{PeerID: peer.ID},
 			}

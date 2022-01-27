@@ -1,4 +1,23 @@
 /*
+ * Nuts node
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+/*
  * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,11 +35,12 @@
  *
  */
 
-package dag
+package storage
 
 import (
 	"context"
 	"errors"
+
 	"go.etcd.io/bbolt"
 )
 
@@ -28,16 +48,16 @@ var bboltTXContextKey = struct{}{}
 
 type bboltTXCallback func(contextWithTX context.Context, tx *bbolt.Tx) error
 
-// bboltTXView executes the given callback in a read-only BBolt transaction. It attempts to re-use the active transaction from the given context, if there is one.
+// BBoltTXView executes the given callback in a read-only BBolt transaction. It attempts to re-use the active transaction from the given context, if there is one.
 // If there's no active transaction a new one will be started.
-func bboltTXView(ctx context.Context, db *bbolt.DB, cb bboltTXCallback) error {
+func BBoltTXView(ctx context.Context, db *bbolt.DB, cb bboltTXCallback) error {
 	return callBBoltCallbackWithTX(ctx, db, cb, false)
 }
 
-// bboltTXUpdate executes the given callback in a writable BBolt transaction. It attempts to re-use the active transaction from the given context, if there is one.
+// BBoltTXUpdate executes the given callback in a writable BBolt transaction. It attempts to re-use the active transaction from the given context, if there is one.
 // If there's no active transaction a new one will be started.
 // If there's an active transaction which is readonly an error will be returned.
-func bboltTXUpdate(ctx context.Context, db *bbolt.DB, cb bboltTXCallback) error {
+func BBoltTXUpdate(ctx context.Context, db *bbolt.DB, cb bboltTXCallback) error {
 	return callBBoltCallbackWithTX(ctx, db, cb, true)
 }
 

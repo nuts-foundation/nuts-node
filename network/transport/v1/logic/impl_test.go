@@ -21,24 +21,25 @@ package logic
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func Test_ProtocolLifecycle(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	publisher := dag.NewMockPublisher(mockCtrl)
-	publisher.EXPECT().Subscribe(dag.TransactionAddedEvent,"*", gomock.Any())
+	state := dag.NewMockState(mockCtrl)
+	state.EXPECT().Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, gomock.Any())
 
-	instance := NewProtocol(NewMockMessageGateway(mockCtrl), nil, dag.NewMockDAG(mockCtrl), publisher, dag.NewMockPayloadStore(mockCtrl), nil)
+	instance := NewProtocol(NewMockMessageGateway(mockCtrl), nil, state, nil)
 	instance.Configure(time.Second*2, time.Second*5, 10*time.Second, "local")
 	instance.Start()
 	instance.Stop()
@@ -54,7 +55,7 @@ func Test_Protocol_PeerDiagnostics(t *testing.T) {
 	connectionList.EXPECT().Get(grpc.ByPeerID(peerID)).Return(connection)
 	connectionList.EXPECT().Get(grpc.ByPeerID("disconnected-peer")).Return(nil)
 
-	instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
+	instance := NewProtocol(nil, nil, nil, nil).(*protocol)
 	instance.connections = connectionList
 
 	instance.peerDiagnostics[peerID] = transport.Diagnostics{
@@ -75,7 +76,7 @@ func Test_Protocol_PeerDiagnostics(t *testing.T) {
 
 func Test_Protocol_StartAdvertingDiagnostics(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
-		instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
+		instance := NewProtocol(nil, nil, nil, nil).(*protocol)
 		instance.advertDiagnosticsInterval = 0 * time.Second // this is what would be configured
 		instance.startAdvertingDiagnostics(nil)
 		// This is a blocking function when the feature is enabled, so if we reach the end of the test everything works as intended.
@@ -84,7 +85,7 @@ func Test_Protocol_StartAdvertingDiagnostics(t *testing.T) {
 
 func Test_Protocol_StartUpdatingDiagnostics(t *testing.T) {
 	t.Run("context cancel", func(t *testing.T) {
-		instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
+		instance := NewProtocol(nil, nil, nil, nil).(*protocol)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		instance.startUpdatingDiagnostics(ctx) // should exit immediately
@@ -105,7 +106,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		payloadCollector := NewMockmissingPayloadCollector(ctrl)
 		payloadCollector.EXPECT().findMissingPayloads().AnyTimes().Return(nil, nil)
 
-		instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
+		instance := NewProtocol(nil, nil, nil, nil).(*protocol)
 		instance.connections = connectionList
 		instance.missingPayloadCollector = payloadCollector
 		instance.peerOmnihashChannel = make(chan PeerOmnihash, 1)
@@ -130,7 +131,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		payloadCollector := NewMockmissingPayloadCollector(ctrl)
 		payloadCollector.EXPECT().findMissingPayloads().Return([]hash.SHA256Hash{{1}}, nil)
 
-		instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
+		instance := NewProtocol(nil, nil, nil, nil).(*protocol)
 		instance.missingPayloadCollector = payloadCollector
 		diagnostics := instance.Diagnostics()
 		assert.Equal(t, "v1_missing_payload_hashes", diagnostics[1].Name())
@@ -142,7 +143,7 @@ func Test_Protocol_Diagnostics(t *testing.T) {
 		payloadCollector := NewMockmissingPayloadCollector(ctrl)
 		payloadCollector.EXPECT().findMissingPayloads().Return(nil, errors.New("oops"))
 
-		instance := NewProtocol(nil, nil, nil, nil, nil, nil).(*protocol)
+		instance := NewProtocol(nil, nil, nil, nil).(*protocol)
 		instance.missingPayloadCollector = payloadCollector
 		diagnostics := instance.Diagnostics()
 		assert.Equal(t, "v1_missing_payload_hashes", diagnostics[1].Name())

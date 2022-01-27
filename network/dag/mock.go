@@ -10,53 +10,63 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
+	core "github.com/nuts-foundation/nuts-node/core"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
-// MockDAG is a mock of DAG interface.
-type MockDAG struct {
+// MockState is a mock of State interface.
+type MockState struct {
 	ctrl     *gomock.Controller
-	recorder *MockDAGMockRecorder
+	recorder *MockStateMockRecorder
 }
 
-// MockDAGMockRecorder is the mock recorder for MockDAG.
-type MockDAGMockRecorder struct {
-	mock *MockDAG
+// MockStateMockRecorder is the mock recorder for MockState.
+type MockStateMockRecorder struct {
+	mock *MockState
 }
 
-// NewMockDAG creates a new mock instance.
-func NewMockDAG(ctrl *gomock.Controller) *MockDAG {
-	mock := &MockDAG{ctrl: ctrl}
-	mock.recorder = &MockDAGMockRecorder{mock}
+// NewMockState creates a new mock instance.
+func NewMockState(ctrl *gomock.Controller) *MockState {
+	mock := &MockState{ctrl: ctrl}
+	mock.recorder = &MockStateMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockDAG) EXPECT() *MockDAGMockRecorder {
+func (m *MockState) EXPECT() *MockStateMockRecorder {
 	return m.recorder
 }
 
 // Add mocks base method.
-func (m *MockDAG) Add(ctx context.Context, transactions ...Transaction) error {
+func (m *MockState) Add(ctx context.Context, transactions Transaction, payload []byte) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx}
-	for _, a := range transactions {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "Add", varargs...)
+	ret := m.ctrl.Call(m, "Add", ctx, transactions, payload)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Add indicates an expected call of Add.
-func (mr *MockDAGMockRecorder) Add(ctx interface{}, transactions ...interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) Add(ctx, transactions, payload interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx}, transactions...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockDAG)(nil).Add), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockState)(nil).Add), ctx, transactions, payload)
+}
+
+// Diagnostics mocks base method.
+func (m *MockState) Diagnostics() []core.DiagnosticResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Diagnostics")
+	ret0, _ := ret[0].([]core.DiagnosticResult)
+	return ret0
+}
+
+// Diagnostics indicates an expected call of Diagnostics.
+func (mr *MockStateMockRecorder) Diagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockState)(nil).Diagnostics))
 }
 
 // FindBetween mocks base method.
-func (m *MockDAG) FindBetween(ctx context.Context, startInclusive, endExclusive time.Time) ([]Transaction, error) {
+func (m *MockState) FindBetween(ctx context.Context, startInclusive, endExclusive time.Time) ([]Transaction, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindBetween", ctx, startInclusive, endExclusive)
 	ret0, _ := ret[0].([]Transaction)
@@ -65,28 +75,13 @@ func (m *MockDAG) FindBetween(ctx context.Context, startInclusive, endExclusive 
 }
 
 // FindBetween indicates an expected call of FindBetween.
-func (mr *MockDAGMockRecorder) FindBetween(ctx, startInclusive, endExclusive interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) FindBetween(ctx, startInclusive, endExclusive interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetween", reflect.TypeOf((*MockDAG)(nil).FindBetween), ctx, startInclusive, endExclusive)
-}
-
-// Get mocks base method.
-func (m *MockDAG) Get(ctx context.Context, ref hash.SHA256Hash) (Transaction, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", ctx, ref)
-	ret0, _ := ret[0].(Transaction)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Get indicates an expected call of Get.
-func (mr *MockDAGMockRecorder) Get(ctx, ref interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockDAG)(nil).Get), ctx, ref)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetween", reflect.TypeOf((*MockState)(nil).FindBetween), ctx, startInclusive, endExclusive)
 }
 
 // GetByPayloadHash mocks base method.
-func (m *MockDAG) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
+func (m *MockState) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByPayloadHash", ctx, payloadHash)
 	ret0, _ := ret[0].([]Transaction)
@@ -95,56 +90,58 @@ func (m *MockDAG) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256H
 }
 
 // GetByPayloadHash indicates an expected call of GetByPayloadHash.
-func (mr *MockDAGMockRecorder) GetByPayloadHash(ctx, payloadHash interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) GetByPayloadHash(ctx, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByPayloadHash", reflect.TypeOf((*MockDAG)(nil).GetByPayloadHash), ctx, payloadHash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByPayloadHash", reflect.TypeOf((*MockState)(nil).GetByPayloadHash), ctx, payloadHash)
 }
 
-// Heads mocks base method.
-func (m *MockDAG) Heads(ctx context.Context) []hash.SHA256Hash {
+// GetTransaction mocks base method.
+func (m *MockState) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Heads", ctx)
-	ret0, _ := ret[0].([]hash.SHA256Hash)
-	return ret0
+	ret := m.ctrl.Call(m, "GetTransaction", ctx, hash)
+	ret0, _ := ret[0].(Transaction)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// Heads indicates an expected call of Heads.
-func (mr *MockDAGMockRecorder) Heads(ctx interface{}) *gomock.Call {
+// GetTransaction indicates an expected call of GetTransaction.
+func (mr *MockStateMockRecorder) GetTransaction(ctx, hash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Heads", reflect.TypeOf((*MockDAG)(nil).Heads), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransaction", reflect.TypeOf((*MockState)(nil).GetTransaction), ctx, hash)
+}
+
+// IsPayloadPresent mocks base method.
+func (m *MockState) IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsPayloadPresent", ctx, payloadHash)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsPayloadPresent indicates an expected call of IsPayloadPresent.
+func (mr *MockStateMockRecorder) IsPayloadPresent(ctx, payloadHash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPayloadPresent", reflect.TypeOf((*MockState)(nil).IsPayloadPresent), ctx, payloadHash)
 }
 
 // IsPresent mocks base method.
-func (m *MockDAG) IsPresent(ctx context.Context, ref hash.SHA256Hash) (bool, error) {
+func (m *MockState) IsPresent(arg0 context.Context, arg1 hash.SHA256Hash) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsPresent", ctx, ref)
+	ret := m.ctrl.Call(m, "IsPresent", arg0, arg1)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // IsPresent indicates an expected call of IsPresent.
-func (mr *MockDAGMockRecorder) IsPresent(ctx, ref interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) IsPresent(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockDAG)(nil).IsPresent), ctx, ref)
-}
-
-// Migrate mocks base method.
-func (m *MockDAG) Migrate() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Migrate")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Migrate indicates an expected call of Migrate.
-func (mr *MockDAGMockRecorder) Migrate() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Migrate", reflect.TypeOf((*MockDAG)(nil).Migrate))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockState)(nil).IsPresent), arg0, arg1)
 }
 
 // PayloadHashes mocks base method.
-func (m *MockDAG) PayloadHashes(ctx context.Context, visitor func(hash.SHA256Hash) error) error {
+func (m *MockState) PayloadHashes(ctx context.Context, visitor func(hash.SHA256Hash) error) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PayloadHashes", ctx, visitor)
 	ret0, _ := ret[0].(error)
@@ -152,25 +149,82 @@ func (m *MockDAG) PayloadHashes(ctx context.Context, visitor func(hash.SHA256Has
 }
 
 // PayloadHashes indicates an expected call of PayloadHashes.
-func (mr *MockDAGMockRecorder) PayloadHashes(ctx, visitor interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) PayloadHashes(ctx, visitor interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PayloadHashes", reflect.TypeOf((*MockDAG)(nil).PayloadHashes), ctx, visitor)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PayloadHashes", reflect.TypeOf((*MockState)(nil).PayloadHashes), ctx, visitor)
+}
+
+// ReadMany mocks base method.
+func (m *MockState) ReadMany(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReadMany", ctx, consumer)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReadMany indicates an expected call of ReadMany.
+func (mr *MockStateMockRecorder) ReadMany(ctx, consumer interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadMany", reflect.TypeOf((*MockState)(nil).ReadMany), ctx, consumer)
+}
+
+// ReadPayload mocks base method.
+func (m *MockState) ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReadPayload", ctx, payloadHash)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ReadPayload indicates an expected call of ReadPayload.
+func (mr *MockStateMockRecorder) ReadPayload(ctx, payloadHash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockState)(nil).ReadPayload), ctx, payloadHash)
 }
 
 // RegisterObserver mocks base method.
-func (m *MockDAG) RegisterObserver(observer Observer) {
+func (m *MockState) RegisterObserver(observer Observer) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "RegisterObserver", observer)
 }
 
 // RegisterObserver indicates an expected call of RegisterObserver.
-func (mr *MockDAGMockRecorder) RegisterObserver(observer interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) RegisterObserver(observer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterObserver", reflect.TypeOf((*MockDAG)(nil).RegisterObserver), observer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterObserver", reflect.TypeOf((*MockState)(nil).RegisterObserver), observer)
+}
+
+// Shutdown mocks base method.
+func (m *MockState) Shutdown() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Shutdown")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Shutdown indicates an expected call of Shutdown.
+func (mr *MockStateMockRecorder) Shutdown() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockState)(nil).Shutdown))
+}
+
+// Start mocks base method.
+func (m *MockState) Start() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Start")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockStateMockRecorder) Start() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockState)(nil).Start))
 }
 
 // Statistics mocks base method.
-func (m *MockDAG) Statistics(ctx context.Context) Statistics {
+func (m *MockState) Statistics(ctx context.Context) Statistics {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Statistics", ctx)
 	ret0, _ := ret[0].(Statistics)
@@ -178,13 +232,25 @@ func (m *MockDAG) Statistics(ctx context.Context) Statistics {
 }
 
 // Statistics indicates an expected call of Statistics.
-func (mr *MockDAGMockRecorder) Statistics(ctx interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) Statistics(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Statistics", reflect.TypeOf((*MockDAG)(nil).Statistics), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Statistics", reflect.TypeOf((*MockState)(nil).Statistics), ctx)
+}
+
+// Subscribe mocks base method.
+func (m *MockState) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Subscribe", eventType, payloadType, receiver)
+}
+
+// Subscribe indicates an expected call of Subscribe.
+func (mr *MockStateMockRecorder) Subscribe(eventType, payloadType, receiver interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockState)(nil).Subscribe), eventType, payloadType, receiver)
 }
 
 // Verify mocks base method.
-func (m *MockDAG) Verify(ctx context.Context) error {
+func (m *MockState) Verify(ctx context.Context) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Verify", ctx)
 	ret0, _ := ret[0].(error)
@@ -192,13 +258,13 @@ func (m *MockDAG) Verify(ctx context.Context) error {
 }
 
 // Verify indicates an expected call of Verify.
-func (mr *MockDAGMockRecorder) Verify(ctx interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) Verify(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockDAG)(nil).Verify), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockState)(nil).Verify), ctx)
 }
 
 // Walk mocks base method.
-func (m *MockDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
+func (m *MockState) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Walk", ctx, visitor, startAt)
 	ret0, _ := ret[0].(error)
@@ -206,9 +272,23 @@ func (m *MockDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256
 }
 
 // Walk indicates an expected call of Walk.
-func (mr *MockDAGMockRecorder) Walk(ctx, visitor, startAt interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) Walk(ctx, visitor, startAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockDAG)(nil).Walk), ctx, visitor, startAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockState)(nil).Walk), ctx, visitor, startAt)
+}
+
+// WritePayload mocks base method.
+func (m *MockState) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WritePayload", ctx, payloadHash, data)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WritePayload indicates an expected call of WritePayload.
+func (mr *MockStateMockRecorder) WritePayload(ctx, payloadHash, data interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockState)(nil).WritePayload), ctx, payloadHash, data)
 }
 
 // MockPublisher is a mock of Publisher interface.
@@ -260,43 +340,6 @@ func (mr *MockPublisherMockRecorder) Subscribe(eventType, payloadType, receiver 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockPublisher)(nil).Subscribe), eventType, payloadType, receiver)
 }
 
-// MockWalkerAlgorithm is a mock of WalkerAlgorithm interface.
-type MockWalkerAlgorithm struct {
-	ctrl     *gomock.Controller
-	recorder *MockWalkerAlgorithmMockRecorder
-}
-
-// MockWalkerAlgorithmMockRecorder is the mock recorder for MockWalkerAlgorithm.
-type MockWalkerAlgorithmMockRecorder struct {
-	mock *MockWalkerAlgorithm
-}
-
-// NewMockWalkerAlgorithm creates a new mock instance.
-func NewMockWalkerAlgorithm(ctrl *gomock.Controller) *MockWalkerAlgorithm {
-	mock := &MockWalkerAlgorithm{ctrl: ctrl}
-	mock.recorder = &MockWalkerAlgorithmMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockWalkerAlgorithm) EXPECT() *MockWalkerAlgorithmMockRecorder {
-	return m.recorder
-}
-
-// walk mocks base method.
-func (m *MockWalkerAlgorithm) walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash, getFn func(hash.SHA256Hash) (Transaction, error), nextsFn func(hash.SHA256Hash) ([]hash.SHA256Hash, error)) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "walk", ctx, visitor, startAt, getFn, nextsFn)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// walk indicates an expected call of walk.
-func (mr *MockWalkerAlgorithmMockRecorder) walk(ctx, visitor, startAt, getFn, nextsFn interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "walk", reflect.TypeOf((*MockWalkerAlgorithm)(nil).walk), ctx, visitor, startAt, getFn, nextsFn)
-}
-
 // MockPayloadStore is a mock of PayloadStore interface.
 type MockPayloadStore struct {
 	ctrl     *gomock.Controller
@@ -320,19 +363,19 @@ func (m *MockPayloadStore) EXPECT() *MockPayloadStoreMockRecorder {
 	return m.recorder
 }
 
-// IsPresent mocks base method.
-func (m *MockPayloadStore) IsPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
+// IsPayloadPresent mocks base method.
+func (m *MockPayloadStore) IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsPresent", ctx, payloadHash)
+	ret := m.ctrl.Call(m, "IsPayloadPresent", ctx, payloadHash)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// IsPresent indicates an expected call of IsPresent.
-func (mr *MockPayloadStoreMockRecorder) IsPresent(ctx, payloadHash interface{}) *gomock.Call {
+// IsPayloadPresent indicates an expected call of IsPayloadPresent.
+func (mr *MockPayloadStoreMockRecorder) IsPayloadPresent(ctx, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockPayloadStore)(nil).IsPresent), ctx, payloadHash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPayloadPresent", reflect.TypeOf((*MockPayloadStore)(nil).IsPayloadPresent), ctx, payloadHash)
 }
 
 // ReadMany mocks base method.
@@ -362,18 +405,6 @@ func (m *MockPayloadStore) ReadPayload(ctx context.Context, payloadHash hash.SHA
 func (mr *MockPayloadStoreMockRecorder) ReadPayload(ctx, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockPayloadStore)(nil).ReadPayload), ctx, payloadHash)
-}
-
-// RegisterObserver mocks base method.
-func (m *MockPayloadStore) RegisterObserver(observer Observer) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterObserver", observer)
-}
-
-// RegisterObserver indicates an expected call of RegisterObserver.
-func (mr *MockPayloadStoreMockRecorder) RegisterObserver(observer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterObserver", reflect.TypeOf((*MockPayloadStore)(nil).RegisterObserver), observer)
 }
 
 // WritePayload mocks base method.
@@ -450,19 +481,19 @@ func (m *MockPayloadReader) EXPECT() *MockPayloadReaderMockRecorder {
 	return m.recorder
 }
 
-// IsPresent mocks base method.
-func (m *MockPayloadReader) IsPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
+// IsPayloadPresent mocks base method.
+func (m *MockPayloadReader) IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsPresent", ctx, payloadHash)
+	ret := m.ctrl.Call(m, "IsPayloadPresent", ctx, payloadHash)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// IsPresent indicates an expected call of IsPresent.
-func (mr *MockPayloadReaderMockRecorder) IsPresent(ctx, payloadHash interface{}) *gomock.Call {
+// IsPayloadPresent indicates an expected call of IsPayloadPresent.
+func (mr *MockPayloadReaderMockRecorder) IsPayloadPresent(ctx, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockPayloadReader)(nil).IsPresent), ctx, payloadHash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPayloadPresent", reflect.TypeOf((*MockPayloadReader)(nil).IsPayloadPresent), ctx, payloadHash)
 }
 
 // ReadPayload mocks base method.
@@ -478,39 +509,4 @@ func (m *MockPayloadReader) ReadPayload(ctx context.Context, payloadHash hash.SH
 func (mr *MockPayloadReaderMockRecorder) ReadPayload(ctx, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockPayloadReader)(nil).ReadPayload), ctx, payloadHash)
-}
-
-// MockObservable is a mock of Observable interface.
-type MockObservable struct {
-	ctrl     *gomock.Controller
-	recorder *MockObservableMockRecorder
-}
-
-// MockObservableMockRecorder is the mock recorder for MockObservable.
-type MockObservableMockRecorder struct {
-	mock *MockObservable
-}
-
-// NewMockObservable creates a new mock instance.
-func NewMockObservable(ctrl *gomock.Controller) *MockObservable {
-	mock := &MockObservable{ctrl: ctrl}
-	mock.recorder = &MockObservableMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockObservable) EXPECT() *MockObservableMockRecorder {
-	return m.recorder
-}
-
-// RegisterObserver mocks base method.
-func (m *MockObservable) RegisterObserver(observer Observer) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterObserver", observer)
-}
-
-// RegisterObserver indicates an expected call of RegisterObserver.
-func (mr *MockObservableMockRecorder) RegisterObserver(observer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterObserver", reflect.TypeOf((*MockObservable)(nil).RegisterObserver), observer)
 }

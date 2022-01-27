@@ -22,9 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"os"
-	"path"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -32,9 +29,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/pkg/errors"
-	"go.etcd.io/bbolt"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -46,13 +40,13 @@ import (
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/pkg/errors"
+	"go.etcd.io/bbolt"
 )
 
 var _ Transactions = (*Network)(nil)
 
 const (
-	// boltDBFileMode holds the Unix file mode the created BBolt database files will have.
-	boltDBFileMode = 0600
 	// ModuleName specifies the name of this module.
 	ModuleName = "Network"
 	// softwareID contains the name of the vendor/implementation that's published in the node's diagnostic information.
@@ -68,9 +62,7 @@ type Network struct {
 	lastTransactionTracker lastTransactionTracker
 	protocols              []transport.Protocol
 	connectionManager      transport.ConnectionManager
-	graph                  dag.DAG
-	publisher              dag.Publisher
-	payloadStore           dag.PayloadStore
+	txState                dag.State
 	privateKeyResolver     crypto.KeyResolver
 	keyResolver            types.KeyResolver
 	startTime              atomic.Value
@@ -79,13 +71,12 @@ type Network struct {
 	decrypter              crypto.Decrypter
 	nodeDIDResolver        transport.NodeDIDResolver
 	didDocumentFinder      types.DocFinder
-	db                     *bbolt.DB
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
 func (n *Network) Walk(visitor dag.Visitor) error {
 	ctx := context.Background()
-	return n.graph.Walk(ctx, visitor, hash.EmptyHash())
+	return n.txState.Walk(ctx, visitor, hash.EmptyHash())
 }
 
 // NewNetworkInstance creates a new Network engine instance.
@@ -111,26 +102,11 @@ func NewNetworkInstance(
 
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
-	dbFile := path.Join(config.Datadir, "network", "data.db")
-	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
-		return err
+	var err error
+	if n.txState, err = dag.NewState(config.Datadir, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
+		return fmt.Errorf("failed to configure state: %w", err)
 	}
 
-	// for tests we set NoSync to true, this option can only be set through code
-	var bboltErr error
-	n.db, bboltErr = bbolt.Open(dbFile, boltDBFileMode, defaultBBoltOptions)
-	if bboltErr != nil {
-		return fmt.Errorf("unable to create BBolt database: %w", bboltErr)
-	}
-
-	n.graph = dag.NewBBoltDAG(n.db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
-	// migrate DAG to add Clock values
-	if err := n.graph.Migrate(); err != nil {
-		return fmt.Errorf("unable to migrate DAG: %w", err)
-	}
-
-	n.payloadStore = dag.NewBBoltPayloadStore(n.db)
-	n.publisher = dag.NewReplayingDAGPublisher(n.payloadStore, n.graph)
 	n.peerID = transport.PeerID(uuid.New().String())
 
 	// TLS
@@ -171,8 +147,8 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Only set protocols if not already set: improves testability
 	if n.protocols == nil {
 		n.protocols = []transport.Protocol{
-			v1.New(n.config.ProtocolV1, n.graph, n.publisher, n.payloadStore, n.collectDiagnostics),
-			v2.New(v2Cfg, n.nodeDIDResolver, n.graph, n.publisher, n.payloadStore, n.didDocumentResolver, n.decrypter),
+			v1.New(n.config.ProtocolV1, n.txState, n.collectDiagnostics),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.txState, n.didDocumentResolver, n.decrypter),
 		}
 	}
 
@@ -240,13 +216,9 @@ func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
 
 	// Load DAG and start publishing
-	n.publisher.Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, n.lastTransactionTracker.process)
+	n.txState.Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, n.lastTransactionTracker.process)
 
-	if err := n.publisher.Start(); err != nil {
-		return err
-	}
-
-	if err := n.graph.Verify(context.Background()); err != nil {
+	if err := n.txState.Start(); err != nil {
 		return err
 	}
 
@@ -350,30 +322,30 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 // Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
 // is received for the specified event and payload type.
 func (n *Network) Subscribe(eventType dag.EventType, transactionType string, receiver dag.Receiver) {
-	n.publisher.Subscribe(eventType, transactionType, receiver)
+	n.txState.Subscribe(eventType, transactionType, receiver)
 }
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
 func (n *Network) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
-	return n.graph.Get(context.Background(), transactionRef)
+	return n.txState.GetTransaction(context.Background(), transactionRef)
 }
 
 // GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
 // nil is returned.
 func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
-	transaction, err := n.graph.Get(context.Background(), transactionRef)
+	transaction, err := n.txState.GetTransaction(context.Background(), transactionRef)
 	if err != nil {
 		return nil, err
 	}
 	if transaction == nil {
 		return nil, nil
 	}
-	return n.payloadStore.ReadPayload(context.Background(), transaction.PayloadHash())
+	return n.txState.ReadPayload(context.Background(), transaction.PayloadHash())
 }
 
 // ListTransactions returns all transactions known to this Network instance.
 func (n *Network) ListTransactions() ([]dag.Transaction, error) {
-	return n.graph.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())
+	return n.txState.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())
 }
 
 // CreateTransaction creates a new transaction from the given template.
@@ -437,12 +409,9 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign newly created transaction: %w", err)
 	}
-	// Store on local DAG and publish it
-	if err = n.payloadStore.WritePayload(ctx, payloadHash, template.Payload); err != nil {
-		return nil, fmt.Errorf("unable to store payload of newly created transaction: %w", err)
-	}
-	if err = n.graph.Add(ctx, transaction); err != nil {
-		return nil, fmt.Errorf("unable to add newly created transaction to DAG: %w", err)
+	// Store in local State and publish it
+	if err = n.txState.Add(ctx, transaction, template.Payload); err != nil {
+		return nil, fmt.Errorf("unable to add newly created transaction to State: %w", err)
 	}
 	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), template.Type, len(template.Payload))
 	return transaction, nil
@@ -456,13 +425,13 @@ func (n *Network) Shutdown() error {
 	}
 	n.connectionManager.Stop()
 
-	// Close BBolt database
-	if n.db != nil {
-		err := n.db.Close()
+	// Close State and underlying DBs
+	if n.txState != nil {
+		err := n.txState.Shutdown()
 		if err != nil {
 			return err
 		}
-		n.db = nil
+		n.txState = nil
 	}
 
 	return nil
@@ -475,7 +444,7 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 	for _, prot := range n.protocols {
 		results = append(results, prot.Diagnostics()...)
 	}
-	if graph, ok := n.graph.(core.Diagnosable); ok {
+	if graph, ok := n.txState.(core.Diagnosable); ok {
 		results = append(results, graph.Diagnostics()...)
 	}
 	return results
@@ -497,7 +466,7 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 func (n *Network) collectDiagnostics() transport.Diagnostics {
 	result := transport.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
-		NumberOfTransactions: uint32(n.graph.Statistics(context.Background()).NumberOfTransactions),
+		NumberOfTransactions: uint32(n.txState.Statistics(context.Background()).NumberOfTransactions),
 		SoftwareVersion:      core.GitCommit,
 		SoftwareID:           softwareID,
 	}
@@ -508,14 +477,14 @@ func (n *Network) collectDiagnostics() transport.Diagnostics {
 }
 
 func (n *Network) isPayloadPresent(ctx context.Context, txRef hash.SHA256Hash) (bool, error) {
-	tx, err := n.graph.Get(ctx, txRef)
+	tx, err := n.txState.GetTransaction(ctx, txRef)
 	if err != nil {
 		return false, err
 	}
 	if tx == nil {
 		return false, nil
 	}
-	return n.payloadStore.IsPresent(ctx, tx.PayloadHash())
+	return n.txState.IsPayloadPresent(ctx, tx.PayloadHash())
 }
 
 // lastTransactionTracker that is used for tracking correct transactions.
