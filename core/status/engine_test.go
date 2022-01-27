@@ -68,13 +68,19 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 		assert.Equal(t, core.OSArch(), ds[4].String())
 	})
 
-	t.Run("diagnosticsOverview() text output", func(t *testing.T) {
+	t.Run("diagnosticsOverview() YAML output", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		echo := mock.NewMockContext(ctrl)
 		echo.EXPECT().Request().Return(&http.Request{Header: map[string][]string{}})
 
-		echo.EXPECT().String(http.StatusOK, test.Contains("engines: [Status Metrics]"))
+		expected :=
+`status:
+    engines:
+        - Status
+        - Metrics
+    git_commit: "0"`
+		echo.EXPECT().String(http.StatusOK, test.Contains(expected))
 
 		(&status{system: system}).diagnosticsOverview(echo)
 	})

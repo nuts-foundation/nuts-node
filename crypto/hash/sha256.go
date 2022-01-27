@@ -30,6 +30,11 @@ const SHA256HashSize = 32
 // SHA256Hash is a SHA256 Hash over some bytes
 type SHA256Hash [SHA256HashSize]byte
 
+// MarshalText implements encoding.TextMarshaler
+func (h SHA256Hash) MarshalText() ([]byte, error) {
+	return []byte(h.String()), nil
+}
+
 // SHA256Sum creates a sha256 hash from the given bytes
 func SHA256Sum(data []byte) SHA256Hash {
 	return sha256.Sum256(data)
