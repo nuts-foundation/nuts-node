@@ -274,6 +274,22 @@ components:
     CredentialSubject:
       type: object
       description: Subject of a Verifiable Credential identifying the holder and expressing claims.
+
+    VCVerificationRequest:
+      required:
+        - verifiableCredential
+      properties:
+        verifiableCredential:
+          $ref: "#/components/schemas/VerifiableCredential"
+        verificationOptions:
+          $ref: "#/components/schemas/VCVerificationOptions"
+    VCVerificationOptions:
+      type: object
+      properties:
+        allowUntrustedIssuer:
+          description: If set to true, an untrusted credential issuer is alowed.
+          type: boolean
+          default: false
     VCVerificationResult:
       description: Contains the verifiable credential verification result.
       type: object

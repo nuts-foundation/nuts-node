@@ -123,6 +123,7 @@ func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams
 
 	foundVCs, err := w.VCR.Issuer().SearchCredential(ssi.URI{}, *credentialType, *issuerDID, subjectID)
 	result := make([]SearchVCResult, len(foundVCs))
+	// TODO: add revocation status
 	for i, resolvedVC := range foundVCs {
 		result[i] = SearchVCResult{VerifiableCredential: resolvedVC}
 	}
@@ -134,15 +135,25 @@ func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams
 
 // VerifyVC handles API request to verify a  Verifiable Credential.
 func (w *Wrapper) VerifyVC(ctx echo.Context) error {
-	requestedVC := VerifiableCredential{}
+	verifyRequest := VCVerificationRequest{}
 
-	if err := ctx.Bind(&requestedVC); err != nil {
+	if err := ctx.Bind(&verifyRequest); err != nil {
 		return err
 	}
+	requestedVC := verifyRequest.VerifiableCredential
 
-	if err := w.VCR.Validate(requestedVC, false, true, nil); err != nil {
+	allowUntrustedIssuer := false
+
+	if options := verifyRequest.VerificationOptions; options != nil {
+		if allowUntrusted := options.AllowUntrustedIssuer; allowUntrusted != nil {
+			allowUntrustedIssuer = *allowUntrusted
+		}
+	}
+
+	if err := w.VCR.Validate(requestedVC, allowUntrustedIssuer, true, nil); err != nil {
 		errMsg := err.Error()
 		return ctx.JSON(http.StatusOK, VCVerificationResult{Validity: false, Message: &errMsg})
 	}
+
 	return ctx.JSON(http.StatusOK, VCVerificationResult{Validity: true})
 }

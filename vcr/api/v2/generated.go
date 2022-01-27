@@ -70,6 +70,19 @@ type SearchVCResult struct {
 	VerifiableCredential VerifiableCredential `json:"verifiableCredential"`
 }
 
+// VCVerificationOptions defines model for VCVerificationOptions.
+type VCVerificationOptions struct {
+	// If set to true, an untrusted credential issuer is alowed.
+	AllowUntrustedIssuer *bool `json:"allowUntrustedIssuer,omitempty"`
+}
+
+// VCVerificationRequest defines model for VCVerificationRequest.
+type VCVerificationRequest struct {
+	// A credential according to the W3C and Nuts specs.
+	VerifiableCredential VerifiableCredential   `json:"verifiableCredential"`
+	VerificationOptions  *VCVerificationOptions `json:"verificationOptions,omitempty"`
+}
+
 // Contains the verifiable credential verification result.
 type VCVerificationResult struct {
 	// Indicates what went wrong

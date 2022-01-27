@@ -288,27 +288,37 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 }
 
 func TestWrapper_VerifyVC(t *testing.T) {
+	issuerURI, _ := ssi.ParseURI("did:nuts:123")
+	credentialType, _ := ssi.ParseURI("ExampleType")
+
+	allowUntrusted := true
+	options := VCVerificationOptions{
+		AllowUntrustedIssuer: &allowUntrusted,
+	}
+
+	expectedVC := vc.VerifiableCredential{
+		Type:              []ssi.URI{*credentialType},
+		Issuer:            *issuerURI,
+		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
+	}
+
+	expectedVerifyRequest := VCVerificationRequest{
+		VerifiableCredential: expectedVC,
+		VerificationOptions:  &options,
+	}
+
 	t.Run("valid vc", func(t *testing.T) {
 		testContext := newMockContext(t)
 
-		issuerURI, _ := ssi.ParseURI("did:nuts:123")
-		credentialType, _ := ssi.ParseURI("ExampleType")
-
-		expectedRequestedVC := vc.VerifiableCredential{
-			Type:              []ssi.URI{*credentialType},
-			Issuer:            *issuerURI,
-			CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
-		}
-
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*VerifiableCredential)
-			*verifyRequest = expectedRequestedVC
+			verifyRequest := f.(*VCVerificationRequest)
+			*verifyRequest = expectedVerifyRequest
 			return nil
 		})
 
 		testContext.echo.EXPECT().JSON(http.StatusOK, VCVerificationResult{Validity: true})
 
-		testContext.vcr.EXPECT().Validate(expectedRequestedVC, false, true, nil)
+		testContext.vcr.EXPECT().Validate(expectedVC, allowUntrusted, true, nil)
 
 		err := testContext.client.VerifyVC(testContext.echo)
 		assert.NoError(t, err)
@@ -316,25 +326,16 @@ func TestWrapper_VerifyVC(t *testing.T) {
 	t.Run("invalid vc", func(t *testing.T) {
 		testContext := newMockContext(t)
 
-		issuerURI, _ := ssi.ParseURI("did:nuts:123")
-		credentialType, _ := ssi.ParseURI("ExampleType")
-
-		expectedRequestedVC := vc.VerifiableCredential{
-			Type:              []ssi.URI{*credentialType},
-			Issuer:            *issuerURI,
-			CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
-		}
-
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*VerifiableCredential)
-			*verifyRequest = expectedRequestedVC
+			verifyRequest := f.(*VCVerificationRequest)
+			*verifyRequest = expectedVerifyRequest
 			return nil
 		})
 
 		message := "invalid vc"
 		testContext.echo.EXPECT().JSON(http.StatusOK, VCVerificationResult{Validity: false, Message: &message})
 
-		testContext.vcr.EXPECT().Validate(expectedRequestedVC, false, true, nil).Return(errors.New("invalid vc"))
+		testContext.vcr.EXPECT().Validate(expectedVC, true, true, nil).Return(errors.New("invalid vc"))
 
 		err := testContext.client.VerifyVC(testContext.echo)
 		assert.NoError(t, err)
