@@ -14,8 +14,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example:
-          - "did:nuts:1234"
+        example: "did:nuts:1234"
         schema:
           type: string
     get:
@@ -62,8 +61,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example:
-          - "did:nuts:1234"
+        example: "did:nuts:1234"
         schema:
           type: string
     post:
@@ -105,16 +103,14 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example:
-          - "did:nuts:1234"
+        example: "did:nuts:1234"
         schema:
           type: string
       - name: type
         in: path
         description: Type of the service
         required: true
-        example:
-          - "eOverdracht"
+        example: "eOverdracht"
         schema:
           type: string
     delete:
@@ -140,8 +136,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example:
-          - "did:nuts:1234"
+        example: "did:nuts:1234"
         schema:
           type: string
     get:
@@ -204,8 +199,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example:
-          - "did:nuts:1234"
+        example: "did:nuts:1234"
         schema:
           type: string
       - name: compoundServiceType
@@ -264,8 +258,7 @@ paths:
         in: path
         description: URL encoded service ID.
         required: true
-        example:
-          - "did:nuts:1234#service-x"
+        example: "did:nuts:1234#service-x"
         schema:
           type: string
     delete:
@@ -294,16 +287,14 @@ paths:
           "LIKE" fashion: it matches partial strings and also names that sound like the given query,
           using a phonetic transformation algorithm.
         required: true
-        example:
-          - "Zorgcentrum de Roodvink"
+        example: "Zorgcentrum de Roodvink"
         schema:
           type: string
       - name: didServiceType
         in: query
         description: Filters organizations by service of the given type in the organizations' DID document (optional).
         required: false
-        example:
-          - "eOverdracht-receiver"
+        example: "eOverdracht-receiver"
         schema:
           type: string
     get:
@@ -339,9 +330,7 @@ components:
         endpoint:
           description: An endpoint URL or a reference to another service.
           type: string
-          example:
-            - did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
-            - https://api.example.org/fhir
+          example: did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
     EndpointProperties:
       type: object
       description: A combination of type and URL.
@@ -355,9 +344,7 @@ components:
         endpoint:
           description: An endpoint URL or a reference to another service.
           type: string
-          example:
-            - did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
-            - https://api.example.org/fhir
+          example: did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
     CompoundServiceProperties:
       type: object
       description: A creation request for a compound service that contains endpoints. The endpoints can be either absolute endpoints or references.
