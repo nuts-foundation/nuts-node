@@ -79,10 +79,7 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
     engines:
         - Status
         - Metrics
-    git_commit: "0"
-    os_arch: darwin/amd64
-    software_version: development
-    uptime: 0s`
+    git_commit: "0"`
 		echo.EXPECT().String(http.StatusOK, test.Contains(expected))
 
 		(&status{system: system}).diagnosticsOverview(echo)
