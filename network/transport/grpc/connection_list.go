@@ -135,7 +135,7 @@ func (c *connectionList) Diagnostics() []core.DiagnosticResult {
 		} else {
 			connector := curr.outboundConnector()
 			if connector != nil {
-				connectors = append(connectors, curr.outboundConnector().stats())
+				connectors = append(connectors, connector.stats())
 			}
 		}
 	}
