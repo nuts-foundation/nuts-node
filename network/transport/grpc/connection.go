@@ -67,7 +67,7 @@ type Connection interface {
 	verifyOrSetPeerID(id transport.PeerID) bool
 
 	// stats returns statistics for this connection
-	stats() transport.ConnectionStats
+	outboundConnector() *outboundConnector
 
 	// Peer returns the associated peer information of this connection. If the connection is not active, it will return an empty peer.
 	Peer() transport.Peer
@@ -293,15 +293,9 @@ func (mc *conn) IsConnected() bool {
 	return mc.ctx != nil
 }
 
-func (mc *conn) stats() transport.ConnectionStats {
+func (mc *conn) outboundConnector() *outboundConnector {
 	mc.mux.RLock()
 	defer mc.mux.RUnlock()
 
-	result := transport.ConnectionStats{
-		Peer: mc.peer.Load().(transport.Peer),
-	}
-	if mc.connector != nil {
-		result.ConnectAttempts = mc.connector.connectAttempts()
-	}
-	return result
+	return mc.connector
 }

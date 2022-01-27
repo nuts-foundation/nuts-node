@@ -43,7 +43,7 @@ func Test_connector_tryConnect(t *testing.T) {
 	grpcConn, err := connector.tryConnect()
 	assert.NoError(t, err)
 	assert.NotNil(t, grpcConn)
-	assert.Equal(t, uint32(1), connector.connectAttempts())
+	assert.Equal(t, uint32(1), connector.stats().Attempts)
 }
 
 func Test_connector_start(t *testing.T) {

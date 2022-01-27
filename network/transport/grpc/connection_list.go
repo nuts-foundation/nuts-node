@@ -128,10 +128,15 @@ func (c *connectionList) Diagnostics() []core.DiagnosticResult {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	var peers []transport.Peer
+	// Only add peer to "outbound_connectors" list if not connected
 	for _, curr := range c.list {
-		connectors = append(connectors, curr.stats())
 		if curr.IsConnected() {
 			peers = append(peers, curr.Peer())
+		} else {
+			connector := curr.outboundConnector()
+			if connector != nil {
+				connectors = append(connectors, curr.outboundConnector().stats())
+			}
 		}
 	}
 	return []core.DiagnosticResult{

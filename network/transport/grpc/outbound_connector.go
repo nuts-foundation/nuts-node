@@ -140,6 +140,9 @@ func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
 	return grpcConn, nil
 }
 
-func (c *outboundConnector) connectAttempts() uint32 {
-	return atomic.LoadUint32(c.attempts)
+func (c outboundConnector) stats() transport.ConnectorStats {
+	return transport.ConnectorStats{
+		Address:  c.address,
+		Attempts: atomic.LoadUint32(c.attempts),
+	}
 }

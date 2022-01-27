@@ -90,7 +90,7 @@ func (o ownPeerIDStatistic) String() string {
 	return o.peerID.String()
 }
 
-type ConnectorsStats []transport.ConnectionStats
+type ConnectorsStats []transport.ConnectorStats
 
 func (a ConnectorsStats) Name() string {
 	return "outbound_connectors"
@@ -103,7 +103,7 @@ func (a ConnectorsStats) Result() interface{} {
 func (a ConnectorsStats) String() string {
 	var items []string
 	for _, curr := range a {
-		items = append(items, fmt.Sprintf("%s(connect_attempts=%d)", curr.Peer, curr.ConnectAttempts))
+		items = append(items, fmt.Sprintf("%s (connect_attempts=%d)", curr.Address, curr.Attempts))
 	}
 	return strings.Join(items, " ")
 }
