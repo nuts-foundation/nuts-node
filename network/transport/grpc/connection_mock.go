@@ -90,6 +90,20 @@ func (mr *MockConnectionMockRecorder) disconnect() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "disconnect", reflect.TypeOf((*MockConnection)(nil).disconnect))
 }
 
+// outboundConnector mocks base method.
+func (m *MockConnection) outboundConnector() *outboundConnector {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "outboundConnector")
+	ret0, _ := ret[0].(*outboundConnector)
+	return ret0
+}
+
+// outboundConnector indicates an expected call of outboundConnector.
+func (mr *MockConnectionMockRecorder) outboundConnector() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "outboundConnector", reflect.TypeOf((*MockConnection)(nil).outboundConnector))
+}
+
 // registerStream mocks base method.
 func (m *MockConnection) registerStream(protocol Protocol, stream Stream) bool {
 	m.ctrl.T.Helper()
@@ -126,20 +140,6 @@ func (m *MockConnection) startConnecting(config *tls.Config, callback func(*grpc
 func (mr *MockConnectionMockRecorder) startConnecting(config, callback interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "startConnecting", reflect.TypeOf((*MockConnection)(nil).startConnecting), config, callback)
-}
-
-// stats mocks base method.
-func (m *MockConnection) stats() transport.ConnectionStats {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "stats")
-	ret0, _ := ret[0].(transport.ConnectionStats)
-	return ret0
-}
-
-// stats indicates an expected call of stats.
-func (mr *MockConnectionMockRecorder) stats() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "stats", reflect.TypeOf((*MockConnection)(nil).stats))
 }
 
 // stopConnecting mocks base method.

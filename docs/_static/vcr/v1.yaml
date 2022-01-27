@@ -41,8 +41,7 @@ paths:
         in: path
         description: URL encoded ID.
         required: true
-        example:
-          - "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#90382475609238467"
+        example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#90382475609238467"
         schema:
           type: string
     get:
@@ -203,8 +202,7 @@ paths:
           in: path
           description: URL encoded Verifiable Credential Type.
           required: true
-          example:
-            - "NutsOrganizationCredential"
+          example: "NutsOrganizationCredential"
           schema:
             type: string
       responses:
@@ -235,8 +233,7 @@ paths:
           in: path
           description: URL encoded Verifiable Credential Type.
           required: true
-          example:
-            - "NutsOrganizationCredential"
+          example: "NutsOrganizationCredential"
           schema:
             type: string
       responses:

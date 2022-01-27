@@ -13,11 +13,11 @@ require (
 	github.com/hashicorp/vault/api v1.3.1
 	github.com/knadh/koanf v1.4.0
 	github.com/labstack/echo/v4 v4.6.3
-	github.com/lestrrat-go/jwx v1.2.17
+	github.com/lestrrat-go/jwx v1.2.18
 	github.com/magiconair/properties v1.8.5
 	github.com/mdp/qrterminal/v3 v3.0.0
-	github.com/nats-io/nats-server/v2 v2.7.0
-	github.com/nats-io/nats.go v1.13.1-0.20211122170419-d7c1d78a50fc
+	github.com/nats-io/nats-server/v2 v2.7.1
+	github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.2.0
 	github.com/nuts-foundation/go-leia/v2 v2.0.0
@@ -32,7 +32,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.13.0
 	go.etcd.io/bbolt v1.3.6
-	google.golang.org/grpc v1.43.0
+	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v2 v2.4.0
 	schneider.vip/problem v1.6.0
@@ -66,7 +66,7 @@ require (
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-redis/redis/v8 v8.8.0 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
-	github.com/goccy/go-json v0.9.1 // indirect
+	github.com/goccy/go-json v0.9.4 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect

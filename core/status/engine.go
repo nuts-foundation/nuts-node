@@ -20,7 +20,8 @@
 package status
 
 import (
-	"fmt"
+	"bytes"
+	"gopkg.in/yaml.v3"
 	"net/http"
 	"strings"
 	"time"
@@ -62,22 +63,16 @@ func (s *status) diagnosticsOverview(ctx echo.Context) error {
 	if strings.HasPrefix(hdr, "application/json") {
 		return ctx.JSON(http.StatusOK, s.diagnosticsSummaryAsMap(diagnostics))
 	}
-	return ctx.String(http.StatusOK, s.diagnosticsSummaryAsText(diagnostics))
+	// Return as YAML but serve as text/plain, because we always allowed easy diagnostics viewing through the browser.
+	// When serving it as application/yaml, it is downloaded by the browser instead of rendered directly (tested on Chrome).
+	return ctx.String(http.StatusOK, s.diagnosticsSummaryAsYAML(diagnostics))
 }
 
-func (s *status) diagnosticsSummaryAsText(diagnostics map[string][]core.DiagnosticResult) string {
-	var lines []string
-	// Re-loop over engines to retain order
-	s.system.VisitEngines(func(engine core.Engine) {
-		if m, ok := engine.(core.ViewableDiagnostics); ok {
-			lcName := strings.ToLower(strings.ToLower(m.Name()))
-			lines = append(lines, lcName)
-			for _, d := range diagnostics[lcName] {
-				lines = append(lines, fmt.Sprintf("\t%s: %s", d.Name(), d.String()))
-			}
-		}
-	})
-	return strings.Join(lines, "\n")
+func (s *status) diagnosticsSummaryAsYAML(diagnostics map[string][]core.DiagnosticResult) string {
+	buf := new(bytes.Buffer)
+	encoder := yaml.NewEncoder(buf)
+	_ = encoder.Encode(s.diagnosticsSummaryAsMap(diagnostics))
+	return buf.String()
 }
 
 func (s *status) diagnosticsSummaryAsMap(diagnostics map[string][]core.DiagnosticResult) map[string]map[string]interface{} {

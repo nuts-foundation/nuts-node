@@ -69,6 +69,26 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		}
 		assert.Equal(t, authenticatedPeer.NodeDID, nodeDID)
 	})
+	t.Run("ok - case insensitive comparison", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		serviceResolver := doc.NewMockServiceResolver(ctrl)
+		serviceResolver.EXPECT().Resolve(*query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://Nuts.nl:5555"}, nil)
+		authenticator := NewTLSAuthenticator(serviceResolver)
+		grpcPeer := peer.Peer{
+			AuthInfo: credentials.TLSInfo{
+				State: tls.ConnectionState{
+					PeerCertificates: []*x509.Certificate{cert},
+				},
+			},
+		}
+
+		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, authenticatedPeer.NodeDID, nodeDID)
+	})
 	t.Run("without acceptUnauthenticated", func(t *testing.T) {
 		transportPeer := transport.Peer{}
 		t.Run("not authenticated, DNS names do not match", func(t *testing.T) {

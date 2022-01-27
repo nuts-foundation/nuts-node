@@ -20,14 +20,14 @@ package grpc
 
 import (
 	"fmt"
-	"net/url"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"google.golang.org/grpc/credentials"
 	grpcPeer "google.golang.org/grpc/peer"
+	"net/url"
+	"strings"
 )
 
 // Authenticator verifies node identities.
@@ -78,7 +78,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	// Check whether one of the DNS names matches one of the NutsComm endpoints
 	hostname := nutsCommURL.Hostname()
 	for _, dnsName := range dnsNames {
-		if dnsName == hostname {
+		if strings.EqualFold(dnsName, hostname) {
 			log.Logger().Debugf("Connection successfully authenticated (nodeDID=%s)", nodeDID)
 			peer.NodeDID = nodeDID
 			return peer, nil
