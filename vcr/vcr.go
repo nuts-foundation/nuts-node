@@ -358,6 +358,10 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 }
 
 func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
+	if credential.ID == nil {
+		return errors.New("verifying a credential requires it to have a valid ID")
+	}
+
 	revoked, err := c.isRevoked(*credential.ID)
 	if revoked {
 		return types.ErrRevoked

@@ -622,6 +622,15 @@ func TestVcr_Validate(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("err - vc without id", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		subject := vc.VerifiableCredential{}
+
+		err := instance.Validate(subject, true, false, nil)
+		assert.EqualError(t, err, "verifying a credential requires it to have a valid ID")
+	})
+
 	t.Run("err - with clock 10 seconds off", func(t *testing.T) {
 		almostNow := now.Add(-10 * time.Second)
 
