@@ -77,9 +77,6 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 
 		expected :=
 `status:
-    engines:
-        - Status
-        - Metrics
     git_commit: "0"`
 		echo.EXPECT().String(http.StatusOK, test.Contains(expected))
 
