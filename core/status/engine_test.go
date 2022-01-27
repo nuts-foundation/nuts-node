@@ -47,25 +47,26 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 	system.RegisterEngine(NewStatusEngine(system))
 	system.RegisterEngine(core.NewMetricsEngine())
 
-	t.Run("diagnostics() returns engine list", func(t *testing.T) {
+	t.Run("diagnostics() returns core info", func(t *testing.T) {
 		system := NewStatusEngine(system)
 		ds := system.(*status).Diagnostics()
-		assert.Len(t, ds, 5)
-		// Registered engines
-		assert.Equal(t, "engines", ds[0].Name())
-		assert.Equal(t, "[Status Metrics]", ds[0].String())
+		assert.Len(t, ds, 4)
+		idx := 0
 		// Uptime
-		assert.Equal(t, "uptime", ds[1].Name())
-		assert.NotEmpty(t, ds[1].String())
+		assert.Equal(t, "uptime", ds[idx].Name())
+		assert.NotEmpty(t, ds[idx].String())
 		// SoftwareVersion
-		assert.Equal(t, "software_version", ds[2].Name())
-		assert.Equal(t, core.Version(), ds[2].String())
+		idx++
+		assert.Equal(t, "software_version", ds[idx].Name())
+		assert.Equal(t, core.Version(), ds[idx].String())
 		// Commit
-		assert.Equal(t, "git_commit", ds[3].Name())
-		assert.Equal(t, "0", ds[3].String())
+		idx++
+		assert.Equal(t, "git_commit", ds[idx].Name())
+		assert.Equal(t, "0", ds[idx].String())
 		// Os/Arg
-		assert.Equal(t, "os_arch", ds[4].Name())
-		assert.Equal(t, core.OSArch(), ds[4].String())
+		idx++
+		assert.Equal(t, "os_arch", ds[idx].Name())
+		assert.Equal(t, core.OSArch(), ds[idx].String())
 	})
 
 	t.Run("diagnosticsOverview() YAML output", func(t *testing.T) {
@@ -76,9 +77,6 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 
 		expected :=
 `status:
-    engines:
-        - Status
-        - Metrics
     git_commit: "0"`
 		echo.EXPECT().String(http.StatusOK, test.Contains(expected))
 
