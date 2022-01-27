@@ -5,6 +5,7 @@
 package core
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -51,6 +52,20 @@ func (mr *MockEchoServerMockRecorder) Add(method, path, handler interface{}, mid
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{method, path, handler}, middleware...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockEchoServer)(nil).Add), varargs...)
+}
+
+// Shutdown mocks base method.
+func (m *MockEchoServer) Shutdown(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Shutdown", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Shutdown indicates an expected call of Shutdown.
+func (mr *MockEchoServerMockRecorder) Shutdown(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockEchoServer)(nil).Shutdown), ctx)
 }
 
 // Start mocks base method.

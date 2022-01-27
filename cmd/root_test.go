@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -41,6 +42,8 @@ const grpcListenAddressEnvKey = "NUTS_NETWORK_GRPCADDR"
 const enableTLSEnvKey = "NUTS_NETWORK_ENABLETLS"
 
 func Test_rootCmd(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("no args prints help", func(t *testing.T) {
 		oldStdout := stdOutWriter
 		buf := new(bytes.Buffer)
@@ -49,7 +52,7 @@ func Test_rootCmd(t *testing.T) {
 			stdOutWriter = oldStdout
 		}()
 		os.Args = []string{"nuts"}
-		Execute(core.NewSystem())
+		Execute(ctx, core.NewSystem())
 		actual := buf.String()
 		assert.Contains(t, actual, "Available Commands")
 	})
@@ -62,7 +65,7 @@ func Test_rootCmd(t *testing.T) {
 			stdOutWriter = oldStdout
 		}()
 		os.Args = []string{"nuts", "config"}
-		Execute(core.NewSystem())
+		Execute(ctx, core.NewSystem())
 		actual := buf.String()
 		assert.Contains(t, actual, "Current system config")
 		assert.Contains(t, actual, "address")
@@ -76,7 +79,7 @@ func Test_rootCmd(t *testing.T) {
 			stdOutWriter = oldStdout
 		}()
 		os.Args = []string{"nuts", "help", "server"}
-		Execute(core.NewSystem())
+		Execute(ctx, core.NewSystem())
 		actual := buf.String()
 		assert.Contains(t, actual, "--configfile string")
 		assert.Contains(t, actual, "--datadir")
@@ -89,6 +92,8 @@ func Test_serverCmd(t *testing.T) {
 	os.Setenv("NUTS_AUTH_CONTRACTVALIDATORS", "dummy")
 	defer os.Unsetenv("NUTS_AUTH_CONTRACTVALIDATORS")
 
+	ctx := context.Background()
+
 	t.Run("start in server mode", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		echoServer := core.NewMockEchoServer(ctrl)
@@ -96,6 +101,7 @@ func Test_serverCmd(t *testing.T) {
 		echoServer.EXPECT().Add(http.MethodPost, gomock.Any(), gomock.Any()).AnyTimes()
 		echoServer.EXPECT().Add(http.MethodPut, gomock.Any(), gomock.Any()).AnyTimes()
 		echoServer.EXPECT().Start(gomock.Any())
+		echoServer.EXPECT().Shutdown(gomock.Any())
 
 		os.Setenv(grpcListenAddressEnvKey, fmt.Sprintf("localhost:%d", test.FreeTCPPort()))
 		defer os.Unsetenv(grpcListenAddressEnvKey)
@@ -113,7 +119,7 @@ func Test_serverCmd(t *testing.T) {
 		}
 		system.RegisterEngine(m)
 
-		Execute(system)
+		Execute(ctx, system)
 		// Assert global config contains overridden property
 		assert.Equal(t, testDirectory, system.Config.Datadir)
 		// Assert engine config is injected
@@ -137,7 +143,7 @@ func Test_serverCmd(t *testing.T) {
 		system.Config = core.NewServerConfig()
 		system.Config.Datadir = io.TestDirectory(t)
 		system.Config.HTTP.AltBinds["internal"] = core.HTTPConfig{Address: "localhost:7642"}
-		err := startServer(system)
+		err := startServer(ctx, system)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -149,7 +155,7 @@ func Test_serverCmd(t *testing.T) {
 		system := core.NewSystem()
 		system.Config = core.NewServerConfig()
 		system.Config.Datadir = "root_test.go"
-		err := startServer(system)
+		err := startServer(ctx, system)
 		assert.Error(t, err, "unable to start")
 	})
 	t.Run("alt binds error", func(t *testing.T) {
@@ -158,6 +164,7 @@ func Test_serverCmd(t *testing.T) {
 
 		echoServer := core.NewMockEchoServer(ctrl)
 		echoServer.EXPECT().Start(gomock.Any()).Return(errors.New("unable to start")).Times(2)
+		echoServer.EXPECT().Shutdown(gomock.Any()).Times(2)
 
 		system := core.NewSystem()
 		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
@@ -166,7 +173,7 @@ func Test_serverCmd(t *testing.T) {
 		system.Config = core.NewServerConfig()
 		system.Config.Datadir = io.TestDirectory(t)
 		system.Config.HTTP.AltBinds["internal"] = core.HTTPConfig{Address: "localhost:7642"}
-		err := startServer(system)
+		err := startServer(ctx, system)
 		assert.EqualError(t, err, "unable to start")
 	})
 	t.Run("migration fails", func(t *testing.T) {
@@ -178,7 +185,7 @@ func Test_serverCmd(t *testing.T) {
 
 		r.EXPECT().Migrate().Return(errors.New("b00m!"))
 
-		assert.Error(t, startServer(system))
+		assert.Error(t, startServer(ctx, system))
 	})
 }
 

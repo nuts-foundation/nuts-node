@@ -20,9 +20,13 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -91,7 +95,7 @@ func createServerCommand(system *core.System) *cobra.Command {
 			if err := system.Load(cmd); err != nil {
 				return err
 			}
-			if err := startServer(system); err != nil {
+			if err := startServer(cmd.Context(), system); err != nil {
 				return err
 			}
 			return nil
@@ -101,7 +105,7 @@ func createServerCommand(system *core.System) *cobra.Command {
 	return cmd
 }
 
-func startServer(system *core.System) error {
+func startServer(ctx context.Context, system *core.System) error {
 	logrus.Info("Starting server")
 	logrus.Info(fmt.Sprintf("Build info: \n%s", core.BuildInfo()))
 	logrus.Info(fmt.Sprintf("Config: \n%s", system.Config.PrintConfig()))
@@ -135,13 +139,31 @@ func startServer(system *core.System) error {
 		r.Routes(echoServer)
 	}
 
-	defer func() {
-		if err := system.Shutdown(); err != nil {
-			logrus.Error("Error shutting down system:", err)
-		}
+	// Make sure shutdown is called just once, because we also have it called deferred
+	shutdownOnce := sync.Once{}
+	shutdown := func() {
+		shutdownOnce.Do(func() {
+			logrus.Info("Shutting down...")
+			echoServer.Shutdown()
+			if err := system.Shutdown(); err != nil {
+				logrus.Error("Error shutting down system:", err)
+			}
+			logrus.Info("Shutdown complete. Goodbye!")
+		})
+	}
+	defer shutdown()
+
+	// Also, shutdown when instructed through context cancellation (e.g. SIGINT signal)
+	done := ctx.Done()
+	go func() {
+		<-done
+		shutdown()
 	}()
+
 	if err := echoServer.Start(); err != nil {
-		return err
+		if !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
 	}
 	return nil
 }
@@ -208,12 +230,12 @@ func CreateSystem() *core.System {
 }
 
 // Execute registers all engines into the system and executes the root command.
-func Execute(system *core.System) {
+func Execute(ctx context.Context, system *core.System) {
 	command := CreateCommand(system)
 	command.SetOut(stdOutWriter)
 
 	// blocking main call
-	command.Execute()
+	command.ExecuteContext(ctx)
 }
 
 func addSubCommands(system *core.System, root *cobra.Command) {
