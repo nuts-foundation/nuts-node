@@ -94,8 +94,7 @@ type vcr struct {
 	ambassador      Ambassador
 	network         network.Transactions
 	trustConfig     *trust.Config
-	//issuerStore     issuer.Store
-	issuer issuer.Issuer
+	issuer          issuer.Issuer
 }
 
 func (c *vcr) Registry() concept.Reader {

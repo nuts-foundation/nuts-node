@@ -42,8 +42,8 @@ paths:
     get:
       summary: "Searches for verifiable credentials issued by this node which matches the search params"
       description: >
-        The resolutionResult contains the credential regardless of the validity.
-        The resolutionResult.currentStatus must be checked to see if the credential is valid.
+        The SearchVCResult contains a list of matching credentials regardless of the validity.
+        The entry may contain a revocation which means the credential has been revoked.
 
         error returns:
         * 404 - Corresponding credential could not be found

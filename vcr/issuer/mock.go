@@ -237,31 +237,31 @@ func (mr *MockStoreMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockStore)(nil).StoreRevocation), r)
 }
 
-// MockStoreResolver is a mock of CredentialSearcher interface.
-type MockStoreResolver struct {
+// MockCredentialSearcher is a mock of CredentialSearcher interface.
+type MockCredentialSearcher struct {
 	ctrl     *gomock.Controller
-	recorder *MockStoreResolverMockRecorder
+	recorder *MockCredentialSearcherMockRecorder
 }
 
-// MockStoreResolverMockRecorder is the mock recorder for MockStoreResolver.
-type MockStoreResolverMockRecorder struct {
-	mock *MockStoreResolver
+// MockCredentialSearcherMockRecorder is the mock recorder for MockCredentialSearcher.
+type MockCredentialSearcherMockRecorder struct {
+	mock *MockCredentialSearcher
 }
 
-// NewMockStoreResolver creates a new mock instance.
-func NewMockStoreResolver(ctrl *gomock.Controller) *MockStoreResolver {
-	mock := &MockStoreResolver{ctrl: ctrl}
-	mock.recorder = &MockStoreResolverMockRecorder{mock}
+// NewMockCredentialSearcher creates a new mock instance.
+func NewMockCredentialSearcher(ctrl *gomock.Controller) *MockCredentialSearcher {
+	mock := &MockCredentialSearcher{ctrl: ctrl}
+	mock.recorder = &MockCredentialSearcherMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockStoreResolver) EXPECT() *MockStoreResolverMockRecorder {
+func (m *MockCredentialSearcher) EXPECT() *MockCredentialSearcherMockRecorder {
 	return m.recorder
 }
 
 // SearchCredential mocks base method.
-func (m *MockStoreResolver) SearchCredential(context, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
+func (m *MockCredentialSearcher) SearchCredential(context, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchCredential", context, credentialType, issuer, subject)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)
@@ -270,7 +270,7 @@ func (m *MockStoreResolver) SearchCredential(context, credentialType ssi.URI, is
 }
 
 // SearchCredential indicates an expected call of SearchCredential.
-func (mr *MockStoreResolverMockRecorder) SearchCredential(context, credentialType, issuer, subject interface{}) *gomock.Call {
+func (mr *MockCredentialSearcherMockRecorder) SearchCredential(context, credentialType, issuer, subject interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchCredential", reflect.TypeOf((*MockStoreResolver)(nil).SearchCredential), context, credentialType, issuer, subject)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchCredential", reflect.TypeOf((*MockCredentialSearcher)(nil).SearchCredential), context, credentialType, issuer, subject)
 }

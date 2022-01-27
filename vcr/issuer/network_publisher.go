@@ -40,7 +40,7 @@ type networkPublisher struct {
 	keyResolver     keyResolver
 }
 
-//VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
+// VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
 const VcDocumentType = "application/vc+json"
 
 // NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
