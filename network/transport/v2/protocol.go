@@ -143,13 +143,23 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 func (p *protocol) Start() (err error) {
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 
-	// load old payload query jobs
-	if err = p.payloadScheduler.Run(); err != nil {
-		return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
+	nodeDID, err := p.nodeDIDResolver.Resolve()
+	if err != nil {
+		log.Logger().WithError(err).Errorf("failed to resolve node DID")
+	}
+
+	if nodeDID.Empty() {
+		log.Logger().Warn("not starting the payload scheduler as node DID is not set")
+	} else {
+		// load old payload query jobs
+		if err = p.payloadScheduler.Run(); err != nil {
+			return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
+		}
 	}
 
 	// todo replace with observer, underlying storage is persistent
 	p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
+
 	return
 }
 
