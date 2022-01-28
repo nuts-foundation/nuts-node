@@ -23,13 +23,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"go.uber.org/atomic"
 	"io"
 	"net/http"
 	"os"
-	"sync"
-
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 
 	"github.com/nuts-foundation/nuts-node/auth"
 	authIrmaAPI "github.com/nuts-foundation/nuts-node/auth/api/irma"
@@ -139,33 +138,30 @@ func startServer(ctx context.Context, system *core.System) error {
 		r.Routes(echoServer)
 	}
 
-	// Make sure shutdown is called just once, because we also have it called deferred
-	shutdownOnce := sync.Once{}
-	shutdown := func() {
-		shutdownOnce.Do(func() {
-			logrus.Info("Shutting down...")
-			echoServer.Shutdown()
-			if err := system.Shutdown(); err != nil {
-				logrus.Error("Error shutting down system:", err)
-			}
-			logrus.Info("Shutdown complete. Goodbye!")
-		})
-	}
-	defer shutdown()
+	serverCtx, cancel := context.WithCancel(ctx)
 
-	// Also, shutdown when instructed through context cancellation (e.g. SIGINT signal)
-	done := ctx.Done()
+	// Start Echo server, cancels the server context when it exits/errors, so the shutdown sequence will run.
+	var serverError atomic.Error
 	go func() {
-		<-done
-		shutdown()
+		defer cancel()
+		if err := echoServer.Start(); err != nil {
+			if !errors.Is(err, http.ErrServerClosed) {
+				serverError.Store(err)
+			}
+		}
 	}()
 
-	if err := echoServer.Start(); err != nil {
-		if !errors.Is(err, http.ErrServerClosed) {
-			return err
-		}
+	// Wait until instructed to shut down when instructed through context cancellation (e.g. SIGINT signal or Echo server error/exit)
+	<-serverCtx.Done()
+	logrus.Info("Shutting down...")
+	echoServer.Shutdown()
+	if err := system.Shutdown(); err != nil {
+		logrus.Errorf("Error shutting down system: %v", err)
+	} else {
+		logrus.Info("Shutdown complete. Goodbye!")
 	}
-	return nil
+
+	return serverError.Load()
 }
 
 // CreateCommand creates the command with all subcommands to run the system.
