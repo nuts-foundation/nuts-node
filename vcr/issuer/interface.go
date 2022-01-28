@@ -28,7 +28,11 @@ import (
 
 // Publisher publishes new credentials and revocations to a channel. Used by a credential issuer.
 type Publisher interface {
+	// PublishCredential publishes the credential to the outside world.
+	// A public flag is used to indicate if everybody can see the credential, or just the involved parties.
 	PublishCredential(verifiableCredential vc.VerifiableCredential, public bool) error
+	// PublishRevocation publishes the revocation to the outside world.
+	// It indicates to the network a credential can no longer be used.
 	PublishRevocation(revocation credential.Revocation) error
 }
 
@@ -38,7 +42,14 @@ type keyResolver interface {
 
 // Issuer is a role in the network for a party who issues credentials about a subject to a holder.
 type Issuer interface {
+	// Issue issues a credential by signing an unsigned credential.
+	// The publish param indicates if the credendential should be published to the network.
+	// The public param instructs the Publisher to publish the param with a certain visibility.
 	Issue(unsignedCredential vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error)
+	// Revoke revokes a credential by the provided type.
+	// It requires access to the private key of the issuer which will be used to sign the revocation.
+	// It returns an error when the credential is not issued by this node or is already revoked.
+	// The revocation will be published to the network by the issuers Publisher.
 	Revoke(credentialID ssi.URI) error
 	CredentialSearcher
 }

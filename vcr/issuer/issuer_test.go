@@ -181,6 +181,28 @@ func Test_issuer_Issue(t *testing.T) {
 			assert.EqualError(t, err, "unable to publish the issued credential: b00m!")
 			assert.Nil(t, result)
 		})
+
+		t.Run("invalid credential", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			kid := "did:nuts:123#abc"
+
+			keyResolverMock := NewMockkeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+			sut := issuer{keyResolver: keyResolverMock}
+
+			credentialType, _ := ssi.ParseURI("TestCredential")
+
+			credentialOptions := vc.VerifiableCredential{
+				Type:   []ssi.URI{*credentialType},
+				Issuer: *issuerID,
+			}
+
+			result, err := sut.Issue(credentialOptions, true, true)
+			assert.EqualError(t, err, "validation failed: nuts context is required")
+			assert.Nil(t, result)
+
+		})
 	})
 }
 
