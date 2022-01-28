@@ -207,28 +207,7 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 		log.Logger().Infof("A connection for %s already exists.", peer.Address)
 		return
 	}
-
-	var tlsConfig *tls.Config
-	if s.config.tlsEnabled() {
-		tlsConfig = &tls.Config{
-			Certificates: []tls.Certificate{
-				s.config.clientCert,
-			},
-			RootCAs:    s.config.trustStore,
-			MinVersion: core.MinTLSVersion,
-		}
-	}
-
-	connection.startConnecting(tlsConfig, func(grpcConn *grpc.ClientConn) bool {
-		err := s.openOutboundStreams(connection, grpcConn)
-		if err != nil {
-			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.Peer(), err)
-			connection.disconnect()
-			_ = grpcConn.Close()
-			return false
-		}
-		return true
-	})
+	s.startTracking(peer.Address, connection)
 }
 
 func (s grpcConnectionManager) Peers() []transport.Peer {
@@ -315,6 +294,21 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 	peerID, nodeDID, err := readMetadata(peerHeaders)
 	if err != nil {
 		return nil, fatalError{error: fmt.Errorf("failed to read peer ID header: %w", err)}
+	}
+
+	// When 2 nodes connect to each other, the connections will have to be deduplicated.
+	// When a node receives an inbound connection from a peer which it is already connected to, it must disconnect that new connection.
+	// This means the connecting side (outbound) should stop connecting to that address, because it's already connected.
+	// But it can't just clean up the outbound connection,
+	// since it's a discovered Nuts Node address which is not known by the existing inbound connection.
+	// To avoid "losing" that address it should start the outbound connector on the inbound connection,
+	// so that it can make an outbound connection when the inbound connection is closed.
+	existingConnection := s.connections.Get(ByPeerID(peerID))
+	if existingConnection != nil && existingConnection != connection {
+		connection.stopConnecting()
+		s.connections.remove(connection)
+		s.startTracking(connection.Peer().Address, existingConnection)
+		return nil, fatalError{error: ErrAlreadyConnected}
 	}
 
 	if !connection.verifyOrSetPeerID(peerID) {
@@ -413,4 +407,30 @@ func (s *grpcConnectionManager) constructMetadata() (metadata.MD, error) {
 		md.Set(nodeDIDHeader, nodeDID.String())
 	}
 	return md, nil
+}
+
+// startTracking starts the outbound connector on the given connection, meaning it starts to connect to the given address.
+// If it is already connected, it will try to reconnect when disconnected.
+func (s *grpcConnectionManager) startTracking(address string, connection Connection) {
+	var tlsConfig *tls.Config
+	if s.config.tlsEnabled() {
+		tlsConfig = &tls.Config{
+			Certificates: []tls.Certificate{
+				s.config.clientCert,
+			},
+			RootCAs:    s.config.trustStore,
+			MinVersion: core.MinTLSVersion,
+		}
+	}
+
+	connection.startConnecting(address, tlsConfig, func(grpcConn *grpc.ClientConn) bool {
+		err := s.openOutboundStreams(connection, grpcConn)
+		if err != nil {
+			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.Peer(), err)
+			connection.disconnect()
+			_ = grpcConn.Close()
+			return false
+		}
+		return true
+	})
 }

@@ -41,7 +41,7 @@ type Connection interface {
 	// waitUntilDisconnected blocks until the connection is closed. If it already is closed or was never open, it returns immediately.
 	waitUntilDisconnected()
 	// startConnecting instructs the Connection to start connecting to the remote peer (attempting an outbound connection).
-	startConnecting(config *tls.Config, callback func(grpcConn *grpc.ClientConn) bool)
+	startConnecting(address string, config *tls.Config, callback func(grpcConn *grpc.ClientConn) bool)
 	// stopConnecting instructs the Connection to stop connecting to the remote peer.
 	stopConnecting()
 
@@ -258,7 +258,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 	}()
 }
 
-func (mc *conn) startConnecting(tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn) bool) {
+func (mc *conn) startConnecting(address string, tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn) bool) {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
@@ -267,7 +267,7 @@ func (mc *conn) startConnecting(tlsConfig *tls.Config, connectedCallback func(gr
 		return
 	}
 
-	mc.connector = createOutboundConnector(mc.Peer().Address, mc.dialer, tlsConfig, func() bool {
+	mc.connector = createOutboundConnector(address, mc.dialer, tlsConfig, func() bool {
 		return !mc.IsConnected()
 	}, connectedCallback)
 	mc.connector.start()
