@@ -42,10 +42,12 @@ type TestEngine struct {
 	ShutdownError bool
 }
 
+// Start does test stuff
 func (i *TestEngine) Start() error {
 	return nil
 }
 
+// Shutdown does test stuff
 func (i *TestEngine) Shutdown() error {
 	if i.ShutdownError {
 		return errors.New("failure")
