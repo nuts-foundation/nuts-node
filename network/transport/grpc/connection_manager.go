@@ -207,7 +207,7 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 		log.Logger().Infof("A connection for %s already exists.", peer.Address)
 		return
 	}
-	s.startOutboundConnector(peer.Address, connection)
+	s.startTracking(peer.Address, connection)
 }
 
 func (s grpcConnectionManager) Peers() []transport.Peer {
@@ -307,7 +307,7 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 	if existingConnection != nil && existingConnection != connection {
 		connection.stopConnecting()
 		s.connections.remove(connection)
-		s.startOutboundConnector(connection.Peer().Address, existingConnection)
+		s.startTracking(connection.Peer().Address, existingConnection)
 		return nil, fatalError{error: ErrAlreadyConnected}
 	}
 
@@ -409,7 +409,9 @@ func (s *grpcConnectionManager) constructMetadata() (metadata.MD, error) {
 	return md, nil
 }
 
-func (s *grpcConnectionManager) startOutboundConnector(address string, connection Connection) {
+// startTracking starts the outbound connector on the given connection, meaning it starts to connect to the given address.
+// If it is already connected, it will try to reconnect when disconnected.
+func (s *grpcConnectionManager) startTracking(address string, connection Connection) {
 	var tlsConfig *tls.Config
 	if s.config.tlsEnabled() {
 		tlsConfig = &tls.Config{
