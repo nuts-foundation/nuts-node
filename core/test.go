@@ -19,6 +19,7 @@
 package core
 
 import (
+	"errors"
 	"github.com/spf13/pflag"
 )
 
@@ -36,8 +37,20 @@ type TestEngineSubConfig struct {
 }
 
 type TestEngine struct {
-	TestConfig TestEngineConfig
-	flagSet    *pflag.FlagSet
+	TestConfig    TestEngineConfig
+	flagSet       *pflag.FlagSet
+	ShutdownError bool
+}
+
+func (i *TestEngine) Start() error {
+	return nil
+}
+
+func (i *TestEngine) Shutdown() error {
+	if i.ShutdownError {
+		return errors.New("failure")
+	}
+	return nil
 }
 
 func (i *TestEngine) ConfigKey() string {

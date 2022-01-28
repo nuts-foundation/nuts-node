@@ -226,12 +226,12 @@ func CreateSystem() *core.System {
 }
 
 // Execute registers all engines into the system and executes the root command.
-func Execute(ctx context.Context, system *core.System) {
+func Execute(ctx context.Context, system *core.System) error {
 	command := CreateCommand(system)
 	command.SetOut(stdOutWriter)
 
 	// blocking main call
-	command.ExecuteContext(ctx)
+	return command.ExecuteContext(ctx)
 }
 
 func addSubCommands(system *core.System, root *cobra.Command) {

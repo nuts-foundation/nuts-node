@@ -52,7 +52,8 @@ func Test_rootCmd(t *testing.T) {
 			stdOutWriter = oldStdout
 		}()
 		os.Args = []string{"nuts"}
-		Execute(ctx, core.NewSystem())
+		err := Execute(ctx, core.NewSystem())
+		assert.NoError(t, err)
 		actual := buf.String()
 		assert.Contains(t, actual, "Available Commands")
 	})
@@ -65,7 +66,8 @@ func Test_rootCmd(t *testing.T) {
 			stdOutWriter = oldStdout
 		}()
 		os.Args = []string{"nuts", "config"}
-		Execute(ctx, core.NewSystem())
+		err := Execute(ctx, core.NewSystem())
+		assert.NoError(t, err)
 		actual := buf.String()
 		assert.Contains(t, actual, "Current system config")
 		assert.Contains(t, actual, "address")
@@ -79,7 +81,8 @@ func Test_rootCmd(t *testing.T) {
 			stdOutWriter = oldStdout
 		}()
 		os.Args = []string{"nuts", "help", "server"}
-		Execute(ctx, core.NewSystem())
+		err := Execute(ctx, core.NewSystem())
+		assert.NoError(t, err)
 		actual := buf.String()
 		assert.Contains(t, actual, "--configfile string")
 		assert.Contains(t, actual, "--datadir")
@@ -111,19 +114,22 @@ func Test_serverCmd(t *testing.T) {
 		defer os.Unsetenv("NUTS_DATADIR")
 		os.Args = []string{"nuts", "server"}
 
-		m := &core.TestEngine{}
+		engine1 := &core.TestEngine{}
+		engine2 := &core.TestEngine{ShutdownError: true} // One engine's Shutdown() fails
 
 		system := core.NewSystem()
 		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
 			return echoServer, nil
 		}
-		system.RegisterEngine(m)
+		system.RegisterEngine(engine1)
+		system.RegisterEngine(engine2)
 
-		Execute(ctx, system)
+		err := Execute(ctx, system)
+		assert.NoError(t, err)
 		// Assert global config contains overridden property
 		assert.Equal(t, testDirectory, system.Config.Datadir)
 		// Assert engine config is injected
-		assert.Equal(t, testDirectory, m.TestConfig.Datadir)
+		assert.Equal(t, testDirectory, engine1.TestConfig.Datadir)
 	})
 	t.Run("defaults and alt binds are used", func(t *testing.T) {
 		os.Setenv(grpcListenAddressEnvKey, fmt.Sprintf("localhost:%d", test.FreeTCPPort()))

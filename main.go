@@ -22,6 +22,7 @@ package main
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/cmd"
+	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,5 +33,8 @@ func main() {
 	ctx := context.Background()
 	ctx, _ = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 
-	cmd.Execute(ctx, cmd.CreateSystem())
+	err := cmd.Execute(ctx, cmd.CreateSystem())
+	if err != nil {
+		logrus.Errorf("Server error: %v", err)
+	}
 }
