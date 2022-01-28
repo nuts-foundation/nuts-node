@@ -107,6 +107,34 @@ func TestVDR_Update(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("ok - update without changes doesn't create a transaction", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+
+		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
+		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
+
+		nextDIDDocument := doc.CreateDocument()
+		nextDIDDocument.ID = *id
+
+		payload, err := json.Marshal(nextDIDDocument)
+		assert.NoError(t, err)
+
+		payloadHash := hash.SHA256Sum(payload)
+
+		expectedResolverMetadata := &types.ResolveMetadata{
+			Hash:             &payloadHash,
+			AllowDeactivated: true,
+		}
+		resolvedMetadata := types.DocumentMetadata{
+			SourceTransactions: []hash.SHA256Hash{payloadHash},
+		}
+
+		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
+
+		err = ctx.vdr.Update(*id, payloadHash, nextDIDDocument, nil)
+		assert.NoError(t, err)
+	})
+
 	t.Run("error - validation failed", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
 		currentDIDDocument := doc.CreateDocument()
