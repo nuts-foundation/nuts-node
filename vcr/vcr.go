@@ -312,7 +312,6 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 
 	template.Context = append(template.Context, *credential.NutsContextURI)
 	verifiableCredential, err := c.issuer.Issue(template, true, c.config.OverrideIssueAllPublic || conceptConfig.Public)
-
 	if err != nil {
 		return nil, err
 	}
@@ -707,8 +706,10 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	// create correct challenge for verification
 	payload := generateRevocationChallenge(r)
 
+	proof := (*r.Proof)[0]
+
 	// extract proof, can't fail, already done in generateRevocationChallenge
-	splittedJws := strings.Split(r.Proof.Jws, "..")
+	splittedJws := strings.Split(proof.Jws, "..")
 	if len(splittedJws) != 2 {
 		return errors.New("invalid 'jws' value in proof")
 	}
@@ -718,14 +719,14 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	}
 
 	// check if key is of issuer
-	vm := r.Proof.VerificationMethod
+	vm := proof.VerificationMethod
 	vm.Fragment = ""
 	if vm != r.Issuer {
 		return errors.New("verification method is not of issuer")
 	}
 
 	// find key
-	pk, err := c.keyResolver.ResolveSigningKey(r.Proof.VerificationMethod.String(), &r.Date)
+	pk, err := c.keyResolver.ResolveSigningKey(proof.VerificationMethod.String(), &r.Date)
 	if err != nil {
 		return err
 	}
@@ -827,7 +828,7 @@ func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, ke
 
 func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI, key crypto.Key) error {
 	// create proof
-	r.Proof = &vc.JSONWebSignature2020Proof{
+	proof := vc.JSONWebSignature2020Proof{
 		Proof: vc.Proof{
 			Type:               "JsonWebSignature2020",
 			ProofPurpose:       "assertionMethod",
@@ -847,7 +848,10 @@ func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI, key
 	// remove payload from sig since a detached jws is required.
 	dsig := toDetachedSignature(sig)
 
-	r.Proof.Jws = dsig
+	proof.Jws = dsig
+
+	proofList := []vc.JSONWebSignature2020Proof{proof}
+	r.Proof = &proofList
 
 	return nil
 }
@@ -880,7 +884,7 @@ func generateCredentialChallenge(credential vc.VerifiableCredential) ([]byte, er
 
 func generateRevocationChallenge(r credential.Revocation) []byte {
 	// without JWS
-	proof := r.Proof.Proof
+	proof := (*r.Proof)[0]
 
 	// payload
 	r.Proof = nil

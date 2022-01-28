@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
@@ -128,9 +129,78 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	return signedCredential, nil
 }
 
-func (i issuer) Revoke(credentialID ssi.URI) error {
-	//TODO implement me
-	panic("implement me")
+func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
+	_, err := i.store.GetRevocation(credentialID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
+	// first find it using a query on id.
+	credentialToRevoke, err := i.store.GetCredential(credentialID)
+	if err != nil {
+		return nil, fmt.Errorf("could not revoke: %w", err)
+	}
+
+	isRevoked, err := i.isRevoked(credentialID)
+	if err != nil {
+		return nil, fmt.Errorf("error while checking revocation status: %w", err)
+	}
+	if isRevoked {
+		return nil, errors.New("credential already revoked")
+	}
+
+	revocation, err := i.buildRevocation(credentialToRevoke)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: publish revocation in the network
+	//err = i.publisher.PublishRevocation(*revocation)
+	//if err != nil {
+	//	return fmt.Errorf("failed to publish revocation: %w", err)
+	//}
+
+	log.Logger().Infof("Verifiable Credential revoked (id=%s)", credentialToRevoke.ID)
+	return revocation, nil
+}
+
+func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*credential.Revocation, error) {
+	// find issuer
+	issuerDID, err := did.ParseDID(credentialToRevoke.Issuer.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract issuer: %w", err)
+	}
+
+	assertionKey, err := i.keyResolver.ResolveAssertionKey(*issuerDID)
+	// set defaults
+	revocation := credential.BuildRevocation(credentialToRevoke)
+	// sign
+
+	revocationAsMap := map[string]interface{}{}
+	b, _ := json.Marshal(revocation)
+	_ = json.Unmarshal(b, &revocationAsMap)
+
+	signingResult, err := proof.LegacyLDProof{}.Sign(revocationAsMap, signature.LegacyNutsSuite{}, assertionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	signingResultAsMap, ok := signingResult.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("unable to cast signing result to interface map")
+	}
+	b, _ = json.Marshal(signingResultAsMap)
+	signedRevocation := credential.Revocation{}
+	_ = json.Unmarshal(b, &signedRevocation)
+
+	return &signedRevocation, nil
 }
 
 func (i issuer) CredentialResolver() CredentialSearcher {

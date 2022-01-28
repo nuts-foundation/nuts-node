@@ -21,6 +21,7 @@ package issuer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -55,6 +56,26 @@ func (s leiaStore) StoreCredential(vc vc.VerifiableCredential) error {
 	return s.collection.Add([]leia.Document{doc})
 }
 
+func (s leiaStore) GetCredential(id ssi.URI) (vc.VerifiableCredential, error) {
+	query := leia.New(leia.Eq("id", id.String()))
+	result, err := s.collection.Find(context.Background(), query)
+	if err != nil {
+		return vc.VerifiableCredential{}, fmt.Errorf("error while getting credential from store: %w", err)
+	}
+	if len(result) == 0 {
+		return vc.VerifiableCredential{}, errors.New("credential not issued by this node")
+	}
+
+	if len(result) > 1 {
+		return vc.VerifiableCredential{}, errors.New("multiple credentials found with same id")
+	}
+
+	rawDoc := result[0].Bytes()
+	foundDoc := vc.VerifiableCredential{}
+	_ = json.Unmarshal(rawDoc, &foundDoc)
+	return foundDoc, nil
+}
+
 func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	query := leia.New(leia.Eq("issuer", issuer.String())).
 		And(leia.Eq("type", credentialType.String())).
@@ -81,6 +102,11 @@ func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.UR
 	return result, nil
 }
 
+func (s leiaStore) GetRevocation(id ssi.URI) (credential.Revocation, error) {
+	// TODO: implement me
+	return credential.Revocation{}, ErrNotFound
+}
+
 func (s leiaStore) StoreRevocation(r credential.Revocation) error {
 	//TODO implement me
 	panic("implement me")
@@ -89,10 +115,15 @@ func (s leiaStore) StoreRevocation(r credential.Revocation) error {
 // createIndices creates the needed indices for the issued VC store
 // It allows faster searching on context, type issuer and subject values.
 func (s leiaStore) createIndices() error {
-	index := leia.NewIndex("issuedVCs",
+	// Index used for searching
+	searchIndex := leia.NewIndex("searchIssuedVCs",
 		leia.NewFieldIndexer("issuer"),
 		leia.NewFieldIndexer("type"),
 		leia.NewFieldIndexer("credentialSubject.id"),
 	)
-	return s.collection.AddIndex(index)
+	// Index used for getting issued VCs by id
+	idIndex := leia.NewIndex("issuedVCByID",
+		leia.NewFieldIndexer("id"))
+
+	return s.collection.AddIndex(searchIndex, idIndex)
 }

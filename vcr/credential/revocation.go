@@ -20,6 +20,7 @@
 package credential
 
 import (
+	"encoding/json"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -28,6 +29,7 @@ import (
 
 // Revocation defines a proof that a VC has been revoked by it's issuer.
 type Revocation struct {
+	//Context []ssi.URI `json:"@context"`
 	// Issuer refers to the party that issued the credential
 	Issuer ssi.URI `json:"issuer"`
 	// Subject refers to the VC that is revoked
@@ -36,8 +38,10 @@ type Revocation struct {
 	Reason string `json:"reason,omitempty"`
 	// Date is a rfc3339 formatted datetime.
 	Date time.Time `json:"date"`
-	// Proof contains the cryptographic proof(s). It must be extracted using the Proofs method or UnmarshalProofValue method for non-generic proof fields.
-	Proof *vc.JSONWebSignature2020Proof `json:"proof,omitempty"`
+	// Proof contains the cryptographic proof(s).
+	// Its multiple because the Data Integrity spec defines the option of multiple proofs.
+	// A Revocation however is only allowd to have one proof.
+	Proof *[]vc.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }
 
 // BuildRevocation generates a revocation based on the credential
@@ -47,6 +51,31 @@ func BuildRevocation(credential vc.VerifiableCredential) Revocation {
 		Subject: *credential.ID,
 		Date:    nowFunc(),
 	}
+}
+
+func (r Revocation) MarshalJSON() ([]byte, error) {
+	type alias Revocation
+	tmp := alias(r)
+	proof := r.Proof
+	r.Proof = nil
+	revocationAsMap := map[string]interface{}{}
+	rBytes, _ := json.Marshal(tmp)
+	if err := json.Unmarshal(rBytes, &revocationAsMap); err != nil {
+		return []byte{}, err
+	}
+	if proof != nil && len(*proof) > 0 {
+		if len(*proof) == 1 {
+			revocationAsMap["proof"] = (*proof)[0]
+		} else {
+			revocationAsMap["proof"] = *proof
+		}
+	}
+	return json.Marshal(revocationAsMap)
+}
+
+func (r *Revocation) SetProof(proof vc.JSONWebSignature2020Proof) {
+	newProofList := []vc.JSONWebSignature2020Proof{proof}
+	r.Proof = &newProofList
 }
 
 // ValidateRevocation checks if a revocation record contains the required fields and if fields have the correct value.
@@ -65,6 +94,10 @@ func ValidateRevocation(r Revocation) error {
 
 	if r.Proof == nil {
 		return failure("'proof' is required")
+	}
+
+	if len(*r.Proof) > 1 {
+		return failure("'proof' can only contain one value")
 	}
 
 	return nil

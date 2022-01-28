@@ -26,5 +26,6 @@ import (
 // Proof is the interface that defines a set of methods which a proof should implement.
 type Proof interface {
 	// Sign defines the basic signing operation on the proof.
+	// It returns the signed document
 	Sign(document map[string]interface{}, suite signature.Suite, key crypto.Key) (interface{}, error)
 }
