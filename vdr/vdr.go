@@ -151,6 +151,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		Hash:             &current,
 		AllowDeactivated: true,
 	}
+
 	currentDIDDocument, currentMeta, err := r.store.Resolve(id, resolverMetadata)
 	if err != nil {
 		return err
@@ -166,6 +167,13 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	payload, err := json.Marshal(next)
 	if err != nil {
 		return err
+	}
+
+	payloadHash := hash.SHA256Sum(payload)
+
+	// Nothing changed, so we don't need to update the DID document
+	if current.Equals(payloadHash) {
+		return nil
 	}
 
 	controller, key, err := r.resolveControllerWithKey(*currentDIDDocument)

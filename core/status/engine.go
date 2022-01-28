@@ -91,7 +91,6 @@ func (s *status) diagnosticsSummaryAsMap(diagnostics map[string][]core.Diagnosti
 // The results are a list of all registered engines
 func (s *status) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{
-		&core.GenericDiagnosticResult{Title: "engines", Outcome: s.listAllEngines()},
 		&core.GenericDiagnosticResult{Title: "uptime", Outcome: time.Now().Sub(s.startTime).Truncate(time.Second)},
 		&core.GenericDiagnosticResult{Title: "software_version", Outcome: core.Version()},
 		&core.GenericDiagnosticResult{Title: "git_commit", Outcome: core.GitCommit},
