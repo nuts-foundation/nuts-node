@@ -26,7 +26,7 @@ The properties can be manually changed in the [./values.yaml](./values.yaml), or
  
 The default values can be viewed with the following command: 
 ```shell
-helm show values nuts-repo/<DESIRED_VERSION_CHART>
+helm show values nuts-repo/nuts-node-chart
 ```
 
 You can then override any of these settings in a YAML formatted file, and then pass that file during [installation](#from-the-nuts-helm-repo-1).
@@ -41,11 +41,9 @@ helm install <NAME> .
 ```
 ### From the NUTS Helm Repo
 
-//TODO: Change <REPO_URL> with the actual repo once configured.
-
 Add the NUTS helm Repo with the following command:
 ```shell 
-helm repo add nuts-repo <REPO_URL>
+helm repo add nuts-repo https://nuts-foundation.github.io/nuts-node/
 ```
 This should list available releases with the following command:
 ```shell
@@ -55,7 +53,7 @@ helm search repo nuts-repo
 After this, the desired version can be installed with the following command:
 ```shell
 helm repo update              # Make sure we get the latest list of charts
-helm install -f values.yaml <NAME> nuts-repo/<DESIRED_VERSION_CHART>
+helm install -f values.yaml <NAME> nuts-repo/nuts-node-chart
 ```
 
 Note that the `values.yaml` in the above command is the result from the [configuration step](#from-the-nuts-helm-repo).
