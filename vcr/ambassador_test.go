@@ -21,6 +21,7 @@ package vcr
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -55,7 +56,7 @@ func TestAmbassador_Configure(t *testing.T) {
 
 func TestAmbassador_vcCallback(t *testing.T) {
 	payload := []byte(concept.TestCredential)
-	tx, _ := dag.NewTransaction(hash.EmptyHash(), vcDocumentType, nil, nil)
+	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.VcDocumentType, nil, nil)
 	stx := tx.(dag.Transaction)
 	validAt := stx.SigningTime()
 
@@ -108,7 +109,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 
 func TestAmbassador_rCallback(t *testing.T) {
 	payload := []byte("{\"subject\":\"did:nuts:1#123\"}")
-	tx, _ := dag.NewTransaction(hash.EmptyHash(), revocationDocumentType, nil, nil)
+	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.RevocationDocumentType, nil, nil)
 	stx := tx.(dag.Transaction)
 
 	t.Run("ok", func(t *testing.T) {

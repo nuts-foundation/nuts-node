@@ -23,13 +23,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 
-	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 

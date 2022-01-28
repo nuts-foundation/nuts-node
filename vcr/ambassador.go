@@ -23,11 +23,13 @@ import (
 	"encoding/json"
 
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/pkg/errors"
+
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/pkg/errors"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 )
 
 // Ambassador registers a callback with the network for processing received Verifiable Credentials.
@@ -38,11 +40,11 @@ type Ambassador interface {
 
 type ambassador struct {
 	networkClient network.Transactions
-	writer        Writer
+	writer        types.Writer
 }
 
 // NewAmbassador creates a new listener for the network that listens to Verifiable Credential transactions.
-func NewAmbassador(networkClient network.Transactions, writer Writer) Ambassador {
+func NewAmbassador(networkClient network.Transactions, writer types.Writer) Ambassador {
 	return ambassador{
 		networkClient: networkClient,
 		writer:        writer,
@@ -51,8 +53,8 @@ func NewAmbassador(networkClient network.Transactions, writer Writer) Ambassador
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n ambassador) Configure() {
-	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, vcDocumentType, n.vcCallback)
-	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, revocationDocumentType, n.rCallback)
+	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.VcDocumentType, n.vcCallback)
+	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.RevocationDocumentType, n.rCallback)
 }
 
 // vcCallback gets called when new Verifiable Credentials are received by the network. All checks on the signature are already performed.
