@@ -156,8 +156,6 @@ func TestProtocol_lifecycle(t *testing.T) {
 
 	s := grpcLib.NewServer()
 	p, mocks := newTestProtocol(t, nil)
-	mocks.State.EXPECT().Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, gomock.Any())
-	mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 	mocks.PayloadScheduler.EXPECT().Close()
 
 	err := p.Start()
@@ -194,7 +192,6 @@ func TestProtocol_Start(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 
 		mocks.PayloadScheduler.EXPECT().Close()
-		mocks.State.EXPECT().Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, gomock.Any())
 
 		err := proto.Start()
 		assert.NoError(t, err)

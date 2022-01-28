@@ -145,20 +145,20 @@ func (p *protocol) Start() (err error) {
 
 	nodeDID, err := p.nodeDIDResolver.Resolve()
 	if err != nil {
-		log.Logger().WithError(err).Errorf("failed to resolve node DID")
+		log.Logger().WithError(err).Error("Failed to resolve node DID")
 	}
 
 	if nodeDID.Empty() {
-		log.Logger().Warn("not starting the payload scheduler as node DID is not set")
+		log.Logger().Warn("Not starting the payload scheduler as node DID is not set")
 	} else {
 		// load old payload query jobs
 		if err = p.payloadScheduler.Run(); err != nil {
 			return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
 		}
-	}
 
-	// todo replace with observer, underlying storage is persistent
-	p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
+		// todo replace with observer, underlying storage is persistent
+		p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
+	}
 
 	return
 }
