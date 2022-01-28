@@ -19,6 +19,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -34,6 +35,7 @@ import (
 type EchoServer interface {
 	EchoRouter
 	Start(address string) error
+	Shutdown(ctx context.Context) error
 }
 
 // EchoRouter is the interface the generated server API's will require as the Routes func argument
@@ -106,6 +108,16 @@ func (c MultiEcho) Start() error {
 		return <-errChan
 	}
 	return nil
+}
+
+// Shutdown stops all Echo servers.
+func (c MultiEcho) Shutdown() {
+	for address, echoServer := range c.interfaces {
+		logrus.Tracef("Stopping interface: %s", address)
+		if err := echoServer.Shutdown(context.Background()); err != nil {
+			logrus.Errorf("Unable to shutdown interface (address=%s): %v", address, err)
+		}
+	}
 }
 
 func (c *MultiEcho) start(address string, server EchoServer, wg *sync.WaitGroup, errChan chan error) {

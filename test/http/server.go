@@ -18,10 +18,17 @@
 
 package http
 
-import "github.com/labstack/echo/v4"
+import (
+	"context"
+	"github.com/labstack/echo/v4"
+)
 
 type StubEchoServer struct {
 	BoundAddress string
+}
+
+func (s StubEchoServer) Shutdown(ctx context.Context) error {
+	return nil
 }
 
 func (s StubEchoServer) Add(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route {

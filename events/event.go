@@ -22,10 +22,8 @@ package events
 import (
 	"path"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/events/log"
-
 	natsServer "github.com/nats-io/nats-server/v2/server"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 const moduleName = "Event manager"
@@ -68,13 +66,12 @@ func (m *manager) Configure(config core.ServerConfig) error {
 }
 
 func (m *manager) Start() error {
-	log.Logger().Debugf("starting %s", moduleName)
-
 	server, err := natsServer.NewServer(&natsServer.Options{
 		JetStream: true,
 		Port:      m.config.Port,
 		Host:      m.config.Hostname,
 		StoreDir:  m.config.StorageDir,
+		NoSigs:    true, // Signals are handled by Nuts node, Nats Server is shut down when Event Engine is shut down.
 	})
 	if err != nil {
 		return err
@@ -92,13 +89,9 @@ func (m *manager) Shutdown() error {
 		return nil
 	}
 
-	log.Logger().Debugf("shutting down %s", moduleName)
-
 	m.server.Shutdown()
 	m.pool.Shutdown()
 	m.server.WaitForShutdown()
-
-	log.Logger().Infof("%s shutdown complete", moduleName)
 
 	return nil
 }
