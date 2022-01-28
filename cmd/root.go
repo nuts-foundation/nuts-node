@@ -143,12 +143,12 @@ func startServer(ctx context.Context, system *core.System) error {
 	// Start Echo server, cancels the server context when it exits/errors, so the shutdown sequence will run.
 	var serverError atomic.Error
 	go func() {
-		defer cancel()
 		if err := echoServer.Start(); err != nil {
 			if !errors.Is(err, http.ErrServerClosed) {
 				serverError.Store(err)
 			}
 		}
+		cancel()
 	}()
 
 	// Wait until instructed to shut down when instructed through context cancellation (e.g. SIGINT signal or Echo server error/exit)
