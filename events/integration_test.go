@@ -21,6 +21,7 @@ package events
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -42,7 +43,10 @@ func Test_pub_sub(t *testing.T) {
 		return
 	}
 	var found []byte
+	foundMutex := sync.Mutex{}
 	err = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
+		foundMutex.Lock()
+		defer foundMutex.Unlock()
 		found = msg.Data
 		err = msg.Ack()
 	})
@@ -59,6 +63,8 @@ func Test_pub_sub(t *testing.T) {
 	}
 
 	test.WaitFor(t, func() (bool, error) {
+		foundMutex.Lock()
+		defer foundMutex.Unlock()
 		return found != nil, nil
 	}, 10*time.Millisecond, "timeout waiting for message")
 	if !assert.NoError(t, err) {
