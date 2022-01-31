@@ -21,8 +21,10 @@ package events
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/test"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -38,13 +40,13 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestManager_Start(t *testing.T) {
+	testDir := io.TestDirectory(t)
 	eventManager := NewManager().(*manager)
 	eventManager.config.Port = test.FreeTCPPort()
-	err := eventManager.Start()
+	err := eventManager.Configure(core.ServerConfig{Datadir: testDir})
 	assert.NoError(t, err)
-	err = eventManager.Configure(core.ServerConfig{})
+	err = eventManager.Start()
 	assert.NoError(t, err)
-
 	defer eventManager.Shutdown()
 
 	t.Run("Starts a Nats server", func(t *testing.T) {
@@ -57,5 +59,12 @@ func TestManager_Start(t *testing.T) {
 		if assert.NotNil(t, conn) {
 			conn.Close()
 		}
+	})
+
+	t.Run("Stream can be obtained", func(t *testing.T) {
+		s, ok := eventManager.GetStream(TransactionsStream)
+
+		assert.True(t, ok)
+		assert.NotNil(t, s)
 	})
 }

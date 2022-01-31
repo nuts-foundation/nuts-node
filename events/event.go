@@ -21,17 +21,20 @@ package events
 
 import (
 	"path"
+	"time"
 
 	natsServer "github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
 const moduleName = "Event manager"
 
 type manager struct {
-	config Config
-	pool   ConnectionPool
-	server *natsServer.Server
+	config  Config
+	pool    ConnectionPool
+	server  *natsServer.Server
+	streams map[string]Stream
 }
 
 // NewManager returns a new event manager
@@ -39,7 +42,8 @@ func NewManager() Event {
 	config := DefaultConfig()
 
 	return &manager{
-		config: config,
+		config:  config,
+		streams: map[string]Stream{},
 	}
 }
 
@@ -55,6 +59,8 @@ func (m *manager) Pool() ConnectionPool {
 	return m.pool
 }
 
+// Configure the storageDir and setup the predefined set of streams.
+// Nats is very picky about the stream and consumer setup, therefore we predefine them all in this engine.
 func (m *manager) Configure(config core.ServerConfig) error {
 	if m.config.StorageDir == "" {
 		m.config.StorageDir = path.Join(config.Datadir, "events")
@@ -62,7 +68,32 @@ func (m *manager) Configure(config core.ServerConfig) error {
 
 	m.pool = NewNATSConnectionPool(m.config)
 
+	// register Transaction stream
+	m.streams[TransactionsStream] = newStream(&nats.StreamConfig{
+		Name:      TransactionsStream,
+		Subjects:  []string{"TRANSACTIONS.*"},
+		Retention: nats.LimitsPolicy,
+		MaxAge:    168 * time.Hour, // week
+		Discard:   nats.DiscardOld,
+		Storage:   nats.FileStorage,
+	}, []nats.SubOpt{})
+
+	// register Data stream
+	m.streams[DataStream] = newStream(&nats.StreamConfig{
+		Name:      DataStream,
+		Subjects:  []string{"DATA.*"},
+		Retention: nats.LimitsPolicy,
+		MaxAge:    168 * time.Hour, // week
+		Discard:   nats.DiscardOld,
+		Storage:   nats.FileStorage,
+	}, []nats.SubOpt{})
+
 	return nil
+}
+
+func (m *manager) GetStream(streamName string) (Stream, bool) {
+	s, ok := m.streams[streamName]
+	return s, ok
 }
 
 func (m *manager) Start() error {
@@ -78,7 +109,6 @@ func (m *manager) Start() error {
 	}
 
 	m.server = server
-
 	server.Start()
 
 	return nil
