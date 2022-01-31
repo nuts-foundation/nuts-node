@@ -91,9 +91,9 @@ func (m *manager) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-func (m *manager) GetStream(streamName string) (Stream, bool) {
-	s, ok := m.streams[streamName]
-	return s, ok
+func (m *manager) GetStream(streamName string) Stream {
+	s, _ := m.streams[streamName]
+	return s
 }
 
 func (m *manager) Start() error {

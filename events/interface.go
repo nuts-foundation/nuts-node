@@ -21,8 +21,9 @@ package events
 
 // Event is the event manager interface that gives access to all event related functions
 type Event interface {
-	// GetStream returns a predefined stream with file storage
-	GetStream(streamName string) (Stream, bool)
+	// GetStream returns a predefined stream with file storage.
+	// It returns nil when a unknown stream was requested.
+	GetStream(streamName string) Stream
 	// Pool returns the NATS connection-pool
 	Pool() ConnectionPool
 }

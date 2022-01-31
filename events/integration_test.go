@@ -34,7 +34,7 @@ import (
 func Test_pub_sub(t *testing.T) {
 	eventManager := createManager(t)
 
-	stream, _ := eventManager.GetStream(TransactionsStream)
+	stream := eventManager.GetStream(TransactionsStream)
 
 	conn, js, err := eventManager.Pool().Acquire(context.Background())
 	defer conn.Close()
@@ -44,6 +44,7 @@ func Test_pub_sub(t *testing.T) {
 	var found []byte
 	err = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
 		found = msg.Data
+		err = msg.Ack()
 	})
 
 	if !assert.NoError(t, err) {
@@ -60,6 +61,9 @@ func Test_pub_sub(t *testing.T) {
 	test.WaitFor(t, func() (bool, error) {
 		return found != nil, nil
 	}, 10*time.Millisecond, "timeout waiting for message")
+	if !assert.NoError(t, err) {
+		return
+	}
 	assert.Equal(t, expected, found)
 }
 
@@ -79,7 +83,7 @@ func TestManager_Configure(t *testing.T) {
 		eventManager := createManager(t)
 		conn, js, _ := eventManager.Pool().Acquire(context.Background())
 		defer conn.Close()
-		s, _ := eventManager.GetStream(TransactionsStream)
+		s := eventManager.GetStream(TransactionsStream)
 		s.Subscribe(conn, "test", "DATA.VerifiableCredential", func(msg *nats.Msg) {})
 
 		info, err := js.StreamInfo(eventManager.streams[TransactionsStream].Config().Name)

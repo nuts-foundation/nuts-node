@@ -92,7 +92,7 @@ func (stream *stream) Subscribe(conn Conn, consumerName string, subjectFilter st
 	_, err = ctx.Subscribe(subjectFilter, handler,
 		nats.Durable(consumerName),
 		nats.BindStream(stream.config.Name),
-		nats.AckNone(),
+		nats.AckExplicit(),
 		nats.DeliverNew(),
 		nats.MaxDeliver(10),
 	)

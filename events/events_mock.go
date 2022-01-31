@@ -34,12 +34,11 @@ func (m *MockEvent) EXPECT() *MockEventMockRecorder {
 }
 
 // GetStream mocks base method.
-func (m *MockEvent) GetStream(streamName string) (Stream, bool) {
+func (m *MockEvent) GetStream(streamName string) Stream {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStream", streamName)
 	ret0, _ := ret[0].(Stream)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
+	return ret0
 }
 
 // GetStream indicates an expected call of GetStream.

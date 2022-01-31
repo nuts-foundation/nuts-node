@@ -23,11 +23,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/test/io"
-
 	"github.com/nats-io/nats.go"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,14 +36,7 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestManager_Start(t *testing.T) {
-	testDir := io.TestDirectory(t)
-	eventManager := NewManager().(*manager)
-	eventManager.config.Port = test.FreeTCPPort()
-	err := eventManager.Configure(core.ServerConfig{Datadir: testDir})
-	assert.NoError(t, err)
-	err = eventManager.Start()
-	assert.NoError(t, err)
-	defer eventManager.Shutdown()
+	eventManager := createManager(t)
 
 	t.Run("Starts a Nats server", func(t *testing.T) {
 		conn, err := nats.Connect(fmt.Sprintf("nats://127.0.0.1:%d", eventManager.config.Port))
@@ -60,11 +49,20 @@ func TestManager_Start(t *testing.T) {
 			conn.Close()
 		}
 	})
+}
+
+func TestManager_GetStream(t *testing.T) {
+	eventManager := createManager(t)
 
 	t.Run("Stream can be obtained", func(t *testing.T) {
-		s, ok := eventManager.GetStream(TransactionsStream)
+		s := eventManager.GetStream(TransactionsStream)
 
-		assert.True(t, ok)
 		assert.NotNil(t, s)
+	})
+
+	t.Run("returns nil on unknown stream", func(t *testing.T) {
+		s := eventManager.GetStream("unknown")
+
+		assert.Nil(t, s)
 	})
 }
