@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"syscall"
 	"testing"
 	"time"
@@ -26,6 +27,7 @@ func Test_ServerLifecycle(t *testing.T) {
 	// Collect options
 	httpAddress := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 	opts := map[string]string{
+		"configfile":              path.Join(testDirectory, "nuts.yaml"), // does not exist, but that's okay: default config
 		"datadir":                 testDirectory,
 		"network.enabletls":       "false",
 		"network.grpcaddr":        fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
