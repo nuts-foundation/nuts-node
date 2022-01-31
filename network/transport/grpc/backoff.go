@@ -70,7 +70,7 @@ func defaultBackoff() Backoff {
 	return &backoff{
 		multiplier: 1.5,
 		value:      0,
-		max:        30 * time.Second,
+		max:        time.Hour,
 		min:        time.Second,
 	}
 }
