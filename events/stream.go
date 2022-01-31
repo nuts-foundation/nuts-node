@@ -95,7 +95,6 @@ func (stream *stream) Subscribe(conn Conn, consumerName string, subjectFilter st
 		nats.AckNone(),
 		nats.DeliverNew(),
 		nats.MaxDeliver(10),
-		nats.ReplayInstant(),
 	)
 	if err != nil {
 		return err
