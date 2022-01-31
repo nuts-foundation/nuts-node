@@ -57,7 +57,7 @@ func Test_pub_sub(t *testing.T) {
 
 	expected := []byte{1}
 	// the ack comes from the Nats server so we can use Publish (instead of PublishAsync)
-	_, err = js.Publish("TRANSACTIONS.tx", []byte{1})
+	_, err = js.PublishAsync("TRANSACTIONS.tx", []byte{1})
 	if !assert.NoError(t, err) {
 		return
 	}
