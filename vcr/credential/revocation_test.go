@@ -111,25 +111,23 @@ func TestRevocation_MarshalJSON(t *testing.T) {
 		r := Revocation{Proof: nil}
 		revocationAsJSON, err := json.Marshal(r)
 		assert.NoError(t, err)
-		expectedJson := "{\"@context\":null,\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"subject\":\"\"}"
+		expectedJson := "{\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"subject\":\"\"}"
 		assert.Equal(t, []byte(expectedJson), revocationAsJSON)
 	})
 
 	t.Run("with one proof its an single value", func(t *testing.T) {
-		proof := []vc.JSONWebSignature2020Proof{{}}
-		r := Revocation{Proof: &proof}
+		r := Revocation{Proof: []vc.JSONWebSignature2020Proof{{}}}
 		revocationAsJSON, err := json.Marshal(r)
 		assert.NoError(t, err)
-		expectedJson := "{\"@context\":null,\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"proof\":{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"},\"subject\":\"\"}"
+		expectedJson := "{\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"proof\":{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"},\"subject\":\"\"}"
 		assert.Equal(t, []byte(expectedJson), revocationAsJSON)
 	})
 
 	t.Run("with multiple proofs its an array", func(t *testing.T) {
-		proof := []vc.JSONWebSignature2020Proof{{}, {}}
-		r := Revocation{Proof: &proof}
+		r := Revocation{Proof: []vc.JSONWebSignature2020Proof{{}, {}}}
 		revocationAsJSON, err := json.Marshal(r)
 		assert.NoError(t, err)
-		expectedJson := "{\"@context\":null,\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"proof\":[{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"},{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"}],\"subject\":\"\"}"
+		expectedJson := "{\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"proof\":[{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"},{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"}],\"subject\":\"\"}"
 		assert.Equal(t, []byte(expectedJson), revocationAsJSON)
 	})
 }

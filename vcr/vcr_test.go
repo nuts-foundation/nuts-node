@@ -884,7 +884,7 @@ func TestVcr_Revoke(t *testing.T) {
 			return
 		}
 
-		assert.Contains(t, r.Proof.Jws, "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..")
+		assert.Contains(t, r.Proof[0].Jws, "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..")
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -1143,9 +1143,8 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		instance := ctx.vcr
 		vm, _ := ssi.ParseURI(r.Issuer.String() + "2")
 		r2 := r
-		p := *r2.Proof
+		p := r2.Proof[0]
 		p.VerificationMethod = *vm
-		r2.Proof = &p
 
 		err := instance.verifyRevocation(r2)
 
@@ -1181,7 +1180,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		r2 := r
-		r2.Proof = &vc.JSONWebSignature2020Proof{}
+		r2.Proof = []vc.JSONWebSignature2020Proof{{}}
 
 		err := instance.verifyRevocation(r2)
 
@@ -1203,7 +1202,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		r2 := r
-		r2.Proof.Jws = "====..===="
+		r2.Proof = []vc.JSONWebSignature2020Proof{{Jws: "====..===="}}
 
 		err := instance.verifyRevocation(r2)
 

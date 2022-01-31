@@ -343,13 +343,15 @@ func TestWrapper_VerifyVC(t *testing.T) {
 }
 
 func TestWrapper_RevokeVC(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	vcID := "did:nuts:123#abc"
+	vcURI, _ := ssi.ParseURI(vcID)
+	testContext := newMockContext(t)
+	revocation := &Revocation{}
+	testContext.mockIssuer.EXPECT().Revoke(*vcURI).Return(revocation, nil)
+	testContext.echo.EXPECT().JSON(http.StatusOK, revocation)
 
-	w := &Wrapper{}
-	ctx := mock.NewMockContext(ctrl)
-	err := w.RevokeVC(ctx, "")
-	assert.EqualError(t, err, "not yet implemented, use the v1 api")
+	err := testContext.client.RevokeVC(testContext.echo, vcID)
+	assert.NoError(t, err)
 }
 
 func TestWrapper_Preprocess(t *testing.T) {

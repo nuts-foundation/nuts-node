@@ -706,7 +706,7 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	// create correct challenge for verification
 	payload := generateRevocationChallenge(r)
 
-	proof := (*r.Proof)[0]
+	proof := r.Proof[0]
 
 	// extract proof, can't fail, already done in generateRevocationChallenge
 	splittedJws := strings.Split(proof.Jws, "..")
@@ -850,8 +850,7 @@ func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI, key
 
 	proof.Jws = dsig
 
-	proofList := []vc.JSONWebSignature2020Proof{proof}
-	r.Proof = &proofList
+	r.Proof = []vc.JSONWebSignature2020Proof{proof}
 
 	return nil
 }
@@ -883,8 +882,11 @@ func generateCredentialChallenge(credential vc.VerifiableCredential) ([]byte, er
 }
 
 func generateRevocationChallenge(r credential.Revocation) []byte {
+	if len(r.Proof) == 0 {
+		return []byte{}
+	}
 	// without JWS
-	proof := (*r.Proof)[0]
+	proof := r.Proof[0]
 
 	// payload
 	r.Proof = nil

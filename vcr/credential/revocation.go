@@ -40,8 +40,8 @@ type Revocation struct {
 	Date time.Time `json:"date"`
 	// Proof contains the cryptographic proof(s).
 	// Its multiple because the Data Integrity spec defines the option of multiple proofs.
-	// A Revocation however is only allowd to have one proof.
-	Proof *[]vc.JSONWebSignature2020Proof `json:"proof,omitempty"`
+	// A Revocation however is only allowed to have one proof.
+	Proof []vc.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }
 
 // BuildRevocation generates a revocation based on the credential
@@ -63,19 +63,40 @@ func (r Revocation) MarshalJSON() ([]byte, error) {
 	if err := json.Unmarshal(rBytes, &revocationAsMap); err != nil {
 		return []byte{}, err
 	}
-	if proof != nil && len(*proof) > 0 {
-		if len(*proof) == 1 {
-			revocationAsMap["proof"] = (*proof)[0]
+	if len(proof) > 0 {
+		if len(proof) == 1 {
+			revocationAsMap["proof"] = proof[0]
 		} else {
-			revocationAsMap["proof"] = *proof
+			revocationAsMap["proof"] = proof
 		}
 	}
 	return json.Marshal(revocationAsMap)
 }
 
+func (r *Revocation) UnmarshalJSON(b []byte) error {
+	tmp := Revocation{}
+	if err := json.Unmarshal(b, &tmp); err != nil {
+		return err
+	}
+
+	// if proof was not an array, it might be a single value
+	if len(r.Proof) == 0 {
+		proofStruct := struct {
+			Proof vc.JSONWebSignature2020Proof
+		}{}
+
+		if err := json.Unmarshal(b, &proofStruct); err != nil {
+			return err
+		}
+		tmp.SetProof(proofStruct.Proof)
+	}
+
+	*r = tmp
+	return nil
+}
+
 func (r *Revocation) SetProof(proof vc.JSONWebSignature2020Proof) {
-	newProofList := []vc.JSONWebSignature2020Proof{proof}
-	r.Proof = &newProofList
+	r.Proof = []vc.JSONWebSignature2020Proof{proof}
 }
 
 // ValidateRevocation checks if a revocation record contains the required fields and if fields have the correct value.
@@ -92,11 +113,11 @@ func ValidateRevocation(r Revocation) error {
 		return failure("'date' is required")
 	}
 
-	if r.Proof == nil {
+	if len(r.Proof) == 0 {
 		return failure("'proof' is required")
 	}
 
-	if len(*r.Proof) > 1 {
+	if len(r.Proof) > 1 {
 		return failure("'proof' can only contain one value")
 	}
 
