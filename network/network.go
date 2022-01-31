@@ -62,7 +62,7 @@ type Network struct {
 	lastTransactionTracker lastTransactionTracker
 	protocols              []transport.Protocol
 	connectionManager      transport.ConnectionManager
-	txState                dag.State
+	state                  dag.State
 	privateKeyResolver     crypto.KeyResolver
 	keyResolver            types.KeyResolver
 	startTime              atomic.Value
@@ -76,7 +76,7 @@ type Network struct {
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
 func (n *Network) Walk(visitor dag.Visitor) error {
 	ctx := context.Background()
-	return n.txState.Walk(ctx, visitor, hash.EmptyHash())
+	return n.state.Walk(ctx, visitor, hash.EmptyHash())
 }
 
 // NewNetworkInstance creates a new Network engine instance.
@@ -103,7 +103,7 @@ func NewNetworkInstance(
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
 	var err error
-	if n.txState, err = dag.NewState(config.Datadir, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
+	if n.state, err = dag.NewState(config.Datadir, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
 
@@ -147,8 +147,8 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Only set protocols if not already set: improves testability
 	if n.protocols == nil {
 		n.protocols = []transport.Protocol{
-			v1.New(n.config.ProtocolV1, n.txState, n.collectDiagnostics),
-			v2.New(v2Cfg, n.nodeDIDResolver, n.txState, n.didDocumentResolver, n.decrypter),
+			v1.New(n.config.ProtocolV1, n.state, n.collectDiagnostics),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter),
 		}
 	}
 
@@ -216,9 +216,9 @@ func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
 
 	// Load DAG and start publishing
-	n.txState.Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, n.lastTransactionTracker.process)
+	n.state.Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, n.lastTransactionTracker.process)
 
-	if err := n.txState.Start(); err != nil {
+	if err := n.state.Start(); err != nil {
 		return err
 	}
 
@@ -322,30 +322,30 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 // Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
 // is received for the specified event and payload type.
 func (n *Network) Subscribe(eventType dag.EventType, transactionType string, receiver dag.Receiver) {
-	n.txState.Subscribe(eventType, transactionType, receiver)
+	n.state.Subscribe(eventType, transactionType, receiver)
 }
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
 func (n *Network) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
-	return n.txState.GetTransaction(context.Background(), transactionRef)
+	return n.state.GetTransaction(context.Background(), transactionRef)
 }
 
 // GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
 // nil is returned.
 func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
-	transaction, err := n.txState.GetTransaction(context.Background(), transactionRef)
+	transaction, err := n.state.GetTransaction(context.Background(), transactionRef)
 	if err != nil {
 		return nil, err
 	}
 	if transaction == nil {
 		return nil, nil
 	}
-	return n.txState.ReadPayload(context.Background(), transaction.PayloadHash())
+	return n.state.ReadPayload(context.Background(), transaction.PayloadHash())
 }
 
 // ListTransactions returns all transactions known to this Network instance.
 func (n *Network) ListTransactions() ([]dag.Transaction, error) {
-	return n.txState.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())
+	return n.state.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())
 }
 
 // CreateTransaction creates a new transaction from the given template.
@@ -410,7 +410,7 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 		return nil, fmt.Errorf("unable to sign newly created transaction: %w", err)
 	}
 	// Store in local State and publish it
-	if err = n.txState.Add(ctx, transaction, template.Payload); err != nil {
+	if err = n.state.Add(ctx, transaction, template.Payload); err != nil {
 		return nil, fmt.Errorf("unable to add newly created transaction to State: %w", err)
 	}
 	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), template.Type, len(template.Payload))
@@ -426,12 +426,12 @@ func (n *Network) Shutdown() error {
 	n.connectionManager.Stop()
 
 	// Close State and underlying DBs
-	if n.txState != nil {
-		err := n.txState.Shutdown()
+	if n.state != nil {
+		err := n.state.Shutdown()
 		if err != nil {
 			return err
 		}
-		n.txState = nil
+		n.state = nil
 	}
 
 	return nil
@@ -444,7 +444,7 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 	for _, prot := range n.protocols {
 		results = append(results, prot.Diagnostics()...)
 	}
-	if graph, ok := n.txState.(core.Diagnosable); ok {
+	if graph, ok := n.state.(core.Diagnosable); ok {
 		results = append(results, graph.Diagnostics()...)
 	}
 	return results
@@ -466,7 +466,7 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 func (n *Network) collectDiagnostics() transport.Diagnostics {
 	result := transport.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
-		NumberOfTransactions: uint32(n.txState.Statistics(context.Background()).NumberOfTransactions),
+		NumberOfTransactions: uint32(n.state.Statistics(context.Background()).NumberOfTransactions),
 		SoftwareVersion:      core.GitCommit,
 		SoftwareID:           softwareID,
 	}
@@ -477,14 +477,14 @@ func (n *Network) collectDiagnostics() transport.Diagnostics {
 }
 
 func (n *Network) isPayloadPresent(ctx context.Context, txRef hash.SHA256Hash) (bool, error) {
-	tx, err := n.txState.GetTransaction(ctx, txRef)
+	tx, err := n.state.GetTransaction(ctx, txRef)
 	if err != nil {
 		return false, err
 	}
 	if tx == nil {
 		return false, nil
 	}
-	return n.txState.IsPayloadPresent(ctx, tx.PayloadHash())
+	return n.state.IsPayloadPresent(ctx, tx.PayloadHash())
 }
 
 // lastTransactionTracker that is used for tracking correct transactions.

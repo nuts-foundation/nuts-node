@@ -64,13 +64,13 @@ func DefaultConfig() Config {
 func New(
 	config Config,
 	nodeDIDResolver transport.NodeDIDResolver,
-	txState dag.State,
+	state dag.State,
 	docResolver vdr.DocResolver,
 	decrypter crypto.Decrypter,
 ) transport.Protocol {
 	return &protocol{
 		config:          config,
-		txState:         txState,
+		state:           state,
 		nodeDIDResolver: nodeDIDResolver,
 		decrypter:       decrypter,
 		docResolver:     docResolver,
@@ -80,7 +80,7 @@ func New(
 type protocol struct {
 	cancel            func()
 	config            Config
-	txState           dag.State
+	state             dag.State
 	ctx               context.Context
 	docResolver       vdr.DocResolver
 	payloadScheduler  Scheduler
@@ -132,7 +132,7 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	// The callback is done within the DAG DB transaction.
 	// It's only called once for each validated transaction.
 	// TODO hook to XOR and IBLT calculations
-	// p.txState.RegisterObserver(p.Observe)
+	// p.state.RegisterObserver(p.Observe)
 
 	// the observer is called with a context. Within that context is the TX
 	// use storage.BBoltTXView or storage.BBoltTXUpdate around the logic that needs to be run within a transaction
@@ -149,7 +149,7 @@ func (p *protocol) Start() (err error) {
 	}
 
 	// todo replace with observer, underlying storage is persistent
-	p.txState.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
+	p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
 	return
 }
 
@@ -174,7 +174,7 @@ func (p *protocol) handlePrivateTxRetry(hash hash.SHA256Hash) {
 }
 
 func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
-	tx, err := p.txState.GetTransaction(context.Background(), hash)
+	tx, err := p.state.GetTransaction(context.Background(), hash)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve transaction (tx=:%s) from the DAG: %w", hash.String(), err)
 	}
@@ -184,7 +184,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	}
 
 	// Sanity check: if we have the payload, mark this job as finished
-	payload, err := p.txState.ReadPayload(context.Background(), tx.PayloadHash())
+	payload, err := p.state.ReadPayload(context.Background(), tx.PayloadHash())
 	if err != nil {
 		return fmt.Errorf("unable to read payload (tx=%s): %w", hash, err)
 	}

@@ -41,7 +41,7 @@ type bboltPayloadStore struct {
 func (store bboltPayloadStore) IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
 	var result bool
 	var err error
-	err = store.ReadMany(ctx, func(ctx context.Context, reader PayloadReader) error {
+	err = store.ReadManyPayloads(ctx, func(ctx context.Context, reader PayloadReader) error {
 		result, err = reader.IsPayloadPresent(ctx, payloadHash)
 		return err
 	})
@@ -51,14 +51,14 @@ func (store bboltPayloadStore) IsPayloadPresent(ctx context.Context, payloadHash
 func (store bboltPayloadStore) ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error) {
 	var result []byte
 	var err error
-	err = store.ReadMany(ctx, func(ctx context.Context, reader PayloadReader) error {
+	err = store.ReadManyPayloads(ctx, func(ctx context.Context, reader PayloadReader) error {
 		result, err = reader.ReadPayload(ctx, payloadHash)
 		return err
 	})
 	return result, err
 }
 
-func (store bboltPayloadStore) ReadMany(ctx context.Context, consumer func(ctx context.Context, reader PayloadReader) error) error {
+func (store bboltPayloadStore) ReadManyPayloads(ctx context.Context, consumer func(ctx context.Context, reader PayloadReader) error) error {
 	return storage.BBoltTXView(ctx, store.db, func(ctx context.Context, tx *bbolt.Tx) error {
 		return consumer(ctx, &bboltPayloadReader{payloadsBucket: tx.Bucket([]byte(payloadsBucketName))})
 	})

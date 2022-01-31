@@ -34,7 +34,7 @@ import (
 
 // protocol is thread-safe when callers use the Protocol interface
 type protocol struct {
-	txState     dag.State
+	state       dag.State
 	sender      messageSender
 	connections grpc.ConnectionList
 	// TODO: What if no-one is actually listening to this queue? Maybe we should create it when someone asks for it (lazy initialization)?
@@ -111,7 +111,7 @@ func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics 
 }
 
 // NewProtocol creates a new instance of Protocol
-func NewProtocol(gateway MessageGateway, connections grpc.ConnectionList, txState dag.State, diagnosticsProvider func() transport.Diagnostics) Protocol {
+func NewProtocol(gateway MessageGateway, connections grpc.ConnectionList, state dag.State, diagnosticsProvider func() transport.Diagnostics) Protocol {
 	p := &protocol{
 		peerDiagnostics:      make(map[transport.PeerID]transport.Diagnostics, 0),
 		peerDiagnosticsMutex: &sync.Mutex{},
@@ -119,7 +119,7 @@ func NewProtocol(gateway MessageGateway, connections grpc.ConnectionList, txStat
 		peerOmnihashChannel:  make(chan PeerOmnihash, 100),
 		peerOmnihashMutex:    &sync.Mutex{},
 		blocks:               newDAGBlocks(),
-		txState:              txState,
+		state:                state,
 		diagnosticsProvider:  diagnosticsProvider,
 		connections:          connections,
 		sender: defaultMessageSender{
@@ -136,10 +136,10 @@ func (p *protocol) Configure(advertHashesInterval time.Duration, advertDiagnosti
 	p.collectMissingPayloadsInterval = collectMissingPayloadsInterval
 	p.peerID = peerID
 	p.missingPayloadCollector = broadcastingMissingPayloadCollector{
-		txState: p.txState,
-		sender:  p.sender,
+		state:  p.state,
+		sender: p.sender,
 	}
-	p.txState.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.blocks.addTransaction)
+	p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.blocks.addTransaction)
 }
 
 func (p *protocol) Start() {

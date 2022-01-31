@@ -86,6 +86,8 @@ type Statistics struct {
 
 // Publisher defines the interface for types that publish Nuts Network transactions.
 type Publisher interface {
+	// ConfigureCallbacks subsribes the publisher on the state callbacks
+	ConfigureCallbacks(state State)
 	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
 	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
 	// to all payload types.
@@ -114,8 +116,8 @@ type Visitor func(ctx context.Context, transaction Transaction) bool
 type PayloadStore interface {
 	PayloadReader
 	PayloadWriter
-	// ReadMany allows the caller read many payloads in an optimized fashion.
-	ReadMany(ctx context.Context, consumer func(context.Context, PayloadReader) error) error
+	// ReadManyPayloads allows the caller read many payloads in an optimized fashion.
+	ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error
 }
 
 // PayloadWriter defines the interface for types that store transaction payloads.

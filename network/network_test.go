@@ -584,7 +584,7 @@ func TestNetwork_Shutdown(t *testing.T) {
 		}
 		err = ctx.network.Shutdown()
 		assert.NoError(t, err)
-		assert.Nil(t, ctx.network.txState)
+		assert.Nil(t, ctx.network.state)
 	})
 
 	t.Run("multiple calls", func(t *testing.T) {
@@ -755,8 +755,8 @@ func Test_connectToKnownNodes(t *testing.T) {
 }
 
 func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *networkTestContext {
-	txState := dag.NewMockState(ctrl)
-	txState.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()).AnyTimes()
+	state := dag.NewMockState(ctrl)
+	state.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()).AnyTimes()
 	prot := transport.NewMockProtocol(ctrl)
 	connectionManager := transport.NewMockConnectionManager(ctrl)
 	networkConfig := TestNetworkConfig()
@@ -775,7 +775,7 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	// required when starting the network, it searches for nodes to connect to
 	docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder)
-	network.txState = txState
+	network.state = state
 	network.connectionManager = connectionManager
 	network.protocols = []transport.Protocol{prot}
 	network.didDocumentResolver = docResolver
@@ -788,7 +788,7 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 		network:           network,
 		connectionManager: connectionManager,
 		protocol:          prot,
-		state:             txState,
+		state:             state,
 		keyStore:          keyStore,
 		keyResolver:       keyResolver,
 		docResolver:       docResolver,

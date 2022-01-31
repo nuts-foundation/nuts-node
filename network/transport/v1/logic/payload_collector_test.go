@@ -44,7 +44,7 @@ func Test_missingPayloadCollector(t *testing.T) {
 	})
 
 	// looks a bit odd because of mocking callbacks
-	state.EXPECT().ReadMany(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, consumer func(ctx context.Context, reader dag.PayloadReader) error) error {
+	state.EXPECT().ReadManyPayloads(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, consumer func(ctx context.Context, reader dag.PayloadReader) error) error {
 		return consumer(ctx, state)
 	})
 	state.EXPECT().IsPayloadPresent(ctx, tx0.PayloadHash()).Return(true, nil)
@@ -55,8 +55,8 @@ func Test_missingPayloadCollector(t *testing.T) {
 	sender.EXPECT().broadcastTransactionPayloadQuery(tx1.PayloadHash())
 
 	collector := broadcastingMissingPayloadCollector{
-		txState: state,
-		sender:  sender,
+		state:  state,
+		sender: sender,
 	}
 
 	err := collector.findAndQueryMissingPayloads()

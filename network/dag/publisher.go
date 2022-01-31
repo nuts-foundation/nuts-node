@@ -50,6 +50,20 @@ type replayingDAGPublisher struct {
 	publishMux          *sync.Mutex // all calls to publish() must be wrapped in this mutex
 }
 
+func (s *replayingDAGPublisher) ConfigureCallbacks(state State) {
+	state.RegisterObserver(func(ctx context.Context, transaction Transaction, payload []byte) {
+		s.publishMux.Lock()
+		defer s.publishMux.Unlock()
+
+		if transaction != nil {
+			s.transactionAdded(ctx, transaction, payload)
+		}
+		if payload != nil {
+			s.payloadWritten(ctx, transaction, payload)
+		}
+	})
+}
+
 func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ Transaction, payload []byte) {
 	payloadHash := hash.EmptyHash()
 	if payload != nil {

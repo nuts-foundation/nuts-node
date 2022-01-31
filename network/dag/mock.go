@@ -154,18 +154,18 @@ func (mr *MockStateMockRecorder) PayloadHashes(ctx, visitor interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PayloadHashes", reflect.TypeOf((*MockState)(nil).PayloadHashes), ctx, visitor)
 }
 
-// ReadMany mocks base method.
-func (m *MockState) ReadMany(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
+// ReadManyPayloads mocks base method.
+func (m *MockState) ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadMany", ctx, consumer)
+	ret := m.ctrl.Call(m, "ReadManyPayloads", ctx, consumer)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// ReadMany indicates an expected call of ReadMany.
-func (mr *MockStateMockRecorder) ReadMany(ctx, consumer interface{}) *gomock.Call {
+// ReadManyPayloads indicates an expected call of ReadManyPayloads.
+func (mr *MockStateMockRecorder) ReadManyPayloads(ctx, consumer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadMany", reflect.TypeOf((*MockState)(nil).ReadMany), ctx, consumer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadManyPayloads", reflect.TypeOf((*MockState)(nil).ReadManyPayloads), ctx, consumer)
 }
 
 // ReadPayload mocks base method.
@@ -314,6 +314,18 @@ func (m *MockPublisher) EXPECT() *MockPublisherMockRecorder {
 	return m.recorder
 }
 
+// ConfigureCallbacks mocks base method.
+func (m *MockPublisher) ConfigureCallbacks(state State) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ConfigureCallbacks", state)
+}
+
+// ConfigureCallbacks indicates an expected call of ConfigureCallbacks.
+func (mr *MockPublisherMockRecorder) ConfigureCallbacks(state interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfigureCallbacks", reflect.TypeOf((*MockPublisher)(nil).ConfigureCallbacks), state)
+}
+
 // Start mocks base method.
 func (m *MockPublisher) Start() error {
 	m.ctrl.T.Helper()
@@ -378,18 +390,18 @@ func (mr *MockPayloadStoreMockRecorder) IsPayloadPresent(ctx, payloadHash interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPayloadPresent", reflect.TypeOf((*MockPayloadStore)(nil).IsPayloadPresent), ctx, payloadHash)
 }
 
-// ReadMany mocks base method.
-func (m *MockPayloadStore) ReadMany(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
+// ReadManyPayloads mocks base method.
+func (m *MockPayloadStore) ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadMany", ctx, consumer)
+	ret := m.ctrl.Call(m, "ReadManyPayloads", ctx, consumer)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// ReadMany indicates an expected call of ReadMany.
-func (mr *MockPayloadStoreMockRecorder) ReadMany(ctx, consumer interface{}) *gomock.Call {
+// ReadManyPayloads indicates an expected call of ReadManyPayloads.
+func (mr *MockPayloadStoreMockRecorder) ReadManyPayloads(ctx, consumer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadMany", reflect.TypeOf((*MockPayloadStore)(nil).ReadMany), ctx, consumer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadManyPayloads", reflect.TypeOf((*MockPayloadStore)(nil).ReadManyPayloads), ctx, consumer)
 }
 
 // ReadPayload mocks base method.

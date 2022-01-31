@@ -59,10 +59,10 @@ type Config struct {
 // DefaultConfig returns the default NetworkEngine configuration.
 func DefaultConfig() Config {
 	return Config{
-		GrpcAddr:   ":5555",
-		EnableTLS:  true,
-		ProtocolV1: v1.DefaultConfig(),
-		ProtocolV2: v2.DefaultConfig(),
+		GrpcAddr:        ":5555",
+		EnableTLS:       true,
+		ProtocolV1:      v1.DefaultConfig(),
+		ProtocolV2:      v2.DefaultConfig(),
 		EnableDiscovery: true,
 	}
 }

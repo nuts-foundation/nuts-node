@@ -413,7 +413,7 @@ func newContext(t *testing.T) *testContext {
 	})
 	instance := NewProtocol(nil, nil, nil, nil).(*protocol)
 	instance.sender = NewMockmessageSender(mockCtrl)
-	instance.txState = dag.NewMockState(mockCtrl)
+	instance.state = dag.NewMockState(mockCtrl)
 	txA := testTX{
 		data: []byte("TX A"),
 		sigt: time.Now().AddDate(0, 0, numberOfBlocks*-1),
@@ -442,7 +442,7 @@ func (ctx testContext) sender() *MockmessageSender {
 }
 
 func (ctx testContext) state() *dag.MockState {
-	return ctx.instance.txState.(*dag.MockState)
+	return ctx.instance.state.(*dag.MockState)
 }
 
 func (ctx testContext) assertNoNewOmnihashes() {

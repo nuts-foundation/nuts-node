@@ -39,9 +39,6 @@ const (
 	boltDBFileMode = 0600
 )
 
-// defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
-var defaultBBoltOptions = bbolt.DefaultOptions
-
 // State has references to the DAG and the payload store.
 type state struct {
 	db           *bbolt.DB
@@ -60,9 +57,8 @@ func NewState(dataDir string, verifiers ...Verifier) (State, error) {
 		return nil, fmt.Errorf("unable to create BBolt database: %w", err)
 	}
 
-	// for tests we set NoSync to true, this option can only be set through code
 	var bboltErr error
-	db, bboltErr := bbolt.Open(dbFile, boltDBFileMode, defaultBBoltOptions)
+	db, bboltErr := bbolt.Open(dbFile, boltDBFileMode, bbolt.DefaultOptions)
 	if bboltErr != nil {
 		return nil, fmt.Errorf("unable to create BBolt database: %w", bboltErr)
 	}
@@ -77,18 +73,8 @@ func NewState(dataDir string, verifiers ...Verifier) (State, error) {
 		txVerifiers:  verifiers,
 	}
 
-	publisher := NewReplayingDAGPublisher(payloadStore, graph).(*replayingDAGPublisher)
-	newState.RegisterObserver(func(ctx context.Context, transaction Transaction, payload []byte) {
-		publisher.publishMux.Lock()
-		defer publisher.publishMux.Unlock()
-
-		if transaction != nil {
-			publisher.transactionAdded(ctx, transaction, payload)
-		}
-		if payload != nil {
-			publisher.payloadWritten(ctx, transaction, payload)
-		}
-	})
+	publisher := NewReplayingDAGPublisher(payloadStore, graph)
+	publisher.ConfigureCallbacks(newState)
 	newState.publisher = publisher
 
 	return newState, nil
@@ -113,7 +99,6 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			return err
 		}
 
-		// notify observers
 		notifyObservers(contextWithTX, s.observers, transaction, payload)
 		return nil
 	})
@@ -162,8 +147,8 @@ func (s *state) PayloadHashes(ctx context.Context, visitor func(payloadHash hash
 	return s.graph.PayloadHashes(ctx, visitor)
 }
 
-func (s *state) ReadMany(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
-	return s.payloadStore.ReadMany(ctx, consumer)
+func (s *state) ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
+	return s.payloadStore.ReadManyPayloads(ctx, consumer)
 }
 
 func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) ([]byte, error) {

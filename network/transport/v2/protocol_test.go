@@ -55,7 +55,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 
 	docResolver := vdr.NewMockDocResolver(ctrl)
 	decrypter := crypto.NewMockDecrypter(ctrl)
-	txState := dag.NewMockState(ctrl)
+	state := dag.NewMockState(ctrl)
 	payloadScheduler := NewMockScheduler(ctrl)
 	nodeDIDResolver := transport.FixedNodeDIDResolver{}
 
@@ -63,11 +63,11 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 		nodeDIDResolver.NodeDID = *nodeDID
 	}
 
-	proto := New(Config{Datadir: dirname}, nodeDIDResolver, txState, docResolver, decrypter)
+	proto := New(Config{Datadir: dirname}, nodeDIDResolver, state, docResolver, decrypter)
 	proto.(*protocol).payloadScheduler = payloadScheduler
 
 	return proto.(*protocol), protocolMocks{
-		ctrl, txState, payloadScheduler, docResolver, decrypter,
+		ctrl, state, payloadScheduler, docResolver, decrypter,
 	}
 }
 
