@@ -33,7 +33,7 @@ func Cmd() *cobra.Command {
 		Short: "didman commands",
 	}
 	serviceCmds := &cobra.Command{
-		Use: "svc",
+		Use:   "svc",
 		Short: "service commands",
 	}
 	serviceCmds.AddCommand(addService())
@@ -46,9 +46,9 @@ func addService() *cobra.Command {
 	return &cobra.Command{
 		Use:   "add [DID] [type] [endpoint]",
 		Short: "Adds a service to a DID document.",
-		Long:  "Adds a service of the specified type to DID document identified by the given DID. " +
+		Long: "Adds a service of the specified type to DID document identified by the given DID. " +
 			"The given service endpoint can either be a string a compound service map in JSON format.",
-		Args:  cobra.ExactArgs(3),
+		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := httpClient(core.NewClientConfig(cmd.Flags()))
 
