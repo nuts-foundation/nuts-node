@@ -41,7 +41,7 @@ type Stream interface {
 	ClientOpts() []nats.SubOpt
 	// Subscribe to a stream on the NATS server
 	// The consumerName is used as the durable config name.
-	// The subjectFilter can be used to filter messages on the stream (eg: TRANSACTIONS.* or DATA.VerifiableCredential)
+	// The subjectFilter can be used to filter messages on the stream (eg: TRANSACTIONS.* or DATA.VerificableCredential)
 	Subscribe(conn Conn, consumerName string, subjectFilter string, handler nats.MsgHandler) error
 }
 
@@ -104,7 +104,23 @@ func (stream *stream) Subscribe(conn Conn, consumerName string, subjectFilter st
 	return nil
 }
 
-// NewStream configures a stream without any default settings
+// NewDisposableStream configures a stream with memory storage, discard old policy and a message limit retention policy
+func NewDisposableStream(name string, subjects []string, maxMessages int64) Stream {
+	return newStream(&nats.StreamConfig{
+		Name:      name,
+		Subjects:  subjects,
+		MaxMsgs:   maxMessages,
+		Retention: nats.LimitsPolicy,
+		Storage:   nats.MemoryStorage,
+		Discard:   nats.DiscardOld,
+	}, []nats.SubOpt{
+		nats.AckNone(),
+		nats.DeliverNew(),
+		nats.ReplayInstant(),
+	})
+}
+
+// newStream configures a stream without any default settings
 func newStream(config *nats.StreamConfig, clientOpts []nats.SubOpt) Stream {
 	return &stream{
 		config:     config,

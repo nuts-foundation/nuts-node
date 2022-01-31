@@ -31,7 +31,7 @@ import (
 func TestStream_Subscribe(t *testing.T) {
 	t.Run("subscribe works and stream is created only once", func(t *testing.T) {
 
-		disposableStream := newDisposableStream("example", []string{}, 100)
+		disposableStream := NewDisposableStream("example", []string{}, 100)
 
 		mockStreamInfo := &nats.StreamInfo{}
 		ctrl := gomock.NewController(t)
@@ -57,7 +57,7 @@ func TestStream_Subscribe(t *testing.T) {
 	})
 
 	t.Run("stream is not created when it exists", func(t *testing.T) {
-		disposableStream := newDisposableStream("example", []string{}, 100)
+		disposableStream := NewDisposableStream("example", []string{}, 100)
 
 		mockStreamInfo := &nats.StreamInfo{}
 		ctrl := gomock.NewController(t)
@@ -74,7 +74,7 @@ func TestStream_Subscribe(t *testing.T) {
 	})
 
 	t.Run("error is returned when add-stream fails", func(t *testing.T) {
-		disposableStream := newDisposableStream("example", []string{}, 100)
+		disposableStream := NewDisposableStream("example", []string{}, 100)
 
 		ctrl := gomock.NewController(t)
 
@@ -90,14 +90,14 @@ func TestStream_Subscribe(t *testing.T) {
 	})
 
 	t.Run("error is returned when chan-subscribe fails", func(t *testing.T) {
-		disposableStream := newDisposableStream("example", []string{}, 100)
+		disposableStream := NewDisposableStream("example", []string{}, 100)
 
 		mockStreamInfo := &nats.StreamInfo{}
 		ctrl := gomock.NewController(t)
 
 		js := NewMockJetStreamContext(ctrl)
 		js.EXPECT().StreamInfo("example").Return(mockStreamInfo, nil)
-		js.EXPECT().Subscribe("subject", gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("random error"))
+		js.EXPECT().Subscribe("subject", gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("random error"))
 
 		conn := NewMockConn(ctrl)
 		conn.EXPECT().JetStream().Return(js, nil)
@@ -107,7 +107,7 @@ func TestStream_Subscribe(t *testing.T) {
 	})
 
 	t.Run("error is returned when stream-info fails", func(t *testing.T) {
-		disposableStream := newDisposableStream("example", []string{}, 100)
+		disposableStream := NewDisposableStream("example", []string{}, 100)
 
 		ctrl := gomock.NewController(t)
 
@@ -122,7 +122,7 @@ func TestStream_Subscribe(t *testing.T) {
 	})
 
 	t.Run("error is returned when jetstream fails", func(t *testing.T) {
-		disposableStream := newDisposableStream("example", []string{}, 100)
+		disposableStream := NewDisposableStream("example", []string{}, 100)
 
 		ctrl := gomock.NewController(t)
 
@@ -135,23 +135,7 @@ func TestStream_Subscribe(t *testing.T) {
 }
 
 func TestStream_ClientOpts(t *testing.T) {
-	disposableStream := newDisposableStream("example", []string{}, 100)
+	disposableStream := NewDisposableStream("example", []string{}, 100)
 
 	assert.Len(t, disposableStream.ClientOpts(), 2)
-}
-
-// newDisposableStream configures a stream with memory storage, discard old policy and a message limit retention policy
-func newDisposableStream(name string, subjects []string, maxMessages int64) Stream {
-	return newStream(&nats.StreamConfig{
-		Name:      name,
-		Subjects:  subjects,
-		MaxMsgs:   maxMessages,
-		Retention: nats.LimitsPolicy,
-		Storage:   nats.MemoryStorage,
-		Discard:   nats.DiscardOld,
-	}, []nats.SubOpt{
-		nats.AckNone(),
-		nats.DeliverNew(),
-		nats.ReplayInstant(),
-	})
 }
