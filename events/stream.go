@@ -26,14 +26,23 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+const (
+	// TransactionsStream is the stream name on which transactions are stored
+	TransactionsStream = "TRANSACTIONS"
+	// DataStream is the stream name on which the dat/payload is stored (VCs/DIDDocuments)
+	DataStream = "DATA"
+)
+
 // Stream contains configuration for a NATS stream both on the server and client side
 type Stream interface {
 	// Config returns the server configuration of the NATS stream
 	Config() *nats.StreamConfig
 	// ClientOpts returns the NATS client subscribe options
 	ClientOpts() []nats.SubOpt
-	// Subscribe subscribes to a channel on the NATS server
-	Subscribe(conn Conn, subject string, handler nats.MsgHandler) error
+	// Subscribe to a stream on the NATS server
+	// The consumerName is used as the durable config name.
+	// The subjectFilter can be used to filter messages on the stream (eg: TRANSACTIONS.* or DATA.VerificableCredential)
+	Subscribe(conn Conn, consumerName string, subjectFilter string, handler nats.MsgHandler) error
 }
 
 type stream struct {
@@ -70,7 +79,7 @@ func (stream *stream) create(ctx JetStreamContext) error {
 	return nil
 }
 
-func (stream *stream) Subscribe(conn Conn, subject string, handler nats.MsgHandler) error {
+func (stream *stream) Subscribe(conn Conn, consumerName string, subjectFilter string, handler nats.MsgHandler) error {
 	ctx, err := conn.JetStream()
 	if err != nil {
 		return err
@@ -80,7 +89,13 @@ func (stream *stream) Subscribe(conn Conn, subject string, handler nats.MsgHandl
 		return err
 	}
 
-	_, err = ctx.Subscribe(subject, handler)
+	_, err = ctx.Subscribe(subjectFilter, handler,
+		nats.Durable(consumerName),
+		nats.BindStream(stream.config.Name),
+		nats.AckExplicit(),
+		nats.DeliverNew(),
+		nats.MaxDeliver(10),
+	)
 	if err != nil {
 		return err
 	}
@@ -90,7 +105,7 @@ func (stream *stream) Subscribe(conn Conn, subject string, handler nats.MsgHandl
 
 // NewDisposableStream configures a stream with memory storage, discard old policy and a message limit retention policy
 func NewDisposableStream(name string, subjects []string, maxMessages int64) Stream {
-	return NewStream(&nats.StreamConfig{
+	return newStream(&nats.StreamConfig{
 		Name:      name,
 		Subjects:  subjects,
 		MaxMsgs:   maxMessages,
@@ -100,11 +115,12 @@ func NewDisposableStream(name string, subjects []string, maxMessages int64) Stre
 	}, []nats.SubOpt{
 		nats.AckNone(),
 		nats.DeliverNew(),
+		nats.ReplayInstant(),
 	})
 }
 
-// NewStream configures a stream without any default settings
-func NewStream(config *nats.StreamConfig, clientOpts []nats.SubOpt) Stream {
+// newStream configures a stream without any default settings
+func newStream(config *nats.StreamConfig, clientOpts []nats.SubOpt) Stream {
 	return &stream{
 		config:     config,
 		clientOpts: clientOpts,

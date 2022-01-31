@@ -33,6 +33,20 @@ func (m *MockEvent) EXPECT() *MockEventMockRecorder {
 	return m.recorder
 }
 
+// GetStream mocks base method.
+func (m *MockEvent) GetStream(streamName string) Stream {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStream", streamName)
+	ret0, _ := ret[0].(Stream)
+	return ret0
+}
+
+// GetStream indicates an expected call of GetStream.
+func (mr *MockEventMockRecorder) GetStream(streamName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStream", reflect.TypeOf((*MockEvent)(nil).GetStream), streamName)
+}
+
 // Pool mocks base method.
 func (m *MockEvent) Pool() ConnectionPool {
 	m.ctrl.T.Helper()
