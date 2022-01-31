@@ -27,21 +27,19 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/didman"
-
-	vc2 "github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	vc2 "github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/didman"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 const errInvalidIssuerFmt = "invalid jwt.issuer: %w"

@@ -27,33 +27,30 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/didman"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-
 	"net/url"
-
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
-
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/stretchr/testify/assert"
 
-	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/stretchr/testify/assert"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var requesterSigningKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -505,7 +502,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, "unknown")
 		signToken(tokenCtx)
-		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(vcr.ErrRevoked)
+		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(vcrTypes.ErrRevoked)
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 

@@ -21,6 +21,7 @@ package v1
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"net/http"
 	"testing"
 	"time"
@@ -55,7 +56,7 @@ func Test_ErrorStatusCodes(t *testing.T) {
 	assert.NotNil(t, (&Wrapper{}).ResolveStatusCode(nil))
 }
 
-func TestWrapper_CreateDID(t *testing.T) {
+func TestWrapper_Create(t *testing.T) {
 	issuer := vdr.TestDIDA.URI()
 
 	v := vc.VerifiableCredential{
@@ -161,11 +162,11 @@ func TestWrapper_Resolve(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(nil, vcr.ErrNotFound)
+		ctx.vcr.EXPECT().Resolve(*id, nil).Return(nil, types.ErrNotFound)
 
 		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{})
 
-		assert.ErrorIs(t, err, vcr.ErrNotFound)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
@@ -183,7 +184,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, vcr.ErrRevoked)
+		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, types.ErrRevoked)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
@@ -202,7 +203,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, vcr.ErrUntrusted)
+		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, types.ErrUntrusted)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
@@ -324,11 +325,11 @@ func TestWrapper_Revoke(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, vcr.ErrRevoked)
+		ctx.vcr.EXPECT().Revoke(gomock.Any()).Return(nil, types.ErrRevoked)
 
 		err := ctx.client.Revoke(ctx.echo, "test")
 
-		assert.ErrorIs(t, err, vcr.ErrRevoked)
+		assert.ErrorIs(t, err, types.ErrRevoked)
 		assert.Equal(t, http.StatusConflict, ctx.client.ResolveStatusCode(err))
 	})
 }

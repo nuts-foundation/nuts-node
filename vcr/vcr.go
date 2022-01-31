@@ -21,6 +21,7 @@ package vcr
 
 import (
 	"context"
+	"embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -43,11 +44,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -56,13 +58,16 @@ const (
 	maxSkew = 5 * time.Second
 )
 
+//go:embed assets/*
+var defaultTemplates embed.FS
+
 var timeFunc = time.Now
 
 // noSync is used to disable bbolt syncing on go-leia during tests
 var noSync bool
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) types.VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -89,10 +94,15 @@ type vcr struct {
 	ambassador      Ambassador
 	network         network.Transactions
 	trustConfig     *trust.Config
+	issuer          issuer.Issuer
 }
 
 func (c *vcr) Registry() concept.Reader {
 	return c.registry
+}
+
+func (c vcr) Issuer() issuer.Issuer {
+	return c.issuer
 }
 
 func (c *vcr) Configure(config core.ServerConfig) error {
@@ -102,7 +112,14 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.config.strictMode = config.Strictmode
 	c.config.datadir = config.Datadir
 
-	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
+	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
+	issuerStore, err := issuer.NewLeiaStore(issuerStorePath)
+	if err != nil {
+		return err
+	}
+
+	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
+	c.issuer = issuer.NewIssuer(issuerStore, publisher, c.docResolver, c.keyStore)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {
@@ -110,6 +127,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	}
 
 	// load trusted issuers
+	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 	c.trustConfig = trust.NewConfig(tcPath)
 
 	return c.trustConfig.Load()
@@ -277,8 +295,6 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	if len(template.Type) != 1 {
 		return nil, errors.New("can only issue credential with 1 type")
 	}
-	validator, builder := credential.FindValidatorAndBuilder(template)
-
 	templateType := template.Type[0]
 	templateTypeString := templateType.String()
 	conceptConfig := c.registry.FindByType(templateTypeString)
@@ -294,118 +310,31 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 		c.registry.Add(*conceptConfig)
 	}
 
-	verifiableCredential := vc.VerifiableCredential{
-		Type:              template.Type,
-		CredentialSubject: template.CredentialSubject,
-		Issuer:            template.Issuer,
-		ExpirationDate:    template.ExpirationDate,
+	template.Context = append(template.Context, *credential.NutsContextURI)
+	verifiableCredential, err := c.issuer.Issue(template, true, c.config.OverrideIssueAllPublic || conceptConfig.Public)
+
+	if err != nil {
+		return nil, err
 	}
 
 	// find issuer
-	issuer, err := did.ParseDID(verifiableCredential.Issuer.String())
+	issuerDID, err := did.ParseDID(verifiableCredential.Issuer.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
-	document, meta, err := c.docResolver.Resolve(*issuer, nil)
-	if err != nil {
-		return nil, err
-	}
 
-	// resolve an assertionMethod key for issuer
-	kid, err := doc.ExtractAssertionKeyID(*document)
-	if err != nil {
-		return nil, fmt.Errorf("invalid issuer: %w", err)
-	}
-
-	key, err := c.keyStore.Resolve(kid.String())
-	if err != nil {
-		return nil, fmt.Errorf("could not resolve kid: %w", err)
-	}
-
-	// set defaults
-	builder.Fill(&verifiableCredential)
-
-	// sign
-	if err := c.generateProof(&verifiableCredential, kid, key); err != nil {
-		return nil, fmt.Errorf("failed to generate credential proof: %w", err)
-	}
-
-	// do same validation as network nodes
-	if err := validator.Validate(verifiableCredential); err != nil {
-		return nil, err
-	}
-
-	// create participants list
-	participants, err := c.generateParticipants(*conceptConfig, verifiableCredential)
-	if err != nil {
-		return nil, err
-	}
-
-	payload, _ := json.Marshal(verifiableCredential)
-	tx := network.TransactionTemplate(vcDocumentType, payload, key).
-		WithTimestamp(verifiableCredential.IssuanceDate).
-		WithAdditionalPrevs(meta.SourceTransactions).
-		WithPrivate(participants)
-	_, err = c.network.CreateTransaction(tx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to publish credential: %w", err)
-	}
-	log.Logger().Infof("Verifiable Credential published (id=%s,type=%s)", verifiableCredential.ID, templateType)
-
-	if !c.trustConfig.IsTrusted(templateType, issuer.URI()) {
-		log.Logger().Debugf("Issuer not yet trusted, adding trust (did=%s,type=%s)", *issuer, templateType)
-		if err := c.Trust(templateType, issuer.URI()); err != nil {
-			return &verifiableCredential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuer, templateType, err)
+	if !c.trustConfig.IsTrusted(templateType, issuerDID.URI()) {
+		log.Logger().WithFields(map[string]interface{}{"did": issuerDID.String(), "credential.Type": templateType}).
+			Debugf("Issuer not yet trusted, adding trust for DID.")
+		if err := c.Trust(templateType, issuerDID.URI()); err != nil {
+			return verifiableCredential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuerDID, templateType, err)
 		}
 	} else {
-		log.Logger().Debugf("Issuer already trusted (did=%s,type=%s)", *issuer, templateType)
+		log.Logger().WithFields(map[string]interface{}{"did": issuerDID.String(), "credential.Type": templateType}).
+			Debugf("Issuer already trusted.")
 	}
 
-	return &verifiableCredential, nil
-}
-
-func (c *vcr) generateParticipants(conceptConfig concept.Config, verifiableCredential vc.VerifiableCredential) ([]did.DID, error) {
-	issuer, _ := did.ParseDID(verifiableCredential.Issuer.String())
-	participants := make([]did.DID, 0)
-	if !c.config.OverrideIssueAllPublic && !conceptConfig.Public {
-		var (
-			base                []credential.BaseCredentialSubject
-			credentialSubjectID *did.DID
-		)
-		err := verifiableCredential.UnmarshalCredentialSubject(&base)
-		if err == nil {
-			credentialSubjectID, err = did.ParseDID(base[0].ID) // earlier validation made sure length == 1 and ID is present
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to determine credentialSubject.ID: %w", err)
-		}
-
-		// participants are not the issuer and the credentialSubject.id but the DID that holds the concrete endpoint for the NutsComm service
-		for _, vcp := range []did.DID{*issuer, *credentialSubjectID} {
-			serviceOwner, err := c.resolveNutsCommServiceOwner(vcp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to resolve participating node (did=%s): %w", vcp.String(), err)
-			}
-
-			participants = append(participants, *serviceOwner)
-		}
-	}
-	return participants, nil
-}
-
-func (c *vcr) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, error) {
-	serviceUser, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=%s", DID.String(), transport.NutsCommServiceType))
-
-	service, err := c.serviceResolver.Resolve(*serviceUser, 5)
-	if err != nil {
-		return nil, fmt.Errorf("could not resolve NutsComm service owner: %w", err)
-	}
-	serviceID := service.ID
-	serviceID.Fragment = ""
-	serviceID.Path = ""
-
-	// impossible that this will return an error, so we won't wrap it within a different message
-	return did.ParseDID(serviceID.String())
+	return verifiableCredential, nil
 }
 
 func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
@@ -417,10 +346,10 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 	// we don't have to check the signature, it's coming from our own store.
 	if err = c.Validate(credential, false, false, resolveTime); err != nil {
 		switch err {
-		case ErrRevoked:
-			return &credential, ErrRevoked
-		case ErrUntrusted:
-			return &credential, ErrUntrusted
+		case types.ErrRevoked:
+			return &credential, types.ErrRevoked
+		case types.ErrUntrusted:
+			return &credential, types.ErrUntrusted
 		default:
 			return nil, err
 		}
@@ -429,9 +358,13 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 }
 
 func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
+	if credential.ID == nil {
+		return errors.New("verifying a credential requires it to have a valid ID")
+	}
+
 	revoked, err := c.isRevoked(*credential.ID)
 	if revoked {
-		return ErrRevoked
+		return types.ErrRevoked
 	}
 	if err != nil {
 		return err
@@ -440,7 +373,7 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 	if !allowUntrusted {
 		trusted := c.isTrusted(credential)
 		if !trusted {
-			return ErrUntrusted
+			return types.ErrUntrusted
 		}
 	}
 
@@ -462,11 +395,11 @@ func (c *vcr) validate(credential vc.VerifiableCredential, validAt *time.Time) e
 	}
 
 	if credential.IssuanceDate.After(at.Add(maxSkew)) {
-		return ErrInvalidPeriod
+		return types.ErrInvalidPeriod
 	}
 
 	if credential.ExpirationDate != nil && credential.ExpirationDate.Add(maxSkew).Before(at) {
-		return ErrInvalidPeriod
+		return types.ErrInvalidPeriod
 	}
 
 	if _, _, err = c.docResolver.Resolve(*issuer, &vdr.ResolveMetadata{ResolveTime: &at}); err != nil {
@@ -509,7 +442,7 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 		}
 	}
 
-	return credential, ErrNotFound
+	return credential, types.ErrNotFound
 }
 
 func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
@@ -586,7 +519,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 		return nil, err
 	}
 	if conflict {
-		return nil, ErrRevoked
+		return nil, types.ErrRevoked
 	}
 
 	// find issuer
@@ -626,7 +559,7 @@ func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
 
 	payload, _ := json.Marshal(r)
 
-	tx := network.TransactionTemplate(revocationDocumentType, payload, key).
+	tx := network.TransactionTemplate(types.RevocationDocumentType, payload, key).
 		WithTimestamp(r.Date).
 		WithAdditionalPrevs(meta.SourceTransactions)
 	_, err = c.network.CreateTransaction(tx)
@@ -666,7 +599,7 @@ func (c *vcr) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
 
 	log.Logger().Warnf("No credential with type %s configured", credentialType.String())
 
-	return nil, ErrInvalidCredential
+	return nil, types.ErrInvalidCredential
 }
 
 func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
@@ -700,7 +633,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 		if errors.Is(err, leia.ErrNoIndex) {
 			log.Logger().Warnf("No index with field 'issuer' found for %s", credentialType.String())
 
-			return nil, ErrInvalidCredential
+			return nil, types.ErrInvalidCredential
 		}
 		return nil, err
 	}
@@ -725,7 +658,7 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 	}
 
 	if len(vcs) == 0 {
-		return nil, ErrNotFound
+		return nil, types.ErrNotFound
 	}
 
 	// multiple valids, use first one

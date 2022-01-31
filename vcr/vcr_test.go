@@ -32,29 +32,29 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/network/dag"
-
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/stretchr/testify/mock"
-
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"gopkg.in/yaml.v2"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v2"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vcr/trust"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v2"
 
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/trust"
+	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 func TestVCR_Configure(t *testing.T) {
@@ -254,7 +254,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &time.Time{})
-		assert.Equal(t, ErrInvalidPeriod, err)
+		assert.Equal(t, vcrTypes.ErrInvalidPeriod, err)
 	})
 
 	t.Run("error - no longer valid", func(t *testing.T) {
@@ -265,7 +265,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &nextYear)
-		assert.Equal(t, ErrInvalidPeriod, err)
+		assert.Equal(t, vcrTypes.ErrInvalidPeriod, err)
 	})
 
 	t.Run("ok - revoked", func(t *testing.T) {
@@ -276,7 +276,7 @@ func TestVCR_Resolve(t *testing.T) {
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, nil)
 
-		assert.Equal(t, err, ErrRevoked)
+		assert.Equal(t, err, vcrTypes.ErrRevoked)
 		assert.Equal(t, testVC, *vc)
 	})
 
@@ -286,7 +286,7 @@ func TestVCR_Resolve(t *testing.T) {
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, nil)
 
-		assert.Equal(t, err, ErrUntrusted)
+		assert.Equal(t, err, vcrTypes.ErrUntrusted)
 		assert.Equal(t, testVC, *vc)
 	})
 
@@ -294,7 +294,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx := testInstance(t)
 		_, err := ctx.vcr.Resolve(ssi.URI{}, nil)
 
-		assert.Equal(t, ErrNotFound, err)
+		assert.Equal(t, vcrTypes.ErrNotFound, err)
 	})
 
 	t.Run("error - DID not found", func(t *testing.T) {
@@ -341,12 +341,12 @@ func TestVcr_Issue(t *testing.T) {
 		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
 		testKey := crypto.NewTestKey("kid")
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(testKey, nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(testKey, nil).AnyTimes()
 		ctx.tx.EXPECT().CreateTransaction(
 			mock.MatchedBy(func(tpl network.Template) bool {
-				return tpl.Type == vcDocumentType && !tpl.AttachKey && tpl.Key == testKey
+				return tpl.Type == vcrTypes.VcDocumentType && !tpl.AttachKey && tpl.Key == testKey
 			}),
 		)
 
@@ -381,12 +381,12 @@ func TestVcr_Issue(t *testing.T) {
 		cred.Type = []ssi.URI{*uri}
 		//expectedURIA, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
 		//expectedURIB, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDB.String()))
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(&document, &documentMetadata, nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
 		//serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
 		//service := did.Service{ID: *serviceID}
 		//ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(service, nil)
 		//ctx.serviceResolver.EXPECT().Resolve(*expectedURIB, 5).Return(service, nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil).AnyTimes()
 
 		var tpl network.Template
 		ctx.tx.EXPECT().CreateTransaction(gomock.Any()).DoAndReturn(func(arg network.Template) (dag.Transaction, error) {
@@ -410,8 +410,8 @@ func TestVcr_Issue(t *testing.T) {
 		cred := validNutsOrganizationCredential()
 		uri, _ := ssi.ParseURI("unknownType")
 		cred.Type = []ssi.URI{*uri}
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(&document, &documentMetadata, nil)
-		ctx.serviceResolver.EXPECT().Resolve(gomock.Any(), 5).Return(did.Service{}, errors.New("b00m!"))
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
+		//ctx.serviceResolver.EXPECT().Resolve(gomock.Any(), 5).Return(did.Service{}, errors.New("b00m!"))
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
 
 		_, err := instance.Issue(*cred)
@@ -419,7 +419,7 @@ func TestVcr_Issue(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.EqualError(t, err, "failed to resolve participating node (did=did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW): could not resolve NutsComm service owner: b00m!")
+		assert.EqualError(t, err, "unable to publish the issued credential: failed to resolve participating node (did=did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW): could not resolve NutsComm service owner: service not found in DID Document")
 	})
 
 	t.Run("error - unknown type in strict mode", func(t *testing.T) {
@@ -493,8 +493,8 @@ func TestVcr_Issue(t *testing.T) {
 
 		cred := validNutsOrganizationCredential()
 		cred.CredentialSubject = make([]interface{}, 0)
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(&document, &documentMetadata, nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil).AnyTimes()
 
 		_, err := instance.Issue(*cred)
 
@@ -521,8 +521,9 @@ func TestVcr_Issue(t *testing.T) {
 		key := crypto.NewTestKey("kid")
 
 		cred := validNutsOrganizationCredential()
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(&document, &documentMetadata, nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil)
+
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil).AnyTimes()
 		ctx.tx.EXPECT().CreateTransaction(gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		_, err := instance.Issue(*cred)
@@ -539,8 +540,9 @@ func TestVcr_Issue(t *testing.T) {
 		cred.CredentialStatus = &vc.CredentialStatus{
 			Type: "test",
 		}
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, gomock.Any()).Return(&document, &documentMetadata, nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
+
+		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
+		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil).AnyTimes()
 		ctx.tx.EXPECT().CreateTransaction(gomock.Any()).Return(nil, nil)
 
 		issued, err := instance.Issue(*cred)
@@ -618,6 +620,15 @@ func TestVcr_Validate(t *testing.T) {
 		err := instance.Validate(subject, true, false, nil)
 
 		assert.NoError(t, err)
+	})
+
+	t.Run("err - vc without id", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.vcr
+		subject := vc.VerifiableCredential{}
+
+		err := instance.Validate(subject, true, false, nil)
+		assert.EqualError(t, err, "verifying a credential requires it to have a valid ID")
 	})
 
 	t.Run("err - with clock 10 seconds off", func(t *testing.T) {
@@ -865,7 +876,7 @@ func TestVcr_Revoke(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(&document, &documentMetadata, nil)
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil)
 		ctx.tx.EXPECT().CreateTransaction(mock.MatchedBy(func(spec network.Template) bool {
-			return spec.Type == revocationDocumentType && !spec.AttachKey
+			return spec.Type == vcrTypes.RevocationDocumentType && !spec.AttachKey
 		}))
 		r, err := ctx.vcr.Revoke(*vc.ID)
 
@@ -886,7 +897,7 @@ func TestVcr_Revoke(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, ErrNotFound, err)
+		assert.Equal(t, vcrTypes.ErrNotFound, err)
 	})
 
 	t.Run("error - already revoked", func(t *testing.T) {
@@ -905,7 +916,7 @@ func TestVcr_Revoke(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, ErrRevoked, err)
+		assert.Equal(t, vcrTypes.ErrRevoked, err)
 	})
 
 	t.Run("error - key resolve returns error", func(t *testing.T) {
@@ -985,7 +996,7 @@ func TestVcr_Find(t *testing.T) {
 		_, err := ctx.vcr.Get(concept.ExampleConcept, false, "unknown")
 
 		assert.Error(t, err)
-		assert.Equal(t, err, ErrNotFound)
+		assert.Equal(t, err, vcrTypes.ErrNotFound)
 	})
 }
 
@@ -1084,7 +1095,7 @@ func TestVcr_Untrusted(t *testing.T) {
 					return
 				}
 
-				assert.Equal(t, ErrInvalidCredential, err)
+				assert.Equal(t, vcrTypes.ErrInvalidCredential, err)
 			})
 		})
 	}
@@ -1242,33 +1253,6 @@ func TestWhitespaceOrExactTokenizer(t *testing.T) {
 }
 
 func TestResolveNutsCommServiceOwner(t *testing.T) {
-	serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
-	expectedURIA, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
-	service := did.Service{ID: *serviceID}
-
-	t.Run("ok - correct did from service ID", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(service, nil)
-
-		serviceOwner, err := ctx.vcr.resolveNutsCommServiceOwner(*vdr.TestDIDA)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, vdr.TestDIDA, serviceOwner)
-	})
-
-	t.Run("error from resolver", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(did.Service{}, errors.New("b00m!"))
-
-		_, err := ctx.vcr.resolveNutsCommServiceOwner(*vdr.TestDIDA)
-
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.EqualError(t, err, "could not resolve NutsComm service owner: b00m!")
-	})
 }
 
 func validNutsOrganizationCredential() *vc.VerifiableCredential {

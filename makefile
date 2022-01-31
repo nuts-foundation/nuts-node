@@ -32,7 +32,8 @@ gen-mocks:
 	mockgen -destination=network/transport/v2/protocol_grpc_mock.pb.go -package=v2 -source=network/transport/v2/protocol_grpc.pb.go
 	mockgen -destination=network/transport/v2/scheduler_mock.go -package=v2 -source=network/transport/v2/scheduler.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go DAG PayloadStore
-	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
+	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/types/interface.go
+	mockgen -destination=vcr/issuer/mock.go -package=issuer -source=vcr/issuer/interface.go
 	mockgen -destination=vcr/concept/mock.go -package=concept -source=vcr/concept/registry.go Registry
 	mockgen -destination=auth/mock.go -package=auth -source=auth/interface.go
 	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go
@@ -47,6 +48,7 @@ gen-api:
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas DIDDocument,DIDDocumentMetadata,Service,VerificationMethod docs/_static/vdr/v1.yaml | gofmt > vdr/api/v1/generated.go
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 -exclude-schemas PeerDiagnostics docs/_static/network/v1.yaml | gofmt > network/api/v1/generated.go
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential,CredentialSubject,IssueVCRequest,Revocation docs/_static/vcr/v1.yaml | gofmt > vcr/api/v1/generated.go
+	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v2 -exclude-schemas VerifiableCredential,CredentialSubject,Revocation docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential docs/_static/auth/v1.yaml | gofmt > auth/api/v1/generated.go
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 -exclude-schemas ContactInformation,OrganizationSearchResult docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 

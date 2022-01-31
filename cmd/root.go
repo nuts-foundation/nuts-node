@@ -20,12 +20,15 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
-	"io"
-	"os"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.uber.org/atomic"
+	"io"
+	"net/http"
+	"os"
 
 	"github.com/nuts-foundation/nuts-node/auth"
 	authIrmaAPI "github.com/nuts-foundation/nuts-node/auth/api/irma"
@@ -44,7 +47,8 @@ import (
 	networkAPI "github.com/nuts-foundation/nuts-node/network/api/v1"
 	networkCmd "github.com/nuts-foundation/nuts-node/network/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	credAPI "github.com/nuts-foundation/nuts-node/vcr/api/v1"
+	credAPIv1 "github.com/nuts-foundation/nuts-node/vcr/api/v1"
+	credAPIv2 "github.com/nuts-foundation/nuts-node/vcr/api/v2"
 	vcrCmd "github.com/nuts-foundation/nuts-node/vcr/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
@@ -91,7 +95,7 @@ func createServerCommand(system *core.System) *cobra.Command {
 			if err := system.Load(cmd); err != nil {
 				return err
 			}
-			if err := startServer(system); err != nil {
+			if err := startServer(cmd.Context(), system); err != nil {
 				return err
 			}
 			return nil
@@ -101,7 +105,7 @@ func createServerCommand(system *core.System) *cobra.Command {
 	return cmd
 }
 
-func startServer(system *core.System) error {
+func startServer(ctx context.Context, system *core.System) error {
 	logrus.Info("Starting server")
 	logrus.Info(fmt.Sprintf("Build info: \n%s", core.BuildInfo()))
 	logrus.Info(fmt.Sprintf("Config: \n%s", system.Config.PrintConfig()))
@@ -135,15 +139,30 @@ func startServer(system *core.System) error {
 		r.Routes(echoServer)
 	}
 
-	defer func() {
-		if err := system.Shutdown(); err != nil {
-			logrus.Error("Error shutting down system:", err)
+	serverCtx, cancel := context.WithCancel(ctx)
+
+	// Start Echo server, cancels the server context when it exits/errors, so the shutdown sequence will run.
+	var serverError atomic.Error
+	go func() {
+		if err := echoServer.Start(); err != nil {
+			if !errors.Is(err, http.ErrServerClosed) {
+				serverError.Store(err)
+			}
 		}
+		cancel()
 	}()
-	if err := echoServer.Start(); err != nil {
-		return err
+
+	// Wait until instructed to shut down when instructed through context cancellation (e.g. SIGINT signal or Echo server error/exit)
+	<-serverCtx.Done()
+	logrus.Info("Shutting down...")
+	echoServer.Shutdown()
+	if err := system.Shutdown(); err != nil {
+		logrus.Errorf("Error shutting down system: %v", err)
+	} else {
+		logrus.Info("Shutdown complete. Goodbye!")
 	}
-	return nil
+
+	return serverError.Load()
 }
 
 // CreateCommand creates the command with all subcommands to run the system.
@@ -185,7 +204,8 @@ func CreateSystem() *core.System {
 		Updater:    vdrInstance,
 		Resolver:   docResolver,
 	}})
-	system.RegisterRoutes(&credAPI.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
+	system.RegisterRoutes(&credAPIv1.Wrapper{CR: credentialInstance.Registry(), R: credentialInstance})
+	system.RegisterRoutes(&credAPIv2.Wrapper{VCR: credentialInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance})
@@ -208,12 +228,12 @@ func CreateSystem() *core.System {
 }
 
 // Execute registers all engines into the system and executes the root command.
-func Execute(system *core.System) {
+func Execute(ctx context.Context, system *core.System) error {
 	command := CreateCommand(system)
 	command.SetOut(stdOutWriter)
 
 	// blocking main call
-	command.Execute()
+	return command.ExecuteContext(ctx)
 }
 
 func addSubCommands(system *core.System, root *cobra.Command) {

@@ -20,9 +20,21 @@
 package main
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/cmd"
+	"github.com/sirupsen/logrus"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-	cmd.Execute(cmd.CreateSystem())
+	// Listen for interrupt signals (CTRL/CMD+C, OS instructing the process to stop) to cancel context.
+	ctx := context.Background()
+	ctx, _ = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+
+	err := cmd.Execute(ctx, cmd.CreateSystem())
+	if err != nil {
+		logrus.Errorf("Server error: %v", err)
+	}
 }

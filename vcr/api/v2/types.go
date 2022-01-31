@@ -1,4 +1,5 @@
 /*
+ * Nuts node
  * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,26 +17,18 @@
  *
  */
 
-package http
+package v2
 
 import (
-	"context"
-	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
-type StubEchoServer struct {
-	BoundAddress string
-}
+// VerifiableCredential is an alias to use from within the API
+type VerifiableCredential = vc.VerifiableCredential
 
-func (s StubEchoServer) Shutdown(ctx context.Context) error {
-	return nil
-}
+// CredentialSubject is an alias to use from within the API
+type CredentialSubject = interface{}
 
-func (s StubEchoServer) Add(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route {
-	return nil
-}
-
-func (s *StubEchoServer) Start(address string) error {
-	s.BoundAddress = address
-	return nil
-}
+// Revocation is an alias to use from within the API
+type Revocation = credential.Revocation

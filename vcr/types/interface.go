@@ -17,12 +17,12 @@
  *
  */
 
-package vcr
+package types
 
 import (
 	"context"
-	"embed"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -30,9 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
-
-//go:embed assets/*
-var defaultTemplates embed.FS
 
 // ErrInvalidIssuer is returned when a credential is issued by a DID that is unknown or when the private key is missing.
 var ErrInvalidIssuer = errors.New("invalid credential issuer")
@@ -55,9 +52,11 @@ var ErrInvalidCredential = errors.New("invalid credential")
 // ErrInvalidPeriod is returned when the credential is not valid at the given time.
 var ErrInvalidPeriod = errors.New("credential not valid at given time")
 
-var vcDocumentType = "application/vc+json"
+// VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
+const VcDocumentType = "application/vc+json"
 
-var revocationDocumentType = "application/vc+json;type=revocation"
+// RevocationDocumentType holds the content type used in network documents which contain Revocation messages of credentials
+var RevocationDocumentType = "application/vc+json;type=revocation"
 
 // ConceptFinder can resolve VC backed concepts for a DID.
 type ConceptFinder interface {
@@ -117,6 +116,8 @@ type Resolver interface {
 
 // VCR is the interface that covers all functionality of the vcr store.
 type VCR interface {
+	Issuer() issuer.Issuer
+
 	// Issue creates and publishes a new VC.
 	// An optional expirationDate can be given.
 	// VCs are stored when the network has successfully published them.

@@ -75,6 +75,22 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		assert.Len(t, cm.connections.list, 1)
 	})
 
+	t.Run("ok - with TLS", func(t *testing.T) {
+		p := &TestProtocol{}
+		config := NewConfig("", "test")
+		ts, _ := core.LoadTrustStore("../../test/truststore.pem")
+		config.trustStore = ts.CertPool
+		cm := NewGRPCConnectionManager(config, &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
+
+		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()))
+
+		assert.Len(t, cm.connections.list, 1)
+		connector := cm.connections.list[0].(*conn).connector
+		assert.Equal(t, core.MinTLSVersion, connector.tlsConfig.MinVersion)
+		assert.NotEmpty(t, connector.tlsConfig.Certificates)
+		assert.NotEmpty(t, connector.tlsConfig.RootCAs.Subjects())
+	})
+
 	t.Run("duplicate connection", func(t *testing.T) {
 		p := &TestProtocol{}
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
@@ -266,7 +282,7 @@ func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 			return len(cm.Peers()) == 2, nil
 		}, 5*time.Second, "time-out while waiting for peers to connect")
 
-		assert.Equal(t, "2", cm.Diagnostics()[1].String())                                                // assert number_of_peers
+		assert.Equal(t, "2", cm.Diagnostics()[1].String())                                         // assert number_of_peers
 		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", cm.Diagnostics()[2].String()) // assert peers
 	})
 }
@@ -337,7 +353,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		waiter.Add(1)
 
 		connection, _ := client.connections.getOrRegister(context.Background(), transport.Peer{Address: "server"}, client.dialer)
-		connection.startConnecting(nil, func(grpcConn *grpc.ClientConn) bool {
+		connection.startConnecting("", nil, func(grpcConn *grpc.ClientConn) bool {
 			err := client.openOutboundStreams(connection, grpcConn)
 			capturedError.Store(err)
 			waiter.Done()
@@ -446,6 +462,42 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, stream)
 	})
+
+	t.Run("already connected", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		existingConn := NewMockConnection(ctrl)
+		// due to connectionList.Get(ByPeerID(newConn.peerID)):
+		existingConn.EXPECT().Peer().MinTimes(1).Return(transport.Peer{ID: "remote"})
+		// due to ConnectionManager.Stop():
+		existingConn.EXPECT().disconnect()
+		existingConn.EXPECT().stopConnecting() // due to ConnectionManager.Stop()
+
+		cm := NewGRPCConnectionManager(Config{peerID: "local"}, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		cm.connections.list = append(cm.connections.list, existingConn)
+
+		defer cm.Stop()
+
+		meta, _ := cm.constructMetadata()
+		meta.Set(peerIDHeader, "remote")
+
+		grpcStream := NewMockClientStream(ctrl)
+		grpcStream.EXPECT().Header().Return(meta, nil)
+
+		grpcConn := NewMockConn(ctrl)
+		grpcConn.EXPECT().NewStream(gomock.Any(), gomock.Any(), "/grpc.Test/DoStuff", gomock.Any()).Return(grpcStream, nil)
+
+		newConn := NewMockConnection(ctrl)
+		// New outbound connection's connector should be stopped, peer address copied to existing connection's connector
+		newConn.EXPECT().stopConnecting()
+		newConn.EXPECT().Peer().Return(transport.Peer{ID: "remote", Address: "remote-address"})
+		existingConn.EXPECT().startConnecting("remote-address", gomock.Any(), gomock.Any())
+
+		stream, err := cm.openOutboundStream(newConn, protocol, grpcConn, metadata.MD{})
+
+		assert.ErrorIs(t, err, ErrAlreadyConnected)
+		assert.Nil(t, stream)
+	})
 }
 
 func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
@@ -472,7 +524,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 
 		peerInfo := cm.Peers()[0]
 		assert.Equal(t, transport.PeerID("client-peer-id"), peerInfo.ID)
-		assert.Equal(t,  "127.0.0.1:9522", peerInfo.Address)
+		assert.Equal(t, "127.0.0.1:9522", peerInfo.Address)
 		assert.Equal(t, "did:nuts:client", peerInfo.NodeDID.String())
 
 		// Assert headers sent to client

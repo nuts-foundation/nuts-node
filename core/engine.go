@@ -105,9 +105,9 @@ func (system *System) Start() error {
 	var err error
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
-			conditionalDebugf(engine, "starting %s")
+			conditionalDebugf(engine, "Starting %s")
 			err = m.Start()
-			conditionalInfof(engine, "started %s")
+			conditionalInfof(engine, "Started %s")
 		}
 		return err
 	})
@@ -118,9 +118,9 @@ func (system *System) Shutdown() error {
 	var err error
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
-			conditionalDebugf(engine, "stopping %s")
+			conditionalDebugf(engine, "Stopping %s")
 			err = m.Shutdown()
-			conditionalInfof(engine, "stopped %s")
+			conditionalInfof(engine, "Stopped %s")
 		}
 		return err
 	})

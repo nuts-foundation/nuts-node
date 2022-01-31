@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,26 +16,15 @@
  *
  */
 
-package http
+package proof
 
 import (
-	"context"
-	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
 )
 
-type StubEchoServer struct {
-	BoundAddress string
-}
-
-func (s StubEchoServer) Shutdown(ctx context.Context) error {
-	return nil
-}
-
-func (s StubEchoServer) Add(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route {
-	return nil
-}
-
-func (s *StubEchoServer) Start(address string) error {
-	s.BoundAddress = address
-	return nil
+// Proof is the interface that defines a set of methods which a proof should implement.
+type Proof interface {
+	// Sign defines the basic signing operation on the proof.
+	Sign(document map[string]interface{}, suite signature.Suite, key crypto.Key) (interface{}, error)
 }

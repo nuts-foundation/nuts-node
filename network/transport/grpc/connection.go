@@ -21,7 +21,9 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 
@@ -41,7 +43,7 @@ type Connection interface {
 	// waitUntilDisconnected blocks until the connection is closed. If it already is closed or was never open, it returns immediately.
 	waitUntilDisconnected()
 	// startConnecting instructs the Connection to start connecting to the remote peer (attempting an outbound connection).
-	startConnecting(config *tls.Config, callback func(grpcConn *grpc.ClientConn) bool)
+	startConnecting(address string, config *tls.Config, callback func(grpcConn *grpc.ClientConn) bool)
 	// stopConnecting instructs the Connection to stop connecting to the remote peer.
 	stopConnecting()
 
@@ -205,16 +207,17 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 }
 
 func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
+	peer := mc.Peer() // copy Peer, because it will be nil when logging after disconnecting.
 	go func() {
 		for {
 			message := protocol.CreateEnvelope()
 			err := stream.RecvMsg(message)
 			if err != nil {
 				errStatus, isStatusError := status.FromError(err)
-				if isStatusError && errStatus.Code() == codes.Canceled {
-					log.Logger().Infof("%s: Peer closed connection (peer=%s)", protocol.MethodName(), mc.Peer())
+				if errors.Is(err, io.EOF) || (isStatusError && errStatus.Code() == codes.Canceled) {
+					log.Logger().Infof("%s: Peer closed connection (peer=%s)", protocol.MethodName(), peer)
 				} else {
-					log.Logger().Warnf("%s: Peer connection error (peer=%s): %v", protocol.MethodName(), mc.Peer(), err)
+					log.Logger().Warnf("%s: Peer connection error (peer=%s): %v", protocol.MethodName(), peer, err)
 				}
 				mc.mux.Lock()
 				mc.cancelCtx()
@@ -222,9 +225,9 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 				break
 			}
 
-			err = protocol.Handle(mc.Peer(), message)
+			err = protocol.Handle(peer, message)
 			if err != nil {
-				log.Logger().Warnf("%s: Error handling message %T (peer=%s): %v", protocol.MethodName(), protocol.UnwrapMessage(message), mc.Peer(), err)
+				log.Logger().Warnf("%s: Error handling message %T (peer=%s): %v", protocol.MethodName(), protocol.UnwrapMessage(message), peer, err)
 			}
 		}
 	}()
@@ -258,7 +261,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 	}()
 }
 
-func (mc *conn) startConnecting(tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn) bool) {
+func (mc *conn) startConnecting(address string, tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn) bool) {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
@@ -267,7 +270,7 @@ func (mc *conn) startConnecting(tlsConfig *tls.Config, connectedCallback func(gr
 		return
 	}
 
-	mc.connector = createOutboundConnector(mc.Peer().Address, mc.dialer, tlsConfig, func() bool {
+	mc.connector = createOutboundConnector(address, mc.dialer, tlsConfig, func() bool {
 		return !mc.IsConnected()
 	}, connectedCallback)
 	mc.connector.start()
