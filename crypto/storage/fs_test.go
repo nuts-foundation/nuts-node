@@ -109,7 +109,7 @@ func Test_fs_ListPrivateKeys(t *testing.T) {
 
 	// Store some other cruft that shouldn't return as private key
 	_ = os.WriteFile(path.Join(backend.fspath, string(privateKeyEntry)), []byte{1, 2, 3}, os.ModePerm)
-	_ = os.WriteFile(path.Join(backend.fspath, "_" + string(privateKeyEntry)), []byte{1, 2, 3}, os.ModePerm)
+	_ = os.WriteFile(path.Join(backend.fspath, "_"+string(privateKeyEntry)), []byte{1, 2, 3}, os.ModePerm)
 	_ = os.WriteFile(path.Join(backend.fspath, "foo.txt"), []byte{1, 2, 3}, os.ModePerm)
 	_ = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
 	_ = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_private.bin"), []byte{1, 2, 3}, os.ModePerm)

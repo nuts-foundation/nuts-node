@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/storage"
 	"go.etcd.io/bbolt"
 )
 
@@ -56,22 +57,7 @@ const clockIndexBucket = "clockIndex"
 const clockBucket = "clocks"
 
 type bboltDAG struct {
-	db          *bbolt.DB
-	observers   []Observer
-	txVerifiers []Verifier
-}
-
-func (dag *bboltDAG) Verify(ctx context.Context) error {
-	transactions, err := dag.FindBetween(ctx, MinTime(), MaxTime())
-	if err != nil {
-		return err
-	}
-	for _, tx := range transactions {
-		if err := dag.verifyTX(ctx, tx); err != nil {
-			return err
-		}
-	}
-	return nil
+	db *bbolt.DB
 }
 
 type headsStatistic struct {
@@ -123,9 +109,9 @@ func (d dataSizeStatistic) String() string {
 	return fmt.Sprintf("%d", d.sizeInBytes)
 }
 
-// NewBBoltDAG creates a etcd/bbolt backed DAG using the given database.
-func NewBBoltDAG(db *bbolt.DB, txVerifiers ...Verifier) DAG {
-	return &bboltDAG{db: db, txVerifiers: txVerifiers}
+// newBBoltDAG creates a etcd/bbolt backed DAG using the given database.
+func newBBoltDAG(db *bbolt.DB) *bboltDAG {
+	return &bboltDAG{db: db}
 }
 
 func (dag *bboltDAG) Migrate() error {
@@ -203,10 +189,6 @@ func unique(list []hash.SHA256Hash) []hash.SHA256Hash {
 	return result
 }
 
-func (dag *bboltDAG) RegisterObserver(observer Observer) {
-	dag.observers = append(dag.observers, observer)
-}
-
 func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 	result := make([]core.DiagnosticResult, 0)
 	ctx := context.Background()
@@ -220,7 +202,7 @@ func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 func (dag bboltDAG) Get(ctx context.Context, ref hash.SHA256Hash) (Transaction, error) {
 	var result Transaction
 	var err error
-	err = bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	err = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		result, err = getTransaction(ref, tx)
 		return err
 	})
@@ -229,7 +211,7 @@ func (dag bboltDAG) Get(ctx context.Context, ref hash.SHA256Hash) (Transaction, 
 
 func (dag bboltDAG) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
 	result := make([]Transaction, 0)
-	err := bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	err := storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		transactions := tx.Bucket([]byte(transactionsBucket))
 		payloadIndex := tx.Bucket([]byte(payloadIndexBucket))
 		if transactions == nil || payloadIndex == nil {
@@ -249,7 +231,7 @@ func (dag bboltDAG) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA25
 }
 
 func (dag *bboltDAG) PayloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error {
-	return bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	return storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		payloadIndex := tx.Bucket([]byte(payloadIndexBucket))
 		if payloadIndex == nil {
 			return nil
@@ -267,7 +249,7 @@ func (dag *bboltDAG) PayloadHashes(ctx context.Context, visitor func(payloadHash
 
 func (dag bboltDAG) Heads(ctx context.Context) []hash.SHA256Hash {
 	result := make([]hash.SHA256Hash, 0)
-	_ = bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		heads := tx.Bucket([]byte(headsBucket))
 		if heads == nil {
 			return nil
@@ -294,7 +276,7 @@ func (dag *bboltDAG) FindBetween(ctx context.Context, startInclusive time.Time, 
 
 func (dag bboltDAG) IsPresent(ctx context.Context, ref hash.SHA256Hash) (bool, error) {
 	var result bool
-	err := bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	err := storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		if payloads := tx.Bucket([]byte(transactionsBucket)); payloads != nil {
 			data := payloads.Get(ref.Slice())
 			result = data != nil
@@ -316,7 +298,7 @@ func (dag *bboltDAG) Add(ctx context.Context, transactions ...Transaction) error
 }
 
 func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
-	return bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	return storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		transactions := tx.Bucket([]byte(transactionsBucket))
 		clocksBucket := tx.Bucket([]byte(clockBucket))
 		if transactions == nil {
@@ -359,7 +341,7 @@ func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA2
 
 func (dag bboltDAG) Statistics(ctx context.Context) Statistics {
 	transactionNum := 0
-	_ = bboltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		if bucket := tx.Bucket([]byte(transactionsBucket)); bucket != nil {
 			transactionNum = bucket.Stats().KeyN
 		}
@@ -371,23 +353,10 @@ func (dag bboltDAG) Statistics(ctx context.Context) Statistics {
 	}
 }
 
-func (dag *bboltDAG) verifyTX(ctx context.Context, tx Transaction) error {
-	for _, verifier := range dag.txVerifiers {
-		if err := verifier(ctx, tx, dag); err != nil {
-			return fmt.Errorf("transaction verification failed (tx=%s): %w", tx.Ref(), err)
-		}
-	}
-	return nil
-}
-
 func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
-	if err := dag.verifyTX(ctx, transaction); err != nil {
-		return err
-	}
 	ref := transaction.Ref()
 	refSlice := ref.Slice()
-	txAdded := false
-	err := bboltTXUpdate(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	err := storage.BBoltTXUpdate(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		transactions, lc, _, payloadIndex, heads, err := getBuckets(tx)
 		if err != nil {
 			return err
@@ -424,12 +393,8 @@ func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
 		if err = payloadIndex.Put(transaction.PayloadHash().Slice(), newPayloadIndexValue); err != nil {
 			return fmt.Errorf("unable to update payload index for transaction %s: %w", ref, err)
 		}
-		txAdded = true
 		return nil
 	})
-	if err == nil && txAdded {
-		notifyObservers(ctx, dag.observers, transaction)
-	}
 	return err
 }
 
@@ -571,10 +536,4 @@ func appendHashList(list []byte, h hash.SHA256Hash) []byte {
 	newList = append(newList, list...)
 	newList = append(newList, h.Slice()...)
 	return newList
-}
-
-func notifyObservers(ctx context.Context, observers []Observer, subject interface{}) {
-	for _, observer := range observers {
-		observer(ctx, subject)
-	}
 }

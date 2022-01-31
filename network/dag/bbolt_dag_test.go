@@ -21,7 +21,6 @@ package dag
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/rand"
 	"sort"
 	"strings"
@@ -155,10 +154,6 @@ func TestBBoltDAG_Add(t *testing.T) {
 	t.Run("duplicate", func(t *testing.T) {
 		ctx := context.Background()
 		graph := CreateDAG(t)
-		observerCalls := 0
-		graph.RegisterObserver(func(_ context.Context, _ interface{}) {
-			observerCalls++
-		})
 		tx := CreateTestTransactionWithJWK(0)
 
 		_ = graph.Add(ctx, tx)
@@ -168,8 +163,6 @@ func TestBBoltDAG_Add(t *testing.T) {
 		// Assert we can find the TX, but make sure it's only there once
 		actual, _ := graph.FindBetween(ctx, MinTime(), MaxTime())
 		assert.Len(t, actual, 1)
-		// Assert observers are only called once
-		assert.Equal(t, 1, observerCalls)
 	})
 	t.Run("second root", func(t *testing.T) {
 		ctx := context.Background()
@@ -182,21 +175,6 @@ func TestBBoltDAG_Add(t *testing.T) {
 		assert.EqualError(t, err, "root transaction already exists")
 		actual, _ := graph.FindBetween(ctx, MinTime(), MaxTime())
 		assert.Len(t, actual, 1)
-	})
-	t.Run("error - verifier failed", func(t *testing.T) {
-		ctx := context.Background()
-		graph := CreateDAG(t, func(_ context.Context, _ Transaction, _ DAG) error {
-			return errors.New("failed")
-		})
-		tx := CreateTestTransactionWithJWK(0)
-
-		err := graph.Add(ctx, tx)
-
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "transaction verification failed")
-		present, err := graph.IsPresent(ctx, tx.Ref())
-		assert.NoError(t, err)
-		assert.False(t, present)
 	})
 	t.Run("error - cyclic graph", func(t *testing.T) {
 		t.Skip("Algorithm for detecting cycles is not yet decided on")
@@ -352,7 +330,7 @@ func TestBBoltDAG_Migrate(t *testing.T) {
 	}
 
 	t.Run("ok - already ran", func(t *testing.T) {
-		graph := CreateDAG(t).(*bboltDAG)
+		graph := CreateDAG(t)
 
 		err := graph.Migrate()
 		if !assert.NoError(t, err) {
@@ -361,7 +339,7 @@ func TestBBoltDAG_Migrate(t *testing.T) {
 	})
 
 	t.Run("ok - root is translated", func(t *testing.T) {
-		graph := CreateDAG(t).(*bboltDAG)
+		graph := CreateDAG(t)
 		graph.db.Update(func(tx *bbolt.Tx) error {
 			putRoot(tx, A, []hash.SHA256Hash{})
 			return nil
@@ -382,7 +360,7 @@ func TestBBoltDAG_Migrate(t *testing.T) {
 	})
 
 	t.Run("ok - simple graph is translated", func(t *testing.T) {
-		graph := CreateDAG(t).(*bboltDAG)
+		graph := CreateDAG(t)
 		graph.db.Update(func(tx *bbolt.Tx) error {
 			putRoot(tx, A, []hash.SHA256Hash{B.Ref()})
 			putTransaction(tx, B, []hash.SHA256Hash{})
@@ -403,7 +381,7 @@ func TestBBoltDAG_Migrate(t *testing.T) {
 	})
 
 	t.Run("ok - branch is translated", func(t *testing.T) {
-		graph := CreateDAG(t).(*bboltDAG)
+		graph := CreateDAG(t)
 		graph.db.Update(func(tx *bbolt.Tx) error {
 			putRoot(tx, A, []hash.SHA256Hash{B.Ref(), C.Ref()})
 			putTransaction(tx, B, []hash.SHA256Hash{})
@@ -425,7 +403,7 @@ func TestBBoltDAG_Migrate(t *testing.T) {
 	})
 
 	t.Run("ok - more complicated", func(t *testing.T) {
-		graph := CreateDAG(t).(*bboltDAG)
+		graph := CreateDAG(t)
 		graph.db.Update(func(tx *bbolt.Tx) error {
 			// create correct buckets and add root
 			putRoot(tx, A, []hash.SHA256Hash{B.Ref(), C.Ref(), D.Ref()})
@@ -499,19 +477,6 @@ func TestBBoltDAG_Walk(t *testing.T) {
 		assert.True(t, visitor.transactions[1].Ref().Compare(visitor.transactions[2].Ref()) <= 0)
 		assert.Equal(t, D.Ref().String(), visitor.transactions[3].Ref().String())
 	})
-}
-
-func TestBBoltDAG_Observe(t *testing.T) {
-	ctx := context.Background()
-	graph := CreateDAG(t)
-	var actual interface{}
-	graph.RegisterObserver(func(ctx context.Context, subject interface{}) {
-		actual = subject
-	})
-	expected := CreateTestTransactionWithJWK(1)
-	err := graph.Add(ctx, expected)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
 }
 
 func TestBBoltDAG_GetByPayloadHash(t *testing.T) {
@@ -591,30 +556,6 @@ func TestBBoltDAG_PayloadHashes(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 0, numCalled)
 	})
-}
-
-func TestBBoltDAG_Diagnostics(t *testing.T) {
-	ctx := context.Background()
-	dag := CreateDAG(t).(*bboltDAG)
-	doc1 := CreateTestTransactionWithJWK(2)
-	dag.Add(ctx, doc1)
-	diagnostics := dag.Diagnostics()
-	assert.Len(t, diagnostics, 3)
-	// Assert actual diagnostics
-	lines := make([]string, 0)
-	for _, diagnostic := range diagnostics {
-		lines = append(lines, diagnostic.Name()+": "+diagnostic.String())
-	}
-	sort.Strings(lines)
-
-	dbSize := dag.Statistics(context.Background())
-	assert.NotZero(t, dbSize)
-
-	actual := strings.Join(lines, "\n")
-	expected := fmt.Sprintf(`dag_heads: [`+doc1.Ref().String()+`]
-dag_stored_database_size_bytes: %d
-dag_transaction_count: 1`, dbSize.DataSize)
-	assert.Equal(t, expected, actual)
 }
 
 func Test_parseHashList(t *testing.T) {

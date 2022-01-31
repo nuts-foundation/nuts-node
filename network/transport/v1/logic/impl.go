@@ -20,10 +20,11 @@ package logic
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"sync"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -33,10 +34,9 @@ import (
 
 // protocol is thread-safe when callers use the Protocol interface
 type protocol struct {
-	graph        dag.DAG
-	payloadStore dag.PayloadStore
-	sender       messageSender
-	connections  grpc.ConnectionList
+	state       dag.State
+	sender      messageSender
+	connections grpc.ConnectionList
 	// TODO: What if no-one is actually listening to this queue? Maybe we should create it when someone asks for it (lazy initialization)?
 	receivedPeerHashes        *chanPeerHashQueue
 	receivedTransactionHashes *chanPeerHashQueue
@@ -59,8 +59,7 @@ type protocol struct {
 	// diagnosticsProvider is a function for collecting diagnostics from the local node which can be shared with peers.
 	diagnosticsProvider func() transport.Diagnostics
 	// peerID contains our own peer ID which can be logged for debugging purposes
-	peerID    transport.PeerID
-	publisher dag.Publisher
+	peerID transport.PeerID
 
 	ctx       context.Context
 	ctxCancel func()
@@ -112,7 +111,7 @@ func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics 
 }
 
 // NewProtocol creates a new instance of Protocol
-func NewProtocol(gateway MessageGateway, connections grpc.ConnectionList, graph dag.DAG, publisher dag.Publisher, payloadStore dag.PayloadStore, diagnosticsProvider func() transport.Diagnostics) Protocol {
+func NewProtocol(gateway MessageGateway, connections grpc.ConnectionList, state dag.State, diagnosticsProvider func() transport.Diagnostics) Protocol {
 	p := &protocol{
 		peerDiagnostics:      make(map[transport.PeerID]transport.Diagnostics, 0),
 		peerDiagnosticsMutex: &sync.Mutex{},
@@ -120,9 +119,7 @@ func NewProtocol(gateway MessageGateway, connections grpc.ConnectionList, graph 
 		peerOmnihashChannel:  make(chan PeerOmnihash, 100),
 		peerOmnihashMutex:    &sync.Mutex{},
 		blocks:               newDAGBlocks(),
-		graph:                graph,
-		payloadStore:         payloadStore,
-		publisher:            publisher,
+		state:                state,
 		diagnosticsProvider:  diagnosticsProvider,
 		connections:          connections,
 		sender: defaultMessageSender{
@@ -139,11 +136,10 @@ func (p *protocol) Configure(advertHashesInterval time.Duration, advertDiagnosti
 	p.collectMissingPayloadsInterval = collectMissingPayloadsInterval
 	p.peerID = peerID
 	p.missingPayloadCollector = broadcastingMissingPayloadCollector{
-		graph:        p.graph,
-		payloadStore: p.payloadStore,
-		sender:       p.sender,
+		state:  p.state,
+		sender: p.sender,
 	}
-	p.publisher.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.blocks.addTransaction)
+	p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.blocks.addTransaction)
 }
 
 func (p *protocol) Start() {

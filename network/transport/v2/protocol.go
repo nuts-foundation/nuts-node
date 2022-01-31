@@ -64,18 +64,14 @@ func DefaultConfig() Config {
 func New(
 	config Config,
 	nodeDIDResolver transport.NodeDIDResolver,
-	graph dag.DAG,
-	publisher dag.Publisher,
-	payloadStore dag.PayloadStore,
+	state dag.State,
 	docResolver vdr.DocResolver,
 	decrypter crypto.Decrypter,
 ) transport.Protocol {
 	return &protocol{
 		config:          config,
-		graph:           graph,
-		publisher:       publisher,
+		state:           state,
 		nodeDIDResolver: nodeDIDResolver,
-		payloadStore:    payloadStore,
 		decrypter:       decrypter,
 		docResolver:     docResolver,
 	}
@@ -84,14 +80,12 @@ func New(
 type protocol struct {
 	cancel            func()
 	config            Config
-	graph             dag.DAG
+	state             dag.State
 	ctx               context.Context
 	docResolver       vdr.DocResolver
 	payloadScheduler  Scheduler
-	payloadStore      dag.PayloadStore
 	decrypter         crypto.Decrypter
 	connectionList    grpc.ConnectionList
-	publisher         dag.Publisher
 	nodeDIDResolver   transport.NodeDIDResolver
 	connectionManager transport.ConnectionManager
 }
@@ -134,6 +128,15 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 		return fmt.Errorf("failed to setup payload scheduler: %w", err)
 	}
 
+	// register callback from DAG to protocol layer.
+	// The callback is done within the DAG DB transaction.
+	// It's only called once for each validated transaction.
+	// TODO hook to XOR and IBLT calculations
+	// p.state.RegisterObserver(p.Observe)
+
+	// the observer is called with a context. Within that context is the TX
+	// use storage.BBoltTXView or storage.BBoltTXUpdate around the logic that needs to be run within a transaction
+
 	return nil
 }
 
@@ -145,7 +148,8 @@ func (p *protocol) Start() (err error) {
 		return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
 	}
 
-	p.publisher.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
+	// todo replace with observer, underlying storage is persistent
+	p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
 	return
 }
 
@@ -170,7 +174,7 @@ func (p *protocol) handlePrivateTxRetry(hash hash.SHA256Hash) {
 }
 
 func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
-	tx, err := p.graph.Get(context.Background(), hash)
+	tx, err := p.state.GetTransaction(context.Background(), hash)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve transaction (tx=:%s) from the DAG: %w", hash.String(), err)
 	}
@@ -180,7 +184,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	}
 
 	// Sanity check: if we have the payload, mark this job as finished
-	payload, err := p.payloadStore.ReadPayload(context.Background(), tx.PayloadHash())
+	payload, err := p.state.ReadPayload(context.Background(), tx.PayloadHash())
 	if err != nil {
 		return fmt.Errorf("unable to read payload (tx=%s): %w", hash, err)
 	}

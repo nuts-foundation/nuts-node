@@ -41,8 +41,9 @@ func CreateTestTransactionWithJWK(num uint32, prevs ...hash.SHA256Hash) Transact
 
 // CreateSignedTestTransaction creates a signed transaction with more control
 func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [][]byte, payloadType string, attach bool, prevs ...hash.SHA256Hash) Transaction {
-	payloadHash := hash.SHA256Hash{}
-	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], payloadNum)
+	payload := make([]byte, 4)
+	binary.BigEndian.PutUint32(payload, payloadNum)
+	payloadHash := hash.SHA256Sum(payload)
 	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevs, pal)
 
 	signer := crypto2.NewTestKey(fmt.Sprintf("%d", payloadNum))
@@ -68,8 +69,9 @@ func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participan
 
 // CreateTestTransaction creates a transaction with the given num as payload hash and signs it with a random EC key.
 func CreateTestTransaction(num uint32, prevs ...hash.SHA256Hash) (Transaction, string, crypto.PublicKey) {
-	payloadHash := hash.SHA256Hash{}
-	binary.BigEndian.PutUint32(payloadHash[hash.SHA256HashSize-4:], num)
+	payload := make([]byte, 4)
+	binary.BigEndian.PutUint32(payload, num)
+	payloadHash := hash.SHA256Sum(payload)
 	return CreateTestTransactionEx(num, payloadHash, nil, prevs...)
 }
 
@@ -118,7 +120,7 @@ func createBBoltDB(testDirectory string) *bbolt.DB {
 	return db
 }
 
-func CreateDAG(t *testing.T, verifiers ...Verifier) DAG {
+func CreateDAG(t *testing.T) *bboltDAG {
 	testDirectory := io.TestDirectory(t)
-	return NewBBoltDAG(createBBoltDB(testDirectory), verifiers...)
+	return newBBoltDAG(createBBoltDB(testDirectory))
 }

@@ -20,7 +20,9 @@ package dag
 
 import (
 	"context"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/storage"
 	"go.etcd.io/bbolt"
 )
 
@@ -29,23 +31,18 @@ const payloadsBucketName = "payloads"
 
 // NewBBoltPayloadStore creates a etcd/bbolt backed payload store using the given database.
 func NewBBoltPayloadStore(db *bbolt.DB) PayloadStore {
-	return &bboltPayloadStore{db: db, observers: []Observer{}}
+	return &bboltPayloadStore{db: db}
 }
 
 type bboltPayloadStore struct {
-	db        *bbolt.DB
-	observers []Observer
+	db *bbolt.DB
 }
 
-func (store *bboltPayloadStore) RegisterObserver(observer Observer) {
-	store.observers = append(store.observers, observer)
-}
-
-func (store bboltPayloadStore) IsPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
+func (store bboltPayloadStore) IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
 	var result bool
 	var err error
-	err = store.ReadMany(ctx, func(ctx context.Context, reader PayloadReader) error {
-		result, err = reader.IsPresent(ctx, payloadHash)
+	err = store.ReadManyPayloads(ctx, func(ctx context.Context, reader PayloadReader) error {
+		result, err = reader.IsPayloadPresent(ctx, payloadHash)
 		return err
 	})
 	return result, err
@@ -54,21 +51,21 @@ func (store bboltPayloadStore) IsPresent(ctx context.Context, payloadHash hash.S
 func (store bboltPayloadStore) ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error) {
 	var result []byte
 	var err error
-	err = store.ReadMany(ctx, func(ctx context.Context, reader PayloadReader) error {
+	err = store.ReadManyPayloads(ctx, func(ctx context.Context, reader PayloadReader) error {
 		result, err = reader.ReadPayload(ctx, payloadHash)
 		return err
 	})
 	return result, err
 }
 
-func (store bboltPayloadStore) ReadMany(ctx context.Context, consumer func(ctx context.Context, reader PayloadReader) error) error {
-	return bboltTXView(ctx, store.db, func(ctx context.Context, tx *bbolt.Tx) error {
-		return consumer(ctx, &bboltPayloadReader{payloadsBucket: tx.Bucket([]byte(payloadsBucketName))})
+func (store bboltPayloadStore) ReadManyPayloads(ctx context.Context, consumer func(ctx context.Context, reader PayloadReader) error) error {
+	return storage.BBoltTXView(ctx, store.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		return consumer(contextWithTX, &bboltPayloadReader{payloadsBucket: tx.Bucket([]byte(payloadsBucketName))})
 	})
 }
 
 func (store bboltPayloadStore) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error {
-	err := store.db.Update(func(tx *bbolt.Tx) error {
+	return storage.BBoltTXUpdate(ctx, store.db, func(_ context.Context, tx *bbolt.Tx) error {
 		payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucketName))
 		if err != nil {
 			return err
@@ -78,17 +75,13 @@ func (store bboltPayloadStore) WritePayload(ctx context.Context, payloadHash has
 		}
 		return nil
 	})
-	if err == nil {
-		notifyObservers(ctx, store.observers, payloadHash)
-	}
-	return err
 }
 
 type bboltPayloadReader struct {
 	payloadsBucket *bbolt.Bucket
 }
 
-func (reader bboltPayloadReader) IsPresent(_ context.Context, payloadHash hash.SHA256Hash) (bool, error) {
+func (reader bboltPayloadReader) IsPayloadPresent(_ context.Context, payloadHash hash.SHA256Hash) (bool, error) {
 	if reader.payloadsBucket == nil {
 		return false, nil
 	}

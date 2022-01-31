@@ -22,17 +22,11 @@ import (
 	"context"
 	"fmt"
 	"hash/crc32"
-	"io/fs"
-	"path"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
-	"go.etcd.io/bbolt"
-
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -41,6 +35,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 const integrationTestTimeout = 10 * time.Second
@@ -59,17 +55,13 @@ func TestProtocolV1_MissingPayloads(t *testing.T) {
 	// Then write the payload to the store on node 1, which should then be queried by node 2
 	tx0Root, _, _ := dag.CreateTestTransaction(1)
 	// TX 0
-	err := node1.payloadStore.WritePayload(context.Background(), tx0Root.PayloadHash(), []byte{1, 2, 3})
-	if !assert.NoError(t, err) {
-		return
-	}
-	err = node1.graph.Add(context.Background(), tx0Root)
+	err := node1.state.Add(context.Background(), tx0Root, []byte{0, 0, 0, 1})
 	if !assert.NoError(t, err) {
 		return
 	}
 	// TX 1
 	tx1, _, _ := dag.CreateTestTransaction(2, tx0Root.Ref())
-	err = node1.graph.Add(context.Background(), tx1)
+	err = node1.state.Add(context.Background(), tx1, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -88,7 +80,7 @@ func TestProtocolV1_MissingPayloads(t *testing.T) {
 	}, integrationTestTimeout, "node2 didn't receive all transactions")
 
 	// Now write the payload, node 2 should broadcast query node 1 for TX1's payload which it now has
-	err = node1.payloadStore.WritePayload(context.Background(), tx1.PayloadHash(), []byte{3, 2, 1})
+	err = node1.state.WritePayload(context.Background(), tx1.PayloadHash(), []byte{0, 0, 0, 2})
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -108,19 +100,17 @@ func TestProtocolV1_Pagination(t *testing.T) {
 
 	t.Logf("Creating %d transactions...", numberOfTransactions)
 	rootTX, _, _ := dag.CreateTestTransaction(1)
-	err := node1.graph.Add(context.Background(), rootTX)
+	err := node1.state.Add(context.Background(), rootTX, []byte{0, 0, 0, 1})
 	if !assert.NoError(t, err) {
 		return
 	}
-	_ = node1.payloadStore.WritePayload(context.Background(), rootTX.PayloadHash(), []byte{2, 2, 2})
 	prev := rootTX
 	for i := 0; i < numberOfTransactions-1; i++ { // minus 1 to subtract root TX
 		tx, _, _ := dag.CreateTestTransaction(uint32(i+2), prev.Ref())
-		err := node1.graph.Add(context.Background(), tx)
+		err := node1.state.Add(context.Background(), tx, []byte{0, 0, 0, byte(i + 2)})
 		if !assert.NoError(t, err) {
 			return
 		}
-		_ = node1.payloadStore.WritePayload(context.Background(), tx.PayloadHash(), []byte{1, 2, 3})
 		prev = tx
 	}
 
@@ -143,8 +133,7 @@ type integrationTestContext struct {
 	protocol          *protocolV1
 	receivedTXs       []dag.Transaction
 	mux               *sync.Mutex
-	graph             dag.DAG
-	payloadStore      dag.PayloadStore
+	state             dag.State
 	connectionManager transport.ConnectionManager
 }
 
@@ -160,26 +149,19 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 
 	testDirectory := io.TestDirectory(t)
 
-	db, err := bbolt.Open(path.Join(testDirectory, "dag.db"), fs.ModePerm, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	ctx := &integrationTestContext{
 		mux: &sync.Mutex{},
 	}
 
-	ctx.graph = dag.NewBBoltDAG(db)
-	ctx.payloadStore = dag.NewBBoltPayloadStore(db)
-	publisher := dag.NewReplayingDAGPublisher(ctx.payloadStore, ctx.graph)
-	publisher.Subscribe(dag.TransactionPayloadAddedEvent, integrationTestPayloadType, func(tx dag.Transaction, payload []byte) error {
+	ctx.state, _ = dag.NewState(testDirectory)
+	ctx.state.Subscribe(dag.TransactionPayloadAddedEvent, integrationTestPayloadType, func(tx dag.Transaction, payload []byte) error {
 		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
 		ctx.mux.Lock()
 		defer ctx.mux.Unlock()
 		ctx.receivedTXs = append(ctx.receivedTXs, tx)
 		return nil
 	})
-	publisher.Start()
+	ctx.state.Start()
 
 	cfg := &Config{
 		AdvertHashesInterval:      500,
@@ -190,13 +172,13 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 	peerID := transport.PeerID(name)
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
-	ctx.protocol = New(*cfg, ctx.graph, publisher, ctx.payloadStore, dummyDiagnostics).(*protocolV1)
+	ctx.protocol = New(*cfg, ctx.state, dummyDiagnostics).(*protocolV1)
 
 	authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(&doc.Resolver{Store: store.NewMemoryStore()}))
 	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, authenticator, ctx.protocol)
 
 	ctx.protocol.Configure(peerID)
-	if err = ctx.connectionManager.Start(); err != nil {
+	if err := ctx.connectionManager.Start(); err != nil {
 		t.Fatal(err)
 	}
 	ctx.protocol.Start()
