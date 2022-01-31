@@ -285,18 +285,19 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	const procs = 10
 	wg := sync.WaitGroup{}
 	wg.Add(procs)
+	currDoc, currMetadata, _ := docResolver.Resolve(initialDoc.ID, nil)
 	for i := 0; i < procs; i++ {
 		go func(num int) {
-			currDoc, currMetadata, _ := docResolver.Resolve(initialDoc.ID, nil)
+			newDoc := *currDoc
 			serviceID, _ := url.Parse(fmt.Sprintf("%s#service-%d", currDoc.ID, num))
 			newService := did.Service{
 				ID:              ssi.URI{URL: *serviceID},
-				Type:            "service",
+				Type:            fmt.Sprintf("service-%d", num),
 				ServiceEndpoint: []interface{}{"http://example.com/service"},
 			}
 
-			currDoc.Service = append(currDoc.Service, newService)
-			err := vdr.Update(currDoc.ID, currMetadata.Hash, *initialDoc, nil)
+			newDoc.Service = append(currDoc.Service, newService)
+			err := vdr.Update(currDoc.ID, currMetadata.Hash, newDoc, nil)
 			assert.NoError(t, err, "unable to update doc with a new service")
 			wg.Done()
 		}(i)

@@ -202,7 +202,7 @@ func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 func (dag bboltDAG) Get(ctx context.Context, ref hash.SHA256Hash) (Transaction, error) {
 	var result Transaction
 	var err error
-	err = storage.BBoltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	err = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		result, err = getTransaction(ref, tx)
 		return err
 	})
@@ -211,7 +211,7 @@ func (dag bboltDAG) Get(ctx context.Context, ref hash.SHA256Hash) (Transaction, 
 
 func (dag bboltDAG) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
 	result := make([]Transaction, 0)
-	err := storage.BBoltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	err := storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		transactions := tx.Bucket([]byte(transactionsBucket))
 		payloadIndex := tx.Bucket([]byte(payloadIndexBucket))
 		if transactions == nil || payloadIndex == nil {
@@ -231,7 +231,7 @@ func (dag bboltDAG) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA25
 }
 
 func (dag *bboltDAG) PayloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error {
-	return storage.BBoltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	return storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		payloadIndex := tx.Bucket([]byte(payloadIndexBucket))
 		if payloadIndex == nil {
 			return nil
@@ -249,7 +249,7 @@ func (dag *bboltDAG) PayloadHashes(ctx context.Context, visitor func(payloadHash
 
 func (dag bboltDAG) Heads(ctx context.Context) []hash.SHA256Hash {
 	result := make([]hash.SHA256Hash, 0)
-	_ = storage.BBoltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		heads := tx.Bucket([]byte(headsBucket))
 		if heads == nil {
 			return nil
@@ -276,7 +276,7 @@ func (dag *bboltDAG) FindBetween(ctx context.Context, startInclusive time.Time, 
 
 func (dag bboltDAG) IsPresent(ctx context.Context, ref hash.SHA256Hash) (bool, error) {
 	var result bool
-	err := storage.BBoltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	err := storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		if payloads := tx.Bucket([]byte(transactionsBucket)); payloads != nil {
 			data := payloads.Get(ref.Slice())
 			result = data != nil
@@ -298,7 +298,7 @@ func (dag *bboltDAG) Add(ctx context.Context, transactions ...Transaction) error
 }
 
 func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
-	return storage.BBoltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	return storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		transactions := tx.Bucket([]byte(transactionsBucket))
 		clocksBucket := tx.Bucket([]byte(clockBucket))
 		if transactions == nil {
@@ -341,7 +341,7 @@ func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA2
 
 func (dag bboltDAG) Statistics(ctx context.Context) Statistics {
 	transactionNum := 0
-	_ = storage.BBoltTXView(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		if bucket := tx.Bucket([]byte(transactionsBucket)); bucket != nil {
 			transactionNum = bucket.Stats().KeyN
 		}
@@ -356,7 +356,7 @@ func (dag bboltDAG) Statistics(ctx context.Context) Statistics {
 func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
 	ref := transaction.Ref()
 	refSlice := ref.Slice()
-	err := storage.BBoltTXUpdate(ctx, dag.db, func(ctx context.Context, tx *bbolt.Tx) error {
+	err := storage.BBoltTXUpdate(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		transactions, lc, _, payloadIndex, heads, err := getBuckets(tx)
 		if err != nil {
 			return err

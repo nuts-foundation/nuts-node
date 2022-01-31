@@ -59,13 +59,13 @@ func (store bboltPayloadStore) ReadPayload(ctx context.Context, payloadHash hash
 }
 
 func (store bboltPayloadStore) ReadManyPayloads(ctx context.Context, consumer func(ctx context.Context, reader PayloadReader) error) error {
-	return storage.BBoltTXView(ctx, store.db, func(ctx context.Context, tx *bbolt.Tx) error {
-		return consumer(ctx, &bboltPayloadReader{payloadsBucket: tx.Bucket([]byte(payloadsBucketName))})
+	return storage.BBoltTXView(ctx, store.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		return consumer(contextWithTX, &bboltPayloadReader{payloadsBucket: tx.Bucket([]byte(payloadsBucketName))})
 	})
 }
 
 func (store bboltPayloadStore) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error {
-	return storage.BBoltTXUpdate(ctx, store.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+	return storage.BBoltTXUpdate(ctx, store.db, func(_ context.Context, tx *bbolt.Tx) error {
 		payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucketName))
 		if err != nil {
 			return err

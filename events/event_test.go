@@ -21,8 +21,9 @@ package events
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/test"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/test"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/nuts-node/core"
