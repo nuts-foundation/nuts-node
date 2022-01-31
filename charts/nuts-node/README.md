@@ -57,3 +57,11 @@ helm install -f values.yaml <NAME> nuts-repo/nuts-node-chart
 ```
 
 Note that the `values.yaml` in the above command is the result from the [configuration step](#from-the-nuts-helm-repo).
+
+## Uninstalling NUTS
+As the `PersistedVolume` can contain crucial data (like the private keys), by default, the uninstall command will not remove it and its 
+`PersistedVolumeClaim`. If you're sure it can be deleted, this can be done with the following command:
+```shell
+kubectl delete pvc nuts-data-pvc
+kubectl delete pv nuts-data-pv
+```

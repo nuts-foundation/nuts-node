@@ -4,7 +4,10 @@ metadata:
   name: nuts-data-pv
   labels:
     type: local
+  annotations:
+    "helm.sh/resource-policy": keep
 spec:
+  persistentVolumeReclaimPolicy: Retain
   storageClassName: ""
   capacity:
     storage: {{ .Values.nuts.data.persistedVolume.capacity | default "100Mi" }}
@@ -16,6 +19,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: nuts-data-pvc
+  annotations:
+    "helm.sh/resource-policy": keep
 spec:
   storageClassName: "" # Empty string must be explicitly set otherwise default StorageClass will be set
   accessModes: {{ required "Please define `nuts.data.persistedVolume.accessModes` in `values.yaml`" .Values.nuts.data.persistedVolume.accessModes }}
