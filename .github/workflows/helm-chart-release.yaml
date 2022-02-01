@@ -3,9 +3,7 @@ name: Release Charts
 on:
   push:
     branches:
-      - feature/add-helm-chart
-    tags:
-      - 'v*'
+      - master
 
 jobs:
   release:
