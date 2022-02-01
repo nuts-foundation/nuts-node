@@ -33,7 +33,6 @@ func TestBackoff(t *testing.T) {
 	var current time.Duration = 0
 	for current < b.max {
 		current = b.Backoff()
-		println(current.String())
 	}
 }
 
