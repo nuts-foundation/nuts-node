@@ -31,4 +31,4 @@ jobs:
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           CR_SKIP_EXISTING: true
-          CR_PAGES_BRANCH: test-if-functional
+          CR_PAGES_BRANCH: gh-pages
