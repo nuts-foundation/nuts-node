@@ -206,6 +206,30 @@ func Test_issuer_Issue(t *testing.T) {
 	})
 }
 
+func Test_issuer_Revoke(t *testing.T) {
+	credentialID, _ := ssi.ParseURI("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#c4199b74-0c0a-4e09-a463-6927553e65f5")
+	issuerDID, _ := did.ParseDID("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
+	kid := "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
+
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		keyResolverMock := NewMockkeyResolver(ctrl)
+		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+		mockStore := NewMockStore(ctrl)
+		mockStore.EXPECT().GetCredential(*credentialID).Return(vc.VerifiableCredential{ID: credentialID, Issuer: issuerDID.URI()}, nil)
+		mockStore.EXPECT().GetRevocation(*credentialID).Return(credential.Revocation{}, ErrNotFound)
+		sut := issuer{keyResolver: keyResolverMock, store: mockStore}
+		result, err := sut.Revoke(*credentialID)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.NotNil(t, result)
+	})
+}
+
 func TestNewIssuer(t *testing.T) {
 	createdIssuer := NewIssuer(nil, nil, nil, nil)
 	assert.IsType(t, &issuer{}, createdIssuer)

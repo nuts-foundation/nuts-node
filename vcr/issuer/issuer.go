@@ -134,9 +134,8 @@ func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return false, nil
-		} else {
-			return false, err
 		}
+		return false, err
 	}
 	return true, nil
 }

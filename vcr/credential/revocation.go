@@ -64,6 +64,8 @@ func BuildRevocation(credential vc.VerifiableCredential) Revocation {
 	}
 }
 
+// MarshalJSON marshalls the revocation into valid json.
+// It uses an array for proof when there are multiple proofs, but a single object value when there is only one proof.
 func (r Revocation) MarshalJSON() ([]byte, error) {
 	type alias Revocation
 	tmp := alias(r)
@@ -84,6 +86,8 @@ func (r Revocation) MarshalJSON() ([]byte, error) {
 	return json.Marshal(revocationAsMap)
 }
 
+// UnmarshalJSON unmarshalls the revocation from valid json.
+// It accepts both an object value as an array value for proof.
 func (r *Revocation) UnmarshalJSON(b []byte) error {
 	asMap := map[string]interface{}{}
 	err := json.Unmarshal(b, &asMap)
