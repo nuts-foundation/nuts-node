@@ -37,11 +37,22 @@ type Revocation struct {
 	// Reason describes why the VC has been revoked
 	Reason string `json:"reason,omitempty"`
 	// Date is a rfc3339 formatted datetime.
-	Date time.Time `json:"date"`
-	// Proof contains the cryptographic proof(s).
-	// Its multiple because the Data Integrity spec defines the option of multiple proofs.
-	// A Revocation however is only allowed to have one proof.
+	Date  time.Time                      `json:"date"`
 	Proof []vc.JSONWebSignature2020Proof `json:"proof,omitempty"`
+}
+
+// RevocationWithLegacyProof contains the original struct which must stay the same, otherwise the json marshalling breaks the order of fields and thus the signature.
+type RevocationWithLegacyProof struct {
+	// Issuer refers to the party that issued the credential
+	Issuer ssi.URI `json:"issuer"`
+	// Subject refers to the VC that is revoked
+	Subject ssi.URI `json:"subject"`
+	// Reason describes why the VC has been revoked
+	Reason string `json:"reason,omitempty"`
+	// Date is a rfc3339 formatted datetime.
+	Date time.Time `json:"date"`
+	// Proof contains the single proof value
+	Proof *vc.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }
 
 // BuildRevocation generates a revocation based on the credential
@@ -74,30 +85,40 @@ func (r Revocation) MarshalJSON() ([]byte, error) {
 }
 
 func (r *Revocation) UnmarshalJSON(b []byte) error {
-	tmp := Revocation{}
-	if err := json.Unmarshal(b, &tmp); err != nil {
+	asMap := map[string]interface{}{}
+	err := json.Unmarshal(b, &asMap)
+	if err != nil {
 		return err
 	}
 
-	// if proof was not an array, it might be a single value
-	if len(r.Proof) == 0 {
-		proofStruct := struct {
-			Proof vc.JSONWebSignature2020Proof
-		}{}
-
-		if err := json.Unmarshal(b, &proofStruct); err != nil {
-			return err
+	proof, hasProof := asMap["proof"]
+	if hasProof {
+		if _, isSlice := proof.([]interface{}); isSlice {
+			// ok
+		} else if val, isMap := proof.(map[string]interface{}); isMap {
+			// convert to slice
+			asMap["proof"] = []interface{}{val}
 		}
-		tmp.SetProof(proofStruct.Proof)
 	}
 
-	*r = tmp
+	mapBytes, err := json.Marshal(asMap)
+	if err != nil {
+		return err
+	}
+
+	type alias Revocation
+	tmp := alias{}
+	if err := json.Unmarshal(mapBytes, &tmp); err != nil {
+		return err
+	}
+
+	*r = (Revocation)(tmp)
 	return nil
 }
 
-func (r *Revocation) SetProof(proof vc.JSONWebSignature2020Proof) {
-	r.Proof = []vc.JSONWebSignature2020Proof{proof}
-}
+//func (r *RevocationWithLDProof) SetProof(proof vc.JSONWebSignature2020Proof) {
+//	r.Proof = []vc.JSONWebSignature2020Proof{proof}
+//}
 
 // ValidateRevocation checks if a revocation record contains the required fields and if fields have the correct value.
 func ValidateRevocation(r Revocation) error {

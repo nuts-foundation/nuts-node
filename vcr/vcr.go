@@ -704,7 +704,14 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 	}
 
 	// create correct challenge for verification
-	payload := generateRevocationChallenge(r)
+	legacyRevocation := credential.RevocationWithLegacyProof{
+		Issuer:  r.Issuer,
+		Subject: r.Subject,
+		Reason:  r.Reason,
+		Date:    r.Date,
+		Proof:   &(r.Proof[0]),
+	}
+	payload := generateRevocationChallenge(legacyRevocation)
 
 	proof := r.Proof[0]
 
@@ -837,8 +844,16 @@ func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI, key
 		},
 	}
 
+	legacyRevocation := credential.RevocationWithLegacyProof{
+		Issuer:  r.Issuer,
+		Subject: r.Subject,
+		Reason:  r.Reason,
+		Date:    r.Date,
+		Proof:   &proof,
+	}
+
 	// create correct signing challenge
-	challenge := generateRevocationChallenge(*r)
+	challenge := generateRevocationChallenge(legacyRevocation)
 
 	sig, err := crypto.SignJWS(challenge, detachedJWSHeaders(), key.Signer())
 	if err != nil {
@@ -881,12 +896,9 @@ func generateCredentialChallenge(credential vc.VerifiableCredential) ([]byte, er
 	return []byte(tbs), nil
 }
 
-func generateRevocationChallenge(r credential.Revocation) []byte {
-	if len(r.Proof) == 0 {
-		return []byte{}
-	}
+func generateRevocationChallenge(r credential.RevocationWithLegacyProof) []byte {
 	// without JWS
-	proof := r.Proof[0]
+	proof := r.Proof.Proof
 
 	// payload
 	r.Proof = nil

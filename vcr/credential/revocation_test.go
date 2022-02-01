@@ -105,29 +105,53 @@ func TestValidateRevocation(t *testing.T) {
 	})
 }
 
-func TestRevocation_MarshalJSON(t *testing.T) {
+func TestRevocation_Marshalling(t *testing.T) {
+	noProofsJson := "{\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"subject\":\"\"}"
+	oneProofJson := "{\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"proof\":{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"},\"subject\":\"\"}"
+	multipleProofsJson := "{\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"proof\":[{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"},{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"}],\"subject\":\"\"}"
 
-	t.Run("with no proofs its empty", func(t *testing.T) {
-		r := Revocation{Proof: nil}
-		revocationAsJSON, err := json.Marshal(r)
-		assert.NoError(t, err)
-		expectedJson := "{\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"subject\":\"\"}"
-		assert.Equal(t, []byte(expectedJson), revocationAsJSON)
+	t.Run("marshal to JSON", func(t *testing.T) {
+
+		t.Run("with no proofs its empty", func(t *testing.T) {
+			r := Revocation{Proof: nil}
+			revocationAsJSON, err := json.Marshal(r)
+			assert.NoError(t, err)
+			assert.Equal(t, []byte(noProofsJson), revocationAsJSON)
+		})
+
+		t.Run("with one proof its an single value", func(t *testing.T) {
+			r := Revocation{Proof: []vc.JSONWebSignature2020Proof{{}}}
+			revocationAsJSON, err := json.Marshal(r)
+			assert.NoError(t, err)
+			assert.Equal(t, []byte(oneProofJson), revocationAsJSON)
+		})
+
+		t.Run("with multiple proofs its an array", func(t *testing.T) {
+			r := Revocation{Proof: []vc.JSONWebSignature2020Proof{{}, {}}}
+			revocationAsJSON, err := json.Marshal(r)
+			assert.NoError(t, err)
+			assert.Equal(t, []byte(multipleProofsJson), revocationAsJSON)
+		})
 	})
 
-	t.Run("with one proof its an single value", func(t *testing.T) {
-		r := Revocation{Proof: []vc.JSONWebSignature2020Proof{{}}}
-		revocationAsJSON, err := json.Marshal(r)
-		assert.NoError(t, err)
-		expectedJson := "{\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"proof\":{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"},\"subject\":\"\"}"
-		assert.Equal(t, []byte(expectedJson), revocationAsJSON)
-	})
+	t.Run("unmarshal from JSON", func(t *testing.T) {
 
-	t.Run("with multiple proofs its an array", func(t *testing.T) {
-		r := Revocation{Proof: []vc.JSONWebSignature2020Proof{{}, {}}}
-		revocationAsJSON, err := json.Marshal(r)
-		assert.NoError(t, err)
-		expectedJson := "{\"date\":\"0001-01-01T00:00:00Z\",\"issuer\":\"\",\"proof\":[{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"},{\"type\":\"\",\"proofPurpose\":\"\",\"verificationMethod\":\"\",\"created\":\"0001-01-01T00:00:00Z\",\"jws\":\"\"}],\"subject\":\"\"}"
-		assert.Equal(t, []byte(expectedJson), revocationAsJSON)
+		t.Run("no proofs", func(t *testing.T) {
+			r := Revocation{}
+			assert.NoError(t, json.Unmarshal([]byte(noProofsJson), &r))
+			assert.Len(t, r.Proof, 0)
+		})
+
+		t.Run("one proof", func(t *testing.T) {
+			r := Revocation{}
+			assert.NoError(t, json.Unmarshal([]byte(oneProofJson), &r))
+			assert.Len(t, r.Proof, 1)
+		})
+
+		t.Run("multiple proofs", func(t *testing.T) {
+			r := Revocation{}
+			assert.NoError(t, json.Unmarshal([]byte(multipleProofsJson), &r))
+			assert.Len(t, r.Proof, 2)
+		})
 	})
 }

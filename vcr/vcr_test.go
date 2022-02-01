@@ -1102,10 +1102,14 @@ func TestVcr_Untrusted(t *testing.T) {
 }
 
 func TestVcr_verifyRevocation(t *testing.T) {
-	// load revocation
-	r := credential.Revocation{}
-	rJSON, _ := os.ReadFile("test/revocation.json")
-	json.Unmarshal(rJSON, &r)
+
+	testRevocation := func() credential.Revocation {
+		// load revocation
+		r := credential.Revocation{}
+		rJSON, _ := os.ReadFile("test/revocation.json")
+		json.Unmarshal(rJSON, &r)
+		return r
+	}
 
 	// Load pub key
 	pke := storage.PublicKeyEntry{}
@@ -1120,7 +1124,7 @@ func TestVcr_verifyRevocation(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
 
-		err := instance.verifyRevocation(r)
+		err := instance.verifyRevocation(testRevocation())
 
 		assert.NoError(t, err)
 	})
@@ -1128,25 +1132,25 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("error - invalid issuer", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
+		r := testRevocation()
 		issuer, _ := ssi.ParseURI(r.Issuer.String() + "2")
-		r2 := r
-		r2.Issuer = *issuer
+		r.Issuer = *issuer
 
-		err := instance.verifyRevocation(r2)
+		err := instance.verifyRevocation(r)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "issuer of revocation is not the same as issuer of credential")
 	})
 
-	t.Run("error - invalid vm", func(t *testing.T) {
+	t.Run("error - invalid verification method in proof", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		vm, _ := ssi.ParseURI(r.Issuer.String() + "2")
-		r2 := r
-		p := r2.Proof[0]
-		p.VerificationMethod = *vm
+		r := testRevocation()
 
-		err := instance.verifyRevocation(r2)
+		vm, _ := ssi.ParseURI(r.Issuer.String() + "2")
+		r.Proof[0].VerificationMethod = *vm
+
+		err := instance.verifyRevocation(r)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "verification method is not of issuer")
@@ -1155,58 +1159,64 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("error - invalid revocation", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		r2 := r
-		r2.Issuer = ssi.URI{}
+		r := testRevocation()
+		r.Issuer = ssi.URI{}
 
-		err := instance.verifyRevocation(r2)
+		err := instance.verifyRevocation(r)
 
 		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: 'issuer' is required")
 	})
 
 	t.Run("error - invalid signature", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		r2 := r
-		r2.Reason = "sig fails"
+		r := testRevocation()
+		r.Reason = "sig fails"
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
 
-		err := instance.verifyRevocation(r2)
+		err := instance.verifyRevocation(r)
 
 		assert.Error(t, err)
+		assert.EqualError(t, err, "failed to verify signature using ecdsa")
 	})
 
 	t.Run("error - incorrect signature", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		r2 := r
-		r2.Proof = []vc.JSONWebSignature2020Proof{{}}
+		r := testRevocation()
+		r.Proof = []vc.JSONWebSignature2020Proof{{}}
 
-		err := instance.verifyRevocation(r2)
+		err := instance.verifyRevocation(r)
 
 		assert.Error(t, err)
+		assert.EqualError(t, err, "invalid 'jws' value in proof")
 	})
 
 	t.Run("error - resolving key", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
+		r := testRevocation()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		err := instance.verifyRevocation(r)
 
 		assert.Error(t, err)
+		assert.EqualError(t, err, "b00m!")
 	})
 
 	t.Run("error - incorrect base64 encoded sig", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		r2 := r
-		r2.Proof = []vc.JSONWebSignature2020Proof{{Jws: "====..===="}}
+		r := testRevocation()
+		r.Proof = []vc.JSONWebSignature2020Proof{{Jws: "====..===="}}
 
-		err := instance.verifyRevocation(r2)
+		err := instance.verifyRevocation(r)
 
 		assert.Error(t, err)
+		assert.EqualError(t, err, "illegal base64 data at input byte 0")
 	})
 }
 
