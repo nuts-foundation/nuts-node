@@ -23,8 +23,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/test"
-
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 )
