@@ -94,14 +94,14 @@ func TestVCR_Start(t *testing.T) {
 }
 
 func TestVCR_Shutdown(t *testing.T) {
-	instance := NewVCRInstance(nil, nil, nil, nil).(*vcr)
+	m := newMockContext(t)
 
-	_ = instance.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-	err := instance.Start()
+	_ = m.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+	err := m.vcr.Start()
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = instance.Shutdown()
+	err = m.vcr.Shutdown()
 	assert.NoError(t, err)
 }
 
