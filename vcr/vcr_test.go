@@ -82,7 +82,7 @@ func TestVCR_Start(t *testing.T) {
 
 		_ = instance.Configure(core.ServerConfig{Datadir: "test"})
 		err := instance.Start()
-		assert.Error(t, err)
+		assert.EqualError(t, err, "mkdir test/vcr: not a directory")
 	})
 
 	t.Run("ok", func(t *testing.T) {
@@ -91,6 +91,18 @@ func TestVCR_Start(t *testing.T) {
 		_, err := os.Stat(instance.credentialsDBPath())
 		assert.NoError(t, err)
 	})
+}
+
+func TestVCR_Shutdown(t *testing.T) {
+	instance := NewVCRInstance(nil, nil, nil, nil).(*vcr)
+
+	_ = instance.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+	err := instance.Start()
+	if !assert.NoError(t, err) {
+		return
+	}
+	err = instance.Shutdown()
+	assert.NoError(t, err)
 }
 
 func TestVCR_SearchInternal(t *testing.T) {

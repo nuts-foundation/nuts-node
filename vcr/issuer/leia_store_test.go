@@ -49,6 +49,14 @@ func TestNewLeiaStore(t *testing.T) {
 	})
 }
 
+func TestLeiaStore_Close(t *testing.T) {
+	testDir := io.TestDirectory(t)
+	issuerStorePath := path.Join(testDir, "vcr", "issued-credentials.db")
+	sut, _ := NewLeiaStore(issuerStorePath)
+	err := sut.Close()
+	assert.NoError(t, err)
+}
+
 func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 	vcToStore := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(concept.TestCredential), &vcToStore)
