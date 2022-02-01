@@ -95,6 +95,7 @@ type vcr struct {
 	network         network.Transactions
 	trustConfig     *trust.Config
 	issuer          issuer.Issuer
+	issuerStore     issuer.Store
 }
 
 func (c *vcr) Registry() concept.Reader {
@@ -113,13 +114,13 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.config.datadir = config.Datadir
 
 	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
-	issuerStore, err := issuer.NewLeiaStore(issuerStorePath)
+	c.issuerStore, err = issuer.NewLeiaStore(issuerStorePath)
 	if err != nil {
 		return err
 	}
 
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	c.issuer = issuer.NewIssuer(issuerStore, publisher, c.docResolver, c.keyStore)
+	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {
@@ -169,6 +170,10 @@ func (c *vcr) Start() error {
 }
 
 func (c *vcr) Shutdown() error {
+	err := c.issuerStore.Close()
+	if err != nil {
+		log.Logger().Errorf("Unable to close issuer store: %v", err)
+	}
 	return c.store.Close()
 }
 
