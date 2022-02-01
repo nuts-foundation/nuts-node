@@ -178,11 +178,11 @@ func (s *state) Start() error {
 		return fmt.Errorf("unable to migrate DAG: %w", err)
 	}
 
-	if err := s.Verify(context.Background()); err != nil {
+	if err := s.publisher.Start(); err != nil {
 		return err
 	}
 
-	if err := s.publisher.Start(); err != nil {
+	if err := s.Verify(context.Background()); err != nil {
 		return err
 	}
 

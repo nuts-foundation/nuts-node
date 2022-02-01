@@ -33,6 +33,7 @@ import (
 // Note: It can not be used in a clustered setup.
 type leiaStore struct {
 	collection leia.Collection
+	store      leia.Store
 }
 
 // NewLeiaStore creates a new instance of leiaStore which implements the Store interface.
@@ -42,7 +43,10 @@ func NewLeiaStore(dbPath string) (Store, error) {
 		return nil, fmt.Errorf("failed to create leiaStore: %w", err)
 	}
 	collection := store.Collection("issuedCredentials")
-	newLeiaStore := &leiaStore{collection: collection}
+	newLeiaStore := &leiaStore{
+		collection: collection,
+		store:      store,
+	}
 	if err := newLeiaStore.createIndices(); err != nil {
 		return nil, err
 	}
@@ -84,6 +88,10 @@ func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.UR
 func (s leiaStore) StoreRevocation(r credential.Revocation) error {
 	//TODO implement me
 	panic("implement me")
+}
+
+func (s leiaStore) Close() error {
+	return s.store.Close()
 }
 
 // createIndices creates the needed indices for the issued VC store

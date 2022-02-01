@@ -62,6 +62,8 @@ type Store interface {
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error
 	CredentialSearcher
+	// Close closes and frees the underlying resources the store uses.
+	Close() error
 }
 
 // CredentialSearcher defines the functions to resolve or search for credentials.
