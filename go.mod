@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/Regis24GmbH/go-phonetics v1.0.0
-	github.com/avast/retry-go/v4 v4.0.2
+	github.com/avast/retry-go/v4 v4.0.3
 	github.com/cbroglie/mustache v1.3.1
 	github.com/deepmap/oapi-codegen v1.9.1
 	github.com/golang/mock v1.6.0
