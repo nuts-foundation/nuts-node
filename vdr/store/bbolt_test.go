@@ -42,6 +42,32 @@ func newBBoltTestStore(t *testing.T) *bboltStore {
 	return store
 }
 
+func TestBboltStore_Configure(t *testing.T) {
+	t.Run("error - unable to create DB", func(t *testing.T) {
+		store := NewBBoltStore().(core.Configurable)
+
+		err := store.Configure(core.ServerConfig{Datadir: "bbolt_test.go"})
+
+		assert.Error(t, err)
+	})
+}
+
+func TestBBoltStore_Start(t *testing.T) {
+	store := NewBBoltStore().(core.Runnable)
+
+	err := store.Start()
+
+	assert.NoError(t, err)
+}
+
+func TestBBoltStore_Shutdown(t *testing.T) {
+	store := NewBBoltStore().(core.Runnable)
+
+	err := store.Shutdown()
+
+	assert.NoError(t, err)
+}
+
 func TestBBoltStore_Write(t *testing.T) {
 	store := newBBoltTestStore(t)
 	did1, _ := did.ParseDID("did:nuts:1")
