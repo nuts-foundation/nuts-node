@@ -27,8 +27,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/nats-io/nats.go"
-	"github.com/nuts-foundation/nuts-node/core"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -80,9 +78,7 @@ func TestNATSConnectionPool_Acquire(t *testing.T) {
 	})
 
 	t.Run("ok - NATS integration test", func(t *testing.T) {
-		manager := NewManager().(*manager)
-		manager.config.Port = 402249
-		manager.Configure(core.ServerConfig{})
+		manager := createManager(t)
 
 		pool := manager.Pool()
 

@@ -20,11 +20,12 @@ package logic
 
 import (
 	"context"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func Test_missingPayloadCollector(t *testing.T) {
@@ -35,29 +36,27 @@ func Test_missingPayloadCollector(t *testing.T) {
 	tx0, _, _ := dag.CreateTestTransaction(0)
 	tx1, _, _ := dag.CreateTestTransaction(1, tx0.Ref())
 
-	graph := dag.NewMockDAG(ctrl)
+	state := dag.NewMockState(ctrl)
 	// looks a bit odd because of mocking callbacks
-	graph.EXPECT().PayloadHashes(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, consumer func(payloadHash hash.SHA256Hash) error) error {
+	state.EXPECT().PayloadHashes(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, consumer func(payloadHash hash.SHA256Hash) error) error {
 		assert.NoError(t, consumer(tx0.PayloadHash()))
 		return consumer(tx1.PayloadHash())
 	})
 
-	payloadStore := dag.NewMockPayloadStore(ctrl)
 	// looks a bit odd because of mocking callbacks
-	payloadStore.EXPECT().ReadMany(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, consumer func(ctx context.Context, reader dag.PayloadReader) error) error {
-		return consumer(ctx, payloadStore)
+	state.EXPECT().ReadManyPayloads(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, consumer func(ctx context.Context, reader dag.PayloadReader) error) error {
+		return consumer(ctx, state)
 	})
-	payloadStore.EXPECT().IsPresent(ctx, tx0.PayloadHash()).Return(true, nil)
-	payloadStore.EXPECT().IsPresent(ctx, tx1.PayloadHash()).Return(false, nil)
-	graph.EXPECT().GetByPayloadHash(ctx, tx1.PayloadHash()).Return([]dag.Transaction{}, nil)
+	state.EXPECT().IsPayloadPresent(ctx, tx0.PayloadHash()).Return(true, nil)
+	state.EXPECT().IsPayloadPresent(ctx, tx1.PayloadHash()).Return(false, nil)
+	state.EXPECT().GetByPayloadHash(ctx, tx1.PayloadHash()).Return([]dag.Transaction{}, nil)
 
 	sender := NewMockmessageSender(ctrl)
 	sender.EXPECT().broadcastTransactionPayloadQuery(tx1.PayloadHash())
 
 	collector := broadcastingMissingPayloadCollector{
-		graph:        graph,
-		payloadStore: payloadStore,
-		sender:       sender,
+		state:  state,
+		sender: sender,
 	}
 
 	err := collector.findAndQueryMissingPayloads()

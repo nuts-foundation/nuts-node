@@ -54,7 +54,7 @@ func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
 
 func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *TransactionPayloadQuery) error {
 	ctx := context.Background()
-	tx, err := p.graph.Get(ctx, hash.FromSlice(msg.TransactionRef))
+	tx, err := p.state.GetTransaction(ctx, hash.FromSlice(msg.TransactionRef))
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *Trans
 		// successful assertions fall through
 	}
 
-	data, err := p.payloadStore.ReadPayload(ctx, tx.PayloadHash())
+	data, err := p.state.ReadPayload(ctx, tx.PayloadHash())
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
 	if len(msg.Data) == 0 {
 		return fmt.Errorf("peer does not have transaction payload (tx=%s)", ref)
 	}
-	tx, err := p.graph.Get(ctx, ref)
+	tx, err := p.state.GetTransaction(ctx, ref)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
 		// Possible attack: received payload does not match transaction payload hash.
 		return fmt.Errorf("peer sent payload that doesn't match payload hash (tx=%s)", ref)
 	}
-	if err = p.payloadStore.WritePayload(ctx, payloadHash, msg.Data); err != nil {
+	if err = p.state.WritePayload(ctx, payloadHash, msg.Data); err != nil {
 		return err
 	}
 

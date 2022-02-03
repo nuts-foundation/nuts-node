@@ -29,12 +29,11 @@ func TestBackoff(t *testing.T) {
 	b := defaultBackoff().(*backoff)
 	// Initially the backoff should be min-backoff
 	assert.Equal(t, b.min, b.Backoff())
-	var i = 0
-	for i = 0; i < 10; i++ {
-		b.Backoff().Milliseconds()
+
+	var current time.Duration = 0
+	for current < b.max {
+		current = b.Backoff()
 	}
-	// In a few passes we should have reached max-backoff
-	assert.Equal(t, b.max, b.Backoff())
 }
 
 func TestBackoffReset(t *testing.T) {
@@ -48,7 +47,7 @@ func TestBackoffReset(t *testing.T) {
 func TestBackoffDefaultValues(t *testing.T) {
 	b := defaultBackoff().(*backoff)
 	assert.Equal(t, time.Second, b.min)
-	assert.Equal(t, 30*time.Second, b.max)
+	assert.Equal(t, time.Hour, b.max)
 }
 
 func TestRandomBackoff(t *testing.T) {
