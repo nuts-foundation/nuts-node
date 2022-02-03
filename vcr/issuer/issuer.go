@@ -112,16 +112,22 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	b, _ := json.Marshal(unsignedCredential)
 	_ = json.Unmarshal(b, &credentialAsMap)
 
-	signingResult, err := proof.LegacyLDProof{}.Sign(credentialAsMap, signature.LegacyNutsSuite{}, key)
+	signingResult, err := proof.NewLDProof(proof.ProofOptions{Created: time.Now()}).
+		Sign(credentialAsMap, signature.JsonWebSignature2020{}, key)
 	if err != nil {
 		return nil, err
 	}
 
-	signingResultAsMap, ok := signingResult.(map[string]interface{})
-	if !ok {
-		return nil, errors.New("unable to cast signing result to interface map")
-	}
-	b, _ = json.Marshal(signingResultAsMap)
+	//signingResult, err := proof.LegacyLDProof{}.Sign(credentialAsMap, signature.LegacyNutsSuite{}, key)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	//signingResultAsMap, ok := signingResult.(map[string]interface{})
+	//if !ok {
+	//	return nil, errors.New("unable to cast signing result to interface map")
+	//}
+	b, _ = json.Marshal(signingResult)
 	signedCredential := &vc.VerifiableCredential{}
 	_ = json.Unmarshal(b, signedCredential)
 

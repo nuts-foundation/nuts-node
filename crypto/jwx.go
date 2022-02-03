@@ -172,7 +172,25 @@ func SignJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 		}
 	}
 	algo := jwa.SignatureAlgorithm(privateKeyAsJWK.Algorithm())
-	data, err := jws.Sign(payload, algo, privateKey, jws.WithHeaders(headers))
+
+	// We assume here that if the b64 header is set to false, we create a JWS with a detached payload.
+	var (
+		data []byte
+	)
+	payloadIsB64 := true
+	if b64, ok := headers.Get("b64"); ok {
+		if payloadIsB64, ok = b64.(bool); !ok {
+			return "", errors.New("unable to read b64 JWS header as bool")
+		}
+	}
+
+	if payloadIsB64 {
+		// Sign normal JWS
+		data, err = jws.Sign(payload, algo, privateKey, jws.WithHeaders(headers))
+	} else {
+		// Sign JWS with detached payload
+		data, err = jws.Sign(nil, algo, privateKey, jws.WithHeaders(headers), jws.WithDetachedPayload(payload))
+	}
 	if err != nil {
 		return "", fmt.Errorf("unable to sign JWS %w", err)
 	}

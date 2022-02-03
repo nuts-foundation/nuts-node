@@ -21,6 +21,7 @@ require (
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.3.0
 	github.com/nuts-foundation/go-leia/v2 v2.0.1
+	github.com/piprate/json-gold v0.4.1
 	github.com/pkg/errors v0.9.1
 	github.com/privacybydesign/irmago v0.9.0
 	github.com/prometheus/client_golang v1.12.1
@@ -125,6 +126,7 @@ require (
 	github.com/oklog/run v1.0.0 // indirect
 	github.com/pierrec/lz4 v2.5.2+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/privacybydesign/gabi v0.0.0-20210714094051-ba80a6a8c5d8 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
