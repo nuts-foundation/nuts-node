@@ -2,8 +2,9 @@ name: Release Charts
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - 'feature/add-helm-chart'
+      - 'master'
 
 jobs:
   release:
@@ -27,5 +28,7 @@ jobs:
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.2.1
         env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          CR_CHARTS_DIR: charts
           CR_PAGES_BRANCH: gh-pages
+          CR_SKIP_EXISTING: true
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
