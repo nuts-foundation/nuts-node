@@ -29,3 +29,4 @@ jobs:
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           CR_PAGES_BRANCH: gh-pages
+          CR_CHARTS_DIR: charts
