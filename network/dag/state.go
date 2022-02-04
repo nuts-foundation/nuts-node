@@ -41,13 +41,14 @@ const (
 
 // State has references to the DAG and the payload store.
 type state struct {
-	db           *bbolt.DB
-	graph        *bboltDAG
-	payloadStore PayloadStore
-	observers    []Observer
-	keyResolver  types.KeyResolver
-	publisher    Publisher
-	txVerifiers  []Verifier
+	db                        *bbolt.DB
+	graph                     *bboltDAG
+	payloadStore              PayloadStore
+	transactionalObservers    []Observer
+	nonTransactionalObservers []Observer
+	keyResolver               types.KeyResolver
+	publisher                 Publisher
+	txVerifiers               []Verifier
 }
 
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
@@ -80,8 +81,13 @@ func NewState(dataDir string, verifiers ...Verifier) (State, error) {
 	return newState, nil
 }
 
-func (s *state) RegisterObserver(observer Observer) {
-	s.observers = append(s.observers, observer)
+func (s *state) RegisterObserver(observer Observer, transactional bool) {
+	if transactional {
+		s.transactionalObservers = append(s.transactionalObservers, observer)
+	} else {
+		s.nonTransactionalObservers = append(s.nonTransactionalObservers, observer)
+	}
+
 }
 
 func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
@@ -99,7 +105,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			return err
 		}
 
-		notifyObservers(contextWithTX, s.observers, transaction, payload)
+		s.notifyObservers(contextWithTX, transaction, payload)
 		return nil
 	})
 
@@ -135,12 +141,14 @@ func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (bool, erro
 }
 
 func (s *state) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error {
-	err := s.payloadStore.WritePayload(ctx, payloadHash, data)
-	if err == nil {
-		// ctx passed with bbolt transaction
-		notifyObservers(ctx, s.observers, nil, data)
-	}
-	return err
+	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		err := s.payloadStore.WritePayload(contextWithTX, payloadHash, data)
+		if err == nil {
+			// ctx passed with bbolt transaction
+			s.notifyObservers(contextWithTX, nil, data)
+		}
+		return err
+	})
 }
 
 func (s *state) PayloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error {
@@ -210,9 +218,24 @@ func (s *state) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Ha
 	return s.graph.Walk(ctx, visitor, startAt)
 }
 
-func notifyObservers(ctx context.Context, observers []Observer, transaction Transaction, payload []byte) {
-	for _, observer := range observers {
+// notifyObservers is called from a transactional context. The transactional observers need to be called with the TX context, the other observers after the commit.
+func (s *state) notifyObservers(ctx context.Context, transaction Transaction, payload []byte) {
+	// apply TX context observers
+	for _, observer := range s.transactionalObservers {
 		observer(ctx, transaction, payload)
+	}
+
+	notifyNonTXObservers := func() {
+		for _, observer := range s.nonTransactionalObservers {
+			observer(context.Background(), transaction, payload)
+		}
+	}
+	// check if there's an active transaction
+	tx, txIsActive := storage.BBoltTX(ctx)
+	if txIsActive { // sanity check because there should always be a transaction
+		tx.OnCommit(notifyNonTXObservers)
+	} else {
+		notifyNonTXObservers()
 	}
 }
 
