@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"github.com/nuts-foundation/nuts-node/network/transport/v2/tree"
 	"sync"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -18,13 +19,13 @@ type StateDAG interface {
 type stateDAG struct {
 	seenTx     map[hash.SHA256Hash]bool
 	maxKnownLC uint32
-	xorTree    *tree
+	xorTree    *tree.Tree
 	mutex      sync.RWMutex
 }
 
 func newStateDAG() StateDAG {
 	return &stateDAG{
-		xorTree: newTree(NewXor(), treeLeafSize),
+		xorTree: tree.New(tree.NewXor(), treeLeafSize),
 		seenTx:  make(map[hash.SHA256Hash]bool),
 		mutex:   sync.RWMutex{},
 	}
@@ -42,7 +43,7 @@ func (st *stateDAG) AddNewTx(ref hash.SHA256Hash, clock uint32) error {
 			st.maxKnownLC = clock
 		}
 		// add to xorTree
-		err := st.xorTree.insert(ref, clock)
+		err := st.xorTree.Insert(ref, clock)
 		if err != nil {
 			return err
 		}
@@ -62,14 +63,14 @@ func (st *stateDAG) GetXor() (hash.SHA256Hash, uint32) {
 	st.mutex.RLock()
 	defer st.mutex.RUnlock()
 
-	data, clock := st.xorTree.getRoot()
-	return data.(*xorData).hash, clock
+	data := st.xorTree.GetRoot()
+	return data.(*tree.XorHash).Hash, st.maxKnownLC
 }
 
 func (st *stateDAG) GetXorAt(clock uint32) (hash.SHA256Hash, uint32) {
 	st.mutex.RLock()
 	defer st.mutex.RUnlock()
 
-	data, trueClock := st.xorTree.getZeroTo(clock)
-	return data.(*xorData).hash, trueClock
+	data, trueClock := st.xorTree.GetZeroTo(clock)
+	return data.(*tree.XorHash).Hash, trueClock
 }
