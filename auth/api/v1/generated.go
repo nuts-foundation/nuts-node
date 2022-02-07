@@ -139,9 +139,9 @@ type CreateJwtGrantRequest struct {
 	Authorizer  string                 `json:"authorizer"`
 	Credentials []VerifiableCredential `json:"credentials"`
 
-	// Base64 encoded IRMA contract conaining the identity of the performer
-	Identity  string `json:"identity"`
-	Requester string `json:"requester"`
+	// If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
+	Identity  *VerifiablePresentation `json:"identity,omitempty"`
+	Requester string                  `json:"requester"`
 
 	// The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
 	Service string `json:"service"`
@@ -198,9 +198,9 @@ type RequestAccessTokenRequest struct {
 	Authorizer  string                 `json:"authorizer"`
 	Credentials []VerifiableCredential `json:"credentials"`
 
-	// Base64 encoded IRMA contract conaining the identity of the performer
-	Identity  string `json:"identity"`
-	Requester string `json:"requester"`
+	// If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
+	Identity  *VerifiablePresentation `json:"identity,omitempty"`
+	Requester string                  `json:"requester"`
 
 	// The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
 	Service string `json:"service"`
@@ -306,13 +306,6 @@ type TokenIntrospectionResponse struct {
 	// The subject is always the acting party, thus the care organization requesting access to data.
 	Sub *string   `json:"sub,omitempty"`
 	Vcs *[]string `json:"vcs,omitempty"`
-}
-
-// If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
-type VerifiablePresentation struct {
-	Context []string               `json:"@context"`
-	Proof   map[string]interface{} `json:"proof"`
-	Type    []string               `json:"type"`
 }
 
 // VerifyAccessTokenParams defines parameters for VerifyAccessToken.

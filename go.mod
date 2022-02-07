@@ -40,6 +40,8 @@ require (
 	schneider.vip/problem v1.6.0
 )
 
+replace github.com/nuts-foundation/go-did => ../go-did
+
 require (
 	github.com/alexandrevicenzi/go-sse v1.3.1-0.20200117161408-7b23d5ff7420 // indirect
 	github.com/armon/go-metrics v0.3.10 // indirect

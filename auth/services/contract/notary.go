@@ -19,14 +19,15 @@
 package contract
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	irmago "github.com/privacybydesign/irmago"
 	"github.com/privacybydesign/irmago/server/irmaserver"
 
@@ -78,8 +79,8 @@ type notary struct {
 	privateKeyStore   crypto.KeyStore
 	irmaServiceConfig irma.ValidatorConfig
 	irmaServer        *irmaserver.Server
-	verifiers         map[contract.VPType]contract.VPVerifier
-	signers           map[contract.SigningMeans]contract.Signer
+	verifiers         map[string]contract.VPVerifier
+	signers           map[string]contract.Signer
 	vcr               vcr.VCR
 }
 
@@ -147,12 +148,12 @@ func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, valid
 }
 
 func (n *notary) Configure() (err error) {
-	n.verifiers = map[contract.VPType]contract.VPVerifier{}
-	n.signers = map[contract.SigningMeans]contract.Signer{}
+	n.verifiers = map[string]contract.VPVerifier{}
+	n.signers = map[string]contract.Signer{}
 
-	cvMap := make(map[contract.SigningMeans]bool, len(n.config.ContractValidators))
+	cvMap := make(map[string]bool, len(n.config.ContractValidators))
 	for _, cv := range n.config.ContractValidators {
-		cvMap[contract.SigningMeans(cv)] = true
+		cvMap[cv] = true
 	}
 
 	if n.config.hasContractValidator("irma") {
@@ -204,17 +205,12 @@ func (n *notary) Configure() (err error) {
 	return
 }
 
-func (n *notary) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (contract.VPVerificationResult, error) {
-	vp := contract.BaseVerifiablePresentation{}
-	if err := json.Unmarshal(rawVerifiablePresentation, &vp); err != nil {
-		return nil, fmt.Errorf("unable to verifyVP: %w", err)
-	}
-
+func (n *notary) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (contract.VPVerificationResult, error) {
 	// remove default type
-	vpTypes := vp.Type
+	vpTypes := make([]ssi.URI, len(vp.Type))
 	i := 0
-	for _, x := range vpTypes {
-		if x != contract.VerifiablePresentationType {
+	for _, x := range vp.Type {
+		if x != vc.VerifiablePresentationTypeV1URI() {
 			vpTypes[i] = x
 			i++
 		}
@@ -226,11 +222,11 @@ func (n *notary) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time
 	}
 	t := vpTypes[0]
 
-	if _, ok := n.verifiers[t]; !ok {
+	if _, ok := n.verifiers[t.String()]; !ok {
 		return nil, fmt.Errorf("unknown VerifiablePresentation type: %s", t)
 	}
 
-	return n.verifiers[t].VerifyVP(rawVerifiablePresentation, checkTime)
+	return n.verifiers[t.String()].VerifyVP(vp, checkTime)
 }
 
 func (n *notary) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {

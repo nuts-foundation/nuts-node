@@ -12,6 +12,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
+	vc "github.com/nuts-foundation/go-did/vc"
 	contract "github.com/nuts-foundation/nuts-node/auth/contract"
 )
 
@@ -313,18 +314,18 @@ func (mr *MockContractNotaryMockRecorder) SigningSessionStatus(sessionID interfa
 }
 
 // VerifyVP mocks base method.
-func (m *MockContractNotary) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (contract.VPVerificationResult, error) {
+func (m *MockContractNotary) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (contract.VPVerificationResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VerifyVP", rawVerifiablePresentation, checkTime)
+	ret := m.ctrl.Call(m, "VerifyVP", vp, checkTime)
 	ret0, _ := ret[0].(contract.VPVerificationResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // VerifyVP indicates an expected call of VerifyVP.
-func (mr *MockContractNotaryMockRecorder) VerifyVP(rawVerifiablePresentation, checkTime interface{}) *gomock.Call {
+func (mr *MockContractNotaryMockRecorder) VerifyVP(vp, checkTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyVP", reflect.TypeOf((*MockContractNotary)(nil).VerifyVP), rawVerifiablePresentation, checkTime)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyVP", reflect.TypeOf((*MockContractNotary)(nil).VerifyVP), vp, checkTime)
 }
 
 // MockCompoundServiceClient is a mock of CompoundServiceClient interface.

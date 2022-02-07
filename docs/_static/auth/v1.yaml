@@ -572,7 +572,6 @@ components:
       required:
         - authorizer
         - requester
-        - identity
         - service
         - credentials
       properties:
@@ -581,9 +580,7 @@ components:
         requester:
           type: string
         identity:
-          type: string
-          description: |
-            Base64 encoded IRMA contract conaining the identity of the performer
+          $ref: "#/components/schemas/VerifiablePresentation"
         service:
           type: string
           description: The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
@@ -612,7 +609,6 @@ components:
       required:
         - authorizer
         - requester
-        - identity
         - service
         - credentials
       properties:
@@ -621,9 +617,7 @@ components:
         requester:
           type: string
         identity:
-          type: string
-          description: |
-            Base64 encoded IRMA contract conaining the identity of the performer
+          $ref: '#/components/schemas/VerifiablePresentation'
         service:
           type: string
           description: The service for which this access-token can be used. The right oauth endpoint is selected based on the service.

@@ -20,9 +20,10 @@ package uzi
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 
 	"github.com/golang/mock/gomock"
@@ -34,15 +35,16 @@ import (
 func TestUziValidator_VerifyVP(t *testing.T) {
 	proofValue := "uziSignedProofValue123"
 
-	vp := []byte(
-		fmt.Sprintf(`{
-  "@context": [ "https://www.w3.org/2018/credentials/v1" ],
-  "type": ["VerifiablePresentation", "NutsUziPresentation", "OtherPresentation"],
-  "proof": {
-    "type": "NutsUziSignedContract",
-    "proofValue": "%s"
-  }
-}`, proofValue))
+	vp := vc.VerifiablePresentation{
+		Context: []ssi.URI{vc.VCContextV1URI()},
+		Type:    []ssi.URI{vc.VerifiablePresentationTypeV1URI(), ssi.MustParseURI("NutsUziPresentation"), ssi.MustParseURI("OtherPresentation")},
+		Proof: []interface{}{
+			proof{
+				Type:       "NutsUziSignedContract",
+				ProofValue: proofValue,
+			},
+		},
+	}
 
 	t.Run("ok - valid uzi signed VP", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -67,16 +69,6 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 		assert.Equal(t, "2020-12-10T13:57:00", res.ContractAttribute("validFrom"))
 	})
 
-	t.Run("nok - garbage input", func(t *testing.T) {
-		uziVerifier := &Verifier{}
-		res, err := uziVerifier.VerifyVP([]byte("123"), nil)
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Equal(t, "could not parse raw verifiable presentation: json: cannot unmarshal number into Go value of type uzi.verifiablePresentation", err.Error())
-		assert.Nil(t, res)
-	})
-
 	t.Run("nok - missing proof", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -84,7 +76,9 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 		tokenParser := services.NewMockVPProofValueParser(ctrl)
 		uziVerifier := &Verifier{UziValidator: tokenParser}
 
-		vp := []byte(`{ "@context": [ "https://www.w3.org/2018/credentials/v1" ] }`)
+		vp := vc.VerifiablePresentation{
+			Context: []ssi.URI{vc.VCContextV1URI()},
+		}
 
 		res, err := uziVerifier.VerifyVP(vp, nil)
 
@@ -100,15 +94,16 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		vp := []byte(
-			fmt.Sprintf(`{
-  "@context": [ "https://www.w3.org/2018/credentials/v1" ],
-  "type": ["VerifiablePresentation", "OtherPresentation"],
-  "proof": {
-    "type": "NutsUziSignedContract",
-    "proofValue": "%s"
-  }
-}`, proofValue))
+		vp := vc.VerifiablePresentation{
+			Context: []ssi.URI{vc.VCContextV1URI()},
+			Type:    []ssi.URI{vc.VerifiablePresentationTypeV1URI(), ssi.MustParseURI("OtherPresentation")},
+			Proof: []interface{}{
+				proof{
+					Type:       "NutsUziSignedContract",
+					ProofValue: proofValue,
+				},
+			},
+		}
 
 		tokenParser := services.NewMockVPProofValueParser(ctrl)
 		uziVerifier := &Verifier{UziValidator: tokenParser}

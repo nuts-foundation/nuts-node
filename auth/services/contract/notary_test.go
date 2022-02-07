@@ -19,12 +19,13 @@
 package contract
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	irma "github.com/privacybydesign/irmago"
 	"github.com/stretchr/testify/assert"
 
@@ -287,21 +288,14 @@ func TestContract_Configure(t *testing.T) {
 }
 
 func TestContract_VerifyVP(t *testing.T) {
+	rawVP := vc.VerifiablePresentation{
+		Type: []ssi.URI{vc.VerifiablePresentationTypeV1URI(), ssi.MustParseURI("bar")},
+	}
 	t.Run("ok - valid VP", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		rawVP, err := json.Marshal(struct {
-			Type []string
-		}{Type: []string{"bar"}})
-		if !assert.NoError(t, err) {
-			return
-		}
-
 		mockVerifier := services.NewMockContractNotary(ctrl)
 		mockVerifier.EXPECT().VerifyVP(rawVP, nil).Return(services.TestVPVerificationResult{Val: contract.Valid}, nil)
-
-		validator := notary{verifiers: map[contract.VPType]contract.VPVerifier{"bar": mockVerifier}}
+		validator := notary{verifiers: map[string]contract.VPVerifier{"bar": mockVerifier}}
 
 		validationResult, err := validator.VerifyVP(rawVP, nil)
 
@@ -317,14 +311,8 @@ func TestContract_VerifyVP(t *testing.T) {
 	t.Run("nok - unknown VerifiablePresentation", func(t *testing.T) {
 		validator := notary{}
 
-		rawVP, err := json.Marshal(struct {
-			Type []string
-		}{Type: []string{"bar"}})
-		if !assert.NoError(t, err) {
-			return
-		}
-
 		validationResult, err := validator.VerifyVP(rawVP, nil)
+
 		if !assert.Error(t, err) {
 			return
 		}
@@ -336,15 +324,12 @@ func TestContract_VerifyVP(t *testing.T) {
 
 	t.Run("nok - missing custom type", func(t *testing.T) {
 		validator := notary{}
-
-		rawVP, err := json.Marshal(struct {
-			foo string
-		}{foo: "bar"})
-		if !assert.NoError(t, err) {
-			return
+		rawVP := vc.VerifiablePresentation{
+			Type: []ssi.URI{vc.VerifiablePresentationTypeV1URI()},
 		}
 
 		validationResult, err := validator.VerifyVP(rawVP, nil)
+
 		if !assert.Error(t, err) {
 			return
 		}
@@ -352,18 +337,6 @@ func TestContract_VerifyVP(t *testing.T) {
 			return
 		}
 		assert.Equal(t, "unprocessable VerifiablePresentation, exactly 1 custom type is expected", err.Error())
-	})
-
-	t.Run("nok - invalid rawVP", func(t *testing.T) {
-		validator := notary{}
-		validationResult, err := validator.VerifyVP([]byte{}, nil)
-		if !assert.Error(t, err) {
-			return
-		}
-		if !assert.Nil(t, validationResult) {
-			return
-		}
-		assert.Equal(t, "unable to verifyVP: unexpected end of JSON input", err.Error())
 	})
 }
 
@@ -377,7 +350,7 @@ func TestContract_SigningSessionStatus(t *testing.T) {
 		mockSigner := contract.NewMockSigner(ctrl)
 		mockSigner.EXPECT().SigningSessionStatus(sessionID).Return(&contract.MockSigningSessionResult{}, nil)
 
-		validator := notary{signers: map[contract.SigningMeans]contract.Signer{"bar": mockSigner}}
+		validator := notary{signers: map[string]contract.Signer{"bar": mockSigner}}
 
 		signingSessionResult, err := validator.SigningSessionStatus(sessionID)
 		if !assert.NoError(t, err) {
@@ -418,7 +391,7 @@ func buildContext(t *testing.T) *testContext {
 
 	signerMock := contract.NewMockSigner(ctrl)
 
-	signers := map[contract.SigningMeans]contract.Signer{}
+	signers := map[string]contract.Signer{}
 	signers["irma"] = signerMock
 
 	ctx := &testContext{

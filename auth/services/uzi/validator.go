@@ -19,30 +19,24 @@
 package uzi
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 )
 
 // ContractFormat is the contract format type
-const ContractFormat = contract.SigningMeans("uzi")
+const ContractFormat = "uzi"
 
 // VerifiablePresentationType contains the string used in the VerifiablePresentation type array to indicate the Uzi means
-const VerifiablePresentationType = contract.VPType("NutsUziPresentation")
+const VerifiablePresentationType = "NutsUziPresentation"
 
 // Verifier implements the Verifier interface and verifies the VerifiablePresentations of the NutsUziPresentation type.
 type Verifier struct {
 	UziValidator services.VPProofValueParser
-}
-
-// verifiablePresentation is the NutsUziPresentation specific data structure and can be used for parsing and unmarshaling
-type verifiablePresentation struct {
-	contract.VerifiablePresentationBase
-	Proof proof
 }
 
 // proof contains the uzi specific proof part of the Verifiable presentation of the NutsUziPresentation type
@@ -53,7 +47,7 @@ type proof struct {
 
 type uziVPVerificationResult struct {
 	validity            contract.State
-	vpType              contract.VPType
+	vpType              string
 	disclosedAttributes map[string]string
 	contractAttributes  map[string]string
 }
@@ -62,7 +56,7 @@ func (I uziVPVerificationResult) Validity() contract.State {
 	return I.validity
 }
 
-func (I uziVPVerificationResult) VPType() contract.VPType {
+func (I uziVPVerificationResult) VPType() string {
 	return I.vpType
 }
 
@@ -85,29 +79,28 @@ func (I uziVPVerificationResult) ContractAttributes() map[string]string {
 // VerifyVP implements the verifiablePresentation Verifier interface. It can verify an Uzi VP.
 // It checks the signature, the attributes and the contract.
 // Returns the contract.VPVerificationResult or an error if something went wrong.
-func (u Verifier) VerifyVP(rawVerifiablePresentation []byte, _ *time.Time) (contract.VPVerificationResult, error) {
-
-	presentation := verifiablePresentation{}
-	if err := json.Unmarshal(rawVerifiablePresentation, &presentation); err != nil {
-		return nil, fmt.Errorf("could not parse raw verifiable presentation: %w", err)
+func (u Verifier) VerifyVP(vp vc.VerifiablePresentation, _ *time.Time) (contract.VPVerificationResult, error) {
+	proofs := make([]proof, 0)
+	if err := vp.UnmarshalProofValue(&proofs); err != nil {
+		return nil, fmt.Errorf("could not parse verifiable presentation: %w", err)
 	}
 
-	if len(presentation.Proof.ProofValue) == 0 {
+	if len(proofs) == 0 || len(proofs[0].ProofValue) == 0 {
 		return nil, errors.New("could not verify empty proof")
 	}
 
 	typeMatch := false
-	for _, pType := range presentation.Type {
+	for _, pType := range vp.Type {
 		if typeMatch {
 			break
 		}
-		typeMatch = pType == VerifiablePresentationType
+		typeMatch = pType.String() == VerifiablePresentationType
 	}
 	if !typeMatch {
-		return nil, fmt.Errorf("could not verify this verification type: '%v', should contain type: %s", presentation.Type, VerifiablePresentationType)
+		return nil, fmt.Errorf("could not verify this verification type: '%v', should contain type: %s", vp.Type, VerifiablePresentationType)
 	}
 
-	signedToken, err := u.UziValidator.Parse(presentation.Proof.ProofValue)
+	signedToken, err := u.UziValidator.Parse(proofs[0].ProofValue)
 	if err != nil {
 		return nil, fmt.Errorf("could not verify verifiable presentation: could not parse the proof: %w", err)
 	}

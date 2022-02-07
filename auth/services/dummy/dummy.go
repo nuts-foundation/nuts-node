@@ -23,17 +23,20 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 )
 
 // ContractFormat is the contract format type
-const ContractFormat = contract.SigningMeans("dummy")
+const ContractFormat = "dummy"
 
 // VerifiablePresentationType is the dummy verifiable presentation type
-const VerifiablePresentationType = contract.VPType("DummyVerifiablePresentation")
+const VerifiablePresentationType = "DummyVerifiablePresentation"
 
 // NoSignatureType is a VerifiablePresentation Proof type where no signature is given
 const NoSignatureType = "NoSignature"
@@ -55,13 +58,6 @@ type Dummy struct {
 	InStrictMode bool
 	Sessions     map[string]string
 	Status       map[string]string
-}
-
-// Presentation is a VerifiablePresentation without valid cryptographic proofs
-// It is only usable in non-strict mode.
-type Presentation struct {
-	contract.VerifiablePresentationBase
-	Proof Proof
 }
 
 // Proof holds the Proof generated from the dummy Signer
@@ -128,7 +124,7 @@ func (d dummyVPVerificationResult) Validity() contract.State {
 	return contract.Valid
 }
 
-func (d dummyVPVerificationResult) VPType() contract.VPType {
+func (d dummyVPVerificationResult) VPType() string {
 	return VerifiablePresentationType
 }
 
@@ -160,41 +156,45 @@ func (d signingSessionResult) Status() string {
 }
 
 // VerifiablePresentation returns the contract.VerifiablePresentation if the session is completed, nil otherwise.
-func (d signingSessionResult) VerifiablePresentation() (contract.VerifiablePresentation, error) {
+func (d signingSessionResult) VerifiablePresentation() (*vc.VerifiablePresentation, error) {
 	// todo: the contract template should be used to select the dummy attributes to add
 
 	if d.Status() != SessionCompleted {
 		return nil, nil
 	}
 
-	return Presentation{
-		VerifiablePresentationBase: contract.VerifiablePresentationBase{
-			Context: []string{contract.VerifiableCredentialContext},
-			Type:    []contract.VPType{contract.VerifiablePresentationType, VerifiablePresentationType},
-		},
-		Proof: Proof{
-			Type:       NoSignatureType,
-			Initials:   "I",
-			Prefix:     "von",
-			FamilyName: "Dummy",
-			Email:      "tester@example.com",
-			Contract:   d.Request,
+	return &vc.VerifiablePresentation{
+		Context: []ssi.URI{vc.VCContextV1URI()},
+		Type:    []ssi.URI{vc.VerifiablePresentationTypeV1URI(), ssi.MustParseURI(VerifiablePresentationType)},
+		Proof: []interface{}{
+			Proof{
+				Type:       NoSignatureType,
+				Initials:   "I",
+				Prefix:     "von",
+				FamilyName: "Dummy",
+				Email:      "tester@example.com",
+				Contract:   d.Request},
 		},
 	}, nil
 }
 
 // VerifyVP check a Dummy VerifiablePresentation. It Returns a verificationResult if all was fine, an error otherwise.
-func (d Dummy) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (contract.VPVerificationResult, error) {
+func (d Dummy) VerifyVP(vp vc.VerifiablePresentation, _ *time.Time) (contract.VPVerificationResult, error) {
 	if d.InStrictMode {
 		return nil, errNotEnabled
 	}
 
-	p := Presentation{}
-	if err := json.Unmarshal(rawVerifiablePresentation, &p); err != nil {
+	proofs := make([]Proof, 0)
+	if err := vp.UnmarshalProofValue(&proofs); err != nil {
 		return nil, err
 	}
 
-	c, err := contract.ParseContractString(p.Proof.Contract, contract.StandardContractTemplates)
+	if len(proofs) != 1 {
+		return nil, fmt.Errorf("invalid number of proofs in Dummy proof: %v", proofs)
+	}
+
+	proof := proofs[0]
+	c, err := contract.ParseContractString(proof.Contract, contract.StandardContractTemplates)
 	if err != nil {
 		return nil, err
 	}
@@ -202,10 +202,10 @@ func (d Dummy) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) 
 	// follows openid default claims
 	return dummyVPVerificationResult{
 		disclosedAttributes: map[string]string{
-			services.InitialsTokenClaim:   p.Proof.Initials,
-			services.PrefixTokenClaim:     p.Proof.Prefix,
-			services.FamilyNameTokenClaim: p.Proof.FamilyName,
-			services.EmailTokenClaim:      p.Proof.Email,
+			services.InitialsTokenClaim:   proof.Initials,
+			services.PrefixTokenClaim:     proof.Prefix,
+			services.FamilyNameTokenClaim: proof.FamilyName,
+			services.EmailTokenClaim:      proof.Email,
 			services.EidasIALClaim:        "low",
 		},
 		contractAttributes: c.Params,
