@@ -51,18 +51,26 @@ type bboltTXCallback func(contextWithTX context.Context, tx *bbolt.Tx) error
 // BBoltTXView executes the given callback in a read-only BBolt transaction. It attempts to re-use the active transaction from the given context, if there is one.
 // If there's no active transaction a new one will be started.
 func BBoltTXView(ctx context.Context, db *bbolt.DB, cb bboltTXCallback) error {
-	return callBBoltCallbackWithTX(ctx, db, cb, false)
+	err := callBBoltCallbackWithTX(ctx, db, cb, false)
+	return err
 }
 
 // BBoltTXUpdate executes the given callback in a writable BBolt transaction. It attempts to re-use the active transaction from the given context, if there is one.
 // If there's no active transaction a new one will be started.
 // If there's an active transaction which is readonly an error will be returned.
 func BBoltTXUpdate(ctx context.Context, db *bbolt.DB, cb bboltTXCallback) error {
-	return callBBoltCallbackWithTX(ctx, db, cb, true)
+	err := callBBoltCallbackWithTX(ctx, db, cb, true)
+	return err
+}
+
+// BBoltTX returns the active TX from the context and true. If no TX is active it returns nil, false.
+func BBoltTX(ctx context.Context) (*bbolt.Tx, bool) {
+	tx, txIsActive := ctx.Value(bboltTXContextKey).(*bbolt.Tx)
+	return tx, txIsActive
 }
 
 func callBBoltCallbackWithTX(ctx context.Context, db *bbolt.DB, cb bboltTXCallback, writable bool) error {
-	tx, txIsActive := ctx.Value(bboltTXContextKey).(*bbolt.Tx)
+	tx, txIsActive := BBoltTX(ctx)
 	if !txIsActive {
 		// No active TX, we can simply start one here as long as we put it in the context we pass down, allowing nested BBolt database callers to re-use the transaction.
 		if writable {

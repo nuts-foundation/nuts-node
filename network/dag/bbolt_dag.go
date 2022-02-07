@@ -265,7 +265,7 @@ func (dag bboltDAG) Heads(ctx context.Context) []hash.SHA256Hash {
 
 func (dag *bboltDAG) FindBetween(ctx context.Context, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error) {
 	var result []Transaction
-	err := dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
+	err := dag.Walk(ctx, func(_ context.Context, transaction Transaction) bool {
 		if !transaction.SigningTime().Before(startInclusive) && transaction.SigningTime().Before(endExclusive) {
 			result = append(result, transaction)
 		}
@@ -287,18 +287,20 @@ func (dag bboltDAG) IsPresent(ctx context.Context, ref hash.SHA256Hash) (bool, e
 }
 
 func (dag *bboltDAG) Add(ctx context.Context, transactions ...Transaction) error {
-	for _, transaction := range transactions {
-		if transaction != nil {
-			if err := dag.add(ctx, transaction); err != nil {
-				return err
+	return storage.BBoltTXUpdate(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
+		for _, transaction := range transactions {
+			if transaction != nil {
+				if err := dag.add(tx, transaction); err != nil {
+					return err
+				}
 			}
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
-	return storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
+	return storage.BBoltTXView(ctx, dag.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
 		transactions := tx.Bucket([]byte(transactionsBucket))
 		clocksBucket := tx.Bucket([]byte(clockBucket))
 		if transactions == nil {
@@ -329,7 +331,7 @@ func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA2
 				if err != nil {
 					return err
 				}
-				if !visitor(ctx, transaction) {
+				if !visitor(contextWithTX, transaction) {
 					break outer
 				}
 			}
@@ -353,49 +355,46 @@ func (dag bboltDAG) Statistics(ctx context.Context) Statistics {
 	}
 }
 
-func (dag *bboltDAG) add(ctx context.Context, transaction Transaction) error {
+func (dag *bboltDAG) add(tx *bbolt.Tx, transaction Transaction) error {
 	ref := transaction.Ref()
 	refSlice := ref.Slice()
-	err := storage.BBoltTXUpdate(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
-		transactions, lc, _, payloadIndex, heads, err := getBuckets(tx)
-		if err != nil {
-			return err
-		}
-		if exists(transactions, ref) {
-			log.Logger().Tracef("Transaction %s already exists, not adding it again.", ref)
-			return nil
-		}
-		if len(transaction.Previous()) == 0 {
-			if getRoots(lc) != nil {
-				return errRootAlreadyExists
-			}
-		}
-		if err := indexClockValue(tx, transaction); err != nil {
-			return fmt.Errorf("unable to calculate LC value for %s: %w", ref, err)
-		}
-		if err := transactions.Put(refSlice, transaction.Data()); err != nil {
-			return err
-		}
-		// Store forward references ([C -> prev A, B] is stored as [A -> C, B -> C])
-		for _, prev := range transaction.Previous() {
-			// The TX's previous transactions are probably current heads (if there's no other TX referring to it as prev),
-			// so it should be unmarked as head.
-			if err := heads.Delete(prev.Slice()); err != nil {
-				return fmt.Errorf("unable to unmark earlier head: %w", err)
-			}
-		}
-		// Transactions are added in order, so the latest TX is always a head
-		if err := heads.Put(refSlice, []byte{1}); err != nil {
-			return fmt.Errorf("unable to mark transaction as head (ref=%s): %w", ref, err)
-		}
-		// Store reverse reference from payload hash to transaction
-		newPayloadIndexValue := appendHashList(copyBBoltValue(payloadIndex, transaction.PayloadHash().Slice()), ref)
-		if err = payloadIndex.Put(transaction.PayloadHash().Slice(), newPayloadIndexValue); err != nil {
-			return fmt.Errorf("unable to update payload index for transaction %s: %w", ref, err)
-		}
+	transactions, lc, _, payloadIndex, heads, err := getBuckets(tx)
+	if err != nil {
+		return err
+	}
+	if exists(transactions, ref) {
+		log.Logger().Tracef("Transaction %s already exists, not adding it again.", ref)
 		return nil
-	})
-	return err
+	}
+	if len(transaction.Previous()) == 0 {
+		if getRoots(lc) != nil {
+			return errRootAlreadyExists
+		}
+	}
+	if err := indexClockValue(tx, transaction); err != nil {
+		return fmt.Errorf("unable to calculate LC value for %s: %w", ref, err)
+	}
+	if err := transactions.Put(refSlice, transaction.Data()); err != nil {
+		return err
+	}
+	// Store forward references ([C -> prev A, B] is stored as [A -> C, B -> C])
+	for _, prev := range transaction.Previous() {
+		// The TX's previous transactions are probably current heads (if there's no other TX referring to it as prev),
+		// so it should be unmarked as head.
+		if err := heads.Delete(prev.Slice()); err != nil {
+			return fmt.Errorf("unable to unmark earlier head: %w", err)
+		}
+	}
+	// Transactions are added in order, so the latest TX is always a head
+	if err := heads.Put(refSlice, []byte{1}); err != nil {
+		return fmt.Errorf("unable to mark transaction as head (ref=%s): %w", ref, err)
+	}
+	// Store reverse reference from payload hash to transaction
+	newPayloadIndexValue := appendHashList(copyBBoltValue(payloadIndex, transaction.PayloadHash().Slice()), ref)
+	if err = payloadIndex.Put(transaction.PayloadHash().Slice(), newPayloadIndexValue); err != nil {
+		return fmt.Errorf("unable to update payload index for transaction %s: %w", ref, err)
+	}
+	return nil
 }
 
 func indexClockValue(tx *bbolt.Tx, transaction Transaction) error {

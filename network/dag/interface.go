@@ -55,7 +55,8 @@ type State interface {
 	// PayloadHashes applies the visitor function to the payload hashes of all transactions, in random order.
 	PayloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error
 	// RegisterObserver allows observers to be notified when a transaction is added to the DAG.
-	RegisterObserver(observer Observer)
+	// If the observer needs to be called within the transaction, transactional must be true.
+	RegisterObserver(observer Observer, transactional bool)
 	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
 	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
 	// to all payload types.

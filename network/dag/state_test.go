@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 )
@@ -152,13 +153,32 @@ func TestState_Start(t *testing.T) {
 }
 
 func TestState_Observe(t *testing.T) {
+	t.Run("called with correct TX context", func(t *testing.T) {
+		tests := []bool{true, false}
+		for _, expected := range tests {
+			t.Run(fmt.Sprintf("TX active: %v", expected), func(t *testing.T) {
+				ctx := context.Background()
+				txState := createState(t)
+				var actual bool
+				txState.RegisterObserver(func(ctx context.Context, transaction Transaction, _ []byte) {
+					_, actual = storage.BBoltTX(ctx)
+				}, expected)
+				tx := CreateTestTransactionWithJWK(1)
+
+				err := txState.Add(ctx, tx, nil)
+
+				assert.NoError(t, err)
+				assert.Equal(t, expected, actual)
+			})
+		}
+	})
 	t.Run("transaction added", func(t *testing.T) {
 		ctx := context.Background()
 		txState := createState(t)
 		var actual Transaction
 		txState.RegisterObserver(func(ctx context.Context, transaction Transaction, _ []byte) {
 			actual = transaction
-		})
+		}, false)
 		expected := CreateTestTransactionWithJWK(1)
 
 		err := txState.Add(ctx, expected, nil)
@@ -174,7 +194,7 @@ func TestState_Observe(t *testing.T) {
 		txState.RegisterObserver(func(ctx context.Context, transaction Transaction, payload []byte) {
 			actualTX = transaction
 			actualPayload = payload
-		})
+		}, false)
 		expected := CreateTestTransactionWithJWK(1)
 
 		err := txState.Add(ctx, expected, []byte{1})
@@ -189,7 +209,7 @@ func TestState_Observe(t *testing.T) {
 		var actual []byte
 		txState.RegisterObserver(func(ctx context.Context, _ Transaction, payload []byte) {
 			actual = payload
-		})
+		}, false)
 		expected := []byte{1}
 
 		err := txState.WritePayload(ctx, hash.EmptyHash(), expected)
