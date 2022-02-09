@@ -3,10 +3,10 @@
 run-generators: gen-mocks gen-api gen-protobuf
 
 install-tools:
-	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.8.2
+	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.9.1
 	go install github.com/golang/mock/mockgen@v1.6.0
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26.0
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
 gen-readme:
 	./generate_readme.sh
@@ -49,7 +49,7 @@ gen-api:
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 -exclude-schemas PeerDiagnostics docs/_static/network/v1.yaml | gofmt > network/api/v1/generated.go
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential,CredentialSubject,IssueVCRequest,Revocation docs/_static/vcr/v1.yaml | gofmt > vcr/api/v1/generated.go
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v2 -exclude-schemas VerifiableCredential,CredentialSubject,Revocation docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
-	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential docs/_static/auth/v1.yaml | gofmt > auth/api/v1/generated.go
+	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential,VerifiablePresentation docs/_static/auth/v1.yaml | gofmt > auth/api/v1/generated.go
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 -exclude-schemas ContactInformation,OrganizationSearchResult docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 
 gen-protobuf:

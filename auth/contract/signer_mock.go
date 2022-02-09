@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	vc "github.com/nuts-foundation/go-did/vc"
 )
 
 // MockSigner is a mock of Signer interface.
@@ -167,10 +168,10 @@ func (mr *MockSigningSessionResultMockRecorder) Status() *gomock.Call {
 }
 
 // VerifiablePresentation mocks base method.
-func (m *MockSigningSessionResult) VerifiablePresentation() (VerifiablePresentation, error) {
+func (m *MockSigningSessionResult) VerifiablePresentation() (*vc.VerifiablePresentation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "VerifiablePresentation")
-	ret0, _ := ret[0].(VerifiablePresentation)
+	ret0, _ := ret[0].(*vc.VerifiablePresentation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

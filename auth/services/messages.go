@@ -22,14 +22,12 @@ import (
 	"encoding/json"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-
 	irma "github.com/privacybydesign/irmago"
 )
 
 // CreateSessionRequest is used to create a contract signing session.
 type CreateSessionRequest struct {
-	SigningMeans contract.SigningMeans
+	SigningMeans string
 	// Message to sign
 	Message string
 }
@@ -47,11 +45,11 @@ type CreateAccessTokenRequest struct {
 
 // CreateJwtGrantRequest contains all information to create a JwtBearerToken
 type CreateJwtGrantRequest struct {
-	Requester     string
-	Authorizer    string
-	IdentityToken *string
-	Service       string
-	Credentials   []vc.VerifiableCredential
+	Requester   string
+	Authorizer  string
+	IdentityVP  *vc.VerifiablePresentation
+	Service     string
+	Credentials []vc.VerifiableCredential
 }
 
 // AccessTokenResult defines the return value back to the api for the CreateAccessToken method
