@@ -25,6 +25,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"io/fs"
 	"os"
 	"path"
@@ -52,10 +53,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-)
-
-const (
-	maxSkew = 5 * time.Second
 )
 
 //go:embed assets/*
@@ -95,6 +92,7 @@ type vcr struct {
 	network         network.Transactions
 	trustConfig     *trust.Config
 	issuer          issuer.Issuer
+	verifier        verifier.Verifier
 	issuerStore     issuer.Store
 }
 
@@ -121,6 +119,8 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
 	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore)
+
+	c.verifier = verifier.NewVerifier(c.keyResolver)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {
@@ -382,35 +382,7 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 		}
 	}
 
-	if checkSignature {
-		return c.Verify(credential, validAt)
-	}
-	return c.validate(credential, validAt)
-}
-
-func (c *vcr) validate(credential vc.VerifiableCredential, validAt *time.Time) error {
-	at := timeFunc()
-	if validAt != nil {
-		at = *validAt
-	}
-
-	issuer, err := did.ParseDIDURL(credential.Issuer.String())
-	if err != nil {
-		return err
-	}
-
-	if credential.IssuanceDate.After(at.Add(maxSkew)) {
-		return types.ErrInvalidPeriod
-	}
-
-	if credential.ExpirationDate != nil && credential.ExpirationDate.Add(maxSkew).Before(at) {
-		return types.ErrInvalidPeriod
-	}
-
-	if _, _, err = c.docResolver.Resolve(*issuer, &vdr.ResolveMetadata{ResolveTime: &at}); err != nil {
-		return fmt.Errorf("unable to resolve DID Document (ID=%s): %w", issuer.String(), err)
-	}
-	return nil
+	return c.verifier.Verify(credential, allowUntrusted, checkSignature, validAt)
 }
 
 func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
@@ -448,66 +420,6 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	}
 
 	return credential, types.ErrNotFound
-}
-
-func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
-	// it must have valid content
-	validator, _ := credential.FindValidatorAndBuilder(subject)
-	if validator == nil {
-		return errors.New("unknown credential type")
-	}
-
-	if err := validator.Validate(subject); err != nil {
-		return err
-	}
-
-	// create correct challenge for verification
-	payload, err := generateCredentialChallenge(subject)
-	if err != nil {
-		return fmt.Errorf("cannot generate challenge: %w", err)
-	}
-
-	// extract proof, can't fail already done in generateCredentialChallenge
-	var proofs = make([]vc.JSONWebSignature2020Proof, 0)
-	_ = subject.UnmarshalProofValue(&proofs)
-	proof := proofs[0]
-	splittedJws := strings.Split(proof.Jws, "..")
-	if len(splittedJws) != 2 {
-		return errors.New("invalid 'jws' value in proof")
-	}
-	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
-	if err != nil {
-		return err
-	}
-
-	// check if key is of issuer
-	vm := proof.VerificationMethod
-	vm.Fragment = ""
-	if vm != subject.Issuer {
-		return errors.New("verification method is not of issuer")
-	}
-
-	// find key
-	pk, err := c.keyResolver.ResolveSigningKey(proof.VerificationMethod.String(), at)
-	if err != nil {
-		return fmt.Errorf("unable to resolve signing key: %w", err)
-	}
-
-	// the proof must be correct
-	alg, err := crypto.SignatureAlgorithm(pk)
-	if err != nil {
-		return err
-	}
-
-	verifier, _ := jws.NewVerifier(alg)
-	// the jws lib can't do this for us, so we concat hdr with payload for verification
-	challenge := fmt.Sprintf("%s.%s", splittedJws[0], payload)
-	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
-		return err
-	}
-
-	// next check trusted/period and revocation
-	return c.validate(subject, at)
 }
 
 func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {

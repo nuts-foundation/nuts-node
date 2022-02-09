@@ -66,9 +66,9 @@ func Validate(credential vc.VerifiableCredential) error {
 		return failure("default context is required")
 	}
 
-	if !credential.ContainsContext(*NutsContextURI) {
-		return failure("nuts context is required")
-	}
+	//if !credential.ContainsContext(*NutsContextURI) {
+	//	return failure("nuts context is required")
+	//}
 
 	if credential.ID == nil {
 		return failure("'ID' is required")

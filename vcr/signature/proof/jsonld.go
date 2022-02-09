@@ -1,7 +1,12 @@
 package proof
 
 import (
+	"crypto"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -28,14 +33,14 @@ type ProofOptions struct {
 }
 
 // ldProof contains the fields of the Proof data model: https://w3c-ccg.github.io/data-integrity-spec/#proofs
-type ldProof struct {
+type LDProof struct {
 	ProofOptions
 	Nonce *string `json:"nonce,omitempty"`
 	// Type contains the signature type. Its is determined from the key type.
 	Type ssi.ProofType `json:"type"`
 	// VerificationMethod is the key identifier for the public/private key pair used to sign this proof
 	// should be resolvable, e.g. did:nuts:123#key-1
-	VerificationMethod string `json:"verificationMethod"`
+	VerificationMethod ssi.URI `json:"verificationMethod"`
 	// proofValue holds the representation of the proof value.
 	// This can be several keys, dependent on the suite like jws, proofValue or signatureValue
 	//proofValue map[string]interface{}
@@ -44,148 +49,93 @@ type ldProof struct {
 	Signature  interface{} `json:"signature,omitempty"`
 }
 
-//func (p ldProof) MarshalJSON() ([]byte, error) {
-//	type alias ldProof
-//	tmp := alias(p)
-//
-//	bytes, err := json.Marshal(tmp)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	if len(p.proofValue) == 0 {
-//		return bytes, nil
-//	}
-//
-//	asMap := map[string]interface{}{}
-//	if err := json.Unmarshal(bytes, &asMap); err != nil {
-//		return nil, err
-//	}
-//
-//	for key, val := range p.proofValue {
-//		asMap[key] = val
-//	}
-//
-//	return json.Marshal(asMap)
-//}
-
-func NewLDProof(options ProofOptions) *ldProof {
-	return &ldProof{ProofOptions: options}
+func NewLDProof(options ProofOptions) *LDProof {
+	return &LDProof{ProofOptions: options}
 }
 
-//func (p *ldProof) SetProofValue(key string, value interface{}) {
-//	p.proofValue[key] = value
-//}
-//
-//func (p ldProof) GetProofValue(key string) interface{} {
-//	return p.proofValue[key]
-//}
+func NewLDProofFromDocumentProof(dp DocumentProof) (*LDProof, error) {
+	proofBytes, err := json.Marshal(dp)
+	if err != nil {
+		return nil, err
+	}
+	result := &LDProof{}
+	if err := json.Unmarshal(proofBytes, result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
 
-//type ldProofBuilder struct {
-//	ldDocumentLoader ld.DocumentLoader
-//}
-//
-//func (b *ldProofBuilder) Sign(document Document, options ProofOptions, suite signature.Suite, key nutsCrypto.Key) (interface{}, error) {
-//	proof := ldProof{ProofOptions: options}
-//	proof.Sign(document, suite, key)
-//}
+func (p LDProof) asMap() (map[string]interface{}, error) {
+	proofBytes, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	proofMap := map[string]interface{}{}
+	if err := json.Unmarshal(proofBytes, &proofMap); err != nil {
+		return nil, err
+	}
+	proofMap["@context"] = determineProofContext(p.Type)
+	proofMap["@type"] = proofMap["type"]
+	return proofMap, nil
+}
 
-//// NewLDProofBuilder creates a new ProofBuilder capable of generating LD-Proofs
-//func NewLDProofBuilder() (*ldProofBuilder, error) {
-//	loader := ld.NewCachingDocumentLoader(signature.NewEmbeddedFSDocumentLoader(assets.Assets, ld.NewDefaultDocumentLoader(nil)))
-//	if err := loader.PreloadWithMapping(map[string]string{
-//		"https://nuts.nl/credentials/v1":                                     "assets/contexts/nuts.ldjson",
-//		"https://www.w3.org/2018/credentials/v1":                             "assets/contexts/w3c-credentials-v1.ldjson",
-//		"https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json": "assets/contexts/lds-jws2020-v1.ldjson",
-//	}); err != nil {
-//		return nil, fmt.Errorf("unable to preload nuts ld-context: %w", err)
-//	}
-//	return &ldProofBuilder{ldDocumentLoader: loader}, nil
-//}
+func (p LDProof) asCanonicalizableMap() (map[string]interface{}, error) {
+	asMap, err := p.asMap()
+	if err != nil {
+		return nil, err
+	}
+	proofWithoutSignature := map[string]interface{}{}
+	for key, value := range asMap {
+		if key == "jws" || key == "signature" || key == "proofValue" {
+			continue
+		}
+		proofWithoutSignature[key] = value
+	}
+	return proofWithoutSignature, nil
+}
 
-//
-//func NewLDProofVerifier() (ProofVerifier, error) {
-//	return newLDProofManager()
-//}
+func (p LDProof) Verify(document interface{}, suite signature.Suite, key crypto.PublicKey) error {
+	canonicalDocument, err := suite.CanonicalizeDocument(document)
+	if err != nil {
+		return nil
+	}
 
-// Verify implements the Proof Verification Algorithm: https://w3c-ccg.github.io/data-integrity-spec/#proof-verification-algorithm
-//func (p ldProofManager) Verify(signedDocument interface{}, key crypto.PublicKey) error {
-//	// 1)
-//	// * Get the public key by dereferencing its URL identifier in the proof node of the default graph of signed document.
-//	// TODO: acccept a keyResolver instead of thee key param?
-//	// * Confirm that the unsigned data document that describes the public key specifies its controller and that its
-//	//   controllers's URL identifier can be dereferenced to reveal a bi-directional link back to the key.
-//	// TODO: is this needed?
-//	// * Ensure that the key's controller is a trusted entity before proceeding to the next step.
-//	// TODO: should this be done here, or be the responsibility of the caller?
-//
-//	// 2) Let document be a copy of signed document
-//	document := map[string]interface{}{}
-//	p.copy(signedDocument, &document)
-//
-//	// 3) Remove any proof nodes from the default graph in document and save it as proof
-//	proof, ok := document["proof"]
-//	if !ok {
-//		return errors.New("no proof in document")
-//	}
-//	delete(document, "proof")
-//
-//	// 4) Generate a canonicalized document by canonicalizing document according to the canonicalization algorithm
-//	// (e.g. the URDNA2015 [RDF-DATASET-C14N] algorithm).
-//	canonicalizedDocument, err := p.canonicalize(document)
-//	if err != nil {
-//		return fmt.Errorf("unable to canonicalize document: %w", err)
-//	}
-//
-//	// 5) Create a value tbv that represents the data to be verified, and set it to the result of running the
-//	// Create-Verify-Hash Algorithm, passing the information in proof.
-//	var tbv []byte
-//	// Let proofMap be a copy of proof
-//	proofMap := map[string]interface{}{}
-//	p.copy(proof, &proofMap)
-//	// If the proofValue parameter, such as jws, exists in proofMap, remove the entry
-//	delete(proofMap, "jws")
-//	// Add the correct context to the proofMap for canonicalization
-//	rawProofType, ok := proofMap["type"]
-//	if !ok {
-//		return errors.New("missing type on proof")
-//	}
-//	proofType, ok := rawProofType.(string)
-//	if !ok {
-//		return errors.New("proof.type is not a string")
-//	}
-//	proofMap["@context"] = determineProofContext(ssi.ProofType(proofType))
-//	proofMap["@type"] = proofMap["type"]
-//	canonicalizedProof, err := p.canonicalize(proofMap)
-//	if err != nil {
-//		return fmt.Errorf("unable to canonicalize proof: %w", err)
-//	}
-//	if tbv, err = p.CreateToBeSigned(canonicalizedDocument, canonicalizedProof); err != nil {
-//		return fmt.Errorf("unable to create bytes to verified")
-//	}
-//	// the proof must be correct
-//	alg, err := nutsCrypto.SignatureAlgorithm(key)
-//	if err != nil {
-//		return err
-//	}
-//
-//	verifier, _ := jws.NewVerifier(alg)
-//	// the jws lib can't do this for us, so we concat hdr with payload for verification
-//	splittedJws := strings.Split(proof.(map[string]interface{})["jws"].(string), "..")
-//	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
-//	challenge := fmt.Sprintf("%s.%s", splittedJws[0], tbv)
-//	if err = verifier.Verify([]byte(challenge), sig, key); err != nil {
-//		return fmt.Errorf("invalid proof signature: %w", err)
-//	}
-//
-//	return nil
-//}
+	preparedProof, err := p.asCanonicalizableMap()
+	if err != nil {
+		return err
+	}
+	canonicalProof, err := suite.CanonicalizeDocument(preparedProof)
+	if err != nil {
+		return nil
+	}
 
-func (p *ldProof) Sign(document Document, suite signature.Suite, key nutsCrypto.Key) (interface{}, error) {
+	tbv := append(suite.CalculateDigest(canonicalProof), suite.CalculateDigest(canonicalDocument)...)
+	// the proof must be correct
+	alg, err := nutsCrypto.SignatureAlgorithm(key)
+	if err != nil {
+		return err
+	}
+
+	jswVerifier, _ := jws.NewVerifier(alg)
+	// the jws lib can't do this for us, so we concat hdr with payload for verification
+	splittedJws := strings.Split(p.JWS, "..")
+	if len(splittedJws) != 2 {
+		return errors.New("invalid 'jws' value in proof")
+	}
+	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
+	challenge := fmt.Sprintf("%s.%s", splittedJws[0], tbv)
+	if err = jswVerifier.Verify([]byte(challenge), sig, key); err != nil {
+		return fmt.Errorf("invalid proof signature: %w", err)
+	}
+	return nil
+}
+
+func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.Key) (interface{}, error) {
 	p.Type = suite.GetType()
 	p.ProofPurpose = "assertionMethod"
 	p.Created = time.Now()
-	p.VerificationMethod = key.KID()
+	vm, _ := ssi.ParseURI(key.KID())
+	p.VerificationMethod = *vm
 
 	canonicalDocument, err := suite.CanonicalizeDocument(document)
 	if err != nil {
@@ -217,7 +167,7 @@ func (p *ldProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 	return document, nil
 }
 
-func (p ldProof) toMap() map[string]interface{} {
+func (p LDProof) toMap() map[string]interface{} {
 	proofMap := map[string]interface{}{}
 	p.copy(p, &proofMap)
 	// Add the correct context to the proofMap for canonicalization
@@ -261,7 +211,7 @@ func toDetachedSignature(sig string) string {
 	return strings.Join([]string{splitted[0], splitted[2]}, "..")
 }
 
-func (ldProof) copy(a, b interface{}) error {
+func (LDProof) copy(a, b interface{}) error {
 	byt, _ := json.Marshal(a)
 	return json.Unmarshal(byt, b)
 }
@@ -269,7 +219,7 @@ func (ldProof) copy(a, b interface{}) error {
 // CreateToBeSigned implements step 3 in the proof algorithm: https://w3c-ccg.github.io/ld-proofs/#proof-algorithm
 // Create a value tbs that represents the data to be signed, and set it to the result of running the Create Verify
 // Hash Algorithm, passing the information in options.
-func (p *ldProof) CreateToBeSigned(canonicalizedDocument interface{}, canonicalizedProof interface{}) ([]byte, error) {
+func (p *LDProof) CreateToBeSigned(canonicalizedDocument interface{}, canonicalizedProof interface{}) ([]byte, error) {
 
 	//https://w3c-ccg.github.io/data-integrity-spec/#create-verify-hash-algorithm
 	// Step 4.2:

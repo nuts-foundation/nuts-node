@@ -1,0 +1,241 @@
+package verifier
+
+import (
+	"crypto/ecdsa"
+	"encoding/json"
+	"errors"
+	"github.com/golang/mock/gomock"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/stretchr/testify/assert"
+	"os"
+	"testing"
+	"time"
+)
+
+func testCredential(t *testing.T) vc.VerifiableCredential {
+	subject := vc.VerifiableCredential{}
+	vcJSON, _ := os.ReadFile("../test/vc.json")
+	if !assert.NoError(t, json.Unmarshal(vcJSON, &subject)) {
+		t.FailNow()
+	}
+	return subject
+}
+
+func Test_verifier_Validate(t *testing.T) {
+	const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
+
+	// load pub key
+	pke := storage.PublicKeyEntry{}
+	pkeJSON, _ := os.ReadFile("../test/public.json")
+	json.Unmarshal(pkeJSON, &pke)
+	var pk = new(ecdsa.PublicKey)
+	pke.JWK().Raw(pk)
+
+	now := time.Now()
+	timeFunc = func() time.Time {
+		return now
+	}
+	defer func() {
+		timeFunc = time.Now
+	}()
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.verifier
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
+
+		err := instance.Validate(testCredential(t), nil)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - invalid vm", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.verifier
+
+		vc2 := testCredential(t)
+		pr := make([]vc.JSONWebSignature2020Proof, 0)
+		_ = vc2.UnmarshalProofValue(&pr)
+		u, _ := ssi.ParseURI(vc2.Issuer.String() + "2")
+		pr[0].VerificationMethod = *u
+		vc2.Proof = []interface{}{pr[0]}
+
+		err := instance.Validate(vc2, nil)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "verification method is not of issuer")
+	})
+
+	t.Run("error - wrong hashed payload", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.verifier
+		vc2 := testCredential(t)
+		vc2.IssuanceDate = time.Now()
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
+
+		err := instance.Validate(vc2, nil)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "failed to verify signature")
+	})
+
+	t.Run("error - wrong hashed proof", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.verifier
+		vc2 := testCredential(t)
+		pr := make([]vc.JSONWebSignature2020Proof, 0)
+		vc2.UnmarshalProofValue(&pr)
+		pr[0].Created = time.Now()
+		vc2.Proof = []interface{}{pr[0]}
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
+
+		err := instance.Validate(vc2, nil)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "failed to verify signature")
+	})
+
+	//t.Run("error - invalid credential", func(t *testing.T) {
+	//	ctx := newMockContext(t)
+	//	instance := ctx.verifier
+	//	uri, _ := ssi.ParseURI(credential.NutsOrganizationCredentialType)
+	//
+	//	err := instance.Validate(vc.VerifiableCredential{Type: []ssi.URI{*uri}}, nil)
+	//
+	//	if !assert.Error(t, err) {
+	//		return
+	//	}
+	//	assert.Contains(t, err.Error(), "validation failed")
+	//})
+
+	t.Run("error - no proof", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.verifier
+		vc2 := testCredential(t)
+		vc2.Proof = []interface{}{}
+
+		err := instance.Validate(vc2, nil)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "credential must contain exactly 1 proof")
+	})
+
+	t.Run("error - wrong jws in proof", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
+		instance := ctx.verifier
+		vc2 := testCredential(t)
+		pr := make([]vc.JSONWebSignature2020Proof, 0)
+		vc2.UnmarshalProofValue(&pr)
+		pr[0].Jws = ""
+		vc2.Proof = []interface{}{pr[0]}
+
+		err := instance.Validate(vc2, nil)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "invalid 'jws' value in proof")
+	})
+
+	t.Run("error - wrong base64 encoding in jws", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
+		instance := ctx.verifier
+		vc2 := testCredential(t)
+		pr := make([]vc.JSONWebSignature2020Proof, 0)
+		vc2.UnmarshalProofValue(&pr)
+		pr[0].Jws = "abac..ab//"
+		vc2.Proof = []interface{}{pr[0]}
+
+		err := instance.Validate(vc2, nil)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.Contains(t, err.Error(), "illegal base64 data")
+	})
+
+	t.Run("error - resolving key", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.verifier
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(nil, errors.New("b00m!"))
+
+		err := instance.Validate(testCredential(t), nil)
+
+		assert.Error(t, err)
+	})
+
+}
+
+func TestVerifier_Verify(t *testing.T) {
+	const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
+
+	now := time.Now()
+	timeFunc = func() time.Time {
+		return now
+	}
+	defer func() {
+		timeFunc = time.Now
+	}()
+
+	t.Run("error - unknown credential", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.verifier
+		subject := testCredential(t)
+
+		credentialType, _ := ssi.ParseURI("unknown type")
+		subject.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI(), *credentialType}
+
+		err := instance.Verify(subject, true, false, nil)
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "unknown credential type")
+	})
+
+	t.Run("error - not valid yet", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.verifier
+		subject := testCredential(t)
+		subject.IssuanceDate.Add(-1 * time.Minute)
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(nil, errors.New("not found"))
+
+		at := time.Now()
+		err := instance.Validate(subject, &at)
+
+		assert.EqualError(t, err, "unable to resolve valid signing key at given time: not found")
+	})
+}
+
+type mockContext struct {
+	ctrl        *gomock.Controller
+	keyResolver *types.MockKeyResolver
+	verifier    Verifier
+}
+
+func newMockContext(t *testing.T) mockContext {
+	ctrl := gomock.NewController(t)
+	keyResolver := types.NewMockKeyResolver(ctrl)
+	verifier := NewVerifier(keyResolver)
+	return mockContext{
+		ctrl:        ctrl,
+		verifier:    verifier,
+		keyResolver: keyResolver,
+	}
+}

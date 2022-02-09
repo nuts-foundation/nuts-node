@@ -37,7 +37,7 @@ const maxFindExecutionTime = 1 * time.Second
 
 func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.Time) error {
 	// verify first
-	if err := c.Verify(credential, validAt); err != nil {
+	if err := c.verifier.Validate(credential, validAt); err != nil {
 		return err
 	}
 

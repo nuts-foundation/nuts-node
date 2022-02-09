@@ -20,7 +20,7 @@ func (JsonWebSignature2020) GetProofValueKey() string {
 	return "jws"
 }
 
-func (j JsonWebSignature2020) CanonicalizeDocument(doc map[string]interface{}) ([]byte, error) {
+func (j JsonWebSignature2020) CanonicalizeDocument(doc interface{}) ([]byte, error) {
 	// Fixme: move this code to another location so the loader can be cached and reused
 	loader := ld.NewCachingDocumentLoader(NewEmbeddedFSDocumentLoader(assets.Assets, ld.NewDefaultDocumentLoader(nil)))
 	if err := loader.PreloadWithMapping(map[string]string{

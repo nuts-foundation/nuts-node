@@ -11,6 +11,10 @@ import (
 type LegacyNutsSuite struct {
 }
 
+func (l LegacyNutsSuite) GetProofValueKey() string {
+	return "jws"
+}
+
 // Sign signs the provided doc and returns the signature bytes.
 func (l LegacyNutsSuite) Sign(doc []byte, key crypto.Key) ([]byte, error) {
 	sig, err := crypto.SignJWS(doc, detachedJWSHeaders(), key.Signer())
@@ -18,7 +22,7 @@ func (l LegacyNutsSuite) Sign(doc []byte, key crypto.Key) ([]byte, error) {
 }
 
 // CanonicalizeDocument canonicalizes the document by marshalling it to json
-func (l LegacyNutsSuite) CanonicalizeDocument(doc map[string]interface{}) ([]byte, error) {
+func (l LegacyNutsSuite) CanonicalizeDocument(doc interface{}) ([]byte, error) {
 	return json.Marshal(doc)
 }
 

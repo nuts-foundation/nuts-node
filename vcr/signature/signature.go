@@ -26,7 +26,7 @@ import (
 // Suite is an interface which defines the methods a signature suite implementation should implement.
 type Suite interface {
 	Sign(doc []byte, key crypto.Key) ([]byte, error)
-	CanonicalizeDocument(doc map[string]interface{}) ([]byte, error)
+	CanonicalizeDocument(doc interface{}) ([]byte, error)
 	CalculateDigest(doc []byte) []byte
 	GetType() ssi.ProofType
 	GetProofValueKey() string
