@@ -19,6 +19,7 @@
 package network
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -93,7 +94,6 @@ func TestNetwork_GetTransaction(t *testing.T) {
 
 func TestNetwork_GetTransactionPayload(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		transaction := dag.CreateTestTransactionWithJWK(1)
@@ -442,6 +442,23 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			assert.EqualError(t, err, "node DID must be configured to create private transactions")
 		})
 	})
+	t.Run("error - failed to calculate LC", func(t *testing.T) {
+		payload := []byte("Hello, World!")
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(ctrl)
+		// Register root TX on head tracker
+		rootTX, _, _ := dag.CreateTestTransaction(0)
+		cxt.network.lastTransactionTracker.process(rootTX, nil)
+		// 'Register' prev on DAG
+		additionalPrev, _, _ := dag.CreateTestTransaction(1)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), rootTX.Ref()).Return(nil, errors.New("custom"))
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil)
+		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
+
+		_, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
+
+		assert.EqualError(t, err, "unable to calculate clock value for new transaction: custom")
+	})
 }
 
 func TestNetwork_Start(t *testing.T) {
@@ -753,6 +770,63 @@ func Test_connectToKnownNodes(t *testing.T) {
 		_ = network.connectToKnownNodes(*nodeDID)
 	})
 
+}
+
+func TestNetwork_calculateLamportClock(t *testing.T) {
+	root := dag.CreateTestTransactionWithJWK(1)
+
+	t.Run("returns 0 for root", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(ctrl)
+
+		clock, err := cxt.network.calculateLamportClock(context.Background(), nil)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, uint32(0), clock)
+	})
+
+	t.Run("returns 1 for next TX", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(ctrl)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), root.Ref()).Return(root, nil)
+
+		clock, err := cxt.network.calculateLamportClock(context.Background(), []hash.SHA256Hash{root.Ref()})
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, uint32(1), clock)
+	})
+
+	t.Run("returns correct number for complex situation", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(ctrl)
+		A := dag.CreateTestTransactionWithJWK(2, root)
+		B := dag.CreateTestTransactionWithJWK(3, root, A)
+		C := dag.CreateTestTransactionWithJWK(4, B, root)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), root.Ref()).Return(root, nil)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), C.Ref()).Return(C, nil)
+
+		clock, err := cxt.network.calculateLamportClock(context.Background(), []hash.SHA256Hash{C.Ref(), root.Ref()})
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, uint32(4), clock)
+	})
+
+	t.Run("error - failed to fetch TX", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(ctrl)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), root.Ref()).Return(nil, errors.New("custom"))
+
+		clock, err := cxt.network.calculateLamportClock(context.Background(), []hash.SHA256Hash{root.Ref()})
+
+		assert.Error(t, err)
+		assert.Equal(t, uint32(0), clock)
+	})
 }
 
 func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *networkTestContext {

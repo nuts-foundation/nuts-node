@@ -417,7 +417,7 @@ func indexClockValue(tx *bbolt.Tx, transaction Transaction) error {
 		return nil
 	}
 
-	if clock != 0 {
+	if clock == 0 {
 		for _, prev := range transaction.Previous() {
 			lClockBytes := lcIndex.Get(prev.Slice())
 			if lClockBytes == nil {

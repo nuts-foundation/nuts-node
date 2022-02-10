@@ -23,16 +23,14 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/vcr/types"
-
-	"github.com/nuts-foundation/go-did/vc"
-
 	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/stretchr/testify/assert"
 )
 
