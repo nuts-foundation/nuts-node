@@ -21,10 +21,10 @@ package vcr
 
 import (
 	"context"
-	"embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"io/fs"
 	"os"
@@ -54,9 +54,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
-
-//go:embed assets/*
-var defaultTemplates embed.FS
 
 var timeFunc = time.Now
 
@@ -178,13 +175,13 @@ func (c *vcr) Shutdown() error {
 }
 
 func (c *vcr) loadTemplates() error {
-	list, err := fs.Glob(defaultTemplates, "**/*.config.yaml")
+	list, err := fs.Glob(assets.Assets, "**/*.config.yaml")
 	if err != nil {
 		return err
 	}
 
 	for _, f := range list {
-		bytes, err := defaultTemplates.ReadFile(f)
+		bytes, err := assets.Assets.ReadFile(f)
 		if err != nil {
 			return err
 		}
@@ -362,9 +359,31 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 	return &credential, nil
 }
 
+// Validate validates the provided credential.
+// The function returns nil when the credential is considered valid, the validation error otherwise.
+//
+// It accepts a few extra flags which configure the validation process:
+// * If the allowUntrusted bool is set to true, the credential is not checked for trust.
+//   This means that the validity does not depend on if the issuer-type combination is set to be trusted on this node.
+// * If the checkSignature is set to false, the signature will not be checked.
+//   If it is set to true, the signature must compute. Also, the used signing key must be valid at the validAt time.
+//   A signing key is considered valid if the issuer AND at least one (if any) of its controllers was active at the validAt time.
+// * If the validAt is not provided, validAt will be set to the current time.
+//
+// In addition to the signing key time checks, the following checks will be performed:
+// * The ID fields must be set
+// * The credential is not revoked (note: the revocation state is currently time independent)
+// * The type must contain exactly one type in addition to the default `VerifiableCredential` type.
+// * The issuanceDate must be before the validAt.
+// * The expirationDate must be after the validAt.
 func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
 	if credential.ID == nil {
 		return errors.New("verifying a credential requires it to have a valid ID")
+	}
+
+	if validAt == nil {
+		now := timeFunc()
+		validAt = &now
 	}
 
 	revoked, err := c.isRevoked(*credential.ID)
@@ -375,13 +394,24 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 		return err
 	}
 
+	if checkSignature {
+		// check if the issuer was valid at the given time. (not deactivated, or deactivated controller)
+		issuerDID, _ := did.ParseDID(credential.Issuer.String())
+		_, _, err = c.docResolver.Resolve(*issuerDID, &vdr.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
+		if err != nil {
+			return fmt.Errorf("could not check validity of signing key: %w", err)
+		}
+	}
+
 	if !allowUntrusted {
+
 		trusted := c.isTrusted(credential)
 		if !trusted {
 			return types.ErrUntrusted
 		}
 	}
 
+	// perform the rest of the verification steps
 	return c.verifier.Verify(credential, allowUntrusted, checkSignature, validAt)
 }
 

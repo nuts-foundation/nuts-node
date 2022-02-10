@@ -182,24 +182,19 @@ func Test_issuer_Issue(t *testing.T) {
 			assert.Nil(t, result)
 		})
 
-		t.Run("invalid credential", func(t *testing.T) {
+		t.Run("validator fails (missing type)", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			kid := "did:nuts:123#abc"
 
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
-			sut := issuer{keyResolver: keyResolverMock}
-
-			credentialType, _ := ssi.ParseURI("TestCredential")
+			sut := issuer{}
 
 			credentialOptions := vc.VerifiableCredential{
-				Type:   []ssi.URI{*credentialType},
+				Type:   []ssi.URI{},
 				Issuer: *issuerID,
 			}
 
 			result, err := sut.Issue(credentialOptions, true, true)
-			assert.EqualError(t, err, "validation failed: nuts context is required")
+			assert.EqualError(t, err, "can only issue credential with 1 type")
 			assert.Nil(t, result)
 
 		})
