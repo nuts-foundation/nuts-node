@@ -303,6 +303,7 @@ func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA2
 	return storage.BBoltTXView(ctx, dag.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
 		transactions := tx.Bucket([]byte(transactionsBucket))
 		clocksBucket := tx.Bucket([]byte(clockBucket))
+		clocksIndexBucket := tx.Bucket([]byte(clockIndexBucket))
 		if transactions == nil {
 			// DAG is empty
 			return nil
@@ -310,9 +311,10 @@ func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA2
 
 		// we find the clock value of the TX ref
 		// an empty hash means start at root
-		clockValue, err := getClock(tx, startAt)
-		if !hash.EmptyHash().Equals(startAt) && err != nil {
-			return err
+		clockBytes := clocksIndexBucket.Get(startAt.Slice())
+		var clockValue uint32
+		if clockBytes != nil {
+			clockValue = bytesToClock(clockBytes)
 		}
 
 		// initiate a cursor and start from the given lcValue
@@ -407,7 +409,7 @@ func indexClockValue(tx *bbolt.Tx, transaction Transaction) error {
 		return err
 	}
 
-	clock := uint32(0)
+	clock := transaction.Clock()
 	ref := transaction.Ref()
 
 	if lcIndex.Get(ref.Slice()) != nil {
@@ -415,14 +417,16 @@ func indexClockValue(tx *bbolt.Tx, transaction Transaction) error {
 		return nil
 	}
 
-	for _, prev := range transaction.Previous() {
-		lClockBytes := lcIndex.Get(prev.Slice())
-		if lClockBytes == nil {
-			return fmt.Errorf("clock value not found for TX ref: %s", prev.String())
-		}
-		lClock := bytesToClock(lClockBytes)
-		if lClock >= clock {
-			clock = lClock + 1
+	if clock != 0 {
+		for _, prev := range transaction.Previous() {
+			lClockBytes := lcIndex.Get(prev.Slice())
+			if lClockBytes == nil {
+				return fmt.Errorf("clock value not found for TX ref: %s", prev.String())
+			}
+			lClock := bytesToClock(lClockBytes)
+			if lClock >= clock {
+				clock = lClock + 1
+			}
 		}
 	}
 
@@ -442,12 +446,18 @@ func indexClockValue(tx *bbolt.Tx, transaction Transaction) error {
 }
 
 // getClock returns errNoClockValue if no clock value can be found for the given hash
-func getClock(tx *bbolt.Tx, hash hash.SHA256Hash) (uint32, error) {
+// Deprecated: no longer needed when all transactions have an LC value
+func getClock(tx *bbolt.Tx, transaction Transaction) (uint32, error) {
+	// If added, just return it
+	if transaction.Clock() != 0 {
+		return transaction.Clock(), nil
+	}
+
 	lcIndex := tx.Bucket([]byte(clockIndexBucket))
 	if lcIndex == nil {
 		return 0, errNoClockValue
 	}
-	lClockBytes := lcIndex.Get(hash.Slice())
+	lClockBytes := lcIndex.Get(transaction.Ref().Slice())
 	if lClockBytes == nil {
 		return 0, errNoClockValue
 	}
@@ -493,10 +503,6 @@ func getTransaction(hash hash.SHA256Hash, tx *bbolt.Tx) (Transaction, error) {
 	if transactions == nil {
 		return nil, nil
 	}
-	clock, err := getClock(tx, hash)
-	if err != nil {
-		return nil, err
-	}
 
 	transactionBytes := copyBBoltValue(transactions, hash.Slice())
 	if transactionBytes == nil {
@@ -506,7 +512,12 @@ func getTransaction(hash hash.SHA256Hash, tx *bbolt.Tx) (Transaction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse transaction %s: %w", hash, err)
 	}
+	clock, err := getClock(tx, parsedTx)
+	if err != nil {
+		return nil, err
+	}
 	castTx := parsedTx.(*transaction)
+	// Deprecated: will be available in the transaction
 	castTx.lamportClock = clock
 
 	return parsedTx, nil

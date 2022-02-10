@@ -35,16 +35,17 @@ import (
 
 // CreateTestTransactionWithJWK creates a transaction with the given num as payload hash and signs it with a random EC key.
 // The JWK is attached, rather than referred to using the kid.
-func CreateTestTransactionWithJWK(num uint32, prevs ...hash.SHA256Hash) Transaction {
+func CreateTestTransactionWithJWK(num uint32, prevs ...Transaction) Transaction {
 	return CreateSignedTestTransaction(num, time.Now(), nil, "application/did+json", true, prevs...)
 }
 
 // CreateSignedTestTransaction creates a signed transaction with more control
-func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [][]byte, payloadType string, attach bool, prevs ...hash.SHA256Hash) Transaction {
+func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [][]byte, payloadType string, attach bool, prevs ...Transaction) Transaction {
 	payload := make([]byte, 4)
 	binary.BigEndian.PutUint32(payload, payloadNum)
 	payloadHash := hash.SHA256Sum(payload)
-	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevs, pal)
+	lamportClock := calculateLamportClock(prevs)
+	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevHashes(prevs), pal, lamportClock)
 
 	signer := crypto2.NewTestKey(fmt.Sprintf("%d", payloadNum))
 	signedTransaction, err := NewTransactionSigner(signer, attach).Sign(unsignedTransaction, signingTime)
@@ -56,8 +57,9 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 }
 
 // CreateTestTransactionEx creates a transaction with the given payload hash and signs it with a random EC key.
-func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participants EncryptedPAL, prevs ...hash.SHA256Hash) (Transaction, string, crypto.PublicKey) {
-	unsignedTransaction, _ := NewTransaction(payloadHash, "application/did+json", prevs, participants)
+func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participants EncryptedPAL, prevs ...Transaction) (Transaction, string, crypto.PublicKey) {
+	lamportClock := calculateLamportClock(prevs)
+	unsignedTransaction, _ := NewTransaction(payloadHash, "application/did+json", prevHashes(prevs), participants, lamportClock)
 	kid := fmt.Sprintf("%d", num)
 	signer := crypto2.NewTestKey(kid)
 	signedTransaction, err := NewTransactionSigner(signer, false).Sign(unsignedTransaction, time.Now())
@@ -68,46 +70,35 @@ func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participan
 }
 
 // CreateTestTransaction creates a transaction with the given num as payload hash and signs it with a random EC key.
-func CreateTestTransaction(num uint32, prevs ...hash.SHA256Hash) (Transaction, string, crypto.PublicKey) {
+func CreateTestTransaction(num uint32, prevs ...Transaction) (Transaction, string, crypto.PublicKey) {
 	payload := make([]byte, 4)
 	binary.BigEndian.PutUint32(payload, num)
 	payloadHash := hash.SHA256Sum(payload)
 	return CreateTestTransactionEx(num, payloadHash, nil, prevs...)
 }
 
-// graphF creates the following graph:
-//..................A
-//................/  \
-//...............B    C
-//...............\   / \
-//.................D    E
-//.......................\
-//........................F
-func graphF() []Transaction {
-	A := CreateTestTransactionWithJWK(0)
-	B := CreateTestTransactionWithJWK(1, A.Ref())
-	C := CreateTestTransactionWithJWK(2, A.Ref())
-	D := CreateTestTransactionWithJWK(3, B.Ref(), C.Ref())
-	E := CreateTestTransactionWithJWK(4, C.Ref())
-	F := CreateTestTransactionWithJWK(5, E.Ref())
-	return []Transaction{A, B, C, D, E, F}
+func prevHashes(prevs []Transaction) []hash.SHA256Hash {
+	hashes := make([]hash.SHA256Hash, len(prevs))
+	for i, prev := range prevs {
+		hashes[i] = prev.Ref()
+	}
+	return hashes
 }
 
-// graphG creates the following graph:
-//..................A
-//................/  \
-//...............B    C
-//...............\   / \
-//.................D    E
-//.................\.....\
-//..................\.....F
-//...................\.../
-//.....................G
-func graphG() []Transaction {
-	docs := graphF()
-	g := CreateTestTransactionWithJWK(6, docs[3].Ref(), docs[5].Ref())
-	docs = append(docs, g)
-	return docs
+func calculateLamportClock(prevs []Transaction) uint32 {
+	if len(prevs) == 0 {
+		return 0
+	}
+
+	var clock uint32
+	for _, prev := range prevs {
+		// GetTransaction always supplies an LC value, either calculated or stored
+		if prev.Clock() > clock {
+			clock = prev.Clock()
+		}
+	}
+
+	return clock + 1
 }
 
 func createBBoltDB(testDirectory string) *bbolt.DB {

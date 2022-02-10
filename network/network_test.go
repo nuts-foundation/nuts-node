@@ -361,7 +361,8 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 		// 'Register' prev on DAG
 		additionalPrev, _, _ := dag.CreateTestTransaction(1)
-		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), rootTX.Ref()).Return(rootTX, nil)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil).Times(2)
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
 
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
@@ -640,20 +641,20 @@ func Test_lastTransactionTracker(t *testing.T) {
 	assert.Contains(t, tracker.heads(), tx0.Ref())
 
 	// TX 1
-	tx1, _, _ := dag.CreateTestTransaction(1, tx0.Ref())
+	tx1, _, _ := dag.CreateTestTransaction(1, tx0)
 	_ = tracker.process(tx1, nil)
 	assert.Len(t, tracker.heads(), 1)
 	assert.Contains(t, tracker.heads(), tx1.Ref())
 
 	// TX 2 (branch from root)
-	tx2, _, _ := dag.CreateTestTransaction(2, tx0.Ref())
+	tx2, _, _ := dag.CreateTestTransaction(2, tx0)
 	_ = tracker.process(tx2, nil)
 	assert.Len(t, tracker.heads(), 2)
 	assert.Contains(t, tracker.heads(), tx1.Ref())
 	assert.Contains(t, tracker.heads(), tx2.Ref())
 
 	// TX 3 (merges 1 and 2)
-	tx3, _, _ := dag.CreateTestTransaction(2, tx1.Ref(), tx2.Ref())
+	tx3, _, _ := dag.CreateTestTransaction(2, tx1, tx2)
 	_ = tracker.process(tx3, nil)
 	assert.Len(t, tracker.heads(), 1)
 	assert.Contains(t, tracker.heads(), tx3.Ref())

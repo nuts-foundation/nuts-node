@@ -36,7 +36,7 @@ func TestNewTransaction(t *testing.T) {
 	hash, _ := hash2.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 
 	t.Run("ok", func(t *testing.T) {
-		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash}, nil)
+		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash}, nil, 0)
 
 		if !assert.NoError(t, err) {
 			return
@@ -47,7 +47,7 @@ func TestNewTransaction(t *testing.T) {
 		assert.Equal(t, Version(1), transaction.Version())
 	})
 	t.Run("ok - with pal", func(t *testing.T) {
-		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash}, [][]byte{{1}, {2}})
+		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash}, [][]byte{{1}, {2}}, 0)
 
 		if !assert.NoError(t, err) {
 			return
@@ -55,7 +55,7 @@ func TestNewTransaction(t *testing.T) {
 		assert.Len(t, transaction.PAL(), 2)
 	})
 	t.Run("ok - with duplicates", func(t *testing.T) {
-		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash, hash}, nil)
+		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash, hash}, nil, 0)
 
 		if !assert.NoError(t, err) {
 			return
@@ -63,17 +63,17 @@ func TestNewTransaction(t *testing.T) {
 		assert.Equal(t, []hash2.SHA256Hash{hash}, transaction.Previous())
 	})
 	t.Run("error - type empty", func(t *testing.T) {
-		transaction, err := NewTransaction(payloadHash, "", nil, nil)
+		transaction, err := NewTransaction(payloadHash, "", nil, nil, 0)
 		assert.EqualError(t, err, errInvalidPayloadType.Error())
 		assert.Nil(t, transaction)
 	})
 	t.Run("error - type not a MIME type", func(t *testing.T) {
-		transaction, err := NewTransaction(payloadHash, "foo", nil, nil)
+		transaction, err := NewTransaction(payloadHash, "foo", nil, nil, 0)
 		assert.EqualError(t, err, errInvalidPayloadType.Error())
 		assert.Nil(t, transaction)
 	})
 	t.Run("error - invalid prev", func(t *testing.T) {
-		transaction, err := NewTransaction(payloadHash, "foo/bar", []hash2.SHA256Hash{hash2.EmptyHash()}, nil)
+		transaction, err := NewTransaction(payloadHash, "foo/bar", []hash2.SHA256Hash{hash2.EmptyHash()}, nil, 0)
 		assert.EqualError(t, err, errInvalidPrevs.Error())
 		assert.Nil(t, transaction)
 	})

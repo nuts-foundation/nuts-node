@@ -34,6 +34,9 @@ import (
 // is missing.
 var ErrPreviousTransactionMissing = errors.New("transaction is referring to non-existing previous transaction")
 
+// ErrInvalidLamportClockValue indicates the lamport clock value for the transaction is wrong.
+var ErrInvalidLamportClockValue = errors.New("transaction has an invalid lamport clock value")
+
 // Verifier defines the API of a DAG verifier, used to check the validity of a transaction.
 type Verifier func(ctx context.Context, tx Transaction, state State) error
 
@@ -71,17 +74,32 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 }
 
 // NewPrevTransactionsVerifier creates a transaction verifier that asserts that all previous transactions are known.
+// It also checks if the lamportClock value is correct (if given).
 func NewPrevTransactionsVerifier() Verifier {
 	return func(ctx context.Context, tx Transaction, state State) error {
+		var highestLamportClock uint32
 		for _, prev := range tx.Previous() {
-			present, err := state.IsPresent(ctx, prev)
+			previousTransaction, err := state.GetTransaction(ctx, prev)
 			if err != nil {
 				return err
 			}
-			if !present {
+			if previousTransaction == nil {
 				return ErrPreviousTransactionMissing
 			}
+			if previousTransaction.Clock() > highestLamportClock {
+				highestLamportClock = previousTransaction.Clock()
+			}
 		}
+
+		// check LC
+		// skip check for 0's
+		// Deprecated: add check for empty prevs if 0 (root)
+		if tx.Clock() != 0 {
+			if tx.Clock() != highestLamportClock+1 {
+				return ErrInvalidLamportClockValue
+			}
+		}
+
 		return nil
 	}
 }

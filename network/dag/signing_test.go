@@ -41,7 +41,7 @@ func TestTransactionSigner(t *testing.T) {
 	contentType := "foo/bar"
 	moment := time.Date(2020, 10, 23, 13, 0, 0, 0, time.FixedZone("test", 1))
 	t.Run("ok - attach key", func(t *testing.T) {
-		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs, nil)
+		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -67,7 +67,7 @@ func TestTransactionSigner(t *testing.T) {
 		assert.Equal(t, time.UTC, signedTx.SigningTime().Location())
 	})
 	t.Run("ok - with kid", func(t *testing.T) {
-		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs, nil)
+		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -82,13 +82,13 @@ func TestTransactionSigner(t *testing.T) {
 		assert.NotEmpty(t, signedTx.Data())
 	})
 	t.Run("signing time is zero", func(t *testing.T) {
-		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs, nil)
+		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
 		signedTransaction, err := NewTransactionSigner(crypto.NewTestKey(kid), false).Sign(tx, time.Time{})
 		assert.Empty(t, signedTransaction)
 		assert.EqualError(t, err, "signing time is zero")
 	})
 	t.Run("already signed", func(t *testing.T) {
-		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs, nil)
+		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
 		signer := NewTransactionSigner(crypto.NewTestKey(kid), false)
 		signedTransaction, _ := signer.Sign(tx, time.Now())
 		signedTransaction2, err := signer.Sign(signedTransaction, time.Now())

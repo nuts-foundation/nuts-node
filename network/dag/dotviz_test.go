@@ -20,8 +20,9 @@ package dag
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDotGraphVisitor(t *testing.T) {
@@ -29,8 +30,8 @@ func TestDotGraphVisitor(t *testing.T) {
 		t.Run(fmt.Sprintf("%d", style), func(t *testing.T) {
 			visitor := NewDotGraphVisitor(style)
 			txA, _, _ := CreateTestTransaction(1)
-			txB, _, _ := CreateTestTransaction(2, txA.Ref())
-			txC, _, _ := CreateTestTransaction(3, txA.Ref())
+			txB, _, _ := CreateTestTransaction(2, txA)
+			txC, _, _ := CreateTestTransaction(3, txA)
 			visitor.Accept(nil, txA)
 			visitor.Accept(nil, txB)
 			visitor.Accept(nil, txC)
