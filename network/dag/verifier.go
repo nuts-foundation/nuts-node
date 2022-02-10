@@ -86,7 +86,7 @@ func NewPrevTransactionsVerifier() Verifier {
 			if previousTransaction == nil {
 				return ErrPreviousTransactionMissing
 			}
-			if previousTransaction.Clock() > highestLamportClock {
+			if previousTransaction.Clock() >= highestLamportClock {
 				highestLamportClock = previousTransaction.Clock()
 			}
 		}

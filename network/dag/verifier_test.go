@@ -29,6 +29,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
+	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -44,7 +45,9 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 		txState := NewMockState(ctrl)
 		txState.EXPECT().GetTransaction(ctx, root.Ref()).Return(root, nil)
 		tx, _, _ := CreateTestTransaction(1, root)
+
 		err := NewPrevTransactionsVerifier()(ctx, tx, txState)
+
 		assert.NoError(t, err)
 	})
 	t.Run("failed - prev not present", func(t *testing.T) {
@@ -53,8 +56,24 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 		txState := NewMockState(ctrl)
 		txState.EXPECT().GetTransaction(ctx, root.Ref()).Return(nil, nil)
 		tx, _, _ := CreateTestTransaction(1, root)
+
 		err := NewPrevTransactionsVerifier()(ctx, tx, txState)
+
 		assert.Contains(t, err.Error(), "transaction is referring to non-existing previous transaction")
+	})
+	t.Run("error - incorrect lamport clock", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		ctx := context.Background()
+		txState := NewMockState(ctrl)
+		txState.EXPECT().GetTransaction(ctx, root.Ref()).Return(root, nil)
+		// malformed TX with LC = 2
+		unsignedTransaction, _ := NewTransaction(hash.EmptyHash(), "application/did+json", []hash.SHA256Hash{root.Ref()}, nil, 2)
+		signer := crypto2.NewTestKey("1")
+		signedTransaction, _ := NewTransactionSigner(signer, true).Sign(unsignedTransaction, time.Now())
+
+		err := NewPrevTransactionsVerifier()(ctx, signedTransaction, txState)
+
+		assert.EqualError(t, err, "transaction has an invalid lamport clock value")
 	})
 }
 

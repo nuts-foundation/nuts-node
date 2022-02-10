@@ -219,6 +219,16 @@ func TestParseTransaction(t *testing.T) {
 		assert.Nil(t, transaction)
 		assert.EqualError(t, err, "transaction validation failed: signing algorithm not allowed: RS256")
 	})
+	t.Run("error - invalid lamport clock", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", true)
+		headers.Set(lamportClockHeader, "a")
+		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+
+		transaction, err := ParseTransaction(signature)
+
+		assert.Nil(t, transaction)
+		assert.EqualError(t, err, "transaction validation failed: invalid lc header")
+	})
 	t.Run("error - invalid payload", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		signature, _ := jws.Sign([]byte("not a valid hash"), headers.Algorithm(), key, jws.WithHeaders(headers))
