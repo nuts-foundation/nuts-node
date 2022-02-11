@@ -66,7 +66,7 @@ type manager struct {
 	// senders contains all registered senders
 	senders []SenderFunc
 	// peers maps peerID to peerQueue
-	peers map[string]peerQueue
+	peers map[string]*peerQueue
 }
 
 // NewManager returns a new gossip Manager
@@ -75,7 +75,7 @@ func NewManager(ctx context.Context, interval time.Duration) Manager {
 	return &manager{
 		ctx:      ctx,
 		interval: interval,
-		peers:    map[string]peerQueue{},
+		peers:    map[string]*peerQueue{},
 	}
 }
 
@@ -101,11 +101,11 @@ func (m *manager) PeerConnected(transportPeer transport.Peer) {
 		return
 	}
 
-	peer := newPeerQueue()
-	m.peers[string(transportPeer.ID)] = peer
+	pq := newPeerQueue()
+	m.peers[string(transportPeer.ID)] = &pq
 
 	// start ticker for this peer
-	tickChan := peer.start(m.ctx, m.interval)
+	tickChan := pq.start(m.ctx, m.interval)
 	done := m.ctx.Done()
 	go func() {
 		for {
