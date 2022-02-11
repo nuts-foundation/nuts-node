@@ -162,7 +162,7 @@ func (m *manager) PeerDisconnected(transportPeer transport.Peer) {
 func (m *manager) RegisterSender(f SenderFunc) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	
+
 	m.senders = append(m.senders, f)
 }
 
