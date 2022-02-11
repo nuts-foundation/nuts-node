@@ -184,21 +184,27 @@ func TestSignJWS(t *testing.T) {
 		payload := []byte{1, 2, 3}
 		hdrs := map[string]interface{}{"foo": "bar"}
 		signature, err := SignJWS(payload, hdrs, key.Signer())
-		if !assert.NoError(t, err) {
+		if !assert.NoError(t, err,
+			"error during signing") {
 			return
 		}
 		message, err := jws.Parse([]byte(signature))
-		if !assert.NoError(t, err) {
+		if !assert.NoError(t, err,
+			"error during parsing sign result as jws") {
 			return
 		}
-		assert.Equal(t, payload, message.Payload())
+		assert.Equal(t, payload, message.Payload(),
+			"parsed message not equal to original payload")
 		sig := message.Signatures()
-		assert.Len(t, sig, 1)
+		assert.Len(t, sig, 1,
+			"there must be one signature in the parsed message")
 		fooValue, _ := sig[0].ProtectedHeaders().Get("foo")
-		assert.Equal(t, "bar", fooValue.(string))
+		assert.Equal(t, "bar", fooValue.(string),
+			"the protected headers must contain the 'foo' key with 'bar' value")
+
 		// Sanity check: verify signature
 		actualPayload, err := jws.Verify([]byte(signature), sig[0].ProtectedHeaders().Algorithm(), key.Public())
-		if !assert.NoError(t, err) {
+		if !assert.NoError(t, err, "the signature could not be validated") {
 			return
 		}
 		assert.Equal(t, payload, actualPayload)
@@ -222,11 +228,28 @@ func TestSignJWS(t *testing.T) {
 		assert.EqualError(t, err, "refusing to sign JWS with private key in JWK header")
 		assert.Empty(t, signature)
 	})
-	t.Run("invalid header", func(t *testing.T) {
+
+	t.Run("with a detached payload", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
-		signature, err := SignJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, key.Signer())
-		assert.EqualError(t, err, "unable to set header jwk: invalid value for jwk key: string")
-		assert.Empty(t, signature)
+		signature, err := SignJWS(payload, map[string]interface{}{"b64": false}, key.Signer())
+		assert.NoError(t, err, "no error expected")
+		assert.Contains(t, signature, "..")
+	})
+
+	t.Run("check header", func(t *testing.T) {
+		t.Run("'b64' header does not contain a bool value", func(t *testing.T) {
+			payload := []byte{1, 2, 3}
+			signature, err := SignJWS(payload, map[string]interface{}{"b64": "not a bool"}, key.Signer())
+			assert.EqualError(t, err, "unable to read b64 JWS header as bool")
+			assert.Empty(t, signature)
+		})
+
+		t.Run("with invalid jwk format", func(t *testing.T) {
+			payload := []byte{1, 2, 3}
+			signature, err := SignJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, key.Signer())
+			assert.EqualError(t, err, "unable to set header jwk: invalid value for jwk key: string")
+			assert.Empty(t, signature)
+		})
 	})
 	t.Run("invalid key", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
