@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/atomic"
 )
 
 func TestQueue_start(t *testing.T) {
@@ -83,26 +84,26 @@ func TestQueue_do(t *testing.T) {
 	q := peerQueue{}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	done1 := false
-	done2 := false
+	done1 := atomic.NewBool(false)
+	done2 := atomic.NewBool(false)
 
 	go q.do(func() {
 		wg.Wait()
-		done1 = true
+		done1.Toggle()
 	})
 
 	go q.do(func() {
-		done2 = true
+		done2.Toggle()
 	})
 
-	assert.False(t, done1)
-	assert.False(t, done2)
+	assert.False(t, done1.Load())
+	assert.False(t, done2.Load())
 	wg.Done()
 	test.WaitFor(t, func() (bool, error) {
-		return done1, nil
+		return done1.Load(), nil
 	}, 50*time.Millisecond, "timeout while waiting for mutexes")
-	assert.True(t, done1)
-	assert.True(t, done2)
+	assert.True(t, done1.Load())
+	assert.True(t, done2.Load())
 }
 
 func TestQueue_enqueued(t *testing.T) {

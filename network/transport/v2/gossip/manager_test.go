@@ -20,14 +20,12 @@
 package gossip
 
 import (
-	"bytes"
 	"context"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
@@ -92,16 +90,8 @@ func TestManager_PeerDisconnected(t *testing.T) {
 	})
 
 	t.Run("stops ticker", func(t *testing.T) {
-		oldBuf := log.Logger().Buffer
-		defer func() {
-			log.Logger().Buffer = oldBuf
-		}()
-		buf := new(bytes.Buffer)
-		log.Logger().Buffer = buf
-
 		gMan := giveMeAgMan(t)
 		peer := transport.Peer{ID: "1"}
-		gMan.PeerConnected(peer)
 		gMan.peers["2"] = gMan.peers["1"]
 		mainGroup := sync.WaitGroup{}
 		mainGroup.Add(1)
@@ -118,6 +108,7 @@ func TestManager_PeerDisconnected(t *testing.T) {
 			tickerGroupEnd.Wait()
 			return true
 		})
+		gMan.PeerConnected(peer)
 
 		tickerGroupStart.Done()
 		mainGroup.Wait()
@@ -131,7 +122,6 @@ func TestManager_PeerDisconnected(t *testing.T) {
 			return count == 1, nil
 		}, 50*time.Millisecond, "timeout while waiting for mutexes")
 		assert.Equal(t, 1, count)
-		assert.Empty(t, buf)
 	})
 }
 
@@ -156,14 +146,6 @@ func TestManager_GossipReceived(t *testing.T) {
 }
 
 func TestManager_callSenders(t *testing.T) {
-	t.Run("ignores call when missing administration", func(t *testing.T) {
-		gMan := giveMeAgMan(t)
-
-		gMan.callSenders("1")
-
-		// see? nothing exploded!
-	})
-
 	t.Run("ok - called and peerQueue cleared", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
 		gMan.PeerConnected(transport.Peer{ID: "1"})
@@ -172,8 +154,8 @@ func TestManager_callSenders(t *testing.T) {
 		})
 		gMan.TransactionRegistered(hash.EmptyHash())
 
-		gMan.callSenders("1")
 		pq := gMan.peers["1"]
+		callSenders("1", pq, gMan.senders)
 
 		assert.Equal(t, 0, pq.queue.Len())
 	})
@@ -186,8 +168,8 @@ func TestManager_callSenders(t *testing.T) {
 		})
 		gMan.TransactionRegistered(hash.EmptyHash())
 
-		gMan.callSenders("1")
 		pq := gMan.peers["1"]
+		callSenders("1", pq, gMan.senders)
 
 		assert.Equal(t, 1, pq.queue.Len())
 	})

@@ -107,6 +107,8 @@ func (m *manager) PeerConnected(transportPeer transport.Peer) {
 	// start ticker for this peer
 	tickChan := pq.start(m.ctx, m.interval)
 	done := m.ctx.Done()
+	// copy from manager to avoid race conditions and locking
+	senders := m.senders
 	go func() {
 		for {
 			select {
@@ -117,23 +119,18 @@ func (m *manager) PeerConnected(transportPeer transport.Peer) {
 				if !val {
 					return
 				}
-				m.callSenders(transportPeer.ID)
+				callSenders(transportPeer.ID, &pq, senders)
 			}
 		}
 	}()
 }
 
-func (m *manager) callSenders(id transport.PeerID) {
-	peer, ok := m.peers[string(id)]
-	if !ok {
-		log.Logger().Errorf("trying to call senders for peer, but gossip administration is gone, peer=%s", string(id))
-		return
-	}
+func callSenders(id transport.PeerID, peer *peerQueue, senders []SenderFunc) {
 	peer.do(func() {
 		refs := peer.enqueued()
 
 		shouldClear := true
-		for _, sender := range m.senders {
+		for _, sender := range senders {
 			if !sender(id, refs) {
 				shouldClear = false
 			}
@@ -163,6 +160,9 @@ func (m *manager) PeerDisconnected(transportPeer transport.Peer) {
 }
 
 func (m *manager) RegisterSender(f SenderFunc) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	
 	m.senders = append(m.senders, f)
 }
 

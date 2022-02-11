@@ -42,7 +42,9 @@ type StreamStateObserverFunc func(peer Peer, state StreamState, protocol Protoco
 type StreamState string
 
 const (
-	StateConnected    StreamState = "connected"
+	// StateConnected is passed to the connection observers when a stream state changed to connected
+	StateConnected StreamState = "connected"
+	// StateDisconnected is passed to the connection observers when a stream state changed to disconnected
 	StateDisconnected StreamState = "disconnected"
 )
 
