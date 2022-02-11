@@ -149,11 +149,10 @@ func (p protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 	}
 	refs = refs[:i]
 	if len(refs) > 0 {
-		log.Logger().Tracef("received %d new transaction references via Gossip", len(refs))
+		// TODO swap for trace logging
+		log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
 	}
 	p.gManager.GossipReceived(peer.ID, refs...)
-	// TODO call p.gManager.GossipReceived
-	// TODO compare hashes with DAG
 	// TODO compare xor
 	// TODO send new message
 

@@ -28,6 +28,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/network/transport/v2/gossip"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	grpcLib "google.golang.org/grpc"
@@ -47,6 +48,8 @@ type protocolMocks struct {
 	PayloadScheduler *MockScheduler
 	DocResolver      *vdr.MockDocResolver
 	Decrypter        *crypto.MockDecrypter
+	Gossip           *gossip.MockManager
+	ConnectionList   *grpc.MockConnectionList
 }
 
 func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) {
@@ -56,7 +59,9 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	docResolver := vdr.NewMockDocResolver(ctrl)
 	decrypter := crypto.NewMockDecrypter(ctrl)
 	state := dag.NewMockState(ctrl)
+	gMan := gossip.NewMockManager(ctrl)
 	payloadScheduler := NewMockScheduler(ctrl)
+	connectionList := grpc.NewMockConnectionList(ctrl)
 	nodeDIDResolver := transport.FixedNodeDIDResolver{}
 
 	if nodeDID != nil {
@@ -65,9 +70,11 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 
 	proto := New(Config{Datadir: dirname}, nodeDIDResolver, state, docResolver, decrypter)
 	proto.(*protocol).payloadScheduler = payloadScheduler
+	proto.(*protocol).gManager = gMan
+	proto.(*protocol).connectionList = connectionList
 
 	return proto.(*protocol), protocolMocks{
-		ctrl, state, payloadScheduler, docResolver, decrypter,
+		ctrl, state, payloadScheduler, docResolver, decrypter, gMan, connectionList,
 	}
 }
 
@@ -204,6 +211,75 @@ func TestProtocol_Start(t *testing.T) {
 		proto.Stop()
 
 		time.Sleep(2 * time.Second)
+	})
+}
+
+func TestProtocol_connectionStateCallback(t *testing.T) {
+	t.Run("ok - connected", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mocks.Gossip.EXPECT().PeerConnected(peer)
+
+		proto.connectionStateCallback(peer, transport.StateConnected, proto)
+	})
+
+	t.Run("ok - disconnected", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+
+		mocks.Gossip.EXPECT().PeerDisconnected(peer)
+
+		proto.connectionStateCallback(peer, transport.StateDisconnected, proto)
+	})
+
+	t.Run("ok - ignored streams from other protocols", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mockProto := transport.NewMockProtocol(mocks.Controller)
+		mockProto.EXPECT().Version().Return(0)
+
+		proto.connectionStateCallback(peer, transport.StateConnected, mockProto)
+	})
+}
+
+func TestProtocol_sendGossip(t *testing.T) {
+	peerID := transport.PeerID("1")
+	refsAsBytes := [][]byte{hash.EmptyHash().Slice()}
+
+	t.Run("ok", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
+		mockConnection.EXPECT().Send(proto, &Envelope{Message: &Envelope_Gossip{
+			Gossip: &Gossip{
+				Transactions: refsAsBytes,
+			},
+		}})
+
+		success := proto.sendGossip(peerID, []hash.SHA256Hash{hash.EmptyHash()})
+
+		assert.True(t, success)
+	})
+	t.Run("error - no connection available", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(nil)
+
+		success := proto.sendGossip(peerID, []hash.SHA256Hash{hash.EmptyHash()})
+
+		assert.False(t, success)
+	})
+}
+
+func TestProtocol_gossipTransaction(t *testing.T) {
+	t.Run("ok - no transaction", func(t *testing.T) {
+		proto, _ := newTestProtocol(t, nil)
+
+		proto.gossipTransaction(context.Background(), nil, nil)
+	})
+
+	t.Run("ok - to gossipManager", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		tx, _, _ := dag.CreateTestTransaction(0)
+		mocks.Gossip.EXPECT().TransactionRegistered(tx.Ref())
+
+		proto.gossipTransaction(context.Background(), tx, nil)
 	})
 }
 
