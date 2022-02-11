@@ -9,7 +9,6 @@ import (
 	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"strings"
 	"time"
@@ -32,7 +31,7 @@ type ProofOptions struct {
 	ProofPurpose string `json:"proofPurpose"`
 }
 
-// ldProof contains the fields of the Proof data model: https://w3c-ccg.github.io/data-integrity-spec/#proofs
+// LDProof contains the fields of the Proof data model: https://w3c-ccg.github.io/data-integrity-spec/#proofs
 type LDProof struct {
 	ProofOptions
 	Nonce *string `json:"nonce,omitempty"`
@@ -49,10 +48,12 @@ type LDProof struct {
 	Signature  interface{} `json:"signature,omitempty"`
 }
 
+// NewLDProof creates a new LDProof from the ProofOptions param
 func NewLDProof(options ProofOptions) *LDProof {
 	return &LDProof{ProofOptions: options}
 }
 
+// NewLDProofFromDocumentProof creates a new LDProof from a DocumentProof
 func NewLDProofFromDocumentProof(dp DocumentProof) (*LDProof, error) {
 	proofBytes, err := json.Marshal(dp)
 	if err != nil {
@@ -65,35 +66,7 @@ func NewLDProofFromDocumentProof(dp DocumentProof) (*LDProof, error) {
 	return result, nil
 }
 
-func (p LDProof) asMap() (map[string]interface{}, error) {
-	proofBytes, err := json.Marshal(p)
-	if err != nil {
-		return nil, err
-	}
-	proofMap := map[string]interface{}{}
-	if err := json.Unmarshal(proofBytes, &proofMap); err != nil {
-		return nil, err
-	}
-	proofMap["@context"] = determineProofContext(p.Type)
-	proofMap["@type"] = proofMap["type"]
-	return proofMap, nil
-}
-
-func (p LDProof) asCanonicalizableMap() (map[string]interface{}, error) {
-	asMap, err := p.asMap()
-	if err != nil {
-		return nil, err
-	}
-	proofWithoutSignature := map[string]interface{}{}
-	for key, value := range asMap {
-		if key == "jws" || key == "signature" || key == "proofValue" {
-			continue
-		}
-		proofWithoutSignature[key] = value
-	}
-	return proofWithoutSignature, nil
-}
-
+// Verify verifies the correctness of the signature value in the LDProof given a document, signature suite and a public key.
 func (p LDProof) Verify(document interface{}, suite signature.Suite, key crypto.PublicKey) error {
 	canonicalDocument, err := suite.CanonicalizeDocument(document)
 	if err != nil {
@@ -130,6 +103,8 @@ func (p LDProof) Verify(document interface{}, suite signature.Suite, key crypto.
 	return nil
 }
 
+// Sign signs the provided document with this proof and a signature suit and signer.
+// It returns the complete signed JSON-LD document
 func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.Key) (interface{}, error) {
 	p.Type = suite.GetType()
 	p.ProofPurpose = "assertionMethod"
@@ -142,7 +117,12 @@ func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 		return nil, err
 	}
 
-	canonicalProof, err := suite.CanonicalizeDocument(p.toMap())
+	proofMap, err := p.asCanonicalizableMap()
+	if err != nil {
+		return nil, err
+	}
+
+	canonicalProof, err := suite.CanonicalizeDocument(proofMap)
 	if err != nil {
 		return nil, err
 	}
@@ -162,35 +142,53 @@ func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 
 	p.JWS = detachedSignature
 
-	document["@context"] = append(document["@context"].([]interface{}), determineProofContext(suite.GetType()))
-	document["proof"] = p
-	return document, nil
+	signedDocument, err := NewSignedDocument(document)
+	if err != nil {
+		return nil, err
+	}
+	signedDocument["@context"] = append(signedDocument["@context"].([]interface{}), determineProofContext(suite.GetType()))
+	proofAsMap, err := p.asMap()
+	if err != nil {
+		return nil, err
+	}
+
+	signedDocument["proof"] = proofAsMap
+	return signedDocument, nil
 }
 
-func (p LDProof) toMap() map[string]interface{} {
+// asCanonicalizableMap converts the proof to a map, adds a ld-context and removes the signature value so it can be canonicalized.
+func (p LDProof) asCanonicalizableMap() (map[string]interface{}, error) {
+	asMap, err := p.asMap()
+	asMap["@context"] = determineProofContext(p.Type)
+	asMap["@type"] = asMap["type"]
+	if err != nil {
+		return nil, err
+	}
+	proofWithoutSignature := map[string]interface{}{}
+	for key, value := range asMap {
+		if key == "jws" || key == "signature" || key == "proofValue" {
+			continue
+		}
+		proofWithoutSignature[key] = value
+	}
+	return proofWithoutSignature, nil
+}
+
+// asMap is a helper method to easily convert a LDProof to a map.
+func (p LDProof) asMap() (map[string]interface{}, error) {
+	proofBytes, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
 	proofMap := map[string]interface{}{}
-	p.copy(p, &proofMap)
-	// Add the correct context to the proofMap for canonicalization
-	proofMap["@context"] = determineProofContext(p.Type)
-	proofMap["@type"] = proofMap["type"]
-	return proofMap
+	if err := json.Unmarshal(proofBytes, &proofMap); err != nil {
+		return nil, err
+	}
+	return proofMap, nil
 }
 
 const RsaSignature2018 = ssi.ProofType("RsaSignature2018")
 const EcdsaSecp256k1Signature2019 = ssi.ProofType("EcdsaSecp256k1Signature2019")
-
-func determineProofType(key nutsCrypto.Key) (ssi.ProofType, error) {
-	//switch key.Public().(type) {
-	//case *rsa.PublicKey:
-	//	return RsaSignature2018, nil
-	//case *ecdsa.PublicKey:
-	//	return EcdsaSecp256k1Signature2019, nil
-	//case *ed25519.PublicKey:
-	return ssi.JsonWebSignature2020, nil
-	////default:
-	////	return "", errors.New("unknown key type")
-	//}
-}
 
 func determineProofContext(proofType ssi.ProofType) string {
 	switch proofType {
@@ -209,27 +207,4 @@ func determineProofContext(proofType ssi.ProofType) string {
 func toDetachedSignature(sig string) string {
 	splitted := strings.Split(sig, ".")
 	return strings.Join([]string{splitted[0], splitted[2]}, "..")
-}
-
-func (LDProof) copy(a, b interface{}) error {
-	byt, _ := json.Marshal(a)
-	return json.Unmarshal(byt, b)
-}
-
-// CreateToBeSigned implements step 3 in the proof algorithm: https://w3c-ccg.github.io/ld-proofs/#proof-algorithm
-// Create a value tbs that represents the data to be signed, and set it to the result of running the Create Verify
-// Hash Algorithm, passing the information in options.
-func (p *LDProof) CreateToBeSigned(canonicalizedDocument interface{}, canonicalizedProof interface{}) ([]byte, error) {
-
-	//https://w3c-ccg.github.io/data-integrity-spec/#create-verify-hash-algorithm
-	// Step 4.2:
-	// Hash canonicalized options document using the message digest algorithm (e.g. SHA-256) set output to the result.
-	output := hash.SHA256Sum([]byte(canonicalizedProof.(string))).Slice()
-	// Step 4.3:
-	// Hash canonicalized document using the message digest algorithm (e.g. SHA-256) and append it to output.
-	hashedDocument := hash.SHA256Sum([]byte(canonicalizedDocument.(string)))
-	output = append(output, hashedDocument.Slice()...)
-
-	// Step 5: Return output
-	return output, nil
 }

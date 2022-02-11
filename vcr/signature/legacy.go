@@ -8,11 +8,8 @@ import (
 )
 
 // LegacyNutsSuite is the first and wrong implementation of a JSONWebSignature.
+// It is here so all the signatures set in the develop network are still valid. Must be removed in Node version 2.
 type LegacyNutsSuite struct {
-}
-
-func (l LegacyNutsSuite) GetProofValueKey() string {
-	return "jws"
 }
 
 // Sign signs the provided doc and returns the signature bytes.

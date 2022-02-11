@@ -56,7 +56,7 @@ func failure(err string, args ...interface{}) error {
 	return &validationError{errStr}
 }
 
-// Validate the default fields
+// Validate the default fields. This is credential type independent.
 func Validate(credential vc.VerifiableCredential) error {
 	if !credential.IsType(vc.VerifiableCredentialTypeV1URI()) {
 		return failure("type 'VerifiableCredential' is required")
@@ -65,10 +65,6 @@ func Validate(credential vc.VerifiableCredential) error {
 	if !credential.ContainsContext(vc.VCContextV1URI()) {
 		return failure("default context is required")
 	}
-
-	//if !credential.ContainsContext(*NutsContextURI) {
-	//	return failure("nuts context is required")
-	//}
 
 	if credential.ID == nil {
 		return failure("'ID' is required")

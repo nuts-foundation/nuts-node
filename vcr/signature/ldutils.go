@@ -52,6 +52,7 @@ func (e embeddedFSDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, er
 	return e.nextLoader.LoadDocument(u)
 }
 
+// LDUtil package a set of often used JSON-LD operations for re-usability.
 type LDUtil struct {
 	LDDocumentLoader ld.DocumentLoader
 }
@@ -59,8 +60,10 @@ type LDUtil struct {
 // Canonicalize canonicalizes the json-ld input according to the URDNA2015 [RDF-DATASET-NORMALIZATION] algorithm.
 func (util LDUtil) Canonicalize(input interface{}) (result interface{}, err error) {
 	var optionsMap map[string]interface{}
-	inputAsJson, _ := json.Marshal(input)
-	json.Unmarshal(inputAsJson, &optionsMap)
+	inputAsJSON, _ := json.Marshal(input)
+	if err := json.Unmarshal(inputAsJSON, &optionsMap); err != nil {
+		return nil, err
+	}
 	proc := ld.NewJsonLdProcessor()
 
 	normalizeOptions := ld.NewJsonLdOptions("")

@@ -3,9 +3,11 @@ package proof
 import (
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestLDProof_Verify(t *testing.T) {
@@ -68,5 +70,44 @@ func TestLDProofVerifier_Verify(t *testing.T) {
 		assert.NoError(t, err)
 		err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JsonWebSignature2020{}, pk)
 		assert.NoError(t, err, "expected no error when verifying the JsonWebSignature2020 test vector")
+	})
+}
+
+func TestLDProof_Sign(t *testing.T) {
+	t.Run("sign a document", func(t *testing.T) {
+		now := time.Now()
+		expires := now.Add(20 * time.Hour)
+		challenge := "stand on 1 leg for 2 hours"
+		domain := "chateau Torquilstone"
+
+		pOptions := ProofOptions{
+			Created:        now,
+			Domain:         &domain,
+			Challenge:      &challenge,
+			ExpirationDate: &expires,
+			ProofPurpose:   "assertion",
+		}
+
+		ldProof := NewLDProof(pOptions)
+
+		document := map[string]interface{}{
+			"@context": []interface{}{
+				map[string]interface{}{"title": "https://schema.org#title"},
+			},
+			"title": "Hello world!",
+		}
+
+		kid := "did:nuts:123#abc"
+		testKey := crypto.NewTestKey(kid)
+
+		result, err := ldProof.Sign(document, signature.JsonWebSignature2020{}, testKey)
+		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
+			return
+		}
+		signedDocument := result.(SignedDocument)
+		docProof := signedDocument.FirstProof()
+		assert.Equal(t, challenge, docProof["challenge"])
+		assert.Equal(t, domain, docProof["domain"])
+		t.Logf("%+v", signedDocument)
 	})
 }

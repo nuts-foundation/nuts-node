@@ -54,7 +54,9 @@ func Test_issuer_buildVC(t *testing.T) {
 			}},
 		}
 		result, err := sut.buildVC(credentialOptions)
-		assert.NoError(t, err)
+		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
+			return
+		}
 		assert.Contains(t, result.Type, *credentialType, "expected vc to be of right type")
 		proofs, _ := result.Proofs()
 		assert.Equal(t, kid, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")

@@ -81,14 +81,14 @@ type Document map[string]interface{}
 type SignedDocument map[string]interface{}
 type DocumentProof map[string]interface{}
 
-func NewSignedDocument(source interface{}) (*SignedDocument, error) {
+func NewSignedDocument(source interface{}) (SignedDocument, error) {
 	// Convert the VC to a generic LD Signed Document
 	sourceBytes, err := json.Marshal(source)
 	if err != nil {
 		return nil, err
 	}
-	result := &SignedDocument{}
-	if err := json.Unmarshal(sourceBytes, result); err != nil {
+	result := SignedDocument{}
+	if err := json.Unmarshal(sourceBytes, &result); err != nil {
 		return nil, err
 	}
 	return result, nil

@@ -29,5 +29,4 @@ type Suite interface {
 	CanonicalizeDocument(doc interface{}) ([]byte, error)
 	CalculateDigest(doc []byte) []byte
 	GetType() ssi.ProofType
-	GetProofValueKey() string
 }
