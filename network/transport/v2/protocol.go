@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/transport/v2/gossip"
 	"go.etcd.io/bbolt"
 
 	grpcLib "google.golang.org/grpc"
@@ -49,14 +50,19 @@ type Config struct {
 	Datadir string
 	// PayloadRetryDelay initial delay before retrying payload retrieval. Will grow exponentially
 	PayloadRetryDelay time.Duration
+	// GossipInterval specifies how often (in milliseconds) the node should broadcast its gossip message,
+	// so other nodes can compare and synchronize.
+	GossipInterval int `koanf:"gossipinterval"`
 }
 
 const defaultPayloadRetryDelay = 5 * time.Second
+const defaultGossipInterval = 5000
 
 // DefaultConfig returns the default config for protocol v2
 func DefaultConfig() Config {
 	return Config{
 		PayloadRetryDelay: defaultPayloadRetryDelay,
+		GossipInterval:    defaultGossipInterval,
 	}
 }
 
@@ -89,6 +95,7 @@ type protocol struct {
 	nodeDIDResolver   transport.NodeDIDResolver
 	connectionManager transport.ConnectionManager
 	cMan              *conversationManager
+	gManager          gossip.Manager
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
@@ -99,6 +106,11 @@ func (p *protocol) Register(registrar grpcLib.ServiceRegistrar, acceptor func(st
 	RegisterProtocolServer(registrar, &protocolServer{acceptor: acceptor})
 	p.connectionList = connectionList
 	p.connectionManager = connectionManager
+	p.connectionManager.RegisterObserver(p.connectionStateCallback)
+}
+
+func (p protocol) Version() int {
+	return 2
 }
 
 func (p protocol) MethodName() string {
@@ -165,7 +177,41 @@ func (p *protocol) Start() (err error) {
 		p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
 	}
 
+	// start gossip part of protocol
+	p.gManager = gossip.NewManager(p.ctx, time.Duration(p.config.GossipInterval)*time.Millisecond)
+	p.gManager.RegisterSender(p.sendGossip)
+	// called after DAG is committed
+	p.state.RegisterObserver(p.gossipTransaction, false)
+
 	return
+}
+
+func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.StreamState, protocol transport.Protocol) {
+	if protocol.Version() == p.Version() {
+		switch state {
+		case transport.StateConnected:
+			p.gManager.PeerConnected(peer)
+		case transport.StateDisconnected:
+			p.gManager.PeerDisconnected(peer)
+		}
+	}
+}
+
+// gossipTransaction is called when a transaction is added to the DAG
+func (p *protocol) gossipTransaction(_ context.Context, tx dag.Transaction, _ []byte) {
+	if tx != nil { // can happen when payload is written for private TX
+		p.gManager.TransactionRegistered(tx.Ref())
+	}
+}
+
+func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash) bool {
+	if err := p.sendGossipMsg(id, refs); err != nil {
+		log.Logger().Errorf("failed to send Gossip message (peer=%s): %v", id, err)
+		return false
+	}
+
+	// this will signal gManager to clear the queue
+	return true
 }
 
 func (p *protocol) handlePrivateTx(tx dag.Transaction, _ []byte) error {

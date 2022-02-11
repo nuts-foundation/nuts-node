@@ -79,6 +79,18 @@ func (mr *MockConnectionManagerMockRecorder) Peers() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Peers", reflect.TypeOf((*MockConnectionManager)(nil).Peers))
 }
 
+// RegisterObserver mocks base method.
+func (m *MockConnectionManager) RegisterObserver(callback StreamStateObserverFunc) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RegisterObserver", callback)
+}
+
+// RegisterObserver indicates an expected call of RegisterObserver.
+func (mr *MockConnectionManagerMockRecorder) RegisterObserver(callback interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterObserver", reflect.TypeOf((*MockConnectionManager)(nil).RegisterObserver), callback)
+}
+
 // Start mocks base method.
 func (m *MockConnectionManager) Start() error {
 	m.ctrl.T.Helper()

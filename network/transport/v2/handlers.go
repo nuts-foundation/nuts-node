@@ -37,6 +37,9 @@ func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
 	}
 
 	switch msg := envelope.Message.(type) {
+	case *Envelope_Gossip:
+		logMessage(msg)
+		return p.handleGossip(peer, msg.Gossip)
 	case *Envelope_Hello:
 		logMessage(msg)
 		log.Logger().Infof("%T: %s said hello", p, peer)
@@ -126,4 +129,33 @@ func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
 
 	// it's saved, remove the job
 	return p.payloadScheduler.Finished(ref)
+}
+
+func (p protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
+	refs := make([]hash.SHA256Hash, len(msg.Transactions))
+	i := 0
+	ctx := context.Background()
+	for _, bytes := range msg.Transactions {
+		ref := hash.FromSlice(bytes)
+		// separate reader transactions on DB but that's ok.
+		present, err := p.state.IsPresent(ctx, ref)
+		if err != nil {
+			return fmt.Errorf("failed to handle Gossip message: %w", err)
+		}
+		if !present {
+			refs[i] = ref
+			i++
+		}
+	}
+	refs = refs[:i]
+	if len(refs) > 0 {
+		log.Logger().Tracef("received %d new transaction references via Gossip", len(refs))
+	}
+	p.gManager.GossipReceived(peer.ID, refs...)
+	// TODO call p.gManager.GossipReceived
+	// TODO compare hashes with DAG
+	// TODO compare xor
+	// TODO send new message
+
+	return nil
 }

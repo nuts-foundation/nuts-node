@@ -156,6 +156,10 @@ func TestProtocol_lifecycle(t *testing.T) {
 
 	s := grpcLib.NewServer()
 	p, mocks := newTestProtocol(t, nil)
+	mocks.State.EXPECT().RegisterObserver(gomock.Any(), false)
+	mocks.State.EXPECT().Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, gomock.Any())
+	connectionManager.EXPECT().RegisterObserver(gomock.Any())
+	mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 	mocks.PayloadScheduler.EXPECT().Close()
 
 	err := p.Start()
@@ -178,6 +182,7 @@ func TestProtocol_Start(t *testing.T) {
 
 		mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 		mocks.PayloadScheduler.EXPECT().Close()
+		mocks.State.EXPECT().RegisterObserver(gomock.Any(), false)
 		mocks.State.EXPECT().Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, gomock.Any())
 
 		err := proto.Start()
