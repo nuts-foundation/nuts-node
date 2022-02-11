@@ -20,7 +20,6 @@
 package gossip
 
 import (
-	"container/list"
 	"context"
 	"sync"
 	"time"
@@ -102,13 +101,7 @@ func (m *manager) PeerConnected(transportPeer transport.Peer) {
 		return
 	}
 
-	peer := peerQueue{
-		log:     list.New(),
-		logSet:  map[string]*list.Element{},
-		maxSize: maxQueueSize,
-		queue:   list.New(),
-		set:     map[string]*list.Element{},
-	}
+	peer := newPeerQueue()
 	m.peers[string(transportPeer.ID)] = peer
 
 	// start ticker for this peer

@@ -46,6 +46,16 @@ type peerQueue struct {
 	set map[string]*list.Element
 }
 
+func newPeerQueue() peerQueue {
+	return peerQueue{
+		log:     list.New(),
+		logSet:  map[string]*list.Element{},
+		maxSize: maxQueueSize,
+		queue:   list.New(),
+		set:     map[string]*list.Element{},
+	}
+}
+
 // start a ticker. It'll use the given context as parent context to stop the ticker
 func (pq *peerQueue) start(parentCtx context.Context, interval time.Duration) <-chan bool {
 	var ctx context.Context
