@@ -14,6 +14,12 @@ import (
 	"time"
 )
 
+// RsaSignature2018 contains the string value for the RsaSignature2018 signature type
+const RsaSignature2018 = ssi.ProofType("RsaSignature2018")
+
+// EcdsaSecp256k1Signature2019 contains the string value for the EcdsaSecp256k1Signature2019 signature type
+const EcdsaSecp256k1Signature2019 = ssi.ProofType("EcdsaSecp256k1Signature2019")
+
 // ProofOptions contains the options for a specific proof. When set they wil
 type ProofOptions struct {
 	// Created contains the date and time of signing. When not set, the current date time will be used.
@@ -186,9 +192,6 @@ func (p LDProof) asMap() (map[string]interface{}, error) {
 	}
 	return proofMap, nil
 }
-
-const RsaSignature2018 = ssi.ProofType("RsaSignature2018")
-const EcdsaSecp256k1Signature2019 = ssi.ProofType("EcdsaSecp256k1Signature2019")
 
 func determineProofContext(proofType ssi.ProofType) string {
 	switch proofType {

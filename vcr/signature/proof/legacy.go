@@ -39,6 +39,7 @@ type LegacyLDProof struct {
 	vc.JSONWebSignature2020Proof
 }
 
+// Verify verifies the legacy proof for correctness
 func (p LegacyLDProof) Verify(document interface{}, suite signature.Suite, key crypto2.PublicKey) error {
 	splittedJws := strings.Split(p.Jws, "..")
 	p.Jws = ""

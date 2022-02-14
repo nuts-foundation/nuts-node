@@ -224,6 +224,68 @@ func TestVerifier_Verify(t *testing.T) {
 	})
 }
 
+func Test_verifier_Verify(t *testing.T) {
+	// Verify calls other verifiers / validators.
+	// These test do not try to be complete, only test the calling of these validators and the error handling.
+
+	t.Run("with signature check", func(t *testing.T) {
+		t.Run("fails when key is not found", func(t *testing.T) {
+			vc := testCredential(t)
+			ctx := newMockContext(t)
+			proofs, _ := vc.Proofs()
+			ctx.keyResolver.EXPECT().ResolveSigningKey(proofs[0].VerificationMethod.String(), nil).Return(nil, types.ErrKeyNotFound)
+			sut := ctx.verifier
+			validationErr := sut.Verify(vc, true, true, nil)
+			assert.EqualError(t, validationErr, "unable to resolve signing key: key not found in DID document")
+		})
+	})
+
+	t.Run("no signature check", func(t *testing.T) {
+		t.Run("ok, the vc is valid", func(t *testing.T) {
+			vc := testCredential(t)
+			ctx := newMockContext(t)
+			sut := ctx.verifier
+			validationErr := sut.Verify(vc, true, false, nil)
+			assert.NoError(t, validationErr,
+				"expected no error when validating a valid vc")
+		})
+
+		t.Run("ok, with invalid signature", func(t *testing.T) {
+			vc := testCredential(t)
+			vc.Proof[0] = map[string]interface{}{"jws": "foo"}
+			ctx := newMockContext(t)
+			sut := ctx.verifier
+			validationErr := sut.Verify(vc, true, false, nil)
+			assert.NoError(t, validationErr,
+				"expected no error when validating a valid vc")
+		})
+
+		t.Run("failed validation", func(t *testing.T) {
+
+			t.Run("missing required fields", func(t *testing.T) {
+				vc := testCredential(t)
+				// set the type to an empty array should make the credential invalid
+				vc.Type = []ssi.URI{}
+				ctx := newMockContext(t)
+				sut := ctx.verifier
+				validationErr := sut.Verify(vc, true, false, nil)
+				assert.EqualError(t, validationErr, "validation failed: type 'VerifiableCredential' is required")
+			})
+
+			t.Run("credential not valid at given time", func(t *testing.T) {
+				vc := testCredential(t)
+				expirationTime := time.Now().Add(-10 * time.Hour)
+				vc.ExpirationDate = &expirationTime
+				ctx := newMockContext(t)
+				sut := ctx.verifier
+				validationErr := sut.Verify(vc, true, false, nil)
+				assert.EqualError(t, validationErr, "credential not valid at given time")
+			})
+
+		})
+	})
+}
+
 type mockContext struct {
 	ctrl        *gomock.Controller
 	keyResolver *types.MockKeyResolver
@@ -231,6 +293,7 @@ type mockContext struct {
 }
 
 func newMockContext(t *testing.T) mockContext {
+	t.Helper()
 	ctrl := gomock.NewController(t)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	verifier := NewVerifier(keyResolver)
