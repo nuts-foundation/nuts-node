@@ -25,6 +25,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	irma "github.com/privacybydesign/irmago"
 	"io/fs"
 	"os"
 	"path"
@@ -120,7 +122,20 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	}
 
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore)
+
+	irmaConfig, err := irma.NewConfiguration(
+		path.Join(config.Datadir, "irma"),
+		irma.ConfigurationOptions{},
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := irmaConfig.ParseFolder(); err != nil {
+		panic(err)
+	}
+
+	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, irmaConfig)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {
@@ -271,7 +286,7 @@ func (c *vcr) Config() interface{} {
 // search for matching credentials based upon a query. It returns an empty list if no matches have been found.
 // The optional resolveTime will search for credentials at that point in time.
 func (c *vcr) search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
-	//transform query to leia query, for each template a query is returned
+	// transform query to leia query, for each template a query is returned
 	queries := c.convert(query)
 
 	var VCs = make([]vc.VerifiableCredential, 0)
@@ -300,8 +315,10 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 	if len(template.Type) != 1 {
 		return nil, errors.New("can only issue credential with 1 type")
 	}
+
 	templateType := template.Type[0]
 	templateTypeString := templateType.String()
+
 	conceptConfig := c.registry.FindByType(templateTypeString)
 	if conceptConfig == nil {
 		if c.config.strictMode {
@@ -312,7 +329,10 @@ func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential,
 			Concept:        templateTypeString,
 			CredentialType: templateTypeString,
 		}
-		c.registry.Add(*conceptConfig)
+
+		if err := c.registry.Add(*conceptConfig); err != nil {
+			return nil, err
+		}
 	}
 
 	template.Context = append(template.Context, *credential.NutsContextURI)
@@ -417,6 +437,17 @@ func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
 	for _, t := range credential.Type {
 		if c.trustConfig.IsTrusted(t, credential.Issuer) {
 			return true
+		}
+	}
+
+	if credential.Proof != nil {
+		irmaProof := []proof.IRMASignatureProof{}
+
+		if err := credential.UnmarshalProofValue(&irmaProof); err == nil {
+			if irmaProof[0].Type == proof.NutsIRMASignatureProof2022 {
+				// @TODO: verify proof?
+				return true
+			}
 		}
 	}
 

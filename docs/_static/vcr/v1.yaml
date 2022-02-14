@@ -294,7 +294,7 @@ components:
       properties:
         currentStatus:
           type: string
-          enum: ["trusted", "revoked", "untrusted"]
+          enum: [ "trusted", "revoked", "untrusted" ]
           description: Only credentials with with "trusted" state are valid. If a revoked credential is also untrusted, revoked will be returned.
         verifiableCredential:
           $ref: "#/components/schemas/VerifiableCredential"
@@ -391,6 +391,17 @@ components:
           description: Type definition for the credential.
           type: string
           example: "NutsOrganizationCredential"
+        proof:
+          description: Embedded proof (optional)
+          type: array
+          items:
+            type: object
+            x-go-type: 'interface{}'
+          example: >
+            {
+              "type":       "NutsIRMASignatureProof2022",
+              "proofValue": "DgYdYMUYHURJLD7xdnWRinqWCEY5u5fK...j915Lt3hMzLHoPiPQ9sSVfRrs1D",
+            }
         issuer:
           description: DID according to Nuts specification.
           type: string

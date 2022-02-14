@@ -22,25 +22,30 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	irma "github.com/privacybydesign/irmago"
+
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-	"time"
 )
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
-func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore) Issuer {
+func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, irmaConfig *irma.Configuration) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
 		store:       store,
 		publisher:   publisher,
 		keyResolver: resolver,
+		irmaConfig:  irmaConfig,
 	}
 }
 
@@ -48,6 +53,7 @@ type issuer struct {
 	store       Store
 	publisher   Publisher
 	keyResolver keyResolver
+	irmaConfig  *irma.Configuration
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -74,6 +80,34 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public
 		}
 	}
 	return createdVC, nil
+}
+
+func unflattenAttributes(attributes map[string]string) (map[string]interface{}, error) {
+	output := map[string]interface{}{}
+
+	for name, value := range attributes {
+		data := output
+		components := strings.Split(name, ".")
+
+		for i, component := range components {
+			if i == len(components)-1 {
+				data[component] = value
+				break
+			}
+
+			if group, ok := data[component]; ok {
+				if data, ok = group.(map[string]interface{}); !ok {
+					return nil, fmt.Errorf("invalid type for attribute %s", name)
+				}
+			} else {
+				newMap := map[string]interface{}{}
+				data[component] = newMap
+				data = newMap
+			}
+		}
+	}
+
+	return output, nil
 }
 
 func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
@@ -103,27 +137,71 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 		unsignedCredential.Type = append(unsignedCredential.Type, defaultType)
 	}
 
-	key, err := i.keyResolver.ResolveAssertionKey(*issuer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign credential, could not resolve an assertionKey for issuer: %w", err)
+	var vcData []byte
+
+	if credentialOptions.Proof != nil {
+		irmaProof := []proof.IRMASignatureProof{}
+
+		if err := credentialOptions.UnmarshalProofValue(&irmaProof); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal proof value: %w", err)
+		}
+
+		if len(irmaProof) != 1 {
+			return nil, errors.New("can only issue credential with a single IRMA proof")
+		}
+
+		if irmaProof[0].Type == proof.NutsIRMASignatureProof2022 {
+			attributes, err := irmaProof[0].Verify(i.irmaConfig)
+			if err != nil {
+				return nil, fmt.Errorf("IRMA signature verification failed: %w", err)
+			}
+
+			subject, err := unflattenAttributes(attributes)
+			if err != nil {
+				return nil, err
+			}
+
+			unsignedCredential.CredentialSubject = []interface{}{subject}
+			unsignedCredential.Proof = []interface{}{irmaProof[0]}
+
+			vcData, err = json.Marshal(unsignedCredential)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, fmt.Errorf("unsupported proof type: %s", irmaProof[0].Type)
+		}
+	} else {
+		key, err := i.keyResolver.ResolveAssertionKey(*issuer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sign credential, could not resolve an assertionKey for issuer: %w", err)
+		}
+
+		credentialAsMap := map[string]interface{}{}
+		b, _ := json.Marshal(unsignedCredential)
+		_ = json.Unmarshal(b, &credentialAsMap)
+
+		signingResult, err := proof.LegacyLDProof{}.Sign(credentialAsMap, signature.LegacyNutsSuite{}, key)
+		if err != nil {
+			return nil, err
+		}
+
+		result, ok := signingResult.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("unable to cast signing result to interface map")
+		}
+
+		vcData, err = json.Marshal(result)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	credentialAsMap := map[string]interface{}{}
-	b, _ := json.Marshal(unsignedCredential)
-	_ = json.Unmarshal(b, &credentialAsMap)
+	signedCredential := &vc.VerifiableCredential{}
 
-	signingResult, err := proof.LegacyLDProof{}.Sign(credentialAsMap, signature.LegacyNutsSuite{}, key)
-	if err != nil {
+	if err := json.Unmarshal(vcData, signedCredential); err != nil {
 		return nil, err
 	}
-
-	signingResultAsMap, ok := signingResult.(map[string]interface{})
-	if !ok {
-		return nil, errors.New("unable to cast signing result to interface map")
-	}
-	b, _ = json.Marshal(signingResultAsMap)
-	signedCredential := &vc.VerifiableCredential{}
-	_ = json.Unmarshal(b, signedCredential)
 
 	return signedCredential, nil
 }

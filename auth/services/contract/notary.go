@@ -65,7 +65,7 @@ type Config struct {
 
 func (c Config) hasContractValidator(cv string) bool {
 	for _, curr := range c.ContractValidators {
-		if strings.ToLower(cv) == strings.ToLower(curr) {
+		if strings.EqualFold(cv, curr) {
 			return true
 		}
 	}
@@ -127,6 +127,7 @@ func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, valid
 	}
 
 	contractAttrs := map[string]string{
+		contract.OrgDIDAttr:          orgID.String(),
 		contract.LegalEntityAttr:     orgName,
 		contract.LegalEntityCityAttr: orgCity,
 	}

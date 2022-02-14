@@ -38,6 +38,9 @@ const ValidToAttr = "valid_to"
 // deprecated, can be removed after irma signature test data has been updated to v3 templates
 const ActingPartyAttr = "acting_party"
 
+// OrgDIDAttr contains key of the org-did attribute
+const OrgDIDAttr = "org_did"
+
 // LegalEntityAttr contains the key of the legal-entity attribute.
 const LegalEntityAttr = "legal_entity"
 

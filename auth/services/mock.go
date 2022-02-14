@@ -14,6 +14,7 @@ import (
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	contract "github.com/nuts-foundation/nuts-node/auth/contract"
+	irmaserver "github.com/privacybydesign/irmago/server/irmaserver"
 )
 
 // MockOAuthClient is a mock of OAuthClient interface.
@@ -296,6 +297,20 @@ func (m *MockContractNotary) HandlerFunc() http.HandlerFunc {
 func (mr *MockContractNotaryMockRecorder) HandlerFunc() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandlerFunc", reflect.TypeOf((*MockContractNotary)(nil).HandlerFunc))
+}
+
+// IRMAServer mocks base method.
+func (m *MockContractNotary) IRMAServer() *irmaserver.Server {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IRMAServer")
+	ret0, _ := ret[0].(*irmaserver.Server)
+	return ret0
+}
+
+// IRMAServer indicates an expected call of IRMAServer.
+func (mr *MockContractNotaryMockRecorder) IRMAServer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IRMAServer", reflect.TypeOf((*MockContractNotary)(nil).IRMAServer))
 }
 
 // SigningSessionStatus mocks base method.

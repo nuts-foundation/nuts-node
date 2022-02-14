@@ -85,6 +85,7 @@ func (v Service) StartSigningSession(rawContractText string) (contract.SessionPo
 		}
 		attributes = append(attributes, irmago.NewAttributeRequest(att))
 	}
+
 	signatureRequest.Disclose = irmago.AttributeConDisCon{
 		irmago.AttributeDisCon{
 			attributes,

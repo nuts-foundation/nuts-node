@@ -49,18 +49,33 @@ var StandardContractTemplates = TemplateStore{
 			Regexp:             `NL:BehandelaarLogin:v3 Hierbij verklaar ik te handelen in naam van (.+) te (.+). Deze verklaring is geldig van (.+) tot (.+).`,
 		},
 	}},
-	"EN": {"PractitionerLogin": {
-		"v3": &Template{
-			Type:               "PractitionerLogin",
-			Version:            "v3",
-			Language:           "EN",
-			Locale:             "en_US",
-			SignerAttributes:   StandardSignerAttributes,
-			Template:           `EN:PractitionerLogin:v3 I hereby declare to act on behalf of {{` + LegalEntityAttr + `}} located in {{` + LegalEntityCityAttr + `}}. This declaration is valid from {{` + ValidFromAttr + `}} until {{` + ValidToAttr + `}}.`,
-			TemplateAttributes: []string{LegalEntityAttr, LegalEntityCityAttr, ValidFromAttr, ValidToAttr},
-			Regexp:             `EN:PractitionerLogin:v3 I hereby declare to act on behalf of (.+) located in (.+). This declaration is valid from (.+) until (.+).`,
+	"EN": {
+		"PractitionerLogin": {
+			"v3": &Template{
+				Type:               "PractitionerLogin",
+				Version:            "v3",
+				Language:           "EN",
+				Locale:             "en_US",
+				SignerAttributes:   StandardSignerAttributes,
+				Template:           `EN:PractitionerLogin:v3 I hereby declare to act on behalf of {{` + LegalEntityAttr + `}} located in {{` + LegalEntityCityAttr + `}}. This declaration is valid from {{` + ValidFromAttr + `}} until {{` + ValidToAttr + `}}.`,
+				TemplateAttributes: []string{LegalEntityAttr, LegalEntityCityAttr, ValidFromAttr, ValidToAttr},
+				Regexp:             `EN:PractitionerLogin:v3 I hereby declare to act on behalf of (.+) located in (.+). This declaration is valid from (.+) until (.+).`,
+			},
 		},
-	}},
+		"IRMAKVKVerification": {
+			"v3": &Template{
+				Type:     "IRMAKVKVerification",
+				Version:  "v3",
+				Language: "EN",
+				Locale:   "en_US",
+				SignerAttributes: []string{
+					".kvk.official.legalEntity",
+					".kvk.official.officeAddress",
+				},
+				Template: `EN:IRMAKVKVerification:v3 {{org_did}}`,
+			},
+		},
+	},
 }
 
 // TemplateStore contains a list of Contract templates sorted by language, type and version
@@ -80,7 +95,7 @@ func (m TemplateStore) Get(cType Type, language Language, version Version) *Temp
 }
 
 func (m TemplateStore) FindFromRawContractText(rawContractText string) (*Template, error) {
-	r, _ := regexp.Compile(`^(.{2}):(.+):(v\d+)`)
+	r := regexp.MustCompile(`^(.{2}):(.+):(v\d+)`)
 
 	matchResult := r.FindSubmatch([]byte(rawContractText))
 	if len(matchResult) != 4 {
