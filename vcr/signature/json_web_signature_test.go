@@ -1,6 +1,8 @@
 package signature
 
 import (
+	"encoding/hex"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -41,5 +43,31 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 		res, err := sig.CanonicalizeDocument(doc)
 		assert.NoError(t, err)
 		assert.Equal(t, "_:c14n0 <http://schema.org/title> \"Hello world!\" .\n", string(res))
+	})
+}
+
+func TestJsonWebSignature2020_CalculateDigest(t *testing.T) {
+	t.Run("it calculates the document digest", func(t *testing.T) {
+		sig := JsonWebSignature2020{}
+		doc := []byte("foo")
+		result := sig.CalculateDigest(doc)
+		expected, _ := hex.DecodeString("2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae")
+		assert.Equal(t, expected, result)
+	})
+}
+
+func TestJsonWebSignature2020_GetType(t *testing.T) {
+	t.Run("it returns its type", func(t *testing.T) {
+		sig := JsonWebSignature2020{}
+		assert.Equal(t, ssi.JsonWebSignature2020, sig.GetType())
+	})
+}
+
+func Test_detachedJWSHeaders(t *testing.T) {
+	t.Run("it returns a detached JWS header", func(t *testing.T) {
+		headers := detachedJWSHeaders()
+
+		assert.Equal(t, false, headers["b64"])
+		assert.Equal(t, []string{"b64"}, headers["crit"])
 	})
 }

@@ -3,10 +3,8 @@ package signature
 import (
 	"embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/piprate/json-gold/ld"
-	"io/fs"
 	"net/url"
 )
 
@@ -26,30 +24,28 @@ func NewEmbeddedFSDocumentLoader(fs embed.FS, nextLoader ld.DocumentLoader) *emb
 
 // LoadDocument tries to load the document from the embedded filesystem.
 // If the document is not a file or could not be found it tries the nextLoader.
-func (e embeddedFSDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
-	parsedURL, err := url.Parse(u)
+func (e embeddedFSDocumentLoader) LoadDocument(path string) (*ld.RemoteDocument, error) {
+	parsedURL, err := url.Parse(path)
 	if err != nil {
-		return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, fmt.Sprintf("error parsing URL: %s", u))
+		return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, fmt.Sprintf("error parsing URL: %s", path))
 	}
 
 	protocol := parsedURL.Scheme
 	if protocol != "http" && protocol != "https" {
 		remoteDoc := &ld.RemoteDocument{}
-		file, err := e.fs.Open(u)
+		remoteDoc.DocumentURL = path
+		file, err := e.fs.Open(path)
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return e.nextLoader.LoadDocument(u)
-			}
-			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
+			return e.nextLoader.LoadDocument(path)
 		}
 		defer file.Close()
 		remoteDoc.Document, err = ld.DocumentFromReader(file)
 		if err != nil {
-			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
+			return nil, err
 		}
 		return remoteDoc, nil
 	}
-	return e.nextLoader.LoadDocument(u)
+	return e.nextLoader.LoadDocument(path)
 }
 
 // LDUtil package a set of often used JSON-LD operations for re-usability.
