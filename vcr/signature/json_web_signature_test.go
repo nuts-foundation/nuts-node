@@ -3,6 +3,7 @@ package signature
 import (
 	"encoding/hex"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -69,5 +70,15 @@ func Test_detachedJWSHeaders(t *testing.T) {
 
 		assert.Equal(t, false, headers["b64"])
 		assert.Equal(t, []string{"b64"}, headers["crit"])
+	})
+}
+
+func TestJsonWebSignature2020_Sign(t *testing.T) {
+	t.Run("it returns the signing result", func(t *testing.T) {
+		doc := []byte("foo")
+		sig := JsonWebSignature2020{}
+		result, err := sig.Sign(doc, crypto.NewTestKey("did:nuts:123#abc"))
+		assert.NoError(t, err)
+		assert.Contains(t, string(result), "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19")
 	})
 }
