@@ -286,6 +286,60 @@ func Test_verifier_Verify(t *testing.T) {
 	})
 }
 
+func Test_verifier_validateInTime(t *testing.T) {
+	var timeToCheck *time.Time
+	t.Run("no time provided", func(t *testing.T) {
+		timeToCheck = nil
+
+		t.Run("credential is valid", func(t *testing.T) {
+			sut := verifier{}
+			credentialToTest := testCredential(t)
+			validationErr := sut.validateAtTime(credentialToTest, timeToCheck)
+			assert.NoError(t, validationErr)
+		})
+	})
+
+	t.Run("with a time provided", func(t *testing.T) {
+		now := time.Now()
+		t.Run("credential is valid at given time", func(t *testing.T) {
+			timeToCheck = &now
+			sut := verifier{}
+			credentialToTest := testCredential(t)
+			validationErr := sut.validateAtTime(credentialToTest, timeToCheck)
+			assert.NoError(t, validationErr)
+		})
+
+		t.Run("credential is invalid when timeAt is before issuance", func(t *testing.T) {
+			beforeIssuance, err := time.Parse(time.RFC3339, "2006-10-05T14:33:12+02:00")
+			if !assert.NoError(t, err) {
+				return
+			}
+			timeToCheck = &beforeIssuance
+			sut := verifier{}
+			credentialToTest := testCredential(t)
+			validationErr := sut.validateAtTime(credentialToTest, timeToCheck)
+			assert.EqualError(t, validationErr, "credential not valid at given time")
+		})
+
+		t.Run("credential is invalid when timeAt is after expiration", func(t *testing.T) {
+			expireTime, err := time.Parse(time.RFC3339, "2021-10-05T14:33:12+02:00")
+			if !assert.NoError(t, err) {
+				return
+			}
+			afterExpire := expireTime.Add(10 * time.Hour)
+			timeToCheck = &afterExpire
+			sut := verifier{}
+			credentialToTest := testCredential(t)
+			// Set expirationDate since the testCredential does not have one
+			credentialToTest.ExpirationDate = &expireTime
+			validationErr := sut.validateAtTime(credentialToTest, timeToCheck)
+			assert.EqualError(t, validationErr, "credential not valid at given time")
+		})
+
+	})
+
+}
+
 type mockContext struct {
 	ctrl        *gomock.Controller
 	keyResolver *types.MockKeyResolver

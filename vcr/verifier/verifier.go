@@ -40,10 +40,10 @@ func NewVerifier(keyResolver vdr.KeyResolver) Verifier {
 	return &verifier{keyResolver: keyResolver}
 }
 
-// validateInTime is a helper method which checks if a credential is valid at a certain given time.
+// validateAtTime is a helper method which checks if a credential is valid at a certain given time.
 // If no validAt is provided, validAt is set to now.
 // It returns nil if the credential is valid at the given time, otherwise it returns types.ErrInvalidPeriod
-func (v *verifier) validateInTime(credential vc.VerifiableCredential, validAt *time.Time) error {
+func (v *verifier) validateAtTime(credential vc.VerifiableCredential, validAt *time.Time) error {
 	// if validAt is nil, use the result from timeFunc (usually now)
 	at := timeFunc()
 	if validAt != nil {
@@ -121,7 +121,7 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 		return err
 	}
 
-	if err := v.validateInTime(credentialToVerify, validAt); err != nil {
+	if err := v.validateAtTime(credentialToVerify, validAt); err != nil {
 		return err
 	}
 
