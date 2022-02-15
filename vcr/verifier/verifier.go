@@ -18,6 +18,7 @@ const (
 	maxSkew = 5 * time.Second
 )
 
+// Verifier defines the interface for verifying verifiable credentials.
 type Verifier interface {
 	// Verify checks credential on full correctness. It checks:
 	// validity of the signature

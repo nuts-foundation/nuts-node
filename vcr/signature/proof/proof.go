@@ -50,6 +50,7 @@ func NewSignedDocument(source interface{}) (SignedDocument, error) {
 	return result, nil
 }
 
+// DocumentWithoutProof returns the Document without the proof.
 func (d SignedDocument) DocumentWithoutProof() Document {
 	docWithoutProof := Document{}
 	for key, value := range d {
