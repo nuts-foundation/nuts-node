@@ -35,6 +35,7 @@ gen-mocks:
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/types/interface.go
 	mockgen -destination=vcr/issuer/mock.go -package=issuer -source=vcr/issuer/interface.go
 	mockgen -destination=vcr/concept/mock.go -package=concept -source=vcr/concept/registry.go Registry
+	mockgen -destination=vcr/signature/mock.go -package=signature -source=vcr/signature/signature.go
 	mockgen -destination=auth/mock.go -package=auth -source=auth/interface.go
 	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go
 	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
