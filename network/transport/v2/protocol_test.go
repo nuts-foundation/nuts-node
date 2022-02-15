@@ -156,31 +156,50 @@ func TestProtocol_lifecycle(t *testing.T) {
 
 	s := grpcLib.NewServer()
 	p, mocks := newTestProtocol(t, nil)
-	mocks.State.EXPECT().Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, gomock.Any())
-	mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 	mocks.PayloadScheduler.EXPECT().Close()
-	p.Start()
+
+	err := p.Start()
+	assert.NoError(t, err)
 
 	p.Register(s, func(stream grpcLib.ServerStream) error {
 		return nil
 	}, connectionList, connectionManager)
 
-	err := p.Handle(transport.Peer{ID: "123"}, &Envelope{})
+	err = p.Handle(transport.Peer{ID: "123"}, &Envelope{})
 	assert.EqualError(t, err, "envelope doesn't contain any (handleable) messages")
 
 	p.Stop()
 }
 
 func TestProtocol_Start(t *testing.T) {
-	proto, mocks := newTestProtocol(t, nil)
+	t.Run("ok - with node DID", func(t *testing.T) {
+		nodeDID, _ := did.ParseDID("did:nuts:123")
+		proto, mocks := newTestProtocol(t, nodeDID)
 
-	mocks.PayloadScheduler.EXPECT().Run().Return(nil)
-	mocks.PayloadScheduler.EXPECT().Close()
-	mocks.State.EXPECT().Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, gomock.Any())
-	proto.Start()
-	proto.Stop()
+		mocks.PayloadScheduler.EXPECT().Run().Return(nil)
+		mocks.PayloadScheduler.EXPECT().Close()
+		mocks.State.EXPECT().Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, gomock.Any())
 
-	time.Sleep(2 * time.Second)
+		err := proto.Start()
+		assert.NoError(t, err)
+
+		proto.Stop()
+
+		time.Sleep(2 * time.Second)
+	})
+
+	t.Run("ok - without node DID", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+
+		mocks.PayloadScheduler.EXPECT().Close()
+
+		err := proto.Start()
+		assert.NoError(t, err)
+
+		proto.Stop()
+
+		time.Sleep(2 * time.Second)
+	})
 }
 
 func TestProtocol_HandlePrivateTx(t *testing.T) {
