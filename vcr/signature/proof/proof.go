@@ -36,9 +36,9 @@ type SignedDocument map[string]interface{}
 // DocumentProof represents a generic proof
 type DocumentProof map[string]interface{}
 
-// NewSignedDocument creates a new SignedDocument from a source
+// NewSignedDocument creates a new SignedDocument from a source struct
 func NewSignedDocument(source interface{}) (SignedDocument, error) {
-	// Convert the VC to a generic LD Signed Document
+	// Convert the source to a generic LD Signed Document
 	sourceBytes, err := json.Marshal(source)
 	if err != nil {
 		return nil, err
@@ -60,6 +60,14 @@ func (d SignedDocument) DocumentWithoutProof() Document {
 		docWithoutProof[key] = value
 	}
 	return docWithoutProof
+}
+
+func (d SignedDocument) UnmarshalProofValue(target interface{}) error {
+	if asJSON, err := json.Marshal(d["proof"]); err != nil {
+		return err
+	} else {
+		return json.Unmarshal(asJSON, target)
+	}
 }
 
 // FirstProof returns the first proof of a SignedDocument.
@@ -110,5 +118,5 @@ type ProofBuilder interface {
 // ProofVerifier defines the generic verifier interface
 type ProofVerifier interface {
 	// Verify verifies the signedDocument with the provided public key. If the document is valid, it returns no error.
-	Verify(document interface{}, suite signature.Suite, key crypto.PublicKey) error
+	Verify(document Document, suite signature.Suite, key crypto.PublicKey) error
 }

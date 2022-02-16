@@ -129,7 +129,7 @@ func Test_verifier_Validate(t *testing.T) {
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Contains(t, err.Error(), "credential must contain exactly 1 proof")
+		assert.Contains(t, err.Error(), "unable to extract ldproof from signed document: json: cannot unmarshal array into Go value of type proof.LDProof")
 	})
 
 	t.Run("error - wrong jws in proof", func(t *testing.T) {

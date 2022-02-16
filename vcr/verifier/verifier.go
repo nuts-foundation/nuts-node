@@ -65,23 +65,24 @@ func (v *verifier) validateAtTime(credential vc.VerifiableCredential, validAt *t
 
 // Validate implements the Proof Verification Algorithm: https://w3c-ccg.github.io/data-integrity-spec/#proof-verification-algorithm
 func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time.Time) error {
-	ldProof := make([]proof.LDProof, 1)
-	if err := credentialToVerify.UnmarshalProofValue(&ldProof); err != nil {
-		return err
-	}
-	if len(ldProof) != 1 {
-		return errors.New("credential must contain exactly 1 proof")
+	signedDocument, err := proof.NewSignedDocument(credentialToVerify)
+	if err != nil {
+		return fmt.Errorf("unable to build signed document from verifiable credential: %w", err)
 	}
 
-	// check if verification method is of issuer (DID should be the same)
-	vm := ldProof[0].VerificationMethod
-	vm.Fragment = ""
-	if vm != credentialToVerify.Issuer {
+	ldProof := proof.LDProof{}
+	if err := signedDocument.UnmarshalProofValue(&ldProof); err != nil {
+		return fmt.Errorf("unable to extract ldproof from signed document: %w", err)
+	}
+
+	verificationMethod := ldProof.VerificationMethod
+	verificationMethod.Fragment = ""
+	if verificationMethod.String() == "" || verificationMethod != credentialToVerify.Issuer {
 		return errors.New("verification method is not of issuer")
 	}
 
 	// find key
-	pk, err := v.keyResolver.ResolveSigningKey(ldProof[0].VerificationMethod.String(), at)
+	pk, err := v.keyResolver.ResolveSigningKey(ldProof.VerificationMethod.String(), at)
 	if err != nil {
 		if at == nil {
 			return fmt.Errorf("unable to resolve signing key: %w", err)
@@ -89,23 +90,14 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 		return fmt.Errorf("unable to resolve valid signing key at given time: %w", err)
 	}
 
-	signedDocument, err := proof.NewSignedDocument(credentialToVerify)
-	if err != nil {
-		return err
-	}
 	// Try first with the correct LDProof implementation
-	if err = ldProof[0].Verify(signedDocument.DocumentWithoutProof(), signature.JsonWebSignature2020{}, pk); err != nil {
-		// If this fails, try the legacy suite
-		legacyProof := make([]proof.LegacyLDProof, 1)
-		if err := credentialToVerify.UnmarshalProofValue(&legacyProof); err != nil {
+	if err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JsonWebSignature2020{}, pk); err != nil {
+		// If this fails, try the legacy suite:
+		legacyProof := proof.LegacyLDProof{}
+		if err := signedDocument.UnmarshalProofValue(&legacyProof); err != nil {
 			return err
 		}
-		if len(legacyProof) != 1 {
-			// unable to parse the legacy proof, return the original error
-			return err
-		}
-		credentialToVerify.Proof = nil
-		return legacyProof[0].Verify(credentialToVerify, signature.LegacyNutsSuite{}, pk)
+		return legacyProof.Verify(signedDocument.DocumentWithoutProof(), signature.LegacyNutsSuite{}, pk)
 	}
 	return err
 

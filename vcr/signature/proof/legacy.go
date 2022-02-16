@@ -39,8 +39,23 @@ type LegacyLDProof struct {
 	vc.JSONWebSignature2020Proof
 }
 
+// NewLegacyLDProof creates a new LegacyLDProof from proofOptions
+func NewLegacyLDProof(options ProofOptions) *LegacyLDProof {
+	return &LegacyLDProof{
+		JSONWebSignature2020Proof: vc.JSONWebSignature2020Proof{
+			Proof: vc.Proof{
+				ProofPurpose: options.ProofPurpose,
+				Created:      options.Created,
+				Domain:       options.Domain,
+			},
+		},
+	}
+}
+
 // Verify verifies the legacy proof for correctness
-func (p LegacyLDProof) Verify(document interface{}, suite signature.Suite, key crypto2.PublicKey) error {
+func (p LegacyLDProof) Verify(document Document, suite signature.Suite, key crypto2.PublicKey) error {
+	document["proof"] = nil
+
 	splittedJws := strings.Split(p.Jws, "..")
 	p.Jws = ""
 	if len(splittedJws) != 2 {
@@ -80,6 +95,7 @@ func (p LegacyLDProof) Verify(document interface{}, suite signature.Suite, key c
 // Sign signs a provided document with the provided key.
 // Deprecated: this method is the initial and wrong implementation of a JSON-LD proof. There will be a new method added in the near future.
 func (p LegacyLDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.Key) (interface{}, error) {
+	document["proof"] = nil
 	kid, err := ssi.ParseURI(key.KID())
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign proof: unable parse KID as ssi.URI")
@@ -90,7 +106,7 @@ func (p LegacyLDProof) Sign(document Document, suite signature.Suite, key nutsCr
 	p.Created = time.Now()
 	p.VerificationMethod = *kid
 
-	canonicalProof, err := suite.CanonicalizeDocument(p.Proof)
+	canonicalProof, err := suite.CanonicalizeDocument(p)
 	if err != nil {
 		return nil, err
 	}
@@ -105,15 +121,17 @@ func (p LegacyLDProof) Sign(document Document, suite signature.Suite, key nutsCr
 
 	sig, err := suite.Sign([]byte(tbs), key)
 	detachedSig := p.toDetachedSignature(string(sig))
-
-	document["proof"] = []interface{}{
-		vc.JSONWebSignature2020Proof{
-			Proof: p.Proof,
-			Jws:   detachedSig,
-		},
+	signedDocument, err := NewSignedDocument(document)
+	if err != nil {
+		return nil, err
 	}
 
-	return document, nil
+	p.JSONWebSignature2020Proof.Jws = detachedSig
+	proofAsMap := p.asMap()
+
+	signedDocument["proof"] = proofAsMap
+
+	return signedDocument, nil
 }
 
 // toDetachedSignature removes the middle part of the signature

@@ -73,7 +73,7 @@ func NewLDProofFromDocumentProof(dp DocumentProof) (*LDProof, error) {
 }
 
 // Verify verifies the correctness of the signature value in the LDProof given a document, signature suite and a public key.
-func (p LDProof) Verify(document interface{}, suite signature.Suite, key crypto.PublicKey) error {
+func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.PublicKey) error {
 	canonicalDocument, err := suite.CanonicalizeDocument(document)
 	if err != nil {
 		return nil

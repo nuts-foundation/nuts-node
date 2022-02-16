@@ -6,11 +6,13 @@ import (
 	"errors"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestLegacyLDProof_Verify(t *testing.T) {
@@ -34,48 +36,51 @@ func TestLegacyLDProof_Verify(t *testing.T) {
 		credentialToVerify := vc.VerifiableCredential{}
 		_ = json.Unmarshal(credentialJson, &credentialToVerify)
 
-		legacyProof := make([]LegacyLDProof, 1)
-		assert.NoError(t, credentialToVerify.UnmarshalProofValue(&legacyProof))
-		credentialToVerify.Proof = nil
+		signedDoc, _ := NewSignedDocument(credentialToVerify)
+		legacyProof := LegacyLDProof{}
+		signedDoc.UnmarshalProofValue(&legacyProof)
 
-		verifyError := legacyProof[0].Verify(credentialToVerify, signature.LegacyNutsSuite{}, pk)
+		verifyError := legacyProof.Verify(signedDoc.DocumentWithoutProof(), signature.LegacyNutsSuite{}, pk)
 		assert.NoError(t, verifyError)
 	})
 
 	t.Run("it fails when the signature is invalid", func(t *testing.T) {
 		credentialToVerify := vc.VerifiableCredential{}
 		_ = json.Unmarshal(credentialJson, &credentialToVerify)
-		legacyProof := make([]LegacyLDProof, 1)
-		assert.NoError(t, credentialToVerify.UnmarshalProofValue(&legacyProof))
+
+		signedDoc, _ := NewSignedDocument(credentialToVerify)
+		legacyProof := LegacyLDProof{}
+		signedDoc.UnmarshalProofValue(&legacyProof)
 
 		// add extra field to the signature so the digest is different
-		legacyProof[0].ProofPurpose = "failing a test"
-		credentialToVerify.Proof = nil
-		verifyError := legacyProof[0].Verify(credentialToVerify, signature.LegacyNutsSuite{}, pk)
+		legacyProof.ProofPurpose = "failing a test"
+
+		verifyError := legacyProof.Verify(signedDoc.DocumentWithoutProof(), signature.LegacyNutsSuite{}, pk)
 		assert.EqualError(t, verifyError, "invalid proof signature: failed to verify signature using ecdsa")
 	})
 
 	t.Run("it fails when the signature has an invalid format", func(t *testing.T) {
 		credentialToVerify := vc.VerifiableCredential{}
 		_ = json.Unmarshal(credentialJson, &credentialToVerify)
-		legacyProof := make([]LegacyLDProof, 1)
-		assert.NoError(t, credentialToVerify.UnmarshalProofValue(&legacyProof))
+		signedDoc, _ := NewSignedDocument(credentialToVerify)
+		legacyProof := LegacyLDProof{}
+		signedDoc.UnmarshalProofValue(&legacyProof)
+		legacyProof.Jws = "invalid jws"
 
-		legacyProof[0].Jws = "invalid jws"
-		credentialToVerify.Proof = nil
-		verifyError := legacyProof[0].Verify(credentialToVerify, signature.LegacyNutsSuite{}, pk)
+		verifyError := legacyProof.Verify(signedDoc.DocumentWithoutProof(), signature.LegacyNutsSuite{}, pk)
 		assert.EqualError(t, verifyError, "invalid 'jws' value in proof")
 	})
 
 	t.Run("it fails when the signature is invalid base64", func(t *testing.T) {
 		credentialToVerify := vc.VerifiableCredential{}
 		_ = json.Unmarshal(credentialJson, &credentialToVerify)
-		legacyProof := make([]LegacyLDProof, 1)
-		assert.NoError(t, credentialToVerify.UnmarshalProofValue(&legacyProof))
 
-		legacyProof[0].Jws = "header..signature"
-		credentialToVerify.Proof = nil
-		verifyError := legacyProof[0].Verify(credentialToVerify, signature.LegacyNutsSuite{}, pk)
+		signedDoc, _ := NewSignedDocument(credentialToVerify)
+		legacyProof := LegacyLDProof{}
+		signedDoc.UnmarshalProofValue(&legacyProof)
+		legacyProof.Jws = "header..signature"
+
+		verifyError := legacyProof.Verify(signedDoc.DocumentWithoutProof(), signature.LegacyNutsSuite{}, pk)
 		assert.EqualError(t, verifyError, "illegal base64 data at input byte 8")
 	})
 
@@ -86,23 +91,69 @@ func TestLegacyLDProof_Verify(t *testing.T) {
 
 		credentialToVerify := vc.VerifiableCredential{}
 		_ = json.Unmarshal(credentialJson, &credentialToVerify)
-		legacyProof := make([]LegacyLDProof, 1)
-		assert.NoError(t, credentialToVerify.UnmarshalProofValue(&legacyProof))
-		credentialToVerify.Proof = nil
+		signedDoc, _ := NewSignedDocument(credentialToVerify)
+		legacyProof := LegacyLDProof{}
+		signedDoc.UnmarshalProofValue(&legacyProof)
 
-		verifyError := legacyProof[0].Verify(credentialToVerify, signatureSuiteMock, pk)
+		verifyError := legacyProof.Verify(signedDoc.DocumentWithoutProof(), signatureSuiteMock, pk)
 		assert.EqualError(t, verifyError, "error with canonicalization")
 	})
 
 	t.Run("it fails with unknown key type", func(t *testing.T) {
 		credentialToVerify := vc.VerifiableCredential{}
 		_ = json.Unmarshal(credentialJson, &credentialToVerify)
-		legacyProof := make([]LegacyLDProof, 1)
-		assert.NoError(t, credentialToVerify.UnmarshalProofValue(&legacyProof))
+		signedDoc, _ := NewSignedDocument(credentialToVerify)
+		legacyProof := LegacyLDProof{}
+		signedDoc.UnmarshalProofValue(&legacyProof)
 
-		credentialToVerify.Proof = nil
-		verifyError := legacyProof[0].Verify(credentialToVerify, signature.LegacyNutsSuite{}, "unknonw type")
+		verifyError := legacyProof.Verify(signedDoc.DocumentWithoutProof(), signature.LegacyNutsSuite{}, "unknonw type")
 		assert.EqualError(t, verifyError, "invalid key type 'string' for jwk.New")
 
+	})
+}
+
+func TestLegacyLDProof_Sign(t *testing.T) {
+	t.Run("it signs a document", func(t *testing.T) {
+		now := time.Now()
+		expires := now.Add(20 * time.Hour)
+		domain := "chateau Torquilstone"
+
+		pOptions := ProofOptions{
+			Created:        now,
+			Domain:         &domain,
+			ExpirationDate: &expires,
+			ProofPurpose:   "assertion",
+		}
+
+		ldProof := NewLegacyLDProof(pOptions)
+
+		document := map[string]interface{}{
+			"@context": []interface{}{
+				map[string]interface{}{"title": "https://schema.org#title"},
+			},
+			"title": "Hello world!",
+		}
+
+		kid := "did:nuts:123#abc"
+		testKey := crypto.NewTestKey(kid)
+
+		result, err := ldProof.Sign(document, signature.LegacyNutsSuite{}, testKey)
+		assert.NoError(t, err,
+			"unexpected error while signing the proof")
+
+		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
+			return
+		}
+		signedDocument := result.(SignedDocument)
+
+		proofToVerify := LegacyLDProof{}
+		err = signedDocument.UnmarshalProofValue(&proofToVerify)
+		assert.NoError(t, err)
+		assert.Equal(t, domain, *proofToVerify.Domain)
+
+		docWithoutProof := signedDocument.DocumentWithoutProof()
+
+		err = proofToVerify.Verify(docWithoutProof, signature.LegacyNutsSuite{}, testKey.Public())
+		assert.NoError(t, err)
 	})
 }
