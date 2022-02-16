@@ -93,9 +93,13 @@ func TestConversationManager_start(t *testing.T) {
 
 	_ = cMan.conversationFromEnvelop(envelop)
 
+	cMan.mutex.Lock()
 	assert.Len(t, cMan.conversations, 1)
+	cMan.mutex.Unlock()
 	time.Sleep(5 * time.Millisecond)
+	cMan.mutex.Lock()
 	assert.Len(t, cMan.conversations, 0)
+	cMan.mutex.Unlock()
 }
 
 func TestConversationManager_done(t *testing.T) {
