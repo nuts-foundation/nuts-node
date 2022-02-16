@@ -17,6 +17,18 @@ there are `nuts` config properties. This contains 3 sections:
 | `nuts.data`   | Contains configurable properties for the `PersistedVolume` that will be created. This will be used to write all NUTS data to.                                                                                |
 | `nuts.ssl`    | Can be used to load the ssl `certfile`, `certkeyfile` and `truststorefile` as a `Secret` and mount them as files at `/opt/nuts/ssl` inside the Pod(s)                                                              |
 
+### Special properties
+NUTS allows binding to specific interfaces on the host machines. In the case of Kubernetes, this is already taken care 
+of. However, we do need to expose the `http` and `gRPC` ports. This is extracted from the following properties:
+
+| Property                                                        | Value (default) |
+|-----------------------------------------------------------------|-----------------|
+| `http.default.address` (must align with `service.internalPort`) | :1323 |
+| `network.grpcaddr`                                              | :5555    | 
+
+For the `nuts-node` port, the `service.internalPort` can simply be used. For gRPC, the Helm chart filters out all digits 
+after the last `:` character. If not set, defaults will be used.
+
 ### Overriding values
 #### From Source
 The properties can be manually changed in the [./values.yaml](./values.yaml), or they can be overwritten whilst running

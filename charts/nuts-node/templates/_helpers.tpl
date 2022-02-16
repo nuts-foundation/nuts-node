@@ -60,3 +60,14 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+NUTS Port helpers
+*/}}
+{{- define "grpcPort" -}}
+{{- if .Values.nuts.config.network.grpcaddr }}
+{{- regexReplaceAll ".*:([0-9]+)" .Values.nuts.config.network.grpcaddr "${1}" }}
+{{- else }}
+{{- default 5555}}
+{{- end }}
+{{- end }}

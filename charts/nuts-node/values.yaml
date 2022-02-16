@@ -97,6 +97,7 @@ nuts:
       certfile: /opt/nuts/ssl/node.nuts.local.pem
       certkeyfile: /opt/nuts/ssl/node.nuts.local.key
       enabletls: false
+      grpcaddr: :5555
 
   # Config for the NUTS data mount inside Kubernetes
   data:

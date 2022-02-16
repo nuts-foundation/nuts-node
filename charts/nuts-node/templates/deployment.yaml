@@ -58,10 +58,10 @@ spec:
               mountPath: /opt/nuts/data
           ports:
             - name: http
-              containerPort: 1323
+              containerPort: {{ .Values.service.internalPort | default 1323 }}
               protocol: TCP
             - name: grpc
-              containerPort: 5555
+              containerPort: {{ template "grpcPort" . }}
               protocol: TCP
           livenessProbe:
             httpGet:
