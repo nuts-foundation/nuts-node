@@ -84,7 +84,7 @@ func TestProtocol_handleTransactionPayload(t *testing.T) {
 		envelope := &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{}}}
 		err := p.Handle(peer, envelope)
 
-		assert.EqualError(t, err, "message is missing transaction reference")
+		assert.EqualError(t, err, "msg is missing transaction reference")
 	})
 
 	t.Run("error - no data", func(t *testing.T) {

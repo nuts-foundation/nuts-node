@@ -102,7 +102,7 @@ func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
 	ctx := context.Background()
 	ref := hash.FromSlice(msg.TransactionRef)
 	if ref.Empty() {
-		return errors.New("message is missing transaction reference")
+		return errors.New("msg is missing transaction reference")
 	}
 	if len(msg.Data) == 0 {
 		return fmt.Errorf("peer does not have transaction payload (tx=%s)", ref)
