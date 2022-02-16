@@ -19,12 +19,12 @@
 package irma
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -38,10 +38,10 @@ import (
 )
 
 // VerifiablePresentationType is the irma verifiable presentation type
-const VerifiablePresentationType = contract.VPType("NutsIrmaPresentation")
+const VerifiablePresentationType = "NutsIrmaPresentation"
 
 // ContractFormat holds the readable identifier of this signing means.
-const ContractFormat = contract.SigningMeans("irma")
+const ContractFormat = "irma"
 
 // ErrLegalEntityNotProvided indicates that the legalEntity is missing
 var ErrLegalEntityNotProvided = errors.New("legalEntity not provided")
@@ -72,21 +72,15 @@ type ValidatorConfig struct {
 	AutoUpdateIrmaSchemas bool
 }
 
-// VerifiablePresentation is a specific proof for irma signatures
-type VerifiablePresentation struct {
-	contract.VerifiablePresentationBase
-	Proof VPProof `json:"proof"`
-}
-
 // VPProof is a specific IrmaProof for the specific VerifiablePresentation
 type VPProof struct {
-	contract.Proof
+	Type       string `json:"type"`
 	ProofValue string `json:"proofValue"`
 }
 
 type irmaVPVerificationResult struct {
 	validity            contract.State
-	vpType              contract.VPType
+	vpType              string
 	disclosedAttributes map[string]string
 	contractAttributes  map[string]string
 }
@@ -95,7 +89,7 @@ func (I irmaVPVerificationResult) Validity() contract.State {
 	return I.validity
 }
 
-func (I irmaVPVerificationResult) VPType() contract.VPType {
+func (I irmaVPVerificationResult) VPType() string {
 	return I.vpType
 }
 
@@ -130,16 +124,20 @@ func (I irmaVPVerificationResult) ContractAttributes() map[string]string {
 
 // VerifyVP expects the given raw VerifiablePresentation to be of the correct type
 // todo: type check?
-func (v Service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (contract.VPVerificationResult, error) {
+func (v Service) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (contract.VPVerificationResult, error) {
 	// Extract the Irma message
-	vp := VerifiablePresentation{}
-	if err := json.Unmarshal(rawVerifiablePresentation, &vp); err != nil {
+	irmaProof := make([]VPProof, 0)
+	if err := vp.UnmarshalProofValue(&irmaProof); err != nil {
 		return nil, fmt.Errorf("could not verify VP: %w", err)
+	}
+
+	if len(irmaProof) != 1 {
+		return nil, fmt.Errorf("could not verify VP: invalid number of proofs, got %d, want 1", len(irmaProof))
 	}
 
 	// Create the irma contract validator
 	contractValidator := contractVerifier{irmaConfig: v.IrmaConfig, validContracts: v.ContractTemplates, strictMode: v.StrictMode}
-	signedContract, err := contractValidator.Parse(vp.Proof.ProofValue)
+	signedContract, err := contractValidator.Parse(irmaProof[0].ProofValue)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +154,7 @@ func (v Service) VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time
 
 	return irmaVPVerificationResult{
 		validity:            contract.State(cvr.ValidationResult),
-		vpType:              contract.VPType(cvr.ContractFormat),
+		vpType:              string(cvr.ContractFormat),
 		disclosedAttributes: signerAttributes,
 		contractAttributes:  signedContract.Contract().Params,
 	}, nil

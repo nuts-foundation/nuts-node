@@ -19,9 +19,10 @@
 package dummy
 
 import (
-	"encoding/json"
 	"testing"
 
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/stretchr/testify/assert"
@@ -151,7 +152,7 @@ func TestDummy_VerifyVP(t *testing.T) {
 			InStrictMode: true,
 		}
 
-		_, err := d.VerifyVP([]byte{}, nil)
+		_, err := d.VerifyVP(vc.VerifiablePresentation{}, nil)
 
 		assert.Error(t, err)
 		assert.Equal(t, errNotEnabled, err)
@@ -162,37 +163,26 @@ func TestDummy_VerifyVP(t *testing.T) {
 			InStrictMode: false,
 		}
 
-		p := Presentation{
-			VerifiablePresentationBase: contract.VerifiablePresentationBase{
-				Context: []string{contract.VerifiableCredentialContext},
-				Type:    []contract.VPType{contract.VerifiablePresentationType, VerifiablePresentationType},
-			},
-			Proof: Proof{
-				Type:       NoSignatureType,
-				Initials:   "I",
-				FamilyName: "Tester",
-				Prefix:     "von",
-				Email:      "tester@example.com",
-				Contract:   "EN:PractitionerLogin:v3 I hereby declare to act on behalf of care org located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00.",
+		p := vc.VerifiablePresentation{
+			Context: []ssi.URI{vc.VCContextV1URI()},
+			Type:    []ssi.URI{vc.VerifiablePresentationTypeV1URI(), ssi.MustParseURI(VerifiablePresentationType)},
+			Proof: []interface{}{
+				Proof{
+					Type:       NoSignatureType,
+					Initials:   "I",
+					FamilyName: "Tester",
+					Prefix:     "von",
+					Email:      "tester@example.com",
+					Contract:   "EN:PractitionerLogin:v3 I hereby declare to act on behalf of care org located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00.",
+				},
 			},
 		}
 
-		j, _ := json.Marshal(p)
-		vr, err := d.VerifyVP(j, nil)
+		vr, err := d.VerifyVP(p, nil)
 
 		assert.NoError(t, err)
 		assert.Equal(t, contract.Valid, vr.Validity())
 		assert.Equal(t, VerifiablePresentationType, vr.VPType())
-	})
-
-	t.Run("error - incorrect json", func(t *testing.T) {
-		d := Dummy{
-			InStrictMode: false,
-		}
-
-		_, err := d.VerifyVP([]byte("not json"), nil)
-
-		assert.Error(t, err)
 	})
 
 	t.Run("error - incorrect contract", func(t *testing.T) {
@@ -200,14 +190,15 @@ func TestDummy_VerifyVP(t *testing.T) {
 			InStrictMode: false,
 		}
 
-		p := Presentation{
-			Proof: Proof{
-				Contract: "Not a contract",
+		p := vc.VerifiablePresentation{
+			Proof: []interface{}{
+				Proof{
+					Contract: "Not a contract",
+				},
 			},
 		}
 
-		j, _ := json.Marshal(p)
-		_, err := d.VerifyVP(j, nil)
+		_, err := d.VerifyVP(p, nil)
 
 		assert.Error(t, err)
 	})
@@ -235,15 +226,19 @@ func TestSigningSessionResult_VerifiablePresentation(t *testing.T) {
 			State: SessionCompleted,
 		}
 		vp, _ := ssr.VerifiablePresentation()
-		dvp := vp.(Presentation)
+		proofs := make([]Proof, 0)
 
-		assert.Equal(t, []string{contract.VerifiableCredentialContext}, dvp.Context)
-		assert.Equal(t, []contract.VPType{contract.VerifiablePresentationType, VerifiablePresentationType}, dvp.Type)
-		assert.Equal(t, "", dvp.Proof.Contract)
-		assert.Equal(t, "tester@example.com", dvp.Proof.Email)
-		assert.Equal(t, "I", dvp.Proof.Initials)
-		assert.Equal(t, "von", dvp.Proof.Prefix)
-		assert.Equal(t, "Dummy", dvp.Proof.FamilyName)
-		assert.Equal(t, "NoSignature", dvp.Proof.Type)
+		assert.Equal(t, []ssi.URI{vc.VCContextV1URI()}, vp.Context)
+		assert.Equal(t, []ssi.URI{vc.VerifiablePresentationTypeV1URI(), ssi.MustParseURI(VerifiablePresentationType)}, vp.Type)
+
+		_ = vp.UnmarshalProofValue(&proofs)
+		proof := proofs[0]
+
+		assert.Equal(t, "", proof.Contract)
+		assert.Equal(t, "tester@example.com", proof.Email)
+		assert.Equal(t, "I", proof.Initials)
+		assert.Equal(t, "von", proof.Prefix)
+		assert.Equal(t, "Dummy", proof.FamilyName)
+		assert.Equal(t, "NoSignature", proof.Type)
 	})
 }

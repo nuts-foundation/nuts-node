@@ -184,15 +184,15 @@ func (mr *MockStateMockRecorder) ReadPayload(ctx, payloadHash interface{}) *gomo
 }
 
 // RegisterObserver mocks base method.
-func (m *MockState) RegisterObserver(observer Observer) {
+func (m *MockState) RegisterObserver(observer Observer, transactional bool) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterObserver", observer)
+	m.ctrl.Call(m, "RegisterObserver", observer, transactional)
 }
 
 // RegisterObserver indicates an expected call of RegisterObserver.
-func (mr *MockStateMockRecorder) RegisterObserver(observer interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) RegisterObserver(observer, transactional interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterObserver", reflect.TypeOf((*MockState)(nil).RegisterObserver), observer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterObserver", reflect.TypeOf((*MockState)(nil).RegisterObserver), observer, transactional)
 }
 
 // Shutdown mocks base method.

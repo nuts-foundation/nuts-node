@@ -18,13 +18,13 @@
 
 package contract
 
+import "github.com/nuts-foundation/go-did/vc"
+
 // Signer is responsible for signing contract signing requests. Signing is done by making use of asynchronous SigningSessions.
 type Signer interface {
 	// SigningSessionStatus returns the current status of the signing session or services.ErrSessionNotFound if not found
-	// todo: name should have been SessionStatus, but its currently in use by the old interface
 	SigningSessionStatus(sessionID string) (SigningSessionResult, error)
-	// StartSession starts a session for the implementing signer
-	// todo: name should have been StartSession, but its currently in use by the old interface
+	// StartSigningSession starts a session for the implementing signer
 	StartSigningSession(rawContractText string) (SessionPointer, error)
 }
 
@@ -41,5 +41,5 @@ type SigningSessionResult interface {
 	Status() string
 	// VerifiablePresentation returns a VerifiablePresentation holding the presentation proof and disclosed attributes or an error if
 	// no proof is present yet
-	VerifiablePresentation() (VerifiablePresentation, error)
+	VerifiablePresentation() (*vc.VerifiablePresentation, error)
 }

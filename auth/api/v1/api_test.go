@@ -148,25 +148,20 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 
 	t.Run("ok - completed with VP", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
-
 		signingSessionID := "123"
 		signingSessionStatus := "completed"
-
 		signingSessionResult := contract.NewMockSigningSessionResult(ctx.ctrl)
-
-		vp := struct {
-			Context []string `json:"@context"`
-		}{Context: []string{"http://example.com"}}
-		signingSessionResult.EXPECT().VerifiablePresentation().Return(vp, nil)
-
+		vp := vc.VerifiablePresentation{
+			Context: []ssi.URI{vc.VCContextV1URI()},
+		}
+		signingSessionResult.EXPECT().VerifiablePresentation().Return(&vp, nil)
 		signingSessionResult.EXPECT().Status().Return(signingSessionStatus)
-
 		ctx.contractClientMock.EXPECT().SigningSessionStatus(signingSessionID).Return(signingSessionResult, nil)
-
 		response := SignSessionStatusResponse{
-			Status:                 signingSessionStatus,
-			VerifiablePresentation: &VerifiablePresentation{Context: []string{"http://example.com"}},
+			Status: signingSessionStatus,
+			VerifiablePresentation: &vc.VerifiablePresentation{
+				Context: []ssi.URI{vc.VCContextV1URI()},
+			},
 		}
 
 		ctx.echoMock.EXPECT().JSON(http.StatusOK, response)
@@ -398,8 +393,10 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		body := CreateJwtGrantRequest{
 			Requester:  vdr.TestDIDA.String(),
 			Authorizer: vdr.TestDIDB.String(),
-			Identity:   "irma-token",
-			Service:    "service",
+			Identity: &vc.VerifiablePresentation{
+				Type: []ssi.URI{ssi.MustParseURI("test'")},
+			},
+			Service: "service",
 		}
 		bindPostBody(ctx, body)
 		response := JwtGrantResponse{
@@ -407,10 +404,10 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		}
 
 		expectedRequest := services.CreateJwtGrantRequest{
-			Requester:     body.Requester,
-			Authorizer:    body.Authorizer,
-			IdentityToken: &body.Identity,
-			Service:       "service",
+			Requester:  body.Requester,
+			Authorizer: body.Authorizer,
+			IdentityVP: body.Identity,
+			Service:    "service",
 		}
 
 		ctx.oauthClientMock.EXPECT().CreateJwtGrant(expectedRequest).Return(&services.JwtBearerTokenResult{BearerToken: response.BearerToken}, nil)
@@ -423,11 +420,13 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 }
 
 func TestWrapper_RequestAccessToken(t *testing.T) {
-	testID := "test-id"
+	testID := vc.VerifiablePresentation{
+		Type: []ssi.URI{ssi.MustParseURI("test'")},
+	}
 	fakeRequest := RequestAccessTokenRequest{
 		Requester:  vdr.TestDIDA.String(),
 		Authorizer: vdr.TestDIDB.String(),
-		Identity:   testID,
+		Identity:   &testID,
 		Service:    "test-service",
 	}
 
@@ -455,10 +454,10 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Requester:     vdr.TestDIDA.String(),
-				Authorizer:    vdr.TestDIDB.String(),
-				IdentityToken: &testID,
-				Service:       "test-service",
+				Requester:  vdr.TestDIDA.String(),
+				Authorizer: vdr.TestDIDB.String(),
+				IdentityVP: &testID,
+				Service:    "test-service",
 			}).
 			Return(nil, errors.New("random error"))
 
@@ -482,10 +481,10 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Requester:     vdr.TestDIDA.String(),
-				Authorizer:    "invalid..!!",
-				IdentityToken: &testID,
-				Service:       "test-service",
+				Requester:  vdr.TestDIDA.String(),
+				Authorizer: "invalid..!!",
+				IdentityVP: &testID,
+				Service:    "test-service",
 			}).
 			Return(&services.JwtBearerTokenResult{
 				BearerToken: "jwt-bearer-token",
@@ -508,10 +507,10 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Requester:     vdr.TestDIDA.String(),
-				Authorizer:    vdr.TestDIDB.String(),
-				IdentityToken: &testID,
-				Service:       "test-service",
+				Requester:  vdr.TestDIDA.String(),
+				Authorizer: vdr.TestDIDB.String(),
+				IdentityVP: &testID,
+				Service:    "test-service",
 			}).
 			Return(&services.JwtBearerTokenResult{
 				BearerToken: "jwt-bearer-token",
@@ -538,10 +537,10 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Requester:     vdr.TestDIDA.String(),
-				Authorizer:    vdr.TestDIDB.String(),
-				IdentityToken: &testID,
-				Service:       "test-service",
+				Requester:  vdr.TestDIDA.String(),
+				Authorizer: vdr.TestDIDB.String(),
+				IdentityVP: &testID,
+				Service:    "test-service",
 			}).
 			Return(&services.JwtBearerTokenResult{
 				BearerToken: "jwt-bearer-token",
@@ -609,11 +608,11 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(services.CreateJwtGrantRequest{
-				Requester:     vdr.TestDIDA.String(),
-				Authorizer:    vdr.TestDIDB.String(),
-				IdentityToken: &testID,
-				Service:       "test-service",
-				Credentials:   credentials,
+				Requester:   vdr.TestDIDA.String(),
+				Authorizer:  vdr.TestDIDB.String(),
+				IdentityVP:  &testID,
+				Service:     "test-service",
+				Credentials: credentials,
 			}).
 			Return(&services.JwtBearerTokenResult{
 				BearerToken: "jwt-bearer-token",
@@ -955,9 +954,9 @@ func TestWrapper_VerifySignature(t *testing.T) {
 
 		postParams := SignatureVerificationRequest{
 			VerifiablePresentation: VerifiablePresentation{
-				Context: []string{"http://example.com"},
-				Proof:   map[string]interface{}{"foo": "bar"},
-				Type:    []string{"TestCredential"},
+				Context: []ssi.URI{ssi.MustParseURI("http://example.com")},
+				Proof:   []interface{}{vc.JSONWebSignature2020Proof{Jws: "token"}},
+				Type:    []ssi.URI{ssi.MustParseURI("TestCredential")},
 			}}
 
 		bindPostBody(ctx, postParams)
@@ -1019,9 +1018,9 @@ func TestWrapper_VerifySignature(t *testing.T) {
 		postParams := SignatureVerificationRequest{
 			CheckTime: &checkTimeParam,
 			VerifiablePresentation: VerifiablePresentation{
-				Context: []string{"http://example.com"},
-				Proof:   map[string]interface{}{"foo": "bar"},
-				Type:    []string{"TestCredential"},
+				Context: []ssi.URI{ssi.MustParseURI("http://example.com")},
+				Proof:   []interface{}{vc.JSONWebSignature2020Proof{Jws: "token"}},
+				Type:    []ssi.URI{ssi.MustParseURI("TestCredential")},
 			}}
 
 		bindPostBody(ctx, postParams)

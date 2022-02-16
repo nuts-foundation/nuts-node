@@ -20,7 +20,6 @@ package oauth
 
 import (
 	"crypto"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -75,8 +74,20 @@ type validationContext struct {
 	contractVerificationResult contract.VPVerificationResult
 }
 
-func (c validationContext) userIdentity() *string {
-	return c.stringVal(userIdentityClaim)
+func (c validationContext) userIdentity() (*vc2.VerifiablePresentation, error) {
+	claim, ok := c.jwtBearerToken.Get(userIdentityClaim)
+	// If no credentials then OK
+	if !ok || claim == nil {
+		return nil, nil
+	}
+
+	// identity should contain a map[string]interface{}, so we just marshal it
+	rawVP, _ := json.Marshal(claim)
+	vp := vc2.VerifiablePresentation{}
+	if err := json.Unmarshal(rawVP, &vp); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal identity presentation: %w", err)
+	}
+	return &vp, nil
 }
 
 func (c validationContext) stringVal(claim string) *string {
@@ -178,17 +189,12 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 	}
 
 	// Validate the AuthTokenContainer, according to RFC003 §5.2.1.5
-	var err error
-
-	usi := context.userIdentity()
+	usi, err := context.userIdentity()
+	if err != nil {
+		return nil, err
+	}
 	if usi != nil {
-		var decoded []byte
-
-		if decoded, err = base64.StdEncoding.DecodeString(*usi); err != nil {
-			return nil, fmt.Errorf("failed to decode base64 usi field: %w", err)
-		}
-
-		if context.contractVerificationResult, err = s.contractNotary.VerifyVP(decoded, nil); err != nil {
+		if context.contractVerificationResult, err = s.contractNotary.VerifyVP(*usi, nil); err != nil {
 			return nil, fmt.Errorf("identity verification failed: %w", err)
 		}
 
@@ -446,8 +452,8 @@ func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) 
 	result[jwt.NotBeforeKey] = 0
 	result[jwt.SubjectKey] = request.Authorizer
 	result[purposeOfUseClaim] = request.Service
-	if request.IdentityToken != nil {
-		result[userIdentityClaim] = *request.IdentityToken
+	if request.IdentityVP != nil {
+		result[userIdentityClaim] = *request.IdentityVP
 	}
 	result[vcClaim] = request.Credentials
 

@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"testing"
 
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/test"
@@ -29,8 +30,6 @@ import (
 	irma "github.com/privacybydesign/irmago"
 	irmaservercore "github.com/privacybydesign/irmago/server"
 	"github.com/stretchr/testify/assert"
-
-	"encoding/json"
 )
 
 type mockIrmaClient struct {
@@ -62,18 +61,14 @@ func TestService_VerifyVP(t *testing.T) {
 		irmaSignature := test.ValidIrmaContract
 		encodedIrmaSignature := base64.StdEncoding.EncodeToString([]byte(irmaSignature))
 
-		vp := VerifiablePresentation{
-			Proof: VPProof{
-				Proof:      contract.Proof{Type: ""},
+		vp := vc.VerifiablePresentation{
+			Proof: []interface{}{VPProof{
+				Type:       "type",
 				ProofValue: encodedIrmaSignature,
-			},
+			}},
 		}
 
-		rawIrmaVP, err := json.Marshal(vp)
-		if !assert.NoError(t, err) {
-			return
-		}
-		validationResult, err := validator.VerifyVP(rawIrmaVP, nil)
+		validationResult, err := validator.VerifyVP(vp, nil)
 
 		if !assert.NoError(t, err) {
 			return
@@ -86,13 +81,17 @@ func TestService_VerifyVP(t *testing.T) {
 
 	t.Run("nok - invalid rawVP", func(t *testing.T) {
 		validator := Service{}
-		validationResult, err := validator.VerifyVP([]byte{}, nil)
+		vp := vc.VerifiablePresentation{
+			Proof: []interface{}{},
+		}
+
+		validationResult, err := validator.VerifyVP(vp, nil)
 
 		assert.Nil(t, validationResult)
 		if !assert.Error(t, err) {
 			return
 		}
-		assert.Equal(t, "could not verify VP: unexpected end of JSON input", err.Error())
+		assert.Equal(t, "could not verify VP: invalid number of proofs, got 0, want 1", err.Error())
 
 	})
 }
@@ -100,7 +99,7 @@ func TestService_VerifyVP(t *testing.T) {
 func TestIrmaVPVerificationResult(t *testing.T) {
 	vr := irmaVPVerificationResult{
 		validity: contract.Valid,
-		vpType:   contract.VPType("type"),
+		vpType:   "type",
 		disclosedAttributes: map[string]string{
 			"gemeente.personalData.familyname": "tester",
 			"gemeente.personalData.initials":   "i",
@@ -126,7 +125,7 @@ func TestIrmaVPVerificationResult(t *testing.T) {
 	})
 
 	t.Run("type", func(t *testing.T) {
-		assert.Equal(t, contract.VPType("type"), vr.VPType())
+		assert.Equal(t, "type", vr.VPType())
 	})
 
 	t.Run("DisclosedAttributes", func(t *testing.T) {

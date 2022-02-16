@@ -77,13 +77,10 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 // VerifySignature handles the VerifySignature http request.
 // It parses the request body, parses the verifiable presentation and calls the ContractNotary to verify the VP.
 func (w Wrapper) VerifySignature(ctx echo.Context) error {
+	var err error
 	requestParams := new(SignatureVerificationRequest)
 	if err := ctx.Bind(requestParams); err != nil {
 		return err
-	}
-	rawVP, err := json.Marshal(requestParams.VerifiablePresentation)
-	if err != nil {
-		return fmt.Errorf("unable to convert the verifiable presentation: %w", err)
 	}
 
 	checkTime := time.Now()
@@ -93,7 +90,7 @@ func (w Wrapper) VerifySignature(ctx echo.Context) error {
 			return core.InvalidInputError("could not parse checkTime: %w", err)
 		}
 	}
-	validationResult, err := w.Auth.ContractNotary().VerifyVP(rawVP, &checkTime)
+	validationResult, err := w.Auth.ContractNotary().VerifyVP(requestParams.VerifiablePresentation, &checkTime)
 	if err != nil {
 		return core.InvalidInputError("unable to verify the verifiable presentation: %w", err)
 	}
@@ -129,7 +126,7 @@ func (w Wrapper) CreateSignSession(ctx echo.Context) error {
 		return core.InvalidInputError("could not parse request body: %w", err)
 	}
 	createSessionRequest := services.CreateSessionRequest{
-		SigningMeans: contract.SigningMeans(requestParams.Means),
+		SigningMeans: string(requestParams.Means),
 		Message:      requestParams.Payload,
 	}
 	sessionPtr, err := w.Auth.ContractNotary().CreateSigningSession(createSessionRequest)
@@ -257,14 +254,6 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, response)
 }
 
-func makeStringPointer(input string) *string {
-	if input == "" {
-		return nil
-	}
-
-	return &input
-}
-
 // CreateJwtGrant handles the http request (from the vendor's EPD/XIS) for creating a JWT bearer token which can be used to retrieve an access token from a remote Nuts node.
 func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 	requestBody := &CreateJwtGrantRequest{}
@@ -273,11 +262,11 @@ func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 	}
 
 	request := services.CreateJwtGrantRequest{
-		Requester:     requestBody.Requester,
-		Authorizer:    requestBody.Authorizer,
-		IdentityToken: makeStringPointer(requestBody.Identity),
-		Service:       requestBody.Service,
-		Credentials:   requestBody.Credentials,
+		Requester:   requestBody.Requester,
+		Authorizer:  requestBody.Authorizer,
+		IdentityVP:  requestBody.Identity,
+		Service:     requestBody.Service,
+		Credentials: requestBody.Credentials,
 	}
 
 	response, err := w.Auth.OAuthClient().CreateJwtGrant(request)
@@ -296,11 +285,11 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 	}
 
 	request := services.CreateJwtGrantRequest{
-		Requester:     requestBody.Requester,
-		Authorizer:    requestBody.Authorizer,
-		IdentityToken: makeStringPointer(requestBody.Identity),
-		Service:       requestBody.Service,
-		Credentials:   requestBody.Credentials,
+		Requester:   requestBody.Requester,
+		Authorizer:  requestBody.Authorizer,
+		IdentityVP:  requestBody.Identity,
+		Service:     requestBody.Service,
+		Credentials: requestBody.Credentials,
 	}
 
 	jwtGrantResponse, err := w.Auth.OAuthClient().CreateJwtGrant(request)

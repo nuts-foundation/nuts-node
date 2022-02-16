@@ -23,7 +23,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -649,13 +648,13 @@ func TestService_buildAccessToken(t *testing.T) {
 }
 
 func TestService_CreateJwtBearerToken(t *testing.T) {
-	usi := "irma identity token"
+	usi := vc.VerifiablePresentation{}
 
 	request := services.CreateJwtGrantRequest{
-		Authorizer:    authorizerDID.String(),
-		Requester:     requesterDID.String(),
-		IdentityToken: &usi,
-		Service:       expectedService,
+		Authorizer: authorizerDID.String(),
+		Requester:  requesterDID.String(),
+		IdentityVP: &usi,
+		Service:    expectedService,
 	}
 
 	validCredential := vc.VerifiableCredential{
@@ -749,8 +748,8 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		ctx := createContext(t)
 
 		request := services.CreateJwtGrantRequest{
-			Requester:     requesterDID.String(),
-			IdentityToken: &usi,
+			Requester:  requesterDID.String(),
+			IdentityVP: &usi,
 		}
 
 		token, err := ctx.oauthService.CreateJwtGrant(request)
@@ -778,14 +777,14 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 func Test_claimsFromRequest(t *testing.T) {
 	ctx := createContext(t)
 	defer ctx.ctrl.Finish()
-	usi := "irma identity token"
+	usi := vc.VerifiablePresentation{}
 
 	t.Run("ok", func(t *testing.T) {
 		request := services.CreateJwtGrantRequest{
-			Authorizer:    authorizerDID.String(),
-			Requester:     requesterDID.String(),
-			IdentityToken: &usi,
-			Service:       "service",
+			Authorizer: authorizerDID.String(),
+			Requester:  requesterDID.String(),
+			IdentityVP: &usi,
+			Service:    "service",
 		}
 		audience := "aud"
 		timeFunc = func() time.Time {
@@ -803,7 +802,7 @@ func Test_claimsFromRequest(t *testing.T) {
 		assert.Equal(t, request.Requester, claims[jwt.IssuerKey])
 		assert.Equal(t, 0, claims[jwt.NotBeforeKey])
 		assert.Equal(t, request.Authorizer, claims[jwt.SubjectKey])
-		assert.Equal(t, *request.IdentityToken, claims["usi"])
+		assert.Equal(t, *request.IdentityVP, claims["usi"])
 		assert.Equal(t, request.Service, claims[purposeOfUseClaim])
 	})
 
@@ -931,7 +930,7 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 }
 
 func validContext() *validationContext {
-	usi := base64.StdEncoding.EncodeToString([]byte("irma identity token"))
+	usi := vc.VerifiablePresentation{Type: []ssi.URI{ssi.MustParseURI("TestPresentation")}}
 
 	cred := credential.ValidExplicitNutsAuthorizationCredential()
 	credString, _ := json.Marshal(cred)
@@ -964,7 +963,7 @@ func validContext() *validationContext {
 }
 
 func validAccessToken() *validationContext {
-	usi := base64.StdEncoding.EncodeToString([]byte("irma identity token"))
+	usi := vc.VerifiablePresentation{Type: []ssi.URI{ssi.MustParseURI("TestPresentation")}}
 
 	claims := map[string]interface{}{
 		jwt.AudienceKey:   expectedAudience,

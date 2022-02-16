@@ -22,9 +22,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/privacybydesign/irmago/server/irmaserver"
 	"os"
 	"strings"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/privacybydesign/irmago/server/irmaserver"
 
 	"github.com/mdp/qrterminal/v3"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -138,7 +141,7 @@ func (s SigningSessionResult) Status() string {
 }
 
 // VerifiablePresentation returns an IRMA implementation of the contract.VerifiablePresentation interface.
-func (s SigningSessionResult) VerifiablePresentation() (contract.VerifiablePresentation, error) {
+func (s SigningSessionResult) VerifiablePresentation() (*vc.VerifiablePresentation, error) {
 
 	irmaSig := s.Signature
 	js, err := json.Marshal(irmaSig)
@@ -147,16 +150,14 @@ func (s SigningSessionResult) VerifiablePresentation() (contract.VerifiablePrese
 	}
 	b64 := base64.StdEncoding.EncodeToString(js)
 
-	return VerifiablePresentation{
-		VerifiablePresentationBase: contract.VerifiablePresentationBase{
-			Context: []string{contract.VerifiableCredentialContext},
-			Type:    []contract.VPType{contract.VerifiablePresentationType, VerifiablePresentationType},
-		},
-		Proof: VPProof{
-			Proof: contract.Proof{
-				Type: NutsIrmaSignedContract,
+	return &vc.VerifiablePresentation{
+		Context: []ssi.URI{vc.VCContextV1URI()},
+		Type:    []ssi.URI{vc.VerifiablePresentationTypeV1URI(), ssi.MustParseURI(VerifiablePresentationType)},
+		Proof: []interface{}{
+			VPProof{
+				Type:       NutsIrmaSignedContract,
+				ProofValue: b64,
 			},
-			ProofValue: b64,
 		},
 	}, nil
 }

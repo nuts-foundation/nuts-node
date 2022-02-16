@@ -16,11 +16,11 @@ require (
 	github.com/lestrrat-go/jwx v1.2.18
 	github.com/magiconair/properties v1.8.5
 	github.com/mdp/qrterminal/v3 v3.0.0
-	github.com/nats-io/nats-server/v2 v2.7.1
+	github.com/nats-io/nats-server/v2 v2.7.2
 	github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
-	github.com/nuts-foundation/go-did v0.2.0
-	github.com/nuts-foundation/go-leia/v2 v2.0.0
+	github.com/nuts-foundation/go-did v0.3.0
+	github.com/nuts-foundation/go-leia/v2 v2.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/privacybydesign/irmago v0.9.0
 	github.com/prometheus/client_golang v1.12.1

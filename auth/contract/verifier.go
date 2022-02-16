@@ -18,7 +18,11 @@
 
 package contract
 
-import "time"
+import (
+	"time"
+
+	"github.com/nuts-foundation/go-did/vc"
+)
 
 // State contains the result of the verification. It van be VALID or INVALID. This makes it human readable.
 type State string
@@ -37,45 +41,7 @@ type VerifierType string
 type VPVerifier interface {
 	// VerifyVP validates a verifiable presentation.
 	// When the verifier could not handle the verifiable presentation, an error should be thrown.
-	VerifyVP(rawVerifiablePresentation []byte, checkTime *time.Time) (VPVerificationResult, error)
-}
-
-// VPType holds the type of the Verifiable Presentation. Based on the format an appropriate validator can be selected.
-type VPType string
-
-// SigningMeans holds the unique nuts name of the singing means.
-type SigningMeans string
-
-// VerifiablePresentationBase holds the basic fields for a VerifiableCredential
-// todo: move or use lib
-type VerifiablePresentationBase struct {
-	Context []string `json:"@context"`
-	Type    []VPType
-}
-
-// VerifiableCredentialContext is the v1 base context for VPs
-// todo: move or use lib
-const VerifiableCredentialContext = "https://www.w3.org/2018/credentials/v1"
-
-// VerifiablePresentationType is used as one of the types for a VerifiablePresentation
-// todo move
-const VerifiablePresentationType = VPType("VerifiablePresentation")
-
-// VerifiablePresentation represents a W3C Verifiable Presentation
-type VerifiablePresentation interface {
-}
-
-// BaseVerifiablePresentation represents a W3C Verifiable Presentation with only its Type attribute
-type BaseVerifiablePresentation struct {
-	Context []string               `json:"@context"`
-	Proof   map[string]interface{} `json:"proof"`
-	Type    []VPType               `json:"type"`
-}
-
-// Proof represents the Proof part of a Verifiable Presentation
-// specific verifiers may extend upon this Proof
-type Proof struct {
-	Type string `json:"type"`
+	VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (VPVerificationResult, error)
 }
 
 // VPVerificationResult describes the result of a contract validation
@@ -88,7 +54,7 @@ type VPVerificationResult interface {
 	// contract are valid at the given moment in time.
 	Validity() State
 	// VPType returns the the VP type like "NutsUziPresentation".
-	VPType() VPType
+	VPType() string
 	// DisclosedAttribute returns the attribute value used to sign this contract
 	// returns empty string when not found
 	DisclosedAttribute(key string) string

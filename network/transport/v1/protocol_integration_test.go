@@ -126,7 +126,7 @@ func TestProtocolV1_Pagination(t *testing.T) {
 		txs := node2.countTXs()
 		t.Logf("received %d transactions", txs)
 		return txs == numberOfTransactions, nil
-	}, 10*time.Second, "node2 didn't receive all transactions")
+	}, integrationTestTimeout, "node2 didn't receive all transactions")
 }
 
 type integrationTestContext struct {
