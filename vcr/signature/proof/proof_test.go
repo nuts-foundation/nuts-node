@@ -2,6 +2,8 @@ package proof
 
 import (
 	"encoding/json"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -28,56 +30,10 @@ func Test_Proofstruct(t *testing.T) {
 		signedDoc := SignedDocument{}
 		err := json.Unmarshal([]byte(jsonldDocument), &signedDoc)
 		assert.NoError(t, err)
-		assert.Equal(t, "Ed25519Signature2020", signedDoc.FirstProof()["type"])
+		proof := vc.JSONWebSignature2020Proof{}
+		assert.NoError(t, signedDoc.UnmarshalProofValue(&proof))
+		assert.Equal(t, ssi.ProofType("Ed25519Signature2020"), proof.Type)
 		assert.Equal(t, "Hello world!", signedDoc["title"])
 		t.Logf("%#v", signedDoc)
-	})
-}
-
-func TestSignedDocument_FirstProof(t *testing.T) {
-	jsonDocumentWithoutProof := `{
-		"title": "Hello world!"
-	}`
-
-	jsonDocumentWithSingleProof := `{
-		"title": "Hello world!",
-		"proof": {
-			 "type": "firstProof"
-		}
-	}`
-
-	jsonDocumentWithMultipleProof := `{
-		"title": "Hello world!",
-		"proof": [{
-			 "type": "firstProof"
-		}, {
-			 "type": "secondProof"
-		}]
-	}`
-	t.Run("no proof", func(t *testing.T) {
-		signedDoc := SignedDocument{}
-		err := json.Unmarshal([]byte(jsonDocumentWithoutProof), &signedDoc)
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Nil(t, signedDoc.FirstProof())
-	})
-
-	t.Run("single proof", func(t *testing.T) {
-		signedDoc := SignedDocument{}
-		err := json.Unmarshal([]byte(jsonDocumentWithSingleProof), &signedDoc)
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, "firstProof", signedDoc.FirstProof()["type"])
-	})
-
-	t.Run("multiple proofs", func(t *testing.T) {
-		signedDoc := SignedDocument{}
-		err := json.Unmarshal([]byte(jsonDocumentWithMultipleProof), &signedDoc)
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, "firstProof", signedDoc.FirstProof()["type"])
 	})
 }

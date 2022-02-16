@@ -71,28 +71,28 @@ func (d SignedDocument) UnmarshalProofValue(target interface{}) error {
 	return json.Unmarshal(asJSON, target)
 }
 
-// FirstProof returns the first proof of a SignedDocument.
-// Since a document can contain multiple proofs, this method remove that uncertainty.
-func (d SignedDocument) FirstProof() DocumentProof {
-	rawProof, ok := d["proof"]
-	if !ok {
-		// no proof in signed document
-		return nil
-	}
-
-	if singleProof, ok := rawProof.(map[string]interface{}); ok {
-		return singleProof
-	}
-
-	if proofList, isArray := rawProof.([]interface{}); isArray {
-		if len(proofList) > 0 {
-			if firstProof, isMap := proofList[0].(map[string]interface{}); isMap {
-				return firstProof
-			}
-		}
-	}
-	return nil
-}
+//// FirstProof returns the first proof of a SignedDocument.
+//// Since a document can contain multiple proofs, this method remove that uncertainty.
+//func (d SignedDocument) FirstProof() DocumentProof {
+//	rawProof, ok := d["proof"]
+//	if !ok {
+//		// no proof in signed document
+//		return nil
+//	}
+//
+//	if singleProof, ok := rawProof.(map[string]interface{}); ok {
+//		return singleProof
+//	}
+//
+//	if proofList, isArray := rawProof.([]interface{}); isArray {
+//		if len(proofList) > 0 {
+//			if firstProof, isMap := proofList[0].(map[string]interface{}); isMap {
+//				return firstProof
+//			}
+//		}
+//	}
+//	return nil
+//}
 
 // ProofType returns the type of the proof
 func (d SignedDocument) ProofType() *ssi.ProofType {

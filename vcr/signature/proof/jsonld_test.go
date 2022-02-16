@@ -52,6 +52,7 @@ func TestLDProofVerifier_Verify(t *testing.T) {
 				 "x": "CV-aGlld3nVdgnhoZK0D36Wk-9aIMlZjZOK2XhPMnkQ"
 			}
 		}`
+
 		signedDocument := SignedDocument{}
 		if !assert.NoError(t, json.Unmarshal([]byte(vc_0), &signedDocument)) {
 			return
@@ -66,8 +67,8 @@ func TestLDProofVerifier_Verify(t *testing.T) {
 			return
 		}
 
-		ldProof, err := NewLDProofFromDocumentProof(signedDocument.FirstProof())
-		assert.NoError(t, err)
+		ldProof := LDProof{}
+		assert.NoError(t, signedDocument.UnmarshalProofValue(&ldProof))
 		err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{}, pk)
 		assert.NoError(t, err, "expected no error when verifying the JSONWebSignature2020 test vector")
 	})
@@ -105,9 +106,15 @@ func TestLDProof_Sign(t *testing.T) {
 			return
 		}
 		signedDocument := result.(SignedDocument)
-		docProof := signedDocument.FirstProof()
-		assert.Equal(t, challenge, docProof["challenge"])
-		assert.Equal(t, domain, docProof["domain"])
 		t.Logf("%+v", signedDocument)
+
+		proofToVerify := LDProof{}
+		err = signedDocument.UnmarshalProofValue(&proofToVerify)
+		assert.NoError(t, err)
+		assert.Equal(t, domain, *proofToVerify.Domain)
+		assert.Equal(t, challenge, *proofToVerify.Challenge)
+
+		err = proofToVerify.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{}, testKey.Public())
+		assert.NoError(t, err)
 	})
 }

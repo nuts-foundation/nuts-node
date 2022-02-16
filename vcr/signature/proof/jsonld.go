@@ -59,19 +59,6 @@ func NewLDProof(options ProofOptions) *LDProof {
 	return &LDProof{ProofOptions: options}
 }
 
-// NewLDProofFromDocumentProof creates a new LDProof from a DocumentProof
-func NewLDProofFromDocumentProof(dp DocumentProof) (*LDProof, error) {
-	proofBytes, err := json.Marshal(dp)
-	if err != nil {
-		return nil, err
-	}
-	result := &LDProof{}
-	if err := json.Unmarshal(proofBytes, result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
 // Verify verifies the correctness of the signature value in the LDProof given a document, signature suite and a public key.
 func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.PublicKey) error {
 	canonicalDocument, err := suite.CanonicalizeDocument(document)
