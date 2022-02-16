@@ -9,19 +9,19 @@ import (
 	"github.com/piprate/json-gold/ld"
 )
 
-// JsonWebSignature2020 Contains the correct implementation of the JsonWebSignature2020 signature suite
+// JSONWebSignature2020 Contains the correct implementation of the JSONWebSignature2020 signature suite
 // It bundles the correct implementation of the canonicalize, hash and sign operations.
-type JsonWebSignature2020 struct{}
+type JSONWebSignature2020 struct{}
 
 // Sign signs the document as a JWS.
-func (s JsonWebSignature2020) Sign(doc []byte, key crypto.Key) ([]byte, error) {
+func (s JSONWebSignature2020) Sign(doc []byte, key crypto.Key) ([]byte, error) {
 	sig, err := crypto.SignJWS(doc, detachedJWSHeaders(), key.Signer())
 	return []byte(sig), err
 }
 
 // CanonicalizeDocument canonicalizes a document using the LD canonicalization algorithm.
 // Can be used for both the LD proof as the document. It requires the document to have a valid context.
-func (s JsonWebSignature2020) CanonicalizeDocument(doc interface{}) ([]byte, error) {
+func (s JSONWebSignature2020) CanonicalizeDocument(doc interface{}) ([]byte, error) {
 	// Fixme: move this code to another location so the loader can be cached and reused
 	loader := ld.NewCachingDocumentLoader(NewEmbeddedFSDocumentLoader(assets.Assets, ld.NewDefaultDocumentLoader(nil)))
 	if err := loader.PreloadWithMapping(map[string]string{
@@ -41,16 +41,16 @@ func (s JsonWebSignature2020) CanonicalizeDocument(doc interface{}) ([]byte, err
 }
 
 // CalculateDigest calculates the digest of the document. This implementation uses the SHA256 sum.
-func (s JsonWebSignature2020) CalculateDigest(doc []byte) []byte {
+func (s JSONWebSignature2020) CalculateDigest(doc []byte) []byte {
 	return hash.SHA256Sum(doc).Slice()
 }
 
-// GetType returns the signature type, 'JsonWebSignature2020'
-func (s JsonWebSignature2020) GetType() ssi.ProofType {
+// GetType returns the signature type, 'JSONWebSignature2020'
+func (s JSONWebSignature2020) GetType() ssi.ProofType {
 	return ssi.JsonWebSignature2020
 }
 
-// detachedJWSHeaders returns headers for JsonWebSignature2020
+// detachedJWSHeaders returns headers for JSONWebSignature2020
 // the alg will be based upon the key
 // {"b64":false,"crit":["b64"]}
 func detachedJWSHeaders() map[string]interface{} {

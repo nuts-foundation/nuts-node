@@ -91,7 +91,7 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 	}
 
 	// Try first with the correct LDProof implementation
-	if err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JsonWebSignature2020{}, pk); err != nil {
+	if err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{}, pk); err != nil {
 		// If this fails, try the legacy suite:
 		legacyProof := proof.LegacyLDProof{}
 		if err := signedDocument.UnmarshalProofValue(&legacyProof); err != nil {

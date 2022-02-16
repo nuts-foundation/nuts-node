@@ -113,7 +113,7 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	_ = json.Unmarshal(b, &credentialAsMap)
 
 	signingResult, err := proof.NewLDProof(proof.ProofOptions{Created: time.Now()}).
-		Sign(credentialAsMap, signature.JsonWebSignature2020{}, key)
+		Sign(credentialAsMap, signature.JSONWebSignature2020{}, key)
 	if err != nil {
 		return nil, err
 	}

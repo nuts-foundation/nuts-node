@@ -15,7 +15,7 @@ func TestLDProof_Verify(t *testing.T) {
 }
 
 func TestLDProofVerifier_Verify(t *testing.T) {
-	t.Run("ok - JsonWebSignature2020 test vector", func(t *testing.T) {
+	t.Run("ok - JSONWebSignature2020 test vector", func(t *testing.T) {
 		vc_0 := `{
 			"@context": [
 				 "https://www.w3.org/2018/credentials/v1",
@@ -34,7 +34,7 @@ func TestLDProofVerifier_Verify(t *testing.T) {
 				 }
 			},
 			"proof": {
-				 "type": "JsonWebSignature2020",
+				 "type": "JSONWebSignature2020",
 				 "created": "2019-12-11T03:50:55Z",
 				 "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..MJ5GwWRMsadCyLNXU_flgJtsS32584MydBxBuygps_cM0sbU3abTEOMyUvmLNcKOwOBE1MfDoB1_YY425W3sAg",
 				 "proofPurpose": "assertionMethod",
@@ -68,8 +68,8 @@ func TestLDProofVerifier_Verify(t *testing.T) {
 
 		ldProof, err := NewLDProofFromDocumentProof(signedDocument.FirstProof())
 		assert.NoError(t, err)
-		err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JsonWebSignature2020{}, pk)
-		assert.NoError(t, err, "expected no error when verifying the JsonWebSignature2020 test vector")
+		err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{}, pk)
+		assert.NoError(t, err, "expected no error when verifying the JSONWebSignature2020 test vector")
 	})
 }
 
@@ -100,7 +100,7 @@ func TestLDProof_Sign(t *testing.T) {
 		kid := "did:nuts:123#abc"
 		testKey := crypto.NewTestKey(kid)
 
-		result, err := ldProof.Sign(document, signature.JsonWebSignature2020{}, testKey)
+		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{}, testKey)
 		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
 			return
 		}

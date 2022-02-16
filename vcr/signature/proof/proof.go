@@ -62,12 +62,13 @@ func (d SignedDocument) DocumentWithoutProof() Document {
 	return docWithoutProof
 }
 
+// UnmarshalProofValue unmarshalls the signature of the document in the provided target
 func (d SignedDocument) UnmarshalProofValue(target interface{}) error {
-	if asJSON, err := json.Marshal(d["proof"]); err != nil {
+	asJSON, err := json.Marshal(d["proof"])
+	if err != nil {
 		return err
-	} else {
-		return json.Unmarshal(asJSON, target)
 	}
+	return json.Unmarshal(asJSON, target)
 }
 
 // FirstProof returns the first proof of a SignedDocument.

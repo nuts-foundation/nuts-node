@@ -11,7 +11,7 @@ import (
 func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 
 	t.Run("a doc without context gives an empty result", func(t *testing.T) {
-		sig := JsonWebSignature2020{}
+		sig := JSONWebSignature2020{}
 		doc := map[string]interface{}{"title": "Hello world"}
 		res, err := sig.CanonicalizeDocument(doc)
 		assert.NoError(t, err)
@@ -19,7 +19,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 	})
 
 	t.Run("simple document with context", func(t *testing.T) {
-		sig := JsonWebSignature2020{}
+		sig := JSONWebSignature2020{}
 		doc := map[string]interface{}{
 			"@context": []interface{}{
 				map[string]interface{}{"title": "http://schema.org/title"},
@@ -33,7 +33,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 	})
 
 	t.Run("simple document with resolvable context", func(t *testing.T) {
-		sig := JsonWebSignature2020{}
+		sig := JSONWebSignature2020{}
 		doc := map[string]interface{}{
 			"@context": []interface{}{
 				"https://schema.org",
@@ -49,7 +49,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 
 func TestJsonWebSignature2020_CalculateDigest(t *testing.T) {
 	t.Run("it calculates the document digest", func(t *testing.T) {
-		sig := JsonWebSignature2020{}
+		sig := JSONWebSignature2020{}
 		doc := []byte("foo")
 		result := sig.CalculateDigest(doc)
 		expected, _ := hex.DecodeString("2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae")
@@ -59,7 +59,7 @@ func TestJsonWebSignature2020_CalculateDigest(t *testing.T) {
 
 func TestJsonWebSignature2020_GetType(t *testing.T) {
 	t.Run("it returns its type", func(t *testing.T) {
-		sig := JsonWebSignature2020{}
+		sig := JSONWebSignature2020{}
 		assert.Equal(t, ssi.JsonWebSignature2020, sig.GetType())
 	})
 }
@@ -76,7 +76,7 @@ func Test_detachedJWSHeaders(t *testing.T) {
 func TestJsonWebSignature2020_Sign(t *testing.T) {
 	t.Run("it returns the signing result", func(t *testing.T) {
 		doc := []byte("foo")
-		sig := JsonWebSignature2020{}
+		sig := JSONWebSignature2020{}
 		result, err := sig.Sign(doc, crypto.NewTestKey("did:nuts:123#abc"))
 		assert.NoError(t, err)
 		assert.Contains(t, string(result), "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19")
