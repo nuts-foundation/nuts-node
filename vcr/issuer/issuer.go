@@ -31,23 +31,26 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/piprate/json-gold/ld"
 	"time"
 )
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
-func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore) Issuer {
+func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, contextLoader ld.DocumentLoader) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
-		store:       store,
-		publisher:   publisher,
-		keyResolver: resolver,
+		store:         store,
+		publisher:     publisher,
+		keyResolver:   resolver,
+		contextLoader: contextLoader,
 	}
 }
 
 type issuer struct {
-	store       Store
-	publisher   Publisher
-	keyResolver keyResolver
+	store         Store
+	publisher     Publisher
+	keyResolver   keyResolver
+	contextLoader ld.DocumentLoader
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -113,7 +116,7 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	_ = json.Unmarshal(b, &credentialAsMap)
 
 	signingResult, err := proof.NewLDProof(proof.ProofOptions{Created: time.Now()}).
-		Sign(credentialAsMap, signature.JSONWebSignature2020{}, key)
+		Sign(credentialAsMap, signature.JSONWebSignature2020{ContextLoader: i.contextLoader}, key)
 	if err != nil {
 		return nil, err
 	}

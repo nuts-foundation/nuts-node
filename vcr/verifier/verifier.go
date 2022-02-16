@@ -9,6 +9,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/piprate/json-gold/ld"
 	"time"
 )
 
@@ -33,12 +34,13 @@ type Verifier interface {
 // It implements the generic methods for verifying verifiable credentials and verifiable presentations.
 // It does not know anything about the semantics of a credential. It should support a wide range of types.
 type verifier struct {
-	keyResolver vdr.KeyResolver
+	keyResolver   vdr.KeyResolver
+	contextLoader ld.DocumentLoader
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
-func NewVerifier(keyResolver vdr.KeyResolver) Verifier {
-	return &verifier{keyResolver: keyResolver}
+func NewVerifier(keyResolver vdr.KeyResolver, contextLoader ld.DocumentLoader) Verifier {
+	return &verifier{keyResolver: keyResolver, contextLoader: contextLoader}
 }
 
 // validateAtTime is a helper method which checks if a credential is valid at a certain given time.
@@ -91,7 +93,7 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 	}
 
 	// Try first with the correct LDProof implementation
-	if err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{}, pk); err != nil {
+	if err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.contextLoader}, pk); err != nil {
 		// If this fails, try the legacy suite:
 		legacyProof := proof.LegacyLDProof{}
 		if err := signedDocument.UnmarshalProofValue(&legacyProof); err != nil {

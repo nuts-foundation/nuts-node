@@ -8,6 +8,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -350,7 +351,9 @@ func newMockContext(t *testing.T) mockContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	keyResolver := types.NewMockKeyResolver(ctrl)
-	verifier := NewVerifier(keyResolver)
+	contextLoader, err := signature.NewContextLoader(false)
+	assert.NoError(t, err)
+	verifier := NewVerifier(keyResolver, contextLoader)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,

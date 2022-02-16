@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"io/fs"
 	"os"
@@ -114,10 +115,14 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore)
+	// Create the JSON-LD Context loader
+	allowExternalCalls := !config.Strictmode
+	contextLoader, err := signature.NewContextLoader(allowExternalCalls)
 
-	c.verifier = verifier.NewVerifier(c.keyResolver)
+	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
+	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, contextLoader)
+
+	c.verifier = verifier.NewVerifier(c.keyResolver, contextLoader)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {

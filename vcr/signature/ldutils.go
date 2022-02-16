@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/piprate/json-gold/ld"
 	"net/url"
 )
@@ -45,7 +46,28 @@ func (e embeddedFSDocumentLoader) LoadDocument(path string) (*ld.RemoteDocument,
 		}
 		return remoteDoc, nil
 	}
-	return e.nextLoader.LoadDocument(path)
+	if e.nextLoader != nil {
+		return e.nextLoader.LoadDocument(path)
+	}
+	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, nil)
+}
+
+func NewContextLoader(allowExternalCalls bool) (ld.DocumentLoader, error) {
+	// Fixme: move this code to another location so the loader can be cached and reused
+	var nextLoader ld.DocumentLoader
+	if allowExternalCalls {
+		nextLoader = ld.NewDefaultDocumentLoader(nil)
+	}
+	loader := ld.NewCachingDocumentLoader(NewEmbeddedFSDocumentLoader(assets.Assets, nextLoader))
+	if err := loader.PreloadWithMapping(map[string]string{
+		"https://nuts.nl/credentials/v1":                                     "assets/contexts/nuts.ldjson",
+		"https://www.w3.org/2018/credentials/v1":                             "assets/contexts/w3c-credentials-v1.ldjson",
+		"https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json": "assets/contexts/lds-jws2020-v1.ldjson",
+		"https://schema.org":                                                 "assets/contexts/schema-org-v13.ldjson",
+	}); err != nil {
+		return nil, fmt.Errorf("unable to preload nuts ld-context: %w", err)
+	}
+	return loader, nil
 }
 
 // LDUtil package a set of often used JSON-LD operations for re-usability.

@@ -69,7 +69,9 @@ func TestLDProofVerifier_Verify(t *testing.T) {
 
 		ldProof := LDProof{}
 		assert.NoError(t, signedDocument.UnmarshalProofValue(&ldProof))
-		err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{}, pk)
+		contextLoader, err := signature.NewContextLoader(true)
+		assert.NoError(t, err)
+		err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader}, pk)
 		assert.NoError(t, err, "expected no error when verifying the JSONWebSignature2020 test vector")
 	})
 }
@@ -93,15 +95,17 @@ func TestLDProof_Sign(t *testing.T) {
 
 		document := map[string]interface{}{
 			"@context": []interface{}{
-				map[string]interface{}{"title": "https://schema.org#title"},
+				map[string]interface{}{"title": "http://schema.org#title"},
 			},
 			"title": "Hello world!",
 		}
 
+		contextLoader, _ := signature.NewContextLoader(false)
+
 		kid := "did:nuts:123#abc"
 		testKey := crypto.NewTestKey(kid)
 
-		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{}, testKey)
+		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{ContextLoader: contextLoader}, testKey)
 		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
 			return
 		}
@@ -114,7 +118,7 @@ func TestLDProof_Sign(t *testing.T) {
 		assert.Equal(t, domain, *proofToVerify.Domain)
 		assert.Equal(t, challenge, *proofToVerify.Challenge)
 
-		err = proofToVerify.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{}, testKey.Public())
+		err = proofToVerify.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader}, testKey.Public())
 		assert.NoError(t, err)
 	})
 }

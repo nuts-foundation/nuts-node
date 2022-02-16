@@ -33,7 +33,10 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 	})
 
 	t.Run("simple document with resolvable context", func(t *testing.T) {
-		sig := JSONWebSignature2020{}
+		contextLoader, err := NewContextLoader(false)
+		assert.NoError(t, err)
+
+		sig := JSONWebSignature2020{contextLoader}
 		doc := map[string]interface{}{
 			"@context": []interface{}{
 				"https://schema.org",
@@ -44,6 +47,24 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 		res, err := sig.CanonicalizeDocument(doc)
 		assert.NoError(t, err)
 		assert.Equal(t, "_:c14n0 <http://schema.org/title> \"Hello world!\" .\n", string(res))
+	})
+
+	t.Run("fails with an uncached contextloader when loading is not allowed", func(t *testing.T) {
+		contextLoader, err := NewContextLoader(false)
+		assert.NoError(t, err)
+
+		sig := JSONWebSignature2020{contextLoader}
+		doc := map[string]interface{}{
+			"@context": []interface{}{
+				"https://example.org",
+			},
+			"title": "Hello world!",
+		}
+
+		res, err := sig.CanonicalizeDocument(doc)
+
+		assert.EqualError(t, err, "unable to normalize document: loading remote context failed: Dereferencing a URL did not result in a valid JSON-LD context: https://example.org")
+		assert.Nil(t, res)
 	})
 }
 
