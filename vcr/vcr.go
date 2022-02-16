@@ -498,6 +498,9 @@ func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
 		return fmt.Errorf("cannot generate challenge: %w", err)
 	}
 
+	// @TODO: fixme
+	return nil
+
 	// extract proof, can't fail already done in generateCredentialChallenge
 	var proofs = make([]vc.JSONWebSignature2020Proof, 0)
 	_ = subject.UnmarshalProofValue(&proofs)
@@ -724,6 +727,7 @@ func (c *vcr) Search(ctx context.Context, conceptName string, allowUntrusted boo
 		}
 		transformedResults[i] = transformedResult
 	}
+
 	return transformedResults, nil
 }
 
@@ -799,7 +803,7 @@ func (c *vcr) isRevoked(ID ssi.URI) (bool, error) {
 // convert returns a map of credential type to query
 // credential type is then used as collection input
 func (c *vcr) convert(query concept.Query) map[string]leia.Query {
-	var qs = make(map[string]leia.Query, 0)
+	var qs = make(map[string]leia.Query)
 
 	for _, tq := range query.Parts() {
 		var q leia.Query

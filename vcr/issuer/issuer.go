@@ -161,6 +161,8 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 				return nil, err
 			}
 
+			subject["id"] = unsignedCredential.Issuer.String()
+
 			unsignedCredential.CredentialSubject = []interface{}{subject}
 			unsignedCredential.Proof = []interface{}{irmaProof[0]}
 
