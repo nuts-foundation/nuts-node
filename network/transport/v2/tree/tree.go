@@ -7,6 +7,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
+const (
+	leafSize = 512
+)
+
 // Data is the interface for Data held in each node of the tree
 type Data interface {
 	// New creates a copy of this instance that is initialized to the default/empty state.
@@ -266,7 +270,13 @@ func (n *node) UnmarshalJSON(bytes []byte) error {
 		if err != nil {
 			return err
 		}
-	} // else if IBLT
+	} else if _, ok = tmpNode.Data["buckets"]; ok {
+		n.Data = NewIblt(1024)
+		err = json.Unmarshal(jsonData, &n.Data)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
