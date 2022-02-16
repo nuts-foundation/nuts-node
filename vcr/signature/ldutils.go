@@ -52,8 +52,10 @@ func (e embeddedFSDocumentLoader) LoadDocument(path string) (*ld.RemoteDocument,
 	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, nil)
 }
 
+// NewContextLoader creates a new JSON-LD context loader with the embedded FS as first loader.
+// It loads the most used context from the embedded FS. This ensures the contents cannot be altered.
+// If allowExternalCalls is set to true, it also loads external context from the internet.
 func NewContextLoader(allowExternalCalls bool) (ld.DocumentLoader, error) {
-	// Fixme: move this code to another location so the loader can be cached and reused
 	var nextLoader ld.DocumentLoader
 	if allowExternalCalls {
 		nextLoader = ld.NewDefaultDocumentLoader(nil)
