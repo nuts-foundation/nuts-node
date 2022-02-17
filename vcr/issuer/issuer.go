@@ -115,8 +115,14 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	b, _ := json.Marshal(unsignedCredential)
 	_ = json.Unmarshal(b, &credentialAsMap)
 
-	signingResult, err := proof.NewLDProof(proof.ProofOptions{Created: time.Now()}).
-		Sign(credentialAsMap, signature.JSONWebSignature2020{ContextLoader: i.contextLoader}, key)
+	proofOptions := proof.ProofOptions{Created: time.Now()}
+
+	// This is the code for signing with the new LDProofs. Enable when we release V1, otherwise current nodes cannot
+	// validate new transactions.
+	//signingResult, err := proof.NewLDProof(proofOptions).
+	//	Sign(credentialAsMap, signature.JSONWebSignature2020{ContextLoader: i.contextLoader}, key)
+
+	signingResult, err := proof.NewLegacyLDProof(proofOptions).Sign(credentialAsMap, signature.LegacyNutsSuite{}, key)
 	if err != nil {
 		return nil, err
 	}
