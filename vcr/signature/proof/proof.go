@@ -21,7 +21,6 @@ package proof
 import (
 	"crypto"
 	"encoding/json"
-	ssi "github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 )
@@ -32,9 +31,6 @@ type Document map[string]interface{}
 // SignedDocument represents a generic signed document with a proof
 // It bundles helper functions to easily work with proofs.
 type SignedDocument map[string]interface{}
-
-// DocumentProof represents a generic proof
-type DocumentProof map[string]interface{}
 
 // NewSignedDocument creates a new SignedDocument from a source struct
 func NewSignedDocument(source interface{}) (SignedDocument, error) {
@@ -69,39 +65,6 @@ func (d SignedDocument) UnmarshalProofValue(target interface{}) error {
 		return err
 	}
 	return json.Unmarshal(asJSON, target)
-}
-
-//// FirstProof returns the first proof of a SignedDocument.
-//// Since a document can contain multiple proofs, this method remove that uncertainty.
-//func (d SignedDocument) FirstProof() DocumentProof {
-//	rawProof, ok := d["proof"]
-//	if !ok {
-//		// no proof in signed document
-//		return nil
-//	}
-//
-//	if singleProof, ok := rawProof.(map[string]interface{}); ok {
-//		return singleProof
-//	}
-//
-//	if proofList, isArray := rawProof.([]interface{}); isArray {
-//		if len(proofList) > 0 {
-//			if firstProof, isMap := proofList[0].(map[string]interface{}); isMap {
-//				return firstProof
-//			}
-//		}
-//	}
-//	return nil
-//}
-
-// ProofType returns the type of the proof
-func (d SignedDocument) ProofType() *ssi.ProofType {
-	proofType, ok := d["type"]
-	if !ok {
-		return nil
-	}
-	parsedType := ssi.ProofType(proofType.(string))
-	return &parsedType
 }
 
 // Proof is the interface that defines a set of methods which a proof should implement.
