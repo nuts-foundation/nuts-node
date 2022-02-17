@@ -106,19 +106,6 @@ func Test_verifier_Validate(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to verify signature")
 	})
 
-	//t.Run("error - invalid credential", func(t *testing.T) {
-	//	ctx := newMockContext(t)
-	//	instance := ctx.verifier
-	//	uri, _ := ssi.ParseURI(credential.NutsOrganizationCredentialType)
-	//
-	//	err := instance.Validate(vc.VerifiableCredential{Type: []ssi.URI{*uri}}, nil)
-	//
-	//	if !assert.Error(t, err) {
-	//		return
-	//	}
-	//	assert.Contains(t, err.Error(), "validation failed")
-	//})
-
 	t.Run("error - no proof", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.verifier
