@@ -69,17 +69,22 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 		publish = true
 	}
 
+	// Check param constraints:
 	if issueRequest.Visibility == nil || *issueRequest.Visibility == "" {
 		if publish {
 			return core.InvalidInputError("visibility must be set when publishing credential")
 		}
 	} else { // visibility is set
+		// Visibility can only be used when publishing
 		if !publish {
 			return core.InvalidInputError("visibility setting is only allowed when publishing to the network")
 		}
+		// Check if the values are in range
 		if *issueRequest.Visibility != IssueVCRequestVisibilityPublic && *issueRequest.Visibility != IssueVCRequestVisibilityPrivate {
 			return core.InvalidInputError("invalid value for visibility")
 		}
+		// Set the actual value
+		public = *issueRequest.Visibility == IssueVCRequestVisibilityPublic
 	}
 
 	requestedVC := vc.VerifiableCredential{}
