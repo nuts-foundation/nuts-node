@@ -11,5 +11,9 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    - port: {{ template "grpcPort" . }}
+      targetPort: {{ template "grpcPort" . }}
+      protocol: TCP
+      name: grpc
   selector:
     {{- include "chart.selectorLabels" . | nindent 4 }}

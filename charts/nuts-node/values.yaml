@@ -39,7 +39,7 @@ securityContext: {}
 service:
   type: ClusterIP
   internalPort: 1323
-  port: 80
+  port: 1323
 
 ingress:
   enabled: false
