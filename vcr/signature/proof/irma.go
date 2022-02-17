@@ -69,3 +69,22 @@ func (proof IRMASignatureProof) Verify(config *irma.Configuration) (map[string]s
 
 	return attrs, nil
 }
+
+// UnmarshalJSON decodes JSON data into the IRMASignatureProof type and validates the proof type
+func (proof *IRMASignatureProof) UnmarshalJSON(data []byte) error {
+	type Alias IRMASignatureProof
+
+	out := Alias{}
+
+	if err := json.Unmarshal(data, &out); err != nil {
+		return err
+	}
+
+	if out.Type != NutsIRMASignatureProof2022 {
+		return fmt.Errorf("invalid proof type: %s", out.Type)
+	}
+
+	*proof = IRMASignatureProof(out)
+
+	return nil
+}

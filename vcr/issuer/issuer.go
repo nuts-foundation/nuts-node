@@ -142,15 +142,11 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	if credentialOptions.Proof != nil {
 		irmaProof := []proof.IRMASignatureProof{}
 
-		if err := credentialOptions.UnmarshalProofValue(&irmaProof); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal proof value: %w", err)
-		}
+		if err := credentialOptions.UnmarshalProofValue(&irmaProof); err == nil {
+			if len(irmaProof) != 1 {
+				return nil, errors.New("can only issue credential with a single IRMA proof")
+			}
 
-		if len(irmaProof) != 1 {
-			return nil, errors.New("can only issue credential with a single IRMA proof")
-		}
-
-		if irmaProof[0].Type == proof.NutsIRMASignatureProof2022 {
 			attributes, err := irmaProof[0].Verify(i.irmaConfig)
 			if err != nil {
 				return nil, fmt.Errorf("IRMA signature verification failed: %w", err)

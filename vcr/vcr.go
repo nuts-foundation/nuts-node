@@ -98,6 +98,7 @@ type vcr struct {
 	trustConfig     *trust.Config
 	issuer          issuer.Issuer
 	issuerStore     issuer.Store
+	irmaConfig      *irma.Configuration
 }
 
 func (c *vcr) Registry() concept.Reader {
@@ -135,6 +136,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		panic(err)
 	}
 
+	c.irmaConfig = irmaConfig
 	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, irmaConfig)
 
 	// load VC concept templates
@@ -492,14 +494,30 @@ func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
 		return err
 	}
 
+	irmaProof := []proof.IRMASignatureProof{}
+
+	if err := subject.UnmarshalProofValue(&irmaProof); err == nil {
+		if len(irmaProof) != 1 {
+			return errors.New("can only issue credential with a single IRMA proof")
+		}
+
+		if _, err := irmaProof[0].Verify(c.irmaConfig); err != nil {
+			return fmt.Errorf("failed to verify IRMA proof: %w", err)
+		}
+	} else if err := c.verifyJWSProof(subject, at); err != nil {
+		return err
+	}
+
+	// next check trusted/period and revocation
+	return c.validate(subject, at)
+}
+
+func (c *vcr) verifyJWSProof(subject vc.VerifiableCredential, at *time.Time) error {
 	// create correct challenge for verification
 	payload, err := generateCredentialChallenge(subject)
 	if err != nil {
 		return fmt.Errorf("cannot generate challenge: %w", err)
 	}
-
-	// @TODO: fixme
-	return nil
 
 	// extract proof, can't fail already done in generateCredentialChallenge
 	var proofs = make([]vc.JSONWebSignature2020Proof, 0)
@@ -540,8 +558,7 @@ func (c *vcr) Verify(subject vc.VerifiableCredential, at *time.Time) error {
 		return err
 	}
 
-	// next check trusted/period and revocation
-	return c.validate(subject, at)
+	return nil
 }
 
 func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
