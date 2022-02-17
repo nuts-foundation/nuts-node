@@ -44,7 +44,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 			issueRequest.Visibility = &public
 			return nil
 		})
-		testContext.mockIssuer.EXPECT().Issue(gomock.Any(), true, false)
+		testContext.mockIssuer.EXPECT().Issue(gomock.Any(), true, true)
 		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
 		err := testContext.client.IssueVC(testContext.echo)
 		assert.NoError(t, err)
@@ -71,7 +71,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 			issueRequest.Visibility = &public
 			return nil
 		})
-		testContext.mockIssuer.EXPECT().Issue(gomock.Eq(expectedRequestedVC), true, false)
+		testContext.mockIssuer.EXPECT().Issue(gomock.Eq(expectedRequestedVC), true, true)
 		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
 
 		err := testContext.client.IssueVC(testContext.echo)
