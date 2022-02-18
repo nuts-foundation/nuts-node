@@ -10,6 +10,69 @@ info:
 servers:
   - url: http://localhost:1323
 paths:
+  /internal/vcr/v2/holder/vc/search:
+    post:
+      summary: "Searches for verifiable credentials that could be used for different use-cases."
+      description: >
+        The result contains a list of matching credentials. Only usable and trusted credentials are returned.
+        The untrusted query param can be set to true for untrusted credentials to be returned as well.
+        
+        error returns:
+        * 400 - Incorrect search query
+        * 500 - An error occurred while processing the request
+      operationId: "searchVCs"
+      parameters:
+        - name: untrusted
+          in: query
+          description: when true, the search also returns untrusted credentials. Default false
+          schema:
+            type: boolean
+      requestBody:
+        required: true
+        description: >
+          Searching for VCs is done by passing a JSON-LD document as body.
+          Each field in the request body must be present in the VC in order for it to be passed as result.
+          Different JSON-LD contexts can be used allowing for different JSON formats. Consult the node documentation on the supported contexts.
+        content:
+          application/ld+json:
+            examples:
+              NutsOrganizationCredential:
+                value: >
+                  {
+                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/schemas/vc/v1","https://nuts.nl/schemas/search-organization/v0"],
+                    "credentialSubject":{
+                      "organization": {
+                        "name": "Zorggroep de Nootjes",
+                        "city": "Amandelmere"
+                      }
+                    }
+                  }
+              NutsAuthorizationCredential:
+                value: >
+                  {
+                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/schemas/vc/v1","https://nuts.nl/schemas/search-authorization/v0"],
+                    "credentialSubject":{
+                      "id": "did:nuts:123",
+                      "purposeOfUse": "eOverdracht-receiver",
+                      "resources": {
+                        "path":"/Task/123"
+                      },
+                      "subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456782"
+                    }
+                  }
+      tags:
+        - credential
+      responses:
+        "200":
+          description: A list of matching credentials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VerifiableCredential'
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc:
     post:
       summary: Issues a new Verifiable Credential
@@ -37,7 +100,6 @@ paths:
                 $ref: '#/components/schemas/VerifiableCredential'
         default:
           $ref: '../common/error_response.yaml'
-
   /internal/vcr/v2/issuer/vc/search:
     get:
       summary: "Searches for verifiable credentials issued by this node which matches the search params"

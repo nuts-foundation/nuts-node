@@ -20,6 +20,11 @@ package v2
 
 import (
 	"errors"
+	"net/http"
+	"testing"
+
+	"time"
+
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -31,9 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"testing"
-	"time"
 )
 
 func TestWrapper_IssueVC(t *testing.T) {

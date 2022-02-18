@@ -20,6 +20,11 @@ package v2
 
 import (
 	"encoding/json"
+
+	"net/http"
+
+	"time"
+
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -28,8 +33,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
-	"net/http"
-	"time"
 )
 
 var clockFn = func() time.Time {

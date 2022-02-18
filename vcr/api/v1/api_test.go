@@ -21,10 +21,11 @@ package v1
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -229,7 +230,7 @@ func TestWrapper_Resolve(t *testing.T) {
 	})
 }
 
-func TestWrapper_Search(t *testing.T) {
+func TestWrapper_SearchConcept(t *testing.T) {
 	searchRequest := SearchRequest{
 		Params: []KeyValuePair{
 			{
@@ -254,7 +255,7 @@ func TestWrapper_Search(t *testing.T) {
 			return nil
 		})
 		cpt := concept.Concept(map[string]interface{}{"foo": "bar"})
-		ctx.vcr.EXPECT().Search(gomock.Any(), gomock.Any(), false, map[string]string{"name": "Because we care B.V."}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().SearchConcept(gomock.Any(), gomock.Any(), false, map[string]string{"name": "Because we care B.V."}).Return([]concept.Concept{cpt}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			capturedConcept = f2.([]concept.Concept)
 			return nil
@@ -289,7 +290,7 @@ func TestWrapper_Search(t *testing.T) {
 
 		ctx.echo.EXPECT().Request().Return(&http.Request{})
 		ctx.echo.EXPECT().Bind(gomock.Any())
-		ctx.vcr.EXPECT().Search(gomock.Any(), gomock.Any(), true, map[string]string{}).Return(nil, errors.New("b00m!"))
+		ctx.vcr.EXPECT().SearchConcept(gomock.Any(), gomock.Any(), true, map[string]string{}).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.Search(ctx.echo, "human", SearchParams{Untrusted: &trueVal})
 

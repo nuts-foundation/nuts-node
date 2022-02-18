@@ -37,10 +37,18 @@ type ConceptFinder interface {
 	// It also returns untrusted credentials when allowUntrusted == true
 	Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error)
 
-	// Search for matching concepts based upon a query. It returns an empty list if no matches have been found.
+	// SearchConcept returns matching concepts based upon a query. It returns an empty list if no matches have been found.
 	// It also returns untrusted credentials when allowUntrusted == true
 	// a context must be passed to prevent long-running queries
-	Search(ctx context.Context, conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error)
+	SearchConcept(ctx context.Context, conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error)
+}
+
+// Finder is the VCR interface for searching VCs
+type Finder interface {
+	// Search for matching VCs based upon a query. It returns an empty list if no matches have been found.
+	// It also returns untrusted credentials when allowUntrusted == true
+	// a context must be passed to prevent long-running queries
+	Search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
 }
 
 // Validator is the VCR interface for validation options

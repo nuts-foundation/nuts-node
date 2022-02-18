@@ -51,6 +51,8 @@ type Registry interface {
 }
 
 const (
+	// AuthorizationConcept is a concept required for authorization credentials
+	AuthorizationConcept = "authorization"
 	// OrganizationConcept is a concept required for the auth module to work
 	OrganizationConcept = "organization"
 	// OrganizationName defines the concept path for an organization name
