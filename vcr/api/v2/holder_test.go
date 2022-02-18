@@ -21,7 +21,6 @@ package v2
 
 import (
 	"context"
-	"embed"
 	"errors"
 	"io/fs"
 	"net/http"
@@ -30,14 +29,12 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"gopkg.in/yaml.v2"
 
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/stretchr/testify/assert"
 )
-
-//go:embed assets/*
-var defaultTemplates embed.FS
 
 var organizationQuery = `
 {
@@ -193,13 +190,13 @@ func TestWrapper_SearchVCs(t *testing.T) {
 }
 
 func loadTemplates(t *testing.T, registry concept.Registry) {
-	list, err := fs.Glob(defaultTemplates, "**/*.config.yaml")
+	list, err := fs.Glob(assets.Assets, "**/*.config.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, f := range list {
-		bytes, err := defaultTemplates.ReadFile(f)
+		bytes, err := assets.Assets.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
 		}
