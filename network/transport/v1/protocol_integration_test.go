@@ -60,7 +60,7 @@ func TestProtocolV1_MissingPayloads(t *testing.T) {
 		return
 	}
 	// TX 1
-	tx1, _, _ := dag.CreateTestTransaction(2, tx0Root.Ref())
+	tx1, _, _ := dag.CreateTestTransaction(2, tx0Root)
 	err = node1.state.Add(context.Background(), tx1, nil)
 	if !assert.NoError(t, err) {
 		return
@@ -106,7 +106,7 @@ func TestProtocolV1_Pagination(t *testing.T) {
 	}
 	prev := rootTX
 	for i := 0; i < numberOfTransactions-1; i++ { // minus 1 to subtract root TX
-		tx, _, _ := dag.CreateTestTransaction(uint32(i+2), prev.Ref())
+		tx, _, _ := dag.CreateTestTransaction(uint32(i+2), prev)
 		err := node1.state.Add(context.Background(), tx, []byte{0, 0, 0, byte(i + 2)})
 		if !assert.NoError(t, err) {
 			return

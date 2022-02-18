@@ -97,7 +97,7 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 	})
 
 	t.Run("txs without payload - first is blocking", func(t *testing.T) {
-		tx1 := CreateTestTransactionWithJWK(2, tx0.Ref())
+		tx1 := CreateTestTransactionWithJWK(2, tx0)
 		ctx := context.Background()
 		publisher, dag, _ := newPublisher(t)
 		dag.Add(ctx, tx0)
@@ -120,7 +120,7 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 	})
 
 	t.Run("txs with payload - first is blocking", func(t *testing.T) {
-		tx1 := CreateTestTransactionWithJWK(2, tx0.Ref())
+		tx1 := CreateTestTransactionWithJWK(2, tx0)
 		ctx := context.Background()
 		publisher, dag, payloadStore := newPublisher(t)
 		dag.Add(ctx, tx0)
@@ -144,8 +144,8 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 		assert.Equal(t, 2, txPayloadAddedCalls)
 	})
 	t.Run("txs not processed again when payload has been processed", func(t *testing.T) {
-		tx1 := CreateTestTransactionWithJWK(2, tx0.Ref())
-		tx2 := CreateTestTransactionWithJWK(3, tx1.Ref())
+		tx1 := CreateTestTransactionWithJWK(2, tx0)
+		tx2 := CreateTestTransactionWithJWK(3, tx1)
 		ctx := context.Background()
 		publisher, dag, payloadStore := newPublisher(t)
 		dag.Add(ctx, tx0, tx1)
@@ -188,8 +188,8 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 
 		txA := CreateTestTransactionWithJWK(1)
 		txAPayload := []byte{0, 0, 0, 1}
-		one := CreateTestTransactionWithJWK(2, txA.Ref())
-		two := CreateTestTransactionWithJWK(3, txA.Ref())
+		one := CreateTestTransactionWithJWK(2, txA)
+		two := CreateTestTransactionWithJWK(3, txA)
 		var txB, txC Transaction
 		var txBPayload, txCPayload []byte
 		if one.Ref().Compare(two.Ref()) <= 0 {
@@ -203,7 +203,7 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 			txBPayload = []byte{0, 0, 0, 3}
 			txCPayload = []byte{0, 0, 0, 2}
 		}
-		txD := CreateTestTransactionWithJWK(4, txB.Ref(), txC.Ref())
+		txD := CreateTestTransactionWithJWK(4, txB, txC)
 		txDPayload := []byte{0, 0, 0, 4}
 
 		txB.(*transaction).payloadType = "foo/bar"
