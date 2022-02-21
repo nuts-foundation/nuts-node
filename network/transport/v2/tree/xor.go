@@ -1,6 +1,7 @@
 package tree
 
 import (
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
@@ -43,4 +44,16 @@ func (x *XorHash) Subtract(data Data) error {
 	default:
 		return fmt.Errorf("subtraction failed - expected type %T, got %T", x, v)
 	}
+}
+
+func (x XorHash) MarshalBinary() ([]byte, error) {
+	return x.Hash.Clone().Slice(), nil
+}
+
+func (x *XorHash) UnmarshalBinary(data []byte) error {
+	if len(data) != hash.SHA256HashSize {
+		return errors.New("invalid data length")
+	}
+	x.Hash = hash.FromSlice(data)
+	return nil
 }
