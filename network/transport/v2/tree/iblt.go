@@ -2,6 +2,7 @@ package tree
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -28,42 +29,6 @@ type Iblt struct {
 	Hk      uint32    `json:"Hk"`      // #2
 	K       uint8     `json:"K"`       // #3
 	Buckets []*bucket `json:"buckets"` // #4
-}
-
-func (i Iblt) MarshalBinary() ([]byte, error) {
-	data := make([]byte, 9+len(i.Buckets)*bucketBytes)
-	byteOrder().PutUint32(data, i.Hc)     // #1
-	byteOrder().PutUint32(data[4:], i.Hk) // #2
-	data[8] = i.K                         // #3
-	start := 9
-	for idx, b := range i.Buckets {
-		bytes, err := b.MarshalBinary()
-		if err != nil {
-			return nil, fmt.Errorf("bucket %d: %w", idx, err)
-		}
-		copy(data[start:], bytes) // #4
-		start += bucketBytes
-	}
-	return data, nil
-}
-
-func (i *Iblt) UnmarshalBinary(data []byte) error {
-	if len(data) < (9+bucketBytes) || (len(data)-9)%bucketBytes != 0 {
-		return errors.New("invalid data length")
-	}
-	buf := bytes.NewBuffer(data)
-	i.Hc = byteOrder().Uint32(buf.Next(4))
-	i.Hk = byteOrder().Uint32(buf.Next(4))
-	i.K = buf.Next(1)[0]
-	i.Buckets = make([]*bucket, (len(data)-9)/bucketBytes)
-	for j := 0; j < len(i.Buckets); j++ {
-		b := new(bucket)
-		if err := b.UnmarshalBinary(buf.Next(bucketBytes)); err != nil {
-			return err
-		}
-		i.Buckets[j] = b
-	}
-	return nil
 }
 
 func NewIblt(numBuckets int) *Iblt {
@@ -199,31 +164,48 @@ func (i *Iblt) hashKey(key hash.SHA256Hash) uint64 {
 	return murmur3.Sum64WithSeed(key[:], i.Hc)
 }
 
+func (i Iblt) MarshalBinary() ([]byte, error) {
+	data := make([]byte, 9+len(i.Buckets)*bucketBytes)
+	byteOrder().PutUint32(data, i.Hc)     // #1
+	byteOrder().PutUint32(data[4:], i.Hk) // #2
+	data[8] = i.K                         // #3
+	start := 9
+	for idx, b := range i.Buckets {
+		bs, err := b.MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("bucket %d: %w", idx, err)
+		}
+		copy(data[start:], bs) // #4
+		start += bucketBytes
+	}
+	return data, nil
+}
+
+func (i *Iblt) UnmarshalBinary(data []byte) error {
+	if len(data) < (9+bucketBytes) || (len(data)-9)%bucketBytes != 0 {
+		return errors.New("invalid data length")
+	}
+	buf := bytes.NewBuffer(data)
+	i.Hc = byteOrder().Uint32(buf.Next(4))
+	i.Hk = byteOrder().Uint32(buf.Next(4))
+	i.K = buf.Next(1)[0]
+	i.Buckets = make([]*bucket, (len(data)-9)/bucketBytes)
+	for j := 0; j < len(i.Buckets); j++ {
+		b := new(bucket)
+		if err := b.UnmarshalBinary(buf.Next(bucketBytes)); err != nil {
+			return err
+		}
+		i.Buckets[j] = b
+	}
+	return nil
+}
+
 // bucket
 type bucket struct {
 	// Count is signed to allow for negative counts after subtraction
 	Count   int32           `json:"count"`    // #1
 	HashSum uint64          `json:"hash_sum"` // #2
 	KeySum  hash.SHA256Hash `json:"key_sum"`  // #3
-}
-
-func (b bucket) MarshalBinary() ([]byte, error) {
-	bs := make([]byte, bucketBytes)
-	byteOrder().PutUint32(bs, uint32(b.Count)) // #1
-	byteOrder().PutUint64(bs[4:], b.HashSum)   // #2
-	copy(bs[12:], b.KeySum.Slice())            // #3
-	return bs, nil
-}
-
-func (b *bucket) UnmarshalBinary(data []byte) error {
-	if len(data) != bucketBytes {
-		return errors.New("invalid data length")
-	}
-	buf := bytes.NewBuffer(data)
-	b.Count = int32(byteOrder().Uint32(buf.Next(4)))
-	b.HashSum = byteOrder().Uint64(buf.Next(8))
-	b.KeySum = hash.FromSlice(buf.Next(32))
-	return nil
 }
 
 func (b *bucket) add(key hash.SHA256Hash, hash uint64) {
@@ -256,6 +238,30 @@ func (b bucket) isEmpty() bool {
 
 func (b bucket) String() string {
 	return fmt.Sprintf("{Count:%d KeySum:%s HashSum:%d}", b.Count, b.KeySum, b.HashSum)
+}
+
+func (b bucket) MarshalBinary() ([]byte, error) {
+	bs := make([]byte, bucketBytes)
+	byteOrder().PutUint32(bs, uint32(b.Count)) // #1
+	byteOrder().PutUint64(bs[4:], b.HashSum)   // #2
+	copy(bs[12:], b.KeySum.Clone().Slice())    // #3
+	return bs, nil
+}
+
+func (b *bucket) UnmarshalBinary(data []byte) error {
+	if len(data) != bucketBytes {
+		return errors.New("invalid data length")
+	}
+	buf := bytes.NewBuffer(data)
+	b.Count = int32(byteOrder().Uint32(buf.Next(4))) // #1
+	b.HashSum = byteOrder().Uint64(buf.Next(8))      // #2
+	b.KeySum = hash.FromSlice(buf.Next(32))          // #3
+	return nil
+}
+
+//
+func byteOrder() binary.ByteOrder {
+	return binary.LittleEndian
 }
 
 // xorshift64 is am RNG form the xorshift family with period 2^64-1.
