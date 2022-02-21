@@ -82,6 +82,7 @@ func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time
 		signingTimeHeader:  normalizedMoment.Unix(),
 		previousHeader:     prevsAsString,
 		versionHeader:      input.Version(),
+		lamportClockHeader: input.Clock(),
 	}
 
 	if input.PAL() != nil {

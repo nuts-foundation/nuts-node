@@ -54,6 +54,7 @@ func ParseTransaction(input []byte) (Transaction, error) {
 		parseVersion,
 		parsePrevious,
 		parsePAL,
+		parseLamportClock,
 	}
 
 	result := &transaction{}
@@ -186,6 +187,19 @@ func parsePAL(transaction *transaction, headers jws.Headers, _ *jws.Message) err
 	}
 	transaction.pal = pal
 	return nil
+}
+
+func parseLamportClock(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
+	if lcAsInterf, ok := headers.Get(lamportClockHeader); !ok {
+		// not required as of this point
+		// deprecated
+		return nil
+	} else if lcAsFloat64, ok := lcAsInterf.(float64); !ok {
+		return transactionValidationError(invalidHeaderErrFmt, lamportClockHeader)
+	} else {
+		transaction.lamportClock = uint32(lcAsFloat64)
+		return nil
+	}
 }
 
 func isAlgoAllowed(algo jwa.SignatureAlgorithm) bool {
