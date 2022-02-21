@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have logReceivedTransactions a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
@@ -22,16 +22,15 @@ package gossip
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
-// peerQueue contains a log of received transaction references and a queue of references to send for a specific peer.
+// peerQueue contains a log of logReceivedTransactions transaction references and a queue of references to send for a specific peer.
 type peerQueue struct {
-	// cancelFunc to stop the ticker for this peer
+	// cancelFunc to unregister the ticker for this peer
 	cancelFunc context.CancelFunc
-	// log of recent received transaction hashes
+	// log of recent logReceivedTransactions transaction hashes
 	log *uniqueList
 	// maxSize determines how many items are kept in each list
 	maxSize int
@@ -49,31 +48,15 @@ func newPeerQueue() peerQueue {
 	}
 }
 
-// start a ticker. It'll use the given context as parent context to stop the ticker
-func (pq *peerQueue) start(parentCtx context.Context, interval time.Duration) <-chan bool {
+// registerContext registers a context. When deRegister is called it'll cancel the returned context.
+func (pq *peerQueue) registerContext(parentCtx context.Context) context.Context {
 	var ctx context.Context
 	ctx, pq.cancelFunc = context.WithCancel(parentCtx)
-	done := ctx.Done()
-	returnChan := make(chan bool, 1)
 
-	go func() {
-	outer:
-		for {
-			select {
-			case <-done:
-				break outer
-			case <-time.Tick(interval):
-				returnChan <- true
-			}
-		}
-		// send a false over the channel
-		close(returnChan)
-	}()
-
-	return returnChan
+	return ctx
 }
 
-func (pq *peerQueue) stop() {
+func (pq *peerQueue) unregister() {
 	if pq.cancelFunc != nil {
 		pq.cancelFunc()
 	}
@@ -99,8 +82,8 @@ func (pq *peerQueue) clear() {
 	pq.queue = newUniqueList()
 }
 
-// received adds given hashes to the log and removes them from the queue when present
-func (pq *peerQueue) received(refs ...hash.SHA256Hash) {
+// logReceivedTransactions adds given hashes to the log and removes them from the queue when present
+func (pq *peerQueue) logReceivedTransactions(refs ...hash.SHA256Hash) {
 	pq.mutex.Lock()
 	defer pq.mutex.Unlock()
 

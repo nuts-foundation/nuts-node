@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have logReceivedTransactions a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
@@ -103,7 +103,7 @@ func TestManager_PeerDisconnected(t *testing.T) {
 		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash) bool {
 			count++
 			tickerGroupStart.Wait()
-			// if the ticker doesn't stop, this one will blow up
+			// if the ticker doesn't unregister, this one will blow up
 			mainGroup.Done()
 			tickerGroupEnd.Wait()
 			return true
@@ -126,7 +126,7 @@ func TestManager_PeerDisconnected(t *testing.T) {
 }
 
 func TestManager_GossipReceived(t *testing.T) {
-	t.Run("ignores received gossip when administration is missing", func(t *testing.T) {
+	t.Run("ignores logReceivedTransactions gossip when administration is missing", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
 
 		gMan.GossipReceived("1", hash.EmptyHash())
@@ -155,7 +155,7 @@ func TestManager_callSenders(t *testing.T) {
 		gMan.TransactionRegistered(hash.EmptyHash())
 
 		pq := gMan.peers["1"]
-		callSenders("1", pq, gMan.senders)
+		callSenders("1", pq, gMan.messageSenders)
 
 		assert.Equal(t, 0, pq.queue.Len())
 	})
@@ -169,7 +169,7 @@ func TestManager_callSenders(t *testing.T) {
 		gMan.TransactionRegistered(hash.EmptyHash())
 
 		pq := gMan.peers["1"]
-		callSenders("1", pq, gMan.senders)
+		callSenders("1", pq, gMan.messageSenders)
 
 		assert.Equal(t, 1, pq.queue.Len())
 	})

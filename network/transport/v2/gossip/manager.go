@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have logReceivedTransactions a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
@@ -32,21 +32,22 @@ import (
 const maxQueueSize = 100
 
 // SenderFunc is called from the queue ticker at the set interval.
+// The func should send a specific network message within its body.
 // If it's successful it'll return true. This will empty the queue for that peer.
-// All senders must succeed in order for the queue to be emptied.
+// All messageSenders must succeed in order for the queue to be emptied.
 type SenderFunc func(id transport.PeerID, refs []hash.SHA256Hash) bool
 
 // Manager handles changes in connections, new transactions and updates from other Gossip messages.
 // It keeps track of transaction hashes that still have to be send to a peer in a queue.
 // If a peer gossips a particular hash, that hash is removed from the peer queue to reduce traffic.
-// It also keeps a small log of received hashes from a peer.
+// It also keeps a small log of logReceivedTransactions hashes from a peer.
 //When a transaction is added to the DAG but exists in that log, it won't be gossipped to that peer.
 type Manager interface {
 	// GossipReceived is to be called each time a peer sends a Gossip message.
 	// All hashes should be removed from the peer's queue and added to the log.
 	GossipReceived(id transport.PeerID, refs ...hash.SHA256Hash)
 	// PeerConnected is to be called when a new peer connects. A new gossip queue will then be created for this peer.
-	// It will also start a ticker for this peer.
+	// It will also registerContext a ticker for this peer.
 	PeerConnected(peer transport.Peer)
 	// PeerDisconnected is to be called when a peer disconnects. The gossip queue can then be cleared.
 	PeerDisconnected(peer transport.Peer)
@@ -58,14 +59,14 @@ type Manager interface {
 }
 
 type manager struct {
-	// ctx is the context that is used to stop all tickers
+	// ctx is the context that is used to unregister all tickers
 	ctx context.Context
 	// interval to tick
 	interval time.Duration
 	// mutex to protect concurrent access to the peer administration
 	mutex sync.RWMutex
-	// senders contains all registered senders
-	senders []SenderFunc
+	// messageSenders contains all registered functions that should send network messages
+	messageSenders []SenderFunc
 	// peers maps peerID to peerQueue
 	peers map[string]*peerQueue
 }
@@ -86,11 +87,11 @@ func (m *manager) GossipReceived(id transport.PeerID, refs ...hash.SHA256Hash) {
 
 	peer, ok := m.peers[string(id)]
 	if !ok {
-		log.Logger().Errorf("received gossip from peer, but gossip administration is missing, peer=%s", string(id))
+		log.Logger().Errorf("logReceivedTransactions gossip from peer, but gossip administration is missing, peer=%s", string(id))
 		return
 	}
 
-	peer.received(refs...)
+	peer.logReceivedTransactions(refs...)
 }
 
 func (m *manager) PeerConnected(transportPeer transport.Peer) {
@@ -105,21 +106,21 @@ func (m *manager) PeerConnected(transportPeer transport.Peer) {
 	pq := newPeerQueue()
 	m.peers[string(transportPeer.ID)] = &pq
 
-	// start ticker for this peer
-	tickChan := pq.start(m.ctx, m.interval)
-	done := m.ctx.Done()
+	// make a subContext
+
+	subContext := pq.registerContext(m.ctx)
+	done := subContext.Done()
 	// copy from manager to avoid race conditions and locking
-	senders := m.senders
+	senders := m.messageSenders
 	go func() {
+		ticker := time.NewTicker(m.interval)
 		for {
 			select {
 			case <-done:
+				// stop ticker and exit when queue.unregister is called.
+				ticker.Stop()
 				return
-			case val := <-tickChan:
-				// peer context cancelled
-				if !val {
-					return
-				}
+			case _ = <-ticker.C:
 				callSenders(transportPeer.ID, &pq, senders)
 			}
 		}
@@ -154,8 +155,8 @@ func (m *manager) PeerDisconnected(transportPeer transport.Peer) {
 		return
 	}
 
-	// stop ticker
-	peer.stop()
+	// unregister ticker
+	peer.unregister()
 
 	delete(m.peers, string(transportPeer.ID))
 }
@@ -164,7 +165,7 @@ func (m *manager) RegisterSender(f SenderFunc) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	m.senders = append(m.senders, f)
+	m.messageSenders = append(m.messageSenders, f)
 }
 
 func (m *manager) TransactionRegistered(transaction hash.SHA256Hash) {

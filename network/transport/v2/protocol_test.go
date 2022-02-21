@@ -68,7 +68,9 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 		nodeDIDResolver.NodeDID = *nodeDID
 	}
 
-	proto := New(Config{Datadir: dirname}, nodeDIDResolver, state, docResolver, decrypter)
+	cfg := DefaultConfig()
+	cfg.Datadir = dirname
+	proto := New(cfg, nodeDIDResolver, state, docResolver, decrypter)
 	proto.(*protocol).payloadScheduler = payloadScheduler
 	proto.(*protocol).gManager = gMan
 	proto.(*protocol).connectionList = connectionList

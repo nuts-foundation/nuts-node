@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have logReceivedTransactions a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
@@ -31,52 +31,27 @@ import (
 	"go.uber.org/atomic"
 )
 
-func TestQueue_start(t *testing.T) {
-	t.Run("ticker ticks at a set interval", func(t *testing.T) {
+func TestQueue_register(t *testing.T) {
+	t.Run("creates a subContext", func(t *testing.T) {
 		q := peerQueue{}
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx, _ := context.WithCancel(context.Background())
 
-		ch := q.start(ctx, time.Nanosecond)
-		val := <-ch
+		sub := q.registerContext(ctx)
 
-		assert.True(t, val)
-	})
-
-	t.Run("ticker channel returns false when closed", func(t *testing.T) {
-		q := peerQueue{}
-		ctx, cancel := context.WithCancel(context.Background())
-
-		ch := q.start(ctx, time.Second)
-		cancel()
-		val := <-ch
-
-		assert.False(t, val)
+		assert.NotEqual(t, ctx, sub)
 	})
 }
 
-func TestQueue_stop(t *testing.T) {
-	t.Run("stop stops the ticker", func(t *testing.T) {
+func TestQueue_unregister(t *testing.T) {
+	t.Run("calls cancel on the subContext", func(t *testing.T) {
 		q := peerQueue{}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		ch := q.start(ctx, time.Second)
-		q.stop()
-		val := <-ch
+		sub := q.registerContext(ctx)
+		q.unregister()
 
-		assert.False(t, val)
-	})
-
-	t.Run("stop does not ends the parent ctx", func(t *testing.T) {
-		q := peerQueue{}
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		_ = q.start(ctx, time.Second)
-		q.stop()
-
-		assert.NoError(t, ctx.Err())
+		assert.Error(t, sub.Err())
 	})
 }
 
@@ -137,7 +112,7 @@ func TestQueue_enqueue(t *testing.T) {
 	t.Run("does not add entry when present in log", func(t *testing.T) {
 		pq := newPeerQueue()
 
-		pq.received(hash.EmptyHash())
+		pq.logReceivedTransactions(hash.EmptyHash())
 		pq.enqueue(hash.EmptyHash())
 
 		assert.Equal(t, 0, pq.queue.Len())
@@ -170,7 +145,7 @@ func TestQueue_clear(t *testing.T) {
 
 	t.Run("does not empty log", func(t *testing.T) {
 		pq := newPeerQueue()
-		pq.received(hash.EmptyHash())
+		pq.logReceivedTransactions(hash.EmptyHash())
 
 		pq.clear()
 
@@ -182,7 +157,7 @@ func TestQueue_received(t *testing.T) {
 	t.Run("adds entries to log", func(t *testing.T) {
 		pq := newPeerQueue()
 
-		pq.received(hash.EmptyHash())
+		pq.logReceivedTransactions(hash.EmptyHash())
 
 		assert.Equal(t, 1, pq.log.Len())
 	})
@@ -191,8 +166,8 @@ func TestQueue_received(t *testing.T) {
 		pq := newPeerQueue()
 		pq.maxSize = 1
 
-		pq.received(hash.SHA256Sum([]byte{1}))
-		pq.received(hash.EmptyHash())
+		pq.logReceivedTransactions(hash.SHA256Sum([]byte{1}))
+		pq.logReceivedTransactions(hash.EmptyHash())
 
 		assert.Equal(t, 1, pq.log.Len())
 	})
@@ -202,7 +177,7 @@ func TestQueue_received(t *testing.T) {
 		pq.maxSize = 1
 
 		pq.enqueue(hash.EmptyHash())
-		pq.received(hash.EmptyHash())
+		pq.logReceivedTransactions(hash.EmptyHash())
 
 		assert.Equal(t, 0, pq.queue.Len())
 	})

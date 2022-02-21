@@ -140,7 +140,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	// Configure protocols
-	// todo: correct config passing?
+	// todo: correct config passing? (no defaults are not used in test context)
 	v2Cfg := n.config.ProtocolV2
 	v2Cfg.Datadir = config.Datadir
 
