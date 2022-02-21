@@ -1,6 +1,7 @@
 package tree
 
 import (
+	"encoding"
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -16,6 +17,36 @@ type Data interface {
 	Insert(ref hash.SHA256Hash) error
 	// Subtract another instance from this one. Produces an error if the underlying datastructures are not the same.
 	Subtract(data Data) error
+	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
+}
+
+type dataType uint8
+
+const (
+	UnknownType dataType = 0
+	XOR         dataType = 1
+	IBLT        dataType = 2
+)
+
+func prototypeFrom(dType dataType) (Data, error) {
+	switch dType {
+	case XOR:
+		return NewXor(), nil
+	//case IBLT: return NewIblt(), nil
+	default:
+		return nil, fmt.Errorf("unknown dataType: %d", dType)
+	}
+}
+
+func dataTypeFrom(prototype Data) dataType {
+	switch prototype.(type) {
+	case *XorHash:
+		return XOR
+	//case *Iblt: return IBLT
+	default:
+		return UnknownType
+	}
 }
 
 // Tree
@@ -36,18 +67,26 @@ type Tree interface {
 }
 */
 type Tree struct {
-	Depth    uint8  `json:"depth"`
+	Depth    uint8  `json:"depth"` // redundant
 	MaxSize  uint32 `json:"max_size"`
 	LeafSize uint32 `json:"leaf_size"`
 	Root     *node  `json:"root"`
+	// storage
+	dataType    dataType
+	dirtyLeaves map[uint32]*node
+	dirtyMeta   bool // TODO: after calling DropLeaves(), the entire tree needs to rewritten to disk
 }
 
 // New creates a new tree with the given leafSize and of the same type of Data as the prototype.
 func New(prototype Data, leafSize uint32) *Tree {
+	root := newNode(leafSize/2, leafSize, prototype.New())
 	return &Tree{
-		Root:     newNode(leafSize, leafSize, prototype.New()),
-		MaxSize:  leafSize,
-		LeafSize: leafSize,
+		Root:        root,
+		MaxSize:     leafSize,
+		LeafSize:    leafSize,
+		dataType:    dataTypeFrom(prototype),
+		dirtyLeaves: map[uint32]*node{root.SplitLC: root},
+		dirtyMeta:   true,
 	}
 }
 
@@ -56,6 +95,8 @@ func (t *Tree) newBranch(start, stop uint32) *node {
 	n := newNode(split, stop, t.Root.Data.New())
 	if stop-start > t.LeafSize {
 		n.Left = t.newBranch(start, split)
+	} else {
+		t.dirtyLeaves[n.SplitLC] = n
 	}
 	return n
 }
@@ -68,14 +109,17 @@ func (t *Tree) Insert(ref hash.SHA256Hash, clock uint32) error {
 	}
 
 	// Insert ref in all TreeData from root to leave
+	var current *node
 	next := t.Root
 	for next != nil {
-		err := next.Data.Insert(ref)
+		current = next
+		err := current.Data.Insert(ref)
 		if err != nil {
 			return fmt.Errorf("Insert failed for node with splitLC at LC %d: %w", next.SplitLC, err)
 		}
-		next = t.getNextNode(next, clock)
+		next = t.getNextNode(current, clock)
 	}
+	t.dirtyLeaves[current.SplitLC] = current
 
 	return nil
 }
@@ -87,6 +131,7 @@ func (t *Tree) reRoot() {
 	t.Root = newRoot
 	t.MaxSize *= 2
 	t.Depth++
+	t.dirtyMeta = true
 }
 
 // getNextNode retrieves the next node based on the clock value. If the node does not exist it is created.
@@ -150,7 +195,9 @@ func (t *Tree) DropLeaves() {
 	if t.Root.Left != nil {
 		dropLeaves(t.Root)
 		t.LeafSize *= 2
+		t.Depth--
 	}
+	t.dirtyMeta = true
 }
 
 func dropLeaves(current *node) {

@@ -122,37 +122,43 @@ func TestTree_GetZeroTo(t *testing.T) {
 
 func TestTree_DropLeaves(t *testing.T) {
 	t.Run("root should not be dropped", func(t *testing.T) {
-		tr := &Tree{Depth: 0, Root: &node{}}
+		tr := &Tree{Depth: 0, LeafSize: testLeafSize, Root: &node{}}
 
 		tr.DropLeaves()
 
 		assert.NotNil(t, tr.Root)
 		assert.Nil(t, tr.Root.Left)
 		assert.Nil(t, tr.Root.Right)
+		assert.Equal(t, uint8(0), tr.Depth)
+		assert.Equal(t, testLeafSize, tr.LeafSize)
 	})
 
 	t.Run("drop leaves 1->0", func(t *testing.T) {
-		tr := &Tree{Depth: 1, Root: &node{Left: &node{}, Right: &node{}}}
+		tr := &Tree{Depth: 1, LeafSize: testLeafSize, Root: &node{Left: &node{}, Right: &node{}}}
 
 		tr.DropLeaves()
 
 		assert.NotNil(t, tr.Root)
 		assert.Nil(t, tr.Root.Left)
 		assert.Nil(t, tr.Root.Right)
+		assert.Equal(t, uint8(0), tr.Depth)
+		assert.Equal(t, testLeafSize*2, tr.LeafSize)
 	})
 
 	t.Run("drop leaves 2->1", func(t *testing.T) {
-		tr := &Tree{Depth: 2, Root: &node{Left: &node{Left: &node{}, Right: &node{}}}}
+		tr := &Tree{Depth: 2, LeafSize: testLeafSize, Root: &node{Left: &node{Left: &node{}, Right: &node{}}}}
 
 		tr.DropLeaves()
 
 		assert.NotNil(t, tr.Root)
 		assert.NotNil(t, tr.Root.Left)
 		assert.Nil(t, tr.Root.Right)
+		assert.Equal(t, uint8(1), tr.Depth)
+		assert.Equal(t, testLeafSize*2, tr.LeafSize)
 	})
 
 	t.Run("drop leaves 2->0", func(t *testing.T) {
-		tr := &Tree{Depth: 2, Root: &node{Left: &node{Left: &node{}}, Right: &node{}}}
+		tr := &Tree{Depth: 2, LeafSize: testLeafSize, Root: &node{Left: &node{Left: &node{}}, Right: &node{}}}
 
 		tr.DropLeaves()
 		tr.DropLeaves()
@@ -160,6 +166,8 @@ func TestTree_DropLeaves(t *testing.T) {
 		assert.NotNil(t, tr.Root)
 		assert.Nil(t, tr.Root.Left)
 		assert.Nil(t, tr.Root.Right)
+		assert.Equal(t, uint8(0), tr.Depth)
+		assert.Equal(t, testLeafSize*4, tr.LeafSize)
 	})
 }
 
@@ -173,6 +181,7 @@ func TestTree_reRoot(t *testing.T) {
 		assert.NotNil(t, tr.Root.Left)
 		assert.Nil(t, tr.Root.Right)
 		assert.Equal(t, tr.MaxSize, 2*testLeafSize)
+		assert.Equal(t, uint8(1), tr.Depth)
 	})
 
 	t.Run("double re-root", func(t *testing.T) {
@@ -187,18 +196,19 @@ func TestTree_reRoot(t *testing.T) {
 		assert.Nil(t, tr.Root.Right)
 		assert.Nil(t, tr.Root.Left.Right)
 		assert.Equal(t, tr.MaxSize, 4*testLeafSize)
+		assert.Equal(t, uint8(2), tr.Depth)
 	})
 }
 
 func TestTree_MarshalJSON(t *testing.T) {
 	tr, _ := filledTree(NewXor(), testLeafSize)
 
-	//json, err := tr.MarshalJSON()
-	json, err := json.MarshalIndent(tr, "", "\t")
+	//jsonData, err := tr.MarshalJSON()
+	jsonData, err := json.MarshalIndent(tr, "", "\t")
 	if !assert.NoError(t, err) {
 		return
 	}
-	t.Log(string(json))
+	t.Log(string(jsonData))
 }
 
 func TestTree_UnmarshalJSON(t *testing.T) {
@@ -236,15 +246,19 @@ func hashFromXor(n *node) hash.SHA256Hash {
 }
 
 func newTree(data Data, leafSize uint32) *Tree {
+	root := &node{
+		SplitLC: leafSize / 2,
+		LimitLC: leafSize,
+		Data:    data.New(),
+	}
 	return &Tree{
-		Depth:    0,
-		MaxSize:  leafSize,
-		LeafSize: leafSize,
-		Root: &node{
-			SplitLC: leafSize / 2,
-			LimitLC: leafSize,
-			Data:    data.New(),
-		},
+		Depth:       0,
+		MaxSize:     leafSize,
+		LeafSize:    leafSize,
+		Root:        root,
+		dataType:    dataTypeFrom(data),
+		dirtyLeaves: map[uint32]*node{root.SplitLC: root},
+		dirtyMeta:   true,
 	}
 }
 
