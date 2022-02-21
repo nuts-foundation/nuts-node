@@ -266,4 +266,156 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 
 		assert.Equal(t, expectedCanonicalForm, string(res))
 	})
+
+}
+func Test_issuer_Revoke(t *testing.T) {
+	//// load VC
+	//vc := vc.VerifiableCredential{}
+	//vcJSON, _ := os.ReadFile("test/vc.json")
+	//json.Unmarshal(vcJSON, &vc)
+	//
+	//// load example revocation
+	//r := credential.Revocation{}
+	//rJSON, _ := os.ReadFile("test/revocation.json")
+	//json.Unmarshal(rJSON, &r)
+	//
+	//// load pub key
+	//pke := storage.PublicKeyEntry{}
+	//pkeJSON, _ := os.ReadFile("test/public.json")
+	//json.Unmarshal(pkeJSON, &pke)
+	//var pk = new(ecdsa.PublicKey)
+	//pke.JWK().Raw(pk)
+	//
+	//organizationCredentialConfig := concept.Config{}
+	//credentialBytes, _ := os.ReadFile("assets/NutsOrganizationCredential.config.yaml")
+	//_ = yaml.Unmarshal(credentialBytes, &organizationCredentialConfig)
+	//
+	//documentMetadata := types.DocumentMetadata{
+	//	SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
+	//}
+	//document := did.Document{}
+	//document.AddAssertionMethod(&did.VerificationMethod{ID: *vdr.TestMethodDIDA})
+	//
+
+	credentialID := "did:nuts:123#abc"
+	credentialURI := ssi.MustParseURI(credentialID)
+	issuerID := "did:nuts:123"
+	issuerURI := ssi.MustParseURI(issuerID)
+	issuerDID := did.MustParseDID(issuerID)
+	contextLoader, _ := signature.NewContextLoader(false)
+	kid := ssi.MustParseURI(issuerID + "#123")
+	key := crypto.NewTestKey(kid.String())
+
+	t.Run("for a known credential", func(t *testing.T) {
+		credentialToRevoke := func() vc.VerifiableCredential {
+			return vc.VerifiableCredential{
+				ID:     &credentialURI,
+				Issuer: issuerURI,
+			}
+		}
+
+		storeWithActualCredential := func(c *gomock.Controller) Store {
+			store := NewMockStore(c)
+			store.EXPECT().GetCredential(credentialURI).Return(credentialToRevoke(), nil)
+			store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, ErrNotFound)
+			return store
+		}
+
+		keyResolverWithKey := func(c *gomock.Controller) keyResolver {
+			resolver := NewMockkeyResolver(c)
+			resolver.EXPECT().ResolveAssertionKey(issuerDID).Return(key, nil)
+			return resolver
+		}
+
+		t.Run("it revokes a credential", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			publisher := NewMockPublisher(ctrl)
+			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(nil)
+
+			sut := issuer{
+				store:         storeWithActualCredential(ctrl),
+				keyResolver:   keyResolverWithKey(ctrl),
+				contextLoader: contextLoader,
+				publisher:     publisher,
+			}
+
+			revocation, err := sut.Revoke(credentialURI)
+			assert.NoError(t, err)
+			assert.NotNil(t, revocation)
+			assert.Equal(t, issuerURI, revocation.Issuer)
+			assert.Equal(t, credentialURI, revocation.Subject)
+			assert.Equal(t, revocation.Context[0].String(), "https://nuts.nl/credentials/v1")
+			assert.Equal(t, revocation.Context[1].String(), "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json")
+			assert.Equal(t, kid, revocation.Proof.VerificationMethod)
+
+			//	ctx := newMockContext(t)
+			//	key := crypto.NewTestKey("kid")
+			//	ctx.vcr.registry.Add(organizationCredentialConfig)
+			//	ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+			//	ctx.vcr.writeCredential(vc)
+			//	ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(&document, &documentMetadata, nil)
+			//	ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil)
+			//	ctx.tx.EXPECT().CreateTransaction(mock.MatchedBy(func(spec network.Template) bool {
+			//		return spec.Type == vcrTypes.RevocationDocumentType && !spec.AttachKey
+			//	}))
+			//	r, err := ctx.vcr.Revoke(*vc.ID)
+			//
+			//	if !assert.NoError(t, err) {
+			//		return
+			//	}
+			//
+			//	assert.Contains(t, r.Proof.Jws, "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..")
+		})
+	})
+	//
+	//t.Run("error - not found", func(t *testing.T) {
+	//	ctx := newMockContext(t)
+	//	ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+	//
+	//	_, err := ctx.vcr.Revoke(ssi.URI{})
+	//
+	//	if !assert.Error(t, err) {
+	//		return
+	//	}
+	//
+	//	assert.Equal(t, vcrTypes.ErrNotFound, err)
+	//})
+	//
+	//t.Run("error - already revoked", func(t *testing.T) {
+	//	ctx := newMockContext(t)
+	//	ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+	//	ctx.vcr.writeCredential(vc)
+	//
+	//	err := ctx.vcr.writeRevocation(r)
+	//	if !assert.NoError(t, err) {
+	//		return
+	//	}
+	//
+	//	_, err = ctx.vcr.Revoke(*vc.ID)
+	//
+	//	if !assert.Error(t, err) {
+	//		return
+	//	}
+	//
+	//	assert.Equal(t, vcrTypes.ErrRevoked, err)
+	//})
+	//
+	//t.Run("error - key resolve returns error", func(t *testing.T) {
+	//	ctx := newMockContext(t)
+	//
+	//	ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+	//	ctx.vcr.writeCredential(vc)
+	//	ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(&document, &documentMetadata, nil)
+	//	ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(nil, crypto.ErrKeyNotFound)
+	//
+	//	_, err := ctx.vcr.Revoke(*vc.ID)
+	//
+	//	if !assert.Error(t, err) {
+	//		return
+	//	}
+	//
+	//	assert.True(t, errors.Is(err, crypto.ErrKeyNotFound))
+	//})
 }
