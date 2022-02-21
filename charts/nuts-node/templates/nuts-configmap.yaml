@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nuts-config
+data:
+  nuts.yaml: |
+  {{- toYaml .Values.nuts.config | nindent 4 }}
