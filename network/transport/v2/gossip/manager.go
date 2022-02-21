@@ -38,7 +38,7 @@ type SenderFunc func(id transport.PeerID, refs []hash.SHA256Hash) bool
 
 // Manager handles changes in connections, new transactions and updates from other Gossip messages.
 // It keeps track of transaction hashes that still have to be send to a peer in a queue.
-// If a peer gossips a particular hash, that hash is removed from the peer queue to unneeded traffic.
+// If a peer gossips a particular hash, that hash is removed from the peer queue to reduce traffic.
 // It also keeps a small log of received hashes from a peer.
 //When a transaction is added to the DAG but exists in that log, it won't be gossipped to that peer.
 type Manager interface {
@@ -51,6 +51,7 @@ type Manager interface {
 	// PeerDisconnected is to be called when a peer disconnects. The gossip queue can then be cleared.
 	PeerDisconnected(peer transport.Peer)
 	// RegisterSender registers a sender function. The manager will call this function at set intervals to send a gossip message.
+	// Senders should not be added after configuration.
 	RegisterSender(SenderFunc)
 	// TransactionRegistered is to be called when a new transaction is added to the DAG.
 	TransactionRegistered(transaction hash.SHA256Hash)

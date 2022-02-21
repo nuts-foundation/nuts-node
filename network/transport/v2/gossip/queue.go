@@ -20,7 +20,6 @@
 package gossip
 
 import (
-	"container/list"
 	"context"
 	"sync"
 	"time"
@@ -33,26 +32,20 @@ type peerQueue struct {
 	// cancelFunc to stop the ticker for this peer
 	cancelFunc context.CancelFunc
 	// log of recent received transaction hashes
-	log *list.List
-	// logSet contains the same set as log, but then as indexed set.
-	logSet map[string]*list.Element
+	log *uniqueList
 	// maxSize determines how many items are kept in each list
 	maxSize int
 	// mutex to protect concurrent access to the queue
 	mutex sync.Mutex
 	// queue that holds the list of hashes to be gossipped
-	queue *list.List
-	// set contains the items from the queue but as indexed set
-	set map[string]*list.Element
+	queue *uniqueList
 }
 
 func newPeerQueue() peerQueue {
 	return peerQueue{
-		log:     list.New(),
-		logSet:  map[string]*list.Element{},
+		log:     newUniqueList(),
 		maxSize: maxQueueSize,
-		queue:   list.New(),
-		set:     map[string]*list.Element{},
+		queue:   newUniqueList(),
 	}
 }
 
@@ -97,20 +90,13 @@ func (pq *peerQueue) do(f func()) {
 // enqueued returns the enqueued transaction references
 // it does not lock the mutex
 func (pq *peerQueue) enqueued() []hash.SHA256Hash {
-	refs := make([]hash.SHA256Hash, pq.queue.Len())
-	i := 0
-	for element := pq.queue.Front(); element != nil; element = element.Next() {
-		refs[i] = element.Value.(hash.SHA256Hash)
-		i++
-	}
-	return refs
+	return pq.queue.Values()
 }
 
 // clear the queue, it does not clear the log
 // it does not lock the mutex
 func (pq *peerQueue) clear() {
-	pq.queue = list.New()
-	pq.set = map[string]*list.Element{}
+	pq.queue = newUniqueList()
 }
 
 // received adds given hashes to the log and removes them from the queue when present
@@ -119,24 +105,16 @@ func (pq *peerQueue) received(refs ...hash.SHA256Hash) {
 	defer pq.mutex.Unlock()
 
 	for _, ref := range refs {
-		if _, ok := pq.logSet[ref.String()]; !ok {
-			pq.logSet[ref.String()] = pq.log.PushBack(ref)
-		}
+		// add to log
+		pq.log.Add(ref)
 
 		// remove from queue
-		if element, ok := pq.set[ref.String()]; ok {
-			pq.queue.Remove(element)
-			delete(pq.set, ref.String())
-		}
+		pq.queue.Remove(ref)
 
-		// shrink log
-		if pq.log.Len() > pq.maxSize {
-			if element := pq.log.Front(); element != nil {
-				data := element.Value.(hash.SHA256Hash)
-				delete(pq.logSet, data.String())
-				pq.log.Remove(element)
-			}
-		}
+		// shrink log if too big
+		pq.log.RemoveFront(func(u *uniqueList) bool {
+			return pq.log.Len() > pq.maxSize
+		})
 	}
 }
 
@@ -145,18 +123,18 @@ func (pq *peerQueue) enqueue(refs ...hash.SHA256Hash) {
 	pq.mutex.Lock()
 	defer pq.mutex.Unlock()
 
-	if pq.queue.Len() >= pq.maxSize {
-		// ignore new, older TXs are more important to process first for peer
-		return
-	}
-
 	for _, ref := range refs {
+		if pq.queue.Len() >= pq.maxSize {
+			// ignore new, older TXs are more important to process first for peer
+			return
+		}
+
 		// ignore if present in log
-		if _, ok := pq.logSet[ref.String()]; ok {
+		if pq.log.Contains(ref) {
 			continue
 		}
 
 		// add to queue
-		pq.set[ref.String()] = pq.queue.PushBack(ref)
+		pq.queue.Add(ref)
 	}
 }

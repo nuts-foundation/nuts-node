@@ -132,7 +132,6 @@ func TestQueue_enqueue(t *testing.T) {
 		pq.enqueue(hash.EmptyHash())
 
 		assert.Equal(t, 1, pq.queue.Len())
-		assert.Equal(t, pq.queue.Front(), pq.set[hash.EmptyHash().String()])
 	})
 
 	t.Run("does not add entry when present in log", func(t *testing.T) {
@@ -146,13 +145,16 @@ func TestQueue_enqueue(t *testing.T) {
 
 	t.Run("does not add entry when full", func(t *testing.T) {
 		pq := newPeerQueue()
-		pq.maxSize = 1
+		pq.maxSize = 10
+		set := make([]hash.SHA256Hash, 10)
+		for i := 0; i < 10; i++ {
+			set[i] = hash.SHA256Sum([]byte{byte(i & 0xff)})
+		}
 
 		pq.enqueue(hash.EmptyHash())
-		pq.enqueue(hash.SHA256Sum([]byte{1}))
+		pq.enqueue(set...)
 
-		assert.Equal(t, 1, pq.queue.Len())
-		assert.Equal(t, pq.queue.Front(), pq.set[hash.EmptyHash().String()])
+		assert.Equal(t, 10, pq.queue.Len())
 	})
 }
 
@@ -164,7 +166,6 @@ func TestQueue_clear(t *testing.T) {
 		pq.clear()
 
 		assert.Equal(t, 0, pq.queue.Len())
-		assert.Nil(t, pq.set[hash.EmptyHash().String()])
 	})
 
 	t.Run("does not empty log", func(t *testing.T) {
@@ -174,7 +175,6 @@ func TestQueue_clear(t *testing.T) {
 		pq.clear()
 
 		assert.Equal(t, 1, pq.log.Len())
-		assert.Equal(t, pq.log.Front(), pq.logSet[hash.EmptyHash().String()])
 	})
 }
 
@@ -185,7 +185,6 @@ func TestQueue_received(t *testing.T) {
 		pq.received(hash.EmptyHash())
 
 		assert.Equal(t, 1, pq.log.Len())
-		assert.Equal(t, pq.log.Front(), pq.logSet[hash.EmptyHash().String()])
 	})
 
 	t.Run("removes oldest entries when full", func(t *testing.T) {
@@ -196,7 +195,6 @@ func TestQueue_received(t *testing.T) {
 		pq.received(hash.EmptyHash())
 
 		assert.Equal(t, 1, pq.log.Len())
-		assert.Equal(t, pq.log.Front(), pq.logSet[hash.EmptyHash().String()])
 	})
 
 	t.Run("removes elements from queue", func(t *testing.T) {
@@ -207,6 +205,5 @@ func TestQueue_received(t *testing.T) {
 		pq.received(hash.EmptyHash())
 
 		assert.Equal(t, 0, pq.queue.Len())
-		assert.Nil(t, pq.set[hash.EmptyHash().String()])
 	})
 }

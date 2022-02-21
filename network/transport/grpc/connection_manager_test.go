@@ -199,7 +199,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 
 		test.WaitFor(t, func() (bool, error) {
 			return capturedState.Load() == transport.StateDisconnected, nil
-		}, time.Second*2, "waiting for peer 2 observers")
+		}, time.Second*2, "waiting for peer 1 observers")
 	})
 	t.Run("0 peers (1 connection which failed)", func(t *testing.T) {
 		cm, _, _, _ := create(t)
