@@ -1,15 +1,23 @@
 {
-  "@context": [
-    {
-      "@version": 1.1
-    },
-    {
-      "schema": "http://schema.org/",
-      "nuts": "http://nuts.nl/",
-      "CompanyCredential": "nuts:companycredential",
-      "company": "schema:organization",
-      "city": "schema:city",
-      "name": "schema:legalname"
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+
+    "id": "@id",
+    "type": "@type",
+    "CredentialRevocation": {
+      "@id": "https://nuts.nl/credentials/v1#CredentialRevocation",
+      "@context": {
+        "@version": 1.1,
+        "id": "@id",
+        "type": "@type",
+        "cred": "https://www.w3.org/2018/credentials#",
+        "nuts": "https://nuts.nl/credentials/v1#",
+
+        "issuer": {"@id": "cred:issuer", "@type": "@id"},
+        "date": {"@id": "nuts:date", "@type": "xsd:dateTime"},
+        "subject": {"@id": "cred:credentialSubject", "@type": "@id"}
+      }
     }
-  ]
+  }
 }

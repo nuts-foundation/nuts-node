@@ -20,7 +20,6 @@ package v2
 
 import (
 	"encoding/json"
-	"errors"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -103,8 +102,16 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 
 // RevokeVC handles the API request for revoking a credential.
 func (w Wrapper) RevokeVC(ctx echo.Context, id string) error {
-	//TODO implement me
-	return errors.New("not yet implemented, use the v1 api")
+	credentialID, err := ssi.ParseURI(id)
+	if err != nil {
+		return core.InvalidInputError("invalid credential id: %w", err)
+	}
+
+	revocation, err := w.VCR.Revoke(*credentialID)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(200, revocation)
 }
 
 // SearchIssuedVCs handles the API request for searching for issued VCs

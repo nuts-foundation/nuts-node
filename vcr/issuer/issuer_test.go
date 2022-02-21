@@ -19,8 +19,10 @@
 package issuer
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -210,4 +212,58 @@ func Test_issuer_Issue(t *testing.T) {
 func TestNewIssuer(t *testing.T) {
 	createdIssuer := NewIssuer(nil, nil, nil, nil, nil)
 	assert.IsType(t, &issuer{}, createdIssuer)
+}
+
+func Test_issuer_buildRevocation(t *testing.T) {
+	contextLoader, err := signature.NewContextLoader(false)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		kid := "did:nuts:123#abc"
+
+		issuerDID, _ := did.ParseDID("did:nuts:123")
+		keyResolverMock := NewMockkeyResolver(ctrl)
+		keyResolverMock.EXPECT().ResolveAssertionKey(*issuerDID).Return(crypto.NewTestKey(kid), nil)
+
+		credentialID, _ := ssi.ParseURI("did:nuts:123#" + uuid.NewString())
+
+		sut := issuer{keyResolver: keyResolverMock, contextLoader: contextLoader}
+		credentialToRevoke := vc.VerifiableCredential{
+			Issuer: issuerDID.URI(),
+			ID:     credentialID,
+		}
+		revocation, err := sut.buildRevocation(credentialToRevoke)
+		assert.NoError(t, err)
+		t.Logf("revocation %+v", revocation)
+	})
+
+	t.Run("canonicalization", func(t *testing.T) {
+
+		revocationJSON := `
+		{
+			"@context": ["https://nuts.nl/credentials/v1"],
+			"type": [ "CredentialRevocation" ],
+			"subject": "did:nuts:123#5c9036ac-2e7a-4ae9-bc96-3b6269ecd27d",
+			"date": "2022-02-17T14:32:19.290629+01:00",
+			"issuer": "did:nuts:123"
+		 }`
+
+		revocationMap := map[string]interface{}{}
+		json.Unmarshal([]byte(revocationJSON), &revocationMap)
+
+		ldProof := signature.JSONWebSignature2020{ContextLoader: contextLoader}
+		res, err := ldProof.CanonicalizeDocument(revocationMap)
+		assert.NoError(t, err)
+		expectedCanonicalForm := `_:c14n0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://nuts.nl/credentials/v1#CredentialRevocation> .
+_:c14n0 <https://nuts.nl/credentials/v1#date> "2022-02-17T14:32:19.290629+01:00"^^<xsd:dateTime> .
+_:c14n0 <https://www.w3.org/2018/credentials#credentialSubject> <did:nuts:123#5c9036ac-2e7a-4ae9-bc96-3b6269ecd27d> .
+_:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
+`
+
+		assert.Equal(t, expectedCanonicalForm, string(res))
+	})
 }

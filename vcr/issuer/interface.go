@@ -19,6 +19,7 @@
 package issuer
 
 import (
+	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -50,15 +51,24 @@ type Issuer interface {
 	// It requires access to the private key of the issuer which will be used to sign the revocation.
 	// It returns an error when the credential is not issued by this node or is already revoked.
 	// The revocation will be published to the network by the issuers Publisher.
-	Revoke(credentialID ssi.URI) error
+	Revoke(credentialID ssi.URI) (*credential.Revocation, error)
 	CredentialSearcher
 }
+
+// ErrNotFound is returned when a credential or revocation can not be found based on its ID.
+var ErrNotFound = errors.New("not found")
 
 // Store defines the interface for an issuer store.
 // An implementation stores all the issued credentials and the revocations.
 type Store interface {
+	// GetCredential retrieves an issued credential by ID
+	// Returns an ErrNotFound when the credential is not in the store
+	GetCredential(id ssi.URI) (vc.VerifiableCredential, error)
 	// StoreCredential writes a VC to storage.
 	StoreCredential(vc vc.VerifiableCredential) error
+	// GetRevocation find the revocation by the credential ID
+	// Returns an ErrNotFound when the revocation is not in the store
+	GetRevocation(id ssi.URI) (credential.Revocation, error)
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error
 	CredentialSearcher
