@@ -22,7 +22,6 @@ package v2
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -59,10 +58,14 @@ func (cid conversationID) String() string {
 	return hex.EncodeToString(cid.slice())
 }
 
-type conversation interface {
-	checkResponse(envelop isEnvelope_Message) error
-	conversationID() conversationID
-	createdAt() time.Time
+type conversation struct {
+	conversationID   conversationID
+	createdAt        time.Time
+	conversationData conversationData
+}
+
+type conversationData interface {
+	checkResponse(envelope isEnvelope_Message) error
 }
 
 type conversationManager struct {
@@ -98,13 +101,14 @@ func (cMan *conversationManager) evict() {
 	defer cMan.mutex.Unlock()
 
 	for k, v := range cMan.conversations {
-		createdAt := v.createdAt()
+		createdAt := v.createdAt
 		if createdAt.Add(cMan.validity).Before(time.Now()) {
 			delete(cMan.conversations, k)
 		}
 	}
 }
 
+// done ends the conversation. In the case when multiple messages are to be expected (pagination) then done() should be called after the last message.
 func (cMan *conversationManager) done(cid conversationID) {
 	cMan.mutex.Lock()
 	defer cMan.mutex.Unlock()
@@ -112,17 +116,19 @@ func (cMan *conversationManager) done(cid conversationID) {
 	delete(cMan.conversations, cid.String())
 }
 
-// conversationFromEnvelop sets a conversationID on the envelop and stores the conversation
-func (cMan *conversationManager) conversationFromEnvelop(envelop isEnvelope_Message) (newConversation conversation) {
+// conversationFromEnvelope sets a conversationID on the envelope and stores the conversation
+func (cMan *conversationManager) conversationFromEnvelope(envelope isEnvelope_Message) (newConversation conversation) {
 	cid := newConversationID()
 
-	switch t := envelop.(type) {
+	switch t := envelope.(type) {
 	case *Envelope_TransactionListQuery:
 		t.TransactionListQuery.ConversationID = cid.slice()
-		newConversation = transactionListConversation{
-			id:  cid,
-			at:  time.Now(),
-			msg: t,
+		newConversation = conversation{
+			conversationID: cid,
+			createdAt:      time.Now(),
+			conversationData: transactionListConversation{
+				msg: t,
+			},
 		}
 	default:
 		return
@@ -136,14 +142,14 @@ func (cMan *conversationManager) conversationFromEnvelop(envelop isEnvelope_Mess
 	return
 }
 
-func (cMan *conversationManager) check(envelop isEnvelope_Message) error {
+func (cMan *conversationManager) check(envelope isEnvelope_Message) error {
 	var cidBytes []byte
 
-	switch t := envelop.(type) {
+	switch t := envelope.(type) {
 	case *Envelope_TransactionList:
 		cidBytes = t.TransactionList.ConversationID
 	default:
-		return errors.New("invalid response msg type")
+		return fmt.Errorf("invalid response msg type: %s", t)
 	}
 
 	cid, err := parseConversationID(cidBytes)
@@ -155,24 +161,22 @@ func (cMan *conversationManager) check(envelop isEnvelope_Message) error {
 	defer cMan.mutex.RUnlock()
 
 	if req, ok := cMan.conversations[cid.String()]; !ok {
-		return fmt.Errorf("unknown conversation (id=%s)", cid)
+		return fmt.Errorf("unknown or expired conversation (id=%s)", cid)
 	} else {
-		return req.checkResponse(envelop)
+		return req.conversationData.checkResponse(envelope)
 	}
 }
 
 type transactionListConversation struct {
-	id  conversationID
-	at  time.Time
 	msg *Envelope_TransactionListQuery
 }
 
-func (c transactionListConversation) checkResponse(envelop isEnvelope_Message) error {
-	// envelop type already checked in cMan.check()
-	otherEnvelop := envelop.(*Envelope_TransactionList)
+func (c transactionListConversation) checkResponse(envelope isEnvelope_Message) error {
+	// envelope type already checked in cMan.check()
+	otherEnvelope := envelope.(*Envelope_TransactionList)
 
 	payloadRequest := c.msg.TransactionListQuery
-	payloadResponse := otherEnvelop.TransactionList
+	payloadResponse := otherEnvelope.TransactionList
 
 	// as map for easy finding
 	refs := map[string]bool{}
@@ -190,12 +194,4 @@ func (c transactionListConversation) checkResponse(envelop isEnvelope_Message) e
 	}
 
 	return nil
-}
-
-func (c transactionListConversation) conversationID() conversationID {
-	return c.id
-}
-
-func (c transactionListConversation) createdAt() time.Time {
-	return c.at
 }

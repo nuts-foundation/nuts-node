@@ -87,11 +87,11 @@ func TestConversationManager_start(t *testing.T) {
 	defer cancelFn()
 	cMan := newConversationManager(time.Millisecond)
 	cMan.start(ctx)
-	envelop := &Envelope_TransactionListQuery{
+	envelope := &Envelope_TransactionListQuery{
 		TransactionListQuery: &TransactionListQuery{},
 	}
 
-	_ = cMan.conversationFromEnvelop(envelop)
+	_ = cMan.conversationFromEnvelope(envelope)
 
 	cMan.mutex.Lock()
 	assert.Len(t, cMan.conversations, 1)
@@ -104,12 +104,12 @@ func TestConversationManager_start(t *testing.T) {
 
 func TestConversationManager_done(t *testing.T) {
 	cMan := newConversationManager(time.Millisecond)
-	envelop := &Envelope_TransactionListQuery{
+	envelope := &Envelope_TransactionListQuery{
 		TransactionListQuery: &TransactionListQuery{},
 	}
-	c := cMan.conversationFromEnvelop(envelop)
+	c := cMan.conversationFromEnvelope(envelope)
 
-	cMan.done(c.conversationID())
+	cMan.done(c.conversationID)
 
 	assert.Len(t, cMan.conversations, 0)
 }
@@ -124,10 +124,10 @@ func TestConversationManager_checkTransactionList(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		c := cMan.conversationFromEnvelop(request)
+		c := cMan.conversationFromEnvelope(request)
 		response := &Envelope_TransactionList{
 			TransactionList: &TransactionList{
-				ConversationID: c.conversationID().slice(),
+				ConversationID: c.conversationID.slice(),
 				Transactions: []*Transaction{
 					{
 						Hash: ref,
@@ -142,7 +142,7 @@ func TestConversationManager_checkTransactionList(t *testing.T) {
 	})
 
 	t.Run("error - invalid conversation ID", func(t *testing.T) {
-		_ = cMan.conversationFromEnvelop(request)
+		_ = cMan.conversationFromEnvelope(request)
 		response := &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				Transactions: []*Transaction{
@@ -161,7 +161,7 @@ func TestConversationManager_checkTransactionList(t *testing.T) {
 	t.Run("error - unknown conversation ID", func(t *testing.T) {
 		u, _ := uuid.Parse("9dbacbabf0c6413591f7553ff4348753")
 		cid := conversationID(u)
-		_ = cMan.conversationFromEnvelop(request)
+		_ = cMan.conversationFromEnvelope(request)
 		response := &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: cid.slice(),
@@ -175,15 +175,15 @@ func TestConversationManager_checkTransactionList(t *testing.T) {
 
 		err := cMan.check(response)
 
-		assert.EqualError(t, err, "unknown conversation (id=9dbacbabf0c6413591f7553ff4348753)")
+		assert.EqualError(t, err, "unknown or expired conversation (id=9dbacbabf0c6413591f7553ff4348753)")
 	})
 
 	t.Run("error - invalid response", func(t *testing.T) {
 		ref2 := hash.SHA256Sum([]byte{0}).Slice()
-		c := cMan.conversationFromEnvelop(request)
+		c := cMan.conversationFromEnvelope(request)
 		response := &Envelope_TransactionList{
 			TransactionList: &TransactionList{
-				ConversationID: c.conversationID().slice(),
+				ConversationID: c.conversationID.slice(),
 				Transactions: []*Transaction{
 					{
 						Hash: ref,
