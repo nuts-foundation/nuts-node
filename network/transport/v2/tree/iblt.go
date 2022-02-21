@@ -1,6 +1,7 @@
 package tree
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -9,6 +10,10 @@ import (
 
 const (
 	ibltNumBuckets = 1024
+	ibltHc         = uint32(0)
+	ibltHk         = uint32(1)
+	ibltK          = 6
+	bucketBytes    = 44 // = int32 + uint64 + hash.SHA256HashSize
 )
 
 /*
@@ -19,10 +24,46 @@ Eppstein, David, et al. "What's the difference?: efficient set reconciliation wi
 */
 
 type Iblt struct {
-	Buckets []*bucket `json:"buckets"`
-	Hc      uint32    `json:"Hc"`
-	Hk      uint32    `json:"Hk"`
-	K       int       `json:"K"`
+	Hc      uint32    `json:"Hc"`      // #1
+	Hk      uint32    `json:"Hk"`      // #2
+	K       uint8     `json:"K"`       // #3
+	Buckets []*bucket `json:"buckets"` // #4
+}
+
+func (i Iblt) MarshalBinary() ([]byte, error) {
+	data := make([]byte, 9+len(i.Buckets)*bucketBytes)
+	byteOrder().PutUint32(data, i.Hc)     // #1
+	byteOrder().PutUint32(data[4:], i.Hk) // #2
+	data[8] = i.K                         // #3
+	start := 9
+	for idx, b := range i.Buckets {
+		bytes, err := b.MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("bucket %d: %w", idx, err)
+		}
+		copy(data[start:], bytes) // #4
+		start += bucketBytes
+	}
+	return data, nil
+}
+
+func (i *Iblt) UnmarshalBinary(data []byte) error {
+	if len(data) < (9+bucketBytes) || (len(data)-9)%bucketBytes != 0 {
+		return errors.New("invalid data length")
+	}
+	buf := bytes.NewBuffer(data)
+	i.Hc = byteOrder().Uint32(buf.Next(4))
+	i.Hk = byteOrder().Uint32(buf.Next(4))
+	i.K = buf.Next(1)[0]
+	i.Buckets = make([]*bucket, (len(data)-9)/bucketBytes)
+	for j := 0; j < len(i.Buckets); j++ {
+		b := new(bucket)
+		if err := b.UnmarshalBinary(buf.Next(bucketBytes)); err != nil {
+			return err
+		}
+		i.Buckets[j] = b
+	}
+	return nil
 }
 
 func NewIblt(numBuckets int) *Iblt {
@@ -32,9 +73,9 @@ func NewIblt(numBuckets int) *Iblt {
 	}
 	return &Iblt{
 		Buckets: buckets,
-		Hc:      uint32(0),
-		Hk:      uint32(1),
-		K:       6,
+		Hc:      ibltHc,
+		Hk:      ibltHk,
+		K:       ibltK,
 	}
 }
 
@@ -143,7 +184,7 @@ func (i *Iblt) bucketIndices(hash uint64) []uint64 {
 	bucketUsed := make(map[uint64]bool, i.K)
 	var indices []uint64
 	next := xorshift64(hash)
-	for len(indices) < i.K {
+	for len(indices) < int(i.K) {
 		bucketId := next % uint64(len(i.Buckets))
 		if !bucketUsed[bucketId] {
 			indices = append(indices, bucketId)
@@ -161,9 +202,28 @@ func (i *Iblt) hashKey(key hash.SHA256Hash) uint64 {
 // bucket
 type bucket struct {
 	// Count is signed to allow for negative counts after subtraction
-	Count   int             `json:"count"`
-	KeySum  hash.SHA256Hash `json:"key_sum"`
-	HashSum uint64          `json:"hash_sum"`
+	Count   int32           `json:"count"`    // #1
+	HashSum uint64          `json:"hash_sum"` // #2
+	KeySum  hash.SHA256Hash `json:"key_sum"`  // #3
+}
+
+func (b bucket) MarshalBinary() ([]byte, error) {
+	bs := make([]byte, bucketBytes)
+	byteOrder().PutUint32(bs, uint32(b.Count)) // #1
+	byteOrder().PutUint64(bs[4:], b.HashSum)   // #2
+	copy(bs[12:], b.KeySum.Slice())            // #3
+	return bs, nil
+}
+
+func (b *bucket) UnmarshalBinary(data []byte) error {
+	if len(data) != bucketBytes {
+		return errors.New("invalid data length")
+	}
+	buf := bytes.NewBuffer(data)
+	b.Count = int32(byteOrder().Uint32(buf.Next(4)))
+	b.HashSum = byteOrder().Uint64(buf.Next(8))
+	b.KeySum = hash.FromSlice(buf.Next(32))
+	return nil
 }
 
 func (b *bucket) add(key hash.SHA256Hash, hash uint64) {
@@ -207,4 +267,29 @@ func xorshift64(s uint64) uint64 {
 	s ^= s >> 7
 	s ^= s << 17
 	return s
+}
+
+// adapted from github.com/spaolacci/murmur3/murmur32.go to
+//	remove overhead and unnecessary uint32 -> []byte -> uint32 conversion
+//	not sure if endianness plays a role anywhere (bitshift operations?)
+func murmur3_32(hash uint32) uint32 {
+	k1 := hash
+	h1 := ibltHk
+
+	k1 *= 0xcc9e2d51
+	k1 = (k1 << 15) | (k1 >> 17)
+	k1 *= 0x1b873593
+
+	h1 ^= k1
+	h1 = (h1 << 13) | (h1 >> 19)
+	h1 = h1*4 + h1 + 0xe6546b64
+
+	h1 ^= uint32(4) // 4 is num bytes
+	h1 ^= h1 >> 16
+	h1 *= 0x85ebca6b
+	h1 ^= h1 >> 13
+	h1 *= 0xc2b2ae35
+	h1 ^= h1 >> 16
+
+	return h1
 }
