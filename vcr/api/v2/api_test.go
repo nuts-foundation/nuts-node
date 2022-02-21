@@ -362,13 +362,42 @@ func TestWrapper_VerifyVC(t *testing.T) {
 }
 
 func TestWrapper_RevokeVC(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	credentialID := "did:nuts:123#abc"
+	credentialURI := ssi.MustParseURI(credentialID)
 
-	w := &Wrapper{}
-	ctx := mock.NewMockContext(ctrl)
-	err := w.RevokeVC(ctx, "")
-	assert.EqualError(t, err, "not yet implemented, use the v1 api")
+	t.Run("test integration with vcr", func(t *testing.T) {
+		t.Run("successful revocation", func(t *testing.T) {
+			testContext := newMockContext(t)
+			defer testContext.ctrl.Finish()
+
+			expectedRevocation := &Revocation{Subject: credentialURI}
+			testContext.vcr.EXPECT().Revoke(credentialURI).Return(expectedRevocation, nil)
+			testContext.echo.EXPECT().JSON(http.StatusOK, expectedRevocation)
+
+			err := testContext.client.RevokeVC(testContext.echo, credentialID)
+			assert.NoError(t, err)
+		})
+
+		t.Run("vcr returns an error", func(t *testing.T) {
+			testContext := newMockContext(t)
+			defer testContext.ctrl.Finish()
+
+			testContext.vcr.EXPECT().Revoke(credentialURI).Return(nil, errors.New("credential not found"))
+			err := testContext.client.RevokeVC(testContext.echo, credentialID)
+			assert.EqualError(t, err, "credential not found")
+		})
+	})
+
+	t.Run("param check", func(t *testing.T) {
+		t.Run("invalid credential id format", func(t *testing.T) {
+			testContext := newMockContext(t)
+			defer testContext.ctrl.Finish()
+
+			err := testContext.client.RevokeVC(testContext.echo, "%%")
+			assert.EqualError(t, err, "invalid credential id: parse \"%%\": invalid URL escape \"%%\"")
+		})
+
+	})
 }
 
 func TestWrapper_Preprocess(t *testing.T) {
