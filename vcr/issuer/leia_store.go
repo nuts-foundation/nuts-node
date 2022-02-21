@@ -21,11 +21,13 @@ package issuer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v2"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
@@ -90,6 +92,32 @@ func (s leiaStore) StoreRevocation(r credential.Revocation) error {
 	panic("implement me")
 }
 
+func (s leiaStore) GetCredential(ID ssi.URI) (vc.VerifiableCredential, error) {
+	credential := vc.VerifiableCredential{}
+	query := leia.New(leia.Eq(concept.IDField, ID.String()))
+
+	results, err := s.collection.Find(context.Background(), query)
+	if err != nil {
+		return credential, fmt.Errorf("could not get credential by id: %w", err)
+	}
+	if len(results) == 0 {
+		return credential, ErrNotFound
+	}
+	if len(results) > 1 {
+		return credential, errors.New("found more than one credential by id")
+	}
+	result := results[0]
+	if err := json.Unmarshal(result.Bytes(), &credential); err != nil {
+		return credential, err
+	}
+	return credential, nil
+}
+
+func (s leiaStore) GetRevocation(id ssi.URI) (credential.Revocation, error) {
+	// TODO: implement me
+	return credential.Revocation{}, ErrNotFound
+}
+
 func (s leiaStore) Close() error {
 	return s.store.Close()
 }
@@ -97,10 +125,14 @@ func (s leiaStore) Close() error {
 // createIndices creates the needed indices for the issued VC store
 // It allows faster searching on context, type issuer and subject values.
 func (s leiaStore) createIndices() error {
-	index := leia.NewIndex("issuedVCs",
+	searchIndex := leia.NewIndex("issuedVCs",
 		leia.NewFieldIndexer("issuer"),
 		leia.NewFieldIndexer("type"),
 		leia.NewFieldIndexer("credentialSubject.id"),
 	)
-	return s.collection.AddIndex(index)
+
+	// Index used for getting issued VCs by id
+	idIndex := leia.NewIndex("issuedVCByID",
+		leia.NewFieldIndexer("id"))
+	return s.collection.AddIndex(searchIndex, idIndex)
 }

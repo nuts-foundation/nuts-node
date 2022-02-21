@@ -28,6 +28,10 @@ import (
 
 // Revocation defines a proof that a VC has been revoked by it's issuer.
 type Revocation struct {
+	// Context contains the json-ld contexts
+	Context []ssi.URI `json:"@context,omitempty"`
+	// Type contains the json-ld type, usually this is CredentialRevocation
+	Type []ssi.URI `json:"type,omitempty"`
 	// Issuer refers to the party that issued the credential
 	Issuer ssi.URI `json:"issuer"`
 	// Subject refers to the VC that is revoked
@@ -42,7 +46,11 @@ type Revocation struct {
 
 // BuildRevocation generates a revocation based on the credential
 func BuildRevocation(credential vc.VerifiableCredential) Revocation {
+	revocationType := ssi.MustParseURI("CredentialRevocation")
+	nutsCredentialContext := ssi.MustParseURI("https://nuts.nl/credentials/v1")
 	return Revocation{
+		Context: []ssi.URI{nutsCredentialContext},
+		Type:    []ssi.URI{revocationType},
 		Issuer:  credential.Issuer,
 		Subject: *credential.ID,
 		Date:    nowFunc(),
