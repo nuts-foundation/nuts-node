@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  nuts-node-chart:
+  - apiVersion: v2
+    appVersion: 0.0.1
+    created: "2022-02-21T14:08:12.303057704Z"
+    description: A NUTS node Helm chart for Kubernetes
+    digest: f5e4ab25a90671f0ac2250dc19df9af01798266bb25affb443686ba66d614759
+    name: nuts-node-chart
+    type: application
+    urls:
+    - https://github.com/nuts-foundation/nuts-node/releases/download/nuts-node-chart-0.0.1/nuts-node-chart-0.0.1.tgz
+    version: 0.0.1
+generated: "2022-02-21T14:08:12.303063305Z"
