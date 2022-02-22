@@ -36,10 +36,11 @@ type Version int
 const currentVersion = 1
 
 const (
-	signingTimeHeader = "sigt"
-	versionHeader     = "ver"
-	previousHeader    = "prevs"
-	palHeader         = "pal"
+	signingTimeHeader  = "sigt"
+	versionHeader      = "ver"
+	previousHeader     = "prevs"
+	palHeader          = "pal"
+	lamportClockHeader = "lc"
 )
 
 var allowedAlgos = []jwa.SignatureAlgorithm{jwa.ES256, jwa.ES384, jwa.ES512, jwa.PS256, jwa.PS384, jwa.PS512}
@@ -56,6 +57,9 @@ type UnsignedTransaction interface {
 	NetworkHeader
 	Addressable
 	PayloadReferencer
+
+	// Clock returns the Lamport clock value
+	Clock() uint32
 }
 
 // PayloadReferencer allows implementers to reference to a payload.
@@ -111,14 +115,12 @@ type Transaction interface {
 	json.Marshaler
 	// Data returns the byte representation of this transaction which can be used for transport.
 	Data() []byte
-	// Clock returns the Lamport clock value
-	Clock() uint32
 }
 
 // NewTransaction creates a new unsigned transaction. Parameters payload and payloadType can't be empty, but prevs is optional.
 // Prevs must not contain empty or invalid hashes. Duplicate prevs will be removed when given.
 // The pal byte slice (may be nil) holds the encrypted recipient address, if it is a private transaction.
-func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash, pal EncryptedPAL) (UnsignedTransaction, error) {
+func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash, pal EncryptedPAL, lamportClock uint32) (UnsignedTransaction, error) {
 	if !ValidatePayloadType(payloadType) {
 		return nil, errInvalidPayloadType
 	}
@@ -144,10 +146,11 @@ func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SH
 	}
 
 	result := transaction{
-		payload:     payload,
-		payloadType: payloadType,
-		version:     currentVersion,
-		pal:         pal,
+		payload:      payload,
+		payloadType:  payloadType,
+		version:      currentVersion,
+		pal:          pal,
+		lamportClock: lamportClock,
 	}
 	if len(deduplicated) > 0 {
 		result.prevs = append(deduplicated)

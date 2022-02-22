@@ -95,7 +95,7 @@ func TestCmd_List(t *testing.T) {
 func TestCmd_Get(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cmd := Cmd()
-		response := dag.CreateTestTransactionWithJWK(1, hash.SHA256Sum([]byte{1, 2, 3}))
+		response := dag.CreateTestTransactionWithJWK(1)
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)

@@ -392,11 +392,18 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 		}
 	}
 
+	// Calculate clock value
+	lamportClock, err := n.calculateLamportClock(ctx, prevs)
+	if err != nil {
+		return nil, fmt.Errorf("unable to calculate clock value for new transaction: %w", err)
+	}
+
 	// Create transaction
-	unsignedTransaction, err := dag.NewTransaction(payloadHash, template.Type, prevs, pal)
+	unsignedTransaction, err := dag.NewTransaction(payloadHash, template.Type, prevs, pal, lamportClock)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create new transaction: %w", err)
 	}
+
 	// Sign it
 	var transaction dag.Transaction
 	var signer dag.TransactionSigner
@@ -415,6 +422,28 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 	}
 	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), template.Type, len(template.Payload))
 	return transaction, nil
+}
+
+func (n *Network) calculateLamportClock(ctx context.Context, prevs []hash.SHA256Hash) (uint32, error) {
+	// the root has 0
+	if len(prevs) == 0 {
+		return 0, nil
+	}
+
+	var clock uint32
+	for _, prev := range prevs {
+		// GetTransaction always supplies an LC value, either calculated or stored
+		tx, err := n.state.GetTransaction(ctx, prev)
+		if err != nil {
+			return 0, err
+		}
+		if tx.Clock() > clock {
+			clock = tx.Clock()
+		}
+	}
+
+	// add one
+	return clock + 1, nil
 }
 
 // Shutdown cleans up any leftover go routines

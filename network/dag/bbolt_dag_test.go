@@ -65,7 +65,7 @@ func TestBBoltDAG_FindBetween(t *testing.T) {
 
 		// tx1 and tx2's signing time are out-of-order
 		tx1 := CreateSignedTestTransaction(2, time.Now().AddDate(0, 0, 1), nil, "unit/test", true)
-		tx2 := CreateSignedTestTransaction(1, time.Now(), nil, "unit/test", true, tx1.Ref())
+		tx2 := CreateSignedTestTransaction(1, time.Now(), nil, "unit/test", true, tx1)
 		_ = graph.Add(ctx, tx1)
 		_ = graph.Add(ctx, tx2)
 
@@ -104,7 +104,7 @@ func TestBBoltDAG_Get(t *testing.T) {
 		// It happened when there was concurrent read/write access to BBolt (e.g. adding and reading TXs concurrently).
 		graph := CreateDAG(t)
 		// Create root TX
-		rootTX := CreateTestTransactionWithJWK(uint32(0))
+		rootTX := CreateTestTransactionWithJWK(0)
 		graph.Add(context.Background(), rootTX)
 		// Create and read TXs in parallel to trigger error scenario
 		const numTX = 10
@@ -114,7 +114,7 @@ func TestBBoltDAG_Get(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				cxt := context.Background()
-				tx := CreateTestTransactionWithJWK(uint32(rand.Int31n(100000)), rootTX.Ref())
+				tx := CreateTestTransactionWithJWK(uint32(rand.Int31n(100000)), rootTX)
 				if !assert.NoError(t, graph.Add(cxt, tx)) {
 					return
 				}
@@ -181,8 +181,8 @@ func TestBBoltDAG_Add(t *testing.T) {
 		// A -> B -> C -> B
 		ctx := context.Background()
 		A := CreateTestTransactionWithJWK(0)
-		B := CreateTestTransactionWithJWK(1, A.Ref()).(*transaction)
-		C := CreateTestTransactionWithJWK(2, B.Ref())
+		B := CreateTestTransactionWithJWK(1, A).(*transaction)
+		C := CreateTestTransactionWithJWK(2, B)
 		B.prevs = append(B.prevs, C.Ref())
 
 		graph := CreateDAG(t)
@@ -192,9 +192,12 @@ func TestBBoltDAG_Add(t *testing.T) {
 }
 
 func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
+	// These three transactions come with a clock value.
 	A := CreateTestTransactionWithJWK(0)
-	B := CreateTestTransactionWithJWK(1, A.Ref())
-	C := CreateTestTransactionWithJWK(2, B.Ref())
+	B := CreateTestTransactionWithJWK(1, A)
+	C := CreateTestTransactionWithJWK(2, B)
+	// This one doesn't
+	D := CreateLegacyTransactionWithJWK(3, C)
 
 	assertRefs := func(t *testing.T, tx *bbolt.Tx, clock uint32, expected []hash.SHA256Hash) {
 		lcBucket, _ := tx.CreateBucketIfNotExists([]byte(clockBucket))
@@ -236,6 +239,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 			_ = indexClockValue(tx, A)
 			_ = indexClockValue(tx, B)
 			_ = indexClockValue(tx, C)
+			_ = indexClockValue(tx, D)
 
 			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
 			assertClock(t, tx, 0, A.Ref())
@@ -243,6 +247,8 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 			assertClock(t, tx, 1, B.Ref())
 			assertRefs(t, tx, 2, []hash.SHA256Hash{C.Ref()})
 			assertClock(t, tx, 2, C.Ref())
+			assertRefs(t, tx, 3, []hash.SHA256Hash{D.Ref()})
+			assertClock(t, tx, 3, D.Ref())
 
 			return nil
 		})
@@ -273,7 +279,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 	t.Run("Ok branch", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		db := createBBoltDB(testDirectory)
-		C := CreateTestTransactionWithJWK(2, A.Ref())
+		C := CreateTestTransactionWithJWK(2, A)
 
 		err := db.Update(func(tx *bbolt.Tx) error {
 			_ = indexClockValue(tx, A)
@@ -297,7 +303,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		db := createBBoltDB(testDirectory)
 
 		err := db.Update(func(tx *bbolt.Tx) error {
-			return indexClockValue(tx, B)
+			return indexClockValue(tx, D)
 		})
 
 		assert.Error(t, err)
@@ -307,9 +313,9 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 
 func TestBBoltDAG_Migrate(t *testing.T) {
 	A := CreateTestTransactionWithJWK(0)
-	B := CreateTestTransactionWithJWK(1, A.Ref())
-	C := CreateTestTransactionWithJWK(2, A.Ref())
-	D := CreateTestTransactionWithJWK(3, A.Ref(), C.Ref())
+	B := CreateTestTransactionWithJWK(1, A)
+	C := CreateTestTransactionWithJWK(2, A)
+	D := CreateTestTransactionWithJWK(3, A, C)
 
 	putTransaction := func(tx *bbolt.Tx, transaction Transaction, nexts []hash.SHA256Hash) {
 		// create correct buckets and add root
@@ -461,9 +467,9 @@ func TestBBoltDAG_Walk(t *testing.T) {
 		graph := CreateDAG(t)
 		visitor := trackingVisitor{}
 		A := CreateTestTransactionWithJWK(1)
-		B := CreateTestTransactionWithJWK(2, A.Ref())
-		C := CreateTestTransactionWithJWK(3, A.Ref())
-		D := CreateTestTransactionWithJWK(4, C.Ref(), B.Ref())
+		B := CreateTestTransactionWithJWK(2, A)
+		C := CreateTestTransactionWithJWK(3, A)
+		D := CreateTestTransactionWithJWK(4, C, B)
 		_ = graph.Add(ctx, A, B, C, D)
 
 		err := graph.Walk(ctx, visitor.Accept, hash.EmptyHash())
@@ -510,7 +516,7 @@ func TestBBoltDAG_PayloadHashes(t *testing.T) {
 		payloads[rootTX.PayloadHash()] = false
 		_ = graph.Add(ctx, rootTX)
 		for i := 1; i < numberOfTXs; i++ {
-			tx := CreateTestTransactionWithJWK(uint32(i), rootTX.Ref())
+			tx := CreateTestTransactionWithJWK(uint32(i), rootTX)
 			_ = graph.Add(ctx, tx)
 			payloads[tx.PayloadHash()] = false
 		}

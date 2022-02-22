@@ -1,0 +1,138 @@
+# Default values for chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: nutsfoundation/nuts-node
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "master"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  internalPort: 1323
+  port: 1323
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+nuts:
+  config:
+    # Everything below `nuts.config` will be placed into the `nuts.yaml` config file of the Pods
+    datadir: /opt/nuts/data
+    http:
+      default:
+        address: :1323
+        cors:
+          origin: "*"
+    verbosity: debug
+    network:
+      truststorefile: /opt/nuts/ssl/ca.pem
+      certfile: /opt/nuts/ssl/node.nuts.local.pem
+      certkeyfile: /opt/nuts/ssl/node.nuts.local.key
+      enabletls: false
+      grpcaddr: :5555
+
+  # Config for the NUTS data mount inside Kubernetes
+  data:
+    persistedVolume:
+      capacity: 100Mi
+      mountPath: /opt/nuts/data
+      accessModes:
+        - ReadWriteOnce
+
+  ssl:
+    # Every key below will be loaded as a Secret and mounted as a file at /opt/nuts/ssl
+    ca.pem: |
+      -----BEGIN CERTIFICATE-----
+      MIIBRTCB7AIJALJF8KRRy61uMAoGCCqGSM49BAMCMCsxKTAnBgNVBAMMIE51dHMg
+      RGV2ZWxvcG1lbnQgTmV0d29yayBSb290IENBMB4XDTIxMDEyOTE1MzE1M1oXDTI0
+      MDEyOTE1MzE1M1owKzEpMCcGA1UEAwwgTnV0cyBEZXZlbG9wbWVudCBOZXR3b3Jr
+      IFJvb3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQIVDDxntwkQm/vtyml
+      zBn9rOJD3yzBNVDlKn0Mh5nDdf4Q9iPWSWE6sUODsandmG18a+JjvykehXjWpSEd
+      um2LMAoGCCqGSM49BAMCA0gAMEUCIFjqDMqyx7If7BJb66LiyLE6AfURnOIZ+bGk
+      kGOdbz5tAiEA9OjlXxWdK+sYgk4YEv6wNNiAkUqDKGTumFVRpjBdr+E=
+      -----END CERTIFICATE-----
+    node.nuts.local.key: |
+      -----BEGIN EC PRIVATE KEY-----
+      MHcCAQEEIJkFaazHl8cQuaKQuvP8yboKcDCAOngEbJBIKTONKsiUoAoGCCqGSM49
+      AwEHoUQDQgAE2W073KrmnGGwChgAySRu/NmB6iEX+8dE4DRyoEhORv1VM9lIkfIm
+      baAX0VKZJzc6/6p7z49+fYzhI6qCWxV03A==
+      -----END EC PRIVATE KEY-----
+    node.nuts.local.pem: |
+      -----BEGIN CERTIFICATE-----
+      MIIBWjCCAQCgAwIBAgIJAOSXSBpJZyQPMAoGCCqGSM49BAMCMCsxKTAnBgNVBAMM
+      IE51dHMgRGV2ZWxvcG1lbnQgTmV0d29yayBSb290IENBMB4XDTIxMTEwMzEzMDQx
+      MVoXDTIyMTEwMzEzMDQxMVowGjEYMBYGA1UEAwwPbm9kZS5udXRzLmxvY2FsMFkw
+      EwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2W073KrmnGGwChgAySRu/NmB6iEX+8dE
+      4DRyoEhORv1VM9lIkfImbaAX0VKZJzc6/6p7z49+fYzhI6qCWxV03KMeMBwwGgYD
+      VR0RBBMwEYIPbm9kZS5udXRzLmxvY2FsMAoGCCqGSM49BAMCA0gAMEUCIACXbFuP
+      tPeduokCmVQAIavaUj2JlTmcIBDHvC6wZihEAiEA0fcogH7MjPrE/6bDaxZtNh0Q
+      K6QDx9YVt/Mo6MFBgQY=
+      -----END CERTIFICATE-----

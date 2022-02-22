@@ -34,7 +34,7 @@ func Test_missingPayloadCollector(t *testing.T) {
 
 	// 2 transactions: TX0 is OK, TX1 is missing payload
 	tx0, _, _ := dag.CreateTestTransaction(0)
-	tx1, _, _ := dag.CreateTestTransaction(1, tx0.Ref())
+	tx1, _, _ := dag.CreateTestTransaction(1, tx0)
 
 	state := dag.NewMockState(ctrl)
 	// looks a bit odd because of mocking callbacks

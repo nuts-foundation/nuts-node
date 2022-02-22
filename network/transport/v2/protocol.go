@@ -148,13 +148,23 @@ func (p *protocol) Start() (err error) {
 	p.cMan = newConversationManager(maxValidity)
 	p.cMan.start(p.ctx)
 
-	// load old payload query jobs
-	if err = p.payloadScheduler.Run(); err != nil {
-		return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
+	nodeDID, err := p.nodeDIDResolver.Resolve()
+	if err != nil {
+		log.Logger().WithError(err).Error("Failed to resolve node DID")
 	}
 
-	// todo replace with observer, underlying storage is persistent
-	p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
+	if nodeDID.Empty() {
+		log.Logger().Warn("Not starting the payload scheduler as node DID is not set")
+	} else {
+		// load old payload query jobs
+		if err = p.payloadScheduler.Run(); err != nil {
+			return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
+		}
+
+		// todo replace with observer, underlying storage is persistent
+		p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
+	}
+
 	return
 }
 
