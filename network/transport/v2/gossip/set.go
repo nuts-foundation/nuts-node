@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have logReceivedTransactions a copy of the GNU General Public License
+ * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
@@ -50,26 +50,14 @@ func (u *uniqueList) Len() int {
 // Add a value, it'll only be added if all conditions return true.
 // A value is only added if new.
 // condition checking is done within transactional context.
-func (u *uniqueList) Add(ref hash.SHA256Hash, conditions ...ConditionFunc) {
-	for _, c := range conditions {
-		if !c(u) {
-			return
-		}
-	}
+func (u *uniqueList) Add(ref hash.SHA256Hash) {
 	if _, ok := u.set[ref.String()]; !ok {
 		u.set[ref.String()] = u.list.PushBack(ref)
 	}
 }
 
-// Remove a value, it'll only be removed if all conditions return true
-// condition checking is done within transactional context.
-func (u *uniqueList) Remove(ref hash.SHA256Hash, conditions ...ConditionFunc) {
-	for _, c := range conditions {
-		if !c(u) {
-			return
-		}
-	}
-
+// Remove a value
+func (u *uniqueList) Remove(ref hash.SHA256Hash) {
 	if element, ok := u.set[ref.String()]; ok {
 		u.list.Remove(element)
 		delete(u.set, ref.String())
@@ -77,14 +65,7 @@ func (u *uniqueList) Remove(ref hash.SHA256Hash, conditions ...ConditionFunc) {
 }
 
 // RemoveFront the first value from the list.
-// condition checking is done within transactional context.
-func (u *uniqueList) RemoveFront(conditions ...ConditionFunc) {
-	for _, c := range conditions {
-		if !c(u) {
-			return
-		}
-	}
-
+func (u *uniqueList) RemoveFront() {
 	if element := u.list.Front(); element != nil {
 		data := element.Value.(hash.SHA256Hash)
 		delete(u.set, data.String())

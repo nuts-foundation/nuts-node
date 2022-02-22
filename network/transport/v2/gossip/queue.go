@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have logReceivedTransactions a copy of the GNU General Public License
+ * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
@@ -26,11 +26,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
-// peerQueue contains a log of logReceivedTransactions transaction references and a queue of references to send for a specific peer.
+// peerQueue contains a log of received transaction references and a queue of references to send for a specific peer.
 type peerQueue struct {
 	// cancelFunc to unregister the ticker for this peer
 	cancelFunc context.CancelFunc
-	// log of recent logReceivedTransactions transaction hashes
+	// log of recent received transaction hashes
 	log *uniqueList
 	// maxSize determines how many items are kept in each list
 	maxSize int
@@ -95,9 +95,9 @@ func (pq *peerQueue) logReceivedTransactions(refs ...hash.SHA256Hash) {
 		pq.queue.Remove(ref)
 
 		// shrink log if too big
-		pq.log.RemoveFront(func(u *uniqueList) bool {
-			return pq.log.Len() > pq.maxSize
-		})
+		if pq.log.Len() > pq.maxSize {
+			pq.log.RemoveFront()
+		}
 	}
 }
 

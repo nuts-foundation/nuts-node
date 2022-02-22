@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have logReceivedTransactions a copy of the GNU General Public License
+ * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
@@ -126,7 +126,7 @@ func TestManager_PeerDisconnected(t *testing.T) {
 }
 
 func TestManager_GossipReceived(t *testing.T) {
-	t.Run("ignores logReceivedTransactions gossip when administration is missing", func(t *testing.T) {
+	t.Run("ignores received gossip when administration is missing", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
 
 		gMan.GossipReceived("1", hash.EmptyHash())

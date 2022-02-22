@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have logReceivedTransactions a copy of the GNU General Public License
+ * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
@@ -40,14 +40,13 @@ type SenderFunc func(id transport.PeerID, refs []hash.SHA256Hash) bool
 // Manager handles changes in connections, new transactions and updates from other Gossip messages.
 // It keeps track of transaction hashes that still have to be send to a peer in a queue.
 // If a peer gossips a particular hash, that hash is removed from the peer queue to reduce traffic.
-// It also keeps a small log of logReceivedTransactions hashes from a peer.
+// It also keeps a small log of received hashes from a peer.
 //When a transaction is added to the DAG but exists in that log, it won't be gossipped to that peer.
 type Manager interface {
 	// GossipReceived is to be called each time a peer sends a Gossip message.
 	// All hashes should be removed from the peer's queue and added to the log.
 	GossipReceived(id transport.PeerID, refs ...hash.SHA256Hash)
 	// PeerConnected is to be called when a new peer connects. A new gossip queue will then be created for this peer.
-	// It will also registerContext a ticker for this peer.
 	PeerConnected(peer transport.Peer)
 	// PeerDisconnected is to be called when a peer disconnects. The gossip queue can then be cleared.
 	PeerDisconnected(peer transport.Peer)
@@ -87,7 +86,7 @@ func (m *manager) GossipReceived(id transport.PeerID, refs ...hash.SHA256Hash) {
 
 	peer, ok := m.peers[string(id)]
 	if !ok {
-		log.Logger().Errorf("logReceivedTransactions gossip from peer, but gossip administration is missing, peer=%s", string(id))
+		log.Logger().Errorf("received gossip from peer, but gossip administration is missing, peer=%s", string(id))
 		return
 	}
 
