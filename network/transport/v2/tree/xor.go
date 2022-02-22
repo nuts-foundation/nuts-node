@@ -36,6 +36,10 @@ func (x *XorHash) Insert(ref hash.SHA256Hash) error {
 	return nil
 }
 
+func (x *XorHash) Add(data Data) error {
+	return x.Subtract(data)
+}
+
 func (x *XorHash) Subtract(data Data) error {
 	switch v := data.(type) {
 	case *XorHash:

@@ -32,16 +32,20 @@ type Iblt struct {
 }
 
 func NewIblt(numBuckets int) *Iblt {
-	buckets := make([]*bucket, numBuckets)
-	for i := 0; i < numBuckets; i++ {
-		buckets[i] = new(bucket)
-	}
 	return &Iblt{
-		Buckets: buckets,
+		Buckets: makeBuckets(numBuckets),
 		Hc:      ibltHc,
 		Hk:      ibltHk,
 		K:       ibltK,
 	}
+}
+
+func makeBuckets(numBuckets int) []*bucket {
+	buckets := make([]*bucket, numBuckets)
+	for i := 0; i < numBuckets; i++ {
+		buckets[i] = new(bucket)
+	}
+	return buckets
 }
 
 func (i *Iblt) New() Data {
@@ -53,7 +57,10 @@ func (i *Iblt) Clone() Data {
 }
 
 func (i *Iblt) Insert(ref hash.SHA256Hash) error {
-	i.Add(ref)
+	keyHash := i.hashKey(ref)
+	for _, h := range i.bucketIndices(keyHash) {
+		i.Buckets[h].insert(ref, keyHash)
+	}
 	return nil
 }
 
@@ -66,6 +73,35 @@ func (i *Iblt) Subtract(other Data) error {
 	}
 }
 
+func (i *Iblt) subtract(other *Iblt) error {
+	if err := i.matches(other); err != nil {
+		return fmt.Errorf("subtraction failed: %w", err)
+	}
+	for idx, b := range i.Buckets {
+		b.subtract(other.Buckets[idx])
+	}
+	return nil
+}
+
+func (i *Iblt) Add(other Data) error {
+	switch o := other.(type) {
+	case *Iblt:
+		return i.subtract(o)
+	default:
+		return fmt.Errorf("addition failed - expected type %T, got %T", i, o)
+	}
+}
+
+func (i *Iblt) add(other *Iblt) error {
+	if err := i.matches(other); err != nil {
+		return fmt.Errorf("addition failed: %w", err)
+	}
+	for idx, b := range i.Buckets {
+		b.add(other.Buckets[idx])
+	}
+	return nil
+}
+
 func (i Iblt) clone() *Iblt {
 	tmpBuckets := make([]*bucket, len(i.Buckets))
 	for idx, b := range i.Buckets {
@@ -75,13 +111,6 @@ func (i Iblt) clone() *Iblt {
 	return &i
 }
 
-func (i *Iblt) Add(key hash.SHA256Hash) {
-	keyHash := i.hashKey(key)
-	for _, h := range i.bucketIndices(keyHash) {
-		i.Buckets[h].add(key, keyHash)
-	}
-}
-
 func (i *Iblt) Delete(key hash.SHA256Hash) {
 	keyHash := i.hashKey(key)
 	for _, h := range i.bucketIndices(keyHash) {
@@ -89,17 +118,7 @@ func (i *Iblt) Delete(key hash.SHA256Hash) {
 	}
 }
 
-func (i *Iblt) subtract(other *Iblt) error {
-	if err := i.validateSubtrahend(other); err != nil {
-		return fmt.Errorf("subtraction failed: %w", err)
-	}
-	for idx, b := range i.Buckets {
-		b.subtract(other.Buckets[idx])
-	}
-	return nil
-}
-
-func (i *Iblt) validateSubtrahend(o *Iblt) error {
+func (i *Iblt) matches(o *Iblt) error {
 	if len(i.Buckets) != len(o.Buckets) {
 		return fmt.Errorf("number of Buckets do not match, expected (%d) got (%d)", len(i.Buckets), len(o.Buckets))
 	}
@@ -119,7 +138,7 @@ func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash,
 	for {
 		updated := false
 
-		// for each pure (count == +1 or -1), if hashSum = h(key) -> Add(count == -1)/Delete(count == 1) key
+		// for each pure (count == +1 or -1), if hashSum = h(key) -> insert(count == -1)/Delete(count == 1) key
 		for _, b := range i.Buckets {
 			if (b.Count == 1 || b.Count == -1) && i.hashKey(b.KeySum) == b.HashSum {
 				if b.Count == 1 {
@@ -127,7 +146,10 @@ func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash,
 					i.Delete(b.KeySum)
 				} else { // b.count == -1
 					missing = append(missing, b.KeySum)
-					i.Add(b.KeySum)
+					err = i.Insert(b.KeySum)
+					if err != nil {
+						return nil, nil, err
+					}
 				}
 				updated = true
 			}
@@ -145,17 +167,20 @@ func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash,
 	}
 }
 
-func (i *Iblt) bucketIndices(hash uint64) []uint64 {
-	bucketUsed := make(map[uint64]bool, i.K)
-	var indices []uint64
-	next := xorshift64(hash)
+func (i *Iblt) bucketIndices(hash uint64) []uint32 {
+	bucketUsed := make(map[uint32]bool, i.K)
+	var indices []uint32
+	hashBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(hashBytes, hash)
+	next := murmur3.Sum32WithSeed(hashBytes, i.Hk)
 	for len(indices) < int(i.K) {
-		bucketId := next % uint64(len(i.Buckets))
+		bucketId := next % uint32(len(i.Buckets))
 		if !bucketUsed[bucketId] {
 			indices = append(indices, bucketId)
 			bucketUsed[bucketId] = true
 		}
-		next = xorshift64(next)
+		binary.LittleEndian.PutUint32(hashBytes, next)
+		next = murmur3.Sum32WithSeed(hashBytes[:4], i.Hk)
 	}
 	return indices
 }
@@ -165,37 +190,33 @@ func (i *Iblt) hashKey(key hash.SHA256Hash) uint64 {
 }
 
 func (i Iblt) MarshalBinary() ([]byte, error) {
-	data := make([]byte, 9+len(i.Buckets)*bucketBytes)
-	byteOrder().PutUint32(data, i.Hc)     // #1
-	byteOrder().PutUint32(data[4:], i.Hk) // #2
-	data[8] = i.K                         // #3
-	start := 9
+	data := make([]byte, ibltNumBuckets*bucketBytes)
+	p := 0
 	for idx, b := range i.Buckets {
 		bs, err := b.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("bucket %d: %w", idx, err)
 		}
-		copy(data[start:], bs) // #4
-		start += bucketBytes
+		copy(data[p:], bs) // #4
+		p += bucketBytes
 	}
 	return data, nil
 }
 
 func (i *Iblt) UnmarshalBinary(data []byte) error {
-	if len(data) < (9+bucketBytes) || (len(data)-9)%bucketBytes != 0 {
+	if len(data) != ibltNumBuckets*bucketBytes {
 		return errors.New("invalid data length")
 	}
 	buf := bytes.NewBuffer(data)
-	i.Hc = byteOrder().Uint32(buf.Next(4))
-	i.Hk = byteOrder().Uint32(buf.Next(4))
-	i.K = buf.Next(1)[0]
-	i.Buckets = make([]*bucket, (len(data)-9)/bucketBytes)
+	i.Hc = ibltHc
+	i.Hk = ibltHk
+	i.K = ibltK
+	i.Buckets = makeBuckets(ibltNumBuckets)
 	for j := 0; j < len(i.Buckets); j++ {
-		b := new(bucket)
-		if err := b.UnmarshalBinary(buf.Next(bucketBytes)); err != nil {
-			return err
+		err := i.Buckets[j].UnmarshalBinary(buf.Next(bucketBytes))
+		if err != nil {
+			return fmt.Errorf("unmarshalling failed - %w", err)
 		}
-		i.Buckets[j] = b
 	}
 	return nil
 }
@@ -208,7 +229,7 @@ type bucket struct {
 	KeySum  hash.SHA256Hash `json:"key_sum"`  // #3
 }
 
-func (b *bucket) add(key hash.SHA256Hash, hash uint64) {
+func (b *bucket) insert(key hash.SHA256Hash, hash uint64) {
 	b.Count++
 	b.update(key, hash)
 }
@@ -216,6 +237,11 @@ func (b *bucket) add(key hash.SHA256Hash, hash uint64) {
 func (b *bucket) delete(key hash.SHA256Hash, hash uint64) {
 	b.Count--
 	b.update(key, hash)
+}
+
+func (b *bucket) add(o *bucket) {
+	b.Count += o.Count
+	b.update(o.KeySum, o.HashSum)
 }
 
 func (b *bucket) subtract(o *bucket) {
@@ -262,40 +288,4 @@ func (b *bucket) UnmarshalBinary(data []byte) error {
 //
 func byteOrder() binary.ByteOrder {
 	return binary.LittleEndian
-}
-
-// xorshift64 is am RNG form the xorshift family with period 2^64-1.
-func xorshift64(s uint64) uint64 {
-	if s == 0 { // xorshift64(0) == 0
-		s++
-	}
-	s ^= s << 13
-	s ^= s >> 7
-	s ^= s << 17
-	return s
-}
-
-// adapted from github.com/spaolacci/murmur3/murmur32.go to
-//	remove overhead and unnecessary uint32 -> []byte -> uint32 conversion
-//	not sure if endianness plays a role anywhere (bitshift operations?)
-func murmur3_32(hash uint32) uint32 {
-	k1 := hash
-	h1 := ibltHk
-
-	k1 *= 0xcc9e2d51
-	k1 = (k1 << 15) | (k1 >> 17)
-	k1 *= 0x1b873593
-
-	h1 ^= k1
-	h1 = (h1 << 13) | (h1 >> 19)
-	h1 = h1*4 + h1 + 0xe6546b64
-
-	h1 ^= uint32(4) // 4 is num bytes
-	h1 ^= h1 >> 16
-	h1 *= 0x85ebca6b
-	h1 ^= h1 >> 13
-	h1 *= 0xc2b2ae35
-	h1 ^= h1 >> 16
-
-	return h1
 }

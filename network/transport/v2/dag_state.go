@@ -19,7 +19,7 @@ type StateDAG interface {
 type stateDAG struct {
 	seenTx     map[hash.SHA256Hash]bool
 	maxKnownLC uint32
-	xorTree    *tree.Tree
+	xorTree    tree.Tree
 	mutex      sync.RWMutex
 }
 

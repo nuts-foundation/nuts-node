@@ -12,7 +12,7 @@ import (
 const testLeafSize = uint32(4)
 
 func TestNew(t *testing.T) {
-	emptyTree := New(NewXor(), testLeafSize)
+	emptyTree := New(NewXor(), testLeafSize).(*tree)
 
 	// tree
 	assert.Equal(t, uint8(0), emptyTree.Depth)
@@ -39,7 +39,7 @@ func TestTree_Insert(t *testing.T) {
 		assert.Equal(t, ref, hashFromXor(tr.Root))
 	})
 
-	t.Run("insert single Tx out of Tree range", func(t *testing.T) {
+	t.Run("insert single Tx out of tree range", func(t *testing.T) {
 		ref := generateTxRef()
 		tr := newTree(NewXor(), testLeafSize)
 
@@ -122,7 +122,7 @@ func TestTree_GetZeroTo(t *testing.T) {
 
 func TestTree_DropLeaves(t *testing.T) {
 	t.Run("root should not be dropped", func(t *testing.T) {
-		tr := &Tree{Depth: 0, LeafSize: testLeafSize, Root: &node{}}
+		tr := &tree{Depth: 0, Root: &node{}}
 
 		tr.DropLeaves()
 
@@ -130,11 +130,10 @@ func TestTree_DropLeaves(t *testing.T) {
 		assert.Nil(t, tr.Root.Left)
 		assert.Nil(t, tr.Root.Right)
 		assert.Equal(t, uint8(0), tr.Depth)
-		assert.Equal(t, testLeafSize, tr.LeafSize)
 	})
 
 	t.Run("drop leaves 1->0", func(t *testing.T) {
-		tr := &Tree{Depth: 1, LeafSize: testLeafSize, Root: &node{Left: &node{}, Right: &node{}}}
+		tr := &tree{Depth: 1, Root: &node{Left: &node{}, Right: &node{}}}
 
 		tr.DropLeaves()
 
@@ -142,11 +141,10 @@ func TestTree_DropLeaves(t *testing.T) {
 		assert.Nil(t, tr.Root.Left)
 		assert.Nil(t, tr.Root.Right)
 		assert.Equal(t, uint8(0), tr.Depth)
-		assert.Equal(t, testLeafSize*2, tr.LeafSize)
 	})
 
 	t.Run("drop leaves 2->1", func(t *testing.T) {
-		tr := &Tree{Depth: 2, LeafSize: testLeafSize, Root: &node{Left: &node{Left: &node{}, Right: &node{}}}}
+		tr := &tree{Depth: 2, Root: &node{Left: &node{Left: &node{}, Right: &node{}}}}
 
 		tr.DropLeaves()
 
@@ -154,11 +152,10 @@ func TestTree_DropLeaves(t *testing.T) {
 		assert.NotNil(t, tr.Root.Left)
 		assert.Nil(t, tr.Root.Right)
 		assert.Equal(t, uint8(1), tr.Depth)
-		assert.Equal(t, testLeafSize*2, tr.LeafSize)
 	})
 
 	t.Run("drop leaves 2->0", func(t *testing.T) {
-		tr := &Tree{Depth: 2, LeafSize: testLeafSize, Root: &node{Left: &node{Left: &node{}}, Right: &node{}}}
+		tr, _ := filledTree(NewXor(), testLeafSize)
 
 		tr.DropLeaves()
 		tr.DropLeaves()
@@ -167,7 +164,13 @@ func TestTree_DropLeaves(t *testing.T) {
 		assert.Nil(t, tr.Root.Left)
 		assert.Nil(t, tr.Root.Right)
 		assert.Equal(t, uint8(0), tr.Depth)
-		assert.Equal(t, testLeafSize*4, tr.LeafSize)
+		assert.Equal(t, 4*testLeafSize, tr.LeafSize)
+
+		for k, v := range tr.dirtyLeaves {
+			assert.Equal(t, 2*testLeafSize, k)
+			assert.Equal(t, tr.Root, v)
+		}
+		assert.Equal(t, 5, len(tr.orphanedLeaves))
 	})
 }
 
@@ -203,12 +206,11 @@ func TestTree_reRoot(t *testing.T) {
 func TestTree_MarshalJSON(t *testing.T) {
 	tr, _ := filledTree(NewXor(), testLeafSize)
 
-	//jsonData, err := tr.MarshalJSON()
-	jsonData, err := json.MarshalIndent(tr, "", "\t")
+	_, err := json.Marshal(tr)
 	if !assert.NoError(t, err) {
 		return
 	}
-	t.Log(string(jsonData))
+	//assert.Equal(t, expectedJson, jsonData)
 }
 
 func TestTree_UnmarshalJSON(t *testing.T) {
@@ -221,7 +223,7 @@ func TestTree_UnmarshalJSON(t *testing.T) {
 			"right":{"split":12,"limit":16,"data":{"hash":"2173a20b3ad115069cac625377a3bf5426fadb86cc9ad7e9fbc7ae35fdd65683"},
 				"left":{"split":10,"limit":12,"data":{"hash":"2173a20b3ad115069cac625377a3bf5426fadb86cc9ad7e9fbc7ae35fdd65683"}}}}}`)
 
-	tr := Tree{}
+	tr := tree{}
 	err := json.Unmarshal(jsonData, &tr)
 
 	assert.NoError(t, err)
@@ -245,20 +247,18 @@ func hashFromXor(n *node) hash.SHA256Hash {
 	return n.Data.(*XorHash).Hash
 }
 
-func newTree(data Data, leafSize uint32) *Tree {
+func newTree(data Data, leafSize uint32) *tree {
 	root := &node{
 		SplitLC: leafSize / 2,
 		LimitLC: leafSize,
 		Data:    data.New(),
 	}
-	return &Tree{
+	return &tree{
 		Depth:       0,
 		MaxSize:     leafSize,
 		LeafSize:    leafSize,
 		Root:        root,
-		dataType:    dataTypeFrom(data),
 		dirtyLeaves: map[uint32]*node{root.SplitLC: root},
-		dirtyMeta:   true,
 	}
 }
 
@@ -270,7 +270,7 @@ func generateTxRef() hash.SHA256Hash {
 }
 
 // filledTree generates a filled tree with random hashes and returns the constructed tree + expectations of the individual TreeData.
-func filledTree(data Data, leafSize uint32) (*Tree, TreeData) {
+func filledTree(data Data, leafSize uint32) (*tree, TreeData) {
 	/* Below are the expected results. Nodes will conform to this, use result to validate tree results.
 		    (c0+c1a+c1b+c2)
 			 /           \
@@ -308,6 +308,15 @@ func filledTree(data Data, leafSize uint32) (*Tree, TreeData) {
 	_ = tr.Insert(refC1b, leafSize+1) // inserted after tree is reRooted
 	return tr, td
 }
+
+var jsonFilledTree = `{
+		"depth":2,"max_size":16,"leaf_size":4,
+		"root":{"split":8,"limit":16,"data":{"hash":"19f1578bbe094fb50e3f21f0cb6c6524dcef1cb0961f6fe53de457b260f107fc"},
+			"left":{"split":4,"limit":8,"data":{"hash":"3882f58084d85ab3929343a3bccfda70fa15c7365a85b80cc623f9879d27517f"},
+				"left":{"split":2,"limit":4,"data":{"hash":"1b85cbc0a54c37a4f309bbb1d9fea705ae1139db75da04a005953c624f7c31af"}},
+				"right":{"split":6,"limit":8,"data":{"hash":"23073e4021946d17619af81265317d755404feed2f5fbcacc3b6c5e5d25b60d0"}}},
+			"right":{"split":12,"limit":16,"data":{"hash":"2173a20b3ad115069cac625377a3bf5426fadb86cc9ad7e9fbc7ae35fdd65683"},
+				"left":{"split":10,"limit":12,"data":{"hash":"2173a20b3ad115069cac625377a3bf5426fadb86cc9ad7e9fbc7ae35fdd65683"}}}}}`
 
 /* TreeData for the following structure
         r
