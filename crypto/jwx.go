@@ -149,7 +149,20 @@ func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (
 	return jwt.ParseString(tokenString, options...)
 }
 
+// SignJWS signs the payload using the JWS format with the provided signer.
+// Provided protected headers will be included in the JWS.
 func SignJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer) (string, error) {
+	return signJWS(payload, protectedHeaders, privateKey, false)
+}
+
+// SignDetachedJWS signs a JWS with a detached payload.
+// This function does not require the payload value to be base64 encoded since it will not be part of the resulting JWS.
+// (If it is not base64 encoded, make sure to set the 'b64' header param to false)
+func SignDetachedJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer) (string, error) {
+	return signJWS(payload, protectedHeaders, privateKey, true)
+}
+
+func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer, detachedPayload bool) (string, error) {
 	headers := jws.NewHeaders()
 	for key, value := range protectedHeaders {
 		if err := headers.Set(key, value); err != nil {
@@ -173,23 +186,15 @@ func SignJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 	}
 	algo := jwa.SignatureAlgorithm(privateKeyAsJWK.Algorithm())
 
-	// We assume here that if the b64 header is set to false, we create a JWS with a detached payload.
 	var (
 		data []byte
 	)
-	payloadIsB64 := true
-	if b64, ok := headers.Get("b64"); ok {
-		if payloadIsB64, ok = b64.(bool); !ok {
-			return "", errors.New("unable to read b64 JWS header as bool")
-		}
-	}
-
-	if payloadIsB64 {
-		// Sign normal JWS
-		data, err = jws.Sign(payload, algo, privateKey, jws.WithHeaders(headers))
-	} else {
+	if detachedPayload {
 		// Sign JWS with detached payload
 		data, err = jws.Sign(nil, algo, privateKey, jws.WithHeaders(headers), jws.WithDetachedPayload(payload))
+	} else {
+		// Sign normal JWS
+		data, err = jws.Sign(payload, algo, privateKey, jws.WithHeaders(headers))
 	}
 	if err != nil {
 		return "", fmt.Errorf("unable to sign JWS %w", err)

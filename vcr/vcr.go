@@ -759,7 +759,7 @@ func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, ke
 		return err
 	}
 
-	sig, err := crypto.SignJWS(challenge, detachedJWSHeaders(), key.Signer())
+	sig, err := crypto.SignDetachedJWS(challenge, detachedJWSHeaders(), key.Signer())
 	if err != nil {
 		return err
 	}
