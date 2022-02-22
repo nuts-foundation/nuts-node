@@ -27,29 +27,25 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
-const (
-	orgSearchContext  = "https://nuts.nl/schemas/search-organization/v0"
-	authSearchContext = "https://nuts.nl/schemas/search-authorization/v0"
-)
-
-// contextHelper helps in transforming the given JSON-LD document to the correct query
-// If it contains https://nuts.nl/schemas/search-organization/v0 then we need to search for an organization
-// https://nuts.nl/schemas/search-authorization/v0 for authorization credentials
-type contextHelper struct {
-	Context []string `json:"@context"`
+// typeHelper helps in transforming the given JSON-LD document to the correct query
+// If it contains NutsOrganizationCredential then we need to search for an organization
+// NutsAuthorizationCrerdential for authorization credentials
+type typeHelper struct {
+	Type []string `json:"type"`
 }
 
-// searchContext returns the first context that is in this list:
-// - https://nuts.nl/schemas/search-organization/v0
-// - https://nuts.nl/schemas/search-authorization/v0
-func (ch contextHelper) searchContext() string {
-	for _, c := range ch.Context {
+// searchType returns the first type that is in this list:
+// - NutsOrganizationCredential
+// - NutsAuthorizationCredential
+func (ch typeHelper) searchType() string {
+	for _, c := range ch.Type {
 		switch c {
-		case orgSearchContext:
+		case credential.NutsOrganizationCredentialType:
 			fallthrough
-		case authSearchContext:
+		case credential.NutsAuthorizationCredentialType:
 			return c
 		}
 	}
@@ -59,7 +55,7 @@ func (ch contextHelper) searchContext() string {
 // SearchVCs checks the context used in the JSON-LD query, based on the contents it maps to a non-JSON-LD query
 // After V1, this needs to be remapped to a DB search that supports native JSON-LD
 func (w *Wrapper) SearchVCs(ctx echo.Context, params SearchVCsParams) error {
-	var rawRequest contextHelper
+	var rawRequest typeHelper
 
 	// we parse without bind to bypass the defaults for Content-Type (application/ld+json)
 	bodyBytes, err := ioutil.ReadAll(ctx.Request().Body)
@@ -77,15 +73,15 @@ func (w *Wrapper) SearchVCs(ctx echo.Context, params SearchVCsParams) error {
 		untrusted = *params.Untrusted
 	}
 
-	searchContext := rawRequest.searchContext()
+	searchContext := rawRequest.searchType()
 	switch searchContext {
-	case authSearchContext:
+	case credential.NutsAuthorizationCredentialType:
 		return w.searchAuths(ctx, untrusted, bodyBytes)
-	case orgSearchContext:
+	case credential.NutsOrganizationCredentialType:
 		return w.searchOrgs(ctx, untrusted, bodyBytes)
 	}
 
-	return core.InvalidInputError("given JSON-LD context not supported")
+	return core.InvalidInputError("given type not supported")
 }
 
 func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, body []byte) error {

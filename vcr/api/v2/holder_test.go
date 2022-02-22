@@ -38,7 +38,8 @@ import (
 
 var organizationQuery = `
 {
-	"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/schemas/vc/v1","https://nuts.nl/schemas/search-organization/v0"],
+	"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+	"type": ["VerifiableCredential", "NutsOrganizationCredential"],
 	"credentialSubject":{
 		"id":"did:nuts:123",
   		"organization": {
@@ -51,7 +52,8 @@ var organizationQuery = `
 
 var authorizationQuery = `
 {
-	"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/schemas/vc/v1","https://nuts.nl/schemas/search-authorization/v0"],
+	"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+	"type": ["VerifiableCredential", "NutsAuthorizationCredential"],
 	"credentialSubject":{
 		"id": "did:nuts:123",
 		"purposeOfUse": "eOverdracht-receiver",

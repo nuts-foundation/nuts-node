@@ -33,13 +33,15 @@ paths:
           Searching for VCs is done by passing a JSON-LD document as body.
           Each field in the request body must be present in the VC in order for it to be passed as result.
           Different JSON-LD contexts can be used allowing for different JSON formats. Consult the node documentation on the supported contexts.
+          The type of the credential must contain "VerifiableCredential" and the additional Nuts credential type that matches the credentialSubject context.
         content:
           application/ld+json:
             examples:
               NutsOrganizationCredential:
                 value: >
                   {
-                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/schemas/vc/v1","https://nuts.nl/schemas/search-organization/v0"],
+                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+                    "type": ["VerifiableCredential", "NutsOrganizationCredential"],
                     "credentialSubject":{
                       "organization": {
                         "name": "Zorggroep de Nootjes",
@@ -50,7 +52,8 @@ paths:
               NutsAuthorizationCredential:
                 value: >
                   {
-                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/schemas/vc/v1","https://nuts.nl/schemas/search-authorization/v0"],
+                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+                    "type": ["VerifiableCredential", "NutsAuthorizationCredential"],
                     "credentialSubject":{
                       "id": "did:nuts:123",
                       "purposeOfUse": "eOverdracht-receiver",
