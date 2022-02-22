@@ -144,7 +144,7 @@ func TestProtocol_send(t *testing.T) {
 
 		err := p.send(transport.Peer{ID: "123"}, &Envelope_TransactionPayloadQuery{})
 
-		assert.EqualError(t, err, "unable to send message, connection not found (peer=123@)")
+		assert.EqualError(t, err, "unable to send msg, connection not found (peer=123@)")
 	})
 }
 

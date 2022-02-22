@@ -337,8 +337,8 @@ func (x *Transaction) GetPayload() []byte {
 	return nil
 }
 
-// Gossip is a message broadcast to inform peers of the node's DAG state and recent additions to it (if any).
-// The message has no response, but the peer may decide to follow up with State or TransactionListQuery.
+// Gossip is a msg broadcast to inform peers of the node's DAG state and recent additions to it (if any).
+// The msg has no response, but the peer may decide to follow up with State or TransactionListQuery.
 type Gossip struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -472,7 +472,7 @@ func (x *State) GetLC() uint32 {
 	return 0
 }
 
-// TransactionSet sends an IBLT in response to a State message
+// TransactionSet sends an IBLT in response to a State msg
 type TransactionSet struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -480,9 +480,9 @@ type TransactionSet struct {
 
 	// conversationID contains the token used to identify the response
 	ConversationID []byte `protobuf:"bytes,1,opt,name=conversationID,proto3" json:"conversationID,omitempty"`
-	// LCReq contains the LC value that was sent in the State message
+	// LCReq contains the LC value that was sent in the State msg
 	LCReq uint32 `protobuf:"varint,2,opt,name=LCReq,proto3" json:"LCReq,omitempty"`
-	// LC contains the highest transaction Lamport Clock value from the sender of this message.
+	// LC contains the highest transaction Lamport Clock value from the sender of this msg.
 	LC uint32 `protobuf:"varint,3,opt,name=LC,proto3" json:"LC,omitempty"`
 	// IBLT contains the serialized IBLT. The first byte indicates the serialization format of the IBLT.
 	IBLT []byte `protobuf:"bytes,4,opt,name=IBLT,proto3" json:"IBLT,omitempty"`
@@ -731,7 +731,7 @@ func (x *TransactionList) GetTransactions() []*Transaction {
 	return nil
 }
 
-// TransactionPayloadQuery is a message used to query the payload of a transaction.
+// TransactionPayloadQuery is a msg used to query the payload of a transaction.
 type TransactionPayloadQuery struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -789,7 +789,7 @@ func (x *TransactionPayloadQuery) GetTransactionRef() []byte {
 	return nil
 }
 
-// TransactionPayload is the response message for TransactionPayloadQuery
+// TransactionPayload is the response msg for TransactionPayloadQuery
 type TransactionPayload struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -856,7 +856,7 @@ func (x *TransactionPayload) GetData() []byte {
 	return nil
 }
 
-// Diagnostics is a message to inform peers of the local node's state. All fields are optional.
+// Diagnostics is a msg to inform peers of the local node's state. All fields are optional.
 type Diagnostics struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

@@ -88,6 +88,7 @@ type protocol struct {
 	connectionList    grpc.ConnectionList
 	nodeDIDResolver   transport.NodeDIDResolver
 	connectionManager transport.ConnectionManager
+	cMan              *conversationManager
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
@@ -142,6 +143,10 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 
 func (p *protocol) Start() (err error) {
 	p.ctx, p.cancel = context.WithCancel(context.Background())
+
+	// conversation manager is stopped through the context
+	p.cMan = newConversationManager(maxValidity)
+	p.cMan.start(p.ctx)
 
 	nodeDID, err := p.nodeDIDResolver.Resolve()
 	if err != nil {
@@ -238,7 +243,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 			}})
 
 			if err != nil {
-				log.Logger().Warnf("Failed to send TransactionPayloadQuery message to private TX participant (tx=%s, PAL=%v): %v", hash.String(), pal, err)
+				log.Logger().Warnf("Failed to send TransactionPayloadQuery msg to private TX participant (tx=%s, PAL=%v): %v", hash.String(), pal, err)
 			} else {
 				sent = true
 			}
@@ -282,7 +287,7 @@ func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
 	connection := p.connectionList.Get(grpc.ByPeerID(peer.ID))
 	if connection == nil {
-		return fmt.Errorf("unable to send message, connection not found (peer=%s)", peer)
+		return fmt.Errorf("unable to send msg, connection not found (peer=%s)", peer)
 	}
 	return connection.Send(p, &Envelope{Message: message})
 }
