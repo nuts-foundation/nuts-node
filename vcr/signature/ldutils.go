@@ -22,6 +22,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/piprate/json-gold/ld"
 	"net/url"
@@ -34,7 +35,7 @@ type embeddedFSDocumentLoader struct {
 }
 
 // NewEmbeddedFSDocumentLoader creates a new embeddedFSDocumentLoader for an embedded filesystem.
-func NewEmbeddedFSDocumentLoader(fs embed.FS, nextLoader ld.DocumentLoader) *embeddedFSDocumentLoader {
+func NewEmbeddedFSDocumentLoader(fs embed.FS, nextLoader ld.DocumentLoader) ld.DocumentLoader {
 	return &embeddedFSDocumentLoader{
 		fs:         fs,
 		nextLoader: nextLoader,
@@ -93,6 +94,45 @@ func NewContextLoader(allowExternalCalls bool) (ld.DocumentLoader, error) {
 // LDUtil package a set of often used JSON-LD operations for re-usability.
 type LDUtil struct {
 	LDDocumentLoader ld.DocumentLoader
+}
+
+// AddContext adds the context to the @context array. It makes sure no duplicates will exist.
+func AddContext(context interface{}, newContext ssi.URI) []interface{} {
+	if context == nil {
+		context = []string{}
+	}
+	var contexts []interface{}
+
+	switch c := context.(type) {
+	case string: // if the context is a single string
+		contexts = append(contexts, c)
+	case []interface{}: // if the contexts are a list
+		contexts = append(contexts, c...)
+	case map[string]interface{}: // support for embedded context
+		contexts = append(contexts, c)
+	}
+
+	contexts = append(contexts, newContext.String())
+
+	var results []interface{}
+
+	// Deduplicate the string values
+	uniqueMap := make(map[interface{}]interface{})
+	for _, val := range contexts {
+		switch v := val.(type) {
+		case string:
+			uniqueMap[val] = true
+		case map[string]interface{}: // embedded context
+			// this cannot be easily hashed and so not deduplicated
+			results = append(results, v)
+		}
+	}
+
+	for key, _ := range uniqueMap {
+		results = append(results, key)
+	}
+
+	return results
 }
 
 // Canonicalize canonicalizes the json-ld input according to the URDNA2015 [RDF-DATASET-NORMALIZATION] algorithm.

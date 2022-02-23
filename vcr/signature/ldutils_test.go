@@ -21,6 +21,7 @@ package signature
 import (
 	"embed"
 	"errors"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -119,5 +120,50 @@ func TestNewContextLoader(t *testing.T) {
 		doc, err := loader.LoadDocument("http://schema.org")
 		assert.NoError(t, err)
 		assert.Equal(t, "https://schema.org/docs/jsonldcontext.jsonld", doc.DocumentURL)
+	})
+}
+
+func TestAddContext(t *testing.T) {
+	t.Run("it adds a context to an empty document", func(t *testing.T) {
+		doc := map[string]interface{}{}
+		newContext := ssi.MustParseURI("http://nuts.nl")
+		doc["@context"] = AddContext(doc["@context"], newContext)
+
+		assert.Len(t, doc["@context"], 1)
+		assert.Equal(t, doc["@context"].([]interface{})[0], newContext.String())
+	})
+
+	t.Run("it adds a context to a single string context", func(t *testing.T) {
+		doc := map[string]interface{}{}
+		doc["@context"] = "http://example.org"
+		newContext := ssi.MustParseURI("http://nuts.nl")
+		doc["@context"] = AddContext(doc["@context"], newContext)
+
+		assert.Len(t, doc["@context"], 2)
+		assert.Contains(t, doc["@context"].([]interface{}), newContext.String())
+		assert.Contains(t, doc["@context"].([]interface{}), "http://example.org")
+	})
+
+	t.Run("it has support for embedded contexts", func(t *testing.T) {
+		doc := map[string]interface{}{}
+		doc["@context"] = map[string]interface{}{
+			"title": "http://schema.org#title",
+		}
+		newContext := ssi.MustParseURI("http://nuts.nl")
+		doc["@context"] = AddContext(doc["@context"], newContext)
+
+		assert.Len(t, doc["@context"], 2)
+		assert.Contains(t, doc["@context"].([]interface{}), newContext.String())
+		assert.Contains(t, doc["@context"].([]interface{})[0], "title")
+	})
+
+	t.Run("it removes duplicates", func(t *testing.T) {
+		doc := map[string]interface{}{}
+		newContext := ssi.MustParseURI("http://nuts.nl")
+		doc["@context"] = AddContext(doc["@context"], newContext)
+		doc["@context"] = AddContext(doc["@context"], newContext)
+
+		assert.Len(t, doc["@context"], 1)
+		assert.Equal(t, doc["@context"].([]interface{})[0], newContext.String())
 	})
 }
