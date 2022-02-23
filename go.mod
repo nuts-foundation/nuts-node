@@ -14,7 +14,7 @@ require (
 	github.com/knadh/koanf v1.4.0
 	github.com/labstack/echo/v4 v4.6.3
 	github.com/lestrrat-go/jwx v1.2.19
-	github.com/magiconair/properties v1.8.5
+	github.com/magiconair/properties v1.8.6
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/nats-io/nats-server/v2 v2.7.2
 	github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d
