@@ -18,8 +18,11 @@ package store
 import (
 	"encoding/json"
 	"errors"
+	"os"
+	"path"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"go.etcd.io/bbolt"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -86,8 +89,31 @@ type bboltStore struct {
 }
 
 // NewBBoltStore returns an instance of a BBolt based VDR store
-func NewBBoltStore(db *bbolt.DB) vdr.Store {
-	return &bboltStore{db: db}
+func NewBBoltStore() vdr.Store {
+	return &bboltStore{}
+}
+
+func (store *bboltStore) Configure(config core.ServerConfig) error {
+	var err error
+	filePath := path.Join(config.Datadir, "vdr", "didstore.db")
+	if err = os.MkdirAll(path.Join(config.Datadir, "vdr"), os.ModePerm); err != nil {
+		return err
+	}
+	store.db, err = bbolt.Open(filePath, 0600, bbolt.DefaultOptions)
+
+	return err
+}
+
+func (store *bboltStore) Start() error {
+	// already done in Configure
+	return nil
+}
+
+func (store *bboltStore) Shutdown() error {
+	if store.db != nil {
+		return store.db.Close()
+	}
+	return nil
 }
 
 func (store *bboltStore) storeDocument(tx *bbolt.Tx, document did.Document, metadata vdr.DocumentMetadata) error {
@@ -160,19 +186,19 @@ func (store *bboltStore) Iterate(fn vdr.DocIterator) error {
 	})
 }
 
-func (store *bboltStore) filterDocument(doc *documentVersion, metadata *vdr.ResolveMetadata) error {
+func (store *bboltStore) filterDocument(doc *documentVersion, metadata *vdr.ResolveMetadata) bool {
 	// Verify deactivated
 	if IsDeactivated(doc.Document) && (metadata == nil || !metadata.AllowDeactivated) {
-		return vdr.ErrDeactivated
+		return false
 	}
 
 	if metadata == nil {
-		return nil
+		return true
 	}
 
 	// Filter on hash
 	if metadata.Hash != nil && !doc.Metadata.Hash.Equals(*metadata.Hash) {
-		return vdr.ErrNotFound
+		return false
 	}
 
 	// Filter on creation and update time
@@ -180,30 +206,28 @@ func (store *bboltStore) filterDocument(doc *documentVersion, metadata *vdr.Reso
 		resolveTime := *metadata.ResolveTime
 
 		if doc.Metadata.Created.After(resolveTime) {
-			return vdr.ErrNotFound
+			return false
 		}
 
 		if doc.Metadata.Updated != nil {
 			if doc.Metadata.Updated.After(resolveTime) {
-				return vdr.ErrNotFound
+				return false
 			}
 		}
 	}
 
 	// Filter on SourceTransaction
 	if metadata.SourceTransaction != nil {
-		for i, keyTx := range doc.Metadata.SourceTransactions {
+		for _, keyTx := range doc.Metadata.SourceTransactions {
 			if keyTx.Equals(*metadata.SourceTransaction) {
 				break
 			}
 
-			if i == len(doc.Metadata.SourceTransactions)-1 {
-				return vdr.ErrNotFound
-			}
+			return false
 		}
 	}
 
-	return nil
+	return true
 }
 
 // Resolve returns the DID Document for the provided DID.
@@ -228,31 +252,28 @@ func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (doc
 		}
 
 		versionList := parseDocumentVersionList(data)
-		versionHash := versionList.Latest()
 
-		if metadata != nil && metadata.Hash != nil {
-			versionHash = *metadata.Hash
+		for i := len(versionList.Versions) - 1; i >= 0; i-- {
+			versionHash := versionList.Versions[i]
+			data = documents.Get(versionHash.Slice())
+			if data == nil {
+				return vdr.ErrNotFound
+			}
+
+			doc := &documentVersion{}
+
+			if err := json.Unmarshal(data, doc); err != nil {
+				return err
+			}
+
+			if store.filterDocument(doc, metadata) {
+				document = &doc.Document
+				documentMeta = &doc.Metadata
+				return nil
+			}
 		}
 
-		data = documents.Get(versionHash.Slice())
-		if data == nil {
-			return vdr.ErrNotFound
-		}
-
-		doc := &documentVersion{}
-
-		if err := json.Unmarshal(data, doc); err != nil {
-			return err
-		}
-
-		if err := store.filterDocument(doc, metadata); err != nil {
-			return err
-		}
-
-		document = &doc.Document
-		documentMeta = &doc.Metadata
-
-		return nil
+		return vdr.ErrNotFound
 	})
 
 	return

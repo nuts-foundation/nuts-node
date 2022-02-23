@@ -23,12 +23,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"go.uber.org/atomic"
 	"io"
 	"net/http"
 	"os"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"go.uber.org/atomic"
 
 	"github.com/nuts-foundation/nuts-node/auth"
 	authIrmaAPI "github.com/nuts-foundation/nuts-node/auth/api/irma"
@@ -177,20 +178,20 @@ func CreateCommand(system *core.System) *cobra.Command {
 func CreateSystem() *core.System {
 	system := core.NewSystem()
 
+	// supporting components
+	didStore := store.NewBBoltStore()
+	keyResolver := doc.KeyResolver{Store: didStore}
+	docResolver := doc.Resolver{Store: didStore}
+	docFinder := doc.Finder{Store: didStore}
+
 	// Create instances
 	cryptoInstance := crypto.NewCryptoInstance()
-	memoryStore := store.NewMemoryStore()
-	keyResolver := doc.KeyResolver{Store: memoryStore}
-	docResolver := doc.Resolver{Store: memoryStore}
-	docFinder := doc.Finder{Store: memoryStore}
-
 	eventManager := events.NewManager()
-
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, cryptoInstance, docResolver, docFinder)
-	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, memoryStore)
+	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance)
-	didmanInstance := didman.NewDidmanInstance(docResolver, memoryStore, vdrInstance, credentialInstance)
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), memoryStore, credentialInstance, cryptoInstance, didmanInstance)
+	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance)
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance)
 
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
@@ -214,6 +215,7 @@ func CreateSystem() *core.System {
 
 	// Register engines
 	system.RegisterEngine(eventManager)
+	system.RegisterEngine(didStore)
 	system.RegisterEngine(statusEngine)
 	system.RegisterEngine(metricsEngine)
 	system.RegisterEngine(cryptoInstance)
