@@ -392,7 +392,7 @@ func (dag *bboltDAG) add(tx *bbolt.Tx, transaction Transaction) error {
 		return fmt.Errorf("unable to mark transaction as head (ref=%s): %w", ref, err)
 	}
 	// Store reverse reference from payload hash to transaction
-	newPayloadIndexValue := appendHashList(copyBBoltValue(payloadIndex, transaction.PayloadHash().Slice()), ref)
+	newPayloadIndexValue := appendHashList(getAndCopyBBoltValue(payloadIndex, transaction.PayloadHash().Slice()), ref)
 	if err = payloadIndex.Put(transaction.PayloadHash().Slice(), newPayloadIndexValue); err != nil {
 		return fmt.Errorf("unable to update payload index for transaction %s: %w", ref, err)
 	}
@@ -504,7 +504,7 @@ func getTransaction(hash hash.SHA256Hash, tx *bbolt.Tx) (Transaction, error) {
 		return nil, nil
 	}
 
-	transactionBytes := copyBBoltValue(transactions, hash.Slice())
+	transactionBytes := getAndCopyBBoltValue(transactions, hash.Slice())
 	if transactionBytes == nil {
 		return nil, nil
 	}

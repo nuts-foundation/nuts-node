@@ -71,7 +71,7 @@ func TestProtocol_handleTransactionPayload(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 
 		mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
-		mocks.State.EXPECT().WritePayload(gomock.Any(), tx.PayloadHash(), payload)
+		mocks.State.EXPECT().WritePayload(gomock.Any(), tx.PayloadHash(), nil, payload)
 		mocks.PayloadScheduler.EXPECT().Finished(tx.Ref()).Return(nil)
 
 		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: payload}}})

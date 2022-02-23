@@ -20,8 +20,11 @@ package dag
 
 import "go.etcd.io/bbolt"
 
-func copyBBoltValue(bucket *bbolt.Bucket, key []byte) []byte {
-	val := bucket.Get(key)
+func getAndCopyBBoltValue(bucket *bbolt.Bucket, key []byte) []byte {
+	return copyBBoltValue(bucket.Get(key))
+}
+
+func copyBBoltValue(val []byte) []byte {
 	// Because things will go terribly wrong when you use a []byte returned by BBolt outside its transaction,
 	// we want to make sure to work with a copy.
 	//

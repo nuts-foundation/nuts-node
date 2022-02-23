@@ -97,7 +97,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		}
 		if payload != nil {
 			payloadHash := hash.SHA256Sum(payload)
-			if err := s.payloadStore.WritePayload(contextWithTX, payloadHash, payload); err != nil {
+			if err := s.payloadStore.WritePayload(contextWithTX, payloadHash, nil, payload); err != nil {
 				return err
 			}
 		}
@@ -140,9 +140,9 @@ func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (bool, erro
 	return s.graph.IsPresent(ctx, hash)
 }
 
-func (s *state) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error {
+func (s *state) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, storeID *hash.SHA256Hash, data []byte) error {
 	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		err := s.payloadStore.WritePayload(contextWithTX, payloadHash, data)
+		err := s.payloadStore.WritePayload(contextWithTX, payloadHash, storeID, data)
 		if err == nil {
 			// ctx passed with bbolt transaction
 			s.notifyObservers(contextWithTX, nil, data)

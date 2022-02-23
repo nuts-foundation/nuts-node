@@ -120,7 +120,16 @@ func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
 		// Possible attack: received payload does not match transaction payload hash.
 		return fmt.Errorf("peer sent payload that doesn't match payload hash (tx=%s)", ref)
 	}
-	if err = p.state.WritePayload(ctx, payloadHash, msg.Data); err != nil {
+
+	var storeID *hash.SHA256Hash
+
+	// @TODO: how to get the actual DID of the issuer?
+	if len(tx.PAL()) > 0 {
+		addr := hash.FromSlice(tx.PAL()[0])
+		storeID = &addr
+	}
+
+	if err = p.state.WritePayload(ctx, payloadHash, storeID, msg.Data); err != nil {
 		return err
 	}
 

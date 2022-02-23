@@ -297,7 +297,7 @@ func TestProtocol_HandleTransactionPayload(t *testing.T) {
 	t.Run("peer sent payload, not present locally yet (happy flow)", func(t *testing.T) {
 		ctx := newContext(t)
 		ctx.state().EXPECT().GetByPayloadHash(gomock.Any(), payloadHash).Return([]dag.Transaction{&testTX{}}, nil)
-		ctx.state().EXPECT().WritePayload(gomock.Any(), payloadHash, payload).Return(nil)
+		ctx.state().EXPECT().WritePayload(gomock.Any(), payloadHash, nil, payload).Return(nil)
 		msg := &protobuf.NetworkMessage_TransactionPayload{TransactionPayload: &protobuf.TransactionPayload{
 			Data:        payload,
 			PayloadHash: payloadHash.Slice(),

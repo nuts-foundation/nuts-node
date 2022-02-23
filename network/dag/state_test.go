@@ -212,7 +212,7 @@ func TestState_Observe(t *testing.T) {
 		}, false)
 		expected := []byte{1}
 
-		err := txState.WritePayload(ctx, hash.EmptyHash(), expected)
+		err := txState.WritePayload(ctx, hash.EmptyHash(), nil, expected)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)

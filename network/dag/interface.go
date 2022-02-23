@@ -125,7 +125,7 @@ type PayloadStore interface {
 type PayloadWriter interface {
 	// WritePayload writes contents for the specified payload, identified by the given hash. Implementations must make
 	// sure the hash matches the given contents.
-	WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error
+	WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, storeID *hash.SHA256Hash, data []byte) error
 }
 
 // PayloadReader defines the interface for types that read transaction payloads.

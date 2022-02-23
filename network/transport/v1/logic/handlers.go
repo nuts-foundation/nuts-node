@@ -152,7 +152,23 @@ func (p *protocol) handleTransactionPayload(peer transport.PeerID, contents *pro
 	} else if len(transaction) == 0 {
 		// This might mean an attacker is sending us unsolicited document payloads
 		log.Logger().Infof("Received transaction payload for transaction we don't have (payloadHash=%s)", payloadHash)
-	} else if err := p.state.WritePayload(ctx, payloadHash, contents.Data); err != nil {
+	}
+
+	tx, err := dag.ParseTransaction(contents.Data)
+	if err != nil {
+		log.Logger().Errorf("Error while parsing payload for transaction (hash=%s): %v", payloadHash, err)
+		return
+	}
+
+	var storeID *hash.SHA256Hash
+
+	// @TODO: how to get the actual DID of the issuer?
+	if len(tx.PAL()) > 0 {
+		addr := hash.FromSlice(tx.PAL()[0])
+		storeID = &addr
+	}
+
+	if err := p.state.WritePayload(ctx, payloadHash, storeID, contents.Data); err != nil {
 		log.Logger().Errorf("Error while writing payload for transaction (hash=%s): %v", payloadHash, err)
 	}
 }

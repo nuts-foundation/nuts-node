@@ -33,24 +33,24 @@ func TestBBoltPayloadStore_ReadWrite(t *testing.T) {
 	payloadStore := NewBBoltPayloadStore(createBBoltDB(testDirectory))
 
 	payload := []byte("Hello, World!")
-	hash := hash.SHA256Sum(payload)
+	sum := hash.SHA256Sum(payload)
 	// Before, payload should not be present
-	present, err := payloadStore.IsPayloadPresent(ctx, hash)
+	present, err := payloadStore.IsPayloadPresent(ctx, sum)
 	if !assert.NoError(t, err) || !assert.False(t, present) {
 		return
 	}
 	// Add payload
-	err = payloadStore.WritePayload(ctx, hash, payload)
+	err = payloadStore.WritePayload(ctx, sum, nil, payload)
 	if !assert.NoError(t, err) {
 		return
 	}
 	// Now it should be present
-	present, err = payloadStore.IsPayloadPresent(ctx, hash)
+	present, err = payloadStore.IsPayloadPresent(ctx, sum)
 	if !assert.NoError(t, err) || !assert.True(t, present, "payload should be present") {
 		return
 	}
 	// Read payload
-	data, err := payloadStore.ReadPayload(ctx, hash)
+	data, err := payloadStore.ReadPayload(ctx, sum)
 	if !assert.NoError(t, err) {
 		return
 	}
