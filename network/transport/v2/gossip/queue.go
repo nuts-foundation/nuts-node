@@ -48,7 +48,7 @@ func newPeerQueue() peerQueue {
 	}
 }
 
-// registerContext registers a context. When deRegister is called it'll cancel the returned context.
+// registerContext registers a context. When unregister is called it'll cancel the returned context.
 func (pq *peerQueue) registerContext(parentCtx context.Context) context.Context {
 	var ctx context.Context
 	ctx, pq.cancelFunc = context.WithCancel(parentCtx)

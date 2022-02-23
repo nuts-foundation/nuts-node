@@ -90,6 +90,3 @@ func (u *uniqueList) Values() []hash.SHA256Hash {
 	}
 	return refs
 }
-
-// ConditionFunc for allowing an ADd/Remove operation to be conditional
-type ConditionFunc func(u *uniqueList) bool
