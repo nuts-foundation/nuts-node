@@ -124,8 +124,8 @@ func TestLegacyLDProof_Verify(t *testing.T) {
 		legacyProof := LegacyLDProof{}
 		signedDoc.UnmarshalProofValue(&legacyProof)
 
-		verifyError := legacyProof.Verify(signedDoc.DocumentWithoutProof(), signature.LegacyNutsSuite{}, "unknonw type")
-		assert.EqualError(t, verifyError, "invalid key type 'string' for jwk.New")
+		verifyError := legacyProof.Verify(signedDoc.DocumentWithoutProof(), signature.LegacyNutsSuite{}, "unknown type")
+		assert.EqualError(t, verifyError, "could not determine signature algorithm for key type 'string'")
 
 	})
 }

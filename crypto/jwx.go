@@ -268,7 +268,7 @@ func SignatureAlgorithm(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
 	case ed25519.PublicKey:
 		return jwa.EdDSA, nil
 	default:
-		return "", fmt.Errorf(`invalid key type '%T' for jwk.New`, key)
+		return "", fmt.Errorf(`could not determine signature algorithm for key type '%T'`, key)
 	}
 }
 
