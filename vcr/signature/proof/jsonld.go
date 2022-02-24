@@ -78,10 +78,11 @@ func NewLDProof(options ProofOptions) *LDProof {
 }
 
 // Verify verifies the correctness of the signature value in the LDProof given a document, signature suite and a public key.
+// Note that the document must not contain a proof
 func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.PublicKey) error {
 	canonicalDocument, err := suite.CanonicalizeDocument(document)
 	if err != nil {
-		return nil
+		return fmt.Errorf("unable to canonicalize document: %w", err)
 	}
 
 	preparedProof, err := p.asCanonicalizableMap()
@@ -90,7 +91,7 @@ func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.Pub
 	}
 	canonicalProof, err := suite.CanonicalizeDocument(preparedProof)
 	if err != nil {
-		return nil
+		return fmt.Errorf("unable to canonicalize proof: %w", err)
 	}
 
 	tbv := append(suite.CalculateDigest(canonicalProof), suite.CalculateDigest(canonicalDocument)...)
@@ -107,6 +108,9 @@ func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.Pub
 		return errors.New("invalid 'jws' value in proof")
 	}
 	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
+	if err != nil {
+		return fmt.Errorf("could not base64 decode signature: %w", err)
+	}
 	challenge := fmt.Sprintf("%s.%s", splittedJws[0], tbv)
 	if err = jswVerifier.Verify([]byte(challenge), sig, key); err != nil {
 		return fmt.Errorf("invalid proof signature: %w", err)
@@ -119,7 +123,9 @@ func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.Pub
 func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.Key) (interface{}, error) {
 	p.Type = suite.GetType()
 	p.ProofPurpose = "assertionMethod"
-	p.Created = time.Now()
+	if p.Created.IsZero() {
+		p.Created = time.Now()
+	}
 	vm, _ := ssi.ParseURI(key.KID())
 	p.VerificationMethod = *vm
 
