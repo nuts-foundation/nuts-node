@@ -26,11 +26,8 @@ import (
 	"testing"
 	"time"
 
-	did2 "github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
-
 	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
@@ -42,7 +39,6 @@ func TestVcr_StoreCredential(t *testing.T) {
 	target := vc.VerifiableCredential{}
 	vcJSON, _ := os.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &target)
-	did, _ := did2.ParseDIDURL(target.Issuer.String())
 
 	// load pub key
 	pke := storage.PublicKeyEntry{}
@@ -62,7 +58,6 @@ func TestVcr_StoreCredential(t *testing.T) {
 		}()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
-		ctx.docResolver.EXPECT().Resolve(*did, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, nil)
 
@@ -74,7 +69,6 @@ func TestVcr_StoreCredential(t *testing.T) {
 		now := time.Now()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), &now).Return(pk, nil)
-		ctx.docResolver.EXPECT().Resolve(*did, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, &now)
 

@@ -24,7 +24,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"reflect"
 	"runtime"
@@ -107,7 +106,6 @@ func TestVCR_Shutdown(t *testing.T) {
 
 func TestVCR_SearchInternal(t *testing.T) {
 	vc := concept.TestVC()
-	issuer, _ := did.ParseDIDURL(vc.Issuer.String())
 	testInstance := func(t2 *testing.T) (mockContext, concept.Query) {
 		ctx := newMockContext(t2)
 
@@ -151,18 +149,17 @@ func TestVCR_SearchInternal(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx, q := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
-		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
-		creds, err := ctx.vcr.search(reqCtx, q, false, &now)
+		searchResult, err := ctx.vcr.search(reqCtx, q, false, &now)
 
 		if !assert.NoError(t, err) {
 			return
 		}
-		if !assert.Len(t, creds, 1) {
+		if !assert.Len(t, searchResult, 1) {
 			return
 		}
 
-		cs := creds[0].CredentialSubject[0]
+		cs := searchResult[0].CredentialSubject[0]
 		m := cs.(map[string]interface{})
 		c := m["human"].(map[string]interface{})
 		assert.Equal(t, "fair", c["hairColour"])
@@ -176,19 +173,18 @@ func TestVCR_SearchInternal(t *testing.T) {
 			return
 		}
 
-		assert.Len(t, creds, 0)
+		assert.Len(t, creds, 0, "expected no results since the credential is not trusted")
 	})
 
 	t.Run("ok - untrusted but allowed", func(t *testing.T) {
 		ctx, q := testInstance(t)
-		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
 		creds, err := ctx.vcr.search(reqCtx, q, true, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		assert.Len(t, creds, 1)
+		assert.Len(t, creds, 1, "expected 1 results since the allowUntrusted flag is set")
 	})
 
 	t.Run("ok - revoked", func(t *testing.T) {
@@ -196,19 +192,6 @@ func TestVCR_SearchInternal(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		rev := leia.DocumentFromString(concept.TestRevocation)
 		ctx.vcr.store.Collection(revocationCollection).Add([]leia.Document{rev})
-		creds, err := ctx.vcr.search(reqCtx, q, false, nil)
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		assert.Len(t, creds, 0)
-	})
-
-	t.Run("err - DID resolution failed", func(t *testing.T) {
-		ctx, q := testInstance(t)
-		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
-		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, types.ErrNotFound)
-
 		creds, err := ctx.vcr.search(reqCtx, q, false, nil)
 		if !assert.NoError(t, err) {
 			return
@@ -238,7 +221,6 @@ func TestVCR_Resolve(t *testing.T) {
 
 	testVC := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(concept.TestCredential), &testVC)
-	issuer, _ := did.ParseDIDURL(testVC.Issuer.String())
 
 	now := time.Now()
 	timeFunc = func() time.Time {
@@ -251,7 +233,6 @@ func TestVCR_Resolve(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := testInstance(t)
 		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
-		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, &now)
 		if !assert.NoError(t, err) {
@@ -307,15 +288,6 @@ func TestVCR_Resolve(t *testing.T) {
 		_, err := ctx.vcr.Resolve(ssi.URI{}, nil)
 
 		assert.Equal(t, vcrTypes.ErrNotFound, err)
-	})
-
-	t.Run("error - DID not found", func(t *testing.T) {
-		ctx := testInstance(t)
-		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
-		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, types.ErrNotFound)
-
-		_, err := ctx.vcr.Resolve(*testVC.ID, &now)
-		assert.ErrorIsf(t, err, types.ErrNotFound, fmt.Sprintf("unable to resolve DID Document (ID=%s): unable to find the DID document", testVC.Issuer.String()))
 	})
 }
 
@@ -600,7 +572,7 @@ func TestVcr_Validate(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 
-		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now})
+		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now, AllowDeactivated: false})
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, &now).Return(pk, nil)
 
 		err := instance.Validate(subject, true, true, &now)
@@ -626,8 +598,6 @@ func TestVcr_Validate(t *testing.T) {
 
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-
-		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &almostNow})
 
 		err := instance.Validate(subject, true, false, nil)
 
@@ -663,189 +633,6 @@ func TestVcr_Validate(t *testing.T) {
 		instance := ctx.vcr
 
 		err := instance.Validate(subject, true, false, nil)
-
-		assert.Error(t, err)
-	})
-}
-
-func TestVcr_Verify(t *testing.T) {
-	// load VC
-	subject := vc.VerifiableCredential{}
-	vcJSON, _ := os.ReadFile("test/vc.json")
-	json.Unmarshal(vcJSON, &subject)
-	issuer, _ := did.ParseDIDURL(subject.Issuer.String())
-
-	// oad pub key
-	pke := storage.PublicKeyEntry{}
-	pkeJSON, _ := os.ReadFile("test/public.json")
-	json.Unmarshal(pkeJSON, &pke)
-	var pk = new(ecdsa.PublicKey)
-	pke.JWK().Raw(pk)
-
-	now := time.Now()
-	timeFunc = func() time.Time {
-		return now
-	}
-	defer func() {
-		timeFunc = time.Now
-	}()
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
-		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now}).Return(nil, nil, nil)
-
-		err := instance.Verify(subject, nil)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("error - invalid vm", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-
-		vc2 := subject
-		pr := make([]vc.JSONWebSignature2020Proof, 0)
-		vc2.UnmarshalProofValue(&pr)
-		u, _ := ssi.ParseURI(subject.Issuer.String() + "2")
-		pr[0].VerificationMethod = *u
-		vc2.Proof = []interface{}{pr[0]}
-
-		err := instance.Verify(vc2, nil)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "verification method is not of issuer")
-	})
-
-	t.Run("error - wrong hashed payload", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		vc2 := subject
-		vc2.IssuanceDate = time.Now()
-
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
-
-		err := instance.Verify(vc2, nil)
-
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Contains(t, err.Error(), "failed to verify signature")
-	})
-
-	t.Run("error - wrong hashed proof", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		vc2 := subject
-		pr := make([]vc.JSONWebSignature2020Proof, 0)
-		vc2.UnmarshalProofValue(&pr)
-		pr[0].Created = time.Now()
-		vc2.Proof = []interface{}{pr[0]}
-
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
-
-		err := instance.Verify(vc2, nil)
-
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Contains(t, err.Error(), "failed to verify signature")
-	})
-
-	t.Run("error - unknown credential", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-
-		err := instance.Verify(vc.VerifiableCredential{}, nil)
-
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.EqualError(t, err, "unknown credential type")
-	})
-
-	t.Run("error - invalid credential", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		uri, _ := ssi.ParseURI(credential.NutsOrganizationCredentialType)
-
-		err := instance.Verify(vc.VerifiableCredential{Type: []ssi.URI{*uri}}, nil)
-
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Contains(t, err.Error(), "validation failed")
-	})
-
-	t.Run("error - no proof", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		vc2 := subject
-		vc2.Proof = []interface{}{}
-
-		err := instance.Verify(vc2, nil)
-
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Contains(t, err.Error(), "expected a single Proof for challenge generation")
-	})
-
-	t.Run("error - wrong jws in proof", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		vc2 := subject
-		pr := make([]vc.JSONWebSignature2020Proof, 0)
-		vc2.UnmarshalProofValue(&pr)
-		pr[0].Jws = ""
-		vc2.Proof = []interface{}{pr[0]}
-
-		err := instance.Verify(vc2, nil)
-
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Contains(t, err.Error(), "invalid 'jws' value in proof")
-	})
-
-	t.Run("error - wrong base64 encoding in jws", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		vc2 := subject
-		pr := make([]vc.JSONWebSignature2020Proof, 0)
-		vc2.UnmarshalProofValue(&pr)
-		pr[0].Jws = "abac..ab//"
-		vc2.Proof = []interface{}{pr[0]}
-
-		err := instance.Verify(vc2, nil)
-
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Contains(t, err.Error(), "illegal base64 data")
-	})
-
-	t.Run("error - resolving key", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(nil, errors.New("b00m!"))
-
-		err := instance.Verify(subject, nil)
-
-		assert.Error(t, err)
-	})
-
-	t.Run("error - not valid yet", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		at := subject.IssuanceDate.Add(-1 * time.Minute)
-
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
-
-		err := instance.Verify(subject, &at)
 
 		assert.Error(t, err)
 	})
@@ -980,7 +767,6 @@ func TestVcr_Find(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
-		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
 
 		conc, err := ctx.vcr.Get(concept.ExampleConcept, false, subject)
 		if !assert.NoError(t, err) {
@@ -1024,7 +810,6 @@ func TestVCR_Search(t *testing.T) {
 		}
 
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
-		ctx.docResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
 		doc := leia.DocumentFromString(concept.TestCredential)
 		ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
 		results, _ := ctx.vcr.Search(context.Background(), "human", false, map[string]string{"human.eyeColour": "blue/grey"})

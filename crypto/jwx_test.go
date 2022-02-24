@@ -184,26 +184,32 @@ func TestSignJWS(t *testing.T) {
 		payload := []byte{1, 2, 3}
 		hdrs := map[string]interface{}{"foo": "bar"}
 		signature, err := SignJWS(payload, hdrs, key.Signer())
-		if !assert.NoError(t, err) {
+		if !assert.NoError(t, err,
+			"error during signing") {
 			return
 		}
 		message, err := jws.Parse([]byte(signature))
-		if !assert.NoError(t, err) {
+		if !assert.NoError(t, err,
+			"error during parsing sign result as jws") {
 			return
 		}
-		assert.Equal(t, payload, message.Payload())
+		assert.Equal(t, payload, message.Payload(),
+			"parsed message not equal to original payload")
 		sig := message.Signatures()
-		assert.Len(t, sig, 1)
+		assert.Len(t, sig, 1,
+			"there must be one signature in the parsed message")
 		fooValue, _ := sig[0].ProtectedHeaders().Get("foo")
-		assert.Equal(t, "bar", fooValue.(string))
+		assert.Equal(t, "bar", fooValue.(string),
+			"the protected headers must contain the 'foo' key with 'bar' value")
+
 		// Sanity check: verify signature
 		actualPayload, err := jws.Verify([]byte(signature), sig[0].ProtectedHeaders().Algorithm(), key.Public())
-		if !assert.NoError(t, err) {
+		if !assert.NoError(t, err, "the signature could not be validated") {
 			return
 		}
 		assert.Equal(t, payload, actualPayload)
 	})
-	t.Run("public key as JWK", func(t *testing.T) {
+	t.Run("public key in JWK header is allowed", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
 
 		publicKeyAsJWK, _ := jwk.New(key.Public())
@@ -212,7 +218,17 @@ func TestSignJWS(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, signature)
 	})
-	t.Run("private key as JWK (disallowed)", func(t *testing.T) {
+	t.Run("it fails with an invalid payload", func(t *testing.T) {
+		// set b64 to false to indicate the payload should not be base64 encoded
+		hdrs := map[string]interface{}{"b64": false}
+		// a dot is an invalid character when nog base64 encoded
+		payload := []byte{'.'}
+
+		signature, err := SignJWS(payload, hdrs, key.Signer())
+		assert.EqualError(t, err, "unable to sign JWS failed sign payload: payload must not contain a \".\"")
+		assert.Empty(t, signature)
+	})
+	t.Run("private key in JWK header is not allowed", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
 
 		privateKey, _ := client.Storage.GetPrivateKey(kid)
@@ -222,13 +238,23 @@ func TestSignJWS(t *testing.T) {
 		assert.EqualError(t, err, "refusing to sign JWS with private key in JWK header")
 		assert.Empty(t, signature)
 	})
-	t.Run("invalid header", func(t *testing.T) {
+
+	t.Run("it can sign with a detached payload", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
-		signature, err := SignJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, key.Signer())
-		assert.EqualError(t, err, "unable to set header jwk: invalid value for jwk key: string")
-		assert.Empty(t, signature)
+		signature, err := SignDetachedJWS(payload, map[string]interface{}{"b64": false}, key.Signer())
+		assert.NoError(t, err, "no error expected")
+		assert.Contains(t, signature, "..")
 	})
-	t.Run("invalid key", func(t *testing.T) {
+
+	t.Run("it checks the headers", func(t *testing.T) {
+		t.Run("it fails with an invalid jwk format", func(t *testing.T) {
+			payload := []byte{1, 2, 3}
+			signature, err := SignJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, key.Signer())
+			assert.EqualError(t, err, "unable to set header jwk: invalid value for jwk key: string")
+			assert.Empty(t, signature)
+		})
+	})
+	t.Run("it fails with an invalid key", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
 
 		publicKeyAsJWK, _ := jwk.New(key.Public())

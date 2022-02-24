@@ -31,23 +31,26 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/piprate/json-gold/ld"
 	"time"
 )
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
-func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore) Issuer {
+func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, contextLoader ld.DocumentLoader) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
-		store:       store,
-		publisher:   publisher,
-		keyResolver: resolver,
+		store:         store,
+		publisher:     publisher,
+		keyResolver:   resolver,
+		contextLoader: contextLoader,
 	}
 }
 
 type issuer struct {
-	store       Store
-	publisher   Publisher
-	keyResolver keyResolver
+	store         Store
+	publisher     Publisher
+	keyResolver   keyResolver
+	contextLoader ld.DocumentLoader
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -112,16 +115,24 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	b, _ := json.Marshal(unsignedCredential)
 	_ = json.Unmarshal(b, &credentialAsMap)
 
-	signingResult, err := proof.LegacyLDProof{}.Sign(credentialAsMap, signature.LegacyNutsSuite{}, key)
+	// Set created date to the issuanceDate if set
+	created := time.Now()
+	if !credentialOptions.IssuanceDate.IsZero() {
+		created = credentialOptions.IssuanceDate
+	}
+	proofOptions := proof.ProofOptions{Created: created}
+
+	// This is the code for signing with the new LDProofs. Enable when we release V1, otherwise current nodes cannot
+	// validate new transactions.
+	//signingResult, err := proof.NewLDProof(proofOptions).
+	//	Sign(credentialAsMap, signature.JSONWebSignature2020{ContextLoader: i.contextLoader}, key)
+
+	signingResult, err := proof.NewLegacyLDProof(proofOptions).Sign(credentialAsMap, signature.LegacyNutsSuite{}, key)
 	if err != nil {
 		return nil, err
 	}
 
-	signingResultAsMap, ok := signingResult.(map[string]interface{})
-	if !ok {
-		return nil, errors.New("unable to cast signing result to interface map")
-	}
-	b, _ = json.Marshal(signingResultAsMap)
+	b, _ = json.Marshal(signingResult)
 	signedCredential := &vc.VerifiableCredential{}
 	_ = json.Unmarshal(b, signedCredential)
 

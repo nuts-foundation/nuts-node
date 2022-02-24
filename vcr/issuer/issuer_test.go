@@ -26,8 +26,10 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func Test_issuer_buildVC(t *testing.T) {
@@ -35,32 +37,40 @@ func Test_issuer_buildVC(t *testing.T) {
 	issuerID, _ := ssi.ParseURI("did:nuts:123")
 	issuerDID, _ := did.ParseDID(issuerID.String())
 
-	t.Run("ok", func(t *testing.T) {
+	t.Run("it issues a VC", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		kid := "did:nuts:123#abc"
 
 		keyResolverMock := NewMockkeyResolver(ctrl)
 		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
-		sut := issuer{keyResolver: keyResolverMock}
-		schemaOrgContext, _ := ssi.ParseURI("http://schema.org")
+		contextLoader, _ := signature.NewContextLoader(false)
+		sut := issuer{keyResolver: keyResolverMock, contextLoader: contextLoader}
+		schemaOrgContext, _ := ssi.ParseURI("https://schema.org")
+
+		issuance, err := time.Parse(time.RFC3339, "2022-01-02T12:00:00Z")
+		assert.NoError(t, err)
 
 		credentialOptions := vc.VerifiableCredential{
-			Context: []ssi.URI{*schemaOrgContext},
-			Type:    []ssi.URI{*credentialType},
-			Issuer:  *issuerID,
+			Context:      []ssi.URI{*schemaOrgContext},
+			Type:         []ssi.URI{*credentialType},
+			Issuer:       *issuerID,
+			IssuanceDate: issuance,
 			CredentialSubject: []interface{}{map[string]interface{}{
 				"id": "did:nuts:456",
 			}},
 		}
 		result, err := sut.buildVC(credentialOptions)
-		assert.NoError(t, err)
+		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
+			return
+		}
 		assert.Contains(t, result.Type, *credentialType, "expected vc to be of right type")
 		proofs, _ := result.Proofs()
 		assert.Equal(t, kid, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")
 		assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
 		assert.Contains(t, result.Context, *schemaOrgContext)
 		assert.Contains(t, result.Context, vc.VCContextV1URI())
+		assert.Equal(t, issuance, proofs[0].Created)
 	})
 
 	t.Run("error - invalid params", func(t *testing.T) {
@@ -126,6 +136,8 @@ func Test_issuer_Issue(t *testing.T) {
 		}},
 	}
 
+	contextLoader, _ := signature.NewContextLoader(false)
+
 	t.Run("ok - unpublished", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -135,7 +147,7 @@ func Test_issuer_Issue(t *testing.T) {
 		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 		mockStore := NewMockStore(ctrl)
 		mockStore.EXPECT().StoreCredential(gomock.Any())
-		sut := issuer{keyResolver: keyResolverMock, store: mockStore}
+		sut := issuer{keyResolver: keyResolverMock, store: mockStore, contextLoader: contextLoader}
 
 		result, err := sut.Issue(credentialOptions, false, true)
 		assert.NoError(t, err)
@@ -157,7 +169,7 @@ func Test_issuer_Issue(t *testing.T) {
 			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(errors.New("b00m!"))
-			sut := issuer{keyResolver: keyResolverMock, store: mockStore}
+			sut := issuer{keyResolver: keyResolverMock, store: mockStore, contextLoader: contextLoader}
 
 			result, err := sut.Issue(credentialOptions, false, true)
 			assert.EqualError(t, err, "unable to store the issued credential: b00m!")
@@ -175,31 +187,26 @@ func Test_issuer_Issue(t *testing.T) {
 			mockPublisher.EXPECT().PublishCredential(gomock.Any(), true).Return(errors.New("b00m!"))
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(nil)
-			sut := issuer{keyResolver: keyResolverMock, store: mockStore, publisher: mockPublisher}
+			sut := issuer{keyResolver: keyResolverMock, store: mockStore, publisher: mockPublisher, contextLoader: contextLoader}
 
 			result, err := sut.Issue(credentialOptions, true, true)
 			assert.EqualError(t, err, "unable to publish the issued credential: b00m!")
 			assert.Nil(t, result)
 		})
 
-		t.Run("invalid credential", func(t *testing.T) {
+		t.Run("validator fails (missing type)", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			kid := "did:nuts:123#abc"
 
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
-			sut := issuer{keyResolver: keyResolverMock}
-
-			credentialType, _ := ssi.ParseURI("TestCredential")
+			sut := issuer{}
 
 			credentialOptions := vc.VerifiableCredential{
-				Type:   []ssi.URI{*credentialType},
+				Type:   []ssi.URI{},
 				Issuer: *issuerID,
 			}
 
 			result, err := sut.Issue(credentialOptions, true, true)
-			assert.EqualError(t, err, "validation failed: nuts context is required")
+			assert.EqualError(t, err, "can only issue credential with 1 type")
 			assert.Nil(t, result)
 
 		})
@@ -207,6 +214,6 @@ func Test_issuer_Issue(t *testing.T) {
 }
 
 func TestNewIssuer(t *testing.T) {
-	createdIssuer := NewIssuer(nil, nil, nil, nil)
+	createdIssuer := NewIssuer(nil, nil, nil, nil, nil)
 	assert.IsType(t, &issuer{}, createdIssuer)
 }

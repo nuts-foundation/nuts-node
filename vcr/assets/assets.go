@@ -16,22 +16,11 @@
  *
  */
 
-package test
+package assets
 
-import (
-	"fmt"
-	"path"
-)
+import "embed"
 
-func GetIntegrationTestConfig(testDirectory string) map[string]string {
-	httpAddress := fmt.Sprintf("localhost:%d", FreeTCPPort())
-	return map[string]string{
-		"configfile":              path.Join(testDirectory, "nuts.yaml"), // does not exist, but that's okay: default config
-		"datadir":                 testDirectory,
-		"network.enabletls":       "false",
-		"network.grpcaddr":        fmt.Sprintf("localhost:%d", FreeTCPPort()),
-		"auth.contractvalidators": "dummy", // disables IRMA
-		"http.default.address":    httpAddress,
-		"events.nats.port":        fmt.Sprintf("%d", FreeTCPPort()),
-	}
-}
+// Assets contains the embedded files needed for VCR.
+// These are the concept templates and de JSON-LD Contexts.
+//go:embed assets/*
+var Assets embed.FS
