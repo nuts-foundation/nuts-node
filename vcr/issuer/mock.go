@@ -210,10 +210,10 @@ func (mr *MockStoreMockRecorder) Close() *gomock.Call {
 }
 
 // GetCredential mocks base method.
-func (m *MockStore) GetCredential(id ssi.URI) (vc.VerifiableCredential, error) {
+func (m *MockStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCredential", id)
-	ret0, _ := ret[0].(vc.VerifiableCredential)
+	ret0, _ := ret[0].(*vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

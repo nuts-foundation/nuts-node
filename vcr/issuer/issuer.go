@@ -155,7 +155,7 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 		return nil, errors.New("credential already revoked")
 	}
 
-	revocation, err := i.buildRevocation(credentialToRevoke)
+	revocation, err := i.buildRevocation(*credentialToRevoke)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,6 @@ func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*cr
 	assertionKey, err := i.keyResolver.ResolveAssertionKey(*issuerDID)
 	// set defaults
 	revocation := credential.BuildRevocation(credentialToRevoke)
-	// sign
 
 	revocationAsMap := map[string]interface{}{}
 	b, _ := json.Marshal(revocation)

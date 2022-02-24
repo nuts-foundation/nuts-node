@@ -92,22 +92,22 @@ func (s leiaStore) StoreRevocation(r credential.Revocation) error {
 	panic("implement me")
 }
 
-func (s leiaStore) GetCredential(ID ssi.URI) (vc.VerifiableCredential, error) {
-	credential := vc.VerifiableCredential{}
-	query := leia.New(leia.Eq(concept.IDField, ID.String()))
+func (s leiaStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, error) {
+	query := leia.New(leia.Eq(concept.IDField, id.String()))
 
 	results, err := s.collection.Find(context.Background(), query)
 	if err != nil {
-		return credential, fmt.Errorf("could not get credential by id: %w", err)
+		return nil, fmt.Errorf("could not get credential by id: %w", err)
 	}
 	if len(results) == 0 {
-		return credential, ErrNotFound
+		return nil, ErrNotFound
 	}
 	if len(results) > 1 {
-		return credential, errors.New("found more than one credential by id")
+		return nil, errors.New("found more than one credential by id")
 	}
 	result := results[0]
-	if err := json.Unmarshal(result.Bytes(), &credential); err != nil {
+	credential := &vc.VerifiableCredential{}
+	if err := json.Unmarshal(result.Bytes(), credential); err != nil {
 		return credential, err
 	}
 	return credential, nil
