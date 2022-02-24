@@ -63,7 +63,7 @@ var ErrNotFound = errors.New("not found")
 type Store interface {
 	// GetCredential retrieves an issued credential by ID
 	// Returns an ErrNotFound when the credential is not in the store
-	GetCredential(id ssi.URI) (vc.VerifiableCredential, error)
+	GetCredential(id ssi.URI) (*vc.VerifiableCredential, error)
 	// StoreCredential writes a VC to storage.
 	StoreCredential(vc vc.VerifiableCredential) error
 	// GetRevocation find the revocation by the credential ID
