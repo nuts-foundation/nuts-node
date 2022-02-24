@@ -125,6 +125,7 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 
 // Verify implements the verify interface.
 // It currently checks if the credential has the required fields and values, if it is valid at the given time and optional the signature.
+// For the v2 api to be complete implement the following TODOs:
 // TODO: check for revoked credentials.
 // TODO: check if issuer-type combination is trusted
 func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {

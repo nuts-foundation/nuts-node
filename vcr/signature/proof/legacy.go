@@ -53,6 +53,7 @@ func NewLegacyLDProof(options ProofOptions) *LegacyLDProof {
 }
 
 // Verify verifies the legacy proof for correctness
+// Note that the document must not contain a proof
 func (p LegacyLDProof) Verify(document Document, suite signature.Suite, key crypto2.PublicKey) error {
 	document["proof"] = nil
 
@@ -103,7 +104,9 @@ func (p LegacyLDProof) Sign(document Document, suite signature.Suite, key nutsCr
 
 	p.Type = suite.GetType()
 	p.ProofPurpose = "assertionMethod"
-	p.Created = time.Now()
+	if p.Created.IsZero() {
+		p.Created = time.Now()
+	}
 	p.VerificationMethod = *kid
 
 	canonicalProof, err := suite.CanonicalizeDocument(p)

@@ -26,7 +26,7 @@ import (
 	"testing"
 )
 
-func Test_Proofstruct(t *testing.T) {
+func TestSignedDocument_UnmarshalProofValue(t *testing.T) {
 
 	t.Run("unmarshal signed doc into SignedDocument struct", func(t *testing.T) {
 

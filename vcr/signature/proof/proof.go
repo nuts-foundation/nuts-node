@@ -73,14 +73,8 @@ type Proof interface {
 	Sign(document Document, suite signature.Suite, key nutsCrypto.Key) (interface{}, error)
 }
 
-// ProofBuilder defines a generic interface for proof builders.
-type ProofBuilder interface {
-	// Sign accepts a key and returns the signed document.
-	Sign(document map[string]interface{}, key nutsCrypto.Key) (interface{}, error)
-}
-
 // ProofVerifier defines the generic verifier interface
 type ProofVerifier interface {
-	// Verify verifies the signedDocument with the provided public key. If the document is valid, it returns no error.
+	// Verify verifies the Document with the provided public key. If the document is valid, it returns no error.
 	Verify(document Document, suite signature.Suite, key crypto.PublicKey) error
 }

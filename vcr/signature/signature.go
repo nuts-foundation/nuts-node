@@ -23,6 +23,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 )
 
+var W3idSecurityV1Context = ssi.MustParseURI("https://w3id.org/security/v1")
+var W3idSecurityV2Context = ssi.MustParseURI("https://w3id.org/security/v2")
+var JsonWebSignature2020Context = ssi.MustParseURI("https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json")
+
 // Suite is an interface which defines the methods a signature suite implementation should implement.
 type Suite interface {
 	Sign(doc []byte, key crypto.Key) ([]byte, error)

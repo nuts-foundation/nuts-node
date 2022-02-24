@@ -32,7 +32,7 @@ type LegacyNutsSuite struct {
 
 // Sign signs the provided doc and returns the signature bytes.
 func (l LegacyNutsSuite) Sign(doc []byte, key crypto.Key) ([]byte, error) {
-	sig, err := crypto.SignJWS(doc, detachedJWSHeaders(), key.Signer())
+	sig, err := crypto.SignDetachedJWS(doc, detachedJWSHeaders(), key.Signer())
 	return []byte(sig), err
 }
 

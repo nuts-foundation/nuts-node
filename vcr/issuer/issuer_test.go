@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func Test_issuer_buildVC(t *testing.T) {
@@ -47,10 +48,14 @@ func Test_issuer_buildVC(t *testing.T) {
 		sut := issuer{keyResolver: keyResolverMock, contextLoader: contextLoader}
 		schemaOrgContext, _ := ssi.ParseURI("https://schema.org")
 
+		issuance, err := time.Parse(time.RFC3339, "2022-01-02T12:00:00Z")
+		assert.NoError(t, err)
+
 		credentialOptions := vc.VerifiableCredential{
-			Context: []ssi.URI{*schemaOrgContext},
-			Type:    []ssi.URI{*credentialType},
-			Issuer:  *issuerID,
+			Context:      []ssi.URI{*schemaOrgContext},
+			Type:         []ssi.URI{*credentialType},
+			Issuer:       *issuerID,
+			IssuanceDate: issuance,
 			CredentialSubject: []interface{}{map[string]interface{}{
 				"id": "did:nuts:456",
 			}},
@@ -65,6 +70,7 @@ func Test_issuer_buildVC(t *testing.T) {
 		assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
 		assert.Contains(t, result.Context, *schemaOrgContext)
 		assert.Contains(t, result.Context, vc.VCContextV1URI())
+		assert.Equal(t, issuance, proofs[0].Created)
 	})
 
 	t.Run("error - invalid params", func(t *testing.T) {

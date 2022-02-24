@@ -115,7 +115,12 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	b, _ := json.Marshal(unsignedCredential)
 	_ = json.Unmarshal(b, &credentialAsMap)
 
-	proofOptions := proof.ProofOptions{Created: time.Now()}
+	// Set created date to the issuanceDate if set
+	created := time.Now()
+	if !credentialOptions.IssuanceDate.IsZero() {
+		created = credentialOptions.IssuanceDate
+	}
+	proofOptions := proof.ProofOptions{Created: created}
 
 	// This is the code for signing with the new LDProofs. Enable when we release V1, otherwise current nodes cannot
 	// validate new transactions.

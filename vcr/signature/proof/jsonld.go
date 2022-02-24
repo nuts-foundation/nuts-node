@@ -163,7 +163,7 @@ func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 	if err != nil {
 		return nil, err
 	}
-	signedDocument["@context"] = append(signedDocument["@context"].([]interface{}), determineProofContext(suite.GetType()))
+	signedDocument["@context"] = signature.AddContext(signedDocument["@context"], determineProofContext(suite.GetType()))
 	proofAsMap, err := p.asMap()
 	if err != nil {
 		return nil, err
@@ -176,7 +176,7 @@ func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 // asCanonicalizableMap converts the proof to a map, adds a ld-context and removes the signature value so it can be canonicalized.
 func (p LDProof) asCanonicalizableMap() (map[string]interface{}, error) {
 	asMap, err := p.asMap()
-	asMap["@context"] = determineProofContext(p.Type)
+	asMap["@context"] = signature.AddContext(asMap["@context"], determineProofContext(p.Type))
 	asMap["@type"] = asMap["type"]
 	if err != nil {
 		return nil, err
@@ -204,16 +204,16 @@ func (p LDProof) asMap() (map[string]interface{}, error) {
 	return proofMap, nil
 }
 
-func determineProofContext(proofType ssi.ProofType) string {
+func determineProofContext(proofType ssi.ProofType) ssi.URI {
 	switch proofType {
 	case RsaSignature2018:
-		return "https://w3id.org/security/v2"
+		return signature.W3idSecurityV2Context
 	case ssi.JsonWebSignature2020:
-		return "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+		return signature.JsonWebSignature2020Context
 	case EcdsaSecp256k1Signature2019:
-		return "https://w3id.org/security/v1"
+		return signature.W3idSecurityV1Context
 	default:
-		return ""
+		return ssi.URI{}
 	}
 }
 
