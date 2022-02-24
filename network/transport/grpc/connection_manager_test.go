@@ -149,6 +149,58 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 			return len(cm2.Peers()) > 0, nil
 		}, time.Second*2, "waiting for peer 1 to connect")
 	})
+	t.Run("outbound stream triggers observer", func(t *testing.T) {
+		_, authenticator1, _, listener := create(t)
+		cm2, authenticator2, _, _ := create(t, withBufconnDialer(listener))
+		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{ID: "1"}, nil)
+		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{ID: "2"}, nil)
+		var capturedPeer atomic.Value
+		var capturedState atomic.Value
+		cm2.RegisterObserver(func(peer transport.Peer, state transport.StreamState, protocol transport.Protocol) {
+			capturedPeer.Store(peer)
+			capturedState.Store(state)
+		})
+
+		cm2.Connect("bufnet")
+
+		test.WaitFor(t, func() (bool, error) {
+			return capturedPeer.Load() != nil, nil
+		}, time.Second*2, "waiting for peer 2 observers")
+		assert.Equal(t, transport.Peer{ID: "2"}, capturedPeer.Load())
+		assert.Equal(t, transport.StateConnected, capturedState.Load())
+
+		cm2.Stop()
+
+		test.WaitFor(t, func() (bool, error) {
+			return capturedState.Load() == transport.StateDisconnected, nil
+		}, time.Second*2, "waiting for peer 2 observers")
+	})
+	t.Run("inbound stream triggers observer", func(t *testing.T) {
+		cm1, authenticator1, _, listener := create(t)
+		cm2, authenticator2, _, _ := create(t, withBufconnDialer(listener))
+		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{ID: "1"}, nil)
+		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{ID: "2"}, nil)
+		var capturedPeer atomic.Value
+		var capturedState atomic.Value
+		cm1.RegisterObserver(func(peer transport.Peer, state transport.StreamState, protocol transport.Protocol) {
+			capturedPeer.Store(peer)
+			capturedState.Store(state)
+		})
+
+		cm2.Connect("bufnet")
+
+		test.WaitFor(t, func() (bool, error) {
+			return capturedPeer.Load() != nil, nil
+		}, time.Second*2, "waiting for peer 1 observers")
+		assert.Equal(t, transport.Peer{ID: "1"}, capturedPeer.Load())
+		assert.Equal(t, transport.StateConnected, capturedState.Load())
+
+		cm2.Stop()
+
+		test.WaitFor(t, func() (bool, error) {
+			return capturedState.Load() == transport.StateDisconnected, nil
+		}, time.Second*2, "waiting for peer 1 observers")
+	})
 	t.Run("0 peers (1 connection which failed)", func(t *testing.T) {
 		cm, _, _, _ := create(t)
 		cm.Connect("non-existing")

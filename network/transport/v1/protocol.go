@@ -69,6 +69,10 @@ type protocolV1 struct {
 	connectionList delegatingConnectionList
 }
 
+func (p protocolV1) Version() int {
+	return 1
+}
+
 func (p protocolV1) MethodName() string {
 	return grpc.GetStreamMethod(protobuf.Network_ServiceDesc.ServiceName, protobuf.Network_ServiceDesc.Streams[0])
 }

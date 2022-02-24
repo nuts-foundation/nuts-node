@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1"
+	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
@@ -464,6 +465,9 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 			AdvertHashesInterval:      500,
 			AdvertDiagnosticsInterval: 5000,
 		},
+		ProtocolV2: v2.Config{
+			GossipInterval: 1000,
+		},
 	}
 	for _, f := range opts {
 		f(&config)
@@ -479,6 +483,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		keyResolver:            doc.KeyResolver{Store: vdrStore},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 	}
+
 	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {
 		t.Fatal(err)
 	}

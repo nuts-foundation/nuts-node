@@ -34,6 +34,20 @@ func WithUnauthenticated() ConnectionOption {
 	}
 }
 
+// StreamStateObserverFunc is a function that can be registered on the connection manager.
+// If a stream state changes this callback will be called. It's called per protocol.
+type StreamStateObserverFunc func(peer Peer, state StreamState, protocol Protocol)
+
+// StreamState is a type for defining connection states
+type StreamState string
+
+const (
+	// StateConnected is passed to the connection observers when a stream state changed to connected
+	StateConnected StreamState = "connected"
+	// StateDisconnected is passed to the connection observers when a stream state changed to disconnected
+	StateDisconnected StreamState = "disconnected"
+)
+
 // ConnectionManager manages the connections to peers, making outbound connections if required. It also determines the network layout.
 type ConnectionManager interface {
 	core.Diagnosable
@@ -45,6 +59,9 @@ type ConnectionManager interface {
 
 	// Peers returns a slice containing the peers that are currently connected.
 	Peers() []Peer
+
+	// RegisterObserver allows to register a callback function for stream state changes
+	RegisterObserver(callback StreamStateObserverFunc)
 
 	// Start instructs the ConnectionManager to start accepting connections and prepare to make outbound connections.
 	Start() error

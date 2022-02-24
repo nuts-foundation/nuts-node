@@ -189,6 +189,20 @@ func (mr *MockProtocolMockRecorder) UnwrapMessage(envelope interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnwrapMessage", reflect.TypeOf((*MockProtocol)(nil).UnwrapMessage), envelope)
 }
 
+// Version mocks base method.
+func (m *MockProtocol) Version() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Version")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// Version indicates an expected call of Version.
+func (mr *MockProtocolMockRecorder) Version() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockProtocol)(nil).Version))
+}
+
 // MockStream is a mock of Stream interface.
 type MockStream struct {
 	ctrl     *gomock.Controller

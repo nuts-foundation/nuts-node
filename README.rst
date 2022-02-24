@@ -154,7 +154,6 @@ strictmode                                 false             When set, insecure 
 verbosity                                  info              Log level (trace, debug, info, warn, error)
 http.default.address                       \:1323             Address and port the server will be listening to
 http.default.cors.origin                   []                When set, enables CORS from the specified origins for the on default HTTP interface.
-vcr.overrideissueallpublic                 true              Overrides the "Public" property of a credential when issuing credentials: if set to true, all issued credentials are published as public credentials, regardless of whether they're actually marked as public.
 **Auth**
 auth.clockskew                             5000              Allowed JWT Clock skew in milliseconds
 auth.contractvalidators                    [irma,uzi,dummy]  sets the different contract validators to use
@@ -185,6 +184,9 @@ network.truststorefile                                       PEM file containing
 network.v1.advertdiagnosticsinterval       5000              Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).
 network.v1.adverthashesinterval            2000              Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.
 network.v1.collectmissingpayloadsinterval  60000             Interval (in milliseconds) that specifies how often the node should check for missing payloads and broadcast its peers for it (specify 0 to disable). This check might be heavy on larger DAGs so make sure not to run it too often.
+network.v2.gossipinterval                  5000              Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes.
+**VCR**
+vcr.overrideissueallpublic                 true              Overrides the "Public" property of a credential when issuing credentials: if set to true, all issued credentials are published as public credentials, regardless of whether they're actually marked as public.
 =========================================  ================  ====================================================================================================================================================================================================================================
 
 This table is automatically generated using the configuration flags in the core and engines. When they're changed

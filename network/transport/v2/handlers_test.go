@@ -238,6 +238,46 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 	})
 }
 
+func TestProtocol_handleGossip(t *testing.T) {
+	bytes := make([][]byte, 1)
+	bytes[0] = hash.EmptyHash().Slice()
+
+	t.Run("ok - new transaction ref", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(false, nil)
+		mocks.Gossip.EXPECT().GossipReceived(peer.ID, hash.EmptyHash())
+
+		err := p.Handle(peer, &Envelope{
+			Message: &Envelope_Gossip{&Gossip{Transactions: bytes}},
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - existing transaction ref", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(true, nil)
+		mocks.Gossip.EXPECT().GossipReceived(peer.ID, []hash.SHA256Hash{})
+
+		err := p.Handle(peer, &Envelope{
+			Message: &Envelope_Gossip{&Gossip{Transactions: bytes}},
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(false, errors.New("custom"))
+
+		err := p.Handle(peer, &Envelope{
+			Message: &Envelope_Gossip{&Gossip{Transactions: bytes}},
+		})
+
+		assert.EqualError(t, err, "failed to handle Gossip message: custom")
+	})
+}
+
 func assertPayloadResponse(t *testing.T, tx dag.Transaction, payload []byte, raw interface{}) bool {
 	envelope := raw.(*Envelope)
 

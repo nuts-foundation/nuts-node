@@ -76,7 +76,7 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 		echo.EXPECT().Request().Return(&http.Request{Header: map[string][]string{}})
 
 		expected :=
-`status:
+			`status:
     git_commit: "0"`
 		echo.EXPECT().String(http.StatusOK, test.Contains(expected))
 

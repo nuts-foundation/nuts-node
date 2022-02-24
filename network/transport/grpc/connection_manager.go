@@ -108,6 +108,7 @@ type grpcConnectionManager struct {
 	authenticator    Authenticator
 	nodeDIDResolver  transport.NodeDIDResolver
 	stopCRLValidator func()
+	observers        []transport.StreamStateObserverFunc
 }
 
 func (s *grpcConnectionManager) Start() error {
@@ -210,6 +211,17 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 	s.startTracking(peer.Address, connection)
 }
 
+func (s *grpcConnectionManager) RegisterObserver(observer transport.StreamStateObserverFunc) {
+	s.observers = append(s.observers, observer)
+}
+
+func (s *grpcConnectionManager) notifyObservers(peer transport.Peer, protocol transport.Protocol, state transport.StreamState) {
+	log.Logger().Debugf("Observed stream state change (peer=%s, protocol=V%d, state=%s)", peer.ID, protocol.Version(), state)
+	for _, observer := range s.observers {
+		observer(peer, state, protocol)
+	}
+}
+
 func (s grpcConnectionManager) Peers() []transport.Peer {
 	var peers []transport.Peer
 	for _, curr := range s.connections.All() {
@@ -258,10 +270,12 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 			continue
 		}
 		log.Logger().Debugf("%T: Opened gRPC stream (peer=%s)", prot, connection.Peer())
+		s.notifyObservers(connection.Peer(), protocol, transport.StateConnected)
 
 		go func() {
 			// Waits for the clientStream to be done (other side closed the stream), then we disconnect the connection on our side
 			<-clientStream.Context().Done()
+			s.notifyObservers(connection.Peer(), protocol, transport.StateDisconnected)
 			connection.disconnect()
 		}()
 
@@ -388,7 +402,11 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 	if !connection.registerStream(protocol, inboundStream) {
 		return ErrAlreadyConnected
 	}
+
+	s.notifyObservers(peer, protocol, transport.StateConnected)
 	connection.waitUntilDisconnected()
+	s.notifyObservers(peer, protocol, transport.StateDisconnected)
+
 	s.connections.remove(connection)
 	return nil
 }
