@@ -109,7 +109,6 @@ func (m *manager) PeerConnected(transportPeer transport.Peer) {
 
 	subContext := pq.registerContext(m.ctx)
 	done := subContext.Done()
-	// copy from manager to avoid race conditions and locking
 	senders := m.messageSenders
 	go func() {
 		ticker := time.NewTicker(m.interval)
