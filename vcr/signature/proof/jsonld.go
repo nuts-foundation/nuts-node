@@ -131,7 +131,7 @@ func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 
 	canonicalDocument, err := suite.CanonicalizeDocument(document)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to canonicalize document: %w", err)
 	}
 
 	proofMap, err := p.asCanonicalizableMap()
@@ -141,23 +141,17 @@ func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 
 	canonicalProof, err := suite.CanonicalizeDocument(proofMap)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to canonicalize proof: %w", err)
 	}
 
 	tbs := append(suite.CalculateDigest(canonicalProof), suite.CalculateDigest(canonicalDocument)...)
 
-	if err != nil {
-		return nil, err
-	}
-
 	sig, err := suite.Sign(tbs, key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while signing: %w", err)
 	}
 
-	detachedSignature := toDetachedSignature(string(sig))
-
-	p.JWS = detachedSignature
+	p.JWS = string(sig)
 
 	signedDocument, err := NewSignedDocument(document)
 	if err != nil {
@@ -215,10 +209,4 @@ func determineProofContext(proofType ssi.ProofType) ssi.URI {
 	default:
 		return ssi.URI{}
 	}
-}
-
-// toDetachedSignature removes the middle part of the signature
-func toDetachedSignature(sig string) string {
-	splitted := strings.Split(sig, ".")
-	return strings.Join([]string{splitted[0], splitted[2]}, "..")
 }

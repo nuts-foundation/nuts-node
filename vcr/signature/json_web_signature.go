@@ -33,7 +33,7 @@ type JSONWebSignature2020 struct {
 
 // Sign signs the document as a JWS.
 func (s JSONWebSignature2020) Sign(doc []byte, key crypto.Key) ([]byte, error) {
-	sig, err := crypto.SignJWS(doc, detachedJWSHeaders(), key.Signer())
+	sig, err := crypto.SignDetachedJWS(doc, detachedJWSHeaders(), key.Signer())
 	return []byte(sig), err
 }
 

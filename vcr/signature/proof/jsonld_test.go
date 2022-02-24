@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/golang/mock/gomock"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
@@ -165,6 +166,17 @@ func TestLDProof_Verify(t *testing.T) {
 }
 
 func TestLDProof_Sign(t *testing.T) {
+	document := map[string]interface{}{
+		"@context": []interface{}{
+			map[string]interface{}{"title": "http://schema.org#title"},
+		},
+		"title": "Hello world!",
+	}
+
+	kid := "did:nuts:123#abc"
+	testKey := crypto.NewTestKey(kid)
+	contextLoader, _ := signature.NewContextLoader(false)
+
 	t.Run("sign and verify a document", func(t *testing.T) {
 		now := time.Now()
 		expires := now.Add(20 * time.Hour)
@@ -181,18 +193,6 @@ func TestLDProof_Sign(t *testing.T) {
 
 		ldProof := NewLDProof(pOptions)
 
-		document := map[string]interface{}{
-			"@context": []interface{}{
-				map[string]interface{}{"title": "http://schema.org#title"},
-			},
-			"title": "Hello world!",
-		}
-
-		contextLoader, _ := signature.NewContextLoader(false)
-
-		kid := "did:nuts:123#abc"
-		testKey := crypto.NewTestKey(kid)
-
 		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{ContextLoader: contextLoader}, testKey)
 		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
 			return
@@ -208,5 +208,52 @@ func TestLDProof_Sign(t *testing.T) {
 
 		err = proofToVerify.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader}, testKey.Public())
 		assert.NoError(t, err)
+	})
+
+	t.Run("it handles a failed document canonicalization", func(t *testing.T) {
+		ldProof := LDProof{}
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockSuite := signature.NewMockSuite(ctrl)
+
+		// handle first call for the document
+		mockSuite.EXPECT().CanonicalizeDocument(document).Return(nil, errors.New("foo"))
+		mockSuite.EXPECT().GetType().Return(ssi.JsonWebSignature2020)
+		result, err := ldProof.Sign(document, mockSuite, testKey)
+		assert.EqualError(t, err, "unable to canonicalize document: foo")
+		assert.Nil(t, result)
+	})
+
+	t.Run("it handles a failed proof canonicalization", func(t *testing.T) {
+		ldProof := LDProof{}
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockSuite := signature.NewMockSuite(ctrl)
+
+		// handle first call for the document
+		mockSuite.EXPECT().CanonicalizeDocument(document).Return(nil, nil)
+		mockSuite.EXPECT().CanonicalizeDocument(gomock.Any()).Return(nil, errors.New("foo"))
+		mockSuite.EXPECT().GetType().Return(ssi.JsonWebSignature2020)
+		result, err := ldProof.Sign(document, mockSuite, testKey)
+		assert.EqualError(t, err, "unable to canonicalize proof: foo")
+		assert.Nil(t, result)
+	})
+
+	t.Run("it handles an unknown key type error", func(t *testing.T) {
+		ldProof := LDProof{}
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		testKey := crypto.NewMockKey(ctrl)
+		testKey.EXPECT().KID().Return(kid)
+		testKey.EXPECT().Signer().AnyTimes().Return(testKey.Signer())
+
+		// handle first call for the document
+		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{ContextLoader: contextLoader}, testKey)
+		assert.EqualError(t, err, "error while signing: jwk.New requires a non-nil key")
+		assert.Nil(t, result)
 	})
 }
