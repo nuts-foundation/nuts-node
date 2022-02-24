@@ -203,7 +203,7 @@ func determineProofContext(proofType ssi.ProofType) ssi.URI {
 	case RsaSignature2018:
 		return signature.W3idSecurityV2Context
 	case ssi.JsonWebSignature2020:
-		return signature.JsonWebSignature2020Context
+		return signature.JSONWebSignature2020Context
 	case EcdsaSecp256k1Signature2019:
 		return signature.W3idSecurityV1Context
 	default:

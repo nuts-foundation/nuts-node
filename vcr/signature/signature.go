@@ -23,9 +23,14 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 )
 
+// W3idSecurityV1Context defines the v1 of the w3id json-ld context
 var W3idSecurityV1Context = ssi.MustParseURI("https://w3id.org/security/v1")
+
+// W3idSecurityV2Context defines the v2 of the w3id json-ld context
 var W3idSecurityV2Context = ssi.MustParseURI("https://w3id.org/security/v2")
-var JsonWebSignature2020Context = ssi.MustParseURI("https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json")
+
+// JSONWebSignature2020Context defines the JsonWebSignature2020 json-ld context
+var JSONWebSignature2020Context = ssi.MustParseURI("https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json")
 
 // Suite is an interface which defines the methods a signature suite implementation should implement.
 type Suite interface {

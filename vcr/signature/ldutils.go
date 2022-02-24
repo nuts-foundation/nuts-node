@@ -128,7 +128,7 @@ func AddContext(context interface{}, newContext ssi.URI) []interface{} {
 		}
 	}
 
-	for key, _ := range uniqueMap {
+	for key := range uniqueMap {
 		results = append(results, key)
 	}
 
