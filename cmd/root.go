@@ -42,6 +42,7 @@ import (
 	cryptoCmd "github.com/nuts-foundation/nuts-node/crypto/cmd"
 	"github.com/nuts-foundation/nuts-node/didman"
 	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
+	didmanCmd "github.com/nuts-foundation/nuts-node/didman/cmd"
 	"github.com/nuts-foundation/nuts-node/events"
 	eventsCmd "github.com/nuts-foundation/nuts-node/events/cmd"
 	"github.com/nuts-foundation/nuts-node/network"
@@ -245,6 +246,7 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		networkCmd.Cmd(),
 		vcrCmd.Cmd(),
 		vdrCmd.Cmd(),
+		didmanCmd.Cmd(),
 	}
 	clientFlags := core.ClientConfigFlags()
 	for _, clientCommand := range clientCommands {
