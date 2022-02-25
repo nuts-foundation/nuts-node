@@ -42,7 +42,9 @@ type networkPublisher struct {
 
 // VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
 const VcDocumentType = "application/vc+json"
-const RevocationDocumentType = "application/revocation+json"
+
+// RevocationDocumentType holds the content type used in network documents which contain a credential revocation
+const RevocationDocumentType = "application/vc+json;type=revocation"
 
 // NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
 // It is the default implementation to use for issuers to publish credentials and revocations to the Nuts network.
@@ -158,7 +160,7 @@ func (p networkPublisher) PublishRevocation(revocation credential.Revocation) er
 	// find did document/metadata for originating TXs
 	_, meta, err := p.didDocResolver.Resolve(*issuerDID, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not resolve issuer DID document: %w", err)
 	}
 	payload, _ := json.Marshal(revocation)
 
@@ -168,7 +170,7 @@ func (p networkPublisher) PublishRevocation(revocation credential.Revocation) er
 
 	_, err = p.networkTx.CreateTransaction(tx)
 	if err != nil {
-		return fmt.Errorf("failed to publish credential, error while creating transaction: %w", err)
+		return fmt.Errorf("failed to publish revocation, error while creating transaction: %w", err)
 	}
 	return nil
 }
