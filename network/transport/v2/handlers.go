@@ -44,6 +44,12 @@ func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
 		logMessage(msg)
 		log.Logger().Infof("%T: %s said hello", p, peer)
 		return nil
+	case *Envelope_TransactionList:
+		logMessage(msg)
+		return p.handleTransactionList(peer, msg)
+	case *Envelope_TransactionListQuery:
+		logMessage(msg)
+		return p.handleTransactionListQuery(peer, msg.TransactionListQuery)
 	case *Envelope_TransactionPayloadQuery:
 		logMessage(msg)
 		return p.handleTransactionPayloadQuery(peer, msg.TransactionPayloadQuery)
@@ -101,7 +107,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *Trans
 	return p.send(peer, &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: msg.TransactionRef, Data: data}})
 }
 
-func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
+func (p *protocol) handleTransactionPayload(msg *TransactionPayload) error {
 	ctx := context.Background()
 	ref := hash.FromSlice(msg.TransactionRef)
 	if ref.Empty() {
@@ -131,7 +137,7 @@ func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
 	return p.payloadScheduler.Finished(ref)
 }
 
-func (p protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
+func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 	refs := make([]hash.SHA256Hash, len(msg.Transactions))
 	i := 0
 	ctx := context.Background()
@@ -151,10 +157,108 @@ func (p protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 	if len(refs) > 0 {
 		// TODO swap for trace logging
 		log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
+		p.sendTransactionListQuery(peer.ID, refs)
 	}
 	p.gManager.GossipReceived(peer.ID, refs...)
 	// TODO compare xor
 	// TODO send new message
 
 	return nil
+}
+
+func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope_TransactionList) error {
+	msg := envelope.TransactionList
+	cid, err := parseConversationID(msg.ConversationID)
+	if err != nil {
+		return err
+	}
+	// TODO convert to trace logging
+	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+
+	// check if response matches earlier request
+	if err = p.cMan.check(envelope); err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	for _, tx := range msg.Transactions {
+		transactionRef := hash.FromSlice(tx.Hash)
+		transaction, err := dag.ParseTransaction(tx.Data)
+		if err != nil {
+			return fmt.Errorf("received transaction is invalid (peer=%s, ref=%s): %w", peer, transactionRef, err)
+		}
+
+		present, err := p.state.IsPresent(ctx, transactionRef)
+		if !present {
+			// TODO does this always trigger fetching missing payloads? (through observer on DAG)
+			if err = p.state.Add(ctx, transaction, tx.Payload); err != nil {
+				return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *TransactionListQuery) error {
+	requestedRefs := make([]hash.SHA256Hash, len(msg.Refs))
+	transactions := make([]*Transaction, 0)
+
+	cid, err := parseConversationID(msg.ConversationID)
+	if err != nil {
+		return err
+	}
+	// TODO convert to trace logging
+	log.Logger().Infof("handling transactionListQuery from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+
+	for i, refBytes := range msg.Refs {
+		requestedRefs[i] = hash.FromSlice(refBytes)
+	}
+
+	if len(requestedRefs) == 0 {
+		log.Logger().Warnf("peer sent request for 0 transactions (peer=%s)", peer.ID)
+	}
+
+	ctx := context.Background()
+	// separate reader transactions on DB but that's ok (for now).
+	for i, ref := range requestedRefs {
+		// If a transaction is not present, we stop any further sending.
+		present, err := p.state.IsPresent(ctx, ref)
+		if err != nil {
+			return err
+		}
+		if !present {
+			log.Logger().Warnf("peer requested transaction we don't have (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), ref.String())
+			break
+		}
+
+		transaction, err := p.state.GetTransaction(ctx, ref)
+		if err != nil {
+			return err
+		}
+
+		networkTX := Transaction{
+			Hash: msg.Refs[i],
+			Data: transaction.Data(),
+		}
+
+		// TODO sort on LC!
+
+		// do not add private TX payloads
+		if len(transaction.PAL()) == 0 {
+			payload, err := p.state.ReadPayload(ctx, ref)
+			if err != nil {
+				return err
+			}
+			// TODO we abort here as well, since there's no mechanism for missing payloads on public transactions
+			if payload == nil {
+				log.Logger().Warnf("peer requested transaction with missing payload (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), ref.String())
+				break
+			}
+			networkTX.Payload = payload
+		}
+		transactions = append(transactions, &networkTX)
+	}
+
+	return p.sendTransactionList(peer.ID, cid, transactions)
 }

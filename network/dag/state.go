@@ -90,6 +90,7 @@ func (s *state) RegisterObserver(observer Observer, transactional bool) {
 
 }
 
+// TODO add payloadHash verifier!
 func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
 	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
 		if err := s.verifyTX(contextWithTX, transaction); err != nil {
@@ -111,6 +112,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 
 }
 
+// TODO add payloadHash verifier!
 func (s *state) verifyTX(ctx context.Context, tx Transaction) error {
 	for _, verifier := range s.txVerifiers {
 		if err := verifier(ctx, tx, s); err != nil {

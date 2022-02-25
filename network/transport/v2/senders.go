@@ -23,6 +23,7 @@ import (
 	"errors"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 )
@@ -45,4 +46,82 @@ func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash) er
 			Transactions: refsAsBytes,
 		},
 	}})
+}
+
+func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA256Hash) error {
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
+	if conn == nil {
+		// shouldn't happen
+		return errors.New("no connection available")
+	}
+
+	// there shouldn't be more than a ~650 in there, this will fit in a single message
+	refsAsBytes := make([][]byte, len(refs))
+	for i, ref := range refs {
+		refsAsBytes[i] = ref.Slice()
+	}
+
+	envelop := &Envelope_TransactionListQuery{
+		TransactionListQuery: &TransactionListQuery{
+			Refs: refsAsBytes,
+		},
+	}
+
+	conversation := p.cMan.conversationFromEnvelope(envelop)
+	// todo convert to trace logging
+	log.Logger().Infof("requesting transactions from peer (peer=%s, conversationID=%s)", id, conversation.conversationID.String())
+
+	return conn.Send(p, &Envelope{Message: envelop})
+}
+
+func (p *protocol) sendTransactionList(id transport.PeerID, conversationID conversationID, transactions []*Transaction) error {
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
+	if conn == nil {
+		// shouldn't happen
+		return errors.New("no connection available")
+	}
+
+	for _, chunk := range chunkTransactionList(transactions) {
+		if err := conn.Send(p, &Envelope{Message: &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversationID.slice(),
+				Transactions:   chunk,
+			},
+		}}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// chunkTransactionList splits a large set of transactions into smaller sets. Each set adheres to the maximum message size.
+func chunkTransactionList(transactions []*Transaction) [][]*Transaction {
+	chunked := make([][]*Transaction, 0)
+
+	currentSize := 0
+	newSize := 0
+	startIndex := 0
+	endIndex := 0
+
+	max := grpc.MaxMessageSizeInBytes - 256 // 256 chosen as overhead per message
+
+	for _, tx := range transactions {
+		endIndex++
+		newSize = currentSize + len(tx.Hash) + len(tx.Payload) + len(tx.Data)
+
+		if newSize > max {
+			chunked = append(chunked, transactions[startIndex:endIndex])
+			currentSize = 0
+			startIndex = endIndex
+		}
+		startIndex++
+	}
+
+	// any trailing messages
+	if endIndex != len(transactions) {
+		chunked = append(chunked, transactions[startIndex:])
+	}
+
+	return chunked
 }
