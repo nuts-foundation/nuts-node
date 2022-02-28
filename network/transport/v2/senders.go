@@ -104,22 +104,25 @@ func chunkTransactionList(transactions []*Transaction) [][]*Transaction {
 	startIndex := 0
 	endIndex := 0
 
+	// TODO to be tested in practise
 	max := grpc.MaxMessageSizeInBytes - 256 // 256 chosen as overhead per message
 
 	for _, tx := range transactions {
-		endIndex++
-		newSize = currentSize + len(tx.Hash) + len(tx.Payload) + len(tx.Data)
+		txSize := len(tx.Hash) + len(tx.Payload) + len(tx.Data)
+		newSize = currentSize + txSize
 
 		if newSize > max {
 			chunked = append(chunked, transactions[startIndex:endIndex])
-			currentSize = 0
+			currentSize = txSize
 			startIndex = endIndex
+		} else {
+			currentSize = newSize
 		}
-		startIndex++
+		endIndex++
 	}
 
 	// any trailing messages
-	if endIndex != len(transactions) {
+	if startIndex != len(transactions) {
 		chunked = append(chunked, transactions[startIndex:])
 	}
 

@@ -244,8 +244,22 @@ func TestProtocol_handleGossip(t *testing.T) {
 
 	t.Run("ok - new transaction ref", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(false, nil)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, hash.EmptyHash())
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peer.ID)).Return(mockConnection)
+		mockConnection.EXPECT().Send(gomock.Any(), gomock.Any()).DoAndReturn(func(arg0 interface{}, arg1 interface{}) error {
+			envelope, ok := arg1.(*Envelope)
+			if !assert.True(t, ok) {
+				return nil
+			}
+			msg, ok := envelope.Message.(*Envelope_TransactionListQuery)
+			if !assert.True(t, ok) {
+				return nil
+			}
+			assert.Equal(t, bytes, msg.TransactionListQuery.Refs)
+			return nil
+		})
 
 		err := p.Handle(peer, &Envelope{
 			Message: &Envelope_Gossip{&Gossip{Transactions: bytes}},

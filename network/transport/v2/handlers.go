@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -190,7 +191,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 
 		present, err := p.state.IsPresent(ctx, transactionRef)
 		if !present {
-			// TODO does this always trigger fetching missing payloads? (through observer on DAG)
+			// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
 			if err = p.state.Add(ctx, transaction, tx.Payload); err != nil {
 				return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
 			}
@@ -203,6 +204,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *TransactionListQuery) error {
 	requestedRefs := make([]hash.SHA256Hash, len(msg.Refs))
 	transactions := make([]*Transaction, 0)
+	unsorted := make([]dag.Transaction, 0)
 
 	cid, err := parseConversationID(msg.ConversationID)
 	if err != nil {
@@ -220,9 +222,10 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 	}
 
 	ctx := context.Background()
-	// separate reader transactions on DB but that's ok (for now).
-	for i, ref := range requestedRefs {
-		// If a transaction is not present, we stop any further sending.
+
+	// first retrieve all transactions, this is needed to sort them on LC value
+	for _, ref := range requestedRefs {
+		// If a transaction is not present, we stop any further transaction gathering.
 		present, err := p.state.IsPresent(ctx, ref)
 		if err != nil {
 			return err
@@ -236,21 +239,28 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 		if err != nil {
 			return err
 		}
+		unsorted = append(unsorted, transaction)
+	}
 
+	// now we sort on LC value
+	sort.Slice(unsorted, func(i, j int) bool {
+		return unsorted[i].Clock() <= unsorted[j].Clock()
+	})
+
+	for i, transaction := range unsorted {
 		networkTX := Transaction{
 			Hash: msg.Refs[i],
 			Data: transaction.Data(),
 		}
 
-		// TODO sort on LC!
-
 		// do not add private TX payloads
 		if len(transaction.PAL()) == 0 {
+			ref := transaction.Ref()
 			payload, err := p.state.ReadPayload(ctx, ref)
 			if err != nil {
 				return err
 			}
-			// TODO we abort here as well, since there's no mechanism for missing payloads on public transactions
+			// TODO we abort here as well, since there's no mechanism for missing payloads on public transactions in v2 protocol
 			if payload == nil {
 				log.Logger().Warnf("peer requested transaction with missing payload (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), ref.String())
 				break
