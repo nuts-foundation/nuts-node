@@ -10,7 +10,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/goodsign/monday v1.0.0
 	github.com/google/uuid v1.3.0
-	github.com/hashicorp/vault/api v1.3.1
+	github.com/hashicorp/vault/api v1.4.1
 	github.com/knadh/koanf v1.4.0
 	github.com/labstack/echo/v4 v4.6.3
 	github.com/lestrrat-go/jwx v1.2.19
@@ -90,7 +90,7 @@ require (
 	github.com/hashicorp/go-version v1.2.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/hashicorp/vault/sdk v0.3.0 // indirect
+	github.com/hashicorp/vault/sdk v0.4.1 // indirect
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jasonlvhit/gocron v0.0.0-20180312192515-54194c9749d4 // indirect
