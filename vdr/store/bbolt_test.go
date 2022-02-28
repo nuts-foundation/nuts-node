@@ -101,7 +101,7 @@ func TestBBoltStore_Resolve(t *testing.T) {
 	firstMeta := types.DocumentMetadata{
 		Created:            time.Now().Add(time.Hour * -48),
 		Hash:               firstHash,
-		SourceTransactions: []hash.SHA256Hash{txHash},
+		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), txHash},
 	}
 
 	err := store.Write(doc, firstMeta)
@@ -111,7 +111,7 @@ func TestBBoltStore_Resolve(t *testing.T) {
 	meta := types.DocumentMetadata{
 		Created:            time.Now().Add(time.Hour * -24),
 		Hash:               latestHash,
-		SourceTransactions: []hash.SHA256Hash{txHash},
+		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), txHash},
 	}
 
 	err = store.Update(*did1, firstHash, doc, &meta)
