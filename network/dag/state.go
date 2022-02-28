@@ -174,7 +174,6 @@ func (s *state) Shutdown() error {
 		if err != nil {
 			return err
 		}
-		s.db = nil
 	}
 
 	return nil
