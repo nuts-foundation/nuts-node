@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
@@ -35,7 +36,6 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -286,7 +286,7 @@ func (c *vcr) search(ctx context.Context, query concept.Query, allowUntrusted bo
 			foundCredential := vc.VerifiableCredential{}
 			err = json.Unmarshal(doc.Bytes(), &foundCredential)
 			if err != nil {
-				return nil, errors.Wrap(err, "unable to parse credential from db")
+				return nil, fmt.Errorf("unable to parse credential from db: %w", err)
 			}
 
 			if err = c.Validate(foundCredential, allowUntrusted, false, resolveTime); err == nil {
@@ -447,7 +447,7 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 			// there can be only one
 			err = json.Unmarshal(docs[0].Bytes(), &credential)
 			if err != nil {
-				return credential, errors.Wrap(err, "unable to parse credential from db")
+				return credential, fmt.Errorf("unable to parse credential from db: %w", err)
 			}
 
 			return credential, nil

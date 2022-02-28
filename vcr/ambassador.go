@@ -21,10 +21,9 @@ package vcr
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/pkg/errors"
-
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -65,7 +64,7 @@ func (n ambassador) vcCallback(tx dag.Transaction, payload []byte) error {
 
 	target := vc.VerifiableCredential{}
 	if err := json.Unmarshal(payload, &target); err != nil {
-		return errors.Wrap(err, "credential processing failed")
+		return fmt.Errorf("credential processing failed: %w", err)
 	}
 
 	// Verify and store
@@ -81,7 +80,7 @@ func (n ambassador) rCallback(tx dag.Transaction, payload []byte) error {
 
 	r := credential.Revocation{}
 	if err := json.Unmarshal(payload, &r); err != nil {
-		return errors.Wrap(err, "revocation processing failed")
+		return fmt.Errorf("revocation processing failed: %w", err)
 	}
 
 	// Verify and store
