@@ -171,7 +171,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 	msg := envelope.TransactionList
 	cid, err := parseConversationID(msg.ConversationID)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid conversationID: %w", err)
 	}
 	// TODO convert to trace logging
 	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
@@ -219,25 +219,21 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 
 	if len(requestedRefs) == 0 {
 		log.Logger().Warnf("peer sent request for 0 transactions (peer=%s)", peer.ID)
+		return nil
 	}
 
 	ctx := context.Background()
 
 	// first retrieve all transactions, this is needed to sort them on LC value
 	for _, ref := range requestedRefs {
-		// If a transaction is not present, we stop any further transaction gathering.
-		present, err := p.state.IsPresent(ctx, ref)
-		if err != nil {
-			return err
-		}
-		if !present {
-			log.Logger().Warnf("peer requested transaction we don't have (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), ref.String())
-			break
-		}
-
 		transaction, err := p.state.GetTransaction(ctx, ref)
 		if err != nil {
 			return err
+		}
+		// If a transaction is not present, we stop any further transaction gathering.
+		if transaction == nil {
+			log.Logger().Warnf("peer requested transaction we don't have (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), ref.String())
+			break
 		}
 		unsorted = append(unsorted, transaction)
 	}
@@ -255,14 +251,13 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 
 		// do not add private TX payloads
 		if len(transaction.PAL()) == 0 {
-			ref := transaction.Ref()
-			payload, err := p.state.ReadPayload(ctx, ref)
+			payload, err := p.state.ReadPayload(ctx, transaction.PayloadHash())
 			if err != nil {
 				return err
 			}
 			// TODO we abort here as well, since there's no mechanism for missing payloads on public transactions in v2 protocol
 			if payload == nil {
-				log.Logger().Warnf("peer requested transaction with missing payload (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), ref.String())
+				log.Logger().Warnf("peer requested transaction with missing payload (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), transaction.Ref().String())
 				break
 			}
 			networkTX.Payload = payload
