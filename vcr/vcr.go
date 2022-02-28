@@ -62,7 +62,7 @@ var timeFunc = time.Now
 var noSync bool
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) types.VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -72,8 +72,6 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		network:         network,
 		registry:        concept.NewRegistry(),
 	}
-
-	r.ambassador = NewAmbassador(network, r)
 
 	return r
 }
@@ -92,6 +90,7 @@ type vcr struct {
 	issuer          issuer.Issuer
 	verifier        verifier.Verifier
 	issuerStore     issuer.Store
+	verifierStore   verifier.Store
 }
 
 func (c *vcr) Registry() concept.Reader {
@@ -110,7 +109,13 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.config.datadir = config.Datadir
 
 	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
-	c.issuerStore, err = issuer.NewLeiaStore(issuerStorePath)
+	c.issuerStore, err = issuer.NewLeiaIssuerStore(issuerStorePath)
+	if err != nil {
+		return err
+	}
+
+	verifierStorePath := path.Join(c.config.datadir, "vcr", "verifier-store.db")
+	c.verifierStore, err = verifier.NewLeiaVerifierStore(verifierStorePath)
 	if err != nil {
 		return err
 	}
@@ -121,8 +126,9 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
 	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, contextLoader)
+	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, contextLoader)
 
-	c.verifier = verifier.NewVerifier(c.keyResolver, contextLoader)
+	c.ambassador = NewAmbassador(c.network, c, c.verifier)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {
@@ -391,7 +397,17 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 		validAt = &now
 	}
 
+	// check for old api
 	revoked, err := c.isRevoked(*credential.ID)
+	if revoked {
+		return types.ErrRevoked
+	}
+	if err != nil {
+		return err
+	}
+
+	// check for new api
+	revoked, err = c.verifier.IsRevoked(*credential.ID)
 	if revoked {
 		return types.ErrRevoked
 	}
@@ -409,7 +425,6 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 	}
 
 	if !allowUntrusted {
-
 		trusted := c.isTrusted(credential)
 		if !trusted {
 			return types.ErrUntrusted
@@ -457,8 +472,18 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	return credential, types.ErrNotFound
 }
 
-func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
-	return c.issuer.Revoke(ID)
+// Revoke checks if the credential is already revoked, if not, it instructs the issuer role to revoke the credential.
+func (c *vcr) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
+	isRevoked, err := c.verifier.IsRevoked(credentialID)
+	if err != nil {
+		return nil, fmt.Errorf("error while checking revocation status: %w", err)
+	}
+	if isRevoked {
+		return nil, core.PreconditionFailedError("credential already revoked")
+		//return nil, errors.New("credential already revoked")
+	}
+
+	return c.issuer.Revoke(credentialID)
 }
 
 func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
@@ -798,4 +823,24 @@ func detachedJWSHeaders() map[string]interface{} {
 func toDetachedSignature(sig string) string {
 	splitted := strings.Split(sig, ".")
 	return strings.Join([]string{splitted[0], splitted[2]}, "..")
+}
+
+// VCR is the interface that covers all functionality of the vcr store.
+type VCR interface {
+	Issuer() issuer.Issuer
+
+	// Issue creates and publishes a new VC.
+	// An optional expirationDate can be given.
+	// VCs are stored when the network has successfully published them.
+	Issue(vcToIssue vc.VerifiableCredential) (*vc.VerifiableCredential, error)
+	// Revoke a credential based on its ID, the Issuer will be resolved automatically.
+	// The statusDate will be set to the current time.
+	// It returns an error if the credential, issuer or private key can not be found.
+	Revoke(ID ssi.URI) (*credential.Revocation, error)
+
+	types.ConceptFinder
+	types.Resolver
+	types.TrustManager
+	types.Validator
+	types.Writer
 }

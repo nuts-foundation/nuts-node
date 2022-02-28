@@ -27,10 +27,11 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 
 	"github.com/nuts-foundation/nuts-node/core"
+	vcrTypes "github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var _ ServerInterface = (*Wrapper)(nil)
@@ -38,8 +39,8 @@ var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
-	R  vcr.VCR
-	CR concept.Reader
+	VCR           vcrTypes.VCR
+	ConceptReader concept.Reader
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -49,8 +50,8 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		vcr.ErrNotFound:           http.StatusNotFound,
 		vcr.ErrRevoked:            http.StatusConflict,
 		credential.ErrValidation:  http.StatusBadRequest,
-		types.ErrNotFound:         http.StatusBadRequest,
-		types.ErrKeyNotFound:      http.StatusBadRequest,
+		vdr.ErrNotFound:           http.StatusBadRequest,
+		vdr.ErrKeyNotFound:        http.StatusBadRequest,
 		vcr.ErrInvalidCredential:  http.StatusNotFound,
 	})
 }
@@ -84,7 +85,7 @@ func (w *Wrapper) Search(ctx echo.Context, conceptName string, requestParams Sea
 		untrusted = *requestParams.Untrusted
 	}
 
-	results, err := w.R.Search(ctx.Request().Context(), conceptName, untrusted, params)
+	results, err := w.VCR.Search(ctx.Request().Context(), conceptName, untrusted, params)
 	if err != nil {
 		return err
 	}
@@ -101,7 +102,7 @@ func (w *Wrapper) Revoke(ctx echo.Context, id string) error {
 		return core.InvalidInputError("failed to parse credential ID: %w", err)
 	}
 
-	r, err := w.R.Revoke(*idURI)
+	r, err := w.VCR.Revoke(*idURI)
 	if err != nil {
 		return err
 	}
@@ -117,7 +118,7 @@ func (w *Wrapper) Create(ctx echo.Context) error {
 		return err
 	}
 
-	vcCreated, err := w.R.Issue(requestedVC)
+	vcCreated, err := w.VCR.Issue(requestedVC)
 	if err != nil {
 		return err
 	}
@@ -143,7 +144,7 @@ func (w *Wrapper) Resolve(ctx echo.Context, id string, params ResolveParams) err
 	}
 
 	// id is given with fragment
-	vc, err := w.R.Resolve(*idURI, at)
+	vc, err := w.VCR.Resolve(*idURI, at)
 	if vc == nil && err != nil {
 		return err
 	}
@@ -166,13 +167,13 @@ func (w *Wrapper) Resolve(ctx echo.Context, id string, params ResolveParams) err
 
 func (w *Wrapper) TrustIssuer(ctx echo.Context) error {
 	return changeTrust(ctx, func(cType ssi.URI, issuer ssi.URI) error {
-		return w.R.Trust(cType, issuer)
+		return w.VCR.Trust(cType, issuer)
 	})
 }
 
 func (w *Wrapper) UntrustIssuer(ctx echo.Context) error {
 	return changeTrust(ctx, func(cType ssi.URI, issuer ssi.URI) error {
-		return w.R.Untrust(cType, issuer)
+		return w.VCR.Untrust(cType, issuer)
 	})
 }
 
@@ -182,7 +183,7 @@ func (w *Wrapper) ListTrusted(ctx echo.Context, credentialType string) error {
 		return err
 	}
 
-	trusted, err := w.R.Trusted(*uri)
+	trusted, err := w.VCR.Trusted(*uri)
 	if err != nil {
 		return err
 	}
@@ -200,7 +201,7 @@ func (w *Wrapper) ListUntrusted(ctx echo.Context, credentialType string) error {
 		return err
 	}
 
-	untrusted, err := w.R.Untrusted(*uri)
+	untrusted, err := w.VCR.Untrusted(*uri)
 	if err != nil {
 		return err
 	}

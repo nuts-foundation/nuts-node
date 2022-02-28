@@ -147,14 +147,6 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("could not revoke: %w", err)
 	}
 
-	isRevoked, err := i.isRevoked(credentialID)
-	if err != nil {
-		return nil, fmt.Errorf("error while checking revocation status: %w", err)
-	}
-	if isRevoked {
-		return nil, errors.New("credential already revoked")
-	}
-
 	revocation, err := i.buildRevocation(*credentialToRevoke)
 	if err != nil {
 		return nil, err
@@ -208,14 +200,4 @@ func (i issuer) CredentialResolver() CredentialSearcher {
 
 func (i issuer) SearchCredential(context ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	return i.store.SearchCredential(context, credentialType, issuer, subject)
-}
-func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
-	_, err := i.store.GetRevocation(credentialID)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
 }

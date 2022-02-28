@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -164,7 +165,7 @@ func (p networkPublisher) PublishRevocation(revocation credential.Revocation) er
 	}
 	payload, _ := json.Marshal(revocation)
 
-	tx := network.TransactionTemplate(RevocationDocumentType, payload, key).
+	tx := network.TransactionTemplate(types.RevocationLDDocumentType, payload, key).
 		WithAdditionalPrevs(meta.SourceTransactions).
 		WithTimestamp(revocation.Date)
 

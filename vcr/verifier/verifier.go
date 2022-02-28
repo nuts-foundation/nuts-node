@@ -19,8 +19,10 @@
 package verifier
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
@@ -37,28 +39,18 @@ const (
 	maxSkew = 5 * time.Second
 )
 
-// Verifier defines the interface for verifying verifiable credentials.
-type Verifier interface {
-	// Verify checks credential on full correctness. It checks:
-	// validity of the signature
-	// if it has been revoked
-	// if the issuer is registered as trusted
-	Verify(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error
-	// Validate checks the verifiable credential technical correctness
-	Validate(credentialToVerify vc.VerifiableCredential, at *time.Time) error
-}
-
 // verifier implements the Verifier interface.
 // It implements the generic methods for verifying verifiable credentials and verifiable presentations.
 // It does not know anything about the semantics of a credential. It should support a wide range of types.
 type verifier struct {
 	keyResolver   vdr.KeyResolver
 	contextLoader ld.DocumentLoader
+	store         Store
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
-func NewVerifier(keyResolver vdr.KeyResolver, contextLoader ld.DocumentLoader) Verifier {
-	return &verifier{keyResolver: keyResolver, contextLoader: contextLoader}
+func NewVerifier(store Store, keyResolver vdr.KeyResolver, contextLoader ld.DocumentLoader) Verifier {
+	return &verifier{store: store, keyResolver: keyResolver, contextLoader: contextLoader}
 }
 
 // validateAtTime is a helper method which checks if a credential is valid at a certain given time.
@@ -143,5 +135,63 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 		return v.Validate(credentialToVerify, validAt)
 	}
 
+	return nil
+}
+
+func (v *verifier) IsRevoked(credentialID ssi.URI) (bool, error) {
+	_, err := v.store.GetRevocation(credentialID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (v *verifier) CheckAndStoreRevocation(document proof.SignedDocument) error {
+	asBytes, err := json.Marshal(document)
+	revocation := credential.Revocation{}
+	if err := json.Unmarshal(asBytes, &revocation); err != nil {
+		return err
+	}
+
+	if err := credential.ValidateRevocation(revocation); err != nil {
+		return err
+	}
+
+	// issuer must be the same as vc issuer
+	subject := revocation.Subject
+	subject.Fragment = ""
+	if subject != revocation.Issuer {
+		return errors.New("issuer of revocation is not the same as issuer of credential")
+	}
+
+	//issuerDID, err := did.ParseDID(revocation.Issuer.String())
+	//if err != nil {
+	//	return fmt.Errorf("invalid issuer did: %w", err)
+	//}
+
+	pk, err := v.keyResolver.ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date)
+	if err != nil {
+		return fmt.Errorf("unable to resolve key for revocation: %w", err)
+	}
+
+	// FIXME: use a cached contextLoader
+	contextLoader, err := signature.NewContextLoader(true)
+	if err != nil {
+		return fmt.Errorf("unable to check and store revocation: %w", err)
+	}
+
+	ldProof := proof.LDProof{}
+	document.UnmarshalProofValue(&ldProof)
+	err = ldProof.Verify(document.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader}, pk)
+	if err != nil {
+		return fmt.Errorf("unable to verify revocation signature: %w", err)
+	}
+
+	if err := v.store.StoreRevocation(revocation); err != nil {
+		return fmt.Errorf("unable to store revocation: %w", err)
+	}
 	return nil
 }
