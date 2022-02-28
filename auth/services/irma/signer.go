@@ -33,7 +33,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/pkg/errors"
 	irmago "github.com/privacybydesign/irmago"
 	"github.com/privacybydesign/irmago/server"
 )
@@ -146,7 +145,7 @@ func (s SigningSessionResult) VerifiablePresentation() (*vc.VerifiablePresentati
 	irmaSig := s.Signature
 	js, err := json.Marshal(irmaSig)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create NutsIrmaPresentation")
+		return nil, fmt.Errorf("failed to create NutsIrmaPresentation: %w", err)
 	}
 	b64 := base64.StdEncoding.EncodeToString(js)
 
