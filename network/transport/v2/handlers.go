@@ -198,6 +198,8 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		}
 	}
 
+	// TODO done is not called on the cMan since we don't know if we received all chunks
+
 	return nil
 }
 
