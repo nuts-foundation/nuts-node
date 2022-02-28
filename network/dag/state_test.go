@@ -131,7 +131,6 @@ func TestState_Shutdown(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	assert.Nil(t, txState.db)
 }
 
 func TestState_Start(t *testing.T) {
