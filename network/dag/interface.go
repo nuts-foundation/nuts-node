@@ -57,6 +57,9 @@ type State interface {
 	// RegisterObserver allows observers to be notified when a transaction is added to the DAG.
 	// If the observer needs to be called within the transaction, transactional must be true.
 	RegisterObserver(observer Observer, transactional bool)
+	// GetHeads returns the heads of the DAG which payload is present. If the payload of the last DAG heads is missing,
+	// their prevs are inspected as possible heads to be returned by this function.
+	GetHeads(ctx context.Context) ([]hash.SHA256Hash, error)
 	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
 	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
 	// to all payload types.

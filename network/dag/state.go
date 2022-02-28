@@ -25,6 +25,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -108,7 +109,56 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		s.notifyObservers(contextWithTX, transaction, payload)
 		return nil
 	})
+}
 
+func (s *state) GetHeads(ctx context.Context) ([]hash.SHA256Hash, error) {
+	var result []hash.SHA256Hash
+	err := storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		heads := s.graph.Heads(contextWithTX)
+		for {
+			prevs := make(map[hash.SHA256Hash]bool, 0) // map to deduplicate
+			for _, head := range heads {
+				headTX, err := s.graph.Get(contextWithTX, head)
+				if err != nil {
+					return err
+				}
+				payloadPresent, err := s.payloadStore.IsPayloadPresent(contextWithTX, headTX.PayloadHash())
+				if err != nil {
+					return err
+				}
+				if payloadPresent {
+					result = append(result, head)
+				} else {
+					for _, prev := range headTX.Previous() {
+						prevs[prev] = true
+					}
+				}
+			}
+			// Now check if we should recurse into prevs, or there were results.
+			heads = make([]hash.SHA256Hash, 0, len(prevs))
+			if len(result) > 0 {
+				// Results were found to be returned
+				break
+			}
+			// No head TXs with payload were found, their prevs should be checked next
+			if len(prevs) == 0 {
+				// Root of DAG reached, nothing left to check
+				break
+			}
+			for prev, _ := range prevs {
+				heads = append(heads, prev)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	// Make sure result order is stable
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Compare(result[j]) <= 0
+	})
+	return result, nil
 }
 
 func (s *state) verifyTX(ctx context.Context, tx Transaction) error {

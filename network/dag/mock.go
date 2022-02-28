@@ -95,6 +95,21 @@ func (mr *MockStateMockRecorder) GetByPayloadHash(ctx, payloadHash interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByPayloadHash", reflect.TypeOf((*MockState)(nil).GetByPayloadHash), ctx, payloadHash)
 }
 
+// GetHeads mocks base method.
+func (m *MockState) GetHeads(ctx context.Context) ([]hash.SHA256Hash, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetHeads", ctx)
+	ret0, _ := ret[0].([]hash.SHA256Hash)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetHeads indicates an expected call of GetHeads.
+func (mr *MockStateMockRecorder) GetHeads(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeads", reflect.TypeOf((*MockState)(nil).GetHeads), ctx)
+}
+
 // GetTransaction mocks base method.
 func (m *MockState) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error) {
 	m.ctrl.T.Helper()

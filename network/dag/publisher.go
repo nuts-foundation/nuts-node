@@ -27,7 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
-// NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
+// NewReplayingDAGPublisher creates a DAG publisher that can replay the complete DAG to all subscribers when started.
 func NewReplayingDAGPublisher(payloadStore PayloadStore, dag *bboltDAG) Publisher {
 	publisher := &replayingDAGPublisher{
 		subscribers:         map[EventType]map[string]Receiver{},

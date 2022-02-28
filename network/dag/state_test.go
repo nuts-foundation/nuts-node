@@ -233,6 +233,92 @@ func TestState_Add(t *testing.T) {
 	})
 }
 
+func TestState_GetHeads(t *testing.T) {
+	payload := []byte{1, 2, 3}
+	missingPayload := []byte{3, 2, 1}
+	t.Run("one head, with payload", func(t *testing.T) {
+		ctx := context.Background()
+		txState := createState(t)
+		_ = txState.Start()
+
+		tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
+		_ = txState.Add(ctx, tx, payload)
+
+		heads, err := txState.GetHeads(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, heads, 1)
+		assert.Contains(t, heads, tx.Ref())
+	})
+	t.Run("two heads, with payload", func(t *testing.T) {
+		ctx := context.Background()
+		txState := createState(t)
+		_ = txState.Start()
+
+		rootTX, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
+		txA, _, _ := CreateTestTransactionEx(2, hash.SHA256Sum(payload), nil, rootTX)
+		txB, _, _ := CreateTestTransactionEx(3, hash.SHA256Sum(payload), nil, rootTX)
+		_ = txState.Add(ctx, rootTX, payload)
+		_ = txState.Add(ctx, txA, payload)
+		_ = txState.Add(ctx, txB, payload)
+
+		heads, err := txState.GetHeads(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, heads, 2)
+		assert.Contains(t, heads, txA.Ref())
+		assert.Contains(t, heads, txB.Ref())
+	})
+	t.Run("two heads, one with payload", func(t *testing.T) {
+		ctx := context.Background()
+		txState := createState(t)
+		_ = txState.Start()
+
+		rootTX, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
+		txA, _, _ := CreateTestTransactionEx(2, hash.SHA256Sum(missingPayload), nil, rootTX)
+		txB, _, _ := CreateTestTransactionEx(3, hash.SHA256Sum(payload), nil, rootTX)
+		_ = txState.Add(ctx, rootTX, payload)
+		_ = txState.Add(ctx, txA, nil)
+		_ = txState.Add(ctx, txB, payload)
+
+		heads, err := txState.GetHeads(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, heads, 1)
+		assert.Contains(t, heads, txB.Ref())
+	})
+	t.Run("DAG head does not have payload (but prev has)", func(t *testing.T) {
+		ctx := context.Background()
+		txState := createState(t)
+		_ = txState.Start()
+
+		rootTX, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
+		txA, _, _ := CreateTestTransactionEx(2, hash.SHA256Sum(missingPayload), nil, rootTX)
+		txB, _, _ := CreateTestTransactionEx(3, hash.SHA256Sum(missingPayload), nil, rootTX)
+		_ = txState.Add(ctx, rootTX, payload)
+		_ = txState.Add(ctx, txA, nil)
+		_ = txState.Add(ctx, txB, nil)
+
+		heads, err := txState.GetHeads(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, heads, 1)
+		assert.Contains(t, heads, rootTX.Ref())
+	})
+	t.Run("DAG TXs do not have payload", func(t *testing.T) {
+		ctx := context.Background()
+		txState := createState(t)
+		_ = txState.Start()
+
+		rootTX, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(missingPayload), nil)
+		txA, _, _ := CreateTestTransactionEx(2, hash.SHA256Sum(missingPayload), nil, rootTX)
+		txB, _, _ := CreateTestTransactionEx(3, hash.SHA256Sum(missingPayload), nil, rootTX)
+		_ = txState.Add(ctx, rootTX, nil)
+		_ = txState.Add(ctx, txA, nil)
+		_ = txState.Add(ctx, txB, nil)
+
+		heads, err := txState.GetHeads(ctx)
+		assert.NoError(t, err)
+		assert.Empty(t, heads)
+	})
+}
+
 func TestState_Diagnostics(t *testing.T) {
 	ctx := context.Background()
 	txState := createState(t)

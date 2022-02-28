@@ -46,7 +46,6 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -475,7 +474,6 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 
 	instance := &Network{
 		config:                 config,
-		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
 		didDocumentResolver:    doc.Resolver{Store: vdrStore},
 		didDocumentFinder:      doc.Finder{Store: vdrStore},
 		privateKeyResolver:     keyStore,

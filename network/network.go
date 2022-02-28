@@ -23,7 +23,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -59,7 +58,6 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 // Network implements Transactions interface and Engine functions.
 type Network struct {
 	config                 Config
-	lastTransactionTracker lastTransactionTracker
 	protocols              []transport.Protocol
 	connectionManager      transport.ConnectionManager
 	state                  dag.State
@@ -95,7 +93,6 @@ func NewNetworkInstance(
 		privateKeyResolver:     privateKeyResolver,
 		didDocumentResolver:    didDocumentResolver,
 		didDocumentFinder:      didDocumentFinder,
-		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
 	}
 }
@@ -214,9 +211,6 @@ func (n *Network) Config() interface{} {
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
-
-	// Load DAG and start publishing
-	n.state.Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, n.lastTransactionTracker.process)
 
 	if err := n.state.Start(); err != nil {
 		return err
@@ -376,15 +370,19 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 		}
 	}
 
-	// Collect prevs
-	prevs := n.lastTransactionTracker.heads()
+	// Collect prevs: newly added TXs should reference the last TXs in the DAG, and where possible merge other leafs.
+	// It must only reference TXs which payload is present, otherwise it might produce an unprocessable TX (at least for itself),
+	// if the payload will never be received (possible in network protocol v1).
+	prevs, err := n.state.GetHeads(ctx)
+	if err != nil {
+		return nil, err
+	}
 	for _, addPrev := range template.AdditionalPrevs {
 		prevs = append(prevs, addPrev)
 	}
 
 	// Encrypt PAL, making the TX private (if participants are specified)
 	var pal [][]byte
-	var err error
 	if len(template.Participants) > 0 {
 		pal, err = template.Participants.Encrypt(n.keyResolver)
 		if err != nil {
@@ -516,40 +514,3 @@ func (n *Network) isPayloadPresent(ctx context.Context, txRef hash.SHA256Hash) (
 	return n.state.IsPayloadPresent(ctx, tx.PayloadHash())
 }
 
-// lastTransactionTracker that is used for tracking correct transactions.
-// If transactions are correct differs per type of transaction. The DAG will call process only for correct transactions.
-type lastTransactionTracker struct {
-	headRefs map[hash.SHA256Hash]bool
-	// processedTransactions keeps track of previous processed transactions.
-	// this is an ever growing map and will require some refactoring in the future.
-	processedTransactions map[hash.SHA256Hash]bool
-	mux                   sync.Mutex
-}
-
-func (l *lastTransactionTracker) process(transaction dag.Transaction, payload []byte) error {
-	l.mux.Lock()
-	defer l.mux.Unlock()
-
-	if processed := l.processedTransactions[transaction.Ref()]; processed {
-		return nil
-	}
-
-	// Update heads: previous' transactions aren't heads anymore, this transaction becomes a head.
-	for _, prev := range transaction.Previous() {
-		delete(l.headRefs, prev)
-	}
-	l.headRefs[transaction.Ref()] = true
-	l.processedTransactions[transaction.Ref()] = true
-	return nil
-}
-
-func (l *lastTransactionTracker) heads() []hash.SHA256Hash {
-	l.mux.Lock()
-	defer l.mux.Unlock()
-
-	var heads []hash.SHA256Hash
-	for head := range l.headRefs {
-		heads = append(heads, head)
-	}
-	return heads
-}
