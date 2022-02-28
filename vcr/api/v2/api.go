@@ -25,8 +25,8 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"net/http"
 )
 
@@ -34,7 +34,7 @@ import (
 // It parses and checks the params. Handles errors and returns the appropriate response.
 type Wrapper struct {
 	CredentialResolver issuer.CredentialSearcher
-	VCR                types.VCR
+	VCR                vcr.VCR
 }
 
 // Routes registers the handler to the echo router
@@ -84,6 +84,14 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 		}
 		// Set the actual value
 		public = *issueRequest.Visibility == IssueVCRequestVisibilityPublic
+	}
+
+	if issueRequest.Type == "" {
+		return core.InvalidInputError("missing credential type")
+	}
+
+	if issueRequest.CredentialSubject == nil {
+		return core.InvalidInputError("missing credentialSubject")
 	}
 
 	requestedVC := vc.VerifiableCredential{}

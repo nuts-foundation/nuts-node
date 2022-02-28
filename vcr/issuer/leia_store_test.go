@@ -35,16 +35,16 @@ func TestNewLeiaStore(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		issuerStorePath := path.Join(testDir, "vcr", "issued-credentials.db")
-		sut, err := NewLeiaStore(issuerStorePath)
+		sut, err := NewLeiaIssuerStore(issuerStorePath)
 
 		assert.NoError(t, err)
-		assert.IsType(t, &leiaStore{}, sut)
+		assert.IsType(t, &leiaIssuerStore{}, sut)
 	})
 
 	t.Run("error", func(t *testing.T) {
-		sut, err := NewLeiaStore("/")
+		sut, err := NewLeiaIssuerStore("/")
 
-		assert.Contains(t, err.Error(), "failed to create leiaStore:")
+		assert.Contains(t, err.Error(), "failed to create leiaIssuerStore:")
 		assert.Nil(t, sut)
 	})
 }
@@ -52,7 +52,7 @@ func TestNewLeiaStore(t *testing.T) {
 func TestLeiaStore_Close(t *testing.T) {
 	testDir := io.TestDirectory(t)
 	issuerStorePath := path.Join(testDir, "vcr", "issued-credentials.db")
-	sut, _ := NewLeiaStore(issuerStorePath)
+	sut, _ := NewLeiaIssuerStore(issuerStorePath)
 	err := sut.Close()
 	assert.NoError(t, err)
 }
@@ -64,7 +64,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 	t.Run("store", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		issuerStorePath := path.Join(testDir, "vcr", "issued-credentials.db")
-		sut, err := NewLeiaStore(issuerStorePath)
+		sut, err := NewLeiaIssuerStore(issuerStorePath)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -142,7 +142,7 @@ func Test_leiaStore_GetCredential(t *testing.T) {
 		t2.Helper()
 		testDir := io.TestDirectory(t)
 		issuerStorePath := path.Join(testDir, "vcr", "issued-credentials.db")
-		store, err := NewLeiaStore(issuerStorePath)
+		store, err := NewLeiaIssuerStore(issuerStorePath)
 		if !assert.NoError(t, err) {
 			t.Fatal()
 		}
@@ -171,13 +171,13 @@ func Test_leiaStore_GetCredential(t *testing.T) {
 		// store once
 		assert.NoError(t, store.StoreCredential(vcToGet))
 		// store twice
-		lstore := store.(*leiaStore)
+		lstore := store.(*leiaIssuerStore)
 		rawStructWithSameID := struct {
 			ID *ssi.URI `json:"id,omitempty"`
 		}{ID: vcToGet.ID}
 		asBytes, _ := json.Marshal(rawStructWithSameID)
 		doc := leia.DocumentFromBytes(asBytes)
-		lstore.collection.Add([]leia.Document{doc})
+		lstore.issuedCredentials.Add([]leia.Document{doc})
 
 		t.Run("it fails", func(t *testing.T) {
 			foundCredential, err := store.GetCredential(*vcToGet.ID)

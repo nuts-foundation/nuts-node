@@ -28,26 +28,25 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
-// leiaStore implements the issuer Store interface. It is a simple and fast JSON store.
+// leiaIssuerStore implements the issuer Store interface. It is a simple and fast JSON store.
 // Note: It can not be used in a clustered setup.
-type leiaStore struct {
-	collection leia.Collection
-	store      leia.Store
+type leiaIssuerStore struct {
+	issuedCredentials leia.Collection
+	store             leia.Store
 }
 
-// NewLeiaStore creates a new instance of leiaStore which implements the Store interface.
-func NewLeiaStore(dbPath string) (Store, error) {
+// NewLeiaIssuerStore creates a new instance of leiaIssuerStore which implements the Store interface.
+func NewLeiaIssuerStore(dbPath string) (Store, error) {
 	store, err := leia.NewStore(dbPath, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create leiaStore: %w", err)
+		return nil, fmt.Errorf("failed to create leiaIssuerStore: %w", err)
 	}
 	collection := store.Collection("issuedCredentials")
-	newLeiaStore := &leiaStore{
-		collection: collection,
-		store:      store,
+	newLeiaStore := &leiaIssuerStore{
+		issuedCredentials: collection,
+		store:             store,
 	}
 	if err := newLeiaStore.createIndices(); err != nil {
 		return nil, err
@@ -55,13 +54,13 @@ func NewLeiaStore(dbPath string) (Store, error) {
 	return newLeiaStore, nil
 }
 
-func (s leiaStore) StoreCredential(vc vc.VerifiableCredential) error {
+func (s leiaIssuerStore) StoreCredential(vc vc.VerifiableCredential) error {
 	vcAsBytes, _ := json.Marshal(vc)
 	doc := leia.DocumentFromBytes(vcAsBytes)
-	return s.collection.Add([]leia.Document{doc})
+	return s.issuedCredentials.Add([]leia.Document{doc})
 }
 
-func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
+func (s leiaIssuerStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	query := leia.New(leia.Eq("issuer", issuer.String())).
 		And(leia.Eq("type", credentialType.String())).
 		And(leia.Eq("@context", jsonLDContext.String()))
@@ -73,7 +72,7 @@ func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.UR
 		}
 	}
 
-	docs, err := s.collection.Find(context.Background(), query)
+	docs, err := s.issuedCredentials.Find(context.Background(), query)
 	if err != nil {
 		return nil, err
 	}
@@ -87,15 +86,10 @@ func (s leiaStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.UR
 	return result, nil
 }
 
-func (s leiaStore) StoreRevocation(r credential.Revocation) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s leiaStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, error) {
+func (s leiaIssuerStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, error) {
 	query := leia.New(leia.Eq(concept.IDField, id.String()))
 
-	results, err := s.collection.Find(context.Background(), query)
+	results, err := s.issuedCredentials.Find(context.Background(), query)
 	if err != nil {
 		return nil, fmt.Errorf("could not get credential by id: %w", err)
 	}
@@ -113,18 +107,13 @@ func (s leiaStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, error) {
 	return credential, nil
 }
 
-func (s leiaStore) GetRevocation(id ssi.URI) (credential.Revocation, error) {
-	// TODO: implement me
-	return credential.Revocation{}, ErrNotFound
-}
-
-func (s leiaStore) Close() error {
+func (s leiaIssuerStore) Close() error {
 	return s.store.Close()
 }
 
 // createIndices creates the needed indices for the issued VC store
 // It allows faster searching on context, type issuer and subject values.
-func (s leiaStore) createIndices() error {
+func (s leiaIssuerStore) createIndices() error {
 	searchIndex := leia.NewIndex("issuedVCs",
 		leia.NewFieldIndexer("issuer"),
 		leia.NewFieldIndexer("type"),
@@ -134,5 +123,5 @@ func (s leiaStore) createIndices() error {
 	// Index used for getting issued VCs by id
 	idIndex := leia.NewIndex("issuedVCByID",
 		leia.NewFieldIndexer("id"))
-	return s.collection.AddIndex(searchIndex, idIndex)
+	return s.issuedCredentials.AddIndex(searchIndex, idIndex)
 }

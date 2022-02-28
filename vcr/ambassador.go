@@ -22,6 +22,8 @@ package vcr
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/network"
@@ -40,13 +42,16 @@ type Ambassador interface {
 type ambassador struct {
 	networkClient network.Transactions
 	writer        types.Writer
+	// verifier is used to store incoming revocations from the network
+	verifier verifier.Verifier
 }
 
 // NewAmbassador creates a new listener for the network that listens to Verifiable Credential transactions.
-func NewAmbassador(networkClient network.Transactions, writer types.Writer) Ambassador {
+func NewAmbassador(networkClient network.Transactions, writer types.Writer, verifier verifier.Verifier) Ambassador {
 	return ambassador{
 		networkClient: networkClient,
 		writer:        writer,
+		verifier:      verifier,
 	}
 }
 
@@ -54,6 +59,7 @@ func NewAmbassador(networkClient network.Transactions, writer types.Writer) Amba
 func (n ambassador) Configure() {
 	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.VcDocumentType, n.vcCallback)
 	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.RevocationDocumentType, n.rCallback)
+	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.RevocationLDDocumentType, n.jsonLDRevocationCallback)
 }
 
 // vcCallback gets called when new Verifiable Credentials are received by the network. All checks on the signature are already performed.
@@ -85,4 +91,19 @@ func (n ambassador) rCallback(tx dag.Transaction, payload []byte) error {
 
 	// Verify and store
 	return n.writer.StoreRevocation(r)
+}
+
+// jsonLDRevocationCallback gets called when new credential revocations are received by the network.
+// These revocations are in the form of a JSON-LD document.
+// All checks on the signature are already performed.
+// The VCR is used to verify the contents of the revocation.
+// payload should be a json encoded Revocation
+func (n ambassador) jsonLDRevocationCallback(tx dag.Transaction, payload []byte) error {
+	log.Logger().Debugf("Processing VC revocation received from Nuts Network (ref=%s)", tx.Ref())
+
+	doc := proof.SignedDocument{}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		return fmt.Errorf("evocation processing failed: %w", err)
+	}
+	return n.verifier.CheckAndStoreRevocation(doc)
 }

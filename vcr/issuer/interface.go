@@ -66,11 +66,6 @@ type Store interface {
 	GetCredential(id ssi.URI) (*vc.VerifiableCredential, error)
 	// StoreCredential writes a VC to storage.
 	StoreCredential(vc vc.VerifiableCredential) error
-	// GetRevocation find the revocation by the credential ID
-	// Returns an ErrNotFound when the revocation is not in the store
-	GetRevocation(id ssi.URI) (credential.Revocation, error)
-	// StoreRevocation writes a revocation to storage.
-	StoreRevocation(r credential.Revocation) error
 	CredentialSearcher
 	// Close closes and frees the underlying resources the store uses.
 	Close() error
