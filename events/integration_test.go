@@ -66,7 +66,7 @@ func Test_pub_sub(t *testing.T) {
 		foundMutex.Lock()
 		defer foundMutex.Unlock()
 		return found != nil, nil
-	}, 10*time.Millisecond, "timeout waiting for message")
+	}, 100*time.Millisecond, "timeout waiting for message")
 	if !assert.NoError(t, err) {
 		return
 	}
