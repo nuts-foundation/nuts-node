@@ -17,13 +17,13 @@ package store
 
 import (
 	"errors"
+	"io/ioutil"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"go.etcd.io/bbolt"
 
@@ -35,37 +35,13 @@ func newBBoltTestStore(t *testing.T) *bboltStore {
 	opts := *bbolt.DefaultOptions
 	opts.NoSync = true
 
-	testDir := io.TestDirectory(t)
-
-	store := NewBBoltStore().(*bboltStore)
-	store.Configure(core.ServerConfig{Datadir: testDir})
-	return store
-}
-
-func TestBboltStore_Configure(t *testing.T) {
-	t.Run("error - unable to create DB", func(t *testing.T) {
-		store := NewBBoltStore().(core.Configurable)
-
-		err := store.Configure(core.ServerConfig{Datadir: "bbolt_test.go"})
-
-		assert.Error(t, err)
-	})
-}
-
-func TestBBoltStore_Start(t *testing.T) {
-	store := NewBBoltStore().(core.Runnable)
-
-	err := store.Start()
-
+	dir, err := ioutil.TempDir("/tmp", "go_test_vdr_bboltstore")
 	assert.NoError(t, err)
-}
 
-func TestBBoltStore_Shutdown(t *testing.T) {
-	store := NewBBoltStore().(core.Runnable)
-
-	err := store.Shutdown()
-
+	db, err := bbolt.Open(filepath.Join(dir, "bbolt.db"), 0644, &opts)
 	assert.NoError(t, err)
+
+	return NewBBoltStore(db).(*bboltStore)
 }
 
 func TestBBoltStore_Write(t *testing.T) {
@@ -145,8 +121,8 @@ func TestBBoltStore_Resolve(t *testing.T) {
 		assert.NotNil(t, m)
 	})
 
-	t.Run("returns error when not found - selection on date", func(t *testing.T) {
-		before := time.Now().Add(time.Hour * -72)
+	t.Run("returns no document with resolve metadata - selection on date", func(t *testing.T) {
+		before := time.Now().Add(time.Hour * -48)
 		_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
 			ResolveTime: &before,
 		})
@@ -431,7 +407,7 @@ func TestBBoltStore_DeactivatedFilter(t *testing.T) {
 
 	t.Run("returns error when document is deactivated", func(t *testing.T) {
 		_, _, err := store.Resolve(*did1, nil)
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, types.ErrDeactivated, err)
 	})
 
 	t.Run("returns deactivated document when allow deactivated is enabled in metadata", func(t *testing.T) {
