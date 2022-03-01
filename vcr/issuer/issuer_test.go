@@ -295,14 +295,7 @@ func Test_issuer_Revoke(t *testing.T) {
 		storeWithActualCredential := func(c *gomock.Controller) Store {
 			store := NewMockStore(c)
 			store.EXPECT().GetCredential(credentialURI).Return(credentialToRevoke(), nil)
-			store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, ErrNotFound)
-			return store
-		}
-
-		storeWithRevokedCredential := func(c *gomock.Controller) Store {
-			store := NewMockStore(c)
-			store.EXPECT().GetCredential(credentialURI).Return(credentialToRevoke(), nil)
-			store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, nil)
+			//store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, ErrNotFound)
 			return store
 		}
 
@@ -336,34 +329,6 @@ func Test_issuer_Revoke(t *testing.T) {
 			assert.Equal(t, kid, revocation.Proof.VerificationMethod)
 		})
 
-		t.Run("for an already revoked credential", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
-			sut := issuer{
-				store: storeWithRevokedCredential(ctrl),
-			}
-
-			revocation, err := sut.Revoke(credentialURI)
-			assert.EqualError(t, err, "credential already revoked")
-			assert.Nil(t, revocation)
-		})
-
-		t.Run("it handles a check for revocation status error", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			store := NewMockStore(ctrl)
-			store.EXPECT().GetCredential(credentialURI).Return(credentialToRevoke(), nil)
-			store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, errors.New("foo"))
-
-			sut := issuer{
-				store: store,
-			}
-			revocation, err := sut.Revoke(credentialURI)
-			assert.EqualError(t, err, "error while checking revocation status: foo")
-			assert.Nil(t, revocation)
-		})
-
 		t.Run("it handles a buildRevocation error", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -372,7 +337,7 @@ func Test_issuer_Revoke(t *testing.T) {
 			invalidCredential := vc.VerifiableCredential{}
 			store := NewMockStore(ctrl)
 			store.EXPECT().GetCredential(credentialURI).Return(&invalidCredential, nil)
-			store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, ErrNotFound)
+			//store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, ErrNotFound)
 
 			sut := issuer{
 				store: store,

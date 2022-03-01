@@ -34,33 +34,19 @@ import (
 )
 
 func TestWrapper_IssueVC(t *testing.T) {
-	t.Run("ok - empty post body", func(t *testing.T) {
+
+	issuerURI, _ := ssi.ParseURI("did:nuts:123")
+	credentialType, _ := ssi.ParseURI("ExampleType")
+
+	expectedRequestedVC := vc.VerifiableCredential{
+		Type:              []ssi.URI{*credentialType},
+		Issuer:            *issuerURI,
+		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
+	}
+
+	t.Run("ok with an actual credential", func(t *testing.T) {
 		testContext := newMockContext(t)
 		defer testContext.ctrl.Finish()
-
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			issueRequest := f.(*IssueVCRequest)
-			public := IssueVCRequestVisibilityPublic
-			issueRequest.Visibility = &public
-			return nil
-		})
-		testContext.mockIssuer.EXPECT().Issue(gomock.Any(), true, true)
-		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
-		err := testContext.client.IssueVC(testContext.echo)
-		assert.NoError(t, err)
-	})
-
-	t.Run("ok with actual credential", func(t *testing.T) {
-		testContext := newMockContext(t)
-		defer testContext.ctrl.Finish()
-		issuerURI, _ := ssi.ParseURI("did:nuts:123")
-		credentialType, _ := ssi.ParseURI("ExampleType")
-
-		expectedRequestedVC := vc.VerifiableCredential{
-			Type:              []ssi.URI{*credentialType},
-			Issuer:            *issuerURI,
-			CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
-		}
 
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			public := IssueVCRequestVisibilityPublic
@@ -78,6 +64,43 @@ func TestWrapper_IssueVC(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("checking request params", func(t *testing.T) {
+
+		t.Run("err - missing credential type", func(t *testing.T) {
+			testContext := newMockContext(t)
+			defer testContext.ctrl.Finish()
+
+			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+				public := IssueVCRequestVisibilityPublic
+				issueRequest := f.(*IssueVCRequest)
+				//issueRequest.Type = expectedRequestedVC.Type[0].String()
+				issueRequest.Issuer = expectedRequestedVC.Issuer.String()
+				issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
+				issueRequest.Visibility = &public
+				return nil
+			})
+			err := testContext.client.IssueVC(testContext.echo)
+			assert.EqualError(t, err, "missing credential type")
+		})
+
+		t.Run("err - missing credentialSubject", func(t *testing.T) {
+			testContext := newMockContext(t)
+			defer testContext.ctrl.Finish()
+
+			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+				public := IssueVCRequestVisibilityPublic
+				issueRequest := f.(*IssueVCRequest)
+				issueRequest.Type = expectedRequestedVC.Type[0].String()
+				issueRequest.Issuer = expectedRequestedVC.Issuer.String()
+				//issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
+				issueRequest.Visibility = &public
+				return nil
+			})
+			err := testContext.client.IssueVC(testContext.echo)
+			assert.EqualError(t, err, "missing credentialSubject")
+		})
+	})
+
 	t.Run("test params", func(t *testing.T) {
 		t.Run("publish is true", func(t *testing.T) {
 
@@ -89,6 +112,8 @@ func TestWrapper_IssueVC(t *testing.T) {
 					issueRequest := f.(*IssueVCRequest)
 					publishValue := true
 					visibilityValue := IssueVCRequestVisibilityPrivate
+					issueRequest.Type = expectedRequestedVC.Type[0].String()
+					issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
 					issueRequest.Visibility = &visibilityValue
 					issueRequest.PublishToNetwork = &publishValue
 					return nil
@@ -107,6 +132,8 @@ func TestWrapper_IssueVC(t *testing.T) {
 					issueRequest := f.(*IssueVCRequest)
 					publishValue := true
 					visibilityValue := IssueVCRequestVisibilityPublic
+					issueRequest.Type = expectedRequestedVC.Type[0].String()
+					issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
 					issueRequest.Visibility = &visibilityValue
 					issueRequest.PublishToNetwork = &publishValue
 					return nil
@@ -175,6 +202,8 @@ func TestWrapper_IssueVC(t *testing.T) {
 				issueRequest := f.(*IssueVCRequest)
 				publishValue := false
 				issueRequest.PublishToNetwork = &publishValue
+				issueRequest.Type = expectedRequestedVC.Type[0].String()
+				issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
 				return nil
 			})
 			testContext.mockIssuer.EXPECT().Issue(gomock.Any(), false, false)
@@ -201,6 +230,8 @@ func TestWrapper_IssueVC(t *testing.T) {
 			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 				public := IssueVCRequestVisibilityPublic
 				issueRequest := f.(*IssueVCRequest)
+				issueRequest.Type = expectedRequestedVC.Type[0].String()
+				issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
 				issueRequest.Visibility = &public
 				return nil
 			})
