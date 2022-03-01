@@ -20,6 +20,7 @@
 package events
 
 import (
+	"bytes"
 	"context"
 	"sync"
 	"testing"
@@ -55,7 +56,6 @@ func Test_pub_sub(t *testing.T) {
 		return
 	}
 
-	expected := []byte{1}
 	// the ack comes from the Nats server so we can use Publish (instead of PublishAsync)
 	_, err = js.PublishAsync("TRANSACTIONS.tx", []byte{1})
 	if !assert.NoError(t, err) {
@@ -65,12 +65,11 @@ func Test_pub_sub(t *testing.T) {
 	test.WaitFor(t, func() (bool, error) {
 		foundMutex.Lock()
 		defer foundMutex.Unlock()
-		return found != nil, nil
-	}, 10*time.Millisecond, "timeout waiting for message")
+		return bytes.Compare(found, []byte{1}) == 0, nil
+	}, 100*time.Millisecond, "timeout waiting for message")
 	if !assert.NoError(t, err) {
 		return
 	}
-	assert.Equal(t, expected, found)
 }
 
 func TestManager_Configure(t *testing.T) {
