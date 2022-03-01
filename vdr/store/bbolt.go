@@ -194,10 +194,12 @@ func (store *bboltStore) filterDocument(doc *documentVersion, metadata *vdr.Reso
 	if metadata.SourceTransaction != nil {
 		for i, keyTx := range doc.Metadata.SourceTransactions {
 			if keyTx.Equals(*metadata.SourceTransaction) {
-				return true
+				break
+			}
+			if i == len(doc.Metadata.SourceTransactions)-1 {
+				return vdr.ErrNotFound
 			}
 		}
-		return false
 	}
 
 	return nil
