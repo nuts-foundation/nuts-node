@@ -24,6 +24,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"os"
 	"reflect"
 	"runtime"
@@ -905,41 +907,6 @@ func TestVcr_verifyRevocation(t *testing.T) {
 		err := instance.verifyRevocation(r2)
 
 		assert.Error(t, err)
-	})
-}
-
-func TestVcr_generateProof(t *testing.T) {
-	t.Run("incorrect key", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
-		instance := NewTestVCRInstance(t)
-		key := crypto.TestKey{}
-		kid, _ := ssi.ParseURI(testKID)
-
-		err := instance.generateProof(vc, *kid, key)
-
-		if !assert.Error(t, err) {
-			return
-		}
-	})
-}
-
-func TestVcr_generateRevocationProof(t *testing.T) {
-	t.Run("incorrect key", func(t *testing.T) {
-		// load revocation
-		r := credential.Revocation{}
-		rJSON, _ := os.ReadFile("test/revocation.json")
-		json.Unmarshal(rJSON, &r)
-
-		// default stuff
-		instance := NewTestVCRInstance(t)
-		key := crypto.TestKey{}
-		kid, _ := ssi.ParseURI(testKID)
-
-		err := instance.generateRevocationProof(&r, *kid, key)
-
-		if !assert.Error(t, err) {
-			return
-		}
 	})
 }
 
