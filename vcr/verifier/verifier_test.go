@@ -357,8 +357,9 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	contextLoader, err := signature.NewContextLoader(false)
+	verifierStore := NewMockStore(ctrl)
 	assert.NoError(t, err)
-	verifier := NewVerifier(keyResolver, contextLoader)
+	verifier := NewVerifier(verifierStore, keyResolver, contextLoader)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,
