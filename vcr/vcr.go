@@ -480,7 +480,6 @@ func (c *vcr) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 	}
 	if isRevoked {
 		return nil, core.PreconditionFailedError("credential already revoked")
-		//return nil, errors.New("credential already revoked")
 	}
 
 	return c.issuer.Revoke(credentialID)
@@ -705,93 +704,6 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	return qs
 }
 
-func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, key crypto.Key) error {
-	// create proof
-	pr := vc.Proof{
-		Type:               "JsonWebSignature2020",
-		ProofPurpose:       "assertionMethod",
-		VerificationMethod: kid,
-		Created:            credential.IssuanceDate,
-	}
-	credential.Proof = []interface{}{pr}
-
-	// create correct signing challenge
-	challenge, err := generateCredentialChallenge(*credential)
-	if err != nil {
-		return err
-	}
-
-	sig, err := crypto.SignDetachedJWS(challenge, detachedJWSHeaders(), key.Signer())
-	if err != nil {
-		return err
-	}
-
-	// remove payload from sig since a detached jws is required.
-	dsig := toDetachedSignature(sig)
-
-	credential.Proof = []interface{}{
-		vc.JSONWebSignature2020Proof{
-			Proof: pr,
-			Jws:   dsig,
-		},
-	}
-
-	return nil
-}
-
-func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI, key crypto.Key) error {
-	// create proof
-	r.Proof = &vc.JSONWebSignature2020Proof{
-		Proof: vc.Proof{
-			Type:               "JsonWebSignature2020",
-			ProofPurpose:       "assertionMethod",
-			VerificationMethod: kid,
-			Created:            r.Date,
-		},
-	}
-
-	// create correct signing challenge
-	challenge := generateRevocationChallenge(*r)
-
-	sig, err := crypto.SignJWS(challenge, detachedJWSHeaders(), key.Signer())
-	if err != nil {
-		return err
-	}
-
-	// remove payload from sig since a detached jws is required.
-	dsig := toDetachedSignature(sig)
-
-	r.Proof.Jws = dsig
-
-	return nil
-}
-
-func generateCredentialChallenge(credential vc.VerifiableCredential) ([]byte, error) {
-	var proofs = make([]vc.JSONWebSignature2020Proof, 1)
-
-	if err := credential.UnmarshalProofValue(&proofs); err != nil {
-		return nil, err
-	}
-
-	if len(proofs) != 1 {
-		return nil, errors.New("expected a single Proof for challenge generation")
-	}
-
-	// payload
-	credential.Proof = nil
-	payload, _ := json.Marshal(credential)
-
-	// proof
-	proof := proofs[0]
-	proof.Jws = ""
-	prJSON, _ := json.Marshal(proof)
-
-	sums := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
-	tbs := base64.RawURLEncoding.EncodeToString(sums)
-
-	return []byte(tbs), nil
-}
-
 func generateRevocationChallenge(r credential.Revocation) []byte {
 	// without JWS
 	proof := r.Proof.Proof
@@ -807,22 +719,6 @@ func generateRevocationChallenge(r credential.Revocation) []byte {
 	tbs := base64.RawURLEncoding.EncodeToString(sums)
 
 	return []byte(tbs)
-}
-
-// detachedJWSHeaders creates headers for JsonWebSignature2020
-// the alg will be based upon the key
-// {"b64":false,"crit":["b64"]}
-func detachedJWSHeaders() map[string]interface{} {
-	return map[string]interface{}{
-		"b64":  false,
-		"crit": []string{"b64"},
-	}
-}
-
-// toDetachedSignature removes the middle part of the signature
-func toDetachedSignature(sig string) string {
-	splitted := strings.Split(sig, ".")
-	return strings.Join([]string{splitted[0], splitted[2]}, "..")
 }
 
 // VCR is the interface that covers all functionality of the vcr store.
