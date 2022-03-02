@@ -1,0 +1,11 @@
+{
+  "controller": "did:nuts:4NWLJrsTXirWdpnaxva6cqmnvzHzePsK5KxLjydWWpby",
+  "id": "did:nuts:4NWLJrsTXirWdpnaxva6cqmnvzHzePsK5KxLjydWWpby#MhVssUgHJtSLIZ6r2VwKOzkGp2LFu2-MLHmJ3ACJ9WA",
+  "publicKeyJwk": {
+    "crv": "P-256",
+    "kty": "EC",
+    "x": "Tj4Rla3_JNRdjh-SfF13DQlXxRNOJ6gHoX544116Rxo",
+    "y": "p8fKiGwbejvLATuYjN_xG6DbEuALtpB9pOMDFoPwq2o"
+  },
+  "type": "JsonWebKey2020"
+}

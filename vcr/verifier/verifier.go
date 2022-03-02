@@ -167,10 +167,11 @@ func (v *verifier) CheckAndStoreRevocation(document proof.SignedDocument) error 
 		return errors.New("issuer of revocation is not the same as issuer of credential")
 	}
 
-	//issuerDID, err := did.ParseDID(revocation.Issuer.String())
-	//if err != nil {
-	//	return fmt.Errorf("invalid issuer did: %w", err)
-	//}
+	vmWithoutFragment := revocation.Proof.VerificationMethod
+	vmWithoutFragment.Fragment = ""
+	if vmWithoutFragment != revocation.Issuer {
+		return errors.New("verificationMethod should owned by the issuer")
+	}
 
 	pk, err := v.keyResolver.ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date)
 	if err != nil {
@@ -184,7 +185,9 @@ func (v *verifier) CheckAndStoreRevocation(document proof.SignedDocument) error 
 	}
 
 	ldProof := proof.LDProof{}
-	document.UnmarshalProofValue(&ldProof)
+	if err := document.UnmarshalProofValue(&ldProof); err != nil {
+		return err
+	}
 	err = ldProof.Verify(document.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader}, pk)
 	if err != nil {
 		return fmt.Errorf("unable to verify revocation signature: %w", err)
