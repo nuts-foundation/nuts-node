@@ -185,17 +185,11 @@ func (v *verifier) CheckAndStoreRevocation(document proof.SignedDocument) error 
 		return fmt.Errorf("unable to resolve key for revocation: %w", err)
 	}
 
-	// FIXME: use a cached contextLoader
-	contextLoader, err := signature.NewContextLoader(true)
-	if err != nil {
-		return fmt.Errorf("unable to check and store revocation: %w", err)
-	}
-
 	ldProof := proof.LDProof{}
 	if err := document.UnmarshalProofValue(&ldProof); err != nil {
 		return err
 	}
-	err = ldProof.Verify(document.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader}, pk)
+	err = ldProof.Verify(document.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.contextLoader}, pk)
 	if err != nil {
 		return fmt.Errorf("unable to verify revocation signature: %w", err)
 	}
