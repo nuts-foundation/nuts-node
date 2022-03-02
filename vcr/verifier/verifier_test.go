@@ -242,6 +242,7 @@ func Test_verifier_Verify(t *testing.T) {
 		t.Run("fails when key is not found", func(t *testing.T) {
 			vc := testCredential(t)
 			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
 			proofs, _ := vc.Proofs()
 			ctx.keyResolver.EXPECT().ResolveSigningKey(proofs[0].VerificationMethod.String(), nil).Return(nil, types.ErrKeyNotFound)
 			sut := ctx.verifier
@@ -250,10 +251,20 @@ func Test_verifier_Verify(t *testing.T) {
 		})
 	})
 
+	t.Run("invalid when revoked", func(t *testing.T) {
+		vc := testCredential(t)
+		ctx := newMockContext(t)
+		ctx.store.EXPECT().GetRevocation(*vc.ID).Return(&credential.Revocation{}, nil)
+		sut := ctx.verifier
+		validationErr := sut.Verify(vc, true, false, nil)
+		assert.EqualError(t, validationErr, "credential is revoked")
+	})
+
 	t.Run("no signature check", func(t *testing.T) {
 		t.Run("ok, the vc is valid", func(t *testing.T) {
 			vc := testCredential(t)
 			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
 			sut := ctx.verifier
 			validationErr := sut.Verify(vc, true, false, nil)
 			assert.NoError(t, validationErr,
@@ -264,6 +275,7 @@ func Test_verifier_Verify(t *testing.T) {
 			vc := testCredential(t)
 			vc.Proof[0] = map[string]interface{}{"jws": "foo"}
 			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
 			sut := ctx.verifier
 			validationErr := sut.Verify(vc, true, false, nil)
 			assert.NoError(t, validationErr,
@@ -287,6 +299,7 @@ func Test_verifier_Verify(t *testing.T) {
 				expirationTime := time.Now().Add(-10 * time.Hour)
 				vc.ExpirationDate = &expirationTime
 				ctx := newMockContext(t)
+				ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
 				sut := ctx.verifier
 				validationErr := sut.Verify(vc, true, false, nil)
 				assert.EqualError(t, validationErr, "credential not valid at given time")
