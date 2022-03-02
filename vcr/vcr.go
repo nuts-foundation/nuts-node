@@ -182,6 +182,10 @@ func (c *vcr) Shutdown() error {
 	if err != nil {
 		log.Logger().Errorf("Unable to close issuer store: %v", err)
 	}
+	err = c.verifierStore.Close()
+	if err != nil {
+		log.Logger().Errorf("Unable to close verifier store: %v", err)
+	}
 	return c.store.Close()
 }
 
