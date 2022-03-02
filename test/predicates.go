@@ -20,6 +20,8 @@ package test
 
 import (
 	"fmt"
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -42,7 +44,19 @@ func WaitFor(t *testing.T, p Predicate, timeout time.Duration, message string, m
 			assert.Fail(t, fmt.Sprintf(message, msgArgs...))
 			return false
 		}
-		time.Sleep(10 * time.Millisecond)
+
+		// when running on CI there are some problems with testing go procedures. Probably during the low number of CPUs on those machines (1/4).
+		// This causes all go procedures to run on the same context.
+		// The logic below would block and allow other procedures to run and thus hopefully let other procedures run as well...
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			wg.Done()
+			runtime.Gosched()
+		}()
+		runtime.Gosched()
+		wg.Wait()
 	}
 }
 
