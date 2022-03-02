@@ -324,8 +324,14 @@ func Test_issuer_Revoke(t *testing.T) {
 			assert.NotNil(t, revocation)
 			assert.Equal(t, issuerURI, revocation.Issuer)
 			assert.Equal(t, credentialURI, revocation.Subject)
-			assert.Equal(t, revocation.Context[0].String(), "https://nuts.nl/credentials/v1")
-			assert.Equal(t, revocation.Context[1].String(), "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json")
+
+			// extract contexts as string into array since order of the revocation.Context is not guaranteed
+			contexts := make([]string, len(revocation.Context))
+			for i, val := range revocation.Context {
+				contexts[i] = val.String()
+			}
+			assert.Contains(t, contexts, "https://nuts.nl/credentials/v1")
+			assert.Contains(t, contexts, "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json")
 			assert.Equal(t, kid, revocation.Proof.VerificationMethod)
 		})
 
