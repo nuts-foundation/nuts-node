@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -93,13 +94,11 @@ func TestConversationManager_start(t *testing.T) {
 
 	_ = cMan.conversationFromEnvelope(envelope)
 
-	cMan.mutex.Lock()
-	assert.Len(t, cMan.conversations, 1)
-	cMan.mutex.Unlock()
-	time.Sleep(5 * time.Millisecond)
-	cMan.mutex.Lock()
-	assert.Len(t, cMan.conversations, 0)
-	cMan.mutex.Unlock()
+	test.WaitFor(t, func() (bool, error) {
+		cMan.mutex.Lock()
+		defer cMan.mutex.Unlock()
+		return len(cMan.conversations) == 0, nil
+	}, 100*time.Millisecond, "timeout while waiting for conversations to clear")
 }
 
 func TestConversationManager_done(t *testing.T) {
