@@ -103,7 +103,7 @@ func (n ambassador) jsonLDRevocationCallback(tx dag.Transaction, payload []byte)
 
 	doc := proof.SignedDocument{}
 	if err := json.Unmarshal(payload, &doc); err != nil {
-		return fmt.Errorf("evocation processing failed: %w", err)
+		return fmt.Errorf("revocation processing failed: %w", err)
 	}
 	return n.verifier.CheckAndStoreRevocation(doc)
 }
