@@ -74,8 +74,11 @@ func New(
 	docResolver vdr.DocResolver,
 	decrypter crypto.Decrypter,
 ) transport.Protocol {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &protocol{
+		cancel:          cancel,
 		config:          config,
+		ctx:             ctx,
 		state:           state,
 		nodeDIDResolver: nodeDIDResolver,
 		decrypter:       decrypter,
@@ -141,6 +144,13 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 		return fmt.Errorf("failed to setup payload scheduler: %w", err)
 	}
 
+	// register gossip part of protocol
+	p.gManager = gossip.NewManager(p.ctx, time.Duration(p.config.GossipInterval)*time.Millisecond)
+	p.gManager.RegisterSender(p.sendGossip)
+
+	// called after DAG is committed
+	p.state.RegisterObserver(p.gossipTransaction, false)
+
 	// register callback from DAG to protocol layer.
 	// The callback is done within the DAG DB transaction.
 	// It's only called once for each validated transaction.
@@ -154,9 +164,6 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 }
 
 func (p *protocol) Start() (err error) {
-	p.ctx, p.cancel = context.WithCancel(context.Background())
-
-	// conversation manager is stopped through the context
 	p.cMan = newConversationManager(maxValidity)
 	p.cMan.start(p.ctx)
 
@@ -176,12 +183,6 @@ func (p *protocol) Start() (err error) {
 		// todo replace with observer, underlying storage is persistent
 		p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
 	}
-
-	// start gossip part of protocol
-	p.gManager = gossip.NewManager(p.ctx, time.Duration(p.config.GossipInterval)*time.Millisecond)
-	p.gManager.RegisterSender(p.sendGossip)
-	// called after DAG is committed
-	p.state.RegisterObserver(p.gossipTransaction, false)
 
 	return
 }

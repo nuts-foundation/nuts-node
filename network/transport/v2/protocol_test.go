@@ -88,7 +88,8 @@ func TestDefaultConfig(t *testing.T) {
 
 func TestProtocol_Configure(t *testing.T) {
 	testDID, _ := did.ParseDID("did:nuts:123")
-	p, _ := newTestProtocol(t, testDID)
+	p, mocks := newTestProtocol(t, testDID)
+	mocks.State.EXPECT().RegisterObserver(gomock.Any(), false)
 
 	assert.NoError(t, p.Configure(""))
 }
@@ -165,7 +166,6 @@ func TestProtocol_lifecycle(t *testing.T) {
 
 	s := grpcLib.NewServer()
 	p, mocks := newTestProtocol(t, nil)
-	mocks.State.EXPECT().RegisterObserver(gomock.Any(), false)
 	connectionManager.EXPECT().RegisterObserver(gomock.Any())
 	mocks.PayloadScheduler.EXPECT().Close()
 
@@ -184,35 +184,26 @@ func TestProtocol_lifecycle(t *testing.T) {
 
 func TestProtocol_Start(t *testing.T) {
 	t.Run("ok - with node DID", func(t *testing.T) {
-		nodeDID, _ := did.ParseDID("did:nuts:123")
 		proto, mocks := newTestProtocol(t, nodeDID)
 
 		mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 		mocks.PayloadScheduler.EXPECT().Close()
-		mocks.State.EXPECT().RegisterObserver(gomock.Any(), false)
 		mocks.State.EXPECT().Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, gomock.Any())
 
 		err := proto.Start()
 		assert.NoError(t, err)
 
 		proto.Stop()
-
-		time.Sleep(2 * time.Second)
 	})
 
 	t.Run("ok - without node DID", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
-
-		mocks.State.EXPECT().RegisterObserver(gomock.Any(), false)
-
 		mocks.PayloadScheduler.EXPECT().Close()
 
 		err := proto.Start()
 		assert.NoError(t, err)
 
 		proto.Stop()
-
-		time.Sleep(2 * time.Second)
 	})
 }
 
