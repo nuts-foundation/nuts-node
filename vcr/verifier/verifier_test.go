@@ -438,6 +438,34 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 	})
 }
 
+func Test_verifier_IsRevoked(t *testing.T) {
+	rawRevocation, _ := os.ReadFile("../test/ld-revocation.json")
+	revocation := credential.Revocation{}
+	assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+
+	t.Run("it returns false if no revocation is found", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(nil, ErrNotFound)
+		result, err := sut.verifier.IsRevoked(revocation.Subject)
+		assert.NoError(t, err)
+		assert.False(t, result)
+	})
+	t.Run("it returns true if a revocation is found", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(&revocation, nil)
+		result, err := sut.verifier.IsRevoked(revocation.Subject)
+		assert.NoError(t, err)
+		assert.True(t, result)
+	})
+	t.Run("it returns the error if the store returns an error", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(nil, errors.New("foo"))
+		result, err := sut.verifier.IsRevoked(revocation.Subject)
+		assert.EqualError(t, err, "foo")
+		assert.False(t, result)
+	})
+}
+
 type mockContext struct {
 	ctrl        *gomock.Controller
 	keyResolver *types.MockKeyResolver
