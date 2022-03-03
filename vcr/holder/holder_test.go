@@ -50,7 +50,7 @@ func TestHolder_BuildVP(t *testing.T) {
 }`
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(testCredentialJSON), &testCredential)
-	key := crypto.NewTestKey(kid)
+	key := vdr.TestMethodDIDAPrivateKey()
 
 	t.Run("ok - one VC", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -67,6 +67,9 @@ func TestHolder_BuildVP(t *testing.T) {
 
 		options := proof.ProofOptions{}
 		resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, vdr.TestDIDA, false)
+
+		data, _ := json.Marshal(resultingPresentation)
+		println(string(data))
 
 		assert.NoError(t, err)
 		assert.NotNil(t, resultingPresentation)

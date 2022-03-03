@@ -23,6 +23,10 @@ type Verifier interface {
 	// RegisterRevocation stores the revocation in the store
 	// before storing the revocation gets validated
 	RegisterRevocation(revocation credential.Revocation) error
+
+	// VerifyVP verifies the given Verifiable Presentation. If successful, it returns the credentials within the presentation.
+	// If verifyVCs is true, it will also verify the credentials inside the VP, checking their correctness, signature and trust status.
+	VerifyVP(presentation vc.VerifiablePresentation, verifyVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error)
 }
 
 // ErrNotFound is returned when a credential or revocation can not be found based on its ID.

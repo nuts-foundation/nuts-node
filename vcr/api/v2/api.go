@@ -229,3 +229,20 @@ func (w *Wrapper) CreateVP(ctx echo.Context) error {
 	}
 	return ctx.JSON(http.StatusOK, vp)
 }
+
+func (w *Wrapper) VerifyVP(ctx echo.Context) error {
+	request := &VPVerificationRequest{}
+	if err := ctx.Bind(request); err != nil {
+		return err
+	}
+
+	verifyCredentials := true
+	if request.VerifyCredentials != nil {
+		verifyCredentials = *request.VerifyCredentials
+	}
+	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.VerifiablePresentation, verifyCredentials, request.ValidAt)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, verifiedCredentials)
+}

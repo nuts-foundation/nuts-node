@@ -54,10 +54,10 @@ func NewVerifier(store Store, keyResolver vdr.KeyResolver, contextLoader ld.Docu
 	return &verifier{store: store, keyResolver: keyResolver, contextLoader: contextLoader}
 }
 
-// validateAtTime is a helper method which checks if a credential is valid at a certain given time.
+// validateAtTime is a helper method which checks if a credentia/presentation is valid at a certain given time.
 // If no validAt is provided, validAt is set to now.
-// It returns nil if the credential is valid at the given time, otherwise it returns types.ErrInvalidPeriod
-func (v *verifier) validateAtTime(credential vc.VerifiableCredential, validAt *time.Time) error {
+// It returns nil if the credential/presentation is valid at the given issuance/expiration date, otherwise it returns types.ErrInvalidPeriod
+func (v *verifier) validateAtTime(issuanceDate time.Time, expirationDate *time.Time, validAt *time.Time) error {
 	// if validAt is nil, use the result from timeFunc (usually now)
 	at := timeFunc()
 	if validAt != nil {
@@ -65,12 +65,12 @@ func (v *verifier) validateAtTime(credential vc.VerifiableCredential, validAt *t
 	}
 
 	// check if issuanceDate is before validAt
-	if credential.IssuanceDate.After(at.Add(maxSkew)) {
+	if issuanceDate.After(at.Add(maxSkew)) {
 		return types.ErrInvalidPeriod
 	}
 
 	// check if expirationDate is after validAt
-	if credential.ExpirationDate != nil && credential.ExpirationDate.Add(maxSkew).Before(at) {
+	if expirationDate != nil && expirationDate.Add(maxSkew).Before(at) {
 		return types.ErrInvalidPeriod
 	}
 	return nil
@@ -135,7 +135,7 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 		return types.ErrRevoked
 	}
 
-	if err := v.validateAtTime(credentialToVerify, validAt); err != nil {
+	if err := v.validateAtTime(credentialToVerify.IssuanceDate, credentialToVerify.ExpirationDate, validAt); err != nil {
 		return err
 	}
 
@@ -203,4 +203,53 @@ func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {
 		return fmt.Errorf("unable to store revocation: %w", err)
 	}
 	return nil
+}
+
+func (v verifier) VerifyVP(vp vc.VerifiablePresentation, verifyVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
+	return v.doVerifyVP(&v, vp, verifyVCs, validAt)
+}
+
+// doVerifyVP delegates VC verification to the supplied Verifier, to aid unit testing.
+func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, verifyVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
+	var ldProofs []proof.LDProof
+	err := vp.UnmarshalProofValue(&ldProofs)
+	if err != nil {
+		return nil, fmt.Errorf("unsupported proof type: %w", err)
+	}
+	// Multiple proofs might be supported in the future, when there's an actual use case.
+	if len(ldProofs) != 1 {
+		return nil, errors.New("exactly 1 proof is expected")
+	}
+	ldProof := ldProofs[0]
+
+	// Validate signing time
+	err = v.validateAtTime(ldProof.Created, ldProof.ExpirationDate, validAt)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate signature
+	signingKey, err := v.keyResolver.ResolveSigningKey(ldProof.VerificationMethod.String(), validAt)
+	if err != nil {
+		return nil, fmt.Errorf("unable to resolve valid signing key: %w", err)
+	}
+	signedDocument, err := proof.NewSignedDocument(vp)
+	if err != nil {
+		return nil, err
+	}
+	err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.contextLoader}, signingKey)
+	if err != nil {
+		return nil, fmt.Errorf("signature verification failed: %w", err)
+	}
+
+	if verifyVCs {
+		for _, current := range vp.VerifiableCredential {
+			err := vcVerifier.Verify(current, false, true, validAt)
+			if err != nil {
+				return nil, fmt.Errorf("verification of Verifiable Credential failed (id=%s): %w", current.ID, err)
+			}
+		}
+	}
+
+	return vp.VerifiableCredential, nil
 }

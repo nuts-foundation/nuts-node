@@ -21,6 +21,7 @@ package vdr
 import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 )
@@ -35,8 +36,28 @@ var TestDIDB, _ = did.ParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7
 // TestMethodDIDA is a test method DID for the TestDIDA
 var TestMethodDIDA, _ = did.ParseDIDURL(TestDIDA.String() + "#abc-method-1")
 
+// TestMethodDIDAPrivateKey returns the key for TestMethodDIDA
+func TestMethodDIDAPrivateKey() crypto.TestKey {
+	key, _ := util.PemToPrivateKey([]byte(`-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgmvipTdytRXwTTY/6
+wJl5Cwj0YQ4+QdJK+fEC8DzL9/OhRANCAATxa8o5Htmk5J83FPbRCKDwO5VjtADD
+HpB7g016NM3emlGGaFytd23nTAx77KxrJMYoQ7liF4BgXUH0748kJQgx
+-----END PRIVATE KEY-----`))
+	return crypto.TestKey{PrivateKey: key, Kid: TestMethodDIDA.String()}
+}
+
 // TestMethodDIDB is a test method DID for the TestDIDB
 var TestMethodDIDB, _ = did.ParseDIDURL(TestDIDB.String() + "#abc-method-2")
+
+// TestMethodDIDBPrivateKey returns the key for TestMethodDIDB
+func TestMethodDIDBPrivateKey() crypto.TestKey {
+	key, _ := util.PemToPrivateKey([]byte(`-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg3dY0NAGN7koRq+BH
+XxhMnrGAyJ4c6DWkQyjAfhgzMJChRANCAARyqdBob46wU2n+qqQHwnxRa/KprcVr
+rYrfaOuqO34hTemBL1DkecuWBTPYT5HKiuKPn7LnDRupFXuCLF4tp+BR
+-----END PRIVATE KEY-----`))
+	return crypto.TestKey{PrivateKey: key, Kid: TestMethodDIDB.String()}
+}
 
 func NewTestVDRInstance(testDirectory string) *VDR {
 	config := TestVDRConfig()

@@ -173,29 +173,28 @@ type VCVerificationResult struct {
 	Validity bool `json:"validity"`
 }
 
-// Verifiable Presentation
-type VerifiablePresentation struct {
-	// An ordered set where the first item is a URI https://www.w3.org/2018/credentials/v1. It is used to define
-	// terms and help to express specific identifiers in a compact manner.
-	Context []string `json:"@context"`
+// VPVerificationRequest defines model for VPVerificationRequest.
+type VPVerificationRequest struct {
+	// Date and time at which the VP should be valid. If not supplied, the current date/time is used.
+	ValidAt *time.Time `json:"validAt,omitempty"`
 
-	// URI of the entity that is generating the presentation.
-	Holder *string `json:"holder,omitempty"`
+	// Verifiable Presentation
+	VerifiablePresentation VerifiablePresentation `json:"verifiablePresentation"`
 
-	// URI that is used to unambiguously refer to an object, such as a person, product, or organization.
-	Id *string `json:"id,omitempty"`
+	// Indicates whether the Verifiable Credentials within the VP must be verified, default true.
+	VerifyCredentials *bool `json:"verifyCredentials,omitempty"`
+}
 
-	// Cryptographic proofs that can be used to detect tampering and verify the authorship of a
-	// credential or presentation. An embedded proof is a mechanism where the proof is included in
-	// the data, such as a Linked Data Signature.
-	Proof *EmbeddedProof `json:"proof,omitempty"`
+// Contains the verifiable presentation verification result.
+type VPVerificationResult struct {
+	// If the VP is valid, it will contain the credentials inside the VP.
+	Credentials *[]VerifiableCredential `json:"credentials,omitempty"`
 
-	// Type of the object or the datatype of the typed value.
-	Type []string `json:"type"`
+	// Indicates what went wrong
+	Message *string `json:"message,omitempty"`
 
-	// VerifiableCredential is composed of a list containing one or more verifiable credentials, in a
-	// cryptographically verifiable format.
-	VerifiableCredential *[]VerifiableCredential `json:"verifiableCredential,omitempty"`
+	// Indicates the validity of the signature, issuer and revocation state.
+	Validity bool `json:"validity"`
 }
 
 // CreateVPJSONBody defines parameters for CreateVP.
@@ -219,6 +218,9 @@ type SearchIssuedVCsParams struct {
 // VerifyVCJSONBody defines parameters for VerifyVC.
 type VerifyVCJSONBody VCVerificationRequest
 
+// VerifyVPJSONBody defines parameters for VerifyVP.
+type VerifyVPJSONBody VPVerificationRequest
+
 // CreateVPJSONRequestBody defines body for CreateVP for application/json ContentType.
 type CreateVPJSONRequestBody CreateVPJSONBody
 
@@ -227,6 +229,9 @@ type IssueVCJSONRequestBody IssueVCJSONBody
 
 // VerifyVCJSONRequestBody defines body for VerifyVC for application/json ContentType.
 type VerifyVCJSONRequestBody VerifyVCJSONBody
+
+// VerifyVPJSONRequestBody defines body for VerifyVP for application/json ContentType.
+type VerifyVPJSONRequestBody VerifyVPJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -324,6 +329,11 @@ type ClientInterface interface {
 	VerifyVCWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	VerifyVC(ctx context.Context, body VerifyVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// VerifyVP request with any body
+	VerifyVPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	VerifyVP(ctx context.Context, body VerifyVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) SearchVCsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -424,6 +434,30 @@ func (c *Client) VerifyVCWithBody(ctx context.Context, contentType string, body 
 
 func (c *Client) VerifyVC(ctx context.Context, body VerifyVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyVCRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) VerifyVPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewVerifyVPRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) VerifyVP(ctx context.Context, body VerifyVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewVerifyVPRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -688,6 +722,46 @@ func NewVerifyVCRequestWithBody(server string, contentType string, body io.Reade
 	return req, nil
 }
 
+// NewVerifyVPRequest calls the generic VerifyVP builder with application/json body
+func NewVerifyVPRequest(server string, body VerifyVPJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewVerifyVPRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewVerifyVPRequestWithBody generates requests for VerifyVP with any type of body
+func NewVerifyVPRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/verifier/vp")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -754,6 +828,11 @@ type ClientWithResponsesInterface interface {
 	VerifyVCWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyVCResponse, error)
 
 	VerifyVCWithResponse(ctx context.Context, body VerifyVCJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyVCResponse, error)
+
+	// VerifyVP request with any body
+	VerifyVPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyVPResponse, error)
+
+	VerifyVPWithResponse(ctx context.Context, body VerifyVPJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyVPResponse, error)
 }
 
 type SearchVCsResponse struct {
@@ -887,6 +966,28 @@ func (r VerifyVCResponse) StatusCode() int {
 	return 0
 }
 
+type VerifyVPResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *VPVerificationResult
+}
+
+// Status returns HTTPResponse.Status
+func (r VerifyVPResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r VerifyVPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // SearchVCsWithBodyWithResponse request with arbitrary body returning *SearchVCsResponse
 func (c *ClientWithResponses) SearchVCsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error) {
 	rsp, err := c.SearchVCsWithBody(ctx, contentType, body, reqEditors...)
@@ -963,6 +1064,23 @@ func (c *ClientWithResponses) VerifyVCWithResponse(ctx context.Context, body Ver
 		return nil, err
 	}
 	return ParseVerifyVCResponse(rsp)
+}
+
+// VerifyVPWithBodyWithResponse request with arbitrary body returning *VerifyVPResponse
+func (c *ClientWithResponses) VerifyVPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyVPResponse, error) {
+	rsp, err := c.VerifyVPWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseVerifyVPResponse(rsp)
+}
+
+func (c *ClientWithResponses) VerifyVPWithResponse(ctx context.Context, body VerifyVPJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyVPResponse, error) {
+	rsp, err := c.VerifyVP(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseVerifyVPResponse(rsp)
 }
 
 // ParseSearchVCsResponse parses an HTTP response from a SearchVCsWithResponse call
@@ -1111,6 +1229,32 @@ func ParseVerifyVCResponse(rsp *http.Response) (*VerifyVCResponse, error) {
 	return response, nil
 }
 
+// ParseVerifyVPResponse parses an HTTP response from a VerifyVPWithResponse call
+func ParseVerifyVPResponse(rsp *http.Response) (*VerifyVPResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &VerifyVPResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VPVerificationResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Searches for verifiable credentials that could be used for different use-cases.
@@ -1131,6 +1275,9 @@ type ServerInterface interface {
 	// Verifies a Verifiable Credential
 	// (POST /internal/vcr/v2/verifier/vc)
 	VerifyVC(ctx echo.Context) error
+	// Verifies a Verifiable Presentation
+	// (POST /internal/vcr/v2/verifier/vp)
+	VerifyVP(ctx echo.Context) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -1222,6 +1369,15 @@ func (w *ServerInterfaceWrapper) VerifyVC(ctx echo.Context) error {
 	return err
 }
 
+// VerifyVP converts echo context to params.
+func (w *ServerInterfaceWrapper) VerifyVP(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.VerifyVP(ctx)
+	return err
+}
+
 // PATCH: This template file was taken from pkg/codegen/templates/register.tmpl
 
 // This is a simple interface which specifies echo.Route addition functions which
@@ -1277,6 +1433,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v2/verifier/vc", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("VerifyVC", context)
 		return wrapper.VerifyVC(context)
+	})
+	router.Add(http.MethodPost, baseURL+"/internal/vcr/v2/verifier/vp", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("VerifyVP", context)
+		return wrapper.VerifyVP(context)
 	})
 
 }
