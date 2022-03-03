@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"io"
 )
 
 // Publisher publishes new credentials and revocations to a channel. Used by a credential issuer.
@@ -67,8 +68,8 @@ type Store interface {
 	// StoreCredential writes a VC to storage.
 	StoreCredential(vc vc.VerifiableCredential) error
 	CredentialSearcher
-	// Close closes and frees the underlying resources the store uses.
-	Close() error
+	// Closer closes and frees the underlying resources the store uses.
+	io.Closer
 }
 
 // CredentialSearcher defines the functions to resolve or search for credentials.

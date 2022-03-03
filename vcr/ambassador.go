@@ -22,7 +22,6 @@ package vcr
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -101,9 +100,10 @@ func (n ambassador) rCallback(tx dag.Transaction, payload []byte) error {
 func (n ambassador) jsonLDRevocationCallback(tx dag.Transaction, payload []byte) error {
 	log.Logger().Debugf("Processing VC revocation received from Nuts Network (ref=%s)", tx.Ref())
 
-	doc := proof.SignedDocument{}
-	if err := json.Unmarshal(payload, &doc); err != nil {
+	r := credential.Revocation{}
+	if err := json.Unmarshal(payload, &r); err != nil {
 		return fmt.Errorf("revocation processing failed: %w", err)
 	}
-	return n.verifier.CheckAndStoreRevocation(doc)
+
+	return n.verifier.RegisterRevocation(r)
 }

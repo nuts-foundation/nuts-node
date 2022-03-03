@@ -119,7 +119,7 @@ func (w Wrapper) RevokeVC(ctx echo.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	return ctx.JSON(200, revocation)
+	return ctx.JSON(http.StatusOK, revocation)
 }
 
 // SearchIssuedVCs handles the API request for searching for issued VCs

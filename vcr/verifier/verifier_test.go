@@ -386,51 +386,50 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 		sut := newMockContext(t)
 		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(key, nil)
 		sut.store.EXPECT().StoreRevocation(revocation)
-		err := sut.verifier.CheckAndStoreRevocation(document)
+		err := sut.verifier.RegisterRevocation(revocation)
 		assert.NoError(t, err)
 	})
 
 	t.Run("it fails when there are fields missing", func(t *testing.T) {
 		sut := newMockContext(t)
-		document := proof.SignedDocument{}
-		assert.NoError(t, json.Unmarshal(rawRevocation, &document))
-		document["subject"] = ""
-		err := sut.verifier.CheckAndStoreRevocation(document)
+		revocation := credential.Revocation{}
+		assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+		revocation.Subject = ssi.MustParseURI("")
+		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "validation failed: 'subject' is required and requires a valid fragment")
 	})
 
 	t.Run("it fails when the used verificationMethod is not from the issuer", func(t *testing.T) {
 		sut := newMockContext(t)
-		document := proof.SignedDocument{}
-		assert.NoError(t, json.Unmarshal(rawRevocation, &document))
-		proof := document["proof"].(map[string]interface{})
-		proof["verificationMethod"] = "did:nuts:123#abc"
-		err := sut.verifier.CheckAndStoreRevocation(document)
+		revocation := credential.Revocation{}
+		assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+		revocation.Proof.VerificationMethod = ssi.MustParseURI("did:nuts:123#abc")
+		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "verificationMethod should owned by the issuer")
 	})
 
 	t.Run("it fails when the revoked credential and revocation-issuer are not from the same identity", func(t *testing.T) {
 		sut := newMockContext(t)
-		document := proof.SignedDocument{}
-		assert.NoError(t, json.Unmarshal(rawRevocation, &document))
-		document["issuer"] = "did:nuts:123"
-		err := sut.verifier.CheckAndStoreRevocation(document)
+		revocation := credential.Revocation{}
+		assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+		revocation.Issuer = ssi.MustParseURI("did:nuts:123")
+		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "issuer of revocation is not the same as issuer of credential")
 	})
 
-	t.Run("it fails when the proof has an invalid format", func(t *testing.T) {
-		sut := newMockContext(t)
-		document := proof.SignedDocument{}
-		assert.NoError(t, json.Unmarshal(rawRevocation, &document))
-		document["proof"] = map[string]interface{}{"JWS": []string{"foo"}}
-		err := sut.verifier.CheckAndStoreRevocation(document)
-		assert.EqualError(t, err, "json: cannot unmarshal array into Go struct field JSONWebSignature2020Proof.proof.jws of type string")
-	})
+	//t.Run("it fails when the proof has an invalid format", func(t *testing.T) {
+	//	sut := newMockContext(t)
+	//	revocation := credential.Revocation{}
+	//	assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+	//	revocation.Proof = map[string]interface{}{"JWS": []string{"foo"}}
+	//	err := sut.verifier.RegisterRevocation(revocation)
+	//	assert.EqualError(t, err, "json: cannot unmarshal array into Go struct field JSONWebSignature2020Proof.proof.jws of type string")
+	//})
 
 	t.Run("it handles an unknown key error", func(t *testing.T) {
 		sut := newMockContext(t)
 		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(nil, errors.New("unknown key"))
-		err := sut.verifier.CheckAndStoreRevocation(document)
+		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "unable to resolve key for revocation: unknown key")
 	})
 
@@ -438,7 +437,7 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 		sut := newMockContext(t)
 		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(key, nil)
 		sut.store.EXPECT().StoreRevocation(revocation).Return(errors.New("storage error"))
-		err := sut.verifier.CheckAndStoreRevocation(document)
+		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "unable to store revocation: storage error")
 	})
 
@@ -446,7 +445,7 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 		sut := newMockContext(t)
 		otherKey := crypto.NewTestKey("did:nuts:123#abc").Public()
 		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(otherKey, nil)
-		err := sut.verifier.CheckAndStoreRevocation(document)
+		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "unable to verify revocation signature: invalid proof signature: failed to verify signature using ecdsa")
 	})
 }

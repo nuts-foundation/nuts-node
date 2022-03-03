@@ -12,7 +12,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
-	proof "github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
 // MockVerifier is a mock of Verifier interface.
@@ -38,20 +37,6 @@ func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
 	return m.recorder
 }
 
-// CheckAndStoreRevocation mocks base method.
-func (m *MockVerifier) CheckAndStoreRevocation(document proof.SignedDocument) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckAndStoreRevocation", document)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// CheckAndStoreRevocation indicates an expected call of CheckAndStoreRevocation.
-func (mr *MockVerifierMockRecorder) CheckAndStoreRevocation(document interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckAndStoreRevocation", reflect.TypeOf((*MockVerifier)(nil).CheckAndStoreRevocation), document)
-}
-
 // IsRevoked mocks base method.
 func (m *MockVerifier) IsRevoked(credentialID ssi.URI) (bool, error) {
 	m.ctrl.T.Helper()
@@ -65,6 +50,20 @@ func (m *MockVerifier) IsRevoked(credentialID ssi.URI) (bool, error) {
 func (mr *MockVerifierMockRecorder) IsRevoked(credentialID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRevoked", reflect.TypeOf((*MockVerifier)(nil).IsRevoked), credentialID)
+}
+
+// RegisterRevocation mocks base method.
+func (m *MockVerifier) RegisterRevocation(revocation credential.Revocation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterRevocation", revocation)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterRevocation indicates an expected call of RegisterRevocation.
+func (mr *MockVerifierMockRecorder) RegisterRevocation(revocation interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRevocation", reflect.TypeOf((*MockVerifier)(nil).RegisterRevocation), revocation)
 }
 
 // Validate mocks base method.

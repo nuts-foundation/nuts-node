@@ -22,7 +22,6 @@ package vcr
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"os"
 	"testing"
@@ -171,11 +170,11 @@ func Test_ambassador_jsonLDRevocationCallback(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		expectedDoc := proof.SignedDocument{}
-		assert.NoError(t, json.Unmarshal(payload, &expectedDoc))
+		revocation := credential.Revocation{}
+		assert.NoError(t, json.Unmarshal(payload, &revocation))
 
 		mockVerifier := verifier.NewMockVerifier(ctrl)
-		mockVerifier.EXPECT().CheckAndStoreRevocation(expectedDoc)
+		mockVerifier.EXPECT().RegisterRevocation(revocation)
 		a := NewAmbassador(nil, nil, mockVerifier).(ambassador)
 
 		err := a.jsonLDRevocationCallback(stx, payload)
@@ -193,11 +192,8 @@ func Test_ambassador_jsonLDRevocationCallback(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		expectedDoc := proof.SignedDocument{}
-		assert.NoError(t, json.Unmarshal(payload, &expectedDoc))
-
 		mockVerifier := verifier.NewMockVerifier(ctrl)
-		mockVerifier.EXPECT().CheckAndStoreRevocation(gomock.Any()).Return(errors.New("foo"))
+		mockVerifier.EXPECT().RegisterRevocation(gomock.Any()).Return(errors.New("foo"))
 		a := NewAmbassador(nil, nil, mockVerifier).(ambassador)
 
 		err := a.jsonLDRevocationCallback(stx, payload)

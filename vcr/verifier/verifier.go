@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/piprate/json-gold/ld"
+	"strings"
 	"time"
 )
 
@@ -87,9 +88,9 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 		return fmt.Errorf("unable to extract ldproof from signed document: %w", err)
 	}
 
-	verificationMethod := ldProof.VerificationMethod
-	verificationMethod.Fragment = ""
-	if verificationMethod.String() == "" || verificationMethod != credentialToVerify.Issuer {
+	verificationMethod := ldProof.VerificationMethod.String()
+	verificationMethodIssuer := strings.Split(verificationMethod, "#")[0]
+	if verificationMethodIssuer == "" || verificationMethodIssuer != credentialToVerify.Issuer.String() {
 		return errors.New("verification method is not of issuer")
 	}
 
@@ -127,11 +128,11 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	}
 
 	revoked, err := v.IsRevoked(*credentialToVerify.ID)
-	if revoked {
-		return errors.New("credential is revoked")
-	}
 	if err != nil {
 		return err
+	}
+	if revoked {
+		return types.ErrRevoked
 	}
 
 	if err := v.validateAtTime(credentialToVerify, validAt); err != nil {
@@ -156,10 +157,10 @@ func (v *verifier) IsRevoked(credentialID ssi.URI) (bool, error) {
 	return true, nil
 }
 
-func (v *verifier) CheckAndStoreRevocation(document proof.SignedDocument) error {
-	asBytes, err := json.Marshal(document)
-	revocation := credential.Revocation{}
-	if err := json.Unmarshal(asBytes, &revocation); err != nil {
+func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {
+	asBytes, err := json.Marshal(revocation)
+	document := proof.SignedDocument{}
+	if err := json.Unmarshal(asBytes, &document); err != nil {
 		return err
 	}
 
@@ -167,16 +168,20 @@ func (v *verifier) CheckAndStoreRevocation(document proof.SignedDocument) error 
 		return err
 	}
 
-	// issuer must be the same as vc issuer
-	subject := revocation.Subject
-	subject.Fragment = ""
-	if subject != revocation.Issuer {
+	// Revocation issuer must be the same as credential issuer
+	// Subject contains the credential ID
+	subject := revocation.Subject.String()
+	// The first part before the # is the credentialIssuer
+	subjectIssuer := strings.Split(subject, "#")[0]
+	// Check if the revocation issuer is the same as the credential issuer
+	if subjectIssuer != revocation.Issuer.String() {
 		return errors.New("issuer of revocation is not the same as issuer of credential")
 	}
 
-	vmWithoutFragment := revocation.Proof.VerificationMethod
-	vmWithoutFragment.Fragment = ""
-	if vmWithoutFragment != revocation.Issuer {
+	// Check if the key used to sign the revocation belongs to the revocation issuer
+	vm := revocation.Proof.VerificationMethod.String()
+	vmIssuer := strings.Split(vm, "#")[0]
+	if vmIssuer != revocation.Issuer.String() {
 		return errors.New("verificationMethod should owned by the issuer")
 	}
 

@@ -5,7 +5,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"io"
 	"time"
 )
 
@@ -20,9 +20,9 @@ type Verifier interface {
 	Validate(credentialToVerify vc.VerifiableCredential, at *time.Time) error
 	// IsRevoked checks if the credential is revoked
 	IsRevoked(credentialID ssi.URI) (bool, error)
-	// CheckAndStoreRevocation accepts a signed document, checks the signature and type.
-	// If all is valid, it stores the revocation.
-	CheckAndStoreRevocation(document proof.SignedDocument) error
+	// RegisterRevocation stores the revocation in the store
+	// before storing the revocation gets validated
+	RegisterRevocation(revocation credential.Revocation) error
 }
 
 // ErrNotFound is returned when a credential or revocation can not be found based on its ID.
@@ -37,6 +37,6 @@ type Store interface {
 	GetRevocation(id ssi.URI) (*credential.Revocation, error)
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error
-	// Close closes and frees the underlying resources the store uses.
-	Close() error
+	// Closer closes and frees the underlying resources the store uses.
+	io.Closer
 }

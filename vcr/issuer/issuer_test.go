@@ -389,7 +389,7 @@ func Test_issuer_Revoke(t *testing.T) {
 			}
 
 			revocation, err := sut.Revoke(credentialURI)
-			assert.EqualError(t, err, "could not revoke: not found")
+			assert.EqualError(t, err, "could not revoke (id=did:nuts:123#abc): not found")
 			assert.Nil(t, revocation)
 		})
 	})

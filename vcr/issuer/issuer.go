@@ -144,7 +144,7 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 	// first find it using a query on id.
 	credentialToRevoke, err := i.store.GetCredential(credentialID)
 	if err != nil {
-		return nil, fmt.Errorf("could not revoke: %w", err)
+		return nil, fmt.Errorf("could not revoke (id=%s): %w", credentialID, err)
 	}
 
 	revocation, err := i.buildRevocation(*credentialToRevoke)
@@ -182,12 +182,8 @@ func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*cr
 		return nil, err
 	}
 
-	signingResultAsMap, ok := signingResult.(proof.SignedDocument)
-	if !ok {
-		return nil, errors.New("unable to cast signing result to SignedDocument")
-	}
+	signingResultAsMap := signingResult.(proof.SignedDocument)
 	b, _ = json.Marshal(signingResultAsMap)
-	fmt.Println(string(b))
 	signedRevocation := credential.Revocation{}
 	_ = json.Unmarshal(b, &signedRevocation)
 
