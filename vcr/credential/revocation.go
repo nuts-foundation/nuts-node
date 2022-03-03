@@ -45,6 +45,7 @@ type Revocation struct {
 	Proof *vc.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }
 
+// RevocationType contains the JSON-LD type for a revocation
 var RevocationType = ssi.MustParseURI("CredentialRevocation")
 
 // BuildRevocation generates a revocation based on the credential
