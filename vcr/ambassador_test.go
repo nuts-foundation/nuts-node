@@ -20,7 +20,10 @@
 package vcr
 
 import (
+	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"os"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -35,7 +38,7 @@ import (
 )
 
 func TestNewAmbassador(t *testing.T) {
-	a := NewAmbassador(nil, nil)
+	a := NewAmbassador(nil, nil, nil)
 
 	assert.NotNil(t, a)
 }
@@ -46,7 +49,7 @@ func TestAmbassador_Configure(t *testing.T) {
 		nMock := network.NewMockTransactions(ctrl)
 		defer ctrl.Finish()
 
-		a := NewAmbassador(nMock, nil)
+		a := NewAmbassador(nMock, nil, nil)
 		nMock.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any()).MinTimes(2)
 
 		a.Configure()
@@ -65,7 +68,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 		defer ctrl.Finish()
 
 		target := vc.VerifiableCredential{}
-		a := NewAmbassador(nil, wMock).(ambassador)
+		a := NewAmbassador(nil, wMock, nil).(ambassador)
 		wMock.EXPECT().StoreCredential(gomock.Any(), &validAt).DoAndReturn(func(f interface{}, g interface{}) error {
 			target = f.(vc.VerifiableCredential)
 			return nil
@@ -85,7 +88,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 		wMock := NewMockWriter(ctrl)
 		defer ctrl.Finish()
 
-		a := NewAmbassador(nil, wMock).(ambassador)
+		a := NewAmbassador(nil, wMock, nil).(ambassador)
 		wMock.EXPECT().StoreCredential(gomock.Any(), &validAt).Return(errors.New("b00m!"))
 
 		err := a.vcCallback(stx, payload)
@@ -98,7 +101,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 		wMock := NewMockWriter(ctrl)
 		defer ctrl.Finish()
 
-		a := NewAmbassador(nil, wMock).(ambassador)
+		a := NewAmbassador(nil, wMock, nil).(ambassador)
 
 		err := a.vcCallback(stx, []byte("{"))
 
@@ -117,7 +120,7 @@ func TestAmbassador_rCallback(t *testing.T) {
 		defer ctrl.Finish()
 
 		r := credential.Revocation{}
-		a := NewAmbassador(nil, wMock).(ambassador)
+		a := NewAmbassador(nil, wMock, nil).(ambassador)
 		wMock.EXPECT().StoreRevocation(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			r = f.(credential.Revocation)
 			return nil
@@ -137,7 +140,7 @@ func TestAmbassador_rCallback(t *testing.T) {
 		wMock := NewMockWriter(ctrl)
 		defer ctrl.Finish()
 
-		a := NewAmbassador(nil, wMock).(ambassador)
+		a := NewAmbassador(nil, wMock, nil).(ambassador)
 		wMock.EXPECT().StoreRevocation(gomock.Any()).Return(errors.New("b00m!"))
 
 		err := a.rCallback(stx, payload)
@@ -150,10 +153,50 @@ func TestAmbassador_rCallback(t *testing.T) {
 		wMock := NewMockWriter(ctrl)
 		defer ctrl.Finish()
 
-		a := NewAmbassador(nil, wMock).(ambassador)
+		a := NewAmbassador(nil, wMock, nil).(ambassador)
 
 		err := a.rCallback(stx, []byte("{"))
 
 		assert.Error(t, err)
+	})
+}
+
+func Test_ambassador_jsonLDRevocationCallback(t *testing.T) {
+	payload, _ := os.ReadFile("test/ld-revocation.json")
+	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.RevocationLDDocumentType, nil, nil, 0)
+	stx := tx.(dag.Transaction)
+
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		revocation := credential.Revocation{}
+		assert.NoError(t, json.Unmarshal(payload, &revocation))
+
+		mockVerifier := verifier.NewMockVerifier(ctrl)
+		mockVerifier.EXPECT().RegisterRevocation(revocation)
+		a := NewAmbassador(nil, nil, mockVerifier).(ambassador)
+
+		err := a.jsonLDRevocationCallback(stx, payload)
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - invalid payload", func(t *testing.T) {
+		a := NewAmbassador(nil, nil, nil).(ambassador)
+
+		err := a.jsonLDRevocationCallback(stx, []byte("b00m"))
+		assert.EqualError(t, err, "revocation processing failed: invalid character 'b' looking for beginning of value")
+	})
+
+	t.Run("error - storing fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockVerifier := verifier.NewMockVerifier(ctrl)
+		mockVerifier.EXPECT().RegisterRevocation(gomock.Any()).Return(errors.New("foo"))
+		a := NewAmbassador(nil, nil, mockVerifier).(ambassador)
+
+		err := a.jsonLDRevocationCallback(stx, payload)
+		assert.EqualError(t, err, "foo")
 	})
 }

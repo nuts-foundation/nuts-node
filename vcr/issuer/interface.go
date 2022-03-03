@@ -19,11 +19,13 @@
 package issuer
 
 import (
+	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"io"
 )
 
 // Publisher publishes new credentials and revocations to a channel. Used by a credential issuer.
@@ -50,20 +52,24 @@ type Issuer interface {
 	// It requires access to the private key of the issuer which will be used to sign the revocation.
 	// It returns an error when the credential is not issued by this node or is already revoked.
 	// The revocation will be published to the network by the issuers Publisher.
-	Revoke(credentialID ssi.URI) error
+	Revoke(credentialID ssi.URI) (*credential.Revocation, error)
 	CredentialSearcher
 }
+
+// ErrNotFound is returned when a credential or revocation can not be found based on its ID.
+var ErrNotFound = errors.New("not found")
 
 // Store defines the interface for an issuer store.
 // An implementation stores all the issued credentials and the revocations.
 type Store interface {
+	// GetCredential retrieves an issued credential by ID
+	// Returns an ErrNotFound when the credential is not in the store
+	GetCredential(id ssi.URI) (*vc.VerifiableCredential, error)
 	// StoreCredential writes a VC to storage.
 	StoreCredential(vc vc.VerifiableCredential) error
-	// StoreRevocation writes a revocation to storage.
-	StoreRevocation(r credential.Revocation) error
 	CredentialSearcher
-	// Close closes and frees the underlying resources the store uses.
-	Close() error
+	// Closer closes and frees the underlying resources the store uses.
+	io.Closer
 }
 
 // CredentialSearcher defines the functions to resolve or search for credentials.

@@ -24,6 +24,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"os"
 	"reflect"
 	"runtime"
@@ -32,14 +34,12 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"gopkg.in/yaml.v2"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -638,104 +638,6 @@ func TestVcr_Validate(t *testing.T) {
 	})
 }
 
-func TestVcr_Revoke(t *testing.T) {
-	// load VC
-	vc := vc.VerifiableCredential{}
-	vcJSON, _ := os.ReadFile("test/vc.json")
-	json.Unmarshal(vcJSON, &vc)
-
-	// load example revocation
-	r := credential.Revocation{}
-	rJSON, _ := os.ReadFile("test/revocation.json")
-	json.Unmarshal(rJSON, &r)
-
-	// load pub key
-	pke := storage.PublicKeyEntry{}
-	pkeJSON, _ := os.ReadFile("test/public.json")
-	json.Unmarshal(pkeJSON, &pke)
-	var pk = new(ecdsa.PublicKey)
-	pke.JWK().Raw(pk)
-
-	organizationCredentialConfig := concept.Config{}
-	credentialBytes, _ := os.ReadFile("assets/NutsOrganizationCredential.config.yaml")
-	_ = yaml.Unmarshal(credentialBytes, &organizationCredentialConfig)
-
-	documentMetadata := types.DocumentMetadata{
-		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
-	}
-	document := did.Document{}
-	document.AddAssertionMethod(&did.VerificationMethod{ID: *vdr.TestMethodDIDA})
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := newMockContext(t)
-		key := crypto.NewTestKey("kid")
-		ctx.vcr.registry.Add(organizationCredentialConfig)
-		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-		ctx.vcr.writeCredential(vc)
-		ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(&document, &documentMetadata, nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(key, nil)
-		ctx.tx.EXPECT().CreateTransaction(mock.MatchedBy(func(spec network.Template) bool {
-			return spec.Type == vcrTypes.RevocationDocumentType && !spec.AttachKey
-		}))
-		r, err := ctx.vcr.Revoke(*vc.ID)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		assert.Contains(t, r.Proof.Jws, "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..")
-	})
-
-	t.Run("error - not found", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-
-		_, err := ctx.vcr.Revoke(ssi.URI{})
-
-		if !assert.Error(t, err) {
-			return
-		}
-
-		assert.Equal(t, vcrTypes.ErrNotFound, err)
-	})
-
-	t.Run("error - already revoked", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-		ctx.vcr.writeCredential(vc)
-
-		err := ctx.vcr.writeRevocation(r)
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		_, err = ctx.vcr.Revoke(*vc.ID)
-
-		if !assert.Error(t, err) {
-			return
-		}
-
-		assert.Equal(t, vcrTypes.ErrRevoked, err)
-	})
-
-	t.Run("error - key resolve returns error", func(t *testing.T) {
-		ctx := newMockContext(t)
-
-		ctx.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-		ctx.vcr.writeCredential(vc)
-		ctx.docResolver.EXPECT().Resolve(gomock.Any(), nil).Return(&document, &documentMetadata, nil)
-		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(nil, crypto.ErrKeyNotFound)
-
-		_, err := ctx.vcr.Revoke(*vc.ID)
-
-		if !assert.Error(t, err) {
-			return
-		}
-
-		assert.True(t, errors.Is(err, crypto.ErrKeyNotFound))
-	})
-}
-
 func TestVcr_Find(t *testing.T) {
 	testInstance := func(t2 *testing.T) mockContext {
 		ctx := newMockContext(t2)
@@ -1008,41 +910,6 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	})
 }
 
-func TestVcr_generateProof(t *testing.T) {
-	t.Run("incorrect key", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
-		instance := NewTestVCRInstance(t)
-		key := crypto.TestKey{}
-		kid, _ := ssi.ParseURI(testKID)
-
-		err := instance.generateProof(vc, *kid, key)
-
-		if !assert.Error(t, err) {
-			return
-		}
-	})
-}
-
-func TestVcr_generateRevocationProof(t *testing.T) {
-	t.Run("incorrect key", func(t *testing.T) {
-		// load revocation
-		r := credential.Revocation{}
-		rJSON, _ := os.ReadFile("test/revocation.json")
-		json.Unmarshal(rJSON, &r)
-
-		// default stuff
-		instance := NewTestVCRInstance(t)
-		key := crypto.TestKey{}
-		kid, _ := ssi.ParseURI(testKID)
-
-		err := instance.generateRevocationProof(&r, *kid, key)
-
-		if !assert.Error(t, err) {
-			return
-		}
-	})
-}
-
 func TestWhitespaceOrExactTokenizer(t *testing.T) {
 	input := "a b c"
 
@@ -1069,4 +936,43 @@ func validNutsOrganizationCredential() *vc.VerifiableCredential {
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},
 	}
+}
+
+func Test_vcr_Revoke(t *testing.T) {
+	credentialID := ssi.MustParseURI("did:nuts:123#abc")
+
+	t.Run("it calls the verifier to revoke", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockVerifier := verifier.NewMockVerifier(ctrl)
+		mockIssuer := issuer.NewMockIssuer(ctrl)
+
+		mockVerifier.EXPECT().IsRevoked(credentialID).Return(false, nil)
+		expectedRevocation := &credential.Revocation{Subject: credentialID}
+		mockIssuer.EXPECT().Revoke(credentialID).Return(expectedRevocation, nil)
+		vcr := vcr{verifier: mockVerifier, issuer: mockIssuer}
+		revocation, err := vcr.Revoke(credentialID)
+		assert.NoError(t, err)
+		assert.NotNil(t, revocation)
+		assert.Equal(t, expectedRevocation, revocation)
+	})
+
+	t.Run("it fails when the credential is already revoked", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockVerifier := verifier.NewMockVerifier(ctrl)
+		mockVerifier.EXPECT().IsRevoked(credentialID).Return(true, nil)
+		vcr := vcr{verifier: mockVerifier}
+		revocation, err := vcr.Revoke(credentialID)
+		assert.EqualError(t, err, "credential already revoked")
+		assert.Nil(t, revocation)
+	})
+
+	t.Run("it fails when revocation status checking fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockVerifier := verifier.NewMockVerifier(ctrl)
+		mockVerifier.EXPECT().IsRevoked(credentialID).Return(false, errors.New("foo"))
+		vcr := vcr{verifier: mockVerifier}
+		revocation, err := vcr.Revoke(credentialID)
+		assert.EqualError(t, err, "error while checking revocation status: foo")
+		assert.Nil(t, revocation)
+	})
 }

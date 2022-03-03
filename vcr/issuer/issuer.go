@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
@@ -139,9 +140,54 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	return signedCredential, nil
 }
 
-func (i issuer) Revoke(credentialID ssi.URI) error {
-	//TODO implement me
-	panic("implement me")
+func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
+	// first find it using a query on id.
+	credentialToRevoke, err := i.store.GetCredential(credentialID)
+	if err != nil {
+		return nil, fmt.Errorf("could not revoke (id=%s): %w", credentialID, err)
+	}
+
+	revocation, err := i.buildRevocation(*credentialToRevoke)
+	if err != nil {
+		return nil, err
+	}
+
+	err = i.publisher.PublishRevocation(*revocation)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish revocation: %w", err)
+	}
+
+	log.Logger().Infof("Verifiable Credential revoked (id=%s)", credentialToRevoke.ID)
+	return revocation, nil
+}
+
+func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*credential.Revocation, error) {
+	// find issuer
+	issuerDID, err := did.ParseDID(credentialToRevoke.Issuer.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract issuer: %w", err)
+	}
+
+	assertionKey, err := i.keyResolver.ResolveAssertionKey(*issuerDID)
+	// set defaults
+	revocation := credential.BuildRevocation(credentialToRevoke)
+
+	revocationAsMap := map[string]interface{}{}
+	b, _ := json.Marshal(revocation)
+	_ = json.Unmarshal(b, &revocationAsMap)
+
+	ldProof := proof.NewLDProof(proof.ProofOptions{Created: time.Now()})
+	signingResult, err := ldProof.Sign(revocationAsMap, signature.JSONWebSignature2020{ContextLoader: i.contextLoader}, assertionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	signingResultAsMap := signingResult.(proof.SignedDocument)
+	b, _ = json.Marshal(signingResultAsMap)
+	signedRevocation := credential.Revocation{}
+	_ = json.Unmarshal(b, &signedRevocation)
+
+	return &signedRevocation, nil
 }
 
 func (i issuer) CredentialResolver() CredentialSearcher {

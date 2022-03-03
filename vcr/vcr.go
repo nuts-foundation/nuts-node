@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
@@ -35,7 +36,6 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -62,7 +62,7 @@ var timeFunc = time.Now
 var noSync bool
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) types.VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -72,8 +72,6 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		network:         network,
 		registry:        concept.NewRegistry(),
 	}
-
-	r.ambassador = NewAmbassador(network, r)
 
 	return r
 }
@@ -92,6 +90,7 @@ type vcr struct {
 	issuer          issuer.Issuer
 	verifier        verifier.Verifier
 	issuerStore     issuer.Store
+	verifierStore   verifier.Store
 }
 
 func (c *vcr) Registry() concept.Reader {
@@ -110,7 +109,13 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.config.datadir = config.Datadir
 
 	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
-	c.issuerStore, err = issuer.NewLeiaStore(issuerStorePath)
+	c.issuerStore, err = issuer.NewLeiaIssuerStore(issuerStorePath)
+	if err != nil {
+		return err
+	}
+
+	verifierStorePath := path.Join(c.config.datadir, "vcr", "verifier-store.db")
+	c.verifierStore, err = verifier.NewLeiaVerifierStore(verifierStorePath)
 	if err != nil {
 		return err
 	}
@@ -121,8 +126,9 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
 	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, contextLoader)
+	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, contextLoader)
 
-	c.verifier = verifier.NewVerifier(c.keyResolver, contextLoader)
+	c.ambassador = NewAmbassador(c.network, c, c.verifier)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {
@@ -175,6 +181,10 @@ func (c *vcr) Shutdown() error {
 	err := c.issuerStore.Close()
 	if err != nil {
 		log.Logger().Errorf("Unable to close issuer store: %v", err)
+	}
+	err = c.verifierStore.Close()
+	if err != nil {
+		log.Logger().Errorf("Unable to close verifier store: %v", err)
 	}
 	return c.store.Close()
 }
@@ -286,7 +296,7 @@ func (c *vcr) search(ctx context.Context, query concept.Query, allowUntrusted bo
 			foundCredential := vc.VerifiableCredential{}
 			err = json.Unmarshal(doc.Bytes(), &foundCredential)
 			if err != nil {
-				return nil, errors.Wrap(err, "unable to parse credential from db")
+				return nil, fmt.Errorf("unable to parse credential from db: %w", err)
 			}
 
 			if err = c.Validate(foundCredential, allowUntrusted, false, resolveTime); err == nil {
@@ -391,7 +401,17 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 		validAt = &now
 	}
 
+	// check for old api
 	revoked, err := c.isRevoked(*credential.ID)
+	if revoked {
+		return types.ErrRevoked
+	}
+	if err != nil {
+		return err
+	}
+
+	// check for new api
+	revoked, err = c.verifier.IsRevoked(*credential.ID)
 	if revoked {
 		return types.ErrRevoked
 	}
@@ -409,7 +429,6 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 	}
 
 	if !allowUntrusted {
-
 		trusted := c.isTrusted(credential)
 		if !trusted {
 			return types.ErrUntrusted
@@ -447,7 +466,7 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 			// there can be only one
 			err = json.Unmarshal(docs[0].Bytes(), &credential)
 			if err != nil {
-				return credential, errors.Wrap(err, "unable to parse credential from db")
+				return credential, fmt.Errorf("unable to parse credential from db: %w", err)
 			}
 
 			return credential, nil
@@ -457,71 +476,17 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	return credential, types.ErrNotFound
 }
 
-func (c *vcr) Revoke(ID ssi.URI) (*credential.Revocation, error) {
-	// first find it using a query on id.
-	target, err := c.find(ID)
+// Revoke checks if the credential is already revoked, if not, it instructs the issuer role to revoke the credential.
+func (c *vcr) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
+	isRevoked, err := c.verifier.IsRevoked(credentialID)
 	if err != nil {
-		// not found and other errors
-		return nil, err
+		return nil, fmt.Errorf("error while checking revocation status: %w", err)
+	}
+	if isRevoked {
+		return nil, core.PreconditionFailedError("credential already revoked")
 	}
 
-	// already revoked, return error
-	conflict, err := c.isRevoked(ID)
-	if err != nil {
-		return nil, err
-	}
-	if conflict {
-		return nil, types.ErrRevoked
-	}
-
-	// find issuer
-	issuer, err := did.ParseDID(target.Issuer.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract issuer: %w", err)
-	}
-	// find did document/metadata for originating TXs
-	document, meta, err := c.docResolver.Resolve(*issuer, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// resolve an assertionMethod key for issuer
-	kid, err := doc.ExtractAssertionKeyID(*document)
-	if err != nil {
-		return nil, fmt.Errorf("invalid issuer: %w", err)
-	}
-
-	key, err := c.keyStore.Resolve(kid.String())
-	if err != nil {
-		return nil, fmt.Errorf("could not resolve kid: %w", err)
-	}
-
-	// set defaults
-	r := credential.BuildRevocation(target)
-
-	// sign
-	if err = c.generateRevocationProof(&r, kid, key); err != nil {
-		return nil, fmt.Errorf("failed to generate revocation proof: %w", err)
-	}
-
-	// do same validation as network nodes
-	if err := credential.ValidateRevocation(r); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
-	}
-
-	payload, _ := json.Marshal(r)
-
-	tx := network.TransactionTemplate(types.RevocationDocumentType, payload, key).
-		WithTimestamp(r.Date).
-		WithAdditionalPrevs(meta.SourceTransactions)
-	_, err = c.network.CreateTransaction(tx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to publish revocation: %w", err)
-	}
-
-	log.Logger().Infof("Verifiable Credential revoked (id=%s)", target.ID)
-
-	return &r, nil
+	return c.issuer.Revoke(credentialID)
 }
 
 func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
@@ -743,93 +708,6 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 	return qs
 }
 
-func (c *vcr) generateProof(credential *vc.VerifiableCredential, kid ssi.URI, key crypto.Key) error {
-	// create proof
-	pr := vc.Proof{
-		Type:               "JsonWebSignature2020",
-		ProofPurpose:       "assertionMethod",
-		VerificationMethod: kid,
-		Created:            credential.IssuanceDate,
-	}
-	credential.Proof = []interface{}{pr}
-
-	// create correct signing challenge
-	challenge, err := generateCredentialChallenge(*credential)
-	if err != nil {
-		return err
-	}
-
-	sig, err := crypto.SignDetachedJWS(challenge, detachedJWSHeaders(), key.Signer())
-	if err != nil {
-		return err
-	}
-
-	// remove payload from sig since a detached jws is required.
-	dsig := toDetachedSignature(sig)
-
-	credential.Proof = []interface{}{
-		vc.JSONWebSignature2020Proof{
-			Proof: pr,
-			Jws:   dsig,
-		},
-	}
-
-	return nil
-}
-
-func (c *vcr) generateRevocationProof(r *credential.Revocation, kid ssi.URI, key crypto.Key) error {
-	// create proof
-	r.Proof = &vc.JSONWebSignature2020Proof{
-		Proof: vc.Proof{
-			Type:               "JsonWebSignature2020",
-			ProofPurpose:       "assertionMethod",
-			VerificationMethod: kid,
-			Created:            r.Date,
-		},
-	}
-
-	// create correct signing challenge
-	challenge := generateRevocationChallenge(*r)
-
-	sig, err := crypto.SignJWS(challenge, detachedJWSHeaders(), key.Signer())
-	if err != nil {
-		return err
-	}
-
-	// remove payload from sig since a detached jws is required.
-	dsig := toDetachedSignature(sig)
-
-	r.Proof.Jws = dsig
-
-	return nil
-}
-
-func generateCredentialChallenge(credential vc.VerifiableCredential) ([]byte, error) {
-	var proofs = make([]vc.JSONWebSignature2020Proof, 1)
-
-	if err := credential.UnmarshalProofValue(&proofs); err != nil {
-		return nil, err
-	}
-
-	if len(proofs) != 1 {
-		return nil, errors.New("expected a single Proof for challenge generation")
-	}
-
-	// payload
-	credential.Proof = nil
-	payload, _ := json.Marshal(credential)
-
-	// proof
-	proof := proofs[0]
-	proof.Jws = ""
-	prJSON, _ := json.Marshal(proof)
-
-	sums := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
-	tbs := base64.RawURLEncoding.EncodeToString(sums)
-
-	return []byte(tbs), nil
-}
-
 func generateRevocationChallenge(r credential.Revocation) []byte {
 	// without JWS
 	proof := r.Proof.Proof
@@ -847,18 +725,22 @@ func generateRevocationChallenge(r credential.Revocation) []byte {
 	return []byte(tbs)
 }
 
-// detachedJWSHeaders creates headers for JsonWebSignature2020
-// the alg will be based upon the key
-// {"b64":false,"crit":["b64"]}
-func detachedJWSHeaders() map[string]interface{} {
-	return map[string]interface{}{
-		"b64":  false,
-		"crit": []string{"b64"},
-	}
-}
+// VCR is the interface that covers all functionality of the vcr store.
+type VCR interface {
+	Issuer() issuer.Issuer
 
-// toDetachedSignature removes the middle part of the signature
-func toDetachedSignature(sig string) string {
-	splitted := strings.Split(sig, ".")
-	return strings.Join([]string{splitted[0], splitted[2]}, "..")
+	// Issue creates and publishes a new VC.
+	// An optional expirationDate can be given.
+	// VCs are stored when the network has successfully published them.
+	Issue(vcToIssue vc.VerifiableCredential) (*vc.VerifiableCredential, error)
+	// Revoke a credential based on its ID, the Issuer will be resolved automatically.
+	// The statusDate will be set to the current time.
+	// It returns an error if the credential, issuer or private key can not be found.
+	Revoke(ID ssi.URI) (*credential.Revocation, error)
+
+	types.ConceptFinder
+	types.Resolver
+	types.TrustManager
+	types.Validator
+	types.Writer
 }

@@ -20,14 +20,13 @@ package v2
 
 import (
 	"encoding/json"
-	"errors"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"net/http"
 )
 
@@ -35,7 +34,7 @@ import (
 // It parses and checks the params. Handles errors and returns the appropriate response.
 type Wrapper struct {
 	CredentialResolver issuer.CredentialSearcher
-	VCR                types.VCR
+	VCR                vcr.VCR
 }
 
 // Routes registers the handler to the echo router
@@ -87,6 +86,14 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 		public = *issueRequest.Visibility == IssueVCRequestVisibilityPublic
 	}
 
+	if issueRequest.Type == "" {
+		return core.InvalidInputError("missing credential type")
+	}
+
+	if issueRequest.CredentialSubject == nil {
+		return core.InvalidInputError("missing credentialSubject")
+	}
+
 	requestedVC := vc.VerifiableCredential{}
 	rawRequest, _ := json.Marshal(issueRequest)
 	if err := json.Unmarshal(rawRequest, &requestedVC); err != nil {
@@ -103,8 +110,16 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 
 // RevokeVC handles the API request for revoking a credential.
 func (w Wrapper) RevokeVC(ctx echo.Context, id string) error {
-	//TODO implement me
-	return errors.New("not yet implemented, use the v1 api")
+	credentialID, err := ssi.ParseURI(id)
+	if err != nil {
+		return core.InvalidInputError("invalid credential id: %w", err)
+	}
+
+	revocation, err := w.VCR.Revoke(*credentialID)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, revocation)
 }
 
 // SearchIssuedVCs handles the API request for searching for issued VCs

@@ -21,7 +21,7 @@ jobs:
       - save_cache:
           key: go-mod-v2-{{ checksum "go.sum" }}
           paths:
-            - "/home/circleci/go/pkg/mod"
+            - "/go/pkg/mod"
 
       - run: go test ./... -race -coverprofile=c_raw.out
       - run:

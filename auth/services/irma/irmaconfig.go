@@ -19,12 +19,12 @@
 package irma
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/sirupsen/logrus"
 
-	"github.com/pkg/errors"
 	irma "github.com/privacybydesign/irmago"
 	"github.com/privacybydesign/irmago/server"
 	"github.com/privacybydesign/irmago/server/irmaserver"
@@ -37,7 +37,7 @@ const IrmaMountPath = "/public/auth/irmaclient"
 // The config sets the given irma path or a temporary folder. Then it downloads the schemas.
 func GetIrmaConfig(validatorConfig ValidatorConfig) (irmaConfig *irma.Configuration, err error) {
 	if err = os.MkdirAll(validatorConfig.IrmaConfigPath, 0700); err != nil {
-		err = errors.Wrap(err, "could not create IRMA config directory")
+		err = fmt.Errorf("could not create IRMA config directory: %w", err)
 		return
 	}
 

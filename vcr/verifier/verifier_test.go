@@ -24,9 +24,13 @@ import (
 	"errors"
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -238,6 +242,7 @@ func Test_verifier_Verify(t *testing.T) {
 		t.Run("fails when key is not found", func(t *testing.T) {
 			vc := testCredential(t)
 			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
 			proofs, _ := vc.Proofs()
 			ctx.keyResolver.EXPECT().ResolveSigningKey(proofs[0].VerificationMethod.String(), nil).Return(nil, types.ErrKeyNotFound)
 			sut := ctx.verifier
@@ -246,10 +251,20 @@ func Test_verifier_Verify(t *testing.T) {
 		})
 	})
 
+	t.Run("invalid when revoked", func(t *testing.T) {
+		vc := testCredential(t)
+		ctx := newMockContext(t)
+		ctx.store.EXPECT().GetRevocation(*vc.ID).Return(&credential.Revocation{}, nil)
+		sut := ctx.verifier
+		validationErr := sut.Verify(vc, true, false, nil)
+		assert.EqualError(t, validationErr, "credential is revoked")
+	})
+
 	t.Run("no signature check", func(t *testing.T) {
 		t.Run("ok, the vc is valid", func(t *testing.T) {
 			vc := testCredential(t)
 			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
 			sut := ctx.verifier
 			validationErr := sut.Verify(vc, true, false, nil)
 			assert.NoError(t, validationErr,
@@ -260,6 +275,7 @@ func Test_verifier_Verify(t *testing.T) {
 			vc := testCredential(t)
 			vc.Proof[0] = map[string]interface{}{"jws": "foo"}
 			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
 			sut := ctx.verifier
 			validationErr := sut.Verify(vc, true, false, nil)
 			assert.NoError(t, validationErr,
@@ -283,6 +299,7 @@ func Test_verifier_Verify(t *testing.T) {
 				expirationTime := time.Now().Add(-10 * time.Hour)
 				vc.ExpirationDate = &expirationTime
 				ctx := newMockContext(t)
+				ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
 				sut := ctx.verifier
 				validationErr := sut.Verify(vc, true, false, nil)
 				assert.EqualError(t, validationErr, "credential not valid at given time")
@@ -346,9 +363,125 @@ func Test_verifier_validateInTime(t *testing.T) {
 
 }
 
+func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
+	rawVerificationMethod, _ := os.ReadFile("../test/revocation-public.json")
+	rawRevocation, _ := os.ReadFile("../test/ld-revocation.json")
+
+	verificationMethod := did.VerificationMethod{}
+	if !assert.NoError(t, json.Unmarshal(rawVerificationMethod, &verificationMethod)) {
+		return
+	}
+	key, err := verificationMethod.PublicKey()
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	document := proof.SignedDocument{}
+	assert.NoError(t, json.Unmarshal(rawRevocation, &document))
+
+	revocation := credential.Revocation{}
+	assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+
+	t.Run("it checks and stores a valid revocation", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(key, nil)
+		sut.store.EXPECT().StoreRevocation(revocation)
+		err := sut.verifier.RegisterRevocation(revocation)
+		assert.NoError(t, err)
+	})
+
+	t.Run("it fails when there are fields missing", func(t *testing.T) {
+		sut := newMockContext(t)
+		revocation := credential.Revocation{}
+		assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+		revocation.Subject = ssi.MustParseURI("")
+		err := sut.verifier.RegisterRevocation(revocation)
+		assert.EqualError(t, err, "validation failed: 'subject' is required and requires a valid fragment")
+	})
+
+	t.Run("it fails when the used verificationMethod is not from the issuer", func(t *testing.T) {
+		sut := newMockContext(t)
+		revocation := credential.Revocation{}
+		assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+		revocation.Proof.VerificationMethod = ssi.MustParseURI("did:nuts:123#abc")
+		err := sut.verifier.RegisterRevocation(revocation)
+		assert.EqualError(t, err, "verificationMethod should owned by the issuer")
+	})
+
+	t.Run("it fails when the revoked credential and revocation-issuer are not from the same identity", func(t *testing.T) {
+		sut := newMockContext(t)
+		revocation := credential.Revocation{}
+		assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+		revocation.Issuer = ssi.MustParseURI("did:nuts:123")
+		err := sut.verifier.RegisterRevocation(revocation)
+		assert.EqualError(t, err, "issuer of revocation is not the same as issuer of credential")
+	})
+
+	//t.Run("it fails when the proof has an invalid format", func(t *testing.T) {
+	//	sut := newMockContext(t)
+	//	revocation := credential.Revocation{}
+	//	assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+	//	revocation.Proof = map[string]interface{}{"JWS": []string{"foo"}}
+	//	err := sut.verifier.RegisterRevocation(revocation)
+	//	assert.EqualError(t, err, "json: cannot unmarshal array into Go struct field JSONWebSignature2020Proof.proof.jws of type string")
+	//})
+
+	t.Run("it handles an unknown key error", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(nil, errors.New("unknown key"))
+		err := sut.verifier.RegisterRevocation(revocation)
+		assert.EqualError(t, err, "unable to resolve key for revocation: unknown key")
+	})
+
+	t.Run("it handles an error from store operation", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(key, nil)
+		sut.store.EXPECT().StoreRevocation(revocation).Return(errors.New("storage error"))
+		err := sut.verifier.RegisterRevocation(revocation)
+		assert.EqualError(t, err, "unable to store revocation: storage error")
+	})
+
+	t.Run("it handles an invalid signature error", func(t *testing.T) {
+		sut := newMockContext(t)
+		otherKey := crypto.NewTestKey("did:nuts:123#abc").Public()
+		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(otherKey, nil)
+		err := sut.verifier.RegisterRevocation(revocation)
+		assert.EqualError(t, err, "unable to verify revocation signature: invalid proof signature: failed to verify signature using ecdsa")
+	})
+}
+
+func Test_verifier_IsRevoked(t *testing.T) {
+	rawRevocation, _ := os.ReadFile("../test/ld-revocation.json")
+	revocation := credential.Revocation{}
+	assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+
+	t.Run("it returns false if no revocation is found", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(nil, ErrNotFound)
+		result, err := sut.verifier.IsRevoked(revocation.Subject)
+		assert.NoError(t, err)
+		assert.False(t, result)
+	})
+	t.Run("it returns true if a revocation is found", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(&revocation, nil)
+		result, err := sut.verifier.IsRevoked(revocation.Subject)
+		assert.NoError(t, err)
+		assert.True(t, result)
+	})
+	t.Run("it returns the error if the store returns an error", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(nil, errors.New("foo"))
+		result, err := sut.verifier.IsRevoked(revocation.Subject)
+		assert.EqualError(t, err, "foo")
+		assert.False(t, result)
+	})
+}
+
 type mockContext struct {
 	ctrl        *gomock.Controller
 	keyResolver *types.MockKeyResolver
+	store       *MockStore
 	verifier    Verifier
 }
 
@@ -357,11 +490,13 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	contextLoader, err := signature.NewContextLoader(false)
+	verifierStore := NewMockStore(ctrl)
 	assert.NoError(t, err)
-	verifier := NewVerifier(keyResolver, contextLoader)
+	verifier := NewVerifier(verifierStore, keyResolver, contextLoader)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,
 		keyResolver: keyResolver,
+		store:       verifierStore,
 	}
 }

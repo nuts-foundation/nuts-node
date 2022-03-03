@@ -21,13 +21,13 @@ package dag
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/pkg/errors"
 )
 
 // Version defines a type for distributed transaction format version.

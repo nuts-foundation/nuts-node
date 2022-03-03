@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -42,6 +43,9 @@ type networkPublisher struct {
 
 // VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
 const VcDocumentType = "application/vc+json"
+
+// RevocationDocumentType holds the content type used in network documents which contain a credential revocation
+const RevocationDocumentType = "application/vc+json;type=revocation"
 
 // NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
 // It is the default implementation to use for issuers to publish credentials and revocations to the Nuts network.
@@ -145,6 +149,29 @@ func (p networkPublisher) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, er
 }
 
 func (p networkPublisher) PublishRevocation(revocation credential.Revocation) error {
-	//TODO implement me
-	panic("implement me")
+	issuerDID, err := did.ParseDIDURL(revocation.Issuer.String())
+	if err != nil {
+		return fmt.Errorf("invalid revocation issuer: %w", err)
+	}
+	key, err := p.keyResolver.ResolveAssertionKey(*issuerDID)
+	if err != nil {
+		return fmt.Errorf("could not resolve an assertion key for issuer: %w", err)
+	}
+
+	// find did document/metadata for originating TXs
+	_, meta, err := p.didDocResolver.Resolve(*issuerDID, nil)
+	if err != nil {
+		return fmt.Errorf("could not resolve issuer DID document: %w", err)
+	}
+	payload, _ := json.Marshal(revocation)
+
+	tx := network.TransactionTemplate(types.RevocationLDDocumentType, payload, key).
+		WithAdditionalPrevs(meta.SourceTransactions).
+		WithTimestamp(revocation.Date)
+
+	_, err = p.networkTx.CreateTransaction(tx)
+	if err != nil {
+		return fmt.Errorf("failed to publish revocation, error while creating transaction: %w", err)
+	}
+	return nil
 }

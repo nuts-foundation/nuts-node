@@ -19,8 +19,10 @@
 package issuer
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -216,4 +218,179 @@ func Test_issuer_Issue(t *testing.T) {
 func TestNewIssuer(t *testing.T) {
 	createdIssuer := NewIssuer(nil, nil, nil, nil, nil)
 	assert.IsType(t, &issuer{}, createdIssuer)
+}
+
+func Test_issuer_buildRevocation(t *testing.T) {
+	contextLoader, err := signature.NewContextLoader(false)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		kid := "did:nuts:123#abc"
+
+		issuerDID, _ := did.ParseDID("did:nuts:123")
+		keyResolverMock := NewMockkeyResolver(ctrl)
+		keyResolverMock.EXPECT().ResolveAssertionKey(*issuerDID).Return(crypto.NewTestKey(kid), nil)
+
+		credentialID, _ := ssi.ParseURI("did:nuts:123#" + uuid.NewString())
+
+		sut := issuer{keyResolver: keyResolverMock, contextLoader: contextLoader}
+		credentialToRevoke := vc.VerifiableCredential{
+			Issuer: issuerDID.URI(),
+			ID:     credentialID,
+		}
+		revocation, err := sut.buildRevocation(credentialToRevoke)
+		assert.NoError(t, err)
+		t.Logf("revocation %+v", revocation)
+	})
+
+	t.Run("canonicalization", func(t *testing.T) {
+
+		revocationJSON := `
+		{
+			"@context": ["https://nuts.nl/credentials/v1"],
+			"type": [ "CredentialRevocation" ],
+			"subject": "did:nuts:123#5c9036ac-2e7a-4ae9-bc96-3b6269ecd27d",
+			"date": "2022-02-17T14:32:19.290629+01:00",
+			"issuer": "did:nuts:123"
+		 }`
+
+		revocationMap := map[string]interface{}{}
+		json.Unmarshal([]byte(revocationJSON), &revocationMap)
+
+		ldProof := signature.JSONWebSignature2020{ContextLoader: contextLoader}
+		res, err := ldProof.CanonicalizeDocument(revocationMap)
+		assert.NoError(t, err)
+		expectedCanonicalForm := `_:c14n0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://nuts.nl/credentials/v1#CredentialRevocation> .
+_:c14n0 <https://nuts.nl/credentials/v1#date> "2022-02-17T14:32:19.290629+01:00"^^<xsd:dateTime> .
+_:c14n0 <https://www.w3.org/2018/credentials#credentialSubject> <did:nuts:123#5c9036ac-2e7a-4ae9-bc96-3b6269ecd27d> .
+_:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
+`
+
+		assert.Equal(t, expectedCanonicalForm, string(res))
+	})
+
+}
+func Test_issuer_Revoke(t *testing.T) {
+	credentialID := "did:nuts:123#abc"
+	credentialURI := ssi.MustParseURI(credentialID)
+	issuerID := "did:nuts:123"
+	issuerURI := ssi.MustParseURI(issuerID)
+	issuerDID := did.MustParseDID(issuerID)
+	contextLoader, _ := signature.NewContextLoader(false)
+	kid := ssi.MustParseURI(issuerID + "#123")
+	key := crypto.NewTestKey(kid.String())
+
+	t.Run("for a known credential", func(t *testing.T) {
+		credentialToRevoke := func() *vc.VerifiableCredential {
+			return &vc.VerifiableCredential{
+				ID:     &credentialURI,
+				Issuer: issuerURI,
+			}
+		}
+
+		storeWithActualCredential := func(c *gomock.Controller) Store {
+			store := NewMockStore(c)
+			store.EXPECT().GetCredential(credentialURI).Return(credentialToRevoke(), nil)
+			//store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, ErrNotFound)
+			return store
+		}
+
+		keyResolverWithKey := func(c *gomock.Controller) keyResolver {
+			resolver := NewMockkeyResolver(c)
+			resolver.EXPECT().ResolveAssertionKey(issuerDID).Return(key, nil)
+			return resolver
+		}
+
+		t.Run("it revokes a credential", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			publisher := NewMockPublisher(ctrl)
+			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(nil)
+
+			sut := issuer{
+				store:         storeWithActualCredential(ctrl),
+				keyResolver:   keyResolverWithKey(ctrl),
+				contextLoader: contextLoader,
+				publisher:     publisher,
+			}
+
+			revocation, err := sut.Revoke(credentialURI)
+			assert.NoError(t, err)
+			assert.NotNil(t, revocation)
+			assert.Equal(t, issuerURI, revocation.Issuer)
+			assert.Equal(t, credentialURI, revocation.Subject)
+
+			// extract contexts as string into array since order of the revocation.Context is not guaranteed
+			contexts := make([]string, len(revocation.Context))
+			for i, val := range revocation.Context {
+				contexts[i] = val.String()
+			}
+			assert.Contains(t, contexts, "https://nuts.nl/credentials/v1")
+			assert.Contains(t, contexts, "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json")
+			assert.Equal(t, kid, revocation.Proof.VerificationMethod)
+		})
+
+		t.Run("it handles a buildRevocation error", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			// the credential does not contain a valid issuer:
+			invalidCredential := vc.VerifiableCredential{}
+			store := NewMockStore(ctrl)
+			store.EXPECT().GetCredential(credentialURI).Return(&invalidCredential, nil)
+			//store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, ErrNotFound)
+
+			sut := issuer{
+				store: store,
+			}
+			revocation, err := sut.Revoke(credentialURI)
+			assert.EqualError(t, err, "failed to extract issuer: invalid DID: input length is less than 7")
+			assert.Nil(t, revocation)
+		})
+
+		t.Run("it handles a publication error", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			publisher := NewMockPublisher(ctrl)
+			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(errors.New("foo"))
+
+			sut := issuer{
+				store:         storeWithActualCredential(ctrl),
+				keyResolver:   keyResolverWithKey(ctrl),
+				contextLoader: contextLoader,
+				publisher:     publisher,
+			}
+
+			revocation, err := sut.Revoke(credentialURI)
+			assert.EqualError(t, err, "failed to publish revocation: foo")
+			assert.Nil(t, revocation)
+		})
+	})
+
+	t.Run("for an unknown credential", func(t *testing.T) {
+		storeWithoutCredential := func(c *gomock.Controller) Store {
+			store := NewMockStore(c)
+			store.EXPECT().GetCredential(credentialURI).Return(nil, ErrNotFound)
+			return store
+		}
+
+		t.Run("it returns an error", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			sut := issuer{
+				store: storeWithoutCredential(ctrl),
+			}
+
+			revocation, err := sut.Revoke(credentialURI)
+			assert.EqualError(t, err, "could not revoke (id=did:nuts:123#abc): not found")
+			assert.Nil(t, revocation)
+		})
+	})
 }

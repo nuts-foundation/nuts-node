@@ -22,7 +22,6 @@ package types
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -56,7 +55,10 @@ var ErrInvalidPeriod = errors.New("credential not valid at given time")
 const VcDocumentType = "application/vc+json"
 
 // RevocationDocumentType holds the content type used in network documents which contain Revocation messages of credentials
-var RevocationDocumentType = "application/vc+json;type=revocation"
+const RevocationDocumentType = "application/vc+json;type=revocation"
+
+// RevocationLDDocumentType holds the content type used in network documents which contain Revocation messages of credentials in JSON-LD form
+const RevocationLDDocumentType = "application/ld+json;type=revocation"
 
 // ConceptFinder can resolve VC backed concepts for a DID.
 type ConceptFinder interface {
@@ -112,24 +114,4 @@ type Resolver interface {
 	// The credential will still be returned in the case of ErrRevoked and ErrUntrusted.
 	// For other errors, nil is returned
 	Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error)
-}
-
-// VCR is the interface that covers all functionality of the vcr store.
-type VCR interface {
-	Issuer() issuer.Issuer
-
-	// Issue creates and publishes a new VC.
-	// An optional expirationDate can be given.
-	// VCs are stored when the network has successfully published them.
-	Issue(vcToIssue vc.VerifiableCredential) (*vc.VerifiableCredential, error)
-	// Revoke a credential based on its ID, the Issuer will be resolved automatically.
-	// The statusDate will be set to the current time.
-	// It returns an error if the credential, issuer or private key can not be found.
-	Revoke(ID ssi.URI) (*credential.Revocation, error)
-
-	ConceptFinder
-	Resolver
-	TrustManager
-	Validator
-	Writer
 }

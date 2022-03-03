@@ -51,56 +51,75 @@ func TestBuildRevocation(t *testing.T) {
 }
 
 func TestValidateRevocation(t *testing.T) {
-	revocation := Revocation{}
-	jData, _ := os.ReadFile("../test/revocation.json")
-	json.Unmarshal(jData, &revocation)
+	t.Run("JSON-LD proof revocations", func(t *testing.T) {
+		jData, _ := os.ReadFile("../test/ld-revocation.json")
+		revocation := Revocation{}
+		json.Unmarshal(jData, &revocation)
 
-	t.Run("ok", func(t *testing.T) {
-		assert.NoError(t, ValidateRevocation(revocation))
+		t.Run("ok", func(t *testing.T) {
+			assert.NoError(t, ValidateRevocation(revocation))
+		})
+
+		t.Run("it failes when the type is incorrect", func(t *testing.T) {
+			revocation := Revocation{}
+			json.Unmarshal(jData, &revocation)
+			revocation.Type = []ssi.URI{}
+			assert.EqualError(t, ValidateRevocation(revocation), "validation failed: 'type' does not contain CredentialRevocation")
+		})
 	})
 
-	t.Run("error - empty subject", func(t *testing.T) {
-		r := revocation
-		r.Subject = ssi.URI{}
+	t.Run("old style revocations", func(t *testing.T) {
+		revocation := Revocation{}
+		jData, _ := os.ReadFile("../test/revocation.json")
+		json.Unmarshal(jData, &revocation)
 
-		err := ValidateRevocation(r)
-		assert.Error(t, err)
-		assert.Equal(t, "validation failed: 'subject' is required and requires a valid fragment", err.Error())
-	})
+		t.Run("ok", func(t *testing.T) {
+			assert.NoError(t, ValidateRevocation(revocation))
+		})
 
-	t.Run("error - empty subject fragment", func(t *testing.T) {
-		r := revocation
-		r.Subject.Fragment = ""
+		t.Run("error - empty subject", func(t *testing.T) {
+			r := revocation
+			r.Subject = ssi.URI{}
 
-		err := ValidateRevocation(r)
-		assert.Error(t, err)
-		assert.Equal(t, "validation failed: 'subject' is required and requires a valid fragment", err.Error())
-	})
+			err := ValidateRevocation(r)
+			assert.Error(t, err)
+			assert.Equal(t, "validation failed: 'subject' is required and requires a valid fragment", err.Error())
+		})
 
-	t.Run("error - issuer is required", func(t *testing.T) {
-		r := revocation
-		r.Issuer = ssi.URI{}
+		t.Run("error - empty subject fragment", func(t *testing.T) {
+			r := revocation
+			r.Subject.Fragment = ""
 
-		err := ValidateRevocation(r)
-		assert.Error(t, err)
-		assert.Equal(t, "validation failed: 'issuer' is required", err.Error())
-	})
+			err := ValidateRevocation(r)
+			assert.Error(t, err)
+			assert.Equal(t, "validation failed: 'subject' is required and requires a valid fragment", err.Error())
+		})
 
-	t.Run("error - zero time", func(t *testing.T) {
-		r := revocation
-		r.Date = time.Time{}
+		t.Run("error - issuer is required", func(t *testing.T) {
+			r := revocation
+			r.Issuer = ssi.URI{}
 
-		err := ValidateRevocation(r)
-		assert.Error(t, err)
-		assert.Equal(t, "validation failed: 'date' is required", err.Error())
-	})
+			err := ValidateRevocation(r)
+			assert.Error(t, err)
+			assert.Equal(t, "validation failed: 'issuer' is required", err.Error())
+		})
 
-	t.Run("error - missing proof", func(t *testing.T) {
-		r := revocation
-		r.Proof = nil
+		t.Run("error - zero time", func(t *testing.T) {
+			r := revocation
+			r.Date = time.Time{}
 
-		err := ValidateRevocation(r)
-		assert.Error(t, err)
-		assert.Equal(t, "validation failed: 'proof' is required", err.Error())
+			err := ValidateRevocation(r)
+			assert.Error(t, err)
+			assert.Equal(t, "validation failed: 'date' is required", err.Error())
+		})
+
+		t.Run("error - missing proof", func(t *testing.T) {
+			r := revocation
+			r.Proof = nil
+
+			err := ValidateRevocation(r)
+			assert.Error(t, err)
+			assert.Equal(t, "validation failed: 'proof' is required", err.Error())
+		})
 	})
 }

@@ -21,6 +21,7 @@ package network
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -40,7 +41,6 @@ import (
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
 )
 
@@ -192,7 +192,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 func loadCertificateAndTrustStore(moduleConfig Config) (tls.Certificate, *core.TrustStore, error) {
 	clientCertificate, err := tls.LoadX509KeyPair(moduleConfig.CertFile, moduleConfig.CertKeyFile)
 	if err != nil {
-		return tls.Certificate{}, nil, errors.Wrapf(err, "unable to load node TLS client certificate (certfile=%s,certkeyfile=%s)", moduleConfig.CertFile, moduleConfig.CertKeyFile)
+		return tls.Certificate{}, nil, fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", moduleConfig.CertFile, moduleConfig.CertKeyFile, err)
 	}
 	trustStore, err := core.LoadTrustStore(moduleConfig.TrustStoreFile)
 	if err != nil {

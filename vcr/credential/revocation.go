@@ -20,6 +20,7 @@
 package credential
 
 import (
+	"fmt"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -28,6 +29,10 @@ import (
 
 // Revocation defines a proof that a VC has been revoked by it's issuer.
 type Revocation struct {
+	// Context contains the json-ld contexts
+	Context []ssi.URI `json:"@context,omitempty"`
+	// Type contains the json-ld type, usually this is CredentialRevocation
+	Type []ssi.URI `json:"type,omitempty"`
 	// Issuer refers to the party that issued the credential
 	Issuer ssi.URI `json:"issuer"`
 	// Subject refers to the VC that is revoked
@@ -40,9 +45,15 @@ type Revocation struct {
 	Proof *vc.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }
 
+// RevocationType contains the JSON-LD type for a revocation
+var RevocationType = ssi.MustParseURI("CredentialRevocation")
+
 // BuildRevocation generates a revocation based on the credential
 func BuildRevocation(credential vc.VerifiableCredential) Revocation {
+	nutsCredentialContext := ssi.MustParseURI("https://nuts.nl/credentials/v1")
 	return Revocation{
+		Context: []ssi.URI{nutsCredentialContext},
+		Type:    []ssi.URI{RevocationType},
 		Issuer:  credential.Issuer,
 		Subject: *credential.ID,
 		Date:    nowFunc(),
@@ -53,6 +64,20 @@ func BuildRevocation(credential vc.VerifiableCredential) Revocation {
 func ValidateRevocation(r Revocation) error {
 	if r.Subject.String() == "" || r.Subject.Fragment == "" {
 		return failure("'subject' is required and requires a valid fragment")
+	}
+
+	// Only check type if @context is set
+	if len(r.Context) != 0 {
+		foundType := false
+		for _, val := range r.Type {
+			if val == RevocationType {
+				foundType = true
+				break
+			}
+		}
+		if !foundType {
+			return failure(fmt.Sprintf("'type' does not contain %s", RevocationType))
+		}
 	}
 
 	if r.Issuer.String() == "" {
