@@ -116,6 +116,45 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	fmt.Printf("%v\n", node2.Diagnostics())
 }
 
+func TestNetworkIntegration_V2Gossip(t *testing.T) {
+	testDirectory := io.TestDirectory(t)
+	resetIntegrationTest()
+	key := nutsCrypto.NewTestKey("key")
+	expectedDocLogSize := 0
+
+	// start nodes with v1 disabled, we rely on the gossip protocol
+	bootstrap := startNode(t, "integration_bootstrap", testDirectory, func(cfg *Config) {
+		cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
+	})
+	node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
+		cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
+	})
+	node1.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
+
+	// create some transactions on the bootstrap node
+	for i := 0; i < 10; i++ {
+		if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), key, bootstrap) {
+			return
+		}
+		expectedDocLogSize++
+	}
+
+	// Now assert that all nodes have received all transactions
+	waitForTransactions := func(node string, state dag.State) bool {
+		return test.WaitFor(t, func() (bool, error) {
+			var (
+				docs []dag.Transaction
+				err  error
+			)
+			if docs, err = state.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime()); err != nil {
+				return false, err
+			}
+			return len(docs) == expectedDocLogSize, nil
+		}, defaultTimeout, "%s: time-out while waiting for %d transactions", node, expectedDocLogSize)
+	}
+	waitForTransactions("node 1", node1.state)
+}
+
 func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest()
