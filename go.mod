@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/vault/api v1.4.1
 	github.com/knadh/koanf v1.4.0
 	github.com/labstack/echo/v4 v4.6.3
-	github.com/lestrrat-go/jwx v1.2.19
+	github.com/lestrrat-go/jwx v1.2.20
 	github.com/magiconair/properties v1.8.6
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/nats-io/nats-server/v2 v2.7.3
@@ -146,7 +146,7 @@ require (
 	go.opentelemetry.io/otel v0.19.0 // indirect
 	go.opentelemetry.io/otel/metric v0.19.0 // indirect
 	go.opentelemetry.io/otel/trace v0.19.0 // indirect
-	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce // indirect
+	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 // indirect
