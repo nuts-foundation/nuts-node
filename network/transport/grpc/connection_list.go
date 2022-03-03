@@ -20,10 +20,15 @@ package grpc
 
 import (
 	"context"
+	"errors"
+	"sync"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"sync"
 )
+
+// ErrNoConnection can be used when no connectin is available but one is required.
+var ErrNoConnection = errors.New("no connection available")
 
 // ConnectionList provides an API for protocols to query the ConnectionManager's connections.
 type ConnectionList interface {

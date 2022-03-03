@@ -169,15 +169,13 @@ func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 
 func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope_TransactionList) error {
 	msg := envelope.TransactionList
-	cid, err := parseConversationID(msg.ConversationID)
-	if err != nil {
-		return fmt.Errorf("invalid conversationID: %w", err)
-	}
+	cid := conversationID(msg.ConversationID)
+
 	// TODO convert to trace logging
 	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
 
 	// check if response matches earlier request
-	if err = p.cMan.check(envelope); err != nil {
+	if err := p.cMan.check(envelope); err != nil {
 		return err
 	}
 
@@ -190,6 +188,9 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		}
 
 		present, err := p.state.IsPresent(ctx, transactionRef)
+		if err != nil {
+			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
+		}
 		if !present {
 			// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
 			if err = p.state.Add(ctx, transaction, tx.Payload); err != nil {
@@ -208,10 +209,8 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 	transactions := make([]*Transaction, 0)
 	unsorted := make([]dag.Transaction, 0)
 
-	cid, err := parseConversationID(msg.ConversationID)
-	if err != nil {
-		return err
-	}
+	cid := conversationID(msg.ConversationID)
+
 	// TODO convert to trace logging
 	log.Logger().Infof("handling transactionListQuery from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
 
@@ -233,11 +232,11 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 			return err
 		}
 		// If a transaction is not present, we stop any further transaction gathering.
-		if transaction == nil {
+		if transaction != nil {
+			unsorted = append(unsorted, transaction)
+		} else {
 			log.Logger().Warnf("peer requested transaction we don't have (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), ref.String())
-			break
 		}
-		unsorted = append(unsorted, transaction)
 	}
 
 	// now we sort on LC value

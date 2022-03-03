@@ -21,6 +21,7 @@ package dag
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -90,7 +91,6 @@ func (s *state) RegisterObserver(observer Observer, transactional bool) {
 
 }
 
-// TODO add payloadHash verifier!
 func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
 	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
 		if err := s.verifyTX(contextWithTX, transaction); err != nil {
@@ -98,6 +98,9 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		}
 		if payload != nil {
 			payloadHash := hash.SHA256Sum(payload)
+			if !transaction.PayloadHash().Equals(payloadHash) {
+				return errors.New("tx.PayloadHash does not match hash of payload")
+			}
 			if err := s.payloadStore.WritePayload(contextWithTX, payloadHash, payload); err != nil {
 				return err
 			}
@@ -109,10 +112,8 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		s.notifyObservers(contextWithTX, transaction, payload)
 		return nil
 	})
-
 }
 
-// TODO add payloadHash verifier!
 func (s *state) verifyTX(ctx context.Context, tx Transaction) error {
 	for _, verifier := range s.txVerifiers {
 		if err := verifier(ctx, tx, s); err != nil {

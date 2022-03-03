@@ -20,8 +20,6 @@
 package v2
 
 import (
-	"errors"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -31,8 +29,7 @@ import (
 func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash) error {
 	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
 	if conn == nil {
-		// shouldn't happen
-		return errors.New("no connection available")
+		return grpc.ErrNoConnection
 	}
 
 	// there shouldn't be more than a 100 in there, this will fit in a message
@@ -51,8 +48,7 @@ func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash) er
 func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA256Hash) error {
 	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
 	if conn == nil {
-		// shouldn't happen
-		return errors.New("no connection available")
+		return grpc.ErrNoConnection
 	}
 
 	// there shouldn't be more than a ~650 in there, this will fit in a single message
@@ -61,24 +57,23 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 		refsAsBytes[i] = ref.Slice()
 	}
 
-	envelop := &Envelope_TransactionListQuery{
+	envelope := &Envelope_TransactionListQuery{
 		TransactionListQuery: &TransactionListQuery{
 			Refs: refsAsBytes,
 		},
 	}
 
-	conversation := p.cMan.conversationFromEnvelope(envelop)
+	conversation := p.cMan.startConversation(envelope)
 	// todo convert to trace logging
 	log.Logger().Infof("requesting transactions from peer (peer=%s, conversationID=%s)", id, conversation.conversationID.String())
 
-	return conn.Send(p, &Envelope{Message: envelop})
+	return conn.Send(p, &Envelope{Message: envelope})
 }
 
 func (p *protocol) sendTransactionList(id transport.PeerID, conversationID conversationID, transactions []*Transaction) error {
 	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
 	if conn == nil {
-		// shouldn't happen
-		return errors.New("no connection available")
+		return grpc.ErrNoConnection
 	}
 
 	for _, chunk := range chunkTransactionList(transactions) {

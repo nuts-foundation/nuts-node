@@ -302,7 +302,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.conversationFromEnvelope(request)
+		conversation := p.cMan.startConversation(request)
 		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
@@ -324,7 +324,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("ok - duplicate", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.conversationFromEnvelope(request)
+		conversation := p.cMan.startConversation(request)
 		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(true, nil)
 
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
@@ -343,9 +343,30 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("error - State.IsPresent failed", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, errors.New("custom"))
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions: []*Transaction{
+					{
+						Hash:    h1.Slice(),
+						Data:    data,
+						Payload: payload,
+					},
+				},
+			},
+		})
+
+		assert.EqualError(t, err, fmt.Sprintf("unable to add received transaction to DAG (tx=%s): custom", tx.Ref().String()))
+	})
+
 	t.Run("error - State.Add failed", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.conversationFromEnvelope(request)
+		conversation := p.cMan.startConversation(request)
 		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(errors.New("custom"))
 
@@ -367,7 +388,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("error - invalid transaction", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
-		conversation := p.cMan.conversationFromEnvelope(request)
+		conversation := p.cMan.startConversation(request)
 
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
 			TransactionList: &TransactionList{
@@ -380,16 +401,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		})
 
 		assert.EqualError(t, err, fmt.Sprintf("received transaction is invalid (peer=%s, ref=%s): unable to parse transaction: invalid compact serialization format: invalid number of segments", peer.String(), h1.String()))
-	})
-
-	t.Run("error - missing conversationID", func(t *testing.T) {
-		p, _ := newTestProtocol(t, nil)
-
-		err := p.handleTransactionList(peer, &Envelope_TransactionList{
-			TransactionList: &TransactionList{},
-		})
-
-		assert.EqualError(t, err, "invalid conversationID: invalid UUID (got 0 bytes)")
 	})
 
 	t.Run("error - unknown conversationID", func(t *testing.T) {
@@ -465,6 +476,7 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 	t.Run("ok - tx not present", func(t *testing.T) {
 		p, mocks, _ := mockWithConnection(t)
 		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(nil, nil)
+		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(nil, nil)
 
 		err := p.Handle(peer, &Envelope{
 			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
@@ -531,18 +543,6 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 		})
 
 		assert.NoError(t, err)
-	})
-
-	t.Run("error - invalid conversationID", func(t *testing.T) {
-		p, _ := newTestProtocol(t, nil)
-
-		err := p.Handle(peer, &Envelope{
-			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
-				ConversationID: []byte{},
-			}},
-		})
-
-		assert.Error(t, err)
 	})
 }
 
