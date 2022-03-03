@@ -23,6 +23,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"path"
 	"time"
 
@@ -33,9 +34,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
-	vcr "github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // ErrMissingPublicURL is returned when the publicUrl is missing from the config

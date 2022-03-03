@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"io/fs"
@@ -89,6 +90,7 @@ type vcr struct {
 	trustConfig     *trust.Config
 	issuer          issuer.Issuer
 	verifier        verifier.Verifier
+	holder          holder.Holder
 	issuerStore     issuer.Store
 	verifierStore   verifier.Store
 }
@@ -99,6 +101,10 @@ func (c *vcr) Registry() concept.Reader {
 
 func (c vcr) Issuer() issuer.Issuer {
 	return c.issuer
+}
+
+func (c vcr) Holder() holder.Holder {
+	return c.holder
 }
 
 func (c *vcr) Configure(config core.ServerConfig) error {
@@ -129,6 +135,8 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, contextLoader)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier)
+
+	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, contextLoader)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {
@@ -723,24 +731,4 @@ func generateRevocationChallenge(r credential.Revocation) []byte {
 	tbs := base64.RawURLEncoding.EncodeToString(sums)
 
 	return []byte(tbs)
-}
-
-// VCR is the interface that covers all functionality of the vcr store.
-type VCR interface {
-	Issuer() issuer.Issuer
-
-	// Issue creates and publishes a new VC.
-	// An optional expirationDate can be given.
-	// VCs are stored when the network has successfully published them.
-	Issue(vcToIssue vc.VerifiableCredential) (*vc.VerifiableCredential, error)
-	// Revoke a credential based on its ID, the Issuer will be resolved automatically.
-	// The statusDate will be set to the current time.
-	// It returns an error if the credential, issuer or private key can not be found.
-	Revoke(ID ssi.URI) (*credential.Revocation, error)
-
-	types.ConceptFinder
-	types.Resolver
-	types.TrustManager
-	types.Validator
-	types.Writer
 }

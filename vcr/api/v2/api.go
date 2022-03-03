@@ -27,8 +27,14 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"net/http"
+	"time"
 )
+
+var clockFn = func() time.Time {
+	return time.Now()
+}
 
 // Wrapper implements the generated interface from oapi-codegen
 // It parses and checks the params. Handles errors and returns the appropriate response.
@@ -176,4 +182,47 @@ func (w *Wrapper) VerifyVC(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, VCVerificationResult{Validity: true})
+}
+
+// CreateVP handles API request to create a Verifiable Presentation for one or more Verifiable Credentials.
+func (w *Wrapper) CreateVP(ctx echo.Context) error {
+	request := &CreateVPRequest{}
+	if err := ctx.Bind(request); err != nil {
+		return err
+	}
+
+	if len(request.VerifiableCredentials) == 0 {
+		return core.InvalidInputError("verifiableCredentials needs at least 1 item")
+	}
+
+	var signerDID *did.DID
+	var err error
+	if request.SignerDID != nil && len(*request.SignerDID) > 0 {
+		signerDID, err = did.ParseDID(*request.SignerDID)
+		if err != nil {
+			return core.InvalidInputError("invalid signer DID: %w", err)
+		}
+	}
+
+	created := clockFn()
+	var expires *time.Time
+	if request.Expires != nil {
+		if request.Expires.Before(created) {
+			return core.InvalidInputError("expires can not lay in the past")
+		}
+		expires = request.Expires
+	}
+
+	proofOptions := proof.ProofOptions{
+		Created:        created,
+		Domain:         request.Domain,
+		Challenge:      request.Challenge,
+		ExpirationDate: expires,
+	}
+
+	vp, err := w.VCR.Holder().BuildVP(request.VerifiableCredentials, proofOptions, signerDID, true)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, vp)
 }
