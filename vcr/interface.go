@@ -21,8 +21,9 @@ package vcr
 
 import (
 	"context"
-	"github.com/nuts-foundation/go-did"
 	"time"
+
+	"github.com/nuts-foundation/go-did"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
@@ -109,6 +110,7 @@ type VCR interface {
 	// It returns an error if the credential, issuer or private key can not be found.
 	Revoke(ID ssi.URI) (*credential.Revocation, error)
 
+	Finder
 	ConceptFinder
 	Resolver
 	TrustManager

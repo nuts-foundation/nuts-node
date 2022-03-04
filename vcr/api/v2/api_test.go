@@ -266,7 +266,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockIssuer.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, subjectID)
 
-		testContext.echo.EXPECT().JSON(http.StatusOK, []SearchVCResult{})
+		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{}})
 
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
@@ -281,7 +281,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockIssuer.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
 
-		testContext.echo.EXPECT().JSON(http.StatusOK, []SearchVCResult{{VerifiableCredential: foundVC}})
+		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC}}})
 
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",

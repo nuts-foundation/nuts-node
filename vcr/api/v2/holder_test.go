@@ -21,11 +21,11 @@ package v2
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -38,29 +38,52 @@ import (
 
 var organizationQuery = `
 {
-	"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
-	"type": ["VerifiableCredential", "NutsOrganizationCredential"],
-	"credentialSubject":{
-		"id":"did:nuts:123",
-  		"organization": {
-			"name": "Zorggroep de Nootjes",
-			"city": "Amandelmere"
-  		}
+	"query": {
+		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+		"type": ["VerifiableCredential", "NutsOrganizationCredential"],
+		"credentialSubject":{
+			"id":"did:nuts:123",
+			"organization": {
+				"name": "Zorggroep de Nootjes",
+				"city": "Amandelmere"
+			}
+		}
+	}
+}
+`
+
+var untrustedOrganizationQuery = `
+{
+	"query": {
+		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+		"type": ["VerifiableCredential", "NutsOrganizationCredential"],
+		"credentialSubject":{
+			"id":"did:nuts:123",
+			"organization": {
+				"name": "Zorggroep de Nootjes",
+				"city": "Amandelmere"
+			}
+		}
+	},
+	"searchOptions": {
+		"allowUntrustedIssuer": true
 	}
 }
 `
 
 var authorizationQuery = `
 {
-	"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
-	"type": ["VerifiableCredential", "NutsAuthorizationCredential"],
-	"credentialSubject":{
-		"id": "did:nuts:123",
-		"purposeOfUse": "eOverdracht-receiver",
-		"resources": {
-			"path":"/Task/123"
-		},
-		"subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456782"
+	"query": {
+		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+		"type": ["VerifiableCredential", "NutsAuthorizationCredential"],
+		"credentialSubject":{
+			"id": "did:nuts:123",
+			"purposeOfUse": "eOverdracht-receiver",
+			"resources": {
+				"path":"/Task/123"
+			},
+			"subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456782"
+		}
 	}
 }
 `
@@ -70,10 +93,13 @@ func TestWrapper_SearchVCs(t *testing.T) {
 	loadTemplates(t, registry)
 
 	t.Run("ok - organization", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(organizationQuery))
 		ctx := newMockContext(t)
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		ctx.echo.EXPECT().Request().Return(req)
 		ctx.vcr.EXPECT().Registry().Return(registry)
-		ctx.echo.EXPECT().Request().Return(req).AnyTimes()
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(organizationQuery), f)
+		})
 		var capturedQuery concept.Query
 		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), false, nil).DoAndReturn(
 			func(_ interface{}, arg1 interface{}, _ interface{}, _ interface{}) ([]VerifiableCredential, error) {
@@ -83,7 +109,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		)
 		ctx.echo.EXPECT().JSON(http.StatusOK, []VerifiableCredential{})
 
-		err := ctx.client.SearchVCs(ctx.echo, SearchVCsParams{})
+		err := ctx.client.SearchVCs(ctx.echo)
 
 		if !assert.NoError(t, err) {
 			return
@@ -109,15 +135,17 @@ func TestWrapper_SearchVCs(t *testing.T) {
 	})
 
 	t.Run("ok - untrusted flag", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(organizationQuery))
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Registry().Return(registry)
-		ctx.echo.EXPECT().Request().Return(req).AnyTimes()
+		ctx.echo.EXPECT().Request().Return(req)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(untrustedOrganizationQuery), f)
+		})
 		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), true, nil).Return([]VerifiableCredential{}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, []VerifiableCredential{})
 
-		trueVal := true
-		err := ctx.client.SearchVCs(ctx.echo, SearchVCsParams{Untrusted: &trueVal})
+		err := ctx.client.SearchVCs(ctx.echo)
 
 		if !assert.NoError(t, err) {
 			return
@@ -125,22 +153,28 @@ func TestWrapper_SearchVCs(t *testing.T) {
 	})
 
 	t.Run("error - search returns error", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(organizationQuery))
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Registry().Return(registry)
-		ctx.echo.EXPECT().Request().Return(req).AnyTimes()
+		ctx.echo.EXPECT().Request().Return(req)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(organizationQuery), f)
+		})
 		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), false, nil).Return(nil, errors.New("custom"))
 
-		err := ctx.client.SearchVCs(ctx.echo, SearchVCsParams{})
+		err := ctx.client.SearchVCs(ctx.echo)
 
 		assert.EqualError(t, err, "custom")
 	})
 
 	t.Run("ok - authorization", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(authorizationQuery))
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Registry().Return(registry)
-		ctx.echo.EXPECT().Request().Return(req).AnyTimes()
+		ctx.echo.EXPECT().Request().Return(req)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(authorizationQuery), f)
+		})
 		var capturedQuery concept.Query
 		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), false, nil).DoAndReturn(
 			func(_ interface{}, arg1 interface{}, _ interface{}, _ interface{}) ([]VerifiableCredential, error) {
@@ -150,7 +184,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		)
 		ctx.echo.EXPECT().JSON(http.StatusOK, []VerifiableCredential{})
 
-		err := ctx.client.SearchVCs(ctx.echo, SearchVCsParams{})
+		err := ctx.client.SearchVCs(ctx.echo)
 
 		if !assert.NoError(t, err) {
 			return
@@ -179,13 +213,16 @@ func TestWrapper_SearchVCs(t *testing.T) {
 	})
 
 	t.Run("error - search auth returns error", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(authorizationQuery))
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Registry().Return(registry)
-		ctx.echo.EXPECT().Request().Return(req).AnyTimes()
+		ctx.echo.EXPECT().Request().Return(req)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(authorizationQuery), f)
+		})
 		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), false, nil).Return(nil, errors.New("custom"))
 
-		err := ctx.client.SearchVCs(ctx.echo, SearchVCsParams{})
+		err := ctx.client.SearchVCs(ctx.echo)
 
 		assert.EqualError(t, err, "custom")
 	})

@@ -455,6 +455,21 @@ func (mr *MockVCRMockRecorder) Revoke(ID interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockVCR)(nil).Revoke), ID)
 }
 
+// Search mocks base method.
+func (m *MockVCR) Search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Search", ctx, query, allowUntrusted, resolveTime)
+	ret0, _ := ret[0].([]vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Search indicates an expected call of Search.
+func (mr *MockVCRMockRecorder) Search(ctx, query, allowUntrusted, resolveTime interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), ctx, query, allowUntrusted, resolveTime)
+}
+
 // SearchConcept mocks base method.
 func (m *MockVCR) SearchConcept(ctx context.Context, conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error) {
 	m.ctrl.T.Helper()

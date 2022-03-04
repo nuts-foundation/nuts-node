@@ -124,13 +124,31 @@ type IssueVCRequest struct {
 // This field is mandatory if publishToNetwork is true to prevent accidents.
 type IssueVCRequestVisibility string
 
-// result of a Resolve operation.
+// SearchOptions defines model for SearchOptions.
+type SearchOptions struct {
+	// If set to true, VCs from an untrusted issuer are returned.
+	AllowUntrustedIssuer *bool `json:"allowUntrustedIssuer,omitempty"`
+}
+
+// request body for searching VCs
+type SearchVCRequest struct {
+	// A partial VerifiableCredential in JSON-LD format. Each field will be used to match credentials against. All fields MUST be present.
+	Query         map[string]interface{} `json:"query"`
+	SearchOptions *SearchOptions         `json:"searchOptions,omitempty"`
+}
+
+// result of a Search operation.
 type SearchVCResult struct {
 	// Credential revocation record
 	Revocation *Revocation `json:"revocation,omitempty"`
 
 	// A credential according to the W3C and Nuts specs.
 	VerifiableCredential VerifiableCredential `json:"verifiableCredential"`
+}
+
+// result of a Search operation.
+type SearchVCResults struct {
+	VerifiableCredentials []SearchVCResult `json:"verifiableCredentials"`
 }
 
 // VCVerificationOptions defines model for VCVerificationOptions.
@@ -178,12 +196,6 @@ type VerifiablePresentation struct {
 	// VerifiableCredential is composed of a list containing one or more verifiable credentials, in a
 	// cryptographically verifiable format.
 	VerifiableCredential *[]VerifiableCredential `json:"verifiableCredential,omitempty"`
-}
-
-// SearchVCsParams defines parameters for SearchVCs.
-type SearchVCsParams struct {
-	// when true, the search also returns untrusted credentials. Default false
-	Untrusted *bool `json:"untrusted,omitempty"`
 }
 
 // CreateVPJSONBody defines parameters for CreateVP.
@@ -290,7 +302,7 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 	// SearchVCs request with any body
-	SearchVCsWithBody(ctx context.Context, params *SearchVCsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	SearchVCsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateVP request with any body
 	CreateVPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -314,8 +326,8 @@ type ClientInterface interface {
 	VerifyVC(ctx context.Context, body VerifyVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) SearchVCsWithBody(ctx context.Context, params *SearchVCsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewSearchVCsRequestWithBody(c.Server, params, contentType, body)
+func (c *Client) SearchVCsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchVCsRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -423,7 +435,7 @@ func (c *Client) VerifyVC(ctx context.Context, body VerifyVCJSONRequestBody, req
 }
 
 // NewSearchVCsRequestWithBody generates requests for SearchVCs with any type of body
-func NewSearchVCsRequestWithBody(server string, params *SearchVCsParams, contentType string, body io.Reader) (*http.Request, error) {
+func NewSearchVCsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -440,26 +452,6 @@ func NewSearchVCsRequestWithBody(server string, params *SearchVCsParams, content
 	if err != nil {
 		return nil, err
 	}
-
-	queryValues := queryURL.Query()
-
-	if params.Untrusted != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "untrusted", runtime.ParamLocationQuery, *params.Untrusted); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
-				}
-			}
-		}
-
-	}
-
-	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
@@ -740,7 +732,7 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 	// SearchVCs request with any body
-	SearchVCsWithBodyWithResponse(ctx context.Context, params *SearchVCsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error)
+	SearchVCsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error)
 
 	// CreateVP request with any body
 	CreateVPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateVPResponse, error)
@@ -767,7 +759,7 @@ type ClientWithResponsesInterface interface {
 type SearchVCsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *[]VerifiableCredential
+	JSON200      *SearchVCResults
 }
 
 // Status returns HTTPResponse.Status
@@ -833,7 +825,6 @@ func (r IssueVCResponse) StatusCode() int {
 type SearchIssuedVCsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *[]SearchVCResult
 }
 
 // Status returns HTTPResponse.Status
@@ -897,8 +888,8 @@ func (r VerifyVCResponse) StatusCode() int {
 }
 
 // SearchVCsWithBodyWithResponse request with arbitrary body returning *SearchVCsResponse
-func (c *ClientWithResponses) SearchVCsWithBodyWithResponse(ctx context.Context, params *SearchVCsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error) {
-	rsp, err := c.SearchVCsWithBody(ctx, params, contentType, body, reqEditors...)
+func (c *ClientWithResponses) SearchVCsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error) {
+	rsp, err := c.SearchVCsWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -989,7 +980,7 @@ func ParseSearchVCsResponse(rsp *http.Response) (*SearchVCsResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []VerifiableCredential
+		var dest SearchVCResults
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1065,16 +1056,6 @@ func ParseSearchIssuedVCsResponse(rsp *http.Response) (*SearchIssuedVCsResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []SearchVCResult
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	}
-
 	return response, nil
 }
 
@@ -1134,7 +1115,7 @@ func ParseVerifyVCResponse(rsp *http.Response) (*VerifyVCResponse, error) {
 type ServerInterface interface {
 	// Searches for verifiable credentials that could be used for different use-cases.
 	// (POST /internal/vcr/v2/holder/vc/search)
-	SearchVCs(ctx echo.Context, params SearchVCsParams) error
+	SearchVCs(ctx echo.Context) error
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
@@ -1161,17 +1142,8 @@ type ServerInterfaceWrapper struct {
 func (w *ServerInterfaceWrapper) SearchVCs(ctx echo.Context) error {
 	var err error
 
-	// Parameter object where we will unmarshal all parameters from the context
-	var params SearchVCsParams
-	// ------------- Optional query parameter "untrusted" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "untrusted", ctx.QueryParams(), &params.Untrusted)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter untrusted: %s", err))
-	}
-
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.SearchVCs(ctx, params)
+	err = w.Handler.SearchVCs(ctx)
 	return err
 }
 

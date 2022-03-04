@@ -21,7 +21,6 @@ package v2
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -30,55 +29,38 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
-// typeHelper helps in transforming the given JSON-LD document to the correct query
-// If it contains NutsOrganizationCredential then we need to search for an organization
-// NutsAuthorizationCrerdential for authorization credentials
-type typeHelper struct {
-	Type []string `json:"type"`
-}
-
-// searchType returns the first type that is in this list:
-// - NutsOrganizationCredential
-// - NutsAuthorizationCredential
-func (ch typeHelper) searchType() string {
-	for _, c := range ch.Type {
-		switch c {
-		case credential.NutsOrganizationCredentialType:
-			fallthrough
-		case credential.NutsAuthorizationCredentialType:
-			return c
-		}
-	}
-	return ""
-}
-
 // SearchVCs checks the context used in the JSON-LD query, based on the contents it maps to a non-JSON-LD query
 // After V1, this needs to be remapped to a DB search that supports native JSON-LD
-func (w *Wrapper) SearchVCs(ctx echo.Context, params SearchVCsParams) error {
-	var rawRequest typeHelper
-
-	// we parse without bind to bypass the defaults for Content-Type (application/ld+json)
-	bodyBytes, err := ioutil.ReadAll(ctx.Request().Body)
+func (w *Wrapper) SearchVCs(ctx echo.Context) error {
+	var request SearchVCRequest
+	err := ctx.Bind(&request)
 	if err != nil {
 		return core.InvalidInputError("failed to parse request body: %w", err)
 	}
 
-	err = json.Unmarshal(bodyBytes, &rawRequest)
-	if err != nil {
-		return core.InvalidInputError("failed to unmarshall JSON request body: %w", err)
-	}
+	//err = json.Unmarshal(bodyBytes, &rawRequest)
+	//if err != nil {
+	//	return core.InvalidInputError("failed to unmarshall JSON request body: %w", err)
+	//}
 
 	untrusted := false
-	if params.Untrusted != nil {
-		untrusted = *params.Untrusted
+	if request.SearchOptions != nil && request.SearchOptions.AllowUntrustedIssuer != nil {
+		untrusted = *request.SearchOptions.AllowUntrustedIssuer
 	}
 
-	searchContext := rawRequest.searchType()
-	switch searchContext {
-	case credential.NutsAuthorizationCredentialType:
-		return w.searchAuths(ctx, untrusted, bodyBytes)
-	case credential.NutsOrganizationCredentialType:
-		return w.searchOrgs(ctx, untrusted, bodyBytes)
+	searchContexts, ok := request.Query["type"].([]interface{})
+	if !ok {
+		return core.InvalidInputError("failed to determine type, got %s, need list of strings", request.Query["type"])
+	}
+
+	query, _ := json.Marshal(request.Query)
+	for _, c := range searchContexts {
+		switch c {
+		case credential.NutsOrganizationCredentialType:
+			return w.searchOrgs(ctx, untrusted, query)
+		case credential.NutsAuthorizationCredentialType:
+			return w.searchAuths(ctx, untrusted, query)
+		}
 	}
 
 	return core.InvalidInputError("given type not supported")
