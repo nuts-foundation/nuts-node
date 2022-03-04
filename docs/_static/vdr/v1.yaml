@@ -244,17 +244,22 @@ components:
           type: array
           items:
             type: string
-        context:
-          description: List of URIs
-          type: array
-          items:
-            type: string
+       capabilityInvocation:
+           type: array
+           items:
+             type: string
+        '@context':
+          type: object
         controller:
           description: Single DID (as string) or List of DIDs that have control over the DID document
         id:
           description: DID according to Nuts specification
           example: "did:nuts:1"
           type: string
+        keyAgreement:
+          type: array
+          items:
+            type: string
         service:
           description: List of supported services by the DID subject
           type: array
