@@ -64,7 +64,7 @@ func (st *stateDAG) GetXor() (hash.SHA256Hash, uint32) {
 	defer st.mutex.RUnlock()
 
 	data := st.xorTree.GetRoot()
-	return data.(*tree.XorHash).Hash, st.maxKnownLC
+	return data.(*tree.Xor).Hash, st.maxKnownLC
 }
 
 func (st *stateDAG) GetXorAt(clock uint32) (hash.SHA256Hash, uint32) {
@@ -72,5 +72,5 @@ func (st *stateDAG) GetXorAt(clock uint32) (hash.SHA256Hash, uint32) {
 	defer st.mutex.RUnlock()
 
 	data, trueClock := st.xorTree.GetZeroTo(clock)
-	return data.(*tree.XorHash).Hash, trueClock
+	return data.(*tree.Xor).Hash, trueClock
 }

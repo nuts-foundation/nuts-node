@@ -12,49 +12,49 @@ func xor(dest *hash.SHA256Hash, left, right hash.SHA256Hash) {
 	}
 }
 
-// XorHash is an implementation of tree.Data for xor of transaction references
-type XorHash struct {
+// Xor is a wrapper around hash.SHA256Hash that implements tree.Data to track transaction xors
+type Xor struct {
 	Hash hash.SHA256Hash `json:"hash"`
 }
 
-func NewXor() Data {
-	return &XorHash{Hash: hash.EmptyHash()}
+func NewXor() *Xor {
+	return &Xor{Hash: hash.EmptyHash()}
 }
 
-func (x XorHash) New() Data {
+func (x Xor) New() Data {
 	return NewXor()
 }
 
-func (x *XorHash) Clone() Data {
+func (x *Xor) Clone() Data {
 	clone := x.New()
 	_ = clone.Insert(x.Hash)
 	return clone
 }
 
-func (x *XorHash) Insert(ref hash.SHA256Hash) error {
+func (x *Xor) Insert(ref hash.SHA256Hash) error {
 	xor(&x.Hash, x.Hash, ref)
 	return nil
 }
 
-func (x *XorHash) Add(data Data) error {
+func (x *Xor) Add(data Data) error {
 	return x.Subtract(data)
 }
 
-func (x *XorHash) Subtract(data Data) error {
+func (x *Xor) Subtract(data Data) error {
 	switch v := data.(type) {
-	case *XorHash:
+	case *Xor:
 		xor(&x.Hash, x.Hash, v.Hash)
 		return nil
 	default:
-		return fmt.Errorf("subtraction failed - expected type %T, got %T", x, v)
+		return fmt.Errorf("data type mismatch - expected %T, got %T", x, v)
 	}
 }
 
-func (x XorHash) MarshalBinary() ([]byte, error) {
+func (x Xor) MarshalBinary() ([]byte, error) {
 	return x.Hash.Clone().Slice(), nil
 }
 
-func (x *XorHash) UnmarshalBinary(data []byte) error {
+func (x *Xor) UnmarshalBinary(data []byte) error {
 	if len(data) != hash.SHA256HashSize {
 		return errors.New("invalid data length")
 	}

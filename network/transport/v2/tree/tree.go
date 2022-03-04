@@ -27,9 +27,8 @@ type Data interface {
 // Tree
 /* tree creates a binary tree, where the leaves contain Data over a fixed range of Lamport Clock (uint32) values.
 The Data of the parent is the sum of that of its children. The root contains the sum of all Data in the tree.
-Since the leaves are of fixed size, a new root is created when added something to an uint32 outside of the current root range.
-Whenever a new branch is created, a string of Left TreeData is created all the way to the leaf.
-TODO: There is some redundancy in storing the Left & Right leaf + their parent. Dropping Left leafs saves ~25% of memory.
+Since the leaves are of fixed size, a new root is created when added something to a clock outside the current root range.
+Whenever a new branch is created, a string of left Nodes is created all the way to the leaf.
 */
 type Tree interface {
 	// Insert a transaction reference at the specified clock value.
@@ -40,33 +39,42 @@ type Tree interface {
 	GetZeroTo(clock uint32) (Data, uint32)
 	// DropLeaves shrinks the tree by dropping all leaves. The parent of a leaf will become the new leaf
 	DropLeaves()
-	GetUpdate() (dirty map[uint32][]byte, orphaned map[uint32]struct{}, err error)
+	// GetUpdate return the leaves that have been orphaned or updated since the last call to ResetUpdate.
+	// dirty and orphaned are mutually exclusive.
+	GetUpdate() (dirty map[uint32][]byte, orphaned []uint32, err error)
+	// ResetUpdate resets tracked changes.
 	ResetUpdate()
-	Load(prototype Data, leaves map[uint32][]byte) error
+	Load(leaves map[uint32][]byte) error
 }
 
 type tree struct {
-	Depth    uint8  `json:"depth"` // redundant -> Depth=2log(MaxSize/LeafSize)
+	Depth    uint8  `json:"depth"`
 	MaxSize  uint32 `json:"max_size"`
 	LeafSize uint32 `json:"leaf_size"`
 	Root     *node  `json:"root"`
 	// storage
+	prototype      Data
 	dirtyLeaves    map[uint32]*node
 	orphanedLeaves map[uint32]struct{}
 }
 
 // New creates a new tree with the given leafSize and of the same type of Data as the prototype.
-func New(prototype Data, leafSize uint32) Tree {
-	root := newNode(leafSize/2, leafSize, prototype.New())
-	return &tree{
-		Root:        root,
-		MaxSize:     leafSize,
-		LeafSize:    leafSize,
-		dirtyLeaves: map[uint32]*node{root.SplitLC: root},
-	}
+func New(prototype Data, leafSize uint32) *tree {
+	tr := &tree{prototype: prototype.New()}
+	tr.resetDefaults(leafSize)
+	return tr
 }
 
-func (t *tree) Load(prototype Data, leaves map[uint32][]byte) error {
+func (t *tree) resetDefaults(leafSize uint32) {
+	t.Root = newNode(leafSize/2, leafSize, t.prototype.New())
+	t.LeafSize = leafSize
+	t.MaxSize = leafSize
+	t.Depth = 0
+	t.dirtyLeaves = map[uint32]*node{t.Root.SplitLC: t.Root}
+	t.orphanedLeaves = nil
+}
+
+func (t *tree) Load(leaves map[uint32][]byte) error {
 	// initialize tree
 	split := uint32(math.MaxUint32)
 	for k, _ := range leaves {
@@ -74,22 +82,19 @@ func (t *tree) Load(prototype Data, leaves map[uint32][]byte) error {
 			split = k
 		}
 	}
-	t.Depth = 0
-	t.LeafSize = split * 2
-	t.MaxSize = t.LeafSize
-	t.dirtyLeaves = map[uint32]*node{}
-	t.Root = newNode(split, t.LeafSize, prototype.New())
+	t.resetDefaults(2 * split)
 
 	// build tree
+	// Current implementation requires ±d*2^d calls to Data.Add(). Building the tree bottom up would be ±2^d
 	var err error
 	var leaf []byte
 	for split, leaf = range leaves {
-		data := prototype.New()
+		data := t.prototype.New()
 		err = data.UnmarshalBinary(leaf)
 		if err != nil {
 			return err
 		}
-		err = t.applyToTree(split, func(n *node) error {
+		err = t.applyToPath(split, func(n *node) error {
 			return n.Data.Add(data)
 		})
 		if err != nil {
@@ -103,23 +108,29 @@ func (t *tree) Load(prototype Data, leaves map[uint32][]byte) error {
 	return nil
 }
 
-type manipulationFn func(n *node) error
+// Insert a transaction reference at the specified clock value.
+func (t *tree) Insert(ref hash.SHA256Hash, clock uint32) error {
+	return t.applyToPath(clock, func(n *node) error {
+		return n.Data.Insert(ref)
+	})
+}
 
-// applyToTree applies a manipulationFn from all nodes between root and leaf containing clock. If a leaf does not exist it will be created.
-func (t *tree) applyToTree(clock uint32, fn manipulationFn) error {
+// applyToPath calls fn on all nodes on the path from the root to leaf containing the clock value.
+// If the path/leaf does not exist it will be created.
+func (t *tree) applyToPath(clock uint32, fn func(n *node) error) error {
 	// grow tree if needed
 	for clock >= t.MaxSize {
 		t.reRoot()
 	}
 
-	// Insert ref in all TreeData from root to leave
+	// apply fn to all nodes on path
 	var current *node
 	next := t.Root
 	for next != nil {
 		current = next
 		err := fn(current)
 		if err != nil {
-			return fmt.Errorf("Add failed for node with splitLC at LC %d: %w", next.SplitLC, err)
+			return fmt.Errorf("failed for node with splitLC %d: %w", next.SplitLC, err)
 		}
 		next = t.getNextNode(current, clock)
 	}
@@ -130,39 +141,13 @@ func (t *tree) applyToTree(clock uint32, fn manipulationFn) error {
 
 func (t *tree) newBranch(start, stop uint32) *node {
 	split := (stop + start) / 2
-	n := newNode(split, stop, t.Root.Data.New())
+	n := newNode(split, stop, t.prototype.New())
 	if stop-start > t.LeafSize {
 		n.Left = t.newBranch(start, split)
 	} else {
 		t.dirtyLeaves[n.SplitLC] = n
 	}
 	return n
-}
-
-// Insert a transaction reference at the specified clock value.
-func (t *tree) Insert(ref hash.SHA256Hash, clock uint32) error {
-	return t.applyToTree(clock, func(n *node) error {
-		return n.Data.Insert(ref)
-	})
-	//// grow tree if needed
-	//for clock >= t.MaxSize {
-	//	t.reRoot()
-	//}
-	//
-	//// Insert ref in all TreeData from root to leave
-	//var current *node
-	//next := t.Root
-	//for next != nil {
-	//	current = next
-	//	err := current.Data.Insert(ref)
-	//	if err != nil {
-	//		return fmt.Errorf("Insert failed for node with splitLC at LC %d: %w", next.SplitLC, err)
-	//	}
-	//	next = t.getNextNode(current, clock)
-	//}
-	//t.dirtyLeaves[current.SplitLC] = current
-	//
-	//return nil
 }
 
 // reRoot creates a new Root with Data from the current Root and adds current Root as its Left branch.
@@ -175,19 +160,19 @@ func (t *tree) reRoot() {
 }
 
 // getNextNode retrieves the next node based on the clock value. If the node does not exist it is created.
-func (t *tree) getNextNode(current *node, clock uint32) *node {
-	// return nil if current is a leaf
-	if current.Left == nil {
+func (t *tree) getNextNode(n *node, clock uint32) *node {
+	// return nil if n is a leaf
+	if n.isLeaf() {
 		return nil
 	}
 
-	if clock < current.SplitLC {
-		return current.Left
+	if clock < n.SplitLC {
+		return n.Left
 	} else {
-		if current.Right == nil {
-			current.Right = t.newBranch(current.SplitLC, current.LimitLC)
+		if n.Right == nil {
+			n.Right = t.newBranch(n.SplitLC, n.LimitLC)
 		}
-		return current.Right
+		return n.Right
 	}
 }
 
@@ -212,26 +197,25 @@ func (t *tree) GetZeroTo(clock uint32) (Data, uint32) {
 			next = current.Right
 		}
 		if next == nil {
-			return data, getTrueClock(current)
+			return data, rightmostLeafClock(current)
 		}
 	}
 }
 
-// getTrueClock finds the Right most child of the given node and returns its maximum clock value.
-func getTrueClock(n *node) uint32 {
+// rightmostLeafClock finds the rightmost leaf of the given node and returns its maximum clock value.
+func rightmostLeafClock(n *node) uint32 {
 	for {
 		if n.Right != nil {
 			n = n.Right
 		} else if n.Left != nil {
 			n = n.Left
 		} else {
-			return n.LimitLC
+			return n.LimitLC - 1
 		}
 	}
 }
 
-// GetUpdate returns dirty l
-func (t *tree) GetUpdate() (dirty map[uint32][]byte, orphaned map[uint32]struct{}, err error) {
+func (t tree) GetUpdate() (dirty map[uint32][]byte, orphaned []uint32, err error) {
 	dirty = make(map[uint32][]byte, len(t.dirtyLeaves))
 	for k, v := range t.dirtyLeaves {
 		b, err := v.Data.MarshalBinary()
@@ -240,7 +224,10 @@ func (t *tree) GetUpdate() (dirty map[uint32][]byte, orphaned map[uint32]struct{
 		}
 		dirty[k] = b
 	}
-	return dirty, t.orphanedLeaves, err
+	for k, _ := range t.orphanedLeaves {
+		orphaned = append(orphaned, k)
+	}
+	return dirty, orphaned, nil
 }
 
 func (t *tree) ResetUpdate() {
@@ -255,7 +242,8 @@ type dropLeavesUpdate struct {
 
 // DropLeaves shrinks the tree by dropping all leaves. The parent of a leaf will become the new leaf
 func (t *tree) DropLeaves() {
-	if t.Root == nil || t.Root.Left == nil {
+	// don't drop root
+	if t.Root == nil || t.Root.isLeaf() {
 		return
 	}
 
@@ -278,12 +266,12 @@ func (t *tree) DropLeaves() {
 }
 
 func dropLeaves(n *node, update *dropLeavesUpdate) {
-	// Nothing to do if n is a leaf
-	if n == nil || n.Left == nil {
+	if n == nil {
+		// n = parent.Right might not exist
 		return
 	}
 	// if n.Left is a leaf, make n node a leaf
-	if n.Left.Left == nil {
+	if n.Left.isLeaf() {
 		update.dirty[n.SplitLC] = n
 		update.orphaned[n.Left.SplitLC] = struct{}{}
 		if n.Right != nil {
@@ -317,6 +305,10 @@ func newNode(splitLC, limitLC uint32, data Data) *node {
 		LimitLC: limitLC,
 		Data:    data,
 	}
+}
+
+func (n node) isLeaf() bool {
+	return n.Left == nil
 }
 
 func (n *node) UnmarshalJSON(bytes []byte) error {

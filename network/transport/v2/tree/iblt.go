@@ -13,7 +13,7 @@ const (
 	ibltNumBuckets = 1024
 	ibltHc         = uint32(0)
 	ibltHk         = uint32(1)
-	ibltK          = 6
+	ibltK          = uint8(6)
 	bucketBytes    = 44 // = int32 + uint64 + hash.SHA256HashSize
 )
 
@@ -25,10 +25,10 @@ Eppstein, David, et al. "What's the difference?: efficient set reconciliation wi
 */
 
 type Iblt struct {
-	Hc      uint32    `json:"Hc"`      // #1
-	Hk      uint32    `json:"Hk"`      // #2
-	K       uint8     `json:"K"`       // #3
-	Buckets []*bucket `json:"buckets"` // #4
+	Hc      uint32    `json:"Hc"`
+	Hk      uint32    `json:"Hk"`
+	K       uint8     `json:"K"`
+	Buckets []*bucket `json:"buckets"`
 }
 
 func NewIblt(numBuckets int) *Iblt {
@@ -40,20 +40,17 @@ func NewIblt(numBuckets int) *Iblt {
 	}
 }
 
-func makeBuckets(numBuckets int) []*bucket {
-	buckets := make([]*bucket, numBuckets)
-	for i := 0; i < numBuckets; i++ {
-		buckets[i] = new(bucket)
+func (i Iblt) New() Data {
+	return NewIblt(i.numBuckets())
+}
+
+func (i Iblt) Clone() Data {
+	tmpBuckets := makeBuckets(i.numBuckets())
+	for idx, b := range i.Buckets {
+		tmpBuckets[idx] = b.clone()
 	}
-	return buckets
-}
-
-func (i *Iblt) New() Data {
-	return NewIblt(len(i.Buckets))
-}
-
-func (i *Iblt) Clone() Data {
-	return i.clone()
+	i.Buckets = tmpBuckets
+	return &i
 }
 
 func (i *Iblt) Insert(ref hash.SHA256Hash) error {
@@ -64,92 +61,77 @@ func (i *Iblt) Insert(ref hash.SHA256Hash) error {
 	return nil
 }
 
-func (i *Iblt) Subtract(other Data) error {
-	switch o := other.(type) {
-	case *Iblt:
-		return i.subtract(o)
-	default:
-		return fmt.Errorf("subtraction failed - expected type %T, got %T", i, o)
-	}
-}
-
-func (i *Iblt) subtract(other *Iblt) error {
-	if err := i.matches(other); err != nil {
-		return fmt.Errorf("subtraction failed: %w", err)
-	}
-	for idx, b := range i.Buckets {
-		b.subtract(other.Buckets[idx])
+func (i *Iblt) Delete(key hash.SHA256Hash) error {
+	keyHash := i.hashKey(key)
+	for _, h := range i.bucketIndices(keyHash) {
+		i.Buckets[h].delete(key, keyHash)
 	}
 	return nil
 }
 
 func (i *Iblt) Add(other Data) error {
-	switch o := other.(type) {
-	case *Iblt:
-		return i.subtract(o)
-	default:
-		return fmt.Errorf("addition failed - expected type %T, got %T", i, o)
-	}
-}
-
-func (i *Iblt) add(other *Iblt) error {
-	if err := i.matches(other); err != nil {
-		return fmt.Errorf("addition failed: %w", err)
+	o, err := i.validate(other)
+	if err != nil {
+		return err
 	}
 	for idx, b := range i.Buckets {
-		b.add(other.Buckets[idx])
+		b.add(o.Buckets[idx])
 	}
 	return nil
 }
 
-func (i Iblt) clone() *Iblt {
-	tmpBuckets := make([]*bucket, len(i.Buckets))
+func (i *Iblt) Subtract(other Data) error {
+	o, err := i.validate(other)
+	if err != nil {
+		return err
+	}
 	for idx, b := range i.Buckets {
-		tmpBuckets[idx] = b.clone()
+		b.subtract(o.Buckets[idx])
 	}
-	i.Buckets = tmpBuckets
-	return &i
+	return nil
 }
 
-func (i *Iblt) Delete(key hash.SHA256Hash) {
-	keyHash := i.hashKey(key)
-	for _, h := range i.bucketIndices(keyHash) {
-		i.Buckets[h].delete(key, keyHash)
+func (i Iblt) validate(other Data) (*Iblt, error) {
+	// validate datatype
+	o, ok := other.(*Iblt)
+	if !ok {
+		return nil, fmt.Errorf("other invalid - expected type %T, got %T", &i, other)
 	}
-}
 
-func (i *Iblt) matches(o *Iblt) error {
-	if len(i.Buckets) != len(o.Buckets) {
-		return fmt.Errorf("number of Buckets do not match, expected (%d) got (%d)", len(i.Buckets), len(o.Buckets))
+	// validate format
+	if i.numBuckets() != o.numBuckets() {
+		return nil, fmt.Errorf("number of Buckets do not match, expected (%d) got (%d)", i.numBuckets(), o.numBuckets())
 	}
 	if i.Hc != o.Hc {
-		return fmt.Errorf("Hc do not match, expected (%d) got (%d)", i.Hc, o.Hc)
+		return nil, fmt.Errorf("Hc do not match, expected (%d) got (%d)", i.Hc, o.Hc)
 	}
 	if i.Hk != o.Hk {
-		return fmt.Errorf("Hk do not match, expected (%d) got (%d)", i.Hk, o.Hk)
+		return nil, fmt.Errorf("Hk do not match, expected (%d) got (%d)", i.Hk, o.Hk)
 	}
 	if i.K != o.K {
-		return fmt.Errorf("unequal number of K, expected (%d) got (%d)", i.K, o.K)
+		return nil, fmt.Errorf("unequal number of K, expected (%d) got (%d)", i.K, o.K)
 	}
-	return nil
+
+	// valid
+	return o, nil
 }
 
 func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash, err error) {
 	for {
 		updated := false
 
-		// for each pure (count == +1 or -1), if hashSum = h(key) -> insert(count == -1)/Delete(count == 1) key
+		// peel off pures (count == ±1)
 		for _, b := range i.Buckets {
 			if (b.Count == 1 || b.Count == -1) && i.hashKey(b.KeySum) == b.HashSum {
 				if b.Count == 1 {
 					remaining = append(remaining, b.KeySum)
-					i.Delete(b.KeySum)
+					err = i.Delete(b.KeySum)
 				} else { // b.count == -1
 					missing = append(missing, b.KeySum)
 					err = i.Insert(b.KeySum)
-					if err != nil {
-						return nil, nil, err
-					}
+				}
+				if err != nil {
+					return nil, nil, err
 				}
 				updated = true
 			}
@@ -167,52 +149,63 @@ func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash,
 	}
 }
 
-func (i *Iblt) bucketIndices(hash uint64) []uint32 {
+func (i Iblt) numBuckets() int {
+	return len(i.Buckets)
+}
+
+func makeBuckets(numBuckets int) []*bucket {
+	buckets := make([]*bucket, numBuckets)
+	for i := 0; i < numBuckets; i++ {
+		buckets[i] = new(bucket)
+	}
+	return buckets
+}
+
+func (i Iblt) bucketIndices(hash uint64) []uint32 {
 	bucketUsed := make(map[uint32]bool, i.K)
 	var indices []uint32
-	hashBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(hashBytes, hash)
-	next := murmur3.Sum32WithSeed(hashBytes, i.Hk)
+	hashKeyBytes, nextBytes := make([]byte, 8), make([]byte, 4)
+	binary.LittleEndian.PutUint64(hashKeyBytes, hash)
+	next := murmur3.Sum32WithSeed(hashKeyBytes, i.Hk)
 	for len(indices) < int(i.K) {
-		bucketId := next % uint32(len(i.Buckets))
+		bucketId := next % uint32(i.numBuckets())
 		if !bucketUsed[bucketId] {
 			indices = append(indices, bucketId)
 			bucketUsed[bucketId] = true
 		}
-		binary.LittleEndian.PutUint32(hashBytes, next)
-		next = murmur3.Sum32WithSeed(hashBytes[:4], i.Hk)
+		binary.LittleEndian.PutUint32(nextBytes, next)
+		next = murmur3.Sum32WithSeed(nextBytes, i.Hk)
 	}
 	return indices
 }
 
-func (i *Iblt) hashKey(key hash.SHA256Hash) uint64 {
-	return murmur3.Sum64WithSeed(key[:], i.Hc)
+func (i Iblt) hashKey(key hash.SHA256Hash) uint64 {
+	return murmur3.Sum64WithSeed(key.Slice(), i.Hc)
 }
 
 func (i Iblt) MarshalBinary() ([]byte, error) {
-	data := make([]byte, ibltNumBuckets*bucketBytes)
-	p := 0
+	data := make([]byte, i.numBuckets()*bucketBytes)
 	for idx, b := range i.Buckets {
 		bs, err := b.MarshalBinary()
 		if err != nil {
-			return nil, fmt.Errorf("bucket %d: %w", idx, err)
+			return nil, err
 		}
-		copy(data[p:], bs) // #4
-		p += bucketBytes
+		copy(data[idx*bucketBytes:], bs)
 	}
 	return data, nil
 }
 
 func (i *Iblt) UnmarshalBinary(data []byte) error {
-	if len(data) != ibltNumBuckets*bucketBytes {
+	numBuckets := len(data) / bucketBytes
+	if len(data) != numBuckets*bucketBytes {
 		return errors.New("invalid data length")
 	}
 	buf := bytes.NewBuffer(data)
 	i.Hc = ibltHc
 	i.Hk = ibltHk
 	i.K = ibltK
-	i.Buckets = makeBuckets(ibltNumBuckets)
-	for j := 0; j < len(i.Buckets); j++ {
+	i.Buckets = makeBuckets(numBuckets)
+	for j := 0; j < i.numBuckets(); j++ {
 		err := i.Buckets[j].UnmarshalBinary(buf.Next(bucketBytes))
 		if err != nil {
 			return fmt.Errorf("unmarshalling failed - %w", err)
@@ -259,7 +252,11 @@ func (b bucket) clone() *bucket {
 }
 
 func (b bucket) isEmpty() bool {
-	return b.Count == 0 && b.HashSum == 0 && b.KeySum == hash.EmptyHash()
+	return b.equals(*new(bucket))
+}
+
+func (b bucket) equals(o bucket) bool {
+	return b.Count == o.Count && b.HashSum == o.HashSum && b.KeySum == o.KeySum
 }
 
 func (b bucket) String() string {
@@ -279,13 +276,12 @@ func (b *bucket) UnmarshalBinary(data []byte) error {
 		return errors.New("invalid data length")
 	}
 	buf := bytes.NewBuffer(data)
-	b.Count = int32(byteOrder().Uint32(buf.Next(4))) // #1
-	b.HashSum = byteOrder().Uint64(buf.Next(8))      // #2
-	b.KeySum = hash.FromSlice(buf.Next(32))          // #3
+	b.Count = int32(byteOrder().Uint32(buf.Next(4)))         // #1
+	b.HashSum = byteOrder().Uint64(buf.Next(8))              // #2
+	b.KeySum = hash.FromSlice(buf.Next(hash.SHA256HashSize)) // #3
 	return nil
 }
 
-//
 func byteOrder() binary.ByteOrder {
 	return binary.LittleEndian
 }

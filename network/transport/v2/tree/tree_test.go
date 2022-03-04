@@ -1,9 +1,10 @@
 package tree
 
 import (
-	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -12,7 +13,7 @@ import (
 const testLeafSize = uint32(4)
 
 func TestNew(t *testing.T) {
-	emptyTree := New(NewXor(), testLeafSize).(*tree)
+	emptyTree := New(NewXor(), testLeafSize)
 
 	// tree
 	assert.Equal(t, uint8(0), emptyTree.Depth)
@@ -20,19 +21,13 @@ func TestNew(t *testing.T) {
 	assert.Equal(t, testLeafSize, emptyTree.MaxSize)
 
 	// root
-	assert.NotNil(t, emptyTree.Root)
-	assert.Nil(t, emptyTree.Root.Left)
-	assert.Nil(t, emptyTree.Root.Right)
+	assert.True(t, emptyTree.Root.isLeaf())
 }
 
 func TestTree_Insert(t *testing.T) {
-	if hash.EmptyHash() == generateTxRef() && !assert.NotEqual(t, hash.EmptyHash(), generateTxRef(), "Generated hashes should not be zero. This invalidates results of other tests.") {
-		t.FailNow()
-	}
-
 	t.Run("insert single Tx", func(t *testing.T) {
-		ref := generateTxRef()
-		tr := newTree(NewXor(), testLeafSize)
+		ref := hash.FromSlice([]byte{123})
+		tr := newTestTree(NewXor(), testLeafSize)
 
 		_ = tr.Insert(ref, 0)
 
@@ -40,8 +35,8 @@ func TestTree_Insert(t *testing.T) {
 	})
 
 	t.Run("insert single Tx out of tree range", func(t *testing.T) {
-		ref := generateTxRef()
-		tr := newTree(NewXor(), testLeafSize)
+		ref := hash.FromSlice([]byte{123})
+		tr := newTestTree(NewXor(), testLeafSize)
 
 		_ = tr.Insert(ref, testLeafSize+1)
 
@@ -49,42 +44,18 @@ func TestTree_Insert(t *testing.T) {
 		assert.Equal(t, ref, hashFromXor(tr.Root.Right))
 		assert.Equal(t, hash.EmptyHash(), hashFromXor(tr.Root.Left))
 	})
-
-	t.Run("insert multiple Tx", func(t *testing.T) {
-		tr, td := filledTree(NewXor(), testLeafSize)
-
-		assert.NotEqual(t, td.c0, tr.Root.Data) // sanity check
-		assert.Equal(t, td.c0, tr.Root.Left.Left.Data)
-		assert.Equal(t, td.c1, tr.Root.Left.Right.Data)
-		assert.Equal(t, td.c2, tr.Root.Right.Left.Data)
-		assert.Nil(t, tr.Root.Right.Right)
-
-		assert.Equal(t, td.p0, tr.Root.Left.Data)
-		assert.Equal(t, td.p1, tr.Root.Right.Data)
-
-		assert.Equal(t, td.r, tr.Root.Data)
-	})
 }
 
 func TestTree_GetRoot(t *testing.T) {
 	t.Run("root Data is zero", func(t *testing.T) {
-		tr := newTree(NewXor(), testLeafSize)
+		tr := newTestTree(NewXor(), testLeafSize)
 
 		assert.Equal(t, hash.EmptyHash(), hashFromXor(tr.Root))
 	})
 
-	t.Run("root Data is zero", func(t *testing.T) {
-		tr := newTree(NewXor(), testLeafSize)
-		ref := generateTxRef()
-
-		_ = tr.Insert(ref, 0)
-
-		assert.Equal(t, ref, hashFromXor(tr.Root))
-	})
-
 	t.Run("root after re-rooting", func(t *testing.T) {
-		tr := newTree(NewXor(), testLeafSize)
-		ref := generateTxRef()
+		tr := newTestTree(NewXor(), testLeafSize)
+		ref := hash.FromSlice([]byte{123})
 
 		_ = tr.Insert(ref, testLeafSize)
 
@@ -92,12 +63,13 @@ func TestTree_GetRoot(t *testing.T) {
 	})
 
 	t.Run("root of many Tx", func(t *testing.T) {
-		tr := newTree(NewXor(), testLeafSize)
-
+		tr := newTestTree(NewXor(), testLeafSize)
 		allRefs := hash.EmptyHash()
 		N := testLeafSize * 3
+		var ref hash.SHA256Hash
+
 		for i := uint32(0); i < N; i++ {
-			ref := generateTxRef()
+			rand.Read(ref[:])
 			xor(&allRefs, allRefs, ref)
 			_ = tr.Insert(ref, N-i)
 		}
@@ -107,147 +79,174 @@ func TestTree_GetRoot(t *testing.T) {
 }
 
 func TestTree_GetZeroTo(t *testing.T) {
-	tr, td := filledTree(NewXor(), testLeafSize)
+	tr, td := filledTestTree(NewXor(), testLeafSize)
 
-	c0t, _ := tr.GetZeroTo(0 * testLeafSize)
-	p0t, _ := tr.GetZeroTo(1 * testLeafSize)
-	r0t, _ := tr.GetZeroTo(2 * testLeafSize)
-	root, _ := tr.GetZeroTo(2 * tr.MaxSize)
+	c0t, lc0 := tr.GetZeroTo(0 * testLeafSize)
+	p0t, lc1 := tr.GetZeroTo(1 * testLeafSize)
+	r0t, lc2 := tr.GetZeroTo(2 * testLeafSize)
+	root, lcMax := tr.GetZeroTo(2 * tr.MaxSize)
 
 	assert.Equal(t, td.c0, c0t)
+	assert.Equal(t, testLeafSize-1, lc0)
 	assert.Equal(t, td.p0, p0t)
+	assert.Equal(t, testLeafSize*2-1, lc1)
 	assert.Equal(t, td.r, r0t)
+	assert.Equal(t, testLeafSize*3-1, lc2)
 	assert.Equal(t, td.r, root)
+	assert.Equal(t, testLeafSize*3-1, lcMax)
 }
 
 func TestTree_DropLeaves(t *testing.T) {
 	t.Run("root should not be dropped", func(t *testing.T) {
-		tr := &tree{Depth: 0, Root: &node{}}
+		tr := &tree{Depth: 0, LeafSize: testLeafSize, Root: &node{}}
 
 		tr.DropLeaves()
 
-		assert.NotNil(t, tr.Root)
-		assert.Nil(t, tr.Root.Left)
-		assert.Nil(t, tr.Root.Right)
+		assert.True(t, tr.Root.isLeaf())
 		assert.Equal(t, uint8(0), tr.Depth)
-	})
-
-	t.Run("drop leaves 1->0", func(t *testing.T) {
-		tr := &tree{Depth: 1, Root: &node{Left: &node{}, Right: &node{}}}
-
-		tr.DropLeaves()
-
-		assert.NotNil(t, tr.Root)
-		assert.Nil(t, tr.Root.Left)
-		assert.Nil(t, tr.Root.Right)
-		assert.Equal(t, uint8(0), tr.Depth)
+		assert.Equal(t, testLeafSize, tr.LeafSize)
 	})
 
 	t.Run("drop leaves 2->1", func(t *testing.T) {
-		tr := &tree{Depth: 2, Root: &node{Left: &node{Left: &node{}, Right: &node{}}}}
-
-		tr.DropLeaves()
-
-		assert.NotNil(t, tr.Root)
-		assert.NotNil(t, tr.Root.Left)
-		assert.Nil(t, tr.Root.Right)
-		assert.Equal(t, uint8(1), tr.Depth)
-	})
-
-	t.Run("drop leaves 2->0", func(t *testing.T) {
-		tr, _ := filledTree(NewXor(), testLeafSize)
-
-		tr.DropLeaves()
-		tr.DropLeaves()
-
-		assert.NotNil(t, tr.Root)
-		assert.Nil(t, tr.Root.Left)
-		assert.Nil(t, tr.Root.Right)
-		assert.Equal(t, uint8(0), tr.Depth)
-		assert.Equal(t, 4*testLeafSize, tr.LeafSize)
-
-		for k, v := range tr.dirtyLeaves {
-			assert.Equal(t, 2*testLeafSize, k)
-			assert.Equal(t, tr.Root, v)
+		tr := &tree{
+			Depth:    2,
+			LeafSize: testLeafSize,
+			Root:     &node{Left: &node{Left: &node{}, Right: &node{}}},
 		}
-		assert.Equal(t, 5, len(tr.orphanedLeaves))
+
+		tr.DropLeaves()
+
+		assert.True(t, tr.Root.Left.isLeaf())
+		assert.Equal(t, uint8(1), tr.Depth)
+		assert.Equal(t, 2*testLeafSize, tr.LeafSize)
 	})
 }
 
 func TestTree_reRoot(t *testing.T) {
 	t.Run("single re-root", func(t *testing.T) {
-		tr := newTree(NewXor(), testLeafSize)
+		tr := newTestTree(NewXor(), testLeafSize)
 
 		tr.reRoot()
 
-		assert.NotNil(t, tr.Root)
-		assert.NotNil(t, tr.Root.Left)
+		assert.True(t, tr.Root.Left.isLeaf())
 		assert.Nil(t, tr.Root.Right)
 		assert.Equal(t, tr.MaxSize, 2*testLeafSize)
 		assert.Equal(t, uint8(1), tr.Depth)
 	})
 
 	t.Run("double re-root", func(t *testing.T) {
-		tr := newTree(NewXor(), testLeafSize)
+		tr := newTestTree(NewXor(), testLeafSize)
 
 		tr.reRoot()
 		tr.reRoot()
 
-		assert.NotNil(t, tr.Root)
-		assert.NotNil(t, tr.Root.Left)
-		assert.NotNil(t, tr.Root.Left.Left)
+		assert.True(t, tr.Root.Left.Left.isLeaf())
 		assert.Nil(t, tr.Root.Right)
-		assert.Nil(t, tr.Root.Left.Right)
 		assert.Equal(t, tr.MaxSize, 4*testLeafSize)
 		assert.Equal(t, uint8(2), tr.Depth)
 	})
 }
 
-func TestTree_MarshalJSON(t *testing.T) {
-	tr, _ := filledTree(NewXor(), testLeafSize)
+func TestTree_GetUpdate(t *testing.T) {
+	t.Run("dirty leaves after insert", func(t *testing.T) {
+		tr := newTestTree(NewXor(), testLeafSize)
+		h := hash.FromSlice([]byte{1})
+		_ = tr.Insert(h, 2*testLeafSize)
 
-	_, err := json.Marshal(tr)
+		dirty, orphaned, err := tr.GetUpdate()
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(orphaned))
+		assert.Equal(t, 2, len(dirty))
+		_, ok := dirty[testLeafSize/2] // root from newTestTree was dirty
+		assert.True(t, ok)
+		_, ok = dirty[testLeafSize*5/2]
+		assert.True(t, ok)
+	})
+
+	t.Run("DropLeaves has updates and orphans", func(t *testing.T) {
+		tr, _ := filledTestTree(NewXor(), testLeafSize)
+		tr.DropLeaves()
+
+		dirty, orphaned, err := tr.GetUpdate()
+
+		assert.NoError(t, err)
+		assert.Equal(t, 3, len(orphaned))
+		assert.Equal(t, 2, len(dirty))
+		_, ok := dirty[testLeafSize]
+		assert.True(t, ok)
+		_, ok = dirty[testLeafSize*3]
+		assert.True(t, ok)
+	})
+}
+
+func TestTree_ResetUpdate(t *testing.T) {
+	tr, _ := filledTestTree(NewXor(), testLeafSize)
+	tr.DropLeaves()
+
+	dirty, orphaned, err := tr.GetUpdate()
+	tr.ResetUpdate()
+	dirtyReset, orphanedReset, err := tr.GetUpdate()
+
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(orphaned))
+	assert.Equal(t, 0, len(orphanedReset))
+	assert.Equal(t, 2, len(dirty))
+	assert.Equal(t, 0, len(dirtyReset))
+}
+
+func TestTree_Load(t *testing.T) {
+	// TODO
+}
+
+var jsonTestData = []byte(
+	`{"depth":2,"max_size":16,"leaf_size":4,
+	"root":{"split":8,"limit":16,"data":{"hash":"0002030000000000000000000000000000000000000000000000000000000000"},
+		"left":{"split":4,"limit":8,"data":{"hash":"4330030000000000000000000000000000000000000000000000000000000000"},
+			"left":{"split":2,"limit":4,"data":{"hash":"4330000000000000000000000000000000000000000000000000000000000000"}},
+			"right":{"split":6,"limit":8,"data":{"hash":"0000030000000000000000000000000000000000000000000000000000000000"}}},
+		"right":{"split":12,"limit":16,"data":{"hash":"4332000000000000000000000000000000000000000000000000000000000000"},
+			"left":{"split":10,"limit":12,"data":{"hash":"4332000000000000000000000000000000000000000000000000000000000000"}}}}}`)
+
+func TestTree_MarshalJSON(t *testing.T) {
+	tr, _ := filledTestTree(NewXor(), 4)
+
+	jsonData, err := json.Marshal(tr)
+	fmt.Println(string(jsonData))
 	if !assert.NoError(t, err) {
 		return
 	}
-	//assert.Equal(t, expectedJson, jsonData)
+	assert.JSONEq(t, string(jsonTestData), string(jsonData))
 }
 
 func TestTree_UnmarshalJSON(t *testing.T) {
-	jsonData := []byte(`{
-		"depth":2,"max_size":16,"leaf_size":4,
-		"root":{"split":8,"limit":16,"data":{"hash":"19f1578bbe094fb50e3f21f0cb6c6524dcef1cb0961f6fe53de457b260f107fc"},
-			"left":{"split":4,"limit":8,"data":{"hash":"3882f58084d85ab3929343a3bccfda70fa15c7365a85b80cc623f9879d27517f"},
-				"left":{"split":2,"limit":4,"data":{"hash":"1b85cbc0a54c37a4f309bbb1d9fea705ae1139db75da04a005953c624f7c31af"}},
-				"right":{"split":6,"limit":8,"data":{"hash":"23073e4021946d17619af81265317d755404feed2f5fbcacc3b6c5e5d25b60d0"}}},
-			"right":{"split":12,"limit":16,"data":{"hash":"2173a20b3ad115069cac625377a3bf5426fadb86cc9ad7e9fbc7ae35fdd65683"},
-				"left":{"split":10,"limit":12,"data":{"hash":"2173a20b3ad115069cac625377a3bf5426fadb86cc9ad7e9fbc7ae35fdd65683"}}}}}`)
-
+	_, treeD := filledTestTree(NewXor(), 4)
 	tr := tree{}
-	err := json.Unmarshal(jsonData, &tr)
+
+	err := json.Unmarshal(jsonTestData, &tr)
 
 	assert.NoError(t, err)
 	assert.Equal(t, uint8(2), tr.Depth)
 	assert.Equal(t, uint32(16), tr.MaxSize)
 	assert.Equal(t, uint32(4), tr.LeafSize)
-	assert.True(t, nodeEquals(tr.Root, 8, 16, "19f1578bbe094fb50e3f21f0cb6c6524dcef1cb0961f6fe53de457b260f107fc"))
-	assert.True(t, nodeEquals(tr.Root.Left, 4, 8, "3882f58084d85ab3929343a3bccfda70fa15c7365a85b80cc623f9879d27517f"))
-	assert.True(t, nodeEquals(tr.Root.Left.Left, 2, 4, "1b85cbc0a54c37a4f309bbb1d9fea705ae1139db75da04a005953c624f7c31af"))
-	assert.True(t, nodeEquals(tr.Root.Right, 12, 16, "2173a20b3ad115069cac625377a3bf5426fadb86cc9ad7e9fbc7ae35fdd65683"))
+	assert.True(t, nodeEquals(tr.Root, 8, 16, treeD.r.(*Xor).Hash))
+	assert.True(t, nodeEquals(tr.Root.Left, 4, 8, treeD.p0.(*Xor).Hash))
+	assert.True(t, nodeEquals(tr.Root.Left.Left, 2, 4, treeD.c0.(*Xor).Hash))
+	assert.True(t, nodeEquals(tr.Root.Right, 12, 16, treeD.c2.(*Xor).Hash))
 	assert.Nil(t, tr.Root.Right.Right)
 }
 
-// test functions
+// test helpers
 
-func nodeEquals(n *node, split, limit uint32, hashString string) bool {
-	return n != nil && n.SplitLC == split && n.LimitLC == limit && hashFromXor(n).String() == hashString
+func nodeEquals(n *node, split, limit uint32, hash hash.SHA256Hash) bool {
+	return n != nil && n.SplitLC == split && n.LimitLC == limit && hashFromXor(n) == hash
 }
 
 func hashFromXor(n *node) hash.SHA256Hash {
-	return n.Data.(*XorHash).Hash
+	return n.Data.(*Xor).Hash
 }
 
-func newTree(data Data, leafSize uint32) *tree {
+func newTestTree(data Data, leafSize uint32) *tree {
 	root := &node{
 		SplitLC: leafSize / 2,
 		LimitLC: leafSize,
@@ -258,34 +257,28 @@ func newTree(data Data, leafSize uint32) *tree {
 		MaxSize:     leafSize,
 		LeafSize:    leafSize,
 		Root:        root,
+		prototype:   data.New(),
 		dirtyLeaves: map[uint32]*node{root.SplitLC: root},
 	}
 }
 
-// generateTxRef creates a new random hash
-func generateTxRef() hash.SHA256Hash {
-	ref := hash.EmptyHash()
-	rand.Read(ref[:])
-	return ref
-}
-
-// filledTree generates a filled tree with random hashes and returns the constructed tree + expectations of the individual TreeData.
-func filledTree(data Data, leafSize uint32) (*tree, TreeData) {
+// filledTestTree generates a filled tree with random hashes and returns the constructed tree + expectations of the individual treeData.
+func filledTestTree(data Data, leafSize uint32) (*tree, treeData) {
 	/* Below are the expected results. Nodes will conform to this, use result to validate tree results.
-		    (c0+c1a+c1b+c2)
+		    (c0^c1a^c1b^c2)
 			 /           \
-	   (c0+c1a+c1b)      (c2)
+	   (c0^c1a^c1b)      (c2)
 	      /   \           / \
-	   (c0) (c1a+c1b)  (c2) (nil)
+	   (c0) (c1a^c1b)  (c2) (nil)
 	*/
 
 	// generate test Data
-	refC0 := generateTxRef()
-	refC1a := generateTxRef()
-	refC1b := generateTxRef()
-	refC2 := generateTxRef()
+	refC0 := hash.FromSlice([]byte("C0"))
+	refC1a := hash.FromSlice([]byte("C1a"))
+	refC1b := hash.FromSlice([]byte("C1b"))
+	refC2 := hash.FromSlice([]byte("C2"))
 
-	// create individual TreeData
+	// create individual treeData
 	c0 := data.New()
 	_ = c0.Insert(refC0)
 	c1 := data.New()
@@ -298,10 +291,10 @@ func filledTree(data Data, leafSize uint32) (*tree, TreeData) {
 	p1 := c2.Clone()
 	r := p0.Clone()
 	_ = r.Insert(refC2)
-	td := TreeData{r, p0, p1, c0, c1, c2, nil}
+	td := treeData{r, p0, p1, c0, c1, c2, nil}
 
 	// build tree
-	tr := newTree(data, leafSize)
+	tr := newTestTree(data, leafSize)
 	_ = tr.Insert(refC0, 0)
 	_ = tr.Insert(refC1a, leafSize)
 	_ = tr.Insert(refC2, leafSize*2)
@@ -309,22 +302,13 @@ func filledTree(data Data, leafSize uint32) (*tree, TreeData) {
 	return tr, td
 }
 
-var jsonFilledTree = `{
-		"depth":2,"max_size":16,"leaf_size":4,
-		"root":{"split":8,"limit":16,"data":{"hash":"19f1578bbe094fb50e3f21f0cb6c6524dcef1cb0961f6fe53de457b260f107fc"},
-			"left":{"split":4,"limit":8,"data":{"hash":"3882f58084d85ab3929343a3bccfda70fa15c7365a85b80cc623f9879d27517f"},
-				"left":{"split":2,"limit":4,"data":{"hash":"1b85cbc0a54c37a4f309bbb1d9fea705ae1139db75da04a005953c624f7c31af"}},
-				"right":{"split":6,"limit":8,"data":{"hash":"23073e4021946d17619af81265317d755404feed2f5fbcacc3b6c5e5d25b60d0"}}},
-			"right":{"split":12,"limit":16,"data":{"hash":"2173a20b3ad115069cac625377a3bf5426fadb86cc9ad7e9fbc7ae35fdd65683"},
-				"left":{"split":10,"limit":12,"data":{"hash":"2173a20b3ad115069cac625377a3bf5426fadb86cc9ad7e9fbc7ae35fdd65683"}}}}}`
-
-/* TreeData for the following structure
+/* treeData for the following structure
         r
 	   / \
      p0   p1
     / \   / \
    c0 c1 c2 c3
 */
-type TreeData struct {
+type treeData struct {
 	r, p0, p1, c0, c1, c2, c3 Data
 }
