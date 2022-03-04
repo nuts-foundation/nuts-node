@@ -21,6 +21,7 @@ package contract
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"strings"
 	"time"
@@ -38,9 +39,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
 	"github.com/nuts-foundation/nuts-node/auth/services/x509"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	vcr "github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // ErrMissingOrganizationKey is used to indicate that this node has no private key of the indicated organization.

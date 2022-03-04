@@ -27,10 +27,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
+	"time"
 )
 
 func TestWrapper_IssueVC(t *testing.T) {
@@ -431,6 +434,110 @@ func TestWrapper_RevokeVC(t *testing.T) {
 	})
 }
 
+func TestWrapper_CreateVP(t *testing.T) {
+	issuerURI, _ := ssi.ParseURI("did:nuts:123")
+	credentialType, _ := ssi.ParseURI("ExampleType")
+
+	subjectDID := did.MustParseDID("did:nuts:456")
+	subjectDIDString := subjectDID.String()
+	verifiableCredential := vc.VerifiableCredential{
+		Type:              []ssi.URI{*credentialType},
+		Issuer:            *issuerURI,
+		CredentialSubject: []interface{}{map[string]interface{}{"id": subjectDID.String()}},
+	}
+	result := &vc.VerifiablePresentation{}
+
+	createRequest := func() CreateVPRequest {
+		return CreateVPRequest{VerifiableCredentials: []VerifiableCredential{verifiableCredential}}
+	}
+
+	created := time.Now()
+	clockFn = func() time.Time {
+		return created
+	}
+
+	t.Run("ok - without signer DID", func(t *testing.T) {
+		testContext := newMockContext(t)
+		request := createRequest()
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*CreateVPRequest)
+			*verifyRequest = request
+			return nil
+		})
+		testContext.mockHolder.EXPECT().BuildVP([]VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, nil, true).Return(result, nil)
+		testContext.echo.EXPECT().JSON(http.StatusOK, result)
+
+		err := testContext.client.CreateVP(testContext.echo)
+
+		assert.NoError(t, err)
+	})
+	t.Run("ok - with signer DID", func(t *testing.T) {
+		testContext := newMockContext(t)
+		request := createRequest()
+		request.SignerDID = &subjectDIDString
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*CreateVPRequest)
+			*verifyRequest = request
+			return nil
+		})
+		testContext.mockHolder.EXPECT().BuildVP([]VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, &subjectDID, true).Return(result, nil)
+		testContext.echo.EXPECT().JSON(http.StatusOK, result)
+
+		err := testContext.client.CreateVP(testContext.echo)
+
+		assert.NoError(t, err)
+	})
+	t.Run("ok - with expires", func(t *testing.T) {
+		testContext := newMockContext(t)
+		expired := created.Add(time.Hour)
+		request := createRequest()
+		request.Expires = &expired
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*CreateVPRequest)
+			*verifyRequest = request
+			return nil
+		})
+		opts := proof.ProofOptions{
+			Created:        created,
+			ExpirationDate: &expired,
+		}
+		testContext.mockHolder.EXPECT().BuildVP([]VerifiableCredential{verifiableCredential}, opts, nil, true).Return(result, nil)
+		testContext.echo.EXPECT().JSON(http.StatusOK, result)
+
+		err := testContext.client.CreateVP(testContext.echo)
+
+		assert.NoError(t, err)
+	})
+	t.Run("error - with expires, but in the past", func(t *testing.T) {
+		testContext := newMockContext(t)
+		expired := time.Time{}
+		request := createRequest()
+		request.Expires = &expired
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*CreateVPRequest)
+			*verifyRequest = request
+			return nil
+		})
+
+		err := testContext.client.CreateVP(testContext.echo)
+
+		assert.EqualError(t, err, "expires can not lay in the past")
+	})
+	t.Run("error - no VCs", func(t *testing.T) {
+		testContext := newMockContext(t)
+		request := CreateVPRequest{}
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*CreateVPRequest)
+			*verifyRequest = request
+			return nil
+		})
+
+		err := testContext.client.CreateVP(testContext.echo)
+
+		assert.EqualError(t, err, "verifiableCredentials needs at least 1 item")
+	})
+}
+
 func TestWrapper_Preprocess(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -448,6 +555,7 @@ type mockContext struct {
 	ctrl       *gomock.Controller
 	echo       *mock.MockContext
 	mockIssuer *issuer.MockIssuer
+	mockHolder *holder.MockHolder
 	vcr        *vcr.MockVCR
 	client     *Wrapper
 }
@@ -457,13 +565,16 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	mockVcr := vcr.NewMockVCR(ctrl)
 	mockIssuer := issuer.NewMockIssuer(ctrl)
+	mockHolder := holder.NewMockHolder(ctrl)
 	mockVcr.EXPECT().Issuer().Return(mockIssuer).AnyTimes()
+	mockVcr.EXPECT().Holder().Return(mockHolder).AnyTimes()
 	client := &Wrapper{VCR: mockVcr}
 
 	return mockContext{
 		ctrl:       ctrl,
 		echo:       mock.NewMockContext(ctrl),
 		mockIssuer: mockIssuer,
+		mockHolder: mockHolder,
 		vcr:        mockVcr,
 		client:     client,
 	}

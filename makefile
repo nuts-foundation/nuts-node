@@ -33,8 +33,8 @@ gen-mocks:
 	mockgen -destination=network/transport/v2/scheduler_mock.go -package=v2 -source=network/transport/v2/scheduler.go
 	mockgen -destination=network/transport/v2/gossip/mock.go -package=gossip -source=network/transport/v2/gossip/manager.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go State
-	mockgen -destination=vcr/types_mock.go -package=vcr -source=vcr/types/interface.go
-	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/vcr.go
+	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
+	mockgen -destination=vcr/holder/mock.go -package=holder -source=vcr/holder/interface.go
 	mockgen -destination=vcr/issuer/mock.go -package=issuer -source=vcr/issuer/interface.go
 	mockgen -destination=vcr/verifier/mock.go -package=verifier -source=vcr/verifier/interface.go
 	mockgen -destination=vcr/concept/mock.go -package=concept -source=vcr/concept/registry.go Registry

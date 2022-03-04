@@ -20,18 +20,17 @@
 package v1
 
 import (
+	"github.com/labstack/echo/v4"
+	ssi "github.com/nuts-foundation/go-did"
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	ssi "github.com/nuts-foundation/go-did"
-
 	"github.com/nuts-foundation/nuts-node/core"
-	vcrTypes "github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
+	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var _ ServerInterface = (*Wrapper)(nil)
@@ -39,20 +38,20 @@ var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
-	VCR           vcrTypes.VCR
+	VCR           vcr.VCR
 	ConceptReader concept.Reader
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
-		concept.ErrUnknownConcept: http.StatusNotFound,
-		vcr.ErrNotFound:           http.StatusNotFound,
-		vcr.ErrRevoked:            http.StatusConflict,
-		credential.ErrValidation:  http.StatusBadRequest,
-		vdr.ErrNotFound:           http.StatusBadRequest,
-		vdr.ErrKeyNotFound:        http.StatusBadRequest,
-		vcr.ErrInvalidCredential:  http.StatusNotFound,
+		concept.ErrUnknownConcept:     http.StatusNotFound,
+		vcrTypes.ErrNotFound:          http.StatusNotFound,
+		vcrTypes.ErrRevoked:           http.StatusConflict,
+		credential.ErrValidation:      http.StatusBadRequest,
+		vdrTypes.ErrNotFound:          http.StatusBadRequest,
+		vdrTypes.ErrKeyNotFound:       http.StatusBadRequest,
+		vcrTypes.ErrInvalidCredential: http.StatusNotFound,
 	})
 }
 
@@ -156,9 +155,9 @@ func (w *Wrapper) Resolve(ctx echo.Context, id string, params ResolveParams) err
 	}
 
 	switch err {
-	case vcr.ErrUntrusted:
+	case vcrTypes.ErrUntrusted:
 		result.CurrentStatus = ResolutionResultCurrentStatusUntrusted
-	case vcr.ErrRevoked:
+	case vcrTypes.ErrRevoked:
 		result.CurrentStatus = ResolutionResultCurrentStatusRevoked
 	}
 
