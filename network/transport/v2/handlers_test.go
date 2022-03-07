@@ -391,6 +391,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, p.cMan.conversations[conversation.conversationID.String()])
+		assert.Len(t, p.cMan.conversations[conversation.conversationID.String()].additionalInfo["refs"], 1)
 	})
 
 	t.Run("error - State.IsPresent failed", func(t *testing.T) {
