@@ -78,12 +78,12 @@ type metadataRecord struct {
 	Version     int `json:"version"`
 	Metadata    vdr.DocumentMetadata
 	// PrevRecord holds the previous metadataRecord reference (DID + version) as string
-	PrevMetaRef *string `json:"prevMetaRef"`
+	PrevMetaRef []byte `json:"prevMetaRef"`
 }
 
-func (mr metadataRecord) ref() *string {
+func (mr metadataRecord) ref() []byte {
 	metaRefString := fmt.Sprintf("%s%06d", mr.DID, mr.Version)
-	return &metaRefString
+	return []byte(metaRefString)
 }
 
 func (store *bboltStore) Write(document did.Document, metadata vdr.DocumentMetadata) error {
@@ -115,17 +115,13 @@ func (store *bboltStore) Write(document did.Document, metadata vdr.DocumentMetad
 
 func (store *bboltStore) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *vdr.DocumentMetadata) error {
 	return store.db.Update(func(tx *bbolt.Tx) error {
-		if err := store.createBucketsIfNotExist(tx); err != nil {
-			return err
-		}
-
 		latestBucket := tx.Bucket([]byte(latestBucket))
 		metadataBucket := tx.Bucket([]byte(metadataBucket))
 		didString := id.String()
 
 		// first get latest
 		var version int
-		var prevMetaRef *string
+		var prevMetaRef []byte
 		latestRef := latestBucket.Get([]byte(didString))
 
 		// check for existence
@@ -134,9 +130,6 @@ func (store *bboltStore) Update(id did.DID, current hash.SHA256Hash, next did.Do
 		}
 
 		latestBytes := metadataBucket.Get(latestRef)
-		if latestBytes == nil {
-			return vdr.ErrNotFound
-		}
 		latestMetadata := metadataRecord{}
 		if err := json.Unmarshal(latestBytes, &latestMetadata); err != nil {
 			return err
@@ -175,7 +168,7 @@ func (store *bboltStore) writeDocument(tx *bbolt.Tx, document did.Document, meta
 	documentBucket := tx.Bucket([]byte(documentBucket))
 
 	// store in metadataBucket
-	newRefBytes := []byte(*metadataRecord.ref())
+	newRefBytes := metadataRecord.ref()
 	newRecordBytes, _ := json.Marshal(metadataRecord)
 	if err := metadataBucket.Put(newRefBytes, newRecordBytes); err != nil {
 		return err
@@ -270,22 +263,13 @@ func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (ret
 		if latestRefBytes == nil {
 			return vdr.ErrNotFound
 		}
-		latestMetadataBytes := metadataBucket.Get(latestRefBytes)
-		if latestMetadataBytes == nil {
-			return vdr.ErrNotFound
-		}
-		var metadataRecord metadataRecord
-		if err := json.Unmarshal(latestMetadataBytes, &metadataRecord); err != nil {
-			return err
-		}
-
+		latestMetadataRef := latestRefBytes
 		documentBucket := tx.Bucket([]byte(documentBucket))
 
 		// loop over all versions
-		latestMetadataRef := metadataRecord.ref()
+		var metadataRecord metadataRecord
 		for latestMetadataRef != nil {
-			// todo optimize fetch first record
-			metadataBytes := metadataBucket.Get([]byte(*latestMetadataRef))
+			metadataBytes := metadataBucket.Get(latestMetadataRef)
 			if err := json.Unmarshal(metadataBytes, &metadataRecord); err != nil {
 				return err
 			}
