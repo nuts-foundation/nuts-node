@@ -409,7 +409,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		ctx.didStore.EXPECT().Resolve(didDocument.ID, nil).Return(&storedDocument, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(storedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{storedDocument}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKeyInTime(storedDocument.CapabilityInvocation[0].ID.String(), &tx.signingTime).Return(pKey, nil)
+		ctx.keyStore.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Update(storedDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
 
 		err = ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument)
@@ -456,55 +456,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		ctx.didStore.EXPECT().Resolve(didDocument.ID, nil).Return(&expectedDocument, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{expectedDocument}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKeyInTime(didDocument.CapabilityInvocation[0].ID.String(), &tx.signingTime).Return(pKey, nil)
-		ctx.didStore.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
-
-		err = ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
-		assert.NoError(t, err)
-	})
-
-	t.Run("update ok - with hash based resolution", func(t *testing.T) {
-		ctx := newMockContext(t)
-
-		didDocument, signingKey, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		didDocPayload, _ := json.Marshal(didDocument)
-		payloadHash := hash.SHA256Sum(didDocPayload)
-
-		tx := newTX()
-		tx.signingTime = types.DIDDocumentResolveEpoch.Add(1 * time.Second)
-		tx.signingKeyID = didDocument.CapabilityInvocation[0].ID.String()
-		tx.payloadHash = payloadHash
-
-		expectedDocument := did.Document{}
-		json.Unmarshal(didDocPayload, &expectedDocument)
-
-		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
-
-		// This is the metadata of the current version of the document which will be returned by the resolver
-		currentMetadata := &types.DocumentMetadata{
-			Created: createdAt,
-			Updated: nil,
-			Hash:    currentPayloadHash,
-		}
-
-		// This is the metadata that will be written during the update
-		expectedNextMetadata := types.DocumentMetadata{
-			Created:            createdAt,
-			Updated:            &tx.signingTime,
-			Hash:               payloadHash,
-			PreviousHash:       &currentPayloadHash,
-			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
-		}
-		var pKey crypto2.PublicKey
-		signingKey.Raw(&pKey)
-
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, nil).Return(&expectedDocument, currentMetadata, nil)
-		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{expectedDocument}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKey(didDocument.CapabilityInvocation[0].ID.String(), tx.prevs).Return(pKey, nil)
+		ctx.keyStore.EXPECT().ResolvePublicKey(didDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
 		err = ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
@@ -547,7 +499,8 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		ctx.didStore.EXPECT().Resolve(didDocument.ID, nil).Return(&expectedDocument, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{controllerDoc}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKeyInTime(controllerDoc.CapabilityInvocation[0].ID.String(), &tx.signingTime).Return(pKey, nil)
+		ctx.keyStore.EXPECT().ResolvePublicKey(controllerDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
+
 		ctx.didStore.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
 		err := ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
@@ -589,7 +542,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		ctx.didStore.EXPECT().Resolve(currentDoc.ID, nil).Return(&currentDoc, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(currentDoc, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{currentDoc}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKeyInTime(currentDoc.CapabilityInvocation[0].ID.String(), &tx.signingTime).Return(pKey, nil)
+		ctx.keyStore.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Update(currentDoc.ID, currentMetadata.Hash, newDoc, &expectedNextMetadata)
 
 		err := ctx.ambassador.handleUpdateDIDDocument(tx, newDoc)
@@ -657,7 +610,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		ctx.didStore.EXPECT().Resolve(didDocument.ID, nil).Return(&expectedDocument, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{didDocumentController}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKeyInTime(didDocumentController.CapabilityInvocation[0].ID.String(), &tx.signingTime).Return(pKey, nil)
+		ctx.keyStore.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
 
 		err = ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
@@ -722,7 +675,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		ctx.didStore.EXPECT().Resolve(didDocument.ID, nil).Return(&expectedDocument, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{didDocumentController}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKeyInTime(keyID, &tx.signingTime).Return(pKey, nil)
+		ctx.keyStore.EXPECT().ResolvePublicKey(keyID, gomock.Any()).Return(pKey, nil)
 
 		err = ctx.ambassador.handleUpdateDIDDocument(tx, didDocument)
 		assert.EqualError(t, err, "network document not signed by one of its controllers")
@@ -773,7 +726,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		}
 
 		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(&didDocument, &didMetadata, nil)
-		keyStoreMock.EXPECT().ResolvePublicKeyInTime(signingKey.KeyID(), gomock.Any()).Return(pKey, nil)
+		keyStoreMock.EXPECT().ResolvePublicKey(signingKey.KeyID(), gomock.Any()).Return(pKey, nil)
 		didStoreMock.EXPECT().Update(didDocument.ID, hash.EmptyHash(), expectedDocument, &expectedMetadata).Return(nil)
 
 		err = am.handleUpdateDIDDocument(tx, expectedDocument)
