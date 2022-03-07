@@ -10,6 +10,73 @@ info:
 servers:
   - url: http://localhost:1323
 paths:
+  /internal/vcr/v2/holder/vc/search:
+    post:
+      summary: "Searches for verifiable credentials that could be used for different use-cases."
+      description: >
+        The result contains a list of matching credentials. Only verified credentials are returned.
+        The search parameters define how the raw results are filtered.
+        
+        error returns:
+        * 400 - Incorrect search query
+        * 500 - An error occurred while processing the request
+      operationId: "searchVCs"
+      requestBody:
+        required: true
+        description: >
+          Searching for VCs is done by passing a JSON-LD document as query.
+          Each field in the request body must be present in the VC in order for it to be passed as result.
+          Different JSON-LD contexts can be used allowing for different JSON formats. Consult the node documentation on the supported contexts.
+          The type of the credential must contain "VerifiableCredential" and the additional Nuts credential type that matches the credentialSubject context.
+        content:
+          application/ld+json:
+            schema:
+              $ref: '#/components/schemas/SearchVCRequest'
+            examples:
+              NutsOrganizationCredential:
+                value: >
+                  {
+                    "query": {
+                      "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+                      "type": ["VerifiableCredential", "NutsOrganizationCredential"],
+                      "credentialSubject":{
+                        "organization": {
+                          "name": "Zorggroep de Nootjes",
+                          "city": "Amandelmere"
+                        }
+                      }
+                    }
+                  }
+              NutsAuthorizationCredential:
+                value: >
+                  {
+                    "query": {
+                      "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+                      "type": ["VerifiableCredential", "NutsAuthorizationCredential"],
+                      "credentialSubject":{
+                        "id": "did:nuts:123",
+                        "purposeOfUse": "eOverdracht-receiver",
+                        "resources": {
+                          "path":"/Task/123"
+                        },
+                        "subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456782"
+                      }
+                    },
+                    "searchOptions": {
+                      "allowUntrustedIssuer": true
+                    }
+                  }
+      tags:
+        - credential
+      responses:
+        "200":
+          description: A list of matching credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchVCResults'
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc:
     post:
       summary: Issues a new Verifiable Credential
@@ -37,7 +104,6 @@ paths:
                 $ref: '#/components/schemas/VerifiableCredential'
         default:
           $ref: '../common/error_response.yaml'
-
   /internal/vcr/v2/issuer/vc/search:
     get:
       summary: "Searches for verifiable credentials issued by this node which matches the search params"
@@ -78,10 +144,7 @@ paths:
           description: A list of matching credentials
           content:
             application/json:
-              schema:
-                type: array
-                items:
-                    $ref: '#/components/schemas/SearchVCResult'
+              $ref: '#/components/schemas/SearchVCResults'
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc/{id}:
@@ -261,9 +324,30 @@ components:
         proof:
           description: one or multiple cryptographic proofs
           type: object
+    SearchVCRequest:
+      type: object
+      description: request body for searching VCs
+      required:
+        - query
+      properties:
+        searchOptions:
+          $ref: "#/components/schemas/SearchOptions"
+        query:
+          type: object
+          description: A partial VerifiableCredential in JSON-LD format. Each field will be used to match credentials against. All fields MUST be present.
+    SearchVCResults:
+      type: object
+      description: result of a Search operation.
+      required:
+        - verifiableCredentials
+      properties:
+        verifiableCredentials:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchVCResult"
     SearchVCResult:
       type: object
-      description: result of a Resolve operation.
+      description: result of a Search operation.
       required:
         - verifiableCredential
       properties:
@@ -271,6 +355,13 @@ components:
           $ref: "#/components/schemas/Revocation"
         verifiableCredential:
           $ref: "#/components/schemas/VerifiableCredential"
+    SearchOptions:
+      type: object
+      properties:
+        allowUntrustedIssuer:
+          description: If set to true, VCs from an untrusted issuer are returned.
+          type: boolean
+          default: false
     Revocation:
       type: object
       description: Credential revocation record

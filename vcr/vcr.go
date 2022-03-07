@@ -25,15 +25,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/assets"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"io/fs"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
@@ -47,12 +45,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -288,9 +289,9 @@ func (c *vcr) Config() interface{} {
 	return &c.config
 }
 
-// search for matching credentials based upon a query. It returns an empty list if no matches have been found.
-// The optional resolveTime will search for credentials at that point in time.
-func (c *vcr) search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
+// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
+// The optional resolveTime will Search for credentials at that point in time.
+func (c *vcr) Search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	//transform query to leia query, for each template a query is returned
 	queries := c.convert(query)
 
@@ -577,7 +578,7 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
 	defer cancel()
 	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
-	vcs, err := c.search(ctx, q, allowUntrusted, nil)
+	vcs, err := c.Search(ctx, q, allowUntrusted, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -590,7 +591,7 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 	return c.Registry().Transform(conceptName, vcs[0])
 }
 
-func (c *vcr) Search(ctx context.Context, conceptName string, allowUntrusted bool, queryParams map[string]string) ([]concept.Concept, error) {
+func (c *vcr) SearchConcept(ctx context.Context, conceptName string, allowUntrusted bool, queryParams map[string]string) ([]concept.Concept, error) {
 	query, err := c.registry.QueryFor(conceptName)
 	if err != nil {
 		return nil, err
@@ -600,7 +601,7 @@ func (c *vcr) Search(ctx context.Context, conceptName string, allowUntrusted boo
 		query.AddClause(concept.Prefix(key, value))
 	}
 
-	results, err := c.search(ctx, query, allowUntrusted, nil)
+	results, err := c.Search(ctx, query, allowUntrusted, nil)
 	if err != nil {
 		return nil, err
 	}
