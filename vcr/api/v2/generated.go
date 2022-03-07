@@ -199,7 +199,7 @@ type SearchIssuedVCsParams struct {
 }
 
 // VerifyVCJSONBody defines parameters for VerifyVC.
-type VerifyVCJSONBody VerifiableCredential
+type VerifyVCJSONBody VCVerificationRequest
 
 // CreateVPJSONRequestBody defines body for CreateVP for application/json ContentType.
 type CreateVPJSONRequestBody CreateVPJSONBody
