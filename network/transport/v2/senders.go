@@ -51,7 +51,9 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 		return grpc.ErrNoConnection
 	}
 
-	// there shouldn't be more than a ~650 in there, this will fit in a single message
+	// there shouldn't be more than ~650 in there, this will fit in a single message
+	// 650 is based on the maximum number of TXs that can be determined by a single IBLT decode operation.
+	// Any mismatches beyond that point will be handled by TransactionRangeQueries
 	refsAsBytes := make([][]byte, len(refs))
 	for i, ref := range refs {
 		refsAsBytes[i] = ref.Slice()

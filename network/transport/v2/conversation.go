@@ -111,11 +111,11 @@ func (cMan *conversationManager) done(cid conversationID) {
 }
 
 // startConversation sets a conversationID on the envelope and stores the conversation
-func (cMan *conversationManager) startConversation(envelope checkable) (newConversation conversation) {
+func (cMan *conversationManager) startConversation(envelope checkable) conversation {
 	cid := newConversationID()
 
 	envelope.setConversationID(cid)
-	newConversation = conversation{
+	newConversation := conversation{
 		conversationID:   cid,
 		createdAt:        time.Now(),
 		conversationData: envelope,
@@ -126,7 +126,7 @@ func (cMan *conversationManager) startConversation(envelope checkable) (newConve
 
 	cMan.conversations[cid.String()] = newConversation
 
-	return
+	return newConversation
 }
 
 func (cMan *conversationManager) check(envelope isEnvelope_Message) error {
