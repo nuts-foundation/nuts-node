@@ -152,10 +152,7 @@ func Test_ambassador_callback(t *testing.T) {
 		json.Unmarshal(didDocPayload, &expectedDocument)
 		tx := newTX()
 		txRef := tx.Ref()
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{
-			SourceTransaction: &txRef,
-			AllowDeactivated:  true,
-		}).Return(&expectedDocument, nil, nil)
+		ctx.didStore.EXPECT().Processed(txRef).Return(true, nil)
 
 		err = ctx.ambassador.callback(tx, didDocPayload)
 
@@ -164,8 +161,11 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("nok - invalid payload", func(t *testing.T) {
 		tx := newTX()
-		am := ambassador{}
-		err := am.callback(tx, []byte("}"))
+		ctx := newMockContext(t)
+		ctx.didStore.EXPECT().Processed(tx.ref).Return(false, nil)
+
+		err := ctx.ambassador.callback(tx, []byte("}"))
+
 		assert.EqualError(t, err, "unable to unmarshal DID document from network payload: invalid character '}' looking for beginning of value")
 	})
 
@@ -179,14 +179,16 @@ func Test_ambassador_callback(t *testing.T) {
 
 	t.Run("nok - DID document invalid according to W3C spec", func(t *testing.T) {
 		tx := newTX()
-		am := ambassador{}
+		ctx := newMockContext(t)
+		ctx.didStore.EXPECT().Processed(tx.ref).Return(false, nil)
 
 		// Document is missing context
 		id, _ := did.ParseDID("did:foo:bar")
 		emptyDIDDocument := did.Document{ID: *id}
 		didDocumentBytes, _ := emptyDIDDocument.MarshalJSON()
 
-		err := am.callback(tx, didDocumentBytes)
+		err := ctx.ambassador.callback(tx, didDocumentBytes)
+
 		assert.True(t, errors.Is(err, did.ErrInvalidContext))
 		assert.True(t, errors.Is(err, did.ErrDIDDocumentInvalid))
 	})

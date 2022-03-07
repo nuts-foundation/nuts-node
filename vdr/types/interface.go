@@ -112,6 +112,8 @@ type DocIterator func(doc did.Document, metadata DocumentMetadata) error
 
 // Store is the interface that groups all low level VDR DID storage operations.
 type Store interface {
+	// Processed returns true if a DID Document has already been processed for the given TX hash.
+	Processed(hash hash.SHA256Hash) (bool, error)
 	// Resolve returns the DID Document for the provided DID.
 	// If metadata is not provided the latest version is returned.
 	// If metadata is provided then the result is filtered or scoped on that metadata.

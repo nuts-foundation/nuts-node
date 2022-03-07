@@ -17,13 +17,13 @@ package store
 
 import (
 	"errors"
-	"io/ioutil"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"go.etcd.io/bbolt"
 
@@ -35,13 +35,11 @@ func newBBoltTestStore(t *testing.T) *bboltStore {
 	opts := *bbolt.DefaultOptions
 	opts.NoSync = true
 
-	dir, err := ioutil.TempDir("/tmp", "go_test_vdr_bboltstore")
-	assert.NoError(t, err)
+	testDir := io.TestDirectory(t)
 
-	db, err := bbolt.Open(filepath.Join(dir, "bbolt.db"), 0644, &opts)
-	assert.NoError(t, err)
-
-	return NewBBoltStore(db).(*bboltStore)
+	store := NewBBoltStore().(*bboltStore)
+	store.Configure(core.ServerConfig{Datadir: testDir})
+	return store
 }
 
 func TestBBoltStore_Write(t *testing.T) {
@@ -58,9 +56,43 @@ func TestBBoltStore_Write(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("doesn't return an error when already exist", func(t *testing.T) {
+	t.Run("does return an error when already exist", func(t *testing.T) {
 		err := store.Write(doc, meta)
-		assert.NoError(t, err)
+		assert.Equal(t, types.ErrDIDAlreadyExists, err)
+	})
+}
+
+func TestBboltStore_Processed(t *testing.T) {
+	store := newBBoltTestStore(t)
+	did1, _ := did.ParseDID("did:nuts:1")
+	doc := did.Document{
+		ID: *did1,
+	}
+	meta := types.DocumentMetadata{
+		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
+	}
+
+	err := store.Write(doc, meta)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	t.Run("returns true for processed hash", func(t *testing.T) {
+		processed, err := store.Processed(hash.EmptyHash())
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.True(t, processed)
+	})
+
+	t.Run("returns false for non-processed hash", func(t *testing.T) {
+		processed, err := store.Processed(hash.SHA256Sum([]byte{1}))
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.False(t, processed)
 	})
 }
 
@@ -122,7 +154,7 @@ func TestBBoltStore_Resolve(t *testing.T) {
 	})
 
 	t.Run("returns no document with resolve metadata - selection on date", func(t *testing.T) {
-		before := time.Now().Add(time.Hour * -48)
+		before := time.Now().Add(time.Hour * -49)
 		_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
 			ResolveTime: &before,
 		})
@@ -407,7 +439,7 @@ func TestBBoltStore_DeactivatedFilter(t *testing.T) {
 
 	t.Run("returns error when document is deactivated", func(t *testing.T) {
 		_, _, err := store.Resolve(*did1, nil)
-		assert.ErrorIs(t, types.ErrDeactivated, err)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 	})
 
 	t.Run("returns deactivated document when allow deactivated is enabled in metadata", func(t *testing.T) {

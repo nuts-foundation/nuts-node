@@ -90,6 +90,16 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 		return fmt.Errorf("could not process new DID Document: %w", err)
 	}
 
+	// check if already processed
+	processed, err := n.didStore.Processed(tx.Ref())
+	if err != nil {
+		return fmt.Errorf("could not process new DID Document: %w", err)
+	}
+	if processed {
+		log.Logger().Infof("Skipping DID document, already exists (tx=%s)", tx.Ref().String())
+		return nil
+	}
+
 	// Unmarshal the next/new proposed version of the DID Document
 	var nextDIDDocument did.Document
 	if err := json.Unmarshal(payload, &nextDIDDocument); err != nil {
@@ -98,20 +108,6 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 
 	if err := CreateDocumentValidator().Validate(nextDIDDocument); err != nil {
 		return fmt.Errorf("callback could not process new DID Document, DID Document integrity check failed: %w", err)
-	}
-
-	// we check the VDR if the document is already processed by using the transaction hash
-	sourceTX := tx.Ref()
-	doc, _, err := n.didStore.Resolve(nextDIDDocument.ID, &types.ResolveMetadata{
-		SourceTransaction: &sourceTX,
-		AllowDeactivated:  true,
-	})
-	if err != nil && !errors.Is(err, types.ErrNotFound) {
-		return fmt.Errorf("could not process new DID Document: %w", err)
-	}
-	if doc != nil {
-		log.Logger().Infof("Skipping DID document, already exists (tx=%s)", tx.Ref().String())
-		return nil
 	}
 
 	if n.isUpdate(tx) {

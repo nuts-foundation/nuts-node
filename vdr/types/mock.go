@@ -412,6 +412,21 @@ func (mr *MockStoreMockRecorder) Iterate(fn interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Iterate", reflect.TypeOf((*MockStore)(nil).Iterate), fn)
 }
 
+// Processed mocks base method.
+func (m *MockStore) Processed(hash hash.SHA256Hash) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Processed", hash)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Processed indicates an expected call of Processed.
+func (mr *MockStoreMockRecorder) Processed(hash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Processed", reflect.TypeOf((*MockStore)(nil).Processed), hash)
+}
+
 // Resolve mocks base method.
 func (m *MockStore) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
 	m.ctrl.T.Helper()

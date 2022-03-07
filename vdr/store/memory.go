@@ -176,6 +176,11 @@ func timeSelectionFilter(metadata vdr.ResolveMetadata) filterFunc {
 	}
 }
 
+// Processed always returns false for in memory DB
+func (m *memory) Processed(hash hash.SHA256Hash) (bool, error) {
+	return false, nil
+}
+
 // Write implements the DocWriteWriter interface and writes a DIDDocument with the provided metadata to the memory store.
 func (m *memory) Write(document did.Document, metadata vdr.DocumentMetadata) error {
 	m.mutex.Lock()
