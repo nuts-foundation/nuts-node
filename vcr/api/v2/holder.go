@@ -38,11 +38,6 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 		return core.InvalidInputError("failed to parse request body: %w", err)
 	}
 
-	//err = json.Unmarshal(bodyBytes, &rawRequest)
-	//if err != nil {
-	//	return core.InvalidInputError("failed to unmarshall JSON request body: %w", err)
-	//}
-
 	untrusted := false
 	if request.SearchOptions != nil && request.SearchOptions.AllowUntrustedIssuer != nil {
 		untrusted = *request.SearchOptions.AllowUntrustedIssuer
