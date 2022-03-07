@@ -17,6 +17,7 @@ type Xor struct {
 	Hash hash.SHA256Hash `json:"hash"`
 }
 
+// NewXor return *Xor containing an empty hash.
 func NewXor() *Xor {
 	return &Xor{Hash: hash.EmptyHash()}
 }

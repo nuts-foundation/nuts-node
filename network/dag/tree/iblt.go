@@ -17,6 +17,7 @@ const (
 	bucketBytes    = 44 // = int32 + uint64 + hash.SHA256HashSize
 )
 
+// ErrDecodeNotPossible is returned when the Iblt cannot be decoded.
 var ErrDecodeNotPossible = errors.New("decode failed")
 
 /*
@@ -32,6 +33,7 @@ type Iblt struct {
 	Buckets []*bucket `json:"buckets"`
 }
 
+// NewIblt returns an *Iblt with default settings and specified number of buckets.
 func NewIblt(numBuckets int) *Iblt {
 	return &Iblt{
 		Buckets: makeBuckets(numBuckets),

@@ -44,5 +44,5 @@ func TestBboltStore_Read(t *testing.T) {
 
 func newBBoltTestTreeStore(t *testing.T) *bboltTree {
 	testDir := io.TestDirectory(t)
-	return newBBoltTreeStore(createBBoltDB(testDir))
+	return NewBBoltTreeStore(createBBoltDB(testDir))
 }
