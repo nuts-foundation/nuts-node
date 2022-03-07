@@ -50,6 +50,8 @@ type conversation struct {
 	conversationID   conversationID
 	createdAt        time.Time
 	conversationData checkable
+	// additionalInfo can be used to check if a conversation is done
+	additionalInfo map[string]interface{}
 }
 
 type checkable interface {
@@ -64,13 +66,13 @@ type conversationable interface {
 
 type conversationManager struct {
 	mutex         sync.RWMutex
-	conversations map[string]conversation
+	conversations map[string]*conversation
 	validity      time.Duration
 }
 
 func newConversationManager(validity time.Duration) *conversationManager {
 	return &conversationManager{
-		conversations: map[string]conversation{},
+		conversations: map[string]*conversation{},
 		validity:      validity,
 	}
 }
@@ -111,14 +113,15 @@ func (cMan *conversationManager) done(cid conversationID) {
 }
 
 // startConversation sets a conversationID on the envelope and stores the conversation
-func (cMan *conversationManager) startConversation(envelope checkable) conversation {
+func (cMan *conversationManager) startConversation(envelope checkable) *conversation {
 	cid := newConversationID()
 
 	envelope.setConversationID(cid)
-	newConversation := conversation{
+	newConversation := &conversation{
 		conversationID:   cid,
 		createdAt:        time.Now(),
 		conversationData: envelope,
+		additionalInfo:   map[string]interface{}{},
 	}
 
 	cMan.mutex.Lock()

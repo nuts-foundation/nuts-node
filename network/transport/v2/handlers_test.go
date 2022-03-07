@@ -343,6 +343,56 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("ok - conversation marked as done", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+		conversation.additionalInfo["refs"] = []hash.SHA256Hash{h1}
+		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
+		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions: []*Transaction{
+					{
+						Hash:    h1.Slice(),
+						Data:    data,
+						Payload: payload,
+					},
+				},
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.Nil(t, p.cMan.conversations[conversation.conversationID.String()])
+	})
+
+	t.Run("ok - conversation not marked as done", func(t *testing.T) {
+		tx2, _, _ := dag.CreateTestTransaction(0)
+		h2 := tx2.Ref()
+		p, mocks := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+		conversation.additionalInfo["refs"] = []hash.SHA256Hash{h1, h2}
+		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
+		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions: []*Transaction{
+					{
+						Hash:    h1.Slice(),
+						Data:    data,
+						Payload: payload,
+					},
+				},
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, p.cMan.conversations[conversation.conversationID.String()])
+	})
+
 	t.Run("error - State.IsPresent failed", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request)

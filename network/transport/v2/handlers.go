@@ -170,6 +170,7 @@ func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope_TransactionList) error {
 	msg := envelope.TransactionList
 	cid := conversationID(msg.ConversationID)
+	conversation := p.cMan.conversations[cid.String()]
 
 	// TODO convert to trace logging
 	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
@@ -179,6 +180,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		return err
 	}
 
+	refsToBeRemoved := map[string]bool{}
 	ctx := context.Background()
 	for _, tx := range msg.Transactions {
 		transactionRef := hash.FromSlice(tx.Hash)
@@ -197,9 +199,28 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 				return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
 			}
 		}
+		refsToBeRemoved[transactionRef.String()] = true
 	}
 
-	// TODO done is not called on the cMan since we don't know if we received all chunks
+	// remove from conversation
+	if conversation.additionalInfo["refs"] != nil {
+		requestedRefs := conversation.additionalInfo["refs"].([]hash.SHA256Hash)
+		newRefs := make([]hash.SHA256Hash, len(requestedRefs))
+		i := 0
+		for _, requestedRef := range requestedRefs {
+			if _, ok := refsToBeRemoved[requestedRef.String()]; !ok {
+				newRefs[i] = requestedRef
+				i++
+			}
+		}
+		newRefs = newRefs[:i]
+		conversation.additionalInfo["refs"] = newRefs
+
+		// if len == 0, mark as done
+		if len(newRefs) == 0 {
+			p.cMan.done(cid)
+		}
+	}
 
 	return nil
 }
