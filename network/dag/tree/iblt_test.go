@@ -241,18 +241,18 @@ func TestIblt_validate(t *testing.T) {
 }
 
 func TestIblt_Add(t *testing.T) {
-	t.Run("ok - Add two *Iblt", func(t *testing.T) {
+	t.Run("ok - Add two *iblt", func(t *testing.T) {
 		h1, h2 := hash.FromSlice([]byte{1}), hash.FromSlice([]byte{2})
-		iblt1, iblt2, ibltXor := getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK))
+		iblt1, iblt2, ibltAdd := getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK))
 		_ = iblt1.Insert(h1)
 		_ = iblt2.Insert(h2)
-		_ = ibltXor.Insert(h1)
-		_ = ibltXor.Insert(h2)
+		_ = ibltAdd.Insert(h1)
+		_ = ibltAdd.Insert(h2)
 
 		err := iblt1.Add(iblt2)
 
 		assert.NoError(t, err)
-		assert.True(t, equals(iblt1, ibltXor))
+		assert.True(t, equals(iblt1, ibltAdd))
 	})
 
 	t.Run("fail - make sure validate is called", func(t *testing.T) {
@@ -265,18 +265,18 @@ func TestIblt_Add(t *testing.T) {
 }
 
 func TestIblt_Subtract(t *testing.T) {
-	t.Run("ok - Add two *Iblt", func(t *testing.T) {
+	t.Run("ok - Add two *iblt", func(t *testing.T) {
 		h1, h2 := hash.FromSlice([]byte{1}), hash.FromSlice([]byte{2})
-		iblt1, iblt2, ibltXor := getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK))
+		iblt1, iblt2, ibltSubtract := getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK))
 		_ = iblt1.Insert(h1)
 		_ = iblt2.Insert(h2)
-		_ = ibltXor.Insert(h1)
-		_ = ibltXor.Delete(h2)
+		_ = ibltSubtract.Insert(h1)
+		_ = ibltSubtract.Delete(h2)
 
 		err := iblt1.Subtract(iblt2)
 
 		assert.NoError(t, err)
-		assert.True(t, equals(iblt1, ibltXor))
+		assert.True(t, equals(iblt1, ibltSubtract))
 	})
 
 	t.Run("fail - make sure validate is called", func(t *testing.T) {
@@ -334,7 +334,7 @@ func TestIblt_Decode(t *testing.T) {
 			_ = iblt.Insert(r)
 		}
 
-		assert.EqualError(t, err, "decode failed")
+		assert.ErrorIs(t, err, ErrDecodeNotPossible)
 		assert.True(t, equals(clone, iblt), "failed to recover")
 	})
 
@@ -346,11 +346,12 @@ func TestIblt_Decode(t *testing.T) {
 
 		_, _, err := iblt.Decode()
 
-		assert.EqualError(t, err, "decode failed")
+		assert.ErrorIs(t, err, ErrDecodeNotPossible)
 	})
 }
 
 func TestIblt_MarshalBinary(t *testing.T) {
+	hash1, _, hash1BucketBytes := marshalBucketWithHash1()
 	iblt := getEmptyTestIblt(int(ibltK))
 	_ = iblt.Insert(hash1)
 
@@ -364,6 +365,7 @@ func TestIblt_MarshalBinary(t *testing.T) {
 }
 
 func TestIblt_UnmarshalBinary(t *testing.T) {
+	_, hash1Bucket, hash1BucketBytes := marshalBucketWithHash1()
 	ibltExpected := getEmptyTestIblt(int(ibltK))
 	iblt := ibltExpected.New().(*Iblt)
 	var data []byte
@@ -380,6 +382,7 @@ func TestIblt_UnmarshalBinary(t *testing.T) {
 
 // tests bucket
 func TestBucket_MarshalBinary(t *testing.T) {
+	_, hash1Bucket, hash1BucketBytes := marshalBucketWithHash1()
 	bs, err := hash1Bucket.MarshalBinary()
 
 	assert.NoError(t, err)
@@ -387,22 +390,23 @@ func TestBucket_MarshalBinary(t *testing.T) {
 }
 
 func TestBucket_UnmarshalBinary(t *testing.T) {
+	_, hash1Bucket, hash1BucketBytes := marshalBucketWithHash1()
 	b := new(bucket)
 
 	err := b.UnmarshalBinary(hash1BucketBytes)
 
 	assert.NoError(t, err)
-	assert.True(t, b.equals(hash1Bucket))
+	assert.True(t, b.equals(*hash1Bucket))
 }
 
-// bytes of a bucket when hash is []byte{1}
-var (
-	hash1            = hash.FromSlice([]byte{1})
-	hash1Key         = uint64(6332109210212100501)
-	hash1BucketBytes = []byte{1, 0, 0, 0, 149, 233, 171, 25, 199, 43, 224, 87, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	hash1Bucket      = bucket{
+// creates a bucket containing hash.FromSlice([]byte{1})
+func marshalBucketWithHash1() (hash.SHA256Hash, *bucket, []byte) {
+	hash1 := hash.FromSlice([]byte{1})
+	hash1Bucket := &bucket{
 		Count:   1,
-		HashSum: hash1Key,
+		HashSum: uint64(6332109210212100501),
 		KeySum:  hash1,
 	}
-)
+	hash1BucketBytes := []byte{1, 0, 0, 0, 149, 233, 171, 25, 199, 43, 224, 87, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	return hash1, hash1Bucket, hash1BucketBytes
+}

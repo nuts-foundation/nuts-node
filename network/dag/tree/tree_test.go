@@ -2,7 +2,6 @@ package tree
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
@@ -16,7 +15,7 @@ func TestNew(t *testing.T) {
 	emptyTree := New(NewXor(), testLeafSize)
 
 	// tree
-	assert.Equal(t, uint8(0), emptyTree.Depth)
+	assert.Equal(t, 0, emptyTree.Depth)
 	assert.Equal(t, testLeafSize, emptyTree.LeafSize)
 	assert.Equal(t, testLeafSize, emptyTree.MaxSize)
 
@@ -103,7 +102,7 @@ func TestTree_DropLeaves(t *testing.T) {
 		tr.DropLeaves()
 
 		assert.True(t, tr.Root.isLeaf())
-		assert.Equal(t, uint8(0), tr.Depth)
+		assert.Equal(t, 0, tr.Depth)
 		assert.Equal(t, testLeafSize, tr.LeafSize)
 	})
 
@@ -117,7 +116,7 @@ func TestTree_DropLeaves(t *testing.T) {
 		tr.DropLeaves()
 
 		assert.True(t, tr.Root.Left.isLeaf())
-		assert.Equal(t, uint8(1), tr.Depth)
+		assert.Equal(t, 1, tr.Depth)
 		assert.Equal(t, 2*testLeafSize, tr.LeafSize)
 	})
 }
@@ -131,7 +130,7 @@ func TestTree_reRoot(t *testing.T) {
 		assert.True(t, tr.Root.Left.isLeaf())
 		assert.Nil(t, tr.Root.Right)
 		assert.Equal(t, tr.MaxSize, 2*testLeafSize)
-		assert.Equal(t, uint8(1), tr.Depth)
+		assert.Equal(t, 1, tr.Depth)
 	})
 
 	t.Run("double re-root", func(t *testing.T) {
@@ -143,7 +142,7 @@ func TestTree_reRoot(t *testing.T) {
 		assert.True(t, tr.Root.Left.Left.isLeaf())
 		assert.Nil(t, tr.Root.Right)
 		assert.Equal(t, tr.MaxSize, 4*testLeafSize)
-		assert.Equal(t, uint8(2), tr.Depth)
+		assert.Equal(t, 2, tr.Depth)
 	})
 }
 
@@ -153,6 +152,23 @@ func TestTree_GetUpdate(t *testing.T) {
 		h := hash.FromSlice([]byte{1})
 		_ = tr.Insert(h, 2*testLeafSize)
 
+		dirty, orphaned, err := tr.GetUpdate()
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(orphaned))
+		assert.Equal(t, 2, len(dirty))
+		_, ok := dirty[testLeafSize/2] // root from newTestTree was dirty
+		assert.True(t, ok)
+		_, ok = dirty[testLeafSize*5/2]
+		assert.True(t, ok)
+	})
+
+	t.Run("GetUpdate does not reset update tracking", func(t *testing.T) {
+		tr := newTestTree(NewXor(), testLeafSize)
+		h := hash.FromSlice([]byte{1})
+		_ = tr.Insert(h, 2*testLeafSize)
+
+		_, _, _ = tr.GetUpdate()
 		dirty, orphaned, err := tr.GetUpdate()
 
 		assert.NoError(t, err)
@@ -196,7 +212,36 @@ func TestTree_ResetUpdate(t *testing.T) {
 }
 
 func TestTree_Load(t *testing.T) {
-	// TODO
+	t.Run("ok - tree reconstructed from bytes", func(t *testing.T) {
+		tr, _ := filledTestTree(NewXor(), testLeafSize)
+		dirty, _, _ := tr.GetUpdate()
+		loadedTree := New(NewXor(), 0)
+
+		err := loadedTree.Load(dirty)
+
+		assert.NoError(t, err)
+		assert.Equal(t, testLeafSize, loadedTree.LeafSize)
+		assert.Equal(t, 4*testLeafSize, loadedTree.MaxSize)
+		assert.Equal(t, 2, loadedTree.Depth)
+		assert.Equal(t, tr.Root, loadedTree.Root)
+
+		for lc := testLeafSize - 1; lc < loadedTree.MaxSize; lc += testLeafSize {
+			expData, expLc := tr.GetZeroTo(lc)
+			actualData, actualLc := loadedTree.GetZeroTo(lc)
+			assert.Equal(t, expData, actualData)
+			assert.Equal(t, expLc, actualLc)
+		}
+	})
+
+	t.Run("fail - incorrect data prototype", func(t *testing.T) {
+		tr, _ := filledTestTree(NewXor(), testLeafSize)
+		dirty, _, _ := tr.GetUpdate()
+		loadedTree := New(NewIblt(ibltNumBuckets), 0)
+
+		err := loadedTree.Load(dirty)
+
+		assert.Error(t, err)
+	})
 }
 
 var jsonTestData = []byte(
@@ -212,7 +257,6 @@ func TestTree_MarshalJSON(t *testing.T) {
 	tr, _ := filledTestTree(NewXor(), 4)
 
 	jsonData, err := json.Marshal(tr)
-	fmt.Println(string(jsonData))
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -226,7 +270,7 @@ func TestTree_UnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal(jsonTestData, &tr)
 
 	assert.NoError(t, err)
-	assert.Equal(t, uint8(2), tr.Depth)
+	assert.Equal(t, 2, tr.Depth)
 	assert.Equal(t, uint32(16), tr.MaxSize)
 	assert.Equal(t, uint32(4), tr.LeafSize)
 	assert.True(t, nodeEquals(tr.Root, 8, 16, treeD.r.(*Xor).Hash))

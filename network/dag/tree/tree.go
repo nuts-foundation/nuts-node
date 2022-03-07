@@ -8,7 +8,7 @@ import (
 	"math"
 )
 
-// Data is the interface for Data held in each node of the tree
+// Data is the interface for data held in each node of the Tree
 type Data interface {
 	// New creates a copy of this instance that is initialized to the default/empty state.
 	New() Data
@@ -16,39 +16,45 @@ type Data interface {
 	Clone() Data
 	// Insert a new transaction reference.
 	Insert(ref hash.SHA256Hash) error
-	// Add another instance to this one. Produces an error if the underlying datastructures are not the same.
-	Add(data Data) error
-	// Subtract another instance from this one. Produces an error if the underlying datastructures are not the same.
-	Subtract(data Data) error
+	// Add other Data to this one. Returns an error if the underlying datastructures are incompatible.
+	Add(other Data) error
+	// Subtract other Data from this one. Returns an error if the underlying datastructures are incompatible.
+	Subtract(other Data) error
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 }
 
-// Tree
-/* tree creates a binary tree, where the leaves contain Data over a fixed range of Lamport Clock (uint32) values.
-The Data of the parent is the sum of that of its children. The root contains the sum of all Data in the tree.
-Since the leaves are of fixed size, a new root is created when added something to a clock outside the current root range.
-Whenever a new branch is created, a string of left Nodes is created all the way to the leaf.
-*/
 type Tree interface {
 	// Insert a transaction reference at the specified clock value.
 	Insert(ref hash.SHA256Hash, clock uint32) error
 	// GetRoot returns the accumulated Data for the entire tree
 	GetRoot() Data
-	// GetZeroTo Data for uint32-range [0, ceil(clock/leafSize)*leafSize)
+	// GetZeroTo returns the LC value closest to the requested clock value together with Data of the same range.
+	// The LC value closest to requested clock is defined as the lowest of:
+	// 	- highest LC known to the Tree
+	// 	- highest LC of the leaf that clock is on: ceil(clock/leafSize)*leafSize - 1
 	GetZeroTo(clock uint32) (Data, uint32)
-	// DropLeaves shrinks the tree by dropping all leaves. The parent of a leaf will become the new leaf
+	// DropLeaves shrinks the tree by dropping all leaves. The parent of a leaf will become the new leaf.
 	DropLeaves()
 	// GetUpdate return the leaves that have been orphaned or updated since the last call to ResetUpdate.
 	// dirty and orphaned are mutually exclusive.
 	GetUpdate() (dirty map[uint32][]byte, orphaned []uint32, err error)
-	// ResetUpdate resets tracked changes.
+	// ResetUpdate forgets all currently tracked changes.
 	ResetUpdate()
+	// Load builds a tree from binary leaf data. The keys in leaves correspond to a node's split value.
 	Load(leaves map[uint32][]byte) error
 }
 
+/*
+tree creates a binary tree, where the leaves contain Data over a fixed range of Lamport Clock (uint32) values.
+	- The Data of the parent node is the sum of that of its children. Thus root contains the sum of all Data in the tree.
+	- The value that splits a node into its children is used as a nodeID since it is unique, even after tree resizing.
+	- Since the leaves are of fixed size, a new root is created when added something to a clock outside the current root range.
+	- Whenever a new branch is created, a string of left Nodes is created all the way down to the leaf.
+	- tree is not thread-safe
+*/
 type tree struct {
-	Depth    uint8  `json:"depth"`
+	Depth    int    `json:"depth"`
 	MaxSize  uint32 `json:"max_size"`
 	LeafSize uint32 `json:"leaf_size"`
 	Root     *node  `json:"root"`
@@ -77,7 +83,7 @@ func (t *tree) resetDefaults(leafSize uint32) {
 func (t *tree) Load(leaves map[uint32][]byte) error {
 	// initialize tree
 	split := uint32(math.MaxUint32)
-	for k, _ := range leaves {
+	for k := range leaves {
 		if k < split {
 			split = k
 		}
@@ -85,7 +91,7 @@ func (t *tree) Load(leaves map[uint32][]byte) error {
 	t.resetDefaults(2 * split)
 
 	// build tree
-	// Current implementation requires ±d*2^d calls to Data.Add(). Building the tree bottom up would be ±2^d
+	// note: current implementation requires a maximum of d*2^d calls to Data.Add(), where d = t.Depth. Building the tree bottom up would require a max of 2^(d-1) calls.
 	var err error
 	var leaf []byte
 	for split, leaf = range leaves {
@@ -108,7 +114,6 @@ func (t *tree) Load(leaves map[uint32][]byte) error {
 	return nil
 }
 
-// Insert a transaction reference at the specified clock value.
 func (t *tree) Insert(ref hash.SHA256Hash, clock uint32) error {
 	return t.applyToPath(clock, func(n *node) error {
 		return n.Data.Insert(ref)
@@ -176,12 +181,10 @@ func (t *tree) getNextNode(n *node, clock uint32) *node {
 	}
 }
 
-// GetRoot returns the accumulated Data for the entire tree
 func (t *tree) GetRoot() Data {
 	return t.Root.Data.Clone()
 }
 
-// GetZeroTo Data for uint32-range [0, ceil(clock/leafSize)*leafSize)
 func (t *tree) GetZeroTo(clock uint32) (Data, uint32) {
 	data := t.Root.Data.Clone()
 	next := t.Root
@@ -224,7 +227,7 @@ func (t tree) GetUpdate() (dirty map[uint32][]byte, orphaned []uint32, err error
 		}
 		dirty[k] = b
 	}
-	for k, _ := range t.orphanedLeaves {
+	for k := range t.orphanedLeaves {
 		orphaned = append(orphaned, k)
 	}
 	return dirty, orphaned, nil
@@ -240,7 +243,6 @@ type dropLeavesUpdate struct {
 	orphaned map[uint32]struct{}
 }
 
-// DropLeaves shrinks the tree by dropping all leaves. The parent of a leaf will become the new leaf
 func (t *tree) DropLeaves() {
 	// don't drop root
 	if t.Root == nil || t.Root.isLeaf() {
@@ -287,7 +289,7 @@ func dropLeaves(n *node, update *dropLeavesUpdate) {
 
 // node
 type node struct {
-	// SplitLC point for Left / Right node
+	// SplitLC point for Left / Right node. SplitLC is part of the right node.
 	SplitLC uint32 `json:"split"`
 	// LimitLC is the node's upper limit for the LC (exclusive)
 	LimitLC uint32 `json:"limit"`

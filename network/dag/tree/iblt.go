@@ -17,13 +17,14 @@ const (
 	bucketBytes    = 44 // = int32 + uint64 + hash.SHA256HashSize
 )
 
-/*
-Implementation of an Invertible Bloom Filter, which is the special case of an IBLT where the key-value pair consist of a key-hash(key) pair.
-The hash(key) value ensures correct decoding after subtraction of two IBLTs.
-Goodrich, Michael T., and Michael Mitzenmacher. "Invertible bloom lookup tables." http://arxiv.org/pdf/1101.2245
-Eppstein, David, et al. "What's the difference?: efficient set reconciliation without prior context." http://conferences.sigcomm.org/sigcomm/2011/papers/sigcomm/p218.pdf
-*/
+var ErrDecodeNotPossible = errors.New("decode failed")
 
+/*
+Iblt implements an Invertible Bloom Filter, which is the special case of an IBLT where the key-value pair consist of a key-hash(key) pair.
+The hash(key) value ensures correct decoding after subtraction of two IBLTs. Iblt is not thread-safe.
+	- Goodrich, Michael T., and Michael Mitzenmacher. "Invertible bloom lookup tables." http://arxiv.org/pdf/1101.2245
+	- Eppstein, David, et al. "What's the difference?: efficient set reconciliation without prior context." http://conferences.sigcomm.org/sigcomm/2011/papers/sigcomm/p218.pdf
+*/
 type Iblt struct {
 	Hc      uint32    `json:"Hc"`
 	Hk      uint32    `json:"Hk"`
@@ -61,6 +62,7 @@ func (i *Iblt) Insert(ref hash.SHA256Hash) error {
 	return nil
 }
 
+// Delete subtracts the key from the iblt and is the inverse of Insert.
 func (i *Iblt) Delete(key hash.SHA256Hash) error {
 	keyHash := i.hashKey(key)
 	for _, h := range i.bucketIndices(keyHash) {
@@ -91,6 +93,7 @@ func (i *Iblt) Subtract(other Data) error {
 	return nil
 }
 
+// validate returns other as an *iblt if it is compatible with self, or an error if not.
 func (i Iblt) validate(other Data) (*Iblt, error) {
 	// validate datatype
 	o, ok := other.(*Iblt)
@@ -116,6 +119,9 @@ func (i Iblt) validate(other Data) (*Iblt, error) {
 	return o, nil
 }
 
+// Decode tries to deconstruct the iblt into hashes remaining (positive entries) and missing (negative entries) from the iblt.
+// Decode is destructive to the iblt. If decoding fails with ErrDecodeNotPossible, the original iblt can be recovered by
+// Insert-ing all remaining and Delete-ing all missing hashes. Any other error is unrecoverable.
 func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash, err error) {
 	for {
 		updated := false
@@ -137,11 +143,11 @@ func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash,
 			}
 		}
 
-		// if no pures exist, the Iblt is empty or cannot be decoded
+		// if no pures exist, the iblt is empty or cannot be decoded
 		if !updated {
 			for _, b := range i.Buckets {
 				if !b.isEmpty() {
-					return remaining, missing, errors.New("decode failed")
+					return remaining, missing, ErrDecodeNotPossible
 				}
 			}
 			return remaining, missing, nil
