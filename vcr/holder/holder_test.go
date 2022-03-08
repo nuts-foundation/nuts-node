@@ -68,9 +68,6 @@ func TestHolder_BuildVP(t *testing.T) {
 		options := proof.ProofOptions{}
 		resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, vdr.TestDIDA, false)
 
-		data, _ := json.Marshal(resultingPresentation)
-		println(string(data))
-
 		assert.NoError(t, err)
 		assert.NotNil(t, resultingPresentation)
 	})

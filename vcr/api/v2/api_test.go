@@ -20,6 +20,7 @@ package v2
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"net/http"
 	"testing"
 
@@ -540,6 +541,63 @@ func TestWrapper_CreateVP(t *testing.T) {
 	})
 }
 
+func TestWrapper_VerifyVP(t *testing.T) {
+	verifiableCredential := vc.VerifiableCredential{
+		Type:              []ssi.URI{ssi.MustParseURI("ExampleType")},
+	}
+	vp := vc.VerifiablePresentation{VerifiableCredential: []VerifiableCredential{verifiableCredential}}
+
+	t.Run("ok", func(t *testing.T) {
+		testContext := newMockContext(t)
+		validAt := time.Now()
+		request := VPVerificationRequest{
+			VerifiablePresentation: vp,
+			ValidAt: &validAt,
+		}
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*VPVerificationRequest)
+			*verifyRequest = request
+			return nil
+		})
+		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, &validAt).Return(vp.VerifiableCredential, nil)
+		testContext.echo.EXPECT().JSON(http.StatusOK, vp.VerifiableCredential)
+
+		err := testContext.client.VerifyVP(testContext.echo)
+
+		assert.NoError(t, err)
+	})
+	t.Run("ok - verifyCredentials set", func(t *testing.T) {
+		testContext := newMockContext(t)
+		verifyCredentials := false
+		request := VPVerificationRequest{VerifiablePresentation: vp, VerifyCredentials: &verifyCredentials}
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*VPVerificationRequest)
+			*verifyRequest = request
+			return nil
+		})
+		testContext.mockVerifier.EXPECT().VerifyVP(vp, false, nil).Return(vp.VerifiableCredential, nil)
+		testContext.echo.EXPECT().JSON(http.StatusOK, vp.VerifiableCredential)
+
+		err := testContext.client.VerifyVP(testContext.echo)
+
+		assert.NoError(t, err)
+	})
+	t.Run("error - verification failed", func(t *testing.T) {
+		testContext := newMockContext(t)
+		request := VPVerificationRequest{VerifiablePresentation: vp}
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*VPVerificationRequest)
+			*verifyRequest = request
+			return nil
+		})
+		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, nil).Return(nil, errors.New("failed"))
+
+		err := testContext.client.VerifyVP(testContext.echo)
+
+		assert.Error(t, err)
+	})
+}
+
 func TestWrapper_Preprocess(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -554,12 +612,13 @@ func TestWrapper_Preprocess(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl       *gomock.Controller
-	echo       *mock.MockContext
-	mockIssuer *issuer.MockIssuer
-	mockHolder *holder.MockHolder
-	vcr        *vcr.MockVCR
-	client     *Wrapper
+	ctrl         *gomock.Controller
+	echo         *mock.MockContext
+	mockIssuer   *issuer.MockIssuer
+	mockHolder   *holder.MockHolder
+	mockVerifier *verifier.MockVerifier
+	vcr          *vcr.MockVCR
+	client       *Wrapper
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -568,16 +627,19 @@ func newMockContext(t *testing.T) mockContext {
 	mockVcr := vcr.NewMockVCR(ctrl)
 	mockIssuer := issuer.NewMockIssuer(ctrl)
 	mockHolder := holder.NewMockHolder(ctrl)
+	mockVerifier := verifier.NewMockVerifier(ctrl)
 	mockVcr.EXPECT().Issuer().Return(mockIssuer).AnyTimes()
 	mockVcr.EXPECT().Holder().Return(mockHolder).AnyTimes()
+	mockVcr.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 	client := &Wrapper{VCR: mockVcr}
 
 	return mockContext{
-		ctrl:       ctrl,
-		echo:       mock.NewMockContext(ctrl),
-		mockIssuer: mockIssuer,
-		mockHolder: mockHolder,
-		vcr:        mockVcr,
-		client:     client,
+		ctrl:         ctrl,
+		echo:         mock.NewMockContext(ctrl),
+		mockIssuer:   mockIssuer,
+		mockHolder:   mockHolder,
+		mockVerifier: mockVerifier,
+		vcr:          mockVcr,
+		client:       client,
 	}
 }
