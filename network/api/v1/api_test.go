@@ -20,6 +20,7 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -125,6 +126,69 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 		err := wrapper.GetTransaction(c)
 
 		assert.EqualError(t, err, "transaction not found")
+	})
+}
+
+func TestApiWrapper_GetTransactionPAL(t *testing.T) {
+	txRef := hash.SHA256Hash{1,2,3}
+	path := "/transaction/:ref/pal"
+
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		svc := network.NewMockTransactions(ctrl)
+		e, wrapper := initMockEcho(svc)
+
+		expected := dag.PAL{did.MustParseDID("did:nuts:A")}
+		svc.EXPECT().GetTransactionParticipants(hash.EqHash(txRef)).Return(expected, nil)
+
+		req := httptest.NewRequest(echo.GET, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetPath(path)
+		c.SetParamNames("ref")
+		c.SetParamValues(txRef.String())
+
+		err := wrapper.GetTransactionPAL(c)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json; charset=UTF-8", rec.Header().Get("Content-Type"))
+	})
+	t.Run("error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		svc := network.NewMockTransactions(ctrl)
+		e, wrapper := initMockEcho(svc)
+
+		svc.EXPECT().GetTransactionParticipants(gomock.Any()).Return(nil, errors.New("failed"))
+
+		req := httptest.NewRequest(echo.GET, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetPath(path)
+		c.SetParamNames("ref")
+		c.SetParamValues(txRef.String())
+
+		err := wrapper.GetTransactionPAL(c)
+
+		assert.EqualError(t, err, "failed")
+	})
+	t.Run("invalid hash", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		svc := network.NewMockTransactions(ctrl)
+		e, wrapper := initMockEcho(svc)
+
+		req := httptest.NewRequest(echo.GET, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetPath(path)
+		c.SetParamNames("ref")
+		c.SetParamValues("1234")
+
+		err := wrapper.GetTransactionPAL(c)
+
+		assert.EqualError(t, err, "invalid hash: incorrect hash length (2)")
 	})
 }
 

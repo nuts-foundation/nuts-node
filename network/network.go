@@ -346,8 +346,7 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 // GetTransactionParticipants retrieves the participants of the given transaction.
 // If the transaction is not known or the local node isn't a participant in the transaction, an error is returned.
 func (n *Network) GetTransactionParticipants(transactionRef hash.SHA256Hash) (dag.PAL, error) {
-	ctx := context.Background()
-	tx, err := n.state.GetTransaction(ctx, transactionRef)
+	tx, err := n.state.GetTransaction(context.Background(), transactionRef)
 	if err != nil {
 		return nil, err
 	}
