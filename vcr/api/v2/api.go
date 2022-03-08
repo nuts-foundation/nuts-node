@@ -230,6 +230,7 @@ func (w *Wrapper) CreateVP(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, vp)
 }
 
+// VerifyVP handles API request to verify a Verifiable Presentation.
 func (w *Wrapper) VerifyVP(ctx echo.Context) error {
 	request := &VPVerificationRequest{}
 	if err := ctx.Bind(request); err != nil {
