@@ -347,6 +347,21 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 	return n.state.ReadPayload(context.Background(), transaction.PayloadHash())
 }
 
+func (n *Network) GetTransactionParticipants(transactionRef hash.SHA256Hash) (dag.PAL, error) {
+	ctx := context.Background()
+	tx, err := n.state.GetTransaction(ctx, transactionRef)
+	if err != nil {
+		return nil, err
+	}
+	if tx == nil {
+		return nil, ErrTransactionNotFound
+	}
+	if len(tx.PAL()) == 0 {
+		return dag.PAL{}, nil
+	}
+	return transport.DecryptPAL(n.nodeDIDResolver, n.didDocumentResolver, n.decrypter, tx.PAL())
+}
+
 // ListTransactions returns all transactions known to this Network instance.
 func (n *Network) ListTransactions() ([]dag.Transaction, error) {
 	return n.state.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())

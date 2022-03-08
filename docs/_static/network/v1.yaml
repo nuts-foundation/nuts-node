@@ -72,7 +72,7 @@ paths:
         schema:
           type: string
     get:
-      summary: "Retrieves a transaction"
+      summary: "Retrieves the decrypted PAL heaer of a transaction"
       description: |
         Retrieves the plain-text PAL header of the transaction.
 
@@ -85,7 +85,7 @@ paths:
         - transactions
       responses:
         "200":
-          description: "Transaction is known in the transaction log"
+          description: "Transaction is known in the transaction log and successfully decrypted"
           content:
             application/jose:
               schema:

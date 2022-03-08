@@ -88,7 +88,7 @@ func (s testTransaction) Ref() hash.SHA256Hash {
 	return s.ref
 }
 
-func (s testTransaction) PAL() [][]byte {
+func (s testTransaction) PAL() dag.EncryptedPAL {
 	return s.pal
 }
 

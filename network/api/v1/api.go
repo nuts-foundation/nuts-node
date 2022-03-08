@@ -19,11 +19,8 @@
 package v1
 
 import (
-	"errors"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -34,16 +31,20 @@ import (
 
 // Wrapper implements the ServerInterface for the network API.
 type Wrapper struct {
-	Decrypter       crypto.Decrypter
-	Service         network.Transactions
-	DocResolver     types.DocResolver
-	NodeDIDResolver transport.NodeDIDResolver
+	Service network.Transactions
 }
 
 // Preprocess is called just before the API operation itself is invoked.
 func (a *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.OperationIDContextKey, operationID)
 	context.Set(core.ModuleNameContextKey, network.ModuleName)
+}
+
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
+func (a *Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
+		network.ErrTransactionNotFound: http.StatusNotFound,
+	})
 }
 
 func (a *Wrapper) Routes(router core.EchoRouter) {
@@ -82,48 +83,16 @@ func (a Wrapper) GetTransaction(ctx echo.Context, hashAsString string) error {
 	return err
 }
 
+// GetTransactionPAL returns the decrypted PAL header for a transaction.
 func (a Wrapper) GetTransactionPAL(ctx echo.Context, hashAsString string) error {
 	hash, err := parseHash(hashAsString)
 	if err != nil {
 		return err
 	}
-
-	transaction, err := a.Service.GetTransaction(hash)
+	pal, err := a.Service.GetTransactionParticipants(hash)
 	if err != nil {
 		return err
 	}
-
-	if transaction == nil {
-		return core.NotFoundError("transaction not found")
-	}
-
-	nodeDID, err := a.NodeDIDResolver.Resolve()
-	if err != nil {
-		return err
-	}
-
-	if nodeDID.Empty() {
-		return errors.New("node DID is not set")
-	}
-
-	doc, _, err := a.DocResolver.Resolve(nodeDID, nil)
-	if err != nil {
-		return err
-	}
-
-	keyAgreementIDs := make([]string, len(doc.KeyAgreement))
-
-	for i, keyAgreement := range doc.KeyAgreement {
-		keyAgreementIDs[i] = keyAgreement.ID.String()
-	}
-
-	epal := dag.EncryptedPAL(transaction.PAL())
-
-	pal, err := epal.Decrypt(keyAgreementIDs, a.Decrypter)
-	if err != nil {
-		return err
-	}
-
 	return ctx.JSON(http.StatusOK, pal)
 }
 

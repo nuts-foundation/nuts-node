@@ -64,7 +64,7 @@ func TestParseTransaction(t *testing.T) {
 		assert.Equal(t, "foo/bar", transaction.PayloadType())
 		assert.Equal(t, time.UTC, transaction.SigningTime().Location())
 		assert.Equal(t, headers.PrivateParams()[previousHeader].([]string)[0], transaction.Previous()[0].String())
-		assert.Equal(t, transaction.PAL(), [][]byte{{5, 6, 7}})
+		assert.Equal(t, transaction.PAL(), EncryptedPAL([][]byte{{5, 6, 7}}))
 		assert.NotNil(t, transaction.Data())
 		assert.False(t, transaction.Ref().Empty())
 	})

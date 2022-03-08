@@ -20,7 +20,6 @@ package v2
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -262,9 +261,7 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 		return p.payloadScheduler.Finished(hash)
 	}
 
-	epal := dag.EncryptedPAL(tx.PAL())
-
-	pal, err := p.decryptPAL(epal)
+	pal, err := transport.DecryptPAL(p.nodeDIDResolver, p.docResolver, p.decrypter, tx.PAL())
 	if err != nil {
 		return fmt.Errorf("failed to decrypt PAL header (tx=%s): %w", tx.Ref(), err)
 	}
@@ -337,33 +334,6 @@ func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
 		return fmt.Errorf("unable to send msg, connection not found (peer=%s)", peer)
 	}
 	return connection.Send(p, &Envelope{Message: message})
-}
-
-// decryptPAL returns nil, nil if the PAL couldn't be decoded
-func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
-	nodeDID, err := p.nodeDIDResolver.Resolve()
-	if err != nil {
-		return nil, err
-	}
-
-	if nodeDID.Empty() {
-		return nil, errors.New("node DID is not set")
-	}
-
-	doc, _, err := p.docResolver.Resolve(nodeDID, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	keyAgreementIDs := make([]string, len(doc.KeyAgreement))
-
-	for i, keyAgreement := range doc.KeyAgreement {
-		keyAgreementIDs[i] = keyAgreement.ID.String()
-	}
-
-	epal := dag.EncryptedPAL(encrypted)
-
-	return epal.Decrypt(keyAgreementIDs, p.decrypter)
 }
 
 type protocolServer struct {

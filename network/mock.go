@@ -66,6 +66,21 @@ func (mr *MockTransactionsMockRecorder) GetTransaction(transactionRef interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransaction", reflect.TypeOf((*MockTransactions)(nil).GetTransaction), transactionRef)
 }
 
+// GetTransactionParticipants mocks base method.
+func (m *MockTransactions) GetTransactionParticipants(transactionRef hash.SHA256Hash) (dag.PAL, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTransactionParticipants", transactionRef)
+	ret0, _ := ret[0].(dag.PAL)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTransactionParticipants indicates an expected call of GetTransactionParticipants.
+func (mr *MockTransactionsMockRecorder) GetTransactionParticipants(transactionRef interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionParticipants", reflect.TypeOf((*MockTransactions)(nil).GetTransactionParticipants), transactionRef)
+}
+
 // GetTransactionPayload mocks base method.
 func (m *MockTransactions) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
 	m.ctrl.T.Helper()

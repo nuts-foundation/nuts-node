@@ -19,10 +19,14 @@
 package network
 
 import (
+	"errors"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
+
+// ErrTransactionNotFound is returned when the transaction can't be found
+var ErrTransactionNotFound = errors.New("transaction not found")
 
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
 type Transactions interface {
@@ -34,6 +38,9 @@ type Transactions interface {
 	GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error)
 	// GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
 	GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error)
+	// GetTransactionParticipants retrieves the participants of the given transaction.
+	// If the transaction is not known or the local node isn't a participant in the transaction, an error is returned.
+	GetTransactionParticipants(transactionRef hash.SHA256Hash) (dag.PAL, error)
 	// CreateTransaction creates a new transaction according to the given spec.
 	CreateTransaction(spec Template) (dag.Transaction, error)
 	// ListTransactions returns all transactions known to this Network instance.

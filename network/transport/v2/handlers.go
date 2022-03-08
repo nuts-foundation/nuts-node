@@ -24,7 +24,6 @@ import (
 	"fmt"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
@@ -73,9 +72,8 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *Trans
 			log.Logger().Warnf("Peer requested private transaction over unauthenticated connection (peer=%s,tx=%s)", peer, tx.Ref())
 			return p.send(peer, emptyResponse)
 		}
-		epal := dag.EncryptedPAL(tx.PAL())
 
-		pal, err := p.decryptPAL(epal)
+		pal, err := transport.DecryptPAL(p.nodeDIDResolver, p.docResolver, p.decrypter, tx.PAL())
 		if err != nil {
 			log.Logger().Errorf("Peer requested private transaction but decoding failed (peer=%s,tx=%s): %v", peer, tx.Ref(), err)
 			return p.send(peer, emptyResponse)

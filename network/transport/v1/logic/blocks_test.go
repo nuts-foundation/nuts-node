@@ -360,7 +360,7 @@ func (t testTX) SigningKey() jwk.Key {
 	panic("implement me")
 }
 
-func (t testTX) PAL() [][]byte {
+func (t testTX) PAL() dag.EncryptedPAL {
 	return t.pal
 }
 
