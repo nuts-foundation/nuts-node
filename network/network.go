@@ -211,10 +211,6 @@ func (n *Network) Config() interface{} {
 	return &n.config
 }
 
-func (n *Network) NodeDIDResolver() transport.NodeDIDResolver {
-	return n.nodeDIDResolver
-}
-
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
@@ -347,6 +343,8 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 	return n.state.ReadPayload(context.Background(), transaction.PayloadHash())
 }
 
+// GetTransactionParticipants retrieves the participants of the given transaction.
+// If the transaction is not known or the local node isn't a participant in the transaction, an error is returned.
 func (n *Network) GetTransactionParticipants(transactionRef hash.SHA256Hash) (dag.PAL, error) {
 	ctx := context.Background()
 	tx, err := n.state.GetTransaction(ctx, transactionRef)
