@@ -33,7 +33,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spaolacci/murmur3"
+	"github.com/twmb/murmur3"
 )
 
 // Should be set to a number where the possibility for hash collisions is low
