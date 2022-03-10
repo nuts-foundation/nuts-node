@@ -26,11 +26,11 @@ require (
 	github.com/prometheus/client_golang v1.12.1
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spaolacci/murmur3 v1.1.0
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.14.0
+	github.com/twmb/murmur3 v1.1.6
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.9.0
 	google.golang.org/grpc v1.44.0
@@ -133,6 +133,7 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sietseringers/go-sse v0.0.0-20200801161811-e2cf2c63ca50 // indirect
+	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
 	github.com/templexxx/cpufeat v0.0.0-20180724012125-cef66df7f161 // indirect
 	github.com/templexxx/xor v0.0.0-20181023030647-4e92f724b73b // indirect
