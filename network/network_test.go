@@ -125,12 +125,22 @@ func TestNetwork_Diagnostics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(ctrl, func(config *Config) {
+			config.NodeDID = "did:nuts:localio"
+		})
+		// Diagnostics from deps
+		numStats := 6
 		cxt.connectionManager.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
 		cxt.protocol.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
 		cxt.state.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
+		// Diagnostic with node DID
+		numStats++
+		nodeDIDStat := core.GenericDiagnosticResult{Title: "node_did", Outcome: did.MustParseDID("did:nuts:localio")}
+
 		diagnostics := cxt.network.Diagnostics()
-		assert.Len(t, diagnostics, 6)
+
+		assert.Len(t, diagnostics, numStats)
+		assert.Contains(t, diagnostics, nodeDIDStat)
 	})
 }
 
@@ -855,8 +865,7 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	network.protocols = []transport.Protocol{prot}
 	network.didDocumentResolver = docResolver
 	if len(networkConfig.NodeDID) > 0 {
-		nodeDID, _ := did.ParseDID(networkConfig.NodeDID)
-		network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: did.MustParseDID(networkConfig.NodeDID)}
 	}
 	network.startTime.Store(time.Now())
 	return &networkTestContext{

@@ -40,16 +40,16 @@ type GenericDiagnosticResult struct {
 }
 
 // Result returns the raw outcome of the GenericDiagnosticResult
-func (gdr *GenericDiagnosticResult) Result() interface{} {
+func (gdr GenericDiagnosticResult) Result() interface{} {
 	return gdr.Outcome
 }
 
 // Name returns the name of the GenericDiagnosticResult
-func (gdr *GenericDiagnosticResult) Name() string {
+func (gdr GenericDiagnosticResult) Name() string {
 	return gdr.Title
 }
 
 // String returns the outcome of the GenericDiagnosticResult
-func (gdr *GenericDiagnosticResult) String() string {
+func (gdr GenericDiagnosticResult) String() string {
 	return fmt.Sprintf("%v", gdr.Outcome)
 }
